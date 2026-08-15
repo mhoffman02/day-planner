@@ -15,7 +15,7 @@ function runSelfTest() {
 
   // Test 1: Drive Root & Folder Hierarchy Access
   try {
-    var rootFolder = getFolderByNameOrCreate(DriveApp.getRootFolder(), 'Day Planner');
+    var rootFolder = getFolderByNameOrCreate(null, 'Day Planner');
     var yearFolder = getFolderByNameOrCreate(rootFolder, new Date().getFullYear().toString());
     results.push({
       test: '1. Google Drive & Folder Hierarchy',
@@ -155,6 +155,23 @@ function runSelfTest() {
  */
 function runPowerOnSelfTest() {
   return runSelfTest();
+}
+
+/**
+ * IDE Execution helper for single-stepping or debugging doGet(e) in the Apps Script IDE
+ */
+function testDoGetInIDE() {
+  var mockEvent = {
+    pathInfo: 'self-test',
+    queryString: 'view=self-test',
+    parameter: { view: 'self-test' },
+    parameters: { view: ['self-test'] },
+    contextPath: ''
+  };
+  Logger.log('Executing doGet(mockEvent)...');
+  var output = doGet(mockEvent);
+  Logger.log('doGet Output Length: ' + output.getContent().length);
+  return output;
 }
 
 /**

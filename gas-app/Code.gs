@@ -247,6 +247,7 @@ function getDailyData(dateStr) {
 
 /**
  * Gets or creates the daily note Google Doc content in /Day Planner/YYYY/MM/
+ * Compatible with strict drive.file scope without calling getRootFolder()
  */
 function getOrCreateDailyDocContent(dateStr) {
   if (typeof DriveApp === 'undefined' || typeof DocumentApp === 'undefined') {
@@ -258,7 +259,7 @@ function getOrCreateDailyDocContent(dateStr) {
     var year = parts[0];
     var month = parts[1];
 
-    var parentFolder = getFolderByNameOrCreate(DriveApp.getRootFolder(), 'Day Planner');
+    var parentFolder = getFolderByNameOrCreate(null, 'Day Planner');
     var yearFolder = getFolderByNameOrCreate(parentFolder, year);
     var monthFolder = getFolderByNameOrCreate(yearFolder, month);
 
@@ -289,9 +290,15 @@ function getOrCreateDailyDocContent(dateStr) {
 
 function getFolderByNameOrCreate(parent, name) {
   try {
-    var folders = parent.getFoldersByName(name);
-    if (folders.hasNext()) return folders.next();
-    return parent.createFolder(name);
+    if (parent) {
+      var folders = parent.getFoldersByName(name);
+      if (folders.hasNext()) return folders.next();
+      return parent.createFolder(name);
+    } else {
+      var topFolders = DriveApp.getFoldersByName(name);
+      if (topFolders.hasNext()) return topFolders.next();
+      return DriveApp.createFolder(name);
+    }
   } catch (err) {
     failLoud('getFolderByNameOrCreate(' + name + ')', err);
     throw err;
