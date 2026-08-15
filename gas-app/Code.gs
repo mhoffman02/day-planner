@@ -47,6 +47,24 @@ function doGet(e) {
   }
 }
 
+/**
+ * IDE Debugger Helper Function:
+ * Select "testDoGetInIDE" in the IDE toolbar dropdown and click "Debug" or "Run"
+ */
+function testDoGetInIDE() {
+  var mockEvent = {
+    pathInfo: 'self-test',
+    queryString: 'view=self-test',
+    parameter: { view: 'self-test' },
+    parameters: { view: ['self-test'] },
+    contextPath: ''
+  };
+  Logger.log('Executing doGet(mockEvent)...');
+  var output = doGet(mockEvent);
+  Logger.log('doGet Output Length: ' + output.getContent().length);
+  return output;
+}
+
 function include(filename) {
   try {
     return HtmlService.createHtmlOutputFromFile(filename).getContent();
