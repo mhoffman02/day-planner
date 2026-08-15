@@ -1,7 +1,7 @@
 /**
  * Day Planner (GAS Server Logic)
  * Robust Architecture with centralized error handling using console.error for stack tracing.
- * Uses strict drive.file scope with user-configured or auto-created root folder ID.
+ * Uses strict drive.file scope with user-configured root folder ID.
  */
 
 function failLoud(context, err) {
@@ -67,9 +67,7 @@ function doGet(e) {
 
 /**
  * Validates and retrieves the configured root folder under drive.file scope.
- * 1. Checks cached UserProperties DAY_PLANNER_ROOT_FOLDER_ID
- * 2. Attempts DriveApp.createFolder('Day Planner')
- * 3. Returns folder or null (redirects to SetupFolder.html)
+ * Checks UserProperties DAY_PLANNER_ROOT_FOLDER_ID. Returns folder or null (redirects to SetupFolder.html).
  */
 function getValidatedRootFolder() {
   if (typeof DriveApp === 'undefined') return null;
@@ -77,24 +75,16 @@ function getValidatedRootFolder() {
   var userProps = PropertiesService.getUserProperties();
   var cachedId = userProps.getProperty('DAY_PLANNER_ROOT_FOLDER_ID');
 
-  // 1. Try cached folder ID first
   if (cachedId) {
     try {
       return DriveApp.getFolderById(cachedId);
     } catch (err) {
-      console.error('getValidatedRootFolder cached ID failed: ' + err.toString());
+      console.error('getValidatedRootFolder cached ID invalid or unreadable: ' + err.toString());
     }
   }
 
-  // 2. Try creating folder directly
-  try {
-    var newFolder = DriveApp.createFolder('Day Planner');
-    userProps.setProperty('DAY_PLANNER_ROOT_FOLDER_ID', newFolder.getId());
-    return newFolder;
-  } catch (createErr) {
-    console.error('getValidatedRootFolder auto-create failed: ' + createErr.toString());
-    return null;
-  }
+  // No valid folder cached; return null to trigger SetupFolder.html
+  return null;
 }
 
 /**
@@ -341,6 +331,7 @@ function getDailyData(dateStr) {
 
 /**
  * Gets or creates the daily note Google Doc content in /Day Planner/YYYY/MM/
+ * Compatible with strict drive.file scope using UserProperties cached folder ID
  */
 function getOrCreateDailyDocContent(dateStr) {
   if (typeof DriveApp === 'undefined' || typeof DocumentApp === 'undefined') {
