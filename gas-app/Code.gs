@@ -1,11 +1,11 @@
 /**
  * Day Planner (GAS Server Logic)
- * Robust Architecture with centralized error handling and flame symbol stack tracing.
+ * Robust Architecture with centralized error handling using console.error for stack tracing.
  */
 
 function failLoud(context, err) {
   var errorMsg = '🔥 ' + context + ': ' + (err.message || err.toString());
-  Logger.log(errorMsg + '\nStack:\n' + (err.stack || 'No stack trace available'));
+  console.error(errorMsg + '\nStack:\n' + (err.stack || 'No stack trace available'));
   return {
     success: false,
     error: errorMsg,
@@ -131,7 +131,7 @@ function syncWorkspaceChanges() {
     var dailyData = getDailyData(todayStr);
 
     if (dailyData.error) {
-      Logger.log('syncWorkspaceChanges warning: dailyData returned error: ' + dailyData.error);
+      console.error('syncWorkspaceChanges warning: dailyData returned error: ' + dailyData.error);
       return;
     }
 
@@ -247,7 +247,6 @@ function getDailyData(dateStr) {
 
 /**
  * Gets or creates the daily note Google Doc content in /Day Planner/YYYY/MM/
- * Compatible with strict drive.file scope without calling getRootFolder() or DriveApp.getFoldersByName()
  */
 function getOrCreateDailyDocContent(dateStr) {
   if (typeof DriveApp === 'undefined' || typeof DocumentApp === 'undefined') {
@@ -295,7 +294,6 @@ function getFolderByNameOrCreate(parent, name) {
       if (folders.hasNext()) return folders.next();
       return parent.createFolder(name);
     } else {
-      // Top-level root folder created under drive.file scope using UserProperties caching
       var userProps = PropertiesService.getUserProperties();
       var cachedId = userProps.getProperty('DAY_PLANNER_ROOT_FOLDER_ID');
       if (cachedId) {

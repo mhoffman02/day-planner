@@ -1,7 +1,7 @@
 /**
  * Day Planner Server-Side Self-Test & Diagnostic Suite
  * Runs an automated major systems & integration check to ensure system health and Google Workspace API connections.
- * All errors log detailed error message and err.stack for diagnostic clarity.
+ * All errors log detailed error message and err.stack using console.error for diagnostic clarity.
  */
 
 function runSelfTest() {
@@ -24,7 +24,7 @@ function runSelfTest() {
     });
     passedCount++;
   } catch (err1) {
-    Logger.log('🔥 [Self-Test 1 Drive]: ' + err1.toString() + '\nStack: ' + (err1.stack || 'N/A'));
+    console.error('🔥 [Self-Test 1 Drive]: ' + err1.toString() + '\nStack: ' + (err1.stack || 'N/A'));
     results.push({
       test: '1. Google Drive & Folder Hierarchy',
       status: 'FAIL',
@@ -50,7 +50,7 @@ function runSelfTest() {
       });
     }
   } catch (err2) {
-    Logger.log('🔥 [Self-Test 2 Tasks]: ' + err2.toString() + '\nStack: ' + (err2.stack || 'N/A'));
+    console.error('🔥 [Self-Test 2 Tasks]: ' + err2.toString() + '\nStack: ' + (err2.stack || 'N/A'));
     results.push({
       test: '2. Google Tasks API (v1)',
       status: 'FAIL',
@@ -77,7 +77,7 @@ function runSelfTest() {
       });
     }
   } catch (err3) {
-    Logger.log('🔥 [Self-Test 3 Calendar]: ' + err3.toString() + '\nStack: ' + (err3.stack || 'N/A'));
+    console.error('🔥 [Self-Test 3 Calendar]: ' + err3.toString() + '\nStack: ' + (err3.stack || 'N/A'));
     results.push({
       test: '3. Google Calendar Integration',
       status: 'FAIL',
@@ -96,7 +96,7 @@ function runSelfTest() {
     });
     passedCount++;
   } catch (err4) {
-    Logger.log('🔥 [Self-Test 4 Docs]: ' + err4.toString() + '\nStack: ' + (err4.stack || 'N/A'));
+    console.error('🔥 [Self-Test 4 Docs]: ' + err4.toString() + '\nStack: ' + (err4.stack || 'N/A'));
     results.push({
       test: '4. Google Docs Daily Notes Provider',
       status: 'FAIL',
@@ -122,7 +122,7 @@ function runSelfTest() {
     });
     passedCount++;
   } catch (err5) {
-    Logger.log('🔥 [Self-Test 5 Sync]: ' + err5.toString() + '\nStack: ' + (err5.stack || 'N/A'));
+    console.error('🔥 [Self-Test 5 Sync]: ' + err5.toString() + '\nStack: ' + (err5.stack || 'N/A'));
     results.push({
       test: '5. 2-Way Sync Engine & Trigger Health',
       status: 'FAIL',
