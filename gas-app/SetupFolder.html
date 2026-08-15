@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Day Planner - Setup Google Drive Folder</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;600;700&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #12241d;
+      color: #1c2826;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      margin: 0;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 12px;
+      max-width: 580px;
+      width: 100%;
+      padding: 32px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+      border: 2px solid #c8ded7;
+    }
+    h2 {
+      font-family: 'Playfair Display', serif;
+      color: #2d6a5a;
+      margin-top: 0;
+      font-size: 1.8rem;
+    }
+    ol {
+      margin-left: 20px;
+      line-height: 1.7;
+      color: #3b4d47;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid #c8ded7;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      box-sizing: border-box;
+      margin-top: 8px;
+      margin-bottom: 16px;
+    }
+    button {
+      background: #2d6a5a;
+      color: #ffffff;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      width: 100%;
+      transition: background 0.2s ease;
+    }
+    button:hover {
+      background: #1b4332;
+    }
+    .status-box {
+      margin-top: 16px;
+      padding: 14px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      display: none;
+    }
+    .status-box.error {
+      background: #ffebee;
+      color: #c62828;
+      border: 1px solid #ef5350;
+    }
+    .status-box.success {
+      background: #e8f5e9;
+      color: #2e7d32;
+      border: 1px solid #66bb6a;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>📁 Connect Your Day Planner Drive Folder</h2>
+    <p style="color: #5c6b66; font-size: 0.95rem;">
+      To keep your files 100% private under strict <code>drive.file</code> security, please connect your dedicated Google Drive folder:
+    </p>
+
+    <ol>
+      <li>Open <a href="https://drive.google.com" target="_blank" style="color: #2d6a5a; font-weight: bold;">Google Drive</a> and create a folder named <b>Day Planner</b>.</li>
+      <li>Open the folder, copy its full web link from your browser address bar, and paste it below.</li>
+    </ol>
+
+    <div id="formContainer">
+      <label style="font-weight: 600; font-size: 0.9rem; color: #2d6a5a;">Google Drive Folder Web Link or ID:</label>
+      <input type="text" id="folderUrlInput" placeholder="https://drive.google.com/drive/folders/1N2WRrFmts..." value="https://drive.google.com/drive/u/0/folders/1N2WRrFmtsAWKgqeaFIj9HtiQ2wupFEk0">
+      <button id="submitBtn" onclick="submitFolderUrl()">Validate & Connect Folder</button>
+    </div>
+
+    <div id="statusBox" class="status-box"></div>
+
+    <div id="ackContainer" style="display: none; margin-top: 20px;">
+      <a href="?" style="text-decoration: none;">
+        <button style="background: #2e7d32;">✅ Open Day Planner Binder &rarr;</button>
+      </a>
+    </div>
+  </div>
+
+  <script>
+    function submitFolderUrl() {
+      var input = document.getElementById('folderUrlInput').value.trim();
+      var statusBox = document.getElementById('statusBox');
+      var submitBtn = document.getElementById('submitBtn');
+      var ackContainer = document.getElementById('ackContainer');
+
+      if (!input) {
+        statusBox.className = 'status-box error';
+        statusBox.style.display = 'block';
+        statusBox.innerHTML = '⚠️ Please paste your Google Drive folder web link or folder ID.';
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Validating Folder...';
+      statusBox.style.display = 'none';
+
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(onSuccess)
+          .withFailureHandler(onFailure)
+          .validateAndSaveFolderUrl(input);
+      } else {
+        // Local preview mock fallback
+        setTimeout(function() {
+          onSuccess({ success: true, folderName: 'Day Planner', folderId: '1N2WRrFmtsAWKgqeaFIj9HtiQ2wupFEk0' });
+        }, 500);
+      }
+
+      function onSuccess(res) {
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Validate & Connect Folder';
+
+        if (res && res.success) {
+          statusBox.className = 'status-box success';
+          statusBox.style.display = 'block';
+          statusBox.innerHTML = '<b>✅ Success!</b> Connected to Google Drive folder: <b>"' + res.folderName + '"</b>.';
+          document.getElementById('formContainer').style.display = 'none';
+          ackContainer.style.display = 'block';
+        } else {
+          statusBox.className = 'status-box error';
+          statusBox.style.display = 'block';
+          statusBox.innerHTML = '<b>🔥 Invalid Folder URL or Access Denied:</b> ' + (res.error || 'Folder not found. Please verify the URL and try again.');
+        }
+      }
+
+      function onFailure(err) {
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Validate & Connect Folder';
+        statusBox.className = 'status-box error';
+        statusBox.style.display = 'block';
+        statusBox.innerHTML = '<b>🔥 Validation Error:</b> ' + (err.message || err.toString());
+      }
+    }
+  </script>
+</body>
+</html>
