@@ -9,16 +9,34 @@
       <p style="font-size: 0.95rem; color: var(--text-muted); margin-top: 4px;">Static Reference Documentation & User Instructions</p>
     </div>
     <span style="background: var(--binder-teal-light); color: var(--binder-teal); border: 1px solid var(--border-line); font-weight: 700; padding: 6px 14px; font-size: 0.8rem; border-radius: 20px; display: inline-flex; align-items: center; gap: 4px;">
-      <span class="material-symbols-outlined" style="font-size: 16px;">verified</span> GAS MVP v1.6
+      <span class="material-symbols-outlined" style="font-size: 16px;">verified</span> GAS MVP v2.9 (Least-Privilege Security)
     </span>
   </div>
 
   <h3 style="font-family: 'Playfair Display', serif; color: var(--binder-teal); margin-top: 20px; font-size: 1.3rem;">1. Purpose & Product Vision</h3>
   <p style="margin-top: 8px;">
-    The <b>Day Planner</b> bridges the timeless, battle-tested productivity methodology of classic paper day planners with real-time Google Workspace cloud capabilities. Designed for solo power users who require structured discipline, it provides a high-efficiency single-page digital binder interface.
+    The <b>Day Planner</b> bridges timeless paper day planner productivity methodology with real-time Google Workspace cloud capabilities. Designed for solo power users who require structured discipline, it provides a high-efficiency single-page digital binder interface under strict least-privilege security permissions.
   </p>
 
-  <h3 style="font-family: 'Playfair Display', serif; color: var(--binder-teal); margin-top: 28px; font-size: 1.3rem;">2. Google Workspace Integration Matrix</h3>
+  <h3 style="font-family: 'Playfair Display', serif; color: var(--binder-teal); margin-top: 28px; font-size: 1.3rem;">2. Least-Privilege Security & Google Drive Folder Setup</h3>
+  <div style="background: #eef7f4; border-left: 4px solid var(--binder-teal); padding: 16px; border-radius: 4px; margin: 12px 0;">
+    <h4 style="color: var(--binder-teal); font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+      <span class="material-symbols-outlined">lock</span> Strict Per-File Security Scope (<code>drive.file</code>)
+    </h4>
+    <p style="font-size: 0.9rem; margin-top: 6px;">
+      To protect your privacy, Day Planner relies strictly on <code>https://www.googleapis.com/auth/drive.file</code>. This scope ensures the application <b>CANNOT read or write any existing files</b> across your Google Drive.
+    </p>
+    <div style="margin-top: 10px; padding: 10px; background: #ffffff; border: 1px solid var(--border-line); border-radius: 4px; font-size: 0.88rem;">
+      <b>Google Drive Folder Link Instructions:</b>
+      <ol style="margin-left: 20px; margin-top: 6px;">
+        <li>Create a dedicated folder named <b><code>Day Planner</code></b> in your Google Drive (e.g. <code>https://drive.google.com/drive/u/0/folders/1N2WRrFmtsAWKgqeaFIj9HtiQ2wupFEk0</code>).</li>
+        <li>The application records your folder ID (<code>1N2WRrFmtsAWKgqeaFIj9HtiQ2wupFEk0</code>) in your account's <code>UserProperties</code>.</li>
+        <li>All daily notes documents and monthly subfolders are created under <code>/Day Planner/YYYY/MM/</code>.</li>
+      </ol>
+    </div>
+  </div>
+
+  <h3 style="font-family: 'Playfair Display', serif; color: var(--binder-teal); margin-top: 28px; font-size: 1.3rem;">3. Google Workspace Integration Matrix</h3>
   <table class="task-table" style="margin: 16px 0; background: #ffffff; border-radius: 6px; overflow: hidden; border: 1px solid var(--border-line);">
     <thead>
       <tr style="background: #f4f9f7;">
@@ -51,7 +69,7 @@
     </tbody>
   </table>
 
-  <h3 style="font-family: 'Playfair Display', serif; color: var(--binder-teal); margin-top: 28px; font-size: 1.3rem;">3. User Instructions & Workflow Guide</h3>
+  <h3 style="font-family: 'Playfair Display', serif; color: var(--binder-teal); margin-top: 28px; font-size: 1.3rem;">4. User Instructions & Workflow Guide</h3>
 
   <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 12px;">
     <div style="background: #fcfbfa; border: 1px solid var(--border-line); border-radius: 6px; padding: 16px;">
@@ -87,7 +105,7 @@
         <span class="material-symbols-outlined">sync</span> 2-Way Workspace Sync
       </h4>
       <p style="font-size: 0.9rem; margin-top: 6px;">
-        Click <b>2-Way Sync</b> in the top header bar to reconcile tasks and calendar appointments. Run <code>setup2WaySyncTrigger()</code> once in Google Apps Script to enable 10-minute background triggers.
+        Click <b>2-Way Sync</b> in the top header bar to reconcile tasks and calendar appointments. Background triggers automatically run every 5 minutes.
       </p>
     </div>
   </div>

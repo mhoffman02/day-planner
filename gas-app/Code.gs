@@ -1,7 +1,10 @@
 /**
  * Day Planner (GAS Server Logic)
  * Robust Architecture with centralized error handling using console.error for stack tracing.
+ * Uses strict drive.file scope with user-configured root folder ID.
  */
+
+var DEFAULT_ROOT_FOLDER_ID = '1N2WRrFmtsAWKgqeaFIj9HtiQ2wupFEk0';
 
 function failLoud(context, err) {
   var errorMsg = '🔥 ' + context + ': ' + (err.message || err.toString());
@@ -247,6 +250,7 @@ function getDailyData(dateStr) {
 
 /**
  * Gets or creates the daily note Google Doc content in /Day Planner/YYYY/MM/
+ * Compatible with strict drive.file scope using UserProperties cached folder ID
  */
 function getOrCreateDailyDocContent(dateStr) {
   if (typeof DriveApp === 'undefined' || typeof DocumentApp === 'undefined') {
@@ -287,6 +291,10 @@ function getOrCreateDailyDocContent(dateStr) {
   }
 }
 
+/**
+ * Gets or creates subfolders under the root Day Planner folder.
+ * Root folder ID is recorded in UserProperties (defaults to user-provided ID: 1N2WRrFmtsAWKgqeaFIj9HtiQ2wupFEk0).
+ */
 function getFolderByNameOrCreate(parent, name) {
   try {
     if (parent) {
@@ -295,22 +303,33 @@ function getFolderByNameOrCreate(parent, name) {
       return parent.createFolder(name);
     } else {
       var userProps = PropertiesService.getUserProperties();
-      var cachedId = userProps.getProperty('DAY_PLANNER_ROOT_FOLDER_ID');
-      if (cachedId) {
-        try {
-          return DriveApp.getFolderById(cachedId);
-        } catch (e) {
-          // Folder ID no longer valid, recreate below
-        }
+      var cachedId = userProps.getProperty('DAY_PLANNER_ROOT_FOLDER_ID') || DEFAULT_ROOT_FOLDER_ID;
+      try {
+        return DriveApp.getFolderById(cachedId);
+      } catch (idErr) {
+        // If cached ID is not accessible, record default and try
+        userProps.setProperty('DAY_PLANNER_ROOT_FOLDER_ID', DEFAULT_ROOT_FOLDER_ID);
+        return DriveApp.getFolderById(DEFAULT_ROOT_FOLDER_ID);
       }
-      var newFolder = DriveApp.createFolder(name);
-      userProps.setProperty('DAY_PLANNER_ROOT_FOLDER_ID', newFolder.getId());
-      return newFolder;
     }
   } catch (err) {
     failLoud('getFolderByNameOrCreate(' + name + ')', err);
     throw err;
   }
+}
+
+/**
+ * Utility function to set/update a custom Google Drive folder URL or ID
+ */
+function setCustomRootFolderUrl(urlOrId) {
+  var folderId = urlOrId;
+  var match = urlOrId.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+  if (match) {
+    folderId = match[1];
+  }
+  PropertiesService.getUserProperties().setProperty('DAY_PLANNER_ROOT_FOLDER_ID', folderId);
+  Logger.log('Saved custom Day Planner root folder ID: ' + folderId);
+  return folderId;
 }
 
 function getMasterTasks(monthYearStr) {
