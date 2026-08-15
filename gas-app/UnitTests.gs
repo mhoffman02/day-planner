@@ -24,7 +24,7 @@ function runPowerOnSelfTest() {
     });
     passedCount++;
   } catch (err1) {
-    Logger.log('ERROR [POST Test 1 Drive]: ' + err1.toString() + '\nStack: ' + (err1.stack || 'N/A'));
+    Logger.log('🔥 [POST Test 1 Drive]: ' + err1.toString() + '\nStack: ' + (err1.stack || 'N/A'));
     results.push({
       test: '1. Google Drive & Folder Hierarchy',
       status: 'FAIL',
@@ -50,7 +50,7 @@ function runPowerOnSelfTest() {
       });
     }
   } catch (err2) {
-    Logger.log('ERROR [POST Test 2 Tasks]: ' + err2.toString() + '\nStack: ' + (err2.stack || 'N/A'));
+    Logger.log('🔥 [POST Test 2 Tasks]: ' + err2.toString() + '\nStack: ' + (err2.stack || 'N/A'));
     results.push({
       test: '2. Google Tasks API (v1)',
       status: 'FAIL',
@@ -77,7 +77,7 @@ function runPowerOnSelfTest() {
       });
     }
   } catch (err3) {
-    Logger.log('ERROR [POST Test 3 Calendar]: ' + err3.toString() + '\nStack: ' + (err3.stack || 'N/A'));
+    Logger.log('🔥 [POST Test 3 Calendar]: ' + err3.toString() + '\nStack: ' + (err3.stack || 'N/A'));
     results.push({
       test: '3. Google Calendar Integration',
       status: 'FAIL',
@@ -96,7 +96,7 @@ function runPowerOnSelfTest() {
     });
     passedCount++;
   } catch (err4) {
-    Logger.log('ERROR [POST Test 4 Docs]: ' + err4.toString() + '\nStack: ' + (err4.stack || 'N/A'));
+    Logger.log('🔥 [POST Test 4 Docs]: ' + err4.toString() + '\nStack: ' + (err4.stack || 'N/A'));
     results.push({
       test: '4. Google Docs Daily Notes Provider',
       status: 'FAIL',
@@ -122,7 +122,7 @@ function runPowerOnSelfTest() {
     });
     passedCount++;
   } catch (err5) {
-    Logger.log('ERROR [POST Test 5 Sync]: ' + err5.toString() + '\nStack: ' + (err5.stack || 'N/A'));
+    Logger.log('🔥 [POST Test 5 Sync]: ' + err5.toString() + '\nStack: ' + (err5.stack || 'N/A'));
     results.push({
       test: '5. 2-Way Sync Engine & Trigger Health',
       status: 'FAIL',
@@ -148,4 +148,47 @@ function runPowerOnSelfTest() {
     timestamp: new Date().toISOString(),
     results: results
   };
+}
+
+/**
+ * Renders HTML diagnostic report page for the ?post=1 web endpoint
+ */
+function renderPostDiagnosticReport() {
+  var postResult = runPowerOnSelfTest();
+  var isHealthy = postResult.passedCount === postResult.totalTests;
+  var badgeColor = isHealthy ? '#2e7d32' : '#c62828';
+  var badgeBg = isHealthy ? '#e8f5e9' : '#ffebee';
+
+  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Day Planner POST Diagnostics</title>' +
+    '<style>' +
+    'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #fcfbfa; color: #1c2826; padding: 30px; max-width: 900px; margin: 0 auto; }' +
+    '.card { background: #ffffff; border: 1px solid #c8ded7; border-radius: 8px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }' +
+    '.badge { display: inline-block; padding: 6px 16px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; background: ' + badgeBg + '; color: ' + badgeColor + '; border: 1px solid ' + badgeColor + '; }' +
+    'table { width: 100%; border-collapse: collapse; margin-top: 20px; }' +
+    'th, td { text-align: left; padding: 12px; border-bottom: 1px solid #eef5f2; font-size: 0.9rem; }' +
+    'th { background: #f4f9f7; color: #5c6b66; text-transform: uppercase; font-size: 0.75rem; }' +
+    '.status-pass { color: #2e7d32; font-weight: bold; }' +
+    '.status-fail { color: #c62828; font-weight: bold; }' +
+    '</style></head><body>' +
+    '<div class="card">' +
+    '<div style="display:flex; justify-content:space-between; align-items:center;">' +
+    '<h2>⚡ Day Planner Power-On Self Test (POST)</h2>' +
+    '<span class="badge">' + postResult.overallStatus + '</span>' +
+    '</div>' +
+    '<p style="color:#5c6b66; font-size:0.9rem;">Timestamp: ' + postResult.timestamp + ' | Target: Google Workspace Integration Engine</p>' +
+    '<table><thead><tr><th>Test Suite</th><th>Result</th><th>Diagnostic Details</th></tr></thead><tbody>';
+
+  postResult.results.forEach(function(r) {
+    var cls = r.status === 'PASS' ? 'status-pass' : 'status-fail';
+    html += '<tr><td><b>' + r.test + '</b></td><td class="' + cls + '">' + r.status + '</td><td>' + r.details + '</td></tr>';
+  });
+
+  html += '</tbody>mtable' +
+    '<div style="margin-top:24px; text-align:right;">' +
+    '<a href="?" style="display:inline-block; padding:10px 20px; background:#2d6a5a; color:#fff; text-decoration:none; border-radius:4px; font-weight:bold;">Return to Day Planner App &rarr;</a>' +
+    '</div></div></body></html>';
+
+  return HtmlService.createHtmlOutput(html)
+    .setTitle('Day Planner POST Diagnostics')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1.0');
 }

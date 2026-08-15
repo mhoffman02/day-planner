@@ -15,6 +15,12 @@ function failLoud(context, err) {
 }
 
 function doGet(e) {
+  // Check if requested /post diagnostic endpoint (e.g. ?post=1 or ?view=post)
+  if (e && e.parameter && (e.parameter.post === '1' || e.parameter.post === 'true' || e.parameter.view === 'post')) {
+    return renderPostDiagnosticReport();
+  }
+
+  // Regular Web App load
   try {
     syncWorkspaceChanges();
     ensure2WaySyncTriggerInstalled(5);
