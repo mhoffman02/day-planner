@@ -4,6 +4,16 @@
  */
 
 function doGet(e) {
+  // 1. Perform immediate 2-Way Sync on Web App load
+  try {
+    syncWorkspaceChanges();
+  } catch (err) {
+    Logger.log('doGet 2-Way Sync notice: ' + err.toString());
+  }
+
+  // 2. Ensure automated 5-minute 2-Way Sync trigger is installed
+  ensure2WaySyncTriggerInstalled(5);
+
   var template = HtmlService.createTemplateFromFile('Index');
   return template.evaluate()
     .setTitle('Day Planner')
@@ -16,7 +26,31 @@ function include(filename) {
 }
 
 /**
- * Sets up 10-minute automated time-driven trigger for 2-Way Sync
+ * Checks if 2-Way Sync trigger is installed; installs if missing (default 5-minute frequency)
+ */
+function ensure2WaySyncTriggerInstalled(minutes) {
+  var freq = minutes || 5;
+  var existingTriggers = ScriptApp.getProjectTriggers();
+  var triggerFound = false;
+
+  for (var i = 0; i < existingTriggers.length; i++) {
+    if (existingTriggers[i].getHandlerFunction() === 'syncWorkspaceChanges') {
+      triggerFound = true;
+      break;
+    }
+  }
+
+  if (!triggerFound) {
+    ScriptApp.newTrigger('syncWorkspaceChanges')
+      .timeBased()
+      .everyMinutes(freq)
+      .create();
+    Logger.log('Installed automated ' + freq + '-minute 2-Way Sync trigger.');
+  }
+}
+
+/**
+ * Sets up 5-minute automated time-driven trigger for 2-Way Sync
  */
 function setup2WaySyncTrigger() {
   var existingTriggers = ScriptApp.getProjectTriggers();
@@ -28,10 +62,10 @@ function setup2WaySyncTrigger() {
 
   ScriptApp.newTrigger('syncWorkspaceChanges')
     .timeBased()
-    .everyMinutes(10)
+    .everyMinutes(5)
     .create();
 
-  Logger.log('Created 10-minute 2-Way Sync trigger successfully.');
+  Logger.log('Created 5-minute 2-Way Sync trigger successfully.');
 }
 
 /**
