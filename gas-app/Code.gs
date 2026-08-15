@@ -1,10 +1,10 @@
 /**
  * Day Planner (GAS Server Logic)
- * Robust & Fail-Loud Architecture with centralized error handling and stack tracing.
+ * Robust Architecture with centralized error handling and flame symbol stack tracing.
  */
 
 function failLoud(context, err) {
-  var errorMsg = '[FAIL-LOUD] ' + context + ': ' + (err.message || err.toString());
+  var errorMsg = '🔥 ' + context + ': ' + (err.message || err.toString());
   Logger.log(errorMsg + '\nStack:\n' + (err.stack || 'No stack trace available'));
   return {
     success: false,
@@ -30,7 +30,7 @@ function doGet(e) {
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   } catch (err) {
     var fail = failLoud('doGet template render', err);
-    return HtmlService.createHtmlOutput('<h3>⚠️ Day Planner Render Failure</h3><p><b>' + fail.error + '</b></p><pre>' + (fail.stack || '') + '</pre>');
+    return HtmlService.createHtmlOutput('<h3>🔥 Day Planner Render Failure</h3><p><b>' + fail.error + '</b></p><pre>' + (fail.stack || '') + '</pre>');
   }
 }
 

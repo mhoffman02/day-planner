@@ -76,6 +76,7 @@ The project is architected to run in two environments:
     ├── Styles.html        # Digital Binder CSS Design System with Material Symbols
     ├── Script.html        # Alpine.js reactive components & event handlers
     ├── About.html         # In-app static About documentation card
+    ├── UnitTests.gs       # Power-On Self Test (POST) server diagnostic runner
     └── appsscript.json    # GAS manifest with minimal OAuth permissions
 
 
@@ -91,7 +92,7 @@ The project is architected to run in two environments:
 [!] 2-Way Sync Tagging (`gasTaskId`):
     Tasks and Calendar Events are linked using custom tags. `Code.gs` uses
     `evt.setTag('gasTaskId', task.id)` and `evt.getTag('gasTaskId')`.
-    The 10-minute automated background trigger (`setup2WaySyncTrigger()`) reconciles
+    The 5-minute automated background trigger (`setup2WaySyncTrigger()`) reconciles
     task completions (`[✓]`) and calendar time shifts.
 
 [!] Clasp Deployment Commands:
@@ -107,4 +108,21 @@ The project is architected to run in two environments:
     To start the local preview server:
     $ node server.js
     (View at http://localhost:3000)
+
+
+6. TESTER NOTES & POWER-ON SELF TEST (POST) DIAGNOSTICS
+--------------------------------------------------------------------------------
+To run the automated Power-On Self Test (POST) server diagnostic suite:
+
+Option A - Via Clasp CLI:
+    $ cd gas-app
+    $ clasp run runPowerOnSelfTest
+
+Option B - Via Apps Script IDE:
+    1. Open https://script.google.com/d/1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W/edit
+    2. Select `runPowerOnSelfTest` from the function dropdown at the top.
+    3. Click `Run` and inspect Execution Log.
+
+The POST diagnostic suite tests Drive folder access, Google Tasks API, CalendarApp 
+tagging, Google Docs daily notes generation, and 2-Way Sync trigger health.
 ================================================================================

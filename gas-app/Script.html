@@ -117,7 +117,7 @@
 
           this.buildScheduleGrid();
         } catch (err) {
-          console.error('[FAIL-LOUD] trigger2WaySync error:', err);
+          console.error('🔥 trigger2WaySync error:', err);
           this.errorMessage = `2-Way Sync Warning: ${err.message || err.toString()}`;
         } finally {
           this.isSyncing = false;
@@ -182,7 +182,7 @@
           this.buildScheduleGrid();
           this.buildIndexRecords();
         } catch (err) {
-          console.error('[FAIL-LOUD] loadDayData error:', err);
+          console.error('🔥 loadDayData error:', err);
           this.errorMessage = `Error loading daily workspace: ${err.message || err.toString()}`;
         }
       },
@@ -191,7 +191,7 @@
         try {
           this.masterTasks = await this.bridge.getMasterTasks(`${this.selectedMonthName} ${this.selectedYear}`);
         } catch (err) {
-          console.error('[FAIL-LOUD] loadMasterTasks error:', err);
+          console.error('🔥 loadMasterTasks error:', err);
           this.errorMessage = `Error loading master tasks: ${err.message || err.toString()}`;
         }
       },
@@ -271,7 +271,7 @@
           this.newTaskTitle = '';
           await this.trigger2WaySync();
         } catch (err) {
-          console.error('[FAIL-LOUD] addDailyTask error:', err);
+          console.error('🔥 addDailyTask error:', err);
           this.errorMessage = `Error adding task: ${err.message || err.toString()}`;
         }
       },
@@ -290,7 +290,7 @@
             alert(`Moved "${mTask.title}" to Today's Task List as ${transferred.title.substring(0, 4)}!`);
           }
         } catch (err) {
-          console.error('[FAIL-LOUD] moveMasterTaskToToday error:', err);
+          console.error('🔥 moveMasterTaskToToday error:', err);
           this.errorMessage = `Error moving master task: ${err.message || err.toString()}`;
         }
       },
