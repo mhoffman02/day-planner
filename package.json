@@ -1,0 +1,13 @@
+{
+  "name": "day-planner",
+  "version": "1.0.0",
+  "description": "Day Planner (GAS MVP)",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "start": "node server.js"
+  },
+  "keywords": ["day-planner", "google-apps-script", "gsuite"],
+  "author": "",
+  "license": "MIT"
+}

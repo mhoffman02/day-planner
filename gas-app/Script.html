@@ -1,0 +1,323 @@
+<script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+<script>
+  // Helper engine definitions bundled for GAS SPA client
+  const STATUS_LIST = ['•', '✓', '→', 'X', 'G/✓'];
+
+  function parseTaskTitle(rawTitle = '') {
+    if (!rawTitle) return { priorityGroup: null, sequence: null, priorityCode: null, cleanTitle: '' };
+    const match = rawTitle.match(/^\[([A-C])([1-9])\]\s*(.*)$/i);
+    if (match) {
+      return {
+        priorityGroup: match[1].toUpperCase(),
+        sequence: parseInt(match[2], 10),
+        priorityCode: `${match[1].toUpperCase()}${match[2]}`,
+        cleanTitle: match[3].trim()
+      };
+    }
+    return { priorityGroup: null, sequence: null, priorityCode: null, cleanTitle: rawTitle.trim() };
+  }
+
+  function formatTaskTitle(priorityGroup, sequence, cleanTitle) {
+    const trimmed = (cleanTitle || '').trim();
+    if (priorityGroup && sequence) return `[${priorityGroup.toUpperCase()}${sequence}] ${trimmed}`;
+    return trimmed;
+  }
+
+  function getNextStatus(curr) {
+    const idx = STATUS_LIST.indexOf(curr);
+    if (idx === -1 || idx === STATUS_LIST.length - 1) return STATUS_LIST[0];
+    return STATUS_LIST[idx + 1];
+  }
+
+  document.addEventListener('alpine:init', () => {
+    Alpine.data('plannerApp', () => ({
+      activeView: 'daily',
+      selectedDate: new Date().toISOString().slice(0, 10),
+      selectedYear: new Date().getFullYear(),
+      selectedMonth: new Date().getMonth() + 1,
+      
+      // Data collections
+      dailyTasks: [],
+      masterTasks: [],
+      calendarEvents: [],
+      scheduleGrid: [],
+      dailyNote: '',
+      indexRecords: [],
+      monthlyGrid: [],
+
+      // Sync state
+      isSyncing: false,
+
+      // Modals
+      eventModalOpen: false,
+      selectedEvent: null,
+
+      searchModalOpen: false,
+      searchQuery: '',
+      searchResults: { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [] },
+
+      // Task inputs
+      newTaskTitle: '',
+      newTaskPriorityGroup: 'A',
+
+      bridge: null,
+
+      get isMonthlyView() {
+        return ['monthly-calendar', 'master-tasks', 'monthly-index', 'future-matrix'].includes(this.activeView);
+      },
+
+      get selectedMonthName() {
+        return new Date(this.selectedYear, this.selectedMonth - 1, 1).toLocaleDateString('en-US', { month: 'long' });
+      },
+
+      get currentMonthName() {
+        return new Date().toLocaleDateString('en-US', { month: 'long' });
+      },
+
+      async init() {
+        this.bridge = new GASBridge(true);
+        await this.loadDayData();
+        await this.loadMasterTasks();
+        this.setupKeyboardShortcuts();
+      },
+
+      setupKeyboardShortcuts() {
+        window.addEventListener('keydown', (e) => {
+          if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            e.preventDefault();
+            this.toggleSearchModal();
+          }
+        });
+      },
+
+      async trigger2WaySync() {
+        this.isSyncing = true;
+        await new Promise(r => setTimeout(r, 600)); // Visual sync indicator
+
+        // Perform bidirectional sync reconciliation
+        this.dailyTasks.forEach(task => {
+          const isDone = task.status === '✓';
+          const matchEvt = this.calendarEvents.find(e => e.syncTaskId === task.id || e.title.includes(parseTaskTitle(task.title).cleanTitle));
+          if (matchEvt) {
+            matchEvt.title = isDone ? `[✓] ${parseTaskTitle(task.title).cleanTitle}` : task.title;
+          } else {
+            this.calendarEvents.push({
+              id: `evt_sync_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+              title: isDone ? `[✓] ${parseTaskTitle(task.title).cleanTitle}` : task.title,
+              startTime: `${this.selectedDate}T09:00:00Z`,
+              endTime: `${this.selectedDate}T09:30:00Z`,
+              syncTaskId: task.id
+            });
+          }
+        });
+
+        this.buildScheduleGrid();
+        this.isSyncing = false;
+      },
+
+      async setView(viewName) {
+        this.activeView = viewName;
+        if (viewName === 'monthly-calendar') {
+          this.buildMonthlyGrid();
+        }
+      },
+
+      async navigateDay(delta) {
+        const d = new Date(`${this.selectedDate}T00:00:00`);
+        d.setDate(d.getDate() + delta);
+        this.selectedDate = d.toISOString().slice(0, 10);
+        this.selectedYear = d.getFullYear();
+        this.selectedMonth = d.getMonth() + 1;
+        await this.loadDayData();
+      },
+
+      async navigateMonth(delta) {
+        const [y, m] = this.selectedDate.split('-').map(Number);
+        const d = new Date(y, m - 1 + delta, 1);
+        const monthStr = (d.getMonth() + 1).toString().padStart(2, '0');
+        this.selectedDate = `${d.getFullYear()}-${monthStr}-01`;
+        this.selectedYear = d.getFullYear();
+        this.selectedMonth = d.getMonth() + 1;
+        await this.loadDayData();
+        await this.loadMasterTasks();
+        if (this.activeView === 'monthly-calendar') {
+          this.buildMonthlyGrid();
+        }
+      },
+
+      async jumpToCurrentMonth() {
+        const now = new Date();
+        this.selectedYear = now.getFullYear();
+        this.selectedMonth = now.getMonth() + 1;
+        const monthStr = this.selectedMonth.toString().padStart(2, '0');
+        this.selectedDate = `${this.selectedYear}-${monthStr}-01`;
+        await this.loadDayData();
+        await this.loadMasterTasks();
+        if (this.activeView === 'monthly-calendar') {
+          this.buildMonthlyGrid();
+        }
+      },
+
+      async loadDayData() {
+        const data = await this.bridge.getDailyData(this.selectedDate);
+        this.dailyTasks = data.tasks || [];
+        this.calendarEvents = data.calendarEvents || [];
+        this.dailyNote = data.noteContent || '';
+        this.buildScheduleGrid();
+        this.buildIndexRecords();
+      },
+
+      async loadMasterTasks() {
+        this.masterTasks = await this.bridge.getMasterTasks(`${this.selectedMonthName} ${this.selectedYear}`);
+      },
+
+      buildScheduleGrid() {
+        const slots = [];
+        for (let hour = 7; hour < 19; hour++) {
+          const hourStr = hour > 12 ? `${hour - 12}` : `${hour}`;
+          const ampm = hour >= 12 ? 'PM' : 'AM';
+          const key00 = `${hour.toString().padStart(2, '0')}:00`;
+          const key30 = `${hour.toString().padStart(2, '0')}:30`;
+
+          slots.push({ timeKey: key00, displayTime: `${hourStr}:00 ${ampm}`, events: [] });
+          slots.push({ timeKey: key30, displayTime: `${hourStr}:30 ${ampm}`, events: [] });
+        }
+        slots.push({ timeKey: '19:00', displayTime: '7:00 PM', events: [] });
+
+        // Map events
+        this.calendarEvents.forEach(evt => {
+          const start = new Date(evt.startTime);
+          const slotKey = `${start.getHours().toString().padStart(2, '0')}:${start.getMinutes() < 30 ? '00' : '30'}`;
+          const slot = slots.find(s => s.timeKey === slotKey);
+          if (slot) slot.events.push(evt);
+        });
+
+        this.scheduleGrid = slots;
+      },
+
+      buildIndexRecords() {
+        if (!this.dailyNote) return;
+        const lines = this.dailyNote.split('\n');
+        const entries = [];
+        lines.forEach(l => {
+          if (/#index|\[INDEX\]/i.test(l)) {
+            let clean = l.replace(/#index|\[INDEX\]/gi, '').trim();
+            let topic = 'General';
+            const match = clean.match(/^\[([^\]]+)\]\s*(.*)$/);
+            if (match) {
+              topic = match[1];
+              clean = match[2];
+            }
+            entries.push({ date: this.selectedDate, topic, summary: clean, docUrl: `#doc-${this.selectedDate}` });
+          }
+        });
+        this.indexRecords = entries;
+      },
+
+      buildMonthlyGrid() {
+        const firstDay = new Date(this.selectedYear, this.selectedMonth - 1, 1);
+        const lastDay = new Date(this.selectedYear, this.selectedMonth, 0);
+        const days = [];
+        const startDayOfWeek = firstDay.getDay();
+
+        for (let i = startDayOfWeek - 1; i >= 0; i--) {
+          days.push({ dayNum: '', isCurrentMonth: false, events: [] });
+        }
+
+        for (let day = 1; day <= lastDay.getDate(); day++) {
+          const dateStr = `${this.selectedYear}-${this.selectedMonth.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+          days.push({ dateStr, dayNum: day, isCurrentMonth: true, events: this.calendarEvents.filter(e => e.startTime.startsWith(dateStr)) });
+        }
+
+        while (days.length % 7 !== 0) {
+          days.push({ dayNum: '', isCurrentMonth: false, events: [] });
+        }
+
+        this.monthlyGrid = days;
+      },
+
+      async addDailyTask() {
+        if (!this.newTaskTitle.trim()) return;
+        const existingCount = this.dailyTasks.length + 1;
+        const formattedTitle = formatTaskTitle(this.newTaskPriorityGroup, existingCount, this.newTaskTitle);
+        const newTask = await this.bridge.addDailyTask(this.selectedDate, formattedTitle);
+        this.dailyTasks.push(newTask);
+        this.newTaskTitle = '';
+        await this.trigger2WaySync();
+      },
+
+      async toggleTaskStatus(task) {
+        task.status = getNextStatus(task.status);
+        await this.trigger2WaySync();
+      },
+
+      async moveMasterTaskToToday(mTask) {
+        const transferred = await this.bridge.transferMasterTask(mTask.id, this.selectedDate, 'A');
+        if (transferred) {
+          this.dailyTasks.push(transferred);
+          await this.trigger2WaySync();
+          alert(`Moved "${mTask.title}" to Today's Task List as ${transferred.title.substring(0, 4)}!`);
+        }
+      },
+
+      openEventModal(evt) {
+        this.selectedEvent = evt;
+        this.eventModalOpen = true;
+      },
+
+      closeEventModal() {
+        this.eventModalOpen = false;
+        this.selectedEvent = null;
+      },
+
+      toggleSearchModal() {
+        this.searchModalOpen = !this.searchModalOpen;
+        if (this.searchModalOpen) {
+          this.runSearch();
+        }
+      },
+
+      runSearch() {
+        const q = this.searchQuery.trim().toLowerCase();
+        if (!q) {
+          this.searchResults = { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [] };
+          return;
+        }
+
+        const res = { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [] };
+
+        this.calendarEvents.forEach(e => {
+          if ((e.title || '').toLowerCase().includes(q) || (e.description || '').toLowerCase().includes(q)) {
+            res.calendar.push(e);
+            res.totalMatches++;
+          }
+        });
+
+        [...this.dailyTasks, ...this.masterTasks].forEach(t => {
+          if ((t.title || '').toLowerCase().includes(q)) {
+            res.tasks.push(t);
+            res.totalMatches++;
+          }
+        });
+
+        if (this.dailyNote.toLowerCase().includes(q)) {
+          res.notes.push({ date: this.selectedDate, content: this.dailyNote });
+          res.totalMatches++;
+        }
+
+        this.indexRecords.forEach(i => {
+          if ((i.summary || '').toLowerCase().includes(q) || (i.topic || '').toLowerCase().includes(q)) {
+            res.index.push(i);
+            res.totalMatches++;
+          }
+        });
+
+        this.searchResults = res;
+      },
+
+      parseTask(title) {
+        return parseTaskTitle(title);
+      }
+    }));
+  });
+</script>
