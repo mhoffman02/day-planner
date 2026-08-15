@@ -247,7 +247,7 @@ function getDailyData(dateStr) {
 
 /**
  * Gets or creates the daily note Google Doc content in /Day Planner/YYYY/MM/
- * Compatible with strict drive.file scope without calling getRootFolder()
+ * Compatible with strict drive.file scope without calling getRootFolder() or DriveApp.getFoldersByName()
  */
 function getOrCreateDailyDocContent(dateStr) {
   if (typeof DriveApp === 'undefined' || typeof DocumentApp === 'undefined') {
@@ -295,9 +295,19 @@ function getFolderByNameOrCreate(parent, name) {
       if (folders.hasNext()) return folders.next();
       return parent.createFolder(name);
     } else {
-      var topFolders = DriveApp.getFoldersByName(name);
-      if (topFolders.hasNext()) return topFolders.next();
-      return DriveApp.createFolder(name);
+      // Top-level root folder created under drive.file scope using UserProperties caching
+      var userProps = PropertiesService.getUserProperties();
+      var cachedId = userProps.getProperty('DAY_PLANNER_ROOT_FOLDER_ID');
+      if (cachedId) {
+        try {
+          return DriveApp.getFolderById(cachedId);
+        } catch (e) {
+          // Folder ID no longer valid, recreate below
+        }
+      }
+      var newFolder = DriveApp.createFolder(name);
+      userProps.setProperty('DAY_PLANNER_ROOT_FOLDER_ID', newFolder.getId());
+      return newFolder;
     }
   } catch (err) {
     failLoud('getFolderByNameOrCreate(' + name + ')', err);
