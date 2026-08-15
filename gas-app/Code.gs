@@ -1,10 +1,8 @@
 /**
  * Day Planner (GAS Server Logic)
  * Robust Architecture with centralized error handling using console.error for stack tracing.
- * Uses strict drive.file scope with user-configured root folder ID.
+ * Uses strict drive.file scope with user-configured or auto-created root folder ID.
  */
-
-var DEFAULT_ROOT_FOLDER_ID = '1N2WRrFmtsAWKgqeaFIj9HtiQ2wupFEk0';
 
 function failLoud(context, err) {
   var errorMsg = '🔥 ' + context + ': ' + (err.message || err.toString());
@@ -37,7 +35,7 @@ function doGet(e) {
     (e.parameter && (e.parameter.setup === '1' || e.parameter.view === 'setup'))
   );
 
-  // Validate presence of configured root folder under drive.file scope
+  // Validate presence of configured root folder
   var validatedFolder = getValidatedRootFolder();
   if (!validatedFolder || isSetupRequest) {
     return HtmlService.createTemplateFromFile('SetupFolder')
@@ -69,17 +67,32 @@ function doGet(e) {
 
 /**
  * Validates and retrieves the configured root folder under drive.file scope.
- * Returns folder object or null if not found/invalid.
+ * 1. Checks cached UserProperties DAY_PLANNER_ROOT_FOLDER_ID
+ * 2. Attempts DriveApp.createFolder('Day Planner')
+ * 3. Returns folder or null (redirects to SetupFolder.html)
  */
 function getValidatedRootFolder() {
   if (typeof DriveApp === 'undefined') return null;
+
+  var userProps = PropertiesService.getUserProperties();
+  var cachedId = userProps.getProperty('DAY_PLANNER_ROOT_FOLDER_ID');
+
+  // 1. Try cached folder ID first
+  if (cachedId) {
+    try {
+      return DriveApp.getFolderById(cachedId);
+    } catch (err) {
+      console.error('getValidatedRootFolder cached ID failed: ' + err.toString());
+    }
+  }
+
+  // 2. Try creating folder directly
   try {
-    var userProps = PropertiesService.getUserProperties();
-    var cachedId = userProps.getProperty('DAY_PLANNER_ROOT_FOLDER_ID') || DEFAULT_ROOT_FOLDER_ID;
-    if (!cachedId) return null;
-    return DriveApp.getFolderById(cachedId);
-  } catch (err) {
-    console.error('getValidatedRootFolder check notice: ' + err.toString());
+    var newFolder = DriveApp.createFolder('Day Planner');
+    userProps.setProperty('DAY_PLANNER_ROOT_FOLDER_ID', newFolder.getId());
+    return newFolder;
+  } catch (createErr) {
+    console.error('getValidatedRootFolder auto-create failed: ' + createErr.toString());
     return null;
   }
 }
@@ -328,7 +341,6 @@ function getDailyData(dateStr) {
 
 /**
  * Gets or creates the daily note Google Doc content in /Day Planner/YYYY/MM/
- * Compatible with strict drive.file scope using UserProperties cached folder ID
  */
 function getOrCreateDailyDocContent(dateStr) {
   if (typeof DriveApp === 'undefined' || typeof DocumentApp === 'undefined') {
@@ -371,7 +383,6 @@ function getOrCreateDailyDocContent(dateStr) {
 
 /**
  * Gets or creates subfolders under the root Day Planner folder.
- * Root folder ID is validated from UserProperties.
  */
 function getFolderByNameOrCreate(parent, name) {
   try {
