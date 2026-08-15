@@ -102,6 +102,17 @@
       </div>
     </div>
 
+    <!-- Fail-Loud Error & Warning Banner -->
+    <template x-if="errorMessage">
+      <div style="background: #ffebee; border: 1px solid #ef5350; border-radius: 6px; padding: 12px 20px; margin: 12px 20px 0 20px; color: #c62828; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span class="material-symbols-outlined">warning</span>
+          <span x-text="errorMessage"></span>
+        </div>
+        <button @click="errorMessage = null" style="background: transparent; border: none; color: #c62828; cursor: pointer; font-weight: bold; font-size: 1.1rem;">✕</button>
+      </div>
+    </template>
+
     <!-- Main Workspace Area -->
     <div class="binder-body">
 

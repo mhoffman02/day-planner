@@ -45,8 +45,9 @@
       indexRecords: [],
       monthlyGrid: [],
 
-      // Sync state
+      // Sync & Error states
       isSyncing: false,
+      errorMessage: null,
 
       // Modals
       eventModalOpen: false,
@@ -92,27 +93,35 @@
 
       async trigger2WaySync() {
         this.isSyncing = true;
-        await new Promise(r => setTimeout(r, 600)); // Visual sync indicator
+        this.errorMessage = null;
 
-        // Perform bidirectional sync reconciliation
-        this.dailyTasks.forEach(task => {
-          const isDone = task.status === '✓';
-          const matchEvt = this.calendarEvents.find(e => e.syncTaskId === task.id || e.title.includes(parseTaskTitle(task.title).cleanTitle));
-          if (matchEvt) {
-            matchEvt.title = isDone ? `[✓] ${parseTaskTitle(task.title).cleanTitle}` : task.title;
-          } else {
-            this.calendarEvents.push({
-              id: `evt_sync_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
-              title: isDone ? `[✓] ${parseTaskTitle(task.title).cleanTitle}` : task.title,
-              startTime: `${this.selectedDate}T09:00:00Z`,
-              endTime: `${this.selectedDate}T09:30:00Z`,
-              syncTaskId: task.id
-            });
-          }
-        });
+        try {
+          await new Promise(r => setTimeout(r, 400)); // Visual indicator
 
-        this.buildScheduleGrid();
-        this.isSyncing = false;
+          // Perform bidirectional sync reconciliation
+          this.dailyTasks.forEach(task => {
+            const isDone = task.status === '✓';
+            const matchEvt = this.calendarEvents.find(e => e.syncTaskId === task.id || e.title.includes(parseTaskTitle(task.title).cleanTitle));
+            if (matchEvt) {
+              matchEvt.title = isDone ? `[✓] ${parseTaskTitle(task.title).cleanTitle}` : task.title;
+            } else {
+              this.calendarEvents.push({
+                id: `evt_sync_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+                title: isDone ? `[✓] ${parseTaskTitle(task.title).cleanTitle}` : task.title,
+                startTime: `${this.selectedDate}T09:00:00Z`,
+                endTime: `${this.selectedDate}T09:30:00Z`,
+                syncTaskId: task.id
+              });
+            }
+          });
+
+          this.buildScheduleGrid();
+        } catch (err) {
+          console.error('[FAIL-LOUD] trigger2WaySync error:', err);
+          this.errorMessage = `2-Way Sync Warning: ${err.message || err.toString()}`;
+        } finally {
+          this.isSyncing = false;
+        }
       },
 
       async setView(viewName) {
@@ -159,16 +168,32 @@
       },
 
       async loadDayData() {
-        const data = await this.bridge.getDailyData(this.selectedDate);
-        this.dailyTasks = data.tasks || [];
-        this.calendarEvents = data.calendarEvents || [];
-        this.dailyNote = data.noteContent || '';
-        this.buildScheduleGrid();
-        this.buildIndexRecords();
+        try {
+          const data = await this.bridge.getDailyData(this.selectedDate);
+          if (data.error) {
+            this.errorMessage = data.error;
+          }
+          if (data.warnings && data.warnings.length > 0) {
+            this.errorMessage = data.warnings.join(' | ');
+          }
+          this.dailyTasks = data.tasks || [];
+          this.calendarEvents = data.calendarEvents || [];
+          this.dailyNote = data.noteContent || '';
+          this.buildScheduleGrid();
+          this.buildIndexRecords();
+        } catch (err) {
+          console.error('[FAIL-LOUD] loadDayData error:', err);
+          this.errorMessage = `Error loading daily workspace: ${err.message || err.toString()}`;
+        }
       },
 
       async loadMasterTasks() {
-        this.masterTasks = await this.bridge.getMasterTasks(`${this.selectedMonthName} ${this.selectedYear}`);
+        try {
+          this.masterTasks = await this.bridge.getMasterTasks(`${this.selectedMonthName} ${this.selectedYear}`);
+        } catch (err) {
+          console.error('[FAIL-LOUD] loadMasterTasks error:', err);
+          this.errorMessage = `Error loading master tasks: ${err.message || err.toString()}`;
+        }
       },
 
       buildScheduleGrid() {
@@ -238,12 +263,17 @@
 
       async addDailyTask() {
         if (!this.newTaskTitle.trim()) return;
-        const existingCount = this.dailyTasks.length + 1;
-        const formattedTitle = formatTaskTitle(this.newTaskPriorityGroup, existingCount, this.newTaskTitle);
-        const newTask = await this.bridge.addDailyTask(this.selectedDate, formattedTitle);
-        this.dailyTasks.push(newTask);
-        this.newTaskTitle = '';
-        await this.trigger2WaySync();
+        try {
+          const existingCount = this.dailyTasks.length + 1;
+          const formattedTitle = formatTaskTitle(this.newTaskPriorityGroup, existingCount, this.newTaskTitle);
+          const newTask = await this.bridge.addDailyTask(this.selectedDate, formattedTitle);
+          this.dailyTasks.push(newTask);
+          this.newTaskTitle = '';
+          await this.trigger2WaySync();
+        } catch (err) {
+          console.error('[FAIL-LOUD] addDailyTask error:', err);
+          this.errorMessage = `Error adding task: ${err.message || err.toString()}`;
+        }
       },
 
       async toggleTaskStatus(task) {
@@ -252,11 +282,16 @@
       },
 
       async moveMasterTaskToToday(mTask) {
-        const transferred = await this.bridge.transferMasterTask(mTask.id, this.selectedDate, 'A');
-        if (transferred) {
-          this.dailyTasks.push(transferred);
-          await this.trigger2WaySync();
-          alert(`Moved "${mTask.title}" to Today's Task List as ${transferred.title.substring(0, 4)}!`);
+        try {
+          const transferred = await this.bridge.transferMasterTask(mTask.id, this.selectedDate, 'A');
+          if (transferred) {
+            this.dailyTasks.push(transferred);
+            await this.trigger2WaySync();
+            alert(`Moved "${mTask.title}" to Today's Task List as ${transferred.title.substring(0, 4)}!`);
+          }
+        } catch (err) {
+          console.error('[FAIL-LOUD] moveMasterTaskToToday error:', err);
+          this.errorMessage = `Error moving master task: ${err.message || err.toString()}`;
         }
       },
 

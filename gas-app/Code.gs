@@ -1,22 +1,25 @@
 /**
  * Day Planner (GAS Server Logic)
- * Includes 2-Way Sync Engine between Google Calendar, Google Tasks, and Day Planner Binder.
- * All risky operations are wrapped in try-catch with err.stack diagnostic logging.
+ * Robust & Fail-Loud Architecture with centralized error handling and stack tracing.
  */
 
+function failLoud(context, err) {
+  var errorMsg = '[FAIL-LOUD] ' + context + ': ' + (err.message || err.toString());
+  Logger.log(errorMsg + '\nStack:\n' + (err.stack || 'No stack trace available'));
+  return {
+    success: false,
+    error: errorMsg,
+    stack: err.stack || null,
+    context: context
+  };
+}
+
 function doGet(e) {
-  // 1. Perform immediate 2-Way Sync on Web App load
   try {
     syncWorkspaceChanges();
-  } catch (err) {
-    Logger.log('ERROR [doGet syncWorkspaceChanges]: ' + err.toString() + '\nStack: ' + (err.stack || 'N/A'));
-  }
-
-  // 2. Ensure automated 5-minute 2-Way Sync trigger is installed
-  try {
     ensure2WaySyncTriggerInstalled(5);
   } catch (err) {
-    Logger.log('ERROR [doGet ensure2WaySyncTriggerInstalled]: ' + err.toString() + '\nStack: ' + (err.stack || 'N/A'));
+    failLoud('doGet background sync init', err);
   }
 
   try {
@@ -26,8 +29,8 @@ function doGet(e) {
       .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   } catch (err) {
-    Logger.log('ERROR [doGet template evaluate]: ' + err.toString() + '\nStack: ' + (err.stack || 'N/A'));
-    return HtmlService.createHtmlOutput('<h3>Error loading Day Planner UI</h3><p>' + err.toString() + '</p>');
+    var fail = failLoud('doGet template render', err);
+    return HtmlService.createHtmlOutput('<h3>⚠️ Day Planner Render Failure</h3><p><b>' + fail.error + '</b></p><pre>' + (fail.stack || '') + '</pre>');
   }
 }
 
@@ -35,13 +38,13 @@ function include(filename) {
   try {
     return HtmlService.createHtmlOutputFromFile(filename).getContent();
   } catch (err) {
-    Logger.log('ERROR [include file: ' + filename + ']: ' + err.toString() + '\nStack: ' + (err.stack || 'N/A'));
-    return '<!-- Error loading included file: ' + filename + ' -->';
+    failLoud('include(' + filename + ')', err);
+    return '<!-- Error including ' + filename + ' -->';
   }
 }
 
 /**
- * Checks if 2-Way Sync trigger is installed; installs if missing (default 5-minute frequency)
+ * Ensures automated 5-minute 2-Way Sync trigger is installed
  */
 function ensure2WaySyncTriggerInstalled(minutes) {
   var freq = minutes || 5;
@@ -64,13 +67,10 @@ function ensure2WaySyncTriggerInstalled(minutes) {
       Logger.log('Installed automated ' + freq + '-minute 2-Way Sync trigger.');
     }
   } catch (err) {
-    Logger.log('ERROR [ensure2WaySyncTriggerInstalled]: ' + err.toString() + '\nStack: ' + (err.stack || 'N/A'));
+    failLoud('ensure2WaySyncTriggerInstalled', err);
   }
 }
 
-/**
- * Sets up 5-minute automated time-driven trigger for 2-Way Sync
- */
 function setup2WaySyncTrigger() {
   try {
     var existingTriggers = ScriptApp.getProjectTriggers();
@@ -87,7 +87,7 @@ function setup2WaySyncTrigger() {
 
     Logger.log('Created 5-minute 2-Way Sync trigger successfully.');
   } catch (err) {
-    Logger.log('ERROR [setup2WaySyncTrigger]: ' + err.toString() + '\nStack: ' + (err.stack || 'N/A'));
+    failLoud('setup2WaySyncTrigger', err);
   }
 }
 
@@ -99,45 +99,47 @@ function syncWorkspaceChanges() {
     var todayStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
     var dailyData = getDailyData(todayStr);
 
+    if (dailyData.error) {
+      Logger.log('syncWorkspaceChanges warning: dailyData returned error: ' + dailyData.error);
+      return;
+    }
+
     var tasks = dailyData.tasks || [];
+    var defaultCal = CalendarApp.getDefaultCalendar();
+    var matchingEvts = defaultCal.getEventsForDay(new Date());
 
-    // Sync Tasks ➔ Calendar
     tasks.forEach(function(task) {
-      if (task.id && typeof CalendarApp !== 'undefined') {
-        try {
-          var defaultCal = CalendarApp.getDefaultCalendar();
-          var matchingEvts = defaultCal.getEventsForDay(new Date());
-
-          var linkedEvt = null;
-          for (var j = 0; j < matchingEvts.length; j++) {
-            if (matchingEvts[j].getTag('gasTaskId') === task.id || matchingEvts[j].getTitle().indexOf(task.title) !== -1) {
-              linkedEvt = matchingEvts[j];
-              break;
-            }
+      if (!task.id) return;
+      try {
+        var linkedEvt = null;
+        for (var j = 0; j < matchingEvts.length; j++) {
+          if (matchingEvts[j].getTag('gasTaskId') === task.id || matchingEvts[j].getTitle().indexOf(task.title) !== -1) {
+            linkedEvt = matchingEvts[j];
+            break;
           }
-
-          var isDone = task.status === '✓';
-          var formattedTitle = isDone ? '[✓] ' + task.title : task.title;
-
-          if (linkedEvt) {
-            linkedEvt.setTitle(formattedTitle);
-          } else {
-            var now = new Date();
-            var endTime = new Date(now.getTime() + 30 * 60 * 1000);
-            var newEvt = defaultCal.createEvent(formattedTitle, now, endTime, {
-              description: 'Synced Day Planner Task: ' + task.id
-            });
-            newEvt.setTag('gasTaskId', task.id);
-          }
-        } catch (taskErr) {
-          Logger.log('ERROR [syncWorkspaceChanges per-task: ' + task.id + ']: ' + taskErr.toString() + '\nStack: ' + (taskErr.stack || 'N/A'));
         }
+
+        var isDone = task.status === '✓';
+        var formattedTitle = isDone ? '[✓] ' + task.title : task.title;
+
+        if (linkedEvt) {
+          linkedEvt.setTitle(formattedTitle);
+        } else {
+          var now = new Date();
+          var endTime = new Date(now.getTime() + 30 * 60 * 1000);
+          var newEvt = defaultCal.createEvent(formattedTitle, now, endTime, {
+            description: 'Synced Day Planner Task: ' + task.id
+          });
+          newEvt.setTag('gasTaskId', task.id);
+        }
+      } catch (taskErr) {
+        failLoud('syncWorkspaceChanges task item ' + task.id, taskErr);
       }
     });
 
     Logger.log('2-Way Workspace Sync complete for ' + todayStr);
   } catch (err) {
-    Logger.log('ERROR [syncWorkspaceChanges]: ' + err.toString() + '\nStack: ' + (err.stack || 'N/A'));
+    failLoud('syncWorkspaceChanges main', err);
   }
 }
 
@@ -149,7 +151,8 @@ function getDailyData(dateStr) {
     date: dateStr,
     tasks: [],
     calendarEvents: [],
-    noteContent: ''
+    noteContent: '',
+    warnings: []
   };
 
   try {
@@ -173,7 +176,7 @@ function getDailyData(dateStr) {
           };
         });
       } catch (calErr) {
-        Logger.log('ERROR [getDailyData CalendarApp]: ' + calErr.toString() + '\nStack: ' + (calErr.stack || 'N/A'));
+        result.warnings.push(failLoud('CalendarApp.getEvents', calErr).error);
       }
     }
 
@@ -192,19 +195,20 @@ function getDailyData(dateStr) {
           });
         }
       } catch (tasksErr) {
-        Logger.log('ERROR [getDailyData Tasks API]: ' + tasksErr.toString() + '\nStack: ' + (tasksErr.stack || 'N/A'));
+        result.warnings.push(failLoud('Tasks.Tasks.list', tasksErr).error);
       }
     }
 
-    // 3. Fetch or Create Daily Notes Google Doc in /Day Planner/YYYY/MM/
+    // 3. Fetch or Create Daily Notes Google Doc
     try {
       result.noteContent = getOrCreateDailyDocContent(dateStr);
     } catch (notesErr) {
-      Logger.log('ERROR [getDailyData getOrCreateDailyDocContent]: ' + notesErr.toString() + '\nStack: ' + (notesErr.stack || 'N/A'));
+      result.warnings.push(failLoud('getOrCreateDailyDocContent', notesErr).error);
+      result.noteContent = '⚠️ Error loading daily doc notes.';
     }
 
   } catch (err) {
-    Logger.log('ERROR [getDailyData]: ' + err.toString() + '\nStack: ' + (err.stack || 'N/A'));
+    return failLoud('getDailyData(' + dateStr + ')', err);
   }
 
   return result;
@@ -215,7 +219,7 @@ function getDailyData(dateStr) {
  */
 function getOrCreateDailyDocContent(dateStr) {
   if (typeof DriveApp === 'undefined' || typeof DocumentApp === 'undefined') {
-    return 'Daily Notes for ' + dateStr + '\n#index [General] Initialized Day Planner note with 2-Way Sync enabled.';
+    return 'Daily Notes for ' + dateStr + '\n#index [General] Initialized Day Planner note.';
   }
 
   try {
@@ -247,8 +251,8 @@ function getOrCreateDailyDocContent(dateStr) {
       return body.getText();
     }
   } catch (err) {
-    Logger.log('ERROR [getOrCreateDailyDocContent]: ' + err.toString() + '\nStack: ' + (err.stack || 'N/A'));
-    return 'Daily Notes for ' + dateStr + '\n#index [General] Initialized Day Planner note.';
+    failLoud('getOrCreateDailyDocContent(' + dateStr + ')', err);
+    throw err;
   }
 }
 
@@ -258,7 +262,7 @@ function getFolderByNameOrCreate(parent, name) {
     if (folders.hasNext()) return folders.next();
     return parent.createFolder(name);
   } catch (err) {
-    Logger.log('ERROR [getFolderByNameOrCreate: ' + name + ']: ' + err.toString() + '\nStack: ' + (err.stack || 'N/A'));
+    failLoud('getFolderByNameOrCreate(' + name + ')', err);
     throw err;
   }
 }
@@ -271,7 +275,7 @@ function getMasterTasks(monthYearStr) {
       { id: 'm3', title: 'Rebalance investment portfolio', category: 'Financial', status: '•' }
     ];
   } catch (err) {
-    Logger.log('ERROR [getMasterTasks]: ' + err.toString() + '\nStack: ' + (err.stack || 'N/A'));
+    failLoud('getMasterTasks', err);
     return [];
   }
 }
@@ -286,7 +290,7 @@ function addDailyTask(dateStr, title, category) {
       dueDate: dateStr
     };
   } catch (err) {
-    Logger.log('ERROR [addDailyTask]: ' + err.toString() + '\nStack: ' + (err.stack || 'N/A'));
+    failLoud('addDailyTask', err);
     throw err;
   }
 }
