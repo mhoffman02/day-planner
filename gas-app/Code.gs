@@ -15,9 +15,16 @@ function failLoud(context, err) {
 }
 
 function doGet(e) {
-  // Check if requested /post diagnostic endpoint (e.g. ?post=1 or ?view=post)
-  if (e && e.parameter && (e.parameter.post === '1' || e.parameter.post === 'true' || e.parameter.view === 'post')) {
-    return renderPostDiagnosticReport();
+  // Check if requested /self-test diagnostic endpoint (supports pathInfo: "self-test" or params)
+  var isSelfTest = e && (
+    e.pathInfo === 'self-test' ||
+    e.pathInfo === '/self-test' ||
+    e.pathInfo === 'selftest' ||
+    (e.parameter && (e.parameter.view === 'self-test' || e.parameter['self-test'] !== undefined || e.parameter.post === '1'))
+  );
+
+  if (isSelfTest) {
+    return renderSelfTestDiagnosticReport();
   }
 
   // Regular Web App load

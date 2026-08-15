@@ -22,6 +22,9 @@ The project is architected to run in two environments:
 - Development `/dev` Web App Execution Link (Logged-in Owner Execution):
   https://script.google.com/macros/s/1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W/dev
 
+- Self-Test Diagnostics Web Endpoint (`/self-test`):
+  https://script.google.com/macros/s/1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W/dev/self-test
+
 - Local Preview Web Server (Node.js):
   http://localhost:3000
 
@@ -76,7 +79,7 @@ The project is architected to run in two environments:
     ├── Styles.html        # Digital Binder CSS Design System with Material Symbols
     ├── Script.html        # Alpine.js reactive components & event handlers
     ├── About.html         # In-app static About documentation card
-    ├── UnitTests.gs       # Power-On Self Test (POST) server diagnostic runner
+    ├── UnitTests.gs       # Self-Test diagnostic suite & HTML report generator
     └── appsscript.json    # GAS manifest with minimal OAuth permissions
 
 
@@ -110,19 +113,18 @@ The project is architected to run in two environments:
     (View at http://localhost:3000)
 
 
-6. TESTER NOTES & POWER-ON SELF TEST (POST) DIAGNOSTICS
+6. TESTER NOTES & AUTOMATED SELF-TEST DIAGNOSTICS
 --------------------------------------------------------------------------------
-To run the automated Power-On Self Test (POST) server diagnostic suite:
+To run the automated Self-Test diagnostic suite:
 
-Option A - Via Clasp CLI:
-    $ cd gas-app
-    $ clasp run runPowerOnSelfTest
+Option A - Direct Web Sub-Path Endpoint (Recommended):
+    Open: https://script.google.com/macros/s/1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W/dev/self-test
 
 Option B - Via Apps Script IDE:
     1. Open https://script.google.com/d/1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W/edit
-    2. Select `runPowerOnSelfTest` from the function dropdown at the top.
+    2. Select `runSelfTest` from the function dropdown at the top.
     3. Click `Run` and inspect Execution Log.
 
-The POST diagnostic suite tests Drive folder access, Google Tasks API, CalendarApp 
-tagging, Google Docs daily notes generation, and 2-Way Sync trigger health.
+The Self-Test diagnostic suite tests Drive folder access, Google Tasks API, 
+CalendarApp tagging, Google Docs daily notes generation, and 2-Way Sync trigger health.
 ================================================================================
