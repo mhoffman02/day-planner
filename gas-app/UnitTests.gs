@@ -1,6 +1,7 @@
 /**
  * Day Planner Server-Side Power-On Self Test (POST) & Diagnostic Suite
  * Runs an automated major systems & integration check to ensure system health and Google Workspace API connections.
+ * All errors log detailed error message and err.stack for diagnostic clarity.
  */
 
 function runPowerOnSelfTest() {
@@ -23,10 +24,11 @@ function runPowerOnSelfTest() {
     });
     passedCount++;
   } catch (err1) {
+    Logger.log('ERROR [POST Test 1 Drive]: ' + err1.toString() + '\nStack: ' + (err1.stack || 'N/A'));
     results.push({
       test: '1. Google Drive & Folder Hierarchy',
       status: 'FAIL',
-      details: err1.toString()
+      details: err1.toString() + ' | Stack: ' + (err1.stack || 'N/A')
     });
   }
 
@@ -48,10 +50,11 @@ function runPowerOnSelfTest() {
       });
     }
   } catch (err2) {
+    Logger.log('ERROR [POST Test 2 Tasks]: ' + err2.toString() + '\nStack: ' + (err2.stack || 'N/A'));
     results.push({
       test: '2. Google Tasks API (v1)',
       status: 'FAIL',
-      details: err2.toString()
+      details: err2.toString() + ' | Stack: ' + (err2.stack || 'N/A')
     });
   }
 
@@ -74,10 +77,11 @@ function runPowerOnSelfTest() {
       });
     }
   } catch (err3) {
+    Logger.log('ERROR [POST Test 3 Calendar]: ' + err3.toString() + '\nStack: ' + (err3.stack || 'N/A'));
     results.push({
       test: '3. Google Calendar Integration',
       status: 'FAIL',
-      details: err3.toString()
+      details: err3.toString() + ' | Stack: ' + (err3.stack || 'N/A')
     });
   }
 
@@ -92,10 +96,11 @@ function runPowerOnSelfTest() {
     });
     passedCount++;
   } catch (err4) {
+    Logger.log('ERROR [POST Test 4 Docs]: ' + err4.toString() + '\nStack: ' + (err4.stack || 'N/A'));
     results.push({
       test: '4. Google Docs Daily Notes Provider',
       status: 'FAIL',
-      details: err4.toString()
+      details: err4.toString() + ' | Stack: ' + (err4.stack || 'N/A')
     });
   }
 
@@ -117,10 +122,11 @@ function runPowerOnSelfTest() {
     });
     passedCount++;
   } catch (err5) {
+    Logger.log('ERROR [POST Test 5 Sync]: ' + err5.toString() + '\nStack: ' + (err5.stack || 'N/A'));
     results.push({
       test: '5. 2-Way Sync Engine & Trigger Health',
       status: 'FAIL',
-      details: err5.toString()
+      details: err5.toString() + ' | Stack: ' + (err5.stack || 'N/A')
     });
   }
 
