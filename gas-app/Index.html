@@ -4,6 +4,22 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Day Planner</title>
+  <script>
+    (function() {
+      try {
+        var saved = localStorage.getItem('dayPlannerTheme');
+        if (saved) {
+          document.documentElement.setAttribute('data-theme', saved);
+        } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        } else {
+          document.documentElement.setAttribute('data-theme', 'light');
+        }
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    })();
+  </script>
   <?!= include('Styles'); ?>
   <!-- Inline Styles Fallback when serving locally -->
   <style>
@@ -23,12 +39,15 @@
       <div class="header-actions">
         <button type="button" class="nav-btn nav-btn-sync" @click="trigger2WaySync()" :disabled="isSyncing">
           <span class="material-symbols-outlined" :class="{ 'spin': isSyncing }">sync</span>
-          <span x-text="isSyncing ? 'Syncing...' : '2-Way Sync'"></span>
+          <span x-text="isSyncing ? 'Syncing...' : 'Sync'"></span>
         </button>
         <button type="button" class="search-trigger-btn" @click="toggleSearchModal()">
           <span class="material-symbols-outlined">search</span>
           <span>Universal Search</span>
           <kbd class="kbd-shortcut">Ctrl + K</kbd>
+        </button>
+        <button type="button" class="theme-toggle-btn" @click="toggleTheme()" :aria-label="'Switch to ' + (theme === 'dark' ? 'Light' : 'Dark') + ' Mode'" :title="'Switch to ' + (theme === 'dark' ? 'Light' : 'Dark') + ' Mode'">
+          <span class="material-symbols-outlined" x-text="theme === 'dark' ? 'light_mode' : 'dark_mode'"></span>
         </button>
       </div>
     </header>
@@ -138,8 +157,8 @@
                 <option value="C">Priority C</option>
               </select>
               <input type="text" x-model="newTaskTitle" placeholder="Add task title (e.g. Call vendor)..." class="task-input-field" aria-label="New task description">
-              <button type="submit" class="btn-primary">
-                <span class="material-symbols-outlined">add</span> Add Task
+              <button type="submit" class="btn-primary btn-add-task-round" aria-label="Add Task" title="Add Task">
+                <span class="material-symbols-outlined">add</span>
               </button>
             </form>
 

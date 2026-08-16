@@ -4,6 +4,22 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Day Planner - Setup Google Drive Folder</title>
+  <script>
+    (function() {
+      try {
+        var saved = localStorage.getItem('dayPlannerTheme');
+        if (saved) {
+          document.documentElement.setAttribute('data-theme', saved);
+        } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        } else {
+          document.documentElement.setAttribute('data-theme', 'light');
+        }
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    })();
+  </script>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0">
   <?!= include('Styles'); ?>
 <style>
@@ -38,7 +54,7 @@
       <form id="formContainer" onsubmit="event.preventDefault(); submitFolderUrl();">
         <label class="form-label" for="folderUrlInput">Google Drive Folder Web Link or ID:</label>
         <input type="text" id="folderUrlInput" placeholder="https://drive.google.com/drive/folders/1N2WRrFmts..." value="https://drive.google.com/drive/u/0/folders/1N2WRrFmtsAWKgqeaFIj9HtiQ2wupFEk0">
-        <button type="submit" id="submitBtn">Validate & Connect Folder</button>
+        <button type="submit" id="submitBtn" class="btn-primary">Validate & Connect Folder</button>
       </form>
 
       <aside id="statusBox" class="status-box" role="alert"></aside>

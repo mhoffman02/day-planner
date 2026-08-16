@@ -198,6 +198,8 @@
 
       bridge: null,
 
+      theme: 'light',
+
       get isMonthlyView() {
         return ['monthly-calendar', 'master-tasks', 'monthly-index', 'future-matrix'].includes(this.activeView);
       },
@@ -212,9 +214,38 @@
 
       async init() {
         this.bridge = new GASBridge(false);
+        this.initTheme();
         await this.loadDayData();
         await this.loadMasterTasks();
         this.setupKeyboardShortcuts();
+      },
+
+      initTheme() {
+        try {
+          const saved = localStorage.getItem('dayPlannerTheme');
+          if (saved) {
+            this.theme = saved;
+          } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            this.theme = 'dark';
+          } else {
+            this.theme = 'light';
+          }
+        } catch (e) {
+          this.theme = 'light';
+        }
+        this.applyTheme();
+      },
+
+      toggleTheme() {
+        this.theme = this.theme === 'dark' ? 'light' : 'dark';
+        try {
+          localStorage.setItem('dayPlannerTheme', this.theme);
+        } catch (e) {}
+        this.applyTheme();
+      },
+
+      applyTheme() {
+        document.documentElement.setAttribute('data-theme', this.theme);
       },
 
       setupKeyboardShortcuts() {
