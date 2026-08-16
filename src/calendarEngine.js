@@ -84,7 +84,7 @@ export function formatEventModalPayload(rawEvent = {}) {
     : 'All Day';
 
   return {
-    id: rawEvent.id || `evt_${Math.random().toString(36).substr(2, 6)}`,
+    id: rawEvent.id || `evt_${Math.random().toString(36).slice(2, 8)}`,
     title: rawEvent.title || 'Untitled Event',
     formattedTime: timeString,
     startTime: rawEvent.startTime,

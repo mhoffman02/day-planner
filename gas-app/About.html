@@ -1,6 +1,6 @@
-<div class="about-container">
+<article class="about-container">
   
-  <div class="about-header">
+  <header class="about-header">
     <div>
       <h1 class="about-title">
         <span class="material-symbols-outlined icon-32">menu_book</span>
@@ -11,107 +11,117 @@
     <span class="about-version">
       <span class="material-symbols-outlined icon-16">verified</span> v2.9
     </span>
-  </div>
+  </header>
 
-  <h3 class="about-section-heading">1. Purpose & Product Vision</h3>
-  <p class="about-paragraph">
-    The <b>Day Planner</b> bridges timeless paper day planner productivity methodology with real-time Google Workspace cloud capabilities.
-  </p>
-
-  <h3 class="about-section-heading-large">2. Google Drive Folder Setup</h3>
-  <div class="security-callout">
-    <h4 class="security-callout-title">
-      <span class="material-symbols-outlined">lock</span> Privacy & Security
-    </h4>
-    <p class="callout-text">
-      To protect your privacy, Day Planner <b>CANNOT read or write any existing files</b> across your Google Drive.
+  <section aria-labelledby="heading-purpose">
+    <h2 id="heading-purpose" class="about-section-heading">1. Purpose & Product Vision</h2>
+    <p class="about-paragraph">
+      The <b>Day Planner</b> bridges timeless paper day planner productivity methodology with real-time Google Workspace cloud capabilities.
     </p>
-    <div class="folder-instructions-box">
-      <b>Google Drive Folder Link Instructions:</b>
-      <ol class="styled-ordered-list">
-        <li>Create a dedicated folder named <b><code>Day Planner</code></b> in your Google Drive (e.g. <code>https://drive.google.com/drive/u/0/folders/1N2WRrFmtsAWKgqeaFIj9HtiQ2wupFEk0</code>).</li>
-        <li>The application securely links your folder ID to store your planner notes and documents.</li>
-        <li>All daily notes documents and monthly subfolders are created under <code>/Day Planner/</code>.</li>
-      </ol>
-    </div>
-  </div>
+  </section>
 
-  <h3 class="about-section-heading-large">3. Google Workspace Integrations</h3>
-  <table class="task-table matrix-table">
-    <thead>
-      <tr class="table-header-row">
-        <th>Google Service</th>
-        <th>Feature</th>
-        <th>Capabilities & Benefits</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td><b>Google Calendar</b></td>
-        <td>Schedule & Appointments</td>
-        <td>Renders 07:00 AM – 07:00 PM appointment schedule grid, event details modal, Google Meet launcher, and 2-way workspace sync.</td>
-      </tr>
-      <tr>
-        <td><b>Google Tasks</b></td>
-        <td>Task Management</td>
-        <td>Manages daily <code>[A1-C9]</code> prioritized tasks and Monthly Master Task Lists with 1-click transfer.</td>
-      </tr>
-      <tr>
-        <td><b>Google Docs</b></td>
-        <td>Daily Notes & Indexing</td>
-        <td>Backs the daily notes pane with Google Docs stored in <code>/Day Planner/</code>; scans <code>#index</code> decision tags.</td>
-      </tr>
-      <tr>
-        <td><b>Google Drive</b></td>
-        <td>Cloud Storage</td>
-        <td>Organizes your daily notes and monthly binder archives inside your dedicated <code>Day Planner</code> folder.</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <h3 class="about-section-heading-large">4. User Instructions & Workflow Guide</h3>
-
-  <div class="cards-stack">
-    <div class="guide-card">
-      <h4 class="guide-card-title">
-        <span class="material-symbols-outlined">format_list_bulleted</span> A1–C9 Task Prioritization & Status Codes
-      </h4>
-      <p class="guide-card-text">
-        Tasks are categorized into Priority Groups (A = Urgent, B = Important, C = Low) with sequence numbers (1–9). Click the status box to cycle: 
-        <span class="material-symbols-outlined icon-16">fiber_manual_record</span> (Open) <span class="material-symbols-outlined icon-16">arrow_forward</span> <span class="material-symbols-outlined icon-16">check</span> (Completed) <span class="material-symbols-outlined icon-16">arrow_forward</span> <span class="material-symbols-outlined icon-16">east</span> (Forwarded) <span class="material-symbols-outlined icon-16">arrow_forward</span> <span class="material-symbols-outlined icon-16">close</span> (Canceled) <span class="material-symbols-outlined icon-16">arrow_forward</span> <b>G/✓</b> (Delegated).
+  <section aria-labelledby="heading-setup">
+    <h2 id="heading-setup" class="about-section-heading">2. Google Drive Folder Setup</h2>
+    <aside class="security-callout">
+      <h3 class="security-callout-title">
+        <span class="material-symbols-outlined">lock</span> Privacy & Security
+      </h3>
+      <p class="callout-text">
+        To protect your privacy, Day Planner <b>CANNOT read or write any existing files</b> across your Google Drive.
       </p>
-    </div>
+      <div class="folder-instructions-box">
+        <b>Google Drive Folder Link Instructions:</b>
+        <ol class="styled-ordered-list">
+          <li>Create a dedicated folder named <b><code>Day Planner</code></b> in your Google Drive (e.g. <code>https://drive.google.com/drive/u/0/folders/1N2WRrFmtsAWKgqeaFIj9HtiQ2wupFEk0</code>).</li>
+          <li>The application securely links your folder ID to store your planner notes and documents.</li>
+          <li>All daily notes documents and monthly subfolders are created under <code>/Day Planner/</code>.</li>
+        </ol>
+      </div>
+    </aside>
+  </section>
 
-    <div class="guide-card">
-      <h4 class="guide-card-title">
-        <span class="material-symbols-outlined">move_item</span> Monthly Master Task Transfer
-      </h4>
-      <p class="guide-card-text">
-        Open the <b>Master Task List</b> tab to view categorized monthly objectives (Work, Personal, Financial, Projects). Click <b>Move to Today</b> to assign an active <code>[A1]</code> priority tag and transfer it directly to today's task list.
-      </p>
-    </div>
+  <section aria-labelledby="heading-workspace">
+    <h2 id="heading-workspace" class="about-section-heading">3. Google Workspace Integrations</h2>
+    <figure class="table-container">
+      <table class="task-table matrix-table">
+        <thead>
+          <tr class="table-header-row">
+            <th scope="col">Google Service</th>
+            <th scope="col">Feature</th>
+            <th scope="col">Capabilities & Benefits</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b>Google Calendar</b></td>
+            <td>Schedule & Appointments</td>
+            <td>Renders 07:00 AM – 07:00 PM appointment schedule grid, event details modal, Google Meet launcher, and 2-way workspace sync.</td>
+          </tr>
+          <tr>
+            <td><b>Google Tasks</b></td>
+            <td>Task Management</td>
+            <td>Manages daily <code>[A1-C9]</code> prioritized tasks and Monthly Master Task Lists with 1-click transfer.</td>
+          </tr>
+          <tr>
+            <td><b>Google Docs</b></td>
+            <td>Daily Notes & Indexing</td>
+            <td>Backs the daily notes pane with Google Docs stored in <code>/Day Planner/</code>; scans <code>#index</code> decision tags.</td>
+          </tr>
+          <tr>
+            <td><b>Google Drive</b></td>
+            <td>Cloud Storage</td>
+            <td>Organizes your daily notes and monthly binder archives inside your dedicated <code>Day Planner</code> folder.</td>
+          </tr>
+        </tbody>
+      </table>
+    </figure>
+  </section>
 
-    <div class="guide-card">
-      <h4 class="guide-card-title">
-        <span class="material-symbols-outlined">tag</span> Automated Monthly Indexing (#index)
-      </h4>
-      <p class="guide-card-text">
-        Tag key meeting outcomes or decisions in your daily notes using <code>#index [Topic] Summary</code>. The Monthly Index automatically aggregates and links these entries chronologically.
-      </p>
-    </div>
+  <section aria-labelledby="heading-guide">
+    <h2 id="heading-guide" class="about-section-heading">4. User Instructions & Workflow Guide</h2>
 
-    <div class="guide-card">
-      <h4 class="guide-card-title">
-        <span class="material-symbols-outlined">sync</span> 2-Way Workspace Sync
-      </h4>
-      <p class="guide-card-text">
-        Click <b>2-Way Sync</b> in the top header bar to reconcile tasks and calendar appointments. Background triggers automatically run every 5 minutes.
-      </p>
-    </div>
-  </div>
+    <section class="cards-stack">
+      <article class="guide-card">
+        <h3 class="guide-card-title">
+          <span class="material-symbols-outlined">format_list_bulleted</span> A1–C9 Task Prioritization & Status Codes
+        </h3>
+        <p class="guide-card-text">
+          Tasks are categorized into Priority Groups (A = Urgent, B = Important, C = Low) with sequence numbers (1–9). Click the status box to cycle: 
+          <span class="material-symbols-outlined icon-16">fiber_manual_record</span> (Open) <span class="material-symbols-outlined icon-16">arrow_forward</span> <span class="material-symbols-outlined icon-16">check</span> (Completed) <span class="material-symbols-outlined icon-16">arrow_forward</span> <span class="material-symbols-outlined icon-16">east</span> (Forwarded) <span class="material-symbols-outlined icon-16">arrow_forward</span> <span class="material-symbols-outlined icon-16">close</span> (Canceled) <span class="material-symbols-outlined icon-16">arrow_forward</span> <b>G/✓</b> (Delegated).
+        </p>
+      </article>
 
-  <div class="about-footer">
+      <article class="guide-card">
+        <h3 class="guide-card-title">
+          <span class="material-symbols-outlined">move_item</span> Monthly Master Task Transfer
+        </h3>
+        <p class="guide-card-text">
+          Open the <b>Master Task List</b> tab to view categorized monthly objectives (Work, Personal, Financial, Projects). Click <b>Move to Today</b> to assign an active <code>[A1]</code> priority tag and transfer it directly to today's task list.
+        </p>
+      </article>
+
+      <article class="guide-card">
+        <h3 class="guide-card-title">
+          <span class="material-symbols-outlined">tag</span> Automated Monthly Indexing (#index)
+        </h3>
+        <p class="guide-card-text">
+          Tag key meeting outcomes or decisions in your daily notes using <code>#index [Topic] Summary</code>. The Monthly Index automatically aggregates and links these entries chronologically.
+        </p>
+      </article>
+
+      <article class="guide-card">
+        <h3 class="guide-card-title">
+          <span class="material-symbols-outlined">sync</span> 2-Way Workspace Sync
+        </h3>
+        <p class="guide-card-text">
+          Click <b>2-Way Sync</b> in the top header bar to reconcile tasks and calendar appointments. Background triggers automatically run every 5 minutes.
+        </p>
+      </article>
+    </section>
+  </section>
+
+  <footer class="about-footer">
     Day Planner • Google Workspace Edition
-  </div>
+  </footer>
 
-</div>
+</article>

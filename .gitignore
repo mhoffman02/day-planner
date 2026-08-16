@@ -4,3 +4,4 @@ clasp_ref/
 .DS_Store
 *.log
 scratch/
+.claude/

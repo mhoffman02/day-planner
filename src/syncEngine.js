@@ -62,7 +62,7 @@ export function syncTaskToCalendar(task, calendarEvents = []) {
   // Create new linked event
   return {
     updatedEvent: {
-      id: `evt_sync_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      id: `evt_sync_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       title: eventTitle,
       startTime,
       endTime,

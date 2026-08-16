@@ -98,6 +98,20 @@ The project is architected to run in two environments:
     The 5-minute automated background trigger (`setup2WaySyncTrigger()`) reconciles
     task completions (`[✓]`) and calendar time shifts.
 
+[!] Date Navigation & Timezone Safety:
+    Avoid `new Date('YYYY-MM-DDT00:00:00').toISOString()` when computing date arithmetic
+    in local timezones. Calling `.toISOString()` converts local midnight to UTC, which 
+    shifts the date string back by one day in non-UTC timezones. `binderStore.js` uses
+    pure local year/month/day arithmetic (`new Date(y, m - 1, d + delta)`) for navigation.
+
+[!] Security & External Links (`rel="noopener noreferrer"`):
+    All external links targeting `target="_blank"` are secured with `rel="noopener noreferrer"`
+    to prevent reverse tabnabbing and window opening security vulnerabilities.
+
+[!] Modern JavaScript Standard (ES2022+):
+    Avoid deprecated `String.prototype.substr()`. Use standard `slice()` across all core
+    engines (`calendarEngine.js`, `taskEngine.js`, `syncEngine.js`, `indexParser.js`).
+
 [!] Clasp Deployment Commands:
     To update the live Google Apps Script project:
     $ cd gas-app

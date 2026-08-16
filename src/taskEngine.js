@@ -141,7 +141,7 @@ export function transferMasterTaskToToday(masterTask, existingDailyTasks = [], t
   const formattedTitle = formatTaskTitle(targetPriorityGroup, sequence, cleanTitle);
 
   return {
-    id: `daily_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+    id: `daily_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     title: formattedTitle,
     status: TASK_STATUSES.OPEN,
     dueDate: todayDateStr,

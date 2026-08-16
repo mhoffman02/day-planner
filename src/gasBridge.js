@@ -4,6 +4,8 @@
  * Bridges client requests to Google Apps Script backend `google.script.run` or local mock state.
  */
 
+import { transferMasterTaskToToday } from './taskEngine.js';
+
 /**
  * Service bridge for invoking Apps Script backend functions or providing mock fallback data.
  */
@@ -167,17 +169,7 @@ export class GASBridge {
     if (!masterTask) return null;
 
     const existingDaily = this.mockData.dailyTasks[dateStr] || [];
-    const cleanTitle = masterTask.title;
-    const seq = existingDaily.length + 1;
-    const formattedTitle = `[${priorityGroup.toUpperCase()}${seq}] ${cleanTitle}`;
-
-    const newDailyTask = {
-      id: `t_${Date.now()}`,
-      title: formattedTitle,
-      status: '•',
-      category: masterTask.category || 'General',
-      dueDate: dateStr
-    };
+    const newDailyTask = transferMasterTaskToToday(masterTask, existingDaily, priorityGroup, dateStr);
 
     if (!this.mockData.dailyTasks[dateStr]) {
       this.mockData.dailyTasks[dateStr] = [];

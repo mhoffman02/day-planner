@@ -41,7 +41,7 @@ export function parseIndexEntriesFromNote(noteText = '', dateStr = '', docUrl = 
       }
 
       indexEntries.push({
-        id: `idx_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        id: `idx_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         date: dateStr || new Date().toISOString().slice(0, 10),
         topic,
         summary: cleanText || trimmed,

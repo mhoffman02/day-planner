@@ -4,83 +4,84 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Day Planner</title>
-  <?!= include('style'); ?>
+  <?!= include('Styles'); ?>
   <!-- Inline Styles Fallback when serving locally -->
   <style>
     /* Includes base styles inline if template includes fail */
   </style>
 </head>
 <body>
-  <div class="binder-container" x-data="plannerApp" x-cloak>
+  <!-- Main Binder Application Container -->
+  <main class="binder-container" x-data="plannerApp" x-cloak>
     
     <!-- Top Header -->
     <header class="binder-header">
-      <div class="brand-title">
+      <h1 class="brand-title">
         <span class="material-symbols-outlined icon-28">auto_stories</span>
         <span>Day Planner</span>
-      </div>
+      </h1>
       <div class="header-actions">
-        <button class="nav-btn nav-btn-sync" @click="trigger2WaySync()" :disabled="isSyncing">
+        <button type="button" class="nav-btn nav-btn-sync" @click="trigger2WaySync()" :disabled="isSyncing">
           <span class="material-symbols-outlined" :class="{ 'spin': isSyncing }">sync</span>
           <span x-text="isSyncing ? 'Syncing...' : '2-Way Sync'"></span>
         </button>
-        <button class="search-trigger-btn" @click="toggleSearchModal()">
+        <button type="button" class="search-trigger-btn" @click="toggleSearchModal()">
           <span class="material-symbols-outlined">search</span>
           <span>Universal Search</span>
-          <span class="kbd-shortcut">Ctrl + K</span>
+          <kbd class="kbd-shortcut">Ctrl + K</kbd>
         </button>
       </div>
     </header>
 
     <!-- Navigation Tabs -->
-    <nav class="view-tabs-bar">
-      <button class="tab-btn" :class="{ 'active': activeView === 'daily' }" @click="setView('daily')">
+    <nav class="view-tabs-bar" aria-label="Planner Views">
+      <button type="button" class="tab-btn" :class="{ 'active': activeView === 'daily' }" @click="setView('daily')">
         <span class="material-symbols-outlined">calendar_today</span>
         Today
       </button>
-      <button class="tab-btn" :class="{ 'active': activeView === 'monthly-calendar' }" @click="setView('monthly-calendar')">
+      <button type="button" class="tab-btn" :class="{ 'active': activeView === 'monthly-calendar' }" @click="setView('monthly-calendar')">
         <span class="material-symbols-outlined">calendar_month</span>
         Monthly Calendar
       </button>
-      <button class="tab-btn" :class="{ 'active': activeView === 'master-tasks' }" @click="setView('master-tasks')">
+      <button type="button" class="tab-btn" :class="{ 'active': activeView === 'master-tasks' }" @click="setView('master-tasks')">
         <span class="material-symbols-outlined">checklist</span>
         Master Task List
       </button>
-      <button class="tab-btn" :class="{ 'active': activeView === 'monthly-index' }" @click="setView('monthly-index')">
+      <button type="button" class="tab-btn" :class="{ 'active': activeView === 'monthly-index' }" @click="setView('monthly-index')">
         <span class="material-symbols-outlined">topic</span>
         Monthly Index
       </button>
-      <button class="tab-btn" :class="{ 'active': activeView === 'future-matrix' }" @click="setView('future-matrix')">
+      <button type="button" class="tab-btn" :class="{ 'active': activeView === 'future-matrix' }" @click="setView('future-matrix')">
         <span class="material-symbols-outlined">explore</span>
         Future Planning
       </button>
-      <button class="tab-btn" :class="{ 'active': activeView === 'about' }" @click="setView('about')">
+      <button type="button" class="tab-btn" :class="{ 'active': activeView === 'about' }" @click="setView('about')">
         <span class="material-symbols-outlined">info</span>
         About
       </button>
     </nav>
 
     <!-- Navigation Header Bar (Context-aware: Daily vs Monthly views) -->
-    <div class="date-bar">
-      <div class="date-display">
+    <header class="date-bar" aria-label="Date navigation bar">
+      <h2 class="date-display">
         <template x-if="isMonthlyView">
           <span x-text="selectedMonthName + ' ' + selectedYear"></span>
         </template>
         <template x-if="!isMonthlyView">
           <span x-text="new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })"></span>
         </template>
-      </div>
+      </h2>
 
       <!-- Nav Button Group -->
-      <div class="nav-btn-group">
+      <nav class="nav-btn-group" aria-label="Date Controls">
         <!-- Daily Nav Buttons -->
         <template x-if="!isMonthlyView">
           <div class="flex-gap-8">
-            <button class="nav-btn" @click="navigateDay(-1)">
+            <button type="button" class="nav-btn" @click="navigateDay(-1)">
               <span class="material-symbols-outlined">arrow_back</span> Prev
             </button>
-            <button class="nav-btn" @click="selectedDate = new Date().toISOString().slice(0, 10); loadDayData()">Today</button>
-            <button class="nav-btn" @click="navigateDay(1)">
+            <button type="button" class="nav-btn" @click="selectedDate = new Date().toISOString().slice(0, 10); loadDayData()">Today</button>
+            <button type="button" class="nav-btn" @click="navigateDay(1)">
               Next <span class="material-symbols-outlined">arrow_forward</span>
             </button>
           </div>
@@ -89,263 +90,259 @@
         <!-- Monthly Nav Buttons -->
         <template x-if="isMonthlyView">
           <div class="flex-gap-8">
-            <button class="nav-btn" @click="navigateMonth(-1)">
+            <button type="button" class="nav-btn" @click="navigateMonth(-1)">
               <span class="material-symbols-outlined">arrow_back</span> Prev
             </button>
-            <button class="nav-btn" @click="jumpToCurrentMonth()" x-text="currentMonthName"></button>
-            <button class="nav-btn" @click="navigateMonth(1)">
+            <button type="button" class="nav-btn" @click="jumpToCurrentMonth()" x-text="currentMonthName"></button>
+            <button type="button" class="nav-btn" @click="navigateMonth(1)">
               Next <span class="material-symbols-outlined">arrow_forward</span>
             </button>
           </div>
         </template>
-      </div>
-    </div>
+      </nav>
+    </header>
 
     <!-- Centralized Error & Warning Banner -->
     <template x-if="errorMessage">
-      <div class="error-banner">
+      <aside class="error-banner" role="alert">
         <div class="error-banner-content">
           <span class="material-symbols-outlined">warning</span>
           <span x-text="errorMessage"></span>
         </div>
-        <button @click="errorMessage = null" class="error-close-btn" aria-label="Close">
+        <button type="button" @click="errorMessage = null" class="error-close-btn" aria-label="Close">
           <span class="material-symbols-outlined icon-18">close</span>
         </button>
-      </div>
+      </aside>
     </template>
 
     <!-- Main Workspace Area -->
-    <div class="binder-body">
+    <section class="binder-body">
 
       <!-- View 1: 2-Page Daily Spread -->
       <template x-if="activeView === 'daily'">
-        <div class="two-page-spread">
+        <section class="two-page-spread" aria-label="Daily Planner 2-Page Spread">
           
-          <!-- Left Page: Prioritized Daily Task List -->
-          <div class="page-panel">
-            <div class="panel-header">
-              <span class="panel-header-title">
-                <span class="material-symbols-outlined">format_list_numbered</span> Prioritized Daily Tasks
-              </span>
-              <span class="panel-header-subtitle">A1-C9 System</span>
-            </div>
+          <!-- Left Page: Daily Task List Panel -->
+          <article class="page-panel">
+            <header class="panel-header">
+              <h3 class="panel-header-title">
+                <span class="material-symbols-outlined">format_list_numbered</span> Tasks
+              </h3>
+            </header>
 
-            <!-- Task Quick Add -->
-            <div class="task-quick-add-bar">
-              <select x-model="newTaskPriorityGroup" class="task-priority-select">
+            <!-- Task Quick Add Form -->
+            <form @submit.prevent="addDailyTask()" role="group" class="task-quick-add-bar">
+              <select x-model="newTaskPriorityGroup" class="task-priority-select" aria-label="Task priority group">
                 <option value="A">Priority A</option>
                 <option value="B">Priority B</option>
                 <option value="C">Priority C</option>
               </select>
-              <input type="text" x-model="newTaskTitle" @keydown.enter="addDailyTask()" placeholder="Add task title (e.g. Call vendor)..." class="task-input-field">
-              <button class="btn-primary" @click="addDailyTask()">
+              <input type="text" x-model="newTaskTitle" placeholder="Add task title (e.g. Call vendor)..." class="task-input-field" aria-label="New task description">
+              <button type="submit" class="btn-primary">
                 <span class="material-symbols-outlined">add</span> Add Task
               </button>
-            </div>
+            </form>
 
             <!-- Task Table Grid -->
-            <table class="task-table">
-              <thead>
-                <tr>
-                  <th class="th-w-40">Pri</th>
-                  <th class="th-w-40">Sts</th>
-                  <th>Task Description</th>
-                  <th class="th-w-80">Category</th>
-                </tr>
-              </thead>
-              <tbody>
-                <template x-for="task in dailyTasks" :key="task.id">
+            <figure class="table-container">
+              <table class="task-table">
+                <thead>
                   <tr>
-                    <td>
-                      <span class="priority-badge" :class="parseTask(task.title).priorityGroup || 'A'" x-text="parseTask(task.title).priorityCode || 'A1'"></span>
-                    </td>
-                    <td>
-                      <button class="status-btn" @click="toggleTaskStatus(task)" x-text="task.status || '•'"></button>
-                    </td>
-                    <td x-text="parseTask(task.title).cleanTitle"></td>
-                    <td class="td-category" x-text="task.category || 'Work'"></td>
+                    <th scope="col" class="th-w-40">Pri</th>
+                    <th scope="col" class="th-w-40">Sts</th>
+                    <th scope="col">Task Description</th>
+                    <th scope="col" class="th-w-80">Category</th>
                   </tr>
-                </template>
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  <template x-for="task in dailyTasks" :key="task.id">
+                    <tr>
+                      <td>
+                        <span class="priority-badge" :class="parseTask(task.title).priorityGroup || 'A'" x-text="parseTask(task.title).priorityCode || 'A1'"></span>
+                      </td>
+                      <td>
+                        <button type="button" class="status-btn" @click="toggleTaskStatus(task)" x-text="task.status || '•'" :aria-label="'Task status: ' + (task.status || 'Open') + '. Click to cycle status.'"></button>
+                      </td>
+                      <td x-text="parseTask(task.title).cleanTitle"></td>
+                      <td class="td-category" x-text="task.category || 'Work'"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </figure>
 
-            <!-- Daily Tracker Pane -->
-            <div class="daily-tracker-container">
-              <div class="daily-tracker-title">
-                <span class="material-symbols-outlined">monitoring</span> Daily Tracker & Habits
-              </div>
-              <div class="daily-tracker-items">
-                <div class="tracker-item">
-                  <span class="material-symbols-outlined icon-16 icon-water">water_drop</span> Water: <b>8 / 8</b>
-                </div>
-                <div class="tracker-item">
-                  <span class="material-symbols-outlined icon-16 icon-fitness">fitness_center</span> Fitness: <b>45 min</b>
-                </div>
-                <div class="tracker-item">
-                  <span class="material-symbols-outlined icon-16 icon-priority">track_changes</span> Priority: <b>Focus Area</b>
-                </div>
-              </div>
-            </div>
-          </div>
+          </article>
 
-          <!-- Right Page: Schedule & Notes -->
-          <div class="page-panel">
-            <div class="panel-header">
-              <span class="panel-header-title">
-                <span class="material-symbols-outlined">schedule</span> Appointment Schedule (07:00 AM – 07:00 PM)
-              </span>
-            </div>
+          <!-- Right Page: Schedule & Notes Panel -->
+          <article class="page-panel">
+            <header class="panel-header">
+              <h3 class="panel-header-title">
+                <span class="material-symbols-outlined">schedule</span> Appointment
+              </h3>
+            </header>
 
             <!-- Hourly Schedule Grid -->
-            <div class="schedule-list">
+            <section class="schedule-list" aria-label="Hourly Schedule">
               <template x-for="slot in scheduleGrid" :key="slot.timeKey">
                 <div class="schedule-row" :class="{ 'half-hour': slot.timeKey.endsWith(':30') }">
-                  <div class="schedule-time" x-text="slot.displayTime"></div>
+                  <time class="schedule-time" x-text="slot.displayTime"></time>
                   <div class="schedule-content">
                     <template x-for="evt in slot.events" :key="evt.id">
-                      <div class="event-pill" @click="openEventModal(evt)">
+                      <button type="button" class="event-pill" @click="openEventModal(evt)">
                         <span class="material-symbols-outlined icon-14">event</span>
                         <span x-text="evt.title"></span>
-                      </div>
+                      </button>
                     </template>
                   </div>
                 </div>
               </template>
-            </div>
+            </section>
 
             <!-- Daily Notes View -->
-            <div class="panel-header panel-header-spaced">
-              <span class="panel-header-title">
+            <header class="panel-header panel-header-spaced">
+              <h3 class="panel-header-title">
                 <span class="material-symbols-outlined">description</span> Daily Notes
-              </span>
-            </div>
-            <div class="notes-pane" x-text="dailyNote"></div>
-          </div>
+              </h3>
+            </header>
+            <article class="notes-pane" x-text="dailyNote" aria-label="Daily Notes Content"></article>
+          </article>
 
-        </div>
+        </section>
       </template>
 
       <!-- View 2: Full-Screen Monthly Overview Calendar -->
       <template x-if="activeView === 'monthly-calendar'">
-        <div class="view-container">
-          <div class="view-header-bar">
+        <section class="view-container" aria-label="Monthly Overview Calendar">
+          <header class="view-header-bar">
             <h2 class="view-title">
               <span class="material-symbols-outlined">calendar_month</span>
               Monthly Overview - <span x-text="selectedMonthName + ' ' + selectedYear"></span>
             </h2>
-          </div>
-          <div class="monthly-grid">
+          </header>
+          <section class="monthly-grid" aria-label="Calendar Grid Matrix">
             <template x-for="day in monthlyGrid">
-              <div class="calendar-day-cell" :class="{ 'other-month': !day.isCurrentMonth }" @click="if (day.dateStr) { selectedDate = day.dateStr; setView('daily'); loadDayData(); }">
-                <div class="day-num" x-text="day.dayNum"></div>
+              <article class="calendar-day-cell" :class="{ 'other-month': !day.isCurrentMonth }" @click="if (day.dateStr) { selectedDate = day.dateStr; setView('daily'); loadDayData(); }">
+                <header class="day-num" x-text="day.dayNum"></header>
                 <template x-for="evt in day.events" :key="evt.id">
                   <div class="event-pill event-pill-sm" x-text="evt.title"></div>
                 </template>
-              </div>
+              </article>
             </template>
-          </div>
-        </div>
+          </section>
+        </section>
       </template>
 
       <!-- View 3: Monthly Master Task List Page -->
       <template x-if="activeView === 'master-tasks'">
-        <div class="view-container">
-          <h2 class="view-title">
-            <span class="material-symbols-outlined">checklist</span>
-            Monthly Master Task List (<span x-text="selectedMonthName + ' ' + selectedYear"></span>)
-          </h2>
-          <table class="task-table table-card">
-            <thead>
-              <tr class="table-header-row">
-                <th>Category</th>
-                <th>Task Title</th>
-                <th>Status</th>
-                <th class="th-w-150 th-align-right">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              <template x-for="mTask in masterTasks" :key="mTask.id">
-                <tr>
-                  <td><b x-text="mTask.category"></b></td>
-                  <td x-text="mTask.title"></td>
-                  <td><span class="status-btn" x-text="mTask.status"></span></td>
-                  <td class="td-align-right">
-                    <button class="btn-primary btn-sm" @click="moveMasterTaskToToday(mTask)">
-                      <span class="material-symbols-outlined icon-14">east</span> Move to Today
-                    </button>
-                  </td>
+        <section class="view-container" aria-label="Monthly Master Task List">
+          <header>
+            <h2 class="view-title">
+              <span class="material-symbols-outlined">checklist</span>
+              Monthly Master Task List (<span x-text="selectedMonthName + ' ' + selectedYear"></span>)
+            </h2>
+          </header>
+          <figure class="table-container">
+            <table class="task-table table-card">
+              <thead>
+                <tr class="table-header-row">
+                  <th scope="col">Category</th>
+                  <th scope="col">Task Title</th>
+                  <th scope="col">Status</th>
+                  <th scope="col" class="th-w-150 th-align-right">Action</th>
                 </tr>
-              </template>
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                <template x-for="mTask in masterTasks" :key="mTask.id">
+                  <tr>
+                    <td><b x-text="mTask.category"></b></td>
+                    <td x-text="mTask.title"></td>
+                    <td><span class="status-btn" x-text="mTask.status"></span></td>
+                    <td class="td-align-right">
+                      <button type="button" class="btn-primary btn-sm" @click="moveMasterTaskToToday(mTask)">
+                        <span class="material-symbols-outlined icon-14">east</span> Move to Today
+                      </button>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </figure>
+        </section>
       </template>
 
       <!-- View 4: Monthly Index Page -->
       <template x-if="activeView === 'monthly-index'">
-        <div class="view-container">
-          <h2 class="view-title">
-            <span class="material-symbols-outlined">topic</span>
-            Monthly Index & Tagged Decision Registry (#index) - <span x-text="selectedMonthName + ' ' + selectedYear"></span>
-          </h2>
-          <table class="task-table table-card">
-            <thead>
-              <tr class="table-header-row">
-                <th>Date</th>
-                <th>Topic / Category</th>
-                <th>Summary Highlight</th>
-                <th>Direct Doc Link</th>
-              </tr>
-            </thead>
-            <tbody>
-              <template x-for="idx in indexRecords" :key="idx.summary">
-                <tr>
-                  <td x-text="idx.date"></td>
-                  <td><b x-text="idx.topic"></b></td>
-                  <td x-text="idx.summary"></td>
-                  <td>
-                    <a :href="idx.docUrl" class="doc-link" target="_blank">
-                      <span class="material-symbols-outlined icon-16">description</span> View Google Doc
-                    </a>
-                  </td>
+        <section class="view-container" aria-label="Monthly Index Page">
+          <header>
+            <h2 class="view-title">
+              <span class="material-symbols-outlined">topic</span>
+              Monthly Index & Tagged Decision Registry (#index) - <span x-text="selectedMonthName + ' ' + selectedYear"></span>
+            </h2>
+          </header>
+          <figure class="table-container">
+            <table class="task-table table-card">
+              <thead>
+                <tr class="table-header-row">
+                  <th scope="col">Date</th>
+                  <th scope="col">Topic / Category</th>
+                  <th scope="col">Summary Highlight</th>
+                  <th scope="col">Direct Doc Link</th>
                 </tr>
-              </template>
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                <template x-for="idx in indexRecords" :key="idx.summary">
+                  <tr>
+                    <td x-text="idx.date"></td>
+                    <td><b x-text="idx.topic"></b></td>
+                    <td x-text="idx.summary"></td>
+                    <td>
+                      <a :href="idx.docUrl" class="doc-link" target="_blank" rel="noopener noreferrer">
+                        <span class="material-symbols-outlined icon-16">description</span> View Google Doc
+                      </a>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </figure>
+        </section>
       </template>
 
       <!-- View 5: Future Planning Matrix -->
       <template x-if="activeView === 'future-matrix'">
-        <div class="view-container">
-          <h2 class="view-title">
-            <span class="material-symbols-outlined">explore</span>
-            Future Planning Matrix (12-Month Overview)
-          </h2>
-          <div class="future-matrix-grid">
+        <section class="view-container" aria-label="Future Planning Matrix">
+          <header>
+            <h2 class="view-title">
+              <span class="material-symbols-outlined">explore</span>
+              Future Planning Matrix (12-Month Overview)
+            </h2>
+          </header>
+          <section class="future-matrix-grid">
             <template x-for="m in ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']">
-              <div class="future-month-card">
-                <h4 class="future-month-title" x-text="m + ' 2026'"></h4>
+              <article class="future-month-card">
+                <h3 class="future-month-title" x-text="m + ' ' + selectedYear"></h3>
                 <p class="future-month-empty">No future milestones scheduled.</p>
-              </div>
+              </article>
             </template>
-          </div>
-        </div>
+          </section>
+        </section>
       </template>
 
       <!-- View 6: Static About Page -->
       <template x-if="activeView === 'about'">
-        <div class="view-container-compact">
+        <section class="view-container-compact" aria-label="About Day Planner">
           <?!= include('About'); ?>
-        </div>
+        </section>
       </template>
 
-    </div>
+    </section>
 
     <!-- Event Detail Modal -->
-    <div class="modal-backdrop" x-show="eventModalOpen" x-transition x-cloak>
-      <div class="modal-card" @click.away="closeEventModal()">
-        <h3 class="modal-title" x-text="selectedEvent?.title || 'Event Details'"></h3>
+    <dialog class="modal-backdrop" :open="eventModalOpen" x-show="eventModalOpen" x-transition x-cloak aria-labelledby="eventModalTitle">
+      <article class="modal-card" @click.away="closeEventModal()">
+        <header>
+          <h3 id="eventModalTitle" class="modal-title" x-text="selectedEvent?.title || 'Event Details'"></h3>
+        </header>
         <div class="modal-body-details">
           <p class="modal-detail-row">
             <span class="material-symbols-outlined icon-18">schedule</span> <span x-text="selectedEvent?.startTime"></span>
@@ -355,59 +352,62 @@
           </p>
           <p class="modal-description" x-text="selectedEvent?.description || 'No description'"></p>
         </div>
-        <div class="modal-actions">
+        <footer class="modal-actions">
           <template x-if="selectedEvent?.meetLink">
-            <a :href="selectedEvent.meetLink" target="_blank" class="btn-primary btn-meet">
+            <a :href="selectedEvent.meetLink" target="_blank" class="btn-primary btn-meet" role="button">
               <span class="material-symbols-outlined">videocam</span> Join Google Meet
             </a>
           </template>
-          <a :href="selectedEvent?.gCalLink" target="_blank" class="btn-primary">
+          <a :href="selectedEvent?.gCalLink" target="_blank" class="btn-primary" role="button">
             <span class="material-symbols-outlined">calendar_today</span> Open in gCal
           </a>
-          <button class="btn-secondary" @click="closeEventModal()">Close</button>
-        </div>
-      </div>
-    </div>
+          <button type="button" class="btn-secondary" @click="closeEventModal()">Close</button>
+        </footer>
+      </article>
+    </dialog>
 
     <!-- Universal Search Modal -->
-    <div class="modal-backdrop" x-show="searchModalOpen" x-transition x-cloak>
-      <div class="modal-card modal-card-wide" @click.away="closeSearchModal()">
-        <h3 class="modal-title-with-icon">
-          <span class="material-symbols-outlined">search</span> Universal Search (Ctrl + K)
-        </h3>
-        <input type="text" x-model="searchQuery" @input="runSearch()" placeholder="Type to search calendar, tasks, notes, index..." class="search-input-field">
-        
-        <div class="search-results-container">
-          <template x-if="searchResults.totalMatches === 0 && searchQuery">
-            <p class="search-no-results">No matching entries found.</p>
-          </template>
+    <dialog class="modal-backdrop" :open="searchModalOpen" x-show="searchModalOpen" x-transition x-cloak aria-labelledby="searchModalTitle">
+      <article class="modal-card modal-card-wide" @click.away="closeSearchModal()">
+        <header>
+          <h3 id="searchModalTitle" class="modal-title-with-icon">
+            <span class="material-symbols-outlined">search</span> Universal Search (Ctrl + K)
+          </h3>
+        </header>
+        <section>
+          <input type="search" x-model="searchQuery" @input="runSearch()" placeholder="Type to search calendar, tasks, notes, index..." class="search-input-field" aria-label="Universal Search Input">
+          
+          <div class="search-results-container">
+            <template x-if="searchResults.totalMatches === 0 && searchQuery">
+              <p class="search-no-results">No matching entries found.</p>
+            </template>
 
-          <template x-for="item in searchResults.calendar" :key="item.title">
-            <div class="search-result-item result-calendar">
-              <b>[Calendar]</b> <span x-text="item.title"></span>
-            </div>
-          </template>
+            <template x-for="item in searchResults.calendar" :key="item.title">
+              <article class="search-result-item result-calendar">
+                <b>[Calendar]</b> <span x-text="item.title"></span>
+              </article>
+            </template>
 
-          <template x-for="item in searchResults.tasks" :key="item.title">
-            <div class="search-result-item result-task">
-              <b>[Task]</b> <span x-text="item.title"></span>
-            </div>
-          </template>
+            <template x-for="item in searchResults.tasks" :key="item.title">
+              <article class="search-result-item result-task">
+                <b>[Task]</b> <span x-text="item.title"></span>
+              </article>
+            </template>
 
-          <template x-for="item in searchResults.index" :key="item.summary">
-            <div class="search-result-item result-index">
-              <b>[Index]</b> <span x-text="item.topic + ': ' + item.summary"></span>
-            </div>
-          </template>
-        </div>
+            <template x-for="item in searchResults.index" :key="item.summary">
+              <article class="search-result-item result-index">
+                <b>[Index]</b> <span x-text="item.topic + ': ' + item.summary"></span>
+              </article>
+            </template>
+          </div>
+        </section>
+        <footer class="modal-actions">
+          <button type="button" class="btn-secondary" @click="closeSearchModal()">Close</button>
+        </footer>
+      </article>
+    </dialog>
 
-        <div class="modal-actions">
-          <button class="btn-secondary" @click="closeSearchModal()">Close</button>
-        </div>
-      </div>
-    </div>
-
-  </div>
+  </main>
 
   <?!= include('Script'); ?>
 </body>

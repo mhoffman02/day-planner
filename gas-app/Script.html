@@ -241,7 +241,7 @@
               matchEvt.title = isDone ? `[✓] ${parseTaskTitle(task.title).cleanTitle}` : task.title;
             } else {
               this.calendarEvents.push({
-                id: `evt_sync_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+                id: `evt_sync_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
                 title: isDone ? `[✓] ${parseTaskTitle(task.title).cleanTitle}` : task.title,
                 startTime: `${this.selectedDate}T09:00:00Z`,
                 endTime: `${this.selectedDate}T09:30:00Z`,
@@ -386,7 +386,7 @@
 
         for (let day = 1; day <= lastDay.getDate(); day++) {
           const dateStr = `${this.selectedYear}-${this.selectedMonth.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-          days.push({ dateStr, dayNum: day, isCurrentMonth: true, events: this.calendarEvents.filter(e => e.startTime.startsWith(dateStr)) });
+          days.push({ dateStr, dayNum: day, isCurrentMonth: true, events: this.calendarEvents.filter(e => e.startTime?.startsWith(dateStr)) });
         }
 
         while (days.length % 7 !== 0) {

@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 /**
  * Handles HTTP requests and renders the concatenated Day Planner web application.
@@ -21,10 +21,11 @@ const PORT = 3000;
  * @returns {void}
  */
 const server = http.createServer((req, res) => {
-  if (req.url === '/' || req.url === '/index.html') {
+  const pathname = new URL(req.url, 'http://localhost').pathname;
+  if (pathname === '/' || pathname === '/index.html') {
     try {
       let html = fs.readFileSync(path.join(__dirname, 'gas-app', 'Index.html'), 'utf8');
-      const styles = fs.readFileSync(path.join(__dirname, 'gas-app', 'style.html'), 'utf8');
+      const styles = fs.readFileSync(path.join(__dirname, 'gas-app', 'Styles.html'), 'utf8');
       const script = fs.readFileSync(path.join(__dirname, 'gas-app', 'Script.html'), 'utf8');
       const about = fs.readFileSync(path.join(__dirname, 'gas-app', 'About.html'), 'utf8');
       const gasBridge = fs.readFileSync(path.join(__dirname, 'src', 'gasBridge.js'), 'utf8');

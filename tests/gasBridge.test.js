@@ -37,7 +37,7 @@ describe('GAS Bridge Unit Tests', () => {
     const bridge = new GASBridge(true);
     const transferred = await bridge.transferMasterTask('m1', '2026-08-15', 'A');
     assert.ok(transferred);
-    assert.ok(transferred.title.startsWith('[A5]'));
+    assert.ok(transferred.title.startsWith('[A3]'));
     assert.equal(transferred.category, 'Work');
   });
 });

@@ -79,9 +79,12 @@ export class BinderStore {
    * @returns {void}
    */
   navigateDay(deltaDays = 0) {
-    const d = new Date(`${this.selectedDate}T00:00:00`);
-    d.setDate(d.getDate() + deltaDays);
-    this.setSelectedDate(d.toISOString().slice(0, 10));
+    const [y, m, d] = this.selectedDate.split('-').map(Number);
+    const target = new Date(y, m - 1, d + deltaDays);
+    const yyyy = target.getFullYear();
+    const mm = String(target.getMonth() + 1).padStart(2, '0');
+    const dd = String(target.getDate()).padStart(2, '0');
+    this.setSelectedDate(`${yyyy}-${mm}-${dd}`);
   }
 
   /**
