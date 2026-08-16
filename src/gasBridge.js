@@ -177,4 +177,24 @@ export class GASBridge {
     this.mockData.dailyTasks[dateStr].push(newDailyTask);
     return newDailyTask;
   }
+
+  /**
+   * Saves daily topic cards to the Monthly Google Doc.
+   * @param {string} dateStr Target date in YYYY-MM-DD format.
+   * @param {string} noteContent Card note content.
+   * @returns {Promise<{success: boolean, docName?: string}>} Promise of save result.
+   */
+  async saveDailyDocCards(dateStr, noteContent) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      this.mockData.dailyNotes[dateStr] = noteContent;
+      return { success: true, docName: `Day Planner Notes - Mock ${dateStr}` };
+    }
+
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .saveDailyDocCards(dateStr, noteContent);
+    });
+  }
 }

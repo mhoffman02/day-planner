@@ -177,6 +177,11 @@
       calendarEvents: [],
       scheduleGrid: [],
       dailyNote: '',
+      noteCards: [],
+      noteViewMode: 'cards', // 'cards' (Option 1) or 'doc' (Option 2)
+      noteFilterMenuOpen: false,
+      noteCardSearchQuery: '',
+      noteCardCategoryFilter: 'ALL',
       indexRecords: [],
       monthlyGrid: [],
 
@@ -188,6 +193,15 @@
       eventModalOpen: false,
       selectedEvent: null,
 
+      createEventModalOpen: false,
+      newEventData: {
+        title: '',
+        startTime: '09:00',
+        endTime: '10:00',
+        location: '',
+        description: ''
+      },
+
       searchModalOpen: false,
       searchQuery: '',
       searchResults: { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [] },
@@ -196,9 +210,25 @@
       newTaskTitle: '',
       newTaskPriorityGroup: 'A',
 
+      // Resizable 3-Column Layout state
+      colWidths: [33.33, 33.33, 33.34],
+      isResizing: false,
+      activeResizerIndex: null,
+
       bridge: null,
 
       theme: 'light',
+
+      get filteredNoteCards() {
+        const q = (this.noteCardSearchQuery || '').trim().toLowerCase();
+        const cat = this.noteCardCategoryFilter;
+
+        return (this.noteCards || []).filter(card => {
+          const matchCat = cat === 'ALL' || card.category === cat;
+          const matchText = !q || (card.heading || '').toLowerCase().includes(q) || (card.content || '').toLowerCase().includes(q);
+          return matchCat && matchText;
+        });
+      },
 
       get isMonthlyView() {
         return ['monthly-calendar', 'master-tasks', 'monthly-index', 'future-matrix'].includes(this.activeView);
@@ -215,9 +245,110 @@
       async init() {
         this.bridge = new GASBridge(false);
         this.initTheme();
+        this.initColumnWidths();
         await this.loadDayData();
         await this.loadMasterTasks();
         this.setupKeyboardShortcuts();
+      },
+
+      initColumnWidths() {
+        try {
+          const saved = localStorage.getItem('dayPlannerColumnWidths');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length === 3 && parsed.every(n => typeof n === 'number' && n >= 15 && n <= 70)) {
+              const sum = parsed.reduce((a, b) => a + b, 0);
+              this.colWidths = parsed.map(w => (w / sum) * 100);
+            }
+          }
+        } catch (e) {
+          console.warn('Could not load saved column widths:', e);
+        }
+      },
+
+      resetColumnWidths() {
+        this.colWidths = [33.33, 33.33, 33.34];
+        try {
+          localStorage.removeItem('dayPlannerColumnWidths');
+        } catch (e) {}
+      },
+
+      initResize(resizerIdx, event) {
+        if (event.type === 'mousedown' && event.button !== 0) return;
+        event.preventDefault();
+
+        const spreadEl = event.currentTarget.closest('.two-page-spread');
+        if (!spreadEl) return;
+
+        const rect = spreadEl.getBoundingClientRect();
+        const resizersTotalPx = 32;
+        const availableWidth = rect.width - resizersTotalPx;
+        if (availableWidth <= 0) return;
+
+        const startX = event.touches ? event.touches[0].clientX : event.clientX;
+        const startWidths = [...this.colWidths];
+        this.isResizing = true;
+        this.activeResizerIndex = resizerIdx;
+
+        const minPercent = 15;
+
+        const onPointerMove = (e) => {
+          if (!this.isResizing) return;
+          const currentX = e.touches ? e.touches[0].clientX : e.clientX;
+          const deltaPx = currentX - startX;
+          const deltaPercent = (deltaPx / availableWidth) * 100;
+
+          const newWidths = [...startWidths];
+
+          if (resizerIdx === 1) {
+            let w1 = startWidths[0] + deltaPercent;
+            let w2 = startWidths[1] - deltaPercent;
+
+            if (w1 < minPercent) {
+              w1 = minPercent;
+              w2 = startWidths[0] + startWidths[1] - minPercent;
+            } else if (w2 < minPercent) {
+              w2 = minPercent;
+              w1 = startWidths[0] + startWidths[1] - minPercent;
+            }
+            newWidths[0] = w1;
+            newWidths[1] = w2;
+          } else if (resizerIdx === 2) {
+            let w2 = startWidths[1] + deltaPercent;
+            let w3 = startWidths[2] - deltaPercent;
+
+            if (w2 < minPercent) {
+              w2 = minPercent;
+              w3 = startWidths[1] + startWidths[2] - minPercent;
+            } else if (w3 < minPercent) {
+              w3 = minPercent;
+              w2 = startWidths[1] + startWidths[2] - minPercent;
+            }
+            newWidths[1] = w2;
+            newWidths[2] = w3;
+          }
+
+          this.colWidths = newWidths;
+        };
+
+        const onPointerUp = () => {
+          if (!this.isResizing) return;
+          this.isResizing = false;
+          this.activeResizerIndex = null;
+          window.removeEventListener('mousemove', onPointerMove);
+          window.removeEventListener('mouseup', onPointerUp);
+          window.removeEventListener('touchmove', onPointerMove);
+          window.removeEventListener('touchend', onPointerUp);
+
+          try {
+            localStorage.setItem('dayPlannerColumnWidths', JSON.stringify(this.colWidths));
+          } catch (e) {}
+        };
+
+        window.addEventListener('mousemove', onPointerMove);
+        window.addEventListener('mouseup', onPointerUp);
+        window.addEventListener('touchmove', onPointerMove, { passive: false });
+        window.addEventListener('touchend', onPointerUp);
       },
 
       initTheme() {
@@ -345,12 +476,109 @@
           this.dailyTasks = data.tasks || [];
           this.calendarEvents = data.calendarEvents || [];
           this.dailyNote = data.noteContent || '';
+          this.noteCards = this.parseDailyNoteToCards(this.dailyNote);
           this.buildScheduleGrid();
           this.buildIndexRecords();
         } catch (err) {
           console.error('🔥 loadDayData error:', err);
           this.errorMessage = `Error loading daily workspace: ${err.message || err.toString()}`;
         }
+      },
+
+      addNoteCard() {
+        const newCard = {
+          id: `nc_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          heading: '#index [Topic] New Card',
+          content: '',
+          category: 'Work',
+          collapsed: false
+        };
+        this.noteCards.push(newCard);
+        this.syncCardsToDailyNote();
+      },
+
+      deleteNoteCard(cardId) {
+        this.noteCards = this.noteCards.filter(c => c.id !== cardId);
+        this.syncCardsToDailyNote();
+      },
+
+      toggleCardExpand(card) {
+        if (card) card.collapsed = !card.collapsed;
+      },
+
+      applyCardFormat(card, formatType) {
+        if (!card) return;
+        const prefixMap = {
+          bold: '**',
+          italic: '*',
+          strike: '~~',
+          code: '`'
+        };
+
+        if (formatType === 'bullet') {
+          const lines = (card.content || '').split('\n');
+          card.content = lines.map(line => line.startsWith('- ') ? line.substring(2) : `- ${line}`).join('\n');
+        } else if (prefixMap[formatType]) {
+          const p = prefixMap[formatType];
+          card.content = `${p}${card.content || ''}${p}`;
+        }
+        this.syncCardsToDailyNote();
+      },
+
+      parseDailyNoteToCards(noteText = '') {
+        if (!noteText.trim()) {
+          return [
+            { id: 'nc_1', heading: '#index [Architecture] System Design', content: 'Finalized 3-column binder layout with Alpine.js and clean CSS.', category: 'Work', collapsed: false },
+            { id: 'nc_2', heading: '#index [Finance] Budget Sync', content: '- Reviewed Q3 budget and Google Workspace API sync.\n- Approved GCP allocation.', category: 'Meeting', collapsed: false }
+          ];
+        }
+
+        const lines = noteText.split('\n');
+        const cards = [];
+        let currentCard = null;
+
+        lines.forEach(line => {
+          if (line.startsWith('### ') || line.startsWith('# ')) {
+            if (currentCard) cards.push(currentCard);
+            const headingClean = line.replace(/^#+\s*/, '').trim();
+            const category = headingClean.toLowerCase().includes('meeting') ? 'Meeting' : headingClean.toLowerCase().includes('finance') ? 'Decision' : headingClean.toLowerCase().includes('personal') ? 'Personal' : 'Work';
+            currentCard = {
+              id: `nc_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+              heading: headingClean,
+              content: '',
+              category,
+              collapsed: false
+            };
+          } else {
+            if (!currentCard) {
+              currentCard = {
+                id: `nc_default_${Date.now()}`,
+                heading: 'General Notes',
+                content: '',
+                category: 'Work',
+                collapsed: false
+              };
+            }
+            currentCard.content += (currentCard.content ? '\n' : '') + line;
+          }
+        });
+        if (currentCard) cards.push(currentCard);
+        return cards;
+      },
+
+      syncCardsToDailyNote() {
+        if (!this.noteCards || this.noteCards.length === 0) {
+          this.dailyNote = '';
+          this.buildIndexRecords();
+          return;
+        }
+        this.dailyNote = this.noteCards.map(c => `### ${c.heading || 'Topic'}\n${c.content || ''}`).join('\n\n');
+        this.buildIndexRecords();
+      },
+
+      syncDailyNoteToCards() {
+        this.noteCards = this.parseDailyNoteToCards(this.dailyNote);
+        this.buildIndexRecords();
       },
 
       async loadMasterTasks() {
@@ -469,6 +697,62 @@
       closeEventModal() {
         this.eventModalOpen = false;
         this.selectedEvent = null;
+      },
+
+      openCreateEventModal() {
+        this.newEventData = {
+          title: '',
+          startTime: '09:00',
+          endTime: '10:00',
+          location: '',
+          description: ''
+        };
+        this.createEventModalOpen = true;
+      },
+
+      closeCreateEventModal() {
+        this.createEventModalOpen = false;
+      },
+
+      launchNativeGCalCreate() {
+        const title = encodeURIComponent(this.newEventData.title || 'New Appointment');
+        const location = encodeURIComponent(this.newEventData.location || '');
+        const details = encodeURIComponent(this.newEventData.description || '');
+
+        const dateFormatted = (this.selectedDate || new Date().toISOString().slice(0, 10)).replace(/-/g, '');
+        const startH = (this.newEventData.startTime || '09:00').replace(':', '') + '00';
+        const endH = (this.newEventData.endTime || '10:00').replace(':', '') + '00';
+        const dates = `${dateFormatted}T${startH}/${dateFormatted}T${endH}`;
+
+        const gCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&location=${location}&details=${details}`;
+        window.open(gCalUrl, 'gCalNativeNewAppt', 'width=750,height=680,resizable=yes,scrollbars=yes');
+        this.closeCreateEventModal();
+      },
+
+      async saveNewEvent() {
+        if (!this.newEventData.title.trim()) return;
+        try {
+          const startIso = `${this.selectedDate}T${this.newEventData.startTime || '09:00'}:00Z`;
+          const endIso = `${this.selectedDate}T${this.newEventData.endTime || '10:00'}:00Z`;
+
+          const newEvt = {
+            id: `evt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            title: this.newEventData.title.trim(),
+            startTime: startIso,
+            endTime: endIso,
+            location: this.newEventData.location ? this.newEventData.location.trim() : '',
+            description: this.newEventData.description ? this.newEventData.description.trim() : '',
+            gCalLink: `https://calendar.google.com/calendar/r/day/${this.selectedDate.replace(/-/g, '/')}`
+          };
+
+          this.calendarEvents.push(newEvt);
+          this.buildScheduleGrid();
+          this.closeCreateEventModal();
+          await this.trigger2WaySync();
+        } catch (err) {
+          console.error('🔥 saveNewEvent error:', err);
+          this.errorMessage = `Error saving appointment: ${err.message || err.toString()}`;
+        }
       },
 
       toggleSearchModal() {

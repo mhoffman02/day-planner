@@ -226,6 +226,7 @@ function renderSelfTestDiagnosticReport() {
 
   return HtmlService.createHtmlOutput(html)
     .setTitle('Day Planner Self-Test Diagnostics')
+    .setFaviconUrl(typeof DAY_PLANNER_FAVICON_URL !== 'undefined' ? DAY_PLANNER_FAVICON_URL : 'https://ssl.gstatic.com/calendar/images/dynamiclogo_2020q4/calendar_31_2x.png')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }

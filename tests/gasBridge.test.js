@@ -40,4 +40,11 @@ describe('GAS Bridge Unit Tests', () => {
     assert.ok(transferred.title.startsWith('[A3]'));
     assert.equal(transferred.category, 'Work');
   });
+
+  it('should save daily doc cards content via bridge', async () => {
+    const bridge = new GASBridge(true);
+    const result = await bridge.saveDailyDocCards('2026-08-16', '### #index [Architecture] System Design\n- Clean 3-col layout');
+    assert.ok(result.success);
+    assert.ok(result.docName.includes('Day Planner Notes'));
+  });
 });

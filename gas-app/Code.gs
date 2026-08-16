@@ -23,6 +23,29 @@ function logError(context, err) {
 }
 
 /**
+ * Google Docs custom menu trigger. Adds "Planner 📖" custom menu to Google Docs interface when opened.
+ * @param {object} e Open event parameter.
+ * @returns {void}
+ */
+function onOpen(e) {
+  if (typeof DocumentApp !== 'undefined') {
+    try {
+      var ui = DocumentApp.getUi();
+      ui.createMenu('Planner 📖')
+        .addItem('🔍 Search Across All Months...', 'showCrossMonthSearchSidebar')
+        .addItem('📌 View #index Decision Registry', 'showIndexRegistrySidebar')
+        .addSeparator()
+        .addItem('📅 Open Day Planner Web App', 'openPlannerWebAppDialog')
+        .addToUi();
+    } catch (err) {
+      console.log('onOpen custom menu notice: ' + err.toString());
+    }
+  }
+}
+
+var DAY_PLANNER_FAVICON_URL = 'https://ssl.gstatic.com/calendar/images/dynamiclogo_2020q4/calendar_31_2x.png';
+
+/**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
  * @returns {GoogleAppsScript.HTML.HtmlOutput} Evaluated HTML setup page output.
  */
@@ -30,6 +53,7 @@ function renderSetupFolderPage() {
   return HtmlService.createTemplateFromFile('SetupFolder')
     .evaluate()
     .setTitle('Day Planner - Setup Google Drive Folder')
+    .setFaviconUrl(DAY_PLANNER_FAVICON_URL)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
@@ -75,6 +99,7 @@ function doGet(e) {
     var template = HtmlService.createTemplateFromFile('Index');
     return template.evaluate()
       .setTitle('Day Planner')
+      .setFaviconUrl(DAY_PLANNER_FAVICON_URL)
       .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 
@@ -85,7 +110,10 @@ function doGet(e) {
     if (isFolderError) {
       return renderSetupFolderPage();
     }
-    return HtmlService.createHtmlOutput('<h3>🔥 Day Planner Render Failure</h3><p><b>' + fail.error + '</b></p><pre>' + (fail.stack || '') + '</pre>');
+    return HtmlService.createHtmlOutput('<h3>🔥 Day Planner Render Failure</h3><p><b>' + fail.error + '</b></p><pre>' + (fail.stack || '') + '</pre>')
+      .setTitle('Day Planner - Render Failure')
+      .setFaviconUrl(DAY_PLANNER_FAVICON_URL)
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1.0');
   }
 }
 
@@ -394,44 +422,117 @@ function getDailyData(dateStr) {
 }
 
 /**
- * Gets or creates the daily note Google Doc content in /Day Planner/YYYY/MM/.
- * Compatible with strict drive.file scope using UserProperties cached folder ID.
+ * Gets or creates the Monthly Note Google Doc (12 per year) and extracts/appends daily note content.
+ * Script-efficient and formatted for human readability & printing.
  * @param {string} dateStr Target date string in YYYY-MM-DD format.
- * @returns {string} Full text content of the daily note Google Doc.
+ * @returns {string} Text content of daily note section.
  */
 function getOrCreateDailyDocContent(dateStr) {
   if (typeof DriveApp === 'undefined' || typeof DocumentApp === 'undefined') {
-    return 'Daily Notes for ' + dateStr + '\n#index [General] Initialized Day Planner note.';
+    return '### #index [Architecture] System Design\nFinalized 3-column binder layout with Alpine.js and clean CSS.\n\n### #index [Finance] Budget Sync\n- Reviewed Q3 budget and Google Workspace API sync.\n- Approved GCP allocation.';
   }
 
   try {
     var targetFolder = getValidatedRootFolder();
     if (!targetFolder) {
-      return 'Daily Notes for ' + dateStr + '\n#index [General] Initialized Day Planner note.';
+      return '### #index [Architecture] System Design\nFinalized 3-column binder layout with Alpine.js and clean CSS.';
     }
 
-    var docName = 'Day Planner Note - ' + dateStr;
+    var d = new Date(dateStr + 'T00:00:00');
+    var monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    var monthName = monthNames[d.getMonth()];
+    var year = d.getFullYear();
+    var docName = 'Day Planner Notes - ' + monthName + ' ' + year;
+
     var files = targetFolder.getFilesByName(docName);
+    var doc = null;
 
     if (files.hasNext()) {
       var file = files.next();
-      var doc = DocumentApp.openById(file.getId());
-      return doc.getBody().getText();
+      doc = DocumentApp.openById(file.getId());
     } else {
-      var newDoc = DocumentApp.create(docName);
-      var docFile = DriveApp.getFileById(newDoc.getId());
+      doc = DocumentApp.create(docName);
+      var docFile = DriveApp.getFileById(doc.getId());
       docFile.moveTo(targetFolder);
 
-      var body = newDoc.getBody();
-      body.appendParagraph('Day Planner Notes - ' + dateStr).setHeading(DocumentApp.ParagraphHeading.HEADING1);
-      body.appendParagraph('#index [Daily] Created daily note doc');
-      newDoc.saveAndClose();
+      var body = doc.getBody();
+      body.appendParagraph('Day Planner Notes - ' + monthName + ' ' + year)
+          .setHeading(DocumentApp.ParagraphHeading.HEADING1);
+      doc.saveAndClose();
+      doc = DocumentApp.openById(docFile.getId());
+    }
 
-      return body.getText();
+    var fullText = doc.getBody().getText();
+    var dateHeader = '## ' + dateStr;
+    var dateIdx = fullText.indexOf(dateHeader);
+
+    if (dateIdx !== -1) {
+      var nextDateIdx = fullText.indexOf('\n## ', dateIdx + dateHeader.length);
+      var sectionText = nextDateIdx !== -1 ? fullText.substring(dateIdx, nextDateIdx) : fullText.substring(dateIdx);
+      return sectionText.replace(dateHeader, '').trim();
+    } else {
+      return '### #index [General] Daily Notes for ' + dateStr + '\n- Initialized daily topic card.';
     }
   } catch (err) {
     logError('getOrCreateDailyDocContent(' + dateStr + ')', err);
-    return 'Daily Notes for ' + dateStr + '\n#index [General] Initialized Day Planner note.';
+    return '### #index [General] Daily Notes for ' + dateStr;
+  }
+}
+
+/**
+ * Saves/updates daily topic cards content in the Monthly Google Doc (12 per year).
+ * Efficient batch append/update with human-readable page spacing and print-friendly styles.
+ * @param {string} dateStr Target date in YYYY-MM-DD format.
+ * @param {string} noteContent Markdown/card note content to persist.
+ * @returns {{success: boolean, docName: string}} Result status.
+ */
+function saveDailyDocCards(dateStr, noteContent) {
+  if (typeof DriveApp === 'undefined' || typeof DocumentApp === 'undefined') {
+    return { success: true, docName: 'Local Dev Mock Doc' };
+  }
+
+  try {
+    var targetFolder = getValidatedRootFolder();
+    if (!targetFolder) throw new Error('Root folder not configured.');
+
+    var d = new Date(dateStr + 'T00:00:00');
+    var monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    var monthName = monthNames[d.getMonth()];
+    var year = d.getFullYear();
+    var docName = 'Day Planner Notes - ' + monthName + ' ' + year;
+
+    var files = targetFolder.getFilesByName(docName);
+    var doc = files.hasNext() ? DocumentApp.openById(files.next().getId()) : DocumentApp.create(docName);
+
+    if (!files.hasNext()) {
+      var docFile = DriveApp.getFileById(doc.getId());
+      docFile.moveTo(targetFolder);
+      doc.getBody().appendParagraph('Day Planner Notes - ' + monthName + ' ' + year)
+         .setHeading(DocumentApp.ParagraphHeading.HEADING1);
+    }
+
+    var body = doc.getBody();
+    var dayFormatted = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+
+    body.appendPageBreak();
+    body.appendParagraph('Day Planner - ' + dayFormatted).setHeading(DocumentApp.ParagraphHeading.HEADING2);
+    
+    var lines = (noteContent || '').split('\n');
+    lines.forEach(function(line) {
+      if (line.startsWith('### ')) {
+        body.appendParagraph(line.replace('### ', '')).setHeading(DocumentApp.ParagraphHeading.HEADING3);
+      } else if (line.startsWith('- ')) {
+        body.appendListItem(line.replace('- ', ''));
+      } else if (line.trim()) {
+        body.appendParagraph(line);
+      }
+    });
+
+    doc.saveAndClose();
+    return { success: true, docName: docName };
+  } catch (err) {
+    logError('saveDailyDocCards(' + dateStr + ')', err);
+    return { success: false, error: err.message || err.toString() };
   }
 }
 
@@ -497,4 +598,160 @@ function addDailyTask(dateStr, title, category) {
     logError('addDailyTask', err);
     throw err;
   }
+}
+
+/**
+ * Searches across all monthly Google Docs in the Day Planner folder.
+ * @param {string} query Search term.
+ * @returns {Array<{docName: string, docId: string, docUrl: string, matches: Array<{heading: string, snippet: string}>}>} Match results.
+ */
+function searchAcrossAllMonthlyDocs(query) {
+  var cleanQuery = (query || '').trim().toLowerCase();
+  if (!cleanQuery) return [];
+
+  if (typeof DriveApp === 'undefined' || typeof DocumentApp === 'undefined') {
+    return [
+      {
+        docName: 'Day Planner Notes - August 2026',
+        docId: 'mock_doc_1',
+        docUrl: '#',
+        matches: [
+          { heading: 'Day Planner - Sunday, August 16, 2026', snippet: 'Finalized 3-column binder layout with Alpine.js and clean CSS.' }
+        ]
+      }
+    ];
+  }
+
+  try {
+    var targetFolder = getValidatedRootFolder();
+    if (!targetFolder) return [];
+
+    var files = targetFolder.getFiles();
+    var results = [];
+
+    while (files.hasNext()) {
+      var file = files.next();
+      var name = file.getName();
+      if (name.indexOf('Day Planner Notes') !== -1) {
+        var doc = DocumentApp.openById(file.getId());
+        var text = doc.getBody().getText();
+
+        if (text.toLowerCase().indexOf(cleanQuery) !== -1) {
+          var lines = text.split('\n');
+          var matches = [];
+          var currentHeading = name;
+
+          lines.forEach(function(line) {
+            if (line.startsWith('Day Planner - ') || line.startsWith('## ')) {
+              currentHeading = line;
+            }
+            if (line.toLowerCase().indexOf(cleanQuery) !== -1) {
+              matches.push({
+                heading: currentHeading,
+                snippet: line.trim()
+              });
+            }
+          });
+
+          results.push({
+            docName: name,
+            docId: file.getId(),
+            docUrl: file.getUrl(),
+            matches: matches
+          });
+        }
+      }
+    }
+    return results;
+  } catch (err) {
+    logError('searchAcrossAllMonthlyDocs', err);
+    return [];
+  }
+}
+
+/**
+ * Displays the Cross-Month Search Sidebar in Google Docs.
+ * @returns {void}
+ */
+function showCrossMonthSearchSidebar() {
+  if (typeof DocumentApp === 'undefined') return;
+  var html = HtmlService.createHtmlOutput(
+    '<div style="font-family:sans-serif; padding:12px; color:#1c2826;">' +
+    '<h3 style="color:#2d6a5a; margin-top:0;">🔍 Universal Planner Search</h3>' +
+    '<p style="font-size:0.82rem; color:#5c6b66;">Search topics, decisions, and keywords across all 12 monthly Google Docs.</p>' +
+    '<input type="search" id="q" placeholder="Type keyword (e.g. #index, budget)..." style="width:100%; padding:8px; margin-bottom:10px; border:1px solid #c8ded7; border-radius:4px; box-sizing:border-box;">' +
+    '<button onclick="runSearch()" style="width:100%; padding:8px; background:#2d6a5a; color:white; border:none; border-radius:4px; font-weight:600; cursor:pointer;">Search All Months</button>' +
+    '<div id="results" style="margin-top:16px; font-size:0.85rem;"></div>' +
+    '<script>' +
+    'function runSearch() {' +
+    '  var q = document.getElementById("q").value;' +
+    '  var resDiv = document.getElementById("results");' +
+    '  resDiv.innerHTML = "<p><i>Searching monthly docs...</i></p>";' +
+    '  google.script.run.withSuccessHandler(function(res) {' +
+    '    if (!res || res.length === 0) { resDiv.innerHTML = "<p>No matches found across monthly docs.</p>"; return; }' +
+    '    var html = "";' +
+    '    res.forEach(function(r) {' +
+    '      html += "<div style=\'background:#f2f8f5; border:1px solid #c8ded7; border-radius:6px; padding:10px; margin-bottom:10px;\'>";' +
+    '      html += "<strong style=\'color:#2d6a5a;\'>" + r.docName + "</strong>";' +
+    '      r.matches.forEach(function(m) { html += "<p style=\'margin:4px 0; font-size:0.8rem;\'>• <b>" + m.heading + "</b>: " + m.snippet + "</p>"; });' +
+    '      html += "</div>";' +
+    '    });' +
+    '    resDiv.innerHTML = html;' +
+    '  }).searchAcrossAllMonthlyDocs(q);' +
+    '}' +
+    '</script>' +
+    '</div>'
+  ).setTitle('Planner Universal Search');
+
+  DocumentApp.getUi().showSidebar(html);
+}
+
+/**
+ * Displays the #index Decision Registry Sidebar in Google Docs.
+ * @returns {void}
+ */
+function showIndexRegistrySidebar() {
+  if (typeof DocumentApp === 'undefined') return;
+  var html = HtmlService.createHtmlOutput(
+    '<div style="font-family:sans-serif; padding:12px; color:#1c2826;">' +
+    '<h3 style="color:#2d6a5a; margin-top:0;">📌 #index Decision Registry</h3>' +
+    '<p style="font-size:0.82rem; color:#5c6b66;">Key decisions & indexed milestones tagged with <b>#index [Topic]</b> across your planner.</p>' +
+    '<div id="indexResults">Loading registry...</div>' +
+    '<script>' +
+    'google.script.run.withSuccessHandler(function(res) {' +
+    '  var div = document.getElementById("indexResults");' +
+    '  if (!res || res.length === 0) { div.innerHTML = "<p>No #index items found.</p>"; return; }' +
+    '  var html = "";' +
+    '  res.forEach(function(r) {' +
+    '    r.matches.forEach(function(m) {' +
+    '      if (m.snippet.indexOf("#index") !== -1) {' +
+    '        html += "<div style=\'border-bottom:1px solid #e1ede8; padding:6px 0;\'><b>" + m.snippet + "</b><br><small style=\'color:#5c6b66;\'>" + r.docName + "</small></div>";' +
+    '      }' +
+    '    });' +
+    '  });' +
+    '  div.innerHTML = html || "<p>No tagged #index items found.</p>";' +
+    '}).searchAcrossAllMonthlyDocs("#index");' +
+    '</script>' +
+    '</div>'
+  ).setTitle('#index Decision Registry');
+
+  DocumentApp.getUi().showSidebar(html);
+}
+
+/**
+ * Opens a modal dialog providing a direct launch button for the Day Planner Web App.
+ * @returns {void}
+ */
+function openPlannerWebAppDialog() {
+  if (typeof DocumentApp === 'undefined') return;
+  var url = ScriptApp.getService().getUrl();
+  var html = HtmlService.createHtmlOutput(
+    '<div style="font-family:sans-serif; padding:16px; text-align:center;">' +
+    '<h3 style="color:#2d6a5a;">📖 Day Planner Web App</h3>' +
+    '<p>Click below to open your Digital Binder Application in a new browser tab:</p>' +
+    '<a href="' + url + '" target="_blank" style="display:inline-block; padding:10px 20px; background:#2d6a5a; color:white; text-decoration:none; border-radius:6px; font-weight:700;">Launch Day Planner SPA</a>' +
+    '</div>'
+  ).setWidth(360).setHeight(180);
+
+  DocumentApp.getUi().showModalDialog(html, 'Open Day Planner SPA');
 }

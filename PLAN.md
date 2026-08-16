@@ -78,12 +78,19 @@ The **Franklin-Google Digital Day Planner** is a high-efficiency single-page dig
 - [x] Fix year interpolation in Future Planning Matrix month card titles (`gas-app/Index.html`).
 - [x] Normalize HTTP URL parsing in `server.js` using `URL` pathname extraction.
 
+### Phase 8: 3-Column Layout, Modular Note Cards & Google Docs Custom Menu
+- [x] Refactor Daily View layout in `gas-app/Index.html` to a 3-column workspace on PC Large screens (Tasks = Col 1, Appointment = Col 2, Notes = Col 3).
+- [x] Implement multi-line text auto-fit (1-3 lines) and vertical scrolling (>4 lines) for Tasks and Appointment pills.
+- [x] Build Modular Franklin Topic Cards with expand/collapse twisties (`▼`/`▶`), editable H3 headings, category tags, Google Chat formatting toolbar, and card search/filter dropdown menu.
+- [x] Implement 12 Monthly Google Docs sync architecture (`Day Planner Notes - August 2026`) with print-friendly formatting (page breaks per day, styled headers, bullet lists).
+- [x] Add custom `Planner 📖` menu to Google Docs (`onOpen`) with cross-month universal search sidebar and `#index` decision registry.
+
 ---
 
 ## Verification Criteria
 - [x] All unit tests in `tests/*.test.js` pass cleanly (`npm test`).
 - [x] UI matches Franklin Covey design rules (#fcfbfa cream, #2d6a5a teal ruling, serif headers).
 - [x] 2-Way Sync correctly cross-references tasks and calendar appointments.
-- [x] All 5 views function correctly in both local dev server (`http://localhost:3000`) and GAS file bundle.
+- [x] All views function correctly in both local dev server (`http://localhost:3000`) and GAS file bundle.
 - [x] Code passes comprehensive JavaScript & HTML code reviews with zero security or date-shift warnings.
 
