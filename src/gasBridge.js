@@ -74,7 +74,7 @@ export class GASBridge {
 ## Daily Tracker
 - Water: 8 / 8 glasses
 - Fitness: 45 min cardio
-- Priority Focus: 100% on Day Planner MVP`
+- Priority Focus: 100% on Day Planner Goals`
       },
       indexEntries: [
         { id: 'i1', date: '2026-08-15', topic: 'Architecture', summary: 'Finalized single page binder layout using Alpine.js', docUrl: '#doc-2026-08-15' },
