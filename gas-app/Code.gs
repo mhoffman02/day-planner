@@ -405,16 +405,13 @@ function getOrCreateDailyDocContent(dateStr) {
   }
 
   try {
-    var parts = dateStr.split('-');
-    var year = parts[0];
-    var month = parts[1];
-
-    var parentFolder = getFolderByNameOrCreate(null, 'Day Planner');
-    var yearFolder = getFolderByNameOrCreate(parentFolder, year);
-    var monthFolder = getFolderByNameOrCreate(yearFolder, month);
+    var targetFolder = getValidatedRootFolder();
+    if (!targetFolder) {
+      return 'Daily Notes for ' + dateStr + '\n#index [General] Initialized Day Planner note.';
+    }
 
     var docName = 'Day Planner Note - ' + dateStr;
-    var files = monthFolder.getFilesByName(docName);
+    var files = targetFolder.getFilesByName(docName);
 
     if (files.hasNext()) {
       var file = files.next();
@@ -423,7 +420,7 @@ function getOrCreateDailyDocContent(dateStr) {
     } else {
       var newDoc = DocumentApp.create(docName);
       var docFile = DriveApp.getFileById(newDoc.getId());
-      docFile.moveTo(monthFolder);
+      docFile.moveTo(targetFolder);
 
       var body = newDoc.getBody();
       body.appendParagraph('Day Planner Notes - ' + dateStr).setHeading(DocumentApp.ParagraphHeading.HEADING1);
@@ -434,32 +431,31 @@ function getOrCreateDailyDocContent(dateStr) {
     }
   } catch (err) {
     logError('getOrCreateDailyDocContent(' + dateStr + ')', err);
-    throw err;
+    return 'Daily Notes for ' + dateStr + '\n#index [General] Initialized Day Planner note.';
   }
 }
 
 /**
- * Gets or creates subfolders under the root Day Planner folder or parent folder.
+ * Gets or returns the validated root Day Planner folder by ID.
  * @param {GoogleAppsScript.Drive.Folder|null} parent Parent folder object, or null to target root folder.
- * @param {string} name Folder name to find or create.
- * @returns {GoogleAppsScript.Drive.Folder} Found or created folder object.
+ * @param {string} name Folder name to find.
+ * @returns {GoogleAppsScript.Drive.Folder|null} Found folder object or root folder by ID.
  */
 function getFolderByNameOrCreate(parent, name) {
   try {
+    var rootFolder = getValidatedRootFolder();
+    if (!rootFolder) {
+      throw new Error('No valid Google Drive Day Planner folder connected.');
+    }
     if (parent) {
       var folders = parent.getFoldersByName(name);
       if (folders.hasNext()) return folders.next();
-      return parent.createFolder(name);
-    } else {
-      var folder = getValidatedRootFolder();
-      if (!folder) {
-        throw new Error('No valid Google Drive Day Planner folder connected.');
-      }
-      return folder;
+      return parent;
     }
+    return rootFolder;
   } catch (err) {
     logError('getFolderByNameOrCreate(' + name + ')', err);
-    throw err;
+    return null;
   }
 }
 
