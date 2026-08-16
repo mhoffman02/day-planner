@@ -19,6 +19,24 @@ before making backend or sync changes).
   with includes stitched in (see Local Dev Server below).
 - Deploy to the live GAS project (from `gas-app/`): `clasp push --force` then
   `clasp deploy --description "..."`.
+- `npm run status` — git branch/uncommitted files/last commit + `PLAN.md` checklist progress.
+- `npm run handoff` — writes `CONTEXT.md` (resume summary) and commits it; `-- --read-only`
+  previews without writing/committing. Also available as `/handoff` (runs tests + `/code-review`
+  first — see `.claude/commands/handoff.md`).
+- `npm run retro -- --label "..." --worked-well "a|b" [--needs-improvement "a|b"]` — appends a
+  dated entry to `LEARNINGS.md`. Also available as `/retro`.
+
+## Session harness (`.claude/`)
+
+- `rules/sync-src-and-gas-app.md` — the duplication gotcha below, as an enforced rule.
+- `rules/no-silent-failures.md`, `rules/concise-communication.md` — general engineering/communication
+  conventions for this repo.
+- `hooks/session-start.sh` — injects branch, open `PLAN.md` checklist items, and `CONTEXT.md`
+  (if present) at the start of each session.
+- `hooks/check-after-edit.sh` — runs `node --check` on any edited `.js` file (no linter is
+  configured here, so this is just a syntax safety net).
+- `commands/status.md`, `commands/retro.md`, `commands/handoff.md` — thin wrappers around the
+  `tools/*.js` scripts above.
 
 ## Architecture: two runtime environments, one core logic layer
 
