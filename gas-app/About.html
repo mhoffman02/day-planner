@@ -1,34 +1,34 @@
-<div style="max-width: 960px; margin: 24px auto; padding: 32px; background: #ffffff; border: 1px solid var(--border-line); border-radius: 8px; box-shadow: var(--shadow-soft); font-family: 'Inter', sans-serif; color: var(--text-primary); line-height: 1.7;">
+<div class="about-container">
   
-  <div style="border-bottom: 2px solid var(--binder-teal); padding-bottom: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: flex-start;">
+  <div class="about-header">
     <div>
-      <h1 style="font-family: 'Playfair Display', serif; color: var(--binder-teal); font-size: 2rem; display: flex; align-items: center; gap: 10px;">
-        <span class="material-symbols-outlined" style="font-size: 32px;">menu_book</span>
+      <h1 class="about-title">
+        <span class="material-symbols-outlined icon-32">menu_book</span>
         About Day Planner
       </h1>
-      <p style="font-size: 0.95rem; color: var(--text-muted); margin-top: 4px;">Static Reference Documentation & User Instructions</p>
+      <p class="about-subtitle">Static Reference Documentation & User Instructions</p>
     </div>
-    <span style="background: var(--binder-teal-light); color: var(--binder-teal); border: 1px solid var(--border-line); font-weight: 700; padding: 6px 14px; font-size: 0.8rem; border-radius: 20px; display: inline-flex; align-items: center; gap: 4px;">
-      <span class="material-symbols-outlined" style="font-size: 16px;">verified</span> GAS MVP v2.9 (Least-Privilege Security)
+    <span class="security-badge">
+      <span class="material-symbols-outlined icon-16">verified</span> GAS MVP v2.9 (Least-Privilege Security)
     </span>
   </div>
 
-  <h3 style="font-family: 'Playfair Display', serif; color: var(--binder-teal); margin-top: 20px; font-size: 1.3rem;">1. Purpose & Product Vision</h3>
-  <p style="margin-top: 8px;">
+  <h3 class="about-section-heading">1. Purpose & Product Vision</h3>
+  <p class="about-paragraph">
     The <b>Day Planner</b> bridges timeless paper day planner productivity methodology with real-time Google Workspace cloud capabilities. Designed for solo power users who require structured discipline, it provides a high-efficiency single-page digital binder interface under strict least-privilege security permissions.
   </p>
 
-  <h3 style="font-family: 'Playfair Display', serif; color: var(--binder-teal); margin-top: 28px; font-size: 1.3rem;">2. Least-Privilege Security & Google Drive Folder Setup</h3>
-  <div style="background: #eef7f4; border-left: 4px solid var(--binder-teal); padding: 16px; border-radius: 4px; margin: 12px 0;">
-    <h4 style="color: var(--binder-teal); font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+  <h3 class="about-section-heading-large">2. Least-Privilege Security & Google Drive Folder Setup</h3>
+  <div class="security-callout">
+    <h4 class="security-callout-title">
       <span class="material-symbols-outlined">lock</span> Strict Per-File Security Scope (<code>drive.file</code>)
     </h4>
-    <p style="font-size: 0.9rem; margin-top: 6px;">
+    <p class="callout-text">
       To protect your privacy, Day Planner relies strictly on <code>https://www.googleapis.com/auth/drive.file</code>. This scope ensures the application <b>CANNOT read or write any existing files</b> across your Google Drive.
     </p>
-    <div style="margin-top: 10px; padding: 10px; background: #ffffff; border: 1px solid var(--border-line); border-radius: 4px; font-size: 0.88rem;">
+    <div class="folder-instructions-box">
       <b>Google Drive Folder Link Instructions:</b>
-      <ol style="margin-left: 20px; margin-top: 6px;">
+      <ol class="styled-ordered-list">
         <li>Create a dedicated folder named <b><code>Day Planner</code></b> in your Google Drive (e.g. <code>https://drive.google.com/drive/u/0/folders/1N2WRrFmtsAWKgqeaFIj9HtiQ2wupFEk0</code>).</li>
         <li>The application records your folder ID (<code>1N2WRrFmtsAWKgqeaFIj9HtiQ2wupFEk0</code>) in your account's <code>UserProperties</code>.</li>
         <li>All daily notes documents and monthly subfolders are created under <code>/Day Planner/YYYY/MM/</code>.</li>
@@ -36,10 +36,10 @@
     </div>
   </div>
 
-  <h3 style="font-family: 'Playfair Display', serif; color: var(--binder-teal); margin-top: 28px; font-size: 1.3rem;">3. Google Workspace Integration Matrix</h3>
-  <table class="task-table" style="margin: 16px 0; background: #ffffff; border-radius: 6px; overflow: hidden; border: 1px solid var(--border-line);">
+  <h3 class="about-section-heading-large">3. Google Workspace Integration Matrix</h3>
+  <table class="task-table matrix-table">
     <thead>
-      <tr style="background: #f4f9f7;">
+      <tr class="table-header-row">
         <th>Google Service</th>
         <th>Apps Script API</th>
         <th>Integration Role</th>
@@ -69,48 +69,48 @@
     </tbody>
   </table>
 
-  <h3 style="font-family: 'Playfair Display', serif; color: var(--binder-teal); margin-top: 28px; font-size: 1.3rem;">4. User Instructions & Workflow Guide</h3>
+  <h3 class="about-section-heading-large">4. User Instructions & Workflow Guide</h3>
 
-  <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 12px;">
-    <div style="background: #fcfbfa; border: 1px solid var(--border-line); border-radius: 6px; padding: 16px;">
-      <h4 style="color: var(--binder-teal); font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+  <div class="cards-stack">
+    <div class="guide-card">
+      <h4 class="guide-card-title">
         <span class="material-symbols-outlined">format_list_bulleted</span> A1–C9 Task Prioritization & Status Codes
       </h4>
-      <p style="font-size: 0.9rem; margin-top: 6px;">
+      <p class="guide-card-text">
         Tasks are categorized into Priority Groups (A = Urgent, B = Important, C = Low) with sequence numbers (1–9). Click the status box to cycle: 
         <b>•</b> (Open) &rarr; <b>✓</b> (Completed) &rarr; <b>&rarr;</b> (Forwarded) &rarr; <b>X</b> (Canceled) &rarr; <b>G/✓</b> (Delegated).
       </p>
     </div>
 
-    <div style="background: #fcfbfa; border: 1px solid var(--border-line); border-radius: 6px; padding: 16px;">
-      <h4 style="color: var(--binder-teal); font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+    <div class="guide-card">
+      <h4 class="guide-card-title">
         <span class="material-symbols-outlined">move_item</span> Monthly Master Task Transfer
       </h4>
-      <p style="font-size: 0.9rem; margin-top: 6px;">
+      <p class="guide-card-text">
         Open the <b>Master Task List</b> tab to view categorized monthly objectives (Work, Personal, Financial, Projects). Click <b>Move to Today</b> to assign an active <code>[A1]</code> priority tag and transfer it directly to today's task list.
       </p>
     </div>
 
-    <div style="background: #fcfbfa; border: 1px solid var(--border-line); border-radius: 6px; padding: 16px;">
-      <h4 style="color: var(--binder-teal); font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+    <div class="guide-card">
+      <h4 class="guide-card-title">
         <span class="material-symbols-outlined">tag</span> Automated Monthly Indexing (#index)
       </h4>
-      <p style="font-size: 0.9rem; margin-top: 6px;">
+      <p class="guide-card-text">
         Tag key meeting outcomes or decisions in your daily notes using <code>#index [Topic] Summary</code>. The Monthly Index automatically aggregates and links these entries chronologically.
       </p>
     </div>
 
-    <div style="background: #fcfbfa; border: 1px solid var(--border-line); border-radius: 6px; padding: 16px;">
-      <h4 style="color: var(--binder-teal); font-size: 1rem; display: flex; align-items: center; gap: 8px;">
+    <div class="guide-card">
+      <h4 class="guide-card-title">
         <span class="material-symbols-outlined">sync</span> 2-Way Workspace Sync
       </h4>
-      <p style="font-size: 0.9rem; margin-top: 6px;">
+      <p class="guide-card-text">
         Click <b>2-Way Sync</b> in the top header bar to reconcile tasks and calendar appointments. Background triggers automatically run every 5 minutes.
       </p>
     </div>
   </div>
 
-  <div style="margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--border-line); font-size: 0.85rem; color: var(--text-muted); text-align: center;">
+  <div class="about-footer">
     Day Planner • Built with Google Apps Script & Alpine.js • Minimal <code>drive.file</code> Security Scope
   </div>
 

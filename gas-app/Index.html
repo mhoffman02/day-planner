@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Day Planner</title>
-  <?!= include('Styles'); ?>
+  <?!= include('style'); ?>
   <!-- Inline Styles Fallback when serving locally -->
   <style>
     /* Includes base styles inline if template includes fail */
@@ -16,12 +16,12 @@
     <!-- Top Header -->
     <header class="binder-header">
       <div class="brand-title">
-        <span class="material-symbols-outlined" style="font-size: 28px;">auto_stories</span>
+        <span class="material-symbols-outlined icon-28">auto_stories</span>
         <span>Day Planner</span>
         <span class="badge">GAS MVP (2-Way Sync)</span>
       </div>
-      <div style="display: flex; gap: 10px; align-items: center;">
-        <button class="nav-btn" style="background: #ffffff22; color: #ffffff; border-color: #ffffff55;" @click="trigger2WaySync()" :disabled="isSyncing">
+      <div class="header-actions">
+        <button class="nav-btn nav-btn-sync" @click="trigger2WaySync()" :disabled="isSyncing">
           <span class="material-symbols-outlined" :class="{ 'spin': isSyncing }">sync</span>
           <span x-text="isSyncing ? 'Syncing...' : '2-Way Sync'"></span>
         </button>
@@ -76,7 +76,7 @@
       <div class="nav-btn-group">
         <!-- Daily Nav Buttons -->
         <template x-if="!isMonthlyView">
-          <div style="display: flex; gap: 8px;">
+          <div class="flex-gap-8">
             <button class="nav-btn" @click="navigateDay(-1)">
               <span class="material-symbols-outlined">arrow_back</span> Prev
             </button>
@@ -89,7 +89,7 @@
 
         <!-- Monthly Nav Buttons -->
         <template x-if="isMonthlyView">
-          <div style="display: flex; gap: 8px;">
+          <div class="flex-gap-8">
             <button class="nav-btn" @click="navigateMonth(-1)">
               <span class="material-symbols-outlined">arrow_back</span> Prev
             </button>
@@ -104,12 +104,12 @@
 
     <!-- Fail-Loud Error & Warning Banner -->
     <template x-if="errorMessage">
-      <div style="background: #ffebee; border: 1px solid #ef5350; border-radius: 6px; padding: 12px 20px; margin: 12px 20px 0 20px; color: #c62828; font-size: 0.9rem; display: flex; justify-content: space-between; align-items: center;">
-        <div style="display: flex; align-items: center; gap: 8px;">
+      <div class="error-banner">
+        <div class="error-banner-content">
           <span class="material-symbols-outlined">warning</span>
           <span x-text="errorMessage"></span>
         </div>
-        <button @click="errorMessage = null" style="background: transparent; border: none; color: #c62828; cursor: pointer; font-weight: bold; font-size: 1.1rem;">✕</button>
+        <button @click="errorMessage = null" class="error-close-btn">✕</button>
       </div>
     </template>
 
@@ -123,20 +123,20 @@
           <!-- Left Page: Prioritized Daily Task List -->
           <div class="page-panel">
             <div class="panel-header">
-              <span style="display: flex; align-items: center; gap: 6px;">
+              <span class="panel-header-title">
                 <span class="material-symbols-outlined">format_list_numbered</span> Prioritized Daily Tasks
               </span>
-              <span style="font-size: 0.8rem; font-weight: normal; color: var(--text-muted);">A1-C9 System</span>
+              <span class="panel-header-subtitle">A1-C9 System</span>
             </div>
 
             <!-- Task Quick Add -->
-            <div style="display: flex; gap: 8px;">
-              <select x-model="newTaskPriorityGroup" style="padding: 6px; border-radius: 4px; border: 1px solid var(--border-line);">
+            <div class="task-quick-add-bar">
+              <select x-model="newTaskPriorityGroup" class="task-priority-select">
                 <option value="A">Priority A</option>
                 <option value="B">Priority B</option>
                 <option value="C">Priority C</option>
               </select>
-              <input type="text" x-model="newTaskTitle" @keydown.enter="addDailyTask()" placeholder="Add task title (e.g. Call vendor)..." style="flex: 1; padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border-line);">
+              <input type="text" x-model="newTaskTitle" @keydown.enter="addDailyTask()" placeholder="Add task title (e.g. Call vendor)..." class="task-input-field">
               <button class="btn-primary" @click="addDailyTask()">
                 <span class="material-symbols-outlined">add</span> Add Task
               </button>
@@ -146,10 +146,10 @@
             <table class="task-table">
               <thead>
                 <tr>
-                  <th style="width: 40px;">Pri</th>
-                  <th style="width: 40px;">Sts</th>
+                  <th class="th-w-40">Pri</th>
+                  <th class="th-w-40">Sts</th>
                   <th>Task Description</th>
-                  <th style="width: 80px;">Category</th>
+                  <th class="th-w-80">Category</th>
                 </tr>
               </thead>
               <tbody>
@@ -162,26 +162,26 @@
                       <button class="status-btn" @click="toggleTaskStatus(task)" x-text="task.status || '•'"></button>
                     </td>
                     <td x-text="parseTask(task.title).cleanTitle"></td>
-                    <td style="font-size: 0.78rem; color: var(--text-muted);" x-text="task.category || 'Work'"></td>
+                    <td class="td-category" x-text="task.category || 'Work'"></td>
                   </tr>
                 </template>
               </tbody>
             </table>
 
             <!-- Daily Tracker Pane -->
-            <div style="border-top: 1px solid var(--border-line); padding-top: 12px; margin-top: auto;">
-              <div style="font-family: 'Playfair Display', serif; font-weight: 700; color: var(--binder-teal); font-size: 0.95rem; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+            <div class="daily-tracker-container">
+              <div class="daily-tracker-title">
                 <span class="material-symbols-outlined">monitoring</span> Daily Tracker & Habits
               </div>
-              <div style="display: flex; gap: 16px; font-size: 0.82rem; color: var(--text-muted);">
-                <div style="display: flex; align-items: center; gap: 4px;">
-                  <span class="material-symbols-outlined" style="font-size: 16px; color: #0288d1;">water_drop</span> Water: <b>8 / 8</b>
+              <div class="daily-tracker-items">
+                <div class="tracker-item">
+                  <span class="material-symbols-outlined icon-16 icon-water">water_drop</span> Water: <b>8 / 8</b>
                 </div>
-                <div style="display: flex; align-items: center; gap: 4px;">
-                  <span class="material-symbols-outlined" style="font-size: 16px; color: #388e3c;">fitness_center</span> Fitness: <b>45 min</b>
+                <div class="tracker-item">
+                  <span class="material-symbols-outlined icon-16 icon-fitness">fitness_center</span> Fitness: <b>45 min</b>
                 </div>
-                <div style="display: flex; align-items: center; gap: 4px;">
-                  <span class="material-symbols-outlined" style="font-size: 16px; color: #d32f2f;">track_changes</span> Priority: <b>MVP Launch</b>
+                <div class="tracker-item">
+                  <span class="material-symbols-outlined icon-16 icon-priority">track_changes</span> Priority: <b>MVP Launch</b>
                 </div>
               </div>
             </div>
@@ -190,7 +190,7 @@
           <!-- Right Page: Schedule & Notes -->
           <div class="page-panel">
             <div class="panel-header">
-              <span style="display: flex; align-items: center; gap: 6px;">
+              <span class="panel-header-title">
                 <span class="material-symbols-outlined">schedule</span> Appointment Schedule (07:00 AM – 07:00 PM)
               </span>
             </div>
@@ -203,7 +203,7 @@
                   <div class="schedule-content">
                     <template x-for="evt in slot.events" :key="evt.id">
                       <div class="event-pill" @click="openEventModal(evt)">
-                        <span class="material-symbols-outlined" style="font-size: 14px;">event</span>
+                        <span class="material-symbols-outlined icon-14">event</span>
                         <span x-text="evt.title"></span>
                       </div>
                     </template>
@@ -213,8 +213,8 @@
             </div>
 
             <!-- Daily Notes View -->
-            <div class="panel-header" style="margin-top: 12px;">
-              <span style="display: flex; align-items: center; gap: 6px;">
+            <div class="panel-header panel-header-spaced">
+              <span class="panel-header-title">
                 <span class="material-symbols-outlined">description</span> Daily Notes (Google Doc Backed)
               </span>
             </div>
@@ -226,9 +226,9 @@
 
       <!-- View 2: Full-Screen Monthly Overview Calendar -->
       <template x-if="activeView === 'monthly-calendar'">
-        <div style="width: 100%; padding: 20px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-            <h2 style="font-family: 'Playfair Display', serif; color: var(--binder-teal); display: flex; align-items: center; gap: 8px;">
+        <div class="view-container">
+          <div class="view-header-bar">
+            <h2 class="view-title">
               <span class="material-symbols-outlined">calendar_month</span>
               Monthly Overview - <span x-text="selectedMonthName + ' ' + selectedYear"></span>
             </h2>
@@ -238,7 +238,7 @@
               <div class="calendar-day-cell" :class="{ 'other-month': !day.isCurrentMonth }" @click="if (day.dateStr) { selectedDate = day.dateStr; setView('daily'); loadDayData(); }">
                 <div class="day-num" x-text="day.dayNum"></div>
                 <template x-for="evt in day.events" :key="evt.id">
-                  <div class="event-pill" style="font-size: 0.72rem; padding: 2px 4px; margin-bottom: 2px;" x-text="evt.title"></div>
+                  <div class="event-pill event-pill-sm" x-text="evt.title"></div>
                 </template>
               </div>
             </template>
@@ -248,18 +248,18 @@
 
       <!-- View 3: Monthly Master Task List Page -->
       <template x-if="activeView === 'master-tasks'">
-        <div style="width: 100%; padding: 20px;">
-          <h2 style="font-family: 'Playfair Display', serif; color: var(--binder-teal); margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+        <div class="view-container">
+          <h2 class="view-title">
             <span class="material-symbols-outlined">checklist</span>
             Monthly Master Task List (<span x-text="selectedMonthName + ' ' + selectedYear"></span>)
           </h2>
-          <table class="task-table" style="background: #ffffff; border-radius: 8px; box-shadow: var(--shadow-soft); overflow: hidden;">
+          <table class="task-table table-card">
             <thead>
-              <tr style="background: #f4f9f7;">
+              <tr class="table-header-row">
                 <th>Category</th>
                 <th>Task Title</th>
                 <th>Status</th>
-                <th style="width: 150px; text-align: right;">Action</th>
+                <th class="th-w-150 th-align-right">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -268,9 +268,9 @@
                   <td><b x-text="mTask.category"></b></td>
                   <td x-text="mTask.title"></td>
                   <td><span class="status-btn" x-text="mTask.status"></span></td>
-                  <td style="text-align: right;">
-                    <button class="btn-primary" style="font-size: 0.75rem; padding: 4px 8px;" @click="moveMasterTaskToToday(mTask)">
-                      <span class="material-symbols-outlined" style="font-size: 14px;">east</span> Move to Today
+                  <td class="td-align-right">
+                    <button class="btn-primary btn-sm" @click="moveMasterTaskToToday(mTask)">
+                      <span class="material-symbols-outlined icon-14">east</span> Move to Today
                     </button>
                   </td>
                 </tr>
@@ -282,14 +282,14 @@
 
       <!-- View 4: Monthly Index Page -->
       <template x-if="activeView === 'monthly-index'">
-        <div style="width: 100%; padding: 20px;">
-          <h2 style="font-family: 'Playfair Display', serif; color: var(--binder-teal); margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+        <div class="view-container">
+          <h2 class="view-title">
             <span class="material-symbols-outlined">topic</span>
             Monthly Index & Tagged Decision Registry (#index) - <span x-text="selectedMonthName + ' ' + selectedYear"></span>
           </h2>
-          <table class="task-table" style="background: #ffffff; border-radius: 8px; box-shadow: var(--shadow-soft); overflow: hidden;">
+          <table class="task-table table-card">
             <thead>
-              <tr style="background: #f4f9f7;">
+              <tr class="table-header-row">
                 <th>Date</th>
                 <th>Topic / Category</th>
                 <th>Summary Highlight</th>
@@ -303,8 +303,8 @@
                   <td><b x-text="idx.topic"></b></td>
                   <td x-text="idx.summary"></td>
                   <td>
-                    <a :href="idx.docUrl" style="color: var(--binder-teal); font-weight: 600; display: inline-flex; align-items: center; gap: 4px;" target="_blank">
-                      <span class="material-symbols-outlined" style="font-size: 16px;">description</span> View Google Doc
+                    <a :href="idx.docUrl" class="doc-link" target="_blank">
+                      <span class="material-symbols-outlined icon-16">description</span> View Google Doc
                     </a>
                   </td>
                 </tr>
@@ -316,16 +316,16 @@
 
       <!-- View 5: Future Planning Matrix -->
       <template x-if="activeView === 'future-matrix'">
-        <div style="width: 100%; padding: 20px;">
-          <h2 style="font-family: 'Playfair Display', serif; color: var(--binder-teal); margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+        <div class="view-container">
+          <h2 class="view-title">
             <span class="material-symbols-outlined">explore</span>
             Future Planning Matrix (12-Month Overview)
           </h2>
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+          <div class="future-matrix-grid">
             <template x-for="m in ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']">
-              <div style="background: #ffffff; border: 1px solid var(--border-line); border-radius: 6px; padding: 12px; min-height: 100px;">
-                <h4 style="font-family: 'Playfair Display', serif; color: var(--binder-teal); border-bottom: 1px solid var(--border-line); padding-bottom: 4px;" x-text="m + ' 2026'"></h4>
-                <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 8px;">No future milestones scheduled.</p>
+              <div class="future-month-card">
+                <h4 class="future-month-title" x-text="m + ' 2026'"></h4>
+                <p class="future-month-empty">No future milestones scheduled.</p>
               </div>
             </template>
           </div>
@@ -334,7 +334,7 @@
 
       <!-- View 6: Static About Page -->
       <template x-if="activeView === 'about'">
-        <div style="width: 100%; padding: 10px;">
+        <div class="view-container-compact">
           <?!= include('About'); ?>
         </div>
       </template>
@@ -344,19 +344,19 @@
     <!-- Event Detail Modal -->
     <div class="modal-backdrop" x-show="eventModalOpen" x-transition x-cloak>
       <div class="modal-card" @click.away="closeEventModal()">
-        <h3 style="font-family: 'Playfair Display', serif; color: var(--binder-teal);" x-text="selectedEvent?.title || 'Event Details'"></h3>
-        <div style="font-size: 0.9rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 6px;">
-          <p style="display: flex; align-items: center; gap: 6px;">
-            <span class="material-symbols-outlined" style="font-size: 18px;">schedule</span> <span x-text="selectedEvent?.startTime"></span>
+        <h3 class="modal-title" x-text="selectedEvent?.title || 'Event Details'"></h3>
+        <div class="modal-body-details">
+          <p class="modal-detail-row">
+            <span class="material-symbols-outlined icon-18">schedule</span> <span x-text="selectedEvent?.startTime"></span>
           </p>
-          <p style="display: flex; align-items: center; gap: 6px;">
-            <span class="material-symbols-outlined" style="font-size: 18px;">location_on</span> <span x-text="selectedEvent?.location || 'No location set'"></span>
+          <p class="modal-detail-row">
+            <span class="material-symbols-outlined icon-18">location_on</span> <span x-text="selectedEvent?.location || 'No location set'"></span>
           </p>
-          <p style="margin-top: 8px;" x-text="selectedEvent?.description || 'No description'"></p>
+          <p class="modal-description" x-text="selectedEvent?.description || 'No description'"></p>
         </div>
         <div class="modal-actions">
           <template x-if="selectedEvent?.meetLink">
-            <a :href="selectedEvent.meetLink" target="_blank" class="btn-primary" style="background: #00796b;">
+            <a :href="selectedEvent.meetLink" target="_blank" class="btn-primary btn-meet">
               <span class="material-symbols-outlined">videocam</span> Join Google Meet
             </a>
           </template>
@@ -370,31 +370,31 @@
 
     <!-- Universal Search Modal -->
     <div class="modal-backdrop" x-show="searchModalOpen" x-transition x-cloak>
-      <div class="modal-card" style="max-width: 650px;" @click.away="closeSearchModal()">
-        <h3 style="font-family: 'Playfair Display', serif; color: var(--binder-teal); display: flex; align-items: center; gap: 8px;">
+      <div class="modal-card modal-card-wide" @click.away="closeSearchModal()">
+        <h3 class="modal-title-with-icon">
           <span class="material-symbols-outlined">search</span> Universal Search (Ctrl + K)
         </h3>
-        <input type="text" x-model="searchQuery" @input="runSearch()" placeholder="Type to search calendar, tasks, notes, index..." style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid var(--border-line); font-size: 1rem;">
+        <input type="text" x-model="searchQuery" @input="runSearch()" placeholder="Type to search calendar, tasks, notes, index..." class="search-input-field">
         
-        <div style="max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+        <div class="search-results-container">
           <template x-if="searchResults.totalMatches === 0 && searchQuery">
-            <p style="color: var(--text-muted); font-size: 0.9rem;">No matching entries found.</p>
+            <p class="search-no-results">No matching entries found.</p>
           </template>
 
           <template x-for="item in searchResults.calendar" :key="item.title">
-            <div style="padding: 8px; background: var(--binder-teal-light); border-radius: 4px;">
+            <div class="search-result-item result-calendar">
               <b>[Calendar]</b> <span x-text="item.title"></span>
             </div>
           </template>
 
           <template x-for="item in searchResults.tasks" :key="item.title">
-            <div style="padding: 8px; background: #fff8e1; border-radius: 4px;">
+            <div class="search-result-item result-task">
               <b>[Task]</b> <span x-text="item.title"></span>
             </div>
           </template>
 
           <template x-for="item in searchResults.index" :key="item.summary">
-            <div style="padding: 8px; background: #e3f2fd; border-radius: 4px;">
+            <div class="search-result-item result-index">
               <b>[Index]</b> <span x-text="item.topic + ': ' + item.summary"></span>
             </div>
           </template>

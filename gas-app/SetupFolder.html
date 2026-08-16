@@ -79,31 +79,54 @@
       color: #2e7d32;
       border: 1px solid #66bb6a;
     }
+    .setup-subtitle {
+      color: #5c6b66;
+      font-size: 0.95rem;
+    }
+    .setup-link {
+      color: #2d6a5a;
+      font-weight: bold;
+    }
+    .form-label {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #2d6a5a;
+    }
+    .ack-container {
+      display: none;
+      margin-top: 20px;
+    }
+    .ack-link {
+      text-decoration: none;
+    }
+    .btn-success {
+      background: #2e7d32;
+    }
   </style>
 </head>
 <body>
   <div class="card">
     <h2>📁 Connect Your Day Planner Drive Folder</h2>
-    <p style="color: #5c6b66; font-size: 0.95rem;">
+    <p class="setup-subtitle">
       To keep your files 100% private under strict <code>drive.file</code> security, please connect your dedicated Google Drive folder:
     </p>
 
     <ol>
-      <li>Open <a href="https://drive.google.com" target="_blank" style="color: #2d6a5a; font-weight: bold;">Google Drive</a> and create a folder named <b>Day Planner</b>.</li>
+      <li>Open <a href="https://drive.google.com" target="_blank" class="setup-link">Google Drive</a> and create a folder named <b>Day Planner</b>.</li>
       <li>Open the folder, copy its full web link from your browser address bar, and paste it below.</li>
     </ol>
 
     <div id="formContainer">
-      <label style="font-weight: 600; font-size: 0.9rem; color: #2d6a5a;">Google Drive Folder Web Link or ID:</label>
+      <label class="form-label">Google Drive Folder Web Link or ID:</label>
       <input type="text" id="folderUrlInput" placeholder="https://drive.google.com/drive/folders/1N2WRrFmts..." value="https://drive.google.com/drive/u/0/folders/1N2WRrFmtsAWKgqeaFIj9HtiQ2wupFEk0">
       <button id="submitBtn" onclick="submitFolderUrl()">Validate & Connect Folder</button>
     </div>
 
     <div id="statusBox" class="status-box"></div>
 
-    <div id="ackContainer" style="display: none; margin-top: 20px;">
-      <a href="?" style="text-decoration: none;">
-        <button style="background: #2e7d32;">✅ Open Day Planner Binder &rarr;</button>
+    <div id="ackContainer" class="ack-container">
+      <a href="?" class="ack-link">
+        <button class="btn-success">✅ Open Day Planner Binder &rarr;</button>
       </a>
     </div>
   </div>

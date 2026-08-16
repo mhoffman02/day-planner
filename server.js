@@ -12,12 +12,13 @@ const server = http.createServer((req, res) => {
   if (req.url === '/' || req.url === '/index.html') {
     try {
       let html = fs.readFileSync(path.join(__dirname, 'gas-app', 'Index.html'), 'utf8');
-      const styles = fs.readFileSync(path.join(__dirname, 'gas-app', 'Styles.html'), 'utf8');
+      const styles = fs.readFileSync(path.join(__dirname, 'gas-app', 'style.html'), 'utf8');
       const script = fs.readFileSync(path.join(__dirname, 'gas-app', 'Script.html'), 'utf8');
       const about = fs.readFileSync(path.join(__dirname, 'gas-app', 'About.html'), 'utf8');
       const gasBridge = fs.readFileSync(path.join(__dirname, 'src', 'gasBridge.js'), 'utf8');
 
       // Replace include directives
+      html = html.replace("<?!= include('style'); ?>", styles);
       html = html.replace("<?!= include('Styles'); ?>", styles);
       html = html.replace("<?!= include('About'); ?>", about);
       

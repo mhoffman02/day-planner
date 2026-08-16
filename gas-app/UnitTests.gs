@@ -193,13 +193,17 @@ function renderSelfTestDiagnosticReport() {
     'th { background: #f4f9f7; color: #5c6b66; text-transform: uppercase; font-size: 0.75rem; }' +
     '.status-pass { color: #2e7d32; font-weight: bold; }' +
     '.status-fail { color: #c62828; font-weight: bold; }' +
+    '.diag-header { display: flex; justify-content: space-between; align-items: center; }' +
+    '.diag-meta { color: #5c6b66; font-size: 0.9rem; }' +
+    '.diag-footer { margin-top: 24px; text-align: right; }' +
+    '.btn-return { display: inline-block; padding: 10px 20px; background: #2d6a5a; color: #fff; text-decoration: none; border-radius: 4px; font-weight: bold; }' +
     '</style></head><body>' +
     '<div class="card">' +
-    '<div style="display:flex; justify-content:space-between; align-items:center;">' +
+    '<div class="diag-header">' +
     '<h2>⚡ Day Planner Self-Test Diagnostics</h2>' +
     '<span class="badge">' + testResult.overallStatus + '</span>' +
     '</div>' +
-    '<p style="color:#5c6b66; font-size:0.9rem;">Timestamp: ' + testResult.timestamp + ' | Target: Google Workspace Integration Engine</p>' +
+    '<p class="diag-meta">Timestamp: ' + testResult.timestamp + ' | Target: Google Workspace Integration Engine</p>' +
     '<table><thead><tr><th>Test Suite</th><th>Result</th><th>Diagnostic Details</th></tr></thead><tbody>';
 
   testResult.results.forEach(function(r) {
@@ -208,11 +212,12 @@ function renderSelfTestDiagnosticReport() {
   });
 
   html += '</tbody></table>' +
-    '<div style="margin-top:24px; text-align:right;">' +
-    '<a href="../dev" style="display:inline-block; padding:10px 20px; background:#2d6a5a; color:#fff; text-decoration:none; border-radius:4px; font-weight:bold;">Return to Day Planner App &rarr;</a>' +
+    '<div class="diag-footer">' +
+    '<a href="../dev" class="btn-return">Return to Day Planner App &rarr;</a>' +
     '</div></div></body></html>';
 
   return HtmlService.createHtmlOutput(html)
     .setTitle('Day Planner Self-Test Diagnostics')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1.0');
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }

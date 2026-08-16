@@ -15,52 +15,59 @@ function failLoud(context, err) {
   };
 }
 
+function renderSetupFolderPage() {
+  return HtmlService.createTemplateFromFile('SetupFolder')
+    .evaluate()
+    .setTitle('Day Planner - Setup Google Drive Folder')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
 function doGet(e) {
-  // Check if requested /self-test diagnostic endpoint
-  var isSelfTest = e && (
-    e.pathInfo === 'self-test' ||
-    e.pathInfo === '/self-test' ||
-    e.pathInfo === 'selftest' ||
-    (e.parameter && (e.parameter.view === 'self-test' || e.parameter['self-test'] !== undefined || e.parameter.post === '1'))
-  );
-
-  if (isSelfTest) {
-    return renderSelfTestDiagnosticReport();
-  }
-
-  // Check if requested or required /setup-folder endpoint
-  var isSetupRequest = e && (
-    e.pathInfo === 'setup-folder' ||
-    e.pathInfo === '/setup-folder' ||
-    (e.parameter && (e.parameter.setup === '1' || e.parameter.view === 'setup'))
-  );
-
-  // Validate presence of configured root folder
-  var validatedFolder = getValidatedRootFolder();
-  if (!validatedFolder || isSetupRequest) {
-    return HtmlService.createTemplateFromFile('SetupFolder')
-      .evaluate()
-      .setTitle('Day Planner - Setup Google Drive Folder')
-      .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-  }
-
-  // Regular Web App load
   try {
-    syncWorkspaceChanges();
-    ensure2WaySyncTriggerInstalled(5);
-  } catch (err) {
-    failLoud('doGet background sync init', err);
-  }
+    // 1. Check if requested /self-test diagnostic endpoint (via pathInfo or query param)
+    var isSelfTest = e && (
+      (e.pathInfo && (e.pathInfo.indexOf('self-test') !== -1 || e.pathInfo.indexOf('selftest') !== -1)) ||
+      (e.parameter && (e.parameter.view === 'self-test' || e.parameter['self-test'] !== undefined || e.parameter.post === '1'))
+    );
 
-  try {
+    if (isSelfTest) {
+      return renderSelfTestDiagnosticReport();
+    }
+
+    // 2. Check if requested /setup-folder endpoint
+    var isSetupRequest = e && (
+      (e.pathInfo && e.pathInfo.indexOf('setup') !== -1) ||
+      (e.parameter && (e.parameter.setup === '1' || e.parameter.view === 'setup'))
+    );
+
+    // 3. Validate presence of configured root folder for main web app
+    var validatedFolder = getValidatedRootFolder();
+    if (!validatedFolder || isSetupRequest) {
+      return renderSetupFolderPage();
+    }
+
+    // 4. Regular Web App load
+    try {
+      syncWorkspaceChanges();
+      ensure2WaySyncTriggerInstalled(5);
+    } catch (syncErr) {
+      failLoud('doGet background sync init', syncErr);
+    }
+
     var template = HtmlService.createTemplateFromFile('Index');
     return template.evaluate()
       .setTitle('Day Planner')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+
   } catch (err) {
-    var fail = failLoud('doGet template render', err);
+    var fail = failLoud('doGet exception', err);
+    var errStr = (err.message || err.toString()).toLowerCase();
+    var isFolderError = errStr.indexOf('folder') !== -1 || errStr.indexOf('drive') !== -1 || errStr.indexOf('day planner') !== -1;
+    if (isFolderError) {
+      return renderSetupFolderPage();
+    }
     return HtmlService.createHtmlOutput('<h3>🔥 Day Planner Render Failure</h3><p><b>' + fail.error + '</b></p><pre>' + (fail.stack || '') + '</pre>');
   }
 }
@@ -83,7 +90,19 @@ function getValidatedRootFolder() {
     }
   }
 
-  // No valid folder cached; return null to trigger SetupFolder.html
+  // Auto-search for existing "Day Planner" folder in Drive (under drive.file scope)
+  try {
+    var folders = DriveApp.getFoldersByName('Day Planner');
+    if (folders.hasNext()) {
+      var folder = folders.next();
+      userProps.setProperty('DAY_PLANNER_ROOT_FOLDER_ID', folder.getId());
+      return folder;
+    }
+  } catch (err) {
+    console.error('getValidatedRootFolder auto-search error: ' + err.toString());
+  }
+
+  // No valid folder cached or found; return null to trigger SetupFolder.html
   return null;
 }
 
@@ -279,6 +298,15 @@ function getDailyData(dateStr) {
       try {
         var events = CalendarApp.getDefaultCalendar().getEvents(targetDate, nextDate);
         result.calendarEvents = events.map(function(evt) {
+          var meetLink = null;
+          if (typeof evt.getHangoutLink === 'function') {
+            meetLink = evt.getHangoutLink();
+          } else {
+            var desc = evt.getDescription() || '';
+            var loc = evt.getLocation() || '';
+            var match = (desc + ' ' + loc).match(/https:\/\/meet\.google\.com\/[a-z0-9-]+/i);
+            if (match) meetLink = match[0];
+          }
           return {
             id: evt.getId(),
             title: evt.getTitle(),
@@ -286,7 +314,7 @@ function getDailyData(dateStr) {
             endTime: evt.getEndTime().toISOString(),
             location: evt.getLocation(),
             description: evt.getDescription(),
-            meetLink: evt.getHangoutLink(),
+            meetLink: meetLink,
             syncTaskId: evt.getTag('gasTaskId') || null
           };
         });
