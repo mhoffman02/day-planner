@@ -1,12 +1,16 @@
 /**
- * Franklin Planner 2-Way Sync Engine
+ * @file syncEngine.js
+ * @description Franklin Planner 2-Way Sync Engine.
  * Handles bi-directional synchronization between Google Tasks, Google Calendar Events, and the Franklin Binder.
  */
 
 import { parseTaskTitle, formatTaskTitle, TASK_STATUSES } from './taskEngine.js';
 
 /**
- * Creates or updates cross-reference metadata link between a Task and a Calendar Event
+ * Creates or updates cross-reference metadata link between a Task and a Calendar Event.
+ * @param {string} taskId Unique task identifier.
+ * @param {string} [eventId] Optional unique calendar event identifier.
+ * @returns {{syncId: string, taskId: string, eventId: string|null, lastSyncedAt: string}} Sync metadata object.
  */
 export function createSyncMetadata(taskId, eventId) {
   const syncId = `sync_${taskId}_${eventId || 'evt'}`;
@@ -19,10 +23,10 @@ export function createSyncMetadata(taskId, eventId) {
 }
 
 /**
- * Syncs a Task change to its corresponding Calendar Event representation
- * @param {object} task Task object { id, title, status, dueDate, scheduledTime, category }
- * @param {Array<object>} calendarEvents Current list of calendar events
- * @returns {object} { updatedEvent, isNewEvent }
+ * Syncs a Task change to its corresponding Calendar Event representation.
+ * @param {object} task Task object { id, title, status, dueDate, scheduledTime, category }.
+ * @param {Array<object>} [calendarEvents=[]] Current list of calendar events.
+ * @returns {{updatedEvent: object, isNewEvent: boolean}} Object containing updated calendar event and creation flag.
  */
 export function syncTaskToCalendar(task, calendarEvents = []) {
   const parsed = parseTaskTitle(task.title);
@@ -74,10 +78,10 @@ export function syncTaskToCalendar(task, calendarEvents = []) {
 }
 
 /**
- * Syncs a Calendar Event change back to its linked Task
- * @param {object} calendarEvent Modified calendar event
- * @param {Array<object>} dailyTasks Current daily tasks
- * @returns {object|null} Updated task object or null if not linked
+ * Syncs a Calendar Event change back to its linked Task.
+ * @param {object} calendarEvent Modified calendar event object.
+ * @param {Array<object>} [dailyTasks=[]] Current daily tasks list.
+ * @returns {object|null} Updated task object or null if not linked to a task.
  */
 export function syncCalendarToTask(calendarEvent, dailyTasks = []) {
   const linkedTaskId = calendarEvent.syncTaskId || calendarEvent.extendedProperties?.private?.gasTaskId;
@@ -102,14 +106,17 @@ export function syncCalendarToTask(calendarEvent, dailyTasks = []) {
 }
 
 /**
- * Performs full bidirectional reconciliation across Tasks and Calendar Events
+ * Performs full bidirectional reconciliation across Tasks and Calendar Events.
+ * @param {Array<object>} [dailyTasks=[]] Current daily tasks array.
+ * @param {Array<object>} [calendarEvents=[]] Current calendar events array.
+ * @returns {{tasks: Array<object>, calendarEvents: Array<object>, syncTimestamp: string}} Reconciled tasks, events, and timestamp.
  */
 export function reconcileWorkspaceChanges(dailyTasks = [], calendarEvents = []) {
   const reconciledTasks = [...dailyTasks];
   const reconciledEvents = [...calendarEvents];
 
   // 1. Ensure all tasks have corresponding calendar events
-  reconciledTasks.forEach((task, idx) => {
+  reconciledTasks.forEach((task) => {
     const { updatedEvent, isNewEvent } = syncTaskToCalendar(task, reconciledEvents);
     if (isNewEvent) {
       reconciledEvents.push(updatedEvent);

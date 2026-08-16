@@ -1,3 +1,8 @@
+/**
+ * @file searchEngine.test.js
+ * @description Unit tests for universal search query execution across calendar, tasks, notes, and index records.
+ */
+
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { executeUniversalSearch } from '../src/searchEngine.js';

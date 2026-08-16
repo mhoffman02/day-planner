@@ -1,3 +1,9 @@
+/**
+ * @file server.js
+ * @description Local Node.js development server for Day Planner web application.
+ * Serves index.html with embedded styles, scripts, and mocked Google Apps Script bridge bindings.
+ */
+
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -8,6 +14,12 @@ const __dirname = path.dirname(__filename);
 
 const PORT = 3000;
 
+/**
+ * Handles HTTP requests and renders the concatenated Day Planner web application.
+ * @param {import('node:http').IncomingMessage} req HTTP incoming request object.
+ * @param {import('node:http').ServerResponse} res HTTP response object.
+ * @returns {void}
+ */
 const server = http.createServer((req, res) => {
   if (req.url === '/' || req.url === '/index.html') {
     try {

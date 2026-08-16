@@ -1,9 +1,14 @@
 /**
- * Day Planner Server-Side Self-Test & Diagnostic Suite
+ * @file UnitTests.gs
+ * @description Day Planner Server-Side Self-Test & Diagnostic Suite.
  * Runs an automated major systems & integration check to ensure system health and Google Workspace API connections.
  * All errors log detailed error message and err.stack using console.error for diagnostic clarity.
  */
 
+/**
+ * Runs automated self-test diagnostics across Drive, Tasks, Calendar, Docs, and Sync triggers.
+ * @returns {{overallStatus: string, passedCount: number, totalTests: number, timestamp: string, results: Array<{test: string, status: string, details: string}>}} Diagnostic summary object.
+ */
 function runSelfTest() {
   var results = [];
   var passedCount = 0;
@@ -151,14 +156,16 @@ function runSelfTest() {
 }
 
 /**
- * Backward compatibility alias
+ * Backward compatibility alias for runSelfTest.
+ * @returns {{overallStatus: string, passedCount: number, totalTests: number, timestamp: string, results: Array<{test: string, status: string, details: string}>}} Diagnostic summary object.
  */
 function runPowerOnSelfTest() {
   return runSelfTest();
 }
 
 /**
- * IDE Execution helper for single-stepping or debugging doGet(e) in the Apps Script IDE
+ * IDE Execution helper for single-stepping or debugging doGet(e) in the Apps Script IDE.
+ * @returns {GoogleAppsScript.HTML.HtmlOutput} Rendered HTML response from doGet.
  */
 function testDoGetInIDE() {
   var mockEvent = {
@@ -175,7 +182,8 @@ function testDoGetInIDE() {
 }
 
 /**
- * Renders HTML diagnostic report page for the /self-test web endpoint
+ * Renders HTML diagnostic report page for the /self-test web endpoint.
+ * @returns {GoogleAppsScript.HTML.HtmlOutput} Rendered self-test diagnostic report HTML.
  */
 function renderSelfTestDiagnosticReport() {
   var testResult = runSelfTest();

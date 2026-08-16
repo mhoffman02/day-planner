@@ -1,22 +1,31 @@
 /**
- * Franklin Planner Task Engine
+ * @file taskEngine.js
+ * @description Franklin Planner Task Engine.
  * Handles task priorities (A1-C9), status codes, task ordering, and "Move to Today" transfer logic.
  */
 
+/**
+ * Task status code symbols dictionary.
+ * @type {Record<string, string>}
+ */
 export const TASK_STATUSES = {
-  OPEN: '•', // or open/in-process
+  OPEN: '•',
   COMPLETED: '✓',
   FORWARDED: '→',
   CANCELED: 'X',
   DELEGATED: 'G/✓'
 };
 
+/**
+ * List of status codes for status cycling.
+ * @type {Array<string>}
+ */
 export const STATUS_LIST = ['•', '✓', '→', 'X', 'G/✓'];
 
 /**
- * Parses a task title that may contain a priority prefix like [A1] or [B3]
- * @param {string} rawTitle 
- * @returns {object} { priorityGroup: 'A'|'B'|'C'|null, sequence: number|null, priorityCode: string|null, cleanTitle: string }
+ * Parses a task title that may contain a priority prefix like [A1] or [B3].
+ * @param {string} [rawTitle=''] Raw task title string.
+ * @returns {{priorityGroup: 'A'|'B'|'C'|null, sequence: number|null, priorityCode: string|null, cleanTitle: string}} Parsed task title details.
  */
 export function parseTaskTitle(rawTitle = '') {
   if (!rawTitle) {
@@ -44,7 +53,11 @@ export function parseTaskTitle(rawTitle = '') {
 }
 
 /**
- * Formats task title with priority prefix
+ * Formats task title with priority prefix.
+ * @param {string|null} priorityGroup Priority group letter ('A', 'B', or 'C').
+ * @param {number|null} sequence Priority sequence number (1-9).
+ * @param {string} cleanTitle Clean task title without prefix.
+ * @returns {string} Formatted task title.
  */
 export function formatTaskTitle(priorityGroup, sequence, cleanTitle) {
   const trimmed = (cleanTitle || '').trim();
@@ -55,7 +68,9 @@ export function formatTaskTitle(priorityGroup, sequence, cleanTitle) {
 }
 
 /**
- * Cycle to the next task status code
+ * Cycle to the next task status code in sequence.
+ * @param {string} currentStatus Current status code symbol.
+ * @returns {string} Next status code symbol.
  */
 export function getNextStatus(currentStatus) {
   const idx = STATUS_LIST.indexOf(currentStatus);
@@ -66,7 +81,9 @@ export function getNextStatus(currentStatus) {
 }
 
 /**
- * Sorts array of task objects by priority (A1, A2... B1... C9... Unprioritized)
+ * Sorts array of task objects by priority (A1, A2... B1... C9... Unprioritized).
+ * @param {Array<object>} [tasks=[]] Array of task objects to sort.
+ * @returns {Array<object>} New array of sorted task objects.
  */
 export function sortTasks(tasks = []) {
   return [...tasks].sort((a, b) => {
@@ -90,7 +107,10 @@ export function sortTasks(tasks = []) {
 }
 
 /**
- * Finds next available sequence integer for a priority group ('A', 'B', or 'C')
+ * Finds next available sequence integer for a priority group ('A', 'B', or 'C').
+ * @param {Array<object>} [tasks=[]] Array of existing task objects.
+ * @param {string} [priorityGroup='A'] Target priority group letter.
+ * @returns {number} Next available sequence number (1 to 9).
  */
 export function getNextSequence(tasks = [], priorityGroup = 'A') {
   const pGroup = priorityGroup.toUpperCase();
@@ -108,7 +128,12 @@ export function getNextSequence(tasks = [], priorityGroup = 'A') {
 }
 
 /**
- * Transfers a monthly master task to the daily task list for today
+ * Transfers a monthly master task to the daily task list for today with assigned priority.
+ * @param {object} masterTask Source master task object.
+ * @param {Array<object>} [existingDailyTasks=[]] Current daily tasks list.
+ * @param {string} [targetPriorityGroup='A'] Priority group letter to assign ('A', 'B', or 'C').
+ * @param {string} [todayDateStr] Target date string in YYYY-MM-DD format (defaults to current date).
+ * @returns {{id: string, title: string, status: string, dueDate: string, category: string, sourceMasterId: string|null}} Newly created daily task object.
  */
 export function transferMasterTaskToToday(masterTask, existingDailyTasks = [], targetPriorityGroup = 'A', todayDateStr = new Date().toISOString().slice(0, 10)) {
   const cleanTitle = parseTaskTitle(masterTask.title).cleanTitle || masterTask.title || 'Untitled Task';

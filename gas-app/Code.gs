@@ -1,10 +1,17 @@
 /**
- * Day Planner (GAS Server Logic)
+ * @file Code.gs
+ * @description Day Planner Google Apps Script server-side entry points, Drive folder management, error logging, and data handlers.
  * Robust Architecture with centralized error handling using console.error for stack tracing.
  * Uses strict drive.file scope with user-configured root folder ID.
  */
 
-function failLoud(context, err) {
+/**
+ * Centralized error logging utility. Logs formatted error and stack trace to console.error.
+ * @param {string} context Descriptive name or operation context where the error occurred.
+ * @param {Error|object|string} err The thrown Error object or error message.
+ * @returns {{success: boolean, error: string, stack: string|null, context: string}} Standardized error payload.
+ */
+function logError(context, err) {
   var errorMsg = '🔥 ' + context + ': ' + (err.message || err.toString());
   console.error(errorMsg + '\nStack:\n' + (err.stack || 'No stack trace available'));
   return {
@@ -15,6 +22,10 @@ function failLoud(context, err) {
   };
 }
 
+/**
+ * Renders the HTML template page for setting up or connecting a Google Drive root folder.
+ * @returns {GoogleAppsScript.HTML.HtmlOutput} Evaluated HTML setup page output.
+ */
 function renderSetupFolderPage() {
   return HtmlService.createTemplateFromFile('SetupFolder')
     .evaluate()
@@ -23,6 +34,12 @@ function renderSetupFolderPage() {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
+/**
+ * Primary HTTP GET web app handler for Google Apps Script.
+ * Routes traffic to self-test diagnostics, folder setup page, or main Day Planner UI.
+ * @param {GoogleAppsScript.Events.DoGet} e Event parameter containing request query parameters and path information.
+ * @returns {GoogleAppsScript.HTML.HtmlOutput} Rendered web page output.
+ */
 function doGet(e) {
   try {
     // 1. Check if requested /self-test diagnostic endpoint (via pathInfo or query param)
@@ -52,7 +69,7 @@ function doGet(e) {
       syncWorkspaceChanges();
       ensure2WaySyncTriggerInstalled(5);
     } catch (syncErr) {
-      failLoud('doGet background sync init', syncErr);
+      logError('doGet background sync init', syncErr);
     }
 
     var template = HtmlService.createTemplateFromFile('Index');
@@ -62,7 +79,7 @@ function doGet(e) {
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 
   } catch (err) {
-    var fail = failLoud('doGet exception', err);
+    var fail = logError('doGet exception', err);
     var errStr = (err.message || err.toString()).toLowerCase();
     var isFolderError = errStr.indexOf('folder') !== -1 || errStr.indexOf('drive') !== -1 || errStr.indexOf('day planner') !== -1;
     if (isFolderError) {
@@ -75,6 +92,7 @@ function doGet(e) {
 /**
  * Validates and retrieves the configured root folder under drive.file scope.
  * Checks UserProperties DAY_PLANNER_ROOT_FOLDER_ID. Returns folder or null (redirects to SetupFolder.html).
+ * @returns {GoogleAppsScript.Drive.Folder|null} Configured Google Drive root folder object or null.
  */
 function getValidatedRootFolder() {
   if (typeof DriveApp === 'undefined') return null;
@@ -108,6 +126,8 @@ function getValidatedRootFolder() {
 
 /**
  * Server handler called by SetupFolder.html form to sanitize, validate, and save folder URL or ID.
+ * @param {string} inputUrl Google Drive folder web URL or raw folder ID.
+ * @returns {{success: boolean, folderId?: string, folderName?: string, error?: string}} Validation result.
  */
 function validateAndSaveFolderUrl(inputUrl) {
   if (!inputUrl || typeof inputUrl !== 'string') {
@@ -142,7 +162,7 @@ function validateAndSaveFolderUrl(inputUrl) {
       folderName: folderName
     };
   } catch (err) {
-    failLoud('validateAndSaveFolderUrl(' + extractedId + ')', err);
+    logError('validateAndSaveFolderUrl(' + extractedId + ')', err);
     return {
       success: false,
       error: 'Folder not found or permission denied. Please ensure you created the folder in Google Drive and pasted the correct link.'
@@ -152,7 +172,8 @@ function validateAndSaveFolderUrl(inputUrl) {
 
 /**
  * IDE Debugger Helper Function:
- * Select "testDoGetInIDE" in the IDE toolbar dropdown and click "Debug" or "Run"
+ * Select "testDoGetInIDE" in the IDE toolbar dropdown and click "Debug" or "Run".
+ * @returns {GoogleAppsScript.HTML.HtmlOutput} Output of doGet execution.
  */
 function testDoGetInIDE() {
   var mockEvent = {
@@ -168,17 +189,24 @@ function testDoGetInIDE() {
   return output;
 }
 
+/**
+ * Evaluates and returns the raw content of an HTML file for template inline inclusion.
+ * @param {string} filename Name of the HTML file to include (without extension).
+ * @returns {string} Evaluated file text content.
+ */
 function include(filename) {
   try {
     return HtmlService.createHtmlOutputFromFile(filename).getContent();
   } catch (err) {
-    failLoud('include(' + filename + ')', err);
+    logError('include(' + filename + ')', err);
     return '<!-- Error including ' + filename + ' -->';
   }
 }
 
 /**
- * Ensures automated 5-minute 2-Way Sync trigger is installed
+ * Ensures automated time-driven 2-Way Sync trigger is installed.
+ * @param {number} [minutes=5] Interval frequency in minutes.
+ * @returns {void}
  */
 function ensure2WaySyncTriggerInstalled(minutes) {
   var freq = minutes || 5;
@@ -201,10 +229,14 @@ function ensure2WaySyncTriggerInstalled(minutes) {
       Logger.log('Installed automated ' + freq + '-minute 2-Way Sync trigger.');
     }
   } catch (err) {
-    failLoud('ensure2WaySyncTriggerInstalled', err);
+    logError('ensure2WaySyncTriggerInstalled', err);
   }
 }
 
+/**
+ * Resets and installs a fresh 5-minute recurring time-driven 2-Way Sync trigger.
+ * @returns {void}
+ */
 function setup2WaySyncTrigger() {
   try {
     var existingTriggers = ScriptApp.getProjectTriggers();
@@ -221,12 +253,14 @@ function setup2WaySyncTrigger() {
 
     Logger.log('Created 5-minute 2-Way Sync trigger successfully.');
   } catch (err) {
-    failLoud('setup2WaySyncTrigger', err);
+    logError('setup2WaySyncTrigger', err);
   }
 }
 
 /**
- * Background Time-Driven Handler for 2-Way Workspace Syncing
+ * Background Time-Driven Handler for 2-Way Workspace Syncing.
+ * Synchronizes daily tasks with Google Calendar events.
+ * @returns {void}
  */
 function syncWorkspaceChanges() {
   try {
@@ -267,18 +301,20 @@ function syncWorkspaceChanges() {
           newEvt.setTag('gasTaskId', task.id);
         }
       } catch (taskErr) {
-        failLoud('syncWorkspaceChanges task item ' + task.id, taskErr);
+        logError('syncWorkspaceChanges task item ' + task.id, taskErr);
       }
     });
 
     Logger.log('2-Way Workspace Sync complete for ' + todayStr);
   } catch (err) {
-    failLoud('syncWorkspaceChanges main', err);
+    logError('syncWorkspaceChanges main', err);
   }
 }
 
 /**
- * Retrieves daily data: Calendar events, Google Tasks, and Google Doc daily notes
+ * Retrieves daily data: Calendar events, Google Tasks, and Google Doc daily notes for a given date.
+ * @param {string} dateStr Target date string in YYYY-MM-DD format.
+ * @returns {{date: string, tasks: Array<object>, calendarEvents: Array<object>, noteContent: string, warnings: Array<string>}|object} Daily planner dataset or error payload.
  */
 function getDailyData(dateStr) {
   var result = {
@@ -319,7 +355,7 @@ function getDailyData(dateStr) {
           };
         });
       } catch (calErr) {
-        result.warnings.push(failLoud('CalendarApp.getEvents', calErr).error);
+        result.warnings.push(logError('CalendarApp.getEvents', calErr).error);
       }
     }
 
@@ -338,7 +374,7 @@ function getDailyData(dateStr) {
           });
         }
       } catch (tasksErr) {
-        result.warnings.push(failLoud('Tasks.Tasks.list', tasksErr).error);
+        result.warnings.push(logError('Tasks.Tasks.list', tasksErr).error);
       }
     }
 
@@ -346,20 +382,22 @@ function getDailyData(dateStr) {
     try {
       result.noteContent = getOrCreateDailyDocContent(dateStr);
     } catch (notesErr) {
-      result.warnings.push(failLoud('getOrCreateDailyDocContent', notesErr).error);
+      result.warnings.push(logError('getOrCreateDailyDocContent', notesErr).error);
       result.noteContent = '⚠️ Error loading daily doc notes.';
     }
 
   } catch (err) {
-    return failLoud('getDailyData(' + dateStr + ')', err);
+    return logError('getDailyData(' + dateStr + ')', err);
   }
 
   return result;
 }
 
 /**
- * Gets or creates the daily note Google Doc content in /Day Planner/YYYY/MM/
- * Compatible with strict drive.file scope using UserProperties cached folder ID
+ * Gets or creates the daily note Google Doc content in /Day Planner/YYYY/MM/.
+ * Compatible with strict drive.file scope using UserProperties cached folder ID.
+ * @param {string} dateStr Target date string in YYYY-MM-DD format.
+ * @returns {string} Full text content of the daily note Google Doc.
  */
 function getOrCreateDailyDocContent(dateStr) {
   if (typeof DriveApp === 'undefined' || typeof DocumentApp === 'undefined') {
@@ -395,13 +433,16 @@ function getOrCreateDailyDocContent(dateStr) {
       return body.getText();
     }
   } catch (err) {
-    failLoud('getOrCreateDailyDocContent(' + dateStr + ')', err);
+    logError('getOrCreateDailyDocContent(' + dateStr + ')', err);
     throw err;
   }
 }
 
 /**
- * Gets or creates subfolders under the root Day Planner folder.
+ * Gets or creates subfolders under the root Day Planner folder or parent folder.
+ * @param {GoogleAppsScript.Drive.Folder|null} parent Parent folder object, or null to target root folder.
+ * @param {string} name Folder name to find or create.
+ * @returns {GoogleAppsScript.Drive.Folder} Found or created folder object.
  */
 function getFolderByNameOrCreate(parent, name) {
   try {
@@ -417,11 +458,16 @@ function getFolderByNameOrCreate(parent, name) {
       return folder;
     }
   } catch (err) {
-    failLoud('getFolderByNameOrCreate(' + name + ')', err);
+    logError('getFolderByNameOrCreate(' + name + ')', err);
     throw err;
   }
 }
 
+/**
+ * Retrieves master task entries for monthly planning.
+ * @param {string} [monthYearStr] Optional month/year string filter.
+ * @returns {Array<{id: string, title: string, category: string, status: string}>} Array of master task items.
+ */
 function getMasterTasks(monthYearStr) {
   try {
     return [
@@ -430,11 +476,18 @@ function getMasterTasks(monthYearStr) {
       { id: 'm3', title: 'Rebalance investment portfolio', category: 'Financial', status: '•' }
     ];
   } catch (err) {
-    failLoud('getMasterTasks', err);
+    logError('getMasterTasks', err);
     return [];
   }
 }
 
+/**
+ * Creates and appends a new daily task item for the specified date.
+ * @param {string} dateStr Target date string in YYYY-MM-DD format.
+ * @param {string} title Task title description.
+ * @param {string} [category='General'] Optional task category classification.
+ * @returns {{id: string, title: string, status: string, category: string, dueDate: string}} Created task object.
+ */
 function addDailyTask(dateStr, title, category) {
   try {
     return {
@@ -445,7 +498,7 @@ function addDailyTask(dateStr, title, category) {
       dueDate: dateStr
     };
   } catch (err) {
-    failLoud('addDailyTask', err);
+    logError('addDailyTask', err);
     throw err;
   }
 }

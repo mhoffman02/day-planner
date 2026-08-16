@@ -1,3 +1,8 @@
+/**
+ * @file syncEngine.test.js
+ * @description Unit tests for 2-way sync engine, metadata creation, task-calendar synchronization, and workspace reconciliation.
+ */
+
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {

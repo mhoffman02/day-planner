@@ -1,10 +1,12 @@
 /**
- * Franklin Planner Calendar & Schedule Engine
+ * @file calendarEngine.js
+ * @description Franklin Planner Calendar & Schedule Engine.
  * Handles 07:00 AM - 07:00 PM schedule grid, event slot mapping, modal popups, and 7x5 monthly calendar calculations.
  */
 
 /**
- * Generates 24 time slot entries for 07:00 AM to 07:00 PM (30-min intervals)
+ * Generates 25 time slot entries for 07:00 AM to 07:00 PM (30-min intervals).
+ * @returns {Array<{timeKey: string, displayTime: string, isHalfHour: boolean, events: Array<object>}>} Array of schedule grid slot objects.
  */
 export function generateScheduleGrid() {
   const slots = [];
@@ -44,7 +46,10 @@ export function generateScheduleGrid() {
 }
 
 /**
- * Maps raw calendar events onto the schedule grid slots
+ * Maps raw calendar events onto the schedule grid slots.
+ * @param {Array<object>} [gridSlots=[]] Base schedule grid slots.
+ * @param {Array<object>} [events=[]] List of raw calendar event objects.
+ * @returns {Array<object>} Schedule grid slots with mapped events.
  */
 export function mapEventsToGrid(gridSlots = [], events = []) {
   const grid = gridSlots.map(slot => ({ ...slot, events: [] }));
@@ -66,7 +71,9 @@ export function mapEventsToGrid(gridSlots = [], events = []) {
 }
 
 /**
- * Formats event object for the interactive gMeet & gCal popup modal
+ * Formats event object for the interactive Google Meet & Google Calendar popup modal.
+ * @param {object} [rawEvent={}] Raw calendar event data object.
+ * @returns {{id: string, title: string, formattedTime: string, startTime: string|null, endTime: string|null, location: string, description: string, meetLink: string|null, gCalLink: string, attendees: Array<string>}} Formatted event modal payload.
  */
 export function formatEventModalPayload(rawEvent = {}) {
   const startTime = rawEvent.startTime ? new Date(rawEvent.startTime) : null;
@@ -91,7 +98,11 @@ export function formatEventModalPayload(rawEvent = {}) {
 }
 
 /**
- * Generates monthly calendar grid matrix for a given year & month (1-indexed month)
+ * Generates monthly calendar grid matrix for a given year & month (1-indexed month).
+ * @param {number} year Four-digit year (e.g. 2026).
+ * @param {number} month Month number (1-12).
+ * @param {Array<object>} [events=[]] List of calendar event objects.
+ * @returns {Array<{dateStr: string, dayNumber: number, isCurrentMonth: boolean, events: Array<object>}>} Monthly calendar grid day cells.
  */
 export function generateMonthlyCalendarGrid(year, month, events = []) {
   const firstDay = new Date(year, month - 1, 1);

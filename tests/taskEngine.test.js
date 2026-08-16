@@ -1,3 +1,8 @@
+/**
+ * @file taskEngine.test.js
+ * @description Unit tests for task title priority parsing, formatting, status cycling, task sorting, and master task transfer.
+ */
+
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {

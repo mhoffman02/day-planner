@@ -1,9 +1,17 @@
 /**
- * Day Planner GAS API Bridge & Local Mock Provider
+ * @file gasBridge.js
+ * @description Day Planner GAS API Bridge & Local Mock Provider.
  * Bridges client requests to Google Apps Script backend `google.script.run` or local mock state.
  */
 
+/**
+ * Service bridge for invoking Apps Script backend functions or providing mock fallback data.
+ */
 export class GASBridge {
+  /**
+   * Creates an instance of GASBridge.
+   * @param {boolean} [useMock=true] Whether to force local mock data mode.
+   */
   constructor(useMock = true) {
     this.useMock = useMock;
 
@@ -75,6 +83,11 @@ export class GASBridge {
     };
   }
 
+  /**
+   * Fetches tasks, calendar events, and notes for a specific date.
+   * @param {string} dateStr Target date in YYYY-MM-DD format.
+   * @returns {Promise<{date: string, tasks: Array<object>, calendarEvents: Array<object>, noteContent: string}>} Daily dataset promise.
+   */
   async getDailyData(dateStr) {
     if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
       return {
@@ -93,6 +106,11 @@ export class GASBridge {
     });
   }
 
+  /**
+   * Fetches monthly master task list.
+   * @param {string} monthYearStr Target month/year identifier string.
+   * @returns {Promise<Array<object>>} List of master task items promise.
+   */
   async getMasterTasks(monthYearStr) {
     if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
       return this.mockData.masterTasks;
@@ -106,6 +124,13 @@ export class GASBridge {
     });
   }
 
+  /**
+   * Adds a new task to the daily planner.
+   * @param {string} dateStr Target date in YYYY-MM-DD format.
+   * @param {string} title Task title description.
+   * @param {string} [category='General'] Optional category name.
+   * @returns {Promise<object>} Created daily task item promise.
+   */
   async addDailyTask(dateStr, title, category = 'General') {
     if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
       if (!this.mockData.dailyTasks[dateStr]) {
@@ -130,6 +155,13 @@ export class GASBridge {
     });
   }
 
+  /**
+   * Transfers a master task into the daily task list with priority prefix.
+   * @param {string} masterTaskId Unique identifier of the master task.
+   * @param {string} dateStr Target date in YYYY-MM-DD format.
+   * @param {string} [priorityGroup='A'] Priority group code ('A', 'B', or 'C').
+   * @returns {Promise<object|null>} Created daily task object promise or null if master task not found.
+   */
   async transferMasterTask(masterTaskId, dateStr, priorityGroup = 'A') {
     const masterTask = this.mockData.masterTasks.find(m => m.id === masterTaskId);
     if (!masterTask) return null;

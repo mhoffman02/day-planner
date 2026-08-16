@@ -1,13 +1,14 @@
 /**
- * Franklin Planner Universal Search Engine
+ * @file searchEngine.js
+ * @description Franklin Planner Universal Search Engine.
  * Multi-entity cross-service indexing & searching for Google Calendar, Google Tasks, Daily Notes, and Monthly Index.
  */
 
 /**
- * Executes cross-service search query
- * @param {string} query Search query string
- * @param {object} store Data store containing { calendarEvents, dailyTasks, masterTasks, dailyNotes, indexEntries }
- * @returns {object} Grouped search results { totalMatches, calendar: [], tasks: [], notes: [], index: [] }
+ * Executes cross-service universal search query across calendar, tasks, notes, and index entries.
+ * @param {string} [query=''] Search query string.
+ * @param {{calendarEvents?: Array<object>, dailyTasks?: Array<object>, masterTasks?: Array<object>, dailyNotes?: Array<object>, indexEntries?: Array<object>}} [store={}] Data store containing entities to search.
+ * @returns {{totalMatches: number, calendar: Array<object>, tasks: Array<object>, notes: Array<object>, index: Array<object>}} Grouped search result object.
  */
 export function executeUniversalSearch(query = '', store = {}) {
   const cleanQuery = query.trim().toLowerCase();

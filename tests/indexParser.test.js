@@ -1,3 +1,8 @@
+/**
+ * @file indexParser.test.js
+ * @description Unit tests for index tag parsing from daily notes and record aggregation.
+ */
+
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {

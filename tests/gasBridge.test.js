@@ -1,3 +1,8 @@
+/**
+ * @file gasBridge.test.js
+ * @description Unit tests for GASBridge client API wrapper and mock data handling.
+ */
+
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { GASBridge } from '../src/gasBridge.js';

@@ -1,14 +1,15 @@
 /**
- * Franklin Planner Index & Docs Parser Engine
+ * @file indexParser.js
+ * @description Franklin Planner Index & Docs Parser Engine.
  * Scans daily note lines for #index or [INDEX] tags, extracts topic categories, highlights, and doc links.
  */
 
 /**
- * Parses daily notes content string into structured index entries
- * @param {string} noteText Full text of daily notes doc
- * @param {string} dateStr Date string e.g. "2026-08-15"
- * @param {string} docUrl Google Doc URL or placeholder link
- * @returns {Array<object>} List of index record objects
+ * Parses daily notes content string into structured index entries.
+ * @param {string} [noteText=''] Full text of daily notes doc.
+ * @param {string} [dateStr=''] Date string e.g. "2026-08-15".
+ * @param {string} [docUrl=''] Google Doc URL or placeholder link.
+ * @returns {Array<{id: string, date: string, topic: string, summary: string, docUrl: string, rawText: string}>} List of index record objects.
  */
 export function parseIndexEntriesFromNote(noteText = '', dateStr = '', docUrl = '') {
   if (!noteText) return [];
@@ -54,7 +55,10 @@ export function parseIndexEntriesFromNote(noteText = '', dateStr = '', docUrl = 
 }
 
 /**
- * Aggregates and sorts index entries chronologically (newest first or oldest first)
+ * Aggregates and sorts index entries chronologically (newest first or oldest first).
+ * @param {Array<object>} [entriesList=[]] Array of index entry objects.
+ * @param {boolean} [sortAscending=false] If true, sorts oldest to newest; otherwise newest to oldest.
+ * @returns {Array<object>} Sorted array of index entry objects.
  */
 export function aggregateIndexRecords(entriesList = [], sortAscending = false) {
   return [...entriesList].sort((a, b) => {

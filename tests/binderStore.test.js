@@ -1,3 +1,8 @@
+/**
+ * @file binderStore.test.js
+ * @description Unit tests for BinderStore navigation, state management, and modal controls.
+ */
+
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { BinderStore, VIEWS } from '../src/binderStore.js';

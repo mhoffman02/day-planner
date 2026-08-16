@@ -1,3 +1,8 @@
+/**
+ * @file calendarEngine.test.js
+ * @description Unit tests for calendar grid generation, event mapping, payload formatting, and monthly view matrix.
+ */
+
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
