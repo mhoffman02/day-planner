@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Day Planner - Setup Google Drive Folder</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0">
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;600;700&display=swap');
     body {
@@ -16,6 +17,21 @@
       align-items: center;
       padding: 20px;
       margin: 0;
+    }
+    .material-symbols-outlined {
+      font-family: 'Material Symbols Outlined';
+      font-weight: normal;
+      font-style: normal;
+      font-size: 20px;
+      line-height: 1;
+      letter-spacing: normal;
+      text-transform: none;
+      display: inline-block;
+      white-space: nowrap;
+      word-wrap: normal;
+      direction: ltr;
+      -webkit-font-smoothing: antialiased;
+      vertical-align: middle;
     }
     .card {
       background: #ffffff;
@@ -31,6 +47,9 @@
       color: #2d6a5a;
       margin-top: 0;
       font-size: 1.8rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
     ol {
       margin-left: 20px;
@@ -58,6 +77,10 @@
       cursor: pointer;
       width: 100%;
       transition: background 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
     }
     button:hover {
       background: #1b4332;
@@ -102,11 +125,12 @@
     .btn-success {
       background: #2e7d32;
     }
+    .icon-28 { font-size: 28px !important; }
   </style>
 </head>
 <body>
   <div class="card">
-    <h2>📁 Connect Your Day Planner Drive Folder</h2>
+    <h2><span class="material-symbols-outlined icon-28">folder</span> Connect Your Day Planner Drive Folder</h2>
     <p class="setup-subtitle">
       To keep your files 100% private under strict <code>drive.file</code> security, please connect your dedicated Google Drive folder:
     </p>
@@ -126,7 +150,9 @@
 
     <div id="ackContainer" class="ack-container">
       <a href="?" class="ack-link">
-        <button class="btn-success">✅ Open Day Planner Binder &rarr;</button>
+        <button class="btn-success">
+          <span class="material-symbols-outlined">check_circle</span> Open Day Planner Binder <span class="material-symbols-outlined">arrow_forward</span>
+        </button>
       </a>
     </div>
   </div>
@@ -141,7 +167,7 @@
       if (!input) {
         statusBox.className = 'status-box error';
         statusBox.style.display = 'block';
-        statusBox.innerHTML = '⚠️ Please paste your Google Drive folder web link or folder ID.';
+        statusBox.innerHTML = '<span class="material-symbols-outlined">warning</span> Please paste your Google Drive folder web link or folder ID.';
         return;
       }
 
@@ -168,13 +194,13 @@
         if (res && res.success) {
           statusBox.className = 'status-box success';
           statusBox.style.display = 'block';
-          statusBox.innerHTML = '<b>✅ Success!</b> Connected to Google Drive folder: <b>"' + res.folderName + '"</b>.';
+          statusBox.innerHTML = '<b><span class="material-symbols-outlined">check_circle</span> Success!</b> Connected to Google Drive folder: <b>"' + res.folderName + '"</b>.';
           document.getElementById('formContainer').style.display = 'none';
           ackContainer.style.display = 'block';
         } else {
           statusBox.className = 'status-box error';
           statusBox.style.display = 'block';
-          statusBox.innerHTML = '<b>🔥 Invalid Folder URL or Access Denied:</b> ' + (res.error || 'Folder not found. Please verify the URL and try again.');
+          statusBox.innerHTML = '<b><span class="material-symbols-outlined">error</span> Invalid Folder URL or Access Denied:</b> ' + (res.error || 'Folder not found. Please verify the URL and try again.');
         }
       }
 
@@ -183,7 +209,7 @@
         submitBtn.innerText = 'Validate & Connect Folder';
         statusBox.className = 'status-box error';
         statusBox.style.display = 'block';
-        statusBox.innerHTML = '<b>🔥 Validation Error:</b> ' + (err.message || err.toString());
+        statusBox.innerHTML = '<b><span class="material-symbols-outlined">error</span> Validation Error:</b> ' + (err.message || err.toString());
       }
     }
   </script>

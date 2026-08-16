@@ -102,14 +102,16 @@
       </div>
     </div>
 
-    <!-- Fail-Loud Error & Warning Banner -->
+    <!-- Centralized Error & Warning Banner -->
     <template x-if="errorMessage">
       <div class="error-banner">
         <div class="error-banner-content">
           <span class="material-symbols-outlined">warning</span>
           <span x-text="errorMessage"></span>
         </div>
-        <button @click="errorMessage = null" class="error-close-btn">✕</button>
+        <button @click="errorMessage = null" class="error-close-btn" aria-label="Close">
+          <span class="material-symbols-outlined icon-18">close</span>
+        </button>
       </div>
     </template>
 
