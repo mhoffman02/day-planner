@@ -82,3 +82,16 @@
 - Service Worker cache names should automatically bump during development builds to prevent stale caching
 
 ---
+
+## 2026-08-17 — Bidirectional Tasks and Appointments 2-Way Sync Engine
+
+**Worked well:**
+- Robust getCleanTitle prevents title prefix accumulation
+- Comprehensive test coverage across UI updates, G-Suite API updates, and multi-entity cross-check
+- 57/57 unit tests passing cleanly
+- clasp push deployed to remote GAS web app
+
+**Needs improvement:**
+- Document OAuth 2.0 client configuration path for live G-Suite sync in local standalone mode
+
+---
