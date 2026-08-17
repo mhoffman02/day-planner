@@ -147,6 +147,28 @@ function getLocalDateStr(d = new Date()) {
         await this.loadDayData();
         await this.loadMasterTasks();
         this.setupKeyboardShortcuts();
+        this.setupAutoSync();
+      },
+
+      setupAutoSync() {
+        if (this._autoSyncTimer) clearInterval(this._autoSyncTimer);
+        this._autoSyncTimer = setInterval(() => {
+          if (navigator.onLine && !this.isSyncing) {
+            this.trigger2WaySync(true);
+          }
+        }, 5 * 60 * 1000);
+
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible' && navigator.onLine && !this.isSyncing) {
+            this.trigger2WaySync(true);
+          }
+        });
+
+        window.addEventListener('online', () => {
+          if (!this.isSyncing) {
+            this.trigger2WaySync(true);
+          }
+        });
       },
 
       initColumnWidths() {
@@ -301,12 +323,14 @@ function getLocalDateStr(d = new Date()) {
         });
       },
 
-      async trigger2WaySync() {
-        this.isSyncing = true;
-        this.errorMessage = null;
+      async trigger2WaySync(silent = false) {
+        if (!silent) {
+          this.isSyncing = true;
+          this.errorMessage = null;
+        }
 
         try {
-          await new Promise(r => setTimeout(r, 200)); // Visual indicator
+          if (!silent) await new Promise(r => setTimeout(r, 200)); // Visual indicator
 
           const reconciled = reconcileWorkspaceChanges(this.dailyTasks, this.calendarEvents);
           this.dailyTasks = reconciled.tasks;
@@ -315,9 +339,13 @@ function getLocalDateStr(d = new Date()) {
           this.buildScheduleGrid();
         } catch (err) {
           console.error('🔥 trigger2WaySync error:', err);
-          this.errorMessage = `2-Way Sync Warning: ${err.message || err.toString()}`;
+          if (!silent) {
+            this.errorMessage = `2-Way Sync Warning: ${err.message || err.toString()}`;
+          }
         } finally {
-          this.isSyncing = false;
+          if (!silent) {
+            this.isSyncing = false;
+          }
         }
       },
 

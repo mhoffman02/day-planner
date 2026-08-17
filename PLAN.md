@@ -95,13 +95,23 @@ The **Franklin-Google Digital Day Planner** is a high-efficiency single-page dig
 - [x] Capture semantic headless Chrome screenshots (`desktop_daily.png`, `desktop_monthly.png`, `desktop_tasks.png`, `mobile_daily.png`) and enforce project screenshot naming rule (`.agents/rules/screenshot-naming.md`).
 - [x] Push modular codebase to Google Apps Script (`clasp push`) and deploy live Web App for testing.
 
+### Phase 11: Least-Privilege Scopes, Drive JSON Storage, Offline PWA & GSA Enterprise Transfer
+- [x] **11.1 Scope Hardening**: Strip broad `auth/drive` and `auth/documents` from `gas-app/appsscript.json`, keeping only `drive.file`, `tasks`, `calendar`, `script.scriptapp`.
+- [x] **11.2 Monthly Drive JSON Engine**: In `gas-app/Code.gs`, replace `DocumentApp` operations with lightweight `Day Planner/notes-YYYY-MM.json` read/write handlers under `drive.file`.
+- [x] **11.3 Client IndexedDB Storage & SWR Engine**: Create `src/indexedDbStore.js` for instant 0ms offline startup, optimistic note edits, and outbox queue (`tests/indexedDbStore.test.js`).
+- [x] **11.4 Automated 5-Minute Auto-Sync**: Implement client periodic polling interval, tab visibility resume, and manual sync button integration.
+- [x] **11.5 GSA Enterprise GitHub Repository Transfer**: Document and script the workflow to clone/push this repository to the user's `gsa.gov` GitHub Enterprise account (`docs/gsa-github-transfer.md`, `scripts/transfer-to-gsa.sh`).
+- [x] **11.6 Full Test Suite Verification & Clasp Push**: Update test suite to verify JSON storage contracts (61/61 passing across 17 suites) and deploy via `clasp push`.
+
 ---
 
 ## Verification Criteria
-- [x] All unit tests in `tests/*.test.js` pass cleanly (`npm test` — 41/41 passing across 10 suites).
+- [x] All unit tests in `tests/*.test.js` pass cleanly (`npm test` — 61/61 passing across 17 suites).
 - [x] UI matches Franklin Covey design rules (#fcfbfa cream, #2d6a5a teal ruling, serif headers).
 - [x] 2-Way Sync correctly cross-references tasks and calendar appointments.
 - [x] All views function correctly in both local dev server (`http://localhost:3000`) and GAS file bundle.
 - [x] Code passes comprehensive JavaScript & HTML code reviews with zero security or date-shift warnings.
+
+
 
 
