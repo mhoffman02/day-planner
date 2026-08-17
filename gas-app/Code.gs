@@ -910,6 +910,15 @@ function renderAppBundleJson(e) {
     };
   }
 
-  return ContentService.createTextOutput(JSON.stringify(response))
+  var jsonString = JSON.stringify(response);
+  var callback = e && e.parameter ? (e.parameter.callback || e.parameter.prefix) : null;
+
+  // Sanitize callback name to alphanumeric, $, _, and .
+  if (callback && /^[$A-Z_][0-9A-Z_$.]*$/i.test(callback)) {
+    return ContentService.createTextOutput(callback + '(' + jsonString + ');')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+
+  return ContentService.createTextOutput(jsonString)
     .setMimeType(ContentService.MimeType.JSON);
 }
