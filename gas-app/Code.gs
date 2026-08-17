@@ -112,7 +112,13 @@ function doGet(e) {
        .addMetaTag('viewport', 'width=device-width, initial-scale=1.0');
     }
 
-    // 1. Check if requested /self-test diagnostic endpoint (via pathInfo or query param)
+    // 1. Check if requested dynamic bundle API endpoint for PWA Shell Loader
+    var isBundleRequest = e && e.parameter && (e.parameter.action === 'bundle' || e.parameter.view === 'bundle');
+    if (isBundleRequest) {
+      return renderAppBundleJson(e);
+    }
+
+    // 2. Check if requested /self-test diagnostic endpoint (via pathInfo or query param)
     var isSelfTest = e && (
       (e.pathInfo && (e.pathInfo.indexOf('self-test') !== -1 || e.pathInfo.indexOf('selftest') !== -1)) ||
       (e.parameter && (e.parameter.view === 'self-test' || e.parameter['self-test'] !== undefined || e.parameter.post === '1'))
@@ -122,19 +128,19 @@ function doGet(e) {
       return renderSelfTestDiagnosticReport();
     }
 
-    // 2. Check if requested /setup-folder endpoint
+    // 3. Check if requested /setup-folder endpoint
     var isSetupRequest = e && (
       (e.pathInfo && e.pathInfo.indexOf('setup') !== -1) ||
       (e.parameter && (e.parameter.setup === '1' || e.parameter.view === 'setup'))
     );
 
-    // 3. Validate presence of configured root folder for main web app
+    // 4. Validate presence of configured root folder for main web app
     var validatedFolder = getValidatedRootFolder();
     if (!validatedFolder || isSetupRequest) {
       return renderSetupFolderPage();
     }
 
-    // 4. Regular Web App load
+    // 5. Regular Web App load
     var template = HtmlService.createTemplateFromFile('Index');
     return template.evaluate()
       .setTitle('Day Planner')
@@ -825,4 +831,78 @@ function searchAcrossAllMonthlyDocs(query) {
   }
 }
 
+/**
+ * Compiles the full application payload (styles, markup, client scripts) into a versioned bundle.
+ * @returns {object} Compiled bundle object with hash, version, and code assets.
+ */
+function getCompiledAppBundle() {
+  var appVersion = '1.2.0';
+  var styles = '';
+  var script = '';
+  var indexContent = '';
 
+  try {
+    styles = HtmlService.createHtmlOutputFromFile('Styles').getContent();
+  } catch (e) {
+    styles = '/* Styles unavailable */';
+  }
+
+  try {
+    script = HtmlService.createHtmlOutputFromFile('Script').getContent();
+  } catch (e) {
+    script = '// Script unavailable';
+  }
+
+  try {
+    indexContent = HtmlService.createHtmlOutputFromFile('Index').getContent();
+  } catch (e) {
+    indexContent = '<div>Application Shell Loading...</div>';
+  }
+
+  // Calculate simple signature hash
+  var rawPayload = appVersion + ':' + styles.length + ':' + script.length + ':' + indexContent.length;
+  var hash = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, rawPayload));
+
+  return {
+    version: appVersion,
+    hash: hash,
+    timestamp: new Date().toISOString(),
+    bundle: {
+      styles: styles,
+      html: indexContent,
+      script: script
+    }
+  };
+}
+
+/**
+ * HTTP endpoint handler for PWA Shell Loader to fetch or hot-update the Day Planner app bundle.
+ * Supports CORS and client cache validation (currentHash).
+ * @param {GoogleAppsScript.Events.DoGet} e Event object.
+ * @returns {GoogleAppsScript.Content.TextOutput} JSON response with application bundle or cache validation.
+ */
+function renderAppBundleJson(e) {
+  var bundleData = getCompiledAppBundle();
+  var clientHash = e && e.parameter ? e.parameter.currentHash : null;
+
+  var response;
+  if (clientHash && clientHash === bundleData.hash) {
+    response = {
+      upToDate: true,
+      version: bundleData.version,
+      hash: bundleData.hash,
+      timestamp: bundleData.timestamp
+    };
+  } else {
+    response = {
+      upToDate: false,
+      version: bundleData.version,
+      hash: bundleData.hash,
+      timestamp: bundleData.timestamp,
+      bundle: bundleData.bundle
+    };
+  }
+
+  return ContentService.createTextOutput(JSON.stringify(response))
+    .setMimeType(ContentService.MimeType.JSON);
+}

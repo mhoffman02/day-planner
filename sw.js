@@ -3,22 +3,12 @@
  * @description Auto-generated JSDoc header for sw.js.
  */
 
-const CACHE_NAME = 'day-planner-v6';
+const CACHE_NAME = 'day-planner-shell-v1';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/src/styles.css',
-  '/src/app.js',
-  '/src/binderStore.js',
-  '/src/taskEngine.js',
-  '/src/calendarEngine.js',
-  '/src/syncEngine.js',
-  '/src/indexParser.js',
-  '/src/searchEngine.js',
-  '/src/gasBridge.js',
-  '/src/vendor/alpine.min.js',
-  '/src/vendor/pico.min.css',
+  '/src/shellLoader.js',
   '/icons/icon.svg'
 ];
 
