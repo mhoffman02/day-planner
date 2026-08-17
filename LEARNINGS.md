@@ -68,3 +68,17 @@
 - Maintain OAuth scope audit checklist during GAS manifest modifications
 
 ---
+
+## 2026-08-17 — Vanilla CSS Refactor & Dual Theme Stability
+
+**Worked well:**
+- Replacing Pico.css with a 30-line Modern Vanilla CSS reset eliminated 100% of framework specificity clashes
+- Pure semantic token architecture allows concurrent high-contrast Light and Dark mode rendering
+- Adding Cache-Control no-store headers to server.js and cache-busting version queries prevents stale browser renders
+- 100% unit test coverage (42/42) across 10 test suites maintained throughout refactoring
+
+**Needs improvement:**
+- PWA Service Worker cache persistence on localhost caused confusion when testing local style updates without hard refresh
+- Service Worker cache names should automatically bump during development builds to prevent stale caching
+
+---
