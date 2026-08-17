@@ -92,8 +92,10 @@ export function formatEventModalPayload(rawEvent = {}) {
     location: rawEvent.location || '',
     description: rawEvent.description || '',
     meetLink: rawEvent.meetLink || rawEvent.hangoutLink || null,
+    agendaDocUrl: rawEvent.agendaDocUrl || null,
     gCalLink: rawEvent.htmlLink || `https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent(rawEvent.title || '')}`,
-    attendees: rawEvent.attendees || []
+    attendees: rawEvent.attendees || [],
+    guestsCanModify: rawEvent.guestsCanModify !== undefined ? rawEvent.guestsCanModify : true
   };
 }
 

@@ -103,10 +103,20 @@ The **Google Digital Day Planner** is a high-efficiency single-page digital bind
 - [x] **11.5 GSA Enterprise GitHub Repository Transfer**: Document and script the workflow to clone/push this repository to the user's `gsa.gov` GitHub Enterprise account (`docs/gsa-github-transfer.md`, `scripts/transfer-to-gsa.sh`).
 - [x] **11.6 Full Test Suite Verification & Clasp Push**: Update test suite to verify JSON storage contracts (61/61 passing across 17 suites) and deploy via `clasp push`.
 
+### Phase 12: Appointment Creator UX, Speedy Meetings, People Autocomplete & Meeting Automations
+- [x] **12.1 Dialog Hierarchy & (+) Button Fix**: Resolved unclosed modal dialog tags in `gas-app/Index.html` restoring appointment creation button functionality.
+- [x] **12.2 Interactive Time Gutter & Row Click**: Made schedule time stamps (`7:00 AM`, etc.) and empty slots clickable to prefill appointment creation times.
+- [x] **12.3 Speedy Meetings & Duration Presets**: Implemented 25-minute default meeting length with interactive duration buttons (`25 min | 50 min | 80 min`) and dynamic end-time calculation.
+- [x] **12.4 People / Attendees Field with Autocomplete**: Built `<datalist>` email autocomplete querying recent meeting attendees across -60 days to +15 days.
+- [x] **12.5 Auto-Add Google Meet**: Implemented automatic Google Meet video link generation with note-taking enabled by default.
+- [x] **12.6 Guest Edit Permissions**: Added auto-enabled co-organizer event editing (`guestsCanModify`) on Google Calendar.
+- [x] **12.7 Auto-Create Agenda Docs**: Implemented structured Agenda & Notes Google Doc generation and linked buttons in event details modal.
+- [x] **12.8 Full Test Suite Expansion**: Expanded unit test coverage across `binderStore.test.js`, `calendarEngine.test.js`, and `gasBridge.test.js` (66/66 passing across 18 suites).
+
 ---
 
 ## Verification Criteria
-- [x] All unit tests in `tests/*.test.js` pass cleanly (`npm test` — 61/61 passing across 17 suites).
+- [x] All unit tests in `tests/*.test.js` pass cleanly (`npm test` — 66/66 passing across 18 suites).
 - [x] UI matches Day Planner design rules (#fcfbfa cream, #2d6a5a teal ruling, serif headers).
 - [x] 2-Way Sync correctly cross-references tasks and calendar appointments.
 - [x] All views function correctly in both local dev server (`http://localhost:3000`) and GAS file bundle.

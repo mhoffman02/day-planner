@@ -206,13 +206,41 @@ export class GASBridge {
       if (!this.mockData.calendarEvents[dateStr]) {
         this.mockData.calendarEvents[dateStr] = [];
       }
+
+      const attendeesList = Array.isArray(eventData.attendees)
+        ? eventData.attendees
+        : (typeof eventData.attendees === 'string'
+            ? eventData.attendees.split(/[,;]+/).map(s => s.trim()).filter(Boolean)
+            : []);
+
+      const autoGoogleMeet = eventData.autoGoogleMeet !== undefined ? eventData.autoGoogleMeet : true;
+      const guestsCanModify = eventData.guestsCanModify !== undefined ? eventData.guestsCanModify : true;
+      const autoAgendaDoc = eventData.autoAgendaDoc !== undefined ? eventData.autoAgendaDoc : true;
+
+      const meetLink = autoGoogleMeet
+        ? (eventData.meetLink || `https://meet.google.com/${Math.random().toString(36).slice(2, 5)}-${Math.random().toString(36).slice(2, 6)}-${Math.random().toString(36).slice(2, 5)}`)
+        : null;
+
+      const agendaDocUrl = autoAgendaDoc
+        ? (eventData.agendaDocUrl || `https://docs.google.com/document/create?title=${encodeURIComponent('Agenda: ' + (eventData.title || 'New Appointment'))}`)
+        : null;
+
+      let fullDesc = eventData.description || '';
+      if (agendaDocUrl && !fullDesc.includes(agendaDocUrl)) {
+        fullDesc += (fullDesc ? '\n\n' : '') + `📄 Meeting Agenda Doc: ${agendaDocUrl}`;
+      }
+
       const newEvt = {
         id: `e_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         title: eventData.title || 'New Appointment',
         startTime: eventData.startTime || `${dateStr}T09:00:00`,
-        endTime: eventData.endTime || `${dateStr}T10:00:00`,
-        location: eventData.location || '',
-        description: eventData.description || '',
+        endTime: eventData.endTime || `${dateStr}T09:30:00`,
+        location: eventData.location || (meetLink ? 'Google Meet' : ''),
+        description: fullDesc,
+        meetLink: meetLink,
+        agendaDocUrl: agendaDocUrl,
+        attendees: attendeesList,
+        guestsCanModify: guestsCanModify,
         syncTaskId: eventData.syncTaskId || null,
         isCompleted: eventData.isCompleted || false
       };
@@ -225,6 +253,43 @@ export class GASBridge {
         .withSuccessHandler(resolve)
         .withFailureHandler(reject)
         .addCalendarEvent(dateStr, eventData);
+    });
+  }
+
+  /**
+   * Fetches recent meeting attendees looking back (default 60 days) and forward (default 15 days).
+   * @param {number} [lookbackDays=60] Days to look back.
+   * @param {number} [lookaheadDays=15] Days to look forward.
+   * @returns {Promise<Array<string>>} Unique sorted list of attendee email addresses.
+   */
+  async getRecentAttendees(lookbackDays = 60, lookaheadDays = 15) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      const emailSet = new Set([
+        'alex.rivera@example.com',
+        'sarah.chen@example.com',
+        'jordan.lee@example.com',
+        'taylor.smith@example.com',
+        'morgan.davis@example.com',
+        'pat.patel@example.com'
+      ]);
+
+      // Collect from mock events
+      Object.values(this.mockData.calendarEvents || {}).forEach(events => {
+        events.forEach(evt => {
+          (evt.attendees || []).forEach(email => {
+            if (email && email.includes('@')) emailSet.add(email.toLowerCase().trim());
+          });
+        });
+      });
+
+      return Array.from(emailSet).sort();
+    }
+
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .getRecentAttendees(lookbackDays, lookaheadDays);
     });
   }
 

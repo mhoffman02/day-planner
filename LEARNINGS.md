@@ -1,5 +1,20 @@
 # Learnings
 
+## 2026-08-17 — Appointment Creator UX, 25-Min Speedy Meetings, People Autocomplete & Meeting Automations
+
+**Worked well:**
+- Fixed unclosed modal dialog tags in `gas-app/Index.html` restoring (+) appointment creator button functionality.
+- Converted schedule time marks (`7:00 AM`, `7:30 AM`, etc.) and empty slots into interactive click targets with time pre-filling.
+- Implemented 25-minute default meeting length ("Speedy Meetings") with focus buffers and interactive duration presets (`25 min | 50 min | 80 min`).
+- Added native `<datalist>` autocomplete for People / Attendees querying past 60 days and future 15 days meetings.
+- Added smart meeting automations enabled by default: Auto-Add Google Meet (with note-taking enabled), Co-Organizer editing permissions (`guestsCanModify`), and auto-created Agenda & Notes Docs linked in description & modal.
+- All 66 unit tests passing across 18 test suites (`npm test`).
+
+**Needs improvement:**
+- In future enhancements, support multi-chip attendee tagging and custom recurrence rules via lightweight dialog extensions.
+
+---
+
 ## 2026-08-16 — 3-Column Workspace Layout & Modular Day Planner Note Cards with Google Docs Menu
 
 **Worked well:**

@@ -41,16 +41,24 @@ describe('GAS Bridge Unit Tests', () => {
     assert.equal(updated.title, '[A2] Conduct team sync (Completed)');
   });
 
-  it('should add and update calendar events via bridge', async () => {
+  it('should add and update calendar events with attendees, Google Meet, and Agenda Doc via bridge', async () => {
     const bridge = new GASBridge(true);
     const newEvt = await bridge.addCalendarEvent('2026-08-15', {
       title: 'Strategy & Architecture Discussion',
       startTime: '2026-08-15T16:00:00',
-      endTime: '2026-08-15T17:00:00',
-      location: 'Boardroom A'
+      endTime: '2026-08-15T16:30:00',
+      location: 'Boardroom A',
+      attendees: ['alex.rivera@example.com', 'sarah.chen@example.com'],
+      autoGoogleMeet: true,
+      guestsCanModify: true,
+      autoAgendaDoc: true
     });
     assert.ok(newEvt.id);
     assert.equal(newEvt.title, 'Strategy & Architecture Discussion');
+    assert.equal(newEvt.attendees.length, 2);
+    assert.ok(newEvt.meetLink.includes('meet.google.com'));
+    assert.ok(newEvt.agendaDocUrl.includes('docs.google.com'));
+    assert.equal(newEvt.guestsCanModify, true);
 
     const updatedEvt = await bridge.updateCalendarEvent('2026-08-15', newEvt.id, {
       title: 'Strategy & Architecture Discussion (Finalized)',
@@ -59,6 +67,15 @@ describe('GAS Bridge Unit Tests', () => {
     assert.ok(updatedEvt);
     assert.equal(updatedEvt.title, 'Strategy & Architecture Discussion (Finalized)');
     assert.equal(updatedEvt.isCompleted, true);
+  });
+
+  it('should fetch recent attendees across 60 days past and 15 days future', async () => {
+    const bridge = new GASBridge(true);
+    const attendees = await bridge.getRecentAttendees(60, 15);
+    assert.ok(Array.isArray(attendees));
+    assert.ok(attendees.length >= 6);
+    assert.ok(attendees.includes('alex.rivera@example.com'));
+    assert.ok(attendees.includes('sarah.chen@example.com'));
   });
 
   it('should perform workspace 2-way sync through the bridge', async () => {

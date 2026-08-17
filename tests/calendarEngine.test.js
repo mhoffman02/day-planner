@@ -33,13 +33,17 @@ describe('Calendar Engine Unit Tests', () => {
       location: 'Boardroom A',
       description: 'Discuss Q3 goals',
       meetLink: 'https://meet.google.com/abc-defg-hij',
-      attendees: ['alice@example.com', 'bob@example.com']
+      agendaDocUrl: 'https://docs.google.com/document/d/agenda_doc_123',
+      attendees: ['alice@example.com', 'bob@example.com'],
+      guestsCanModify: true
     };
 
     const payload = formatEventModalPayload(rawEvt);
     assert.equal(payload.id, 'e100');
     assert.equal(payload.title, 'Executive Sync');
     assert.equal(payload.meetLink, 'https://meet.google.com/abc-defg-hij');
+    assert.equal(payload.agendaDocUrl, 'https://docs.google.com/document/d/agenda_doc_123');
+    assert.equal(payload.guestsCanModify, true);
     assert.ok(payload.gCalLink.includes('calendar.google.com'));
     assert.equal(payload.attendees.length, 2);
   });

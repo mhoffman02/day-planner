@@ -65,4 +65,44 @@ describe('Binder Store Unit Tests', () => {
     store.closeSearchModal();
     assert.equal(store.searchModal.isOpen, false);
   });
+
+  it('should control create appointment modal state and prefill time intervals with 25, 50, and 80 min durations', () => {
+    const store = new BinderStore();
+    assert.equal(store.createEventModal.isOpen, false);
+
+    // Open with default time (e.g. clicking (+) header button) -> default 25 min duration
+    store.openCreateEventModal();
+    assert.equal(store.createEventModal.isOpen, true);
+    assert.equal(store.createEventModal.newEventData.startTime, '09:00');
+    assert.equal(store.createEventModal.newEventData.endTime, '09:25');
+    assert.equal(store.createEventModal.newEventData.duration, 25);
+    assert.equal(store.createEventModal.newEventData.autoGoogleMeet, true);
+    assert.equal(store.createEventModal.newEventData.guestsCanModify, true);
+    assert.equal(store.createEventModal.newEventData.autoAgendaDoc, true);
+    assert.ok(Array.isArray(store.recentAttendees));
+
+    // Test duration switching to 50 mins
+    store.setEventDuration(50);
+    assert.equal(store.createEventModal.newEventData.duration, 50);
+    assert.equal(store.createEventModal.newEventData.endTime, '09:50');
+
+    // Test duration switching to 80 mins
+    store.setEventDuration(80);
+    assert.equal(store.createEventModal.newEventData.duration, 80);
+    assert.equal(store.createEventModal.newEventData.endTime, '10:20');
+
+    store.closeCreateEventModal();
+    assert.equal(store.createEventModal.isOpen, false);
+
+    // Open with specific slot time (e.g. clicking 07:30 AM margin link)
+    store.openCreateEventModal('07:30');
+    assert.equal(store.createEventModal.isOpen, true);
+    assert.equal(store.createEventModal.newEventData.startTime, '07:30');
+    assert.equal(store.createEventModal.newEventData.endTime, '07:55'); // 25 min later
+
+    // Test calculateEndTime helper
+    assert.equal(store.calculateEndTime('14:00', 25), '14:25');
+    assert.equal(store.calculateEndTime('14:00', 50), '14:50');
+    assert.equal(store.calculateEndTime('14:00', 80), '15:20');
+  });
 });

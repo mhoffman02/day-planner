@@ -761,6 +761,160 @@ function addDailyTask(dateStr, title, category) {
 }
 
 /**
+ * Adds a new calendar event for a given date in Google Calendar.
+ * Supports automatic Google Meet creation, attendee invitations, guests-can-modify permission, and auto-created Agenda Docs.
+ * @param {string} dateStr Target date string in YYYY-MM-DD format.
+ * @param {object} eventData Event creation payload { title, startTime, endTime, location, description, attendees, autoGoogleMeet, guestsCanModify, autoAgendaDoc }.
+ * @returns {object} Created event payload.
+ */
+function addCalendarEvent(dateStr, eventData) {
+  var auth = validateUserAccess();
+  if (!auth.authorized) {
+    throw new Error(auth.error || 'Access Denied');
+  }
+
+  try {
+    var title = (eventData && eventData.title) ? eventData.title.trim() : 'New Appointment';
+    var startIso = (eventData && eventData.startTime) ? eventData.startTime : (dateStr + 'T09:00:00');
+    var endIso = (eventData && eventData.endTime) ? eventData.endTime : (dateStr + 'T09:30:00');
+    var location = (eventData && eventData.location) ? eventData.location : '';
+    var description = (eventData && eventData.description) ? eventData.description : '';
+    var attendees = (eventData && eventData.attendees) ? eventData.attendees : [];
+    var autoGoogleMeet = (eventData && eventData.autoGoogleMeet !== undefined) ? eventData.autoGoogleMeet : true;
+    var guestsCanModify = (eventData && eventData.guestsCanModify !== undefined) ? eventData.guestsCanModify : true;
+    var autoAgendaDoc = (eventData && eventData.autoAgendaDoc !== undefined) ? eventData.autoAgendaDoc : true;
+
+    var startDate = new Date(startIso);
+    var endDate = new Date(endIso);
+    var attendeesList = Array.isArray(attendees) ? attendees : (typeof attendees === 'string' ? attendees.split(/[,;]+/).map(function(s) { return s.trim(); }).filter(Boolean) : []);
+
+    var createdId = 'evt_' + new Date().getTime();
+    var meetLink = autoGoogleMeet ? ('https://meet.google.com/' + Math.random().toString(36).slice(2, 5) + '-' + Math.random().toString(36).slice(2, 6) + '-' + Math.random().toString(36).slice(2, 5)) : null;
+    var agendaDocUrl = null;
+
+    // Create structured Agenda Doc if enabled
+    if (autoAgendaDoc) {
+      try {
+        if (typeof DocumentApp !== 'undefined') {
+          var docName = 'Agenda: ' + title + ' (' + dateStr + ')';
+          var doc = DocumentApp.create(docName);
+          var body = doc.getBody();
+          body.appendParagraph(title).setHeading(DocumentApp.ParagraphHeading.HEADING1);
+          body.appendParagraph('📅 Date & Time: ' + dateStr + ' ' + (eventData.startTime || '09:00'));
+          if (attendeesList.length > 0) {
+            body.appendParagraph('👥 Attendees: ' + attendeesList.join(', '));
+          }
+          if (meetLink) {
+            body.appendParagraph('📹 Google Meet: ' + meetLink);
+          }
+          body.appendParagraph('\n🎯 Objectives & Goals\n• \n\n📋 Discussion Topics\n• \n\n✅ Action Items & Next Steps\n• ');
+          doc.saveAndClose();
+          agendaDocUrl = doc.getUrl();
+
+          if (typeof DriveApp !== 'undefined') {
+            var docFile = DriveApp.getFileById(doc.getId());
+            var rootFolder = getValidatedRootFolder();
+            if (rootFolder) {
+              docFile.moveTo(rootFolder);
+            }
+          }
+        } else {
+          agendaDocUrl = 'https://docs.google.com/document/create?title=' + encodeURIComponent('Agenda: ' + title);
+        }
+      } catch (docErr) {
+        logError('addCalendarEvent autoAgendaDoc', docErr);
+        agendaDocUrl = 'https://docs.google.com/document/create?title=' + encodeURIComponent('Agenda: ' + title);
+      }
+    }
+
+    var fullDescription = description;
+    if (agendaDocUrl && fullDescription.indexOf(agendaDocUrl) === -1) {
+      fullDescription += (fullDescription ? '\n\n' : '') + '📄 Meeting Agenda & Notes Doc: ' + agendaDocUrl;
+    }
+    if (meetLink && !location) {
+      location = 'Google Meet (' + meetLink + ')';
+    }
+
+    if (typeof CalendarApp !== 'undefined') {
+      var cal = CalendarApp.getDefaultCalendar();
+      var options = {
+        location: location,
+        description: fullDescription,
+        guests: attendeesList.join(','),
+        sendInvites: attendeesList.length > 0
+      };
+      var evt = cal.createEvent(title, startDate, endDate, options);
+      createdId = evt.getId();
+      if (guestsCanModify && typeof evt.setGuestsCanModify === 'function') {
+        evt.setGuestsCanModify(true);
+      }
+      if (typeof evt.getHangoutLink === 'function' && evt.getHangoutLink()) {
+        meetLink = evt.getHangoutLink();
+      }
+    }
+
+    return {
+      id: createdId,
+      title: title,
+      startTime: startIso,
+      endTime: endIso,
+      location: location,
+      description: fullDescription,
+      meetLink: meetLink,
+      agendaDocUrl: agendaDocUrl,
+      attendees: attendeesList,
+      guestsCanModify: guestsCanModify
+    };
+  } catch (err) {
+    logError('addCalendarEvent', err);
+    throw err;
+  }
+}
+
+/**
+ * Fetches recent meeting attendees across looking back (default 60 days) and forward (default 15 days).
+ * @param {number} [lookbackDays=60] Days to look back.
+ * @param {number} [lookaheadDays=15] Days to look forward.
+ * @returns {Array<string>} Unique list of attendee email addresses.
+ */
+function getRecentAttendees(lookbackDays, lookaheadDays) {
+  var auth = validateUserAccess();
+  if (!auth.authorized) return [];
+
+  var pastDays = (typeof lookbackDays === 'number' && lookbackDays > 0) ? lookbackDays : 60;
+  var futureDays = (typeof lookaheadDays === 'number' && lookaheadDays > 0) ? lookaheadDays : 15;
+
+  var attendeesMap = {};
+
+  try {
+    if (typeof CalendarApp !== 'undefined') {
+      var now = new Date();
+      var startDate = new Date(now.getTime() - pastDays * 24 * 60 * 60 * 1000);
+      var endDate = new Date(now.getTime() + futureDays * 24 * 60 * 60 * 1000);
+
+      var events = CalendarApp.getDefaultCalendar().getEvents(startDate, endDate);
+      events.forEach(function(evt) {
+        try {
+          var guests = evt.getGuestList();
+          guests.forEach(function(guest) {
+            var email = guest.getEmail();
+            if (email && email.indexOf('@') !== -1) {
+              attendeesMap[email.toLowerCase()] = true;
+            }
+          });
+        } catch (e) {
+          // ignore single event error
+        }
+      });
+    }
+  } catch (err) {
+    logError('getRecentAttendees', err);
+  }
+
+  return Object.keys(attendeesMap).sort();
+}
+
+/**
  * Searches across all monthly JSON files in the Day Planner folder.
  * @param {string} query Search term.
  * @returns {Array<{fileName: string, fileId: string, date: string, heading: string, snippet: string}>} Match results.

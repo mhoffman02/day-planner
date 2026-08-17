@@ -375,10 +375,24 @@
       newEventData: {
         title: '',
         startTime: '09:00',
-        endTime: '10:00',
+        endTime: '09:25',
+        duration: 25,
+        attendeesText: '',
+        autoGoogleMeet: true,
+        guestsCanModify: true,
+        autoAgendaDoc: true,
         location: '',
         description: ''
       },
+
+      recentAttendees: [
+        'alex.rivera@example.com',
+        'sarah.chen@example.com',
+        'jordan.lee@example.com',
+        'taylor.smith@example.com',
+        'morgan.davis@example.com',
+        'pat.patel@example.com'
+      ],
 
       searchModalOpen: false,
       searchQuery: '',
@@ -427,8 +441,23 @@
         this.initColumnWidths();
         await this.loadDayData();
         await this.loadMasterTasks();
+        await this.loadRecentAttendees();
         this.setupKeyboardShortcuts();
         this.setupAutoSync();
+      },
+
+      async loadRecentAttendees() {
+        try {
+          if (this.bridge && typeof this.bridge.getRecentAttendees === 'function') {
+            const list = await this.bridge.getRecentAttendees(60, 15);
+            if (Array.isArray(list) && list.length > 0) {
+              const merged = new Set([...this.recentAttendees, ...list]);
+              this.recentAttendees = Array.from(merged).sort();
+            }
+          }
+        } catch (e) {
+          console.warn('Could not load recent attendees:', e);
+        }
       },
 
       setupAutoSync() {
@@ -970,15 +999,49 @@
         this.selectedEvent = null;
       },
 
-      openCreateEventModal() {
+      calculateEndTime(startStr = '09:00', durationMin = 25) {
+        const [hStr, mStr] = startStr.split(':');
+        const h = parseInt(hStr, 10) || 9;
+        const m = parseInt(mStr, 10) || 0;
+        const totalMinutes = h * 60 + m + parseInt(durationMin, 10);
+        const endH = Math.min(23, Math.floor(totalMinutes / 60));
+        const endM = totalMinutes % 60;
+        return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+      },
+
+      setEventDuration(durationMin) {
+        this.newEventData.duration = durationMin;
+        this.newEventData.endTime = this.calculateEndTime(this.newEventData.startTime, durationMin);
+      },
+
+      onStartTimeChange() {
+        this.newEventData.endTime = this.calculateEndTime(
+          this.newEventData.startTime,
+          this.newEventData.duration || 25
+        );
+      },
+
+      openCreateEventModal(timeKey, durationMin = 25) {
+        const defaultStart = timeKey || '09:00';
+        const defaultEnd = this.calculateEndTime(defaultStart, durationMin);
+
         this.newEventData = {
           title: '',
-          startTime: '09:00',
-          endTime: '10:00',
+          startTime: defaultStart,
+          endTime: defaultEnd,
+          duration: durationMin,
+          attendeesText: '',
+          autoGoogleMeet: true,
+          guestsCanModify: true,
+          autoAgendaDoc: true,
           location: '',
           description: ''
         };
         this.createEventModalOpen = true;
+        this.$nextTick(() => {
+          const input = document.getElementById('evtTitleInput');
+          if (input) input.focus();
+        });
       },
 
       closeCreateEventModal() {
@@ -987,38 +1050,77 @@
 
       launchNativeGCalCreate() {
         const title = encodeURIComponent(this.newEventData.title || 'New Appointment');
-        const location = encodeURIComponent(this.newEventData.location || '');
-        const details = encodeURIComponent(this.newEventData.description || '');
+        const location = encodeURIComponent(this.newEventData.location || (this.newEventData.autoGoogleMeet ? 'Google Meet' : ''));
+        
+        let detailsText = this.newEventData.description || '';
+        if (this.newEventData.autoAgendaDoc) {
+          detailsText += (detailsText ? '\n\n' : '') + '📄 Meeting Agenda: Auto-created structured meeting notes';
+        }
+        const details = encodeURIComponent(detailsText);
+        const addGuests = encodeURIComponent(this.newEventData.attendeesText || '');
 
         const dateFormatted = (this.selectedDate || getLocalDateStr()).replace(/-/g, '');
         const startH = (this.newEventData.startTime || '09:00').replace(':', '') + '00';
-        const endH = (this.newEventData.endTime || '10:00').replace(':', '') + '00';
+        const endH = (this.newEventData.endTime || '09:25').replace(':', '') + '00';
         const dates = `${dateFormatted}T${startH}/${dateFormatted}T${endH}`;
 
-        const gCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&location=${location}&details=${details}`;
-        window.open(gCalUrl, 'gCalNativeNewAppt', 'width=750,height=680,resizable=yes,scrollbars=yes');
+        let gCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&location=${location}&details=${details}`;
+        if (addGuests) {
+          gCalUrl += `&add=${addGuests}`;
+        }
+        window.open(gCalUrl, 'gCalNativeNewAppt', 'width=780,height=720,resizable=yes,scrollbars=yes');
         this.closeCreateEventModal();
       },
 
       async saveNewEvent() {
         if (!this.newEventData.title.trim()) return;
         try {
-          const startIso = `${this.selectedDate}T${this.newEventData.startTime || '09:00'}:00Z`;
-          const endIso = `${this.selectedDate}T${this.newEventData.endTime || '10:00'}:00Z`;
+          const startIso = `${this.selectedDate}T${this.newEventData.startTime || '09:00'}:00`;
+          const endIso = `${this.selectedDate}T${this.newEventData.endTime || '09:25'}:00`;
+
+          const attendeesList = (this.newEventData.attendeesText || '')
+            .split(/[,;]+/)
+            .map(s => s.trim())
+            .filter(Boolean);
+
+          const autoGoogleMeet = this.newEventData.autoGoogleMeet;
+          const guestsCanModify = this.newEventData.guestsCanModify;
+          const autoAgendaDoc = this.newEventData.autoAgendaDoc;
+
+          const meetLink = autoGoogleMeet
+            ? `https://meet.google.com/${Math.random().toString(36).slice(2, 5)}-${Math.random().toString(36).slice(2, 6)}-${Math.random().toString(36).slice(2, 5)}`
+            : null;
+
+          const agendaDocUrl = autoAgendaDoc
+            ? `https://docs.google.com/document/create?title=${encodeURIComponent('Agenda: ' + this.newEventData.title.trim())}`
+            : null;
+
+          let fullDesc = this.newEventData.description ? this.newEventData.description.trim() : '';
+          if (agendaDocUrl) {
+            fullDesc += (fullDesc ? '\n\n' : '') + `📄 Meeting Agenda Doc: ${agendaDocUrl}`;
+          }
 
           const newEvt = {
             id: `evt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
             title: this.newEventData.title.trim(),
             startTime: startIso,
             endTime: endIso,
-            location: this.newEventData.location ? this.newEventData.location.trim() : '',
-            description: this.newEventData.description ? this.newEventData.description.trim() : '',
+            location: this.newEventData.location ? this.newEventData.location.trim() : (meetLink ? 'Google Meet' : ''),
+            description: fullDesc,
+            meetLink: meetLink,
+            agendaDocUrl: agendaDocUrl,
+            attendees: attendeesList,
+            guestsCanModify: guestsCanModify,
             gCalLink: `https://calendar.google.com/calendar/r/day/${this.selectedDate.replace(/-/g, '/')}`
           };
 
           this.calendarEvents.push(newEvt);
           this.buildScheduleGrid();
           this.closeCreateEventModal();
+          
+          if (this.gasBridge && typeof this.gasBridge.addCalendarEvent === 'function') {
+            await this.gasBridge.addCalendarEvent(this.selectedDate, newEvt);
+          }
           await this.trigger2WaySync();
           this.showToast(`Saved appointment "${newEvt.title}"`, 'success', 5000, 'Appointment Created');
         } catch (err) {

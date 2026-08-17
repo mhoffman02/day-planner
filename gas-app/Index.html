@@ -234,10 +234,12 @@
             <section class="schedule-list" aria-label="Hourly Schedule">
               <template x-for="slot in scheduleGrid" :key="slot.timeKey">
                 <div class="schedule-row" :class="{ 'half-hour': slot.timeKey.endsWith(':30') }">
-                  <time class="schedule-time" x-text="slot.displayTime"></time>
-                  <div class="schedule-content">
+                  <button type="button" class="schedule-time-btn" @click="openCreateEventModal(slot.timeKey)" :title="'Add appointment at ' + slot.displayTime" :aria-label="'Add appointment at ' + slot.displayTime">
+                    <time class="schedule-time" x-text="slot.displayTime"></time>
+                  </button>
+                  <div class="schedule-content" @click.self="openCreateEventModal(slot.timeKey)">
                     <template x-for="evt in slot.events" :key="evt.id">
-                      <button type="button" class="event-pill" @click="openEventModal(evt)">
+                      <button type="button" class="event-pill" @click.stop="openEventModal(evt)">
                         <span class="material-symbols-outlined icon-14">event</span>
                         <span class="event-pill-text" x-text="evt.title"></span>
                       </button>
@@ -523,12 +525,27 @@
           <p class="modal-detail-row">
             <span class="material-symbols-outlined icon-18">location_on</span> <span x-text="selectedEvent?.location || 'No location set'"></span>
           </p>
+          <template x-if="selectedEvent?.attendees && selectedEvent.attendees.length > 0">
+            <div class="modal-detail-row modal-attendees-row">
+              <span class="material-symbols-outlined icon-18">group</span>
+              <div class="attendees-tag-list">
+                <template x-for="att in selectedEvent.attendees" :key="att">
+                  <span class="attendee-tag" x-text="att"></span>
+                </template>
+              </div>
+            </div>
+          </template>
           <p class="modal-description" x-text="selectedEvent?.description || 'No description'"></p>
         </div>
         <footer class="modal-actions">
+          <template x-if="selectedEvent?.agendaDocUrl">
+            <a :href="selectedEvent.agendaDocUrl" target="_blank" class="btn-primary btn-doc" role="button" title="Open meeting agenda document">
+              <span class="material-symbols-outlined">description</span> Agenda Doc
+            </a>
+          </template>
           <template x-if="selectedEvent?.meetLink">
-            <a :href="selectedEvent.meetLink" target="_blank" class="btn-primary btn-meet" role="button">
-              <span class="material-symbols-outlined">videocam</span> Join Google Meet
+            <a :href="selectedEvent.meetLink" target="_blank" class="btn-primary btn-meet" role="button" title="Join Google Meet conference">
+              <span class="material-symbols-outlined">videocam</span> Join Meet
             </a>
           </template>
           <a :href="selectedEvent?.gCalLink" target="_blank" class="btn-primary" role="button">
@@ -536,6 +553,9 @@
           </a>
           <button type="button" class="btn-secondary" @click="closeEventModal()">Close</button>
         </footer>
+      </article>
+    </dialog>
+
     <!-- Create New Event / Appointment Modal -->
     <dialog class="modal-backdrop" x-show="createEventModalOpen" x-transition x-cloak aria-labelledby="createEventModalTitle">
       <article class="modal-card modal-card-form" @click.away="closeCreateEventModal()">
@@ -557,7 +577,9 @@
           <div class="form-row-2">
             <div class="form-group">
               <label for="evtStartTime" class="form-label">Start Time</label>
-              <select id="evtStartTime" x-model="newEventData.startTime" class="form-select">
+              <select id="evtStartTime" x-model="newEventData.startTime" @change="onStartTimeChange()" class="form-select">
+                <option value="07:00">07:00 AM</option>
+                <option value="07:30">07:30 AM</option>
                 <option value="08:00">08:00 AM</option>
                 <option value="08:30">08:30 AM</option>
                 <option value="09:00">09:00 AM</option>
@@ -577,43 +599,102 @@
                 <option value="16:00">04:00 PM</option>
                 <option value="16:30">04:30 PM</option>
                 <option value="17:00">05:00 PM</option>
+                <option value="17:30">05:30 PM</option>
+                <option value="18:00">06:00 PM</option>
+                <option value="18:30">06:30 PM</option>
+                <option value="19:00">07:00 PM</option>
               </select>
             </div>
 
             <div class="form-group">
-              <label for="evtEndTime" class="form-label">End Time</label>
-              <select id="evtEndTime" x-model="newEventData.endTime" class="form-select">
-                <option value="08:30">08:30 AM</option>
-                <option value="09:00">09:00 AM</option>
-                <option value="09:30">09:30 AM</option>
-                <option value="10:00">10:00 AM</option>
-                <option value="10:30">10:30 AM</option>
-                <option value="11:00">11:00 AM</option>
-                <option value="11:30">11:30 AM</option>
-                <option value="12:00">12:00 PM</option>
-                <option value="12:30">12:30 PM</option>
-                <option value="13:00">01:00 PM</option>
-                <option value="13:30">01:30 PM</option>
-                <option value="14:00">02:00 PM</option>
-                <option value="14:30">02:30 PM</option>
-                <option value="15:00">03:00 PM</option>
-                <option value="15:30">03:30 PM</option>
-                <option value="16:00">04:00 PM</option>
-                <option value="16:30">04:30 PM</option>
-                <option value="17:00">05:00 PM</option>
-                <option value="17:30">05:30 PM</option>
-              </select>
+              <label for="evtEndTime" class="form-label">
+                <span>End Time</span>
+                <span class="duration-badge" x-text="(newEventData.duration || 25) + 'm session'"></span>
+              </label>
+              <input type="time" id="evtEndTime" x-model="newEventData.endTime" class="form-input">
             </div>
           </div>
 
+          <!-- Meeting Length Preset Selector (25m | 50m | 80m) -->
+          <div class="form-group duration-picker-group">
+            <label class="form-label">
+              <span class="material-symbols-outlined icon-16">timelapse</span> Meeting Length
+            </label>
+            <div class="duration-pills-row" role="radiogroup" aria-label="Meeting Duration">
+              <button type="button"
+                      class="duration-pill"
+                      :class="{ 'active': newEventData.duration === 25 }"
+                      @click="setEventDuration(25)"
+                      role="radio"
+                      :aria-checked="newEventData.duration === 25"
+                      title="Standard 25-minute speedy meeting (5-minute focus buffer)">
+                ⏱️ 25 min
+              </button>
+              <button type="button"
+                      class="duration-pill"
+                      :class="{ 'active': newEventData.duration === 50 }"
+                      @click="setEventDuration(50)"
+                      role="radio"
+                      :aria-checked="newEventData.duration === 50"
+                      title="50-minute meeting (10-minute focus buffer)">
+                ⏱️ 50 min
+              </button>
+              <button type="button"
+                      class="duration-pill"
+                      :class="{ 'active': newEventData.duration === 80 }"
+                      @click="setEventDuration(80)"
+                      role="radio"
+                      :aria-checked="newEventData.duration === 80"
+                      title="80-minute deep-work session (1 hr 20 min)">
+                ⏱️ 80 min
+              </button>
+            </div>
+          </div>
+
+          <!-- People / Attendees Field with Datalist Autocomplete -->
           <div class="form-group">
-            <label for="evtLocationInput" class="form-label">Location / Meet</label>
-            <input type="text" id="evtLocationInput" x-model="newEventData.location" placeholder="e.g. Conference Room A / Google Meet" class="form-input">
+            <label for="evtAttendeesInput" class="form-label">
+              <span class="material-symbols-outlined icon-16">group</span> People / Attendees
+            </label>
+            <input type="text"
+                   id="evtAttendeesInput"
+                   list="attendeesDatalist"
+                   x-model="newEventData.attendeesText"
+                   placeholder="e.g. alex@example.com, sarah@example.com"
+                   class="form-input"
+                   autocomplete="off">
+            <datalist id="attendeesDatalist">
+              <template x-for="email in recentAttendees" :key="email">
+                <option :value="email" x-text="email"></option>
+              </template>
+            </datalist>
+            <span class="form-hint">Autocomplete suggestions loaded from past 60 days & upcoming 15 days meetings.</span>
+          </div>
+
+          <!-- Smart Meeting Automation Options -->
+          <div class="smart-options-card">
+            <label class="smart-checkbox-label">
+              <input type="checkbox" x-model="newEventData.autoGoogleMeet" class="form-checkbox">
+              <span>📹 <b>Auto-add Google Meet</b> (with Note-Taking & Video Link)</span>
+            </label>
+            <label class="smart-checkbox-label">
+              <input type="checkbox" x-model="newEventData.guestsCanModify" class="form-checkbox">
+              <span>✏️ <b>Allow all attendees to edit</b> meeting on Google Calendar</span>
+            </label>
+            <label class="smart-checkbox-label">
+              <input type="checkbox" x-model="newEventData.autoAgendaDoc" class="form-checkbox">
+              <span>📄 <b>Auto-create Agenda Doc</b> (Structured Goals, Topics & Next Steps)</span>
+            </label>
           </div>
 
           <div class="form-group">
-            <label for="evtDescInput" class="form-label">Notes / Agenda</label>
-            <textarea id="evtDescInput" x-model="newEventData.description" placeholder="Appointment agenda..." class="form-textarea" rows="2"></textarea>
+            <label for="evtLocationInput" class="form-label">Location / Room</label>
+            <input type="text" id="evtLocationInput" x-model="newEventData.location" placeholder="e.g. Conference Room A / Remote" class="form-input">
+          </div>
+
+          <div class="form-group">
+            <label for="evtDescInput" class="form-label">Notes / Discussion Topics</label>
+            <textarea id="evtDescInput" x-model="newEventData.description" placeholder="Key meeting talking points..." class="form-textarea" rows="2"></textarea>
           </div>
 
           <footer class="modal-form-actions">

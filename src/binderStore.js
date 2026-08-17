@@ -51,6 +51,31 @@ export class BinderStore {
       event: null
     };
 
+    this.createEventModal = {
+      isOpen: false,
+      newEventData: {
+        title: '',
+        startTime: '09:00',
+        endTime: '09:25',
+        duration: 25,
+        attendeesText: '',
+        autoGoogleMeet: true,
+        guestsCanModify: true,
+        autoAgendaDoc: true,
+        location: '',
+        description: ''
+      }
+    };
+
+    this.recentAttendees = [
+      'alex.rivera@example.com',
+      'sarah.chen@example.com',
+      'jordan.lee@example.com',
+      'taylor.smith@example.com',
+      'morgan.davis@example.com',
+      'pat.patel@example.com'
+    ];
+
     this.searchModal = {
       isOpen: false,
       query: '',
@@ -133,6 +158,70 @@ export class BinderStore {
   closeEventModal() {
     this.eventModal.isOpen = false;
     this.eventModal.event = null;
+  }
+
+  /**
+   * Calculates end time formatted as HH:MM based on start time and duration in minutes.
+   * @param {string} startStr Start time in HH:MM format.
+   * @param {number} [durationMin=25] Duration in minutes (defaults to 25).
+   * @returns {string} Calculated end time in HH:MM format.
+   */
+  calculateEndTime(startStr = '09:00', durationMin = 25) {
+    const [hStr, mStr] = startStr.split(':');
+    const h = parseInt(hStr, 10) || 9;
+    const m = parseInt(mStr, 10) || 0;
+    const totalMinutes = h * 60 + m + parseInt(durationMin, 10);
+    const endH = Math.min(23, Math.floor(totalMinutes / 60));
+    const endM = totalMinutes % 60;
+    return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+  }
+
+  /**
+   * Sets meeting length duration and recalculates event end time.
+   * @param {number} durationMin Duration in minutes (25, 50, 80, etc.).
+   * @returns {void}
+   */
+  setEventDuration(durationMin) {
+    this.createEventModal.newEventData.duration = durationMin;
+    this.createEventModal.newEventData.endTime = this.calculateEndTime(
+      this.createEventModal.newEventData.startTime,
+      durationMin
+    );
+  }
+
+  /**
+   * Opens the create appointment modal dialog with optional start time prefill.
+   * @param {string} [timeKey] Optional starting time key (e.g. '07:30').
+   * @param {number} [durationMin=25] Optional duration in minutes.
+   * @returns {void}
+   */
+  openCreateEventModal(timeKey, durationMin = 25) {
+    const defaultStart = timeKey || '09:00';
+    const defaultEnd = this.calculateEndTime(defaultStart, durationMin);
+
+    this.createEventModal = {
+      isOpen: true,
+      newEventData: {
+        title: '',
+        startTime: defaultStart,
+        endTime: defaultEnd,
+        duration: durationMin,
+        attendeesText: '',
+        autoGoogleMeet: true,
+        guestsCanModify: true,
+        autoAgendaDoc: true,
+        location: '',
+        description: ''
+      }
+    };
+  }
+
+  /**
+   * Closes the create appointment modal dialog.
+   * @returns {void}
+   */
+  closeCreateEventModal() {
+    this.createEventModal.isOpen = false;
   }
 
   /**
