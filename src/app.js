@@ -4,6 +4,7 @@
  */
 
 import { GASBridge } from './gasBridge.js';
+import { reconcileWorkspaceChanges } from './syncEngine.js';
 window.GASBridge = GASBridge;
 
 // Register ServiceWorker for PWA offline support
@@ -60,7 +61,6 @@ function getLocalDateStr(d = new Date()) {
 }
 
   function registerPlannerApp() {
-    console.log('🚀 registerPlannerApp called. window.Alpine present:', !!window.Alpine);
     if (!window.Alpine) return;
     window.Alpine.data('plannerApp', () => ({
       activeView: 'daily',
@@ -306,24 +306,11 @@ function getLocalDateStr(d = new Date()) {
         this.errorMessage = null;
 
         try {
-          await new Promise(r => setTimeout(r, 400)); // Visual indicator
+          await new Promise(r => setTimeout(r, 200)); // Visual indicator
 
-          // Perform bidirectional sync reconciliation
-          this.dailyTasks.forEach(task => {
-            const isDone = task.status === '✓';
-            const matchEvt = this.calendarEvents.find(e => e.syncTaskId === task.id || e.title.includes(parseTaskTitle(task.title).cleanTitle));
-            if (matchEvt) {
-              matchEvt.title = isDone ? `[✓] ${parseTaskTitle(task.title).cleanTitle}` : task.title;
-            } else {
-              this.calendarEvents.push({
-                id: `evt_sync_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-                title: isDone ? `[✓] ${parseTaskTitle(task.title).cleanTitle}` : task.title,
-                startTime: `${this.selectedDate}T09:00:00Z`,
-                endTime: `${this.selectedDate}T09:30:00Z`,
-                syncTaskId: task.id
-              });
-            }
-          });
+          const reconciled = reconcileWorkspaceChanges(this.dailyTasks, this.calendarEvents);
+          this.dailyTasks = reconciled.tasks;
+          this.calendarEvents = reconciled.calendarEvents;
 
           this.buildScheduleGrid();
         } catch (err) {

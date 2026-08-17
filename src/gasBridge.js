@@ -5,6 +5,7 @@
  */
 
 import { transferMasterTaskToToday } from './taskEngine.js';
+import { reconcileWorkspaceChanges } from './syncEngine.js';
 
 /**
  * Service bridge for invoking Apps Script backend functions or providing mock fallback data.
@@ -150,7 +151,7 @@ export class GASBridge {
         this.mockData.dailyTasks[dateStr] = [];
       }
       const newTask = {
-        id: `t_${Date.now()}`,
+        id: `t_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         title,
         status: '•',
         category,
@@ -165,6 +166,115 @@ export class GASBridge {
         .withSuccessHandler(resolve)
         .withFailureHandler(reject)
         .addDailyTask(dateStr, title, category);
+    });
+  }
+
+  /**
+   * Updates an existing daily task (from UI or Google Tasks API sync).
+   * @param {string} dateStr Target date in YYYY-MM-DD format.
+   * @param {string} taskId Task identifier.
+   * @param {object} updates Updated task properties.
+   * @returns {Promise<object|null>} Updated task object or null.
+   */
+  async updateDailyTask(dateStr, taskId, updates = {}) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      const tasks = this.mockData.dailyTasks[dateStr] || this.mockData.dailyTasks['2026-08-15'] || [];
+      const taskIndex = tasks.findIndex(t => t.id === taskId);
+      if (taskIndex === -1) return null;
+
+      tasks[taskIndex] = { ...tasks[taskIndex], ...updates };
+      this.mockData.dailyTasks[dateStr] = tasks;
+      return tasks[taskIndex];
+    }
+
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .updateDailyTask(dateStr, taskId, updates);
+    });
+  }
+
+  /**
+   * Adds or creates a calendar event / appointment.
+   * @param {string} dateStr Target date in YYYY-MM-DD format.
+   * @param {object} eventData Calendar event payload.
+   * @returns {Promise<object>} Created calendar event.
+   */
+  async addCalendarEvent(dateStr, eventData = {}) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      if (!this.mockData.calendarEvents[dateStr]) {
+        this.mockData.calendarEvents[dateStr] = [];
+      }
+      const newEvt = {
+        id: `e_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        title: eventData.title || 'New Appointment',
+        startTime: eventData.startTime || `${dateStr}T09:00:00`,
+        endTime: eventData.endTime || `${dateStr}T10:00:00`,
+        location: eventData.location || '',
+        description: eventData.description || '',
+        syncTaskId: eventData.syncTaskId || null,
+        isCompleted: eventData.isCompleted || false
+      };
+      this.mockData.calendarEvents[dateStr].push(newEvt);
+      return newEvt;
+    }
+
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .addCalendarEvent(dateStr, eventData);
+    });
+  }
+
+  /**
+   * Updates an existing calendar event / appointment (from UI or Google Calendar API sync).
+   * @param {string} dateStr Target date in YYYY-MM-DD format.
+   * @param {string} eventId Calendar event identifier.
+   * @param {object} updates Updated event properties.
+   * @returns {Promise<object|null>} Updated event object or null.
+   */
+  async updateCalendarEvent(dateStr, eventId, updates = {}) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      const events = this.mockData.calendarEvents[dateStr] || this.mockData.calendarEvents['2026-08-15'] || [];
+      const eventIndex = events.findIndex(e => e.id === eventId);
+      if (eventIndex === -1) return null;
+
+      events[eventIndex] = { ...events[eventIndex], ...updates };
+      this.mockData.calendarEvents[dateStr] = events;
+      return events[eventIndex];
+    }
+
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .updateCalendarEvent(dateStr, eventId, updates);
+    });
+  }
+
+  /**
+   * Performs 2-way sync reconciliation for a specific date across tasks and calendar appointments.
+   * @param {string} dateStr Target date in YYYY-MM-DD format.
+   * @returns {Promise<{tasks: Array<object>, calendarEvents: Array<object>, syncTimestamp: string}>}
+   */
+  async syncWorkspace(dateStr) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      const tasks = this.mockData.dailyTasks[dateStr] || this.mockData.dailyTasks['2026-08-15'] || [];
+      const events = this.mockData.calendarEvents[dateStr] || this.mockData.calendarEvents['2026-08-15'] || [];
+
+      const reconciled = reconcileWorkspaceChanges(tasks, events);
+      this.mockData.dailyTasks[dateStr] = reconciled.tasks;
+      this.mockData.calendarEvents[dateStr] = reconciled.calendarEvents;
+      return reconciled;
+    }
+
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .syncWorkspaceChanges(dateStr);
     });
   }
 

@@ -8,6 +8,16 @@ import { parseTaskTitle, formatTaskTitle, TASK_STATUSES } from './taskEngine.js'
 import { getLocalDateStr } from './binderStore.js';
 
 /**
+ * Strips priority codes [A1-C9] and completion markers [✓] from a title string.
+ * @param {string} [title=''] Raw title string.
+ * @returns {string} Clean title without prefixes.
+ */
+export function getCleanTitle(title = '') {
+  if (!title) return '';
+  return title.replace(/^(\s*\[(?:✓|[A-Za-z][1-9])\]\s*)+/gi, '').trim();
+}
+
+/**
  * Creates or updates cross-reference metadata link between a Task and a Calendar Event.
  * @param {string} taskId Unique task identifier.
  * @param {string} [eventId] Optional unique calendar event identifier.
@@ -31,27 +41,28 @@ export function createSyncMetadata(taskId, eventId) {
  */
 export function syncTaskToCalendar(task, calendarEvents = []) {
   const parsed = parseTaskTitle(task.title);
-  const cleanTitle = parsed.cleanTitle || task.title;
+  const cleanTitle = getCleanTitle(parsed.cleanTitle || task.title);
   const isCompleted = task.status === TASK_STATUSES.COMPLETED || task.status === '✓';
 
   // Format event title with status indicator if completed
-  const eventTitle = isCompleted ? `[✓] ${cleanTitle}` : `[${parsed.priorityCode || 'Task'}] ${cleanTitle}`;
+  const eventTitle = isCompleted ? `[✓] ${cleanTitle}` : (parsed.priorityCode ? `[${parsed.priorityCode}] ${cleanTitle}` : cleanTitle);
 
-  // Find existing linked calendar event via syncId or task metadata
+  // Find existing linked calendar event via syncTaskId or extendedProperties
   const existingEvent = calendarEvents.find(evt => 
     evt.syncTaskId === task.id || (evt.extendedProperties && evt.extendedProperties.private?.gasTaskId === task.id)
   );
 
   const startTime = task.scheduledTime || `${task.dueDate || getLocalDateStr()}T09:00:00Z`;
-  const endTime = `${startTime.substring(0, 11)}10:00:00Z`;
+  const defaultEndTime = `${startTime.substring(0, 11)}${String(Math.min(23, parseInt(startTime.substring(11, 13) || '9', 10) + 1)).padStart(2, '0')}:00:00Z`;
+  const endTime = task.endTime || (existingEvent ? existingEvent.endTime : defaultEndTime);
 
   if (existingEvent) {
     return {
       updatedEvent: {
         ...existingEvent,
         title: eventTitle,
-        startTime,
-        endTime,
+        startTime: task.scheduledTime || existingEvent.startTime || startTime,
+        endTime: task.endTime || existingEvent.endTime || endTime,
         isCompleted,
         syncTaskId: task.id,
         lastSyncedAt: new Date().toISOString()
@@ -86,22 +97,45 @@ export function syncTaskToCalendar(task, calendarEvents = []) {
  */
 export function syncCalendarToTask(calendarEvent, dailyTasks = []) {
   const linkedTaskId = calendarEvent.syncTaskId || calendarEvent.extendedProperties?.private?.gasTaskId;
-  if (!linkedTaskId) return null;
+  
+  let targetTask = linkedTaskId ? dailyTasks.find(t => t.id === linkedTaskId) : null;
 
-  const targetTask = dailyTasks.find(t => t.id === linkedTaskId);
+  const eventTitleClean = getCleanTitle(calendarEvent.title);
+  const parsedEvent = parseTaskTitle(calendarEvent.title);
+
+  // Fallback match by clean title if unlinked
+  if (!targetTask && (parsedEvent.priorityCode || calendarEvent.title.startsWith('[✓]'))) {
+    targetTask = dailyTasks.find(t => {
+      const parsedT = parseTaskTitle(t.title);
+      const cleanT = getCleanTitle(parsedT.cleanTitle || t.title);
+      return cleanT && cleanT.toLowerCase() === eventTitleClean.toLowerCase();
+    });
+  }
+
   if (!targetTask) return null;
 
-  const eventTitleClean = calendarEvent.title.replace(/^\[✓\]\s*|^\[[A-C][1-9]\]\s*/i, '').trim();
-  const parsed = parseTaskTitle(targetTask.title);
-  const formattedTitle = formatTaskTitle(parsed.priorityGroup, parsed.sequence, eventTitleClean);
+  const parsedTask = parseTaskTitle(targetTask.title);
+  
+  const priorityGroup = parsedEvent.priorityGroup || parsedTask.priorityGroup;
+  const sequence = parsedEvent.sequence || parsedTask.sequence;
+  const formattedTitle = (priorityGroup && sequence)
+    ? formatTaskTitle(priorityGroup, sequence, eventTitleClean)
+    : eventTitleClean;
 
-  const isCompletedInEvent = calendarEvent.title.startsWith('[✓]') || calendarEvent.isCompleted;
+  const isCompletedInEvent = calendarEvent.title.startsWith('[✓]') || Boolean(calendarEvent.isCompleted);
+  
+  let newStatus = targetTask.status;
+  if (isCompletedInEvent) {
+    newStatus = TASK_STATUSES.COMPLETED;
+  } else if (targetTask.status === TASK_STATUSES.COMPLETED || targetTask.status === '✓') {
+    newStatus = TASK_STATUSES.OPEN;
+  }
 
   return {
     ...targetTask,
     title: formattedTitle,
-    status: isCompletedInEvent ? TASK_STATUSES.COMPLETED : targetTask.status,
-    scheduledTime: calendarEvent.startTime,
+    status: newStatus,
+    scheduledTime: calendarEvent.startTime || targetTask.scheduledTime,
     dueDate: calendarEvent.startTime ? calendarEvent.startTime.slice(0, 10) : targetTask.dueDate
   };
 }
@@ -116,7 +150,7 @@ export function reconcileWorkspaceChanges(dailyTasks = [], calendarEvents = []) 
   const reconciledTasks = [...dailyTasks];
   const reconciledEvents = [...calendarEvents];
 
-  // 1. Ensure all tasks have corresponding calendar events
+  // 1. Ensure all tasks have corresponding calendar events and sync state (Task -> Event)
   reconciledTasks.forEach((task) => {
     const { updatedEvent, isNewEvent } = syncTaskToCalendar(task, reconciledEvents);
     if (isNewEvent) {
@@ -129,13 +163,33 @@ export function reconcileWorkspaceChanges(dailyTasks = [], calendarEvents = []) 
     }
   });
 
-  // 2. Reflect any event time/title shifts back into tasks
-  reconciledEvents.forEach(evt => {
+  // 2. Reflect any event time/title shifts/completions back into tasks (Event -> Task)
+  reconciledEvents.forEach((evt) => {
     const updatedTask = syncCalendarToTask(evt, reconciledTasks);
     if (updatedTask) {
       const taskIdx = reconciledTasks.findIndex(t => t.id === updatedTask.id);
       if (taskIdx !== -1) {
         reconciledTasks[taskIdx] = updatedTask;
+      }
+    } else {
+      // Check if this is an unlinked calendar event with a priority prefix (e.g. [A1], [B2], [✓])
+      const parsed = parseTaskTitle(evt.title);
+      if (parsed.priorityCode && !evt.syncTaskId) {
+        const newTaskId = `task_sync_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        const isCompleted = evt.title.startsWith('[✓]') || Boolean(evt.isCompleted);
+        const newTask = {
+          id: newTaskId,
+          title: formatTaskTitle(parsed.priorityGroup, parsed.sequence, getCleanTitle(parsed.cleanTitle || evt.title)),
+          status: isCompleted ? TASK_STATUSES.COMPLETED : TASK_STATUSES.OPEN,
+          category: evt.location || 'General',
+          dueDate: evt.startTime ? evt.startTime.slice(0, 10) : getLocalDateStr(),
+          scheduledTime: evt.startTime || null
+        };
+        evt.syncTaskId = newTaskId;
+        if (!evt.extendedProperties) evt.extendedProperties = {};
+        if (!evt.extendedProperties.private) evt.extendedProperties.private = {};
+        evt.extendedProperties.private.gasTaskId = newTaskId;
+        reconciledTasks.push(newTask);
       }
     }
   });
