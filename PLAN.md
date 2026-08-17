@@ -85,17 +85,23 @@ The **Franklin-Google Digital Day Planner** is a high-efficiency single-page dig
 - [x] Implement 12 Monthly Google Docs sync architecture (`Day Planner Notes - August 2026`) with print-friendly formatting (page breaks per day, styled headers, bullet lists).
 - [x] Add custom `Planner 📖` menu to Google Docs (`onOpen`) with cross-month universal search sidebar and `#index` decision registry.
 
-### Phase 9: Standalone Root Application Decoupling
-- [x] Create root `index.html`, `src/styles.css`, and `src/app.js` to run 100% standalone without external project dependencies.
-- [x] Update `server.js` to serve root web application assets directly.
-- [x] Fix date fallback and local time parsing across mock data bridges.
+### Phase 10: Offline-First PWA, Local Vendor Bundling & Modular GAS Architecture
+- [x] Create PWA Web App Manifest (`manifest.json`), SVG App Icon (`icons/icon.svg`), and Service Worker (`sw.js`) with `day-planner-v3` caching.
+- [x] Bundle local Alpine JS (`src/vendor/alpine.min.js`) and Pico CSS v2 (`src/vendor/pico.min.css`) to eliminate external CDN dependencies.
+- [x] Create GitHub Pages PWA Launcher shell in `gh-pages-pwa/` (`index.html`, `manifest.json`, `sw.js`).
+- [x] Author comprehensive AppSheet native & PWA shell integration guide (`APPSHEET_PWA_GUIDE.md`).
+- [x] Implement modular GAS architecture (`gas-app/PicoCSS.html`, `gas-app/AlpineJS.html`, `gas-app/Styles.html`, `gas-app/Script.html`, `gas-app/Index.html`).
+- [x] Expand unit test coverage to 41 tests across 10 suites (`tests/pwa.test.js`).
+- [x] Capture semantic headless Chrome screenshots (`desktop_daily.png`, `desktop_monthly.png`, `desktop_tasks.png`, `mobile_daily.png`) and enforce project screenshot naming rule (`.agents/rules/screenshot-naming.md`).
+- [x] Push modular codebase to Google Apps Script (`clasp push`) and deploy live Web App for testing.
 
 ---
 
 ## Verification Criteria
-- [x] All unit tests in `tests/*.test.js` pass cleanly (`npm test`).
+- [x] All unit tests in `tests/*.test.js` pass cleanly (`npm test` — 41/41 passing across 10 suites).
 - [x] UI matches Franklin Covey design rules (#fcfbfa cream, #2d6a5a teal ruling, serif headers).
 - [x] 2-Way Sync correctly cross-references tasks and calendar appointments.
 - [x] All views function correctly in both local dev server (`http://localhost:3000`) and GAS file bundle.
 - [x] Code passes comprehensive JavaScript & HTML code reviews with zero security or date-shift warnings.
+
 

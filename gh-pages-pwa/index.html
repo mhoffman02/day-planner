@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Day Planner PWA</title>
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#2d6a5a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="./icons/icon.svg">
+  <link rel="icon" type="image/svg+xml" href="./icons/icon.svg">
+  <style>
+    :root {
+      --primary: #2d6a5a;
+      --bg: #fcfbfa;
+      --text: #2c3e50;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background-color: var(--bg); font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    
+    #app-frame {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+
+    #config-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      z-index: 9999;
+    }
+    
+    .modal-box {
+      background: var(--bg);
+      border: 2px solid var(--primary);
+      border-radius: 12px;
+      padding: 1.5rem;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+    
+    .modal-box h2 { color: var(--primary); font-family: Georgia, serif; margin-bottom: 0.75rem; }
+    .modal-box p { font-size: 0.95rem; color: #555; margin-bottom: 1rem; line-height: 1.4; }
+    .modal-box input { width: 100%; padding: 0.75rem; border: 1fr solid #ccc; border-radius: 6px; font-size: 0.95rem; margin-bottom: 1rem; }
+    .modal-box button { background: var(--primary); color: #fff; border: none; padding: 0.75rem 1.25rem; border-radius: 6px; font-weight: 600; cursor: pointer; width: 100%; }
+    .modal-box button:hover { opacity: 0.9; }
+
+    #pwa-install-bar {
+      position: fixed;
+      bottom: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--primary);
+      color: #fff;
+      padding: 0.6rem 1.2rem;
+      border-radius: 30px;
+      display: none;
+      align-items: center;
+      gap: 0.5rem;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      font-size: 0.9rem;
+      z-index: 1000;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <iframe id="app-frame" title="Day Planner Application"></iframe>
+
+  <div id="config-modal" style="display: none;">
+    <div class="modal-box">
+      <h2>📖 Connect GAS Day Planner</h2>
+      <p>Enter your Google Apps Script Web App Executable URL below (e.g., <code>https://script.google.com/macros/s/.../exec</code>):</p>
+      <input type="url" id="gas-url-input" placeholder="https://script.google.com/macros/s/.../exec">
+      <button onclick="saveGasUrl()">Launch Planner PWA</button>
+    </div>
+  </div>
+
+  <div id="pwa-install-bar" onclick="installPWA()">
+    <span>📲 Install Day Planner App</span>
+  </div>
+
+  <script>
+    let deferredPrompt;
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(console.error);
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      document.getElementById('pwa-install-bar').style.display = 'flex';
+    });
+
+    function installPWA() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(() => {
+          deferredPrompt = null;
+          document.getElementById('pwa-install-bar').style.display = 'none';
+        });
+      }
+    }
+
+    function initPWA() {
+      const params = new URLSearchParams(window.location.search);
+      let gasUrl = params.get('gasUrl') || localStorage.getItem('gas_planner_url');
+
+      if (!gasUrl) {
+        document.getElementById('config-modal').style.display = 'flex';
+      } else {
+        localStorage.setItem('gas_planner_url', gasUrl);
+        document.getElementById('app-frame').src = gasUrl;
+      }
+    }
+
+    function saveGasUrl() {
+      const val = document.getElementById('gas-url-input').value.trim();
+      if (val) {
+        localStorage.setItem('gas_planner_url', val);
+        document.getElementById('config-modal').style.display = 'none';
+        document.getElementById('app-frame').src = val;
+      }
+    }
+
+    initPWA();
+  </script>
+</body>
+</html>

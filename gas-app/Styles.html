@@ -1,6 +1,6 @@
 <style>
-  @import url('https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css');
-  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap');
+/* Custom Day Planner Application Styles */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap');
   @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0');
 
   :root,
@@ -1678,6 +1678,42 @@
   .theme-toggle-btn:hover {
     background: rgba(255, 255, 255, 0.25) !important;
     transform: scale(1.08);
+  }
+
+  /* ==========================================
+     Responsive Mobile Header & Control Tweaks
+     ========================================== */
+  @media (max-width: 768px) {
+    header.single-top-bar {
+      flex-wrap: wrap;
+      padding: 8px 12px;
+      gap: 8px;
+    }
+    .header-left {
+      width: 100%;
+      justify-content: space-between;
+    }
+    .brand-name {
+      font-size: 1rem;
+    }
+    .date-text-display {
+      font-size: 0.8rem;
+    }
+    nav.view-segmented-control {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 3px;
+    }
+    .segment-btn {
+      padding: 4px 8px;
+      font-size: 0.76rem;
+    }
+    .task-priority-select {
+      min-width: 85px !important;
+      padding: 6px 4px !important;
+      font-size: 0.8rem !important;
+    }
   }
 
   /* ==========================================

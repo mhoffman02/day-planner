@@ -21,7 +21,25 @@
     })();
   </script>
   <link rel="stylesheet" href="/src/styles.css">
-  
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#2d6a5a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Day Planner">
+  <link rel="apple-touch-icon" href="/icons/icon.svg">
+  <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/sw.js').then(function(registration) {
+          console.log('[PWA] ServiceWorker registered with scope:', registration.scope);
+        }).catch(function(err) {
+          console.warn('[PWA] ServiceWorker registration failed:', err);
+        });
+      });
+    }
+  </script>
 </head>
 <body>
   <!-- Main Binder Application Container -->
@@ -787,7 +805,11 @@
 
   </main>
 
-  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-  <script type="module" src="/src/app.js"></script>
+  <script type="module">
+    import '/src/app.js';
+    const script = document.createElement('script');
+    script.src = '/src/vendor/alpine.min.js';
+    document.head.appendChild(script);
+  </script>
 </body>
 </html>
