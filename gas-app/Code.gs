@@ -135,13 +135,6 @@ function doGet(e) {
     }
 
     // 4. Regular Web App load
-    try {
-      syncWorkspaceChanges();
-      ensure2WaySyncTriggerInstalled(5);
-    } catch (syncErr) {
-      logError('doGet background sync init', syncErr);
-    }
-
     var template = HtmlService.createTemplateFromFile('Index');
     return template.evaluate()
       .setTitle('Day Planner')
