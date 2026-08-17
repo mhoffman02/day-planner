@@ -174,7 +174,7 @@ shell/
 
 ### Step 1: Create the Public Shell Repository
 1. On GitHub, create a new public repository: **`shell`** (or `gas-shell`).
-2. Copy the contents of `gh-pages-pwa/` into this repository.
+2. Copy the contents of `gh-pwa-shell/` into this repository.
 3. Push to `main`.
 
 ### Step 2: Enable GitHub Pages
