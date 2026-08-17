@@ -31,8 +31,11 @@
   <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
 </head>
 <body>
+  <!-- Skip to Main Content Link for Keyboard Accessibility -->
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
   <!-- Main Binder Application Container -->
-  <main class="binder-container" x-data="plannerApp" x-cloak>
+  <main id="main-content" class="binder-container" x-data="plannerApp" x-cloak>
     
     <!-- Single Consolidated Top Bar (Brand, Date Controls, View Tabs, & Actions) -->
     <header class="binder-header single-top-bar" aria-label="Day Planner Header">
@@ -136,13 +139,30 @@
 
       <!-- View 1: 3-Column Daily Spread -->
       <template x-if="activeView === 'daily'">
-        <section class="two-page-spread"
-                 aria-label="Daily Planner 3-Column Workspace"
-                 :class="{ 'is-resizing': isResizing }"
-                 :style="{ '--col1-w': colWidths[0] + '%', '--col2-w': colWidths[1] + '%', '--col3-w': colWidths[2] + '%' }">
+        <section class="daily-workspace-wrapper">
+          <!-- Mobile 3-Column Tab Switcher (< 768px) -->
+          <nav class="mobile-col-switcher" aria-label="Daily Workspace Panels">
+            <button type="button" class="mobile-col-btn" :class="{ 'active': activeDailyColumn === 'tasks' }" @click="activeDailyColumn = 'tasks'">
+              <span class="material-symbols-outlined icon-16">format_list_numbered</span>
+              <span>Tasks (<span x-text="dailyTasks.length"></span>)</span>
+            </button>
+            <button type="button" class="mobile-col-btn" :class="{ 'active': activeDailyColumn === 'appointments' }" @click="activeDailyColumn = 'appointments'">
+              <span class="material-symbols-outlined icon-16">schedule</span>
+              <span>Schedule (<span x-text="calendarEvents.length"></span>)</span>
+            </button>
+            <button type="button" class="mobile-col-btn" :class="{ 'active': activeDailyColumn === 'notes' }" @click="activeDailyColumn = 'notes'">
+              <span class="material-symbols-outlined icon-16">description</span>
+              <span>Daily Notes</span>
+            </button>
+          </nav>
+
+          <div class="two-page-spread"
+               aria-label="Daily Planner 3-Column Workspace"
+               :class="{ 'is-resizing': isResizing }"
+               :style="{ '--col1-w': colWidths[0] + '%', '--col2-w': colWidths[1] + '%', '--col3-w': colWidths[2] + '%' }">
           
           <!-- Column 1: Daily Task List Panel -->
-          <article class="page-panel col-tasks">
+          <article class="page-panel col-tasks" :class="{ 'mobile-active': activeDailyColumn === 'tasks' }">
             <header class="panel-header">
               <h3 class="panel-header-title">
                 <span class="material-symbols-outlined">format_list_numbered</span> Tasks
@@ -206,7 +226,7 @@
           </div>
 
           <!-- Column 2: Appointment Panel -->
-          <article class="page-panel col-appointments">
+          <article class="page-panel col-appointments" :class="{ 'mobile-active': activeDailyColumn === 'appointments' }">
             <header class="panel-header appointments-header">
               <h3 class="panel-header-title">
                 <span class="material-symbols-outlined">schedule</span> Appointments
@@ -250,7 +270,7 @@
           </div>
 
           <!-- Column 3: Daily Notes Panel (Franklin Lined Paper & Modular Topic Cards) -->
-          <article class="page-panel notes-column-panel col-notes">
+          <article class="page-panel notes-column-panel col-notes" :class="{ 'mobile-active': activeDailyColumn === 'notes' }">
             <header class="panel-header notes-header">
               <h3 class="panel-header-title">
                 <span class="material-symbols-outlined">description</span> Daily Notes
@@ -368,6 +388,7 @@
 
           </article>
 
+          </div>
         </section>
       </template>
 
@@ -626,7 +647,7 @@
     </section>
 
     <!-- Event Detail Modal -->
-    <dialog class="modal-backdrop" x-show="eventModalOpen" x-transition x-cloak aria-labelledby="eventModalTitle">
+    <dialog class="modal-backdrop" x-show="eventModalOpen" x-transition x-cloak aria-labelledby="eventModalTitle" aria-modal="true" @keydown.escape.window="closeEventModal()">
       <article class="modal-card" @click.away="closeEventModal()">
         <header>
           <h3 id="eventModalTitle" class="modal-title" x-text="selectedEvent?.title || 'Event Details'"></h3>
@@ -651,8 +672,11 @@
           </a>
           <button type="button" class="btn-secondary" @click="closeEventModal()">Close</button>
         </footer>
+      </article>
+    </dialog>
+
     <!-- Create New Event / Appointment Modal -->
-    <dialog class="modal-backdrop" x-show="createEventModalOpen" x-transition x-cloak aria-labelledby="createEventModalTitle">
+    <dialog class="modal-backdrop" x-show="createEventModalOpen" x-transition x-cloak aria-labelledby="createEventModalTitle" aria-modal="true" @keydown.escape.window="closeCreateEventModal()">
       <article class="modal-card modal-card-form" @click.away="closeCreateEventModal()">
         <header class="modal-header-spaced">
           <h3 id="createEventModalTitle" class="modal-title-with-icon">
@@ -747,7 +771,7 @@
     </dialog>
 
     <!-- Universal Search Modal -->
-    <dialog class="modal-backdrop" x-show="searchModalOpen" x-transition x-cloak aria-labelledby="searchModalTitle">
+    <dialog class="modal-backdrop" x-show="searchModalOpen" x-transition x-cloak aria-labelledby="searchModalTitle" aria-modal="true" @keydown.escape.window="closeSearchModal()">
       <article class="modal-card modal-card-wide" @click.away="closeSearchModal()">
         <header>
           <h3 id="searchModalTitle" class="modal-title-with-icon">

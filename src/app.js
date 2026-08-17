@@ -64,6 +64,7 @@ function getLocalDateStr(d = new Date()) {
     if (!window.Alpine) return;
     window.Alpine.data('plannerApp', () => ({
       activeView: 'daily',
+      activeDailyColumn: 'tasks', // 'tasks' | 'appointments' | 'notes' (mobile column switcher)
       selectedDate: getLocalDateStr(),
       selectedYear: new Date().getFullYear(),
       selectedMonth: new Date().getMonth() + 1,
