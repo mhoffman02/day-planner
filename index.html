@@ -37,6 +37,25 @@
   <!-- Main Binder Application Container -->
   <main id="main-content" class="binder-container" x-data="plannerApp" x-cloak>
     
+    <!-- Toast Notification Container -->
+    <div class="toast-container" aria-live="assertive" role="region" aria-label="Notifications">
+      <template x-for="toast in toasts" :key="toast.id">
+        <div class="toast-item" :class="'toast-' + toast.type" role="alert">
+          <div class="toast-body">
+            <span class="material-symbols-outlined toast-icon" x-text="toast.type === 'error' ? 'error' : toast.type === 'warning' ? 'warning' : toast.type === 'success' ? 'check_circle' : 'info'"></span>
+            <div class="toast-content">
+              <div class="toast-title" x-text="toast.title"></div>
+              <div class="toast-message" x-text="toast.message"></div>
+            </div>
+            <button type="button" class="toast-dismiss-btn" @click="dismissToast(toast.id)" aria-label="Dismiss notification">✕</button>
+          </div>
+          <div class="toast-progress-bar">
+            <div class="toast-progress-fill" :style="`animation-duration: ${toast.duration}ms;`"></div>
+          </div>
+        </div>
+      </template>
+    </div>
+
     <!-- Single Consolidated Top Bar (Brand, Date Controls, View Tabs, & Actions) -->
     <header class="binder-header single-top-bar" aria-label="Day Planner Header">
       

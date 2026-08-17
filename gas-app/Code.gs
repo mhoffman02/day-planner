@@ -178,7 +178,7 @@ function getValidatedRootFolder() {
     try {
       return DriveApp.getFolderById(cachedId);
     } catch (err) {
-      console.error('getValidatedRootFolder cached ID invalid or unreadable: ' + err.toString());
+      console.warn('getValidatedRootFolder: cached ID invalid or unreadable: ' + err.toString());
     }
   }
 
@@ -191,21 +191,32 @@ function getValidatedRootFolder() {
       return folder;
     }
   } catch (err) {
-    console.error('getValidatedRootFolder auto-search error: ' + err.toString());
+    console.warn('getValidatedRootFolder auto-search notice: ' + err.toString());
   }
 
-  // No valid folder cached or found; return null to trigger SetupFolder.html
-  return null;
+  // Under least-privilege drive.file scope, auto-create the dedicated folder seamlessly
+  try {
+    var newFolder = DriveApp.createFolder('Day Planner');
+    userProps.setProperty('DAY_PLANNER_ROOT_FOLDER_ID', newFolder.getId());
+    Logger.log('Auto-created dedicated Day Planner root folder ID: ' + newFolder.getId());
+    return newFolder;
+  } catch (createErr) {
+    logError('getValidatedRootFolder auto-create', createErr);
+    return null;
+  }
 }
 
 /**
  * Server handler called by SetupFolder.html form to sanitize, validate, and save folder URL or ID.
  * @param {string} inputUrl Google Drive folder web URL or raw folder ID.
- * @returns {{success: boolean, folderId?: string, folderName?: string, error?: string}} Validation result.
+ * @returns {{success: boolean, folderId?: string, folderName?: string, message?: string, error?: string}} Validation result.
  */
 function validateAndSaveFolderUrl(inputUrl) {
   if (!inputUrl || typeof inputUrl !== 'string') {
-    return { success: false, error: 'Please enter a valid Google Drive folder web link or folder ID.' };
+    return {
+      success: false,
+      error: 'Please enter a valid Google Drive folder link, folder ID, or click "Auto-Create Folder".'
+    };
   }
 
   var sanitizedInput = inputUrl.trim();
@@ -219,7 +230,10 @@ function validateAndSaveFolderUrl(inputUrl) {
 
   // Sanitize folder ID format (alphanumeric, dashes, underscores)
   if (!/^[a-zA-Z0-9_-]+$/.test(extractedId)) {
-    return { success: false, error: 'Invalid folder URL or ID format. Please paste the full Google Drive web link.' };
+    return {
+      success: false,
+      error: 'Invalid folder URL format. Please paste a standard Google Drive folder URL or click "Auto-Create Folder".'
+    };
   }
 
   try {
@@ -233,13 +247,61 @@ function validateAndSaveFolderUrl(inputUrl) {
     return {
       success: true,
       folderId: extractedId,
-      folderName: folderName
+      folderName: folderName,
+      message: 'Successfully connected to folder "' + folderName + '".'
     };
   } catch (err) {
+    var errStr = (err.message || err.toString());
     logError('validateAndSaveFolderUrl(' + extractedId + ')', err);
+
+    // Specific detection of drive.file scope sandbox limitation
+    if (errStr.indexOf('permissions are not sufficient') !== -1 || errStr.indexOf('drive.readonly') !== -1 || errStr.indexOf('drive.file') !== -1) {
+      try {
+        var autoFolder = DriveApp.createFolder('Day Planner');
+        PropertiesService.getUserProperties().setProperty('DAY_PLANNER_ROOT_FOLDER_ID', autoFolder.getId());
+        return {
+          success: true,
+          folderId: autoFolder.getId(),
+          folderName: autoFolder.getName(),
+          autoCreated: true,
+          message: 'Notice: Under least-privilege security ("drive.file"), Day Planner cannot access folders created manually outside the app. We automatically created a new dedicated "Day Planner" folder in your Google Drive!'
+        };
+      } catch (autoErr) {
+        return {
+          success: false,
+          error: 'Security Scope Notice: Under least-privilege permissions, Day Planner cannot access folders created outside this application. Click "Auto-Create Folder" below to create an authorized folder.'
+        };
+      }
+    }
+
     return {
       success: false,
-      error: 'Folder not found or permission denied. Please ensure you created the folder in Google Drive and pasted the correct link.'
+      error: 'Unable to access folder: ' + errStr + '. Please use the 1-click "Auto-Create Folder" button below.'
+    };
+  }
+}
+
+/**
+ * Server-side 1-click handler to auto-create and connect a dedicated Day Planner root folder.
+ * @returns {{success: boolean, folderId?: string, folderName?: string, message?: string, error?: string}}
+ */
+function autoCreateRootFolder() {
+  try {
+    var folder = DriveApp.createFolder('Day Planner');
+    var folderId = folder.getId();
+    PropertiesService.getUserProperties().setProperty('DAY_PLANNER_ROOT_FOLDER_ID', folderId);
+    Logger.log('1-Click Created dedicated Day Planner root folder: ' + folderId);
+    return {
+      success: true,
+      folderId: folderId,
+      folderName: folder.getName(),
+      message: 'Dedicated "Day Planner" folder created and connected successfully!'
+    };
+  } catch (err) {
+    logError('autoCreateRootFolder', err);
+    return {
+      success: false,
+      error: 'Failed to create Day Planner folder in Google Drive: ' + (err.message || err.toString())
     };
   }
 }

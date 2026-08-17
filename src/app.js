@@ -83,9 +83,25 @@ function getLocalDateStr(d = new Date()) {
       indexRecords: [],
       monthlyGrid: [],
 
-      // Sync & Error states
+      // Sync & Error & Toast states
       isSyncing: false,
       errorMessage: null,
+      toasts: [],
+
+      showToast(message, type = 'info', duration = 10000, title = '') {
+        const id = 't_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+        const toastTitle = title || (type === 'error' ? 'Notice' : type === 'warning' ? 'Warning' : type === 'success' ? 'Success' : 'Information');
+        const toast = { id, message, type, title: toastTitle, duration };
+        this.toasts.push(toast);
+
+        setTimeout(() => {
+          this.dismissToast(id);
+        }, duration);
+      },
+
+      dismissToast(id) {
+        this.toasts = this.toasts.filter(t => t.id !== id);
+      },
 
       // Modals
       eventModalOpen: false,
@@ -142,6 +158,7 @@ function getLocalDateStr(d = new Date()) {
 
       async init() {
         this.bridge = new GASBridge(false);
+        window.showToast = (msg, type, dur, title) => this.showToast(msg, type, dur, title);
         this.initTheme();
         this.initColumnWidths();
         await this.loadDayData();
@@ -420,9 +437,12 @@ function getLocalDateStr(d = new Date()) {
           const data = await this.bridge.getDailyData(this.selectedDate);
           if (data.error) {
             this.errorMessage = data.error;
+            this.showToast(data.error, 'error', 10000, 'Workspace Notice');
           }
           if (data.warnings && data.warnings.length > 0) {
-            this.errorMessage = data.warnings.join(' | ');
+            const warningMsg = data.warnings.join(' | ');
+            this.errorMessage = warningMsg;
+            this.showToast(warningMsg, 'warning', 8000, 'Warning');
           }
           this.dailyTasks = data.tasks || [];
           this.calendarEvents = data.calendarEvents || [];
@@ -432,7 +452,9 @@ function getLocalDateStr(d = new Date()) {
           this.buildIndexRecords();
         } catch (err) {
           console.error('🔥 loadDayData error:', err);
-          this.errorMessage = `Error loading daily workspace: ${err.message || err.toString()}`;
+          const errText = `Error loading daily workspace: ${err.message || err.toString()}`;
+          this.errorMessage = errText;
+          this.showToast(errText, 'error', 10000, 'Load Error');
         }
       },
 
@@ -647,7 +669,9 @@ function getLocalDateStr(d = new Date()) {
           await this.trigger2WaySync();
         } catch (err) {
           console.error('🔥 addDailyTask error:', err);
-          this.errorMessage = `Error adding task: ${err.message || err.toString()}`;
+          const errText = `Error adding task: ${err.message || err.toString()}`;
+          this.errorMessage = errText;
+          this.showToast(errText, 'error', 10000, 'Task Creation Notice');
         }
       },
 
@@ -662,11 +686,13 @@ function getLocalDateStr(d = new Date()) {
           if (transferred) {
             this.dailyTasks.push(transferred);
             await this.trigger2WaySync();
-            alert(`Moved "${mTask.title}" to Today's Task List as ${transferred.title.substring(0, 4)}!`);
+            this.showToast(`Moved "${mTask.title}" to Today's Task List as ${transferred.title.substring(0, 4)}!`, 'success', 6000, 'Task Transferred');
           }
         } catch (err) {
           console.error('🔥 moveMasterTaskToToday error:', err);
-          this.errorMessage = `Error moving master task: ${err.message || err.toString()}`;
+          const errText = `Error moving master task: ${err.message || err.toString()}`;
+          this.errorMessage = errText;
+          this.showToast(errText, 'error', 10000, 'Task Transfer Error');
         }
       },
 
@@ -730,9 +756,12 @@ function getLocalDateStr(d = new Date()) {
           this.buildScheduleGrid();
           this.closeCreateEventModal();
           await this.trigger2WaySync();
+          this.showToast(`Saved appointment "${newEvt.title}"`, 'success', 5000, 'Appointment Created');
         } catch (err) {
           console.error('🔥 saveNewEvent error:', err);
-          this.errorMessage = `Error saving appointment: ${err.message || err.toString()}`;
+          const errText = `Error saving appointment: ${err.message || err.toString()}`;
+          this.errorMessage = errText;
+          this.showToast(errText, 'error', 10000, 'Calendar Error');
         }
       },
 

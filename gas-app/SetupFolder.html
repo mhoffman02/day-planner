@@ -24,33 +24,38 @@
   <?!= include('Styles'); ?>
 </head>
 <body class="setup-body">
+  <div id="toastContainer" class="toast-container" aria-live="assertive" role="region" aria-label="Notifications"></div>
+
   <main>
     <article class="card">
       <header>
         <h2><span class="material-symbols-outlined icon-28">folder</span> Connect Your Day Planner Drive Folder</h2>
         <p class="setup-subtitle">
-          To keep your files 100% private and secure, please connect your dedicated Google Drive folder:
+          Your daily notes and planner cards are stored 100% privately in your own Google Drive using least-privilege security.
         </p>
       </header>
 
-      <section aria-label="Setup Instructions">
-        <ol>
-          <li>Open <a href="https://drive.google.com" target="_blank" rel="noopener noreferrer" class="setup-link">Google Drive</a> and create a folder named <b>Day Planner</b>.</li>
-          <li>Open the folder, copy its full web link from your browser address bar, and paste it below.</li>
-        </ol>
+      <section style="margin-bottom: 20px;">
+        <button type="button" id="autoCreateBtn" class="btn-primary" style="width: 100%; padding: 14px; font-size: 1rem; display: flex; align-items: center; justify-content: center; gap: 8px;">
+          <span class="material-symbols-outlined">add_circle</span> 1-Click Auto-Create "Day Planner" Folder
+        </button>
+        <div style="text-align: center; margin: 16px 0; font-size: 0.85rem; color: var(--theme-text-muted); position: relative;">
+          <span style="background: var(--theme-panel-bg); padding: 0 10px; position: relative; z-index: 1;">— OR PASTE AN EXISTING FOLDER LINK —</span>
+          <hr style="position: absolute; top: 50%; left: 0; right: 0; border: none; border-top: 1px solid var(--theme-panel-border); margin: 0; z-index: 0;">
+        </div>
       </section>
 
       <form id="formContainer">
         <label class="form-label" for="folderUrlInput">Google Drive Folder Web Link or ID:</label>
-        <input type="text" id="folderUrlInput" placeholder="https://drive.google.com/drive/folders/1N2WRrFmts..." value="https://drive.google.com/drive/u/0/folders/1N2WRrFmtsAWKgqeaFIj9HtiQ2wupFEk0">
-        <button type="submit" id="submitBtn" class="btn-primary">Validate & Connect Folder</button>
+        <input type="text" id="folderUrlInput" placeholder="https://drive.google.com/drive/folders/...">
+        <button type="submit" id="submitBtn" class="btn-secondary" style="width: 100%; margin-top: 8px;">Validate & Connect Folder</button>
       </form>
 
-      <aside id="statusBox" class="status-box" role="alert"></aside>
+      <aside id="statusBox" class="status-box" role="alert" style="display: none; margin-top: 16px;"></aside>
 
-      <section id="ackContainer" class="ack-container">
+      <section id="ackContainer" class="ack-container" style="display: none; margin-top: 20px;">
         <a href="?" class="ack-link">
-          <button type="button" class="btn-success">
+          <button type="button" class="btn-success" style="width: 100%; padding: 14px; display: flex; align-items: center; justify-content: center; gap: 8px;">
             <span class="material-symbols-outlined">check_circle</span> Open Day Planner Binder <span class="material-symbols-outlined">arrow_forward</span>
           </button>
         </a>
