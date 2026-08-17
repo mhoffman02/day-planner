@@ -55,3 +55,16 @@
 - Add automated accessibility linter to CI/test suite
 
 ---
+
+## 2026-08-17 — Theme Regressions Resolution, Golden Desk Background & Edge Layout Fixes
+
+**Worked well:**
+- Automated headless CDP tool captured light and dark screenshots for regression diagnosis
+- Restored warm golden desk canvas (#dfc495) and fixed Edge header right-edge clipping
+- Elevated Dark Forest theme visual hierarchy with high-contrast cards and emerald accents
+- Synchronized GAS manifest documents scope
+
+**Needs improvement:**
+- Maintain OAuth scope audit checklist during GAS manifest modifications
+
+---
