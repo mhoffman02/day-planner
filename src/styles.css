@@ -704,9 +704,8 @@
     white-space: normal;
   }
 
-  /* Daily Notes Column & Franklin Lined Paper Aesthetic */
-  article.notes-column-panel,
-  [data-theme="dark"] article.notes-column-panel {
+  /* Daily Notes Column & Franklin Lined Paper Aesthetic (Light Mode) */
+  article.notes-column-panel {
     background-color: #f7faf8 !important;
     background-image: repeating-linear-gradient(transparent, transparent 27px, #d2e5de 28px) !important;
     background-attachment: local;
@@ -718,54 +717,56 @@
   }
 
   .notes-column-panel .panel-header-title,
-  [data-theme="dark"] .notes-column-panel .panel-header-title,
-  .notes-column-panel .panel-header-title .material-symbols-outlined,
-  [data-theme="dark"] .notes-column-panel .panel-header-title .material-symbols-outlined {
+  .notes-column-panel .panel-header-title .material-symbols-outlined {
     color: #142e23 !important;
   }
 
-  .notes-column-panel .btn-icon-subtle,
-  [data-theme="dark"] .notes-column-panel .btn-icon-subtle {
+  .notes-column-panel .btn-icon-subtle {
     color: #2d6a5a !important;
     border-color: #c8ded7 !important;
     background: #ffffff !important;
   }
 
-  .notes-column-panel .note-card-item,
-  [data-theme="dark"] .notes-column-panel .note-card-item {
+  .notes-column-panel .note-card-item {
     background: #ffffff !important;
     border: 1px solid #c8ded7 !important;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05) !important;
   }
 
-  .notes-column-panel .note-card-header,
-  [data-theme="dark"] .notes-column-panel .note-card-header {
+  .notes-column-panel .note-card-header {
     background: #ebf5f1 !important;
     border-bottom: 1px solid #c8ded7 !important;
   }
 
-  .notes-column-panel .card-heading-input,
-  [data-theme="dark"] .notes-column-panel .card-heading-input {
+  .notes-column-panel .card-heading-input {
     background: transparent !important;
     color: #142e23 !important;
   }
-  .notes-column-panel .card-heading-input:focus,
-  [data-theme="dark"] .notes-column-panel .card-heading-input:focus {
+  .notes-column-panel .card-heading-input:focus {
     background: #ffffff !important;
     color: #142e23 !important;
   }
 
-  .notes-column-panel .card-category-select,
-  [data-theme="dark"] .notes-column-panel .card-category-select {
+  .notes-column-panel .card-category-select {
     background: #ffffff !important;
     color: #142e23 !important;
     border: 1px solid #c8ded7 !important;
   }
 
-  .notes-column-panel .gchat-toolbar,
-  [data-theme="dark"] .notes-column-panel .gchat-toolbar {
+  .notes-column-panel .gchat-toolbar {
     background: #f2f8f5 !important;
     border-bottom: 1px solid #d8ede5 !important;
+  }
+
+  .notes-column-panel .format-btn {
+    color: #2d6a5a !important;
+  }
+
+  .notes-column-panel .note-card-textarea,
+  .notes-column-panel .continuous-doc-textarea {
+    background: #ffffff !important;
+    color: #142e23 !important;
+    border: 1px solid #c8ded7 !important;
   }
 
   .notes-column-panel .format-btn,
@@ -1992,11 +1993,83 @@
     border-color: #2d6a5a !important;
   }
 
+  /* Daily Notes Dark Mode Palette (Dark Forest Aesthetic) */
   [data-theme="dark"] article.notes-column-panel {
-    background-color: #f5faf7 !important;
-    background-image: repeating-linear-gradient(transparent, transparent 27px, #cce0d8 28px) !important;
-    border-color: #a8d5c4 !important;
-    color: #142e23 !important;
+    background-color: #142820 !important;
+    background-image: repeating-linear-gradient(transparent, transparent 27px, #204536 28px) !important;
+    background-attachment: local;
+    border-color: #244a3b !important;
+    color: #e2f2ec !important;
+  }
+
+  [data-theme="dark"] .notes-column-panel .panel-header-title {
+    color: #e2f2ec !important;
+  }
+  [data-theme="dark"] .notes-column-panel .panel-header-title .material-symbols-outlined {
+    color: #79d6bd !important;
+  }
+
+  [data-theme="dark"] .notes-column-panel .btn-icon-subtle {
+    color: #79d6bd !important;
+    border-color: #244a3b !important;
+    background: #193328 !important;
+  }
+
+  [data-theme="dark"] .notes-column-panel .note-card-item {
+    background: #193328 !important;
+    border: 1px solid #244a3b !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+  }
+
+  [data-theme="dark"] .notes-column-panel .note-card-header {
+    background: #11241c !important;
+    border-bottom: 1px solid #244a3b !important;
+  }
+
+  [data-theme="dark"] .notes-column-panel .card-heading-input,
+  [data-theme="dark"] .notes-column-panel input.card-heading-input {
+    background-color: transparent !important;
+    background: transparent !important;
+    color: #79d6bd !important;
+    font-weight: 700;
+  }
+  [data-theme="dark"] .notes-column-panel .card-heading-input:focus,
+  [data-theme="dark"] .notes-column-panel input.card-heading-input:focus {
+    background-color: #142820 !important;
+    background: #142820 !important;
+    color: #ffffff !important;
+    outline: 1px solid #3b8773;
+  }
+
+  [data-theme="dark"] .notes-column-panel .card-category-select,
+  [data-theme="dark"] .notes-column-panel select.card-category-select {
+    background-color: #11241c !important;
+    background: #11241c !important;
+    color: #e2f2ec !important;
+    border: 1px solid #244a3b !important;
+  }
+
+  [data-theme="dark"] .notes-column-panel .gchat-toolbar {
+    background: #142820 !important;
+    border-bottom: 1px solid #204536 !important;
+  }
+
+  [data-theme="dark"] .notes-column-panel .format-btn {
+    color: #95b3a8 !important;
+  }
+  [data-theme="dark"] .notes-column-panel .format-btn:hover {
+    background: #1f4234 !important;
+    color: #79d6bd !important;
+  }
+
+  [data-theme="dark"] .notes-column-panel .note-card-textarea,
+  [data-theme="dark"] .notes-column-panel textarea.note-card-textarea,
+  [data-theme="dark"] .notes-column-panel .continuous-doc-textarea,
+  [data-theme="dark"] .notes-column-panel textarea.continuous-doc-textarea {
+    background-color: #193328 !important;
+    background: #193328 !important;
+    color: #e2f2ec !important;
+    border: 1px solid #244a3b !important;
   }
 
   [data-theme="dark"] article.calendar-day-cell {
@@ -2035,47 +2108,4 @@
     background: #11241c !important;
     border-color: #244a3b !important;
     color: #e2f2ec !important;
-  }
-
-  /* Daily Notes Component WCAG Overrides - Placed at end of file to override all theme input defaults */
-  .notes-column-panel .card-heading-input,
-  [data-theme="dark"] .notes-column-panel .card-heading-input,
-  .notes-column-panel input.card-heading-input,
-  [data-theme="dark"] .notes-column-panel input.card-heading-input {
-    background-color: transparent !important;
-    background: transparent !important;
-    color: #142e23 !important;
-  }
-
-  .notes-column-panel .card-heading-input:focus,
-  [data-theme="dark"] .notes-column-panel .card-heading-input:focus,
-  .notes-column-panel input.card-heading-input:focus,
-  [data-theme="dark"] .notes-column-panel input.card-heading-input:focus {
-    background-color: #ffffff !important;
-    background: #ffffff !important;
-    color: #142e23 !important;
-  }
-
-  .notes-column-panel .card-category-select,
-  [data-theme="dark"] .notes-column-panel .card-category-select,
-  .notes-column-panel select.card-category-select,
-  [data-theme="dark"] .notes-column-panel select.card-category-select {
-    background-color: #ffffff !important;
-    background: #ffffff !important;
-    color: #142e23 !important;
-    border: 1px solid #c8ded7 !important;
-  }
-
-  .notes-column-panel .note-card-textarea,
-  [data-theme="dark"] .notes-column-panel .note-card-textarea,
-  .notes-column-panel textarea.note-card-textarea,
-  [data-theme="dark"] .notes-column-panel textarea.note-card-textarea,
-  .notes-column-panel .continuous-doc-textarea,
-  [data-theme="dark"] .notes-column-panel .continuous-doc-textarea,
-  .notes-column-panel textarea.continuous-doc-textarea,
-  [data-theme="dark"] .notes-column-panel textarea.continuous-doc-textarea {
-    background-color: #ffffff !important;
-    background: #ffffff !important;
-    color: #142e23 !important;
-    border: 1px solid #c8ded7 !important;
   }

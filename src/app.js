@@ -447,7 +447,19 @@ if ('serviceWorker' in navigator) {
         lines.forEach(line => {
           if (line.startsWith('### ') || line.startsWith('# ')) {
             if (currentCard) cards.push(currentCard);
-            const headingClean = line.replace(/^#+\s*/, '').trim();
+            let headingClean = line.replace(/^#+\s*/, '').trim();
+            headingClean = headingClean.replace(/Daily Log\s*-\s*/i, '');
+            headingClean = headingClean.replace(/January/i, 'Jan')
+                                       .replace(/February/i, 'Feb')
+                                       .replace(/March/i, 'Mar')
+                                       .replace(/April/i, 'Apr')
+                                       .replace(/June/i, 'Jun')
+                                       .replace(/July/i, 'Jul')
+                                       .replace(/August/i, 'Aug')
+                                       .replace(/September/i, 'Sep')
+                                       .replace(/October/i, 'Oct')
+                                       .replace(/November/i, 'Nov')
+                                       .replace(/December/i, 'Dec');
             const category = headingClean.toLowerCase().includes('meeting') ? 'Meeting' : headingClean.toLowerCase().includes('finance') ? 'Decision' : headingClean.toLowerCase().includes('personal') ? 'Personal' : 'Work';
             currentCard = {
               id: `nc_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,

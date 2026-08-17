@@ -65,7 +65,7 @@ export class GASBridge {
         ]
       },
       dailyNotes: {
-        '2026-08-15': `# Daily Log - August 15, 2026
+        '2026-08-15': `# Aug 15, 2026
 
 ## Key Meetings & Notes
 - Executive briefing focused on accelerating digital transformation.
