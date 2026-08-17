@@ -98,6 +98,12 @@ function renderSetupFolderPage() {
  */
 function doGet(e) {
   try {
+    // 1. Dynamic bundle API endpoint for PWA Shell Loader (CORS / SWR bundle fetch)
+    var isBundleRequest = e && e.parameter && (e.parameter.action === 'bundle' || e.parameter.view === 'bundle');
+    if (isBundleRequest) {
+      return renderAppBundleJson(e);
+    }
+
     // 0. Zero-Trust Access Control Verification
     var auth = validateUserAccess();
     if (!auth.authorized) {
@@ -110,12 +116,6 @@ function doGet(e) {
       ).setTitle('Day Planner - Access Denied')
        .setFaviconUrl(DAY_PLANNER_FAVICON_URL)
        .addMetaTag('viewport', 'width=device-width, initial-scale=1.0');
-    }
-
-    // 1. Check if requested dynamic bundle API endpoint for PWA Shell Loader
-    var isBundleRequest = e && e.parameter && (e.parameter.action === 'bundle' || e.parameter.view === 'bundle');
-    if (isBundleRequest) {
-      return renderAppBundleJson(e);
     }
 
     // 2. Check if requested /self-test diagnostic endpoint (via pathInfo or query param)
@@ -844,19 +844,24 @@ function getCompiledAppBundle() {
   try {
     styles = HtmlService.createHtmlOutputFromFile('Styles').getContent();
   } catch (e) {
-    styles = '/* Styles unavailable */';
+    styles = '';
   }
 
   try {
     script = HtmlService.createHtmlOutputFromFile('Script').getContent();
   } catch (e) {
-    script = '// Script unavailable';
+    script = '';
   }
 
   try {
-    indexContent = HtmlService.createHtmlOutputFromFile('Index').getContent();
+    var template = HtmlService.createTemplateFromFile('Index');
+    indexContent = template.evaluate().getContent();
   } catch (e) {
-    indexContent = '<div>Application Shell Loading...</div>';
+    try {
+      indexContent = HtmlService.createHtmlOutputFromFile('Index').getContent();
+    } catch (e2) {
+      indexContent = '<div>Application Shell Loading...</div>';
+    }
   }
 
   // Calculate simple signature hash
@@ -868,6 +873,8 @@ function getCompiledAppBundle() {
     hash: hash,
     timestamp: new Date().toISOString(),
     bundle: {
+      title: 'Day Planner',
+      themeColor: '#2d6a5a',
       styles: styles,
       html: indexContent,
       script: script
