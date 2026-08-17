@@ -4,6 +4,8 @@
  * Scans daily note lines for #index or [INDEX] tags, extracts topic categories, highlights, and doc links.
  */
 
+import { getLocalDateStr } from './binderStore.js';
+
 /**
  * Parses daily notes content string into structured index entries.
  * @param {string} [noteText=''] Full text of daily notes doc.
@@ -17,21 +19,16 @@ export function parseIndexEntriesFromNote(noteText = '', dateStr = '', docUrl = 
   const lines = noteText.split('\n');
   const indexEntries = [];
 
-  lines.forEach(line => {
+  lines.forEach((line) => {
     const trimmed = line.trim();
-    if (!trimmed) return;
-
-    const hasIndexTag = /#index|\[INDEX\]/i.test(trimmed);
-    if (hasIndexTag) {
-      // Clean index tags from topic/summary
-      let cleanText = trimmed.replace(/#index|\[INDEX\]/gi, '').trim();
-
-      // Extract topic category inside brackets e.g. [Finance] or default to General
+    if (trimmed.includes('#index') || trimmed.includes('[INDEX]')) {
+      let cleanText = trimmed.replace('#index', '').replace('[INDEX]', '').trim();
       let topic = 'General';
-      const bracketMatch = cleanText.match(/^\[([^\]]+)\]\s*(.*)$/);
-      if (bracketMatch) {
-        topic = bracketMatch[1].trim();
-        cleanText = bracketMatch[2].trim();
+
+      if (cleanText.includes(':')) {
+        const parts = cleanText.split(':');
+        topic = parts[0].trim();
+        cleanText = parts.slice(1).join(':').trim();
       } else {
         const inlineBracket = cleanText.match(/\[([^\]]+)\]/);
         if (inlineBracket) {
@@ -42,7 +39,7 @@ export function parseIndexEntriesFromNote(noteText = '', dateStr = '', docUrl = 
 
       indexEntries.push({
         id: `idx_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-        date: dateStr || new Date().toISOString().slice(0, 10),
+        date: dateStr || getLocalDateStr(),
         topic,
         summary: cleanText || trimmed,
         docUrl: docUrl || `#doc-${dateStr}`,

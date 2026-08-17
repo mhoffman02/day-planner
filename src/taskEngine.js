@@ -4,6 +4,8 @@
  * Handles task priorities (A1-C9), status codes, task ordering, and "Move to Today" transfer logic.
  */
 
+import { getLocalDateStr } from './binderStore.js';
+
 /**
  * Task status code symbols dictionary.
  * @type {Record<string, string>}
@@ -132,10 +134,10 @@ export function getNextSequence(tasks = [], priorityGroup = 'A') {
  * @param {object} masterTask Source master task object.
  * @param {Array<object>} [existingDailyTasks=[]] Current daily tasks list.
  * @param {string} [targetPriorityGroup='A'] Priority group letter to assign ('A', 'B', or 'C').
- * @param {string} [todayDateStr] Target date string in YYYY-MM-DD format (defaults to current date).
+ * @param {string} [todayDateStr] Target date string in YYYY-MM-DD format (defaults to current local date).
  * @returns {{id: string, title: string, status: string, dueDate: string, category: string, sourceMasterId: string|null}} Newly created daily task object.
  */
-export function transferMasterTaskToToday(masterTask, existingDailyTasks = [], targetPriorityGroup = 'A', todayDateStr = new Date().toISOString().slice(0, 10)) {
+export function transferMasterTaskToToday(masterTask, existingDailyTasks = [], targetPriorityGroup = 'A', todayDateStr = getLocalDateStr()) {
   const cleanTitle = parseTaskTitle(masterTask.title).cleanTitle || masterTask.title || 'Untitled Task';
   const sequence = getNextSequence(existingDailyTasks, targetPriorityGroup);
   const formattedTitle = formatTaskTitle(targetPriorityGroup, sequence, cleanTitle);

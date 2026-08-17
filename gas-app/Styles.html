@@ -618,7 +618,9 @@
     font-size: 1.2rem;
     color: var(--binder-teal);
     border-bottom: 2px solid var(--binder-teal);
-    padding-bottom: 6px;
+    padding-bottom: 4px;
+    min-height: 34px;
+    box-sizing: border-box;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -1060,10 +1062,14 @@
     color: var(--binder-teal) !important;
     padding: 2px 4px !important;
     margin-bottom: 0 !important;
+    outline: none !important;
+    box-shadow: none !important;
   }
   .card-heading-input:focus {
-    outline: 1px solid var(--binder-teal);
-    background: #ffffff !important;
+    outline: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
   }
 
   .card-category-select {
@@ -1305,15 +1311,19 @@
   }
 
   .btn-add-task-round {
-    width: 36px;
-    height: 36px;
+    width: 26px;
+    height: 26px;
     border-radius: 50% !important;
     padding: 0 !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
-    min-width: 36px !important;
+    min-width: 26px !important;
     flex-shrink: 0;
+  }
+  .btn-add-task-round .material-symbols-outlined {
+    font-size: 18px !important;
+    line-height: 1 !important;
   }
 
   .btn-secondary {
@@ -2030,7 +2040,11 @@
   [data-theme="dark"] .view-title,
   [data-theme="dark"] .modal-title,
   [data-theme="dark"] .modal-title-with-icon {
-    color: #e2f2ec !important;
+    color: #fcfbfa !important; /* Cream always, matching Tasks & Daily Notes */
+  }
+
+  [data-theme="dark"] .panel-header-title .material-symbols-outlined {
+    color: #fcfbfa !important;
   }
 
   [data-theme="dark"] header.panel-header {
@@ -2127,10 +2141,10 @@
   }
 
   [data-theme="dark"] .notes-column-panel .panel-header-title {
-    color: #e2f2ec !important;
+    color: #fcfbfa !important; /* Cream always, not mint */
   }
   [data-theme="dark"] .notes-column-panel .panel-header-title .material-symbols-outlined {
-    color: #79d6bd !important;
+    color: #fcfbfa !important; /* Cream icon for Daily Notes, NOT mint */
   }
 
   [data-theme="dark"] .notes-column-panel .btn-icon-subtle {
@@ -2151,18 +2165,27 @@
   }
 
   [data-theme="dark"] .notes-column-panel .card-heading-input,
-  [data-theme="dark"] .notes-column-panel input.card-heading-input {
+  [data-theme="dark"] .notes-column-panel input.card-heading-input,
+  [data-theme="dark"] .card-heading-input,
+  [data-theme="dark"] input.card-heading-input {
     background-color: transparent !important;
     background: transparent !important;
-    color: #79d6bd !important;
+    color: #fcfbfa !important; /* Cream always, NOT mint */
     font-weight: 700;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
   }
   [data-theme="dark"] .notes-column-panel .card-heading-input:focus,
-  [data-theme="dark"] .notes-column-panel input.card-heading-input:focus {
-    background-color: #142820 !important;
-    background: #142820 !important;
+  [data-theme="dark"] .notes-column-panel input.card-heading-input:focus,
+  [data-theme="dark"] .card-heading-input:focus,
+  [data-theme="dark"] input.card-heading-input:focus {
+    background-color: transparent !important;
+    background: transparent !important;
     color: #ffffff !important;
-    outline: 1px solid #3b8773;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
   }
 
   [data-theme="dark"] .notes-column-panel .card-category-select,

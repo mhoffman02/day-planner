@@ -174,10 +174,21 @@
     }
   }
 
+  function getLocalDateStr(d = new Date()) {
+    if (typeof d === 'string') {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+      d = new Date(d);
+    }
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
   document.addEventListener('alpine:init', () => {
     Alpine.data('plannerApp', () => ({
       activeView: 'daily',
-      selectedDate: new Date().toISOString().slice(0, 10),
+      selectedDate: getLocalDateStr(),
       selectedYear: new Date().getFullYear(),
       selectedMonth: new Date().getMonth() + 1,
       
@@ -454,9 +465,11 @@
       },
 
       async navigateDay(delta) {
-        const d = new Date(`${this.selectedDate}T00:00:00`);
-        d.setDate(d.getDate() + delta);
-        this.selectedDate = d.toISOString().slice(0, 10);
+        const [y, m, day] = this.selectedDate.split('-').map(Number);
+        const d = new Date(y, m - 1, day + delta);
+        const monthStr = String(d.getMonth() + 1).padStart(2, '0');
+        const dayStr = String(d.getDate()).padStart(2, '0');
+        this.selectedDate = `${d.getFullYear()}-${monthStr}-${dayStr}`;
         this.selectedYear = d.getFullYear();
         this.selectedMonth = d.getMonth() + 1;
         await this.loadDayData();
@@ -490,10 +503,10 @@
       },
 
       async jumpToToday() {
-        this.selectedDate = new Date().toISOString().slice(0, 10);
-        const d = new Date(`${this.selectedDate}T00:00:00`);
-        this.selectedYear = d.getFullYear();
-        this.selectedMonth = d.getMonth() + 1;
+        this.selectedDate = getLocalDateStr();
+        const [y, m] = this.selectedDate.split('-').map(Number);
+        this.selectedYear = y;
+        this.selectedMonth = m;
         await this.loadDayData();
       },
 
@@ -795,7 +808,7 @@
         const location = encodeURIComponent(this.newEventData.location || '');
         const details = encodeURIComponent(this.newEventData.description || '');
 
-        const dateFormatted = (this.selectedDate || new Date().toISOString().slice(0, 10)).replace(/-/g, '');
+        const dateFormatted = (this.selectedDate || getLocalDateStr()).replace(/-/g, '');
         const startH = (this.newEventData.startTime || '09:00').replace(':', '') + '00';
         const endH = (this.newEventData.endTime || '10:00').replace(':', '') + '00';
         const dates = `${dateFormatted}T${startH}/${dateFormatted}T${endH}`;

@@ -5,9 +5,15 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { BinderStore, VIEWS } from '../src/binderStore.js';
+import { BinderStore, VIEWS, getLocalDateStr } from '../src/binderStore.js';
 
 describe('Binder Store Unit Tests', () => {
+  it('should format local dates correctly using getLocalDateStr', () => {
+    const sampleDate = new Date(2026, 7, 16, 22, 18, 0); // Local Aug 16, 2026 10:18 PM
+    assert.equal(getLocalDateStr(sampleDate), '2026-08-16');
+    assert.equal(getLocalDateStr('2026-08-16'), '2026-08-16');
+  });
+
   it('should initialize with daily view and specified date', () => {
     const store = new BinderStore('2026-08-15');
     assert.equal(store.activeView, VIEWS.DAILY);
