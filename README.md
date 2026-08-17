@@ -1,6 +1,6 @@
-# 📖 Franklin-Google Digital Day Planner
+# 📖 Day Planner
 
-A high-efficiency single-page digital binder application styled in classic Franklin Covey aesthetic (forest/teal ruling, cream background, serif headers). It bridges Franklin Dayplanner productivity methodology with Google Workspace APIs (Calendar, Tasks, Drive JSON) featuring full 2-Way Synchronization and offline-first PWA capabilities.
+A high-efficiency single-page digital binder application styled in classic Day Planner aesthetic (forest/teal ruling, cream background, serif headers). It bridges Day Planner productivity methodology with Google Workspace APIs (Calendar, Tasks, Drive JSON) featuring full 2-Way Synchronization and offline-first PWA capabilities.
 
 ---
 
@@ -88,7 +88,7 @@ clasp deploy --description "Release Update Notes"
 
 ## 🏛️ Architecture & Data Storage
 
-- **UI & Interaction**: Vanilla CSS + Alpine.js (Classic Franklin Covey parchment `#fcfbfa`, teal `#2d6a5a`, and serif typography).
+- **UI & Interaction**: Vanilla CSS + Alpine.js (Classic Day Planner parchment `#fcfbfa`, teal `#2d6a5a`, and serif typography).
 - **Daily Tasks**: Google Tasks API (`[A1]`–`[C9]` priority sequence sorting and status transitions: `✓`, `→`, `X`, `G/✓`, `•`).
 - **Calendar & Schedule**: Google Calendar API with 7:00 AM – 7:00 PM time grid, Google Meet links, and bidirectional time shift synchronization.
 - **Daily Notes & Index**: Partitioned monthly JSON files stored in Google Drive under `Day Planner/notes-YYYY-MM.json` with `#index` registry search.

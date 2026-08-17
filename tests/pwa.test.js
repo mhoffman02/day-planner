@@ -26,7 +26,7 @@ describe('PWA Manifest Validity Tests', () => {
 
   it('should contain required PWA metadata properties', () => {
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-    assert.equal(manifest.name, 'Franklin Covey Digital Day Planner');
+    assert.equal(manifest.name, 'Day Planner');
     assert.equal(manifest.short_name, 'Day Planner');
     assert.equal(manifest.start_url, '/');
     assert.equal(manifest.scope, '/');

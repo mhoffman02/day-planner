@@ -104,7 +104,7 @@ const handoffPrompt = `# Session Handoff & Continuation Prompt — ${dateStr}
 **Last Commit**: ${lastCommit}
 
 ## Project Overview & Current Architecture
-The **Day Planner** project is a standalone digital binder application styled in classic Franklin Covey aesthetic (Parchment \`#fcfbfa\`, Teal \`#2d6a5a\`, serif headers).
+The **Day Planner** project is a standalone digital binder application styled in classic Day Planner aesthetic (Parchment \`#fcfbfa\`, Teal \`#2d6a5a\`, serif headers).
 - Standalone SPA files: \`index.html\`, \`src/styles.css\`, \`src/app.js\`, \`src/gasBridge.js\`
 - All 41 unit tests pass cleanly (\`npm test\`).
 - Local server: \`npm start\` (\`http://localhost:3000\`).

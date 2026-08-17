@@ -1,7 +1,7 @@
 {
-  "name": "Franklin Covey Digital Day Planner",
+  "name": "Day Planner",
   "short_name": "Day Planner",
-  "description": "Standalone digital binder application styled in classic Franklin Covey aesthetic with 2-Way Google Workspace Sync.",
+  "description": "Standalone digital binder application styled in classic Day Planner aesthetic with 2-Way Google Workspace Sync.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
