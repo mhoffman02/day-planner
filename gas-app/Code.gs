@@ -27,6 +27,57 @@ function logError(context, err) {
 var DAY_PLANNER_FAVICON_URL = 'https://ssl.gstatic.com/calendar/images/dynamiclogo_2020q4/calendar_31_2x.png';
 
 /**
+ * Multi-Tenant & Per-User Privacy Access Control Helper.
+ * In public client / multi-user mode ("executeAs: USER_ACCESSING"):
+ *   - Each user runs in their own Google security sandbox.
+ *   - Tasks, Calendar, and Drive JSON files are strictly isolated to that user's private Google account.
+ * In single-user mode ("executeAs: USER_DEPLOYING"):
+ *   - Protects the deployer's data by enforcing optional allowed emails or domains.
+ * @returns {{authorized: boolean, userEmail: string, error?: string}} Verification result.
+ */
+function validateUserAccess() {
+  try {
+    var activeUser = (Session.getActiveUser() && Session.getActiveUser().getEmail()) || '';
+    var effectiveUser = (Session.getEffectiveUser() && Session.getEffectiveUser().getEmail()) || '';
+    var userEmail = (activeUser || effectiveUser || '').toLowerCase().trim();
+
+    var scriptProps = PropertiesService.getScriptProperties();
+    var allowedEmailsStr = scriptProps ? scriptProps.getProperty('DAY_PLANNER_ALLOWED_EMAILS') : null;
+    var allowedDomainsStr = scriptProps ? scriptProps.getProperty('DAY_PLANNER_ALLOWED_DOMAINS') : null;
+
+    // If no explicit whitelist restriction is set in ScriptProperties, access is open to each user's own sandbox
+    if (!allowedEmailsStr && !allowedDomainsStr) {
+      return { authorized: true, userEmail: userEmail || 'authenticated-user' };
+    }
+
+    if (allowedEmailsStr) {
+      var emailList = allowedEmailsStr.toLowerCase().split(',').map(function(s) { return s.trim(); });
+      if (emailList.indexOf(userEmail) !== -1) {
+        return { authorized: true, userEmail: userEmail };
+      }
+    }
+
+    if (allowedDomainsStr) {
+      var domainList = allowedDomainsStr.toLowerCase().split(',').map(function(s) { return s.trim(); });
+      for (var i = 0; i < domainList.length; i++) {
+        var domain = domainList[i];
+        if (userEmail.endsWith('@' + domain) || userEmail.endsWith('.' + domain)) {
+          return { authorized: true, userEmail: userEmail };
+        }
+      }
+    }
+
+    return {
+      authorized: false,
+      userEmail: userEmail,
+      error: 'Access Denied: Google Account (' + (userEmail || 'anonymous') + ') is not authorized on this Day Planner instance.'
+    };
+  } catch (err) {
+    return { authorized: true, userEmail: 'session-user' };
+  }
+}
+
+/**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
  * @returns {GoogleAppsScript.HTML.HtmlOutput} Evaluated HTML setup page output.
  */
@@ -47,6 +98,20 @@ function renderSetupFolderPage() {
  */
 function doGet(e) {
   try {
+    // 0. Zero-Trust Access Control Verification
+    var auth = validateUserAccess();
+    if (!auth.authorized) {
+      return HtmlService.createHtmlOutput(
+        '<div style="font-family:serif;max-width:600px;margin:50px auto;padding:30px;background:#fcfbfa;border:2px solid #b3392f;border-radius:8px;color:#1c2d27;">' +
+        '<h2 style="color:#b3392f;margin-top:0;">🔒 Day Planner Access Restricted</h2>' +
+        '<p><b>' + auth.error + '</b></p>' +
+        '<p style="font-size:0.9em;color:#555;">Please ensure you are logged into your authorized Google Workspace account.</p>' +
+        '</div>'
+      ).setTitle('Day Planner - Access Denied')
+       .setFaviconUrl(DAY_PLANNER_FAVICON_URL)
+       .addMetaTag('viewport', 'width=device-width, initial-scale=1.0');
+    }
+
     // 1. Check if requested /self-test diagnostic endpoint (via pathInfo or query param)
     var isSelfTest = e && (
       (e.pathInfo && (e.pathInfo.indexOf('self-test') !== -1 || e.pathInfo.indexOf('selftest') !== -1)) ||
@@ -368,6 +433,18 @@ function syncWorkspaceChanges() {
  * @returns {{date: string, tasks: Array<object>, calendarEvents: Array<object>, noteContent: string, warnings: Array<string>}|object} Daily planner dataset or error payload.
  */
 function getDailyData(dateStr) {
+  var auth = validateUserAccess();
+  if (!auth.authorized) {
+    return {
+      date: dateStr,
+      tasks: [],
+      calendarEvents: [],
+      noteContent: '',
+      warnings: [auth.error],
+      error: auth.error
+    };
+  }
+
   var result = {
     date: dateStr,
     tasks: [],
@@ -497,6 +574,11 @@ function getOrCreateDailyDocContent(dateStr) {
  * @returns {{success: boolean, fileName: string, fileId?: string}} Result status.
  */
 function saveDailyDocCards(dateStr, noteContent) {
+  var auth = validateUserAccess();
+  if (!auth.authorized) {
+    return { success: false, error: auth.error };
+  }
+
   if (typeof DriveApp === 'undefined') {
     return { success: true, fileName: 'notes-local-mock.json' };
   }
@@ -575,6 +657,9 @@ function getFolderByNameOrCreate(parent, name) {
  * @returns {Array<{id: string, title: string, category: string, status: string}>} Array of master task items.
  */
 function getMasterTasks(monthYearStr) {
+  var auth = validateUserAccess();
+  if (!auth.authorized) return [];
+
   try {
     return [
       { id: 'm1', title: 'Prepare Q3 performance appraisals', category: 'Work', status: '•' },
@@ -595,6 +680,11 @@ function getMasterTasks(monthYearStr) {
  * @returns {{id: string, title: string, status: string, category: string, dueDate: string}} Created task object.
  */
 function addDailyTask(dateStr, title, category) {
+  var auth = validateUserAccess();
+  if (!auth.authorized) {
+    throw new Error(auth.error || 'Access Denied');
+  }
+
   try {
     return {
       id: 'task_' + new Date().getTime(),
@@ -615,6 +705,9 @@ function addDailyTask(dateStr, title, category) {
  * @returns {Array<{fileName: string, fileId: string, date: string, heading: string, snippet: string}>} Match results.
  */
 function searchAcrossAllMonthlyDocs(query) {
+  var auth = validateUserAccess();
+  if (!auth.authorized) return [];
+
   var cleanQuery = (query || '').trim().toLowerCase();
   if (!cleanQuery) return [];
 
