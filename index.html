@@ -81,27 +81,21 @@
       <!-- Center: View Navigation Segmented Control -->
       <nav class="view-segmented-control" aria-label="Planner Views">
         <button type="button" class="segment-btn" :class="{ 'active': activeView === 'daily' }" @click="setView('daily')" title="Daily 3-Column View">
-          <span class="material-symbols-outlined icon-16">calendar_today</span>
           <span>Today</span>
         </button>
         <button type="button" class="segment-btn" :class="{ 'active': activeView === 'monthly-calendar' }" @click="setView('monthly-calendar')" title="Monthly Calendar View">
-          <span class="material-symbols-outlined icon-16">calendar_month</span>
           <span>Month</span>
         </button>
         <button type="button" class="segment-btn" :class="{ 'active': activeView === 'master-tasks' }" @click="setView('master-tasks')" title="Master Task List">
-          <span class="material-symbols-outlined icon-16">checklist</span>
           <span>Master Tasks</span>
         </button>
         <button type="button" class="segment-btn" :class="{ 'active': activeView === 'monthly-index' }" @click="setView('monthly-index')" title="#index Decision Registry">
-          <span class="material-symbols-outlined icon-16">topic</span>
           <span>Index</span>
         </button>
         <button type="button" class="segment-btn" :class="{ 'active': activeView === 'future-matrix' }" @click="setView('future-matrix')" title="Future Planning Matrix">
-          <span class="material-symbols-outlined icon-16">explore</span>
           <span>Future</span>
         </button>
         <button type="button" class="segment-btn" :class="{ 'active': activeView === 'about' }" @click="setView('about')" title="About & Specs">
-          <span class="material-symbols-outlined icon-16">info</span>
           <span>About</span>
         </button>
       </nav>
@@ -110,7 +104,7 @@
       <div class="header-actions-compact">
         <button type="button" class="search-trigger-compact" @click="toggleSearchModal()" title="Search Across All Items (Ctrl+K)">
           <span class="material-symbols-outlined icon-18">search</span>
-          <span class="search-label">Search</span>
+          <span class="search-label">Search planner...</span>
           <kbd class="kbd-shortcut-sm">⌘K</kbd>
         </button>
         <button type="button" class="sync-btn-compact" @click="trigger2WaySync()" :disabled="isSyncing" title="Sync with Google Calendar & Tasks">

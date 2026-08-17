@@ -133,13 +133,13 @@
   header.single-top-bar {
     background: #142e23 !important;
     color: #ffffff !important;
-    padding: 8px 16px;
+    padding: 6px 14px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     margin-bottom: 0;
-    min-height: 48px;
+    min-height: 46px;
     border-bottom: 2px solid #0b1c15;
     box-shadow: 0 2px 8px rgba(0,0,0,0.12);
     z-index: 100;
@@ -151,18 +151,18 @@
   .header-left {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
     flex-shrink: 0;
   }
 
   .brand-title-compact {
     font-family: var(--pico-header-font-family);
-    font-size: 1.15rem;
+    font-size: 1.1rem;
     font-weight: 700;
     letter-spacing: 0.3px;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     margin: 0;
     color: #ffffff !important;
     white-space: nowrap;
@@ -170,7 +170,7 @@
 
   .header-vdivider {
     width: 1px;
-    height: 22px;
+    height: 20px;
     background: rgba(255, 255, 255, 0.22);
     display: inline-block;
   }
@@ -184,15 +184,15 @@
   .date-controls-group {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
   }
 
   .icon-nav-btn {
     background: rgba(255, 255, 255, 0.15) !important;
     border: 1px solid rgba(255, 255, 255, 0.25) !important;
     color: #ffffff !important;
-    width: 26px;
-    height: 26px;
+    width: 24px;
+    height: 24px;
     padding: 0;
     border-radius: 50%;
     display: inline-flex;
@@ -210,10 +210,10 @@
     background: rgba(255, 255, 255, 0.18) !important;
     border: 1px solid rgba(255, 255, 255, 0.28) !important;
     color: #ffffff !important;
-    padding: 2px 9px;
+    padding: 2px 8px;
     border-radius: 12px;
     font-weight: 600;
-    font-size: 0.78rem;
+    font-size: 0.76rem;
     cursor: pointer;
     transition: background 0.15s ease;
     width: auto;
@@ -225,25 +225,25 @@
 
   .date-text-display {
     font-family: var(--pico-header-font-family);
-    font-size: 0.92rem;
+    font-size: 0.88rem;
     font-weight: 700;
     color: #ffffff !important;
-    margin-left: 4px;
+    margin-left: 2px;
     white-space: nowrap;
   }
 
-  /* View Segmented Control (Clean Individual Tabs / Pills) */
+  /* View Segmented Control (Clean Individual Tabs / Pills - Text-Only for Maximum Space Efficiency) */
   nav.view-segmented-control {
     display: flex;
     background: transparent !important;
     padding: 0;
     border-radius: 0;
-    gap: 4px;
+    gap: 3px;
     align-items: center;
     border: none !important;
     overflow-x: auto;
     max-width: 100%;
-    flex-shrink: 1;
+    flex-shrink: 0;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
   }
@@ -252,17 +252,17 @@
   }
 
   .segment-btn {
-    background: rgba(255, 255, 255, 0.14) !important;
-    border: 1px solid rgba(255, 255, 255, 0.25) !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+    border: 1px solid rgba(255, 255, 255, 0.22) !important;
     color: #ffffff !important;
-    padding: 5px 12px;
-    border-radius: 16px;
-    font-size: 0.82rem;
+    padding: 4px 10px;
+    border-radius: 14px;
+    font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    justify-content: center;
     transition: all 0.15s ease;
     white-space: nowrap;
     width: auto;
@@ -283,45 +283,60 @@
     box-shadow: 0 2px 6px rgba(0,0,0,0.2);
   }
 
-  .segment-btn.active .material-symbols-outlined {
-    color: #2d6a5a !important;
-  }
-
-  /* Compact Actions */
+  /* Compact Actions with Flexible Wide Search Input Bar */
   .header-actions-compact {
     display: flex;
     align-items: center;
     gap: 8px;
     flex-shrink: 0;
+    flex: 1;
+    justify-content: flex-end;
+    min-width: 0;
     margin-left: auto;
   }
 
   .search-trigger-compact {
-    background: rgba(255, 255, 255, 0.15) !important;
-    border: 1px solid rgba(255, 255, 255, 0.25) !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+    border: 1px solid rgba(255, 255, 255, 0.22) !important;
     color: #ffffff !important;
-    padding: 3px 9px;
-    border-radius: 16px;
+    padding: 4px 10px;
+    border-radius: 14px;
     font-size: 0.8rem;
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    justify-content: space-between;
+    gap: 6px;
     cursor: pointer;
-    transition: background 0.15s ease;
-    width: auto;
+    transition: all 0.15s ease;
+    flex: 1;
+    min-width: 130px;
+    max-width: 220px;
   }
 
   .search-trigger-compact:hover {
-    background: rgba(255, 255, 255, 0.28) !important;
+    background: rgba(255, 255, 255, 0.25) !important;
+    border-color: rgba(255, 255, 255, 0.38) !important;
+  }
+
+  .search-label {
+    flex: 1;
+    text-align: left;
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.85);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .kbd-shortcut-sm {
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0.25);
     color: rgba(255, 255, 255, 0.9) !important;
     padding: 1px 5px;
     border-radius: 4px;
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     font-family: inherit;
+    font-weight: 600;
+    flex-shrink: 0;
   }
 
   .sync-btn-compact {
