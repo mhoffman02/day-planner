@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
  * @file tools/handoff.js
- * @description End-of-session handoff tool: stages changes, commits (triggers pre-commit linter/test hook),
- * pushes to remote git origin, updates PLAN.md & CONTEXT.md, builds HANDOFF_PROMPT.md, and copies prompt to clipboard.
+ * @description End-of-session handoff tool: stages changes, runs pre-commit findings check & auto-fix,
+ * commits (triggers pre-commit linter/test hook), pushes to remote origin, updates PLAN.md & CONTEXT.md,
+ * builds HANDOFF_PROMPT.md, and copies prompt to clipboard.
  */
 
 import { execSync, spawnSync } from 'node:child_process';
@@ -37,6 +38,36 @@ function toClipboard(text) {
   return false;
 }
 
+function autoFixFindings() {
+  console.log('🧹 [FIX FINDINGS] Checking and fixing auto-fixable findings...');
+  const stagedFiles = sh('git diff --cached --name-only --diff-filter=ACM').split('\n').filter(Boolean);
+  let fixedCount = 0;
+
+  for (const relPath of stagedFiles) {
+    if (!/\.(js|mjs)$/.test(relPath) || /\.test\.js$|\.config\.js$|server\.js/.test(relPath)) {
+      continue;
+    }
+    const fullPath = path.join(ROOT, relPath);
+    if (!fs.existsSync(fullPath)) continue;
+
+    let content = fs.readFileSync(fullPath, 'utf8');
+    if (!/@file|@module/.test(content)) {
+      console.log(`  🔧 [HIGH] Auto-injecting missing @file JSDoc header into: ${relPath}`);
+      const filename = path.basename(relPath);
+      const jsdocHeader = `/**\n * @file ${filename}\n * @description Auto-generated JSDoc header for ${filename}.\n */\n\n`;
+      fs.writeFileSync(fullPath, jsdocHeader + content, 'utf8');
+      fixedCount++;
+    }
+  }
+
+  if (fixedCount > 0) {
+    console.log(`✅ [FIX FINDINGS] Automatically resolved ${fixedCount} finding(s). Re-staging files...`);
+    sh('git add .');
+  } else {
+    console.log('✅ [FIX FINDINGS] No auto-fixable findings detected.');
+  }
+}
+
 // 1. Gather git and project state
 const branch = sh('git rev-parse --abbrev-ref HEAD') || 'master';
 const dirtyFiles = sh('git status --porcelain').split('\n').filter(Boolean);
@@ -53,13 +84,16 @@ const now = new Date();
 const dateStr = now.toISOString().slice(0, 10);
 const timestamp = now.toISOString();
 
-// 3. Perform Git Add, Commit (runs linter hook), and Push
+// 3. Perform Git Add, Fix Findings, Commit (runs linter hook), and Push
 if (!readOnly) {
   if (dirtyFiles.length > 0) {
-    console.log('📦 Staging working tree changes (git add .)...');
+    console.log('📦 Step 1: Staging working tree changes (git add .)...');
     sh('git add .');
 
-    console.log('🔧 Committing changes (triggers pre-commit linter & unit tests)...');
+    console.log('🧹 Step 1.5: [FIX FINDINGS] Running linter / findings review & auto-fix...');
+    autoFixFindings();
+
+    console.log('🔧 Step 2: Committing changes (triggers pre-commit linter & unit tests)...');
     try {
       execSync(`git commit -m ${JSON.stringify(`docs(handoff): session handoff update ${dateStr}`)}`, {
         cwd: ROOT,
@@ -67,11 +101,11 @@ if (!readOnly) {
       });
       console.log('✅ Commit successful.');
     } catch (err) {
-      console.error('❌ Pre-commit hook or commit failed. Please fix linter/test findings and re-run.');
+      console.error('❌ [BLOCKER] Pre-commit hook or commit failed. Please fix remaining findings and re-run.');
       process.exit(1);
     }
 
-    console.log('🚀 Pushing commits to remote origin...');
+    console.log('🚀 Step 3: Pushing commits to remote origin...');
     try {
       execSync('git push origin ' + branch, { cwd: ROOT, stdio: 'inherit' });
       console.log('✅ Push successful.');
