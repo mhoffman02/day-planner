@@ -154,3 +154,18 @@ All three cross-origin loading strategies fail when a GitHub Pages shell tries t
 **If live 2-way GAS sync is required in future:** implement OAuth 2.0 PKCE client flow (user authenticates in a popup, token stored in IndexedDB) or deploy the app as a fully standalone GAS Web App served directly from `script.google.com`.
 
 ---
+
+## 2026-08-17 — PWA Shell Offline Hydration, Alpine DOM Mount Timing & Bundle Syntax Fixes
+
+**Worked well:**
+- Embedding pre-compiled BUILTIN_BUNDLES enables 0ms zero-network cold start on GitHub Pages
+- Injecting bundle.script synchronously into head before innerHTML resolved all Alpine x-data evaluation race conditions
+- Dual-registration pattern in Script.html ensures seamless compatibility across both PWA shell and standalone GAS environments
+- Clean local rebuild of BUILTIN_BUNDLES eliminated regex dollar sign syntax corruptions
+- All 64 unit tests pass cleanly across 18 test suites
+
+**Needs improvement:**
+- Avoid using regex string replacement with unescaped capture group tokens when bundling JS literals containing dollar amounts
+- Always consider Alpine MutationObserver synchronous evaluation order when dynamically mounting reactive HTML bundles
+
+---
