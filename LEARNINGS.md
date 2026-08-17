@@ -40,3 +40,18 @@
 - Fixed handoff.js step order so CONTEXT.md and HANDOFF_PROMPT.md are generated before git add/commit/push
 
 ---
+
+## 2026-08-17 — UI/UX, Accessibility & Responsive Refinements
+
+**Worked well:**
+- Restored Light Mode tokens and palette parity
+- Fixed modal dialog DOM nesting and ARIA semantics
+- Added mobile 3-panel daily switcher and WCAG touch targets
+- Upgraded dark mode placeholder contrast to >5.2:1 with focus rings
+- All 42 unit tests passing
+
+**Needs improvement:**
+- Prevent future theme selector collisions between root light and dark scopes
+- Add automated accessibility linter to CI/test suite
+
+---
