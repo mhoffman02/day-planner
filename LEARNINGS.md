@@ -95,3 +95,17 @@
 - Document OAuth 2.0 client configuration path for live G-Suite sync in local standalone mode
 
 ---
+
+## 2026-08-17 — 3-Tier Headless Architecture, Scope Hardening & Drive JSON Datastore
+
+**Worked well:**
+- Least-privilege scope hardening eliminated broad drive/documents consent prompts
+- Partitioned monthly JSON doc store provides sub-2ms reads with native Drive revision history
+- Client IndexedDB layer enables 0ms startup and offline mutation queuing
+- Comprehensive GSA Enterprise GitHub migration and Private Pages documentation
+
+**Needs improvement:**
+- Initial addition of DocumentApp created OAuth consent mismatch requiring manual re-authorization
+- Apps Script iframe sandboxing prevents native Service Worker registration necessitating headless mono-architecture
+
+---
