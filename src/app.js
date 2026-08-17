@@ -152,7 +152,23 @@ if ('serviceWorker' in navigator) {
         }
       },
 
+      saveColumnWidthsDebounced(delay = 500) {
+        if (this._colWidthsSaveTimer) {
+          clearTimeout(this._colWidthsSaveTimer);
+        }
+        this._colWidthsSaveTimer = setTimeout(() => {
+          try {
+            localStorage.setItem('dayPlannerColumnWidths', JSON.stringify(this.colWidths));
+          } catch (e) {
+            console.warn('Could not save column widths:', e);
+          }
+        }, delay);
+      },
+
       resetColumnWidths() {
+        if (this._colWidthsSaveTimer) {
+          clearTimeout(this._colWidthsSaveTimer);
+        }
         this.colWidths = [33.33, 33.33, 33.34];
         try {
           localStorage.removeItem('dayPlannerColumnWidths');
@@ -167,7 +183,7 @@ if ('serviceWorker' in navigator) {
         if (!spreadEl) return;
 
         const rect = spreadEl.getBoundingClientRect();
-        const resizersTotalPx = 32;
+        const resizersTotalPx = 40;
         const availableWidth = rect.width - resizersTotalPx;
         if (availableWidth <= 0) return;
 
@@ -215,6 +231,7 @@ if ('serviceWorker' in navigator) {
           }
 
           this.colWidths = newWidths;
+          this.saveColumnWidthsDebounced(500);
         };
 
         const onPointerUp = () => {
@@ -226,9 +243,7 @@ if ('serviceWorker' in navigator) {
           window.removeEventListener('touchmove', onPointerMove);
           window.removeEventListener('touchend', onPointerUp);
 
-          try {
-            localStorage.setItem('dayPlannerColumnWidths', JSON.stringify(this.colWidths));
-          } catch (e) {}
+          this.saveColumnWidthsDebounced(500);
         };
 
         window.addEventListener('mousemove', onPointerMove);
@@ -446,8 +461,13 @@ if ('serviceWorker' in navigator) {
 
         lines.forEach(line => {
           if (line.startsWith('### ') || line.startsWith('# ')) {
-            if (currentCard) cards.push(currentCard);
             let headingClean = line.replace(/^#+\s*/, '').trim();
+            // Skip document date header lines (e.g., "# Aug 15, 2026") from creating boxed topic cards
+            if (/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},\s*\d{4}$/i.test(headingClean) ||
+                /^\d{4}-\d{2}-\d{2}$/.test(headingClean)) {
+              return;
+            }
+            if (currentCard) cards.push(currentCard);
             headingClean = headingClean.replace(/Daily Log\s*-\s*/i, '');
             headingClean = headingClean.replace(/January/i, 'Jan')
                                        .replace(/February/i, 'Feb')

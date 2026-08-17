@@ -61,6 +61,50 @@
     color: #142e23 !important;
   }
 
+  /* Custom Themed Scrollbars Design System */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #a8cfc3 #f4f8f6;
+  }
+
+  [data-theme="dark"] * {
+    scrollbar-width: thin;
+    scrollbar-color: #2c5e50 #11231c;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #f4f8f6;
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: #a8cfc3;
+    border-radius: 4px;
+    border: 2px solid #f4f8f6;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: #2d6a5a;
+  }
+
+  [data-theme="dark"] ::-webkit-scrollbar-track {
+    background: #11231c;
+  }
+
+  [data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background-color: #2c5e50;
+    border: 2px solid #11231c;
+  }
+
+  [data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    background-color: #3d7a68;
+  }
+
   * {
     box-sizing: border-box;
   }
@@ -139,13 +183,33 @@
     align-items: center;
     gap: 10px;
     margin-bottom: 0;
-    min-height: 46px;
+    min-height: 48px;
     border-bottom: 2px solid #0b1c15;
     box-shadow: 0 2px 8px rgba(0,0,0,0.12);
     z-index: 100;
     max-width: 100%;
     box-sizing: border-box;
     overflow: hidden;
+  }
+
+  header.single-top-bar button,
+  header.single-top-bar input,
+  header.single-top-bar select,
+  header.single-top-bar span,
+  header.single-top-bar div,
+  header.single-top-bar h1,
+  header.single-top-bar nav {
+    margin-top: 0;
+    margin-bottom: 0;
+    box-sizing: border-box;
+  }
+
+  header.single-top-bar .material-symbols-outlined {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    vertical-align: middle;
+    line-height: 1;
   }
 
   .header-left {
@@ -160,12 +224,13 @@
     font-size: 1.1rem;
     font-weight: 700;
     letter-spacing: 0.3px;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 5px;
     margin: 0;
     color: #ffffff !important;
     white-space: nowrap;
+    line-height: 1;
   }
 
   .header-vdivider {
@@ -173,6 +238,8 @@
     height: 20px;
     background: rgba(255, 255, 255, 0.22);
     display: inline-block;
+    align-self: center;
+    margin: 0 2px;
   }
 
   /* Compact Date Controls */
@@ -191,8 +258,8 @@
     background: rgba(255, 255, 255, 0.15) !important;
     border: 1px solid rgba(255, 255, 255, 0.25) !important;
     color: #ffffff !important;
-    width: 24px;
-    height: 24px;
+    width: 26px;
+    height: 26px;
     padding: 0;
     border-radius: 50%;
     display: inline-flex;
@@ -200,6 +267,8 @@
     justify-content: center;
     cursor: pointer;
     transition: background 0.15s ease;
+    line-height: 1;
+    flex-shrink: 0;
   }
 
   .icon-nav-btn:hover {
@@ -210,13 +279,19 @@
     background: rgba(255, 255, 255, 0.18) !important;
     border: 1px solid rgba(255, 255, 255, 0.28) !important;
     color: #ffffff !important;
-    padding: 2px 8px;
-    border-radius: 12px;
+    height: 26px;
+    padding: 0 10px;
+    border-radius: 13px;
     font-weight: 600;
     font-size: 0.76rem;
     cursor: pointer;
     transition: background 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
     width: auto;
+    flex-shrink: 0;
   }
 
   .today-jump-btn:hover {
@@ -228,8 +303,11 @@
     font-size: 0.88rem;
     font-weight: 700;
     color: #ffffff !important;
-    margin-left: 2px;
+    margin-left: 4px;
     white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
   }
 
   /* View Segmented Control (Clean Individual Tabs / Pills - Text-Only for Maximum Space Efficiency) */
@@ -238,7 +316,7 @@
     background: transparent !important;
     padding: 0;
     border-radius: 0;
-    gap: 3px;
+    gap: 4px;
     align-items: center;
     border: none !important;
     overflow-x: auto;
@@ -255,7 +333,8 @@
     background: rgba(255, 255, 255, 0.12) !important;
     border: 1px solid rgba(255, 255, 255, 0.22) !important;
     color: #ffffff !important;
-    padding: 4px 10px;
+    height: 28px;
+    padding: 0 12px;
     border-radius: 14px;
     font-size: 0.8rem;
     font-weight: 600;
@@ -267,6 +346,14 @@
     white-space: nowrap;
     width: auto;
     flex-shrink: 0;
+    line-height: 1;
+    box-sizing: border-box;
+  }
+
+  .segment-btn span {
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
   }
 
   .segment-btn:hover {
@@ -299,7 +386,8 @@
     background: rgba(255, 255, 255, 0.12) !important;
     border: 1px solid rgba(255, 255, 255, 0.22) !important;
     color: #ffffff !important;
-    padding: 4px 10px;
+    height: 28px;
+    padding: 0 10px;
     border-radius: 14px;
     font-size: 0.8rem;
     display: inline-flex;
@@ -311,6 +399,8 @@
     flex: 1;
     min-width: 130px;
     max-width: 220px;
+    line-height: 1;
+    box-sizing: border-box;
   }
 
   .search-trigger-compact:hover {
@@ -326,33 +416,45 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
   }
 
   .kbd-shortcut-sm {
     background: rgba(0, 0, 0, 0.25);
     color: rgba(255, 255, 255, 0.9) !important;
-    padding: 1px 5px;
+    padding: 0 5px;
+    height: 18px;
     border-radius: 4px;
     font-size: 0.68rem;
     font-family: inherit;
     font-weight: 600;
     flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
   }
 
   .sync-btn-compact {
     background: rgba(255, 255, 255, 0.15) !important;
     border: 1px solid rgba(255, 255, 255, 0.25) !important;
     color: #ffffff !important;
-    padding: 3px 9px;
-    border-radius: 16px;
+    height: 28px;
+    padding: 0 12px;
+    border-radius: 14px;
     font-size: 0.8rem;
     font-weight: 600;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 4px;
     cursor: pointer;
     transition: background 0.15s ease;
     width: auto;
+    line-height: 1;
+    box-sizing: border-box;
   }
 
   .sync-btn-compact:hover {
@@ -372,6 +474,9 @@
     justify-content: center;
     cursor: pointer;
     transition: background 0.15s ease;
+    line-height: 1;
+    box-sizing: border-box;
+    flex-shrink: 0;
   }
 
   .theme-toggle-compact:hover {
@@ -446,22 +551,28 @@
     section.two-page-spread {
       display: flex;
       flex-direction: row;
+      box-sizing: border-box;
+      width: 100%;
+      overflow-x: hidden;
     }
 
     section.two-page-spread .col-tasks {
-      flex: 0 0 calc(var(--col1-w, 33.33%) - 12px);
+      flex: 0 0 calc(var(--col1-w, 33.33%) - 13.33px);
+      max-width: calc(var(--col1-w, 33.33%) - 13.33px);
       min-width: 180px;
       box-sizing: border-box;
     }
 
     section.two-page-spread .col-appointments {
-      flex: 0 0 calc(var(--col2-w, 33.33%) - 12px);
+      flex: 0 0 calc(var(--col2-w, 33.33%) - 13.33px);
+      max-width: calc(var(--col2-w, 33.33%) - 13.33px);
       min-width: 180px;
       box-sizing: border-box;
     }
 
     section.two-page-spread .col-notes {
-      flex: 0 0 calc(var(--col3-w, 33.34%) - 12px);
+      flex: 0 0 calc(var(--col3-w, 33.34%) - 13.34px);
+      max-width: calc(var(--col3-w, 33.34%) - 13.34px);
       min-width: 180px;
       box-sizing: border-box;
     }
@@ -721,14 +832,27 @@
 
   /* Daily Notes Column & Franklin Lined Paper Aesthetic (Light Mode) */
   article.notes-column-panel {
-    background-color: #f7faf8 !important;
-    background-image: repeating-linear-gradient(transparent, transparent 27px, #d2e5de 28px) !important;
-    background-attachment: local;
-    line-height: 28px;
+    background: #ffffff !important;
     position: relative;
     padding: 16px;
     color: #142e23 !important;
     border: 1px solid #c8ded7 !important;
+  }
+
+  .notes-date-text {
+    font-family: var(--pico-header-font-family);
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #fcfbfa !important; /* Cream always, not mint */
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+    padding: 0 !important;
+    margin-left: 8px;
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
   }
 
   .notes-column-panel .panel-header-title,
@@ -1997,11 +2121,15 @@
 
   /* Daily Notes Dark Mode Palette (Dark Forest Aesthetic) */
   [data-theme="dark"] article.notes-column-panel {
-    background-color: #142820 !important;
-    background-image: repeating-linear-gradient(transparent, transparent 27px, #204536 28px) !important;
-    background-attachment: local;
+    background: #193328 !important;
     border-color: #244a3b !important;
     color: #e2f2ec !important;
+  }
+
+  [data-theme="dark"] .notes-date-text {
+    color: #fcfbfa !important; /* Cream always, not mint */
+    background: transparent !important;
+    border: none !important;
   }
 
   [data-theme="dark"] .notes-column-panel .panel-header-title {
