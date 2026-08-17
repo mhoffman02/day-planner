@@ -109,3 +109,18 @@
 - Apps Script iframe sandboxing prevents native Service Worker registration necessitating headless mono-architecture
 
 ---
+
+## 2026-08-17 — PWA Shell Loader Architecture & GAS Privacy Bundling
+
+**Worked well:**
+- Implemented minimal ~80-line public PWA shell on GitHub Pages while keeping 100% of business logic and binder templates private in Google Apps Script
+- Enabled true 100% offline cold-start (Airplane Mode) with IndexedDB bundle caching and Service Worker
+- Built dynamic bundle compiler in GAS with CORS and hash-based hot-updates
+- Created accessible 10-second auto-dismiss Toast notification system with 1-click Drive folder auto-provisioning
+- All 64 unit tests passing across 18 test suites
+
+**Needs improvement:**
+- Ensure initial GAS Web App URL entry screen is user-friendly and well-guided on first cold boot
+- Expand automated integration tests simulating browser service worker cache eviction under storage pressure
+
+---
