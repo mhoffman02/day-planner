@@ -1,0 +1,66 @@
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    var form = document.getElementById('formContainer');
+    if (form) {
+      form.addEventListener('submit', function(event) {
+        event.preventDefault();
+        submitFolderUrl();
+      });
+    }
+  });
+
+  function submitFolderUrl() {
+    var input = document.getElementById('folderUrlInput').value.trim();
+    var statusBox = document.getElementById('statusBox');
+    var submitBtn = document.getElementById('submitBtn');
+    var ackContainer = document.getElementById('ackContainer');
+
+    if (!input) {
+      statusBox.className = 'status-box error';
+      statusBox.style.display = 'block';
+      statusBox.innerHTML = '<span class="material-symbols-outlined">warning</span> Please paste your Google Drive folder web link or folder ID.';
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.innerText = 'Validating Folder...';
+    statusBox.style.display = 'none';
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler(onSuccess)
+        .withFailureHandler(onFailure)
+        .validateAndSaveFolderUrl(input);
+    } else {
+      // Local preview mock fallback
+      setTimeout(function() {
+        onSuccess({ success: true, folderName: 'Day Planner', folderId: '1N2WRrFmtsAWKgqeaFIj9HtiQ2wupFEk0' });
+      }, 500);
+    }
+
+    function onSuccess(res) {
+      submitBtn.disabled = false;
+      submitBtn.innerText = 'Validate & Connect Folder';
+
+      if (res && res.success) {
+        statusBox.className = 'status-box success';
+        statusBox.style.display = 'block';
+        statusBox.innerHTML = '<b><span class="material-symbols-outlined">check_circle</span> Success!</b> Connected to Google Drive folder: <b>"' + res.folderName + '"</b>.';
+        document.getElementById('formContainer').style.display = 'none';
+        ackContainer.style.display = 'block';
+      } else {
+        statusBox.className = 'status-box error';
+        statusBox.style.display = 'block';
+        statusBox.innerHTML = '<b><span class="material-symbols-outlined">error</span> Invalid Folder URL or Access Denied:</b> ' + (res.error || 'Folder not found. Please verify the URL and try again.');
+      }
+    }
+
+    function onFailure(err) {
+      submitBtn.disabled = false;
+      submitBtn.innerText = 'Validate & Connect Folder';
+      statusBox.className = 'status-box error';
+      statusBox.style.display = 'block';
+      statusBox.innerHTML = '<b><span class="material-symbols-outlined">error</span> Validation Error:</b> ' + (err.message || err.toString());
+    }
+  }
+</script>

@@ -22,19 +22,8 @@
   </script>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0">
   <?!= include('Styles'); ?>
-<style>
-    body {
-      background-color: var(--pico-background-color, #12241d);
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 20px;
-      margin: 0;
-    }
-  </style>
 </head>
-<body>
+<body class="setup-body">
   <main>
     <article class="card">
       <header>
@@ -51,7 +40,7 @@
         </ol>
       </section>
 
-      <form id="formContainer" onsubmit="event.preventDefault(); submitFolderUrl();">
+      <form id="formContainer">
         <label class="form-label" for="folderUrlInput">Google Drive Folder Web Link or ID:</label>
         <input type="text" id="folderUrlInput" placeholder="https://drive.google.com/drive/folders/1N2WRrFmts..." value="https://drive.google.com/drive/u/0/folders/1N2WRrFmtsAWKgqeaFIj9HtiQ2wupFEk0">
         <button type="submit" id="submitBtn" class="btn-primary">Validate & Connect Folder</button>
@@ -69,61 +58,6 @@
     </article>
   </main>
 
-  <script>
-    function submitFolderUrl() {
-      var input = document.getElementById('folderUrlInput').value.trim();
-      var statusBox = document.getElementById('statusBox');
-      var submitBtn = document.getElementById('submitBtn');
-      var ackContainer = document.getElementById('ackContainer');
-
-      if (!input) {
-        statusBox.className = 'status-box error';
-        statusBox.style.display = 'block';
-        statusBox.innerHTML = '<span class="material-symbols-outlined">warning</span> Please paste your Google Drive folder web link or folder ID.';
-        return;
-      }
-
-      submitBtn.disabled = true;
-      submitBtn.innerText = 'Validating Folder...';
-      statusBox.style.display = 'none';
-
-      if (typeof google !== 'undefined' && google.script && google.script.run) {
-        google.script.run
-          .withSuccessHandler(onSuccess)
-          .withFailureHandler(onFailure)
-          .validateAndSaveFolderUrl(input);
-      } else {
-        // Local preview mock fallback
-        setTimeout(function() {
-          onSuccess({ success: true, folderName: 'Day Planner', folderId: '1N2WRrFmtsAWKgqeaFIj9HtiQ2wupFEk0' });
-        }, 500);
-      }
-
-      function onSuccess(res) {
-        submitBtn.disabled = false;
-        submitBtn.innerText = 'Validate & Connect Folder';
-
-        if (res && res.success) {
-          statusBox.className = 'status-box success';
-          statusBox.style.display = 'block';
-          statusBox.innerHTML = '<b><span class="material-symbols-outlined">check_circle</span> Success!</b> Connected to Google Drive folder: <b>"' + res.folderName + '"</b>.';
-          document.getElementById('formContainer').style.display = 'none';
-          ackContainer.style.display = 'block';
-        } else {
-          statusBox.className = 'status-box error';
-          statusBox.style.display = 'block';
-          statusBox.innerHTML = '<b><span class="material-symbols-outlined">error</span> Invalid Folder URL or Access Denied:</b> ' + (res.error || 'Folder not found. Please verify the URL and try again.');
-        }
-      }
-
-      function onFailure(err) {
-        submitBtn.disabled = false;
-        submitBtn.innerText = 'Validate & Connect Folder';
-        statusBox.className = 'status-box error';
-        statusBox.style.display = 'block';
-        statusBox.innerHTML = '<b><span class="material-symbols-outlined">error</span> Validation Error:</b> ' + (err.message || err.toString());
-      }
-    }
-  </script>
+  <?!= include('SetupScript'); ?>
 </body>
 </html>

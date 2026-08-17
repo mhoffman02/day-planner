@@ -29,17 +29,6 @@
   <meta name="apple-mobile-web-app-title" content="Day Planner">
   <link rel="apple-touch-icon" href="/icons/icon.svg">
   <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/sw.js').then(function(registration) {
-          console.log('[PWA] ServiceWorker registered with scope:', registration.scope);
-        }).catch(function(err) {
-          console.warn('[PWA] ServiceWorker registration failed:', err);
-        });
-      });
-    }
-  </script>
 </head>
 <body>
   <!-- Main Binder Application Container -->
@@ -65,7 +54,7 @@
               <button type="button" class="icon-nav-btn" @click="navigateDay(-1)" title="Previous Day" aria-label="Previous Day">
                 <span class="material-symbols-outlined icon-18">chevron_left</span>
               </button>
-              <button type="button" class="today-jump-btn" @click="selectedDate = new Date().toISOString().slice(0, 10); loadDayData()" title="Jump to Today">Today</button>
+              <button type="button" class="today-jump-btn" @click="jumpToToday()" title="Jump to Today">Today</button>
               <button type="button" class="icon-nav-btn" @click="navigateDay(1)" title="Next Day" aria-label="Next Day">
                 <span class="material-symbols-outlined icon-18">chevron_right</span>
               </button>
@@ -320,7 +309,7 @@
               <template x-if="noteCardSearchQuery || noteCardCategoryFilter !== 'ALL'">
                 <div class="filter-indicator-bar">
                   <span>Filtered: <strong x-text="noteCardCategoryFilter !== 'ALL' ? noteCardCategoryFilter : ''"></strong> <span x-text="noteCardSearchQuery ? ('&quot;' + noteCardSearchQuery + '&quot;') : ''"></span></span>
-                  <button type="button" class="btn-link-sm" @click="noteCardSearchQuery = ''; noteCardCategoryFilter = 'ALL';">Clear</button>
+                  <button type="button" class="btn-link-sm" @click="clearNoteCardFilter()">Clear</button>
                 </div>
               </template>
 
@@ -398,7 +387,7 @@
           </header>
           <section class="monthly-grid" aria-label="Calendar Grid Matrix">
             <template x-for="day in monthlyGrid">
-              <article class="calendar-day-cell" :class="{ 'other-month': !day.isCurrentMonth }" @click="if (day.dateStr) { selectedDate = day.dateStr; setView('daily'); loadDayData(); }">
+              <article class="calendar-day-cell" :class="{ 'other-month': !day.isCurrentMonth }" @click="selectCalendarDay(day)">
                 <header class="day-num" x-text="day.dayNum"></header>
                 <template x-for="evt in day.events" :key="evt.id">
                   <div class="event-pill event-pill-sm" x-text="evt.title"></div>

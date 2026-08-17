@@ -6,6 +6,17 @@
 import { GASBridge } from './gasBridge.js';
 window.GASBridge = GASBridge;
 
+// Register ServiceWorker for PWA offline support
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/sw.js').then(function(registration) {
+      console.log('[PWA] ServiceWorker registered with scope:', registration.scope);
+    }).catch(function(err) {
+      console.warn('[PWA] ServiceWorker registration failed:', err);
+    });
+  });
+}
+
 // Helper engine definitions bundled for GAS SPA client
   const STATUS_LIST = ['•', '✓', '→', 'X', 'G/✓'];
 
@@ -336,6 +347,27 @@ window.GASBridge = GASBridge;
         await this.loadMasterTasks();
         if (this.activeView === 'monthly-calendar') {
           this.buildMonthlyGrid();
+        }
+      },
+
+      async jumpToToday() {
+        this.selectedDate = new Date().toISOString().slice(0, 10);
+        const d = new Date(`${this.selectedDate}T00:00:00`);
+        this.selectedYear = d.getFullYear();
+        this.selectedMonth = d.getMonth() + 1;
+        await this.loadDayData();
+      },
+
+      clearNoteCardFilter() {
+        this.noteCardSearchQuery = '';
+        this.noteCardCategoryFilter = 'ALL';
+      },
+
+      async selectCalendarDay(day) {
+        if (day && day.dateStr) {
+          this.selectedDate = day.dateStr;
+          await this.setView('daily');
+          await this.loadDayData();
         }
       },
 

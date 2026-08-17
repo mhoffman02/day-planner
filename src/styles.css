@@ -77,6 +77,11 @@
     align-items: flex-start;
   }
 
+  body.setup-body {
+    align-items: center;
+    padding: 20px;
+  }
+
   /* Material Symbols Font Integration */
   .material-symbols-outlined {
     font-family: 'Material Symbols Outlined';

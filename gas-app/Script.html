@@ -474,6 +474,27 @@
         }
       },
 
+      async jumpToToday() {
+        this.selectedDate = new Date().toISOString().slice(0, 10);
+        const d = new Date(`${this.selectedDate}T00:00:00`);
+        this.selectedYear = d.getFullYear();
+        this.selectedMonth = d.getMonth() + 1;
+        await this.loadDayData();
+      },
+
+      clearNoteCardFilter() {
+        this.noteCardSearchQuery = '';
+        this.noteCardCategoryFilter = 'ALL';
+      },
+
+      async selectCalendarDay(day) {
+        if (day && day.dateStr) {
+          this.selectedDate = day.dateStr;
+          await this.setView('daily');
+          await this.loadDayData();
+        }
+      },
+
       async loadDayData() {
         try {
           const data = await this.bridge.getDailyData(this.selectedDate);
