@@ -201,3 +201,59 @@ Whenever you build a new private Google Apps Script tool:
 - [ ] **3.** Launch `https://<your-username>.github.io/shell/?app=<new-app-name>`.
 - [ ] **4.** Enter Web App URL on first prompt.
 - [ ] **5.** Click **Install PWA** or add to Home Screen.
+
+---
+
+## 9. Known Platform Constraint: GAS Cross-Origin Loading Failures
+
+> **This section documents why direct cross-origin bundle fetching from GitHub Pages to GAS is not possible, and what the correct solution is.**
+
+### Failed Approaches (Do Not Retry)
+
+| # | Strategy | Error | Root Cause |
+|---|----------|-------|------------|
+| 1 | `<iframe src="gasUrl">` | Infinite redirect loop | Chromium Tracking Prevention blocks 3rd-party Google auth cookies in embedded frames |
+| 2 | `fetch('gasUrl?action=bundle')` | `CORS policy: No 'Access-Control-Allow-Origin'` + `ERR_FAILED 302` | GAS edge gateway issues a 302→`accounts.google.com` redirect *before* `doGet()` runs — CORS headers are never set |
+| 3 | JSONP `<script src="gasUrl&callback=cb">` | HTTP 401 before callback fires | Same 302 auth redirect gate intercepts the `<script>` request before GAS code executes |
+| 4 | GAS Deployment reconfiguration | 401/login redirect persists | Google Workspace account/org policy enforces auth regardless of deployment access settings |
+
+**Root cause:** Google's infrastructure issues the HTTP 302 auth redirect at the network edge, before the Apps Script runtime (`doGet()`) ever executes. No `ContentService.setHeader()` call can set CORS headers on a 302 redirect response.
+
+### Correct Solution: BUILTIN_BUNDLES Embedded in pwa.js
+
+Instead of fetching the bundle at runtime, **pre-compile and embed** it directly inside `pwa.js` as a JavaScript constant:
+
+```javascript
+// gh-pwa-shell/pwa.js
+const BUILTIN_BUNDLES = {
+  'day-planner': {
+    version: '1.3.0',
+    hash: '...',
+    timestamp: '...',
+    bundle: { title, themeColor, styles, html, script }
+  }
+};
+```
+
+**`initPWA()` boot router (3-step priority):**
+
+```
+Step A: IndexedDB empty?
+  → Load from BUILTIN_BUNDLES → persist to IndexedDB → mountBundle() instantly ✅
+
+Step B: IndexedDB has bundle?
+  → mountBundle() instantly
+  → Background SWR: if gasUrl set & online, fetch update silently (ignore CORS errors)
+
+Step C: No bundle anywhere?
+  → Show "Connect Application" setup card
+```
+
+**Repo:** `mhoffman02/shell` | **Fix commit:** `3686a8b`
+
+### If Live 2-Way GAS Sync Is Required
+
+For real-time data sync with Google Workspace APIs, the correct approach is **not** cross-origin bundle fetching. Use one of:
+
+1. **OAuth 2.0 PKCE flow** — user authenticates via a Google popup, token stored in IndexedDB, API calls use the access token directly from the client.
+2. **Standalone GAS deployment** — serve the entire app directly from `script.google.com/macros/s/.../exec` (no GitHub Pages shell needed for that app).

@@ -124,3 +124,33 @@
 - Expand automated integration tests simulating browser service worker cache eviction under storage pressure
 
 ---
+
+## 2026-08-17 — GAS CORS/Auth Failure Investigation & BUILTIN_BUNDLES Solution
+
+**Problem:**
+All three cross-origin loading strategies fail when a GitHub Pages shell tries to pull the Day Planner bundle from a private Google Apps Script Web App:
+
+| Strategy | Failure Reason |
+|----------|----------------|
+| `<iframe>` embed | Chromium Tracking Prevention blocks 3rd-party Google auth cookies → infinite redirect loop |
+| `fetch()` from GAS | GAS issues HTTP 302→accounts.google.com before CORS headers are set → `ERR_FAILED` |
+| JSONP `<script>` | GAS returns HTTP 401 before JSONP callback can execute |
+
+**Root cause**: Google's edge gateway issues a 302 auth redirect *before* `doGet()` runs, so no `ContentService` CORS headers are ever sent. This is a platform-level constraint, not a configuration issue.
+
+**Solution — BUILTIN_BUNDLES (commit `3686a8b` in `mhoffman02/shell`):**
+- Pre-compiled Day Planner bundle embedded directly in `pwa.js` as `BUILTIN_BUNDLES['day-planner']`
+- On cold start with empty IndexedDB, `initPWA()` now reads from `BUILTIN_BUNDLES`, persists to IndexedDB, and `mountBundle()` instantly — zero network requests needed
+- If a GAS URL is later configured, background SWR fetches run silently and update the cache for next launch
+- Service worker bumped to v5; `vendor/alpine.min.js` bundled locally to eliminate all CDN dependencies
+
+**Critical bug fixed**: `BUILTIN_BUNDLES` was defined but never wired into `initPWA()`. The missing block was dropped during a merge conflict resolution. The fix adds the fallback check as **Step A** in the router flow, before any network fetch is attempted.
+
+**Do NOT retry these approaches:**
+- Cross-origin `fetch()` from GitHub Pages to GAS `/exec`
+- `<iframe>` embedding GAS URL in any external-origin page
+- JSONP transport via dynamic `<script src="gasUrl">`
+
+**If live 2-way GAS sync is required in future:** implement OAuth 2.0 PKCE client flow (user authenticates in a popup, token stored in IndexedDB) or deploy the app as a fully standalone GAS Web App served directly from `script.google.com`.
+
+---
