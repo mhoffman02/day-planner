@@ -27,3 +27,16 @@
 - Ensure mobile breakpoints cleanly hide drag handles to prevent accidental touch resize triggers on phone screens
 
 ---
+
+## 2026-08-17 — HTML Separation of Concerns Audit & Handoff Step Order Fix
+
+**Worked well:**
+- Standardized GAS template include pattern and eliminated inline styles/scripts
+- Extracted PWA inline styles and JS to external files with DOM listeners
+- Moved SW registration into src/app.js and added clean store template methods
+- All 41 unit tests passed cleanly
+
+**Needs improvement:**
+- Fixed handoff.js step order so CONTEXT.md and HANDOFF_PROMPT.md are generated before git add/commit/push
+
+---
