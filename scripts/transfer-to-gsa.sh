@@ -4,13 +4,7 @@
 
 set -e
 
-if [ -z "$1" ]; then
-  echo "Usage: ./scripts/transfer-to-gsa.sh <GSA_REPO_URL>"
-  echo "Example: ./scripts/transfer-to-gsa.sh git@github.com:GSA/day-planner.git"
-  exit 1
-fi
-
-GSA_URL="$1"
+GSA_URL="${1:-https://github.com/oO-Mike-Oo/day-planner.git}"
 
 echo "=== Configuring GSA Enterprise GitHub Remote ==="
 if git remote | grep -q "^gsa$"; then

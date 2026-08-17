@@ -7,25 +7,25 @@ This guide outlines how to transfer, clone, or dual-publish your **Day Planner**
 ## Method 1: Dual-Remote Workflow (Recommended)
 Keep your current origin and add a new `gsa` remote so you can push updates to both destinations with a single command.
 
-### Step 1: Create an Empty Private Repository on GSA GitHub
-1. Log in to your GSA Enterprise GitHub account (`github.com/GSA` or your agency org).
-2. Create a new repository named `day-planner` (Set visibility to **Private**).
+### Step 1: Create an Empty Private Repository on Target Account
+1. Log in to your GSA / GitHub account (`https://github.com/oO-Mike-Oo`).
+2. Create a new repository named `day-planner` (e.g. at `https://github.com/new`, set visibility to **Private** or **Public**).
 3. Do **not** initialize with a README, .gitignore, or license (keep it empty).
 
-### Step 2: Add the GSA Remote in Local Terminal
+### Step 2: Add the Remote in Local Terminal
 ```bash
-# Add the GSA remote (replace with your exact GSA repo URL):
-git remote add gsa git@github.com:GSA/day-planner.git
-# Or via HTTPS:
-# git remote add gsa https://github.com/GSA/day-planner.git
+# Add the remote (configured for oO-Mike-Oo):
+git remote add gsa https://github.com/oO-Mike-Oo/day-planner.git
+# Or via SSH:
+# git remote add gsa git@github.com:oO-Mike-Oo/day-planner.git
 
 # Verify remotes
 git remote -v
 ```
 
-### Step 3: Push All Branches and Tags to GSA
+### Step 3: Push All Branches and Tags
 ```bash
-# Push master branch to GSA Enterprise
+# Push master branch
 git push -u gsa master
 
 # Push all tags
@@ -36,7 +36,7 @@ git push gsa --tags
 To automatically push to both `origin` and `gsa` when running `git push`:
 ```bash
 git remote set-url --add --push origin https://github.com/mhoffman02/day-planner
-git remote set-url --add --push origin git@github.com:GSA/day-planner.git
+git remote set-url --add --push origin https://github.com/oO-Mike-Oo/day-planner.git
 ```
 
 ---
