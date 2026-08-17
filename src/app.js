@@ -1,6 +1,7 @@
-<script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-<script>
-  // Helper engine definitions bundled for GAS SPA client
+import { GASBridge } from './gasBridge.js';
+window.GASBridge = GASBridge;
+
+// Helper engine definitions bundled for GAS SPA client
   const STATUS_LIST = ['•', '✓', '→', 'X', 'G/✓'];
 
   function parseTaskTitle(rawTitle = '') {
@@ -829,4 +830,3 @@
       }
     }));
   });
-</script>

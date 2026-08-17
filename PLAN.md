@@ -85,6 +85,11 @@ The **Franklin-Google Digital Day Planner** is a high-efficiency single-page dig
 - [x] Implement 12 Monthly Google Docs sync architecture (`Day Planner Notes - August 2026`) with print-friendly formatting (page breaks per day, styled headers, bullet lists).
 - [x] Add custom `Planner 📖` menu to Google Docs (`onOpen`) with cross-month universal search sidebar and `#index` decision registry.
 
+### Phase 9: Standalone Root Application Decoupling
+- [x] Create root `index.html`, `src/styles.css`, and `src/app.js` to run 100% standalone without external project dependencies.
+- [x] Update `server.js` to serve root web application assets directly.
+- [x] Fix date fallback and local time parsing across mock data bridges.
+
 ---
 
 ## Verification Criteria

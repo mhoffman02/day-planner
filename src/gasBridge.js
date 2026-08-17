@@ -38,8 +38,8 @@ export class GASBridge {
           {
             id: 'e1',
             title: 'Morning Executive Briefing',
-            startTime: '2026-08-15T08:00:00Z',
-            endTime: '2026-08-15T08:30:00Z',
+            startTime: '2026-08-15T08:00:00',
+            endTime: '2026-08-15T08:30:00',
             location: 'Conference Room 1',
             description: 'Daily executive updates and Q3 metrics review.',
             meetLink: 'https://meet.google.com/abc-defg-hij'
@@ -47,8 +47,8 @@ export class GASBridge {
           {
             id: 'e2',
             title: 'Architecture & Design Review',
-            startTime: '2026-08-15T10:30:00Z',
-            endTime: '2026-08-15T11:30:00Z',
+            startTime: '2026-08-15T10:30:00',
+            endTime: '2026-08-15T11:30:00',
             location: 'Google Meet',
             description: 'Reviewing Day Planner UI binder layout and Alpine.js state bridge.',
             meetLink: 'https://meet.google.com/xyz-uvwx-rst'
@@ -56,8 +56,8 @@ export class GASBridge {
           {
             id: 'e3',
             title: 'Q3 Budget Approval Meeting',
-            startTime: '2026-08-15T14:00:00Z',
-            endTime: '2026-08-15T15:00:00Z',
+            startTime: '2026-08-15T14:00:00',
+            endTime: '2026-08-15T15:00:00',
             location: 'Boardroom B',
             description: 'Final sign-off on Q3 marketing & infrastructure budgets.',
             meetLink: 'https://meet.google.com/q3-budget-meet'
@@ -92,11 +92,22 @@ export class GASBridge {
    */
   async getDailyData(dateStr) {
     if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      const seedTasks = this.mockData.dailyTasks[dateStr] || this.mockData.dailyTasks['2026-08-15'] || [];
+      const seedEvents = this.mockData.calendarEvents[dateStr] || this.mockData.calendarEvents['2026-08-15'] || [];
+      const seedNote = this.mockData.dailyNotes[dateStr] || this.mockData.dailyNotes['2026-08-15'] || `No notes recorded for ${dateStr}.`;
+
+      const adjustedTasks = seedTasks.map(t => ({ ...t, dueDate: dateStr }));
+      const adjustedEvents = seedEvents.map(e => ({
+        ...e,
+        startTime: e.startTime ? e.startTime.replace(/^\d{4}-\d{2}-\d{2}/, dateStr).replace(/Z$/, '') : `${dateStr}T09:00:00`,
+        endTime: e.endTime ? e.endTime.replace(/^\d{4}-\d{2}-\d{2}/, dateStr).replace(/Z$/, '') : `${dateStr}T10:00:00`
+      }));
+
       return {
         date: dateStr,
-        tasks: this.mockData.dailyTasks[dateStr] || [],
-        calendarEvents: this.mockData.calendarEvents[dateStr] || [],
-        noteContent: this.mockData.dailyNotes[dateStr] || `No notes recorded for ${dateStr}.`
+        tasks: adjustedTasks,
+        calendarEvents: adjustedEvents,
+        noteContent: seedNote
       };
     }
 
