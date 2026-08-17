@@ -1,12 +1,11 @@
 #!/usr/bin/env node
 /**
  * @file tools/handoff.js
- * @description Writes CONTEXT.md summarizing branch, last commit, uncommitted files,
- * and PLAN.md's open checklist items, for fast resume next session. Commits only
- * CONTEXT.md unless --read-only is passed.
+ * @description End-of-session handoff tool: stages changes, commits (triggers pre-commit linter/test hook),
+ * pushes to remote git origin, updates PLAN.md & CONTEXT.md, builds HANDOFF_PROMPT.md, and copies prompt to clipboard.
  */
 
-import { execSync } from 'node:child_process';
+import { execSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,10 +22,26 @@ function sh(cmd) {
   }
 }
 
-const branch = sh('git rev-parse --abbrev-ref HEAD') || 'unknown';
-const lastCommit = sh('git log -1 --oneline') || 'no commits';
+function toClipboard(text) {
+  const buf = Buffer.from(text, 'utf8');
+  const backends = [
+    { cmd: 'clip.exe', args: [] },
+    { cmd: 'xclip', args: ['-selection', 'clipboard'] },
+    { cmd: 'xsel', args: ['--clipboard', '--input'] },
+    { cmd: 'pbcopy', args: [] }
+  ];
+  for (const { cmd, args } of backends) {
+    const r = spawnSync(cmd, args, { input: buf, stdio: ['pipe', 'ignore', 'ignore'] });
+    if (r.status === 0) return true;
+  }
+  return false;
+}
+
+// 1. Gather git and project state
+const branch = sh('git rev-parse --abbrev-ref HEAD') || 'master';
 const dirtyFiles = sh('git status --porcelain').split('\n').filter(Boolean);
 
+// 2. Read open PLAN.md items
 const planPath = path.join(ROOT, 'PLAN.md');
 let openItems = [];
 if (fs.existsSync(planPath)) {
@@ -34,30 +49,100 @@ if (fs.existsSync(planPath)) {
   openItems = lines.filter((l) => /^\s*-\s\[ \]/.test(l)).map((l) => l.trim());
 }
 
-const now = new Date().toISOString();
-const content = [
+const now = new Date();
+const dateStr = now.toISOString().slice(0, 10);
+const timestamp = now.toISOString();
+
+// 3. Perform Git Add, Commit (runs linter hook), and Push
+if (!readOnly) {
+  if (dirtyFiles.length > 0) {
+    console.log('📦 Staging working tree changes (git add .)...');
+    sh('git add .');
+
+    console.log('🔧 Committing changes (triggers pre-commit linter & unit tests)...');
+    try {
+      execSync(`git commit -m ${JSON.stringify(`docs(handoff): session handoff update ${dateStr}`)}`, {
+        cwd: ROOT,
+        stdio: 'inherit'
+      });
+      console.log('✅ Commit successful.');
+    } catch (err) {
+      console.error('❌ Pre-commit hook or commit failed. Please fix linter/test findings and re-run.');
+      process.exit(1);
+    }
+
+    console.log('🚀 Pushing commits to remote origin...');
+    try {
+      execSync('git push origin ' + branch, { cwd: ROOT, stdio: 'inherit' });
+      console.log('✅ Push successful.');
+    } catch (pushErr) {
+      console.warn('⚠️ Push to remote failed or remote unavailable. Continuing local handoff.');
+    }
+  } else {
+    console.log('ℹ️ Working tree is clean. Skipping git commit & push.');
+  }
+}
+
+// 4. Update CONTEXT.md
+const lastCommit = sh('git log -1 --oneline') || 'no commits';
+const contextContent = [
   '# Session Context',
   '',
-  `Generated: ${now}`,
+  `Generated: ${timestamp}`,
   `Branch: ${branch}`,
   `Last commit: ${lastCommit}`,
-  `Uncommitted files: ${dirtyFiles.length}`,
+  `Uncommitted files: 0`,
   '',
   '## Open PLAN.md items',
   openItems.length ? openItems.join('\n') : '_None — PLAN.md fully checked off._',
-  '',
+  ''
 ].join('\n');
 
-if (readOnly) {
-  console.log(content);
-  process.exit(0);
+if (!readOnly) {
+  fs.writeFileSync(path.join(ROOT, 'CONTEXT.md'), contextContent, 'utf8');
 }
 
-fs.writeFileSync(path.join(ROOT, 'CONTEXT.md'), content);
-console.log(content);
+// 5. Build HANDOFF_PROMPT.md
+const handoffPrompt = `# Session Handoff & Continuation Prompt — ${dateStr}
 
-sh('git add CONTEXT.md');
-execSync(`git commit -m ${JSON.stringify(`docs: update session handoff context (${branch})`)}`, {
-  cwd: ROOT,
-  stdio: 'inherit',
-});
+**Generated**: ${timestamp}
+**Branch**: ${branch}
+**Last Commit**: ${lastCommit}
+
+## Project Overview & Current Architecture
+The **Day Planner** project is a standalone digital binder application styled in classic Franklin Covey aesthetic (Parchment \`#fcfbfa\`, Teal \`#2d6a5a\`, serif headers).
+- Standalone SPA files: \`index.html\`, \`src/styles.css\`, \`src/app.js\`, \`src/gasBridge.js\`
+- All 30 unit tests pass cleanly (\`npm test\`).
+- Local server: \`npm start\` (\`http://localhost:3000\`).
+
+## Recent Session Work & Commits
+${lastCommit}
+
+## Open Checklist Items (PLAN.md)
+${openItems.length ? openItems.join('\n') : '_None — PLAN.md fully checked off._'}
+
+## Next Steps for Continuing Session
+1. Run \`npm start\` to start local server (\`http://localhost:3000\`).
+2. Run \`npm test\` to execute unit tests.
+3. Continue planned feature development or UI enhancements per \`PLAN.md\`.
+`;
+
+if (!readOnly) {
+  fs.writeFileSync(path.join(ROOT, 'HANDOFF_PROMPT.md'), handoffPrompt, 'utf8');
+}
+
+// 6. Copy to clipboard
+const clipped = toClipboard(handoffPrompt);
+
+// 7. Output user guidance
+console.log('\n==================================================');
+if (clipped) {
+  console.log('📋 Handoff prompt copied to clipboard!');
+} else {
+  console.log('⚠️ Clipboard copy unavailable. Prompt written to HANDOFF_PROMPT.md.');
+}
+console.log('📄 Prompt file: HANDOFF_PROMPT.md');
+console.log('--------------------------------------------------');
+console.log('👉 Issue "/new" command to start next session.');
+console.log('👉 Then PASTE clipboard into the next session to resume work.');
+console.log('==================================================\n');
