@@ -3,7 +3,7 @@
  * @description Auto-generated JSDoc header for sw.js.
  */
 
-const CACHE_NAME = 'day-planner-v3';
+const CACHE_NAME = 'day-planner-v6';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
