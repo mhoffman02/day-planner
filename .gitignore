@@ -5,3 +5,8 @@ clasp_ref/
 *.log
 scratch/
 .claude/
+.gemini/
+.idea/
+.vscode/
+output/
+*.tmp
