@@ -324,7 +324,9 @@
     return `${year}-${month}-${day}`;
   }
 
-  document.addEventListener('alpine:init', () => {
+  // Register Alpine component immediately if Alpine is already running (shell DOM-mount scenario),
+  // or via alpine:init event if this script loads before Alpine starts (standalone GAS deployment).
+  function _registerPlannerApp() {
     Alpine.data('plannerApp', () => ({
       activeView: 'daily',
       selectedDate: getLocalDateStr(),
@@ -1076,5 +1078,15 @@
         return parseTaskTitle(title);
       }
     }));
-  });
+  }
+
+  // Dual-registration: call directly if Alpine already started, otherwise wait for alpine:init.
+  // In the shell DOM-mount scenario, Alpine starts from vendor/alpine.min.js (defer) before
+  // bundle.script runs, so alpine:init has already fired — call directly.
+  // In a standalone GAS deployment, alpine:init fires after this script, so the listener handles it.
+  if (window.Alpine && typeof Alpine.data === 'function') {
+    _registerPlannerApp();
+  } else {
+    document.addEventListener('alpine:init', _registerPlannerApp);
+  }
 </script>
