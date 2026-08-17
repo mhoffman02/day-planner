@@ -1,6 +1,6 @@
 # Learnings
 
-## 2026-08-16 — 3-Column Workspace Layout & Modular Franklin Note Cards with Google Docs Menu
+## 2026-08-16 — 3-Column Workspace Layout & Modular Day Planner Note Cards with Google Docs Menu
 
 **Worked well:**
 - Interactive clarification questions guided optimal UX design

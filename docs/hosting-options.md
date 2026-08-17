@@ -9,7 +9,7 @@ graph LR
   subgraph FrontendShell [Mono Frontend: Private PWA Shell]
     SW[Service Worker sw.js<br/>App Shell Cache]
     IDB[(IndexedDB Store<br/>0ms Instant Local Cache)]
-    UI[Franklin 3-Column Binder UI<br/>Alpine.js + CSS]
+    UI[Day Planner 3-Column Binder UI<br/>Alpine.js + CSS]
   end
 
   subgraph ThinCloudAPI [Thin Backend: Google Apps Script API]

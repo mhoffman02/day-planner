@@ -45,7 +45,7 @@ This guide outlines how to wrap the **Day Planner** backend into an AppSheet PWA
 ### Step 2: Create AppSheet Application
 1. Go to [AppSheet.com](https://www.appsheet.com) and log in with your Google account.
 2. Click **Create** > **App** > **Start with existing data**.
-3. Name the app **Franklin Day Planner** and select your `Day Planner Database` Google Sheet.
+3. Name the app **Day Planner Day Planner** and select your `Day Planner Database` Google Sheet.
 
 ### Step 3: Configure Views & UX
 1. **Daily 2-Page View**:

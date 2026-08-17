@@ -15,7 +15,7 @@ describe('Index Parser Unit Tests', () => {
     const noteText = `
       Reviewed morning emails and client updates.
       #index [Finance] Approved Q3 marketing budget of $12,000
-      Working on feature specs for Franklin Planner.
+      Working on feature specs for Day Planner.
       [INDEX] [Architecture] Decided on Alpine.js and GAS Web App structure.
       Regular meeting notes follow here.
     `;

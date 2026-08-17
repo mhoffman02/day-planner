@@ -1,6 +1,6 @@
 /**
  * @file taskEngine.js
- * @description Franklin Planner Task Engine.
+ * @description Day Planner Task Engine.
  * Handles task priorities (A1-C9), status codes, task ordering, and "Move to Today" transfer logic.
  */
 

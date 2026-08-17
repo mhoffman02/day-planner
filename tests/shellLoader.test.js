@@ -51,7 +51,7 @@ describe('PWA Shell Loader Engine Tests', () => {
       hash: 'test-hash-12345',
       bundle: {
         styles: '.test-class { color: #1c2d27; }',
-        html: '<div class="test-class">Franklin Binder</div>',
+        html: '<div class="test-class">Digital Binder</div>',
         script: 'console.log("App mounted");'
       }
     };
@@ -62,7 +62,7 @@ describe('PWA Shell Loader Engine Tests', () => {
     assert.ok(retrieved, 'Should retrieve stored bundle');
     assert.equal(retrieved.version, '1.2.0');
     assert.equal(retrieved.hash, 'test-hash-12345');
-    assert.equal(retrieved.bundle.html, '<div class="test-class">Franklin Binder</div>');
+    assert.equal(retrieved.bundle.html, '<div class="test-class">Digital Binder</div>');
   });
 
   it('should mount bundle styles, HTML markup, and scripts into app-root', () => {

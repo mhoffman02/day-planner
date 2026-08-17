@@ -45,7 +45,7 @@ flowchart TD
 
 | Feature | How It Works | Developer Advantage |
 | :--- | :--- | :--- |
-| 🔒 **100% Code Privacy & Zero IP Leakage** | The public GitHub Pages repository contains only a ~80-line generic JavaScript loader and Service Worker. | Full source code, Franklin/Alpine UI templates, styles, and business logic remain strictly inside your private Google account. |
+| 🔒 **100% Code Privacy & Zero IP Leakage** | The public GitHub Pages repository contains only a ~80-line generic JavaScript loader and Service Worker. | Full source code, Day Planner/Alpine UI templates, styles, and business logic remain strictly inside your private Google account. |
 | ✈️ **0ms Offline Cold Start (Airplane Mode)** | Once fetched, the shell compiles and persists the application bundle into browser `IndexedDB`. | The PWA opens instantly with zero latency even with Wi-Fi disabled or in remote offline environments. |
 | 🔄 **1 Shell for Infinite Apps** | The shell routes dynamically using query parameters (`?app=<app-id>`) or a launcher dashboard. | You **never need to create, configure, or manage another GitHub Pages repo** for future Apps Script tools. |
 | ⚡ **Hot Updates & Bandwidth Savings** | Shell sends client MD5/SHA hash (`?action=bundle&clientHash=...`). If unchanged, GAS returns `304 Not Modified`. | Fast network checks with zero data waste; updates are applied seamlessly without reinstalling the PWA. |

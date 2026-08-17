@@ -1,14 +1,14 @@
-# Development Plan: Franklin-Google Digital Day Planner (GAS MVP)
+# Development Plan: Google Digital Day Planner (GAS MVP)
 
 ## Project Overview
-The **Franklin-Google Digital Day Planner** is a high-efficiency single-page digital binder application styled in classic Franklin Covey aesthetic (forest/teal ruling, cream background, serif headers). It bridges Franklin Dayplanner productivity methodology with Google Workspace APIs (Calendar, Tasks, Docs, Sheets, Drive) featuring full 2-Way Synchronization across Google Calendar, Google Tasks, and the Franklin Binder.
+The **Google Digital Day Planner** is a high-efficiency single-page digital binder application styled in classic Day Planner aesthetic (forest/teal ruling, cream background, serif headers). It bridges Day Planner productivity methodology with Google Workspace APIs (Calendar, Tasks, Docs, Sheets, Drive) featuring full 2-Way Synchronization across Google Calendar, Google Tasks, and the Digital Binder.
 
 ---
 
 ## Technical Stack & Architecture
 
 - **Backend / GAS**: Google Apps Script (`Code.gs`) providing `doGet()` web app entry, Google Workspace API integrations (`CalendarApp`, `Tasks`, `DocumentApp`, `SpreadsheetApp`, `DriveApp`), and time-driven 2-Way Sync triggers.
-- **Frontend Binder Shell**: Single Page Application (`Index.html`, `Styles.html`, `Script.html`) styled in Franklin Covey & UWSDS CSS system.
+- **Frontend Binder Shell**: Single Page Application (`Index.html`, `Styles.html`, `Script.html`) styled in Day Planner & UWSDS CSS system.
 - **Client Logic & State**: Alpine.js for reactive binder tabs, daily/monthly state, 2-way workspace sync, modal popups, drag/drop task ordering, search filter.
 - **Local Testing & Simulation**: Node.js test harness (`node:test` / modular JS) with mock GAS services allowing full local unit testing, dev server preview, and seamless GAS bundle syncing.
 
@@ -55,7 +55,7 @@ The **Franklin-Google Digital Day Planner** is a high-efficiency single-page dig
 - [x] Update `gas-app/Code.gs` with server-side `syncWorkspaceChanges()` handler and `setup2WaySyncTrigger()` for 10-minute automated background syncing.
 
 ### Phase 5: UI Design System & Single Page App (SPA) Binder
-- [x] Create `gas-app/Styles.html` implementing classic Franklin Covey aesthetic (Parchment `#fcfbfa`, Franklin Teal `#2d6a5a`, Serif typography, tab binder layout).
+- [x] Create `gas-app/Styles.html` implementing classic Day Planner aesthetic (Parchment `#fcfbfa`, Day Planner Teal `#2d6a5a`, Serif typography, tab binder layout).
 - [x] Create `gas-app/Script.html` containing Alpine.js app initialization, 2-Way Sync action triggers, and search modal handlers.
 - [x] Create `gas-app/Index.html` housing the 5 core views:
   1. Prioritized Daily Planner (2-Page Spread: Tasks/Tracker left, 7am-7pm Schedule + Daily Notes right).
@@ -81,7 +81,7 @@ The **Franklin-Google Digital Day Planner** is a high-efficiency single-page dig
 ### Phase 8: 3-Column Layout, Modular Note Cards & Google Docs Custom Menu
 - [x] Refactor Daily View layout in `gas-app/Index.html` to a 3-column workspace on PC Large screens (Tasks = Col 1, Appointment = Col 2, Notes = Col 3).
 - [x] Implement multi-line text auto-fit (1-3 lines) and vertical scrolling (>4 lines) for Tasks and Appointment pills.
-- [x] Build Modular Franklin Topic Cards with expand/collapse twisties (`▼`/`▶`), editable H3 headings, category tags, Google Chat formatting toolbar, and card search/filter dropdown menu.
+- [x] Build Modular Modular Topic Cards with expand/collapse twisties (`▼`/`▶`), editable H3 headings, category tags, Google Chat formatting toolbar, and card search/filter dropdown menu.
 - [x] Implement 12 Monthly Google Docs sync architecture (`Day Planner Notes - August 2026`) with print-friendly formatting (page breaks per day, styled headers, bullet lists).
 - [x] Add custom `Planner 📖` menu to Google Docs (`onOpen`) with cross-month universal search sidebar and `#index` decision registry.
 
@@ -107,7 +107,7 @@ The **Franklin-Google Digital Day Planner** is a high-efficiency single-page dig
 
 ## Verification Criteria
 - [x] All unit tests in `tests/*.test.js` pass cleanly (`npm test` — 61/61 passing across 17 suites).
-- [x] UI matches Franklin Covey design rules (#fcfbfa cream, #2d6a5a teal ruling, serif headers).
+- [x] UI matches Day Planner design rules (#fcfbfa cream, #2d6a5a teal ruling, serif headers).
 - [x] 2-Way Sync correctly cross-references tasks and calendar appointments.
 - [x] All views function correctly in both local dev server (`http://localhost:3000`) and GAS file bundle.
 - [x] Code passes comprehensive JavaScript & HTML code reviews with zero security or date-shift warnings.

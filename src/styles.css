@@ -79,7 +79,7 @@ a:hover {
   --font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --header-font-family: "Playfair Display", Georgia, serif;
 
-  /* Theme Surfaces (Light Mode - Fresh Airy Franklin Covey) */
+  /* Theme Surfaces (Light Mode - Fresh Airy Day Planner) */
   --theme-desk-bg: #f4f0e8;
   --theme-binder-border: #23594b;
   --theme-binder-canvas: #fcfbfa;
@@ -1535,7 +1535,7 @@ article.setup-card, article.card {
 }
 
 /* ==========================================================================
-   TOAST NOTIFICATION COMPONENT (Franklin Covey Themed & Accessible)
+   TOAST NOTIFICATION COMPONENT (Day Planner Themed & Accessible)
    ========================================================================== */
 
 .toast-container {

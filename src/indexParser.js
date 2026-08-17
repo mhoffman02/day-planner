@@ -1,6 +1,6 @@
 /**
  * @file indexParser.js
- * @description Franklin Planner Index & Docs Parser Engine.
+ * @description Day Planner Index & Docs Parser Engine.
  * Scans daily note lines for #index or [INDEX] tags, extracts topic categories, highlights, and doc links.
  */
 
