@@ -1228,6 +1228,11 @@
     border: none;
   }
 
+  /* Alpine x-cloak Cloaking Guard */
+  [x-cloak] {
+    display: none !important;
+  }
+
   /* Modal System (Pico CSS Native <dialog> Integration) */
   dialog.modal-backdrop {
     position: fixed;
@@ -1236,7 +1241,7 @@
     width: 100vw;
     height: 100vh;
     background: rgba(0, 0, 0, 0.5);
-    display: flex;
+    display: none;
     justify-content: center;
     align-items: center;
     z-index: 1000;
@@ -1249,6 +1254,11 @@
 
   dialog.modal-backdrop[open] {
     display: flex;
+  }
+
+  dialog.modal-backdrop[style*="display: none"],
+  dialog.modal-backdrop:not([open]) {
+    display: none !important;
   }
 
   article.modal-card {

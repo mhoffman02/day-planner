@@ -626,7 +626,7 @@
     </section>
 
     <!-- Event Detail Modal -->
-    <dialog class="modal-backdrop" :open="eventModalOpen" x-show="eventModalOpen" x-transition x-cloak aria-labelledby="eventModalTitle">
+    <dialog class="modal-backdrop" x-show="eventModalOpen" x-transition x-cloak aria-labelledby="eventModalTitle">
       <article class="modal-card" @click.away="closeEventModal()">
         <header>
           <h3 id="eventModalTitle" class="modal-title" x-text="selectedEvent?.title || 'Event Details'"></h3>
@@ -652,7 +652,7 @@
           <button type="button" class="btn-secondary" @click="closeEventModal()">Close</button>
         </footer>
     <!-- Create New Event / Appointment Modal -->
-    <dialog class="modal-backdrop" :open="createEventModalOpen" x-show="createEventModalOpen" x-transition x-cloak aria-labelledby="createEventModalTitle">
+    <dialog class="modal-backdrop" x-show="createEventModalOpen" x-transition x-cloak aria-labelledby="createEventModalTitle">
       <article class="modal-card modal-card-form" @click.away="closeCreateEventModal()">
         <header class="modal-header-spaced">
           <h3 id="createEventModalTitle" class="modal-title-with-icon">
@@ -747,7 +747,7 @@
     </dialog>
 
     <!-- Universal Search Modal -->
-    <dialog class="modal-backdrop" :open="searchModalOpen" x-show="searchModalOpen" x-transition x-cloak aria-labelledby="searchModalTitle">
+    <dialog class="modal-backdrop" x-show="searchModalOpen" x-transition x-cloak aria-labelledby="searchModalTitle">
       <article class="modal-card modal-card-wide" @click.away="closeSearchModal()">
         <header>
           <h3 id="searchModalTitle" class="modal-title-with-icon">
