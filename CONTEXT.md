@@ -1,8 +1,8 @@
 # Session Context
 
-Generated: 2026-08-17T23:45:57.992Z
+Generated: 2026-08-18T19:10:44.232Z
 Branch: master
-Last commit: 4ed34f3 docs(handoff): session handoff update 2026-08-17
+Last commit: 730add1 docs: add concise theory of operations for PWA Shell + GAS architecture
 Uncommitted files: 0
 
 ## Open PLAN.md items

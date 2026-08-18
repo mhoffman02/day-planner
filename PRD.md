@@ -33,10 +33,10 @@ The application implements a complete suite of Day Planner page views accessible
 
 | Page Type | Layout & View Description | Google Workspace Integration |
 | :--- | :--- | :--- |
-| **1. Prioritized Daily Planner (2-Page Spread)** | Left page: Prioritized Daily Task List (A1-C9) & Daily Tracker. Right page: 7:00 AM - 7:00 PM Appointment Schedule & Scrollable Daily Notes view. | Google Calendar, Google Tasks, Google Docs |
+| **1. Prioritized Daily Planner (2-Page Spread)** | Left page: Prioritized Daily Task List (A1-C9) & Daily Tracker. Right page: 7:00 AM - 7:00 PM Appointment Schedule & Scrollable Daily Notes view. | Google Calendar, Google Tasks, Google Drive |
 | **2. Full-Screen Monthly Overview Calendar** | Interactive 7x5 monthly calendar grid displaying events, holidays, and high-level markers. | Google Calendar (`CalendarApp`) |
 | **3. Monthly Master Task List Page** | Categorized high-level task list (Personal, Business, Projects) with one-click transfer to daily task lists. | Dedicated Google Task Lists (`[Month] [Year] Master Tasks`) |
-| **4. Monthly Index Page** | Aggregated, searchable registry of key daily decisions, meeting summaries, and `#index` tagged notes. | Scanned Google Docs & Google Sheets |
+| **4. Monthly Index Page** | Aggregated, searchable registry of key daily decisions, meeting summaries, and `#index` tagged notes. | Scanned Drive notes JSON |
 | **5. Future Planning Matrix** | 12-month forward-look overview for scheduling milestone events in upcoming months. | Google Calendar & Google Sheets |
 
 ---
@@ -54,8 +54,8 @@ The application implements a complete suite of Day Planner page views accessible
     * **Join Google Meet** (if video conference attached).
     * **Open in gCal** (opens event in a new Google Calendar browser tab).
 * **Right Page: Daily Notes View**:
-  * **Embedded Scrollable Google Doc**: The right-hand lower pane renders a scrollable view of the backing Google Doc for that day.
-  * Instantiated automatically using a custom **Day Planner styled Google Docs Template** in `/Day Planner/YYYY/MM/`.
+  * **Embedded Notes Panel**: The right-hand lower pane renders the day's notes inline.
+  * Notes are stored as partitioned monthly JSON records (`Day Planner/notes-YYYY-MM.json`) in Google Drive, keyed by date — not individual per-day Google Docs.
 
 ### 4.2 Monthly Master Task List & Task Transfer Workflow
 * **Separate Monthly Task Lists**: Managed via dedicated Google Task Lists (e.g., `August 2026 Master Tasks`).
@@ -69,7 +69,7 @@ The application implements a complete suite of Day Planner page views accessible
 * Displays calendar event pills fetched live from `CalendarApp`.
 
 ### 4.4 Monthly Index Page & Automated Scanning
-* **Automated Scan**: GAS backend periodically scans daily Google Docs for lines tagged with `#index` or `[INDEX]`.
+* **Automated Scan**: GAS backend scans daily notes JSON entries for lines tagged with `#index` or `[INDEX]`.
 * **Index View**: Displays a table sorted by date showing `Date | Topic / Category | Summary Highlight | Direct Doc Link`.
 
 ### 4.5 Universal Search Feature
@@ -77,7 +77,7 @@ The application implements a complete suite of Day Planner page views accessible
 * **Cross-Service Indexing**: Searches simultaneously across:
   * Google Calendar appointments (title, location, description).
   * Google Tasks (Daily & Master Task Lists).
-  * Daily Notes & Google Docs text contents.
+  * Daily Notes text contents (Drive JSON).
   * Monthly Index entries.
 * **Results Panel**: Renders grouped search results with one-click jump buttons to the corresponding date/page.
 
@@ -106,31 +106,38 @@ The application implements a complete suite of Day Planner page views accessible
 | :--- | :--- | :--- |
 | **Google Calendar** | `CalendarApp` | Sync events into 07:00-19:00 grid, event popup details modal, Meet launcher. |
 | **Google Tasks** | `Tasks` / `TasksApp` | Manage daily `[A1]` tasks and monthly master task lists (`[Month] [Year] Master Tasks`), execute task transfer. |
-| **Google Docs** | `DocumentApp` | Render scrollable daily notes view from Day Planner template, scan `#index` tags. |
-| **Google Sheets** | `SpreadsheetApp` | Backup relational store for index records and expense tracking metrics. |
-| **Google Drive** | `DriveApp` | Manage `/Day Planner/YYYY/MM/` directory structure and template files. |
+| **Google Docs** | `DocumentApp` | Auto-generate a structured Agenda Doc (objectives, attendees, Meet link, action items) when a calendar event is created with `autoAgendaDoc` enabled. Not used for daily notes. |
+| **Google Drive** | `DriveApp` | Store/retrieve partitioned monthly daily-notes JSON (`Day Planner/notes-YYYY-MM.json`) and Agenda Docs, scoped to `drive.file`. |
+
+> **Not implemented**: Google Sheets (`SpreadsheetApp`) integration and expense tracking were scoped in early planning but have no implementation in the codebase. Treat as out of scope unless revisited.
 
 ---
 
-## 7. MVP Technical Architecture & File Structure
+## 7. Technical Architecture & File Structure
+
+> This section reflects the current implementation (post-MVP), not the original planning-stage layout.
 
 ```
 /home/mike/projects/day-planner/
-├── PRD.md                         # Product Requirements Document
+├── PRD.md, README.md, README.txt  # Product spec, quick-start, developer theory-of-ops
+├── package.json, server.js        # ES module config; local Node preview server (npm start)
 ├── images/                        # Downloaded reference product images
-│   ├── img1_50026.jpg
-│   ├── img2_45207.jpg
-│   ├── img3_00198.jpg
-│   ├── img4_78019.jpg
-│   ├── img5_05033.jpg
-│   ├── img6_47427.jpg
-│   └── img7_96528.jpg
-└── gas-app/                       # Google Apps Script Project Files
-    ├── Code.gs                    # Backend GAS server logic & API integrations
-    ├── Index.html                 # Main Single Page App (SPA) Binder Shell
-    ├── Styles.html                # Day Planner + UWSDS CSS design system
-    └── Script.html                # Alpine.js reactive components & API bridge
+├── src/                           # Canonical logic engines (unit-tested, run locally + browser)
+│   ├── taskEngine.js, calendarEngine.js, syncEngine.js, indexParser.js,
+│   │   searchEngine.js, binderStore.js, gasBridge.js, indexedDbStore.js,
+│   │   shellLoader.js, app.js
+│   └── vendor/                    # Bundled Alpine.js, Pico CSS
+├── tests/                         # node --test unit suite, one file per engine
+├── gas-app/                       # Google Apps Script project (clasp deploy target)
+│   ├── Code.gs                    # Backend logic, API integrations, bundle-export endpoint
+│   ├── Index.html / Styles.html / About.html
+│   ├── Script.html                # Alpine.js components — hand-duplicated copy of src/ logic
+│   └── UnitTests.gs               # Self-test diagnostics (`/dev/self-test`)
+├── gh-pwa-shell/                  # Separate git repo: public Universal PWA Shell loader
+└── tools/                         # Build/ops scripts (shell bundle build, screenshots, handoff)
 ```
+
+See `CLAUDE.md` for the dual-runtime architecture (why `src/` and `gas-app/Script.html` both exist and must stay in sync) and `shell-gas-pattern.md` for the PWA shell design.
 
 ---
 

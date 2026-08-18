@@ -39,9 +39,12 @@ The project is architected to run in two environments:
 - Data Storage Model:
   - Daily Tasks: Google Tasks API (`[A1]` priority prefixes).
   - Appointments: Google Calendar (`CalendarApp`, 07:00 AM - 07:00 PM grid).
-  - Daily Notes: Backed by Google Docs automatically created under 
-    `/Day Planner/YYYY/MM/`.
-  - Monthly Index: Scans daily notes for `#index [Topic] Summary` lines.
+  - Daily Notes: Partitioned monthly JSON records (`Day Planner/notes-YYYY-MM.json`)
+    stored in Google Drive, keyed by date. Not per-day Google Docs.
+  - Monthly Index: Scans daily notes JSON for `#index [Topic] Summary` lines.
+  - Meeting Agenda Docs: When creating a calendar event with `autoAgendaDoc` enabled,
+    `Code.gs` auto-generates a structured Google Doc (objectives, attendees, Meet link,
+    action items) via `DocumentApp`. This is the only current use of Google Docs.
 
 - Dual Execution Bridge (`src/gasBridge.js`):
   Client code calls `GASBridge`. When running inside Apps Script, it invokes 
@@ -52,35 +55,36 @@ The project is architected to run in two environments:
 4. DIRECTORY MAP
 --------------------------------------------------------------------------------
 /home/mike/projects/day-planner/
-├── PRD.md                 # Product Requirements Document
+├── PRD.md, CLAUDE.md      # Product spec; guidance for Claude Code instances
 ├── PLAN.md                # Feature progress tracker & task checklist
 ├── README.txt             # Developer theory of operations & gotchas
+├── shell-gas-pattern.md   # Universal PWA Shell + Private GAS architecture pattern
 ├── package.json           # ES module config & test script (`npm test`)
 ├── server.js              # Local Node preview web server (http://localhost:3000)
-├── src/                   # Core Modular JavaScript Logic Engine
+├── src/                   # Core Modular JavaScript Logic Engine (canonical; unit-tested)
 │   ├── taskEngine.js      # A1-C9 priority parsing, status cycling, master transfer
 │   ├── calendarEngine.js  # 07:00-19:00 grid, event popup modal payload generator
 │   ├── syncEngine.js      # 2-Way Task <-> Calendar synchronization logic
 │   ├── indexParser.js     # Daily notes #index tag extractor & monthly indexer
 │   ├── searchEngine.js    # Cross-service Universal Search engine (Ctrl + K)
 │   ├── binderStore.js     # SPA binder view router & date navigation store
-│   └── gasBridge.js       # Bridge adapter connecting UI to GAS backend or local mock
-├── tests/                 # Unit Test Suite (29 tests)
-│   ├── taskEngine.test.js
-│   ├── calendarEngine.test.js
-│   ├── syncEngine.test.js
-│   ├── indexParser.test.js
-│   ├── searchEngine.test.js
-│   ├── binderStore.test.js
-│   └── gasBridge.test.js
-└── gas-app/               # Google Apps Script Project Directory (clasp target)
-    ├── Code.gs            # Server-side Apps Script logic & 2-Way Sync background trigger
-    ├── Index.html         # Main SPA Binder Shell
-    ├── Styles.html        # Digital Binder CSS Design System with Material Symbols
-    ├── Script.html        # Alpine.js reactive components & event handlers
-    ├── About.html         # In-app static About documentation card
-    ├── UnitTests.gs       # Self-Test diagnostic suite & HTML report generator
-    └── appsscript.json    # GAS manifest with minimal OAuth permissions
+│   ├── gasBridge.js       # Bridge adapter connecting UI to GAS backend or local mock
+│   ├── indexedDbStore.js  # Client-side offline cache / outbox queue
+│   ├── shellLoader.js     # PWA shell bootstrap (bundle load, hash check, mount)
+│   ├── app.js              # Alpine.js app wiring for local/browser preview
+│   └── vendor/             # Bundled Alpine.js, Pico CSS
+├── tests/                 # Unit Test Suite (66 tests / 18 suites, `npm test`)
+├── gas-app/               # Google Apps Script Project Directory (clasp target)
+│   ├── Code.gs            # Server-side Apps Script logic & 2-Way Sync background trigger
+│   ├── Index.html         # Main SPA Binder Shell
+│   ├── Styles.html        # Digital Binder CSS Design System with Material Symbols
+│   ├── Script.html        # Alpine.js reactive components & event handlers
+│   │                       # (hand-duplicated copy of src/ logic — see sync rule below)
+│   ├── About.html         # In-app static About documentation card
+│   ├── UnitTests.gs       # Self-Test diagnostic suite & HTML report generator
+│   └── appsscript.json    # GAS manifest with minimal OAuth permissions
+├── gh-pwa-shell/          # SEPARATE git repo: public Universal PWA Shell (GitHub Pages loader)
+└── tools/                 # Build/ops scripts (shell bundle build, screenshots, handoff, retro)
 
 
 5. TRICKY DETAILS & TECHNICAL GOTCHAS

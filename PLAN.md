@@ -1,13 +1,13 @@
 # Development Plan: Google Digital Day Planner (GAS MVP)
 
 ## Project Overview
-The **Google Digital Day Planner** is a high-efficiency single-page digital binder application styled in classic Day Planner aesthetic (forest/teal ruling, cream background, serif headers). It bridges Day Planner productivity methodology with Google Workspace APIs (Calendar, Tasks, Docs, Sheets, Drive) featuring full 2-Way Synchronization across Google Calendar, Google Tasks, and the Digital Binder.
+The **Google Digital Day Planner** is a high-efficiency single-page digital binder application styled in classic Day Planner aesthetic (forest/teal ruling, cream background, serif headers). It bridges Day Planner productivity methodology with Google Workspace APIs (Calendar, Tasks, Drive) featuring full 2-Way Synchronization across Google Calendar, Google Tasks, and the Digital Binder.
 
 ---
 
 ## Technical Stack & Architecture
 
-- **Backend / GAS**: Google Apps Script (`Code.gs`) providing `doGet()` web app entry, Google Workspace API integrations (`CalendarApp`, `Tasks`, `DocumentApp`, `SpreadsheetApp`, `DriveApp`), and time-driven 2-Way Sync triggers.
+- **Backend / GAS**: Google Apps Script (`Code.gs`) providing `doGet()` web app entry, Google Workspace API integrations (`CalendarApp`, `Tasks`, `DriveApp` for notes JSON, `DocumentApp` for meeting Agenda Docs), and time-driven 2-Way Sync triggers.
 - **Frontend Binder Shell**: Single Page Application (`Index.html`, `Styles.html`, `Script.html`) styled in Day Planner & UWSDS CSS system.
 - **Client Logic & State**: Alpine.js for reactive binder tabs, daily/monthly state, 2-way workspace sync, modal popups, drag/drop task ordering, search filter.
 - **Local Testing & Simulation**: Node.js test harness (`node:test` / modular JS) with mock GAS services allowing full local unit testing, dev server preview, and seamless GAS bundle syncing.
