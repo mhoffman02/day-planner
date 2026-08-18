@@ -67,14 +67,7 @@ export class BinderStore {
       }
     };
 
-    this.recentAttendees = [
-      'alex.rivera@example.com',
-      'sarah.chen@example.com',
-      'jordan.lee@example.com',
-      'taylor.smith@example.com',
-      'morgan.davis@example.com',
-      'pat.patel@example.com'
-    ];
+    this.recentAttendees = [];
 
     this.searchModal = {
       isOpen: false,

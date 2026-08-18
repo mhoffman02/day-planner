@@ -762,7 +762,11 @@ function addDailyTask(dateStr, title, category) {
 
 /**
  * Adds a new calendar event for a given date in Google Calendar.
- * Supports automatic Google Meet creation, attendee invitations, guests-can-modify permission, and auto-created Agenda Docs.
+ * Provisions a real Google Meet conference and applies guestsCanModify via the
+ * Advanced Calendar Service (Calendar API v3, enabled in appsscript.json) so
+ * both features actually take effect instead of being faked or silently dropped.
+ * Falls back to the basic CalendarApp event (no Meet link, no guestsCanModify)
+ * if the Advanced Calendar Service isn't enabled for this deployment.
  * @param {string} dateStr Target date string in YYYY-MM-DD format.
  * @param {object} eventData Event creation payload { title, startTime, endTime, location, description, attendees, autoGoogleMeet, guestsCanModify, autoAgendaDoc }.
  * @returns {object} Created event payload.
@@ -784,15 +788,62 @@ function addCalendarEvent(dateStr, eventData) {
     var guestsCanModify = (eventData && eventData.guestsCanModify !== undefined) ? eventData.guestsCanModify : true;
     var autoAgendaDoc = (eventData && eventData.autoAgendaDoc !== undefined) ? eventData.autoAgendaDoc : true;
 
-    var startDate = new Date(startIso);
-    var endDate = new Date(endIso);
     var attendeesList = Array.isArray(attendees) ? attendees : (typeof attendees === 'string' ? attendees.split(/[,;]+/).map(function(s) { return s.trim(); }).filter(Boolean) : []);
 
     var createdId = 'evt_' + new Date().getTime();
-    var meetLink = autoGoogleMeet ? ('https://meet.google.com/' + Math.random().toString(36).slice(2, 5) + '-' + Math.random().toString(36).slice(2, 6) + '-' + Math.random().toString(36).slice(2, 5)) : null;
+    var meetLink = null;
+    var guestsCanModifyApplied = false;
+    var usedAdvancedCalendar = false;
+
+    if (typeof Calendar !== 'undefined' && Calendar.Events) {
+      var timeZone = Session.getScriptTimeZone();
+      var eventResource = {
+        summary: title,
+        location: location,
+        description: description,
+        start: { dateTime: startIso, timeZone: timeZone },
+        end: { dateTime: endIso, timeZone: timeZone },
+        guestsCanModify: !!guestsCanModify
+      };
+      if (attendeesList.length > 0) {
+        eventResource.attendees = attendeesList.map(function(email) { return { email: email }; });
+      }
+
+      var insertOptions = { sendUpdates: attendeesList.length > 0 ? 'all' : 'none' };
+      if (autoGoogleMeet) {
+        eventResource.conferenceData = {
+          createRequest: {
+            requestId: Utilities.getUuid(),
+            conferenceSolutionKey: { type: 'hangoutsMeet' }
+          }
+        };
+        insertOptions.conferenceDataVersion = 1;
+      }
+
+      var createdEvent = Calendar.Events.insert(eventResource, 'primary', insertOptions);
+      createdId = createdEvent.id;
+      guestsCanModifyApplied = !!guestsCanModify;
+      usedAdvancedCalendar = true;
+      meetLink = createdEvent.hangoutLink ||
+        (createdEvent.conferenceData && createdEvent.conferenceData.entryPoints && createdEvent.conferenceData.entryPoints.length > 0
+          ? createdEvent.conferenceData.entryPoints[0].uri
+          : null);
+    } else if (typeof CalendarApp !== 'undefined') {
+      var startDate = new Date(startIso);
+      var endDate = new Date(endIso);
+      var cal = CalendarApp.getDefaultCalendar();
+      var evt = cal.createEvent(title, startDate, endDate, {
+        location: location,
+        description: description,
+        guests: attendeesList.join(','),
+        sendInvites: attendeesList.length > 0
+      });
+      createdId = evt.getId();
+    }
+
     var agendaDocUrl = null;
 
-    // Create structured Agenda Doc if enabled
+    // Create structured Agenda Doc if enabled (after event creation so it can reference the real Meet link)
     if (autoAgendaDoc) {
       try {
         if (typeof DocumentApp !== 'undefined') {
@@ -831,25 +882,13 @@ function addCalendarEvent(dateStr, eventData) {
     if (agendaDocUrl && fullDescription.indexOf(agendaDocUrl) === -1) {
       fullDescription += (fullDescription ? '\n\n' : '') + '📄 Meeting Agenda & Notes Doc: ' + agendaDocUrl;
     }
-    if (meetLink && !location) {
-      location = 'Google Meet (' + meetLink + ')';
-    }
 
-    if (typeof CalendarApp !== 'undefined') {
-      var cal = CalendarApp.getDefaultCalendar();
-      var options = {
-        location: location,
-        description: fullDescription,
-        guests: attendeesList.join(','),
-        sendInvites: attendeesList.length > 0
-      };
-      var evt = cal.createEvent(title, startDate, endDate, options);
-      createdId = evt.getId();
-      if (guestsCanModify && typeof evt.setGuestsCanModify === 'function') {
-        evt.setGuestsCanModify(true);
-      }
-      if (typeof evt.getHangoutLink === 'function' && evt.getHangoutLink()) {
-        meetLink = evt.getHangoutLink();
+    // Patch the event description now that the Agenda Doc URL exists (insert happened before the doc did)
+    if (usedAdvancedCalendar && fullDescription !== description) {
+      try {
+        Calendar.Events.patch({ description: fullDescription }, 'primary', createdId);
+      } catch (patchErr) {
+        logError('addCalendarEvent description patch', patchErr);
       }
     }
 
@@ -863,7 +902,7 @@ function addCalendarEvent(dateStr, eventData) {
       meetLink: meetLink,
       agendaDocUrl: agendaDocUrl,
       attendees: attendeesList,
-      guestsCanModify: guestsCanModify
+      guestsCanModify: guestsCanModifyApplied
     };
   } catch (err) {
     logError('addCalendarEvent', err);
@@ -1018,8 +1057,9 @@ function getCompiledAppBundle() {
     }
   }
 
-  // Calculate simple signature hash
-  var rawPayload = appVersion + ':' + styles.length + ':' + script.length + ':' + indexContent.length;
+  // Calculate content-based signature hash (must hash actual content, not
+  // lengths, so a length-preserving edit doesn't silently miss the SWR update)
+  var rawPayload = appVersion + ':' + styles + ':' + script + ':' + indexContent;
   var hash = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, rawPayload));
 
   return {

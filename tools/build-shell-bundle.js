@@ -26,7 +26,7 @@ function buildBundle() {
     .replace(/<\?!= include\(['"]PicoCSS['"]\); \?>/g, '');
 
   const version = '1.3.0';
-  const rawPayload = `${version}:${stylesHtml.length}:${scriptHtml.length}:${resolvedHtml.length}`;
+  const rawPayload = `${version}:${stylesHtml}:${scriptHtml}:${resolvedHtml}`;
   const hash = crypto.createHash('md5').update(rawPayload).digest('base64');
 
   const bundleObj = {

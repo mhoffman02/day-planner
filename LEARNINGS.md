@@ -1,5 +1,20 @@
 # Learnings
 
+## 2026-08-18 — Ultrareview Fixes: Real Google Meet Links, Broken Appointment Save, Bundle Hash
+
+**Worked well:**
+- Cloud ultrareview caught a real production bug: `saveNewEvent` referenced `this.gasBridge` (never assigned) instead of `this.bridge`, so every appointment created via the (+) button silently never reached the server and vanished on reload.
+- Chose to properly fix the fabricated `Math.random()` Google Meet link and no-op `guestsCanModify` checkbox by wiring up the Advanced Calendar Service (`Calendar.Events.insert`/`.patch`) in `Code.gs`, rather than just dropping the feature — user had already added the Calendar service in the Apps Script IDE, and `appsscript.json` was updated to match so `clasp push --force` won't strip it.
+- Manually caught a third copy of the fake `@example.com` attendee seed in `src/binderStore.js` that the ultrareview report itself missed (it only flagged `app.js` and `Script.html`) — worth a manual grep sweep after acting on automated review findings.
+- Kept `src/app.js` and `gas-app/Script.html` byte-identical for the reworked `saveNewEvent` logic (diffed the two blocks directly to confirm) per the project's sync rule.
+- All 66 tests stayed green throughout.
+
+**Needs improvement:**
+- The `/retro` skill's `SKILL.md` references `tools/retro.js`, but that script doesn't exist in `.claude/skills/retro/` — only the doc does. Needs the script written or the doc corrected.
+- Loading `tools/build-shell-bundle.js` just to check it wasn't syntactically broken actually executed it, which writes `pwa.js` into two other git repos (`gh-pwa-shell/` and an external `../shell/`) as a side effect. Use `node --check` for a pure syntax check instead of importing build scripts that have file-write side effects.
+
+---
+
 ## 2026-08-17 — Appointment Creator UX, 25-Min Speedy Meetings, People Autocomplete & Meeting Automations
 
 **Worked well:**

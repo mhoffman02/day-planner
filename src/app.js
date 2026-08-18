@@ -121,14 +121,7 @@ function getLocalDateStr(d = new Date()) {
         description: ''
       },
 
-      recentAttendees: [
-        'alex.rivera@example.com',
-        'sarah.chen@example.com',
-        'jordan.lee@example.com',
-        'taylor.smith@example.com',
-        'morgan.davis@example.com',
-        'pat.patel@example.com'
-      ],
+      recentAttendees: [],
 
       searchModalOpen: false,
       searchQuery: '',
@@ -186,9 +179,8 @@ function getLocalDateStr(d = new Date()) {
         try {
           if (this.bridge && typeof this.bridge.getRecentAttendees === 'function') {
             const list = await this.bridge.getRecentAttendees(60, 15);
-            if (Array.isArray(list) && list.length > 0) {
-              const merged = new Set([...this.recentAttendees, ...list]);
-              this.recentAttendees = Array.from(merged).sort();
+            if (Array.isArray(list)) {
+              this.recentAttendees = list.slice().sort();
             }
           }
         } catch (e) {
@@ -823,39 +815,38 @@ function getLocalDateStr(d = new Date()) {
           const guestsCanModify = this.newEventData.guestsCanModify;
           const autoAgendaDoc = this.newEventData.autoAgendaDoc;
 
-          const meetLink = autoGoogleMeet
-            ? `https://meet.google.com/${Math.random().toString(36).slice(2, 5)}-${Math.random().toString(36).slice(2, 6)}-${Math.random().toString(36).slice(2, 5)}`
-            : null;
-
-          const agendaDocUrl = autoAgendaDoc
-            ? `https://docs.google.com/document/create?title=${encodeURIComponent('Agenda: ' + this.newEventData.title.trim())}`
-            : null;
-
-          let fullDesc = this.newEventData.description ? this.newEventData.description.trim() : '';
-          if (agendaDocUrl) {
-            fullDesc += (fullDesc ? '\n\n' : '') + `📄 Meeting Agenda Doc: ${agendaDocUrl}`;
-          }
-
           const newEvt = {
             id: `evt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
             title: this.newEventData.title.trim(),
             startTime: startIso,
             endTime: endIso,
-            location: this.newEventData.location ? this.newEventData.location.trim() : (meetLink ? 'Google Meet' : ''),
-            description: fullDesc,
-            meetLink: meetLink,
-            agendaDocUrl: agendaDocUrl,
+            location: this.newEventData.location ? this.newEventData.location.trim() : '',
+            description: this.newEventData.description ? this.newEventData.description.trim() : '',
+            meetLink: null,
+            agendaDocUrl: null,
             attendees: attendeesList,
-            guestsCanModify: guestsCanModify,
+            guestsCanModify: false,
             gCalLink: `https://calendar.google.com/calendar/r/day/${this.selectedDate.replace(/-/g, '/')}`
           };
 
           this.calendarEvents.push(newEvt);
           this.buildScheduleGrid();
           this.closeCreateEventModal();
-          
-          if (this.gasBridge && typeof this.gasBridge.addCalendarEvent === 'function') {
-            await this.gasBridge.addCalendarEvent(this.selectedDate, newEvt);
+
+          // meetLink/agendaDocUrl are server-provisioned (real Google Meet conference +
+          // Doc) via the Advanced Calendar Service; the optimistic entry above is
+          // updated in place once the authoritative event comes back.
+          if (this.bridge && typeof this.bridge.addCalendarEvent === 'function') {
+            const saved = await this.bridge.addCalendarEvent(this.selectedDate, {
+              ...newEvt,
+              autoGoogleMeet,
+              guestsCanModify,
+              autoAgendaDoc
+            });
+            if (saved) {
+              Object.assign(newEvt, saved);
+              this.buildScheduleGrid();
+            }
           }
           await this.trigger2WaySync();
           this.showToast(`Saved appointment "${newEvt.title}"`, 'success', 5000, 'Appointment Created');

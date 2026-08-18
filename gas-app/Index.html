@@ -539,16 +539,16 @@
         </div>
         <footer class="modal-actions">
           <template x-if="selectedEvent?.agendaDocUrl">
-            <a :href="selectedEvent.agendaDocUrl" target="_blank" class="btn-primary btn-doc" role="button" title="Open meeting agenda document">
+            <a :href="selectedEvent.agendaDocUrl" target="_blank" rel="noopener noreferrer" class="btn-primary btn-doc" role="button" title="Open meeting agenda document">
               <span class="material-symbols-outlined">description</span> Agenda Doc
             </a>
           </template>
           <template x-if="selectedEvent?.meetLink">
-            <a :href="selectedEvent.meetLink" target="_blank" class="btn-primary btn-meet" role="button" title="Join Google Meet conference">
+            <a :href="selectedEvent.meetLink" target="_blank" rel="noopener noreferrer" class="btn-primary btn-meet" role="button" title="Join Google Meet conference">
               <span class="material-symbols-outlined">videocam</span> Join Meet
             </a>
           </template>
-          <a :href="selectedEvent?.gCalLink" target="_blank" class="btn-primary" role="button">
+          <a :href="selectedEvent?.gCalLink" target="_blank" rel="noopener noreferrer" class="btn-primary" role="button">
             <span class="material-symbols-outlined">calendar_today</span> Open in gCal
           </a>
           <button type="button" class="btn-secondary" @click="closeEventModal()">Close</button>
