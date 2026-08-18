@@ -990,7 +990,7 @@ function searchAcrossAllMonthlyDocs(query) {
  * @returns {object} Compiled bundle object with hash, version, and code assets.
  */
 function getCompiledAppBundle() {
-  var appVersion = '1.2.0';
+  var appVersion = '1.3.0';
   var styles = '';
   var script = '';
   var indexContent = '';
