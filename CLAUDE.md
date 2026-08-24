@@ -14,8 +14,12 @@ Deploying to the live Google Apps Script backend:
 ```bash
 cd gas-app
 clasp push --force
-clasp deploy --description "Release notes here"
+clasp deploy -i AKfycbyAejUd5SWdt5dbmtSKYJZvwqQ2RHU-V3_mARJp3MDjMZ_jrlP0MfWnyTPYp6hVSyO4 --description "Release notes here"
 ```
+**Always pass `-i <deploymentId>`** — omitting it mints a brand-new deployment (and a new
+`/exec` URL) instead of updating the pinned `day-planner-v01` deployment that
+`gh-pwa-shell`'s allowlist and built-in launch button are wired to. See
+`.agents/rules/gas-deploy-pinned.md`.
 
 There is no build/lint step — `src/*.js` are plain ES modules run directly by Node's test runner and by the browser.
 
@@ -83,6 +87,23 @@ and logic inside the private GAS backend. Full design rationale, the `getCompile
 backend contract, and the `BUILTIN_BUNDLES` CORS workaround (direct cross-origin fetch to a GAS
 `doGet` endpoint fails — see `shell-gas-pattern.md` §9) are documented in `shell-gas-pattern.md`.
 `tools/build-shell-bundle.js` and `tools/sync-gas-vendor.js` support this pipeline.
+
+## Shared agent config (`.agents/`)
+
+`.agents/{rules,commands,skills}` is the single hand-edited source of truth for guidance
+shared across Claude Code, Kilo Code, and Gemini CLI. Never edit `.claude/rules/`,
+`.claude/commands/`, `.claude/skills/`, or `.kilo/{skills,workflows}` directly — they are
+generated real-file mirrors (not symlinks — symlinks silently degrade to plain-text stub
+files on Windows checkouts without Developer Mode, which both breaks the tool locally and
+corrupts the tracked blob for every other clone on that machine's next commit). After
+editing anything under `.agents/`, run `npm run sync:agents` to regenerate the mirrors;
+`npm run sync:agents:check` (wired into the pre-commit hook) fails the commit if they've
+drifted. Kilo Code's rules specifically need no mirror at all — `kilo.jsonc`'s
+`instructions` array points straight at `.agents/rules/*.md`. Gemini CLI has no
+rules-directory concept; it gets the same content via `GEMINI.md`'s `@CLAUDE.md` import
+(Gemini's own supported `@path` memory-import mechanism, not Claude-file auto-discovery —
+Gemini CLI does not natively read `CLAUDE.md`). To activate the tracked cross-machine hook
+(`.githooks/pre-commit`) on a new clone, run once: `git config core.hooksPath .githooks`.
 
 ## Key gotchas (see README.txt §5 for the full list)
 

@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Pre-commit hook: JSDoc @file header check + unit tests + agent-config mirror drift check.
+#
+# Tracked (unlike the git-managed .git/hooks/ dir, which is never cloned). To activate on
+# a given machine, run once: git config core.hooksPath .githooks
+set -e
+ERRORS=0
+
+JS_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(js|mjs)$' || true)
+
+echo "🔍 Pre-commit checks..."
+
+if [ -n "$JS_FILES" ]; then
+  # ── JSDoc @file header check ──────────────────────────────────────────────
+  for FILE in $JS_FILES; do
+    if echo "$FILE" | grep -qE '\.test\.js$|\.config\.js$|server\.js'; then
+      continue
+    fi
+    if ! grep -q '@file\|@module' "$FILE" 2>/dev/null; then
+      echo "❌ [HIGH] Missing @file JSDoc header: $FILE"
+      ERRORS=$((ERRORS + 1))
+    fi
+  done
+
+  # ── Unit Test Suite ────────────────────────────────────────────────────────
+  echo "🧪 Running unit tests..."
+  if ! npm test; then
+    echo "❌ [BLOCKER] Unit test suite execution failed"
+    ERRORS=$((ERRORS + 1))
+  fi
+fi
+
+# ── Agent-config mirror drift check ─────────────────────────────────────────
+# .agents/{rules,commands,skills} is the only hand-edited source; .claude/ and .kilo/
+# hold generated real-file mirrors (see tools/sync-agent-config.js). If a staged change
+# touches the source without regenerating the mirrors, block the commit rather than
+# letting them silently drift.
+if ! node tools/sync-agent-config.js --check >/tmp/sync-agents-check.$$ 2>&1; then
+  cat /tmp/sync-agents-check.$$
+  echo "❌ [HIGH] .claude/.kilo mirrors are out of sync with .agents/"
+  ERRORS=$((ERRORS + 1))
+fi
+rm -f /tmp/sync-agents-check.$$
+
+if [ "$ERRORS" -gt 0 ]; then
+  echo ""
+  echo "❌ Pre-commit failed ($ERRORS error(s)). Fix reported findings above and re-stage."
+  exit 1
+else
+  echo "✅ Pre-commit passed cleanly."
+  exit 0
+fi

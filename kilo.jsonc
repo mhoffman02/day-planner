@@ -1,0 +1,8 @@
+{
+  // Kilo Code reads rule guidance straight from the paths listed here — no directory
+  // mirror or symlink needed for rules specifically. .agents/rules/*.md is the same
+  // single hand-edited source Claude Code and Gemini CLI read (via .claude/rules and
+  // GEMINI.md's @CLAUDE.md import, respectively). See tools/sync-agent-config.js for
+  // why workflows/skills still use generated real-file mirrors instead of this.
+  "instructions": [".agents/rules/*.md"]
+}

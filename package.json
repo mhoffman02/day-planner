@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "sync:agents": "node tools/sync-agent-config.js",
+    "sync:agents:check": "node tools/sync-agent-config.js --check"
   },
   "keywords": ["day-planner", "google-apps-script", "gsuite"],
   "author": "",
