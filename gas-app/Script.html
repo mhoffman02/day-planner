@@ -301,6 +301,74 @@
 
       return this.addDailyTask(dateStr, formattedTitle, category);
     }
+
+    async updateDailyTask(dateStr, taskId, updates = {}) {
+      if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+        const tasks = this.mockData.dailyTasks[dateStr] || this.mockData.dailyTasks['2026-08-15'] || [];
+        const taskIndex = tasks.findIndex(t => t.id === taskId);
+        if (taskIndex === -1) return null;
+
+        tasks[taskIndex] = { ...tasks[taskIndex], ...updates };
+        this.mockData.dailyTasks[dateStr] = tasks;
+        return tasks[taskIndex];
+      }
+
+      return new Promise((resolve, reject) => {
+        window.google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .updateDailyTask(dateStr, taskId, updates);
+      });
+    }
+
+    async addCalendarEvent(dateStr, eventData = {}) {
+      if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+        if (!this.mockData.calendarEvents[dateStr]) {
+          this.mockData.calendarEvents[dateStr] = [];
+        }
+        const newEvt = {
+          id: `e_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          title: eventData.title || 'New Appointment',
+          startTime: eventData.startTime || `${dateStr}T09:00:00`,
+          endTime: eventData.endTime || `${dateStr}T09:30:00`,
+          location: eventData.location || '',
+          description: eventData.description || '',
+          meetLink: eventData.meetLink || null,
+          agendaDocUrl: eventData.agendaDocUrl || null,
+          attendees: eventData.attendees || [],
+          guestsCanModify: eventData.guestsCanModify || false,
+          syncTaskId: eventData.gasTaskId || eventData.syncTaskId || null
+        };
+        this.mockData.calendarEvents[dateStr].push(newEvt);
+        return newEvt;
+      }
+
+      return new Promise((resolve, reject) => {
+        window.google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .addCalendarEvent(dateStr, eventData);
+      });
+    }
+
+    async updateCalendarEvent(dateStr, eventId, updates = {}) {
+      if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+        const events = this.mockData.calendarEvents[dateStr] || this.mockData.calendarEvents['2026-08-15'] || [];
+        const eventIndex = events.findIndex(e => e.id === eventId);
+        if (eventIndex === -1) return null;
+
+        events[eventIndex] = { ...events[eventIndex], ...updates };
+        this.mockData.calendarEvents[dateStr] = events;
+        return events[eventIndex];
+      }
+
+      return new Promise((resolve, reject) => {
+        window.google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .updateCalendarEvent(dateStr, eventId, updates);
+      });
+    }
   }
 
   function getLocalDateStr(d = new Date()) {
@@ -624,7 +692,56 @@
         try {
           if (!silent) await new Promise(r => setTimeout(r, 200)); // Visual indicator
 
-          const reconciled = reconcileWorkspaceChanges(this.dailyTasks, this.calendarEvents);
+          const beforeTasks = this.dailyTasks;
+          const beforeEvents = this.calendarEvents;
+          const reconciled = reconcileWorkspaceChanges(beforeTasks, beforeEvents);
+
+          // Event -> Task direction: persist any status/title/time changes reconciliation
+          // pulled in from linked calendar events.
+          if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
+            for (const task of reconciled.tasks) {
+              const prior = beforeTasks.find(t => t.id === task.id);
+              if (prior && (prior.title !== task.title || prior.status !== task.status || prior.scheduledTime !== task.scheduledTime)) {
+                await this.bridge.updateDailyTask(this.selectedDate, task.id, {
+                  title: task.title,
+                  status: task.status,
+                  dueDate: task.dueDate
+                });
+              }
+            }
+          }
+
+          // Task -> Event direction: persist newly-linked events for real (adopting the
+          // real Calendar event id in place of the local evt_sync_* placeholder) and push
+          // title/time updates to already-linked events.
+          for (let i = 0; i < reconciled.calendarEvents.length; i++) {
+            const evt = reconciled.calendarEvents[i];
+            const prior = beforeEvents.find(e => e.id === evt.id);
+
+            if (!prior) {
+              if (this.bridge && typeof this.bridge.addCalendarEvent === 'function') {
+                const saved = await this.bridge.addCalendarEvent(this.selectedDate, {
+                  ...evt,
+                  gasTaskId: evt.syncTaskId || (evt.extendedProperties && evt.extendedProperties.private && evt.extendedProperties.private.gasTaskId) || null,
+                  autoGoogleMeet: false,
+                  guestsCanModify: false,
+                  autoAgendaDoc: false
+                });
+                if (saved && saved.id) {
+                  reconciled.calendarEvents[i] = { ...evt, ...saved };
+                }
+              }
+            } else if (prior.title !== evt.title || prior.startTime !== evt.startTime || prior.endTime !== evt.endTime) {
+              if (this.bridge && typeof this.bridge.updateCalendarEvent === 'function') {
+                await this.bridge.updateCalendarEvent(this.selectedDate, evt.id, {
+                  title: evt.title,
+                  startTime: evt.startTime,
+                  endTime: evt.endTime
+                });
+              }
+            }
+          }
+
           this.dailyTasks = reconciled.tasks;
           this.calendarEvents = reconciled.calendarEvents;
 
@@ -952,6 +1069,18 @@
 
       async toggleTaskStatus(task) {
         task.status = getNextStatus(task.status);
+        try {
+          if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
+            await this.bridge.updateDailyTask(this.selectedDate, task.id, {
+              title: task.title,
+              status: task.status,
+              dueDate: task.dueDate
+            });
+          }
+        } catch (err) {
+          console.error('🔥 toggleTaskStatus persist error:', err);
+          this.errorMessage = `Could not save task status: ${err.message || err.toString()}`;
+        }
         await this.trigger2WaySync();
       },
 

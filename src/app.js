@@ -370,7 +370,57 @@ function getLocalDateStr(d = new Date()) {
         try {
           if (!silent) await new Promise(r => setTimeout(r, 200)); // Visual indicator
 
-          const reconciled = reconcileWorkspaceChanges(this.dailyTasks, this.calendarEvents);
+          const beforeTasks = this.dailyTasks;
+          const beforeEvents = this.calendarEvents;
+          const reconciled = reconcileWorkspaceChanges(beforeTasks, beforeEvents);
+
+          // Event -> Task direction: persist any status/title/time changes reconciliation
+          // pulled in from linked calendar events.
+          if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
+            for (const task of reconciled.tasks) {
+              const prior = beforeTasks.find(t => t.id === task.id);
+              if (prior && (prior.title !== task.title || prior.status !== task.status || prior.scheduledTime !== task.scheduledTime)) {
+                await this.bridge.updateDailyTask(this.selectedDate, task.id, {
+                  title: task.title,
+                  status: task.status,
+                  dueDate: task.dueDate
+                });
+              }
+            }
+          }
+
+          // Task -> Event direction: persist newly-linked events for real (adopting the
+          // real Calendar event id in place of the local evt_sync_* placeholder) and push
+          // title/time updates to already-linked events.
+          if (this.bridge && typeof this.bridge.addCalendarEvent === 'function') {
+            for (let i = 0; i < reconciled.calendarEvents.length; i++) {
+              const evt = reconciled.calendarEvents[i];
+              const prior = beforeEvents.find(e => e.id === evt.id);
+
+              if (!prior) {
+                const saved = await this.bridge.addCalendarEvent(this.selectedDate, {
+                  ...evt,
+                  gasTaskId: evt.syncTaskId || (evt.extendedProperties && evt.extendedProperties.private && evt.extendedProperties.private.gasTaskId) || null,
+                  autoGoogleMeet: false,
+                  guestsCanModify: false,
+                  autoAgendaDoc: false
+                });
+                if (saved && saved.id) {
+                  reconciled.calendarEvents[i] = { ...evt, ...saved };
+                }
+              } else if (
+                (prior.title !== evt.title || prior.startTime !== evt.startTime || prior.endTime !== evt.endTime) &&
+                typeof this.bridge.updateCalendarEvent === 'function'
+              ) {
+                await this.bridge.updateCalendarEvent(this.selectedDate, evt.id, {
+                  title: evt.title,
+                  startTime: evt.startTime,
+                  endTime: evt.endTime
+                });
+              }
+            }
+          }
+
           this.dailyTasks = reconciled.tasks;
           this.calendarEvents = reconciled.calendarEvents;
 
@@ -698,6 +748,18 @@ function getLocalDateStr(d = new Date()) {
 
       async toggleTaskStatus(task) {
         task.status = getNextStatus(task.status);
+        try {
+          if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
+            await this.bridge.updateDailyTask(this.selectedDate, task.id, {
+              title: task.title,
+              status: task.status,
+              dueDate: task.dueDate
+            });
+          }
+        } catch (err) {
+          console.error('🔥 toggleTaskStatus persist error:', err);
+          this.errorMessage = `Could not save task status: ${err.message || err.toString()}`;
+        }
         await this.trigger2WaySync();
       },
 

@@ -747,6 +747,21 @@ function addDailyTask(dateStr, title, category) {
   }
 
   try {
+    if (typeof Tasks !== 'undefined') {
+      var created = Tasks.Tasks.insert({
+        title: title,
+        due: dateStr + 'T00:00:00.000Z'
+      }, '@default');
+      return {
+        id: created.id,
+        title: created.title,
+        status: created.status === 'completed' ? '✓' : '•',
+        category: category || 'General',
+        dueDate: created.due ? created.due.substring(0, 10) : dateStr
+      };
+    }
+
+    // Fallback for environments without the Tasks Advanced Service enabled.
     return {
       id: 'task_' + new Date().getTime(),
       title: title,
@@ -756,6 +771,124 @@ function addDailyTask(dateStr, title, category) {
     };
   } catch (err) {
     logError('addDailyTask', err);
+    throw err;
+  }
+}
+
+/**
+ * Updates an existing Google Task's title and/or completion status.
+ * Only 'completed'/'needsAction' are natively representable by the Tasks API;
+ * app-only status states (→ forwarded, X canceled, G/✓ delegated) are treated
+ * as "not completed" for persistence purposes and will read back as '•' on the
+ * next fetch, matching getDailyData's existing read-side status mapping.
+ * @param {string} dateStr Target date string in YYYY-MM-DD format (unused by the Tasks API, kept for signature parity with the client bridge).
+ * @param {string} taskId Google Task id.
+ * @param {object} updates Fields to update: { title, status, category, dueDate }.
+ * @returns {object|null} Updated task object, or null if the task no longer exists.
+ */
+function updateDailyTask(dateStr, taskId, updates) {
+  var auth = validateUserAccess();
+  if (!auth.authorized) {
+    throw new Error(auth.error || 'Access Denied');
+  }
+
+  try {
+    if (typeof Tasks === 'undefined') {
+      throw new Error('Tasks Advanced Service is not enabled for this deployment.');
+    }
+
+    var patch = {};
+    if (updates && updates.title !== undefined) {
+      patch.title = updates.title;
+    }
+    if (updates && updates.status !== undefined) {
+      patch.status = (updates.status === '✓' || updates.status === 'G/✓') ? 'completed' : 'needsAction';
+    }
+    if (updates && updates.dueDate !== undefined) {
+      patch.due = updates.dueDate + 'T00:00:00.000Z';
+    }
+
+    var updated = Tasks.Tasks.patch(patch, '@default', taskId);
+    return {
+      id: updated.id,
+      title: updated.title,
+      status: updated.status === 'completed' ? '✓' : '•',
+      category: (updates && updates.category) || 'General',
+      dueDate: updated.due ? updated.due.substring(0, 10) : (updates && updates.dueDate) || dateStr
+    };
+  } catch (err) {
+    if (err.message && err.message.indexOf('404') !== -1) {
+      return null;
+    }
+    logError('updateDailyTask(' + taskId + ')', err);
+    throw err;
+  }
+}
+
+/**
+ * Updates an existing calendar event's title and/or timing. Mirrors addCalendarEvent's
+ * dual-path pattern: prefers the Advanced Calendar Service (Calendar API v3) when enabled,
+ * falls back to CalendarApp otherwise.
+ * @param {string} dateStr Target date string in YYYY-MM-DD format (unused, kept for signature parity with the client bridge).
+ * @param {string} eventId Calendar event id.
+ * @param {object} updates Fields to update: { title, startTime, endTime, location, description }.
+ * @returns {object|null} Updated event payload, or null if the event no longer exists.
+ */
+function updateCalendarEvent(dateStr, eventId, updates) {
+  var auth = validateUserAccess();
+  if (!auth.authorized) {
+    throw new Error(auth.error || 'Access Denied');
+  }
+
+  try {
+    if (typeof Calendar !== 'undefined' && Calendar.Events) {
+      var patch = {};
+      if (updates && updates.title !== undefined) patch.summary = updates.title;
+      if (updates && updates.location !== undefined) patch.location = updates.location;
+      if (updates && updates.description !== undefined) patch.description = updates.description;
+      if (updates && updates.startTime !== undefined) {
+        patch.start = { dateTime: updates.startTime, timeZone: Session.getScriptTimeZone() };
+      }
+      if (updates && updates.endTime !== undefined) {
+        patch.end = { dateTime: updates.endTime, timeZone: Session.getScriptTimeZone() };
+      }
+
+      var updated = Calendar.Events.patch(patch, 'primary', eventId);
+      return {
+        id: updated.id,
+        title: updated.summary,
+        startTime: updated.start && (updated.start.dateTime || updated.start.date),
+        endTime: updated.end && (updated.end.dateTime || updated.end.date),
+        location: updated.location || '',
+        description: updated.description || ''
+      };
+    }
+
+    if (typeof CalendarApp !== 'undefined') {
+      var evt = CalendarApp.getEventById(eventId);
+      if (!evt) return null;
+      if (updates && updates.title !== undefined) evt.setTitle(updates.title);
+      if (updates && updates.location !== undefined) evt.setLocation(updates.location);
+      if (updates && updates.description !== undefined) evt.setDescription(updates.description);
+      if (updates && updates.startTime !== undefined && updates.endTime !== undefined) {
+        evt.setTime(new Date(updates.startTime), new Date(updates.endTime));
+      }
+      return {
+        id: evt.getId(),
+        title: evt.getTitle(),
+        startTime: evt.getStartTime().toISOString(),
+        endTime: evt.getEndTime().toISOString(),
+        location: evt.getLocation(),
+        description: evt.getDescription()
+      };
+    }
+
+    throw new Error('Neither the Advanced Calendar Service nor CalendarApp is available.');
+  } catch (err) {
+    if (err.message && (err.message.indexOf('404') !== -1 || err.message.indexOf('Not Found') !== -1)) {
+      return null;
+    }
+    logError('updateCalendarEvent(' + eventId + ')', err);
     throw err;
   }
 }
@@ -787,6 +920,9 @@ function addCalendarEvent(dateStr, eventData) {
     var autoGoogleMeet = (eventData && eventData.autoGoogleMeet !== undefined) ? eventData.autoGoogleMeet : true;
     var guestsCanModify = (eventData && eventData.guestsCanModify !== undefined) ? eventData.guestsCanModify : true;
     var autoAgendaDoc = (eventData && eventData.autoAgendaDoc !== undefined) ? eventData.autoAgendaDoc : true;
+    // Links this event back to a Day Planner task (Task -> Event sync). Read back via
+    // getDailyData's evt.getTag('gasTaskId') / extendedProperties.private.gasTaskId.
+    var gasTaskId = (eventData && eventData.gasTaskId) ? eventData.gasTaskId : null;
 
     var attendeesList = Array.isArray(attendees) ? attendees : (typeof attendees === 'string' ? attendees.split(/[,;]+/).map(function(s) { return s.trim(); }).filter(Boolean) : []);
 
@@ -807,6 +943,9 @@ function addCalendarEvent(dateStr, eventData) {
       };
       if (attendeesList.length > 0) {
         eventResource.attendees = attendeesList.map(function(email) { return { email: email }; });
+      }
+      if (gasTaskId) {
+        eventResource.extendedProperties = { private: { gasTaskId: gasTaskId } };
       }
 
       var insertOptions = { sendUpdates: attendeesList.length > 0 ? 'all' : 'none' };
@@ -838,6 +977,9 @@ function addCalendarEvent(dateStr, eventData) {
         guests: attendeesList.join(','),
         sendInvites: attendeesList.length > 0
       });
+      if (gasTaskId) {
+        evt.setTag('gasTaskId', gasTaskId);
+      }
       createdId = evt.getId();
     }
 
@@ -902,7 +1044,8 @@ function addCalendarEvent(dateStr, eventData) {
       meetLink: meetLink,
       agendaDocUrl: agendaDocUrl,
       attendees: attendeesList,
-      guestsCanModify: guestsCanModifyApplied
+      guestsCanModify: guestsCanModifyApplied,
+      syncTaskId: gasTaskId
     };
   } catch (err) {
     logError('addCalendarEvent', err);
