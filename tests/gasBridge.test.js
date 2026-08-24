@@ -107,4 +107,50 @@ describe('GAS Bridge Unit Tests', () => {
     assert.ok(result.success);
     assert.ok(result.docName.includes('Day Planner Notes'));
   });
+
+  it('should return null when updating a task or event id that does not exist', async () => {
+    const bridge = new GASBridge(true);
+    assert.equal(await bridge.updateDailyTask('2026-08-15', 'nonexistent-id', { status: '✓' }), null);
+    assert.equal(await bridge.updateCalendarEvent('2026-08-15', 'nonexistent-id', { title: 'x' }), null);
+  });
+
+  it('should return null when transferring a master task id that does not exist', async () => {
+    const bridge = new GASBridge(true);
+    assert.equal(await bridge.transferMasterTask('nonexistent-master-id', '2026-08-15'), null);
+  });
+
+  it('should skip Meet link, Agenda Doc, and guest-edit generation when explicitly disabled', async () => {
+    const bridge = new GASBridge(true);
+    const evt = await bridge.addCalendarEvent('2026-08-17', {
+      title: 'Private focus block',
+      autoGoogleMeet: false,
+      autoAgendaDoc: false,
+      guestsCanModify: false
+    });
+    assert.equal(evt.meetLink, null);
+    assert.equal(evt.agendaDocUrl, null);
+    assert.equal(evt.guestsCanModify, false);
+    assert.equal(evt.location, '');
+    assert.equal(evt.description, '');
+  });
+
+  it('should parse a comma/semicolon-delimited attendees string into a trimmed list', async () => {
+    const bridge = new GASBridge(true);
+    const evt = await bridge.addCalendarEvent('2026-08-17', {
+      title: 'Cross-team sync',
+      attendees: ' alex.rivera@example.com, sarah.chen@example.com; jordan.lee@example.com '
+    });
+    assert.deepEqual(evt.attendees, ['alex.rivera@example.com', 'sarah.chen@example.com', 'jordan.lee@example.com']);
+  });
+
+  it('should initialize an empty daily task list for a date with no seeded tasks', async () => {
+    const bridge = new GASBridge(true);
+    const newTask = await bridge.addDailyTask('2026-09-01', 'Fresh task on a blank day', 'Personal');
+    assert.equal(newTask.category, 'Personal');
+    const data = await bridge.getDailyData('2026-09-01');
+    // getDailyData falls back to the seeded 2026-08-15 tasks when a date has no entry of its own,
+    // so re-read the raw mock store to confirm the new date's own list was created in isolation.
+    assert.equal(bridge.mockData.dailyTasks['2026-09-01'].length, 1);
+    assert.equal(bridge.mockData.dailyTasks['2026-09-01'][0].title, 'Fresh task on a blank day');
+  });
 });

@@ -88,4 +88,49 @@ describe('Task Engine Unit Tests', () => {
     assert.equal(transferred.category, 'Financial');
     assert.equal(transferred.sourceMasterId, 'm123');
   });
+
+  it('should return the null-field shape for empty/falsy titles from parseTaskTitle', () => {
+    const empty = parseTaskTitle('');
+    assert.deepEqual(empty, { priorityGroup: null, sequence: null, priorityCode: null, cleanTitle: '' });
+    assert.deepEqual(parseTaskTitle(), empty);
+  });
+
+  it('should reject out-of-range or malformed priority prefixes as unprioritized', () => {
+    const outOfRange = parseTaskTitle('[D1] Not a real group');
+    assert.equal(outOfRange.priorityGroup, null);
+    assert.equal(outOfRange.cleanTitle, '[D1] Not a real group');
+
+    const zeroSeq = parseTaskTitle('[A0] Zero is not 1-9');
+    assert.equal(zeroSeq.priorityGroup, null);
+    assert.equal(zeroSeq.cleanTitle, '[A0] Zero is not 1-9');
+  });
+
+  it('should treat an unrecognized status as reset to OPEN when cycling', () => {
+    assert.equal(getNextStatus('some-unknown-status'), '•');
+    assert.equal(getNextStatus(undefined), '•');
+  });
+
+  it('should cap next sequence at 9 once a priority group is fully saturated', () => {
+    const fullGroupA = Array.from({ length: 9 }, (_, i) => ({ title: `[A${i + 1}] Task ${i + 1}` }));
+    assert.equal(getNextSequence(fullGroupA, 'A'), 9);
+    assert.equal(getNextSequence([], 'c'), 1); // lowercase group letter is normalized
+  });
+
+  it('should sort tasks with identical priority codes by clean title alphabetically', () => {
+    const tasks = [
+      { title: '[A1] Zebra task' },
+      { title: '[A1] Alpha task' }
+    ];
+    const sorted = sortTasks(tasks);
+    assert.equal(sorted[0].title, '[A1] Alpha task');
+    assert.equal(sorted[1].title, '[A1] Zebra task');
+  });
+
+  it('should fall back to raw title and default category when transferring an unprefixed/uncategorized master task', () => {
+    const masterTask = { id: 'm999', title: 'Untitled master item' };
+    const transferred = transferMasterTaskToToday(masterTask, [], 'B', '2026-08-20');
+    assert.equal(transferred.title, '[B1] Untitled master item');
+    assert.equal(transferred.category, 'General');
+    assert.equal(transferred.sourceMasterId, 'm999');
+  });
 });

@@ -7,6 +7,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createSyncMetadata,
+  getCleanTitle,
   syncTaskToCalendar,
   syncCalendarToTask,
   reconcileWorkspaceChanges
@@ -20,6 +21,29 @@ describe('2-Way Sync Engine Unit Tests', () => {
       assert.equal(meta.eventId, 'e200');
       assert.equal(meta.syncId, 'sync_t100_e200');
       assert.ok(meta.lastSyncedAt);
+    });
+
+    it('should default eventId to null and label the syncId placeholder when no event is linked yet', () => {
+      const meta = createSyncMetadata('t100');
+      assert.equal(meta.eventId, null);
+      assert.equal(meta.syncId, 'sync_t100_evt');
+    });
+  });
+
+  describe('getCleanTitle', () => {
+    it('should strip priority prefixes and completion markers from a title', () => {
+      assert.equal(getCleanTitle('[A1] Review quarterly roadmap'), 'Review quarterly roadmap');
+      assert.equal(getCleanTitle('[✓] Review quarterly roadmap'), 'Review quarterly roadmap');
+    });
+
+    it('should strip multiple stacked prefixes (e.g. completed + priority) in one pass', () => {
+      assert.equal(getCleanTitle('[✓] [A1] Review quarterly roadmap'), 'Review quarterly roadmap');
+    });
+
+    it('should return an empty string for falsy/empty titles and leave untagged titles untouched', () => {
+      assert.equal(getCleanTitle(), '');
+      assert.equal(getCleanTitle(''), '');
+      assert.equal(getCleanTitle('No prefix here'), 'No prefix here');
     });
   });
 
@@ -187,6 +211,27 @@ describe('2-Way Sync Engine Unit Tests', () => {
       const updatedTask = syncCalendarToTask(renamedEvent, dailyTasks);
       assert.ok(updatedTask);
       assert.equal(updatedTask.title, '[C1] Order ergonomic supplies and monitors');
+    });
+
+    it('should return null when an event has no syncTaskId/gasTaskId link and no clean-title match', () => {
+      const dailyTasks = [
+        { id: 't_unrelated', title: '[A1] Something else entirely', status: '•', dueDate: '2026-08-15' }
+      ];
+      const standaloneEvent = { id: 'e_standalone', title: 'Coffee with a friend' };
+      assert.equal(syncCalendarToTask(standaloneEvent, dailyTasks), null);
+    });
+
+    it('should fall back to matching an unlinked, priority-tagged event by clean title', () => {
+      const dailyTasks = [
+        { id: 't_fallback', title: '[B1] Draft partnership proposal', status: '•', dueDate: '2026-08-15' }
+      ];
+      // No syncTaskId/extendedProperties — must match purely by clean title text
+      const unlinkedEvent = { id: 'e_fallback', title: '[B1] Draft partnership proposal', isCompleted: true };
+
+      const updatedTask = syncCalendarToTask(unlinkedEvent, dailyTasks);
+      assert.ok(updatedTask);
+      assert.equal(updatedTask.id, 't_fallback');
+      assert.equal(updatedTask.status, '✓');
     });
   });
 

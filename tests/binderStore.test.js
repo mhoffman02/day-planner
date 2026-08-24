@@ -105,4 +105,34 @@ describe('Binder Store Unit Tests', () => {
     assert.equal(store.calculateEndTime('14:00', 50), '14:50');
     assert.equal(store.calculateEndTime('14:00', 80), '15:20');
   });
+
+  it('should ignore invalid view names and malformed date strings', () => {
+    const store = new BinderStore('2026-08-15');
+
+    store.setView('not-a-real-view');
+    assert.equal(store.activeView, VIEWS.DAILY);
+
+    store.setSelectedDate('08/15/2026');
+    assert.equal(store.selectedDate, '2026-08-15');
+
+    store.setSelectedDate('2026-09-01');
+    assert.equal(store.selectedDate, '2026-09-01');
+    assert.equal(store.selectedYear, 2026);
+    assert.equal(store.selectedMonth, 9);
+  });
+
+  it('should clamp calculateEndTime past 23:59 to hour 23 rather than rolling into the next day', () => {
+    const store = new BinderStore();
+    assert.equal(store.calculateEndTime('23:50', 25), '23:15');
+  });
+
+  it('should reset the search query but not results when closing the search modal', () => {
+    const store = new BinderStore();
+    store.searchModal.query = 'budget';
+    store.searchModal.results.totalMatches = 3;
+    store.closeSearchModal();
+    assert.equal(store.searchModal.query, '');
+    assert.equal(store.searchModal.isOpen, false);
+    assert.equal(store.searchModal.results.totalMatches, 3);
+  });
 });

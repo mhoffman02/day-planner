@@ -73,7 +73,7 @@ The project is architected to run in two environments:
 │   ├── shellLoader.js     # PWA shell bootstrap (bundle load, hash check, mount)
 │   ├── app.js              # Alpine.js app wiring for local/browser preview
 │   └── vendor/             # Bundled Alpine.js, Pico CSS
-├── tests/                 # Unit Test Suite (66 tests / 18 suites, `npm test`)
+├── tests/                 # Unit Test Suite (107 tests / 19 suites, `npm test`)
 ├── gas-app/               # Google Apps Script Project Directory (clasp target)
 │   ├── Code.gs            # Server-side Apps Script logic & 2-Way Sync background trigger
 │   ├── Index.html         # Main SPA Binder Shell

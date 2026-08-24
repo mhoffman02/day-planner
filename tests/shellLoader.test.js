@@ -104,4 +104,37 @@ describe('PWA Shell Loader Engine Tests', () => {
     const result = await checkRemoteUpdate('http://invalid-gas-domain.fake/exec', 'hash-1');
     assert.equal(result, null, 'Should return null when offline or fetch fails');
   });
+
+  it('should return null immediately for checkRemoteUpdate when no gasUrl is given', async () => {
+    const result = await checkRemoteUpdate('', 'hash-1');
+    assert.equal(result, null);
+  });
+
+  it('should return null from getCachedBundle when nothing has been saved yet', async () => {
+    const retrieved = await getCachedBundle();
+    assert.equal(retrieved, null);
+  });
+
+  it('should no-op mountBundle without throwing when #app-root is missing from the DOM', () => {
+    global.document.getElementById = () => null;
+    assert.doesNotThrow(() => mountBundle({ bundle: { html: '<div>x</div>' } }));
+  });
+
+  it('should reuse an existing bundle-styles tag instead of creating a duplicate on remount', () => {
+    const rootEl = { id: 'app-root', innerHTML: '' };
+    const existingStyleTag = { id: 'day-planner-bundle-styles', textContent: '' };
+    let headAppendCalls = 0;
+
+    global.document.getElementById = (id) => {
+      if (id === 'app-root') return rootEl;
+      if (id === 'day-planner-bundle-styles') return existingStyleTag;
+      return null;
+    };
+    global.document.head.appendChild = () => { headAppendCalls++; };
+
+    mountBundle({ bundle: { styles: 'body { color: red; }' } });
+
+    assert.equal(headAppendCalls, 0, 'Should not append a new style tag when one already exists');
+    assert.equal(existingStyleTag.textContent, 'body { color: red; }');
+  });
 });

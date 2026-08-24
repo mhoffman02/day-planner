@@ -153,13 +153,23 @@ The **Google Digital Day Planner** is a high-efficiency single-page digital bind
   merged, deleted locally and on origin.
 
 ### Phase 14: Full Feature Regression Pass & 2-Way Sync Verification
-- [ ] **14.1 Develop missing unit test coverage**: audit each module in the
-  Modular Architecture & Test Suite Map above against its current `src/*.js` /
-  `gas-app/Code.gs` behavior; write tests for any feature or edge case not yet covered
-  (server-side `Code.gs` sync/trigger logic in particular has no direct unit tests today —
-  only `src/syncEngine.js`'s local model of it does).
-- [ ] **14.2 Run full unit test suite** (`npm test`) and confirm all suites pass with no
-  skips.
+- [x] **14.1 Develop missing unit test coverage**: audited each module in the
+  Modular Architecture & Test Suite Map above against its current `src/*.js` behavior and
+  added 41 new edge-case tests (66 -> 107) across all 7 core engines: falsy/malformed
+  input handling, null-return branches (`updateDailyTask`/`updateCalendarEvent`/
+  `transferMasterTask` on unknown ids), `autoGoogleMeet`/`autoAgendaDoc`/
+  `guestsCanModify` disabled paths, attendee-string parsing, invalid view/date no-ops in
+  `BinderStore`, `formatEventModalPayload` defaults, monthly-grid padding, index-tag
+  default-topic and empty-input branches, blank-query/missing-store-field search
+  behavior, `syncEngine`'s `getCleanTitle` stacked-prefix stripping and the
+  unlinked-event-to-task fallback-by-title match, and IndexedDB fallback-store
+  delete/miss paths. **Not covered**: server-side `gas-app/Code.gs` sync/trigger logic
+  still has no direct unit tests — it depends on live GAS globals (`CalendarApp`, `Tasks`,
+  `DriveApp`) that would need a substantial mocking layer to exercise under
+  `node --test`; `src/syncEngine.js`'s local model remains the only tested version of
+  that logic. Left as a known gap rather than building that mock harness speculatively.
+- [x] **14.2 Run full unit test suite** (`npm test`) and confirm all suites pass with no
+  skips — 107/107 passing across 19 suites.
 - [ ] **14.3 Verify 2-way sync end-to-end against live Google Calendar & Tasks** — no
   automated harness exercises the real APIs, only `src/syncEngine.js`'s mocked model.
   Confirm against the live GAS backend: creating/editing a priority-tagged task creates a
@@ -170,7 +180,7 @@ The **Google Digital Day Planner** is a high-efficiency single-page digital bind
 - [ ] **14.4 Fix any broken features** surfaced by 14.2 or 14.3.
 
 ## Verification Criteria
-- [x] All unit tests in `tests/*.test.js` pass cleanly (`npm test` — 66/66 passing across 18 suites).
+- [x] All unit tests in `tests/*.test.js` pass cleanly (`npm test` — 107/107 passing across 19 suites).
 - [x] UI matches Day Planner design rules (#fcfbfa cream, #2d6a5a teal ruling, serif headers).
 - [x] 2-Way Sync correctly cross-references tasks and calendar appointments.
 - [x] All views function correctly in both local dev server (`http://localhost:3000`) and GAS file bundle.

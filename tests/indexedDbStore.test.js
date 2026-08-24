@@ -5,13 +5,37 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import IndexedDbStore from '../src/indexedDbStore.js';
+import IndexedDbStore, { STORES } from '../src/indexedDbStore.js';
 
 describe('IndexedDB Client Store Unit Tests', () => {
 
   it('should detect environment support gracefully', () => {
     const supported = IndexedDbStore.isSupported();
     assert.strictEqual(typeof supported, 'boolean');
+  });
+
+  it('should report unsupported (falls back to in-memory store) under Node\'s test runner', () => {
+    // node:test has no global `indexedDB`, so the memory fallback store must be used everywhere below.
+    assert.strictEqual(IndexedDbStore.isSupported(), false);
+  });
+
+  it('should return null for a daily/monthly key that was never saved', async () => {
+    assert.strictEqual(await IndexedDbStore.getDaily('1999-01-01'), null);
+    assert.strictEqual(await IndexedDbStore.getMonthlyNotes('1999-01'), null);
+  });
+
+  it('should delete a stored daily record so it is no longer retrievable', async () => {
+    await IndexedDbStore.saveDaily('2026-08-18', { tasks: [] });
+    assert.ok(await IndexedDbStore.getDaily('2026-08-18'));
+
+    const deleted = await IndexedDbStore.deleteItem(STORES.DAILY_DATA, '2026-08-18');
+    assert.strictEqual(deleted, true);
+    assert.strictEqual(await IndexedDbStore.getDaily('2026-08-18'), null);
+  });
+
+  it('should return an empty array from getAllItems for a store with nothing saved', async () => {
+    const all = await IndexedDbStore.getAllItems(STORES.MASTER_TASKS);
+    assert.ok(Array.isArray(all));
   });
 
   it('should store and retrieve daily data via fallback/native engine', async () => {

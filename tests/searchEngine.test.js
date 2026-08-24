@@ -46,4 +46,32 @@ describe('Universal Search Engine Unit Tests', () => {
     const searchRes = executeUniversalSearch('nonexistentxyz', sampleStore);
     assert.equal(searchRes.totalMatches, 0);
   });
+
+  it('should return empty results for a blank/whitespace-only query without inspecting the store', () => {
+    const searchRes = executeUniversalSearch('   ');
+    assert.equal(searchRes.totalMatches, 0);
+    assert.deepEqual(searchRes.calendar, []);
+    assert.deepEqual(searchRes.tasks, []);
+  });
+
+  it('should tolerate a store with missing entity arrays', () => {
+    const searchRes = executeUniversalSearch('anything', {});
+    assert.equal(searchRes.totalMatches, 0);
+  });
+
+  it('should route a master task (no dueDate) to master-tasks and a scheduled daily task to daily', () => {
+    const searchRes = executeUniversalSearch('Q3', sampleStore);
+    const masterHit = searchRes.tasks.find(t => t.title === 'Hire Q3 lead designer');
+    const dailyHit = searchRes.tasks.find(t => t.title === '[A1] Review Q3 budget draft');
+    assert.equal(masterHit.targetView, 'master-tasks');
+    assert.equal(dailyHit.targetView, 'daily');
+  });
+
+  it('should extract a note snippet centered on the matched query text', () => {
+    const searchRes = executeUniversalSearch('campaigns', sampleStore);
+    assert.equal(searchRes.notes.length, 1);
+    assert.ok(searchRes.notes[0].snippet.toLowerCase().includes('campaigns'));
+    assert.ok(searchRes.notes[0].snippet.startsWith('...'));
+    assert.ok(searchRes.notes[0].snippet.endsWith('...'));
+  });
 });

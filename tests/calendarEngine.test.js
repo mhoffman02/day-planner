@@ -84,4 +84,50 @@ describe('Calendar Engine Unit Tests', () => {
     assert.equal(aug15.isCurrentMonth, true);
     assert.equal(aug15.events.length, 1);
   });
+
+  it('should default missing fields when formatting an event modal payload', () => {
+    const payload = formatEventModalPayload();
+    assert.equal(payload.title, 'Untitled Event');
+    assert.equal(payload.formattedTime, 'All Day');
+    assert.equal(payload.startTime, undefined);
+    assert.equal(payload.meetLink, null);
+    assert.equal(payload.agendaDocUrl, null);
+    assert.deepEqual(payload.attendees, []);
+    assert.ok(payload.id.startsWith('evt_'));
+    assert.ok(payload.gCalLink.includes('calendar.google.com'));
+  });
+
+  it('should fall back to hangoutLink when meetLink is absent', () => {
+    const payload = formatEventModalPayload({ title: 'Sync', hangoutLink: 'https://meet.google.com/legacy-link' });
+    assert.equal(payload.meetLink, 'https://meet.google.com/legacy-link');
+  });
+
+  it('should leave events unmapped when they fall outside the 7am-7pm schedule grid', () => {
+    const grid = generateScheduleGrid();
+    const lateEvent = { id: 'e-late', title: 'Late Night Call', startTime: '2026-08-15T22:00:00' };
+    const mappedGrid = mapEventsToGrid(grid, [lateEvent]);
+    const totalMapped = mappedGrid.reduce((sum, s) => sum + s.events.length, 0);
+    assert.equal(totalMapped, 0);
+  });
+
+  it('should default to empty grid/events arrays when called with no arguments', () => {
+    assert.deepEqual(mapEventsToGrid(), []);
+  });
+
+  it('should correctly pad the leading and trailing weeks of the monthly grid', () => {
+    const grid = generateMonthlyCalendarGrid(2026, 8);
+    const leadingPadCount = new Date(2026, 7, 1).getDay(); // Aug 1, 2026 weekday index
+    const currentMonthDays = grid.filter(d => d.isCurrentMonth);
+
+    assert.equal(currentMonthDays.length, 31);
+    assert.equal(grid.slice(0, leadingPadCount).every(d => !d.isCurrentMonth), true);
+    assert.equal(grid[leadingPadCount].dateStr, '2026-08-01');
+
+    const trailingPad = grid.slice(leadingPadCount + 31);
+    assert.equal(trailingPad.every(d => !d.isCurrentMonth), true);
+    // Trailing padding day numbers should restart at 1 (first days of the next month)
+    if (trailingPad.length > 0) {
+      assert.equal(trailingPad[0].dayNumber, 1);
+    }
+  });
 });

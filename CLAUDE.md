@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm test              # Run full suite: node --test tests/*.test.js (66 tests / 18 suites)
+npm test              # Run full suite: node --test tests/*.test.js (107 tests / 19 suites)
 node --test tests/taskEngine.test.js   # Run a single test file
 npm start             # Local preview server -> http://localhost:3000 (serves index.html, /src, /images)
 ```
