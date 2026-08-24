@@ -3,12 +3,13 @@
  * @description Unit test coverage for PWA manifest.json validity, service worker asset listing, and server routing.
  */
 
-import { describe, it } from 'node:test';
+import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
+import { createServer } from '../server.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -91,9 +92,26 @@ describe('Service Worker Asset Listing Tests', () => {
 });
 
 describe('PWA Configuration & Server Routing Tests', () => {
+  let server;
+  let baseUrl;
+
+  before(async () => {
+    server = createServer();
+    await new Promise((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(0, '127.0.0.1', resolve);
+    });
+    const { port } = server.address();
+    baseUrl = `http://127.0.0.1:${port}`;
+  });
+
+  after(async () => {
+    await new Promise((resolve) => server.close(resolve));
+  });
+
   function fetchRoute(pathname) {
     return new Promise((resolve, reject) => {
-      const req = http.get(`http://localhost:3000${pathname}`, (res) => {
+      const req = http.get(`${baseUrl}${pathname}`, (res) => {
         let body = '';
         res.on('data', chunk => { body += chunk; });
         res.on('end', () => {
