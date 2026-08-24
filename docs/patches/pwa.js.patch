@@ -1,6 +1,29 @@
 --- a/pwa.js
 +++ b/pwa.js
-@@ -292,6 +292,21 @@
+@@ -29,6 +29,22 @@
+     tagline: 'Tasks, calendar & daily notes',
+     url: 'https://script.google.com/macros/s/AKfycbyAejUd5SWdt5dbmtSKYJZvwqQ2RHU-V3_mARJp3MDjMZ_jrlP0MfWnyTPYp6hVSyO4/exec',
+     icon: './icons/icon.svg'
++  },
++  {
++    // Dev/test entry: points at the /dev URL (whatever's currently saved in the
++    // Apps Script editor, not the pinned deployment), so testing in-progress
++    // changes never shares localStorage trust/redirect state with the
++    // production tile above — see docs/shell-gas-pattern.md §10 and PLAN.md
++    // 14.5/14.6. Only usable by a Google account with edit access to the
++    // script project; anyone else hitting /dev gets an access-denied page.
++    // `hidden: true` keeps it out of the default multi-app picker — reachable
++    // only via an explicit ?app=day-planner-dev deep link.
++    key: 'day-planner-dev',
++    name: 'Day Planner (Dev)',
++    tagline: 'Latest saved code — testing only',
++    url: 'https://script.google.com/macros/s/1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W/dev',
++    icon: './icons/icon.svg',
++    hidden: true
+   }
+ ];
+ function findKnownApp(key) {
+@@ -292,6 +308,21 @@
    }
  }
  
@@ -22,7 +45,21 @@
  // 7. Core Boot / Router Flow
  async function initPWA() {
    const params = new URLSearchParams(window.location.search);
-@@ -328,50 +343,37 @@
+@@ -306,8 +337,11 @@
+ 
+   let trustedGasUrl = localStorage.getItem(storageKey);
+ 
+-  // Backward compatibility check for legacy storage keys
+-  if (!trustedGasUrl) {
++  // Backward compatibility check for legacy storage keys. Scoped to the original
++  // 'day-planner' key only — applying it to any other appKey (e.g. the deep-linked
++  // dev/test entry) would silently pull in the production trust and redirect
++  // there instead, defeating the whole point of a separate dev entry.
++  if (!trustedGasUrl && appKey === 'day-planner') {
+     trustedGasUrl = localStorage.getItem('dayPlannerGasUrl') || localStorage.getItem('gas_planner_url');
+     if (trustedGasUrl) localStorage.setItem(storageKey, trustedGasUrl);
+   }
+@@ -328,61 +362,50 @@
      }
    }
  
@@ -88,7 +125,23 @@
    showConnectPrompt(appDisplayName, pendingGasUrl || null, explicitAppKey);
  }
  
-@@ -417,22 +419,13 @@
+ // Renders quick-launch tiles for KNOWN_APPS into #app-picker. If explicitAppKey names a
+-// known app, only that one tile is shown (deep-link/shortcut case); otherwise all known
+-// apps are offered so the visitor can choose.
++// known app, only that one tile is shown (deep-link/shortcut case); otherwise all
++// non-hidden known apps are offered so the visitor can choose. `hidden: true` entries
++// (e.g. a dev/test URL) only ever appear via an explicit ?app=<key> deep link, never in
++// this default list.
+ function renderAppPicker(explicitAppKey) {
+   const picker = document.getElementById('app-picker');
+   if (!picker) return;
+   const match = explicitAppKey ? findKnownApp(explicitAppKey) : null;
+-  const apps = match ? [match] : KNOWN_APPS;
++  const apps = match ? [match] : KNOWN_APPS.filter((a) => !a.hidden);
+ 
+   picker.innerHTML = '';
+   apps.forEach((app) => {
+@@ -417,22 +440,13 @@
      btnEl.classList.add('is-loading');
    }
  
@@ -118,7 +171,7 @@
  }
  
  function showConnectPrompt(appDisplayName, prefillUrl, explicitAppKey) {
-@@ -486,21 +479,12 @@
+@@ -486,21 +500,12 @@
    }
  
    if (errorMsg) errorMsg.classList.add('is-hidden');

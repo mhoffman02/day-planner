@@ -210,14 +210,29 @@ The **Google Digital Day Planner** is a high-efficiency single-page digital bind
   `#shell-loading` spinner already in `index.html` rather than adding new UI. Bundle
   mounting is untouched for the genuine offline-PWA fallback path and for
   first-time/pending-URL consent flows (`showConnectPrompt`), so those still work as
-  before. Verified: applies cleanly against current `pwa.js` (3 exact-match
-  replacements) and `node --check` passes on the patched file. **Not applied yet** —
+  before. Also adds a **`day-planner-dev` `KNOWN_APPS` entry** pointing at the
+  Apps Script `/dev` URL — `https://script.google.com/macros/s/1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W/dev`
+  (script ID from `gas-app/.clasp.json`) — reachable only via the deep link
+  `?app=day-planner-dev`; a `hidden: true` flag keeps `renderAppPicker()` from ever
+  listing it in the default multi-app picker. Its `localStorage` trust key
+  (`gas_url_day-planner-dev`) is fully separate from production's
+  (`gas_url_day-planner`) so a test launch can never silently redirect prod traffic
+  to `/dev`. Fixes one real bug this exposed along the way: `initPWA()`'s
+  legacy-storage-key fallback previously applied to *any* `appKey`, so the very first
+  `?app=day-planner-dev` visit on a browser that already trusted prod would read back
+  the prod URL and redirect there instead of `/dev` — now guarded to
+  `appKey === 'day-planner'` only. `/dev` only works for a Google account with edit
+  access to the script project; anyone else gets an access-denied page, which is fine
+  for a solo-dev testing tile. Verified: all 6 replacements apply cleanly against
+  current `pwa.js` and `node --check` passes on the patched file. **Not applied yet** —
   this worktree-isolated session has no tool access (Edit/Write/git, all blocked by
   the harness) to `gh-pwa-shell` since it's a separate git repo outside this worktree;
   apply from a non-worktree-isolated session or manually with
-  `cd gh-pwa-shell && git apply <path-to-repo>/docs/patches/pwa.js.patch`, then test a
-  fresh shell launch redirects to the live app instead of mounting a local bundle, and
-  commit+push in the `gh-pwa-shell` repo (separate remote from this one).
+  `cd gh-pwa-shell && git apply <path-to-repo>/docs/patches/pwa.js.patch`, then test:
+  (a) a fresh `?app=day-planner` launch redirects to the live `/exec` app instead of
+  mounting a local bundle, and (b) `?app=day-planner-dev` redirects to `/dev` and does
+  not show up in the bare-URL picker. Commit+push in the `gh-pwa-shell` repo (separate
+  remote from this one).
 
 ## Verification Criteria
 - [x] All unit tests in `tests/*.test.js` pass cleanly (`npm test` — 107/107 passing across 19 suites).
