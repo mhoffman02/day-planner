@@ -126,26 +126,48 @@ The **Google Digital Day Planner** is a high-efficiency single-page digital bind
   generated real-file mirrors + `npm run sync:agents:check` pre-commit drift gate; native
   config for Kilo (`kilo.jsonc`) and Gemini (`GEMINI.md` → `@CLAUDE.md`). Merged to `master`
   (`6ce4f85`), pushed.
-- [ ] **13.3 Fix `tests/pwa.test.js` live-server dependency** — 5 tests (`should serve /`,
+- [x] **13.3 Fix `tests/pwa.test.js` live-server dependency** — 5 tests (`should serve /`,
   `/manifest.json`, `/sw.js`, icon route, 404 route) call `http.get()` against
   `localhost:3000` with no timeout and no server startup of their own; when `npm start`
   isn't already running they fail (`ECONNREFUSED`) or, in some environments, hang
-  indefinitely — this is what stalls `npm test` inside the pre-commit hook. Fix: either spin
-  up `server.js` in a `before()`/`after()` hook for just this suite, or add a short
-  connect timeout + skip-with-reason when unreachable.
-- [ ] **13.4 Manually verify the merged gh-pwa-shell security fixes in a real browser** —
-  no automated test harness exists for this sub-repo. Confirm: untrusted `?gasUrl=` shows
-  the pre-filled consent modal without auto-fetching; invalid host is dropped silently;
-  Launch on a valid URL fetches/mounts/persists and is silent on reload; install-bar
-  Enter/Space triggers install; pinch-zoom works on mobile viewport. See "Verification"
-  checklist in the (now superseded) plan this phase implemented.
-- [ ] **13.5 De-duplicate stale gh-pwa-shell files tracked in the day-planner outer repo** —
+  indefinitely — this is what stalls `npm test` inside the pre-commit hook. Fixed:
+  `server.js` now exports `createServer()` and only auto-listens as the main module;
+  `pwa.test.js` spins up its own ephemeral server (port 0) in `before()`/`after()`.
+  Merged to `master` (`5c0e9c2`), pushed.
+- [x] **13.4 Manually verify the merged gh-pwa-shell security fixes in a real browser** —
+  no automated test harness exists for this sub-repo. Confirmed via Playwright against a
+  real Chrome instance: untrusted `?gasUrl=` shows the pre-filled consent modal without
+  auto-fetching; invalid host is dropped silently; Launch on a valid URL
+  fetches/mounts/persists and is silent on reload; install-bar Enter/Space triggers
+  install; pinch-zoom works on mobile viewport.
+- [x] **13.5 De-duplicate stale gh-pwa-shell files tracked in the day-planner outer repo** —
   7 files (`gh-pwa-shell/{index.html,pwa.js,manifest.json,styles.css,sw.js,icons/icon.svg}`)
   are tracked directly in day-planner's own git history from before gh-pwa-shell became a
   separate nested repo (last touched `05f5eeb`), now stale/diverged and showing as
-  perpetually "modified" in `git status` every time the real nested repo changes. Fix:
-  `git rm --cached` those paths + add `gh-pwa-shell/` to `.gitignore`, matching what
-  `CLAUDE.md` already documents (nested separate repo).
+  perpetually "modified" in `git status` every time the real nested repo changes. Fixed:
+  `git rm --cached` those paths + added `gh-pwa-shell/` to `.gitignore`, matching what
+  `CLAUDE.md` already documents (nested separate repo). Merged to `master` (`9943b49`),
+  pushed.
+- [x] **13.6 Delete merged feature branches** — `worktree-gh-pwa-shell-security-fixes`
+  (gh-pwa-shell) and `test/agent-config-symlink-migration` (day-planner), both fully
+  merged, deleted locally and on origin.
+
+### Phase 14: Full Feature Regression Pass & 2-Way Sync Verification
+- [ ] **14.1 Develop missing unit test coverage**: audit each module in the
+  Modular Architecture & Test Suite Map above against its current `src/*.js` /
+  `gas-app/Code.gs` behavior; write tests for any feature or edge case not yet covered
+  (server-side `Code.gs` sync/trigger logic in particular has no direct unit tests today —
+  only `src/syncEngine.js`'s local model of it does).
+- [ ] **14.2 Run full unit test suite** (`npm test`) and confirm all suites pass with no
+  skips.
+- [ ] **14.3 Verify 2-way sync end-to-end against live Google Calendar & Tasks** — no
+  automated harness exercises the real APIs, only `src/syncEngine.js`'s mocked model.
+  Confirm against the live GAS backend: creating/editing a priority-tagged task creates a
+  linked calendar event and vice versa; completing a task syncs status to its linked
+  event; time-shifting a linked calendar event reconciles back to the task; the
+  `setup2WaySyncTrigger()` background job (runs every 5 min, `gas-app/Code.gs`) picks up
+  changes made directly in Calendar/Tasks outside the app.
+- [ ] **14.4 Fix any broken features** surfaced by 14.2 or 14.3.
 
 ## Verification Criteria
 - [x] All unit tests in `tests/*.test.js` pass cleanly (`npm test` — 66/66 passing across 18 suites).
