@@ -1,0 +1,2 @@
+description = "Show session status (git, PLAN.md progress, test count) for day-planner"
+prompt = "Read and follow .agents/commands/status.md exactly."

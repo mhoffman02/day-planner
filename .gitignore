@@ -4,8 +4,8 @@ clasp_ref/
 .DS_Store
 *.log
 scratch/
-.claude/
-.gemini/
+.claude/worktrees/
+.claude/settings.local.json
 .idea/
 .vscode/
 output/

@@ -1,0 +1,2 @@
+description = "Generate end-of-session handoff for day-planner"
+prompt = "Read and follow .agents/commands/handoff.md exactly, step by step."
