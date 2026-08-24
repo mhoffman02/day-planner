@@ -27,6 +27,12 @@
     return title.replace(/^(\s*\[(?:✓|[A-Za-z][1-9])\]\s*)+/gi, '').trim();
   }
 
+  function getNextStatus(currentStatus) {
+    const idx = STATUS_LIST.indexOf(currentStatus);
+    if (idx === -1 || idx === STATUS_LIST.length - 1) return STATUS_LIST[0];
+    return STATUS_LIST[idx + 1];
+  }
+
   function syncTaskToCalendar(task, calendarEvents = []) {
     const parsed = parseTaskTitle(task.title);
     const cleanTitle = getCleanTitle(parsed.cleanTitle || task.title);
@@ -131,31 +137,15 @@
       }
     });
 
+    // Events never create tasks: Tasks belong on the Tasks pane, events belong on
+    // the Calendar. Only reconcile events that are already linked to (or title-match)
+    // an existing task; an unlinked event is left as calendar-only.
     reconciledEvents.forEach((evt) => {
       const updatedTask = syncCalendarToTask(evt, reconciledTasks);
       if (updatedTask) {
         const taskIdx = reconciledTasks.findIndex(t => t.id === updatedTask.id);
         if (taskIdx !== -1) {
           reconciledTasks[taskIdx] = updatedTask;
-        }
-      } else {
-        const parsed = parseTaskTitle(evt.title);
-        if (parsed.priorityCode && !evt.syncTaskId) {
-          const newTaskId = `task_sync_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-          const isCompleted = evt.title.startsWith('[✓]') || Boolean(evt.isCompleted);
-          const newTask = {
-            id: newTaskId,
-            title: formatTaskTitle(parsed.priorityGroup, parsed.sequence, getCleanTitle(parsed.cleanTitle || evt.title)),
-            status: isCompleted ? '✓' : '•',
-            category: evt.location || 'General',
-            dueDate: evt.startTime ? evt.startTime.slice(0, 10) : getLocalDateStr(),
-            scheduledTime: evt.startTime || null
-          };
-          evt.syncTaskId = newTaskId;
-          if (!evt.extendedProperties) evt.extendedProperties = {};
-          if (!evt.extendedProperties.private) evt.extendedProperties.private = {};
-          evt.extendedProperties.private.gasTaskId = newTaskId;
-          reconciledTasks.push(newTask);
         }
       }
     });

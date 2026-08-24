@@ -349,17 +349,16 @@ describe('2-Way Sync Engine Unit Tests', () => {
       assert.equal(standalone.title, 'Coffee with Partner');
     });
 
-    it('should automatically generate a linked task when a new appointment has a priority tag', () => {
+    it('should never create a task from an unlinked appointment, even with a priority tag', () => {
       const tasks = [];
       const events = [
         { id: 'e_tagged', title: '[A1] Important Planning Session', startTime: '2026-08-15T14:00:00Z', location: 'Work' }
       ];
 
       const result = reconcileWorkspaceChanges(tasks, events);
-      assert.equal(result.tasks.length, 1);
-      assert.equal(result.tasks[0].title, '[A1] Important Planning Session');
-      assert.equal(result.tasks[0].category, 'Work');
-      assert.equal(result.calendarEvents[0].syncTaskId, result.tasks[0].id);
+      assert.equal(result.tasks.length, 0);
+      assert.equal(result.calendarEvents.length, 1);
+      assert.equal(result.calendarEvents[0].syncTaskId, undefined);
     });
 
     it('should be idempotent across multiple consecutive reconciliation runs', () => {

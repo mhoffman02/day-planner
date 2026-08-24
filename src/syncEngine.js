@@ -163,33 +163,15 @@ export function reconcileWorkspaceChanges(dailyTasks = [], calendarEvents = []) 
     }
   });
 
-  // 2. Reflect any event time/title shifts/completions back into tasks (Event -> Task)
+  // 2. Reflect any event time/title shifts/completions back into linked tasks (Event -> Task).
+  // Events never create tasks: Tasks belong on the Tasks pane, events belong on the Calendar.
+  // An unlinked event with no matching task is left as calendar-only.
   reconciledEvents.forEach((evt) => {
     const updatedTask = syncCalendarToTask(evt, reconciledTasks);
     if (updatedTask) {
       const taskIdx = reconciledTasks.findIndex(t => t.id === updatedTask.id);
       if (taskIdx !== -1) {
         reconciledTasks[taskIdx] = updatedTask;
-      }
-    } else {
-      // Check if this is an unlinked calendar event with a priority prefix (e.g. [A1], [B2], [✓])
-      const parsed = parseTaskTitle(evt.title);
-      if (parsed.priorityCode && !evt.syncTaskId) {
-        const newTaskId = `task_sync_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-        const isCompleted = evt.title.startsWith('[✓]') || Boolean(evt.isCompleted);
-        const newTask = {
-          id: newTaskId,
-          title: formatTaskTitle(parsed.priorityGroup, parsed.sequence, getCleanTitle(parsed.cleanTitle || evt.title)),
-          status: isCompleted ? TASK_STATUSES.COMPLETED : TASK_STATUSES.OPEN,
-          category: evt.location || 'General',
-          dueDate: evt.startTime ? evt.startTime.slice(0, 10) : getLocalDateStr(),
-          scheduledTime: evt.startTime || null
-        };
-        evt.syncTaskId = newTaskId;
-        if (!evt.extendedProperties) evt.extendedProperties = {};
-        if (!evt.extendedProperties.private) evt.extendedProperties.private = {};
-        evt.extendedProperties.private.gasTaskId = newTaskId;
-        reconciledTasks.push(newTask);
       }
     }
   });
