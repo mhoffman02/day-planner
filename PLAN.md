@@ -176,7 +176,23 @@ The **Google Digital Day Planner** is a high-efficiency single-page digital bind
   linked calendar event and vice versa; completing a task syncs status to its linked
   event; time-shifting a linked calendar event reconciles back to the task; the
   `setup2WaySyncTrigger()` background job (runs every 5 min, `gas-app/Code.gs`) picks up
-  changes made directly in Calendar/Tasks outside the app.
+  changes made directly in Calendar/Tasks outside the app. **Needs manual verification in
+  a live browser session** — the available Claude tooling has no Google Tasks access and
+  no browser automation, so this can't be driven agent-side; the `/dev/self-test`
+  diagnostic also requires an authenticated browser session (redirects to Google login
+  for unauthenticated fetches).
+  - **Scope gap found while investigating (feed into 14.4):** the actual bidirectional
+    reconciliation (`reconcileWorkspaceChanges`/`syncTaskToCalendar`/`syncCalendarToTask`,
+    the `src/syncEngine.js` port) lives entirely in client-side JS in
+    `gas-app/Script.html:118-165` and only runs while the app is open in a browser. The
+    server-side 5-min trigger, `syncWorkspaceChanges` in `gas-app/Code.gs:442`, is
+    narrower than this checklist implies: it's task→event only (pushes completion status
+    into the event title, creates a missing event) and is hardcoded to `new Date()` /
+    today — it never touches other dates and has no time-shift-reconciliation or
+    event-completion→task logic at all. So changes made directly in Calendar/Tasks on a
+    day other than today, or a time-shift on a linked event, will NOT be picked up by the
+    background trigger while the app is closed — only by the client-side reconciliation
+    the next time the app is opened for that day.
 - [ ] **14.4 Fix any broken features** surfaced by 14.2 or 14.3.
 
 ## Verification Criteria
