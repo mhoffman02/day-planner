@@ -194,6 +194,30 @@ The **Google Digital Day Planner** is a high-efficiency single-page digital bind
     background trigger while the app is closed — only by the client-side reconciliation
     the next time the app is opened for that day.
 - [ ] **14.4 Fix any broken features** surfaced by 14.2 or 14.3.
+- [ ] **14.5 Apply `docs/patches/pwa.js.patch` to the separate `gh-pwa-shell` repo**
+  (`mhoffman02/shell`, checked out at `/home/mike/projects/day-planner/gh-pwa-shell` —
+  outside this repo's git, see README.txt/CLAUDE.md "Universal PWA Shell"). Fixes the
+  shell showing mock/placeholder Calendar & Tasks data instead of real data: the shell
+  always fetches/mounts a static bundle into `#app-root` and runs it client-side, so
+  `google.script.run` never exists there and `GASBridge` silently falls back to mock
+  data — even with a trusted GAS URL on file. Root cause and fix are already documented
+  in `docs/shell-gas-pattern.md` §9 ("If Live 2-Way GAS Sync Is Required" — a standalone
+  GAS deployment, not a fetched bundle, is correct for a live-2-way-sync app like Day
+  Planner). The patch adds a `redirectToApp()` helper and changes `initPWA()`,
+  `launchKnownApp()`, and `handleConnect()` in `pwa.js` to do a real
+  `window.location.href` navigation to the live `/exec` URL whenever online with an
+  already-trusted source, instead of fetching/mounting a bundle — reusing the
+  `#shell-loading` spinner already in `index.html` rather than adding new UI. Bundle
+  mounting is untouched for the genuine offline-PWA fallback path and for
+  first-time/pending-URL consent flows (`showConnectPrompt`), so those still work as
+  before. Verified: applies cleanly against current `pwa.js` (3 exact-match
+  replacements) and `node --check` passes on the patched file. **Not applied yet** —
+  this worktree-isolated session has no tool access (Edit/Write/git, all blocked by
+  the harness) to `gh-pwa-shell` since it's a separate git repo outside this worktree;
+  apply from a non-worktree-isolated session or manually with
+  `cd gh-pwa-shell && git apply <path-to-repo>/docs/patches/pwa.js.patch`, then test a
+  fresh shell launch redirects to the live app instead of mounting a local bundle, and
+  commit+push in the `gh-pwa-shell` repo (separate remote from this one).
 
 ## Verification Criteria
 - [x] All unit tests in `tests/*.test.js` pass cleanly (`npm test` — 107/107 passing across 19 suites).
