@@ -168,6 +168,8 @@ shell/
 3. **Background SWR Hot-Update**: If online, dispatch non-blocking fetch to the stored GAS endpoint with `&clientHash=...`.
 4. **Live Hot Swap**: If new hash received, update `IndexedDB` and notify user via subtle toast notification: *"App updated. Click to refresh."*
 
+> A GAS URL is only ever fetched automatically when it is either a built-in `KNOWN_APPS` entry or has previously been approved by the user for that `appId`. Any new/unrecognized URL goes through the consent gate described in §10 before anything is fetched or executed. See §10 for the full security model.
+
 ---
 
 ## 7. How to Deploy the Universal Shell
@@ -197,10 +199,18 @@ shell/
 Whenever you build a new private Google Apps Script tool:
 
 - [ ] **1.** Add `getCompiledAppBundle()` and bundle handler in `Code.gs`.
-- [ ] **2.** Deploy as Web App in Google Apps Script and copy `/exec` URL.
-- [ ] **3.** Launch `https://<your-username>.github.io/shell/?app=<new-app-name>`.
-- [ ] **4.** Enter Web App URL on first prompt.
-- [ ] **5.** Click **Install PWA** or add to Home Screen.
+- [ ] **2.** Deploy as Web App in Google Apps Script, pinning a stable deployment ID
+      (`clasp deploy -i <deploymentId>` — never a bare `clasp deploy`, which mints a new
+      `/exec` URL every time. See `.agents/rules/gas-deploy-pinned.md`).
+- [ ] **3a. (One-tap launch)** Add an entry to `KNOWN_APPS` in `pwa.js` with the app's
+      key, display name, tagline, icon, and pinned `/exec` URL — this ships a
+      quick-launch tile on the shell's launcher screen with **no manual URL entry and no
+      consent prompt**, since the URL is developer-shipped, not visitor-supplied.
+- [ ] **3b. (Ad-hoc / shared-link launch)** Alternatively, just share
+      `https://<your-username>.github.io/shell/?app=<new-app-name>` — the recipient
+      pastes (or is prompted to confirm) the Web App URL once via the consent-gated
+      "Connect a different app" flow (see §10), then it's trusted for future visits.
+- [ ] **4.** Click **Install PWA** or add to Home Screen.
 
 ---
 
@@ -257,3 +267,77 @@ For real-time data sync with Google Workspace APIs, the correct approach is **no
 
 1. **OAuth 2.0 PKCE flow** — user authenticates via a Google popup, token stored in IndexedDB, API calls use the access token directly from the client.
 2. **Standalone GAS deployment** — serve the entire app directly from `script.google.com/macros/s/.../exec` (no GitHub Pages shell needed for that app).
+
+---
+
+## 10. Security Model: URL Allowlist, Consent Gate & Known-App Launcher
+
+> Added 2026-08-18 after a review found that an unvalidated `?gasUrl=` query parameter
+> let anyone craft a link that made the shell silently fetch and execute arbitrary
+> HTML/JS with full page privileges, then persist it to `IndexedDB` so it kept
+> re-executing on every future visit. The fixes below close that hole while keeping the
+> "share a link, it installs" flow to a single confirmation tap.
+
+### A. URL Allowlist
+
+`pwa.js` validates every GAS URL — whether typed by a user or arriving via `?gasUrl=` —
+against a strict pattern before it is ever fetched or stored:
+
+```javascript
+const GAS_URL_PATTERN = /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/(exec|dev)$/;
+function isValidGasUrl(url) {
+  return typeof url === 'string' && GAS_URL_PATTERN.test(url);
+}
+```
+
+A URL that fails this check is dropped silently (never fetched, never persisted) —
+whether it came from a query parameter or the manual-connect form.
+
+### B. Three Trust Tiers
+
+| Tier | Source | Behavior |
+| :--- | :--- | :--- |
+| **Known app** | Hard-coded `KNOWN_APPS` entry in `pwa.js`, shipped by the developer | Trusted by construction — one-tap tile, no prompt, no consent gate. The URL isn't attacker-controllable via a link/param, only shippable by whoever controls `pwa.js`'s source. |
+| **Previously approved** | `localStorage['gas_url_{appId}']`, set only after a successful, user-confirmed fetch | Fetched silently on every future visit — same offline/SWR behavior as before. |
+| **New / unrecognized** | A `?gasUrl=` param (or typed URL) never approved before for that `appId` | **Consent-gated.** The shell shows the "Connect a different app" card pre-filled with the URL; nothing is fetched until the user clicks Launch. Only on confirmed fetch success is the URL persisted as trusted. |
+
+`handleConnect()` and the equivalent `launchKnownApp()` path both re-validate with
+`isValidGasUrl()` and only write to `localStorage` **after** the bundle fetch succeeds —
+a failed or unreachable URL is never marked trusted.
+
+### C. One-Tap Known-App Launcher
+
+The default launcher screen (`#config-modal`) renders one `.app-tile` button per
+`KNOWN_APPS` entry — tapping it fetches directly from that app's baked-in URL and mounts
+it, with no URL entry and no confirmation step. The old manual-URL form still exists for
+apps that aren't in the registry (or for testing a dev/`@HEAD` deployment); it's
+collapsed behind a `<details>` "Connect a different app" disclosure so it doesn't
+compete visually with the one-tap tiles.
+
+```javascript
+// gh-pwa-shell/pwa.js
+const KNOWN_APPS = [
+  {
+    key: 'day-planner',
+    name: 'Day Planner',
+    tagline: 'Tasks, calendar & daily notes',
+    url: 'https://script.google.com/macros/s/AKfycbyAejUd5SWdt5dbmtSKYJZvwqQ2RHU-V3_mARJp3MDjMZ_jrlP0MfWnyTPYp6hVSyO4/exec',
+    icon: './icons/icon.svg',
+  },
+  // Future apps: add another entry here for another one-tap tile.
+];
+```
+
+The registry is intentionally append-only and flat — adding a second, third, or fourth
+app to the launcher is a one-entry addition, per the original design goal ("if we know
+the link, why ask the user?").
+
+### D. Other Hardening in the Same Pass
+
+- `index.html` carries a defense-in-depth CSP (`object-src 'none'; base-uri 'self';
+  frame-ancestors 'none'`) and `<meta name="color-scheme" content="light dark">`.
+- `mountBundle()` extracts and executes inline `<script>` blocks from `bundle.html`
+  *before* `root.innerHTML` is set (not after), closing the same Alpine-timing race that
+  `bundle.script` was already fixed for in earlier commits.
+- Viewport meta no longer disables pinch-zoom (`user-scalable=no` removed — was a WCAG
+  1.4.4 failure).
