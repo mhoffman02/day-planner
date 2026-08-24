@@ -1,9 +1,11 @@
 # Session Context
 
-Generated: 2026-08-18T20:11:11.018Z
+Generated: 2026-08-24T00:00:00.000Z
 Branch: master
-Last commit: c51842e docs(handoff): session handoff update 2026-08-18
-Uncommitted files: 0
+Last commit: 6ce4f85 chore(agents): replace agent-config symlinks with native per-tool mechanisms
+Uncommitted files: 0 (excluding pre-existing gh-pwa-shell tracked-file drift — see PLAN.md 13.5)
 
 ## Open PLAN.md items
-_None — PLAN.md fully checked off._
+- [ ] **13.3 Fix `tests/pwa.test.js` live-server dependency**
+- [ ] **13.4 Manually verify the merged gh-pwa-shell security fixes in a real browser**
+- [ ] **13.5 De-duplicate stale gh-pwa-shell files tracked in the day-planner outer repo**

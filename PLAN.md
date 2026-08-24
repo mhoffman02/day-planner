@@ -115,6 +115,38 @@ The **Google Digital Day Planner** is a high-efficiency single-page digital bind
 
 ---
 
+### Phase 13: gh-pwa-shell Security Hardening, Agent-Config Migration & Handoff
+- [x] **13.1 Close `?gasUrl=` RCE hole**: Add `isValidGasUrl()` allowlist validator and an
+  explicit-consent gate (existing "Connect Application" modal) for any never-before-trusted
+  `gasUrl`; fix latent `mountBundle()` inline-script/Alpine-timing race; viewport pinch-zoom,
+  font preconnect, install-bar keydown, maskable icon UX fixes (`gh-pwa-shell/pwa.js`,
+  `index.html`, `manifest.json`). Merged to gh-pwa-shell `main` (`40bfffb`), pushed.
+- [x] **13.2 Agent-config real-file mirrors**: Replace `.agents/{rules,commands,skills}`
+  symlinks (which silently degrade to stub files on Windows without Developer Mode) with
+  generated real-file mirrors + `npm run sync:agents:check` pre-commit drift gate; native
+  config for Kilo (`kilo.jsonc`) and Gemini (`GEMINI.md` → `@CLAUDE.md`). Merged to `master`
+  (`6ce4f85`), pushed.
+- [ ] **13.3 Fix `tests/pwa.test.js` live-server dependency** — 5 tests (`should serve /`,
+  `/manifest.json`, `/sw.js`, icon route, 404 route) call `http.get()` against
+  `localhost:3000` with no timeout and no server startup of their own; when `npm start`
+  isn't already running they fail (`ECONNREFUSED`) or, in some environments, hang
+  indefinitely — this is what stalls `npm test` inside the pre-commit hook. Fix: either spin
+  up `server.js` in a `before()`/`after()` hook for just this suite, or add a short
+  connect timeout + skip-with-reason when unreachable.
+- [ ] **13.4 Manually verify the merged gh-pwa-shell security fixes in a real browser** —
+  no automated test harness exists for this sub-repo. Confirm: untrusted `?gasUrl=` shows
+  the pre-filled consent modal without auto-fetching; invalid host is dropped silently;
+  Launch on a valid URL fetches/mounts/persists and is silent on reload; install-bar
+  Enter/Space triggers install; pinch-zoom works on mobile viewport. See "Verification"
+  checklist in the (now superseded) plan this phase implemented.
+- [ ] **13.5 De-duplicate stale gh-pwa-shell files tracked in the day-planner outer repo** —
+  7 files (`gh-pwa-shell/{index.html,pwa.js,manifest.json,styles.css,sw.js,icons/icon.svg}`)
+  are tracked directly in day-planner's own git history from before gh-pwa-shell became a
+  separate nested repo (last touched `05f5eeb`), now stale/diverged and showing as
+  perpetually "modified" in `git status` every time the real nested repo changes. Fix:
+  `git rm --cached` those paths + add `gh-pwa-shell/` to `.gitignore`, matching what
+  `CLAUDE.md` already documents (nested separate repo).
+
 ## Verification Criteria
 - [x] All unit tests in `tests/*.test.js` pass cleanly (`npm test` — 66/66 passing across 18 suites).
 - [x] UI matches Day Planner design rules (#fcfbfa cream, #2d6a5a teal ruling, serif headers).
