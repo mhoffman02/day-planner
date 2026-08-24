@@ -389,7 +389,7 @@ function getLocalDateStr(d = new Date()) {
           if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
             for (const task of reconciled.tasks) {
               const prior = beforeTasks.find(t => t.id === task.id);
-              if (prior && (prior.title !== task.title || prior.status !== task.status || prior.scheduledTime !== task.scheduledTime)) {
+              if (prior && (prior.title !== task.title || prior.status !== task.status)) {
                 const updated = await this.bridge.updateDailyTask(this.selectedDate, task.id, {
                   title: task.title,
                   status: task.status,
@@ -405,12 +405,12 @@ function getLocalDateStr(d = new Date()) {
           // Task -> Event direction: persist newly-linked events for real (adopting the
           // real Calendar event id in place of the local evt_sync_* placeholder) and push
           // title/time updates to already-linked events.
-          if (this.bridge && typeof this.bridge.addCalendarEvent === 'function') {
-            for (let i = 0; i < reconciled.calendarEvents.length; i++) {
-              const evt = reconciled.calendarEvents[i];
-              const prior = beforeEvents.find(e => e.id === evt.id);
+          for (let i = 0; i < reconciled.calendarEvents.length; i++) {
+            const evt = reconciled.calendarEvents[i];
+            const prior = beforeEvents.find(e => e.id === evt.id);
 
-              if (!prior) {
+            if (!prior) {
+              if (this.bridge && typeof this.bridge.addCalendarEvent === 'function') {
                 const saved = await this.bridge.addCalendarEvent(this.selectedDate, {
                   ...evt,
                   gasTaskId: evt.syncTaskId || (evt.extendedProperties && evt.extendedProperties.private && evt.extendedProperties.private.gasTaskId) || null,
@@ -421,10 +421,9 @@ function getLocalDateStr(d = new Date()) {
                 if (saved && saved.id) {
                   reconciled.calendarEvents[i] = { ...evt, ...saved };
                 }
-              } else if (
-                (prior.title !== evt.title || prior.startTime !== evt.startTime || prior.endTime !== evt.endTime) &&
-                typeof this.bridge.updateCalendarEvent === 'function'
-              ) {
+              }
+            } else if (prior.title !== evt.title || prior.startTime !== evt.startTime || prior.endTime !== evt.endTime) {
+              if (this.bridge && typeof this.bridge.updateCalendarEvent === 'function') {
                 const updated = await this.bridge.updateCalendarEvent(this.selectedDate, evt.id, {
                   title: evt.title,
                   startTime: evt.startTime,

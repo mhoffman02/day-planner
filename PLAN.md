@@ -291,17 +291,31 @@ The **Google Digital Day Planner** is a high-efficiency single-page digital bind
     tile's `/dev` URL poison prod's fallback on a browser with no prior trust. Fixed
     by scoping both writes to `app.key`/`appKey === 'day-planner'`, matching the read
     side's existing scoping.
-  - **Not fixed — deferred, needs a product decision, not a bug fix:** (a) the patch
+  - **Low findings — fixed in a follow-up pass:** (a) `trigger2WaySync`'s Event->Task
+    diff compared `scheduledTime`, a field never sent to `updateDailyTask`, so it could
+    only cause spurious re-patches, never a real save — dropped from the diff in both
+    `src/app.js` and `Script.html`; (b) `src/app.js`'s Task->Event loop wrapped the
+    whole loop (including the `updateCalendarEvent` branch) in an `addCalendarEvent`-
+    only guard, unlike `Script.html`'s per-branch guards — aligned `app.js` to the
+    more defensively correct per-branch shape; (c) `Script.html`'s mock
+    `GASBridge.addCalendarEvent` disagreed with `src/gasBridge.js`'s on
+    `guestsCanModify`'s default and never generated `meetLink`/`agendaDocUrl` — ported
+    the richer mock logic into `Script.html`; (d) the 5-min server trigger's
+    (`Code.gs`) dedupe fallback compared a linked event's title against the task's raw
+    (priority-prefixed) title, which never matches a completed task's event title
+    (`[✓] Clean Title`, no priority code) — now compares against the bracket-stripped
+    clean title instead. `npm test`: 107/107 after all four (none have unit coverage —
+    all four live in Alpine-inline/`Code.gs` code, the pre-existing structural gap
+    noted below).
+  - **Not fixed — deferred, needs a product decision, not a bug fix, and lives in the
+    separate `gh-pwa-shell` repo (not checked out in this worktree):** (a) the patch
     removes every `fetchRemoteBundle` call site, freezing the offline bundle cache at
     whatever shipped in the shell (no more background refresh) and orphaning
     `getCompiledAppBundle()`/`tools/build-shell-bundle.js` — fine if offline mode is
     meant to be static, otherwise needs a fire-and-forget SWR refresh added back; (b)
     once a URL is trusted, path A redirects unconditionally with no escape if it later
     becomes wrong (rotated deployment, access revoked) — needs a `?reset=1`/"not this
-    app?" affordance or a cheap reachability check, a UX call not made here; (c) minor
-    src/`Script.html` structural drift (guard placement, mock-field differences) and a
-    server-side 5-min-trigger dedupe-title mismatch for completed tasks
-    (`[✓] Title` vs `[A1] Title`) — low-value, left as-is.
+    app?" affordance or a cheap reachability check, a UX call not made here.
   - **Not independently verifiable from this session:** whether Apps Script's
     `Event.getTag()`/`setTag()` genuinely read/write `extendedProperties.shared` (the
     stated reasoning for the gasTaskId fix above) — the dual-write fix is safe either

@@ -456,9 +456,16 @@ function syncWorkspaceChanges() {
     tasks.forEach(function(task) {
       if (!task.id) return;
       try {
+        // task.title always carries the priority prefix ('[A1] Clean Title'), but a
+        // completed task's linked event may be titled '[✓] Clean Title' with no
+        // priority code (see syncTaskToCalendar in src/syncEngine.js) — comparing the
+        // raw title would miss that match and create a duplicate event. Strip the
+        // leading bracket prefix before comparing so both forms match.
+        var cleanTaskTitle = task.title.replace(/^\[[^\]]+\]\s*/, '').trim();
         var linkedEvt = null;
         for (var j = 0; j < matchingEvts.length; j++) {
-          if (matchingEvts[j].getTag('gasTaskId') === task.id || matchingEvts[j].getTitle().indexOf(task.title) !== -1) {
+          if (matchingEvts[j].getTag('gasTaskId') === task.id ||
+              (cleanTaskTitle && matchingEvts[j].getTitle().indexOf(cleanTaskTitle) !== -1)) {
             linkedEvt = matchingEvts[j];
             break;
           }

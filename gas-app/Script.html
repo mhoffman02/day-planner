@@ -326,18 +326,43 @@
         if (!this.mockData.calendarEvents[dateStr]) {
           this.mockData.calendarEvents[dateStr] = [];
         }
+
+        const attendeesList = Array.isArray(eventData.attendees)
+          ? eventData.attendees
+          : (typeof eventData.attendees === 'string'
+              ? eventData.attendees.split(/[,;]+/).map(s => s.trim()).filter(Boolean)
+              : []);
+
+        const autoGoogleMeet = eventData.autoGoogleMeet !== undefined ? eventData.autoGoogleMeet : true;
+        const guestsCanModify = eventData.guestsCanModify !== undefined ? eventData.guestsCanModify : true;
+        const autoAgendaDoc = eventData.autoAgendaDoc !== undefined ? eventData.autoAgendaDoc : true;
+
+        const meetLink = autoGoogleMeet
+          ? (eventData.meetLink || `https://meet.google.com/${Math.random().toString(36).slice(2, 5)}-${Math.random().toString(36).slice(2, 6)}-${Math.random().toString(36).slice(2, 5)}`)
+          : null;
+
+        const agendaDocUrl = autoAgendaDoc
+          ? (eventData.agendaDocUrl || `https://docs.google.com/document/create?title=${encodeURIComponent('Agenda: ' + (eventData.title || 'New Appointment'))}`)
+          : null;
+
+        let fullDesc = eventData.description || '';
+        if (agendaDocUrl && !fullDesc.includes(agendaDocUrl)) {
+          fullDesc += (fullDesc ? '\n\n' : '') + `📄 Meeting Agenda Doc: ${agendaDocUrl}`;
+        }
+
         const newEvt = {
           id: `e_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
           title: eventData.title || 'New Appointment',
           startTime: eventData.startTime || `${dateStr}T09:00:00`,
           endTime: eventData.endTime || `${dateStr}T09:30:00`,
-          location: eventData.location || '',
-          description: eventData.description || '',
-          meetLink: eventData.meetLink || null,
-          agendaDocUrl: eventData.agendaDocUrl || null,
-          attendees: eventData.attendees || [],
-          guestsCanModify: eventData.guestsCanModify || false,
-          syncTaskId: eventData.gasTaskId || eventData.syncTaskId || null
+          location: eventData.location || (meetLink ? 'Google Meet' : ''),
+          description: fullDesc,
+          meetLink: meetLink,
+          agendaDocUrl: agendaDocUrl,
+          attendees: attendeesList,
+          guestsCanModify: guestsCanModify,
+          syncTaskId: eventData.gasTaskId || eventData.syncTaskId || null,
+          isCompleted: eventData.isCompleted || false
         };
         this.mockData.calendarEvents[dateStr].push(newEvt);
         return newEvt;
@@ -725,7 +750,7 @@
           if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
             for (const task of reconciled.tasks) {
               const prior = beforeTasks.find(t => t.id === task.id);
-              if (prior && (prior.title !== task.title || prior.status !== task.status || prior.scheduledTime !== task.scheduledTime)) {
+              if (prior && (prior.title !== task.title || prior.status !== task.status)) {
                 const updated = await this.bridge.updateDailyTask(this.selectedDate, task.id, {
                   title: task.title,
                   status: task.status,
