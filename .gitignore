@@ -4,6 +4,7 @@ clasp_ref/
 .DS_Store
 *.log
 scratch/
+gh-pwa-shell/
 .claude/worktrees/
 .claude/settings.local.json
 .idea/
