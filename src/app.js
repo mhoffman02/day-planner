@@ -87,6 +87,7 @@ function getLocalDateStr(d = new Date()) {
       isSyncing: false,
       errorMessage: null,
       toasts: [],
+      noteSaveTimer: null,
 
       showToast(message, type = 'info', duration = 10000, title = '') {
         const id = 't_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
@@ -362,8 +363,13 @@ function getLocalDateStr(d = new Date()) {
       },
 
       async trigger2WaySync(silent = false) {
+        // isSyncing must gate silent runs too, not just user-initiated ones — the
+        // 5-minute interval, visibilitychange, and online listeners all fire silent
+        // syncs that can overlap each other (or a non-silent run) and both sides of
+        // an overlap independently create the same real Calendar event.
+        if (this.isSyncing) return;
+        this.isSyncing = true;
         if (!silent) {
-          this.isSyncing = true;
           this.errorMessage = null;
         }
 
@@ -373,6 +379,10 @@ function getLocalDateStr(d = new Date()) {
           const beforeTasks = this.dailyTasks;
           const beforeEvents = this.calendarEvents;
           const reconciled = reconcileWorkspaceChanges(beforeTasks, beforeEvents);
+          // updateDailyTask/updateCalendarEvent return null when the target was deleted
+          // upstream (e.g. removed directly in Google Tasks/Calendar) — collected here and
+          // surfaced once after the loops instead of being silently dropped.
+          const syncWarnings = [];
 
           // Event -> Task direction: persist any status/title/time changes reconciliation
           // pulled in from linked calendar events.
@@ -380,11 +390,14 @@ function getLocalDateStr(d = new Date()) {
             for (const task of reconciled.tasks) {
               const prior = beforeTasks.find(t => t.id === task.id);
               if (prior && (prior.title !== task.title || prior.status !== task.status || prior.scheduledTime !== task.scheduledTime)) {
-                await this.bridge.updateDailyTask(this.selectedDate, task.id, {
+                const updated = await this.bridge.updateDailyTask(this.selectedDate, task.id, {
                   title: task.title,
                   status: task.status,
                   dueDate: task.dueDate
                 });
+                if (!updated) {
+                  syncWarnings.push(`Task "${task.title}" no longer exists in Google Tasks — local copy may be stale.`);
+                }
               }
             }
           }
@@ -412,11 +425,14 @@ function getLocalDateStr(d = new Date()) {
                 (prior.title !== evt.title || prior.startTime !== evt.startTime || prior.endTime !== evt.endTime) &&
                 typeof this.bridge.updateCalendarEvent === 'function'
               ) {
-                await this.bridge.updateCalendarEvent(this.selectedDate, evt.id, {
+                const updated = await this.bridge.updateCalendarEvent(this.selectedDate, evt.id, {
                   title: evt.title,
                   startTime: evt.startTime,
                   endTime: evt.endTime
                 });
+                if (!updated) {
+                  syncWarnings.push(`Event "${evt.title}" no longer exists in Google Calendar — local copy may be stale.`);
+                }
               }
             }
           }
@@ -425,15 +441,18 @@ function getLocalDateStr(d = new Date()) {
           this.calendarEvents = reconciled.calendarEvents;
 
           this.buildScheduleGrid();
+
+          if (syncWarnings.length > 0) {
+            console.warn('🔥 trigger2WaySync: stale references', syncWarnings);
+            this.errorMessage = syncWarnings.join(' ');
+          }
         } catch (err) {
           console.error('🔥 trigger2WaySync error:', err);
           if (!silent) {
             this.errorMessage = `2-Way Sync Warning: ${err.message || err.toString()}`;
           }
         } finally {
-          if (!silent) {
-            this.isSyncing = false;
-          }
+          this.isSyncing = false;
         }
       },
 
@@ -631,15 +650,35 @@ function getLocalDateStr(d = new Date()) {
         if (!this.noteCards || this.noteCards.length === 0) {
           this.dailyNote = '';
           this.buildIndexRecords();
+          this.scheduleDailyNoteSave();
           return;
         }
         this.dailyNote = this.noteCards.map(c => `### ${c.heading || 'Topic'}\n${c.content || ''}`).join('\n\n');
         this.buildIndexRecords();
+        this.scheduleDailyNoteSave();
       },
 
       syncDailyNoteToCards() {
         this.noteCards = this.parseDailyNoteToCards(this.dailyNote);
         this.buildIndexRecords();
+        this.scheduleDailyNoteSave();
+      },
+
+      // Debounces persistence of this.dailyNote so a keystroke in the card/continuous-doc
+      // textareas (both wired to fire on every @input) doesn't send a save on every
+      // keystroke. Previously nothing ever called saveDailyDocCards at all, so note edits
+      // only ever lived in memory and were lost on the next loadDayData().
+      scheduleDailyNoteSave() {
+        if (this.noteSaveTimer) clearTimeout(this.noteSaveTimer);
+        this.noteSaveTimer = setTimeout(async () => {
+          if (!this.bridge || typeof this.bridge.saveDailyDocCards !== 'function') return;
+          try {
+            await this.bridge.saveDailyDocCards(this.selectedDate, this.dailyNote);
+          } catch (err) {
+            console.error('🔥 saveDailyDocCards error:', err);
+            this.errorMessage = `Could not save daily note: ${err.message || err.toString()}`;
+          }
+        }, 1200);
       },
 
       async loadMasterTasks() {
@@ -750,11 +789,14 @@ function getLocalDateStr(d = new Date()) {
         task.status = getNextStatus(task.status);
         try {
           if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
-            await this.bridge.updateDailyTask(this.selectedDate, task.id, {
+            const updated = await this.bridge.updateDailyTask(this.selectedDate, task.id, {
               title: task.title,
               status: task.status,
               dueDate: task.dueDate
             });
+            if (!updated) {
+              this.errorMessage = `Task "${task.title}" no longer exists in Google Tasks — status change was not saved.`;
+            }
           }
         } catch (err) {
           console.error('🔥 toggleTaskStatus persist error:', err);

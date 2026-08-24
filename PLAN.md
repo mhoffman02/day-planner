@@ -232,7 +232,88 @@ The **Google Digital Day Planner** is a high-efficiency single-page digital bind
   (a) a fresh `?app=day-planner` launch redirects to the live `/exec` app instead of
   mounting a local bundle, and (b) `?app=day-planner-dev` redirects to `/dev` and does
   not show up in the bare-URL picker. Commit+push in the `gh-pwa-shell` repo (separate
-  remote from this one).
+  remote from this one). **Update:** the patch also now scopes `launchKnownApp`'s and
+  `handleConnect`'s writes to the legacy `dayPlannerGasUrl` key to
+  `appKey === 'day-planner'` only (previously written unconditionally for any launched
+  app, including the hidden dev tile — on a browser with no prior trust, launching dev
+  first would poison prod's legacy-key fallback with the `/dev` URL). Re-verified
+  against the live `pwa.js` with `patch --dry-run`.
+- [x] **14.6 Opus review of the 14.2-14.5 commits, and fixes for what it found.** An
+  Opus subagent reviewed the 5 commits ahead of `origin/master`
+  (`f2788a7`/`2fd50ec`/`fe33b54`/`57f4fa4`/`d7a4268`) plus the staged `pwa.js.patch`.
+  Findings and disposition:
+  - **CRITICAL (fixed):** `getDailyData` (`Code.gs`) called `Tasks.Tasks.list('@default')`
+    with no date filter, so every task (any due date, including undated ones) came back
+    on every call regardless of the requested day. `reconcileWorkspaceChanges` then saw a
+    "task with no matching event" for every task on every date navigation and created a
+    real duplicate Calendar event each time — a live-data-corruption bug on the user's
+    actual Google Calendar. Fixed by adding `dueMin`/`dueMax` (scoped to the requested
+    day) to the `Tasks.Tasks.list` call; confirmed safe because every task-creation path
+    (`addDailyTask`) always sets `due` to its target date.
+  - **HIGH (fixed):** the `gasTaskId` Task<->Event link was written to
+    `extendedProperties.private` (Advanced Calendar Service) but read via
+    `evt.getTag()` (CalendarApp), which maps to the *shared* property map — the read
+    side likely never found what the write side wrote, defeating de-duplication. Fixed
+    by writing to both `private` and `shared` on creation.
+  - **HIGH (fixed):** event ids from `CalendarApp` carry an `@google.com` suffix that
+    `Calendar.Events.patch` (used by `updateCalendarEvent`) rejects, so retitling/
+    rescheduling a linked event silently no-opped. Fixed by normalizing to the bare id
+    everywhere it's returned to the client (`getDailyData`, both branches of
+    `addCalendarEvent`), and re-appending the suffix only where `CalendarApp.getEventById`
+    needs it internally.
+  - **HIGH (fixed):** `isSyncing` was only set for non-silent syncs, so the 5-min
+    interval/`visibilitychange`/`online`-triggered silent syncs could overlap each other
+    (or a user-initiated sync) with no guard, each independently creating the same
+    duplicate event. Fixed in both `gas-app/Script.html` and `src/app.js`: `isSyncing`
+    now gates and is set/cleared for every `trigger2WaySync` call regardless of `silent`.
+  - **HIGH (fixed):** daily notes were never persisted — `saveDailyDocCards` existed
+    server-side (`Code.gs`) and in `src/gasBridge.js`, but `gas-app/Script.html`'s
+    `GASBridge` had no such method and neither `src/app.js` nor `Script.html` ever
+    called it, so note edits lived only in memory and were lost on the next
+    `loadDayData()`. Fixed: added the missing `GASBridge.saveDailyDocCards` method to
+    `Script.html`, and both `syncCardsToDailyNote`/`syncDailyNoteToCards` (in both
+    copies) now debounce (1.2s) a real save through it — debounced because both
+    functions fire on every textarea keystroke.
+  - **MEDIUM (fixed):** `updateDailyTask`/`updateCalendarEvent` return `null` on a
+    not-found (deleted upstream), but every caller discarded the return value —
+    silent per `no-silent-failures.md`. Both callers (the `trigger2WaySync` reconcile
+    loops and `toggleTaskStatus`, in both `Script.html` and `src/app.js`) now check for
+    `null` and surface it via `this.errorMessage`.
+  - **MEDIUM (fixed):** `addDailyTask`'s no-Tasks-service fallback silently fabricated
+    a `task_<timestamp>` id with no real backing (looked saved, vanished on next
+    fetch) — inconsistent with `updateDailyTask`'s throw in the identical condition.
+    Now throws too.
+  - **LOW (fixed):** `updateDailyTask` matched only `'404'` in the not-found catch,
+    `updateCalendarEvent` matched `'404' || 'Not Found'` — aligned to the same check.
+  - **MEDIUM (fixed, in the still-unapplied `pwa.js.patch` — see 14.5 above):**
+    `launchKnownApp`/`handleConnect` wrote the legacy `dayPlannerGasUrl` key
+    unconditionally regardless of which app was launched, which could let the dev
+    tile's `/dev` URL poison prod's fallback on a browser with no prior trust. Fixed
+    by scoping both writes to `app.key`/`appKey === 'day-planner'`, matching the read
+    side's existing scoping.
+  - **Not fixed — deferred, needs a product decision, not a bug fix:** (a) the patch
+    removes every `fetchRemoteBundle` call site, freezing the offline bundle cache at
+    whatever shipped in the shell (no more background refresh) and orphaning
+    `getCompiledAppBundle()`/`tools/build-shell-bundle.js` — fine if offline mode is
+    meant to be static, otherwise needs a fire-and-forget SWR refresh added back; (b)
+    once a URL is trusted, path A redirects unconditionally with no escape if it later
+    becomes wrong (rotated deployment, access revoked) — needs a `?reset=1`/"not this
+    app?" affordance or a cheap reachability check, a UX call not made here; (c) minor
+    src/`Script.html` structural drift (guard placement, mock-field differences) and a
+    server-side 5-min-trigger dedupe-title mismatch for completed tasks
+    (`[✓] Title` vs `[A1] Title`) — low-value, left as-is.
+  - **Not independently verifiable from this session:** whether Apps Script's
+    `Event.getTag()`/`setTag()` genuinely read/write `extendedProperties.shared` (the
+    stated reasoning for the gasTaskId fix above) — the dual-write fix is safe either
+    way, but confirming the exact mechanism needs a live GAS run.
+  - `npm test`: 107/107 across 19 suites, both before and after every fix above.
+  - **Structural test-coverage gap (not addressed):** the new persistence-orchestration
+    logic (the reconcile-then-persist loop in `trigger2WaySync`) lives entirely inline
+    in untested Alpine objects, so the Critical/High findings above were invisible to
+    `npm test` and would be again for a similar future bug. A durable fix would extract
+    a pure `planSyncPersistence(beforeTasks, beforeEvents, reconciled)` into
+    `src/syncEngine.js`, shared by both copies and directly unit-testable — not done
+    here; left as a follow-up.
 
 ## Verification Criteria
 - [x] All unit tests in `tests/*.test.js` pass cleanly (`npm test` — 107/107 passing across 19 suites).

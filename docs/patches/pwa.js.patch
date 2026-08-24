@@ -141,14 +141,21 @@
  
    picker.innerHTML = '';
    apps.forEach((app) => {
-@@ -417,22 +440,13 @@
+@@ -417,22 +440,18 @@
      btnEl.classList.add('is-loading');
    }
  
 -  const bundleData = await fetchRemoteBundle(app.url, null);
 -  if (bundleData && (bundleData.bundle || bundleData.html)) {
 -    localStorage.setItem(`gas_url_${app.key}`, app.url);
--    localStorage.setItem('dayPlannerGasUrl', app.url);
++  // The URL is developer-baked into KNOWN_APPS, not visitor-supplied, so it's
++  // trusted by construction — no reachability fetch needed before navigating.
++  localStorage.setItem(`gas_url_${app.key}`, app.url);
++  // Legacy key is read only as a fallback for the original 'day-planner' entry (see the
++  // scoped read below) — writing it for any other key (e.g. the hidden dev/test tile)
++  // would let that key's URL leak into 'day-planner's fallback on a fresh browser.
++  if (app.key === 'day-planner') {
+     localStorage.setItem('dayPlannerGasUrl', app.url);
 -    await saveCachedBundle(app.key, bundleData);
 -    mountBundle(bundleData);
 -  } else {
@@ -160,18 +167,14 @@
 -      errorMsg.textContent = `⚠️ Could not reach ${app.name}. Check your connection and try again.`;
 -      errorMsg.classList.remove('is-hidden');
 -    }
--  }
-+  // The URL is developer-baked into KNOWN_APPS, not visitor-supplied, so it's
-+  // trusted by construction — no reachability fetch needed before navigating.
-+  localStorage.setItem(`gas_url_${app.key}`, app.url);
-+  localStorage.setItem('dayPlannerGasUrl', app.url);
+   }
 +  const configModal = document.getElementById('config-modal');
 +  if (configModal) configModal.classList.add('is-hidden');
 +  redirectToApp(app.url, app.name);
  }
  
  function showConnectPrompt(appDisplayName, prefillUrl, explicitAppKey) {
-@@ -486,21 +500,12 @@
+@@ -486,21 +505,16 @@
    }
  
    if (errorMsg) errorMsg.classList.add('is-hidden');
@@ -180,7 +183,12 @@
 -  const bundleData = await fetchRemoteBundle(url, null);
 -  if (bundleData && (bundleData.bundle || bundleData.html)) {
 -    localStorage.setItem(storageKey, url);
--    localStorage.setItem('dayPlannerGasUrl', url);
++  if (btnText) btnText.textContent = 'Opening...';
++  localStorage.setItem(storageKey, url);
++  // See launchKnownApp: only 'day-planner' writes the legacy key, so a custom-connected
++  // URL for another app key can't leak into 'day-planner's legacy-key fallback.
++  if (appKey === 'day-planner') {
+     localStorage.setItem('dayPlannerGasUrl', url);
 -    await saveCachedBundle(appKey, bundleData);
 -    mountBundle(bundleData);
 -  } else {
@@ -189,10 +197,7 @@
 -      errorMsg.textContent = '⚠️ Could not download bundle. Please verify your Web App is deployed with "Anyone" access and CORS enabled.';
 -      errorMsg.classList.remove('is-hidden');
 -    }
--  }
-+  if (btnText) btnText.textContent = 'Opening...';
-+  localStorage.setItem(storageKey, url);
-+  localStorage.setItem('dayPlannerGasUrl', url);
+   }
 +  const configModal = document.getElementById('config-modal');
 +  if (configModal) configModal.classList.add('is-hidden');
 +  redirectToApp(url, formatAppName(appKey));

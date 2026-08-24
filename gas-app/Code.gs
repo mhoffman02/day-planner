@@ -533,7 +533,11 @@ function getDailyData(dateStr) {
             if (match) meetLink = match[0];
           }
           return {
-            id: evt.getId(),
+            // Normalized to the bare Calendar API v3 id (strip the CalendarApp
+            // '@google.com' suffix) so this id round-trips cleanly through
+            // updateCalendarEvent's Calendar.Events.patch call, which rejects the
+            // suffixed form. See docs/patches — event-id format mismatch fix.
+            id: evt.getId().replace(/@google\.com$/, ''),
             title: evt.getTitle(),
             startTime: evt.getStartTime().toISOString(),
             endTime: evt.getEndTime().toISOString(),
@@ -548,10 +552,20 @@ function getDailyData(dateStr) {
       }
     }
 
-    // 2. Fetch Google Tasks
+    // 2. Fetch Google Tasks for this date only. dueMin/dueMax scopes the Tasks API
+    // query to [targetDate, nextDate) — without this, every task in the list (any
+    // due date, including undated tasks) came back on every call, which fed
+    // reconcileWorkspaceChanges a phantom "task with no matching event" for every
+    // task on every day and made it create a real duplicate Calendar event per
+    // task on every date navigation.
     if (typeof Tasks !== 'undefined') {
       try {
-        var taskList = Tasks.Tasks.list('@default');
+        var taskList = Tasks.Tasks.list('@default', {
+          dueMin: targetDate.toISOString(),
+          dueMax: nextDate.toISOString(),
+          showCompleted: true,
+          showHidden: true
+        });
         if (taskList.items) {
           result.tasks = taskList.items.map(function(t) {
             return {
@@ -761,14 +775,10 @@ function addDailyTask(dateStr, title, category) {
       };
     }
 
-    // Fallback for environments without the Tasks Advanced Service enabled.
-    return {
-      id: 'task_' + new Date().getTime(),
-      title: title,
-      status: '•',
-      category: category || 'General',
-      dueDate: dateStr
-    };
+    // No fabricated fallback: a 'task_<timestamp>' id with no Tasks API backing looked
+    // saved to the user but vanished on the next getDailyData() fetch. Matches
+    // updateDailyTask's behavior for the identical condition.
+    throw new Error('Tasks Advanced Service is not enabled for this deployment.');
   } catch (err) {
     logError('addDailyTask', err);
     throw err;
@@ -817,7 +827,7 @@ function updateDailyTask(dateStr, taskId, updates) {
       dueDate: updated.due ? updated.due.substring(0, 10) : (updates && updates.dueDate) || dateStr
     };
   } catch (err) {
-    if (err.message && err.message.indexOf('404') !== -1) {
+    if (err.message && (err.message.indexOf('404') !== -1 || err.message.indexOf('Not Found') !== -1)) {
       return null;
     }
     logError('updateDailyTask(' + taskId + ')', err);
@@ -865,7 +875,10 @@ function updateCalendarEvent(dateStr, eventId, updates) {
     }
 
     if (typeof CalendarApp !== 'undefined') {
-      var evt = CalendarApp.getEventById(eventId);
+      // CalendarApp.getEventById needs the '@google.com'-suffixed id form; incoming
+      // eventId is the bare form getDailyData/addCalendarEvent now hand to the client.
+      var lookupId = eventId.indexOf('@') === -1 ? eventId + '@google.com' : eventId;
+      var evt = CalendarApp.getEventById(lookupId);
       if (!evt) return null;
       if (updates && updates.title !== undefined) evt.setTitle(updates.title);
       if (updates && updates.location !== undefined) evt.setLocation(updates.location);
@@ -874,7 +887,7 @@ function updateCalendarEvent(dateStr, eventId, updates) {
         evt.setTime(new Date(updates.startTime), new Date(updates.endTime));
       }
       return {
-        id: evt.getId(),
+        id: evt.getId().replace(/@google\.com$/, ''),
         title: evt.getTitle(),
         startTime: evt.getStartTime().toISOString(),
         endTime: evt.getEndTime().toISOString(),
@@ -945,7 +958,10 @@ function addCalendarEvent(dateStr, eventData) {
         eventResource.attendees = attendeesList.map(function(email) { return { email: email }; });
       }
       if (gasTaskId) {
-        eventResource.extendedProperties = { private: { gasTaskId: gasTaskId } };
+        // Written to both maps: CalendarApp's getTag() (used by getDailyData to read
+        // syncTaskId back) reads the *shared* extended-property map, not private —
+        // private alone left the read side unable to find the link it just wrote.
+        eventResource.extendedProperties = { private: { gasTaskId: gasTaskId }, shared: { gasTaskId: gasTaskId } };
       }
 
       var insertOptions = { sendUpdates: attendeesList.length > 0 ? 'all' : 'none' };
@@ -980,7 +996,7 @@ function addCalendarEvent(dateStr, eventData) {
       if (gasTaskId) {
         evt.setTag('gasTaskId', gasTaskId);
       }
-      createdId = evt.getId();
+      createdId = evt.getId().replace(/@google\.com$/, '');
     }
 
     var agendaDocUrl = null;
