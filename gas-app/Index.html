@@ -117,8 +117,6 @@
       <div class="header-actions-compact">
         <button type="button" class="search-trigger-compact" @click="toggleSearchModal()" title="Search Across All Items (Ctrl+K)">
           <span class="material-symbols-outlined icon-18">search</span>
-          <span class="search-label">Search planner...</span>
-          <kbd class="kbd-shortcut-sm">⌘K</kbd>
         </button>
         <button type="button" class="sync-btn-compact" @click="trigger2WaySync()" :disabled="isSyncing" :title="outboxCount > 0 ? outboxCount + ' change' + (outboxCount === 1 ? '' : 's') + ' queued offline — will sync automatically' : 'Sync with Google Calendar & Tasks'">
           <span class="material-symbols-outlined icon-18" :class="{ 'spin': isSyncing }">sync</span>

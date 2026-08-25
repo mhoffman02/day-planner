@@ -1417,16 +1417,9 @@
           if (evt.syncTaskId) return;
           let slotKey = null;
           if (evt.startTime) {
-            const match = evt.startTime.match(/T(\d{2}):(\d{2})/);
-            if (match) {
-              const hr = parseInt(match[1], 10);
-              const min = parseInt(match[2], 10) < 30 ? '00' : '30';
-              slotKey = `${hr.toString().padStart(2, '0')}:${min}`;
-            } else {
-              const start = new Date(evt.startTime);
-              const slotMin = start.getMinutes() < 30 ? '00' : '30';
-              slotKey = `${start.getHours().toString().padStart(2, '0')}:${slotMin}`;
-            }
+            const start = new Date(evt.startTime);
+            const slotMin = start.getMinutes() < 30 ? '00' : '30';
+            slotKey = `${start.getHours().toString().padStart(2, '0')}:${slotMin}`;
           }
           if (slotKey) {
             const slot = slots.find(s => s.timeKey === slotKey);
@@ -1681,6 +1674,10 @@
         if (this.searchModalOpen) {
           this.runSearch();
         }
+      },
+
+      closeSearchModal() {
+        this.searchModalOpen = false;
       },
 
       runSearch() {
