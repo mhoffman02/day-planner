@@ -91,6 +91,7 @@ function getLocalDateStr(d = new Date()) {
       noteSaveTimer: null,
       _daySyncTimer: null,
       _prefetchInFlight: new Set(),
+      outboxCount: 0,
 
       showToast(message, type = 'info', duration = 10000, title = '') {
         const id = 't_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
@@ -175,8 +176,52 @@ function getLocalDateStr(d = new Date()) {
         await this.loadDayData();
         await this.loadMasterTasks();
         await this.loadRecentAttendees();
+        await this.refreshOutboxCount();
         this.setupKeyboardShortcuts();
         this.setupAutoSync();
+      },
+
+      async refreshOutboxCount() {
+        try {
+          const outbox = await IndexedDbStore.getOutbox();
+          this.outboxCount = outbox.length;
+        } catch (e) {
+          console.warn('Could not read outbox count:', e);
+        }
+      },
+
+      // Replays any writes queued while offline against the real backend, in
+      // FIFO order, then reconciles temp ids (offline_task_*/offline_evt_*)
+      // in local state with the real ids the server assigned.
+      async flushOutboxIfPossible() {
+        if (!this.bridge || typeof this.bridge.flushOutbox !== 'function') return;
+        if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+        try {
+          const result = await this.bridge.flushOutbox((mutation, mutationResult) => {
+            this.reconcileOfflineMutation(mutation, mutationResult);
+          });
+          await this.refreshOutboxCount();
+          if (result && result.flushed > 0) {
+            this.showToast(`Synced ${result.flushed} offline change${result.flushed === 1 ? '' : 's'}.`, 'success', 5000, 'Back Online');
+          }
+        } catch (err) {
+          console.error('🔥 flushOutboxIfPossible error:', err);
+        }
+      },
+
+      // Patches a temp id (assigned locally while offline) to the real id the
+      // server returned once its queued create actually lands. Updates only
+      // apply optimistically before queueing, so they need no patching here.
+      reconcileOfflineMutation(mutation, result) {
+        if (!result) return;
+        if (mutation.type === 'ADD_DAILY_TASK' && mutation.payload.tempId) {
+          const idx = this.dailyTasks.findIndex(t => t.id === mutation.payload.tempId);
+          if (idx !== -1) this.dailyTasks[idx] = { ...this.dailyTasks[idx], ...result, _queuedOffline: false };
+        } else if (mutation.type === 'ADD_CALENDAR_EVENT' && mutation.payload.tempId) {
+          const idx = this.calendarEvents.findIndex(e => e.id === mutation.payload.tempId);
+          if (idx !== -1) this.calendarEvents[idx] = { ...this.calendarEvents[idx], ...result, _queuedOffline: false };
+        }
+        this.buildScheduleGrid();
       },
 
       async loadRecentAttendees() {
@@ -378,6 +423,8 @@ function getLocalDateStr(d = new Date()) {
 
         try {
           if (!silent) await new Promise(r => setTimeout(r, 200)); // Visual indicator
+
+          await this.flushOutboxIfPossible();
 
           const beforeTasks = this.dailyTasks;
           const beforeEvents = this.calendarEvents;
@@ -733,7 +780,8 @@ function getLocalDateStr(d = new Date()) {
         this.noteSaveTimer = setTimeout(async () => {
           if (!this.bridge || typeof this.bridge.saveDailyDocCards !== 'function') return;
           try {
-            await this.bridge.saveDailyDocCards(this.selectedDate, this.dailyNote);
+            const result = await this.bridge.saveDailyDocCards(this.selectedDate, this.dailyNote);
+            if (result && result.queued) await this.refreshOutboxCount();
           } catch (err) {
             console.error('🔥 saveDailyDocCards error:', err);
             this.errorMessage = `Could not save daily note: ${err.message || err.toString()}`;
@@ -840,6 +888,7 @@ function getLocalDateStr(d = new Date()) {
           const newTask = await this.bridge.addDailyTask(this.selectedDate, formattedTitle);
           this.dailyTasks.push(newTask);
           this.newTaskTitle = '';
+          if (newTask._queuedOffline) await this.refreshOutboxCount();
           await this.trigger2WaySync();
         } catch (err) {
           console.error('🔥 addDailyTask error:', err);
@@ -860,6 +909,8 @@ function getLocalDateStr(d = new Date()) {
             });
             if (!updated) {
               this.errorMessage = `Task "${task.title}" no longer exists in Google Tasks — status change was not saved.`;
+            } else if (updated._queuedOffline) {
+              await this.refreshOutboxCount();
             }
           }
         } catch (err) {
@@ -1014,6 +1065,7 @@ function getLocalDateStr(d = new Date()) {
             if (saved) {
               Object.assign(newEvt, saved);
               this.buildScheduleGrid();
+              if (saved._queuedOffline) await this.refreshOutboxCount();
             }
           }
           await this.trigger2WaySync();

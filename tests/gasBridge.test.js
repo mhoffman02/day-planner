@@ -6,6 +6,152 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { GASBridge } from '../src/gasBridge.js';
+import IndexedDbStore from '../src/indexedDbStore.js';
+
+/**
+ * Simulates `window.google.script.run.withSuccessHandler(fn).withFailureHandler(fn).method(...)`
+ * against a plain map of { methodName: (...args) => result | throws }.
+ */
+function createFakeGoogleScriptRun(handlers) {
+  function makeRunner(successHandler, failureHandler) {
+    return new Proxy({}, {
+      get(_target, prop) {
+        if (prop === 'withSuccessHandler') return (fn) => makeRunner(fn, failureHandler);
+        if (prop === 'withFailureHandler') return (fn) => makeRunner(successHandler, fn);
+        return (...args) => {
+          const impl = handlers[prop];
+          try {
+            if (!impl) throw new Error(`No fake handler registered for ${String(prop)}`);
+            successHandler(impl(...args));
+          } catch (err) {
+            failureHandler(err);
+          }
+        };
+      }
+    });
+  }
+  return makeRunner(null, null);
+}
+
+function installFakeWindow(handlers) {
+  globalThis.window = { google: { script: { run: createFakeGoogleScriptRun(handlers) } } };
+}
+
+function uninstallFakeWindow() {
+  delete globalThis.window;
+}
+
+describe('GAS Bridge Offline Write Queue Unit Tests', () => {
+  it('should queue an add-task mutation to the outbox when offline and return a temp-id placeholder', async () => {
+    installFakeWindow({});
+    try {
+      const bridge = new GASBridge(false);
+      bridge._forceOffline = true;
+
+      const result = await bridge.addDailyTask('2026-08-20', '[A1] Test offline task', 'Work');
+      assert.equal(result._queuedOffline, true);
+      assert.ok(result.id.startsWith('offline_task_'));
+
+      const outbox = await IndexedDbStore.getOutbox();
+      const match = outbox.find(m => m.type === 'ADD_DAILY_TASK' && m.payload.tempId === result.id);
+      assert.ok(match, 'expected an ADD_DAILY_TASK mutation queued for the returned temp id');
+
+      await IndexedDbStore.dequeueMutation(match.id);
+    } finally {
+      uninstallFakeWindow();
+    }
+  });
+
+  it('should queue an update-task mutation when offline and return an optimistic merge', async () => {
+    installFakeWindow({});
+    try {
+      const bridge = new GASBridge(false);
+      bridge._forceOffline = true;
+
+      const result = await bridge.updateDailyTask('2026-08-20', 'real_task_1', { status: '✓' });
+      assert.equal(result._queuedOffline, true);
+      assert.equal(result.id, 'real_task_1');
+      assert.equal(result.status, '✓');
+
+      const outbox = await IndexedDbStore.getOutbox();
+      const match = outbox.find(m => m.type === 'UPDATE_DAILY_TASK' && m.payload.taskId === 'real_task_1');
+      assert.ok(match, 'expected an UPDATE_DAILY_TASK mutation queued');
+
+      await IndexedDbStore.dequeueMutation(match.id);
+    } finally {
+      uninstallFakeWindow();
+    }
+  });
+
+  it('should replay queued mutations in order once back online and resolve temp ids to real ids', async () => {
+    installFakeWindow({
+      addDailyTask: (dateStr, title, category) => ({ id: 'real_task_99', title, status: '•', category, dueDate: dateStr })
+    });
+    try {
+      const bridge = new GASBridge(false);
+      bridge._forceOffline = true;
+      const queued = await bridge.addDailyTask('2026-08-21', '[A1] Flush me', 'Work');
+      assert.ok(queued.id.startsWith('offline_task_'));
+
+      bridge._forceOffline = false;
+      const resolutions = [];
+      const flushResult = await bridge.flushOutbox((mutation, result, tempIdMap) => {
+        resolutions.push({ mutation, result, tempIdMap });
+      });
+
+      assert.equal(flushResult.flushed, 1);
+      assert.equal(flushResult.remaining, 0);
+      assert.equal(flushResult.failed, 0);
+      assert.equal(resolutions.length, 1);
+      assert.equal(resolutions[0].result.id, 'real_task_99');
+      assert.equal(resolutions[0].tempIdMap[queued.id], 'real_task_99');
+
+      const outbox = await IndexedDbStore.getOutbox();
+      assert.equal(outbox.some(m => m.payload.tempId === queued.id), false);
+    } finally {
+      uninstallFakeWindow();
+    }
+  });
+
+  it('should stop flushing at the first failed mutation, leaving later ones queued for retry', async () => {
+    installFakeWindow({
+      addDailyTask: () => { throw new Error('simulated backend failure'); }
+    });
+    let firstId, secondId;
+    try {
+      const bridge = new GASBridge(false);
+      bridge._forceOffline = true;
+      const first = await bridge.addDailyTask('2026-08-22', '[A1] Will fail to flush', 'Work');
+      const second = await bridge.addDailyTask('2026-08-22', '[A2] Should stay queued', 'Work');
+      firstId = first.id;
+      secondId = second.id;
+
+      bridge._forceOffline = false;
+      const flushResult = await bridge.flushOutbox();
+
+      assert.equal(flushResult.flushed, 0);
+      assert.equal(flushResult.failed, 1);
+      assert.equal(flushResult.remaining, 2);
+
+      const outbox = await IndexedDbStore.getOutbox();
+      assert.equal(outbox.filter(m => m.payload.tempId === firstId || m.payload.tempId === secondId).length, 2);
+    } finally {
+      uninstallFakeWindow();
+      const outbox = await IndexedDbStore.getOutbox();
+      for (const m of outbox) {
+        if (m.payload.tempId === firstId || m.payload.tempId === secondId) {
+          await IndexedDbStore.dequeueMutation(m.id);
+        }
+      }
+    }
+  });
+
+  it('should skip flushing entirely in mock mode without touching the outbox', async () => {
+    const bridge = new GASBridge(true);
+    const result = await bridge.flushOutbox();
+    assert.deepEqual(result, { flushed: 0, remaining: 0, failed: 0 });
+  });
+});
 
 describe('GAS Bridge Unit Tests', () => {
   it('should fetch daily mock data correctly', async () => {

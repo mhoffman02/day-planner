@@ -120,9 +120,10 @@
           <span class="search-label">Search planner...</span>
           <kbd class="kbd-shortcut-sm">⌘K</kbd>
         </button>
-        <button type="button" class="sync-btn-compact" @click="trigger2WaySync()" :disabled="isSyncing" title="Sync with Google Calendar & Tasks">
+        <button type="button" class="sync-btn-compact" @click="trigger2WaySync()" :disabled="isSyncing" :title="outboxCount > 0 ? outboxCount + ' change' + (outboxCount === 1 ? '' : 's') + ' queued offline — will sync automatically' : 'Sync with Google Calendar & Tasks'">
           <span class="material-symbols-outlined icon-18" :class="{ 'spin': isSyncing }">sync</span>
           <span class="sync-label" x-text="isSyncing ? 'Syncing' : 'Sync'"></span>
+          <span class="outbox-badge" x-show="outboxCount > 0" x-text="outboxCount" aria-label="Offline changes pending sync"></span>
         </button>
         <button type="button" class="theme-toggle-compact" @click="toggleTheme()" :aria-label="'Switch to ' + (theme === 'dark' ? 'Light' : 'Dark') + ' Mode'" :title="'Switch to ' + (theme === 'dark' ? 'Light' : 'Dark') + ' Mode'">
           <span class="material-symbols-outlined icon-18" x-text="theme === 'dark' ? 'light_mode' : 'dark_mode'"></span>

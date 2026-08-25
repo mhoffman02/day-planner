@@ -634,6 +634,7 @@ nav.view-segmented-control {
 }
 
 .sync-btn-compact {
+  position: relative;
   background: var(--theme-header-btn-bg);
   border: 1px solid var(--theme-header-btn-border);
   color: #ffffff;
@@ -655,6 +656,24 @@ nav.view-segmented-control {
 
 .sync-btn-compact:hover {
   background: var(--theme-header-btn-hover);
+}
+
+.outbox-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #b78103;
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  box-sizing: border-box;
+  box-shadow: 0 0 0 2px var(--theme-header-bg);
 }
 
 .theme-toggle-compact {

@@ -6,6 +6,18 @@
 
 import { transferMasterTaskToToday } from './taskEngine.js';
 import { reconcileWorkspaceChanges } from './syncEngine.js';
+import IndexedDbStore from './indexedDbStore.js';
+
+/**
+ * Outbox mutation type tags used to queue and later replay writes made while offline.
+ */
+export const OUTBOX_MUTATION_TYPES = {
+  ADD_DAILY_TASK: 'ADD_DAILY_TASK',
+  UPDATE_DAILY_TASK: 'UPDATE_DAILY_TASK',
+  ADD_CALENDAR_EVENT: 'ADD_CALENDAR_EVENT',
+  UPDATE_CALENDAR_EVENT: 'UPDATE_CALENDAR_EVENT',
+  SAVE_DAILY_NOTE: 'SAVE_DAILY_NOTE'
+};
 
 /**
  * Service bridge for invoking Apps Script backend functions or providing mock fallback data.
@@ -17,6 +29,8 @@ export class GASBridge {
    */
   constructor(useMock = true) {
     this.useMock = useMock;
+    // Test-only override; production offline detection uses navigator.onLine.
+    this._forceOffline = false;
 
     // Seed mock data for local dev server & unit tests
     this.mockData = {
@@ -84,6 +98,107 @@ export class GASBridge {
         { id: 'i2', date: '2026-08-15', topic: 'Finance', summary: 'Approved $15,000 infrastructure allocation for GCP migration', docUrl: '#doc-2026-08-15' }
       ]
     };
+  }
+
+  /**
+   * Whether the client currently has network connectivity. Falls back to "online"
+   * when `navigator` isn't available (Node/test environments).
+   * @returns {boolean}
+   */
+  isOnline() {
+    if (this._forceOffline) return false;
+    if (typeof navigator === 'undefined' || typeof navigator.onLine !== 'boolean') return true;
+    return navigator.onLine;
+  }
+
+  /**
+   * Invokes a named `google.script.run` server function and resolves/rejects with its result.
+   * @param {string} fnName Server-side function name on `google.script.run`.
+   * @param {Array<any>} args Positional arguments to forward.
+   * @returns {Promise<any>}
+   */
+  _runGasCall(fnName, args) {
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        [fnName](...args);
+    });
+  }
+
+  /**
+   * Replays queued offline mutations (in FIFO order) against the live GAS backend once
+   * connectivity is restored, dequeuing each on success and stopping at the first failure
+   * so ordering/dependencies (e.g. an edit queued after its own offline create) are preserved
+   * for retry on the next flush.
+   * @param {(mutation: object, result: any, tempIdMap: Object<string,string>) => void} [onResolved]
+   *   Called after each mutation successfully replays, so the caller can reconcile any
+   *   client-generated temp id against the real server-assigned id.
+   * @returns {Promise<{flushed: number, remaining: number, failed: number}>}
+   */
+  async flushOutbox(onResolved) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      return { flushed: 0, remaining: 0, failed: 0 };
+    }
+    if (!this.isOnline()) {
+      const pending = await IndexedDbStore.getOutbox();
+      return { flushed: 0, remaining: pending.length, failed: 0 };
+    }
+
+    const outbox = (await IndexedDbStore.getOutbox()).sort((a, b) => a.id - b.id);
+    const tempIdMap = {};
+    const resolveId = (id) => tempIdMap[id] || id;
+
+    let flushed = 0;
+    let failed = 0;
+
+    for (const mutation of outbox) {
+      try {
+        let result;
+        switch (mutation.type) {
+          case OUTBOX_MUTATION_TYPES.ADD_DAILY_TASK: {
+            const { dateStr, title, category, tempId } = mutation.payload;
+            result = await this._runGasCall('addDailyTask', [dateStr, title, category]);
+            if (result && result.id && tempId) tempIdMap[tempId] = result.id;
+            break;
+          }
+          case OUTBOX_MUTATION_TYPES.UPDATE_DAILY_TASK: {
+            const { dateStr, taskId, updates } = mutation.payload;
+            result = await this._runGasCall('updateDailyTask', [dateStr, resolveId(taskId), updates]);
+            break;
+          }
+          case OUTBOX_MUTATION_TYPES.ADD_CALENDAR_EVENT: {
+            const { dateStr, eventData, tempId } = mutation.payload;
+            result = await this._runGasCall('addCalendarEvent', [dateStr, eventData]);
+            if (result && result.id && tempId) tempIdMap[tempId] = result.id;
+            break;
+          }
+          case OUTBOX_MUTATION_TYPES.UPDATE_CALENDAR_EVENT: {
+            const { dateStr, eventId, updates } = mutation.payload;
+            result = await this._runGasCall('updateCalendarEvent', [dateStr, resolveId(eventId), updates]);
+            break;
+          }
+          case OUTBOX_MUTATION_TYPES.SAVE_DAILY_NOTE: {
+            const { dateStr, noteContent } = mutation.payload;
+            result = await this._runGasCall('saveDailyDocCards', [dateStr, noteContent]);
+            break;
+          }
+          default:
+            result = null;
+        }
+
+        await IndexedDbStore.dequeueMutation(mutation.id);
+        flushed++;
+        if (typeof onResolved === 'function') onResolved(mutation, result, tempIdMap);
+      } catch (err) {
+        console.error('🔥 flushOutbox: mutation failed, stopping to preserve order', mutation, err);
+        failed++;
+        break;
+      }
+    }
+
+    const remainingOutbox = await IndexedDbStore.getOutbox();
+    return { flushed, remaining: remainingOutbox.length, failed };
   }
 
   /**
@@ -161,12 +276,17 @@ export class GASBridge {
       return newTask;
     }
 
-    return new Promise((resolve, reject) => {
-      window.google.script.run
-        .withSuccessHandler(resolve)
-        .withFailureHandler(reject)
-        .addDailyTask(dateStr, title, category);
-    });
+    if (this.isOnline()) {
+      try {
+        return await this._runGasCall('addDailyTask', [dateStr, title, category]);
+      } catch (err) {
+        console.warn('addDailyTask: network call failed, queueing offline', err);
+      }
+    }
+
+    const tempId = `offline_task_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    await IndexedDbStore.enqueueMutation(OUTBOX_MUTATION_TYPES.ADD_DAILY_TASK, { dateStr, title, category, tempId });
+    return { id: tempId, title, status: '•', category, dueDate: dateStr, _queuedOffline: true };
   }
 
   /**
@@ -187,12 +307,16 @@ export class GASBridge {
       return tasks[taskIndex];
     }
 
-    return new Promise((resolve, reject) => {
-      window.google.script.run
-        .withSuccessHandler(resolve)
-        .withFailureHandler(reject)
-        .updateDailyTask(dateStr, taskId, updates);
-    });
+    if (this.isOnline()) {
+      try {
+        return await this._runGasCall('updateDailyTask', [dateStr, taskId, updates]);
+      } catch (err) {
+        console.warn('updateDailyTask: network call failed, queueing offline', err);
+      }
+    }
+
+    await IndexedDbStore.enqueueMutation(OUTBOX_MUTATION_TYPES.UPDATE_DAILY_TASK, { dateStr, taskId, updates });
+    return { id: taskId, ...updates, _queuedOffline: true };
   }
 
   /**
@@ -248,12 +372,36 @@ export class GASBridge {
       return newEvt;
     }
 
-    return new Promise((resolve, reject) => {
-      window.google.script.run
-        .withSuccessHandler(resolve)
-        .withFailureHandler(reject)
-        .addCalendarEvent(dateStr, eventData);
-    });
+    if (this.isOnline()) {
+      try {
+        return await this._runGasCall('addCalendarEvent', [dateStr, eventData]);
+      } catch (err) {
+        console.warn('addCalendarEvent: network call failed, queueing offline', err);
+      }
+    }
+
+    const tempId = `offline_evt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const attendeesList = Array.isArray(eventData.attendees)
+      ? eventData.attendees
+      : (typeof eventData.attendees === 'string'
+          ? eventData.attendees.split(/[,;]+/).map(s => s.trim()).filter(Boolean)
+          : []);
+    await IndexedDbStore.enqueueMutation(OUTBOX_MUTATION_TYPES.ADD_CALENDAR_EVENT, { dateStr, eventData, tempId });
+    return {
+      id: tempId,
+      title: eventData.title || 'New Appointment',
+      startTime: eventData.startTime || `${dateStr}T09:00:00`,
+      endTime: eventData.endTime || `${dateStr}T09:30:00`,
+      location: eventData.location || '',
+      description: eventData.description || '',
+      meetLink: null,
+      agendaDocUrl: null,
+      attendees: attendeesList,
+      guestsCanModify: eventData.guestsCanModify !== undefined ? eventData.guestsCanModify : true,
+      syncTaskId: eventData.syncTaskId || null,
+      isCompleted: eventData.isCompleted || false,
+      _queuedOffline: true
+    };
   }
 
   /**
@@ -311,12 +459,16 @@ export class GASBridge {
       return events[eventIndex];
     }
 
-    return new Promise((resolve, reject) => {
-      window.google.script.run
-        .withSuccessHandler(resolve)
-        .withFailureHandler(reject)
-        .updateCalendarEvent(dateStr, eventId, updates);
-    });
+    if (this.isOnline()) {
+      try {
+        return await this._runGasCall('updateCalendarEvent', [dateStr, eventId, updates]);
+      } catch (err) {
+        console.warn('updateCalendarEvent: network call failed, queueing offline', err);
+      }
+    }
+
+    await IndexedDbStore.enqueueMutation(OUTBOX_MUTATION_TYPES.UPDATE_CALENDAR_EVENT, { dateStr, eventId, updates });
+    return { id: eventId, ...updates, _queuedOffline: true };
   }
 
   /**
@@ -376,11 +528,15 @@ export class GASBridge {
       return { success: true, docName: `Day Planner Notes - Mock ${dateStr}` };
     }
 
-    return new Promise((resolve, reject) => {
-      window.google.script.run
-        .withSuccessHandler(resolve)
-        .withFailureHandler(reject)
-        .saveDailyDocCards(dateStr, noteContent);
-    });
+    if (this.isOnline()) {
+      try {
+        return await this._runGasCall('saveDailyDocCards', [dateStr, noteContent]);
+      } catch (err) {
+        console.warn('saveDailyDocCards: network call failed, queueing offline', err);
+      }
+    }
+
+    await IndexedDbStore.enqueueMutation(OUTBOX_MUTATION_TYPES.SAVE_DAILY_NOTE, { dateStr, noteContent });
+    return { success: true, queued: true, docName: null };
   }
 }

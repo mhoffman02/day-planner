@@ -171,6 +171,7 @@
   const IDB_NAME = 'day-planner-db';
   const IDB_VERSION = 1;
   const IDB_STORE_DAILY = 'dailyData';
+  const IDB_STORE_OUTBOX = 'outboxQueue';
 
   function idbSupported() {
     return typeof indexedDB !== 'undefined' && indexedDB !== null;
@@ -185,6 +186,9 @@
           const db = event.target.result;
           if (!db.objectStoreNames.contains(IDB_STORE_DAILY)) {
             db.createObjectStore(IDB_STORE_DAILY, { keyPath: 'dateStr' });
+          }
+          if (!db.objectStoreNames.contains(IDB_STORE_OUTBOX)) {
+            db.createObjectStore(IDB_STORE_OUTBOX, { keyPath: 'id', autoIncrement: true });
           }
         };
         request.onsuccess = (event) => resolve(event.target.result);
@@ -228,6 +232,60 @@
       }
     });
   }
+
+  async function idbEnqueueMutation(type, payload) {
+    const db = await idbOpen();
+    const mutation = { type, payload, enqueuedAt: new Date().toISOString() };
+    if (!db) return false;
+    return new Promise((resolve) => {
+      try {
+        const tx = db.transaction([IDB_STORE_OUTBOX], 'readwrite');
+        const req = tx.objectStore(IDB_STORE_OUTBOX).put(mutation);
+        req.onsuccess = () => resolve(true);
+        req.onerror = () => resolve(false);
+      } catch (e) {
+        resolve(false);
+      }
+    });
+  }
+
+  async function idbGetOutbox() {
+    const db = await idbOpen();
+    if (!db) return [];
+    return new Promise((resolve) => {
+      try {
+        const tx = db.transaction([IDB_STORE_OUTBOX], 'readonly');
+        const req = tx.objectStore(IDB_STORE_OUTBOX).getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => resolve([]);
+      } catch (e) {
+        resolve([]);
+      }
+    });
+  }
+
+  async function idbDequeueMutation(id) {
+    const db = await idbOpen();
+    if (!db) return false;
+    return new Promise((resolve) => {
+      try {
+        const tx = db.transaction([IDB_STORE_OUTBOX], 'readwrite');
+        const req = tx.objectStore(IDB_STORE_OUTBOX).delete(id);
+        req.onsuccess = () => resolve(true);
+        req.onerror = () => resolve(false);
+      } catch (e) {
+        resolve(false);
+      }
+    });
+  }
+
+  const OUTBOX_MUTATION_TYPES = {
+    ADD_DAILY_TASK: 'ADD_DAILY_TASK',
+    UPDATE_DAILY_TASK: 'UPDATE_DAILY_TASK',
+    ADD_CALENDAR_EVENT: 'ADD_CALENDAR_EVENT',
+    UPDATE_CALENDAR_EVENT: 'UPDATE_CALENDAR_EVENT',
+    SAVE_DAILY_NOTE: 'SAVE_DAILY_NOTE'
+  };
 
   class GASBridge {
     constructor(useMock = false) {
@@ -299,6 +357,79 @@
       };
     }
 
+    isOnline() {
+      if (typeof navigator === 'undefined' || typeof navigator.onLine !== 'boolean') return true;
+      return navigator.onLine;
+    }
+
+    _runGasCall(fnName, args) {
+      return new Promise((resolve, reject) => {
+        window.google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          [fnName](...args);
+      });
+    }
+
+    async flushOutbox(onResolved) {
+      if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+        return { flushed: 0, remaining: 0, failed: 0 };
+      }
+      if (!this.isOnline()) {
+        const pending = await idbGetOutbox();
+        return { flushed: 0, remaining: pending.length, failed: 0 };
+      }
+      const outbox = (await idbGetOutbox()).sort((a, b) => a.id - b.id);
+      const tempIdMap = {};
+      const resolveId = (id) => tempIdMap[id] || id;
+      let flushed = 0, failed = 0;
+      for (const mutation of outbox) {
+        try {
+          let result;
+          switch (mutation.type) {
+            case OUTBOX_MUTATION_TYPES.ADD_DAILY_TASK: {
+              const { dateStr, title, category, tempId } = mutation.payload;
+              result = await this._runGasCall('addDailyTask', [dateStr, title, category]);
+              if (result && result.id && tempId) tempIdMap[tempId] = result.id;
+              break;
+            }
+            case OUTBOX_MUTATION_TYPES.UPDATE_DAILY_TASK: {
+              const { dateStr, taskId, updates } = mutation.payload;
+              result = await this._runGasCall('updateDailyTask', [dateStr, resolveId(taskId), updates]);
+              break;
+            }
+            case OUTBOX_MUTATION_TYPES.ADD_CALENDAR_EVENT: {
+              const { dateStr, eventData, tempId } = mutation.payload;
+              result = await this._runGasCall('addCalendarEvent', [dateStr, eventData]);
+              if (result && result.id && tempId) tempIdMap[tempId] = result.id;
+              break;
+            }
+            case OUTBOX_MUTATION_TYPES.UPDATE_CALENDAR_EVENT: {
+              const { dateStr, eventId, updates } = mutation.payload;
+              result = await this._runGasCall('updateCalendarEvent', [dateStr, resolveId(eventId), updates]);
+              break;
+            }
+            case OUTBOX_MUTATION_TYPES.SAVE_DAILY_NOTE: {
+              const { dateStr, noteContent } = mutation.payload;
+              result = await this._runGasCall('saveDailyDocCards', [dateStr, noteContent]);
+              break;
+            }
+            default:
+              result = null;
+          }
+          await idbDequeueMutation(mutation.id);
+          flushed++;
+          if (typeof onResolved === 'function') onResolved(mutation, result, tempIdMap);
+        } catch (err) {
+          console.error('🔥 flushOutbox: mutation failed, stopping to preserve order', mutation, err);
+          failed++;
+          break;
+        }
+      }
+      const remainingOutbox = await idbGetOutbox();
+      return { flushed, remaining: remainingOutbox.length, failed };
+    }
+
     async getDailyData(dateStr) {
       if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
         const seedTasks = this.mockData.dailyTasks[dateStr] || this.mockData.dailyTasks['2026-08-15'] || [];
@@ -357,12 +488,16 @@
         return newTask;
       }
 
-      return new Promise((resolve, reject) => {
-        window.google.script.run
-          .withSuccessHandler(resolve)
-          .withFailureHandler(reject)
-          .addDailyTask(dateStr, title, category);
-      });
+      if (this.isOnline()) {
+        try {
+          return await this._runGasCall('addDailyTask', [dateStr, title, category]);
+        } catch (err) {
+          console.warn('addDailyTask: network call failed, queueing offline', err);
+        }
+      }
+      const tempId = `offline_task_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      await idbEnqueueMutation(OUTBOX_MUTATION_TYPES.ADD_DAILY_TASK, { dateStr, title, category, tempId });
+      return { id: tempId, title, status: '•', category, dueDate: dateStr, _queuedOffline: true };
     }
 
     async transferMasterTask(masterTaskId, dateStr, priorityGroup = 'A') {
@@ -385,12 +520,15 @@
         return tasks[taskIndex];
       }
 
-      return new Promise((resolve, reject) => {
-        window.google.script.run
-          .withSuccessHandler(resolve)
-          .withFailureHandler(reject)
-          .updateDailyTask(dateStr, taskId, updates);
-      });
+      if (this.isOnline()) {
+        try {
+          return await this._runGasCall('updateDailyTask', [dateStr, taskId, updates]);
+        } catch (err) {
+          console.warn('updateDailyTask: network call failed, queueing offline', err);
+        }
+      }
+      await idbEnqueueMutation(OUTBOX_MUTATION_TYPES.UPDATE_DAILY_TASK, { dateStr, taskId, updates });
+      return { id: taskId, ...updates, _queuedOffline: true };
     }
 
     async addCalendarEvent(dateStr, eventData = {}) {
@@ -440,12 +578,35 @@
         return newEvt;
       }
 
-      return new Promise((resolve, reject) => {
-        window.google.script.run
-          .withSuccessHandler(resolve)
-          .withFailureHandler(reject)
-          .addCalendarEvent(dateStr, eventData);
-      });
+      if (this.isOnline()) {
+        try {
+          return await this._runGasCall('addCalendarEvent', [dateStr, eventData]);
+        } catch (err) {
+          console.warn('addCalendarEvent: network call failed, queueing offline', err);
+        }
+      }
+      const tempId = `offline_evt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      const attendeesList = Array.isArray(eventData.attendees)
+        ? eventData.attendees
+        : (typeof eventData.attendees === 'string'
+            ? eventData.attendees.split(/[,;]+/).map(s => s.trim()).filter(Boolean)
+            : []);
+      await idbEnqueueMutation(OUTBOX_MUTATION_TYPES.ADD_CALENDAR_EVENT, { dateStr, eventData, tempId });
+      return {
+        id: tempId,
+        title: eventData.title || 'New Appointment',
+        startTime: eventData.startTime || `${dateStr}T09:00:00`,
+        endTime: eventData.endTime || `${dateStr}T09:30:00`,
+        location: eventData.location || '',
+        description: eventData.description || '',
+        meetLink: null,
+        agendaDocUrl: null,
+        attendees: attendeesList,
+        guestsCanModify: eventData.guestsCanModify !== undefined ? eventData.guestsCanModify : true,
+        syncTaskId: eventData.gasTaskId || eventData.syncTaskId || null,
+        isCompleted: eventData.isCompleted || false,
+        _queuedOffline: true
+      };
     }
 
     async updateCalendarEvent(dateStr, eventId, updates = {}) {
@@ -459,12 +620,15 @@
         return events[eventIndex];
       }
 
-      return new Promise((resolve, reject) => {
-        window.google.script.run
-          .withSuccessHandler(resolve)
-          .withFailureHandler(reject)
-          .updateCalendarEvent(dateStr, eventId, updates);
-      });
+      if (this.isOnline()) {
+        try {
+          return await this._runGasCall('updateCalendarEvent', [dateStr, eventId, updates]);
+        } catch (err) {
+          console.warn('updateCalendarEvent: network call failed, queueing offline', err);
+        }
+      }
+      await idbEnqueueMutation(OUTBOX_MUTATION_TYPES.UPDATE_CALENDAR_EVENT, { dateStr, eventId, updates });
+      return { id: eventId, ...updates, _queuedOffline: true };
     }
 
     async saveDailyDocCards(dateStr, noteContent) {
@@ -473,12 +637,15 @@
         return { success: true, docName: `Day Planner Notes - Mock ${dateStr}` };
       }
 
-      return new Promise((resolve, reject) => {
-        window.google.script.run
-          .withSuccessHandler(resolve)
-          .withFailureHandler(reject)
-          .saveDailyDocCards(dateStr, noteContent);
-      });
+      if (this.isOnline()) {
+        try {
+          return await this._runGasCall('saveDailyDocCards', [dateStr, noteContent]);
+        } catch (err) {
+          console.warn('saveDailyDocCards: network call failed, queueing offline', err);
+        }
+      }
+      await idbEnqueueMutation(OUTBOX_MUTATION_TYPES.SAVE_DAILY_NOTE, { dateStr, noteContent });
+      return { success: true, queued: true, docName: null };
     }
   }
 
@@ -523,6 +690,7 @@
       noteSaveTimer: null,
       _daySyncTimer: null,
       _prefetchInFlight: new Set(),
+      outboxCount: 0,
 
       showToast(message, type = 'info', duration = 10000, title = '') {
         const id = 't_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
@@ -607,8 +775,52 @@
         await this.loadDayData();
         await this.loadMasterTasks();
         await this.loadRecentAttendees();
+        await this.refreshOutboxCount();
         this.setupKeyboardShortcuts();
         this.setupAutoSync();
+      },
+
+      async refreshOutboxCount() {
+        try {
+          const outbox = await idbGetOutbox();
+          this.outboxCount = outbox.length;
+        } catch (e) {
+          console.warn('Could not read outbox count:', e);
+        }
+      },
+
+      // Replays any writes queued while offline against the real backend, in
+      // FIFO order, then reconciles temp ids (offline_task_*/offline_evt_*)
+      // in local state with the real ids the server assigned.
+      async flushOutboxIfPossible() {
+        if (!this.bridge || typeof this.bridge.flushOutbox !== 'function') return;
+        if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+        try {
+          const result = await this.bridge.flushOutbox((mutation, mutationResult) => {
+            this.reconcileOfflineMutation(mutation, mutationResult);
+          });
+          await this.refreshOutboxCount();
+          if (result && result.flushed > 0) {
+            this.showToast(`Synced ${result.flushed} offline change${result.flushed === 1 ? '' : 's'}.`, 'success', 5000, 'Back Online');
+          }
+        } catch (err) {
+          console.error('🔥 flushOutboxIfPossible error:', err);
+        }
+      },
+
+      // Patches a temp id (assigned locally while offline) to the real id the
+      // server returned once its queued create actually lands. Updates only
+      // apply optimistically before queueing, so they need no patching here.
+      reconcileOfflineMutation(mutation, result) {
+        if (!result) return;
+        if (mutation.type === 'ADD_DAILY_TASK' && mutation.payload.tempId) {
+          const idx = this.dailyTasks.findIndex(t => t.id === mutation.payload.tempId);
+          if (idx !== -1) this.dailyTasks[idx] = { ...this.dailyTasks[idx], ...result, _queuedOffline: false };
+        } else if (mutation.type === 'ADD_CALENDAR_EVENT' && mutation.payload.tempId) {
+          const idx = this.calendarEvents.findIndex(e => e.id === mutation.payload.tempId);
+          if (idx !== -1) this.calendarEvents[idx] = { ...this.calendarEvents[idx], ...result, _queuedOffline: false };
+        }
+        this.buildScheduleGrid();
       },
 
       async loadRecentAttendees() {
@@ -810,6 +1022,8 @@
 
         try {
           if (!silent) await new Promise(r => setTimeout(r, 200)); // Visual indicator
+
+          await this.flushOutboxIfPossible();
 
           const beforeTasks = this.dailyTasks;
           const beforeEvents = this.calendarEvents;
@@ -1164,7 +1378,8 @@
         this.noteSaveTimer = setTimeout(async () => {
           if (!this.bridge || typeof this.bridge.saveDailyDocCards !== 'function') return;
           try {
-            await this.bridge.saveDailyDocCards(this.selectedDate, this.dailyNote);
+            const result = await this.bridge.saveDailyDocCards(this.selectedDate, this.dailyNote);
+            if (result && result.queued) await this.refreshOutboxCount();
           } catch (err) {
             console.error('🔥 saveDailyDocCards error:', err);
             this.errorMessage = `Could not save daily note: ${err.message || err.toString()}`;
@@ -1271,6 +1486,7 @@
           const newTask = await this.bridge.addDailyTask(this.selectedDate, formattedTitle);
           this.dailyTasks.push(newTask);
           this.newTaskTitle = '';
+          if (newTask._queuedOffline) await this.refreshOutboxCount();
           await this.trigger2WaySync();
         } catch (err) {
           console.error('🔥 addDailyTask error:', err);
@@ -1291,6 +1507,8 @@
             });
             if (!updated) {
               this.errorMessage = `Task "${task.title}" no longer exists in Google Tasks — status change was not saved.`;
+            } else if (updated._queuedOffline) {
+              await this.refreshOutboxCount();
             }
           }
         } catch (err) {
@@ -1445,6 +1663,7 @@
             if (saved) {
               Object.assign(newEvt, saved);
               this.buildScheduleGrid();
+              if (saved._queuedOffline) await this.refreshOutboxCount();
             }
           }
           await this.trigger2WaySync();
