@@ -163,6 +163,22 @@ function doGet(e) {
 }
 
 /**
+ * Creates the "Day Planner" root folder under drive.file scope.
+ * DriveApp.createFolder() requires the broad `drive` scope even when the manifest declares
+ * only drive.file — Google enforces that at the API level regardless of oauthScopes. The
+ * Advanced Drive Service (v3 REST API) is drive.file-safe for creating a folder the app then
+ * owns, so create it there and hand back a DriveApp Folder for the rest of the code to use.
+ * @returns {GoogleAppsScript.Drive.Folder} Newly created root folder.
+ */
+function createDayPlannerDriveFolder() {
+  var created = Drive.Files.create({
+    name: 'Day Planner',
+    mimeType: 'application/vnd.google-apps.folder'
+  });
+  return DriveApp.getFolderById(created.id);
+}
+
+/**
  * Validates and retrieves the configured root folder under drive.file scope.
  * Checks UserProperties DAY_PLANNER_ROOT_FOLDER_ID. Returns folder or null (redirects to SetupFolder.html).
  * @returns {GoogleAppsScript.Drive.Folder|null} Configured Google Drive root folder object or null.
@@ -195,7 +211,7 @@ function getValidatedRootFolder() {
 
   // Under least-privilege drive.file scope, auto-create the dedicated folder seamlessly
   try {
-    var newFolder = DriveApp.createFolder('Day Planner');
+    var newFolder = createDayPlannerDriveFolder();
     userProps.setProperty('DAY_PLANNER_ROOT_FOLDER_ID', newFolder.getId());
     Logger.log('Auto-created dedicated Day Planner root folder ID: ' + newFolder.getId());
     return newFolder;
@@ -256,7 +272,7 @@ function validateAndSaveFolderUrl(inputUrl) {
     // Specific detection of drive.file scope sandbox limitation
     if (errStr.indexOf('permissions are not sufficient') !== -1 || errStr.indexOf('drive.readonly') !== -1 || errStr.indexOf('drive.file') !== -1) {
       try {
-        var autoFolder = DriveApp.createFolder('Day Planner');
+        var autoFolder = createDayPlannerDriveFolder();
         PropertiesService.getUserProperties().setProperty('DAY_PLANNER_ROOT_FOLDER_ID', autoFolder.getId());
         return {
           success: true,
@@ -286,7 +302,7 @@ function validateAndSaveFolderUrl(inputUrl) {
  */
 function autoCreateRootFolder() {
   try {
-    var folder = DriveApp.createFolder('Day Planner');
+    var folder = createDayPlannerDriveFolder();
     var folderId = folder.getId();
     PropertiesService.getUserProperties().setProperty('DAY_PLANNER_ROOT_FOLDER_ID', folderId);
     Logger.log('1-Click Created dedicated Day Planner root folder: ' + folderId);
