@@ -238,6 +238,24 @@ The **Google Digital Day Planner** is a high-efficiency single-page digital bind
   app, including the hidden dev tile — on a browser with no prior trust, launching dev
   first would poison prod's legacy-key fallback with the `/dev` URL). Re-verified
   against the live `pwa.js` with `patch --dry-run`.
+  - **Update (2026-08-25):** `docs/patches/pwa.js.patch` no longer applies (`patch
+    --dry-run` now fails 3 of 6 hunks) — the core fix it describes (real
+    `window.location.href` navigation instead of fetch/mount, for an
+    already-trusted online source) is **already live** in
+    `gh-pwa-shell/pwa.js`'s working tree, via a hand-written `redirectToApp()`
+    that's more complete than the patch: it adds a "Not this app?" escape hatch,
+    a `REDIRECT_DELAY_MS` grace period, and `?reset=1` recovery, none of which
+    the patch had. So the actual bug (mock data instead of real Calendar/Tasks
+    data) is fixed. Not yet present: the optional `day-planner-dev` KNOWN_APPS
+    testing tile and its companion `appKey === 'day-planner'` scoping guard on
+    the legacy-storage-key fallback read in `initPWA()` (currently unconditional
+    — harmless today since no other `KNOWN_APPS` entry exists to trigger it, but
+    would need that guard if a dev tile is ever added). Deleted the stale patch
+    file. **Still needs a human step:** this worktree-isolated session can't run
+    git in `gh-pwa-shell` (separate repo, blocked by the harness), so verify
+    from a non-isolated session whether the working-tree fix is committed/pushed
+    — `cd /home/mike/projects/day-planner/gh-pwa-shell && git status` — and
+    commit+push if not.
 - [x] **14.6 Opus review of the 14.2-14.5 commits, and fixes for what it found.** An
   Opus subagent reviewed the 5 commits ahead of `origin/master`
   (`f2788a7`/`2fd50ec`/`fe33b54`/`57f4fa4`/`d7a4268`) plus the staged `pwa.js.patch`.
