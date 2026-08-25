@@ -604,15 +604,14 @@ function syncWorkspaceChanges() {
         var isDone = task.status === '✓';
         var formattedTitle = isDone ? '[✓] ' + task.title : task.title;
 
+        // Day planners keep Tasks and Appointments distinct: only keep an already-linked
+        // event's title/status in sync. Never auto-create a new Calendar event for a bare
+        // task here — the Tasks API gives no explicit time-of-day signal, so any event this
+        // trigger created was an arbitrary now/now+30min placeholder duplicating task info
+        // that belongs only in the Tasks panel. Explicit appointment creation goes through
+        // addCalendarEvent (the Add Appointment modal), not this background trigger.
         if (linkedEvt) {
           linkedEvt.setTitle(formattedTitle);
-        } else {
-          var now = new Date();
-          var endTime = new Date(now.getTime() + 30 * 60 * 1000);
-          var newEvt = defaultCal.createEvent(formattedTitle, now, endTime, {
-            description: 'Synced Day Planner Task: ' + task.id
-          });
-          newEvt.setTag('gasTaskId', task.id);
         }
       } catch (taskErr) {
         logError('syncWorkspaceChanges task item ' + task.id, taskErr);

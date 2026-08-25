@@ -48,12 +48,29 @@ describe('2-Way Sync Engine Unit Tests', () => {
   });
 
   describe('UI Updates: Task -> Appointment Sync', () => {
-    it('should sync task creation in UI to new calendar event', () => {
+    it('should not create a calendar event for a task with no explicit scheduled time', () => {
+      // Day planners keep Tasks and Appointments distinct — an untimed task must never
+      // auto-project onto the calendar as a phantom appointment.
       const task = {
         id: 't_alpha',
         title: '[A1] Review Q3 financial report',
         status: '•',
         dueDate: '2026-08-15',
+        category: 'Financial'
+      };
+
+      const { updatedEvent, isNewEvent } = syncTaskToCalendar(task, []);
+      assert.equal(isNewEvent, false);
+      assert.equal(updatedEvent, null);
+    });
+
+    it('should sync an explicitly time-blocked task creation in UI to a new calendar event', () => {
+      const task = {
+        id: 't_alpha',
+        title: '[A1] Review Q3 financial report',
+        status: '•',
+        dueDate: '2026-08-15',
+        scheduledTime: '2026-08-15T14:00:00Z',
         category: 'Financial'
       };
 
@@ -316,9 +333,11 @@ describe('2-Way Sync Engine Unit Tests', () => {
   });
 
   describe('Bidirectional Reconciliation Cross-Check', () => {
-    it('should perform complete bidirectional reconciliation across mixed tasks and events', () => {
+    it('should reconcile a linked task/event pair while leaving untimed tasks off the calendar', () => {
       const tasks = [
         { id: 't1', title: '[A1] Team sync', status: '•', dueDate: '2026-08-15' },
+        // t2/t3 are untimed — day planners keep these in Tasks only, never auto-projected
+        // onto the calendar as phantom appointments.
         { id: 't2', title: '[B1] Submit expense report', status: '✓', dueDate: '2026-08-15' },
         { id: 't3', title: '[C1] Read research paper', status: '•', dueDate: '2026-08-15' }
       ];
@@ -333,20 +352,27 @@ describe('2-Way Sync Engine Unit Tests', () => {
 
       // Verify all tasks accounted for
       assert.equal(result.tasks.length, 3);
-      // Verify events include e1, e_stand, plus newly generated events for t2 and t3
-      assert.equal(result.calendarEvents.length, 4);
+      // Only e1 (already linked) and e_stand (standalone) — no new events for untimed t2/t3
+      assert.equal(result.calendarEvents.length, 2);
       assert.ok(result.syncTimestamp);
-
-      // Verify t2 event has completed status
-      const t2Evt = result.calendarEvents.find(e => e.syncTaskId === 't2');
-      assert.ok(t2Evt);
-      assert.equal(t2Evt.title, '[✓] Submit expense report');
-      assert.equal(t2Evt.isCompleted, true);
+      assert.equal(result.calendarEvents.some(e => e.syncTaskId === 't2'), false);
+      assert.equal(result.calendarEvents.some(e => e.syncTaskId === 't3'), false);
 
       // Verify standalone event remains intact
       const standalone = result.calendarEvents.find(e => e.id === 'e_stand');
       assert.ok(standalone);
       assert.equal(standalone.title, 'Coffee with Partner');
+    });
+
+    it('should create a calendar event for an explicitly time-blocked task during reconciliation', () => {
+      const tasks = [
+        { id: 't_blocked', title: '[A1] Deep work session', status: '•', dueDate: '2026-08-15', scheduledTime: '2026-08-15T13:00:00Z' }
+      ];
+      const events = [];
+
+      const result = reconcileWorkspaceChanges(tasks, events);
+      assert.equal(result.calendarEvents.length, 1);
+      assert.equal(result.calendarEvents[0].syncTaskId, 't_blocked');
     });
 
     it('should never create a task from an unlinked appointment, even with a priority tag', () => {

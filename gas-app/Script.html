@@ -1063,8 +1063,12 @@
         }
         slots.push({ timeKey: '19:00', displayTime: '7:00 PM', events: [] });
 
-        // Map events
+        // Map events. Skip task-mirror events (tagged via gasTaskId/syncTaskId) — day
+        // planners keep Tasks and Appointments distinct, so a task never shows here even
+        // if a linked calendar event exists (e.g. an explicitly time-blocked task, or a
+        // legacy event from before auto-projection was removed).
         this.calendarEvents.forEach(evt => {
+          if (evt.syncTaskId) return;
           let slotKey = null;
           if (evt.startTime) {
             const match = evt.startTime.match(/T(\d{2}):(\d{2})/);

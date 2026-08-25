@@ -86,11 +86,11 @@ describe('GAS Bridge Unit Tests', () => {
     const syncResult = await bridge.syncWorkspace('2026-08-15');
     assert.ok(syncResult);
     assert.ok(syncResult.tasks.length >= 5);
-    
-    // Check that calendar events contain an event corresponding to the new task
+
+    // Day planners keep Tasks and Appointments distinct: an untimed task must never
+    // project into calendarEvents as a phantom appointment.
     const syncedEvt = syncResult.calendarEvents.find(e => e.title.includes('Synchronize Google Cloud endpoints'));
-    assert.ok(syncedEvt);
-    assert.ok(syncedEvt.syncTaskId);
+    assert.equal(syncedEvt, undefined);
   });
 
   it('should transfer master task to daily task via bridge', async () => {

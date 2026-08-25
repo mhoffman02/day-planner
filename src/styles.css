@@ -694,7 +694,7 @@ section.two-page-spread,
 }
 
 .two-page-spread .col-tasks {
-  flex: 0 0 35%;
+  flex: 0 0 var(--col1-w, 35%);
   min-width: 280px;
   display: flex;
   flex-direction: column;
@@ -702,7 +702,7 @@ section.two-page-spread,
 }
 
 .two-page-spread .col-appointments {
-  flex: 0 0 35%;
+  flex: 0 0 var(--col2-w, 35%);
   min-width: 280px;
   display: flex;
   flex-direction: column;
@@ -710,7 +710,7 @@ section.two-page-spread,
 }
 
 .two-page-spread .col-notes {
-  flex: 1;
+  flex: 0 0 var(--col3-w, 30%);
   min-width: 280px;
   display: flex;
   flex-direction: column;
@@ -973,7 +973,7 @@ section.schedule-list {
 .schedule-row {
   display: flex;
   border-bottom: 1px solid var(--theme-sched-row-border);
-  min-height: 32px;
+  min-height: 56px;
   align-items: stretch;
   background-color: var(--theme-sched-row-bg);
 }
@@ -1047,18 +1047,24 @@ div.event-pill {
   color: var(--theme-pill-fg);
   border: 1px solid var(--theme-pill-border);
   border-left: 4px solid var(--theme-pill-accent);
-  padding: 3px 8px;
+  padding: 4px 8px;
   border-radius: 3px;
   font-size: 0.8rem;
   font-weight: 600;
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 4px;
   cursor: pointer;
   width: 100%;
   text-align: left;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   transition: all 0.15s ease;
+}
+
+.event-pill-text {
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.25;
 }
 
 button.event-pill:hover {

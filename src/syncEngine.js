@@ -37,7 +37,10 @@ export function createSyncMetadata(taskId, eventId) {
  * Syncs a Task change to its corresponding Calendar Event representation.
  * @param {object} task Task object { id, title, status, dueDate, scheduledTime, category }.
  * @param {Array<object>} [calendarEvents=[]] Current list of calendar events.
- * @returns {{updatedEvent: object, isNewEvent: boolean}} Object containing updated calendar event and creation flag.
+ * @returns {{updatedEvent: object|null, isNewEvent: boolean}} Updated calendar event and creation flag.
+ *   `updatedEvent` is `null` when the task has no explicit `scheduledTime` and no existing
+ *   linked event — day planners keep Tasks and Appointments distinct, so an untimed task
+ *   never gets a calendar event.
  */
 export function syncTaskToCalendar(task, calendarEvents = []) {
   const parsed = parseTaskTitle(task.title);
@@ -48,9 +51,16 @@ export function syncTaskToCalendar(task, calendarEvents = []) {
   const eventTitle = isCompleted ? `[✓] ${cleanTitle}` : (parsed.priorityCode ? `[${parsed.priorityCode}] ${cleanTitle}` : cleanTitle);
 
   // Find existing linked calendar event via syncTaskId or extendedProperties
-  const existingEvent = calendarEvents.find(evt => 
+  const existingEvent = calendarEvents.find(evt =>
     evt.syncTaskId === task.id || (evt.extendedProperties && evt.extendedProperties.private?.gasTaskId === task.id)
   );
+
+  // Day planners keep Tasks and Appointments distinct: a task only becomes a calendar
+  // event when the user explicitly time-blocks it (task.scheduledTime). Without that, no
+  // event is created — an untimed task must never appear as a phantom "9am appointment".
+  if (!task.scheduledTime && !existingEvent) {
+    return { updatedEvent: null, isNewEvent: false };
+  }
 
   const startTime = task.scheduledTime || `${task.dueDate || getLocalDateStr()}T09:00:00Z`;
   const defaultEndTime = `${startTime.substring(0, 11)}${String(Math.min(23, parseInt(startTime.substring(11, 13) || '9', 10) + 1)).padStart(2, '0')}:00:00Z`;
@@ -153,6 +163,7 @@ export function reconcileWorkspaceChanges(dailyTasks = [], calendarEvents = []) 
   // 1. Ensure all tasks have corresponding calendar events and sync state (Task -> Event)
   reconciledTasks.forEach((task) => {
     const { updatedEvent, isNewEvent } = syncTaskToCalendar(task, reconciledEvents);
+    if (!updatedEvent) return; // untimed task: no calendar event to create or update
     if (isNewEvent) {
       reconciledEvents.push(updatedEvent);
     } else {
