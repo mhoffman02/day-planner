@@ -90,7 +90,6 @@ a:hover {
   --theme-header-btn-border: rgba(255, 255, 255, 0.32);
   --theme-header-btn-hover: rgba(255, 255, 255, 0.35);
   --theme-header-active-bg: #ffffff;
-  --theme-header-active-fg: #23594b;
 
   --theme-panel-bg: #ffffff;
   --theme-panel-border: #c8ded7;
@@ -196,7 +195,6 @@ a:hover {
   --theme-header-btn-border: rgba(255, 255, 255, 0.22);
   --theme-header-btn-hover: rgba(255, 255, 255, 0.25);
   --theme-header-active-bg: #ffffff;
-  --theme-header-active-fg: #142e23;
 
   --theme-panel-bg: #163226;
   --theme-panel-border: #27523f;
@@ -515,9 +513,8 @@ header.single-top-bar {
 nav.view-segmented-control {
   display: inline-flex;
   align-items: center;
-  background: rgba(0, 0, 0, 0.22);
-  padding: 3px;
-  border-radius: 18px;
+  background: transparent;
+  padding: 0;
   gap: 2px;
   margin: 0;
   box-sizing: border-box;
@@ -525,17 +522,18 @@ nav.view-segmented-control {
 
 .segment-btn {
   background: transparent;
-  border: 1px solid transparent;
-  color: rgba(255, 255, 255, 0.82);
-  padding: 4px 12px;
-  border-radius: 14px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: rgba(255, 255, 255, 0.75);
+  padding: 6px 10px 4px;
+  border-radius: 6px 6px 0 0;
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s ease;
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
   line-height: 1;
   white-space: nowrap;
   box-sizing: border-box;
@@ -543,16 +541,13 @@ nav.view-segmented-control {
 
 .segment-btn:hover {
   color: #ffffff;
-  background: var(--theme-header-btn-hover);
-  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .segment-btn.active {
-  background: var(--theme-header-active-bg);
-  color: var(--theme-header-active-fg);
+  color: var(--theme-header-fg);
   font-weight: 700;
-  border-color: var(--theme-header-active-bg);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  border-bottom-color: var(--theme-header-active-bg);
 }
 
 .header-actions-compact {
@@ -1721,7 +1716,6 @@ article.setup-card, article.card {
     width: 100%;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    padding: 3px;
   }
 
   .two-page-spread {
