@@ -283,9 +283,22 @@ function getValidatedRootFolder() {
   var cachedId = userProps.getProperty('DAY_PLANNER_ROOT_FOLDER_ID');
 
   if (cachedId) {
+    // Re-validating the cached folder ID (not-trashed check) is a network round trip on
+    // every single call. Since the root folder essentially never changes within a session,
+    // cache a short-lived "known good" flag so repeat calls (e.g. scrolling across many
+    // days) skip that round trip entirely instead of re-validating each time.
+    var cache = CacheService.getUserCache();
+    var validCacheKey = 'root_folder_valid_' + cachedId;
+    if (cache && cache.get(validCacheKey)) {
+      return makeFolderHandle(cachedId, userProps.getProperty('DAY_PLANNER_ROOT_FOLDER_NAME') || 'Day Planner');
+    }
     try {
       var meta = Drive.Files.get(cachedId, { fields: 'id,name,trashed' });
-      if (!meta.trashed) return makeFolderHandle(meta.id, meta.name);
+      if (!meta.trashed) {
+        userProps.setProperty('DAY_PLANNER_ROOT_FOLDER_NAME', meta.name);
+        if (cache) cache.put(validCacheKey, '1', 300);
+        return makeFolderHandle(meta.id, meta.name);
+      }
       console.warn('getValidatedRootFolder: cached folder ' + cachedId + ' is trashed');
     } catch (err) {
       console.warn('getValidatedRootFolder: cached ID invalid or unreadable: ' + err.toString());
@@ -731,26 +744,44 @@ function getOrCreateDailyDocContent(dateStr) {
   }
 
   try {
-    var targetFolder = getValidatedRootFolder();
-    if (!targetFolder) {
-      return '### #index [Architecture] System Design\nFinalized 3-column binder layout with Alpine.js and clean CSS.';
-    }
-
     var monthStr = (dateStr || '').substring(0, 7); // 'YYYY-MM'
     var fileName = 'notes-' + monthStr + '.json';
 
-    var files = targetFolder.getFilesByName(fileName);
+    // Scrolling across days in the same month re-requests the same monthly JSON file
+    // repeatedly. Cache its raw content for a short window so repeat day-navigation
+    // within that window costs zero Drive network round trips instead of three
+    // (folder validate + file search + content fetch).
+    var cache = CacheService.getUserCache();
+    var cacheKey = 'notes_content_' + monthStr;
+    var cached = cache ? cache.get(cacheKey) : null;
     var monthData = { month: monthStr, days: {} };
 
-    if (files.hasNext()) {
-      var file = files.next();
-      var content = file.getBlob().getDataAsString();
-      if (content && content.trim()) {
-        try {
-          monthData = JSON.parse(content);
-        } catch (jsonErr) {
-          console.warn('JSON parse warning in ' + fileName + ': ' + jsonErr.toString());
+    if (cached) {
+      try {
+        monthData = JSON.parse(cached);
+      } catch (cacheParseErr) {
+        cached = null; // fall through to a real fetch below
+      }
+    }
+
+    if (!cached) {
+      var targetFolder = getValidatedRootFolder();
+      if (!targetFolder) {
+        return '### #index [Architecture] System Design\nFinalized 3-column binder layout with Alpine.js and clean CSS.';
+      }
+
+      var files = targetFolder.getFilesByName(fileName);
+      if (files.hasNext()) {
+        var file = files.next();
+        var content = file.getBlob().getDataAsString();
+        if (content && content.trim()) {
+          try {
+            monthData = JSON.parse(content);
+          } catch (jsonErr) {
+            console.warn('JSON parse warning in ' + fileName + ': ' + jsonErr.toString());
+          }
         }
+        if (cache) cache.put(cacheKey, JSON.stringify(monthData), 300);
       }
     }
 
@@ -818,6 +849,11 @@ function saveDailyDocCards(dateStr, noteContent) {
     } else {
       file = targetFolder.createFile(fileName, serialized, MimeType.PLAIN_TEXT);
     }
+
+    // Keep the read-side cache (getOrCreateDailyDocContent) in sync so the next day
+    // navigation reflects this save immediately instead of serving stale cached content.
+    var cache = CacheService.getUserCache();
+    if (cache) cache.put('notes_content_' + monthStr, serialized, 300);
 
     return { success: true, fileName: fileName, fileId: file.getId() };
   } catch (err) {
