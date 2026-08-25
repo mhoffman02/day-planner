@@ -5,6 +5,7 @@
 
 import { GASBridge } from './gasBridge.js';
 import { reconcileWorkspaceChanges } from './syncEngine.js';
+import IndexedDbStore from './indexedDbStore.js';
 window.GASBridge = GASBridge;
 
 // Register ServiceWorker for PWA offline support
@@ -88,6 +89,8 @@ function getLocalDateStr(d = new Date()) {
       errorMessage: null,
       toasts: [],
       noteSaveTimer: null,
+      _daySyncTimer: null,
+      _prefetchInFlight: new Set(),
 
       showToast(message, type = 'info', duration = 10000, title = '') {
         const id = 't_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
@@ -521,9 +524,43 @@ function getLocalDateStr(d = new Date()) {
         }
       },
 
+      // Offline-first daily load: render instantly from IndexedDB if a cached
+      // copy exists, then debounce the live refresh so flipping through many
+      // days quickly (e.g. holding an arrow key) only hits the backend once
+      // the user settles on one. A never-before-seen date has nothing to show
+      // from cache, so it fetches immediately instead of waiting out the debounce.
       async loadDayData() {
+        const dateStr = this.selectedDate;
+        const cached = await IndexedDbStore.getDaily(dateStr);
+        if (cached) {
+          this._applyDailyData(cached);
+          this._scheduleDaySync(dateStr);
+        } else {
+          await this._fetchAndCacheDay(dateStr, { applyIfCurrent: true });
+        }
+        this._prefetchSurroundingDays(dateStr);
+      },
+
+      _applyDailyData(data) {
+        this.dailyTasks = data.tasks || [];
+        this.calendarEvents = data.calendarEvents || [];
+        this.dailyNote = data.noteContent || '';
+        this.noteCards = this.parseDailyNoteToCards(this.dailyNote);
+        this.buildScheduleGrid();
+        this.buildIndexRecords();
+      },
+
+      _scheduleDaySync(dateStr) {
+        if (this._daySyncTimer) clearTimeout(this._daySyncTimer);
+        this._daySyncTimer = setTimeout(() => {
+          this._daySyncTimer = null;
+          this._fetchAndCacheDay(dateStr, { applyIfCurrent: true });
+        }, 2000);
+      },
+
+      async _fetchAndCacheDay(dateStr, { applyIfCurrent = false } = {}) {
         try {
-          const data = await this.bridge.getDailyData(this.selectedDate);
+          const data = await this.bridge.getDailyData(dateStr);
           if (data.error) {
             this.errorMessage = data.error;
             this.showToast(data.error, 'error', 10000, 'Workspace Notice');
@@ -533,17 +570,41 @@ function getLocalDateStr(d = new Date()) {
             this.errorMessage = warningMsg;
             this.showToast(warningMsg, 'warning', 8000, 'Warning');
           }
-          this.dailyTasks = data.tasks || [];
-          this.calendarEvents = data.calendarEvents || [];
-          this.dailyNote = data.noteContent || '';
-          this.noteCards = this.parseDailyNoteToCards(this.dailyNote);
-          this.buildScheduleGrid();
-          this.buildIndexRecords();
+          // Don't cache an error payload as if it were real daily data.
+          if (!data.error) {
+            await IndexedDbStore.saveDaily(dateStr, data);
+          }
+          if (applyIfCurrent && this.selectedDate === dateStr) {
+            this._applyDailyData(data);
+          }
+          return data;
         } catch (err) {
           console.error('🔥 loadDayData error:', err);
           const errText = `Error loading daily workspace: ${err.message || err.toString()}`;
           this.errorMessage = errText;
           this.showToast(errText, 'error', 10000, 'Load Error');
+          return null;
+        }
+      },
+
+      // Keeps selectedDate +/- 7 days warm in IndexedDB in the background so
+      // day-to-day navigation reads from cache instantly instead of waiting on
+      // a live google.script.run round trip.
+      _prefetchSurroundingDays(centerDateStr) {
+        const [y, m, day] = centerDateStr.split('-').map(Number);
+        for (let delta = -7; delta <= 7; delta++) {
+          if (delta === 0) continue;
+          const d = new Date(y, m - 1, day + delta);
+          const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          if (this._prefetchInFlight.has(dateStr)) continue;
+          IndexedDbStore.getDaily(dateStr).then(cached => {
+            if (cached) return;
+            this._prefetchInFlight.add(dateStr);
+            this.bridge.getDailyData(dateStr)
+              .then(data => { if (!data.error) return IndexedDbStore.saveDaily(dateStr, data); })
+              .catch(() => {})
+              .finally(() => this._prefetchInFlight.delete(dateStr));
+          });
         }
       },
 
