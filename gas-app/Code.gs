@@ -163,35 +163,130 @@ function doGet(e) {
 }
 
 /**
+ * Under drive.file scope, DriveApp itself only ever works on files/folders created by a
+ * *native* Apps Script service (DocumentApp, SpreadsheetApp, DriveApp). A folder or file
+ * created via the Advanced Drive Service (Drive.Files.create) is never DriveApp-accessible,
+ * and — separately — the Advanced Drive Service's own `alt=media` content download is also
+ * broken under drive.file. So Drive persistence for the Day Planner folder never touches
+ * DriveApp: metadata (create/list/get/update-parents) goes through the Advanced Drive
+ * Service, and file *content* reads go through UrlFetchApp with the script's own OAuth
+ * token (see readDriveFileContent below). These handles wrap that so the rest of the file
+ * can keep calling .getId()/.getName()/.getFilesByName()/.createFile()/.getBlob() etc.
+ * like it did against a real DriveApp Folder/File.
+ */
+function makeFileHandle(meta) {
+  var fileId = meta.id;
+  var fileName = meta.name;
+  return {
+    getId: function() { return fileId; },
+    getName: function() { return fileName; },
+    getBlob: function() {
+      var text = readDriveFileContent(fileId);
+      return Utilities.newBlob(text, 'text/plain', fileName);
+    },
+    setContent: function(newContent) {
+      Drive.Files.update({}, fileId, Utilities.newBlob(newContent, 'text/plain', fileName));
+    }
+  };
+}
+
+function makeFolderHandle(id, name) {
+  function listChildren(extraQuery) {
+    var q = "'" + id + "' in parents and trashed = false" + (extraQuery ? ' and ' + extraQuery : '');
+    var resp = Drive.Files.list({ q: q, fields: 'files(id,name)' });
+    return (resp.files || []).map(function(f) { return makeFileHandle(f); });
+  }
+  return {
+    getId: function() { return id; },
+    getName: function() { return name; },
+    getFilesByName: function(fileName) {
+      var escaped = fileName.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      var items = listChildren("name = '" + escaped + "' and mimeType != 'application/vnd.google-apps.folder'");
+      var idx = 0;
+      return {
+        hasNext: function() { return idx < items.length; },
+        next: function() { return items[idx++]; }
+      };
+    },
+    getFoldersByName: function(folderName) {
+      var escaped = folderName.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      var items = listChildren("name = '" + escaped + "' and mimeType = 'application/vnd.google-apps.folder'")
+        .map(function(f) { return makeFolderHandle(f.getId(), f.getName()); });
+      var idx = 0;
+      return {
+        hasNext: function() { return idx < items.length; },
+        next: function() { return items[idx++]; }
+      };
+    },
+    getFiles: function() {
+      var items = listChildren(null);
+      var idx = 0;
+      return {
+        hasNext: function() { return idx < items.length; },
+        next: function() { return items[idx++]; }
+      };
+    },
+    createFile: function(fileName, content, mimeType) {
+      var blob = Utilities.newBlob(content, 'text/plain', fileName);
+      var created = Drive.Files.create({ name: fileName, parents: [id], mimeType: mimeType || 'text/plain' }, blob);
+      return makeFileHandle(created);
+    }
+  };
+}
+
+/**
+ * Reads a Drive file's content as text under drive.file scope. Neither DriveApp.getFileById()
+ * nor the Advanced Drive Service's Drive.Files.get(id, {alt:'media'}) work for a file the app
+ * created via the Advanced Drive Service — both require the broad drive/drive.readonly scope.
+ * The documented drive.file-safe workaround is a direct authenticated fetch of the same
+ * download endpoint. Requires the script.external_request OAuth scope.
+ * @param {string} fileId Drive file ID.
+ * @returns {string} File content as UTF-8 text.
+ */
+function readDriveFileContent(fileId) {
+  var url = 'https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(fileId) + '?alt=media';
+  var response = UrlFetchApp.fetch(url, {
+    headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+    muteHttpExceptions: true
+  });
+  if (response.getResponseCode() >= 300) {
+    throw new Error('readDriveFileContent(' + fileId + '): HTTP ' + response.getResponseCode() + ' ' + response.getContentText());
+  }
+  return response.getContentText();
+}
+
+/**
  * Creates the "Day Planner" root folder under drive.file scope.
  * DriveApp.createFolder() requires the broad `drive` scope even when the manifest declares
  * only drive.file — Google enforces that at the API level regardless of oauthScopes. The
  * Advanced Drive Service (v3 REST API) is drive.file-safe for creating a folder the app then
- * owns, so create it there and hand back a DriveApp Folder for the rest of the code to use.
- * @returns {GoogleAppsScript.Drive.Folder} Newly created root folder.
+ * owns; wrap it in the handle above so the rest of the code keeps using a Folder-like API.
+ * @returns {{getId: function, getName: function, getFilesByName: function, getFiles: function, createFile: function}} Newly created root folder handle.
  */
 function createDayPlannerDriveFolder() {
   var created = Drive.Files.create({
     name: 'Day Planner',
     mimeType: 'application/vnd.google-apps.folder'
   });
-  return DriveApp.getFolderById(created.id);
+  return makeFolderHandle(created.id, created.name);
 }
 
 /**
  * Validates and retrieves the configured root folder under drive.file scope.
- * Checks UserProperties DAY_PLANNER_ROOT_FOLDER_ID. Returns folder or null (redirects to SetupFolder.html).
- * @returns {GoogleAppsScript.Drive.Folder|null} Configured Google Drive root folder object or null.
+ * Checks UserProperties DAY_PLANNER_ROOT_FOLDER_ID. Returns folder handle or null (redirects to SetupFolder.html).
+ * @returns {{getId: function, getName: function, getFilesByName: function, getFiles: function, createFile: function}|null} Configured Day Planner root folder handle or null.
  */
 function getValidatedRootFolder() {
-  if (typeof DriveApp === 'undefined') return null;
+  if (typeof Drive === 'undefined') return null;
 
   var userProps = PropertiesService.getUserProperties();
   var cachedId = userProps.getProperty('DAY_PLANNER_ROOT_FOLDER_ID');
 
   if (cachedId) {
     try {
-      return DriveApp.getFolderById(cachedId);
+      var meta = Drive.Files.get(cachedId, { fields: 'id,name,trashed' });
+      if (!meta.trashed) return makeFolderHandle(meta.id, meta.name);
+      console.warn('getValidatedRootFolder: cached folder ' + cachedId + ' is trashed');
     } catch (err) {
       console.warn('getValidatedRootFolder: cached ID invalid or unreadable: ' + err.toString());
     }
@@ -199,11 +294,14 @@ function getValidatedRootFolder() {
 
   // Auto-search for existing "Day Planner" folder in Drive (under drive.file scope)
   try {
-    var folders = DriveApp.getFoldersByName('Day Planner');
-    if (folders.hasNext()) {
-      var folder = folders.next();
-      userProps.setProperty('DAY_PLANNER_ROOT_FOLDER_ID', folder.getId());
-      return folder;
+    var resp = Drive.Files.list({
+      q: "mimeType = 'application/vnd.google-apps.folder' and name = 'Day Planner' and trashed = false",
+      fields: 'files(id,name)'
+    });
+    if (resp.files && resp.files.length > 0) {
+      var found = resp.files[0];
+      userProps.setProperty('DAY_PLANNER_ROOT_FOLDER_ID', found.id);
+      return makeFolderHandle(found.id, found.name);
     }
   } catch (err) {
     console.warn('getValidatedRootFolder auto-search notice: ' + err.toString());
@@ -252,8 +350,11 @@ function validateAndSaveFolderUrl(inputUrl) {
   }
 
   try {
-    var folder = DriveApp.getFolderById(extractedId);
-    var folderName = folder.getName();
+    var meta = Drive.Files.get(extractedId, { fields: 'id,name,mimeType,trashed' });
+    if (meta.trashed || meta.mimeType !== 'application/vnd.google-apps.folder') {
+      throw new Error('Not a valid, non-trashed Drive folder.');
+    }
+    var folderName = meta.name;
 
     // Save validated ID in UserProperties
     PropertiesService.getUserProperties().setProperty('DAY_PLANNER_ROOT_FOLDER_ID', extractedId);
