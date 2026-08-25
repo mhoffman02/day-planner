@@ -298,7 +298,7 @@ whether it came from a query parameter or the manual-connect form.
 | Tier | Source | Behavior |
 | :--- | :--- | :--- |
 | **Known app** | Hard-coded `KNOWN_APPS` entry in `pwa.js`, shipped by the developer | Trusted by construction — one-tap tile, no prompt, no consent gate. The URL isn't attacker-controllable via a link/param, only shippable by whoever controls `pwa.js`'s source. |
-| **Previously approved** | `localStorage['gas_url_{appId}']`, set only after a successful, user-confirmed fetch | Fetched silently on every future visit — same offline/SWR behavior as before. |
+| **Previously approved** | `localStorage['gas_url_{appId}']`, set only after a successful, user-confirmed fetch | Redirected to silently on every future visit while online (a real top-level navigation via `redirectToApp()`, not a fetch) — falls back to the last offline-cached bundle when there's no connectivity. Skipped in dev mode (see §10.E) so the picker stays reachable instead of always auto-launching prod. |
 | **New / unrecognized** | A `?gasUrl=` param (or typed URL) never approved before for that `appId` | **Consent-gated.** The shell shows the "Connect a different app" card pre-filled with the URL; nothing is fetched until the user clicks Launch. Only on confirmed fetch success is the URL persisted as trusted. |
 
 `handleConnect()` and the equivalent `launchKnownApp()` path both re-validate with
@@ -308,11 +308,11 @@ a failed or unreachable URL is never marked trusted.
 ### C. One-Tap Known-App Launcher
 
 The default launcher screen (`#config-modal`) renders one `.app-tile` button per
-`KNOWN_APPS` entry — tapping it fetches directly from that app's baked-in URL and mounts
-it, with no URL entry and no confirmation step. The old manual-URL form still exists for
-apps that aren't in the registry (or for testing a dev/`@HEAD` deployment); it's
-collapsed behind a `<details>` "Connect a different app" disclosure so it doesn't
-compete visually with the one-tap tiles.
+`KNOWN_APPS` entry — tapping it does a real top-level navigation (`window.location.href`
+via the shared `redirectToApp()` helper) straight to that app's baked-in `/exec` URL, not
+a fetch/mount, with no URL entry and no confirmation step. The old manual-URL form still
+exists for apps that aren't in the registry; it's collapsed behind a `<details>` "Connect
+a different app" disclosure so it doesn't compete visually with the one-tap tiles.
 
 ```javascript
 // gh-pwa-shell/pwa.js
@@ -341,3 +341,31 @@ the link, why ask the user?").
   `bundle.script` was already fixed for in earlier commits.
 - Viewport meta no longer disables pinch-zoom (`user-scalable=no` removed — was a WCAG
   1.4.4 failure).
+
+### E. Live Handoff Escape Hatch & Dev-Mode Toggle
+
+> Added 2026-08-25. `redirectToApp()` (§10.C) commits to a real navigation with no
+> built-in recovery if the trusted URL turns out to be wrong — the escape hatch and
+> dev-mode toggle below close that gap.
+
+**Escape hatch:** `redirectToApp()` waits `REDIRECT_DELAY_MS` (600ms) before firing
+`window.location.href`, during which a "Not this app? Choose a different app" link is
+shown over the loading spinner. Clicking it cancels the pending navigation, clears that
+app's trusted `localStorage` entry, and reopens the picker/connect prompt. Visiting with
+`?reset=1` does the same thing without waiting for a redirect to be in flight — the
+general recovery path when a previously-trusted URL has gone bad (deployment rotated,
+access revoked) and would otherwise auto-redirect to a dead page on every visit.
+
+**Dev-mode toggle:** a low-key convenience, not a security boundary — the GAS `/dev` URL
+it unlocks is already restricted server-side by Google IAM to accounts with edit access
+to the script project.
+
+- `?dev=1` sets `localStorage['dpDevMode'] = '1'`; `?dev=0` clears it.
+- While set, the shell skips the auto-redirect-to-prod in §10.B's "Previously approved"
+  tier and always shows the picker, which now also renders a "Launch /dev (testing)"
+  link (hidden otherwise).
+- That link navigates to the known app's `/dev` URL, derived by swapping the baked-in
+  `/exec` URL's suffix (`devUrlFor()`) — no separate `KNOWN_APPS` entry needed.
+
+**Repo:** `mhoffman02/shell` | **Fix commits:** `a4e73e1` (live-handoff redirect +
+escape hatch), `2005910` (dev-mode toggle)

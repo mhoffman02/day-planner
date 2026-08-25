@@ -194,7 +194,7 @@ The **Google Digital Day Planner** is a high-efficiency single-page digital bind
     background trigger while the app is closed — only by the client-side reconciliation
     the next time the app is opened for that day.
 - [ ] **14.4 Fix any broken features** surfaced by 14.2 or 14.3.
-- [ ] **14.5 Apply `docs/patches/pwa.js.patch` to the separate `gh-pwa-shell` repo**
+- [x] **14.5 Apply `docs/patches/pwa.js.patch` to the separate `gh-pwa-shell` repo**
   (`mhoffman02/shell`, checked out at `/home/mike/projects/day-planner/gh-pwa-shell` —
   outside this repo's git, see README.txt/CLAUDE.md "Universal PWA Shell"). Fixes the
   shell showing mock/placeholder Calendar & Tasks data instead of real data: the shell
@@ -224,38 +224,29 @@ The **Google Digital Day Planner** is a high-efficiency single-page digital bind
   `appKey === 'day-planner'` only. `/dev` only works for a Google account with edit
   access to the script project; anyone else gets an access-denied page, which is fine
   for a solo-dev testing tile. Verified: all 6 replacements apply cleanly against
-  current `pwa.js` and `node --check` passes on the patched file. **Not applied yet** —
-  this worktree-isolated session has no tool access (Edit/Write/git, all blocked by
-  the harness) to `gh-pwa-shell` since it's a separate git repo outside this worktree;
-  apply from a non-worktree-isolated session or manually with
-  `cd gh-pwa-shell && git apply <path-to-repo>/docs/patches/pwa.js.patch`, then test:
-  (a) a fresh `?app=day-planner` launch redirects to the live `/exec` app instead of
-  mounting a local bundle, and (b) `?app=day-planner-dev` redirects to `/dev` and does
-  not show up in the bare-URL picker. Commit+push in the `gh-pwa-shell` repo (separate
-  remote from this one). **Update:** the patch also now scopes `launchKnownApp`'s and
+  current `pwa.js` and `node --check` passes on the patched file. **Update:** the patch also now scopes `launchKnownApp`'s and
   `handleConnect`'s writes to the legacy `dayPlannerGasUrl` key to
   `appKey === 'day-planner'` only (previously written unconditionally for any launched
   app, including the hidden dev tile — on a browser with no prior trust, launching dev
   first would poison prod's legacy-key fallback with the `/dev` URL). Re-verified
   against the live `pwa.js` with `patch --dry-run`.
   - **Update (2026-08-25):** `docs/patches/pwa.js.patch` no longer applies (`patch
-    --dry-run` now fails 3 of 6 hunks) — the core fix it describes (real
+    --dry-run` fails 3 of 6 hunks) — the core fix it describes (real
     `window.location.href` navigation instead of fetch/mount, for an
-    already-trusted online source) is **already live** in
-    `gh-pwa-shell/pwa.js`'s working tree, via a hand-written `redirectToApp()`
-    that's more complete than the patch: it adds a "Not this app?" escape hatch,
-    a `REDIRECT_DELAY_MS` grace period, and `?reset=1` recovery, none of which
-    the patch had. So the actual bug (mock data instead of real Calendar/Tasks
-    data) is fixed. Not yet present: the optional `day-planner-dev` KNOWN_APPS
-    testing tile and its companion `appKey === 'day-planner'` scoping guard on
-    the legacy-storage-key fallback read in `initPWA()` (currently unconditional
-    — harmless today since no other `KNOWN_APPS` entry exists to trigger it, but
-    would need that guard if a dev tile is ever added). Deleted the stale patch
-    file. **Still needs a human step:** this worktree-isolated session can't run
-    git in `gh-pwa-shell` (separate repo, blocked by the harness), so verify
-    from a non-isolated session whether the working-tree fix is committed/pushed
-    — `cd /home/mike/projects/day-planner/gh-pwa-shell && git status` — and
-    commit+push if not.
+    already-trusted online source) is **live and confirmed pushed** to
+    `gh-pwa-shell` — commit `a4e73e1` — via a hand-written `redirectToApp()`
+    that's more complete than the patch: it adds the "Not this app?" escape
+    hatch, a `REDIRECT_DELAY_MS` grace period, and `?reset=1` recovery, none of
+    which the patch had (closing the gap noted as deferred in 14.6(b) below). So
+    the actual bug (mock data instead of real Calendar/Tasks data) is fixed.
+    Stale patch file deleted. The `day-planner-dev` hidden-`KNOWN_APPS`-entry /
+    `?app=day-planner-dev` design sketched above for reaching `/dev` was **not**
+    what shipped — it was superseded by a simpler, generic dev-mode toggle
+    instead: visiting with `?dev=1` sets a `localStorage['dpDevMode']` flag (any
+    `KNOWN_APPS` app, not a separate hidden entry), which shows a "Launch /dev
+    (testing)" link in the picker and skips the auto-redirect-to-prod so the
+    picker stays reachable; `?dev=0` clears the flag. Commit `2005910`. See
+    `shell-gas-pattern.md` §10.E for the current design.
 - [x] **14.6 Opus review of the 14.2-14.5 commits, and fixes for what it found.** An
   Opus subagent reviewed the 5 commits ahead of `origin/master`
   (`f2788a7`/`2fd50ec`/`fe33b54`/`57f4fa4`/`d7a4268`) plus the staged `pwa.js.patch`.
@@ -326,14 +317,15 @@ The **Google Digital Day Planner** is a high-efficiency single-page digital bind
     all four live in Alpine-inline/`Code.gs` code, the pre-existing structural gap
     noted below).
   - **Not fixed — deferred, needs a product decision, not a bug fix, and lives in the
-    separate `gh-pwa-shell` repo (not checked out in this worktree):** (a) the patch
-    removes every `fetchRemoteBundle` call site, freezing the offline bundle cache at
-    whatever shipped in the shell (no more background refresh) and orphaning
-    `getCompiledAppBundle()`/`tools/build-shell-bundle.js` — fine if offline mode is
-    meant to be static, otherwise needs a fire-and-forget SWR refresh added back; (b)
-    once a URL is trusted, path A redirects unconditionally with no escape if it later
-    becomes wrong (rotated deployment, access revoked) — needs a `?reset=1`/"not this
-    app?" affordance or a cheap reachability check, a UX call not made here.
+    separate `gh-pwa-shell` repo:** (a) the patch removes every `fetchRemoteBundle` call
+    site, freezing the offline bundle cache at whatever shipped in the shell (no more
+    background refresh) and orphaning `getCompiledAppBundle()`/`tools/build-shell-bundle.js`
+    — still true as of 2026-08-25, fine if offline mode is meant to be static, otherwise
+    needs a fire-and-forget SWR refresh added back. (b) ~~once a URL is trusted, path A
+    redirects unconditionally with no escape if it later becomes wrong (rotated
+    deployment, access revoked) — needs a `?reset=1`/"not this app?" affordance or a
+    cheap reachability check, a UX call not made here.~~ **Done** — both shipped in
+    `a4e73e1` (see 14.5's 2026-08-25 update above).
   - **Not independently verifiable from this session:** whether Apps Script's
     `Event.getTag()`/`setTag()` genuinely read/write `extendedProperties.shared` (the
     stated reasoning for the gasTaskId fix above) — the dual-write fix is safe either
