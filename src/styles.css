@@ -76,6 +76,7 @@ a:hover {
 :root,
 :root[data-theme="light"],
 [data-theme="light"] {
+  color-scheme: light;
   --font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --header-font-family: "Playfair Display", Georgia, serif;
 
@@ -184,6 +185,7 @@ a:hover {
 
 :root[data-theme="dark"],
 [data-theme="dark"] {
+  color-scheme: dark;
   /* Theme Surfaces (Dark Mode - Dark Forest Executive) */
   --theme-desk-bg: #0a1611;
   --theme-binder-border: #050d09;
