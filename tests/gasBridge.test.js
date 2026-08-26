@@ -279,6 +279,62 @@ describe('GAS Bridge Unit Tests', () => {
     assert.equal(await bridge.transferMasterTask('nonexistent-master-id', '2026-08-15'), null);
   });
 
+  it('should fetch the future planning matrix for a year with all 12 months present', async () => {
+    const bridge = new GASBridge(true);
+    const matrix = await bridge.getFutureMatrix(2026);
+    assert.equal(matrix.year, '2026');
+    assert.equal(Object.keys(matrix.months).length, 12);
+    assert.equal(matrix.months['2026-09'].length, 1);
+  });
+
+  it('should add a future planning item to a month bucket via bridge', async () => {
+    const bridge = new GASBridge(true);
+    const item = await bridge.addFutureItem(2026, '2026-04', 'Renew business license', 'Financial');
+    assert.equal(item.title, 'Renew business license');
+    assert.equal(item.status, '•');
+    const matrix = await bridge.getFutureMatrix(2026);
+    assert.ok(matrix.months['2026-04'].some(i => i.id === item.id));
+  });
+
+  it('should cycle a future item status via bridge', async () => {
+    const bridge = new GASBridge(true);
+    const updated = await bridge.updateFutureItemStatus(2026, '2026-09', 'fm_seed', 'X');
+    assert.equal(updated, null); // seeded id is randomized, not literally 'fm_seed'
+
+    const matrix = await bridge.getFutureMatrix(2026);
+    const seeded = matrix.months['2026-09'][0];
+    const cycled = await bridge.updateFutureItemStatus(2026, '2026-09', seeded.id, '✓');
+    assert.equal(cycled.status, '✓');
+  });
+
+  it('should transfer a future item onto a specific day and remove it from its month bucket', async () => {
+    const bridge = new GASBridge(true);
+    const matrix = await bridge.getFutureMatrix(2026);
+    const item = matrix.months['2026-11'][0];
+
+    const transferred = await bridge.transferFutureItem(2026, '2026-11', item.id, '2026-11-03', 'B');
+    assert.ok(transferred.title.includes(item.title));
+    assert.equal(transferred.dueDate, '2026-11-03');
+
+    const refreshed = await bridge.getFutureMatrix(2026);
+    assert.equal(refreshed.months['2026-11'].length, 0);
+  });
+
+  it('should push an open future item into next month, rolling into next year from December', async () => {
+    const bridge = new GASBridge(true);
+    const matrix = await bridge.getFutureMatrix(2026);
+    const item = matrix.months['2026-12'][0];
+
+    const pushed = await bridge.pushFutureItemToNextMonth(2026, '2026-12', item.id);
+    assert.equal(pushed.id, item.id);
+
+    const nextYearMatrix = await bridge.getFutureMatrix(2027);
+    assert.ok(nextYearMatrix.months['2027-01'].some(i => i.id === item.id));
+
+    const refreshed2026 = await bridge.getFutureMatrix(2026);
+    assert.equal(refreshed2026.months['2026-12'].length, 0);
+  });
+
   it('should skip Meet link, Agenda Doc, and guest-edit generation when explicitly disabled', async () => {
     const bridge = new GASBridge(true);
     const evt = await bridge.addCalendarEvent('2026-08-17', {

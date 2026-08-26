@@ -485,17 +485,50 @@
       <!-- View 5: Future Planning Matrix -->
       <template x-if="activeView === 'future-matrix'">
         <section class="view-container" aria-label="Future Planning Matrix">
-          <header>
+          <header class="future-matrix-header">
             <h2 class="view-title">
               <span class="material-symbols-outlined">explore</span>
               Future Planning Matrix (12-Month Overview)
             </h2>
+            <div class="future-matrix-year-nav">
+              <button type="button" class="icon-nav-btn" @click="changeFutureMatrixYear(-1)" aria-label="Previous year">
+                <span class="material-symbols-outlined">chevron_left</span>
+              </button>
+              <span class="future-matrix-year-label" x-text="futureMatrixYear"></span>
+              <button type="button" class="icon-nav-btn" @click="changeFutureMatrixYear(1)" aria-label="Next year">
+                <span class="material-symbols-outlined">chevron_right</span>
+              </button>
+            </div>
           </header>
           <section class="future-matrix-grid">
-            <template x-for="m in ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']">
+            <template x-for="(label, idx) in FUTURE_MONTH_LABELS" :key="label">
               <article class="future-month-card">
-                <h3 class="future-month-title" x-text="m + ' ' + selectedYear"></h3>
-                <p class="future-month-empty">No future milestones scheduled.</p>
+                <h3 class="future-month-title" x-text="label + ' ' + futureMatrixYear"></h3>
+
+                <form @submit.prevent="addFutureItemToMonth(String(idx + 1).padStart(2, '0'))" role="group" class="future-item-add-bar">
+                  <input type="text" x-model="newFutureItemTitle[futureMonthKey(String(idx + 1).padStart(2, '0'))]" placeholder="Add big item..." class="future-item-input-field" :aria-label="'Add future item for ' + label">
+                  <button type="submit" class="icon-nav-btn" aria-label="Add item" title="Add item">
+                    <span class="material-symbols-outlined">add</span>
+                  </button>
+                </form>
+
+                <p class="future-month-empty" x-show="futureMonthItems(String(idx + 1).padStart(2, '0')).length === 0">No future milestones scheduled.</p>
+
+                <ul class="future-item-list" x-show="futureMonthItems(String(idx + 1).padStart(2, '0')).length > 0">
+                  <template x-for="item in futureMonthItems(String(idx + 1).padStart(2, '0'))" :key="item.id">
+                    <li class="future-item-row">
+                      <button type="button" class="status-btn" @click="toggleFutureItemStatus(String(idx + 1).padStart(2, '0'), item)" x-text="item.status" :aria-label="'Item status: ' + item.status + '. Click to cycle status.'"></button>
+                      <span class="future-item-title" x-text="item.title"></span>
+                      <input type="date" x-model="item._transferDate" class="future-item-date-input" :aria-label="'Transfer date for ' + item.title">
+                      <button type="button" class="icon-nav-btn" @click="transferFutureItemToDay(String(idx + 1).padStart(2, '0'), item)" title="Transfer to this day's task list" aria-label="Transfer to day">
+                        <span class="material-symbols-outlined">arrow_forward</span>
+                      </button>
+                      <button type="button" class="icon-nav-btn" @click="pushFutureItemForward(String(idx + 1).padStart(2, '0'), item)" title="Push to next month" aria-label="Push to next month">
+                        <span class="material-symbols-outlined">redo</span>
+                      </button>
+                    </li>
+                  </template>
+                </ul>
               </article>
             </template>
           </section>

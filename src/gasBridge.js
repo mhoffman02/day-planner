@@ -7,6 +7,7 @@
 import { transferMasterTaskToToday } from './taskEngine.js';
 import { reconcileWorkspaceChanges } from './syncEngine.js';
 import IndexedDbStore from './indexedDbStore.js';
+import { createFutureItem, nextMonthKey, emptyYearMatrix } from './futureMatrixEngine.js';
 
 /**
  * Outbox mutation type tags used to queue and later replay writes made while offline.
@@ -48,6 +49,15 @@ export class GASBridge {
         { id: 'm3', title: 'Rebalance investment portfolio', category: 'Financial', status: '•' },
         { id: 'm4', title: 'Migrate server infrastructure to GCP', category: 'Projects', status: '•' }
       ],
+      futureMatrix: {
+        2026: (() => {
+          const matrix = emptyYearMatrix(2026);
+          matrix.months['2026-09'].push(createFutureItem('Book venue for annual offsite', 'Work'));
+          matrix.months['2026-11'].push(createFutureItem('Open enrollment: review benefits', 'Personal'));
+          matrix.months['2026-12'].push(createFutureItem('Year-end budget review', 'Financial'));
+          return matrix;
+        })()
+      },
       calendarEvents: {
         '2026-08-15': [
           {
@@ -541,6 +551,124 @@ export class GASBridge {
     }
     this.mockData.dailyTasks[dateStr].push(newDailyTask);
     return newDailyTask;
+  }
+
+  /**
+   * Fetches the Future Planning Matrix (12-month overview) for a given year — month-scoped
+   * "big rock" items not yet tied to a specific day, per the Franklin Covey Master Task List
+   * model applied across the whole year.
+   * @param {number|string} year Target calendar year.
+   * @returns {Promise<{year: string, months: Object<string, Array<object>>}>} Year matrix promise.
+   */
+  async getFutureMatrix(year) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      if (!this.mockData.futureMatrix[year]) {
+        this.mockData.futureMatrix[year] = emptyYearMatrix(year);
+      }
+      return this.mockData.futureMatrix[year];
+    }
+
+    return this._runGasCall('getFutureMatrix', [year]);
+  }
+
+  /**
+   * Adds a new future planning item to a month's bucket.
+   * @param {number|string} year Target calendar year.
+   * @param {string} monthKey Target month key in YYYY-MM format.
+   * @param {string} title Item title/description.
+   * @param {string} [category='General'] Optional category label.
+   * @returns {Promise<object>} Created future item promise.
+   */
+  async addFutureItem(year, monthKey, title, category = 'General') {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      if (!this.mockData.futureMatrix[year]) {
+        this.mockData.futureMatrix[year] = emptyYearMatrix(year);
+      }
+      const matrix = this.mockData.futureMatrix[year];
+      if (!matrix.months[monthKey]) matrix.months[monthKey] = [];
+      const newItem = createFutureItem(title, category);
+      matrix.months[monthKey].push(newItem);
+      return newItem;
+    }
+
+    return this._runGasCall('addFutureItem', [year, monthKey, title, category]);
+  }
+
+  /**
+   * Cycles a future item's Franklin-style status marker (open → done → forwarded →
+   * canceled → delegated).
+   * @param {number|string} year Target calendar year.
+   * @param {string} monthKey Target month key in YYYY-MM format.
+   * @param {string} itemId Future item identifier.
+   * @param {string} status New status symbol.
+   * @returns {Promise<object|null>} Updated future item promise, or null if not found.
+   */
+  async updateFutureItemStatus(year, monthKey, itemId, status) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      const items = this.mockData.futureMatrix[year]?.months?.[monthKey] || [];
+      const item = items.find(i => i.id === itemId);
+      if (!item) return null;
+      item.status = status;
+      return item;
+    }
+
+    return this._runGasCall('updateFutureItemStatus', [year, monthKey, itemId, status]);
+  }
+
+  /**
+   * Transfers a future planning item onto a specific day's task list, removing it from its
+   * month bucket — Franklin Covey's "forwarded" semantics: the item now lives on that day.
+   * @param {number|string} year Source calendar year.
+   * @param {string} monthKey Source month key in YYYY-MM format.
+   * @param {string} itemId Future item identifier.
+   * @param {string} dateStr Target date in YYYY-MM-DD format.
+   * @param {string} [priorityGroup='A'] Priority group code ('A', 'B', or 'C').
+   * @returns {Promise<object|null>} Created daily task object promise, or null if not found.
+   */
+  async transferFutureItem(year, monthKey, itemId, dateStr, priorityGroup = 'A') {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      const items = this.mockData.futureMatrix[year]?.months?.[monthKey] || [];
+      const idx = items.findIndex(i => i.id === itemId);
+      if (idx === -1) return null;
+      const [item] = items.splice(idx, 1);
+
+      const existingDaily = this.mockData.dailyTasks[dateStr] || [];
+      const newDailyTask = transferMasterTaskToToday(item, existingDaily, priorityGroup, dateStr);
+      if (!this.mockData.dailyTasks[dateStr]) this.mockData.dailyTasks[dateStr] = [];
+      this.mockData.dailyTasks[dateStr].push(newDailyTask);
+      return newDailyTask;
+    }
+
+    return this._runGasCall('transferFutureItem', [year, monthKey, itemId, dateStr, priorityGroup]);
+  }
+
+  /**
+   * Carries a still-open future item forward into next month's bucket, rolling into next
+   * calendar year's matrix when pushed from December.
+   * @param {number|string} year Source calendar year.
+   * @param {string} monthKey Source month key in YYYY-MM format.
+   * @param {string} itemId Future item identifier.
+   * @returns {Promise<object|null>} The carried-forward item promise, or null if not found.
+   */
+  async pushFutureItemToNextMonth(year, monthKey, itemId) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      const items = this.mockData.futureMatrix[year]?.months?.[monthKey] || [];
+      const idx = items.findIndex(i => i.id === itemId);
+      if (idx === -1) return null;
+      const [item] = items.splice(idx, 1);
+
+      const nextKey = nextMonthKey(monthKey);
+      const nextYear = nextKey.slice(0, 4);
+      if (!this.mockData.futureMatrix[nextYear]) {
+        this.mockData.futureMatrix[nextYear] = emptyYearMatrix(nextYear);
+      }
+      const nextMatrix = this.mockData.futureMatrix[nextYear];
+      if (!nextMatrix.months[nextKey]) nextMatrix.months[nextKey] = [];
+      nextMatrix.months[nextKey].push(item);
+      return item;
+    }
+
+    return this._runGasCall('pushFutureItemToNextMonth', [year, monthKey, itemId]);
   }
 
   /**
