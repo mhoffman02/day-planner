@@ -1430,7 +1430,7 @@ button.event-pill:hover {
 .note-card-item.note-color-green { border-left: 3px solid var(--note-color-green); }
 .note-card-item.note-color-blue { border-left: 3px solid var(--note-color-blue); }
 
-.note-card-textarea {
+.note-card-lines {
   width: 100%;
   min-height: 90px;
   max-height: 240px;
@@ -1438,27 +1438,31 @@ button.event-pill:hover {
   font-size: 0.88rem;
   line-height: 1.5;
   padding: 8px 12px;
-  border: none;
   background: var(--theme-card-textarea-bg);
   color: var(--theme-card-textarea-fg);
-  resize: vertical;
   overflow-y: auto;
-  margin-bottom: 0;
-  outline: none;
 }
 
-.note-card-render {
-  width: 100%;
-  min-height: 90px;
-  max-height: 240px;
-  font-family: var(--font-family);
-  font-size: 0.88rem;
-  line-height: 1.5;
-  padding: 8px 12px;
-  background: var(--theme-card-textarea-bg);
-  color: var(--theme-card-textarea-fg);
-  overflow-y: auto;
+.note-render-line-item {
   cursor: text;
+}
+
+.note-render-line-item .note-render-list {
+  margin: 0;
+}
+
+.note-card-line-input {
+  display: block;
+  width: 100%;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  outline: none;
 }
 
 .note-card-empty-placeholder {

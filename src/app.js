@@ -1011,22 +1011,135 @@ function getLocalDateStr(d = new Date()) {
       },
 
       /**
-       * Applies a lightweight markdown-style inline format to a note card's content. When the
-       * card's textarea has an active text selection, wraps only the selected substring (and
-       * toggles the wrap back off if the selection is already immediately surrounded by the
-       * same marker); with no selection, falls back to wrapping the entire content. Bullet/
-       * numbered list stay whole-content, line-prefix toggles.
+       * Splits a note card's content into its lines for per-line live-preview editing.
+       * @param {object} card Note card.
+       * @returns {Array<string>}
+       */
+      cardLines(card) {
+        return ((card && card.content) || '').split('\n');
+      },
+
+      /**
+       * Activates a single line of a note card for raw-marker editing, swapping that line's
+       * rendered HTML for a plain-text input and focusing it (cursor at end) once Alpine has
+       * flipped x-show. Only the activated line ever shows raw markers -- every other line
+       * stays rendered.
+       * @param {object} card Note card.
+       * @param {number} idx Line index to activate.
+       * @returns {void}
+       */
+      startEditingLine(card, idx) {
+        if (!card) return;
+        card._activeLineIndex = idx;
+        this.$nextTick(() => {
+          const el = document.getElementById('card-line-' + card.id + '-' + idx);
+          if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+        });
+      },
+
+      /**
+       * Deactivates line-editing on blur, guarded so a blur from a line the user just left
+       * can't clobber a different line that became active in the same tick (e.g. clicking
+       * straight from one line's input into another line's rendered view).
+       * @param {object} card Note card.
+       * @param {number} idx Line index that lost focus.
+       * @returns {void}
+       */
+      stopEditingLine(card, idx) {
+        if (card && card._activeLineIndex === idx) card._activeLineIndex = null;
+      },
+
+      /**
+       * Writes a single line's edited text back into the card's `\n`-joined content string.
+       * @param {object} card Note card.
+       * @param {number} idx Line index being edited.
+       * @param {string} text New text for that line.
+       * @returns {void}
+       */
+      updateCardLine(card, idx, text) {
+        const lines = this.cardLines(card);
+        lines[idx] = text;
+        card.content = lines.join('\n');
+        this.syncCardsToDailyNote();
+      },
+
+      /**
+       * Enter/Backspace/Escape line-editing mechanics, plus the Google Docs/Gmail-style
+       * keyboard shortcuts (Ctrl/Cmd+B/I/U, Ctrl/Cmd+Shift+8/7 for lists, Ctrl/Cmd+Shift+
+       * <letter> for color) for the line currently being edited.
+       * @param {KeyboardEvent} e Keydown event from a card line's input.
+       * @param {object} card Note card being edited.
+       * @param {number} idx Line index the event came from.
+       * @returns {void}
+       */
+      handleLineKeydown(e, card, idx) {
+        if (!card) return;
+
+        if (e.key === 'Escape') { e.target.blur(); return; }
+
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const lines = this.cardLines(card);
+          const caret = e.target.selectionStart;
+          const text = lines[idx] || '';
+          lines[idx] = text.slice(0, caret);
+          lines.splice(idx + 1, 0, text.slice(caret));
+          card.content = lines.join('\n');
+          this.syncCardsToDailyNote();
+          this.startEditingLine(card, idx + 1);
+          return;
+        }
+
+        if (e.key === 'Backspace' && e.target.selectionStart === 0 && e.target.selectionEnd === 0 && idx > 0) {
+          e.preventDefault();
+          const lines = this.cardLines(card);
+          const prevLen = lines[idx - 1].length;
+          lines[idx - 1] = lines[idx - 1] + lines[idx];
+          lines.splice(idx, 1);
+          card.content = lines.join('\n');
+          this.syncCardsToDailyNote();
+          card._activeLineIndex = idx - 1;
+          this.$nextTick(() => {
+            const prevEl = document.getElementById('card-line-' + card.id + '-' + (idx - 1));
+            if (prevEl) { prevEl.focus(); prevEl.setSelectionRange(prevLen, prevLen); }
+          });
+          return;
+        }
+
+        if (!(e.ctrlKey || e.metaKey)) return;
+        const key = e.key.toLowerCase();
+        if (e.shiftKey) {
+          if (e.code === 'Digit7') { e.preventDefault(); this.applyLineFormat(card, idx, 'ordered'); return; }
+          if (e.code === 'Digit8') { e.preventDefault(); this.applyLineFormat(card, idx, 'bullet'); return; }
+          const colorKeys = { b: 'color-blue', r: 'color-red', g: 'color-green', t: 'color-teal' };
+          if (colorKeys[key]) { e.preventDefault(); this.applyLineFormat(card, idx, colorKeys[key]); }
+          return;
+        }
+        const formatKeys = { b: 'bold', i: 'italic', u: 'underline' };
+        if (formatKeys[key]) { e.preventDefault(); this.applyLineFormat(card, idx, formatKeys[key]); }
+      },
+
+      /**
+       * Applies a lightweight markdown-style inline format to one line of a note card's
+       * content. When that line's input has an active text selection, wraps only the selected
+       * substring (and toggles the wrap back off if the selection is already immediately
+       * surrounded by the same marker); with no selection, wraps the whole line. Bullet/
+       * numbered list toggle that one line's prefix. Because formatting only ever targets the
+       * single line being edited, it can never leak onto lines the user didn't touch.
        * @param {object} card Note card to format.
+       * @param {number} idx Line index to format.
        * @param {'bold'|'italic'|'underline'|'strike'|'code'|'bullet'|'ordered'|'color-teal'|'color-red'|'color-green'|'color-blue'|'color-default'} formatType Format to apply.
        * @returns {void}
        */
-      applyCardFormat(card, formatType) {
-        if (!card) return;
-        const el = document.getElementById('card-textarea-' + card.id);
-        const content = card.content || '';
+      applyLineFormat(card, idx, formatType) {
+        if (!card || idx == null || idx < 0) return;
+        const lines = this.cardLines(card);
+        if (idx >= lines.length) return;
+        const el = document.getElementById('card-line-' + card.id + '-' + idx);
+        const text = lines[idx] || '';
         const hasSelection = !!(el && el.selectionEnd > el.selectionStart);
         const start = hasSelection ? el.selectionStart : 0;
-        const end = hasSelection ? el.selectionEnd : content.length;
+        const end = hasSelection ? el.selectionEnd : text.length;
 
         const prefixMap = { bold: '**', italic: '*', strike: '~~', code: '`', underline: '__' };
         const colorMap = {
@@ -1042,84 +1155,56 @@ function getLocalDateStr(d = new Date()) {
           this.$nextTick(() => { el.focus(); el.setSelectionRange(newStart, newEnd); });
         };
 
-        if (formatType === 'bullet' || formatType === 'ordered') {
-          const lines = content.split('\n');
-          // Scope the toggle to just the lines the selection/cursor touches -- not the whole
-          // card -- mirroring how a plain-text editor's list button behaves. With no textarea
-          // focused (e.g. clicked from the rendered, non-editing view), selStart/selEnd default
-          // to the full content so every line is touched, same as before.
-          const selStart = el ? el.selectionStart : 0;
-          const selEnd = el ? el.selectionEnd : content.length;
-          let offset = 0;
-          const inSelection = lines.map(line => {
-            const lineStart = offset;
-            const lineEnd = offset + line.length;
-            offset = lineEnd + 1;
-            return selStart <= lineEnd && selEnd >= lineStart;
-          });
-          if (formatType === 'bullet') {
-            card.content = lines.map((line, i) => inSelection[i]
-              ? (line.startsWith('- ') ? line.slice(2) : `- ${line}`)
-              : line
-            ).join('\n');
-          } else {
-            const orderedRe = /^\d+\.\s/;
-            const allOrdered = lines.every((line, i) => !inSelection[i] || !line.trim() || orderedRe.test(line));
-            let n = 1;
-            card.content = lines.map((line, i) => {
-              if (!inSelection[i] || !line.trim()) return line;
-              return allOrdered ? line.replace(orderedRe, '') : `${n++}. ${line}`;
-            }).join('\n');
-          }
+        const setLine = (newText) => {
+          lines[idx] = newText;
+          card.content = lines.join('\n');
+          this.syncCardsToDailyNote();
+        };
+
+        if (formatType === 'bullet') {
+          setLine(text.startsWith('- ') ? text.slice(2) : `- ${text}`);
+        } else if (formatType === 'ordered') {
+          const orderedRe = /^\d+\.\s/;
+          setLine(orderedRe.test(text) ? text.replace(orderedRe, '') : `1. ${text}`);
         } else if (formatType in colorMap) {
           const newColor = colorMap[formatType];
           if (!newColor) {
-            card.content = content.replace(/\[\[color:(?:teal|red|green|blue)\]\]([\s\S]*?)\[\[\/color\]\]/g, '$1');
+            setLine(text.replace(/\[\[color:(?:teal|red|green|blue)\]\]([\s\S]*?)\[\[\/color\]\]/g, '$1'));
           } else {
-            const before = content.slice(0, start);
-            const selected = content.slice(start, end);
-            const after = content.slice(end);
+            const before = text.slice(0, start);
+            const selected = text.slice(start, end);
+            const after = text.slice(end);
             const openTag = `[[color:${newColor}]]`;
-            card.content = `${before}${openTag}${selected}[[/color]]${after}`;
+            setLine(`${before}${openTag}${selected}[[/color]]${after}`);
             restoreSelection(start + openTag.length, end + openTag.length);
           }
         } else if (prefixMap[formatType]) {
           const marker = prefixMap[formatType];
-          const before = content.slice(0, start);
-          const selected = content.slice(start, end);
-          const after = content.slice(end);
+          const before = text.slice(0, start);
+          const selected = text.slice(start, end);
+          const after = text.slice(end);
           const alreadyWrapped = before.endsWith(marker) && after.startsWith(marker);
           if (alreadyWrapped) {
-            card.content = before.slice(0, before.length - marker.length) + selected + after.slice(marker.length);
+            setLine(before.slice(0, before.length - marker.length) + selected + after.slice(marker.length));
             restoreSelection(start - marker.length, end - marker.length);
           } else {
-            card.content = before + marker + selected + marker + after;
+            setLine(before + marker + selected + marker + after);
             restoreSelection(start + marker.length, end + marker.length);
           }
         }
-        this.syncCardsToDailyNote();
       },
 
       /**
-       * Google Docs/Gmail-style keyboard shortcuts for note-card formatting: Ctrl/Cmd+B/I/U
-       * for bold/italic/underline, Ctrl/Cmd+Shift+8/7 for bullet/numbered list, and
-       * Ctrl/Cmd+Shift+<letter> mnemonics (R/G/B/T) for color.
-       * @param {KeyboardEvent} e Keydown event from a card's textarea.
-       * @param {object} card Note card being edited.
+       * Toolbar/menu entry point for line formatting -- applies to whichever line of the card
+       * is currently active (being edited). No-ops if no line is active, since the toolbar has
+       * nothing to act on until the user has clicked into a line.
+       * @param {object} card Note card to format.
+       * @param {string} formatType Format to apply (see {@link applyLineFormat}).
        * @returns {void}
        */
-      handleCardKeydown(e, card) {
-        if (!card || !(e.ctrlKey || e.metaKey)) return;
-        const key = e.key.toLowerCase();
-        if (e.shiftKey) {
-          if (e.code === 'Digit7') { e.preventDefault(); this.applyCardFormat(card, 'ordered'); return; }
-          if (e.code === 'Digit8') { e.preventDefault(); this.applyCardFormat(card, 'bullet'); return; }
-          const colorKeys = { b: 'color-blue', r: 'color-red', g: 'color-green', t: 'color-teal' };
-          if (colorKeys[key]) { e.preventDefault(); this.applyCardFormat(card, colorKeys[key]); }
-          return;
-        }
-        const formatKeys = { b: 'bold', i: 'italic', u: 'underline' };
-        if (formatKeys[key]) { e.preventDefault(); this.applyCardFormat(card, formatKeys[key]); }
+      applyCardFormat(card, formatType) {
+        if (!card || card._activeLineIndex == null) return;
+        this.applyLineFormat(card, card._activeLineIndex, formatType);
       },
 
       /**
@@ -1134,36 +1219,19 @@ function getLocalDateStr(d = new Date()) {
       },
 
       /**
-       * Switches a card from the rendered view into the raw textarea so its markers
-       * (**bold**, [[color:x]], etc.) become editable; focuses the textarea once
-       * Alpine has flipped x-show and it's actually in the DOM.
-       * @param {object} card Note card to edit.
-       * @returns {void}
-       */
-      startEditingCard(card) {
-        if (!card) return;
-        card._editing = true;
-        this.$nextTick(() => {
-          const el = document.getElementById('card-textarea-' + card.id);
-          if (el) el.focus();
-        });
-      },
-
-      /**
-       * Renders a card's raw marker-laden content (**bold**, *italic*, __underline__,
-       * ~~strike~~, `code`, [[color:x]]...[[/color]], "- " bullet / "1. " numbered lines) as
-       * safe, formatted HTML for the read-only card view -- the markers are app-internal
-       * formatting instructions, not literal text the user should see. Markers can wrap any
-       * substring of a line (not just the whole card), so each line is HTML-escaped then run
+       * Renders one line of a card's raw marker-laden content (**bold**, *italic*,
+       * __underline__, ~~strike~~, `code`, [[color:x]]...[[/color]], "- " bullet / "1. "
+       * numbered prefix) as safe, formatted HTML -- the markers are app-internal formatting
+       * instructions, not literal text the user should see. The line is HTML-escaped then run
        * through sequential marker-pair regex passes; since none of the generated span markup
        * contains marker characters, passes compose correctly across nesting (e.g. a colored
        * word inside a bolded line).
-       * @param {object} card Note card to render.
-       * @returns {string} Sanitized HTML for the card's rendered view.
+       * @param {string} text Raw line text.
+       * @param {boolean} [isPlaceholder=false] Show the "click to add notes" placeholder instead.
+       * @returns {string} Sanitized HTML for the line's rendered view.
        */
-      renderCardContent(card) {
-        const raw = (card && card.content) || '';
-        if (!raw.trim()) {
+      renderCardLine(text, isPlaceholder) {
+        if (isPlaceholder) {
           return '<span class="note-card-empty-placeholder">Click to add notes for this topic&hellip;</span>';
         }
 
@@ -1181,25 +1249,13 @@ function getLocalDateStr(d = new Date()) {
         };
 
         const orderedRe = /^\d+\.\s/;
-        let bodyHtml = '';
-        let listTag = null;
-        const closeList = () => { if (listTag) { bodyHtml += `</${listTag}>`; listTag = null; } };
-
-        raw.split('\n').forEach(line => {
-          if (line.startsWith('- ')) {
-            if (listTag !== 'ul') { closeList(); bodyHtml += '<ul class="note-render-list">'; listTag = 'ul'; }
-            bodyHtml += `<li>${renderInline(line.slice(2))}</li>`;
-          } else if (orderedRe.test(line)) {
-            if (listTag !== 'ol') { closeList(); bodyHtml += '<ol class="note-render-list">'; listTag = 'ol'; }
-            bodyHtml += `<li>${renderInline(line.replace(orderedRe, ''))}</li>`;
-          } else {
-            closeList();
-            bodyHtml += `<div class="note-render-line">${renderInline(line) || '&nbsp;'}</div>`;
-          }
-        });
-        closeList();
-
-        return `<div class="note-render-content">${bodyHtml}</div>`;
+        if (text.startsWith('- ')) {
+          return `<ul class="note-render-list"><li>${renderInline(text.slice(2))}</li></ul>`;
+        }
+        if (orderedRe.test(text)) {
+          return `<ol class="note-render-list"><li>${renderInline(text.replace(orderedRe, ''))}</li></ol>`;
+        }
+        return `<div class="note-render-line">${renderInline(text) || '&nbsp;'}</div>`;
       },
 
       /**
