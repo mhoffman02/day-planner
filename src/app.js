@@ -1044,14 +1044,30 @@ function getLocalDateStr(d = new Date()) {
 
         if (formatType === 'bullet' || formatType === 'ordered') {
           const lines = content.split('\n');
+          // Scope the toggle to just the lines the selection/cursor touches -- not the whole
+          // card -- mirroring how a plain-text editor's list button behaves. With no textarea
+          // focused (e.g. clicked from the rendered, non-editing view), selStart/selEnd default
+          // to the full content so every line is touched, same as before.
+          const selStart = el ? el.selectionStart : 0;
+          const selEnd = el ? el.selectionEnd : content.length;
+          let offset = 0;
+          const inSelection = lines.map(line => {
+            const lineStart = offset;
+            const lineEnd = offset + line.length;
+            offset = lineEnd + 1;
+            return selStart <= lineEnd && selEnd >= lineStart;
+          });
           if (formatType === 'bullet') {
-            card.content = lines.map(line => line.startsWith('- ') ? line.slice(2) : `- ${line}`).join('\n');
+            card.content = lines.map((line, i) => inSelection[i]
+              ? (line.startsWith('- ') ? line.slice(2) : `- ${line}`)
+              : line
+            ).join('\n');
           } else {
             const orderedRe = /^\d+\.\s/;
-            const allOrdered = lines.every(line => !line.trim() || orderedRe.test(line));
+            const allOrdered = lines.every((line, i) => !inSelection[i] || !line.trim() || orderedRe.test(line));
             let n = 1;
-            card.content = lines.map(line => {
-              if (!line.trim()) return line;
+            card.content = lines.map((line, i) => {
+              if (!inSelection[i] || !line.trim()) return line;
               return allOrdered ? line.replace(orderedRe, '') : `${n++}. ${line}`;
             }).join('\n');
           }
