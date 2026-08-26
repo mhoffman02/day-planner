@@ -4,7 +4,7 @@
  * Bridges client requests to Google Apps Script backend `google.script.run` or local mock state.
  */
 
-import { transferMasterTaskToToday } from './taskEngine.js';
+import { transferMasterTaskToToday, forwardTaskToDate, TASK_STATUSES } from './taskEngine.js';
 import { reconcileWorkspaceChanges } from './syncEngine.js';
 import IndexedDbStore from './indexedDbStore.js';
 import { createFutureItem, nextMonthKey, emptyYearMatrix } from './futureMatrixEngine.js';
@@ -551,6 +551,44 @@ export class GASBridge {
     }
     this.mockData.dailyTasks[dateStr].push(newDailyTask);
     return newDailyTask;
+  }
+
+  /**
+   * Forwards a daily task to a new date (default: the day after `dateStr`) — Franklin Covey's
+   * "➜ forwarded to a new date" semantics. The original task's status is set to FORWARDED and
+   * left in place on its original day so the page still shows it was handled; a new open task
+   * carrying the same priority group/category is created on the target date.
+   * @param {string} dateStr Source date in YYYY-MM-DD format.
+   * @param {string} taskId Task identifier on the source date.
+   * @param {{title: string, category?: string}} sourceTaskSnapshot Current title/category of the
+   *   task being forwarded — the Tasks API has no server-readable "category" field, so the
+   *   caller (which already has the task in hand) supplies it rather than requiring a round trip.
+   * @param {string} [targetDateStr] Target date in YYYY-MM-DD format (defaults to the day after `dateStr`).
+   * @returns {Promise<{originalTask: object, forwardedTask: object}|null>} Both updated task objects, or null if the source task was not found.
+   */
+  async forwardDailyTask(dateStr, taskId, sourceTaskSnapshot, targetDateStr) {
+    const resolvedTargetDate = targetDateStr || (() => {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      const next = new Date(y, m - 1, d + 1);
+      return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`;
+    })();
+
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      const tasks = this.mockData.dailyTasks[dateStr] || [];
+      const sourceTask = tasks.find(t => t.id === taskId);
+      if (!sourceTask) return null;
+
+      const existingTargetDayTasks = this.mockData.dailyTasks[resolvedTargetDate] || [];
+      const forwardedTask = forwardTaskToDate(sourceTask, existingTargetDayTasks, resolvedTargetDate);
+
+      sourceTask.status = TASK_STATUSES.FORWARDED;
+      if (!this.mockData.dailyTasks[resolvedTargetDate]) this.mockData.dailyTasks[resolvedTargetDate] = [];
+      this.mockData.dailyTasks[resolvedTargetDate].push(forwardedTask);
+
+      return { originalTask: sourceTask, forwardedTask };
+    }
+
+    return this._runGasCall('forwardDailyTask', [dateStr, taskId, sourceTaskSnapshot, resolvedTargetDate]);
   }
 
   /**

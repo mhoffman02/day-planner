@@ -12,6 +12,7 @@ import {
   sortTasks,
   getNextSequence,
   transferMasterTaskToToday,
+  forwardTaskToDate,
   TASK_STATUSES
 } from '../src/taskEngine.js';
 
@@ -132,5 +133,29 @@ describe('Task Engine Unit Tests', () => {
     assert.equal(transferred.title, '[B1] Untitled master item');
     assert.equal(transferred.category, 'General');
     assert.equal(transferred.sourceMasterId, 'm999');
+  });
+
+  it('should forward a daily task to a target date, preserving its priority group and category', () => {
+    const sourceTask = { id: 't1', title: '[B2] Review vendor contract', category: 'Work' };
+    const forwarded = forwardTaskToDate(sourceTask, [], '2026-08-21');
+    assert.equal(forwarded.title, '[B1] Review vendor contract');
+    assert.equal(forwarded.status, TASK_STATUSES.OPEN);
+    assert.equal(forwarded.dueDate, '2026-08-21');
+    assert.equal(forwarded.category, 'Work');
+    assert.equal(forwarded.forwardedFromId, 't1');
+  });
+
+  it('should assign the next open sequence in the target priority group when forwarding onto a day that already has tasks', () => {
+    const sourceTask = { id: 't2', title: '[A1] Finish slide deck', category: 'Work' };
+    const existingTargetDayTasks = [{ id: 'x1', title: '[A1] Existing target-day task' }];
+    const forwarded = forwardTaskToDate(sourceTask, existingTargetDayTasks, '2026-08-21');
+    assert.equal(forwarded.title, '[A2] Finish slide deck');
+  });
+
+  it('should default an unprefixed/uncategorized forwarded task to priority A and category General', () => {
+    const sourceTask = { id: 't3', title: 'Untitled task' };
+    const forwarded = forwardTaskToDate(sourceTask, [], '2026-08-21');
+    assert.equal(forwarded.title, '[A1] Untitled task');
+    assert.equal(forwarded.category, 'General');
   });
 });

@@ -130,6 +130,33 @@ export function getNextSequence(tasks = [], priorityGroup = 'A') {
 }
 
 /**
+ * Forwards a daily task to a new date, creating a new task entry on the target day —
+ * Franklin Covey's "➜ forwarded to a new date" semantics: the original task keeps its
+ * FORWARDED status marker in place (so today's page still shows it was handled), while a
+ * fresh open task carrying the same priority group/category is created on the target date.
+ * @param {object} sourceTask Source daily task object being forwarded.
+ * @param {Array<object>} [existingTargetDayTasks=[]] Current daily tasks list on the target date.
+ * @param {string} targetDateStr Target date string in YYYY-MM-DD format.
+ * @returns {{id: string, title: string, status: string, dueDate: string, category: string, forwardedFromId: string|null}} Newly created daily task object on the target date.
+ */
+export function forwardTaskToDate(sourceTask, existingTargetDayTasks = [], targetDateStr) {
+  const parsed = parseTaskTitle(sourceTask.title);
+  const priorityGroup = parsed.priorityGroup || 'A';
+  const cleanTitle = parsed.cleanTitle || sourceTask.title || 'Untitled Task';
+  const sequence = getNextSequence(existingTargetDayTasks, priorityGroup);
+  const formattedTitle = formatTaskTitle(priorityGroup, sequence, cleanTitle);
+
+  return {
+    id: `daily_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    title: formattedTitle,
+    status: TASK_STATUSES.OPEN,
+    dueDate: targetDateStr,
+    category: sourceTask.category || 'General',
+    forwardedFromId: sourceTask.id || null
+  };
+}
+
+/**
  * Transfers a monthly master task to the daily task list for today with assigned priority.
  * @param {object} masterTask Source master task object.
  * @param {Array<object>} [existingDailyTasks=[]] Current daily tasks list.

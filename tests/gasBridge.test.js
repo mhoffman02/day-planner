@@ -279,6 +279,30 @@ describe('GAS Bridge Unit Tests', () => {
     assert.equal(await bridge.transferMasterTask('nonexistent-master-id', '2026-08-15'), null);
   });
 
+  it('should forward a daily task to the next day by default, marking the original FORWARDED', async () => {
+    const bridge = new GASBridge(true);
+    const result = await bridge.forwardDailyTask('2026-08-15', 't2', { title: '[A2] Conduct team sync on Google Suite integration', category: 'Work' });
+    assert.ok(result);
+    assert.equal(result.originalTask.status, '→');
+    assert.equal(result.forwardedTask.dueDate, '2026-08-16');
+    assert.equal(result.forwardedTask.status, '•');
+    assert.ok(result.forwardedTask.title.includes('Conduct team sync on Google Suite integration'));
+
+    const nextDayTasks = (await bridge.getDailyData('2026-08-16')).tasks;
+    assert.ok(nextDayTasks.some(t => t.id === result.forwardedTask.id));
+  });
+
+  it('should forward a daily task to an explicit target date', async () => {
+    const bridge = new GASBridge(true);
+    const result = await bridge.forwardDailyTask('2026-08-15', 't3', { title: '[B1] Review Q3 budget draft', category: 'Financial' }, '2026-08-20');
+    assert.equal(result.forwardedTask.dueDate, '2026-08-20');
+  });
+
+  it('should return null when forwarding a task id that does not exist', async () => {
+    const bridge = new GASBridge(true);
+    assert.equal(await bridge.forwardDailyTask('2026-08-15', 'nonexistent-id', { title: 'x' }), null);
+  });
+
   it('should fetch the future planning matrix for a year with all 12 months present', async () => {
     const bridge = new GASBridge(true);
     const matrix = await bridge.getFutureMatrix(2026);

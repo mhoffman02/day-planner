@@ -1371,6 +1371,41 @@ function addDailyTask(dateStr, title, category) {
 }
 
 /**
+ * Forwards a daily task to a new date — Franklin Covey's "➜ forwarded to a new date"
+ * semantics. Creates a new real Google Task on the target date (via addDailyTask, so it's a
+ * genuine task like any other) carrying the same priority group/category, and marks the
+ * original task's status as FORWARDED so today's page still shows it was handled. The Tasks
+ * API has no server-readable "category" field, so `sourceTaskSnapshot` (title/category) is
+ * supplied by the caller rather than re-fetched.
+ * @param {string} dateStr Source date string in YYYY-MM-DD format.
+ * @param {string} taskId Google Task id on the source date.
+ * @param {{title: string, category?: string}} sourceTaskSnapshot Current title/category of the task being forwarded.
+ * @param {string} targetDateStr Target date string in YYYY-MM-DD format.
+ * @returns {{originalTask: object, forwardedTask: object}} Both updated task objects.
+ */
+function forwardDailyTask(dateStr, taskId, sourceTaskSnapshot, targetDateStr) {
+  var auth = validateUserAccess();
+  if (!auth.authorized) {
+    throw new Error(auth.error || 'Access Denied');
+  }
+
+  try {
+    var match = (sourceTaskSnapshot.title || '').match(/^\[([A-C])[1-9]\]\s*(.*)$/i);
+    var priorityGroup = match ? match[1].toUpperCase() : 'A';
+    var cleanTitle = match ? match[2].trim() : (sourceTaskSnapshot.title || 'Untitled Task').trim();
+    var formattedTitle = '[' + priorityGroup + '1] ' + cleanTitle;
+
+    var forwardedTask = addDailyTask(targetDateStr, formattedTitle, sourceTaskSnapshot.category);
+    var originalTask = updateDailyTask(dateStr, taskId, { title: sourceTaskSnapshot.title, status: '→', dueDate: dateStr });
+
+    return { originalTask: originalTask, forwardedTask: forwardedTask };
+  } catch (err) {
+    logError('forwardDailyTask(' + taskId + ')', err);
+    throw err;
+  }
+}
+
+/**
  * Updates an existing Google Task's title and/or completion status.
  * Only 'completed'/'needsAction' are natively representable by the Tasks API;
  * app-only status states (→ forwarded, X canceled, G/✓ delegated) are treated

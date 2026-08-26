@@ -714,6 +714,31 @@
       return { id: taskId, ...updates, _queuedOffline: true };
     }
 
+    async forwardDailyTask(dateStr, taskId, sourceTaskSnapshot, targetDateStr) {
+      const resolvedTargetDate = targetDateStr || (() => {
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const next = new Date(y, m - 1, d + 1);
+        return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`;
+      })();
+
+      if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+        const tasks = this.mockData.dailyTasks[dateStr] || [];
+        const sourceTask = tasks.find(t => t.id === taskId);
+        if (!sourceTask) return null;
+
+        const match = (sourceTask.title || '').match(/^\[([A-C])[1-9]\]\s*(.*)$/i);
+        const priorityGroup = match ? match[1].toUpperCase() : 'A';
+        const cleanTitle = match ? match[2].trim() : (sourceTask.title || 'Untitled Task').trim();
+        const formattedTitle = `[${priorityGroup}1] ${cleanTitle}`;
+
+        sourceTask.status = '→';
+        const forwardedTask = await this.addDailyTask(resolvedTargetDate, formattedTitle, sourceTask.category);
+        return { originalTask: sourceTask, forwardedTask };
+      }
+
+      return this._runGasCall('forwardDailyTask', [dateStr, taskId, sourceTaskSnapshot, resolvedTargetDate]);
+    }
+
     async addCalendarEvent(dateStr, eventData = {}) {
       if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
         if (!this.mockData.calendarEvents[dateStr]) {
@@ -1830,7 +1855,32 @@
       },
 
       async toggleTaskStatus(task) {
-        task.status = getNextStatus(task.status);
+        const nextStatus = getNextStatus(task.status);
+
+        // "→" (FORWARDED) is Franklin Covey's "forwarded to a new date" symbol — cycling
+        // into it actually moves the task to tomorrow's list rather than just relabeling it.
+        if (nextStatus === '→') {
+          const [y, m, d] = this.selectedDate.split('-').map(Number);
+          const next = new Date(y, m - 1, d + 1);
+          const targetDateStr = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`;
+          try {
+            const result = await this.bridge.forwardDailyTask(this.selectedDate, task.id, { title: task.title, category: task.category }, targetDateStr);
+            if (!result) {
+              this.errorMessage = `Task "${task.title}" no longer exists in Google Tasks — could not forward it.`;
+              return;
+            }
+            task.status = result.originalTask.status;
+            if (result.forwardedTask._queuedOffline) await this.refreshOutboxCount();
+            this.showToast(`Forwarded "${task.title}" to ${targetDateStr}.`, 'success', 6000, 'Task Forwarded');
+          } catch (err) {
+            console.error('🔥 toggleTaskStatus forward error:', err);
+            this.errorMessage = `Could not forward task: ${err.message || err.toString()}`;
+          }
+          await this.trigger2WaySync();
+          return;
+        }
+
+        task.status = nextStatus;
         try {
           if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
             const updated = await this.bridge.updateDailyTask(this.selectedDate, task.id, {
