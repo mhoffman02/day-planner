@@ -4,9 +4,9 @@
     <div>
       <h1 class="about-title">
         <span class="material-symbols-outlined icon-32">menu_book</span>
-        About Day Planner
+        About &amp; Help
       </h1>
-      <p class="about-subtitle">User Guide & Features Overview</p>
+      <p class="about-subtitle">Day Planner User Guide, Feature Reference &amp; Paper-Planner Method Map</p>
     </div>
     <span class="about-version">
       <span class="material-symbols-outlined icon-16">verified</span> v2.9
@@ -111,6 +111,15 @@
 
       <article class="guide-card">
         <h3 class="guide-card-title">
+          <span class="material-symbols-outlined">sticky_note_2</span> Cross-Linking Notes to Tasks (#task)
+        </h3>
+        <p class="guide-card-text">
+          Write a line like <code>#task [A1] Vendor follow-up</code> anywhere in a day's notes &mdash; or use it as a note card's heading (<code>### #task [A1] ...</code>) &mdash; and Day Planner links that note to Task <code>A1</code>. A small note icon appears next to the task in today's list; click it to jump straight to the linked note, which scrolls into view and expands automatically. The note card, in turn, shows a small <code>&rarr; A1</code> badge pointing back at the task. This is the digital version of the classic paper-planner habit of scribbling a note in the margin under a priority label &mdash; see the method map below. Because the link is keyed to the priority code rather than a permanent task ID, re-prioritizing the task (e.g. <code>A1 &rarr; B2</code>) breaks the link until the tag is updated by hand.
+        </p>
+      </article>
+
+      <article class="guide-card">
+        <h3 class="guide-card-title">
           <span class="material-symbols-outlined">sync</span> 2-Way Workspace Sync
         </h3>
         <p class="guide-card-text">
@@ -118,6 +127,64 @@
         </p>
       </article>
     </section>
+  </section>
+
+  <section aria-labelledby="heading-franklin">
+    <h2 id="heading-franklin" class="about-section-heading">5. Classic Paper-Planner Method, Mapped to This App</h2>
+    <p class="about-paragraph">
+      Day Planner's task, note, and status conventions are deliberately modeled on the
+      Franklin-style paper planner method &mdash; ranked daily task lists, a master list for
+      everything not yet ready to act on, and a daily notes/journal page cross-referenced back
+      to tasks. The table below maps each paper-planner habit to its Day Planner equivalent.
+    </p>
+    <figure class="table-container">
+      <table class="task-table matrix-table">
+        <thead>
+          <tr class="table-header-row">
+            <th scope="col">Paper-Planner Habit</th>
+            <th scope="col">Day Planner Feature</th>
+            <th scope="col">How To Use It Here</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b>ABC priority ranking</b> &mdash; A = must do today, B = should do, C = nice to do, numbered within each letter</td>
+            <td><code>[A1]&ndash;[C9]</code> prefixes</td>
+            <td>Type or edit a task's <code>[A1]</code>-style prefix in its title; the task list re-sorts automatically by priority group and sequence.</td>
+          </tr>
+          <tr>
+            <td><b>Unfinished tasks carried forward</b> to the next day's page</td>
+            <td>Status cycle: <span class="material-symbols-outlined icon-16">fiber_manual_record</span> &rarr; <span class="material-symbols-outlined icon-16">east</span></td>
+            <td>Click a task's status box until it shows the forwarded arrow, the same shorthand used for re-writing an unfinished item on tomorrow's paper page.</td>
+          </tr>
+          <tr>
+            <td><b>Master task list</b> for goals and to-dos not yet scheduled</td>
+            <td><b>Master Task List</b> tab</td>
+            <td>Park monthly Work / Personal / Financial / Projects objectives there; click <b>Move to Today</b> when ready to act &mdash; it assigns an <code>[A1]</code>-style tag and transfers it to today's list.</td>
+          </tr>
+          <tr>
+            <td><b>Daily notes / journal page</b></td>
+            <td>Notes pane</td>
+            <td>One freeform notes document per day, organized into collapsible cards.</td>
+          </tr>
+          <tr>
+            <td><b>Scribbling a note in the margin</b> next to a task's priority label</td>
+            <td><code>#task [A1]</code> tag</td>
+            <td>See <b>Cross-Linking Notes to Tasks</b> above &mdash; jump between a task and its related note in either direction.</td>
+          </tr>
+          <tr>
+            <td><b>Flagging a decision or commitment</b> for later lookup</td>
+            <td><code>#index [Topic] Summary</code> tag</td>
+            <td>Aggregated automatically into the Monthly Index, so a past decision can be found by topic instead of scrolling day by day.</td>
+          </tr>
+          <tr>
+            <td><b>Delegation mark</b> for a task handed off to someone else</td>
+            <td><b>D/&check;</b> status</td>
+            <td>Cycle a task's status box to <b>D/&check;</b> to mark it delegated and confirmed done.</td>
+          </tr>
+        </tbody>
+      </table>
+    </figure>
   </section>
 
   <footer class="about-footer">
