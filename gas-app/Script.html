@@ -1,6 +1,6 @@
 <script>
   // Helper engine definitions bundled for GAS SPA client
-  const STATUS_LIST = ['•', '✓', '→', 'X', 'G/✓'];
+  const STATUS_LIST = ['•', '✓', '→', 'X', 'D/✓'];
 
   function parseTaskTitle(rawTitle = '') {
     if (!rawTitle) return { priorityGroup: null, sequence: null, priorityCode: null, cleanTitle: '' };
@@ -40,7 +40,7 @@
     { value: '✓', label: 'Done' },
     { value: '→', label: 'Forward' },
     { value: 'X', label: 'Canceled' },
-    { value: 'G/✓', label: 'Delegated (Done)' }
+    { value: 'D/✓', label: 'Delegated (Done)' }
   ];
 
   // Mirrors src/taskEngine.js's isValidStatus.

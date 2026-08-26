@@ -44,7 +44,7 @@ equivalents (`gasTaskId` tagging/sync) live in `gas-app/Code.gs` and must stay c
 ### Core engines (`src/`)
 
 - `taskEngine.js` — `[A1]`–`[C9]` priority prefix parsing/formatting, status cycling (`✓`, `→`,
-  `X`, `G/✓`, `•`), master-task-to-daily-task transfer.
+  `X`, `D/✓`, `•`), master-task-to-daily-task transfer.
 - `calendarEngine.js` — 07:00–19:00 time grid, event popup modal payload generation.
 - `syncEngine.js` — 2-way Task ↔ Calendar reconciliation logic (idempotent; tags events with
   `gasTaskId` to link them to tasks).

@@ -82,7 +82,7 @@ clasp deploy --description "Release Update Notes"
 ## 🏛️ Architecture & Data Storage
 
 - **UI & Interaction**: Vanilla CSS + Alpine.js (Classic Day Planner parchment `#fcfbfa`, teal `#2d6a5a`, and serif typography).
-- **Daily Tasks**: Google Tasks API (`[A1]`–`[C9]` priority sequence sorting and status transitions: `✓`, `→`, `X`, `G/✓`, `•`).
+- **Daily Tasks**: Google Tasks API (`[A1]`–`[C9]` priority sequence sorting and status transitions: `✓`, `→`, `X`, `D/✓`, `•`).
 - **Calendar & Schedule**: Google Calendar API with 7:00 AM – 7:00 PM time grid, Google Meet links, and bidirectional time shift synchronization.
 - **Daily Notes & Index**: Partitioned monthly JSON files stored in Google Drive under `Day Planner/notes-YYYY-MM.json` with `#index` registry search.
 - **Client Cache**: Native browser `IndexedDB` with offline outbox queue and Stale-While-Revalidate (SWR) cache validation.

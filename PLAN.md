@@ -18,7 +18,7 @@ The **Google Digital Day Planner** is a high-efficiency single-page digital bind
 
 | Module | Location | Description | Unit Test File | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| **Task Engine** | `src/taskEngine.js` | `[A1]` prefix parsing, status codes (`✓`, `→`, `X`, `G/✓`, `•`), sorting/sequencing, "Move to Today" transfer logic | `tests/taskEngine.test.js` | ✅ Passed (6 tests) |
+| **Task Engine** | `src/taskEngine.js` | `[A1]` prefix parsing, status codes (`✓`, `→`, `X`, `D/✓`, `•`), sorting/sequencing, "Move to Today" transfer logic | `tests/taskEngine.test.js` | ✅ Passed (6 tests) |
 | **Calendar & Schedule** | `src/calendarEngine.js` | 7am-7pm schedule grid formatting, 30-min slot mapping, event popup payload generation (gMeet & gCal links) | `tests/calendarEngine.test.js` | ✅ Passed (4 tests) |
 | **2-Way Sync Engine** | `src/syncEngine.js` | Cross-references Tasks and Calendar Events via `syncId`, syncs task completion/priority to Calendar, and reconciles time shifts | `tests/syncEngine.test.js` | ✅ Passed (5 tests) |
 | **Index & Docs Parser** | `src/indexParser.js` | Daily notes `#index` / `[INDEX]` tag extractor, topic categorization, index table aggregation | `tests/indexParser.test.js` | ✅ Passed (2 tests) |

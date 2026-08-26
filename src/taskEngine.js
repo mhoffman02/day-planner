@@ -15,14 +15,14 @@ export const TASK_STATUSES = {
   COMPLETED: '✓',
   FORWARDED: '→',
   CANCELED: 'X',
-  DELEGATED: 'G/✓'
+  DELEGATED: 'D/✓'
 };
 
 /**
  * List of status codes for status cycling.
  * @type {Array<string>}
  */
-export const STATUS_LIST = ['•', '✓', '→', 'X', 'G/✓'];
+export const STATUS_LIST = ['•', '✓', '→', 'X', 'D/✓'];
 
 /**
  * Human-readable labels for each status glyph in `STATUS_LIST`, in display order.
@@ -35,7 +35,7 @@ export const STATUS_OPTIONS = [
   { value: '✓', label: 'Done' },
   { value: '→', label: 'Forward' },
   { value: 'X', label: 'Canceled' },
-  { value: 'G/✓', label: 'Delegated (Done)' }
+  { value: 'D/✓', label: 'Delegated (Done)' }
 ];
 
 /**

@@ -30,7 +30,7 @@ if ('serviceWorker' in navigator) {
 }
 
 // Helper engine definitions bundled for GAS SPA client
-  const STATUS_LIST = ['•', '✓', '→', 'X', 'G/✓'];
+  const STATUS_LIST = ['•', '✓', '→', 'X', 'D/✓'];
 
   /**
    * Parses a task title that may contain a priority prefix like [A1] or [B3].
@@ -86,7 +86,7 @@ if ('serviceWorker' in navigator) {
     { value: '✓', label: 'Done' },
     { value: '→', label: 'Forward' },
     { value: 'X', label: 'Canceled' },
-    { value: 'G/✓', label: 'Delegated (Done)' }
+    { value: 'D/✓', label: 'Delegated (Done)' }
   ];
 
   /**

@@ -1417,7 +1417,7 @@ function forwardDailyTask(dateStr, taskId, sourceTaskSnapshot, targetDateStr) {
 /**
  * Updates an existing Google Task's title and/or completion status.
  * Only 'completed'/'needsAction' are natively representable by the Tasks API;
- * app-only status states (→ forwarded, X canceled, G/✓ delegated) are treated
+ * app-only status states (→ forwarded, X canceled, D/✓ delegated) are treated
  * as "not completed" for persistence purposes and will read back as '•' on the
  * next fetch, matching getDailyData's existing read-side status mapping.
  * @param {string} dateStr Target date string in YYYY-MM-DD format (unused by the Tasks API, kept for signature parity with the client bridge).
@@ -1441,7 +1441,7 @@ function updateDailyTask(dateStr, taskId, updates) {
       patch.title = updates.title;
     }
     if (updates && updates.status !== undefined) {
-      patch.status = (updates.status === '✓' || updates.status === 'G/✓') ? 'completed' : 'needsAction';
+      patch.status = (updates.status === '✓' || updates.status === 'D/✓') ? 'completed' : 'needsAction';
     }
     if (updates && updates.dueDate !== undefined) {
       patch.due = updates.dueDate + 'T00:00:00.000Z';

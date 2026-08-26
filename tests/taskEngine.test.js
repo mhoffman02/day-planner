@@ -51,8 +51,8 @@ describe('Task Engine Unit Tests', () => {
     assert.equal(getNextStatus('•'), '✓');
     assert.equal(getNextStatus('✓'), '→');
     assert.equal(getNextStatus('→'), 'X');
-    assert.equal(getNextStatus('X'), 'G/✓');
-    assert.equal(getNextStatus('G/✓'), '•');
+    assert.equal(getNextStatus('X'), 'D/✓');
+    assert.equal(getNextStatus('D/✓'), '•');
   });
 
   it('should validate direct status jumps against STATUS_LIST (isValidStatus)', () => {

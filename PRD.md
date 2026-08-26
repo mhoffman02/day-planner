@@ -45,7 +45,7 @@ The application implements a complete suite of Day Planner page views accessible
 
 ### 4.1 Daily View (2-Page Spread)
 * **Left Page: Prioritized Daily Task List**:
-  * Prioritized task grid: Priority (A, B, C), Sequence (1..9), Title, Day Planner status code (`✓` complete, `→` forwarded, `X` canceled, `G/✓` delegated, `•` in-process).
+  * Prioritized task grid: Priority (A, B, C), Sequence (1..9), Title, Day Planner status code (`✓` complete, `→` forwarded, `X` canceled, `D/✓` delegated, `•` in-process).
   * Auto-syncs with Google Tasks using `[A1]` title prefixes.
   * Drag-and-drop or button re-ordering.
 * **Right Page: Appointment Schedule (07:00 AM – 07:00 PM)**:
