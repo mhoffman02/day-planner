@@ -1958,17 +1958,24 @@
         clearTimeout(pending.timer);
         this.toasts = this.toasts.filter(t => t.id !== pending.id);
 
-        const { task, sourceDateStr, targetDate } = pending;
+        const { task, sourceDateStr, targetDate, previousStatus } = pending;
         try {
           const result = await this.bridge.forwardDailyTask(sourceDateStr, task.id, { title: task.title, category: task.category }, targetDate);
           if (!result) {
+            task.status = previousStatus;
             this.errorMessage = `Task "${task.title}" no longer exists in Google Tasks — could not forward it.`;
             return;
           }
-          task.status = result.originalTask.status;
+          // Don't trust the server's echoed-back status here: the Google Tasks API only
+          // natively represents completed/needsAction, so updateDailyTask's response always
+          // downgrades app-only statuses to '•' on the round trip (see its JSDoc in Code.gs).
+          // The optimistic '→' set in startPendingForward is the correct value; keep it.
+          task.status = '→';
+          task.forwardedToDate = targetDate;
           if (result.forwardedTask._queuedOffline) await this.refreshOutboxCount();
           this.showToast(`Forwarded "${task.title}" to ${targetDate}.`, 'success', 6000, 'Task Forwarded');
         } catch (err) {
+          task.status = previousStatus;
           console.error('🔥 commitPendingForward error:', err);
           this.errorMessage = `Could not forward task: ${err.message || err.toString()}`;
         }
