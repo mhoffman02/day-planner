@@ -1031,10 +1031,50 @@ function getLocalDateStr(d = new Date()) {
       startEditingLine(card, idx) {
         if (!card) return;
         card._activeLineIndex = idx;
+        card._selectedLineRange = null;
         this.$nextTick(() => {
           const el = document.getElementById('card-line-' + card.id + '-' + idx);
           if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
         });
+      },
+
+      /**
+       * Extends a whole-line multi-select range on a note card via shift+click on an idle
+       * (non-editing) line. The first shift+click after a plain click/selection anchors the
+       * range at the currently/previously active line (or the clicked line itself if there is
+       * none); subsequent shift+clicks keep that anchor and grow/shrink the range toward the
+       * newly clicked line, mirroring standard shift+click text-selection behavior.
+       * @param {object} card Note card.
+       * @param {number} idx Line index that was shift+clicked.
+       * @returns {void}
+       */
+      extendLineSelection(card, idx) {
+        if (!card) return;
+        const anchor = card._selectedLineRange ? card._selectedLineRange.anchor
+          : (card._activeLineIndex != null ? card._activeLineIndex : idx);
+        card._selectedLineRange = { anchor, start: Math.min(anchor, idx), end: Math.max(anchor, idx) };
+      },
+
+      /**
+       * Clears a note card's whole-line multi-select range (Escape, clicking outside the card,
+       * or starting single-line edit all trigger this).
+       * @param {object} card Note card.
+       * @returns {void}
+       */
+      clearLineSelection(card) {
+        if (card) card._selectedLineRange = null;
+      },
+
+      /**
+       * Whether a line index falls inside a note card's current whole-line multi-select range,
+       * for the highlight class on that line's row.
+       * @param {object} card Note card.
+       * @param {number} idx Line index to check.
+       * @returns {boolean}
+       */
+      isLineInSelectedRange(card, idx) {
+        const r = card && card._selectedLineRange;
+        return !!(r && idx >= r.start && idx <= r.end);
       },
 
       /**
@@ -1129,17 +1169,21 @@ function getLocalDateStr(d = new Date()) {
        * @param {object} card Note card to format.
        * @param {number} idx Line index to format.
        * @param {'bold'|'italic'|'underline'|'strike'|'code'|'bullet'|'ordered'|'color-teal'|'color-red'|'color-green'|'color-blue'|'color-default'} formatType Format to apply.
+       * @param {{start: number, end: number}} [overrideSelection] Explicit substring range to
+       *   treat as "selected", bypassing the DOM/element selection read. Used by
+       *   {@link applyRangeFormat} to drive this same wrap/unwrap logic for whole-line-selected
+       *   ranges without duplicating it.
        * @returns {void}
        */
-      applyLineFormat(card, idx, formatType) {
+      applyLineFormat(card, idx, formatType, overrideSelection) {
         if (!card || idx == null || idx < 0) return;
         const lines = this.cardLines(card);
         if (idx >= lines.length) return;
         const el = document.getElementById('card-line-' + card.id + '-' + idx);
         const text = lines[idx] || '';
-        const hasSelection = !!(el && el.selectionEnd > el.selectionStart);
-        const start = hasSelection ? el.selectionStart : 0;
-        const end = hasSelection ? el.selectionEnd : text.length;
+        const hasSelection = overrideSelection ? true : !!(el && el.selectionEnd > el.selectionStart);
+        const start = overrideSelection ? overrideSelection.start : (hasSelection ? el.selectionStart : 0);
+        const end = overrideSelection ? overrideSelection.end : (hasSelection ? el.selectionEnd : text.length);
 
         const prefixMap = { bold: '**', italic: '*', strike: '~~', code: '`', underline: '__' };
         const colorMap = {
@@ -1151,7 +1195,7 @@ function getLocalDateStr(d = new Date()) {
         };
 
         const restoreSelection = (newStart, newEnd) => {
-          if (!el) return;
+          if (!el || overrideSelection) return;
           this.$nextTick(() => { el.focus(); el.setSelectionRange(newStart, newEnd); });
         };
 
@@ -1195,15 +1239,80 @@ function getLocalDateStr(d = new Date()) {
       },
 
       /**
-       * Toolbar/menu entry point for line formatting -- applies to whichever line of the card
-       * is currently active (being edited). No-ops if no line is active, since the toolbar has
-       * nothing to act on until the user has clicked into a line.
+       * Applies a format to every line in a note card's whole-line multi-select range
+       * (`card._selectedLineRange`), reusing {@link applyLineFormat}'s own wrap/unwrap encode
+       * path for each line rather than duplicating it. Bullet/ordered toggle each line
+       * independently (each line's prefix toggle is already a self-contained per-line op).
+       * For bold/italic/underline/strike/code/color, this is "email client" style: if every
+       * line in range is already wrapped, unwrap all of them; otherwise wrap every line that
+       * isn't already wrapped, leaving already-wrapped lines alone.
+       * @param {object} card Note card to format.
+       * @param {string} formatType Format to apply (see {@link applyLineFormat}).
+       * @returns {void}
+       */
+      applyRangeFormat(card, formatType) {
+        if (!card || !card._selectedLineRange) return;
+        const totalLines = this.cardLines(card).length;
+        const lo = Math.max(0, Math.min(card._selectedLineRange.start, card._selectedLineRange.end));
+        const hi = Math.min(totalLines - 1, Math.max(card._selectedLineRange.start, card._selectedLineRange.end));
+        if (lo > hi) return;
+        const indices = [];
+        for (let i = lo; i <= hi; i++) indices.push(i);
+
+        if (formatType === 'bullet' || formatType === 'ordered' || formatType === 'color-default') {
+          indices.forEach(i => this.applyLineFormat(card, i, formatType));
+          return;
+        }
+
+        const prefixMap = { bold: '**', italic: '*', strike: '~~', code: '`', underline: '__' };
+        if (formatType in prefixMap) {
+          const marker = prefixMap[formatType];
+          const isWrapped = (t) => t.length >= marker.length * 2 && t.startsWith(marker) && t.endsWith(marker);
+          const allWrapped = indices.every(i => isWrapped(this.cardLines(card)[i] || ''));
+          indices.forEach(i => {
+            const t = this.cardLines(card)[i] || '';
+            if (allWrapped) {
+              this.applyLineFormat(card, i, formatType, { start: marker.length, end: t.length - marker.length });
+            } else if (!isWrapped(t)) {
+              this.applyLineFormat(card, i, formatType, { start: 0, end: t.length });
+            }
+          });
+          return;
+        }
+
+        const colorMap = { 'color-teal': 'teal', 'color-red': 'red', 'color-green': 'green', 'color-blue': 'blue' };
+        if (formatType in colorMap) {
+          const color = colorMap[formatType];
+          const sameColorRe = new RegExp(`^\\[\\[color:${color}\\]\\][\\s\\S]*\\[\\[/color\\]\\]$`);
+          const allSameColor = indices.every(i => sameColorRe.test(this.cardLines(card)[i] || ''));
+          indices.forEach(i => {
+            if (allSameColor) {
+              this.applyLineFormat(card, i, 'color-default');
+            } else {
+              this.applyLineFormat(card, i, 'color-default');
+              const t = this.cardLines(card)[i] || '';
+              this.applyLineFormat(card, i, formatType, { start: 0, end: t.length });
+            }
+          });
+        }
+      },
+
+      /**
+       * Toolbar/menu entry point for line formatting. Applies to the whole-line multi-select
+       * range if one is active (see {@link applyRangeFormat}); otherwise applies to whichever
+       * single line is currently active (being edited). No-ops if neither is set, since the
+       * toolbar has nothing to act on until the user has clicked or shift+clicked into a line.
        * @param {object} card Note card to format.
        * @param {string} formatType Format to apply (see {@link applyLineFormat}).
        * @returns {void}
        */
       applyCardFormat(card, formatType) {
-        if (!card || card._activeLineIndex == null) return;
+        if (!card) return;
+        if (card._selectedLineRange && card._activeLineIndex == null) {
+          this.applyRangeFormat(card, formatType);
+          return;
+        }
+        if (card._activeLineIndex == null) return;
         this.applyLineFormat(card, card._activeLineIndex, formatType);
       },
 

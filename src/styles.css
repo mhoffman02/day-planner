@@ -1451,6 +1451,11 @@ button.event-pill:hover {
   margin: 0;
 }
 
+.note-card-line-row.note-line-selected {
+  background: var(--theme-table-row-hover);
+  border-radius: 4px;
+}
+
 .note-card-line-input {
   display: block;
   width: 100%;

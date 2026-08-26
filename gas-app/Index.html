@@ -381,7 +381,7 @@
 
               <!-- Cards List -->
               <template x-for="card in filteredNoteCards" :key="card.id">
-                <article class="note-card-item" :id="'note-card-' + card.id" :class="{ 'collapsed': card.collapsed, 'note-color-teal': cardNoteColor(card) === 'teal', 'note-color-red': cardNoteColor(card) === 'red', 'note-color-green': cardNoteColor(card) === 'green', 'note-color-blue': cardNoteColor(card) === 'blue' }">
+                <article class="note-card-item" :id="'note-card-' + card.id" :class="{ 'collapsed': card.collapsed, 'note-color-teal': cardNoteColor(card) === 'teal', 'note-color-red': cardNoteColor(card) === 'red', 'note-color-green': cardNoteColor(card) === 'green', 'note-color-blue': cardNoteColor(card) === 'blue' }" @click.away="clearLineSelection(card)" @keydown.escape.window="clearLineSelection(card)">
                   <!-- Card Header -->
                   <header class="note-card-header">
                     <button type="button" class="card-twistie-btn" @click="toggleCardExpand(card)" :title="card.collapsed ? 'Expand Topic' : 'Collapse Topic'">
@@ -430,8 +430,8 @@
                     <!-- Note Card Content: per-line live preview. Each line renders as styled HTML until clicked, then becomes a raw-marker input for just that one line -- so formatting/list toggles can never leak onto lines the user didn't touch. -->
                     <div class="note-card-lines">
                       <template x-for="(line, idx) in cardLines(card)" :key="idx">
-                        <div class="note-card-line-row">
-                          <div class="note-render-line-item" x-show="card._activeLineIndex !== idx" @click="startEditingLine(card, idx)" x-html="renderCardLine(line, cardLines(card).length === 1 && !line)" aria-label="Note line, click to edit"></div>
+                        <div class="note-card-line-row" :class="{ 'note-line-selected': isLineInSelectedRange(card, idx) }">
+                          <div class="note-render-line-item" x-show="card._activeLineIndex !== idx" @click="$event.shiftKey ? extendLineSelection(card, idx) : startEditingLine(card, idx)" x-html="renderCardLine(line, cardLines(card).length === 1 && !line)" aria-label="Note line, click to edit, shift+click to extend selection"></div>
                           <input type="text" x-show="card._activeLineIndex === idx" :id="'card-line-' + card.id + '-' + idx" :value="line" @input="updateCardLine(card, idx, $event.target.value)" @keydown="handleLineKeydown($event, card, idx)" @blur="stopEditingLine(card, idx)" :placeholder="cardLines(card).length === 1 && idx === 0 ? 'Type notes for this topic (e.g. - #index [Topic] key decisions...)' : ''" class="note-card-line-input" aria-label="Note line">
                         </div>
                       </template>
