@@ -174,6 +174,8 @@ function doGet(e) {
  * token (see readDriveFileContent below). These handles wrap that so the rest of the file
  * can keep calling .getId()/.getName()/.getFilesByName()/.createFile()/.getBlob() etc.
  * like it did against a real DriveApp Folder/File.
+ * @param {{id: string, name: string}} meta File metadata object with id and name properties.
+ * @returns {object} File handle with getId/getName/getBlob/setContent methods.
  */
 function makeFileHandle(meta) {
   var fileId = meta.id;
@@ -469,6 +471,7 @@ function testDoGetInIDE() {
  * Direct OAuth Consent Trigger:
  * Select "grantAllPermissions" in the Apps Script IDE toolbar and click "Run".
  * Directly calls DriveApp, CalendarApp, and Tasks under least-privilege scopes (drive.file, calendar, tasks).
+ * @returns {string} Success confirmation string 'SUCCESS'.
  */
 function grantAllPermissions() {
   Logger.log('Triggering DriveApp (drive.file) authorization...');

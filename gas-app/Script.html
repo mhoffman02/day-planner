@@ -2,6 +2,7 @@
   // Helper engine definitions bundled for GAS SPA client
   const STATUS_LIST = ['•', '✓', '→', 'X', 'D/✓'];
 
+  // Parses a task title to extract priority group, sequence, priority code, and clean title.
   function parseTaskTitle(rawTitle = '') {
     if (!rawTitle) return { priorityGroup: null, sequence: null, priorityCode: null, cleanTitle: '' };
     const match = rawTitle.match(/^\[([A-C])([1-9])\]\s*(.*)$/i);
@@ -16,17 +17,20 @@
     return { priorityGroup: null, sequence: null, priorityCode: null, cleanTitle: rawTitle.trim() };
   }
 
+  // Formats a priority group and sequence into a task title prefix like [A1].
   function formatTaskTitle(priorityGroup, sequence, cleanTitle) {
     const trimmed = (cleanTitle || '').trim();
     if (priorityGroup && sequence) return `[${priorityGroup.toUpperCase()}${sequence}] ${trimmed}`;
     return trimmed;
   }
 
+  // Strips priority prefixes and status glyphs from a task title.
   function getCleanTitle(title = '') {
     if (!title) return '';
     return title.replace(/^(\s*\[(?:✓|[A-Za-z][1-9])\]\s*)+/gi, '').trim();
   }
 
+  // Cycles to the next status glyph in STATUS_LIST.
   function getNextStatus(currentStatus) {
     const idx = STATUS_LIST.indexOf(currentStatus);
     if (idx === -1 || idx === STATUS_LIST.length - 1) return STATUS_LIST[0];
@@ -51,6 +55,7 @@
   // Future Planning Matrix (12-month overview) — mirrors src/futureMatrixEngine.js
   const FUTURE_MONTH_KEYS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
 
+  // Creates a new future matrix item with generated id, title, category, and timestamp.
   function createFutureItem(title, category = 'General') {
     return {
       id: `fm_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -61,6 +66,7 @@
     };
   }
 
+  // Increments a YYYY-MM month key to the next month, wrapping year at December.
   function nextMonthKey(monthKey) {
     const [yearStr, monthStr] = monthKey.split('-');
     let year = parseInt(yearStr, 10);
@@ -72,6 +78,7 @@
     return `${year}-${String(month).padStart(2, '0')}`;
   }
 
+  // Creates a new year matrix with empty month arrays for all 12 months.
   function emptyYearMatrix(year) {
     const months = {};
     FUTURE_MONTH_KEYS.forEach(mm => {
@@ -80,6 +87,7 @@
     return { year: String(year), months };
   }
 
+  // Syncs a task's title/status to a linked calendar event, creating a new event if time-blocked.
   function syncTaskToCalendar(task, calendarEvents = []) {
     const parsed = parseTaskTitle(task.title);
     const cleanTitle = getCleanTitle(parsed.cleanTitle || task.title);
@@ -134,6 +142,7 @@
     };
   }
 
+  // Syncs a calendar event's title/status back to its linked task, if one exists.
   function syncCalendarToTask(calendarEvent, dailyTasks = []) {
     const linkedTaskId = calendarEvent.syncTaskId || (calendarEvent.extendedProperties && calendarEvent.extendedProperties.private && calendarEvent.extendedProperties.private.gasTaskId);
     let targetTask = linkedTaskId ? dailyTasks.find(t => t.id === linkedTaskId) : null;
@@ -175,6 +184,7 @@
     };
   }
 
+  // Two-way reconciles tasks and calendar events, syncing changes bidirectionally.
   function reconcileWorkspaceChanges(dailyTasks = [], calendarEvents = []) {
     const reconciledTasks = [...dailyTasks];
     const reconciledEvents = [...calendarEvents];
@@ -225,6 +235,7 @@
   // race a fresher single-day write or a pending offline edit.
   const IDB_STORE_MONTH_OVERVIEW = 'monthOverview';
 
+  // Checks if IndexedDB is available in this browser environment.
   function idbSupported() {
     return typeof indexedDB !== 'undefined' && indexedDB !== null;
   }
@@ -265,6 +276,7 @@
     return idbDbPromise;
   }
 
+  // Retrieves cached daily data (tasks, events, notes) for a given date from IndexedDB.
   async function idbGetDaily(dateStr) {
     const db = await idbOpen();
     if (!db) return null;
@@ -280,6 +292,7 @@
     });
   }
 
+  // Saves cached daily data to IndexedDB for a given date.
   async function idbSaveDaily(dateStr, payload) {
     const db = await idbOpen();
     if (!db) return false;
@@ -296,6 +309,7 @@
     });
   }
 
+  // Retrieves cached month overview (all days' events/tasks) from IndexedDB.
   async function idbGetMonthOverview(monthStr) {
     const db = await idbOpen();
     if (!db) return null;
@@ -311,6 +325,7 @@
     });
   }
 
+  // Saves cached month overview to IndexedDB for a given month.
   async function idbSaveMonthOverview(monthStr, days) {
     const db = await idbOpen();
     if (!db) return false;
@@ -327,6 +342,7 @@
     });
   }
 
+  // Queues an offline mutation (create/update) to the outbox for later syncing.
   async function idbEnqueueMutation(type, payload) {
     const db = await idbOpen();
     const mutation = { type, payload, enqueuedAt: new Date().toISOString() };
@@ -343,6 +359,7 @@
     });
   }
 
+  // Retrieves all queued offline mutations from the outbox store.
   async function idbGetOutbox() {
     const db = await idbOpen();
     if (!db) return [];
@@ -358,6 +375,7 @@
     });
   }
 
+  // Removes a successfully synced mutation from the outbox.
   async function idbDequeueMutation(id) {
     const db = await idbOpen();
     if (!db) return false;
@@ -462,11 +480,13 @@
       };
     }
 
+    // Checks whether navigator.onLine indicates an active network connection.
     isOnline() {
       if (typeof navigator === 'undefined' || typeof navigator.onLine !== 'boolean') return true;
       return navigator.onLine;
     }
 
+    // Executes a Google Apps Script server-side function via google.script.run, returning a promise.
     _runGasCall(fnName, args) {
       return new Promise((resolve, reject) => {
         window.google.script.run
@@ -476,6 +496,7 @@
       });
     }
 
+    // Replays queued offline mutations to the server in FIFO order, reconciling temp ids.
     async flushOutbox(onResolved) {
       if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
         return { flushed: 0, remaining: 0, failed: 0 };
@@ -535,6 +556,7 @@
       return { flushed, remaining: remainingOutbox.length, failed };
     }
 
+    // Fetches daily workspace data (tasks, events, notes) for a given date.
     async getDailyData(dateStr) {
       if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
         const seedTasks = this.mockData.dailyTasks[dateStr] || this.mockData.dailyTasks['2026-08-15'] || [];
@@ -564,6 +586,7 @@
       });
     }
 
+    // Fetches all days' workspace data (tasks, events) for an entire month.
     async getMonthData(monthStr) {
       if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
         const [y, m] = monthStr.split('-').map(Number);
@@ -589,6 +612,7 @@
       });
     }
 
+    // Fetches the master task list (backlog of multi-month projects).
     async getMasterTasks(monthYearStr) {
       if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
         return this.mockData.masterTasks;
@@ -602,6 +626,7 @@
       });
     }
 
+    // Creates a new task for a specific date; queues offline if network unavailable.
     async addDailyTask(dateStr, title, category = 'General') {
       if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
         if (!this.mockData.dailyTasks[dateStr]) {
@@ -630,6 +655,7 @@
       return { id: tempId, title, status: '•', category, dueDate: dateStr, _queuedOffline: true };
     }
 
+    // Moves a master task to a daily task list with a priority prefix.
     async transferMasterTask(masterTaskId, dateStr, priorityGroup = 'A') {
       const masterTask = (this.mockData.masterTasks || []).find(m => m.id === masterTaskId);
       const cleanTitle = masterTask ? masterTask.title : 'Transferred Task';
@@ -639,6 +665,7 @@
       return this.addDailyTask(dateStr, formattedTitle, category);
     }
 
+    // Fetches the 12-month future planning matrix for a given year.
     async getFutureMatrix(year) {
       if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
         if (!this.mockData.futureMatrix[year]) {
@@ -649,6 +676,7 @@
       return this._runGasCall('getFutureMatrix', [year]);
     }
 
+    // Creates a new future matrix item in the given month.
     async addFutureItem(year, monthKey, title, category = 'General') {
       if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
         if (!this.mockData.futureMatrix[year]) {
@@ -663,6 +691,7 @@
       return this._runGasCall('addFutureItem', [year, monthKey, title, category]);
     }
 
+    // Updates the status (open/done/canceled/etc.) of a future matrix item.
     async updateFutureItemStatus(year, monthKey, itemId, status) {
       if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
         const items = this.mockData.futureMatrix[year]?.months?.[monthKey] || [];
@@ -674,6 +703,7 @@
       return this._runGasCall('updateFutureItemStatus', [year, monthKey, itemId, status]);
     }
 
+    // Moves a future matrix item to a daily task list on a specific date.
     async transferFutureItem(year, monthKey, itemId, dateStr, priorityGroup = 'A') {
       if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
         const items = this.mockData.futureMatrix[year]?.months?.[monthKey] || [];
@@ -687,6 +717,7 @@
       return this._runGasCall('transferFutureItem', [year, monthKey, itemId, dateStr, priorityGroup]);
     }
 
+    // Advances a future matrix item to the next month.
     async pushFutureItemToNextMonth(year, monthKey, itemId) {
       if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
         const items = this.mockData.futureMatrix[year]?.months?.[monthKey] || [];
@@ -707,6 +738,7 @@
       return this._runGasCall('pushFutureItemToNextMonth', [year, monthKey, itemId]);
     }
 
+    // Updates a daily task's properties (title, status, etc.); queues offline if needed.
     async updateDailyTask(dateStr, taskId, updates = {}) {
       if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
         const tasks = this.mockData.dailyTasks[dateStr] || this.mockData.dailyTasks['2026-08-15'] || [];
@@ -729,6 +761,7 @@
       return { id: taskId, ...updates, _queuedOffline: true };
     }
 
+    // Moves a task to a target date with forwarded status, marking the original as "→".
     async forwardDailyTask(dateStr, taskId, sourceTaskSnapshot, targetDateStr) {
       const resolvedTargetDate = targetDateStr || (() => {
         const [y, m, d] = dateStr.split('-').map(Number);
@@ -754,6 +787,7 @@
       return this._runGasCall('forwardDailyTask', [dateStr, taskId, sourceTaskSnapshot, resolvedTargetDate]);
     }
 
+    // Creates a new calendar event with optional Google Meet link and meeting agenda doc.
     async addCalendarEvent(dateStr, eventData = {}) {
       if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
         if (!this.mockData.calendarEvents[dateStr]) {
@@ -832,6 +866,7 @@
       };
     }
 
+    // Updates a calendar event's properties (title, time, etc.); queues offline if needed.
     async updateCalendarEvent(dateStr, eventId, updates = {}) {
       if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
         const events = this.mockData.calendarEvents[dateStr] || this.mockData.calendarEvents['2026-08-15'] || [];
@@ -854,6 +889,7 @@
       return { id: eventId, ...updates, _queuedOffline: true };
     }
 
+    // Persists daily note content to the backend; queues offline if needed.
     async saveDailyDocCards(dateStr, noteContent) {
       if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
         this.mockData.dailyNotes[dateStr] = noteContent;
@@ -872,6 +908,7 @@
     }
   }
 
+  // Formats a date as a local YYYY-MM-DD string, avoiding UTC shift bugs.
   function getLocalDateStr(d = new Date()) {
     if (typeof d === 'string') {
       if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
@@ -929,6 +966,7 @@
       _monthPrefetchInFlight: new Set(),
       outboxCount: 0,
 
+      // Displays a dismissible toast notification with a message, type, and optional title.
       showToast(message, type = 'info', duration = 10000, title = '') {
         const id = 't_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
         const toastTitle = title || (type === 'error' ? 'Notice' : type === 'warning' ? 'Warning' : type === 'success' ? 'Success' : 'Information');
@@ -940,6 +978,7 @@
         }, duration);
       },
 
+      // Removes a toast from the display; handles pending forwards specially.
       dismissToast(id) {
         const toast = this.toasts.find(t => t.id === id);
         if (toast && toast.kind === 'task-forward' && !toast.settled) {
@@ -955,6 +994,33 @@
         const [y, m, d] = dateStr.split('-').map(Number);
         const next = new Date(y, m - 1, d + delta);
         return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`;
+      },
+
+      // Returns filtered note cards based on search query and category filter.
+      get filteredNoteCards() {
+        const q = (this.noteCardSearchQuery || '').trim().toLowerCase();
+        const cat = this.noteCardCategoryFilter;
+
+        return (this.noteCards || []).filter(card => {
+          const matchCat = cat === 'ALL' || card.category === cat;
+          const matchText = !q || (card.heading || '').toLowerCase().includes(q) || (card.content || '').toLowerCase().includes(q);
+          return matchCat && matchText;
+        });
+      },
+
+      // Checks if the current view is one of the monthly views.
+      get isMonthlyView() {
+        return ['monthly-calendar', 'master-tasks', 'monthly-index', 'future-matrix'].includes(this.activeView);
+      },
+
+      // Returns the name of the currently selected month.
+      get selectedMonthName() {
+        return new Date(this.selectedYear, this.selectedMonth - 1, 1).toLocaleDateString('en-US', { month: 'long' });
+      },
+
+      // Returns the name of the current month.
+      get currentMonthName() {
+        return new Date().toLocaleDateString('en-US', { month: 'long' });
       },
 
       // Modals
@@ -1017,6 +1083,7 @@
         return new Date().toLocaleDateString('en-US', { month: 'long' });
       },
 
+      // Initializes the app: loads data, sets up sync/keyboard handlers, and prefetches months.
       async init() {
         this.bridge = new GASBridge(false);
         window.showToast = (msg, type, dur, title) => this.showToast(msg, type, dur, title);
@@ -1031,6 +1098,7 @@
         this._scheduleMonthWindowPrefetch(this.selectedDate.slice(0, 7));
       },
 
+      // Updates the count of pending offline mutations in the outbox.
       async refreshOutboxCount() {
         try {
           const outbox = await idbGetOutbox();
@@ -1074,6 +1142,7 @@
         this.buildScheduleGrid();
       },
 
+      // Loads the list of recently-used meeting attendees for autocomplete.
       async loadRecentAttendees() {
         try {
           if (this.bridge && typeof this.bridge.getRecentAttendees === 'function') {
@@ -1087,6 +1156,7 @@
         }
       },
 
+      // Sets up periodic auto-sync and visibility/online event listeners.
       setupAutoSync() {
         if (this._autoSyncTimer) clearInterval(this._autoSyncTimer);
         this._autoSyncTimer = setInterval(() => {
@@ -1108,6 +1178,7 @@
         });
       },
 
+      // Loads persisted column widths from localStorage or uses defaults.
       initColumnWidths() {
         try {
           const saved = localStorage.getItem('dayPlannerColumnWidths');
@@ -1123,6 +1194,7 @@
         }
       },
 
+      // Debounces saving column widths to localStorage to avoid excessive writes.
       saveColumnWidthsDebounced(delay = 500) {
         if (this._colWidthsSaveTimer) {
           clearTimeout(this._colWidthsSaveTimer);
@@ -1136,6 +1208,7 @@
         }, delay);
       },
 
+      // Resets column widths to defaults and removes saved preference.
       resetColumnWidths() {
         if (this._colWidthsSaveTimer) {
           clearTimeout(this._colWidthsSaveTimer);
@@ -1146,6 +1219,7 @@
         } catch (e) {}
       },
 
+      // Initiates a column resize drag operation with pointer tracking.
       initResize(resizerIdx, event) {
         if (event.type === 'mousedown' && event.button !== 0) return;
         event.preventDefault();
@@ -1223,6 +1297,7 @@
         window.addEventListener('touchend', onPointerUp);
       },
 
+      // Loads saved theme preference or detects system preference.
       initTheme() {
         try {
           const saved = localStorage.getItem('dayPlannerTheme');
@@ -1239,6 +1314,7 @@
         this.applyTheme();
       },
 
+      // Toggles between light and dark themes and persists the choice.
       toggleTheme() {
         this.theme = this.theme === 'dark' ? 'light' : 'dark';
         try {
@@ -1247,10 +1323,12 @@
         this.applyTheme();
       },
 
+      // Applies the current theme by setting the data-theme attribute on the root element.
       applyTheme() {
         document.documentElement.setAttribute('data-theme', this.theme);
       },
 
+      // Sets up keyboard shortcuts (Ctrl/Cmd+K for search).
       setupKeyboardShortcuts() {
         window.addEventListener('keydown', (e) => {
           if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
@@ -1260,6 +1338,7 @@
         });
       },
 
+      // Syncs daily tasks and calendar events bidirectionally with the backend.
       async trigger2WaySync(silent = false) {
         // isSyncing must gate silent runs too, not just user-initiated ones — the
         // 5-minute interval, visibilitychange, and online listeners all fire silent
@@ -1356,6 +1435,7 @@
         }
       },
 
+      // Switches to a different view (daily, monthly-calendar, etc.); loads data as needed.
       async setView(viewName) {
         this.activeView = viewName;
         if (viewName === 'monthly-calendar') {
@@ -1367,14 +1447,17 @@
         }
       },
 
+      // Generates a YYYY-MM month key for the future matrix.
       futureMonthKey(mm) {
         return `${this.futureMatrixYear}-${mm}`;
       },
 
+      // Retrieves all items in a future matrix month.
       futureMonthItems(mm) {
         return this.futureMatrix.months?.[this.futureMonthKey(mm)] || [];
       },
 
+      // Loads the future matrix for the selected year from the backend.
       async loadFutureMatrix() {
         try {
           const matrix = await this.bridge.getFutureMatrix(this.futureMatrixYear);
@@ -1390,11 +1473,13 @@
         }
       },
 
+      // Changes the future matrix year by a delta and reloads the data.
       async changeFutureMatrixYear(delta) {
         this.futureMatrixYear += delta;
         await this.loadFutureMatrix();
       },
 
+      // Adds a new future item to a month in the future matrix.
       async addFutureItemToMonth(mm) {
         const monthKey = this.futureMonthKey(mm);
         const title = (this.newFutureItemTitle[monthKey] || '').trim();
@@ -1411,6 +1496,7 @@
         }
       },
 
+      // Cycles a future item's status to the next glyph.
       async toggleFutureItemStatus(mm, item) {
         const monthKey = this.futureMonthKey(mm);
         item.status = getNextStatus(item.status);
@@ -1422,6 +1508,7 @@
         }
       },
 
+      // Moves a future matrix item to today's daily task list.
       async transferFutureItemToDay(mm, item) {
         const monthKey = this.futureMonthKey(mm);
         const targetDate = item._transferDate;
@@ -1440,6 +1527,7 @@
         }
       },
 
+      // Pushes a future item forward to the next month.
       async pushFutureItemForward(mm, item) {
         const monthKey = this.futureMonthKey(mm);
         try {
@@ -1456,6 +1544,7 @@
         }
       },
 
+      // Navigates to a day by delta (e.g., +1 for tomorrow); loads data for that day.
       async navigateDay(delta) {
         const [y, m, day] = this.selectedDate.split('-').map(Number);
         const d = new Date(y, m - 1, day + delta);
@@ -1467,6 +1556,7 @@
         await this.loadDayData();
       },
 
+      // Navigates to a month by delta (e.g., +1 for next month); updates all views as needed.
       async navigateMonth(delta) {
         const [y, m] = this.selectedDate.split('-').map(Number);
         const d = new Date(y, m - 1 + delta, 1);
@@ -1482,6 +1572,7 @@
         this._scheduleMonthWindowPrefetch(this.selectedDate.slice(0, 7));
       },
 
+      // Jumps to the current month and loads its data.
       async jumpToCurrentMonth() {
         const now = new Date();
         this.selectedYear = now.getFullYear();
@@ -1496,6 +1587,7 @@
         this._scheduleMonthWindowPrefetch(this.selectedDate.slice(0, 7));
       },
 
+      // Jumps to today and loads its data.
       async jumpToToday() {
         this.selectedDate = getLocalDateStr();
         const [y, m] = this.selectedDate.split('-').map(Number);
@@ -1505,11 +1597,13 @@
         this._scheduleMonthWindowPrefetch(this.selectedDate.slice(0, 7));
       },
 
+      // Resets note card search query and category filter to defaults.
       clearNoteCardFilter() {
         this.noteCardSearchQuery = '';
         this.noteCardCategoryFilter = 'ALL';
       },
 
+      // Selects a calendar day from the monthly view and loads its data.
       async selectCalendarDay(day) {
         if (day && day.dateStr) {
           this.selectedDate = day.dateStr;
@@ -1535,6 +1629,7 @@
         this._prefetchSurroundingDays(dateStr);
       },
 
+      // Applies loaded daily data to component state and rebuilds related views.
       _applyDailyData(data) {
         this.dailyTasks = data.tasks || [];
         this.calendarEvents = data.calendarEvents || [];
@@ -1570,6 +1665,7 @@
         }
       },
 
+      // Fetches daily data from the backend and caches it; optionally applies if still current.
       async _fetchAndCacheDay(dateStr, { applyIfCurrent = false } = {}) {
         try {
           const data = await this.bridge.getDailyData(dateStr);
@@ -1619,6 +1715,7 @@
         }
       },
 
+      // Prefetches a month's worth of daily data, using cache if recent enough.
       async _prefetchMonth(monthStr, { force = false } = {}) {
         if (this._monthPrefetchInFlight.has(monthStr)) return null;
         if (!force) {
@@ -1642,6 +1739,7 @@
         }
       },
 
+      // Queues prefetch of current month and neighboring months during browser idle time.
       _scheduleMonthWindowPrefetch(centerMonthStr) {
         const [y, m] = centerMonthStr.split('-').map(Number);
         const queue = [centerMonthStr, this._monthStrOffset(y, m, 1), this._monthStrOffset(y, m, -1)];
@@ -1654,11 +1752,13 @@
         runNext();
       },
 
+      // Calculates a YYYY-MM month key offset by months from a given year/month.
       _monthStrOffset(year, month, deltaMonths) {
         const d = new Date(year, month - 1 + deltaMonths, 1);
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       },
 
+      // Adds a new note card to the daily notes.
       addNoteCard() {
         const newCard = {
           id: `nc_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -1671,11 +1771,13 @@
         this.syncCardsToDailyNote();
       },
 
+      // Removes a note card from the daily notes.
       deleteNoteCard(cardId) {
         this.noteCards = this.noteCards.filter(c => c.id !== cardId);
         this.syncCardsToDailyNote();
       },
 
+      // Toggles a note card's collapsed state.
       toggleCardExpand(card) {
         if (card) card.collapsed = !card.collapsed;
       },
@@ -1683,6 +1785,65 @@
       // Splits a note card's content into its lines for per-line live-preview editing.
       cardLines(card) {
         return ((card && card.content) || '').split('\n');
+      },
+
+      // Parses markdown-style daily note text into structured note cards.
+      parseDailyNoteToCards(noteText = '') {
+        if (!noteText.trim() || noteText.startsWith('No notes recorded for')) {
+          return [
+            { id: 'nc_1', heading: '#index [Architecture] System Design', content: 'Finalized 3-column binder layout with Alpine.js and clean CSS.', category: 'Work', collapsed: false },
+            { id: 'nc_2', heading: '#index [Finance] Budget Sync', content: '- Reviewed Q3 budget and Google Workspace API sync.\n- Approved GCP allocation.', category: 'Meeting', collapsed: false }
+          ];
+        }
+
+        const lines = noteText.split('\n');
+        const cards = [];
+        let currentCard = null;
+
+        lines.forEach(line => {
+          if (line.startsWith('### ') || line.startsWith('# ')) {
+            let headingClean = line.replace(/^#+\s*/, '').trim();
+            // Skip document date header lines (e.g., "# Aug 15, 2026") from creating boxed topic cards
+            if (/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},\s*\d{4}$/i.test(headingClean) ||
+                /^\d{4}-\d{2}-\d{2}$/.test(headingClean)) {
+              return;
+            }
+            if (currentCard) cards.push(currentCard);
+            headingClean = headingClean.replace(/Daily Log\s*-\s*/i, '');
+            headingClean = headingClean.replace(/January/i, 'Jan')
+                                       .replace(/February/i, 'Feb')
+                                       .replace(/March/i, 'Mar')
+                                       .replace(/April/i, 'Apr')
+                                       .replace(/June/i, 'Jun')
+                                       .replace(/July/i, 'Jul')
+                                       .replace(/August/i, 'Aug')
+                                       .replace(/September/i, 'Sep')
+                                       .replace(/October/i, 'Oct')
+                                       .replace(/November/i, 'Nov')
+                                       .replace(/December/i, 'Dec');
+            const category = headingClean.toLowerCase().includes('meeting') ? 'Meeting' : headingClean.toLowerCase().includes('finance') ? 'Decision' : headingClean.toLowerCase().includes('personal') ? 'Personal' : 'Work';
+            currentCard = {
+              id: `nc_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+              heading: headingClean,
+              content: '',
+              category,
+              collapsed: false
+            };
+          } else {
+            if (!currentCard) {
+              currentCard = {
+                id: `nc_default_${Date.now()}`,
+                heading: 'General Notes',
+                content: '',
+                category: 'Work',
+                collapsed: false
+              };
+            }
+            currentCard.content += (currentCard.content ? '\n' : '') + line;
+          }
+        });
+        if (currentCard) cards.push(currentCard);
+        return cards;
       },
 
       // Activates a single line of a note card for raw-marker editing, swapping that line's
@@ -1752,8 +1913,16 @@
           const lines = this.cardLines(card);
           const caret = e.target.selectionStart;
           const text = lines[idx] || '';
-          lines[idx] = text.slice(0, caret);
-          lines.splice(idx + 1, 0, text.slice(caret));
+          const before = text.slice(0, caret);
+          let after = text.slice(caret);
+          const orderedMatch = /^(\d+)\.\s/.exec(before);
+          if (orderedMatch) {
+            after = `${parseInt(orderedMatch[1], 10) + 1}. ${after}`;
+          } else if (/^- /.test(before)) {
+            after = `- ${after}`;
+          }
+          lines[idx] = before;
+          lines.splice(idx + 1, 0, after);
           card.content = lines.join('\n');
           this.syncCardsToDailyNote();
           this.startEditingLine(card, idx + 1);
@@ -1797,6 +1966,32 @@
       // single line being edited, it can never leak onto lines the user didn't touch.
       // overrideSelection lets applyRangeFormat drive this same wrap/unwrap logic for a
       // whole-line-selected range without duplicating it, bypassing the DOM/element selection.
+      //
+      // Determines what number an ordered-list line should take when it starts or continues
+      // a numbered list: one more than the immediately preceding line's number if that line is
+      // itself an ordered-list item, otherwise 1 (starting a new list).
+      nextOrderedNumber(lines, idx) {
+        const m = idx > 0 ? /^(\d+)\.\s/.exec(lines[idx - 1] || '') : null;
+        return m ? parseInt(m[1], 10) + 1 : 1;
+      },
+
+      // Strips every inline/whole-line format marker from a line's raw text, returning plain
+      // text: bold/italic/underline/strike/code wrappers, color spans, and bullet/ordered
+      // prefixes are all removed. Bold is stripped before italic since ** is a superset of
+      // the * italic marker.
+      clearLineFormatting(text) {
+        let t = text || '';
+        t = t.replace(/\[\[color:(?:teal|red|green|blue)\]\]([\s\S]*?)\[\[\/color\]\]/g, '$1');
+        t = t.replace(/^-\s/, '');
+        t = t.replace(/^\d+\.\s/, '');
+        t = t.replace(/\*\*([\s\S]*?)\*\*/g, '$1');
+        t = t.replace(/__([\s\S]*?)__/g, '$1');
+        t = t.replace(/~~([\s\S]*?)~~/g, '$1');
+        t = t.replace(/`([\s\S]*?)`/g, '$1');
+        t = t.replace(/\*([\s\S]*?)\*/g, '$1');
+        return t;
+      },
+
       applyLineFormat(card, idx, formatType, overrideSelection) {
         if (!card || idx == null || idx < 0) return;
         const lines = this.cardLines(card);
@@ -1827,11 +2022,13 @@
           this.syncCardsToDailyNote();
         };
 
-        if (formatType === 'bullet') {
+        if (formatType === 'clear') {
+          setLine(this.clearLineFormatting(text));
+        } else if (formatType === 'bullet') {
           setLine(text.startsWith('- ') ? text.slice(2) : `- ${text}`);
         } else if (formatType === 'ordered') {
           const orderedRe = /^\d+\.\s/;
-          setLine(orderedRe.test(text) ? text.replace(orderedRe, '') : `1. ${text}`);
+          setLine(orderedRe.test(text) ? text.replace(orderedRe, '') : `${this.nextOrderedNumber(lines, idx)}. ${text}`);
         } else if (formatType in colorMap) {
           const newColor = colorMap[formatType];
           if (!newColor) {
@@ -1876,7 +2073,7 @@
         const indices = [];
         for (let i = lo; i <= hi; i++) indices.push(i);
 
-        if (formatType === 'bullet' || formatType === 'ordered' || formatType === 'color-default') {
+        if (formatType === 'bullet' || formatType === 'ordered' || formatType === 'color-default' || formatType === 'clear') {
           indices.forEach(i => this.applyLineFormat(card, i, formatType));
           return;
         }
@@ -2028,6 +2225,7 @@
         return cards;
       },
 
+      // Syncs daily note text to card objects and persists the change.
       syncCardsToDailyNote() {
         if (!this.noteCards || this.noteCards.length === 0) {
           this.dailyNote = '';
@@ -2040,6 +2238,7 @@
         this.scheduleDailyNoteSave();
       },
 
+      // Syncs the raw daily note text back to card objects.
       syncDailyNoteToCards() {
         this.noteCards = this.parseDailyNoteToCards(this.dailyNote);
         this.buildIndexRecords();
@@ -2064,6 +2263,7 @@
         }, 1200);
       },
 
+      // Loads the master task list (multi-month backlog projects).
       async loadMasterTasks() {
         try {
           this.masterTasks = await this.bridge.getMasterTasks(`${this.selectedMonthName} ${this.selectedYear}`);
@@ -2073,6 +2273,7 @@
         }
       },
 
+      // Builds the time-grid display (07:00–19:00) with mapped calendar events.
       buildScheduleGrid() {
         const slots = [];
         for (let hour = 7; hour < 19; hour++) {
@@ -2107,6 +2308,7 @@
         this.scheduleGrid = slots;
       },
 
+      // Extracts #index entries from daily notes for the monthly index.
       buildIndexRecords() {
         this.buildTaskNoteLinks();
         if (!this.dailyNote) return;
@@ -2127,6 +2329,7 @@
         this.indexRecords = entries;
       },
 
+      // Extracts #task entries from daily notes to link tasks to notes.
       buildTaskNoteLinks() {
         if (!this.dailyNote) {
           this.taskNoteLinks = [];
@@ -2148,12 +2351,14 @@
         this.taskNoteLinks = links;
       },
 
+      // Finds the linked note entry (if any) for a task by priority code match.
       linkedNoteForTask(task) {
         const priorityCode = this.parseTask(task.title).priorityCode;
         if (!priorityCode) return null;
         return this.taskNoteLinks.find(link => link.priority === priorityCode) || null;
       },
 
+      // Scrolls to and expands the note card linked to a task.
       jumpToLinkedNote(task) {
         const link = this.linkedNoteForTask(task);
         if (!link) return;
@@ -2167,6 +2372,7 @@
         });
       },
 
+      // Finds a task link (if any) that references a note card by heading or content match.
       taskLinkForCard(card) {
         return this.taskNoteLinks.find(link =>
           (card.heading || '').includes(link.rawText.replace(/^#+\s+/, '')) ||
@@ -2174,6 +2380,7 @@
         ) || null;
       },
 
+      // Builds a calendar grid for the current month with day headers and events.
       async buildMonthlyGrid() {
         const monthStr = `${this.selectedYear}-${String(this.selectedMonth).padStart(2, '0')}`;
         const firstDay = new Date(this.selectedYear, this.selectedMonth - 1, 1);
@@ -2211,6 +2418,7 @@
         }
       },
 
+      // Creates and adds a new task for the current day with formatted priority prefix.
       async addDailyTask() {
         if (!this.newTaskTitle.trim()) return;
         try {
@@ -2412,6 +2620,7 @@
         this.toasts = this.toasts.filter(t => t.id !== pending.id);
       },
 
+      // Moves a master task to today's daily task list as an A-priority item.
       async moveMasterTaskToToday(mTask) {
         try {
           const transferred = await this.bridge.transferMasterTask(mTask.id, this.selectedDate, 'A');
@@ -2428,16 +2637,19 @@
         }
       },
 
+      // Opens the calendar event detail modal for a selected event.
       openEventModal(evt) {
         this.selectedEvent = evt;
         this.eventModalOpen = true;
       },
 
+      // Closes the calendar event detail modal.
       closeEventModal() {
         this.eventModalOpen = false;
         this.selectedEvent = null;
       },
 
+      // Calculates an end time given a start time and duration in minutes.
       calculateEndTime(startStr = '09:00', durationMin = 25) {
         const [hStr, mStr] = startStr.split(':');
         const h = parseInt(hStr, 10) || 9;
@@ -2448,11 +2660,13 @@
         return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
       },
 
+      // Updates the event duration and recalculates the end time.
       setEventDuration(durationMin) {
         this.newEventData.duration = durationMin;
         this.newEventData.endTime = this.calculateEndTime(this.newEventData.startTime, durationMin);
       },
 
+      // Recalculates event end time when the start time changes.
       onStartTimeChange() {
         this.newEventData.endTime = this.calculateEndTime(
           this.newEventData.startTime,
@@ -2460,6 +2674,7 @@
         );
       },
 
+      // Opens the create-event modal, optionally seeded with a time slot.
       openCreateEventModal(timeKey, durationMin = 25) {
         const defaultStart = timeKey || '09:00';
         const defaultEnd = this.calculateEndTime(defaultStart, durationMin);
@@ -2483,10 +2698,12 @@
         });
       },
 
+      // Closes the create-event modal.
       closeCreateEventModal() {
         this.createEventModalOpen = false;
       },
 
+      // Opens Google Calendar's native event-creation dialog with pre-filled details.
       launchNativeGCalCreate() {
         const title = encodeURIComponent(this.newEventData.title || 'New Appointment');
         const location = encodeURIComponent(this.newEventData.location || (this.newEventData.autoGoogleMeet ? 'Google Meet' : ''));
@@ -2511,6 +2728,7 @@
         this.closeCreateEventModal();
       },
 
+      // Creates and saves a new calendar event with optional Google Meet and agenda doc.
       async saveNewEvent() {
         if (!this.newEventData.title.trim()) return;
         try {
@@ -2570,6 +2788,7 @@
         }
       },
 
+      // Toggles the search modal open/closed and runs search if opened.
       toggleSearchModal() {
         this.searchModalOpen = !this.searchModalOpen;
         if (this.searchModalOpen) {
@@ -2577,10 +2796,12 @@
         }
       },
 
+      // Closes the search modal.
       closeSearchModal() {
         this.searchModalOpen = false;
       },
 
+      // Executes a full-text search across tasks, events, notes, and index entries.
       runSearch() {
         const q = this.searchQuery.trim().toLowerCase();
         if (!q) {
@@ -2619,6 +2840,7 @@
         this.searchResults = res;
       },
 
+      // Parses a task title to extract priority info (wrapper for parseTaskTitle).
       parseTask(title) {
         return parseTaskTitle(title);
       }

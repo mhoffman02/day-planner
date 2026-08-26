@@ -4,19 +4,32 @@
  * Enables 0ms instant startup, offline persistence, and optimistic mutation queuing.
  */
 
+/**
+ * IndexedDB database name for Day Planner local cache.
+ * @type {string}
+ */
 export const DB_NAME = 'day-planner-db';
+
+/**
+ * IndexedDB database version for schema management and migrations.
+ * @type {number}
+ */
 export const DB_VERSION = 2;
 
+/**
+ * IndexedDB object store names and keys.
+ * @type {Object<string, string>}
+ * @property {string} DAILY_DATA Single-writer edit-backing store for the currently open day's tasks/events/notes.
+ * @property {string} MONTHLY_NOTES Monthly notes cache keyed by month string (e.g. "2026-08").
+ * @property {string} MASTER_TASKS Monthly master task list cache.
+ * @property {string} OUTBOX_QUEUE Offline write queue for mutations waiting to sync back to GAS backend.
+ * @property {string} MONTH_OVERVIEW Read-only cache of a whole month's {tasks, calendarEvents, noteContent} per day, used to render the monthly-calendar view and warm the rolling 3-month cache in the background. Deliberately separate from DAILY_DATA so a background month-batch response can never race a fresher single-day write or a pending offline edit.
+ */
 export const STORES = {
   DAILY_DATA: 'dailyData',
   MONTHLY_NOTES: 'monthlyNotes',
   MASTER_TASKS: 'masterTasks',
   OUTBOX_QUEUE: 'outboxQueue',
-  // Read-only cache of a whole month's {tasks, calendarEvents, noteContent} per day, used to
-  // render the monthly-calendar view and warm the rolling 3-month cache in the background.
-  // Deliberately separate from DAILY_DATA (the single-writer, edit-backing store for the
-  // currently open day) so a background month-batch response can never race a fresher
-  // single-day write or a pending offline edit.
   MONTH_OVERVIEW: 'monthOverview'
 };
 
@@ -241,34 +254,61 @@ export async function deleteItem(storeName, key) {
   });
 }
 
-/** @param {string} dateStr Date string e.g. "2026-08-15". @returns {Promise<object|null>} Cached daily-page record, if any. */
+/**
+ * Retrieves the cached daily-page record for a given date.
+ * @param {string} dateStr Date string e.g. "2026-08-15".
+ * @returns {Promise<object|null>} Cached daily-page record, if any.
+ */
 export async function getDaily(dateStr) {
   return getItem(STORES.DAILY_DATA, dateStr);
 }
 
-/** @param {string} dateStr Date string e.g. "2026-08-15". @param {object} payload Daily-page data to cache. @returns {Promise<boolean>} */
+/**
+ * Caches daily-page data for a given date.
+ * @param {string} dateStr Date string e.g. "2026-08-15".
+ * @param {object} payload Daily-page data to cache.
+ * @returns {Promise<boolean>} True if cache write succeeded, false otherwise.
+ */
 export async function saveDaily(dateStr, payload) {
   const item = Object.assign({}, payload, { dateStr: dateStr, cachedAt: new Date().toISOString() });
   return setItem(STORES.DAILY_DATA, item);
 }
 
-/** @param {string} monthStr Month string e.g. "2026-08". @returns {Promise<object|null>} Cached monthly-notes record, if any. */
+/**
+ * Retrieves the cached monthly-notes record for a given month.
+ * @param {string} monthStr Month string e.g. "2026-08".
+ * @returns {Promise<object|null>} Cached monthly-notes record, if any.
+ */
 export async function getMonthlyNotes(monthStr) {
   return getItem(STORES.MONTHLY_NOTES, monthStr);
 }
 
-/** @param {string} monthStr Month string e.g. "2026-08". @param {object} data Monthly-notes data to cache. @returns {Promise<boolean>} */
+/**
+ * Caches monthly-notes data for a given month.
+ * @param {string} monthStr Month string e.g. "2026-08".
+ * @param {object} data Monthly-notes data to cache.
+ * @returns {Promise<boolean>} True if cache write succeeded, false otherwise.
+ */
 export async function saveMonthlyNotes(monthStr, data) {
   const item = Object.assign({}, data, { monthStr: monthStr, cachedAt: new Date().toISOString() });
   return setItem(STORES.MONTHLY_NOTES, item);
 }
 
-/** @param {string} monthStr Month string e.g. "2026-08". @returns {Promise<object|null>} Cached whole-month overview record (per-day tasks/events/notes), if any. */
+/**
+ * Retrieves the cached whole-month overview record (per-day tasks/events/notes).
+ * @param {string} monthStr Month string e.g. "2026-08".
+ * @returns {Promise<object|null>} Cached whole-month overview record, if any.
+ */
 export async function getMonthOverview(monthStr) {
   return getItem(STORES.MONTH_OVERVIEW, monthStr);
 }
 
-/** @param {string} monthStr Month string e.g. "2026-08". @param {Array<object>} days Per-day overview entries for the month. @returns {Promise<boolean>} */
+/**
+ * Caches whole-month overview data (per-day tasks/events/notes).
+ * @param {string} monthStr Month string e.g. "2026-08".
+ * @param {Array<object>} days Per-day overview entries for the month.
+ * @returns {Promise<boolean>} True if cache write succeeded, false otherwise.
+ */
 export async function saveMonthOverview(monthStr, days) {
   const item = { monthStr: monthStr, days: days, cachedAt: new Date().toISOString() };
   return setItem(STORES.MONTH_OVERVIEW, item);
@@ -289,16 +329,30 @@ export async function enqueueMutation(type, payload) {
   return setItem(STORES.OUTBOX_QUEUE, mutation);
 }
 
-/** @returns {Promise<Array<object>>} All queued offline mutations awaiting replay. */
+/**
+ * Retrieves all queued offline mutations awaiting replay.
+ * @returns {Promise<Array<object>>} All queued offline mutations awaiting replay.
+ */
 export async function getOutbox() {
   return getAllItems(STORES.OUTBOX_QUEUE);
 }
 
-/** @param {string|number} id Outbox queue record id. @returns {Promise<boolean>} */
+/**
+ * Removes a mutation from the outbox queue after successful sync.
+ * @param {string|number} id Outbox queue record id.
+ * @returns {Promise<boolean>} True if deletion succeeded, false otherwise.
+ */
 export async function dequeueMutation(id) {
   return deleteItem(STORES.OUTBOX_QUEUE, id);
 }
 
+/**
+ * Day Planner IndexedDB Store API — unified interface for client-side caching,
+ * offline persistence, and optimistic mutation queuing.
+ * Exports DB configuration, core CRUD operations, and convenience methods
+ * for daily/monthly/overview caching.
+ * @type {Object}
+ */
 const IndexedDbStore = {
   DB_NAME,
   DB_VERSION,

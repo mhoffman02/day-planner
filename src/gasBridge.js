@@ -11,6 +11,7 @@ import { createFutureItem, nextMonthKey, emptyYearMatrix } from './futureMatrixE
 
 /**
  * Outbox mutation type tags used to queue and later replay writes made while offline.
+ * @enum {string}
  */
 export const OUTBOX_MUTATION_TYPES = {
   ADD_DAILY_TASK: 'ADD_DAILY_TASK',

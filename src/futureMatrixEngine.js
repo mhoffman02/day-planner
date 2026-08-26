@@ -6,7 +6,10 @@
  * handles that transfer) or carried forward to the next month if still open.
  */
 
-/** Month keys 'MM' for a 12-month year, in order. */
+/**
+ * Month keys 'MM' for a 12-month year, in order.
+ * @type {Array<string>}
+ */
 export const MONTH_KEYS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
 
 /**
