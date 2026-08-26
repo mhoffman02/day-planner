@@ -1013,7 +1013,7 @@ table.task-table tbody tr:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
+  min-width: 20px;
   height: 20px;
   flex-shrink: 0;
   border-radius: 3px;
@@ -1022,6 +1022,8 @@ table.task-table tbody tr:hover {
   border: 1px solid var(--theme-input-border);
   font-weight: bold;
   font-size: 0.8rem;
+  padding: 0 2px;
+  white-space: nowrap;
 }
 
 .status-completed {
