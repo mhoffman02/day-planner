@@ -21,6 +21,15 @@
     })();
   </script>
   <?!= include('Styles'); ?>
+  <script>
+    // Holds Alpine's own start() until Script.html has registered the plannerApp data
+    // provider (see the bottom of Script.html) -- without this hook, Alpine.data() and
+    // Alpine's auto-start race on script-load order, and losing that race throws
+    // "plannerApp is not defined" for every x-data binding.
+    window.deferLoadingAlpine = function (startAlpine) {
+      window._startAlpine = startAlpine;
+    };
+  </script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
 </head>
 <body>
