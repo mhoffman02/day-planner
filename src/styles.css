@@ -160,10 +160,11 @@ a:hover {
   --theme-scrollbar-thumb-hover: #2d6a5a;
   --theme-scrollbar-track: #f4f8f6;
 
-  --priority-a: #b91c1c;
-  --priority-b: #b45309;
-  --priority-c: #15803d;
+  --priority-a: #0d3a2f;
+  --priority-b: #2d6a5a;
+  --priority-c: #3f7c69;
   --status-complete: #2b8a3e;
+  --danger: #b91c1c;
   --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.08);
 
   --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%231c2826' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
@@ -270,10 +271,11 @@ a:hover {
 
   --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23e6f5ef' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
 
-  /* Brighter priority tints for legibility as bare text on dark surfaces */
-  --priority-a: #f87171;
-  --priority-b: #fbbf24;
-  --priority-c: #4ade80;
+  /* Single-hue teal ramp: ordinal priority shown by intensity, not stoplight colors */
+  --priority-a: #7be0c5;
+  --priority-b: #48ab92;
+  --priority-c: #4a9484;
+  --danger: #f87171;
 
   /* Backward Compatibility Aliases */
   --pico-font-family: var(--font-family);
@@ -1318,7 +1320,7 @@ button.event-pill:hover {
 }
 
 .card-delete-btn:hover {
-  color: var(--priority-a);
+  color: var(--danger);
 }
 
 .gchat-toolbar {
