@@ -917,7 +917,20 @@
       },
 
       dismissToast(id) {
+        const toast = this.toasts.find(t => t.id === id);
+        if (toast && toast.kind === 'task-forward' && !toast.settled) {
+          this.cancelPendingForward(toast);
+          return;
+        }
         this.toasts = this.toasts.filter(t => t.id !== id);
+      },
+
+      // Adds `delta` local calendar days to a 'YYYY-MM-DD' string, per binderStore.js's
+      // local y/m/d arithmetic convention -- never .toISOString() (UTC day-shift bug).
+      addDaysToDateStr(dateStr, delta) {
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const next = new Date(y, m - 1, d + delta);
+        return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`;
       },
 
       // Modals
@@ -1858,25 +1871,11 @@
         const nextStatus = getNextStatus(task.status);
 
         // "→" (FORWARDED) is Franklin Covey's "forwarded to a new date" symbol — cycling
-        // into it actually moves the task to tomorrow's list rather than just relabeling it.
+        // into it actually moves the task, defaulting to tomorrow. It never blocks: the
+        // status flips immediately and a 10s dismissible toast lets the user pick a
+        // different target date before the default commits (see startPendingForward).
         if (nextStatus === '→') {
-          const [y, m, d] = this.selectedDate.split('-').map(Number);
-          const next = new Date(y, m - 1, d + 1);
-          const targetDateStr = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`;
-          try {
-            const result = await this.bridge.forwardDailyTask(this.selectedDate, task.id, { title: task.title, category: task.category }, targetDateStr);
-            if (!result) {
-              this.errorMessage = `Task "${task.title}" no longer exists in Google Tasks — could not forward it.`;
-              return;
-            }
-            task.status = result.originalTask.status;
-            if (result.forwardedTask._queuedOffline) await this.refreshOutboxCount();
-            this.showToast(`Forwarded "${task.title}" to ${targetDateStr}.`, 'success', 6000, 'Task Forwarded');
-          } catch (err) {
-            console.error('🔥 toggleTaskStatus forward error:', err);
-            this.errorMessage = `Could not forward task: ${err.message || err.toString()}`;
-          }
-          await this.trigger2WaySync();
+          this.startPendingForward(task);
           return;
         }
 
@@ -1899,6 +1898,80 @@
           this.errorMessage = `Could not save task status: ${err.message || err.toString()}`;
         }
         await this.trigger2WaySync();
+      },
+
+      // Opens a 10s, non-blocking "forwarding to tomorrow…" toast (see the toast-forward-*
+      // markup in Index.html) that lets the user pick a different target date before the
+      // default commits. The status glyph flips to "→" immediately so the UI never blocks
+      // on this; only the backend forwardDailyTask call is deferred.
+      startPendingForward(task) {
+        const previousStatus = task.status;
+        const sourceDateStr = this.selectedDate;
+        const defaultTargetDate = this.addDaysToDateStr(sourceDateStr, 1);
+
+        task.status = '→';
+
+        const id = 'fwd_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+        const pending = {
+          id,
+          kind: 'task-forward',
+          type: 'info',
+          title: 'Task Forwarded',
+          message: `Forwarding "${task.title}" to ${defaultTargetDate}`,
+          duration: 10000,
+          settled: false,
+          task,
+          previousStatus,
+          sourceDateStr,
+          targetDate: defaultTargetDate
+        };
+        pending.timer = setTimeout(() => this.commitPendingForward(pending), 10000);
+        this.toasts.push(pending);
+      },
+
+      // Commits a pending forward (see startPendingForward) to whichever target date is
+      // currently set on it -- the untouched tomorrow default, or a date the user picked --
+      // and removes its toast. No-ops if already settled (committed or cancelled).
+      async commitPendingForward(pending) {
+        if (pending.settled) return;
+        pending.settled = true;
+        clearTimeout(pending.timer);
+        this.toasts = this.toasts.filter(t => t.id !== pending.id);
+
+        const { task, sourceDateStr, targetDate } = pending;
+        try {
+          const result = await this.bridge.forwardDailyTask(sourceDateStr, task.id, { title: task.title, category: task.category }, targetDate);
+          if (!result) {
+            this.errorMessage = `Task "${task.title}" no longer exists in Google Tasks — could not forward it.`;
+            return;
+          }
+          task.status = result.originalTask.status;
+          if (result.forwardedTask._queuedOffline) await this.refreshOutboxCount();
+          this.showToast(`Forwarded "${task.title}" to ${targetDate}.`, 'success', 6000, 'Task Forwarded');
+        } catch (err) {
+          console.error('🔥 commitPendingForward error:', err);
+          this.errorMessage = `Could not forward task: ${err.message || err.toString()}`;
+        }
+        await this.trigger2WaySync();
+      },
+
+      // Applies a user-picked alternate target date to a still-pending forward and commits
+      // it right away -- no reason to keep counting down once the user has made an explicit
+      // choice.
+      async pickForwardDate(pending, newDateStr) {
+        if (pending.settled || !newDateStr) return;
+        pending.targetDate = newDateStr;
+        await this.commitPendingForward(pending);
+      },
+
+      // Cancels a still-pending forward: reverts the task to its pre-forward status and
+      // dismisses its toast without ever calling the backend.
+      cancelPendingForward(pending) {
+        if (pending.settled) return;
+        pending.settled = true;
+        clearTimeout(pending.timer);
+        pending.task.status = pending.previousStatus;
+        this.toasts = this.toasts.filter(t => t.id !== pending.id);
       },
 
       async moveMasterTaskToToday(mTask) {

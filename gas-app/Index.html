@@ -36,8 +36,15 @@
             <div class="toast-content">
               <div class="toast-title" x-text="toast.title"></div>
               <div class="toast-message" x-text="toast.message"></div>
+              <template x-if="toast.kind === 'task-forward'">
+                <div class="toast-forward-actions">
+                  <button type="button" class="toast-action-btn" @click="pickForwardDate(toast, addDaysToDateStr(toast.sourceDateStr, 2))">+2 days</button>
+                  <button type="button" class="toast-action-btn" @click="pickForwardDate(toast, addDaysToDateStr(toast.sourceDateStr, 7))">+1 week</button>
+                  <input type="date" class="toast-date-input" :value="toast.targetDate" @change="pickForwardDate(toast, $event.target.value)" aria-label="Pick a different forward date">
+                </div>
+              </template>
             </div>
-            <button type="button" class="toast-dismiss-btn" @click="dismissToast(toast.id)" aria-label="Dismiss notification">✕</button>
+            <button type="button" class="toast-dismiss-btn" @click="dismissToast(toast.id)" :aria-label="toast.kind === 'task-forward' ? 'Cancel forwarding' : 'Dismiss notification'">✕</button>
           </div>
           <div class="toast-progress-bar">
             <div class="toast-progress-fill" :style="`animation-duration: ${toast.duration}ms;`"></div>

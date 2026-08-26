@@ -2014,6 +2014,41 @@ article.setup-card, article.card {
 .toast-success .toast-progress-fill { background: #2d6a5a; }
 .toast-info .toast-progress-fill { background: #2b4c59; }
 
+.toast-forward-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.toast-action-btn {
+  background: transparent;
+  border: 1px solid var(--theme-panel-border);
+  color: var(--theme-text-primary);
+  cursor: pointer;
+  padding: 4px 9px;
+  border-radius: 5px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.toast-action-btn:hover {
+  background-color: var(--theme-table-header-bg);
+  border-color: var(--theme-text-muted);
+}
+
+.toast-date-input {
+  background: var(--theme-panel-bg);
+  border: 1px solid var(--theme-panel-border);
+  color: var(--theme-text-primary);
+  border-radius: 5px;
+  padding: 3px 6px;
+  font-size: 0.78rem;
+  font-family: inherit;
+}
+
 @keyframes toastSlideIn {
   from {
     opacity: 0;
