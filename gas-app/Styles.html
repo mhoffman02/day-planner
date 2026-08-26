@@ -941,6 +941,69 @@ table.task-table tbody tr:hover {
   border-color: var(--theme-primary);
 }
 
+.status-menu-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.status-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--theme-modal-bg);
+  border: 1px solid var(--theme-modal-border);
+  border-radius: 6px;
+  padding: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  z-index: 300;
+  min-width: 160px;
+  color: var(--theme-modal-fg);
+}
+
+.status-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--theme-modal-fg);
+  font-size: 0.8rem;
+  padding: 6px 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.status-menu-item:hover {
+  background: var(--theme-primary);
+  color: #ffffff;
+}
+
+.status-menu-item.is-active {
+  background: var(--theme-input-bg);
+}
+
+.status-menu-item-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 3px;
+  background: var(--theme-input-bg);
+  color: var(--theme-input-fg);
+  border: 1px solid var(--theme-input-border);
+  font-weight: bold;
+  font-size: 0.8rem;
+}
+
 .status-completed {
   color: var(--status-complete);
   border-color: var(--status-complete);

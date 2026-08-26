@@ -25,6 +25,31 @@ export const TASK_STATUSES = {
 export const STATUS_LIST = ['•', '✓', '→', 'X', 'G/✓'];
 
 /**
+ * Human-readable labels for each status glyph in `STATUS_LIST`, in display order.
+ * Backs the status-select dropdown UI, which lets a user jump directly to any status
+ * (e.g. picking "X" without first cycling through "→" and its forward-to-a-date side effect).
+ * @type {Array<{value: string, label: string}>}
+ */
+export const STATUS_OPTIONS = [
+  { value: '•', label: 'Open' },
+  { value: '✓', label: 'Done' },
+  { value: '→', label: 'Forward' },
+  { value: 'X', label: 'Canceled' },
+  { value: 'G/✓', label: 'Delegated (Done)' }
+];
+
+/**
+ * Checks whether a status glyph is one of the five valid `STATUS_LIST` members.
+ * Guards direct status-jump UI actions (e.g. a status-select dropdown) against
+ * being handed a value outside the known set.
+ * @param {string} status Status glyph to validate.
+ * @returns {boolean} True if `status` is a member of `STATUS_LIST`.
+ */
+export function isValidStatus(status) {
+  return STATUS_LIST.includes(status);
+}
+
+/**
  * Parses a task title that may contain a priority prefix like [A1] or [B3].
  * @param {string} [rawTitle=''] Raw task title string.
  * @returns {{priorityGroup: 'A'|'B'|'C'|null, sequence: number|null, priorityCode: string|null, cleanTitle: string}} Parsed task title details.

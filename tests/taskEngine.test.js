@@ -13,7 +13,10 @@ import {
   getNextSequence,
   transferMasterTaskToToday,
   forwardTaskToDate,
-  TASK_STATUSES
+  TASK_STATUSES,
+  STATUS_LIST,
+  STATUS_OPTIONS,
+  isValidStatus
 } from '../src/taskEngine.js';
 
 describe('Task Engine Unit Tests', () => {
@@ -50,6 +53,25 @@ describe('Task Engine Unit Tests', () => {
     assert.equal(getNextStatus('→'), 'X');
     assert.equal(getNextStatus('X'), 'G/✓');
     assert.equal(getNextStatus('G/✓'), '•');
+  });
+
+  it('should validate direct status jumps against STATUS_LIST (isValidStatus)', () => {
+    for (const status of STATUS_LIST) {
+      assert.equal(isValidStatus(status), true);
+    }
+    assert.equal(isValidStatus('bogus'), false);
+    assert.equal(isValidStatus(''), false);
+    assert.equal(isValidStatus(undefined), false);
+    assert.equal(isValidStatus(null), false);
+  });
+
+  it('should expose one STATUS_OPTIONS entry per STATUS_LIST glyph, in the same order', () => {
+    assert.equal(STATUS_OPTIONS.length, STATUS_LIST.length);
+    STATUS_OPTIONS.forEach((opt, i) => {
+      assert.equal(opt.value, STATUS_LIST[i]);
+      assert.equal(typeof opt.label, 'string');
+      assert.ok(opt.label.length > 0);
+    });
   });
 
   it('should sort tasks correctly by priority group (A-C) and sequence (1-9)', () => {

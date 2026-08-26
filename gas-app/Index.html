@@ -219,9 +219,26 @@
                         <span class="priority-badge" :class="parseTask(task.title).priorityGroup || 'A'" x-text="parseTask(task.title).priorityCode || 'A1'"></span>
                       </td>
                       <td>
-                        <button type="button" class="status-btn" @click="toggleTaskStatus(task, $event)" x-text="task.status || '•'"
-                                :title="task.status === '→' && task.forwardedToDate ? ('Forwarded to ' + task.forwardedToDate) : ''"
-                                :aria-label="task.status === '→' && task.forwardedToDate ? ('Task status: Forwarded to ' + task.forwardedToDate + '. Click to cycle status.') : ('Task status: ' + (task.status || 'Open') + '. Click to cycle status.')"></button>
+                        <div class="status-menu-wrap">
+                          <button type="button" class="status-btn"
+                                  @click="openStatusMenuTaskId = (openStatusMenuTaskId === task.id ? null : task.id)"
+                                  x-text="task.status || '•'"
+                                  aria-haspopup="menu"
+                                  :aria-expanded="openStatusMenuTaskId === task.id"
+                                  :title="task.status === '→' && task.forwardedToDate ? ('Forwarded to ' + task.forwardedToDate) : ''"
+                                  :aria-label="task.status === '→' && task.forwardedToDate ? ('Task status: Forwarded to ' + task.forwardedToDate + '. Click to choose a status.') : ('Task status: ' + (task.status || 'Open') + '. Click to choose a status.')"></button>
+                          <div class="status-menu" role="menu" x-show="openStatusMenuTaskId === task.id" @click.outside="openStatusMenuTaskId = null" x-cloak>
+                            <template x-for="opt in statusOptions" :key="opt.value">
+                              <button type="button" class="status-menu-item" role="menuitem"
+                                      :class="{ 'is-active': (task.status || '•') === opt.value }"
+                                      @click="selectTaskStatus(task, opt.value, $event)"
+                                      :aria-label="'Set status: ' + opt.label">
+                                <span class="status-menu-item-glyph" x-text="opt.value"></span>
+                                <span x-text="opt.label"></span>
+                              </button>
+                            </template>
+                          </div>
+                        </div>
                       </td>
                       <td class="task-title-cell" x-text="parseTask(task.title).cleanTitle"></td>
                       <td class="td-category" x-text="task.category || 'Work'"></td>

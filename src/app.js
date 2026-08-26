@@ -76,6 +76,29 @@ if ('serviceWorker' in navigator) {
     return STATUS_LIST[idx + 1];
   }
 
+  /**
+   * Human-readable labels for each status glyph, backing the status-select dropdown.
+   * Local mirror of `src/taskEngine.js`'s `STATUS_OPTIONS` for this bundled client script.
+   * @type {Array<{value: string, label: string}>}
+   */
+  const STATUS_OPTIONS = [
+    { value: '•', label: 'Open' },
+    { value: '✓', label: 'Done' },
+    { value: '→', label: 'Forward' },
+    { value: 'X', label: 'Canceled' },
+    { value: 'G/✓', label: 'Delegated (Done)' }
+  ];
+
+  /**
+   * Checks whether a status glyph is a member of `STATUS_LIST`.
+   * Local mirror of `src/taskEngine.js`'s `isValidStatus` for this bundled client script.
+   * @param {string} status Status glyph to validate.
+   * @returns {boolean}
+   */
+  function isValidStatus(status) {
+    return STATUS_LIST.includes(status);
+  }
+
 /**
  * Formats a Date object (or parses a date string) as a local YYYY-MM-DD string.
  * Local mirror of `src/binderStore.js`'s `getLocalDateStr` for this bundled client script.
@@ -113,6 +136,11 @@ function getLocalDateStr(d = new Date()) {
       masterTasks: [],
       calendarEvents: [],
       scheduleGrid: [],
+      // Task id whose status-select dropdown is open (see setTaskStatus/toggleTaskStatus), or
+      // null when none is open. A single id rather than a per-task flag keeps only one open at
+      // a time, matching noteFilterMenuOpen's click-to-open/click-outside-to-close convention.
+      openStatusMenuTaskId: null,
+      statusOptions: STATUS_OPTIONS,
       dailyNote: '',
       noteCards: [],
       noteViewMode: 'cards', // 'cards' (Option 1) or 'doc' (Option 2)
@@ -1244,12 +1272,29 @@ function getLocalDateStr(d = new Date()) {
       },
 
       /**
-       * Advances a task's status glyph, persists the change, and triggers a 2-way sync.
+       * Advances a task's status glyph to the next one in the cycle via `setTaskStatus`.
        * @param {object} task Daily task to update (mutated in place).
        * @returns {Promise<void>}
        */
       async toggleTaskStatus(task) {
-        task.status = getNextStatus(task.status);
+        await this.setTaskStatus(task, getNextStatus(task.status));
+      },
+
+      /**
+       * Sets a task's status directly, persists the change, and triggers a 2-way sync. Shared by
+       * both the cycle-on-click handler (`toggleTaskStatus`) and the direct-select status
+       * dropdown (`selectTaskStatus`), so picking "X" from the dropdown doesn't have to pass
+       * through any intermediate status first.
+       * @param {object} task Daily task to update (mutated in place).
+       * @param {string} newStatus One of `STATUS_LIST`'s glyphs.
+       * @returns {Promise<void>}
+       */
+      async setTaskStatus(task, newStatus) {
+        if (!isValidStatus(newStatus)) {
+          console.error(`🔥 setTaskStatus: ignoring invalid status "${newStatus}"`);
+          return;
+        }
+        task.status = newStatus;
         try {
           if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
             const updated = await this.bridge.updateDailyTask(this.selectedDate, task.id, {
@@ -1268,6 +1313,18 @@ function getLocalDateStr(d = new Date()) {
           this.errorMessage = `Could not save task status: ${err.message || err.toString()}`;
         }
         await this.trigger2WaySync();
+      },
+
+      /**
+       * Selects a task status directly from the status-select dropdown, closes the dropdown,
+       * and persists via `setTaskStatus`.
+       * @param {object} task Daily task to update (mutated in place).
+       * @param {string} newStatus One of `STATUS_LIST`'s glyphs.
+       * @returns {Promise<void>}
+       */
+      async selectTaskStatus(task, newStatus) {
+        this.openStatusMenuTaskId = null;
+        await this.setTaskStatus(task, newStatus);
       },
 
       /**

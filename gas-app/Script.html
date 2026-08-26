@@ -33,6 +33,21 @@
     return STATUS_LIST[idx + 1];
   }
 
+  // Human-readable labels for each status glyph, backing the status-select dropdown -- mirrors
+  // src/taskEngine.js's STATUS_OPTIONS.
+  const STATUS_OPTIONS = [
+    { value: '•', label: 'Open' },
+    { value: '✓', label: 'Done' },
+    { value: '→', label: 'Forward' },
+    { value: 'X', label: 'Canceled' },
+    { value: 'G/✓', label: 'Delegated (Done)' }
+  ];
+
+  // Mirrors src/taskEngine.js's isValidStatus.
+  function isValidStatus(status) {
+    return STATUS_LIST.includes(status);
+  }
+
   // Future Planning Matrix (12-month overview) — mirrors src/futureMatrixEngine.js
   const FUTURE_MONTH_KEYS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
 
@@ -879,6 +894,11 @@
       
       // Data collections
       dailyTasks: [],
+      // Task id whose status-select dropdown is open (see setTaskStatus/toggleTaskStatus), or
+      // null when none is open. A single id rather than a per-task flag keeps only one open at
+      // a time, matching noteFilterMenuOpen's click-to-open/click-outside-to-close convention.
+      openStatusMenuTaskId: null,
+      statusOptions: STATUS_OPTIONS,
       masterTasks: [],
       futureMatrix: { year: String(new Date().getFullYear()), months: {} },
       futureMatrixYear: new Date().getFullYear(),
@@ -1867,19 +1887,34 @@
         }
       },
 
+      // Cycle-on-click handler for the status button -- advances to the next glyph in
+      // STATUS_LIST and hands off to the shared setTaskStatus helper (also used by the
+      // direct-select status dropdown, see selectTaskStatus).
       async toggleTaskStatus(task, evt) {
-        const nextStatus = getNextStatus(task.status);
+        await this.setTaskStatus(task, getNextStatus(task.status), evt);
+      },
 
-        // "→" (FORWARDED) is Franklin Covey's "forwarded to a new date" symbol — cycling
-        // into it actually moves the task, defaulting to tomorrow. It never blocks: the
-        // status flips immediately and a 10s dismissible toast lets the user pick a
-        // different target date before the default commits (see startPendingForward).
-        if (nextStatus === '→') {
+      // Sets a task's status directly, persisting it and triggering a 2-way sync. Shared by
+      // both the cycle-on-click handler (toggleTaskStatus) and the direct-select status
+      // dropdown (selectTaskStatus) so picking "X" from the dropdown doesn't have to pass
+      // through "→" (and its forward-to-a-date side effect) first.
+      async setTaskStatus(task, newStatus, evt) {
+        if (!isValidStatus(newStatus)) {
+          console.error(`🔥 setTaskStatus: ignoring invalid status "${newStatus}"`);
+          return;
+        }
+
+        // "→" (FORWARDED) is Franklin Covey's "forwarded to a new date" symbol — landing on it
+        // (whether by cycling or by picking it directly from the dropdown) actually moves the
+        // task, defaulting to tomorrow. It never blocks: the status flips immediately and a 10s
+        // dismissible toast lets the user pick a different target date before the default
+        // commits (see startPendingForward).
+        if (newStatus === '→') {
           this.startPendingForward(task, evt);
           return;
         }
 
-        task.status = nextStatus;
+        task.status = newStatus;
         try {
           if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
             const updated = await this.bridge.updateDailyTask(this.selectedDate, task.id, {
@@ -1898,6 +1933,14 @@
           this.errorMessage = `Could not save task status: ${err.message || err.toString()}`;
         }
         await this.trigger2WaySync();
+      },
+
+      // Selects a task status directly from the status-select dropdown, closes the dropdown,
+      // and persists via setTaskStatus. `evt` is forwarded so a direct pick of "→" can still
+      // anchor its forward popover next to the status button (see _computeForwardAnchor).
+      async selectTaskStatus(task, newStatus, evt) {
+        this.openStatusMenuTaskId = null;
+        await this.setTaskStatus(task, newStatus, evt);
       },
 
       // Opens a 10s, non-blocking "forwarding to tomorrow…" toast anchored right next to the
