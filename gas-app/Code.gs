@@ -612,7 +612,7 @@ function syncWorkspaceChanges() {
           }
         }
 
-        var isDone = task.status === '✓';
+        var isDone = task.status === '✓' || task.status === 'D/✓';
         var formattedTitle = isDone ? '[✓] ' + task.title : task.title;
 
         // Day planners keep Tasks and Appointments distinct: only keep an already-linked
@@ -633,6 +633,56 @@ function syncWorkspaceChanges() {
   } catch (err) {
     logError('syncWorkspaceChanges main', err);
   }
+}
+
+// Google Tasks natively stores only 'completed'/'needsAction' — the app's 3 extra status
+// glyphs ('→' forwarded, 'X' canceled, 'D/✓' delegated+done) have no native slot and used to
+// collapse to '•'/'✓' on every reload. TASK_STATUS_MARKER_RE / encodeTaskStatusNotes /
+// deriveTaskStatus persist them as a hidden line in the Task's `notes` field, which Day
+// Planner never surfaces or lets the user edit, so it's safe to own as an app-only channel.
+// The marker is HTML-comment-shaped and lives on its own line so it stays inert and is
+// cleanly stripped if `notes` is ever exposed in the UI (e.g. a future per-task notes editor).
+var TASK_STATUS_MARKER_RE = /^<!--dp-status:(.+?)-->\n?/;
+var TASK_EXTRA_STATUSES = ['→', 'X', 'D/✓'];
+
+/**
+ * Strips the hidden status marker line from a Task's `notes`, if present.
+ * @param {string} notes Raw `notes` field from a Google Task.
+ * @returns {string} Notes with any status marker line removed.
+ */
+function stripTaskStatusMarker(notes) {
+  return (notes || '').replace(TASK_STATUS_MARKER_RE, '');
+}
+
+/**
+ * Computes the `notes` value to persist for a given app status, preserving any existing
+ * non-marker notes content. Native statuses ('•'/'✓') need no marker, since 'completed'/
+ * 'needsAction' already represent them; only the 3 extra statuses get one.
+ * @param {string} status App status glyph being written.
+ * @param {string} existingNotes Current `notes` field on the task before this update.
+ * @returns {string} New `notes` value to send in the patch.
+ */
+function encodeTaskStatusNotes(status, existingNotes) {
+  var rest = stripTaskStatusMarker(existingNotes);
+  if (TASK_EXTRA_STATUSES.indexOf(status) === -1) {
+    return rest;
+  }
+  var marker = '<!--dp-status:' + status + '-->';
+  return rest ? marker + '\n' + rest : marker;
+}
+
+/**
+ * Derives the app-facing status glyph for a Google Task, preferring the hidden `notes`
+ * marker (for '→'/'X'/'D/✓') over the native completed/needsAction fallback.
+ * @param {{status: string, notes: (string|undefined)}} googleTask Task resource from the Tasks API.
+ * @returns {string} One of '•', '✓', '→', 'X', 'D/✓'.
+ */
+function deriveTaskStatus(googleTask) {
+  var match = (googleTask.notes || '').match(TASK_STATUS_MARKER_RE);
+  if (match && TASK_EXTRA_STATUSES.indexOf(match[1]) !== -1) {
+    return match[1];
+  }
+  return googleTask.status === 'completed' ? '✓' : '•';
 }
 
 /**
@@ -732,7 +782,7 @@ function getDailyData(dateStr) {
               return {
                 id: t.id,
                 title: t.title,
-                status: t.status === 'completed' ? '✓' : '•',
+                status: deriveTaskStatus(t),
                 dueDate: t.due.substring(0, 10)
               };
             });
@@ -941,7 +991,7 @@ function getMonthData(monthStr) {
             result.days[dateStr].tasks.push({
               id: t.id,
               title: t.title,
-              status: t.status === 'completed' ? '✓' : '•',
+              status: deriveTaskStatus(t),
               dueDate: dateStr
             });
           });
@@ -1363,7 +1413,7 @@ function addDailyTask(dateStr, title, category) {
       return {
         id: created.id,
         title: created.title,
-        status: created.status === 'completed' ? '✓' : '•',
+        status: deriveTaskStatus(created),
         category: category || 'General',
         dueDate: created.due ? created.due.substring(0, 10) : dateStr
       };
@@ -1416,10 +1466,10 @@ function forwardDailyTask(dateStr, taskId, sourceTaskSnapshot, targetDateStr) {
 
 /**
  * Updates an existing Google Task's title and/or completion status.
- * Only 'completed'/'needsAction' are natively representable by the Tasks API;
- * app-only status states (→ forwarded, X canceled, D/✓ delegated) are treated
- * as "not completed" for persistence purposes and will read back as '•' on the
- * next fetch, matching getDailyData's existing read-side status mapping.
+ * Only 'completed'/'needsAction' are natively representable by the Tasks API; app-only
+ * status states (→ forwarded, X canceled, D/✓ delegated) are additionally persisted as a
+ * hidden marker in `notes` (see encodeTaskStatusNotes/deriveTaskStatus above) so they
+ * survive the next fetch instead of collapsing to '•'/'✓'.
  * @param {string} dateStr Target date string in YYYY-MM-DD format (unused by the Tasks API, kept for signature parity with the client bridge).
  * @param {string} taskId Google Task id.
  * @param {object} updates Fields to update: { title, status, category, dueDate }.
@@ -1442,6 +1492,8 @@ function updateDailyTask(dateStr, taskId, updates) {
     }
     if (updates && updates.status !== undefined) {
       patch.status = (updates.status === '✓' || updates.status === 'D/✓') ? 'completed' : 'needsAction';
+      var current = Tasks.Tasks.get('@default', taskId);
+      patch.notes = encodeTaskStatusNotes(updates.status, current.notes);
     }
     if (updates && updates.dueDate !== undefined) {
       patch.due = updates.dueDate + 'T00:00:00.000Z';
@@ -1451,7 +1503,7 @@ function updateDailyTask(dateStr, taskId, updates) {
     return {
       id: updated.id,
       title: updated.title,
-      status: updated.status === 'completed' ? '✓' : '•',
+      status: deriveTaskStatus(updated),
       category: (updates && updates.category) || 'General',
       dueDate: updated.due ? updated.due.substring(0, 10) : (updates && updates.dueDate) || dateStr
     };
