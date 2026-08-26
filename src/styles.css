@@ -166,6 +166,8 @@ a:hover {
   --status-complete: #2b8a3e;
   --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.08);
 
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%231c2826' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+
   /* Backward Compatibility Aliases */
   --pico-font-family: var(--font-family);
   --pico-header-font-family: var(--header-font-family);
@@ -265,6 +267,8 @@ a:hover {
   --theme-scrollbar-thumb: #2c5e50;
   --theme-scrollbar-thumb-hover: #48ab92;
   --theme-scrollbar-track: #11231c;
+
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23e6f5ef' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
 
   /* Backward Compatibility Aliases */
   --pico-font-family: var(--font-family);
@@ -828,13 +832,20 @@ header.panel-header {
   min-width: 90px;
   margin-bottom: 0;
   font-size: 0.85rem;
-  padding: 4px 8px;
+  padding: 4px 24px 4px 8px;
   height: 32px;
   background-color: var(--theme-input-bg);
   color: var(--theme-input-fg);
   border: 1px solid var(--theme-input-border);
   border-radius: 4px;
   outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: var(--select-arrow);
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 14px;
 }
 
 .task-priority-select:focus {
@@ -1136,6 +1147,17 @@ button.event-pill:hover {
   border-radius: 4px;
 }
 
+.notes-filter-menu select {
+  padding-right: 24px;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: var(--select-arrow);
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 14px;
+}
+
 .note-cards-container {
   display: flex;
   flex-direction: column;
@@ -1197,7 +1219,7 @@ button.event-pill:hover {
 
 .card-category-select {
   font-size: 0.75rem;
-  padding: 2px 4px;
+  padding: 2px 18px 2px 4px;
   width: auto;
   border-radius: 4px;
   border: 1px solid var(--theme-card-border);
@@ -1205,6 +1227,13 @@ button.event-pill:hover {
   color: var(--theme-input-fg);
   margin-bottom: 0;
   outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: var(--select-arrow);
+  background-repeat: no-repeat;
+  background-position: right 3px center;
+  background-size: 11px;
 }
 
 .card-delete-btn {
@@ -1527,6 +1556,17 @@ footer.modal-actions {
 .form-textarea:focus {
   outline: 2px solid var(--theme-primary);
   border-color: var(--theme-primary);
+}
+
+.form-select {
+  padding-right: 28px;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: var(--select-arrow);
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 14px;
 }
 
 .form-hint {
