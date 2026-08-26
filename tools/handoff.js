@@ -51,9 +51,43 @@ function toClipboard(text) {
 }
 
 /**
+ * Derives a real, one-line `@description` for the auto-injected `@file`
+ * header from whatever static signal the source actually contains, since
+ * this runs unattended at commit time with no LLM available to write prose.
+ * Prefers the file's top-level exported symbols (matches this project's
+ * `export function/class/const NAME` style — see src/taskEngine.js etc.);
+ * falls back to flagging a Node CLI script by its shebang; and as a last
+ * resort says so explicitly rather than emitting a description-shaped
+ * sentence with no actual content, which is how the old placeholder text
+ * ("Auto-generated JSDoc header for X") ended up committed as if it were
+ * real documentation.
+ * @param {string} content File source.
+ * @returns {string} One-line description for the injected `@description` tag.
+ */
+function describeFileForHeader(content) {
+  const exportNames = [];
+  const exportRegex = /^export\s+(?:default\s+)?(?:async\s+)?(?:function\*?|class|const|let|var)\s+([A-Za-z0-9_$]+)/gm;
+  let match;
+  while ((match = exportRegex.exec(content)) !== null) {
+    exportNames.push(match[1]);
+  }
+  if (exportNames.length > 0) {
+    const shown = exportNames.slice(0, 8);
+    const suffix = exportNames.length > shown.length ? ', …' : '';
+    return `Exports: ${shown.join(', ')}${suffix}.`;
+  }
+  if (/^#!/.test(content)) {
+    return 'Node CLI script — run directly, no exported API.';
+  }
+  return 'PLACEHOLDER: no exported symbols detected automatically — replace with a real description of this file\'s purpose.';
+}
+
+/**
  * Auto-fixes one class of pre-commit finding on currently staged .js files:
- * injects a placeholder `@file` JSDoc header into any staged, non-test,
- * non-config JS file that's missing one, then re-stages the changes.
+ * injects an `@file` JSDoc header — with a real, content-derived
+ * `@description` (see describeFileForHeader) — into any staged, non-test,
+ * non-config, non-vendor JS file that's missing one, then re-stages the
+ * changes.
  * @returns {void}
  */
 function autoFixFindings() {
@@ -65,6 +99,12 @@ function autoFixFindings() {
     if (!/\.(js|mjs)$/.test(relPath) || /\.test\.js$|\.config\.js$|server\.js/.test(relPath)) {
       continue;
     }
+    // Never stamp a header into vendored/minified third-party code — it isn't
+    // ours to document, and a minified bundle has no meaningful top-level
+    // exports for describeFileForHeader to find anyway.
+    if (/(^|\/)vendor\//.test(relPath) || /\.min\.js$/.test(relPath)) {
+      continue;
+    }
     const fullPath = path.join(ROOT, relPath);
     if (!fs.existsSync(fullPath)) continue;
 
@@ -72,7 +112,8 @@ function autoFixFindings() {
     if (!/@file|@module/.test(content)) {
       console.log(`  🔧 [HIGH] Auto-injecting missing @file JSDoc header into: ${relPath}`);
       const filename = path.basename(relPath);
-      const jsdocHeader = `/**\n * @file ${filename}\n * @description Auto-generated JSDoc header for ${filename}.\n */\n\n`;
+      const description = describeFileForHeader(content);
+      const jsdocHeader = `/**\n * @file ${filename}\n * @description ${description}\n */\n\n`;
       fs.writeFileSync(fullPath, jsdocHeader + content, 'utf8');
       fixedCount++;
     }
