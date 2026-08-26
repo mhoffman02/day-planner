@@ -515,7 +515,12 @@
         const days = {};
         for (let day = 1; day <= daysInMonth; day++) {
           const dateStr = `${monthStr}-${String(day).padStart(2, '0')}`;
-          days[dateStr] = await this.getDailyData(dateStr);
+          const dayData = await this.getDailyData(dateStr);
+          days[dateStr] = {
+            tasks: dayData.tasks || [],
+            calendarEvents: dayData.calendarEvents || [],
+            noteContent: dayData.noteContent || ''
+          };
         }
         return { month: monthStr, days };
       }
