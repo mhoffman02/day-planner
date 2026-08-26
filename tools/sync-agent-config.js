@@ -14,7 +14,7 @@
 //   node tools/sync-agent-config.js          # regenerate all mirrors
 //   node tools/sync-agent-config.js --check  # verify mirrors match source; exit 1 if not
 
-import { existsSync, mkdirSync, readdirSync, statSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -29,6 +29,11 @@ const MIRRORS = [
   { src: '.agents/commands', dest: '.kilo/workflows' },
 ];
 
+/**
+ * Recursively lists every file under `dir`, as absolute paths.
+ * @param {string} dir Directory to walk.
+ * @returns {string[]} Absolute paths of all files found (empty if `dir` doesn't exist).
+ */
 function listFilesRecursive(dir) {
   const out = [];
   if (!existsSync(dir)) return out;
@@ -40,6 +45,11 @@ function listFilesRecursive(dir) {
   return out;
 }
 
+/**
+ * Lists files under `dir` as paths relative to `dir` itself.
+ * @param {string} dir Directory to walk.
+ * @returns {string[]} Relative file paths.
+ */
 function relFiles(dir) {
   return listFilesRecursive(dir).map((f) => f.slice(dir.length + 1));
 }

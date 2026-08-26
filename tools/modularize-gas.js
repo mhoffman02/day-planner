@@ -1,6 +1,9 @@
 /**
  * @file modularize-gas.js
- * @description Auto-generated JSDoc header for modularize-gas.js.
+ * @description One-shot migration script that splits gas-app/Styles.html and
+ * gas-app/Script.html back down to only their custom CSS/JS (stripping any
+ * previously-inlined vendor CSS/JS block) and wires gas-app/Index.html to pull
+ * PicoCSS and AlpineJS in via separate `<?!= include(...) ?>` partials instead.
  */
 
 import fs from 'node:fs';

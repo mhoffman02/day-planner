@@ -11,6 +11,11 @@ const BUNDLE_KEY = 'active_bundle';
 const URL_STORAGE_KEY = 'dayPlannerGasUrl';
 
 // 1. IndexedDB Helper for Storing/Loading the Private Application Bundle
+/**
+ * Opens (or creates) the shell's dedicated IndexedDB database used to cache the compiled
+ * app bundle for offline cold starts.
+ * @returns {Promise<IDBDatabase|null>} Resolves null if IndexedDB is unsupported or unavailable.
+ */
 export function openShellDb() {
   return new Promise((resolve) => {
     if (typeof indexedDB === 'undefined') {
@@ -28,11 +33,16 @@ export function openShellDb() {
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => resolve(null);
     } catch (e) {
+      console.warn('openShellDb: indexedDB.open() threw synchronously', e);
       resolve(null);
     }
   });
 }
 
+/**
+ * Reads the currently cached app bundle (IndexedDB, falling back to localStorage).
+ * @returns {Promise<object|null>} Cached bundle envelope `{bundle, hash, version, ...}`, or null.
+ */
 export async function getCachedBundle() {
   try {
     const db = await openShellDb();
@@ -53,6 +63,12 @@ export async function getCachedBundle() {
   }
 }
 
+/**
+ * Persists the app bundle to the local cache (IndexedDB, falling back to localStorage) so the
+ * next load can mount instantly offline.
+ * @param {object} bundleObj Bundle envelope `{bundle, hash, version, ...}` from the GAS backend.
+ * @returns {Promise<boolean|void>}
+ */
 export async function saveCachedBundle(bundleObj) {
   try {
     const db = await openShellDb();
@@ -75,6 +91,11 @@ export async function saveCachedBundle(bundleObj) {
 }
 
 // 2. DOM Mounting Engine: Injects Styles, Markup, and Scripts
+/**
+ * Mounts a compiled app bundle into `#app-root` — injects its stylesheet, markup, and script,
+ * then (re)starts Alpine.js. Idempotent: replaces any previously-mounted bundle content.
+ * @param {object} bundleData Bundle envelope with a `bundle: {styles, html, script}` payload.
+ */
 export function mountBundle(bundleData) {
   if (typeof document === 'undefined') return;
   const root = document.getElementById('app-root');
@@ -124,13 +145,19 @@ export function mountBundle(bundleData) {
   if (typeof window !== 'undefined' && window.Alpine && typeof window.Alpine.start === 'function') {
     try {
       window.Alpine.start();
-    } catch (e) {
-      // Alpine already running
+    } catch {
+      // Alpine already running — starting it twice throws, which is expected on a hot-update remount.
     }
   }
 }
 
 // 3. Remote Sync & Hot-Update Engine
+/**
+ * Checks the GAS backend for a newer app bundle than the one currently cached.
+ * @param {string} gasUrl Deployed GAS Web App `/exec` URL.
+ * @param {string|null} currentHash Content hash of the currently cached bundle, if any.
+ * @returns {Promise<object|null>} Update payload (`{bundle, hash, version, upToDate, ...}`), or null if offline/unreachable.
+ */
 export async function checkRemoteUpdate(gasUrl, currentHash) {
   if (!gasUrl || (typeof navigator !== 'undefined' && !navigator.onLine)) return null;
   try {
@@ -146,6 +173,10 @@ export async function checkRemoteUpdate(gasUrl, currentHash) {
 }
 
 // 4. Initial Setup Screen (When No URL & No Cached Bundle)
+/**
+ * Renders the first-run "connect your GAS backend" form into `#app-root`, used when there's
+ * no cached bundle and no configured GAS URL to boot from.
+ */
 export function renderSetupScreen() {
   if (typeof document === 'undefined') return;
   const root = document.getElementById('app-root');
@@ -212,6 +243,12 @@ export function renderSetupScreen() {
 }
 
 // 5. Main Boot Sequence
+/**
+ * Shell entry point: mounts a cached bundle instantly if one exists (0ms offline cold start),
+ * checks for a hot update in the background, and otherwise downloads a bundle or falls back to
+ * the setup screen. Runs automatically on `DOMContentLoaded`.
+ * @returns {Promise<void>}
+ */
 export async function boot() {
   if (typeof window === 'undefined') return;
 
@@ -222,7 +259,7 @@ export async function boot() {
         console.log('SW registration note:', err);
       });
     } catch (e) {
-      // Ignore
+      console.warn('boot: navigator.serviceWorker.register() threw synchronously', e);
     }
   }
 

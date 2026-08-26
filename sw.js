@@ -1,6 +1,9 @@
 /**
  * @file sw.js
- * @description Auto-generated JSDoc header for sw.js.
+ * @description Service worker for the Day Planner PWA shell: pre-caches the app
+ * shell on install, evicts stale caches on activate, and serves same-origin
+ * GET requests stale-while-revalidate (cross-origin requests bypass the cache
+ * and fall back to it only on network failure).
  */
 
 const CACHE_NAME = 'day-planner-shell-v1';

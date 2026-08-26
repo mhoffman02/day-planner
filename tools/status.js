@@ -13,6 +13,12 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 
+/**
+ * Runs a shell command in the repo root and returns its trimmed stdout, or ''
+ * on failure (e.g. no commits yet, not a git repo).
+ * @param {string} cmd Shell command to run.
+ * @returns {string} Trimmed stdout, or '' on error.
+ */
 function sh(cmd) {
   try {
     return execSync(cmd, { cwd: ROOT, encoding: 'utf8' }).trim();

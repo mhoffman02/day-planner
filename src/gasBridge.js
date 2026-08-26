@@ -129,10 +129,10 @@ export class GASBridge {
    */
   _runGasCall(fnName, args) {
     return new Promise((resolve, reject) => {
-      window.google.script.run
+      const runner = window.google.script.run
         .withSuccessHandler(resolve)
-        .withFailureHandler(reject)
-        [fnName](...args);
+        .withFailureHandler(reject);
+      runner[fnName](...args);
     });
   }
 

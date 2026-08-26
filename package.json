@@ -6,10 +6,19 @@
   "scripts": {
     "test": "node --test tests/*.test.js",
     "start": "node server.js",
+    "lint": "eslint src gas-app/*.gs tools server.js sw.js",
     "sync:agents": "node tools/sync-agent-config.js",
     "sync:agents:check": "node tools/sync-agent-config.js --check"
   },
-  "keywords": ["day-planner", "google-apps-script", "gsuite"],
+  "keywords": [
+    "day-planner",
+    "google-apps-script",
+    "gsuite"
+  ],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.9.1"
+  }
 }

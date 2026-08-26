@@ -27,6 +27,12 @@ if ('serviceWorker' in navigator) {
 // Helper engine definitions bundled for GAS SPA client
   const STATUS_LIST = ['•', '✓', '→', 'X', 'G/✓'];
 
+  /**
+   * Parses a task title that may contain a priority prefix like [A1] or [B3].
+   * Local mirror of `src/taskEngine.js`'s `parseTaskTitle` for this bundled client script.
+   * @param {string} [rawTitle=''] Raw task title string.
+   * @returns {{priorityGroup: string|null, sequence: number|null, priorityCode: string|null, cleanTitle: string}}
+   */
   function parseTaskTitle(rawTitle = '') {
     if (!rawTitle) return { priorityGroup: null, sequence: null, priorityCode: null, cleanTitle: '' };
     const match = rawTitle.match(/^\[([A-C])([1-9])\]\s*(.*)$/i);
@@ -41,20 +47,36 @@ if ('serviceWorker' in navigator) {
     return { priorityGroup: null, sequence: null, priorityCode: null, cleanTitle: rawTitle.trim() };
   }
 
+  /**
+   * Rebuilds a `[A1] Title`-style task title from its parsed parts.
+   * @param {string} priorityGroup Priority group letter, e.g. 'A'.
+   * @param {number} sequence Sequence number within the group.
+   * @param {string} cleanTitle Title text without the priority prefix.
+   * @returns {string}
+   */
   function formatTaskTitle(priorityGroup, sequence, cleanTitle) {
     const trimmed = (cleanTitle || '').trim();
     if (priorityGroup && sequence) return `[${priorityGroup.toUpperCase()}${sequence}] ${trimmed}`;
     return trimmed;
   }
 
+  /**
+   * Advances a task's status glyph to the next one in `STATUS_LIST`, wrapping around at the end.
+   * @param {string} curr Current status glyph.
+   * @returns {string} Next status glyph.
+   */
   function getNextStatus(curr) {
     const idx = STATUS_LIST.indexOf(curr);
     if (idx === -1 || idx === STATUS_LIST.length - 1) return STATUS_LIST[0];
     return STATUS_LIST[idx + 1];
   }
 
-
-
+/**
+ * Formats a Date object (or parses a date string) as a local YYYY-MM-DD string.
+ * Local mirror of `src/binderStore.js`'s `getLocalDateStr` for this bundled client script.
+ * @param {Date|string} [d=new Date()] Date object or string.
+ * @returns {string}
+ */
 function getLocalDateStr(d = new Date()) {
   if (typeof d === 'string') {
     if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
@@ -66,6 +88,12 @@ function getLocalDateStr(d = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
+  /**
+   * Registers the `plannerApp` Alpine.js component (all app state and methods) once Alpine has
+   * initialized. Safe to call before or after `alpine:init` fires — no-ops if `window.Alpine`
+   * isn't present yet.
+   * @returns {void}
+   */
   function registerPlannerApp() {
     if (!window.Alpine) return;
     window.Alpine.data('plannerApp', () => ({
@@ -99,6 +127,14 @@ function getLocalDateStr(d = new Date()) {
       _monthPrefetchInFlight: new Set(),
       outboxCount: 0,
 
+      /**
+       * Queues a toast notification, auto-dismissing it after `duration` ms.
+       * @param {string} message Toast body text.
+       * @param {'info'|'success'|'warning'|'error'} [type='info'] Toast style/severity.
+       * @param {number} [duration=10000] Milliseconds before auto-dismiss.
+       * @param {string} [title=''] Optional title override; defaults based on `type`.
+       * @returns {void}
+       */
       showToast(message, type = 'info', duration = 10000, title = '') {
         const id = 't_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
         const toastTitle = title || (type === 'error' ? 'Notice' : type === 'warning' ? 'Warning' : type === 'success' ? 'Success' : 'Information');
@@ -110,6 +146,11 @@ function getLocalDateStr(d = new Date()) {
         }, duration);
       },
 
+      /**
+       * Removes a toast by id.
+       * @param {string} id Toast id from `showToast`.
+       * @returns {void}
+       */
       dismissToast(id) {
         this.toasts = this.toasts.filter(t => t.id !== id);
       },
@@ -151,6 +192,7 @@ function getLocalDateStr(d = new Date()) {
 
       theme: 'light',
 
+      /** @returns {Array<object>} Note cards matching the current search text and category filter. */
       get filteredNoteCards() {
         const q = (this.noteCardSearchQuery || '').trim().toLowerCase();
         const cat = this.noteCardCategoryFilter;
@@ -162,18 +204,27 @@ function getLocalDateStr(d = new Date()) {
         });
       },
 
+      /** @returns {boolean} Whether the active view is one of the month-scoped tabs. */
       get isMonthlyView() {
         return ['monthly-calendar', 'master-tasks', 'monthly-index', 'future-matrix'].includes(this.activeView);
       },
 
+      /** @returns {string} Full month name for `selectedYear`/`selectedMonth`. */
       get selectedMonthName() {
         return new Date(this.selectedYear, this.selectedMonth - 1, 1).toLocaleDateString('en-US', { month: 'long' });
       },
 
+      /** @returns {string} Full month name for today's date. */
       get currentMonthName() {
         return new Date().toLocaleDateString('en-US', { month: 'long' });
       },
 
+      /**
+       * App bootstrap: creates the GAS bridge, restores theme/column-width prefs, loads the
+       * selected day/master tasks/recent attendees, wires keyboard shortcuts and auto-sync, and
+       * kicks off the rolling 3-month background prefetch. Called once by Alpine on mount.
+       * @returns {Promise<void>}
+       */
       async init() {
         this.bridge = new GASBridge(false);
         window.showToast = (msg, type, dur, title) => this.showToast(msg, type, dur, title);
@@ -188,6 +239,10 @@ function getLocalDateStr(d = new Date()) {
         this._scheduleMonthWindowPrefetch(this.selectedDate.slice(0, 7));
       },
 
+      /**
+       * Refreshes `outboxCount` from the count of mutations queued in IndexedDB while offline.
+       * @returns {Promise<void>}
+       */
       async refreshOutboxCount() {
         try {
           const outbox = await IndexedDbStore.getOutbox();
@@ -197,9 +252,12 @@ function getLocalDateStr(d = new Date()) {
         }
       },
 
-      // Replays any writes queued while offline against the real backend, in
-      // FIFO order, then reconciles temp ids (offline_task_*/offline_evt_*)
-      // in local state with the real ids the server assigned.
+      /**
+       * Replays any writes queued while offline against the real backend, in FIFO order, then
+       * reconciles temp ids (offline_task_ / offline_evt_ prefixed) in local state with the real
+       * ids the server assigned. No-op if there's no bridge flush method or the browser is offline.
+       * @returns {Promise<void>}
+       */
       async flushOutboxIfPossible() {
         if (!this.bridge || typeof this.bridge.flushOutbox !== 'function') return;
         if (typeof navigator !== 'undefined' && !navigator.onLine) return;
@@ -216,9 +274,14 @@ function getLocalDateStr(d = new Date()) {
         }
       },
 
-      // Patches a temp id (assigned locally while offline) to the real id the
-      // server returned once its queued create actually lands. Updates only
-      // apply optimistically before queueing, so they need no patching here.
+      /**
+       * Patches a temp id (assigned locally while offline) to the real id the server returned
+       * once its queued create actually lands. Updates only apply optimistically before
+       * queueing, so they need no patching here.
+       * @param {object} mutation Outbox mutation record (has `type` and `payload`).
+       * @param {object|null} result Result the flushed mutation resolved to, if any.
+       * @returns {void}
+       */
       reconcileOfflineMutation(mutation, result) {
         if (!result) return;
         if (mutation.type === 'ADD_DAILY_TASK' && mutation.payload.tempId) {
@@ -231,6 +294,10 @@ function getLocalDateStr(d = new Date()) {
         this.buildScheduleGrid();
       },
 
+      /**
+       * Loads recently-used calendar attendee emails for autocomplete in the event modal.
+       * @returns {Promise<void>}
+       */
       async loadRecentAttendees() {
         try {
           if (this.bridge && typeof this.bridge.getRecentAttendees === 'function') {
@@ -244,6 +311,11 @@ function getLocalDateStr(d = new Date()) {
         }
       },
 
+      /**
+       * Wires background 2-way sync triggers: a 5-minute interval, tab-visibility regain, and
+       * the browser coming back online — each gated by `isSyncing` to avoid overlapping runs.
+       * @returns {void}
+       */
       setupAutoSync() {
         if (this._autoSyncTimer) clearInterval(this._autoSyncTimer);
         this._autoSyncTimer = setInterval(() => {
@@ -265,6 +337,10 @@ function getLocalDateStr(d = new Date()) {
         });
       },
 
+      /**
+       * Restores saved 3-column layout widths from localStorage, if a valid saved value exists.
+       * @returns {void}
+       */
       initColumnWidths() {
         try {
           const saved = localStorage.getItem('dayPlannerColumnWidths');
@@ -280,6 +356,11 @@ function getLocalDateStr(d = new Date()) {
         }
       },
 
+      /**
+       * Persists `colWidths` to localStorage after `delay` ms of no further calls.
+       * @param {number} [delay=500] Debounce delay in milliseconds.
+       * @returns {void}
+       */
       saveColumnWidthsDebounced(delay = 500) {
         if (this._colWidthsSaveTimer) {
           clearTimeout(this._colWidthsSaveTimer);
@@ -293,6 +374,10 @@ function getLocalDateStr(d = new Date()) {
         }, delay);
       },
 
+      /**
+       * Resets the 3-column layout to equal thirds and clears the saved localStorage value.
+       * @returns {void}
+       */
       resetColumnWidths() {
         if (this._colWidthsSaveTimer) {
           clearTimeout(this._colWidthsSaveTimer);
@@ -300,9 +385,18 @@ function getLocalDateStr(d = new Date()) {
         this.colWidths = [33.33, 33.33, 33.34];
         try {
           localStorage.removeItem('dayPlannerColumnWidths');
-        } catch (e) {}
+        } catch (e) {
+          console.warn('resetColumnWidths: localStorage unavailable', e);
+        }
       },
 
+      /**
+       * Begins a drag-to-resize gesture on one of the two column dividers, tracking
+       * mouse/touch movement until pointer-up and clamping each column to a 15% minimum.
+       * @param {1|2} resizerIdx Which divider was grabbed (between columns 1-2 or 2-3).
+       * @param {MouseEvent|TouchEvent} event The mousedown/touchstart event.
+       * @returns {void}
+       */
       initResize(resizerIdx, event) {
         if (event.type === 'mousedown' && event.button !== 0) return;
         event.preventDefault();
@@ -380,6 +474,11 @@ function getLocalDateStr(d = new Date()) {
         window.addEventListener('touchend', onPointerUp);
       },
 
+      /**
+       * Restores the saved theme from localStorage, falling back to the OS `prefers-color-scheme`
+       * and then to light mode, and applies it to the document.
+       * @returns {void}
+       */
       initTheme() {
         try {
           const saved = localStorage.getItem('dayPlannerTheme');
@@ -391,23 +490,38 @@ function getLocalDateStr(d = new Date()) {
             this.theme = 'light';
           }
         } catch (e) {
+          console.warn('initTheme: localStorage/matchMedia unavailable, defaulting to light', e);
           this.theme = 'light';
         }
         this.applyTheme();
       },
 
+      /**
+       * Toggles between light/dark theme, persists the choice, and applies it to the document.
+       * @returns {void}
+       */
       toggleTheme() {
         this.theme = this.theme === 'dark' ? 'light' : 'dark';
         try {
           localStorage.setItem('dayPlannerTheme', this.theme);
-        } catch (e) {}
+        } catch (e) {
+          console.warn('toggleTheme: localStorage unavailable', e);
+        }
         this.applyTheme();
       },
 
+      /**
+       * Writes the current `theme` value to the document's `data-theme` attribute for CSS.
+       * @returns {void}
+       */
       applyTheme() {
         document.documentElement.setAttribute('data-theme', this.theme);
       },
 
+      /**
+       * Registers global keyboard shortcuts (currently Ctrl/Cmd+K to open universal search).
+       * @returns {void}
+       */
       setupKeyboardShortcuts() {
         window.addEventListener('keydown', (e) => {
           if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
@@ -417,6 +531,13 @@ function getLocalDateStr(d = new Date()) {
         });
       },
 
+      /**
+       * Reconciles local Tasks/Calendar state (`reconcileWorkspaceChanges`) and persists any
+       * resulting changes back to Google Tasks/Calendar, then flushes the offline outbox first.
+       * @param {boolean} [silent=false] Skip the visual sync indicator and error-message reset
+       *   (used for background/interval-triggered syncs vs. a user-initiated sync).
+       * @returns {Promise<void>}
+       */
       async trigger2WaySync(silent = false) {
         // isSyncing must gate silent runs too, not just user-initiated ones — the
         // 5-minute interval, visibilitychange, and online listeners all fire silent
@@ -512,6 +633,12 @@ function getLocalDateStr(d = new Date()) {
         }
       },
 
+      /**
+       * Switches the active binder tab, rebuilding the monthly grid and warming the
+       * rolling-month cache when switching into the monthly-calendar view.
+       * @param {string} viewName Target view name (e.g. 'daily', 'monthly-calendar').
+       * @returns {Promise<void>}
+       */
       async setView(viewName) {
         this.activeView = viewName;
         if (viewName === 'monthly-calendar') {
@@ -520,6 +647,11 @@ function getLocalDateStr(d = new Date()) {
         }
       },
 
+      /**
+       * Moves the selected date forward/backward by `delta` days and reloads that day's data.
+       * @param {number} delta Number of days to offset (negative moves backward).
+       * @returns {Promise<void>}
+       */
       async navigateDay(delta) {
         const [y, m, day] = this.selectedDate.split('-').map(Number);
         const d = new Date(y, m - 1, day + delta);
@@ -531,6 +663,12 @@ function getLocalDateStr(d = new Date()) {
         await this.loadDayData();
       },
 
+      /**
+       * Moves the selected month forward/backward by `delta` months, reloading day/master-task
+       * data and rebuilding the monthly grid if that view is active.
+       * @param {number} delta Number of months to offset (negative moves backward).
+       * @returns {Promise<void>}
+       */
       async navigateMonth(delta) {
         const [y, m] = this.selectedDate.split('-').map(Number);
         const d = new Date(y, m - 1 + delta, 1);
@@ -546,6 +684,10 @@ function getLocalDateStr(d = new Date()) {
         this._scheduleMonthWindowPrefetch(`${this.selectedYear}-${String(this.selectedMonth).padStart(2, '0')}`);
       },
 
+      /**
+       * Jumps the selected month/year to the real-world current month and reloads its data.
+       * @returns {Promise<void>}
+       */
       async jumpToCurrentMonth() {
         const now = new Date();
         this.selectedYear = now.getFullYear();
@@ -560,6 +702,10 @@ function getLocalDateStr(d = new Date()) {
         this._scheduleMonthWindowPrefetch(`${this.selectedYear}-${monthStr}`);
       },
 
+      /**
+       * Jumps the selected date to today and reloads that day's data.
+       * @returns {Promise<void>}
+       */
       async jumpToToday() {
         this.selectedDate = getLocalDateStr();
         const [y, m] = this.selectedDate.split('-').map(Number);
@@ -569,11 +715,20 @@ function getLocalDateStr(d = new Date()) {
         this._scheduleMonthWindowPrefetch(this.selectedDate.slice(0, 7));
       },
 
+      /**
+       * Clears the note-card search text and category filter.
+       * @returns {void}
+       */
       clearNoteCardFilter() {
         this.noteCardSearchQuery = '';
         this.noteCardCategoryFilter = 'ALL';
       },
 
+      /**
+       * Selects a day tapped in the monthly-calendar grid, switches to the daily view for it.
+       * @param {{dateStr: string}} day Monthly grid cell for the tapped day.
+       * @returns {Promise<void>}
+       */
       async selectCalendarDay(day) {
         if (day && day.dateStr) {
           this.selectedDate = day.dateStr;
@@ -587,6 +742,14 @@ function getLocalDateStr(d = new Date()) {
       // days quickly (e.g. holding an arrow key) only hits the backend once
       // the user settles on one. A never-before-seen date has nothing to show
       // from cache, so it fetches immediately instead of waiting out the debounce.
+      /**
+       * Offline-first daily load: renders instantly from IndexedDB if a cached copy exists,
+       * then debounces the live refresh so flipping through many days quickly (e.g. holding an
+       * arrow key) only hits the backend once the user settles on one. A never-before-seen date
+       * has nothing to show from cache, so it fetches immediately instead of waiting out the
+       * debounce. Also kicks off background prefetch of surrounding days.
+       * @returns {Promise<void>}
+       */
       async loadDayData() {
         const dateStr = this.selectedDate;
         const cached = await IndexedDbStore.getDaily(dateStr);
@@ -599,6 +762,11 @@ function getLocalDateStr(d = new Date()) {
         this._prefetchSurroundingDays(dateStr);
       },
 
+      /**
+       * Applies a fetched/cached daily-data payload to app state and rebuilds derived views.
+       * @param {{tasks?: Array, calendarEvents?: Array, noteContent?: string}} data Daily payload.
+       * @returns {void}
+       */
       _applyDailyData(data) {
         this.dailyTasks = data.tasks || [];
         this.calendarEvents = data.calendarEvents || [];
@@ -608,6 +776,12 @@ function getLocalDateStr(d = new Date()) {
         this.buildIndexRecords();
       },
 
+      /**
+       * Debounces a live re-fetch of `dateStr` after rendering it from cache, so the backend
+       * gets one refresh call once navigation settles rather than one per day flipped through.
+       * @param {string} dateStr Date to refresh, in YYYY-MM-DD format.
+       * @returns {void}
+       */
       _scheduleDaySync(dateStr) {
         if (this._daySyncTimer) clearTimeout(this._daySyncTimer);
         this._daySyncTimer = setTimeout(() => {
@@ -616,6 +790,14 @@ function getLocalDateStr(d = new Date()) {
         }, 2000);
       },
 
+      /**
+       * Fetches a day's data from the backend, caches it in IndexedDB (unless it's an error
+       * payload), and optionally applies it to app state if that date is still selected.
+       * @param {string} dateStr Date to fetch, in YYYY-MM-DD format.
+       * @param {{applyIfCurrent?: boolean}} [options] Whether to apply the result if `dateStr`
+       *   still matches `selectedDate` once the fetch resolves.
+       * @returns {Promise<object|null>} The fetched payload, or `null` on error.
+       */
       async _fetchAndCacheDay(dateStr, { applyIfCurrent = false } = {}) {
         try {
           const data = await this.bridge.getDailyData(dateStr);
@@ -645,9 +827,13 @@ function getLocalDateStr(d = new Date()) {
         }
       },
 
-      // Keeps selectedDate +/- 7 days warm in IndexedDB in the background so
-      // day-to-day navigation reads from cache instantly instead of waiting on
-      // a live google.script.run round trip.
+      /**
+       * Keeps `centerDateStr` +/- 7 days warm in IndexedDB in the background so day-to-day
+       * navigation reads from cache instantly instead of waiting on a live google.script.run
+       * round trip. Skips dates already cached or already in flight.
+       * @param {string} centerDateStr Date to prefetch around, in YYYY-MM-DD format.
+       * @returns {void}
+       */
       _prefetchSurroundingDays(centerDateStr) {
         const [y, m, day] = centerDateStr.split('-').map(Number);
         for (let delta = -7; delta <= 7; delta++) {
@@ -666,11 +852,16 @@ function getLocalDateStr(d = new Date()) {
         }
       },
 
-      // Fetches+caches a whole month via the batched getMonthData endpoint (one round trip
-      // instead of ~30 getDailyData() calls). Skips the network call entirely if a cached
-      // copy younger than MONTH_CACHE_TTL_MS already exists. Writes to the dedicated
-      // monthOverview IndexedDB store, never to dailyData, so a background month batch can
-      // never clobber a fresher single-day edit or a pending offline mutation living there.
+      /**
+       * Fetches+caches a whole month via the batched getMonthData endpoint (one round trip
+       * instead of ~30 getDailyData() calls). Skips the network call entirely if a cached copy
+       * younger than MONTH_CACHE_TTL_MS already exists. Writes to the dedicated monthOverview
+       * IndexedDB store, never to dailyData, so a background month batch can never clobber a
+       * fresher single-day edit or a pending offline mutation living there.
+       * @param {string} monthStr Month in YYYY-MM format.
+       * @param {{force?: boolean}} [options] Set `force: true` to bypass the freshness cache.
+       * @returns {Promise<object|null>} Per-day overview map keyed by dateStr, or `null` on error.
+       */
       async _prefetchMonth(monthStr, { force = false } = {}) {
         if (this._monthPrefetchInFlight.has(monthStr)) return null;
         if (!force) {
@@ -694,11 +885,15 @@ function getLocalDateStr(d = new Date()) {
         }
       },
 
-      // Keeps previous/current/next month's overview warm in IndexedDB in the background —
-      // the rolling "3 visible tabs" window analogous to a paper day planner. Staggered one
-      // at a time via requestIdleCallback (setTimeout fallback for browsers without it, e.g.
-      // older iOS Safari) rather than fired in parallel, current month first, so this never
-      // competes with the interactive day-load path for network or CPU.
+      /**
+       * Keeps previous/current/next month's overview warm in IndexedDB in the background — the
+       * rolling "3 visible tabs" window analogous to a paper day planner. Staggered one at a
+       * time via requestIdleCallback (setTimeout fallback for browsers without it, e.g. older
+       * iOS Safari) rather than fired in parallel, current month first, so this never competes
+       * with the interactive day-load path for network or CPU.
+       * @param {string} centerMonthStr Month to prefetch around, in YYYY-MM format.
+       * @returns {void}
+       */
       _scheduleMonthWindowPrefetch(centerMonthStr) {
         const [y, m] = centerMonthStr.split('-').map(Number);
         const queue = [centerMonthStr, this._monthStrOffset(y, m, 1), this._monthStrOffset(y, m, -1)];
@@ -712,11 +907,22 @@ function getLocalDateStr(d = new Date()) {
         runNext();
       },
 
+      /**
+       * Offsets a year/month by a number of months and formats the result as YYYY-MM.
+       * @param {number} year Base year.
+       * @param {number} month Base month (1-indexed).
+       * @param {number} deltaMonths Months to offset (may be negative).
+       * @returns {string}
+       */
       _monthStrOffset(year, month, deltaMonths) {
         const d = new Date(year, month - 1 + deltaMonths, 1);
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       },
 
+      /**
+       * Appends a new blank note card and syncs it into `dailyNote`.
+       * @returns {void}
+       */
       addNoteCard() {
         const newCard = {
           id: `nc_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -729,15 +935,32 @@ function getLocalDateStr(d = new Date()) {
         this.syncCardsToDailyNote();
       },
 
+      /**
+       * Removes a note card by id and syncs the change into `dailyNote`.
+       * @param {string} cardId Note card id.
+       * @returns {void}
+       */
       deleteNoteCard(cardId) {
         this.noteCards = this.noteCards.filter(c => c.id !== cardId);
         this.syncCardsToDailyNote();
       },
 
+      /**
+       * Toggles a note card's collapsed/expanded UI state.
+       * @param {object} card Note card object.
+       * @returns {void}
+       */
       toggleCardExpand(card) {
         if (card) card.collapsed = !card.collapsed;
       },
 
+      /**
+       * Applies a lightweight markdown-style format (bold/italic/strike/code/bullet-list) to a
+       * note card's content.
+       * @param {object} card Note card to format.
+       * @param {'bold'|'italic'|'strike'|'code'|'bullet'} formatType Format to apply.
+       * @returns {void}
+       */
       applyCardFormat(card, formatType) {
         if (!card) return;
         const prefixMap = {
@@ -757,6 +980,13 @@ function getLocalDateStr(d = new Date()) {
         this.syncCardsToDailyNote();
       },
 
+      /**
+       * Splits a daily note's raw markdown text into heading-delimited note cards (`###`/`#`
+       * lines start a new card; content lines accumulate under the current card). Returns a
+       * placeholder pair of sample cards when given empty/default note text.
+       * @param {string} [noteText=''] Raw daily note markdown.
+       * @returns {Array<{id: string, heading: string, content: string, category: string, collapsed: boolean}>}
+       */
       parseDailyNoteToCards(noteText = '') {
         if (!noteText.trim() || noteText.startsWith('No notes recorded for')) {
           return [
@@ -815,6 +1045,11 @@ function getLocalDateStr(d = new Date()) {
         return cards;
       },
 
+      /**
+       * Serializes `noteCards` back into `dailyNote`'s markdown text (the cards view is the
+       * source of truth), rebuilds index records, and schedules a debounced save.
+       * @returns {void}
+       */
       syncCardsToDailyNote() {
         if (!this.noteCards || this.noteCards.length === 0) {
           this.dailyNote = '';
@@ -827,16 +1062,24 @@ function getLocalDateStr(d = new Date()) {
         this.scheduleDailyNoteSave();
       },
 
+      /**
+       * Re-parses `dailyNote`'s markdown text back into `noteCards` (the continuous-doc view is
+       * the source of truth), rebuilds index records, and schedules a debounced save.
+       * @returns {void}
+       */
       syncDailyNoteToCards() {
         this.noteCards = this.parseDailyNoteToCards(this.dailyNote);
         this.buildIndexRecords();
         this.scheduleDailyNoteSave();
       },
 
-      // Debounces persistence of this.dailyNote so a keystroke in the card/continuous-doc
-      // textareas (both wired to fire on every @input) doesn't send a save on every
-      // keystroke. Previously nothing ever called saveDailyDocCards at all, so note edits
-      // only ever lived in memory and were lost on the next loadDayData().
+      /**
+       * Debounces persistence of `this.dailyNote` so a keystroke in the card/continuous-doc
+       * textareas (both wired to fire on every input event) doesn't send a save on every
+       * keystroke. Previously nothing ever called saveDailyDocCards at all, so note edits only
+       * ever lived in memory and were lost on the next loadDayData().
+       * @returns {void}
+       */
       scheduleDailyNoteSave() {
         if (this.noteSaveTimer) clearTimeout(this.noteSaveTimer);
         this.noteSaveTimer = setTimeout(async () => {
@@ -851,6 +1094,10 @@ function getLocalDateStr(d = new Date()) {
         }, 1200);
       },
 
+      /**
+       * Loads the master task list for the selected month.
+       * @returns {Promise<void>}
+       */
       async loadMasterTasks() {
         try {
           this.masterTasks = await this.bridge.getMasterTasks(`${this.selectedMonthName} ${this.selectedYear}`);
@@ -860,6 +1107,12 @@ function getLocalDateStr(d = new Date()) {
         }
       },
 
+      /**
+       * Rebuilds `scheduleGrid`, the 07:00-19:00 half-hour time slots for the daily view, and
+       * buckets `calendarEvents` into their start-time slots. Task-mirror events (tagged via
+       * `syncTaskId`) are excluded — Tasks and Appointments stay visually distinct columns.
+       * @returns {void}
+       */
       buildScheduleGrid() {
         const slots = [];
         for (let hour = 7; hour < 19; hour++) {
@@ -894,6 +1147,11 @@ function getLocalDateStr(d = new Date()) {
         this.scheduleGrid = slots;
       },
 
+      /**
+       * Extracts `#index [Topic] Summary`-style lines from `dailyNote` into `indexRecords` for
+       * the monthly index view.
+       * @returns {void}
+       */
       buildIndexRecords() {
         if (!this.dailyNote) return;
         const lines = this.dailyNote.split('\n');
@@ -913,10 +1171,13 @@ function getLocalDateStr(d = new Date()) {
         this.indexRecords = entries;
       },
 
-      // Renders the month grid from whatever's cached in IndexedDB first (offline-first,
-      // instant), then refreshes in place once the batched month fetch resolves — sourcing
-      // events from the monthOverview cache across the whole month instead of the
-      // single-day-scoped `this.calendarEvents`, which only ever covers the selected day.
+      /**
+       * Renders the month grid from whatever's cached in IndexedDB first (offline-first,
+       * instant), then refreshes in place once the batched month fetch resolves — sourcing
+       * events from the monthOverview cache across the whole month instead of the
+       * single-day-scoped `this.calendarEvents`, which only ever covers the selected day.
+       * @returns {Promise<void>}
+       */
       async buildMonthlyGrid() {
         const monthStr = `${this.selectedYear}-${String(this.selectedMonth).padStart(2, '0')}`;
         const firstDay = new Date(this.selectedYear, this.selectedMonth - 1, 1);
@@ -954,6 +1215,11 @@ function getLocalDateStr(d = new Date()) {
         }
       },
 
+      /**
+       * Creates a new daily task from `newTaskTitle`/`newTaskPriorityGroup`, then triggers a
+       * 2-way sync.
+       * @returns {Promise<void>}
+       */
       async addDailyTask() {
         if (!this.newTaskTitle.trim()) return;
         try {
@@ -972,6 +1238,11 @@ function getLocalDateStr(d = new Date()) {
         }
       },
 
+      /**
+       * Advances a task's status glyph, persists the change, and triggers a 2-way sync.
+       * @param {object} task Daily task to update (mutated in place).
+       * @returns {Promise<void>}
+       */
       async toggleTaskStatus(task) {
         task.status = getNextStatus(task.status);
         try {
@@ -994,6 +1265,11 @@ function getLocalDateStr(d = new Date()) {
         await this.trigger2WaySync();
       },
 
+      /**
+       * Transfers a master task to today's daily task list under priority group A.
+       * @param {object} mTask Master task to transfer.
+       * @returns {Promise<void>}
+       */
       async moveMasterTaskToToday(mTask) {
         try {
           const transferred = await this.bridge.transferMasterTask(mTask.id, this.selectedDate, 'A');
@@ -1010,16 +1286,31 @@ function getLocalDateStr(d = new Date()) {
         }
       },
 
+      /**
+       * Opens the event detail modal for a calendar event.
+       * @param {object} evt Calendar event to display.
+       * @returns {void}
+       */
       openEventModal(evt) {
         this.selectedEvent = evt;
         this.eventModalOpen = true;
       },
 
+      /**
+       * Closes the event detail modal.
+       * @returns {void}
+       */
       closeEventModal() {
         this.eventModalOpen = false;
         this.selectedEvent = null;
       },
 
+      /**
+       * Computes an HH:MM end time from a start time and a duration in minutes.
+       * @param {string} [startStr='09:00'] Start time in HH:MM format.
+       * @param {number} [durationMin=25] Duration in minutes.
+       * @returns {string} End time in HH:MM format.
+       */
       calculateEndTime(startStr = '09:00', durationMin = 25) {
         const [hStr, mStr] = startStr.split(':');
         const h = parseInt(hStr, 10) || 9;
@@ -1030,11 +1321,20 @@ function getLocalDateStr(d = new Date()) {
         return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
       },
 
+      /**
+       * Sets the new-event duration and recalculates its end time.
+       * @param {number} durationMin Duration in minutes.
+       * @returns {void}
+       */
       setEventDuration(durationMin) {
         this.newEventData.duration = durationMin;
         this.newEventData.endTime = this.calculateEndTime(this.newEventData.startTime, durationMin);
       },
 
+      /**
+       * Recalculates the new-event end time after its start time input changes.
+       * @returns {void}
+       */
       onStartTimeChange() {
         this.newEventData.endTime = this.calculateEndTime(
           this.newEventData.startTime,
@@ -1042,6 +1342,12 @@ function getLocalDateStr(d = new Date()) {
         );
       },
 
+      /**
+       * Opens the create-appointment modal, prefilling start/end time from a clicked time slot.
+       * @param {string} [timeKey] Starting time key from the clicked grid slot (e.g. '09:00').
+       * @param {number} [durationMin=25] Default duration in minutes.
+       * @returns {void}
+       */
       openCreateEventModal(timeKey, durationMin = 25) {
         const defaultStart = timeKey || '09:00';
         const defaultEnd = this.calculateEndTime(defaultStart, durationMin);
@@ -1065,10 +1371,19 @@ function getLocalDateStr(d = new Date()) {
         });
       },
 
+      /**
+       * Closes the create-appointment modal.
+       * @returns {void}
+       */
       closeCreateEventModal() {
         this.createEventModalOpen = false;
       },
 
+      /**
+       * Opens Google Calendar's native "create event" web UI in a popup window, prefilled from
+       * `newEventData`, as an escape hatch for options the in-app modal doesn't cover.
+       * @returns {void}
+       */
       launchNativeGCalCreate() {
         const title = encodeURIComponent(this.newEventData.title || 'New Appointment');
         const location = encodeURIComponent(this.newEventData.location || (this.newEventData.autoGoogleMeet ? 'Google Meet' : ''));
@@ -1093,6 +1408,12 @@ function getLocalDateStr(d = new Date()) {
         this.closeCreateEventModal();
       },
 
+      /**
+       * Saves the new-event form as a calendar event: adds it optimistically to local state and
+       * the schedule grid immediately, then persists it via the bridge (which provisions a real
+       * Google Meet link/agenda doc server-side) and reconciles the optimistic entry in place.
+       * @returns {Promise<void>}
+       */
       async saveNewEvent() {
         if (!this.newEventData.title.trim()) return;
         try {
@@ -1152,6 +1473,10 @@ function getLocalDateStr(d = new Date()) {
         }
       },
 
+      /**
+       * Toggles the universal search modal, running a search on open.
+       * @returns {void}
+       */
       toggleSearchModal() {
         this.searchModalOpen = !this.searchModalOpen;
         if (this.searchModalOpen) {
@@ -1159,10 +1484,19 @@ function getLocalDateStr(d = new Date()) {
         }
       },
 
+      /**
+       * Closes the universal search modal.
+       * @returns {void}
+       */
       closeSearchModal() {
         this.searchModalOpen = false;
       },
 
+      /**
+       * Runs `searchQuery` against calendar events, daily/master tasks, the current daily note,
+       * and index records, populating `searchResults`.
+       * @returns {void}
+       */
       runSearch() {
         const q = this.searchQuery.trim().toLowerCase();
         if (!q) {
@@ -1201,6 +1535,12 @@ function getLocalDateStr(d = new Date()) {
         this.searchResults = res;
       },
 
+      /**
+       * Parses a task title's priority prefix for template display. Thin wrapper around the
+       * module-level `parseTaskTitle` helper.
+       * @param {string} title Raw task title.
+       * @returns {{priorityGroup: string|null, sequence: number|null, priorityCode: string|null, cleanTitle: string}}
+       */
       parseTask(title) {
         return parseTaskTitle(title);
       }

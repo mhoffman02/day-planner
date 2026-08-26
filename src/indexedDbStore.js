@@ -84,6 +84,7 @@ export function openDb() {
         resolve(null);
       };
     } catch (err) {
+      console.warn('openDb: indexedDB.open() threw synchronously (e.g. private browsing)', err);
       dbPromise = null;
       resolve(null);
     }
@@ -111,6 +112,7 @@ export async function getItem(storeName, key) {
       req.onsuccess = () => resolve(req.result || null);
       req.onerror = () => resolve(null);
     } catch (e) {
+      console.warn(`getItem: transaction on store "${storeName}" threw synchronously`, e);
       resolve(null);
     }
   });
@@ -144,6 +146,7 @@ export async function setItem(storeName, item) {
       req.onsuccess = () => resolve(true);
       req.onerror = () => resolve(false);
     } catch (e) {
+      console.warn(`setItem: transaction on store "${storeName}" threw synchronously`, e);
       resolve(false);
     }
   });
@@ -175,6 +178,7 @@ export async function setItems(storeName, items) {
       tx.oncomplete = () => resolve(true);
       tx.onerror = () => resolve(false);
     } catch (e) {
+      console.warn(`setItems: transaction on store "${storeName}" threw synchronously`, e);
       resolve(false);
     }
   });
@@ -201,6 +205,7 @@ export async function getAllItems(storeName) {
       req.onsuccess = () => resolve(req.result || []);
       req.onerror = () => resolve([]);
     } catch (e) {
+      console.warn(`getAllItems: transaction on store "${storeName}" threw synchronously`, e);
       resolve([]);
     }
   });
@@ -230,38 +235,51 @@ export async function deleteItem(storeName, key) {
       req.onsuccess = () => resolve(true);
       req.onerror = () => resolve(false);
     } catch (e) {
+      console.warn(`deleteItem: transaction on store "${storeName}" threw synchronously`, e);
       resolve(false);
     }
   });
 }
 
+/** @param {string} dateStr Date string e.g. "2026-08-15". @returns {Promise<object|null>} Cached daily-page record, if any. */
 export async function getDaily(dateStr) {
   return getItem(STORES.DAILY_DATA, dateStr);
 }
 
+/** @param {string} dateStr Date string e.g. "2026-08-15". @param {object} payload Daily-page data to cache. @returns {Promise<boolean>} */
 export async function saveDaily(dateStr, payload) {
   const item = Object.assign({}, payload, { dateStr: dateStr, cachedAt: new Date().toISOString() });
   return setItem(STORES.DAILY_DATA, item);
 }
 
+/** @param {string} monthStr Month string e.g. "2026-08". @returns {Promise<object|null>} Cached monthly-notes record, if any. */
 export async function getMonthlyNotes(monthStr) {
   return getItem(STORES.MONTHLY_NOTES, monthStr);
 }
 
+/** @param {string} monthStr Month string e.g. "2026-08". @param {object} data Monthly-notes data to cache. @returns {Promise<boolean>} */
 export async function saveMonthlyNotes(monthStr, data) {
   const item = Object.assign({}, data, { monthStr: monthStr, cachedAt: new Date().toISOString() });
   return setItem(STORES.MONTHLY_NOTES, item);
 }
 
+/** @param {string} monthStr Month string e.g. "2026-08". @returns {Promise<object|null>} Cached whole-month overview record (per-day tasks/events/notes), if any. */
 export async function getMonthOverview(monthStr) {
   return getItem(STORES.MONTH_OVERVIEW, monthStr);
 }
 
+/** @param {string} monthStr Month string e.g. "2026-08". @param {Array<object>} days Per-day overview entries for the month. @returns {Promise<boolean>} */
 export async function saveMonthOverview(monthStr, days) {
   const item = { monthStr: monthStr, days: days, cachedAt: new Date().toISOString() };
   return setItem(STORES.MONTH_OVERVIEW, item);
 }
 
+/**
+ * Queues an offline write for later replay once connectivity returns.
+ * @param {string} type Mutation type tag (see `OUTBOX_MUTATION_TYPES` in gasBridge.js).
+ * @param {object} payload Mutation payload to replay.
+ * @returns {Promise<boolean>}
+ */
 export async function enqueueMutation(type, payload) {
   const mutation = {
     type: type,
@@ -271,10 +289,12 @@ export async function enqueueMutation(type, payload) {
   return setItem(STORES.OUTBOX_QUEUE, mutation);
 }
 
+/** @returns {Promise<Array<object>>} All queued offline mutations awaiting replay. */
 export async function getOutbox() {
   return getAllItems(STORES.OUTBOX_QUEUE);
 }
 
+/** @param {string|number} id Outbox queue record id. @returns {Promise<boolean>} */
 export async function dequeueMutation(id) {
   return deleteItem(STORES.OUTBOX_QUEUE, id);
 }

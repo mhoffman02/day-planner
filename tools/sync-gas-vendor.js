@@ -1,6 +1,9 @@
 /**
  * @file sync-gas-vendor.js
- * @description Auto-generated JSDoc header for sync-gas-vendor.js.
+ * @description Inlines the vendored Pico CSS and Alpine.js sources (src/vendor/)
+ * into gas-app/Styles.html and gas-app/Script.html in place of their CDN
+ * `@import`/`<script src=...>` references, since Apps Script's HtmlService
+ * can't fetch third-party CDN assets at serve time.
  */
 
 import fs from 'node:fs';

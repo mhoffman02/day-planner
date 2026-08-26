@@ -5,6 +5,11 @@
 
 import fs from 'node:fs';
 
+/**
+ * Finds an open page target on the local Chrome DevTools Protocol endpoint,
+ * opening a fresh one at the daily view if none exists yet.
+ * @returns {Promise<string>} The page's `webSocketDebuggerUrl`.
+ */
 async function getCDPTarget() {
   const res = await fetch('http://127.0.0.1:9222/json/list');
   const targets = await res.json();
@@ -16,6 +21,15 @@ async function getCDPTarget() {
   return pageTarget.webSocketDebuggerUrl;
 }
 
+/**
+ * Sends a Chrome DevTools Protocol command over an open WebSocket and resolves
+ * with the matching response (correlated by `id`).
+ * @param {WebSocket} ws Open CDP WebSocket connection.
+ * @param {string} method CDP method name, e.g. 'Page.navigate'.
+ * @param {object} [params={}] Method parameters.
+ * @param {number} [id=1] Message id used to correlate the response.
+ * @returns {Promise<any>} The command's result payload.
+ */
 function sendCDPCommand(ws, method, params = {}, id = 1) {
   return new Promise((resolve, reject) => {
     const messageHandler = (event) => {
@@ -31,6 +45,14 @@ function sendCDPCommand(ws, method, params = {}, id = 1) {
   });
 }
 
+/**
+ * Loads the daily view under the given theme, forces the theme attribute/Alpine
+ * state to match (belt-and-braces against a stale localStorage read on first
+ * paint), and writes a PNG screenshot to `outputFile`.
+ * @param {'light'|'dark'} theme Theme to apply before capturing.
+ * @param {string} outputFile Absolute path to write the PNG to.
+ * @returns {Promise<void>}
+ */
 async function captureScreen(theme, outputFile) {
   const wsUrl = await getCDPTarget();
   const ws = new WebSocket(wsUrl);
@@ -83,7 +105,7 @@ async function captureScreen(theme, outputFile) {
   const screenshotResult = await sendCDPCommand(ws, 'Page.captureScreenshot', {
     format: 'png',
     captureBeyondViewport: false
-  }, msgId++);
+  }, msgId);
 
   const buffer = Buffer.from(screenshotResult.data, 'base64');
   fs.writeFileSync(outputFile, buffer);
@@ -92,6 +114,10 @@ async function captureScreen(theme, outputFile) {
   ws.close();
 }
 
+/**
+ * Captures the light and dark theme reference screenshots of the daily view.
+ * @returns {Promise<void>}
+ */
 async function main() {
   await captureScreen('light', '/home/mike/projects/day-planner/desktop_daily_light.png');
   await new Promise(r => setTimeout(r, 1000));

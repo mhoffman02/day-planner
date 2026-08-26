@@ -25,7 +25,7 @@ function runSelfTest() {
     results.push({
       test: '1. Google Drive & Folder Hierarchy',
       status: 'PASS',
-      details: 'Day Planner root folder ID: ' + rootFolder.getId()
+      details: 'Day Planner root folder ID: ' + rootFolder.getId() + ' | Year folder ID: ' + yearFolder.getId()
     });
     passedCount++;
   } catch (err1) {

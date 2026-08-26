@@ -127,7 +127,7 @@ export class BinderStore {
    * @returns {void}
    */
   navigateMonth(deltaMonths = 0) {
-    const [y, m, d] = this.selectedDate.split('-').map(Number);
+    const [y, m] = this.selectedDate.split('-').map(Number);
     const dateObj = new Date(y, m - 1 + deltaMonths, 1);
     const yearStr = dateObj.getFullYear();
     const monthStr = (dateObj.getMonth() + 1).toString().padStart(2, '0');

@@ -73,6 +73,7 @@ function validateUserAccess() {
       error: 'Access Denied: Google Account (' + (userEmail || 'anonymous') + ') is not authorized on this Day Planner instance.'
     };
   } catch (err) {
+    logError('validateUserAccess', err);
     return { authorized: true, userEmail: 'session-user' };
   }
 }
@@ -190,6 +191,15 @@ function makeFileHandle(meta) {
   };
 }
 
+/**
+ * Wraps a Drive folder's `{id, name}` metadata in a DriveApp.Folder-shaped adapter, backed by
+ * the Advanced Drive Service (see makeFileHandle above for why DriveApp itself can't be used
+ * under drive.file scope). Lets the rest of the file keep calling .getFilesByName()/
+ * .getFoldersByName()/.getFiles()/.createFile() as if against a real DriveApp Folder.
+ * @param {string} id Drive folder ID.
+ * @param {string} name Drive folder name.
+ * @returns {object} Folder handle exposing getId/getName/getFilesByName/getFoldersByName/getFiles/createFile.
+ */
 function makeFolderHandle(id, name) {
   function listChildren(extraQuery) {
     var q = "'" + id + "' in parents and trashed = false" + (extraQuery ? ' and ' + extraQuery : '');
@@ -396,6 +406,7 @@ function validateAndSaveFolderUrl(inputUrl) {
           message: 'Notice: Under least-privilege security ("drive.file"), Day Planner cannot access folders created manually outside the app. We automatically created a new dedicated "Day Planner" folder in your Google Drive!'
         };
       } catch (autoErr) {
+        logError('validateAndSaveFolderUrl.autoCreate', autoErr);
         return {
           success: false,
           error: 'Security Scope Notice: Under least-privilege permissions, Day Planner cannot access folders created outside this application. Click "Auto-Create Folder" below to create an authorized folder.'
@@ -765,7 +776,7 @@ function getMonthlyNotesData(monthStr) {
     try {
       return JSON.parse(cached);
     } catch (cacheParseErr) {
-      cached = null; // fall through to a real fetch below
+      console.warn('getMonthlyNotesData: bad cached JSON for ' + cacheKey + ', falling through to a real fetch', cacheParseErr);
     }
   }
 
@@ -997,6 +1008,7 @@ function saveDailyDocCards(dateStr, noteContent) {
         try {
           monthData = JSON.parse(content);
         } catch (e) {
+          console.warn('saveDailyDocCards: bad existing JSON in ' + fileName + ', resetting month file', e);
           monthData = { month: monthStr, days: {} };
         }
       }
@@ -1061,16 +1073,13 @@ function getMasterTasks(monthYearStr) {
   var auth = validateUserAccess();
   if (!auth.authorized) return [];
 
-  try {
-    return [
-      { id: 'm1', title: 'Prepare Q3 performance appraisals', category: 'Work', status: '•' },
-      { id: 'm2', title: 'Plan annual family retreat', category: 'Personal', status: '•' },
-      { id: 'm3', title: 'Rebalance investment portfolio', category: 'Financial', status: '•' }
-    ];
-  } catch (err) {
-    logError('getMasterTasks', err);
-    return [];
-  }
+  // Static placeholder data — no Drive-backed master task store exists yet, so there is
+  // nothing here that can throw; monthYearStr is accepted for the future real filter.
+  return [
+    { id: 'm1', title: 'Prepare Q3 performance appraisals', category: 'Work', status: '•' },
+    { id: 'm2', title: 'Plan annual family retreat', category: 'Personal', status: '•' },
+    { id: 'm3', title: 'Rebalance investment portfolio', category: 'Financial', status: '•' }
+  ];
 }
 
 /**
@@ -1111,7 +1120,7 @@ function getFutureMatrixData_(year) {
     try {
       return JSON.parse(cached);
     } catch (cacheParseErr) {
-      cached = null; // fall through to a real fetch below
+      console.warn('getFutureMatrixData_: bad cached JSON for ' + cacheKey + ', falling through to a real fetch', cacheParseErr);
     }
   }
 
@@ -1721,7 +1730,7 @@ function getRecentAttendees(lookbackDays, lookaheadDays) {
             }
           });
         } catch (e) {
-          // ignore single event error
+          console.warn('getRecentAttendees: skipping event with unreadable guest list', e);
         }
       });
     }
@@ -1791,7 +1800,7 @@ function searchAcrossAllMonthlyDocs(query) {
               });
             }
           } catch (jsonParseErr) {
-            console.warn('Search JSON parse error in ' + name);
+            console.warn('Search JSON parse error in ' + name, jsonParseErr);
           }
         }
       }
@@ -1809,19 +1818,21 @@ function searchAcrossAllMonthlyDocs(query) {
  */
 function getCompiledAppBundle() {
   var appVersion = '1.3.0';
-  var styles = '';
-  var script = '';
-  var indexContent = '';
+  var styles;
+  var script;
+  var indexContent;
 
   try {
     styles = HtmlService.createHtmlOutputFromFile('Styles').getContent();
   } catch (e) {
+    console.warn('getCompiledAppBundle: Styles.html missing/unreadable, bundle will ship with no styles', e);
     styles = '';
   }
 
   try {
     script = HtmlService.createHtmlOutputFromFile('Script').getContent();
   } catch (e) {
+    console.warn('getCompiledAppBundle: Script.html missing/unreadable, bundle will ship with no script', e);
     script = '';
   }
 
@@ -1829,9 +1840,11 @@ function getCompiledAppBundle() {
     var template = HtmlService.createTemplateFromFile('Index');
     indexContent = template.evaluate().getContent();
   } catch (e) {
+    console.warn('getCompiledAppBundle: Index.html template evaluation failed, trying static read', e);
     try {
       indexContent = HtmlService.createHtmlOutputFromFile('Index').getContent();
     } catch (e2) {
+      console.warn('getCompiledAppBundle: Index.html missing/unreadable, serving placeholder shell', e2);
       indexContent = '<div>Application Shell Loading...</div>';
     }
   }

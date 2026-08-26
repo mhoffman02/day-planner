@@ -15,6 +15,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const readOnly = process.argv.includes('--read-only');
 
+/**
+ * Runs a shell command in the repo root and returns its trimmed stdout, or ''
+ * on failure.
+ * @param {string} cmd Shell command to run.
+ * @returns {string} Trimmed stdout, or '' on error.
+ */
 function sh(cmd) {
   try {
     return execSync(cmd, { cwd: ROOT, encoding: 'utf8' }).trim();
@@ -23,6 +29,12 @@ function sh(cmd) {
   }
 }
 
+/**
+ * Copies text to the system clipboard, trying each known OS clipboard backend
+ * in turn (WSL/Windows, X11 xclip/xsel, macOS pbcopy) until one succeeds.
+ * @param {string} text Text to copy.
+ * @returns {boolean} True if a backend accepted the copy.
+ */
 function toClipboard(text) {
   const buf = Buffer.from(text, 'utf8');
   const backends = [
@@ -38,6 +50,12 @@ function toClipboard(text) {
   return false;
 }
 
+/**
+ * Auto-fixes one class of pre-commit finding on currently staged .js files:
+ * injects a placeholder `@file` JSDoc header into any staged, non-test,
+ * non-config JS file that's missing one, then re-stages the changes.
+ * @returns {void}
+ */
 function autoFixFindings() {
   console.log('🧹 [FIX FINDINGS] Checking and fixing auto-fixable findings...');
   const stagedFiles = sh('git diff --cached --name-only --diff-filter=ACM').split('\n').filter(Boolean);
@@ -145,7 +163,7 @@ if (!readOnly) {
       });
       console.log('✅ Commit successful.');
     } catch (err) {
-      console.error('❌ [BLOCKER] Pre-commit hook or commit failed. Please fix remaining findings and re-run.');
+      console.error('❌ [BLOCKER] Pre-commit hook or commit failed. Please fix remaining findings and re-run.', err.message);
       process.exit(1);
     }
 
@@ -154,7 +172,7 @@ if (!readOnly) {
       execSync('git push origin ' + branch, { cwd: ROOT, stdio: 'inherit' });
       console.log('✅ Push successful.');
     } catch (pushErr) {
-      console.warn('⚠️ Push to remote failed or remote unavailable. Continuing local handoff.');
+      console.warn('⚠️ Push to remote failed or remote unavailable. Continuing local handoff.', pushErr.message);
     }
   } else {
     console.log('ℹ️ Working tree is clean. Skipping git commit & push.');

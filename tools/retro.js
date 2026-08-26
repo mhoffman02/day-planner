@@ -13,6 +13,11 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 
+/**
+ * Reads a `--name value` CLI flag from `process.argv`.
+ * @param {string} name Flag name, without leading dashes.
+ * @returns {string} The flag's value, or '' if not present.
+ */
 function flag(name) {
   const idx = process.argv.indexOf(`--${name}`);
   return idx !== -1 ? process.argv[idx + 1] : '';
@@ -30,6 +35,11 @@ if (!label) {
   process.exit(1);
 }
 
+/**
+ * Renders a `|`-delimited flag value as a Markdown bullet list.
+ * @param {string} items Pipe-delimited items, e.g. "a|b|c".
+ * @returns {string} Markdown bullet list, or '- (none)' if empty.
+ */
 function list(items) {
   const rendered = items
     .split('|')

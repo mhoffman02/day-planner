@@ -25,6 +25,12 @@ const MIME_TYPES = {
   '.svg': 'image/svg+xml'
 };
 
+/**
+ * Builds the standalone static file server: serves `index.html` for `/`,
+ * resolves requests under the project root with directory-traversal
+ * protection, and sets a no-cache response so local edits are always fresh.
+ * @returns {import('node:http').Server} An unstarted HTTP server (call `.listen()`).
+ */
 export function createServer() {
   return http.createServer((req, res) => {
     const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
@@ -35,7 +41,7 @@ export function createServer() {
     }
 
     // Prevent directory traversal attacks
-    const safePath = path.normalize(pathname).replace(/^(\.\.[\/\\])+/, '');
+    const safePath = path.normalize(pathname).replace(/^(\.\.[/\\])+/, '');
     const filePath = path.join(__dirname, safePath);
 
     if (!filePath.startsWith(__dirname)) {

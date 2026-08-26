@@ -13,6 +13,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
 
+/**
+ * Reads gas-app's Index/Styles/Script HTML, strips GAS `<?!= include(...) ?>`
+ * scriptlets from the markup, and packages the result into a versioned,
+ * content-hashed offline bundle object.
+ * @returns {{version: string, hash: string, timestamp: string, bundle: {title: string, themeColor: string, styles: string, html: string, script: string}}}
+ */
 function buildBundle() {
   const indexHtml = fs.readFileSync(path.join(ROOT_DIR, 'gas-app/Index.html'), 'utf8');
   const stylesHtml = fs.readFileSync(path.join(ROOT_DIR, 'gas-app/Styles.html'), 'utf8');
@@ -45,6 +51,14 @@ function buildBundle() {
   return bundleObj;
 }
 
+/**
+ * Builds the current app bundle and injects/replaces the `BUILTIN_BUNDLES`
+ * constant in the target `pwa.js`, so the shell can boot Day Planner offline
+ * on first load without a cross-origin fetch. No-op if the target file
+ * doesn't exist (e.g. the sibling gh-pwa-shell checkout isn't present).
+ * @param {string} targetPwaJsPath Absolute path to the shell's pwa.js.
+ * @returns {void}
+ */
 export function updateShellPwaJs(targetPwaJsPath) {
   if (!fs.existsSync(targetPwaJsPath)) return;
   const bundle = buildBundle();
