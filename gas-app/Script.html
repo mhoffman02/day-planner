@@ -1669,15 +1669,31 @@
           strike: '~~',
           code: '`'
         };
+        const colorMap = {
+          'color-teal': 'teal',
+          'color-red': 'red',
+          'color-green': 'green',
+          'color-blue': 'blue',
+          'color-default': null
+        };
 
         if (formatType === 'bullet') {
           const lines = (card.content || '').split('\n');
           card.content = lines.map(line => line.startsWith('- ') ? line.substring(2) : `- ${line}`).join('\n');
+        } else if (formatType in colorMap) {
+          const stripped = (card.content || '').replace(/^\[\[color:(?:teal|red|green|blue)\]\]([\s\S]*)\[\[\/color\]\]$/, '$1');
+          const newColor = colorMap[formatType];
+          card.content = newColor ? `[[color:${newColor}]]${stripped}[[/color]]` : stripped;
         } else if (prefixMap[formatType]) {
           const p = prefixMap[formatType];
           card.content = `${p}${card.content || ''}${p}`;
         }
         this.syncCardsToDailyNote();
+      },
+
+      cardNoteColor(card) {
+        const m = /^\[\[color:(teal|red|green|blue)\]\]/.exec((card && card.content) || '');
+        return m ? m[1] : null;
       },
 
       parseDailyNoteToCards(noteText = '') {

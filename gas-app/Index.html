@@ -381,7 +381,7 @@
 
               <!-- Cards List -->
               <template x-for="card in filteredNoteCards" :key="card.id">
-                <article class="note-card-item" :id="'note-card-' + card.id" :class="{ 'collapsed': card.collapsed }">
+                <article class="note-card-item" :id="'note-card-' + card.id" :class="{ 'collapsed': card.collapsed, 'note-color-teal': cardNoteColor(card) === 'teal', 'note-color-red': cardNoteColor(card) === 'red', 'note-color-green': cardNoteColor(card) === 'green', 'note-color-blue': cardNoteColor(card) === 'blue' }">
                   <!-- Card Header -->
                   <header class="note-card-header">
                     <button type="button" class="card-twistie-btn" @click="toggleCardExpand(card)" :title="card.collapsed ? 'Expand Topic' : 'Collapse Topic'">
@@ -417,6 +417,12 @@
                       <span class="toolbar-divider"></span>
                       <button type="button" class="format-btn" @click="applyCardFormat(card, 'bullet')" title="Bullet List"><span class="material-symbols-outlined icon-16">format_list_bulleted</span></button>
                       <button type="button" class="format-btn" @click="applyCardFormat(card, 'code')" title="Code/Quote"><span class="material-symbols-outlined icon-16">code</span></button>
+                      <span class="toolbar-divider"></span>
+                      <button type="button" class="format-btn color-swatch-btn color-swatch-default" @click="applyCardFormat(card, 'color-default')" title="Clear Color"><span class="material-symbols-outlined icon-16">format_color_reset</span></button>
+                      <button type="button" class="format-btn color-swatch-btn color-swatch-teal" :class="{ active: cardNoteColor(card) === 'teal' }" @click="applyCardFormat(card, 'color-teal')" title="Color: Teal" aria-label="Color: Teal"></button>
+                      <button type="button" class="format-btn color-swatch-btn color-swatch-red" :class="{ active: cardNoteColor(card) === 'red' }" @click="applyCardFormat(card, 'color-red')" title="Color: Red (Urgent)" aria-label="Color: Red (Urgent)"></button>
+                      <button type="button" class="format-btn color-swatch-btn color-swatch-green" :class="{ active: cardNoteColor(card) === 'green' }" @click="applyCardFormat(card, 'color-green')" title="Color: Green (Done)" aria-label="Color: Green (Done)"></button>
+                      <button type="button" class="format-btn color-swatch-btn color-swatch-blue" :class="{ active: cardNoteColor(card) === 'blue' }" @click="applyCardFormat(card, 'color-blue')" title="Color: Blue (Info)" aria-label="Color: Blue (Info)"></button>
                     </div>
 
                     <!-- Note Card Text Area -->
