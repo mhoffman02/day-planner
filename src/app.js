@@ -140,6 +140,9 @@ function getLocalDateStr(d = new Date()) {
       // null when none is open. A single id rather than a per-task flag keeps only one open at
       // a time, matching noteFilterMenuOpen's click-to-open/click-outside-to-close convention.
       openStatusMenuTaskId: null,
+      // Pending timeout id from scheduleStatusMenuClose (see below) — cancelled on re-entry so a
+      // quick mouse pass over the gap between the button and the dropdown doesn't close it.
+      statusMenuCloseTimer: null,
       statusOptions: STATUS_OPTIONS,
       dailyNote: '',
       noteCards: [],
@@ -1323,8 +1326,43 @@ function getLocalDateStr(d = new Date()) {
        * @returns {Promise<void>}
        */
       async selectTaskStatus(task, newStatus) {
+        clearTimeout(this.statusMenuCloseTimer);
         this.openStatusMenuTaskId = null;
         await this.setTaskStatus(task, newStatus);
+      },
+
+      /**
+       * Opens the status-select dropdown for a task (hover or click) and cancels any pending
+       * delayed-close from a previous hover, so re-entering the trigger/menu before the delay
+       * elapses keeps it open.
+       * @param {string} taskId Task whose dropdown to open.
+       */
+      openStatusMenu(taskId) {
+        clearTimeout(this.statusMenuCloseTimer);
+        this.openStatusMenuTaskId = taskId;
+      },
+
+      /**
+       * Click handler for the status button: toggles the dropdown (same open/close-if-same-id
+       * logic as a plain toggle), and cancels any pending hover-close so click and hover never race.
+       * @param {string} taskId Task whose dropdown to toggle.
+       */
+      toggleStatusMenu(taskId) {
+        clearTimeout(this.statusMenuCloseTimer);
+        this.openStatusMenuTaskId = (this.openStatusMenuTaskId === taskId ? null : taskId);
+      },
+
+      /**
+       * Closes the status dropdown ~250ms after the mouse leaves, instead of immediately, so
+       * crossing the small gap between the button and the dropdown (or a brief overshoot) doesn't
+       * close it. Re-entering before the timer fires (openStatusMenu) cancels it.
+       * @param {string} taskId Task whose dropdown to close if still open.
+       */
+      scheduleStatusMenuClose(taskId) {
+        clearTimeout(this.statusMenuCloseTimer);
+        this.statusMenuCloseTimer = setTimeout(() => {
+          if (this.openStatusMenuTaskId === taskId) this.openStatusMenuTaskId = null;
+        }, 250);
       },
 
       /**

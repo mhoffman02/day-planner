@@ -220,16 +220,16 @@
                       </td>
                       <td>
                         <div class="status-menu-wrap"
-                             @mouseenter="openStatusMenuTaskId = task.id"
-                             @mouseleave="openStatusMenuTaskId = (openStatusMenuTaskId === task.id ? null : openStatusMenuTaskId)">
+                             @mouseenter="openStatusMenu(task.id)"
+                             @mouseleave="scheduleStatusMenuClose(task.id)">
                           <button type="button" class="status-btn"
-                                  @click="openStatusMenuTaskId = (openStatusMenuTaskId === task.id ? null : task.id)"
+                                  @click="toggleStatusMenu(task.id)"
                                   x-text="task.status || '•'"
                                   aria-haspopup="menu"
                                   :aria-expanded="openStatusMenuTaskId === task.id"
                                   :title="task.status === '→' && task.forwardedToDate ? ('Forwarded to ' + task.forwardedToDate) : ''"
                                   :aria-label="task.status === '→' && task.forwardedToDate ? ('Task status: Forwarded to ' + task.forwardedToDate + '. Click to choose a status.') : ('Task status: ' + (task.status || 'Open') + '. Click to choose a status.')"></button>
-                          <div class="status-menu" role="menu" x-show="openStatusMenuTaskId === task.id" @click.outside="openStatusMenuTaskId = null" x-cloak>
+                          <div class="status-menu" role="menu" x-show="openStatusMenuTaskId === task.id" @click.outside="clearTimeout(statusMenuCloseTimer); openStatusMenuTaskId = null" x-cloak>
                             <template x-for="opt in statusOptions" :key="opt.value">
                               <button type="button" class="status-menu-item" role="menuitem"
                                       :class="{ 'is-active': (task.status || '•') === opt.value }"
