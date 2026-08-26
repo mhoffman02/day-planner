@@ -201,7 +201,7 @@ The **Google Digital Day Planner** is a high-efficiency single-page digital bind
   always fetches/mounts a static bundle into `#app-root` and runs it client-side, so
   `google.script.run` never exists there and `GASBridge` silently falls back to mock
   data — even with a trusted GAS URL on file. Root cause and fix are already documented
-  in `docs/shell-gas-pattern.md` §9 ("If Live 2-Way GAS Sync Is Required" — a standalone
+  in `shell-gas-pattern.md` §9 ("If Live 2-Way GAS Sync Is Required" — a standalone
   GAS deployment, not a fetched bundle, is correct for a live-2-way-sync app like Day
   Planner). The patch adds a `redirectToApp()` helper and changes `initPWA()`,
   `launchKnownApp()`, and `handleConnect()` in `pwa.js` to do a real
