@@ -425,8 +425,9 @@
                       <button type="button" class="format-btn color-swatch-btn color-swatch-blue" :class="{ active: cardNoteColor(card) === 'blue' }" @click="applyCardFormat(card, 'color-blue')" title="Color: Blue (Info)" aria-label="Color: Blue (Info)"></button>
                     </div>
 
-                    <!-- Note Card Text Area -->
-                    <textarea x-model="card.content" @input="syncCardsToDailyNote()" placeholder="Type notes for this topic (e.g. - #index [Topic] key decisions...)" class="note-card-textarea" aria-label="Note card content"></textarea>
+                    <!-- Note Card Content: rendered (formatting applied, markers hidden) until clicked, then the raw textarea for editing -->
+                    <div class="note-card-render" x-show="!card._editing" @click="startEditingCard(card)" x-html="renderCardContent(card)" aria-label="Note card content, click to edit"></div>
+                    <textarea x-show="card._editing" :id="'card-textarea-' + card.id" x-model="card.content" @input="syncCardsToDailyNote()" @blur="card._editing = false" placeholder="Type notes for this topic (e.g. - #index [Topic] key decisions...)" class="note-card-textarea" aria-label="Note card content"></textarea>
                   </div>
                 </article>
               </template>

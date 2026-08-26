@@ -1446,6 +1446,49 @@ button.event-pill:hover {
   outline: none;
 }
 
+.note-card-render {
+  width: 100%;
+  min-height: 90px;
+  max-height: 240px;
+  font-family: var(--font-family);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  padding: 8px 12px;
+  background: var(--theme-card-textarea-bg);
+  color: var(--theme-card-textarea-fg);
+  overflow-y: auto;
+  cursor: text;
+}
+
+.note-card-empty-placeholder {
+  opacity: 0.55;
+  font-style: italic;
+}
+
+.note-render-line:empty::after {
+  content: '\00a0';
+}
+
+.note-render-list {
+  margin: 0;
+  padding-left: 1.25em;
+}
+
+.note-render-bold { font-weight: 700; }
+.note-render-italic { font-style: italic; }
+.note-render-strike { text-decoration: line-through; }
+.note-render-code {
+  font-family: 'Courier New', monospace;
+  background: rgba(127, 127, 127, 0.15);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+
+.note-render-color-teal { color: var(--note-color-teal); }
+.note-render-color-red { color: var(--note-color-red); }
+.note-render-color-green { color: var(--note-color-green); }
+.note-render-color-blue { color: var(--note-color-blue); }
+
 .continuous-doc-textarea {
   width: 100%;
   min-height: 380px;

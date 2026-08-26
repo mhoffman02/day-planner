@@ -159,7 +159,7 @@ function getLocalDateStr(d = new Date()) {
       errorMessage: null,
       toasts: [],
       noteSaveTimer: null,
-      _daySyncTimer: null,
+      _daySyncTimers: new Map(),
       _prefetchInFlight: new Set(),
       _monthPrefetchInFlight: new Set(),
       outboxCount: 0,
@@ -655,6 +655,7 @@ function getLocalDateStr(d = new Date()) {
           this.calendarEvents = reconciled.calendarEvents;
 
           this.buildScheduleGrid();
+          await this._persistCurrentDailyCache();
 
           if (syncWarnings.length > 0) {
             console.warn('🔥 trigger2WaySync: stale references', syncWarnings);
@@ -820,11 +821,29 @@ function getLocalDateStr(d = new Date()) {
        * @returns {void}
        */
       _scheduleDaySync(dateStr) {
-        if (this._daySyncTimer) clearTimeout(this._daySyncTimer);
-        this._daySyncTimer = setTimeout(() => {
-          this._daySyncTimer = null;
+        const existing = this._daySyncTimers.get(dateStr);
+        if (existing) clearTimeout(existing);
+        this._daySyncTimers.set(dateStr, setTimeout(() => {
+          this._daySyncTimers.delete(dateStr);
           this._fetchAndCacheDay(dateStr, { applyIfCurrent: true });
-        }, 2000);
+        }, 2000));
+      },
+
+      /**
+       * Merges the current in-memory tasks/events (the freshest known state right after a
+       * status change or 2-way sync) into the cached daily payload for selectedDate, so a
+       * reload or day-away-and-back reads the live values instead of the stale snapshot from
+       * whenever that day was last fetched.
+       * @returns {Promise<void>}
+       */
+      async _persistCurrentDailyCache() {
+        try {
+          const dateStr = this.selectedDate;
+          const cached = (await IndexedDbStore.getDaily(dateStr)) || {};
+          await IndexedDbStore.saveDaily(dateStr, { ...cached, tasks: this.dailyTasks, calendarEvents: this.calendarEvents });
+        } catch (e) {
+          console.warn('Could not update cached daily tasks/events:', e);
+        }
       },
 
       /**
@@ -1006,15 +1025,115 @@ function getLocalDateStr(d = new Date()) {
           strike: '~~',
           code: '`'
         };
+        const colorMap = {
+          'color-teal': 'teal',
+          'color-red': 'red',
+          'color-green': 'green',
+          'color-blue': 'blue',
+          'color-default': null
+        };
 
         if (formatType === 'bullet') {
           const lines = (card.content || '').split('\n');
           card.content = lines.map(line => line.startsWith('- ') ? line.substring(2) : `- ${line}`).join('\n');
+        } else if (formatType in colorMap) {
+          const stripped = (card.content || '').replace(/^\[\[color:(?:teal|red|green|blue)\]\]([\s\S]*)\[\[\/color\]\]$/, '$1');
+          const newColor = colorMap[formatType];
+          card.content = newColor ? `[[color:${newColor}]]${stripped}[[/color]]` : stripped;
         } else if (prefixMap[formatType]) {
           const p = prefixMap[formatType];
           card.content = `${p}${card.content || ''}${p}`;
         }
         this.syncCardsToDailyNote();
+      },
+
+      /**
+       * Returns the active color name ('teal'|'red'|'green'|'blue') encoded in a card's
+       * leading `[[color:x]]` marker, or null if uncolored.
+       * @param {object} card Note card to inspect.
+       * @returns {string|null}
+       */
+      cardNoteColor(card) {
+        const m = /^\[\[color:(teal|red|green|blue)\]\]/.exec((card && card.content) || '');
+        return m ? m[1] : null;
+      },
+
+      /**
+       * Switches a card from the rendered view into the raw textarea so its markers
+       * (**bold**, [[color:x]], etc.) become editable; focuses the textarea once
+       * Alpine has flipped x-show and it's actually in the DOM.
+       * @param {object} card Note card to edit.
+       * @returns {void}
+       */
+      startEditingCard(card) {
+        if (!card) return;
+        card._editing = true;
+        this.$nextTick(() => {
+          const el = document.getElementById('card-textarea-' + card.id);
+          if (el) el.focus();
+        });
+      },
+
+      /**
+       * Renders a card's raw marker-laden content (**bold**, *italic*, ~~strike~~, `code`,
+       * [[color:x]]...[[/color]], "- " bullet lines) as safe, formatted HTML for the
+       * read-only card view -- the markers themselves are app-internal formatting
+       * instructions, not something the user should ever see as literal text. Mirrors
+       * applyCardFormat's whole-content-wrap convention: each format wraps the *entire*
+       * content, so this peels wrap layers from the outside in rather than parsing inline
+       * spans.
+       * @param {object} card Note card to render.
+       * @returns {string} Sanitized HTML for the card's rendered view.
+       */
+      renderCardContent(card) {
+        const raw = (card && card.content) || '';
+        if (!raw.trim()) {
+          return '<span class="note-card-empty-placeholder">Click to add notes for this topic&hellip;</span>';
+        }
+
+        let text = raw;
+        const classes = [];
+
+        const colorMatch = /^\[\[color:(teal|red|green|blue)\]\]([\s\S]*)\[\[\/color\]\]$/.exec(text);
+        if (colorMatch) {
+          classes.push('note-render-color-' + colorMatch[1]);
+          text = colorMatch[2];
+        }
+
+        const wrapMarkers = [
+          { marker: '~~', cls: 'note-render-strike' },
+          { marker: '**', cls: 'note-render-bold' },
+          { marker: '`', cls: 'note-render-code' },
+          { marker: '*', cls: 'note-render-italic' }
+        ];
+        let peeled = true;
+        while (peeled) {
+          peeled = false;
+          for (const { marker, cls } of wrapMarkers) {
+            if (text.length >= marker.length * 2 && text.startsWith(marker) && text.endsWith(marker)) {
+              classes.push(cls);
+              text = text.slice(marker.length, text.length - marker.length);
+              peeled = true;
+            }
+          }
+        }
+
+        const escapeHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+        let bodyHtml = '';
+        let inList = false;
+        text.split('\n').forEach(line => {
+          if (line.startsWith('- ')) {
+            if (!inList) { bodyHtml += '<ul class="note-render-list">'; inList = true; }
+            bodyHtml += `<li>${escapeHtml(line.slice(2))}</li>`;
+          } else {
+            if (inList) { bodyHtml += '</ul>'; inList = false; }
+            bodyHtml += `<div class="note-render-line">${escapeHtml(line) || '&nbsp;'}</div>`;
+          }
+        });
+        if (inList) bodyHtml += '</ul>';
+
+        return `<div class="note-render-content ${classes.join(' ')}">${bodyHtml}</div>`;
       },
 
       /**
