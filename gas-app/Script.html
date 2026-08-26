@@ -169,17 +169,27 @@
   // Mirrors src/indexedDbStore.js — HtmlService can't import ES modules, so this is
   // a hand-duplicated inline copy; keep both in sync per sync-src-and-gas-app.md.
   const IDB_NAME = 'day-planner-db';
-  const IDB_VERSION = 1;
+  const IDB_VERSION = 2;
   const IDB_STORE_DAILY = 'dailyData';
   const IDB_STORE_OUTBOX = 'outboxQueue';
+  // Read-only cache of a whole month's {tasks, calendarEvents, noteContent} per day, used to
+  // render the monthly-calendar view and warm the rolling 3-month cache in the background.
+  // Deliberately separate from IDB_STORE_DAILY so a background month-batch response can never
+  // race a fresher single-day write or a pending offline edit.
+  const IDB_STORE_MONTH_OVERVIEW = 'monthOverview';
 
   function idbSupported() {
     return typeof indexedDB !== 'undefined' && indexedDB !== null;
   }
 
+  // Opening the DB is idempotent, so cache the in-flight/opened promise instead of issuing a
+  // fresh indexedDB.open() per call — a month-batch write otherwise means ~30 separate opens.
+  let idbDbPromise = null;
+
   function idbOpen() {
     if (!idbSupported()) return Promise.resolve(null);
-    return new Promise((resolve) => {
+    if (idbDbPromise) return idbDbPromise;
+    idbDbPromise = new Promise((resolve) => {
       try {
         const request = indexedDB.open(IDB_NAME, IDB_VERSION);
         request.onupgradeneeded = (event) => {
@@ -190,16 +200,22 @@
           if (!db.objectStoreNames.contains(IDB_STORE_OUTBOX)) {
             db.createObjectStore(IDB_STORE_OUTBOX, { keyPath: 'id', autoIncrement: true });
           }
+          if (!db.objectStoreNames.contains(IDB_STORE_MONTH_OVERVIEW)) {
+            db.createObjectStore(IDB_STORE_MONTH_OVERVIEW, { keyPath: 'monthStr' });
+          }
         };
         request.onsuccess = (event) => resolve(event.target.result);
         request.onerror = (event) => {
           console.warn('IndexedDB open error:', event.target && event.target.error);
+          idbDbPromise = null;
           resolve(null);
         };
       } catch (e) {
+        idbDbPromise = null;
         resolve(null);
       }
     });
+    return idbDbPromise;
   }
 
   async function idbGetDaily(dateStr) {
@@ -225,6 +241,37 @@
       try {
         const tx = db.transaction([IDB_STORE_DAILY], 'readwrite');
         const req = tx.objectStore(IDB_STORE_DAILY).put(item);
+        req.onsuccess = () => resolve(true);
+        req.onerror = () => resolve(false);
+      } catch (e) {
+        resolve(false);
+      }
+    });
+  }
+
+  async function idbGetMonthOverview(monthStr) {
+    const db = await idbOpen();
+    if (!db) return null;
+    return new Promise((resolve) => {
+      try {
+        const tx = db.transaction([IDB_STORE_MONTH_OVERVIEW], 'readonly');
+        const req = tx.objectStore(IDB_STORE_MONTH_OVERVIEW).get(monthStr);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => resolve(null);
+      } catch (e) {
+        resolve(null);
+      }
+    });
+  }
+
+  async function idbSaveMonthOverview(monthStr, days) {
+    const db = await idbOpen();
+    if (!db) return false;
+    const item = { monthStr, days, cachedAt: new Date().toISOString() };
+    return new Promise((resolve) => {
+      try {
+        const tx = db.transaction([IDB_STORE_MONTH_OVERVIEW], 'readwrite');
+        const req = tx.objectStore(IDB_STORE_MONTH_OVERVIEW).put(item);
         req.onsuccess = () => resolve(true);
         req.onerror = () => resolve(false);
       } catch (e) {
@@ -278,6 +325,8 @@
       }
     });
   }
+
+  const MONTH_CACHE_TTL_MS = 15 * 60 * 1000;
 
   const OUTBOX_MUTATION_TYPES = {
     ADD_DAILY_TASK: 'ADD_DAILY_TASK',
@@ -456,6 +505,26 @@
           .withSuccessHandler(resolve)
           .withFailureHandler(reject)
           .getDailyData(dateStr);
+      });
+    }
+
+    async getMonthData(monthStr) {
+      if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+        const [y, m] = monthStr.split('-').map(Number);
+        const daysInMonth = new Date(y, m, 0).getDate();
+        const days = {};
+        for (let day = 1; day <= daysInMonth; day++) {
+          const dateStr = `${monthStr}-${String(day).padStart(2, '0')}`;
+          days[dateStr] = await this.getDailyData(dateStr);
+        }
+        return { month: monthStr, days };
+      }
+
+      return new Promise((resolve, reject) => {
+        window.google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .getMonthData(monthStr);
       });
     }
 
@@ -690,6 +759,7 @@
       noteSaveTimer: null,
       _daySyncTimer: null,
       _prefetchInFlight: new Set(),
+      _monthPrefetchInFlight: new Set(),
       outboxCount: 0,
 
       showToast(message, type = 'info', duration = 10000, title = '') {
@@ -778,6 +848,7 @@
         await this.refreshOutboxCount();
         this.setupKeyboardShortcuts();
         this.setupAutoSync();
+        this._scheduleMonthWindowPrefetch(this.selectedDate.slice(0, 7));
       },
 
       async refreshOutboxCount() {
@@ -1107,7 +1178,8 @@
       async setView(viewName) {
         this.activeView = viewName;
         if (viewName === 'monthly-calendar') {
-          this.buildMonthlyGrid();
+          await this.buildMonthlyGrid();
+          this._scheduleMonthWindowPrefetch(this.selectedDate.slice(0, 7));
         }
       },
 
@@ -1132,8 +1204,9 @@
         await this.loadDayData();
         await this.loadMasterTasks();
         if (this.activeView === 'monthly-calendar') {
-          this.buildMonthlyGrid();
+          await this.buildMonthlyGrid();
         }
+        this._scheduleMonthWindowPrefetch(this.selectedDate.slice(0, 7));
       },
 
       async jumpToCurrentMonth() {
@@ -1145,8 +1218,9 @@
         await this.loadDayData();
         await this.loadMasterTasks();
         if (this.activeView === 'monthly-calendar') {
-          this.buildMonthlyGrid();
+          await this.buildMonthlyGrid();
         }
+        this._scheduleMonthWindowPrefetch(this.selectedDate.slice(0, 7));
       },
 
       async jumpToToday() {
@@ -1155,6 +1229,7 @@
         this.selectedYear = y;
         this.selectedMonth = m;
         await this.loadDayData();
+        this._scheduleMonthWindowPrefetch(this.selectedDate.slice(0, 7));
       },
 
       clearNoteCardFilter() {
@@ -1251,6 +1326,46 @@
               .finally(() => this._prefetchInFlight.delete(dateStr));
           });
         }
+      },
+
+      async _prefetchMonth(monthStr, { force = false } = {}) {
+        if (this._monthPrefetchInFlight.has(monthStr)) return null;
+        if (!force) {
+          const cached = await idbGetMonthOverview(monthStr);
+          if (cached && cached.cachedAt && (Date.now() - new Date(cached.cachedAt).getTime()) < MONTH_CACHE_TTL_MS) {
+            return cached.days;
+          }
+        }
+        this._monthPrefetchInFlight.add(monthStr);
+        try {
+          const data = await this.bridge.getMonthData(monthStr);
+          if (!data || data.error) return null;
+          const days = data.days || {};
+          await idbSaveMonthOverview(monthStr, days);
+          return days;
+        } catch (err) {
+          console.warn('_prefetchMonth failed for', monthStr, err);
+          return null;
+        } finally {
+          this._monthPrefetchInFlight.delete(monthStr);
+        }
+      },
+
+      _scheduleMonthWindowPrefetch(centerMonthStr) {
+        const [y, m] = centerMonthStr.split('-').map(Number);
+        const queue = [centerMonthStr, this._monthStrOffset(y, m, 1), this._monthStrOffset(y, m, -1)];
+        const idle = typeof requestIdleCallback === 'function' ? requestIdleCallback : (fn) => setTimeout(fn, 200);
+        const runNext = () => {
+          const monthStr = queue.shift();
+          if (!monthStr) return;
+          idle(() => { this._prefetchMonth(monthStr).finally(runNext); });
+        };
+        runNext();
+      },
+
+      _monthStrOffset(year, month, deltaMonths) {
+        const d = new Date(year, month - 1 + deltaMonths, 1);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       },
 
       addNoteCard() {
@@ -1449,26 +1564,41 @@
         this.indexRecords = entries;
       },
 
-      buildMonthlyGrid() {
+      async buildMonthlyGrid() {
+        const monthStr = `${this.selectedYear}-${String(this.selectedMonth).padStart(2, '0')}`;
         const firstDay = new Date(this.selectedYear, this.selectedMonth - 1, 1);
         const lastDay = new Date(this.selectedYear, this.selectedMonth, 0);
-        const days = [];
         const startDayOfWeek = firstDay.getDay();
 
-        for (let i = startDayOfWeek - 1; i >= 0; i--) {
-          days.push({ dayNum: '', isCurrentMonth: false, events: [] });
-        }
+        const build = (dayMap) => {
+          const grid = [];
+          for (let i = startDayOfWeek - 1; i >= 0; i--) {
+            grid.push({ dayNum: '', isCurrentMonth: false, events: [] });
+          }
+          for (let day = 1; day <= lastDay.getDate(); day++) {
+            const dateStr = `${this.selectedYear}-${this.selectedMonth.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+            const dayData = dayMap[dateStr];
+            const events = dayData
+              ? dayData.calendarEvents
+              : (dateStr === this.selectedDate ? this.calendarEvents : []);
+            grid.push({ dateStr, dayNum: day, isCurrentMonth: true, events });
+          }
+          while (grid.length % 7 !== 0) {
+            grid.push({ dayNum: '', isCurrentMonth: false, events: [] });
+          }
+          return grid;
+        };
 
-        for (let day = 1; day <= lastDay.getDate(); day++) {
-          const dateStr = `${this.selectedYear}-${this.selectedMonth.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-          days.push({ dateStr, dayNum: day, isCurrentMonth: true, events: this.calendarEvents.filter(e => e.startTime?.startsWith(dateStr)) });
-        }
+        const cached = await idbGetMonthOverview(monthStr);
+        this.monthlyGrid = build((cached && cached.days) || {});
 
-        while (days.length % 7 !== 0) {
-          days.push({ dayNum: '', isCurrentMonth: false, events: [] });
+        const freshDays = await this._prefetchMonth(monthStr);
+        // Only apply the refreshed grid if this month is still what's on screen -- avoids
+        // clobbering a grid the user has since navigated away from.
+        if (freshDays && this.activeView === 'monthly-calendar' &&
+            `${this.selectedYear}-${String(this.selectedMonth).padStart(2, '0')}` === monthStr) {
+          this.monthlyGrid = build(freshDays);
         }
-
-        this.monthlyGrid = days;
       },
 
       async addDailyTask() {

@@ -74,6 +74,48 @@ describe('IndexedDB Client Store Unit Tests', () => {
     assert.ok(retrieved.days['2026-08-17']);
   });
 
+  it('should save and retrieve a month overview record', async () => {
+    const monthStr = '2026-09';
+    const days = {
+      '2026-09-01': { tasks: [], calendarEvents: [{ id: 'e1', title: 'Kickoff' }], noteContent: '' },
+      '2026-09-02': { tasks: [{ id: 't1', title: '[A1] Ship it', status: '•' }], calendarEvents: [], noteContent: 'notes' }
+    };
+
+    const saved = await IndexedDbStore.saveMonthOverview(monthStr, days);
+    assert.strictEqual(saved, true);
+
+    const retrieved = await IndexedDbStore.getMonthOverview(monthStr);
+    assert.ok(retrieved);
+    assert.strictEqual(retrieved.monthStr, monthStr);
+    assert.ok(retrieved.cachedAt);
+    assert.strictEqual(retrieved.days['2026-09-01'].calendarEvents.length, 1);
+    assert.strictEqual(retrieved.days['2026-09-02'].tasks[0].title, '[A1] Ship it');
+  });
+
+  it('should return null for a month overview that was never saved', async () => {
+    assert.strictEqual(await IndexedDbStore.getMonthOverview('1999-01'), null);
+  });
+
+  it('should bulk-write many records via setItems in one call', async () => {
+    const items = [
+      { dateStr: '2026-10-01', tasks: [] },
+      { dateStr: '2026-10-02', tasks: [] },
+      { dateStr: '2026-10-03', tasks: [] }
+    ];
+    const ok = await IndexedDbStore.setItems(STORES.DAILY_DATA, items);
+    assert.strictEqual(ok, true);
+
+    for (const item of items) {
+      const retrieved = await IndexedDbStore.getItem(STORES.DAILY_DATA, item.dateStr);
+      assert.ok(retrieved);
+      assert.strictEqual(retrieved.dateStr, item.dateStr);
+    }
+  });
+
+  it('should no-op setItems on an empty array', async () => {
+    assert.strictEqual(await IndexedDbStore.setItems(STORES.DAILY_DATA, []), true);
+  });
+
   it('should enqueue, list, and dequeue offline mutations in outbox', async () => {
     await IndexedDbStore.enqueueMutation('TASK_STATUS_CHANGE', { taskId: 't1', newStatus: '✓' });
     await IndexedDbStore.enqueueMutation('SAVE_NOTE_CARD', { dateStr: '2026-08-17', noteContent: 'Updated note' });

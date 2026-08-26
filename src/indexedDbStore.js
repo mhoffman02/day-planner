@@ -5,20 +5,27 @@
  */
 
 export const DB_NAME = 'day-planner-db';
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 
 export const STORES = {
   DAILY_DATA: 'dailyData',
   MONTHLY_NOTES: 'monthlyNotes',
   MASTER_TASKS: 'masterTasks',
-  OUTBOX_QUEUE: 'outboxQueue'
+  OUTBOX_QUEUE: 'outboxQueue',
+  // Read-only cache of a whole month's {tasks, calendarEvents, noteContent} per day, used to
+  // render the monthly-calendar view and warm the rolling 3-month cache in the background.
+  // Deliberately separate from DAILY_DATA (the single-writer, edit-backing store for the
+  // currently open day) so a background month-batch response can never race a fresher
+  // single-day write or a pending offline edit.
+  MONTH_OVERVIEW: 'monthOverview'
 };
 
 const memoryFallbackStore = {
   dailyData: {},
   monthlyNotes: {},
   masterTasks: {},
-  outboxQueue: []
+  outboxQueue: [],
+  monthOverview: {}
 };
 
 /**
@@ -29,8 +36,12 @@ export function isSupported() {
   return typeof indexedDB !== 'undefined' && indexedDB !== null;
 }
 
+// Opening the DB is idempotent, so cache the in-flight/opened promise instead of issuing a
+// fresh indexedDB.open() per call — a month-batch write otherwise means ~30 separate opens.
+let dbPromise = null;
+
 /**
- * Opens or initializes the IndexedDB database.
+ * Opens or initializes the IndexedDB database. The open call is memoized process-wide.
  * @returns {Promise<IDBDatabase|null>}
  */
 export function openDb() {
@@ -38,7 +49,9 @@ export function openDb() {
     return Promise.resolve(null);
   }
 
-  return new Promise((resolve) => {
+  if (dbPromise) return dbPromise;
+
+  dbPromise = new Promise((resolve) => {
     try {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
 
@@ -56,6 +69,9 @@ export function openDb() {
         if (!db.objectStoreNames.contains(STORES.OUTBOX_QUEUE)) {
           db.createObjectStore(STORES.OUTBOX_QUEUE, { keyPath: 'id', autoIncrement: true });
         }
+        if (!db.objectStoreNames.contains(STORES.MONTH_OVERVIEW)) {
+          db.createObjectStore(STORES.MONTH_OVERVIEW, { keyPath: 'monthStr' });
+        }
       };
 
       request.onsuccess = (event) => {
@@ -64,12 +80,16 @@ export function openDb() {
 
       request.onerror = (event) => {
         console.warn('IndexedDB open error:', event.target?.error);
+        dbPromise = null; // allow a retry on the next call instead of caching a permanent failure
         resolve(null);
       };
     } catch (err) {
+      dbPromise = null;
       resolve(null);
     }
   });
+
+  return dbPromise;
 }
 
 /**
@@ -123,6 +143,37 @@ export async function setItem(storeName, item) {
       const req = store.put(item);
       req.onsuccess = () => resolve(true);
       req.onerror = () => resolve(false);
+    } catch (e) {
+      resolve(false);
+    }
+  });
+}
+
+/**
+ * Stores or updates many records in the specified store within a single transaction. Use this
+ * instead of looping setItem() for a batch write (e.g. a month's worth of daily records) — one
+ * transaction instead of N avoids N redundant openDb()/transaction round trips.
+ * @param {string} storeName Store name
+ * @param {Array<object>} items Record item objects
+ * @returns {Promise<boolean>}
+ */
+export async function setItems(storeName, items) {
+  if (!items || items.length === 0) return true;
+  const db = await openDb();
+  if (!db) {
+    items.forEach((item) => {
+      const key = item.dateStr || item.monthStr || item.id;
+      if (key) memoryFallbackStore[storeName][key] = item;
+    });
+    return true;
+  }
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction([storeName], 'readwrite');
+      const store = tx.objectStore(storeName);
+      items.forEach((item) => store.put(item));
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
     } catch (e) {
       resolve(false);
     }
@@ -202,6 +253,15 @@ export async function saveMonthlyNotes(monthStr, data) {
   return setItem(STORES.MONTHLY_NOTES, item);
 }
 
+export async function getMonthOverview(monthStr) {
+  return getItem(STORES.MONTH_OVERVIEW, monthStr);
+}
+
+export async function saveMonthOverview(monthStr, days) {
+  const item = { monthStr: monthStr, days: days, cachedAt: new Date().toISOString() };
+  return setItem(STORES.MONTH_OVERVIEW, item);
+}
+
 export async function enqueueMutation(type, payload) {
   const mutation = {
     type: type,
@@ -227,10 +287,13 @@ const IndexedDbStore = {
   openDb,
   getItem,
   setItem,
+  setItems,
   getAllItems,
   deleteItem,
   getDaily,
   saveDaily,
+  getMonthOverview,
+  saveMonthOverview,
   getMonthlyNotes,
   saveMonthlyNotes,
   enqueueMutation,

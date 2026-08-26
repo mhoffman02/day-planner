@@ -236,6 +236,33 @@ export class GASBridge {
   }
 
   /**
+   * Fetches tasks, calendar events, and notes for every day of a given month in one call —
+   * the batched counterpart to getDailyData(), used to warm the rolling 3-month client cache
+   * without issuing a getDailyData() round trip per day.
+   * @param {string} monthStr Target month in YYYY-MM format.
+   * @returns {Promise<{month: string, days: Object<string, {tasks: Array<object>, calendarEvents: Array<object>, noteContent: string}>}>}
+   */
+  async getMonthData(monthStr) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      const [year, month] = monthStr.split('-').map(Number);
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const days = {};
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${monthStr}-${String(d).padStart(2, '0')}`;
+        const dayData = await this.getDailyData(dateStr);
+        days[dateStr] = {
+          tasks: dayData.tasks || [],
+          calendarEvents: dayData.calendarEvents || [],
+          noteContent: dayData.noteContent || ''
+        };
+      }
+      return { month: monthStr, days };
+    }
+
+    return this._runGasCall('getMonthData', [monthStr]);
+  }
+
+  /**
    * Fetches monthly master task list.
    * @param {string} monthYearStr Target month/year identifier string.
    * @returns {Promise<Array<object>>} List of master task items promise.

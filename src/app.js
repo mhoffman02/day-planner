@@ -8,6 +8,11 @@ import { reconcileWorkspaceChanges } from './syncEngine.js';
 import IndexedDbStore from './indexedDbStore.js';
 window.GASBridge = GASBridge;
 
+// Month-overview cache freshness window for the rolling 3-month background prefetch (see
+// _prefetchMonth) — short enough that reopening the monthly-calendar view after a while
+// re-syncs, long enough that switching views/months repeatedly doesn't refetch every time.
+const MONTH_CACHE_TTL_MS = 15 * 60 * 1000;
+
 // Register ServiceWorker for PWA offline support
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function() {
@@ -91,6 +96,7 @@ function getLocalDateStr(d = new Date()) {
       noteSaveTimer: null,
       _daySyncTimer: null,
       _prefetchInFlight: new Set(),
+      _monthPrefetchInFlight: new Set(),
       outboxCount: 0,
 
       showToast(message, type = 'info', duration = 10000, title = '') {
@@ -179,6 +185,7 @@ function getLocalDateStr(d = new Date()) {
         await this.refreshOutboxCount();
         this.setupKeyboardShortcuts();
         this.setupAutoSync();
+        this._scheduleMonthWindowPrefetch(this.selectedDate.slice(0, 7));
       },
 
       async refreshOutboxCount() {
@@ -508,7 +515,8 @@ function getLocalDateStr(d = new Date()) {
       async setView(viewName) {
         this.activeView = viewName;
         if (viewName === 'monthly-calendar') {
-          this.buildMonthlyGrid();
+          await this.buildMonthlyGrid();
+          this._scheduleMonthWindowPrefetch(`${this.selectedYear}-${String(this.selectedMonth).padStart(2, '0')}`);
         }
       },
 
@@ -533,8 +541,9 @@ function getLocalDateStr(d = new Date()) {
         await this.loadDayData();
         await this.loadMasterTasks();
         if (this.activeView === 'monthly-calendar') {
-          this.buildMonthlyGrid();
+          await this.buildMonthlyGrid();
         }
+        this._scheduleMonthWindowPrefetch(`${this.selectedYear}-${String(this.selectedMonth).padStart(2, '0')}`);
       },
 
       async jumpToCurrentMonth() {
@@ -546,8 +555,9 @@ function getLocalDateStr(d = new Date()) {
         await this.loadDayData();
         await this.loadMasterTasks();
         if (this.activeView === 'monthly-calendar') {
-          this.buildMonthlyGrid();
+          await this.buildMonthlyGrid();
         }
+        this._scheduleMonthWindowPrefetch(`${this.selectedYear}-${monthStr}`);
       },
 
       async jumpToToday() {
@@ -556,6 +566,7 @@ function getLocalDateStr(d = new Date()) {
         this.selectedYear = y;
         this.selectedMonth = m;
         await this.loadDayData();
+        this._scheduleMonthWindowPrefetch(this.selectedDate.slice(0, 7));
       },
 
       clearNoteCardFilter() {
@@ -653,6 +664,57 @@ function getLocalDateStr(d = new Date()) {
               .finally(() => this._prefetchInFlight.delete(dateStr));
           });
         }
+      },
+
+      // Fetches+caches a whole month via the batched getMonthData endpoint (one round trip
+      // instead of ~30 getDailyData() calls). Skips the network call entirely if a cached
+      // copy younger than MONTH_CACHE_TTL_MS already exists. Writes to the dedicated
+      // monthOverview IndexedDB store, never to dailyData, so a background month batch can
+      // never clobber a fresher single-day edit or a pending offline mutation living there.
+      async _prefetchMonth(monthStr, { force = false } = {}) {
+        if (this._monthPrefetchInFlight.has(monthStr)) return null;
+        if (!force) {
+          const cached = await IndexedDbStore.getMonthOverview(monthStr);
+          if (cached && cached.cachedAt && (Date.now() - new Date(cached.cachedAt).getTime()) < MONTH_CACHE_TTL_MS) {
+            return cached.days;
+          }
+        }
+        this._monthPrefetchInFlight.add(monthStr);
+        try {
+          const data = await this.bridge.getMonthData(monthStr);
+          if (!data || data.error) return null;
+          const days = data.days || {};
+          await IndexedDbStore.saveMonthOverview(monthStr, days);
+          return days;
+        } catch (err) {
+          console.warn('_prefetchMonth failed for', monthStr, err);
+          return null;
+        } finally {
+          this._monthPrefetchInFlight.delete(monthStr);
+        }
+      },
+
+      // Keeps previous/current/next month's overview warm in IndexedDB in the background —
+      // the rolling "3 visible tabs" window analogous to a paper day planner. Staggered one
+      // at a time via requestIdleCallback (setTimeout fallback for browsers without it, e.g.
+      // older iOS Safari) rather than fired in parallel, current month first, so this never
+      // competes with the interactive day-load path for network or CPU.
+      _scheduleMonthWindowPrefetch(centerMonthStr) {
+        const [y, m] = centerMonthStr.split('-').map(Number);
+        const queue = [centerMonthStr, this._monthStrOffset(y, m, 1), this._monthStrOffset(y, m, -1)];
+        const idle = typeof requestIdleCallback === 'function' ? requestIdleCallback : (fn) => setTimeout(fn, 200);
+
+        const runNext = () => {
+          const monthStr = queue.shift();
+          if (!monthStr) return;
+          idle(() => { this._prefetchMonth(monthStr).finally(runNext); });
+        };
+        runNext();
+      },
+
+      _monthStrOffset(year, month, deltaMonths) {
+        const d = new Date(year, month - 1 + deltaMonths, 1);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       },
 
       addNoteCard() {
@@ -851,26 +913,45 @@ function getLocalDateStr(d = new Date()) {
         this.indexRecords = entries;
       },
 
-      buildMonthlyGrid() {
+      // Renders the month grid from whatever's cached in IndexedDB first (offline-first,
+      // instant), then refreshes in place once the batched month fetch resolves — sourcing
+      // events from the monthOverview cache across the whole month instead of the
+      // single-day-scoped `this.calendarEvents`, which only ever covers the selected day.
+      async buildMonthlyGrid() {
+        const monthStr = `${this.selectedYear}-${String(this.selectedMonth).padStart(2, '0')}`;
         const firstDay = new Date(this.selectedYear, this.selectedMonth - 1, 1);
         const lastDay = new Date(this.selectedYear, this.selectedMonth, 0);
-        const days = [];
         const startDayOfWeek = firstDay.getDay();
 
-        for (let i = startDayOfWeek - 1; i >= 0; i--) {
-          days.push({ dayNum: '', isCurrentMonth: false, events: [] });
-        }
+        const build = (dayMap) => {
+          const grid = [];
+          for (let i = startDayOfWeek - 1; i >= 0; i--) {
+            grid.push({ dayNum: '', isCurrentMonth: false, events: [] });
+          }
+          for (let day = 1; day <= lastDay.getDate(); day++) {
+            const dateStr = `${this.selectedYear}-${this.selectedMonth.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+            const dayData = dayMap[dateStr];
+            const events = dayData
+              ? dayData.calendarEvents
+              : (dateStr === this.selectedDate ? this.calendarEvents : []);
+            grid.push({ dateStr, dayNum: day, isCurrentMonth: true, events });
+          }
+          while (grid.length % 7 !== 0) {
+            grid.push({ dayNum: '', isCurrentMonth: false, events: [] });
+          }
+          return grid;
+        };
 
-        for (let day = 1; day <= lastDay.getDate(); day++) {
-          const dateStr = `${this.selectedYear}-${this.selectedMonth.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-          days.push({ dateStr, dayNum: day, isCurrentMonth: true, events: this.calendarEvents.filter(e => e.startTime?.startsWith(dateStr)) });
-        }
+        const cached = await IndexedDbStore.getMonthOverview(monthStr);
+        this.monthlyGrid = build((cached && cached.days) || {});
 
-        while (days.length % 7 !== 0) {
-          days.push({ dayNum: '', isCurrentMonth: false, events: [] });
+        const freshDays = await this._prefetchMonth(monthStr);
+        // Only apply the refreshed grid if this month is still what's on screen -- avoids
+        // clobbering a grid the user has since navigated away from.
+        if (freshDays && this.activeView === 'monthly-calendar' &&
+            `${this.selectedYear}-${String(this.selectedMonth).padStart(2, '0')}` === monthStr) {
+          this.monthlyGrid = build(freshDays);
         }
-
-        this.monthlyGrid = days;
       },
 
       async addDailyTask() {

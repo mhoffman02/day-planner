@@ -163,6 +163,20 @@ describe('GAS Bridge Unit Tests', () => {
     assert.ok(data.noteContent.includes('Executive briefing'));
   });
 
+  it('should fetch a whole month of mock data bucketed by day via getMonthData', async () => {
+    const bridge = new GASBridge(true);
+    const monthData = await bridge.getMonthData('2026-08');
+    assert.equal(monthData.month, '2026-08');
+    assert.equal(Object.keys(monthData.days).length, 31);
+    assert.ok(monthData.days['2026-08-01']);
+    assert.ok(monthData.days['2026-08-31']);
+
+    const day15 = monthData.days['2026-08-15'];
+    assert.equal(day15.tasks.length, 4);
+    assert.equal(day15.calendarEvents.length, 3);
+    assert.ok(day15.noteContent.includes('Executive briefing'));
+  });
+
   it('should fetch master tasks list', async () => {
     const bridge = new GASBridge(true);
     const masterTasks = await bridge.getMasterTasks('August 2026');

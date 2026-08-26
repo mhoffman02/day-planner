@@ -694,23 +694,37 @@ function getDailyData(dateStr) {
     // reconcileWorkspaceChanges a phantom "task with no matching event" for every
     // task on every day and made it create a real duplicate Calendar event per
     // task on every date navigation.
+    //
+    // The Tasks API stores `due` as UTC midnight (see addDailyTask's
+    // `due: dateStr + 'T00:00:00.000Z'`), not script-timezone midnight. Building
+    // dueMin/dueMax from `targetDate` (America/Los_Angeles, per appsscript.json) shifted
+    // the window by the UTC offset and silently returned an adjacent day's tasks instead
+    // of this day's. Pad the API query by a day on each side and bucket by the task's own
+    // `due` date string, which is unambiguous.
     if (typeof Tasks !== 'undefined') {
       try {
+        var dueMinUtc = new Date(dateStr + 'T00:00:00.000Z');
+        dueMinUtc.setUTCDate(dueMinUtc.getUTCDate() - 1);
+        var dueMaxUtc = new Date(dateStr + 'T00:00:00.000Z');
+        dueMaxUtc.setUTCDate(dueMaxUtc.getUTCDate() + 2);
+
         var taskList = Tasks.Tasks.list('@default', {
-          dueMin: targetDate.toISOString(),
-          dueMax: nextDate.toISOString(),
+          dueMin: dueMinUtc.toISOString(),
+          dueMax: dueMaxUtc.toISOString(),
           showCompleted: true,
           showHidden: true
         });
         if (taskList.items) {
-          result.tasks = taskList.items.map(function(t) {
-            return {
-              id: t.id,
-              title: t.title,
-              status: t.status === 'completed' ? '✓' : '•',
-              dueDate: t.due ? t.due.substring(0, 10) : dateStr
-            };
-          });
+          result.tasks = taskList.items
+            .filter(function(t) { return t.due && t.due.substring(0, 10) === dateStr; })
+            .map(function(t) {
+              return {
+                id: t.id,
+                title: t.title,
+                status: t.status === 'completed' ? '✓' : '•',
+                dueDate: t.due.substring(0, 10)
+              };
+            });
         }
       } catch (tasksErr) {
         result.warnings.push(logError('Tasks.Tasks.list', tasksErr).error);
@@ -733,6 +747,53 @@ function getDailyData(dateStr) {
 }
 
 /**
+ * Reads (and 5-min user-caches) the month-partitioned notes JSON for monthStr, e.g.
+ * { month: '2026-08', days: { '2026-08-15': { raw: '...' } } }. Shared by
+ * getOrCreateDailyDocContent (single day) and getMonthData (whole-month batch) so both
+ * pay for the Drive round trip (folder validate + file search + content fetch) at most
+ * once per 5-minute cache window instead of once per day.
+ * @param {string} monthStr Target month in YYYY-MM format.
+ * @returns {{month: string, days: Object, folderMissing?: boolean}}
+ */
+function getMonthlyNotesData(monthStr) {
+  var monthData = { month: monthStr, days: {} };
+  var cache = CacheService.getUserCache();
+  var cacheKey = 'notes_content_' + monthStr;
+  var cached = cache ? cache.get(cacheKey) : null;
+
+  if (cached) {
+    try {
+      return JSON.parse(cached);
+    } catch (cacheParseErr) {
+      cached = null; // fall through to a real fetch below
+    }
+  }
+
+  var targetFolder = getValidatedRootFolder();
+  if (!targetFolder) {
+    monthData.folderMissing = true;
+    return monthData;
+  }
+
+  var fileName = 'notes-' + monthStr + '.json';
+  var files = targetFolder.getFilesByName(fileName);
+  if (files.hasNext()) {
+    var file = files.next();
+    var content = file.getBlob().getDataAsString();
+    if (content && content.trim()) {
+      try {
+        monthData = JSON.parse(content);
+      } catch (jsonErr) {
+        console.warn('JSON parse warning in ' + fileName + ': ' + jsonErr.toString());
+      }
+    }
+    if (cache) cache.put(cacheKey, JSON.stringify(monthData), 300);
+  }
+
+  return monthData;
+}
+
+/**
  * Retrieves daily topic cards content for the specified date from the Monthly JSON file in Day Planner folder.
  * @param {string} dateStr Target date in YYYY-MM-DD format.
  * @returns {string} Text content of daily note section.
@@ -744,44 +805,10 @@ function getOrCreateDailyDocContent(dateStr) {
 
   try {
     var monthStr = (dateStr || '').substring(0, 7); // 'YYYY-MM'
-    var fileName = 'notes-' + monthStr + '.json';
+    var monthData = getMonthlyNotesData(monthStr);
 
-    // Scrolling across days in the same month re-requests the same monthly JSON file
-    // repeatedly. Cache its raw content for a short window so repeat day-navigation
-    // within that window costs zero Drive network round trips instead of three
-    // (folder validate + file search + content fetch).
-    var cache = CacheService.getUserCache();
-    var cacheKey = 'notes_content_' + monthStr;
-    var cached = cache ? cache.get(cacheKey) : null;
-    var monthData = { month: monthStr, days: {} };
-
-    if (cached) {
-      try {
-        monthData = JSON.parse(cached);
-      } catch (cacheParseErr) {
-        cached = null; // fall through to a real fetch below
-      }
-    }
-
-    if (!cached) {
-      var targetFolder = getValidatedRootFolder();
-      if (!targetFolder) {
-        return '### #index [Architecture] System Design\nFinalized 3-column binder layout with Alpine.js and clean CSS.';
-      }
-
-      var files = targetFolder.getFilesByName(fileName);
-      if (files.hasNext()) {
-        var file = files.next();
-        var content = file.getBlob().getDataAsString();
-        if (content && content.trim()) {
-          try {
-            monthData = JSON.parse(content);
-          } catch (jsonErr) {
-            console.warn('JSON parse warning in ' + fileName + ': ' + jsonErr.toString());
-          }
-        }
-        if (cache) cache.put(cacheKey, JSON.stringify(monthData), 300);
-      }
+    if (monthData.folderMissing) {
+      return '### #index [Architecture] System Design\nFinalized 3-column binder layout with Alpine.js and clean CSS.';
     }
 
     if (monthData.days && monthData.days[dateStr] && monthData.days[dateStr].raw) {
@@ -793,6 +820,146 @@ function getOrCreateDailyDocContent(dateStr) {
     logError('getOrCreateDailyDocContent(' + dateStr + ')', err);
     return '### #index [General] Daily Notes for ' + dateStr;
   }
+}
+
+/**
+ * Batched month-wide fetch for the client's rolling 3-month cache (previous/current/next).
+ * Replaces what would otherwise be ~30 getDailyData() round trips (each its own
+ * CalendarApp + Tasks.list call) with a single client round trip backed by one paginated
+ * Calendar.Events.list call, one paginated Tasks.Tasks.list call, and one (already-cached)
+ * monthly notes JSON read — bucketed server-side by date.
+ *
+ * Uses the Advanced Calendar Service (Calendar.Events.list), not CalendarApp: CalendarApp's
+ * per-field accessors (getTitle/getStartTime/getTag/...) are each a separate lazy RPC, so
+ * mapping a month of events (~8 RPCs/event) risks the 6-minute execution limit on a busy
+ * month. Calendar.Events.list with a `fields` mask is one HTTP call regardless of event count.
+ *
+ * @param {string} monthStr Target month in YYYY-MM format.
+ * @returns {{month: string, days: Object<string, {tasks: Array<object>, calendarEvents: Array<object>, noteContent: string}>, warnings: Array<string>, error?: string}}
+ */
+function getMonthData(monthStr) {
+  var auth = validateUserAccess();
+  if (!auth.authorized) {
+    return { month: monthStr, days: {}, warnings: [auth.error], error: auth.error };
+  }
+
+  var result = { month: monthStr, days: {}, warnings: [] };
+
+  try {
+    var parts = monthStr.split('-').map(Number);
+    var year = parts[0];
+    var month = parts[1]; // 1-indexed
+    var daysInMonth = new Date(year, month, 0).getDate();
+
+    // Pre-seed every day of the month with an empty bucket so a partial API failure below
+    // still returns a full day-keyed map the client can cache with confidence, rather than
+    // silently omitting days.
+    for (var d = 1; d <= daysInMonth; d++) {
+      var seedDateStr = monthStr + '-' + String(d).padStart(2, '0');
+      result.days[seedDateStr] = { tasks: [], calendarEvents: [], noteContent: '' };
+    }
+
+    // UTC month boundaries. Task due dates are UTC midnight (see addDailyTask) and event
+    // start times are read back as absolute ISO instants below, so anchoring the range in
+    // the script's local timezone (America/Los_Angeles, per appsscript.json) would shift it
+    // by the UTC offset — the same bug getDailyData's dueMin/dueMax fix addresses.
+    var monthStartUtc = new Date(Date.UTC(year, month - 1, 1));
+    var monthEndUtc = new Date(Date.UTC(year, month, 1)); // first day of next month, UTC
+
+    // 1. Calendar events for the whole month, paginated, via the Advanced Calendar Service.
+    if (typeof Calendar !== 'undefined' && Calendar.Events) {
+      try {
+        var pageToken = null;
+        do {
+          var listParams = {
+            timeMin: monthStartUtc.toISOString(),
+            timeMax: monthEndUtc.toISOString(),
+            singleEvents: true,
+            maxResults: 2500,
+            fields: 'nextPageToken,items(id,summary,start,end,location,hangoutLink,extendedProperties)'
+          };
+          if (pageToken) listParams.pageToken = pageToken;
+
+          var resp = Calendar.Events.list('primary', listParams);
+          (resp.items || []).forEach(function(evt) {
+            var startIso = evt.start && (evt.start.dateTime || evt.start.date);
+            if (!startIso) return;
+            var dateStr = startIso.substring(0, 10);
+            if (!result.days[dateStr]) return; // outside this month (e.g. all-day event edge)
+            result.days[dateStr].calendarEvents.push({
+              id: evt.id,
+              title: evt.summary || '(untitled)',
+              startTime: startIso,
+              endTime: evt.end && (evt.end.dateTime || evt.end.date),
+              location: evt.location || '',
+              meetLink: evt.hangoutLink || null,
+              syncTaskId: (evt.extendedProperties && evt.extendedProperties.shared && evt.extendedProperties.shared.gasTaskId) || null
+            });
+          });
+          pageToken = resp.nextPageToken || null;
+        } while (pageToken);
+      } catch (calErr) {
+        result.warnings.push(logError('getMonthData Calendar.Events.list', calErr).error);
+      }
+    } else {
+      result.warnings.push('Advanced Calendar Service unavailable — month view has no events.');
+    }
+
+    // 2. Tasks for the whole month, paginated, padded a day past each UTC boundary and then
+    // bucketed by the task's own `due` date string (see getDailyData's matching fix).
+    if (typeof Tasks !== 'undefined') {
+      try {
+        var dueMin = new Date(monthStartUtc.getTime() - 24 * 60 * 60 * 1000).toISOString();
+        var dueMax = new Date(monthEndUtc.getTime() + 24 * 60 * 60 * 1000).toISOString();
+        var taskPageToken = null;
+        do {
+          var taskParams = {
+            dueMin: dueMin,
+            dueMax: dueMax,
+            showCompleted: true,
+            showHidden: true,
+            maxResults: 100
+          };
+          if (taskPageToken) taskParams.pageToken = taskPageToken;
+
+          var taskResp = Tasks.Tasks.list('@default', taskParams);
+          (taskResp.items || []).forEach(function(t) {
+            if (!t.due) return;
+            var dateStr = t.due.substring(0, 10);
+            if (!result.days[dateStr]) return;
+            result.days[dateStr].tasks.push({
+              id: t.id,
+              title: t.title,
+              status: t.status === 'completed' ? '✓' : '•',
+              dueDate: dateStr
+            });
+          });
+          taskPageToken = taskResp.nextPageToken || null;
+        } while (taskPageToken);
+      } catch (tasksErr) {
+        result.warnings.push(logError('getMonthData Tasks.Tasks.list', tasksErr).error);
+      }
+    }
+
+    // 3. Notes — one (already-cached) monthly JSON read instead of one per day. Description
+    // text is intentionally omitted from calendarEvents above to keep this payload small;
+    // full event detail (including description) is still fetched per-day via getDailyData
+    // when a day is actually opened.
+    try {
+      var monthNotes = getMonthlyNotesData(monthStr);
+      Object.keys(result.days).forEach(function(dateStr) {
+        if (monthNotes.days && monthNotes.days[dateStr] && monthNotes.days[dateStr].raw) {
+          result.days[dateStr].noteContent = monthNotes.days[dateStr].raw;
+        }
+      });
+    } catch (notesErr) {
+      result.warnings.push(logError('getMonthData notes', notesErr).error);
+    }
+  } catch (err) {
+    return logError('getMonthData(' + monthStr + ')', err);
+  }
+
+  return result;
 }
 
 /**
