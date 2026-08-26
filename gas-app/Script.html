@@ -1867,7 +1867,7 @@
         }
       },
 
-      async toggleTaskStatus(task) {
+      async toggleTaskStatus(task, evt) {
         const nextStatus = getNextStatus(task.status);
 
         // "→" (FORWARDED) is Franklin Covey's "forwarded to a new date" symbol — cycling
@@ -1875,7 +1875,7 @@
         // status flips immediately and a 10s dismissible toast lets the user pick a
         // different target date before the default commits (see startPendingForward).
         if (nextStatus === '→') {
-          this.startPendingForward(task);
+          this.startPendingForward(task, evt);
           return;
         }
 
@@ -1900,11 +1900,13 @@
         await this.trigger2WaySync();
       },
 
-      // Opens a 10s, non-blocking "forwarding to tomorrow…" toast (see the toast-forward-*
-      // markup in Index.html) that lets the user pick a different target date before the
-      // default commits. The status glyph flips to "→" immediately so the UI never blocks
-      // on this; only the backend forwardDailyTask call is deferred.
-      startPendingForward(task) {
+      // Opens a 10s, non-blocking "forwarding to tomorrow…" toast anchored right next to the
+      // status button that was clicked (see the toast-forward-anchored markup in Index.html)
+      // -- so picking an alternate date costs a few mouse-pixels, not a trip to the corner of
+      // the screen -- that lets the user pick a different target date before the default
+      // commits. The status glyph flips to "→" immediately so the UI never blocks on this;
+      // only the backend forwardDailyTask call is deferred.
+      startPendingForward(task, evt) {
         const previousStatus = task.status;
         const sourceDateStr = this.selectedDate;
         const defaultTargetDate = this.addDaysToDateStr(sourceDateStr, 1);
@@ -1923,10 +1925,28 @@
           task,
           previousStatus,
           sourceDateStr,
-          targetDate: defaultTargetDate
+          targetDate: defaultTargetDate,
+          anchor: this._computeForwardAnchor(evt)
         };
         pending.timer = setTimeout(() => this.commitPendingForward(pending), 10000);
         this.toasts.push(pending);
+      },
+
+      // Positions the pending-forward popover just below (or, if there's no room, above) the
+      // clicked status button, clamped to stay on-screen. Assumes a ~280x160px popover since
+      // it hasn't rendered yet to measure. Falls back to a fixed top-right spot (null) when
+      // there's no click event to anchor to (e.g. a future non-UI caller).
+      _computeForwardAnchor(evt) {
+        const target = evt && (evt.currentTarget || evt.target);
+        if (!target || typeof target.getBoundingClientRect !== 'function') return null;
+        const rect = target.getBoundingClientRect();
+        const POPOVER_W = 280;
+        const POPOVER_H = 160;
+        const GAP = 8;
+        const left = Math.min(Math.max(8, rect.left), window.innerWidth - POPOVER_W - 8);
+        const fitsBelow = rect.bottom + GAP + POPOVER_H <= window.innerHeight;
+        const top = fitsBelow ? rect.bottom + GAP : Math.max(8, rect.top - POPOVER_H - GAP);
+        return { top, left };
       },
 
       // Commits a pending forward (see startPendingForward) to whichever target date is

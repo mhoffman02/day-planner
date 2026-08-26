@@ -2014,6 +2014,13 @@ article.setup-card, article.card {
 .toast-success .toast-progress-fill { background: #2d6a5a; }
 .toast-info .toast-progress-fill { background: #2b4c59; }
 
+.toast-item-anchored {
+  position: fixed;
+  width: 280px;
+  z-index: 10001;
+  animation: toastPopIn 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 .toast-forward-actions {
   display: flex;
   align-items: center;
@@ -2047,6 +2054,17 @@ article.setup-card, article.card {
   padding: 3px 6px;
   font-size: 0.78rem;
   font-family: inherit;
+}
+
+@keyframes toastPopIn {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes toastSlideIn {

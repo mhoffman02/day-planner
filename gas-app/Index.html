@@ -27,24 +27,18 @@
   <!-- Main Binder Application Container -->
   <main class="binder-container" x-data="plannerApp" x-cloak>
     
-    <!-- Toast Notification Container -->
+    <!-- Toast Notification Container (everything except pending task-forwards, which anchor
+         next to the task row they belong to instead -- see .toast-item-anchored below) -->
     <div class="toast-container" aria-live="assertive" role="region" aria-label="Notifications">
-      <template x-for="toast in toasts" :key="toast.id">
+      <template x-for="toast in toasts.filter(t => t.kind !== 'task-forward')" :key="toast.id">
         <div class="toast-item" :class="'toast-' + toast.type" role="alert">
           <div class="toast-body">
             <span class="material-symbols-outlined toast-icon" x-text="toast.type === 'error' ? 'error' : toast.type === 'warning' ? 'warning' : toast.type === 'success' ? 'check_circle' : 'info'"></span>
             <div class="toast-content">
               <div class="toast-title" x-text="toast.title"></div>
               <div class="toast-message" x-text="toast.message"></div>
-              <template x-if="toast.kind === 'task-forward'">
-                <div class="toast-forward-actions">
-                  <button type="button" class="toast-action-btn" @click="pickForwardDate(toast, addDaysToDateStr(toast.sourceDateStr, 2))">+2 days</button>
-                  <button type="button" class="toast-action-btn" @click="pickForwardDate(toast, addDaysToDateStr(toast.sourceDateStr, 7))">+1 week</button>
-                  <input type="date" class="toast-date-input" :value="toast.targetDate" @change="pickForwardDate(toast, $event.target.value)" aria-label="Pick a different forward date">
-                </div>
-              </template>
             </div>
-            <button type="button" class="toast-dismiss-btn" @click="dismissToast(toast.id)" :aria-label="toast.kind === 'task-forward' ? 'Cancel forwarding' : 'Dismiss notification'">✕</button>
+            <button type="button" class="toast-dismiss-btn" @click="dismissToast(toast.id)" aria-label="Dismiss notification">✕</button>
           </div>
           <div class="toast-progress-bar">
             <div class="toast-progress-fill" :style="`animation-duration: ${toast.duration}ms;`"></div>
@@ -52,6 +46,33 @@
         </div>
       </template>
     </div>
+
+    <!-- Pending task-forward popovers: anchored right next to the status button that was
+         clicked (see startPendingForward/_computeForwardAnchor in Script.html) so picking an
+         alternate date doesn't require a trip to the corner of the screen. Falls back to the
+         same top-right spot as regular toasts if there was no click to anchor to. -->
+    <template x-for="toast in toasts.filter(t => t.kind === 'task-forward')" :key="toast.id">
+      <div class="toast-item toast-item-anchored" :class="'toast-' + toast.type"
+           :style="toast.anchor ? `top: ${toast.anchor.top}px; left: ${toast.anchor.left}px;` : 'top: 20px; right: 20px;'"
+           role="alert">
+        <div class="toast-body">
+          <span class="material-symbols-outlined toast-icon" x-text="'info'"></span>
+          <div class="toast-content">
+            <div class="toast-title" x-text="toast.title"></div>
+            <div class="toast-message" x-text="toast.message"></div>
+            <div class="toast-forward-actions">
+              <button type="button" class="toast-action-btn" @click="pickForwardDate(toast, addDaysToDateStr(toast.sourceDateStr, 2))">+2 days</button>
+              <button type="button" class="toast-action-btn" @click="pickForwardDate(toast, addDaysToDateStr(toast.sourceDateStr, 7))">+1 week</button>
+              <input type="date" class="toast-date-input" :value="toast.targetDate" @change="pickForwardDate(toast, $event.target.value)" aria-label="Pick a different forward date">
+            </div>
+          </div>
+          <button type="button" class="toast-dismiss-btn" @click="dismissToast(toast.id)" aria-label="Cancel forwarding">✕</button>
+        </div>
+        <div class="toast-progress-bar">
+          <div class="toast-progress-fill" :style="`animation-duration: ${toast.duration}ms;`"></div>
+        </div>
+      </div>
+    </template>
 
     <!-- Single Consolidated Top Bar (Brand, Date Controls, View Tabs, & Actions) -->
     <header class="binder-header single-top-bar" aria-label="Day Planner Header">
@@ -198,7 +219,7 @@
                         <span class="priority-badge" :class="parseTask(task.title).priorityGroup || 'A'" x-text="parseTask(task.title).priorityCode || 'A1'"></span>
                       </td>
                       <td>
-                        <button type="button" class="status-btn" @click="toggleTaskStatus(task)" x-text="task.status || '•'" :aria-label="'Task status: ' + (task.status || 'Open') + '. Click to cycle status.'"></button>
+                        <button type="button" class="status-btn" @click="toggleTaskStatus(task, $event)" x-text="task.status || '•'" :aria-label="'Task status: ' + (task.status || 'Open') + '. Click to cycle status.'"></button>
                       </td>
                       <td class="task-title-cell" x-text="parseTask(task.title).cleanTitle"></td>
                       <td class="td-category" x-text="task.category || 'Work'"></td>
