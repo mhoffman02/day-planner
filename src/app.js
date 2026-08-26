@@ -1037,7 +1037,7 @@ function getLocalDateStr(d = new Date()) {
           const lines = (card.content || '').split('\n');
           card.content = lines.map(line => line.startsWith('- ') ? line.substring(2) : `- ${line}`).join('\n');
         } else if (formatType in colorMap) {
-          const stripped = (card.content || '').replace(/^\[\[color:(?:teal|red|green|blue)\]\]([\s\S]*)\[\[\/color\]\]$/, '$1');
+          const stripped = (card.content || '').replace(/\[\[color:(?:teal|red|green|blue)\]\]([\s\S]*)\[\[\/color\]\]/, '$1');
           const newColor = colorMap[formatType];
           card.content = newColor ? `[[color:${newColor}]]${stripped}[[/color]]` : stripped;
         } else if (prefixMap[formatType]) {
@@ -1094,12 +1094,6 @@ function getLocalDateStr(d = new Date()) {
         let text = raw;
         const classes = [];
 
-        const colorMatch = /^\[\[color:(teal|red|green|blue)\]\]([\s\S]*)\[\[\/color\]\]$/.exec(text);
-        if (colorMatch) {
-          classes.push('note-render-color-' + colorMatch[1]);
-          text = colorMatch[2];
-        }
-
         const wrapMarkers = [
           { marker: '~~', cls: 'note-render-strike' },
           { marker: '**', cls: 'note-render-bold' },
@@ -1109,6 +1103,12 @@ function getLocalDateStr(d = new Date()) {
         let peeled = true;
         while (peeled) {
           peeled = false;
+          const colorMatch = /^\[\[color:(teal|red|green|blue)\]\]([\s\S]*)\[\[\/color\]\]$/.exec(text);
+          if (colorMatch) {
+            classes.push('note-render-color-' + colorMatch[1]);
+            text = colorMatch[2];
+            peeled = true;
+          }
           for (const { marker, cls } of wrapMarkers) {
             if (text.length >= marker.length * 2 && text.startsWith(marker) && text.endsWith(marker)) {
               classes.push(cls);
