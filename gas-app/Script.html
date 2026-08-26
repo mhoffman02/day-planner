@@ -916,6 +916,7 @@
       noteCardSearchQuery: '',
       noteCardCategoryFilter: 'ALL',
       indexRecords: [],
+      taskNoteLinks: [],
       monthlyGrid: [],
 
       // Sync & Error & Toast states
@@ -1817,6 +1818,7 @@
       },
 
       buildIndexRecords() {
+        this.buildTaskNoteLinks();
         if (!this.dailyNote) return;
         const lines = this.dailyNote.split('\n');
         const entries = [];
@@ -1833,6 +1835,53 @@
           }
         });
         this.indexRecords = entries;
+      },
+
+      buildTaskNoteLinks() {
+        if (!this.dailyNote) {
+          this.taskNoteLinks = [];
+          return;
+        }
+        const lines = this.dailyNote.split('\n');
+        const links = [];
+        lines.forEach(l => {
+          const trimmed = l.trim();
+          const dehashed = trimmed.replace(/^#+\s+/, '');
+          if (/#task\b/i.test(dehashed) || /\[TASK\]/i.test(dehashed)) {
+            const clean = dehashed.replace(/#task/i, '').replace(/\[TASK\]/i, '').trim();
+            const match = clean.match(/^\[([^\]]+)\]\s*(.*)$/);
+            if (match) {
+              links.push({ priority: match[1].trim().toUpperCase(), summary: match[2].trim(), rawText: trimmed });
+            }
+          }
+        });
+        this.taskNoteLinks = links;
+      },
+
+      linkedNoteForTask(task) {
+        const priorityCode = this.parseTask(task.title).priorityCode;
+        if (!priorityCode) return null;
+        return this.taskNoteLinks.find(link => link.priority === priorityCode) || null;
+      },
+
+      jumpToLinkedNote(task) {
+        const link = this.linkedNoteForTask(task);
+        if (!link) return;
+        this.noteViewMode = 'cards';
+        const card = this.noteCards.find(c => c.heading.includes(link.rawText.replace(/^#+\s+/, '')) || (c.content || '').includes(link.rawText));
+        if (!card) return;
+        card.collapsed = false;
+        this.$nextTick(() => {
+          const el = document.getElementById(`note-card-${card.id}`);
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+      },
+
+      taskLinkForCard(card) {
+        return this.taskNoteLinks.find(link =>
+          (card.heading || '').includes(link.rawText.replace(/^#+\s+/, '')) ||
+          (card.content || '').includes(link.rawText)
+        ) || null;
       },
 
       async buildMonthlyGrid() {

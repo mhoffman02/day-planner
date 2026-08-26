@@ -7,7 +7,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   parseIndexEntriesFromNote,
-  aggregateIndexRecords
+  aggregateIndexRecords,
+  parseTaskLinksFromNote
 } from '../src/indexParser.js';
 
 describe('Index Parser Unit Tests', () => {
@@ -71,5 +72,49 @@ describe('Index Parser Unit Tests', () => {
     assert.equal(entries.length, 1);
     assert.match(entries[0].date, /^\d{4}-\d{2}-\d{2}$/);
     assert.equal(entries[0].docUrl, `#doc-`);
+  });
+});
+
+describe('Task-Link Parser Unit Tests', () => {
+  it('should parse a #task [A1] link line into a priority + summary', () => {
+    const noteText = `
+      ### #task [A1] Vendor follow-up
+      Called vendor re: contract renewal, waiting on redline.
+      Regular note line with no link.
+    `;
+    const links = parseTaskLinksFromNote(noteText);
+    assert.equal(links.length, 1);
+    assert.equal(links[0].priority, 'A1');
+    assert.equal(links[0].summary, 'Vendor follow-up');
+  });
+
+  it('should match [TASK] tag as an alternative to #task', () => {
+    const links = parseTaskLinksFromNote('[TASK] [B3] Reschedule dentist');
+    assert.equal(links.length, 1);
+    assert.equal(links[0].priority, 'B3');
+    assert.equal(links[0].summary, 'Reschedule dentist');
+  });
+
+  it('should uppercase a lowercase priority code', () => {
+    const links = parseTaskLinksFromNote('#task [a1] lowercase input');
+    assert.equal(links[0].priority, 'A1');
+  });
+
+  it('should return multiple links from the same note', () => {
+    const noteText = '#task [A1] first\n#task [B2] second';
+    const links = parseTaskLinksFromNote(noteText);
+    assert.equal(links.length, 2);
+    assert.equal(links[0].priority, 'A1');
+    assert.equal(links[1].priority, 'B2');
+  });
+
+  it('should ignore a #task tag with no bracketed priority', () => {
+    const links = parseTaskLinksFromNote('#task no brackets here');
+    assert.deepEqual(links, []);
+  });
+
+  it('should return an empty array for empty/missing note text', () => {
+    assert.deepEqual(parseTaskLinksFromNote(), []);
+    assert.deepEqual(parseTaskLinksFromNote(''), []);
   });
 });

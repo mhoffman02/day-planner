@@ -242,7 +242,16 @@
                           </div>
                         </div>
                       </td>
-                      <td class="task-title-cell" x-text="parseTask(task.title).cleanTitle"></td>
+                      <td class="task-title-cell">
+                        <span x-text="parseTask(task.title).cleanTitle"></span>
+                        <template x-if="linkedNoteForTask(task)">
+                          <button type="button" class="task-note-link-btn" @click="jumpToLinkedNote(task)"
+                                  :title="'Linked note: ' + (linkedNoteForTask(task).summary || 'Jump to note')"
+                                  aria-label="Jump to linked note">
+                            <span class="material-symbols-outlined icon-16">sticky_note_2</span>
+                          </button>
+                        </template>
+                      </td>
                       <td class="td-category" x-text="task.category || 'Work'"></td>
                     </tr>
                   </template>
@@ -372,7 +381,7 @@
 
               <!-- Cards List -->
               <template x-for="card in filteredNoteCards" :key="card.id">
-                <article class="note-card-item" :class="{ 'collapsed': card.collapsed }">
+                <article class="note-card-item" :id="'note-card-' + card.id" :class="{ 'collapsed': card.collapsed }">
                   <!-- Card Header -->
                   <header class="note-card-header">
                     <button type="button" class="card-twistie-btn" @click="toggleCardExpand(card)" :title="card.collapsed ? 'Expand Topic' : 'Collapse Topic'">
@@ -380,6 +389,10 @@
                     </button>
 
                     <input type="text" x-model="card.heading" @input="syncCardsToDailyNote()" placeholder="Topic Heading (e.g. #index [Architecture])..." class="card-heading-input" aria-label="Topic Heading">
+
+                    <template x-if="taskLinkForCard(card)">
+                      <span class="task-link-tag" :title="'Linked to Task ' + taskLinkForCard(card).priority" x-text="'→ ' + taskLinkForCard(card).priority"></span>
+                    </template>
 
                     <select x-model="card.category" @change="syncCardsToDailyNote()" class="card-category-select" aria-label="Card Category">
                       <option value="Work">Work</option>

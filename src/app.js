@@ -151,6 +151,7 @@ function getLocalDateStr(d = new Date()) {
       noteCardSearchQuery: '',
       noteCardCategoryFilter: 'ALL',
       indexRecords: [],
+      taskNoteLinks: [],
       monthlyGrid: [],
 
       // Sync & Error & Toast states
@@ -1189,6 +1190,7 @@ function getLocalDateStr(d = new Date()) {
        * @returns {void}
        */
       buildIndexRecords() {
+        this.buildTaskNoteLinks();
         if (!this.dailyNote) return;
         const lines = this.dailyNote.split('\n');
         const entries = [];
@@ -1205,6 +1207,81 @@ function getLocalDateStr(d = new Date()) {
           }
         });
         this.indexRecords = entries;
+      },
+
+      /**
+       * Extracts `#task [A1]`-style link lines from `dailyNote` into `taskNoteLinks`, so a task
+       * row can show whether the current day's note has a section written about it (the
+       * "Paper-Planner method": jot notes under a task's priority label, same as a paper
+       * planner's margin). A leading markdown heading marker ("### ") is stripped first so the
+       * tag works equally as a note card's heading or as a plain content line. Keys on the
+       * task's Priority code (e.g. "A1"), not a stable task id — Google Tasks has none surfaced
+       * to note text — so a link goes stale if the task is later re-prioritized (v1 tradeoff).
+       * @returns {void}
+       */
+      buildTaskNoteLinks() {
+        if (!this.dailyNote) {
+          this.taskNoteLinks = [];
+          return;
+        }
+        const lines = this.dailyNote.split('\n');
+        const links = [];
+        lines.forEach(l => {
+          const trimmed = l.trim();
+          const dehashed = trimmed.replace(/^#+\s+/, '');
+          if (/#task\b/i.test(dehashed) || /\[TASK\]/i.test(dehashed)) {
+            const clean = dehashed.replace(/#task/i, '').replace(/\[TASK\]/i, '').trim();
+            const match = clean.match(/^\[([^\]]+)\]\s*(.*)$/);
+            if (match) {
+              links.push({ priority: match[1].trim().toUpperCase(), summary: match[2].trim(), rawText: trimmed });
+            }
+          }
+        });
+        this.taskNoteLinks = links;
+      },
+
+      /**
+       * Looks up whether `task` has a linked note in today's `taskNoteLinks` (matched by
+       * priority code, e.g. "A1").
+       * @param {object} task Daily task object.
+       * @returns {{priority: string, summary: string, rawText: string}|null}
+       */
+      linkedNoteForTask(task) {
+        const priorityCode = this.parseTask(task.title).priorityCode;
+        if (!priorityCode) return null;
+        return this.taskNoteLinks.find(link => link.priority === priorityCode) || null;
+      },
+
+      /**
+       * Switches Notes to Cards view and expands+scrolls to the note card containing `task`'s
+       * `#task [A1]` link line, so clicking a task's link indicator jumps straight to its note.
+       * @param {object} task Daily task object.
+       * @returns {void}
+       */
+      jumpToLinkedNote(task) {
+        const link = this.linkedNoteForTask(task);
+        if (!link) return;
+        this.noteViewMode = 'cards';
+        const card = this.noteCards.find(c => c.heading.includes(link.rawText.replace(/^#+\s+/, '')) || (c.content || '').includes(link.rawText));
+        if (!card) return;
+        card.collapsed = false;
+        this.$nextTick(() => {
+          const el = document.getElementById(`note-card-${card.id}`);
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+      },
+
+      /**
+       * Reciprocal lookup for the Notes-side badge: finds the `taskNoteLinks` entry (if any)
+       * whose raw link line belongs to `card`'s heading or content.
+       * @param {object} card Note card object.
+       * @returns {{priority: string, summary: string, rawText: string}|null}
+       */
+      taskLinkForCard(card) {
+        return this.taskNoteLinks.find(link =>
+          (card.heading || '').includes(link.rawText.replace(/^#+\s+/, '')) ||
+          (card.content || '').includes(link.rawText)
+        ) || null;
       },
 
       /**
