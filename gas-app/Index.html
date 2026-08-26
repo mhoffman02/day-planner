@@ -219,7 +219,9 @@
                         <span class="priority-badge" :class="parseTask(task.title).priorityGroup || 'A'" x-text="parseTask(task.title).priorityCode || 'A1'"></span>
                       </td>
                       <td>
-                        <div class="status-menu-wrap">
+                        <div class="status-menu-wrap"
+                             @mouseenter="openStatusMenuTaskId = task.id"
+                             @mouseleave="openStatusMenuTaskId = (openStatusMenuTaskId === task.id ? null : openStatusMenuTaskId)">
                           <button type="button" class="status-btn"
                                   @click="openStatusMenuTaskId = (openStatusMenuTaskId === task.id ? null : task.id)"
                                   x-text="task.status || '•'"
