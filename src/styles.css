@@ -1025,6 +1025,11 @@ table.task-table tbody tr:hover {
   opacity: 0.55;
 }
 
+.task-canceled {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
 /* ==========================================================================
    7. APPOINTMENTS SCHEDULE COLUMN
    ========================================================================== */

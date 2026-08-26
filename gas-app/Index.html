@@ -214,7 +214,7 @@
                 </thead>
                 <tbody>
                   <template x-for="task in dailyTasks" :key="task.id">
-                    <tr>
+                    <tr :class="{ 'task-canceled': task.status === 'X' }">
                       <td>
                         <span class="priority-badge" :class="parseTask(task.title).priorityGroup || 'A'" x-text="parseTask(task.title).priorityCode || 'A1'"></span>
                       </td>
