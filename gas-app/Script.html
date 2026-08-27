@@ -1,5 +1,16 @@
 <script>
+(function() {
   // Helper engine definitions bundled for GAS SPA client
+  //
+  // Wrapped in an IIFE as defense-in-depth: the PWA shell (gh-pwa-shell/pwa.js)
+  // concatenates this file's content with bundle.html's inline scripts into one
+  // <script> tag at mount time. If a future bundle-assembly bug ever re-embeds
+  // this file's content twice (see gas-app/Code.gs's getCompiledAppBundle()),
+  // top-level `const`/`let` declared directly in <script> scope would throw a
+  // fatal "already been declared" SyntaxError and silently kill the whole
+  // combined script. Scoping everything inside this IIFE makes a duplicate
+  // inclusion merely wasteful (re-declares local bindings, re-registers
+  // Alpine.data harmlessly) instead of fatal.
   const STATUS_LIST = ['•', '✓', '→', 'X', 'D/✓'];
 
   // Parses a task title to extract priority group, sequence, priority code, and clean title.
@@ -2856,4 +2867,5 @@
   } else {
     document.addEventListener('alpine:init', _registerPlannerApp);
   }
+})();
 </script>
