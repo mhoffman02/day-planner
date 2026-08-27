@@ -2861,7 +2861,10 @@
   // Dual-registration: call directly if Alpine already started, otherwise wait for alpine:init.
   // In the shell DOM-mount scenario, Alpine starts from vendor/alpine.min.js (defer) before
   // bundle.script runs, so alpine:init has already fired — call directly.
-  // In a standalone GAS deployment, alpine:init fires after this script, so the listener handles it.
+  // In a standalone GAS deployment, Index.html loads Alpine's <script> (no `defer`) immediately
+  // after this file's include, so plain document order — not `defer`/event-timing, which GAS's
+  // sandboxed-iframe loader does not reliably honor — guarantees this file runs first and
+  // alpine:init fires after, so the listener handles it.
   if (window.Alpine && typeof Alpine.data === 'function') {
     _registerPlannerApp();
   } else {
