@@ -40,10 +40,11 @@ Architecture below and `.agents/rules/sync-src-and-gas-app.md`.
    `src/syncEngine.js`, and `src/binderStore.js#getLocalDateStr` are compiled in by
    `npm run build:gas` (esbuild) into a generated block — do not hand-edit inside its
    `// === GENERATED begin/end ===` markers. `src/indexedDbStore.js` and `src/gasBridge.js`
-   (`GASBridge` etc.) are still a **hand-duplicated inline copy** — their `Script.html` copies
-   have already diverged in shape from `src/` (different per-store function names, no
-   memory-fallback branch), so folding them into the build requires reconciling that divergence
-   first. `gasBridge` there calls `google.script.run` instead of the mock store.
+   (`GASBridge` etc.) are still a **hand-duplicated inline copy** — not compiled by the build
+   step, so any shared-logic change must be hand-ported into `Script.html` in the same change.
+   `indexedDbStore.js`'s *shape* (generic storeName-keyed API, memory-fallback branch, 5-store
+   schema) has been reconciled between the two copies; `gasBridge`'s has not — it still calls
+   `google.script.run` there instead of the mock store, and may diverge from `src/` beyond that.
 
 `npm test` only ever exercises `src/`, never the GAS-side file directly. For the four
 build-covered files, `npm run build:gas:check` (pre-commit gate) catches staleness — see

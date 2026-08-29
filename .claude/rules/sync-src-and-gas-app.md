@@ -31,18 +31,29 @@ export it from the relevant `src/*.js` file) rather than writing new logic direc
 ## Still hand-duplicated — indexedDbStore, gasBridge
 
 `src/indexedDbStore.js` and `src/gasBridge.js` (`GASBridge`, `OUTBOX_MUTATION_TYPES`, etc.) are
-**not** part of the generated block yet. Their `gas-app/Script.html` copies have already
-diverged from `src/` in ways that aren't just naming (`src/indexedDbStore.js` exposes a generic
-`storeName`-keyed API with a memory-fallback branch; `Script.html`'s copy is a set of
-per-store functions with no fallback, and uses different IndexedDB store names/shape). Folding
-these into the build step means reconciling that divergence first — deciding which shape is
-correct and updating the other side — not just wiring up esbuild, so it's a separate piece of
-work, not a mechanical extension of `build-gas-engines.js`.
+**not** part of the generated block yet, so any change to shared logic in either file must still
+be hand-ported into `gas-app/Script.html` in the same change.
 
-Until that reconciliation happens, treat these two the old way: **any change to shared logic in
-`src/indexedDbStore.js` or `src/gasBridge.js` must be hand-ported into `gas-app/Script.html` in
-the same change.** Server-side equivalents (`gasTaskId` tagging/sync) live in `gas-app/Code.gs`
-and must stay consistent with `src/syncEngine.js`'s model of the same relationship.
+As of 2026-08-28, `indexedDbStore.js`'s *shape* has been reconciled: `Script.html`'s copy
+(`idbGetItem`/`idbSetItem`/`idbGetAllItems`/`idbDeleteItem` plus `idbMemoryFallback`, `IDB_NAME`,
+`IDB_VERSION`, and all five `IDB_STORE_*` constants) now matches `src/indexedDbStore.js`'s
+generic `storeName`-keyed API, memory-fallback branch, and 5-store schema one-for-one — it used
+to be a set of per-store functions with no fallback and only 3 of the 5 stores. `IDB_VERSION` was
+bumped 2 → 3 so already-onboarded browsers actually get the two new (currently unused)
+`monthlyNotes`/`masterTasks` stores created via `onupgradeneeded`, instead of silently keeping
+the stale 3-store schema forever. **Bump `DB_VERSION` in both files together** any time `STORES`
+gains or removes an entry — the version number is what makes a browser that already has an older
+schema actually run the upgrade. The code itself is still duplicated line-for-line, not shared,
+so it remains a hand-port risk, not a mechanical build target — see the entry point comment on
+why it isn't in `build-gas-engines.js` yet.
+
+`src/gasBridge.js` (`GASBridge`, `OUTBOX_MUTATION_TYPES`) has **not** been reconciled — it's a
+much larger surface (mock data, per-method business logic, `google.script.run` vs. mock
+branching) and its `Script.html` copy may still diverge from `src/` beyond naming. Treat it the
+old way: hand-port any shared-logic change into `gas-app/Script.html` in the same change, and
+diff the two copies by hand before committing. Server-side equivalents (`gasTaskId`
+tagging/sync) live in `gas-app/Code.gs` and must stay consistent with `src/syncEngine.js`'s model
+of the same relationship.
 
 ## Why
 

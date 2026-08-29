@@ -214,17 +214,30 @@
   }
   // === GENERATED end: src/ engine bundle ===
   // Client IndexedDB cache for offline-first daily data (tasks/appointments/notes).
-  // Mirrors src/indexedDbStore.js — HtmlService can't import ES modules, so this is
-  // a hand-duplicated inline copy; keep both in sync per sync-src-and-gas-app.md.
+  // Mirrors src/indexedDbStore.js's generic storeName-keyed API + memory-fallback branch
+  // (reconciled per sync-src-and-gas-app.md — this used to be a set of per-store functions
+  // with no fallback and a 3-store schema; now both sides share the same shape). HtmlService
+  // can't import ES modules, so this is still a hand-duplicated inline copy — keep both in
+  // sync by hand.
   const IDB_NAME = 'day-planner-db';
-  const IDB_VERSION = 2;
+  const IDB_VERSION = 3; // bumped 2 -> 3 to add IDB_STORE_MONTHLY_NOTES/IDB_STORE_MASTER_TASKS for already-onboarded users
   const IDB_STORE_DAILY = 'dailyData';
+  const IDB_STORE_MONTHLY_NOTES = 'monthlyNotes';
+  const IDB_STORE_MASTER_TASKS = 'masterTasks';
   const IDB_STORE_OUTBOX = 'outboxQueue';
   // Read-only cache of a whole month's {tasks, calendarEvents, noteContent} per day, used to
   // render the monthly-calendar view and warm the rolling 3-month cache in the background.
   // Deliberately separate from IDB_STORE_DAILY so a background month-batch response can never
   // race a fresher single-day write or a pending offline edit.
   const IDB_STORE_MONTH_OVERVIEW = 'monthOverview';
+
+  const idbMemoryFallback = {
+    dailyData: {},
+    monthlyNotes: {},
+    masterTasks: {},
+    outboxQueue: [],
+    monthOverview: {}
+  };
 
   // Checks if IndexedDB is available in this browser environment.
   function idbSupported() {
@@ -245,6 +258,12 @@
           const db = event.target.result;
           if (!db.objectStoreNames.contains(IDB_STORE_DAILY)) {
             db.createObjectStore(IDB_STORE_DAILY, { keyPath: 'dateStr' });
+          }
+          if (!db.objectStoreNames.contains(IDB_STORE_MONTHLY_NOTES)) {
+            db.createObjectStore(IDB_STORE_MONTHLY_NOTES, { keyPath: 'monthStr' });
+          }
+          if (!db.objectStoreNames.contains(IDB_STORE_MASTER_TASKS)) {
+            db.createObjectStore(IDB_STORE_MASTER_TASKS, { keyPath: 'monthStr' });
           }
           if (!db.objectStoreNames.contains(IDB_STORE_OUTBOX)) {
             db.createObjectStore(IDB_STORE_OUTBOX, { keyPath: 'id', autoIncrement: true });
@@ -267,14 +286,17 @@
     return idbDbPromise;
   }
 
-  // Retrieves cached daily data (tasks, events, notes) for a given date from IndexedDB.
-  async function idbGetDaily(dateStr) {
+  // Generic get/set/getAll/delete over a named store, falling back to an in-memory store (e.g.
+  // private browsing where indexedDB.open() throws) so callers never silently lose a write.
+  async function idbGetItem(storeName, key) {
     const db = await idbOpen();
-    if (!db) return null;
+    if (!db) {
+      return idbMemoryFallback[storeName] ? idbMemoryFallback[storeName][key] || null : null;
+    }
     return new Promise((resolve) => {
       try {
-        const tx = db.transaction([IDB_STORE_DAILY], 'readonly');
-        const req = tx.objectStore(IDB_STORE_DAILY).get(dateStr);
+        const tx = db.transaction([storeName], 'readonly');
+        const req = tx.objectStore(storeName).get(key);
         req.onsuccess = () => resolve(req.result || null);
         req.onerror = () => resolve(null);
       } catch (e) {
@@ -283,15 +305,22 @@
     });
   }
 
-  // Saves cached daily data to IndexedDB for a given date.
-  async function idbSaveDaily(dateStr, payload) {
+  async function idbSetItem(storeName, item) {
     const db = await idbOpen();
-    if (!db) return false;
-    const item = Object.assign({}, payload, { dateStr, cachedAt: new Date().toISOString() });
+    if (!db) {
+      if (storeName === IDB_STORE_OUTBOX) {
+        if (!item.id) item.id = Date.now() + Math.random();
+        idbMemoryFallback.outboxQueue.push(item);
+      } else {
+        const key = item.dateStr || item.monthStr || item.id;
+        if (key) idbMemoryFallback[storeName][key] = item;
+      }
+      return true;
+    }
     return new Promise((resolve) => {
       try {
-        const tx = db.transaction([IDB_STORE_DAILY], 'readwrite');
-        const req = tx.objectStore(IDB_STORE_DAILY).put(item);
+        const tx = db.transaction([storeName], 'readwrite');
+        const req = tx.objectStore(storeName).put(item);
         req.onsuccess = () => resolve(true);
         req.onerror = () => resolve(false);
       } catch (e) {
@@ -300,64 +329,16 @@
     });
   }
 
-  // Retrieves cached month overview (all days' events/tasks) from IndexedDB.
-  async function idbGetMonthOverview(monthStr) {
+  async function idbGetAllItems(storeName) {
     const db = await idbOpen();
-    if (!db) return null;
+    if (!db) {
+      if (storeName === IDB_STORE_OUTBOX) return idbMemoryFallback.outboxQueue.slice();
+      return Object.values(idbMemoryFallback[storeName] || {});
+    }
     return new Promise((resolve) => {
       try {
-        const tx = db.transaction([IDB_STORE_MONTH_OVERVIEW], 'readonly');
-        const req = tx.objectStore(IDB_STORE_MONTH_OVERVIEW).get(monthStr);
-        req.onsuccess = () => resolve(req.result || null);
-        req.onerror = () => resolve(null);
-      } catch (e) {
-        resolve(null);
-      }
-    });
-  }
-
-  // Saves cached month overview to IndexedDB for a given month.
-  async function idbSaveMonthOverview(monthStr, days) {
-    const db = await idbOpen();
-    if (!db) return false;
-    const item = { monthStr, days, cachedAt: new Date().toISOString() };
-    return new Promise((resolve) => {
-      try {
-        const tx = db.transaction([IDB_STORE_MONTH_OVERVIEW], 'readwrite');
-        const req = tx.objectStore(IDB_STORE_MONTH_OVERVIEW).put(item);
-        req.onsuccess = () => resolve(true);
-        req.onerror = () => resolve(false);
-      } catch (e) {
-        resolve(false);
-      }
-    });
-  }
-
-  // Queues an offline mutation (create/update) to the outbox for later syncing.
-  async function idbEnqueueMutation(type, payload) {
-    const db = await idbOpen();
-    const mutation = { type, payload, enqueuedAt: new Date().toISOString() };
-    if (!db) return false;
-    return new Promise((resolve) => {
-      try {
-        const tx = db.transaction([IDB_STORE_OUTBOX], 'readwrite');
-        const req = tx.objectStore(IDB_STORE_OUTBOX).put(mutation);
-        req.onsuccess = () => resolve(true);
-        req.onerror = () => resolve(false);
-      } catch (e) {
-        resolve(false);
-      }
-    });
-  }
-
-  // Retrieves all queued offline mutations from the outbox store.
-  async function idbGetOutbox() {
-    const db = await idbOpen();
-    if (!db) return [];
-    return new Promise((resolve) => {
-      try {
-        const tx = db.transaction([IDB_STORE_OUTBOX], 'readonly');
-        const req = tx.objectStore(IDB_STORE_OUTBOX).getAll();
+        const tx = db.transaction([storeName], 'readonly');
+        const req = tx.objectStore(storeName).getAll();
         req.onsuccess = () => resolve(req.result || []);
         req.onerror = () => resolve([]);
       } catch (e) {
@@ -366,20 +347,64 @@
     });
   }
 
-  // Removes a successfully synced mutation from the outbox.
-  async function idbDequeueMutation(id) {
+  async function idbDeleteItem(storeName, key) {
     const db = await idbOpen();
-    if (!db) return false;
+    if (!db) {
+      if (storeName === IDB_STORE_OUTBOX) {
+        idbMemoryFallback.outboxQueue = idbMemoryFallback.outboxQueue.filter((item) => item.id !== key);
+      } else if (idbMemoryFallback[storeName]) {
+        delete idbMemoryFallback[storeName][key];
+      }
+      return true;
+    }
     return new Promise((resolve) => {
       try {
-        const tx = db.transaction([IDB_STORE_OUTBOX], 'readwrite');
-        const req = tx.objectStore(IDB_STORE_OUTBOX).delete(id);
+        const tx = db.transaction([storeName], 'readwrite');
+        const req = tx.objectStore(storeName).delete(key);
         req.onsuccess = () => resolve(true);
         req.onerror = () => resolve(false);
       } catch (e) {
         resolve(false);
       }
     });
+  }
+
+  // Retrieves cached daily data (tasks, events, notes) for a given date from IndexedDB.
+  async function idbGetDaily(dateStr) {
+    return idbGetItem(IDB_STORE_DAILY, dateStr);
+  }
+
+  // Saves cached daily data to IndexedDB for a given date.
+  async function idbSaveDaily(dateStr, payload) {
+    const item = Object.assign({}, payload, { dateStr, cachedAt: new Date().toISOString() });
+    return idbSetItem(IDB_STORE_DAILY, item);
+  }
+
+  // Retrieves cached month overview (all days' events/tasks) from IndexedDB.
+  async function idbGetMonthOverview(monthStr) {
+    return idbGetItem(IDB_STORE_MONTH_OVERVIEW, monthStr);
+  }
+
+  // Saves cached month overview to IndexedDB for a given month.
+  async function idbSaveMonthOverview(monthStr, days) {
+    const item = { monthStr, days, cachedAt: new Date().toISOString() };
+    return idbSetItem(IDB_STORE_MONTH_OVERVIEW, item);
+  }
+
+  // Queues an offline mutation (create/update) to the outbox for later syncing.
+  async function idbEnqueueMutation(type, payload) {
+    const mutation = { type, payload, enqueuedAt: new Date().toISOString() };
+    return idbSetItem(IDB_STORE_OUTBOX, mutation);
+  }
+
+  // Retrieves all queued offline mutations from the outbox store.
+  async function idbGetOutbox() {
+    return idbGetAllItems(IDB_STORE_OUTBOX);
+  }
+
+  // Removes a successfully synced mutation from the outbox.
+  async function idbDequeueMutation(id) {
+    return idbDeleteItem(IDB_STORE_OUTBOX, id);
   }
 
   const MONTH_CACHE_TTL_MS = 15 * 60 * 1000;

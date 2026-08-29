@@ -11,9 +11,11 @@
  *   node tools/build-gas-engines.js --check  # exit 1 if Script.html is stale (pre-commit gate)
  *
  * See .agents/rules/sync-src-and-gas-app.md. This does NOT (yet) cover src/indexedDbStore.js or
- * src/gasBridge.js — gas-app/Script.html's copies of those have diverged enough (different
- * per-store function names, no memory-fallback branch) that a mechanical bundle swap would be a
- * behavior change, not a refactor; that reconciliation is tracked separately.
+ * src/gasBridge.js — both are still hand-duplicated in gas-app/Script.html. indexedDbStore.js's
+ * shape has since been reconciled by hand (generic storeName-keyed API, memory-fallback branch,
+ * 5-store schema on both sides), so it's now a mechanically-safe candidate for this build step;
+ * gasBridge.js's copy still diverges (mock data, google.script.run branching) and needs its own
+ * reconciliation pass first.
  */
 
 import { build } from 'esbuild';

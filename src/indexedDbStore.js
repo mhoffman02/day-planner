@@ -11,10 +11,12 @@
 export const DB_NAME = 'day-planner-db';
 
 /**
- * IndexedDB database version for schema management and migrations.
+ * IndexedDB database version for schema management and migrations. Bump this whenever STORES
+ * changes shape — the gas-app/Script.html copy's onupgradeneeded only runs for a given user's
+ * browser once the requested version number increases past what it already has stored locally.
  * @type {number}
  */
-export const DB_VERSION = 2;
+export const DB_VERSION = 3;
 
 /**
  * IndexedDB object store names and keys.
