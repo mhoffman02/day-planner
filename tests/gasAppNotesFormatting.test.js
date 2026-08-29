@@ -50,6 +50,49 @@ for (const [label, src] of [['src/app.js', appJs], ['gas-app/Script.html', scrip
     );
   });
 
+  // Regression: nextOrderedNumber() originally only ever looked at lines[idx - 1], so a numbered
+  // list separated from a newly-added line by a blank spacer line (a common shape once a note
+  // has paragraph breaks) always restarted the count at 1 instead of continuing the list --
+  // Docs/Word both continue numbering across a blank line. Fix: scan backward past blank lines
+  // to find the nearest actual ordered-list item.
+  test(`${label}: nextOrderedNumber() skips blank spacer lines when looking backward`, () => {
+    assert.ok(
+      /nextOrderedNumber\(lines, idx\) \{\s*for \(let i = idx - 1; i >= 0; i--\) \{/.test(src),
+      `${label}'s nextOrderedNumber must scan backward from idx - 1 instead of only checking ` +
+        'the single immediately-preceding line'
+    );
+    assert.ok(
+      /if \(line\.trim\(\) === ''\) continue;/.test(src),
+      `${label}'s nextOrderedNumber must skip blank lines while scanning backward for the ` +
+        'nearest ordered-list item'
+    );
+  });
+
+  // Regression: applyRangeFormat's 'ordered' branch used to blindly toggle every line in the
+  // selected range via applyLineFormat, in index order. Selecting an existing numbered item plus
+  // a newly-added plain line below it and clicking "Ordered" would strip the existing item's
+  // number first (since it looked already-ordered and got toggled off), so by the time the loop
+  // reached the new line, nextOrderedNumber read the just-stripped previous line and reset the
+  // new line's number to 1 -- instead of continuing the list, formatting one clobbered the other.
+  test(`${label}: applyRangeFormat only un-numbers a range's ordered lines when ALL are already ordered`, () => {
+    assert.ok(
+      /if \(formatType === 'bullet' \|\| formatType === 'color-default' \|\| formatType === 'clear'\) \{/.test(src),
+      `${label}'s applyRangeFormat must no longer lump 'ordered' into the naive per-line toggle ` +
+        "branch shared with 'bullet'"
+    );
+    assert.ok(
+      /if \(formatType === 'ordered'\) \{[\s\S]*?const allOrdered = indices\.every/.test(src),
+      `${label}'s applyRangeFormat must give 'ordered' its own branch that checks whether the ` +
+        'whole range is already ordered before deciding to toggle'
+    );
+    assert.ok(
+      /if \(allOrdered \|\| !alreadyOrdered\) this\.applyLineFormat\(card, i, 'ordered'\);/.test(src),
+      `${label}'s applyRangeFormat must only apply 'ordered' to a line when the whole range is ` +
+        'already ordered (toggle off) or that specific line is not yet ordered -- never re-toggle ' +
+        'an already-ordered line inside a mixed range'
+    );
+  });
+
   test(`${label}: defines clearLineFormatting() and wires a 'clear' formatType`, () => {
     assert.ok(
       /clearLineFormatting\(text\)/.test(src),

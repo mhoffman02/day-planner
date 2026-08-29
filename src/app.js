@@ -1191,11 +1191,18 @@ function getLocalDateStr(d = new Date()) {
        * @returns {void}
        */
       // Determines what number an ordered-list line should take when it starts or continues a
-      // numbered list: one more than the immediately preceding line's number if that line is
-      // itself an ordered-list item, otherwise 1 (starting a new list).
+      // numbered list: one more than the nearest preceding ordered-list item's number, skipping
+      // back over blank spacer lines (so a numbered list continues its count across a paragraph
+      // break, matching Docs/Word behavior) but stopping at the first non-blank line that isn't
+      // itself an ordered item -- that's a different block of content, so the count restarts at 1.
       nextOrderedNumber(lines, idx) {
-        const m = idx > 0 ? /^(\d+)\.\s/.exec(lines[idx - 1] || '') : null;
-        return m ? parseInt(m[1], 10) + 1 : 1;
+        for (let i = idx - 1; i >= 0; i--) {
+          const line = lines[i] || '';
+          if (line.trim() === '') continue;
+          const m = /^(\d+)\.\s/.exec(line);
+          return m ? parseInt(m[1], 10) + 1 : 1;
+        }
+        return 1;
       },
 
       // Strips every inline/whole-line format marker from a line's raw text, returning plain
@@ -1283,11 +1290,13 @@ function getLocalDateStr(d = new Date()) {
       /**
        * Applies a format to every line in a note card's whole-line multi-select range
        * (`card._selectedLineRange`), reusing {@link applyLineFormat}'s own wrap/unwrap encode
-       * path for each line rather than duplicating it. Bullet/ordered toggle each line
-       * independently (each line's prefix toggle is already a self-contained per-line op).
-       * For bold/italic/underline/strike/code/color, this is "email client" style: if every
-       * line in range is already wrapped, unwrap all of them; otherwise wrap every line that
-       * isn't already wrapped, leaving already-wrapped lines alone.
+       * path for each line rather than duplicating it. Bullet toggles each line independently
+       * (its prefix toggle is already a self-contained per-line op). Ordered, bold/italic/
+       * underline/strike/code/color are all "email client" style: if every line in range is
+       * already wrapped/ordered, unwrap/un-number all of them; otherwise apply the format only
+       * to lines that don't already have it, leaving already-formatted lines untouched (for
+       * ordered, this also keeps a newly-added plain line's number chained off the nearest
+       * untouched preceding item instead of the just-stripped one).
        * @param {object} card Note card to format.
        * @param {string} formatType Format to apply (see {@link applyLineFormat}).
        * @returns {void}
@@ -1301,8 +1310,25 @@ function getLocalDateStr(d = new Date()) {
         const indices = [];
         for (let i = lo; i <= hi; i++) indices.push(i);
 
-        if (formatType === 'bullet' || formatType === 'ordered' || formatType === 'color-default' || formatType === 'clear') {
+        if (formatType === 'bullet' || formatType === 'color-default' || formatType === 'clear') {
           indices.forEach(i => this.applyLineFormat(card, i, formatType));
+          return;
+        }
+
+        if (formatType === 'ordered') {
+          // A naive per-line toggle over a mixed range (some lines already ordered, some not --
+          // e.g. selecting an existing numbered item plus a newly added plain line below it)
+          // would strip the already-ordered lines' numbering as it goes, so by the time
+          // applyLineFormat reaches the new line, nextOrderedNumber reads the just-stripped
+          // previous line and resets the count to 1. Mirror the bold/italic "email client" style
+          // instead: toggle every line off only if the whole range is already ordered; otherwise
+          // leave already-ordered lines untouched and only number the ones that aren't yet.
+          const orderedRe = /^\d+\.\s/;
+          const allOrdered = indices.every(i => orderedRe.test(this.cardLines(card)[i] || ''));
+          indices.forEach(i => {
+            const alreadyOrdered = orderedRe.test(this.cardLines(card)[i] || '');
+            if (allOrdered || !alreadyOrdered) this.applyLineFormat(card, i, 'ordered');
+          });
           return;
         }
 
