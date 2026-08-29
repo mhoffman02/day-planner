@@ -1890,6 +1890,11 @@ function getCompiledAppBundle() {
 
   try {
     var template = HtmlService.createTemplateFromFile('Index');
+    // Script.html is already carried separately as bundle.script below; if the Index
+    // template also inlined its own copy via `include('Script')`, the PWA shell would
+    // concatenate both into one <script> tag and re-declare every top-level const/let,
+    // a fatal SyntaxError (see tests/gasAppBundle.test.js).
+    template.isBundleExport = true;
     indexContent = template.evaluate().getContent();
   } catch (e) {
     console.warn('getCompiledAppBundle: Index.html template evaluation failed, trying static read', e);

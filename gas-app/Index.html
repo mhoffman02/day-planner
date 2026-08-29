@@ -864,6 +864,8 @@
 
   </main>
 
+  <? if (typeof isBundleExport === 'undefined' || !isBundleExport) { ?>
   <?!= include('Script'); ?>
+  <? } ?>
 </body>
 </html>
