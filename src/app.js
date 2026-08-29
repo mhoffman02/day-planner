@@ -1191,18 +1191,13 @@ function getLocalDateStr(d = new Date()) {
        * @returns {void}
        */
       // Determines what number an ordered-list line should take when it starts or continues a
-      // numbered list: one more than the nearest preceding ordered-list item's number, skipping
-      // back over blank spacer lines (so a numbered list continues its count across a paragraph
-      // break, matching Docs/Word behavior) but stopping at the first non-blank line that isn't
-      // itself an ordered item -- that's a different block of content, so the count restarts at 1.
+      // numbered list: one more than the immediately preceding line's number if that line is
+      // itself an ordered-list item, otherwise 1 (starting a new list). A blank line right
+      // before deliberately breaks the list -- it's a hard reset to 1, not a gap to continue
+      // across -- so this only ever looks at lines[idx - 1], never further back.
       nextOrderedNumber(lines, idx) {
-        for (let i = idx - 1; i >= 0; i--) {
-          const line = lines[i] || '';
-          if (line.trim() === '') continue;
-          const m = /^(\d+)\.\s/.exec(line);
-          return m ? parseInt(m[1], 10) + 1 : 1;
-        }
-        return 1;
+        const m = idx > 0 ? /^(\d+)\.\s/.exec(lines[idx - 1] || '') : null;
+        return m ? parseInt(m[1], 10) + 1 : 1;
       },
 
       // Strips every inline/whole-line format marker from a line's raw text, returning plain

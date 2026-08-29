@@ -50,21 +50,15 @@ for (const [label, src] of [['src/app.js', appJs], ['gas-app/Script.html', scrip
     );
   });
 
-  // Regression: nextOrderedNumber() originally only ever looked at lines[idx - 1], so a numbered
-  // list separated from a newly-added line by a blank spacer line (a common shape once a note
-  // has paragraph breaks) always restarted the count at 1 instead of continuing the list --
-  // Docs/Word both continue numbering across a blank line. Fix: scan backward past blank lines
-  // to find the nearest actual ordered-list item.
-  test(`${label}: nextOrderedNumber() skips blank spacer lines when looking backward`, () => {
+  // Explicit product decision: a blank line right before the line being formatted is a
+  // deliberate break in the list, so numbering restarts at 1 -- it does NOT continue across the
+  // gap the way it continues across an immediately-preceding ordered line. nextOrderedNumber must
+  // therefore only ever look at lines[idx - 1], never scan further back past a blank line.
+  test(`${label}: nextOrderedNumber() only checks the immediately-preceding line (blank line resets to 1)`, () => {
     assert.ok(
-      /nextOrderedNumber\(lines, idx\) \{\s*for \(let i = idx - 1; i >= 0; i--\) \{/.test(src),
-      `${label}'s nextOrderedNumber must scan backward from idx - 1 instead of only checking ` +
-        'the single immediately-preceding line'
-    );
-    assert.ok(
-      /if \(line\.trim\(\) === ''\) continue;/.test(src),
-      `${label}'s nextOrderedNumber must skip blank lines while scanning backward for the ` +
-        'nearest ordered-list item'
+      /nextOrderedNumber\(lines, idx\) \{\s*const m = idx > 0 \? \/\^\(\\d\+\)\\\.\\s\/\.exec\(lines\[idx - 1\] \|\| ''\) : null;/.test(src),
+      `${label}'s nextOrderedNumber must check only lines[idx - 1] -- a blank line there must ` +
+        'fail the ordered-prefix match and fall through to 1, not scan further back for an older list'
     );
   });
 
