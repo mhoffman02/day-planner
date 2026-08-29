@@ -719,10 +719,43 @@ function getDailyData(dateStr) {
     var targetDate = new Date(dateStr + 'T00:00:00');
     var nextDate = new Date(targetDate.getTime() + 24 * 60 * 60 * 1000);
 
-    // 1. Fetch Calendar Events
-    if (typeof CalendarApp !== 'undefined') {
+    // 1. Fetch Calendar Events. Prefers the Advanced Calendar Service (Calendar.Events.list)
+    // because it returns `htmlLink` — the direct URL to this specific event in Google
+    // Calendar — in the same call; CalendarApp has no htmlLink accessor at all, so the
+    // CalendarApp fallback below hand-builds the same `eid=` link format Google Calendar
+    // itself generates. Without either, the client had nothing but a title to work with and
+    // fell back to an "create new event" URL for the "Open in gCal" button instead of
+    // opening the event the user actually clicked.
+    if (typeof Calendar !== 'undefined' && Calendar.Events) {
       try {
-        var events = CalendarApp.getDefaultCalendar().getEvents(targetDate, nextDate);
+        var dayResp = Calendar.Events.list('primary', {
+          timeMin: targetDate.toISOString(),
+          timeMax: nextDate.toISOString(),
+          singleEvents: true,
+          maxResults: 250,
+          fields: 'items(id,summary,start,end,location,description,hangoutLink,htmlLink,extendedProperties)'
+        });
+        result.calendarEvents = (dayResp.items || []).map(function(evt) {
+          return {
+            id: evt.id,
+            title: evt.summary || '(untitled)',
+            startTime: evt.start && (evt.start.dateTime || evt.start.date),
+            endTime: evt.end && (evt.end.dateTime || evt.end.date),
+            location: evt.location || '',
+            description: evt.description || '',
+            meetLink: evt.hangoutLink || null,
+            htmlLink: evt.htmlLink || null,
+            syncTaskId: (evt.extendedProperties && evt.extendedProperties.shared && evt.extendedProperties.shared.gasTaskId) || null
+          };
+        });
+      } catch (calErr) {
+        result.warnings.push(logError('Calendar.Events.list', calErr).error);
+      }
+    } else if (typeof CalendarApp !== 'undefined') {
+      try {
+        var defaultCal = CalendarApp.getDefaultCalendar();
+        var defaultCalId = defaultCal.getId();
+        var events = defaultCal.getEvents(targetDate, nextDate);
         result.calendarEvents = events.map(function(evt) {
           var meetLink = null;
           if (typeof evt.getHangoutLink === 'function') {
@@ -733,18 +766,23 @@ function getDailyData(dateStr) {
             var match = (desc + ' ' + loc).match(/https:\/\/meet\.google\.com\/[a-z0-9-]+/i);
             if (match) meetLink = match[0];
           }
+          // Normalized to the bare Calendar API v3 id (strip the CalendarApp
+          // '@google.com' suffix) so this id round-trips cleanly through
+          // updateCalendarEvent's Calendar.Events.patch call, which rejects the
+          // suffixed form. See docs/patches — event-id format mismatch fix.
+          var bareId = evt.getId().replace(/@google\.com$/, '');
           return {
-            // Normalized to the bare Calendar API v3 id (strip the CalendarApp
-            // '@google.com' suffix) so this id round-trips cleanly through
-            // updateCalendarEvent's Calendar.Events.patch call, which rejects the
-            // suffixed form. See docs/patches — event-id format mismatch fix.
-            id: evt.getId().replace(/@google\.com$/, ''),
+            id: bareId,
             title: evt.getTitle(),
             startTime: evt.getStartTime().toISOString(),
             endTime: evt.getEndTime().toISOString(),
             location: evt.getLocation(),
             description: evt.getDescription(),
             meetLink: meetLink,
+            // Same `eid=base64url(eventId + " " + calendarId)` format Google Calendar's
+            // own htmlLink uses — CalendarApp exposes no direct accessor for it.
+            htmlLink: 'https://calendar.google.com/calendar/event?eid=' +
+              Utilities.base64EncodeWebSafe(bareId + ' ' + defaultCalId).replace(/=+$/, ''),
             syncTaskId: evt.getTag('gasTaskId') || null
           };
         });
