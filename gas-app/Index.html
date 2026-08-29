@@ -21,7 +21,6 @@
     })();
   </script>
   <?!= include('Styles'); ?>
-  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
 </head>
 <body>
   <!-- Main Binder Application Container -->
@@ -867,5 +866,10 @@
   <? if (typeof isBundleExport === 'undefined' || !isBundleExport) { ?>
   <?!= include('Script'); ?>
   <? } ?>
+  <!-- No `defer`: GAS's sandboxed-iframe content loader doesn't reliably honor defer's
+       execution-order guarantee, so Alpine could start scanning the DOM before the
+       plannerApp registration above ran. Plain document order (this tag loads only after
+       Script.html's registration code has already executed) replaces that unreliable timing. -->
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
 </body>
 </html>
