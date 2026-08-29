@@ -1776,8 +1776,16 @@
           const lines = this.cardLines(card);
           const caret = e.target.selectionStart;
           const text = lines[idx] || '';
-          lines[idx] = text.slice(0, caret);
-          lines.splice(idx + 1, 0, text.slice(caret));
+          const before = text.slice(0, caret);
+          let after = text.slice(caret);
+          const orderedMatch = /^(\d+)\.\s/.exec(before);
+          if (orderedMatch) {
+            after = `${parseInt(orderedMatch[1], 10) + 1}. ${after}`;
+          } else if (/^- /.test(before)) {
+            after = `- ${after}`;
+          }
+          lines[idx] = before;
+          lines.splice(idx + 1, 0, after);
           card.content = lines.join('\n');
           this.syncCardsToDailyNote();
           this.startEditingLine(card, idx + 1);
@@ -1821,6 +1829,32 @@
       // single line being edited, it can never leak onto lines the user didn't touch.
       // overrideSelection lets applyRangeFormat drive this same wrap/unwrap logic for a
       // whole-line-selected range without duplicating it, bypassing the DOM/element selection.
+      //
+      // Determines what number an ordered-list line should take when it starts or continues a
+      // numbered list: one more than the immediately preceding line's number if that line is
+      // itself an ordered-list item, otherwise 1 (starting a new list).
+      nextOrderedNumber(lines, idx) {
+        const m = idx > 0 ? /^(\d+)\.\s/.exec(lines[idx - 1] || '') : null;
+        return m ? parseInt(m[1], 10) + 1 : 1;
+      },
+
+      // Strips every inline/whole-line format marker from a line's raw text, returning plain
+      // text: bold/italic/underline/strike/code wrappers, color spans, and bullet/ordered
+      // prefixes are all removed. Bold is stripped before italic since ** is a superset of the
+      // * italic marker.
+      clearLineFormatting(text) {
+        let t = text || '';
+        t = t.replace(/\[\[color:(?:teal|red|green|blue)\]\]([\s\S]*?)\[\[\/color\]\]/g, '$1');
+        t = t.replace(/^-\s/, '');
+        t = t.replace(/^\d+\.\s/, '');
+        t = t.replace(/\*\*([\s\S]*?)\*\*/g, '$1');
+        t = t.replace(/__([\s\S]*?)__/g, '$1');
+        t = t.replace(/~~([\s\S]*?)~~/g, '$1');
+        t = t.replace(/`([\s\S]*?)`/g, '$1');
+        t = t.replace(/\*([\s\S]*?)\*/g, '$1');
+        return t;
+      },
+
       applyLineFormat(card, idx, formatType, overrideSelection) {
         if (!card || idx == null || idx < 0) return;
         const lines = this.cardLines(card);
@@ -1851,11 +1885,13 @@
           this.syncCardsToDailyNote();
         };
 
-        if (formatType === 'bullet') {
+        if (formatType === 'clear') {
+          setLine(this.clearLineFormatting(text));
+        } else if (formatType === 'bullet') {
           setLine(text.startsWith('- ') ? text.slice(2) : `- ${text}`);
         } else if (formatType === 'ordered') {
           const orderedRe = /^\d+\.\s/;
-          setLine(orderedRe.test(text) ? text.replace(orderedRe, '') : `1. ${text}`);
+          setLine(orderedRe.test(text) ? text.replace(orderedRe, '') : `${this.nextOrderedNumber(lines, idx)}. ${text}`);
         } else if (formatType in colorMap) {
           const newColor = colorMap[formatType];
           if (!newColor) {
@@ -1900,7 +1936,7 @@
         const indices = [];
         for (let i = lo; i <= hi; i++) indices.push(i);
 
-        if (formatType === 'bullet' || formatType === 'ordered' || formatType === 'color-default') {
+        if (formatType === 'bullet' || formatType === 'ordered' || formatType === 'color-default' || formatType === 'clear') {
           indices.forEach(i => this.applyLineFormat(card, i, formatType));
           return;
         }
