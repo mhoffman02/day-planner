@@ -4,6 +4,8 @@
  * Handles 07:00 AM - 07:00 PM schedule grid, event slot mapping, modal popups, and 7x5 monthly calendar calculations.
  */
 
+import { getLocalDateStr } from './binderStore.js';
+
 /**
  * Generates 25 time slot entries for 07:00 AM to 07:00 PM (30-min intervals).
  * @returns {Array<{timeKey: string, displayTime: string, isHalfHour: boolean, events: Array<object>}>} Array of schedule grid slot objects.
@@ -129,7 +131,7 @@ export function generateMonthlyCalendarGrid(year, month, events = []) {
   for (let day = 1; day <= totalDays; day++) {
     const dateStr = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
     const dayEvents = events.filter(e => {
-      const eDate = e.startTime ? new Date(e.startTime).toISOString().slice(0, 10) : '';
+      const eDate = e.startTime ? getLocalDateStr(new Date(e.startTime)) : '';
       return eDate === dateStr;
     });
 

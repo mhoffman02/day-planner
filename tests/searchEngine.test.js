@@ -67,6 +67,16 @@ describe('Universal Search Engine Unit Tests', () => {
     assert.equal(dailyHit.targetView, 'daily');
   });
 
+  it('should report the calendar event date field as the local day, not the UTC-shifted day', () => {
+    const searchRes = executeUniversalSearch('Late Night Call', {
+      calendarEvents: [
+        { title: 'Late Night Call', startTime: '2026-08-15T23:30:00-07:00' }
+      ]
+    });
+    assert.equal(searchRes.calendar.length, 1);
+    assert.equal(searchRes.calendar[0].date, '2026-08-15');
+  });
+
   it('should extract a note snippet centered on the matched query text', () => {
     const searchRes = executeUniversalSearch('campaigns', sampleStore);
     assert.equal(searchRes.notes.length, 1);

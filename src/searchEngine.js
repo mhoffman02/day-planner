@@ -4,6 +4,8 @@
  * Multi-entity cross-service indexing & searching for Google Calendar, Google Tasks, Daily Notes, and Monthly Index.
  */
 
+import { getLocalDateStr } from './binderStore.js';
+
 /**
  * Executes cross-service universal search query across calendar, tasks, notes, and index entries.
  * @param {string} [query=''] Search query string.
@@ -41,7 +43,7 @@ export function executeUniversalSearch(query = '', store = {}) {
         type: 'calendar',
         title: evt.title,
         snippet: evt.location ? `Location: ${evt.location}` : (evt.description || 'Calendar Event'),
-        date: evt.startTime ? new Date(evt.startTime).toISOString().slice(0, 10) : '',
+        date: evt.startTime ? getLocalDateStr(new Date(evt.startTime)) : '',
         targetView: 'daily',
         item: evt
       });

@@ -74,7 +74,11 @@ function validateUserAccess() {
     };
   } catch (err) {
     logError('validateUserAccess', err);
-    return { authorized: true, userEmail: 'session-user' };
+    return {
+      authorized: false,
+      userEmail: 'session-user',
+      error: 'Access Denied: could not verify authorization due to an internal error.'
+    };
   }
 }
 

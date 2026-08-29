@@ -85,6 +85,18 @@ describe('Calendar Engine Unit Tests', () => {
     assert.equal(aug15.events.length, 1);
   });
 
+  it('should place a late-evening event on its local calendar day, not the UTC-shifted day', () => {
+    const events = [
+      { title: 'Late Night Call', startTime: '2026-08-15T23:30:00-07:00' }
+    ];
+
+    const grid = generateMonthlyCalendarGrid(2026, 8, events);
+    const aug15 = grid.find(d => d.dateStr === '2026-08-15');
+    const aug16 = grid.find(d => d.dateStr === '2026-08-16');
+    assert.equal(aug15.events.length, 1);
+    assert.equal(aug16.events.length, 0);
+  });
+
   it('should default missing fields when formatting an event modal payload', () => {
     const payload = formatEventModalPayload();
     assert.equal(payload.title, 'Untitled Event');
