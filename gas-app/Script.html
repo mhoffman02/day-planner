@@ -1,107 +1,123 @@
 <script>
-  // Helper engine definitions bundled for GAS SPA client
-  const STATUS_LIST = ['•', '✓', '→', 'X', 'D/✓'];
-
-  function parseTaskTitle(rawTitle = '') {
-    if (!rawTitle) return { priorityGroup: null, sequence: null, priorityCode: null, cleanTitle: '' };
-    const match = rawTitle.match(/^\[([A-C])([1-9])\]\s*(.*)$/i);
-    if (match) {
-      return {
-        priorityGroup: match[1].toUpperCase(),
-        sequence: parseInt(match[2], 10),
-        priorityCode: `${match[1].toUpperCase()}${match[2]}`,
-        cleanTitle: match[3].trim()
-      };
+  // === GENERATED begin: src/ engine bundle — regenerate with `node tools/build-gas-engines.js`, do not hand-edit ===
+  // Source of truth: src/taskEngine.js, src/futureMatrixEngine.js, src/syncEngine.js,
+  // src/binderStore.js#getLocalDateStr. See .agents/rules/sync-src-and-gas-app.md.
+  // src/binderStore.js
+  function getLocalDateStr(d = /* @__PURE__ */ new Date()) {
+    if (typeof d === "string") {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+      d = new Date(d);
     }
-    return { priorityGroup: null, sequence: null, priorityCode: null, cleanTitle: rawTitle.trim() };
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   }
 
-  function formatTaskTitle(priorityGroup, sequence, cleanTitle) {
-    const trimmed = (cleanTitle || '').trim();
-    if (priorityGroup && sequence) return `[${priorityGroup.toUpperCase()}${sequence}] ${trimmed}`;
-    return trimmed;
-  }
-
-  function getCleanTitle(title = '') {
-    if (!title) return '';
-    return title.replace(/^(\s*\[(?:✓|[A-Za-z][1-9])\]\s*)+/gi, '').trim();
-  }
-
-  function getNextStatus(currentStatus) {
-    const idx = STATUS_LIST.indexOf(currentStatus);
-    if (idx === -1 || idx === STATUS_LIST.length - 1) return STATUS_LIST[0];
-    return STATUS_LIST[idx + 1];
-  }
-
-  // Human-readable labels for each status glyph, backing the status-select dropdown -- mirrors
-  // src/taskEngine.js's STATUS_OPTIONS.
-  const STATUS_OPTIONS = [
-    { value: '•', label: 'Open' },
-    { value: '✓', label: 'Done' },
-    { value: '→', label: 'Forward' },
-    { value: 'X', label: 'Canceled' },
-    { value: 'D/✓', label: 'Delegated (Done)' }
+  // src/taskEngine.js
+  var TASK_STATUSES = {
+    OPEN: "•",
+    COMPLETED: "✓",
+    FORWARDED: "→",
+    CANCELED: "X",
+    DELEGATED: "D/✓"
+  };
+  var STATUS_LIST = ["•", "✓", "→", "X", "D/✓"];
+  var STATUS_OPTIONS = [
+    { value: "•", label: "Open" },
+    { value: "✓", label: "Done" },
+    { value: "→", label: "Forward" },
+    { value: "X", label: "Canceled" },
+    { value: "D/✓", label: "Delegated (Done)" }
   ];
-
-  // Mirrors src/taskEngine.js's isValidStatus.
   function isValidStatus(status) {
     return STATUS_LIST.includes(status);
   }
+  function parseTaskTitle(rawTitle = "") {
+    if (!rawTitle) {
+      return { priorityGroup: null, sequence: null, priorityCode: null, cleanTitle: "" };
+    }
+    const match = rawTitle.match(/^\[([A-C])([1-9])\]\s*(.*)$/i);
+    if (match) {
+      const priorityGroup = match[1].toUpperCase();
+      const sequence = parseInt(match[2], 10);
+      return {
+        priorityGroup,
+        sequence,
+        priorityCode: `${priorityGroup}${sequence}`,
+        cleanTitle: match[3].trim()
+      };
+    }
+    return {
+      priorityGroup: null,
+      sequence: null,
+      priorityCode: null,
+      cleanTitle: rawTitle.trim()
+    };
+  }
+  function formatTaskTitle(priorityGroup, sequence, cleanTitle) {
+    const trimmed = (cleanTitle || "").trim();
+    if (priorityGroup && sequence) {
+      return `[${priorityGroup.toUpperCase()}${sequence}] ${trimmed}`;
+    }
+    return trimmed;
+  }
+  function getNextStatus(currentStatus) {
+    const idx = STATUS_LIST.indexOf(currentStatus);
+    if (idx === -1 || idx === STATUS_LIST.length - 1) {
+      return STATUS_LIST[0];
+    }
+    return STATUS_LIST[idx + 1];
+  }
 
-  // Future Planning Matrix (12-month overview) — mirrors src/futureMatrixEngine.js
-  const FUTURE_MONTH_KEYS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
-
-  function createFutureItem(title, category = 'General') {
+  // src/futureMatrixEngine.js
+  var MONTH_KEYS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
+  function createFutureItem(title, category = "General") {
     return {
       id: `fm_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
       title,
       category,
-      status: '•',
-      createdAt: new Date().toISOString()
+      status: "•",
+      createdAt: (/* @__PURE__ */ new Date()).toISOString()
     };
   }
-
   function nextMonthKey(monthKey) {
-    const [yearStr, monthStr] = monthKey.split('-');
+    const [yearStr, monthStr] = monthKey.split("-");
     let year = parseInt(yearStr, 10);
     let month = parseInt(monthStr, 10) + 1;
     if (month > 12) {
       month = 1;
       year += 1;
     }
-    return `${year}-${String(month).padStart(2, '0')}`;
+    return `${year}-${String(month).padStart(2, "0")}`;
   }
-
   function emptyYearMatrix(year) {
     const months = {};
-    FUTURE_MONTH_KEYS.forEach(mm => {
+    MONTH_KEYS.forEach((mm) => {
       months[`${year}-${mm}`] = [];
     });
     return { year: String(year), months };
   }
 
+  // src/syncEngine.js
+  function getCleanTitle(title = "") {
+    if (!title) return "";
+    return title.replace(/^(\s*\[(?:✓|[A-Za-z][1-9])\]\s*)+/gi, "").trim();
+  }
   function syncTaskToCalendar(task, calendarEvents = []) {
     const parsed = parseTaskTitle(task.title);
     const cleanTitle = getCleanTitle(parsed.cleanTitle || task.title);
-    const isCompleted = task.status === '✓';
-
-    const eventTitle = isCompleted ? `[✓] ${cleanTitle}` : (parsed.priorityCode ? `[${parsed.priorityCode}] ${cleanTitle}` : cleanTitle);
-
-    const existingEvent = calendarEvents.find(evt =>
-      evt.syncTaskId === task.id || (evt.extendedProperties && evt.extendedProperties.private && evt.extendedProperties.private.gasTaskId === task.id)
+    const isCompleted = task.status === TASK_STATUSES.COMPLETED || task.status === "✓";
+    const eventTitle = isCompleted ? `[✓] ${cleanTitle}` : parsed.priorityCode ? `[${parsed.priorityCode}] ${cleanTitle}` : cleanTitle;
+    const existingEvent = calendarEvents.find(
+      (evt) => evt.syncTaskId === task.id || evt.extendedProperties && evt.extendedProperties.private?.gasTaskId === task.id
     );
-
-    // Day planners keep Tasks and Appointments distinct: a task only becomes a calendar
-    // event when the user explicitly time-blocks it (task.scheduledTime). Without that, no
-    // event is created — an untimed task must never appear as a phantom "9am appointment".
     if (!task.scheduledTime && !existingEvent) {
       return { updatedEvent: null, isNewEvent: false };
     }
-
     const startTime = task.scheduledTime || `${task.dueDate || getLocalDateStr()}T09:00:00Z`;
-    const defaultEndTime = `${startTime.substring(0, 11)}${String(Math.min(23, parseInt(startTime.substring(11, 13) || '9', 10) + 1)).padStart(2, '0')}:00:00Z`;
+    const defaultEndTime = `${startTime.substring(0, 11)}${String(Math.min(23, parseInt(startTime.substring(11, 13) || "9", 10) + 1)).padStart(2, "0")}:00:00Z`;
     const endTime = task.endTime || (existingEvent ? existingEvent.endTime : defaultEndTime);
-
     if (existingEvent) {
       return {
         updatedEvent: {
@@ -111,61 +127,51 @@
           endTime: task.endTime || existingEvent.endTime || endTime,
           isCompleted,
           syncTaskId: task.id,
-          lastSyncedAt: new Date().toISOString()
+          lastSyncedAt: (/* @__PURE__ */ new Date()).toISOString()
         },
         isNewEvent: false
       };
     }
-
     return {
       updatedEvent: {
         id: `evt_sync_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         title: eventTitle,
         startTime,
         endTime,
-        location: task.category || 'Planner Task',
-        description: `Synced from Planner Task [${parsed.priorityCode || 'Open'}]`,
+        location: task.category || "Planner Task",
+        description: `Synced from Planner Task [${parsed.priorityCode || "Open"}]`,
         syncTaskId: task.id,
         isCompleted,
         extendedProperties: { private: { gasTaskId: task.id } },
-        lastSyncedAt: new Date().toISOString()
+        lastSyncedAt: (/* @__PURE__ */ new Date()).toISOString()
       },
       isNewEvent: true
     };
   }
-
   function syncCalendarToTask(calendarEvent, dailyTasks = []) {
-    const linkedTaskId = calendarEvent.syncTaskId || (calendarEvent.extendedProperties && calendarEvent.extendedProperties.private && calendarEvent.extendedProperties.private.gasTaskId);
-    let targetTask = linkedTaskId ? dailyTasks.find(t => t.id === linkedTaskId) : null;
-
+    const linkedTaskId = calendarEvent.syncTaskId || calendarEvent.extendedProperties?.private?.gasTaskId;
+    let targetTask = linkedTaskId ? dailyTasks.find((t) => t.id === linkedTaskId) : null;
     const eventTitleClean = getCleanTitle(calendarEvent.title);
     const parsedEvent = parseTaskTitle(calendarEvent.title);
-
-    if (!targetTask && (parsedEvent.priorityCode || calendarEvent.title.startsWith('[✓]'))) {
-      targetTask = dailyTasks.find(t => {
+    if (!targetTask && (parsedEvent.priorityCode || calendarEvent.title.startsWith("[✓]"))) {
+      targetTask = dailyTasks.find((t) => {
         const parsedT = parseTaskTitle(t.title);
         const cleanT = getCleanTitle(parsedT.cleanTitle || t.title);
         return cleanT && cleanT.toLowerCase() === eventTitleClean.toLowerCase();
       });
     }
-
     if (!targetTask) return null;
-
     const parsedTask = parseTaskTitle(targetTask.title);
     const priorityGroup = parsedEvent.priorityGroup || parsedTask.priorityGroup;
     const sequence = parsedEvent.sequence || parsedTask.sequence;
-    const formattedTitle = (priorityGroup && sequence)
-      ? formatTaskTitle(priorityGroup, sequence, eventTitleClean)
-      : eventTitleClean;
-
-    const isCompletedInEvent = calendarEvent.title.startsWith('[✓]') || Boolean(calendarEvent.isCompleted);
+    const formattedTitle = priorityGroup && sequence ? formatTaskTitle(priorityGroup, sequence, eventTitleClean) : eventTitleClean;
+    const isCompletedInEvent = calendarEvent.title.startsWith("[✓]") || Boolean(calendarEvent.isCompleted);
     let newStatus = targetTask.status;
     if (isCompletedInEvent) {
-      newStatus = '✓';
-    } else if (targetTask.status === '✓') {
-      newStatus = '•';
+      newStatus = TASK_STATUSES.COMPLETED;
+    } else if (targetTask.status === TASK_STATUSES.COMPLETED || targetTask.status === "✓") {
+      newStatus = TASK_STATUSES.OPEN;
     }
-
     return {
       ...targetTask,
       title: formattedTitle,
@@ -174,43 +180,37 @@
       dueDate: calendarEvent.startTime ? calendarEvent.startTime.slice(0, 10) : targetTask.dueDate
     };
   }
-
   function reconcileWorkspaceChanges(dailyTasks = [], calendarEvents = []) {
     const reconciledTasks = [...dailyTasks];
     const reconciledEvents = [...calendarEvents];
-
     reconciledTasks.forEach((task) => {
       const { updatedEvent, isNewEvent } = syncTaskToCalendar(task, reconciledEvents);
-      if (!updatedEvent) return; // untimed task: no calendar event to create or update
+      if (!updatedEvent) return;
       if (isNewEvent) {
         reconciledEvents.push(updatedEvent);
       } else {
-        const matchIdx = reconciledEvents.findIndex(e => e.id === updatedEvent.id);
+        const matchIdx = reconciledEvents.findIndex((e) => e.id === updatedEvent.id);
         if (matchIdx !== -1) {
           reconciledEvents[matchIdx] = updatedEvent;
         }
       }
     });
-
-    // Events never create tasks: Tasks belong on the Tasks pane, events belong on
-    // the Calendar. Only reconcile events that are already linked to (or title-match)
-    // an existing task; an unlinked event is left as calendar-only.
     reconciledEvents.forEach((evt) => {
       const updatedTask = syncCalendarToTask(evt, reconciledTasks);
       if (updatedTask) {
-        const taskIdx = reconciledTasks.findIndex(t => t.id === updatedTask.id);
+        const taskIdx = reconciledTasks.findIndex((t) => t.id === updatedTask.id);
         if (taskIdx !== -1) {
           reconciledTasks[taskIdx] = updatedTask;
         }
       }
     });
-
     return {
       tasks: reconciledTasks,
       calendarEvents: reconciledEvents,
-      syncTimestamp: new Date().toISOString()
+      syncTimestamp: (/* @__PURE__ */ new Date()).toISOString()
     };
   }
+  // === GENERATED end: src/ engine bundle ===
 
   // Client IndexedDB cache for offline-first daily data (tasks/appointments/notes).
   // Mirrors src/indexedDbStore.js — HtmlService can't import ES modules, so this is
@@ -894,17 +894,6 @@
       await idbEnqueueMutation(OUTBOX_MUTATION_TYPES.SAVE_DAILY_NOTE, { dateStr, noteContent });
       return { success: true, queued: true, docName: null };
     }
-  }
-
-  function getLocalDateStr(d = new Date()) {
-    if (typeof d === 'string') {
-      if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
-      d = new Date(d);
-    }
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
   }
 
   // Register Alpine component immediately if Alpine is already running (shell DOM-mount scenario),

@@ -170,7 +170,10 @@ The **Google Digital Day Planner** is a high-efficiency single-page digital bind
   that logic. Left as a known gap rather than building that mock harness speculatively.
 - [x] **14.2 Run full unit test suite** (`npm test`) and confirm all suites pass with no
   skips — 107/107 passing across 19 suites.
-- [ ] **14.3 Verify 2-way sync end-to-end against live Google Calendar & Tasks** — no
+- [x] **14.3 Verify 2-way sync end-to-end against live Google Calendar & Tasks** — marked
+  stale/done 2026-08-29 (user call — manual live verification never got automated, but the
+  underlying sync behavior has since been exercised enough in normal use to close this out
+  without a dedicated verification pass). Original scope below, kept for context: no
   automated harness exercises the real APIs, only `src/syncEngine.js`'s mocked model.
   Confirm against the live GAS backend: creating/editing a priority-tagged task creates a
   linked calendar event and vice versa; completing a task syncs status to its linked
@@ -193,7 +196,8 @@ The **Google Digital Day Planner** is a high-efficiency single-page digital bind
     day other than today, or a time-shift on a linked event, will NOT be picked up by the
     background trigger while the app is closed — only by the client-side reconciliation
     the next time the app is opened for that day.
-- [ ] **14.4 Fix any broken features** surfaced by 14.2 or 14.3.
+- [x] **14.4 Fix any broken features** surfaced by 14.2 or 14.3 — marked stale/done
+  2026-08-29 (user call, alongside 14.3).
 - [x] **14.5 Apply `docs/patches/pwa.js.patch` to the separate `gh-pwa-shell` repo**
   (`mhoffman02/shell`, checked out at `/home/mike/projects/day-planner/gh-pwa-shell` —
   outside this repo's git, see README.txt/CLAUDE.md "Universal PWA Shell"). Fixes the
@@ -338,7 +342,8 @@ The **Google Digital Day Planner** is a high-efficiency single-page digital bind
     a pure `planSyncPersistence(beforeTasks, beforeEvents, reconciled)` into
     `src/syncEngine.js`, shared by both copies and directly unit-testable — not done
     here; left as a follow-up.
-- [ ] **14.7 Re-land the esbuild bundler for `src/` <-> `gas-app/Script.html` sync.**
+- [x] **14.7 Re-land the esbuild bundler for `src/` <-> `gas-app/Script.html` sync.**
+  Re-landed 2026-08-29. Findings for (a)/(b) below; (c) is explicitly deferred.
   Commit `f96a386` (2026-08-28) added `tools/build-gas-engines.js`
   (`npm run build:gas` / `build:gas:check`, wired into the pre-commit hook) to
   auto-generate the `taskEngine`/`futureMatrixEngine`/`syncEngine`/
@@ -359,6 +364,42 @@ The **Google Digital Day Planner** is a high-efficiency single-page digital bind
   `Script.html` before reapplying); (c) once landed, do the deferred
   `indexedDbStore.js`/`gasBridge.js` reconciliation-then-fold-in pass the original
   commit left as follow-up.
+  - **(a) Diagnosis, 2026-08-29:** confirmed via git archaeology (user corroborated: this
+    was the user's own "back to a working app" blanket-revert effort, not a targeted
+    removal) that the bundler was never implicated. The real v83-v88 regression was two
+    separately-diagnosed, well-understood bugs, both unrelated to engine-logic bundling:
+    (1) `getCompiledAppBundle()` double-embedding `Script.html`'s content into the
+    PWA-shell bundle, causing a fatal duplicate `const`/`let` declaration SyntaxError
+    (diagnosed in `3c081cb`); (2) GAS's sandboxed-iframe loader not honoring `<script
+    defer>` load order, letting Alpine scan the DOM before `Script.html` registered
+    `plannerApp` (diagnosed in `b86e451`). Both fixes were swept into the blanket revert
+    along with the bundler, then correctly re-applied standalone afterward as `c495284`
+    and `9585eaa` — both present and confirmed working in current `Script.html`/`Code.gs`.
+    The bundler and its defensive IIFE wrap (`f96a386`, `f6e059a`) touch neither code
+    path; re-landing just the bundler (without the IIFE, which the current tree doesn't
+    use — see below) carries none of the risk that caused the original rollback.
+  - **(b) Drift check, 2026-08-29:** diffed `f96a386`'s `Script.html` against current.
+    The four bundled source files (`taskEngine`/`futureMatrixEngine`/`syncEngine.js`,
+    `binderStore.js#getLocalDateStr`) had zero functional drift since `f96a386` (only a
+    trivial JSDoc comment change in `futureMatrixEngine.js`) — `fd27aed` explicitly
+    checked and confirmed no port was needed. One structural drift found and handled:
+    `getLocalDateStr` had been relocated out of the top engine block to sit just above
+    `_registerPlannerApp` (unrelated hand-edit after the rollback); consolidated it back
+    into the single generated block at the top (safe — top-level function declarations in
+    the same `<script>` scope are hoisted regardless of position). Did not re-add the
+    IIFE wrap from `f96a386`/`f6e059a` — current `Script.html` has run IIFE-free since the
+    post-rollback re-fixes and re-adding it wasn't necessary for the bundler itself, so
+    skipped to keep this change minimal.
+  - Verified: `npm test` (173/173), `npm run build:gas:check` (clean), `node --check` on
+    the extracted `<script>` body of the pushed `Script.html` (syntax-valid — duplicate
+    top-level `const`/`let` would be a parse-time error, which this rules out), `clasp
+    push --force` to `/dev` succeeded. No live-browser smoke test was possible from this
+    session (no browser-automation tool available); recommend a manual `/dev` load before
+    the next `-i` production deploy.
+  - **(c) still deferred** — `src/indexedDbStore.js`/`src/gasBridge.js` remain
+    hand-duplicated in `Script.html`; their shapes have diverged from `src/` (different
+    per-store function names, no memory-fallback branch) and need a reconciliation pass
+    before they can be folded into `build-gas-engines.js`. Left for a future session.
 
 ## Verification Criteria
 - [x] All unit tests in `tests/*.test.js` pass cleanly (`npm test` — 107/107 passing across 19 suites).
