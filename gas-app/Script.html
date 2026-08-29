@@ -216,7 +216,7 @@
   // Mirrors src/indexedDbStore.js — HtmlService can't import ES modules, so this is
   // a hand-duplicated inline copy; keep both in sync per sync-src-and-gas-app.md.
   const IDB_NAME = 'day-planner-db';
-  const IDB_VERSION = 2;
+  const IDB_VERSION = 3;
   const IDB_STORE_DAILY = 'dailyData';
   const IDB_STORE_OUTBOX = 'outboxQueue';
   // Read-only cache of a whole month's {tasks, calendarEvents, noteContent} per day, used to
@@ -224,6 +224,13 @@
   // Deliberately separate from IDB_STORE_DAILY so a background month-batch response can never
   // race a fresher single-day write or a pending offline edit.
   const IDB_STORE_MONTH_OVERVIEW = 'monthOverview';
+  // Not yet read/written by Script.html (no caller here needs them today), but declared and
+  // created to keep this DB's schema in step with src/indexedDbStore.js's STORES -- both files
+  // open the same 'day-planner-db' name, and IndexedDB only re-runs onupgradeneeded when the
+  // version number increases, so an already-onboarded browser would otherwise never gain these
+  // stores even after a later change starts relying on them.
+  const IDB_STORE_MONTHLY_NOTES = 'monthlyNotes';
+  const IDB_STORE_MASTER_TASKS = 'masterTasks';
 
   function idbSupported() {
     return typeof indexedDB !== 'undefined' && indexedDB !== null;
@@ -249,6 +256,12 @@
           }
           if (!db.objectStoreNames.contains(IDB_STORE_MONTH_OVERVIEW)) {
             db.createObjectStore(IDB_STORE_MONTH_OVERVIEW, { keyPath: 'monthStr' });
+          }
+          if (!db.objectStoreNames.contains(IDB_STORE_MONTHLY_NOTES)) {
+            db.createObjectStore(IDB_STORE_MONTHLY_NOTES, { keyPath: 'monthStr' });
+          }
+          if (!db.objectStoreNames.contains(IDB_STORE_MASTER_TASKS)) {
+            db.createObjectStore(IDB_STORE_MASTER_TASKS, { keyPath: 'monthStr' });
           }
         };
         request.onsuccess = (event) => resolve(event.target.result);

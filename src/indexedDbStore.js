@@ -5,7 +5,7 @@
  */
 
 export const DB_NAME = 'day-planner-db';
-export const DB_VERSION = 2;
+export const DB_VERSION = 3;
 
 export const STORES = {
   DAILY_DATA: 'dailyData',
