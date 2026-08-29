@@ -83,6 +83,18 @@ export function openDb() {
         dbPromise = null; // allow a retry on the next call instead of caching a permanent failure
         resolve(null);
       };
+
+      // A version bump (DB_VERSION) can't run its upgrade transaction while another tab/window
+      // still holds an open connection at the old version -- the request just sits pending with
+      // no onsuccess/onupgradeneeded/onerror, which without this handler means every caller
+      // awaiting openDb() hangs silently forever (no console output, no error) instead of falling
+      // back to "no cache". Resolve null now and drop the memoized promise so the next call
+      // retries fresh, once the other tab has closed/upgraded.
+      request.onblocked = () => {
+        console.warn('IndexedDB open blocked by another open tab/connection at an older version');
+        dbPromise = null;
+        resolve(null);
+      };
     } catch (err) {
       console.warn('openDb: indexedDB.open() threw synchronously (e.g. private browsing)', err);
       dbPromise = null;

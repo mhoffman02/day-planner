@@ -21,6 +21,7 @@ import { DB_VERSION, STORES } from '../src/indexedDbStore.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const scriptHtml = fs.readFileSync(path.join(__dirname, '../gas-app/Script.html'), 'utf8');
+const indexedDbStoreSrc = fs.readFileSync(path.join(__dirname, '../src/indexedDbStore.js'), 'utf8');
 
 test('Script.html creates an object store for every src/indexedDbStore.js STORES entry', () => {
   const constValues = {};
@@ -48,5 +49,27 @@ test('Script.html IDB_VERSION matches src/indexedDbStore.js DB_VERSION', () => {
     "Script.html's IDB_VERSION must match src/indexedDbStore.js's DB_VERSION, or an " +
       "already-onboarded browser's IndexedDB will never run onupgradeneeded to pick up newly " +
       'added object stores'
+  );
+});
+
+// Regression test for a live-observed v93 hang: bumping IDB_VERSION means the open() request
+// can't run its upgrade transaction while another tab/window still holds a connection at the
+// old version -- the browser fires `blocked`, not `success`/`error`/`upgradeneeded`, and the
+// request just sits pending. Without an onblocked handler, every caller awaiting the open
+// promise hangs silently forever (no console output), which surfaced as "today's tasks stick"
+// when navigating to a new day, because the day's data never finishes loading.
+test('src/indexedDbStore.js openDb() handles IDBOpenDBRequest.onblocked', () => {
+  assert.ok(
+    /request\.onblocked\s*=/.test(indexedDbStoreSrc),
+    'openDb() must handle request.onblocked (a version bump blocks while another tab holds an ' +
+      'older connection) instead of leaving every caller awaiting an unresolved promise forever'
+  );
+});
+
+test("Script.html's idbOpen() handles IDBOpenDBRequest.onblocked", () => {
+  assert.ok(
+    /request\.onblocked\s*=/.test(scriptHtml),
+    'idbOpen() must handle request.onblocked (a version bump blocks while another tab holds an ' +
+      'older connection) instead of leaving every caller awaiting an unresolved promise forever'
   );
 });
