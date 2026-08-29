@@ -1183,7 +1183,7 @@ function getLocalDateStr(d = new Date()) {
        * single line being edited, it can never leak onto lines the user didn't touch.
        * @param {object} card Note card to format.
        * @param {number} idx Line index to format.
-       * @param {'bold'|'italic'|'underline'|'strike'|'code'|'bullet'|'ordered'|'color-teal'|'color-red'|'color-green'|'color-blue'|'color-default'} formatType Format to apply.
+       * @param {'bold'|'italic'|'underline'|'strike'|'bullet'|'ordered'|'color-teal'|'color-red'|'color-green'|'color-blue'|'color-default'} formatType Format to apply.
        * @param {{start: number, end: number}} [overrideSelection] Explicit substring range to
        *   treat as "selected", bypassing the DOM/element selection read. Used by
        *   {@link applyRangeFormat} to drive this same wrap/unwrap logic for whole-line-selected
@@ -1201,9 +1201,10 @@ function getLocalDateStr(d = new Date()) {
       },
 
       // Strips every inline/whole-line format marker from a line's raw text, returning plain
-      // text: bold/italic/underline/strike/code wrappers, color spans, and bullet/ordered
+      // text: bold/italic/underline/strike wrappers, color spans, and bullet/ordered
       // prefixes are all removed. Bold is stripped before italic since ** is a superset of the
-      // * italic marker.
+      // * italic marker. The backtick pass stays so "Clear Formatting" still cleans up any
+      // stray code markers left over in notes saved before the code format was removed.
       clearLineFormatting(text) {
         let t = text || '';
         t = t.replace(/\[\[color:(?:teal|red|green|blue)\]\]([\s\S]*?)\[\[\/color\]\]/g, '$1');
@@ -1227,7 +1228,7 @@ function getLocalDateStr(d = new Date()) {
         const start = overrideSelection ? overrideSelection.start : (hasSelection ? el.selectionStart : 0);
         const end = overrideSelection ? overrideSelection.end : (hasSelection ? el.selectionEnd : text.length);
 
-        const prefixMap = { bold: '**', italic: '*', strike: '~~', code: '`', underline: '__' };
+        const prefixMap = { bold: '**', italic: '*', strike: '~~', underline: '__' };
         const colorMap = {
           'color-teal': 'teal',
           'color-red': 'red',
@@ -1287,7 +1288,7 @@ function getLocalDateStr(d = new Date()) {
        * (`card._selectedLineRange`), reusing {@link applyLineFormat}'s own wrap/unwrap encode
        * path for each line rather than duplicating it. Bullet toggles each line independently
        * (its prefix toggle is already a self-contained per-line op). Ordered, bold/italic/
-       * underline/strike/code/color are all "email client" style: if every line in range is
+       * underline/strike/color are all "email client" style: if every line in range is
        * already wrapped/ordered, unwrap/un-number all of them; otherwise apply the format only
        * to lines that don't already have it, leaving already-formatted lines untouched (for
        * ordered, this also keeps a newly-added plain line's number chained off the nearest
@@ -1327,7 +1328,7 @@ function getLocalDateStr(d = new Date()) {
           return;
         }
 
-        const prefixMap = { bold: '**', italic: '*', strike: '~~', code: '`', underline: '__' };
+        const prefixMap = { bold: '**', italic: '*', strike: '~~', underline: '__' };
         if (formatType in prefixMap) {
           const marker = prefixMap[formatType];
           const isWrapped = (t) => t.length >= marker.length * 2 && t.startsWith(marker) && t.endsWith(marker);
@@ -1395,7 +1396,7 @@ function getLocalDateStr(d = new Date()) {
 
       /**
        * Renders one line of a card's raw marker-laden content (**bold**, *italic*,
-       * __underline__, ~~strike~~, `code`, [[color:x]]...[[/color]], "- " bullet / "1. "
+       * __underline__, ~~strike~~, [[color:x]]...[[/color]], "- " bullet / "1. "
        * numbered prefix) as safe, formatted HTML -- the markers are app-internal formatting
        * instructions, not literal text the user should see. The line is HTML-escaped then run
        * through sequential marker-pair regex passes; since none of the generated span markup
@@ -1418,7 +1419,6 @@ function getLocalDateStr(d = new Date()) {
           html = html.replace(/\*\*(.+?)\*\*/g, '<span class="note-render-bold">$1</span>');
           html = html.replace(/~~(.+?)~~/g, '<span class="note-render-strike">$1</span>');
           html = html.replace(/__(.+?)__/g, '<span class="note-render-underline">$1</span>');
-          html = html.replace(/`(.+?)`/g, '<span class="note-render-code">$1</span>');
           html = html.replace(/\*(.+?)\*/g, '<span class="note-render-italic">$1</span>');
           return html;
         };
