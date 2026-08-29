@@ -65,6 +65,43 @@ for (const [label, src] of [['src/app.js', appJs], ['gas-app/Script.html', scrip
       `${label}'s applyRangeFormat must include 'clear' in its per-line dispatch`
     );
   });
+
+  // Regression: applyCardFormat used to require `_activeLineIndex == null` alongside a
+  // `_selectedLineRange` before dispatching to applyRangeFormat. Since the line that anchored
+  // the range only clears _activeLineIndex on an async blur, a range built by shift+click could
+  // still see a stale _activeLineIndex set, silently routing "Clear Formatting" (and every other
+  // toolbar button) to just the single anchor line instead of the whole selected range.
+  test(`${label}: applyCardFormat prioritizes a selected range over a stray _activeLineIndex`, () => {
+    assert.ok(
+      /if \(card\._selectedLineRange\) \{\s*this\.applyRangeFormat\(card, formatType\);/.test(src),
+      `${label}'s applyCardFormat must dispatch to applyRangeFormat whenever _selectedLineRange ` +
+        'is set, regardless of _activeLineIndex'
+    );
+  });
+
+  // Regression: renderCardLine rendered every ordered-list line as its own isolated single-item
+  // <ol>, discarding the real stored number and relying on the browser's native <li> counter --
+  // which restarts at 1 for every independent <ol>. Every ordered line displayed "1." once
+  // rendered (only the raw "N. " text of the single line actively being edited ever showed the
+  // real number), which read as the list numbering "breaking" after a couple of items.
+  test(`${label}: renderCardLine pins the real ordered-list number via <li value>`, () => {
+    assert.ok(
+      /<li value="\$\{num\}">/.test(src),
+      `${label}'s renderCardLine must render ordered-list items with an explicit <li value="N"> ` +
+        "so each line's isolated <ol> shows its real stored number instead of always \"1.\""
+    );
+  });
+
+  // Enhancement: pressing Enter on a list line that is nothing but the "- "/"N. " marker (no
+  // text typed yet) should exit list mode for that line instead of continuing the list --
+  // matching Google Docs/most editors' handling of an empty list item.
+  test(`${label}: Enter on a blank list-marker-only line exits list mode`, () => {
+    assert.ok(
+      /if \(\/\^\(\\d\+\\\.\\s\|- \)\$\/\.test\(text\)\) \{/.test(src),
+      `${label}'s Enter-key handler must detect a line whose entire content is just a bare list ` +
+        'marker and revert it to plain text instead of carrying the marker to a new line'
+    );
+  });
 }
 
 test("gas-app/Index.html has a 'Clear Formatting' toolbar button wired to applyCardFormat", () => {

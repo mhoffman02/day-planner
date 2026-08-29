@@ -1778,14 +1778,21 @@
           const text = lines[idx] || '';
           const before = text.slice(0, caret);
           let after = text.slice(caret);
-          const orderedMatch = /^(\d+)\.\s/.exec(before);
-          if (orderedMatch) {
-            after = `${parseInt(orderedMatch[1], 10) + 1}. ${after}`;
-          } else if (/^- /.test(before)) {
-            after = `- ${after}`;
+          // Enter on a list line whose entire content is just the "- " / "N. " marker (no text
+          // typed yet) exits list mode instead of continuing it -- Google Docs-style behavior.
+          if (/^(\d+\.\s|- )$/.test(text)) {
+            lines[idx] = '';
+            lines.splice(idx + 1, 0, '');
+          } else {
+            const orderedMatch = /^(\d+)\.\s/.exec(before);
+            if (orderedMatch) {
+              after = `${parseInt(orderedMatch[1], 10) + 1}. ${after}`;
+            } else if (/^- /.test(before)) {
+              after = `- ${after}`;
+            }
+            lines[idx] = before;
+            lines.splice(idx + 1, 0, after);
           }
-          lines[idx] = before;
-          lines.splice(idx + 1, 0, after);
           card.content = lines.join('\n');
           this.syncCardsToDailyNote();
           this.startEditingLine(card, idx + 1);
@@ -1980,7 +1987,10 @@
       // has nothing to act on until the user has clicked or shift+clicked into a line.
       applyCardFormat(card, formatType) {
         if (!card) return;
-        if (card._selectedLineRange && card._activeLineIndex == null) {
+        // A whole-line multi-select range always wins over a stray _activeLineIndex left over
+        // from the click that anchored the range (that line's input blurs asynchronously, so
+        // _activeLineIndex can still be set at the moment this runs).
+        if (card._selectedLineRange) {
           this.applyRangeFormat(card, formatType);
           return;
         }
@@ -2025,7 +2035,10 @@
           return `<ul class="note-render-list"><li>${renderInline(text.slice(2))}</li></ul>`;
         }
         if (orderedRe.test(text)) {
-          return `<ol class="note-render-list"><li>${renderInline(text.replace(orderedRe, ''))}</li></ol>`;
+          // Each line renders as its own isolated <ol>, so native counting would show every
+          // single-item list as "1." -- pin the real stored number via the <li value> attribute.
+          const num = parseInt(orderedRe.exec(text)[0], 10);
+          return `<ol class="note-render-list"><li value="${num}">${renderInline(text.replace(orderedRe, ''))}</li></ol>`;
         }
         return `<div class="note-render-line">${renderInline(text) || '&nbsp;'}</div>`;
       },
