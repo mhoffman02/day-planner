@@ -338,6 +338,27 @@ The **Google Digital Day Planner** is a high-efficiency single-page digital bind
     a pure `planSyncPersistence(beforeTasks, beforeEvents, reconciled)` into
     `src/syncEngine.js`, shared by both copies and directly unit-testable — not done
     here; left as a follow-up.
+- [ ] **14.7 Re-land the esbuild bundler for `src/` <-> `gas-app/Script.html` sync.**
+  Commit `f96a386` (2026-08-28) added `tools/build-gas-engines.js`
+  (`npm run build:gas` / `build:gas:check`, wired into the pre-commit hook) to
+  auto-generate the `taskEngine`/`futureMatrixEngine`/`syncEngine`/
+  `binderStore#getLocalDateStr` slice of `Script.html` from `src/` instead of
+  hand-copying it, removing that slice from `[[sync-src-and-gas-app]]`'s manual-port
+  burden. It deliberately left `src/indexedDbStore.js` and `src/gasBridge.js`
+  hand-duplicated — their `Script.html` copies had already diverged in shape
+  (different per-store function names, no memory-fallback branch), needing a
+  reconciliation pass first. It was reverted the same day by `9010306` ("roll repo
+  back to v82 state"), a 10-commit rollback (`79926b1..051373b`) triggered by an
+  *unrelated* v83-v88 blank-page/Alpine-registration regression on the live
+  deployment that couldn't be resolved — the bundler itself wasn't identified as the
+  cause, it was just caught in the revert range. History is preserved at tag
+  `backup-pre-v82-rollback-051373b`. Before re-landing: (a) diagnose what actually
+  caused the v83-v88 blank-page regression so re-adding the bundler doesn't
+  reintroduce it blind; (b) confirm current `Script.html` hasn't drifted further
+  from the bundler-era version since the rollback (diff against `f96a386`'s
+  `Script.html` before reapplying); (c) once landed, do the deferred
+  `indexedDbStore.js`/`gasBridge.js` reconciliation-then-fold-in pass the original
+  commit left as follow-up.
 
 ## Verification Criteria
 - [x] All unit tests in `tests/*.test.js` pass cleanly (`npm test` — 107/107 passing across 19 suites).
