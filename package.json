@@ -8,9 +8,7 @@
     "start": "node server.js",
     "lint": "eslint src gas-app/*.gs tools server.js sw.js",
     "sync:agents": "node tools/sync-agent-config.js",
-    "sync:agents:check": "node tools/sync-agent-config.js --check",
-    "build:gas": "node tools/build-gas-engines.js",
-    "build:gas:check": "node tools/build-gas-engines.js --check"
+    "sync:agents:check": "node tools/sync-agent-config.js --check"
   },
   "keywords": [
     "day-planner",
@@ -21,7 +19,6 @@
   "license": "MIT",
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "esbuild": "^0.28.2",
     "eslint": "^10.9.1"
   }
 }

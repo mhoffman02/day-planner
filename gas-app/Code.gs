@@ -174,8 +174,6 @@ function doGet(e) {
  * token (see readDriveFileContent below). These handles wrap that so the rest of the file
  * can keep calling .getId()/.getName()/.getFilesByName()/.createFile()/.getBlob() etc.
  * like it did against a real DriveApp Folder/File.
- * @param {{id: string, name: string}} meta File metadata object with id and name properties.
- * @returns {object} File handle with getId/getName/getBlob/setContent methods.
  */
 function makeFileHandle(meta) {
   var fileId = meta.id;
@@ -471,7 +469,6 @@ function testDoGetInIDE() {
  * Direct OAuth Consent Trigger:
  * Select "grantAllPermissions" in the Apps Script IDE toolbar and click "Run".
  * Directly calls DriveApp, CalendarApp, and Tasks under least-privilege scopes (drive.file, calendar, tasks).
- * @returns {string} Success confirmation string 'SUCCESS'.
  */
 function grantAllPermissions() {
   Logger.log('Triggering DriveApp (drive.file) authorization...');
@@ -1892,27 +1889,16 @@ function getCompiledAppBundle() {
   }
 
   try {
-    // Read raw (not template.evaluate()) and hand-resolve the include() scriptlets, rather
-    // than letting GAS's templating engine evaluate them. Evaluating <?!= include('Script'); ?>
-    // here would bake Script.html's <script> content into indexContent a *second* time (it's
-    // already returned separately above as `script`) -- the shell's mountBundle() concatenates
-    // bundle.html's inline scripts with bundle.script into one <script> tag, so Script.html's
-    // top-level `const`/`let` declarations then throw "already been declared", silently killing
-    // the whole combined script (surfaces as "plannerApp is not defined" for every x-data binding).
-    indexContent = HtmlService.createHtmlOutputFromFile('Index').getContent();
-    var aboutContent = '';
-    try {
-      aboutContent = HtmlService.createHtmlOutputFromFile('About').getContent();
-    } catch (eAbout) {
-      aboutContent = '';
-    }
-    indexContent = indexContent
-      .replace(/<\?!= include\(['"]Styles['"]\);\s*\?>/g, '')
-      .replace(/<\?!= include\(['"]Script['"]\);\s*\?>/g, '')
-      .replace(/<\?!= include\(['"]About['"]\);\s*\?>/g, aboutContent);
+    var template = HtmlService.createTemplateFromFile('Index');
+    indexContent = template.evaluate().getContent();
   } catch (e) {
-    console.warn('getCompiledAppBundle: Index.html missing/unreadable, serving placeholder shell', e);
-    indexContent = '<div>Application Shell Loading...</div>';
+    console.warn('getCompiledAppBundle: Index.html template evaluation failed, trying static read', e);
+    try {
+      indexContent = HtmlService.createHtmlOutputFromFile('Index').getContent();
+    } catch (e2) {
+      console.warn('getCompiledAppBundle: Index.html missing/unreadable, serving placeholder shell', e2);
+      indexContent = '<div>Application Shell Loading...</div>';
+    }
   }
 
   // Calculate content-based signature hash (must hash actual content, not

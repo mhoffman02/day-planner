@@ -42,17 +42,6 @@ if ! node tools/sync-agent-config.js --check >/tmp/sync-agents-check.$$ 2>&1; th
 fi
 rm -f /tmp/sync-agents-check.$$
 
-# ── gas-app/Script.html generated engine bundle drift check ────────────────
-# The engine block inside gas-app/Script.html (taskEngine/futureMatrixEngine/syncEngine
-# logic) is generated from src/ via esbuild (tools/build-gas-engines.js), not hand-edited.
-# If src/ changed without regenerating it, block the commit rather than shipping stale logic.
-if ! node tools/build-gas-engines.js --check >/tmp/build-gas-check.$$ 2>&1; then
-  cat /tmp/build-gas-check.$$
-  echo "❌ [HIGH] gas-app/Script.html's generated engine bundle is out of sync with src/ — run: npm run build:gas"
-  ERRORS=$((ERRORS + 1))
-fi
-rm -f /tmp/build-gas-check.$$
-
 if [ "$ERRORS" -gt 0 ]; then
   echo ""
   echo "❌ Pre-commit failed ($ERRORS error(s)). Fix reported findings above and re-stage."

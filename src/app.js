@@ -1122,16 +1122,8 @@ function getLocalDateStr(d = new Date()) {
           const lines = this.cardLines(card);
           const caret = e.target.selectionStart;
           const text = lines[idx] || '';
-          const before = text.slice(0, caret);
-          let after = text.slice(caret);
-          const orderedMatch = /^(\d+)\.\s/.exec(before);
-          if (orderedMatch) {
-            after = `${parseInt(orderedMatch[1], 10) + 1}. ${after}`;
-          } else if (/^- /.test(before)) {
-            after = `- ${after}`;
-          }
-          lines[idx] = before;
-          lines.splice(idx + 1, 0, after);
+          lines[idx] = text.slice(0, caret);
+          lines.splice(idx + 1, 0, text.slice(caret));
           card.content = lines.join('\n');
           this.syncCardsToDailyNote();
           this.startEditingLine(card, idx + 1);
@@ -1168,40 +1160,6 @@ function getLocalDateStr(d = new Date()) {
       },
 
       /**
-       * Strips every inline/whole-line format marker from a line's raw text, returning plain
-       * text: bold/italic/underline/strike/code wrappers, color spans, and bullet/ordered
-       * prefixes are all removed. Bold is stripped before italic since `**` is a superset of
-       * the `*` italic marker.
-       * @param {string} text Raw line text (with markers) to strip.
-       * @returns {string} Plain text with no formatting markers.
-       */
-      clearLineFormatting(text) {
-        let t = text || '';
-        t = t.replace(/\[\[color:(?:teal|red|green|blue)\]\]([\s\S]*?)\[\[\/color\]\]/g, '$1');
-        t = t.replace(/^-\s/, '');
-        t = t.replace(/^\d+\.\s/, '');
-        t = t.replace(/\*\*([\s\S]*?)\*\*/g, '$1');
-        t = t.replace(/__([\s\S]*?)__/g, '$1');
-        t = t.replace(/~~([\s\S]*?)~~/g, '$1');
-        t = t.replace(/`([\s\S]*?)`/g, '$1');
-        t = t.replace(/\*([\s\S]*?)\*/g, '$1');
-        return t;
-      },
-
-      /**
-       * Determines what number an ordered-list line should take when it starts or continues
-       * a numbered list: one more than the immediately preceding line's number if that line is
-       * itself an ordered-list item, otherwise 1 (starting a new list).
-       * @param {Array<string>} lines Card's current lines array.
-       * @param {number} idx Index of the line becoming/continuing an ordered item.
-       * @returns {number}
-       */
-      nextOrderedNumber(lines, idx) {
-        const m = idx > 0 ? /^(\d+)\.\s/.exec(lines[idx - 1] || '') : null;
-        return m ? parseInt(m[1], 10) + 1 : 1;
-      },
-
-      /**
        * Applies a lightweight markdown-style inline format to one line of a note card's
        * content. When that line's input has an active text selection, wraps only the selected
        * substring (and toggles the wrap back off if the selection is already immediately
@@ -1210,7 +1168,7 @@ function getLocalDateStr(d = new Date()) {
        * single line being edited, it can never leak onto lines the user didn't touch.
        * @param {object} card Note card to format.
        * @param {number} idx Line index to format.
-       * @param {'bold'|'italic'|'underline'|'strike'|'code'|'bullet'|'ordered'|'color-teal'|'color-red'|'color-green'|'color-blue'|'color-default'|'clear'} formatType Format to apply.
+       * @param {'bold'|'italic'|'underline'|'strike'|'code'|'bullet'|'ordered'|'color-teal'|'color-red'|'color-green'|'color-blue'|'color-default'} formatType Format to apply.
        * @param {{start: number, end: number}} [overrideSelection] Explicit substring range to
        *   treat as "selected", bypassing the DOM/element selection read. Used by
        *   {@link applyRangeFormat} to drive this same wrap/unwrap logic for whole-line-selected
@@ -1247,13 +1205,11 @@ function getLocalDateStr(d = new Date()) {
           this.syncCardsToDailyNote();
         };
 
-        if (formatType === 'clear') {
-          setLine(this.clearLineFormatting(text));
-        } else if (formatType === 'bullet') {
+        if (formatType === 'bullet') {
           setLine(text.startsWith('- ') ? text.slice(2) : `- ${text}`);
         } else if (formatType === 'ordered') {
           const orderedRe = /^\d+\.\s/;
-          setLine(orderedRe.test(text) ? text.replace(orderedRe, '') : `${this.nextOrderedNumber(lines, idx)}. ${text}`);
+          setLine(orderedRe.test(text) ? text.replace(orderedRe, '') : `1. ${text}`);
         } else if (formatType in colorMap) {
           const newColor = colorMap[formatType];
           if (!newColor) {
@@ -1303,7 +1259,7 @@ function getLocalDateStr(d = new Date()) {
         const indices = [];
         for (let i = lo; i <= hi; i++) indices.push(i);
 
-        if (formatType === 'bullet' || formatType === 'ordered' || formatType === 'color-default' || formatType === 'clear') {
+        if (formatType === 'bullet' || formatType === 'ordered' || formatType === 'color-default') {
           indices.forEach(i => this.applyLineFormat(card, i, formatType));
           return;
         }
@@ -1807,7 +1763,6 @@ function getLocalDateStr(d = new Date()) {
        * delayed-close from a previous hover, so re-entering the trigger/menu before the delay
        * elapses keeps it open.
        * @param {string} taskId Task whose dropdown to open.
-       * @returns {void}
        */
       openStatusMenu(taskId) {
         clearTimeout(this.statusMenuCloseTimer);
@@ -1818,7 +1773,6 @@ function getLocalDateStr(d = new Date()) {
        * Click handler for the status button: toggles the dropdown (same open/close-if-same-id
        * logic as a plain toggle), and cancels any pending hover-close so click and hover never race.
        * @param {string} taskId Task whose dropdown to toggle.
-       * @returns {void}
        */
       toggleStatusMenu(taskId) {
         clearTimeout(this.statusMenuCloseTimer);
@@ -1830,7 +1784,6 @@ function getLocalDateStr(d = new Date()) {
        * crossing the small gap between the button and the dropdown (or a brief overshoot) doesn't
        * close it. Re-entering before the timer fires (openStatusMenu) cancels it.
        * @param {string} taskId Task whose dropdown to close if still open.
-       * @returns {void}
        */
       scheduleStatusMenuClose(taskId) {
         clearTimeout(this.statusMenuCloseTimer);

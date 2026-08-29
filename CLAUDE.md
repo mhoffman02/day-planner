@@ -5,11 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm test              # Run full suite: node --test tests/*.test.js (150 tests / 23 suites)
+npm test              # Run full suite: node --test tests/*.test.js (107 tests / 19 suites)
 node --test tests/taskEngine.test.js   # Run a single test file
 npm start             # Local preview server -> http://localhost:3000 (serves index.html, /src, /images)
-npm run build:gas       # Regenerate gas-app/Script.html's generated engine block from src/ (esbuild)
-npm run build:gas:check # Fail if that block is stale relative to src/ (pre-commit gate)
 ```
 
 Deploying to the live Google Apps Script backend:
@@ -23,10 +21,7 @@ clasp deploy -i AKfycbyAejUd5SWdt5dbmtSKYJZvwqQ2RHU-V3_mARJp3MDjMZ_jrlP0MfWnyTPY
 `gh-pwa-shell`'s allowlist and built-in launch button are wired to. See
 `.agents/rules/gas-deploy-pinned.md`.
 
-There is no lint-blocking build step for `src/*.js` itself — it's plain ES modules run directly
-by Node's test runner and by the browser. There *is* a small build step (esbuild, see
-`npm run build:gas` above) that compiles a subset of `src/*.js` into `gas-app/Script.html`; see
-Architecture below and `.agents/rules/sync-src-and-gas-app.md`.
+There is no build/lint step — `src/*.js` are plain ES modules run directly by Node's test runner and by the browser.
 
 ## Architecture
 
@@ -35,21 +30,14 @@ Architecture below and `.agents/rules/sync-src-and-gas-app.md`.
 
 1. **Local Dev** — `server.js` serves `index.html` + `src/` directly; `src/gasBridge.js` detects
    it's not in Apps Script and falls back to a local mock data store.
-2. **Production / GAS** — `gas-app/Script.html` contains this logic inline, because `HtmlService`
-   cannot `import` ES modules. `src/taskEngine.js`, `src/futureMatrixEngine.js`,
-   `src/syncEngine.js`, and `src/binderStore.js#getLocalDateStr` are compiled in by
-   `npm run build:gas` (esbuild) into a generated block — do not hand-edit inside its
-   `// === GENERATED begin/end ===` markers. `src/indexedDbStore.js` and `src/gasBridge.js`
-   (`GASBridge` etc.) are still a **hand-duplicated inline copy** — not compiled by the build
-   step, so any shared-logic change must be hand-ported into `Script.html` in the same change.
-   `indexedDbStore.js`'s *shape* (generic storeName-keyed API, memory-fallback branch, 5-store
-   schema) has been reconciled between the two copies; `gasBridge`'s has not — it still calls
-   `google.script.run` there instead of the mock store, and may diverge from `src/` beyond that.
+2. **Production / GAS** — `gas-app/Script.html` contains a **hand-duplicated inline copy** of the
+   same logic (`taskEngine`, `gasBridge`, etc.), because `HtmlService` cannot `import` ES modules.
+   `gasBridge` there calls `google.script.run` instead of the mock store.
 
-`npm test` only ever exercises `src/`, never the GAS-side file directly. For the four
-build-covered files, `npm run build:gas:check` (pre-commit gate) catches staleness — see
-`.agents/rules/sync-src-and-gas-app.md`. For `indexedDbStore.js`/`gasBridge.js`, any change to
-shared logic must still be hand-ported into `gas-app/Script.html` in the same change. Server-side
+**There is no build step syncing the two.** `npm test` only ever exercises `src/`. Any change to
+shared logic in `src/taskEngine.js`, `src/gasBridge.js`, or another `src/*.js` engine whose
+behavior is duplicated in `gas-app/Script.html` must be hand-ported into `gas-app/Script.html` in
+the same change — see `.claude/rules/sync-src-and-gas-app.md` for the required workflow. Server-side
 equivalents (`gasTaskId` tagging/sync) live in `gas-app/Code.gs` and must stay consistent with
 `src/syncEngine.js`.
 

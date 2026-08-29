@@ -1,20 +1,18 @@
 #!/usr/bin/env node
-/**
- * @file sync-agent-config.js
- * @description Mirrors .agents/{rules,commands,skills} — the single hand-edited source of
- * truth — into the real, tracked directories each CLI tool actually reads (.claude/rules,
- * .claude/commands, .claude/skills, .kilo/skills, .kilo/workflows).
- *
- * Real copies are used instead of symlinks because git symlinks silently degrade to
- * plain-text stub files on Windows checkouts without Developer Mode + a symlink-aware git
- * config, which both breaks the tool on that machine and — worse — corrupts the tracked
- * blob for every other clone the next time that machine commits. Real generated files have
- * no such platform dependency.
- *
- * Usage:
- *   node tools/sync-agent-config.js          # regenerate all mirrors
- *   node tools/sync-agent-config.js --check  # verify mirrors match source; exit 1 if not
- */
+// @file Mirrors .agents/{rules,commands,skills} — the single hand-edited source of
+// truth — into the real, tracked directories each CLI tool actually reads
+// (.claude/rules, .claude/commands, .claude/skills, .kilo/skills, .kilo/workflows).
+//
+// Why real copies instead of symlinks: git symlinks silently degrade to plain-text
+// stub files on Windows checkouts without Developer Mode + a symlink-aware git config,
+// which both breaks the tool on that machine and — worse — corrupts the tracked blob
+// for every other clone the next time that machine commits. Real generated files have
+// no such platform dependency. Run with --check in CI/pre-commit to fail if a mirror
+// has drifted from its source instead of being regenerated.
+//
+// Usage:
+//   node tools/sync-agent-config.js          # regenerate all mirrors
+//   node tools/sync-agent-config.js --check  # verify mirrors match source; exit 1 if not
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
