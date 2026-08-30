@@ -199,3 +199,15 @@ All three cross-origin loading strategies fail when a GitHub Pages shell tries t
 - Always consider Alpine MutationObserver synchronous evaluation order when dynamically mounting reactive HTML bundles
 
 ---
+
+## 2026-08-30 — Fold indexedDbStore.js into GAS build
+
+**Worked well:**
+- Staged reconciliation (inventory diff, then shape decision, then build wiring) avoided a big-bang rewrite
+- Static shape test (gasAppIndexedDbShape.test.js) caught real drift risk instead of just trusting build:gas:check
+- Kept .agents/ source of truth and CLAUDE.md docs updated in the same commit as the code change
+
+**Needs improvement:**
+- Test regexes assumed hand-written const/single-quote style and broke twice against esbuild's var/double-quote/member-expression output -- should have inspected esbuild's actual output style before writing the regex
+
+---
