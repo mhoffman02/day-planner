@@ -10,27 +10,27 @@ import IndexedDbStore, { STORES } from '../src/indexedDbStore.js';
 describe('IndexedDB Client Store Unit Tests', () => {
 
   it('should detect environment support gracefully', () => {
-    const supported = IndexedDbStore.isSupported();
+    const supported = IndexedDbStore.idbSupported();
     assert.strictEqual(typeof supported, 'boolean');
   });
 
   it('should report unsupported (falls back to in-memory store) under Node\'s test runner', () => {
     // node:test has no global `indexedDB`, so the memory fallback store must be used everywhere below.
-    assert.strictEqual(IndexedDbStore.isSupported(), false);
+    assert.strictEqual(IndexedDbStore.idbSupported(), false);
   });
 
   it('should return null for a daily/monthly key that was never saved', async () => {
-    assert.strictEqual(await IndexedDbStore.getDaily('1999-01-01'), null);
+    assert.strictEqual(await IndexedDbStore.idbGetDaily('1999-01-01'), null);
     assert.strictEqual(await IndexedDbStore.getMonthlyNotes('1999-01'), null);
   });
 
   it('should delete a stored daily record so it is no longer retrievable', async () => {
-    await IndexedDbStore.saveDaily('2026-08-18', { tasks: [] });
-    assert.ok(await IndexedDbStore.getDaily('2026-08-18'));
+    await IndexedDbStore.idbSaveDaily('2026-08-18', { tasks: [] });
+    assert.ok(await IndexedDbStore.idbGetDaily('2026-08-18'));
 
     const deleted = await IndexedDbStore.deleteItem(STORES.DAILY_DATA, '2026-08-18');
     assert.strictEqual(deleted, true);
-    assert.strictEqual(await IndexedDbStore.getDaily('2026-08-18'), null);
+    assert.strictEqual(await IndexedDbStore.idbGetDaily('2026-08-18'), null);
   });
 
   it('should return an empty array from getAllItems for a store with nothing saved', async () => {
@@ -46,10 +46,10 @@ describe('IndexedDB Client Store Unit Tests', () => {
       notes: '### #index [Architecture] System Design'
     };
 
-    const saved = await IndexedDbStore.saveDaily(testDate, payload);
+    const saved = await IndexedDbStore.idbSaveDaily(testDate, payload);
     assert.strictEqual(saved, true);
 
-    const retrieved = await IndexedDbStore.getDaily(testDate);
+    const retrieved = await IndexedDbStore.idbGetDaily(testDate);
     assert.ok(retrieved);
     assert.strictEqual(retrieved.dateStr, testDate);
     assert.strictEqual(retrieved.tasks.length, 1);
@@ -81,10 +81,10 @@ describe('IndexedDB Client Store Unit Tests', () => {
       '2026-09-02': { tasks: [{ id: 't1', title: '[A1] Ship it', status: '•' }], calendarEvents: [], noteContent: 'notes' }
     };
 
-    const saved = await IndexedDbStore.saveMonthOverview(monthStr, days);
+    const saved = await IndexedDbStore.idbSaveMonthOverview(monthStr, days);
     assert.strictEqual(saved, true);
 
-    const retrieved = await IndexedDbStore.getMonthOverview(monthStr);
+    const retrieved = await IndexedDbStore.idbGetMonthOverview(monthStr);
     assert.ok(retrieved);
     assert.strictEqual(retrieved.monthStr, monthStr);
     assert.ok(retrieved.cachedAt);
@@ -93,7 +93,7 @@ describe('IndexedDB Client Store Unit Tests', () => {
   });
 
   it('should return null for a month overview that was never saved', async () => {
-    assert.strictEqual(await IndexedDbStore.getMonthOverview('1999-01'), null);
+    assert.strictEqual(await IndexedDbStore.idbGetMonthOverview('1999-01'), null);
   });
 
   it('should bulk-write many records via setItems in one call', async () => {
@@ -117,10 +117,10 @@ describe('IndexedDB Client Store Unit Tests', () => {
   });
 
   it('should enqueue, list, and dequeue offline mutations in outbox', async () => {
-    await IndexedDbStore.enqueueMutation('TASK_STATUS_CHANGE', { taskId: 't1', newStatus: '✓' });
-    await IndexedDbStore.enqueueMutation('SAVE_NOTE_CARD', { dateStr: '2026-08-17', noteContent: 'Updated note' });
+    await IndexedDbStore.idbEnqueueMutation('TASK_STATUS_CHANGE', { taskId: 't1', newStatus: '✓' });
+    await IndexedDbStore.idbEnqueueMutation('SAVE_NOTE_CARD', { dateStr: '2026-08-17', noteContent: 'Updated note' });
 
-    const outbox = await IndexedDbStore.getOutbox();
+    const outbox = await IndexedDbStore.idbGetOutbox();
     assert.ok(Array.isArray(outbox));
     assert.ok(outbox.length >= 2);
 
@@ -128,10 +128,10 @@ describe('IndexedDB Client Store Unit Tests', () => {
     assert.ok(firstItem.id);
     assert.strictEqual(firstItem.type, 'TASK_STATUS_CHANGE');
 
-    const dequeued = await IndexedDbStore.dequeueMutation(firstItem.id);
+    const dequeued = await IndexedDbStore.idbDequeueMutation(firstItem.id);
     assert.strictEqual(dequeued, true);
 
-    const remainingOutbox = await IndexedDbStore.getOutbox();
+    const remainingOutbox = await IndexedDbStore.idbGetOutbox();
     assert.strictEqual(remainingOutbox.some(item => item.id === firstItem.id), false);
   });
 });

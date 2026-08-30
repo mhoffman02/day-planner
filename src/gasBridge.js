@@ -151,11 +151,11 @@ export class GASBridge {
       return { flushed: 0, remaining: 0, failed: 0 };
     }
     if (!this.isOnline()) {
-      const pending = await IndexedDbStore.getOutbox();
+      const pending = await IndexedDbStore.idbGetOutbox();
       return { flushed: 0, remaining: pending.length, failed: 0 };
     }
 
-    const outbox = (await IndexedDbStore.getOutbox()).sort((a, b) => a.id - b.id);
+    const outbox = (await IndexedDbStore.idbGetOutbox()).sort((a, b) => a.id - b.id);
     const tempIdMap = {};
     const resolveId = (id) => tempIdMap[id] || id;
 
@@ -197,7 +197,7 @@ export class GASBridge {
             result = null;
         }
 
-        await IndexedDbStore.dequeueMutation(mutation.id);
+        await IndexedDbStore.idbDequeueMutation(mutation.id);
         flushed++;
         if (typeof onResolved === 'function') onResolved(mutation, result, tempIdMap);
       } catch (err) {
@@ -207,7 +207,7 @@ export class GASBridge {
       }
     }
 
-    const remainingOutbox = await IndexedDbStore.getOutbox();
+    const remainingOutbox = await IndexedDbStore.idbGetOutbox();
     return { flushed, remaining: remainingOutbox.length, failed };
   }
 
@@ -322,7 +322,7 @@ export class GASBridge {
     }
 
     const tempId = `offline_task_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-    await IndexedDbStore.enqueueMutation(OUTBOX_MUTATION_TYPES.ADD_DAILY_TASK, { dateStr, title, category, tempId });
+    await IndexedDbStore.idbEnqueueMutation(OUTBOX_MUTATION_TYPES.ADD_DAILY_TASK, { dateStr, title, category, tempId });
     return { id: tempId, title, status: '•', category, dueDate: dateStr, _queuedOffline: true };
   }
 
@@ -352,7 +352,7 @@ export class GASBridge {
       }
     }
 
-    await IndexedDbStore.enqueueMutation(OUTBOX_MUTATION_TYPES.UPDATE_DAILY_TASK, { dateStr, taskId, updates });
+    await IndexedDbStore.idbEnqueueMutation(OUTBOX_MUTATION_TYPES.UPDATE_DAILY_TASK, { dateStr, taskId, updates });
     return { id: taskId, ...updates, _queuedOffline: true };
   }
 
@@ -423,7 +423,7 @@ export class GASBridge {
       : (typeof eventData.attendees === 'string'
           ? eventData.attendees.split(/[,;]+/).map(s => s.trim()).filter(Boolean)
           : []);
-    await IndexedDbStore.enqueueMutation(OUTBOX_MUTATION_TYPES.ADD_CALENDAR_EVENT, { dateStr, eventData, tempId });
+    await IndexedDbStore.idbEnqueueMutation(OUTBOX_MUTATION_TYPES.ADD_CALENDAR_EVENT, { dateStr, eventData, tempId });
     return {
       id: tempId,
       title: eventData.title || 'New Appointment',
@@ -504,7 +504,7 @@ export class GASBridge {
       }
     }
 
-    await IndexedDbStore.enqueueMutation(OUTBOX_MUTATION_TYPES.UPDATE_CALENDAR_EVENT, { dateStr, eventId, updates });
+    await IndexedDbStore.idbEnqueueMutation(OUTBOX_MUTATION_TYPES.UPDATE_CALENDAR_EVENT, { dateStr, eventId, updates });
     return { id: eventId, ...updates, _queuedOffline: true };
   }
 
@@ -729,7 +729,7 @@ export class GASBridge {
       }
     }
 
-    await IndexedDbStore.enqueueMutation(OUTBOX_MUTATION_TYPES.SAVE_DAILY_NOTE, { dateStr, noteContent });
+    await IndexedDbStore.idbEnqueueMutation(OUTBOX_MUTATION_TYPES.SAVE_DAILY_NOTE, { dateStr, noteContent });
     return { success: true, queued: true, docName: null };
   }
 }

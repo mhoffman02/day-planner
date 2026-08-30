@@ -4,20 +4,32 @@
  * Enables 0ms instant startup, offline persistence, and optimistic mutation queuing.
  */
 
-export const DB_NAME = 'day-planner-db';
-export const DB_VERSION = 3;
+// Names below (IDB_* prefix, idb* function names) are kept identical to gas-app/Script.html's
+// hand-duplicated copy on purpose -- see .agents/rules/sync-src-and-gas-app.md. Script.html
+// can't `import` ES modules, so a future build step folding this file into its generated engine
+// bundle can only splice in flat top-level declarations verbatim; the names here ARE the contract.
+export const IDB_NAME = 'day-planner-db';
+export const IDB_VERSION = 3;
 
+export const IDB_STORE_DAILY = 'dailyData';
+export const IDB_STORE_MONTHLY_NOTES = 'monthlyNotes';
+export const IDB_STORE_MASTER_TASKS = 'masterTasks';
+export const IDB_STORE_OUTBOX = 'outboxQueue';
+// Read-only cache of a whole month's {tasks, calendarEvents, noteContent} per day, used to
+// render the monthly-calendar view and warm the rolling 3-month cache in the background.
+// Deliberately separate from IDB_STORE_DAILY (the single-writer, edit-backing store for the
+// currently open day) so a background month-batch response can never race a fresher
+// single-day write or a pending offline edit.
+export const IDB_STORE_MONTH_OVERVIEW = 'monthOverview';
+
+// Generic storeName-keyed API below still addresses stores via this object -- kept for that
+// internal use and for tests exercising the generic API directly.
 export const STORES = {
-  DAILY_DATA: 'dailyData',
-  MONTHLY_NOTES: 'monthlyNotes',
-  MASTER_TASKS: 'masterTasks',
-  OUTBOX_QUEUE: 'outboxQueue',
-  // Read-only cache of a whole month's {tasks, calendarEvents, noteContent} per day, used to
-  // render the monthly-calendar view and warm the rolling 3-month cache in the background.
-  // Deliberately separate from DAILY_DATA (the single-writer, edit-backing store for the
-  // currently open day) so a background month-batch response can never race a fresher
-  // single-day write or a pending offline edit.
-  MONTH_OVERVIEW: 'monthOverview'
+  DAILY_DATA: IDB_STORE_DAILY,
+  MONTHLY_NOTES: IDB_STORE_MONTHLY_NOTES,
+  MASTER_TASKS: IDB_STORE_MASTER_TASKS,
+  OUTBOX_QUEUE: IDB_STORE_OUTBOX,
+  MONTH_OVERVIEW: IDB_STORE_MONTH_OVERVIEW
 };
 
 const memoryFallbackStore = {
@@ -32,7 +44,7 @@ const memoryFallbackStore = {
  * Checks if IndexedDB is supported in the current environment.
  * @returns {boolean}
  */
-export function isSupported() {
+export function idbSupported() {
   return typeof indexedDB !== 'undefined' && indexedDB !== null;
 }
 
@@ -44,8 +56,8 @@ let dbPromise = null;
  * Opens or initializes the IndexedDB database. The open call is memoized process-wide.
  * @returns {Promise<IDBDatabase|null>}
  */
-export function openDb() {
-  if (!isSupported()) {
+export function idbOpen() {
+  if (!idbSupported()) {
     return Promise.resolve(null);
   }
 
@@ -53,7 +65,7 @@ export function openDb() {
 
   dbPromise = new Promise((resolve) => {
     try {
-      const request = indexedDB.open(DB_NAME, DB_VERSION);
+      const request = indexedDB.open(IDB_NAME, IDB_VERSION);
 
       request.onupgradeneeded = (event) => {
         const db = event.target.result;
@@ -84,10 +96,10 @@ export function openDb() {
         resolve(null);
       };
 
-      // A version bump (DB_VERSION) can't run its upgrade transaction while another tab/window
+      // A version bump (IDB_VERSION) can't run its upgrade transaction while another tab/window
       // still holds an open connection at the old version -- the request just sits pending with
       // no onsuccess/onupgradeneeded/onerror, which without this handler means every caller
-      // awaiting openDb() hangs silently forever (no console output, no error) instead of falling
+      // awaiting idbOpen() hangs silently forever (no console output, no error) instead of falling
       // back to "no cache". Resolve null now and drop the memoized promise so the next call
       // retries fresh, once the other tab has closed/upgraded.
       request.onblocked = () => {
@@ -96,7 +108,7 @@ export function openDb() {
         resolve(null);
       };
     } catch (err) {
-      console.warn('openDb: indexedDB.open() threw synchronously (e.g. private browsing)', err);
+      console.warn('idbOpen: indexedDB.open() threw synchronously (e.g. private browsing)', err);
       dbPromise = null;
       resolve(null);
     }
@@ -112,7 +124,7 @@ export function openDb() {
  * @returns {Promise<any>}
  */
 export async function getItem(storeName, key) {
-  const db = await openDb();
+  const db = await idbOpen();
   if (!db) {
     return memoryFallbackStore[storeName] ? memoryFallbackStore[storeName][key] || null : null;
   }
@@ -137,7 +149,7 @@ export async function getItem(storeName, key) {
  * @returns {Promise<boolean>}
  */
 export async function setItem(storeName, item) {
-  const db = await openDb();
+  const db = await idbOpen();
   if (!db) {
     if (storeName === STORES.OUTBOX_QUEUE) {
       if (!item.id) item.id = Date.now() + Math.random();
@@ -167,14 +179,14 @@ export async function setItem(storeName, item) {
 /**
  * Stores or updates many records in the specified store within a single transaction. Use this
  * instead of looping setItem() for a batch write (e.g. a month's worth of daily records) — one
- * transaction instead of N avoids N redundant openDb()/transaction round trips.
+ * transaction instead of N avoids N redundant idbOpen()/transaction round trips.
  * @param {string} storeName Store name
  * @param {Array<object>} items Record item objects
  * @returns {Promise<boolean>}
  */
 export async function setItems(storeName, items) {
   if (!items || items.length === 0) return true;
-  const db = await openDb();
+  const db = await idbOpen();
   if (!db) {
     items.forEach((item) => {
       const key = item.dateStr || item.monthStr || item.id;
@@ -202,7 +214,7 @@ export async function setItems(storeName, items) {
  * @returns {Promise<Array<any>>}
  */
 export async function getAllItems(storeName) {
-  const db = await openDb();
+  const db = await idbOpen();
   if (!db) {
     if (storeName === STORES.OUTBOX_QUEUE) {
       return memoryFallbackStore.outboxQueue.slice();
@@ -230,7 +242,7 @@ export async function getAllItems(storeName) {
  * @returns {Promise<boolean>}
  */
 export async function deleteItem(storeName, key) {
-  const db = await openDb();
+  const db = await idbOpen();
   if (!db) {
     if (storeName === STORES.OUTBOX_QUEUE) {
       memoryFallbackStore.outboxQueue = memoryFallbackStore.outboxQueue.filter((item) => item.id !== key);
@@ -254,12 +266,12 @@ export async function deleteItem(storeName, key) {
 }
 
 /** @param {string} dateStr Date string e.g. "2026-08-15". @returns {Promise<object|null>} Cached daily-page record, if any. */
-export async function getDaily(dateStr) {
+export async function idbGetDaily(dateStr) {
   return getItem(STORES.DAILY_DATA, dateStr);
 }
 
 /** @param {string} dateStr Date string e.g. "2026-08-15". @param {object} payload Daily-page data to cache. @returns {Promise<boolean>} */
-export async function saveDaily(dateStr, payload) {
+export async function idbSaveDaily(dateStr, payload) {
   const item = Object.assign({}, payload, { dateStr: dateStr, cachedAt: new Date().toISOString() });
   return setItem(STORES.DAILY_DATA, item);
 }
@@ -276,12 +288,12 @@ export async function saveMonthlyNotes(monthStr, data) {
 }
 
 /** @param {string} monthStr Month string e.g. "2026-08". @returns {Promise<object|null>} Cached whole-month overview record (per-day tasks/events/notes), if any. */
-export async function getMonthOverview(monthStr) {
+export async function idbGetMonthOverview(monthStr) {
   return getItem(STORES.MONTH_OVERVIEW, monthStr);
 }
 
 /** @param {string} monthStr Month string e.g. "2026-08". @param {Array<object>} days Per-day overview entries for the month. @returns {Promise<boolean>} */
-export async function saveMonthOverview(monthStr, days) {
+export async function idbSaveMonthOverview(monthStr, days) {
   const item = { monthStr: monthStr, days: days, cachedAt: new Date().toISOString() };
   return setItem(STORES.MONTH_OVERVIEW, item);
 }
@@ -292,7 +304,7 @@ export async function saveMonthOverview(monthStr, days) {
  * @param {object} payload Mutation payload to replay.
  * @returns {Promise<boolean>}
  */
-export async function enqueueMutation(type, payload) {
+export async function idbEnqueueMutation(type, payload) {
   const mutation = {
     type: type,
     payload: payload,
@@ -302,35 +314,35 @@ export async function enqueueMutation(type, payload) {
 }
 
 /** @returns {Promise<Array<object>>} All queued offline mutations awaiting replay. */
-export async function getOutbox() {
+export async function idbGetOutbox() {
   return getAllItems(STORES.OUTBOX_QUEUE);
 }
 
 /** @param {string|number} id Outbox queue record id. @returns {Promise<boolean>} */
-export async function dequeueMutation(id) {
+export async function idbDequeueMutation(id) {
   return deleteItem(STORES.OUTBOX_QUEUE, id);
 }
 
 const IndexedDbStore = {
-  DB_NAME,
-  DB_VERSION,
+  IDB_NAME,
+  IDB_VERSION,
   STORES,
-  isSupported,
-  openDb,
+  idbSupported,
+  idbOpen,
   getItem,
   setItem,
   setItems,
   getAllItems,
   deleteItem,
-  getDaily,
-  saveDaily,
-  getMonthOverview,
-  saveMonthOverview,
+  idbGetDaily,
+  idbSaveDaily,
+  idbGetMonthOverview,
+  idbSaveMonthOverview,
   getMonthlyNotes,
   saveMonthlyNotes,
-  enqueueMutation,
-  getOutbox,
-  dequeueMutation,
+  idbEnqueueMutation,
+  idbGetOutbox,
+  idbDequeueMutation,
   _getMemoryFallback: () => memoryFallbackStore
 };
 

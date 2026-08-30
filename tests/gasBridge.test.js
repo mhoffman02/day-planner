@@ -52,11 +52,11 @@ describe('GAS Bridge Offline Write Queue Unit Tests', () => {
       assert.equal(result._queuedOffline, true);
       assert.ok(result.id.startsWith('offline_task_'));
 
-      const outbox = await IndexedDbStore.getOutbox();
+      const outbox = await IndexedDbStore.idbGetOutbox();
       const match = outbox.find(m => m.type === 'ADD_DAILY_TASK' && m.payload.tempId === result.id);
       assert.ok(match, 'expected an ADD_DAILY_TASK mutation queued for the returned temp id');
 
-      await IndexedDbStore.dequeueMutation(match.id);
+      await IndexedDbStore.idbDequeueMutation(match.id);
     } finally {
       uninstallFakeWindow();
     }
@@ -73,11 +73,11 @@ describe('GAS Bridge Offline Write Queue Unit Tests', () => {
       assert.equal(result.id, 'real_task_1');
       assert.equal(result.status, '✓');
 
-      const outbox = await IndexedDbStore.getOutbox();
+      const outbox = await IndexedDbStore.idbGetOutbox();
       const match = outbox.find(m => m.type === 'UPDATE_DAILY_TASK' && m.payload.taskId === 'real_task_1');
       assert.ok(match, 'expected an UPDATE_DAILY_TASK mutation queued');
 
-      await IndexedDbStore.dequeueMutation(match.id);
+      await IndexedDbStore.idbDequeueMutation(match.id);
     } finally {
       uninstallFakeWindow();
     }
@@ -106,7 +106,7 @@ describe('GAS Bridge Offline Write Queue Unit Tests', () => {
       assert.equal(resolutions[0].result.id, 'real_task_99');
       assert.equal(resolutions[0].tempIdMap[queued.id], 'real_task_99');
 
-      const outbox = await IndexedDbStore.getOutbox();
+      const outbox = await IndexedDbStore.idbGetOutbox();
       assert.equal(outbox.some(m => m.payload.tempId === queued.id), false);
     } finally {
       uninstallFakeWindow();
@@ -133,14 +133,14 @@ describe('GAS Bridge Offline Write Queue Unit Tests', () => {
       assert.equal(flushResult.failed, 1);
       assert.equal(flushResult.remaining, 2);
 
-      const outbox = await IndexedDbStore.getOutbox();
+      const outbox = await IndexedDbStore.idbGetOutbox();
       assert.equal(outbox.filter(m => m.payload.tempId === firstId || m.payload.tempId === secondId).length, 2);
     } finally {
       uninstallFakeWindow();
-      const outbox = await IndexedDbStore.getOutbox();
+      const outbox = await IndexedDbStore.idbGetOutbox();
       for (const m of outbox) {
         if (m.payload.tempId === firstId || m.payload.tempId === secondId) {
-          await IndexedDbStore.dequeueMutation(m.id);
+          await IndexedDbStore.idbDequeueMutation(m.id);
         }
       }
     }

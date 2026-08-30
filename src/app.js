@@ -282,7 +282,7 @@ function getLocalDateStr(d = new Date()) {
        */
       async refreshOutboxCount() {
         try {
-          const outbox = await IndexedDbStore.getOutbox();
+          const outbox = await IndexedDbStore.idbGetOutbox();
           this.outboxCount = outbox.length;
         } catch (e) {
           console.warn('Could not read outbox count:', e);
@@ -790,7 +790,7 @@ function getLocalDateStr(d = new Date()) {
        */
       async loadDayData() {
         const dateStr = this.selectedDate;
-        const cached = await IndexedDbStore.getDaily(dateStr);
+        const cached = await IndexedDbStore.idbGetDaily(dateStr);
         if (cached) {
           this._applyDailyData(cached);
           this._scheduleDaySync(dateStr);
@@ -839,8 +839,8 @@ function getLocalDateStr(d = new Date()) {
       async _persistCurrentDailyCache() {
         try {
           const dateStr = this.selectedDate;
-          const cached = (await IndexedDbStore.getDaily(dateStr)) || {};
-          await IndexedDbStore.saveDaily(dateStr, { ...cached, tasks: this.dailyTasks, calendarEvents: this.calendarEvents });
+          const cached = (await IndexedDbStore.idbGetDaily(dateStr)) || {};
+          await IndexedDbStore.idbSaveDaily(dateStr, { ...cached, tasks: this.dailyTasks, calendarEvents: this.calendarEvents });
         } catch (e) {
           console.warn('Could not update cached daily tasks/events:', e);
         }
@@ -868,7 +868,7 @@ function getLocalDateStr(d = new Date()) {
           }
           // Don't cache an error payload as if it were real daily data.
           if (!data.error) {
-            await IndexedDbStore.saveDaily(dateStr, data);
+            await IndexedDbStore.idbSaveDaily(dateStr, data);
           }
           if (applyIfCurrent && this.selectedDate === dateStr) {
             this._applyDailyData(data);
@@ -897,11 +897,11 @@ function getLocalDateStr(d = new Date()) {
           const d = new Date(y, m - 1, day + delta);
           const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
           if (this._prefetchInFlight.has(dateStr)) continue;
-          IndexedDbStore.getDaily(dateStr).then(cached => {
+          IndexedDbStore.idbGetDaily(dateStr).then(cached => {
             if (cached) return;
             this._prefetchInFlight.add(dateStr);
             this.bridge.getDailyData(dateStr)
-              .then(data => { if (!data.error) return IndexedDbStore.saveDaily(dateStr, data); })
+              .then(data => { if (!data.error) return IndexedDbStore.idbSaveDaily(dateStr, data); })
               .catch(() => {})
               .finally(() => this._prefetchInFlight.delete(dateStr));
           });
@@ -921,7 +921,7 @@ function getLocalDateStr(d = new Date()) {
       async _prefetchMonth(monthStr, { force = false } = {}) {
         if (this._monthPrefetchInFlight.has(monthStr)) return null;
         if (!force) {
-          const cached = await IndexedDbStore.getMonthOverview(monthStr);
+          const cached = await IndexedDbStore.idbGetMonthOverview(monthStr);
           if (cached && cached.cachedAt && (Date.now() - new Date(cached.cachedAt).getTime()) < MONTH_CACHE_TTL_MS) {
             return cached.days;
           }
@@ -931,7 +931,7 @@ function getLocalDateStr(d = new Date()) {
           const data = await this.bridge.getMonthData(monthStr);
           if (!data || data.error) return null;
           const days = data.days || {};
-          await IndexedDbStore.saveMonthOverview(monthStr, days);
+          await IndexedDbStore.idbSaveMonthOverview(monthStr, days);
           return days;
         } catch (err) {
           console.warn('_prefetchMonth failed for', monthStr, err);
@@ -1735,7 +1735,7 @@ function getLocalDateStr(d = new Date()) {
           return grid;
         };
 
-        const cached = await IndexedDbStore.getMonthOverview(monthStr);
+        const cached = await IndexedDbStore.idbGetMonthOverview(monthStr);
         this.monthlyGrid = build((cached && cached.days) || {});
 
         const freshDays = await this._prefetchMonth(monthStr);
