@@ -2512,6 +2512,9 @@
       },
 
       openEventModal(evt) {
+        /* Mirrors src/calendarEngine.js#formatEventModalPayload's gCalLink fallback:
+           prefer the server-supplied direct event link (htmlLink), fall back to a
+           pre-filled "create event" URL only if that's unavailable. */
         this.selectedEvent = {
           ...evt,
           gCalLink: evt.htmlLink || `https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent(evt.title || '')}`
