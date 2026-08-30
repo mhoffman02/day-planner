@@ -8,3 +8,21 @@ export { STATUS_LIST, STATUS_OPTIONS, parseTaskTitle, formatTaskTitle, getNextSt
 export { createFutureItem, nextMonthKey, emptyYearMatrix } from '../../src/futureMatrixEngine.js';
 export { getCleanTitle, syncTaskToCalendar, syncCalendarToTask, reconcileWorkspaceChanges, planSyncPersistence } from '../../src/syncEngine.js';
 export { getLocalDateStr } from '../../src/binderStore.js';
+export {
+  IDB_NAME,
+  IDB_VERSION,
+  IDB_STORE_DAILY,
+  IDB_STORE_MONTHLY_NOTES,
+  IDB_STORE_MASTER_TASKS,
+  IDB_STORE_OUTBOX,
+  IDB_STORE_MONTH_OVERVIEW,
+  idbSupported,
+  idbOpen,
+  idbGetDaily,
+  idbSaveDaily,
+  idbGetMonthOverview,
+  idbSaveMonthOverview,
+  idbEnqueueMutation,
+  idbGetOutbox,
+  idbDequeueMutation
+} from '../../src/indexedDbStore.js';

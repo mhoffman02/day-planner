@@ -37,18 +37,18 @@ Architecture below and `.agents/rules/sync-src-and-gas-app.md`.
    it's not in Apps Script and falls back to a local mock data store.
 2. **Production / GAS** — `gas-app/Script.html` contains this logic inline, because `HtmlService`
    cannot `import` ES modules. `src/taskEngine.js`, `src/futureMatrixEngine.js`,
-   `src/syncEngine.js`, and `src/binderStore.js#getLocalDateStr` are compiled in by
-   `npm run build:gas` (esbuild) into a generated block — do not hand-edit inside its
-   `// === GENERATED begin/end ===` markers. `src/indexedDbStore.js` and `src/gasBridge.js`
-   (`GASBridge` etc.) are still a **hand-duplicated inline copy** — their `Script.html` copies
-   have already diverged in shape from `src/` (different per-store function names, no
-   memory-fallback branch), so folding them into the build requires reconciling that divergence
-   first. `gasBridge` there calls `google.script.run` instead of the mock store.
+   `src/syncEngine.js`, `src/indexedDbStore.js`, and `src/binderStore.js#getLocalDateStr` are
+   compiled in by `npm run build:gas` (esbuild) into a generated block — do not hand-edit inside
+   its `// === GENERATED begin/end ===` markers. `src/gasBridge.js` (`GASBridge` etc.) is still a
+   **hand-duplicated inline copy** — its `Script.html` copy has diverged in behavior from `src/`
+   (different mock-id generation, a reimplemented `transferMasterTask`), so folding it into the
+   build requires reconciling that divergence first. `gasBridge` there calls `google.script.run`
+   instead of the mock store.
 
-`npm test` only ever exercises `src/`, never the GAS-side file directly. For the four
+`npm test` only ever exercises `src/`, never the GAS-side file directly. For the five
 build-covered files, `npm run build:gas:check` (pre-commit gate) catches staleness — see
-`.agents/rules/sync-src-and-gas-app.md`. For `indexedDbStore.js`/`gasBridge.js`, any change to
-shared logic must still be hand-ported into `gas-app/Script.html` in the same change. Server-side
+`.agents/rules/sync-src-and-gas-app.md`. For `gasBridge.js`, any change to shared logic must still
+be hand-ported into `gas-app/Script.html`'s `GASBridge` class in the same change. Server-side
 equivalents (`gasTaskId` tagging/sync) live in `gas-app/Code.gs` and must stay consistent with
 `src/syncEngine.js`.
 

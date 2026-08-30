@@ -1,16 +1,15 @@
 'use strict';
 
 // Regression/consistency test for indexedDbStore shape drift between src/indexedDbStore.js and
-// gas-app/Script.html's hand-duplicated inline copy (HtmlService can't import ES modules -- see
-// .claude/rules/sync-src-and-gas-app.md). src/indexedDbStore.js defines 5 object stores
-// (dailyData, monthlyNotes, masterTasks, outboxQueue, monthOverview) at a given IDB_VERSION, but
-// Script.html's inline copy had only ever created 3 of them. IndexedDB only re-runs its
-// onupgradeneeded migration when the version number increases, so an already-onboarded browser's
-// DB would keep a stale, incomplete schema forever unless the version is bumped alongside adding
-// the missing stores. Since HtmlService/GAS templating can't execute outside the Apps Script
-// runtime, this is a static contract check: it asserts Script.html declares an IDB_STORE_*
-// constant and a matching createObjectStore() call for every store key src/indexedDbStore.js
-// defines, and that both files' DB version numbers agree.
+// gas-app/Script.html's copy. As of the tools/build-gas-engines.js reconciliation, Script.html's
+// idb* block is generated (via esbuild) from src/indexedDbStore.js -- see
+// .claude/rules/sync-src-and-gas-app.md -- so `npm run build:gas:check` is the primary staleness
+// guard. This test stays as a second, independent check of the actual behavior (not just
+// byte-parity): it asserts Script.html declares an IDB_STORE_* constant and a matching
+// createObjectStore() call for every store key src/indexedDbStore.js's STORES defines, and that
+// both files' DB version numbers agree. IndexedDB only re-runs its onupgradeneeded migration when
+// the version number increases, so an already-onboarded browser's DB would keep a stale,
+// incomplete schema forever unless the version is bumped alongside adding new stores.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -25,11 +24,25 @@ const indexedDbStoreSrc = fs.readFileSync(path.join(__dirname, '../src/indexedDb
 
 test('Script.html creates an object store for every src/indexedDbStore.js STORES entry', () => {
   const constValues = {};
-  for (const m of scriptHtml.matchAll(/const\s+(\w+)\s*=\s*'([^']+)';/g)) {
+  // Matches both a hand-written `const X = 'value';` and esbuild's generated-bundle output
+  // (`var X = "value";` -- esbuild's ESM->top-level splice uses var and double quotes).
+  for (const m of scriptHtml.matchAll(/(?:const|var|let)\s+(\w+)\s*=\s*["']([^"']+)["'];/g)) {
     constValues[m[1]] = m[2];
   }
-  const createdStoreNames = [...scriptHtml.matchAll(/createObjectStore\((\w+),/g)]
-    .map((m) => constValues[m[1]])
+
+  // Resolve STORES.KEY -> the IDB_STORE_* identifier it aliases -> its literal string value.
+  // esbuild's bundled `createObjectStore()` calls reference `STORES.DAILY_DATA` (a member
+  // expression), not a bare `IDB_STORE_DAILY` identifier, so createObjectStore() calls below
+  // need to resolve through both the STORES object literal and constValues.
+  const storesMatch = scriptHtml.match(/STORES\s*=\s*\{([\s\S]*?)\};/);
+  assert.ok(storesMatch, 'expected a STORES object literal in Script.html');
+  const storesMap = {};
+  for (const m of storesMatch[1].matchAll(/(\w+)\s*:\s*(\w+)/g)) {
+    storesMap[m[1]] = constValues[m[2]];
+  }
+
+  const createdStoreNames = [...scriptHtml.matchAll(/createObjectStore\(\s*(\w+)(?:\.(\w+))?\s*,/g)]
+    .map(([, base, prop]) => (prop ? storesMap[prop] : constValues[base]))
     .filter(Boolean);
 
   for (const storeName of Object.values(STORES)) {

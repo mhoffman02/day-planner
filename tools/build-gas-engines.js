@@ -1,7 +1,7 @@
 /**
  * @file build-gas-engines.js
  * @description Regenerates the AUTO-GENERATED engine block inside gas-app/Script.html from
- * src/taskEngine.js, src/futureMatrixEngine.js, src/syncEngine.js, and
+ * src/taskEngine.js, src/futureMatrixEngine.js, src/syncEngine.js, src/indexedDbStore.js, and
  * src/binderStore.js#getLocalDateStr, via esbuild. HtmlService can't `import` ES modules, so
  * this bundles them into flat top-level declarations and splices the result between the
  * START/END markers in Script.html's top-level `<script>` scope.
@@ -10,10 +10,11 @@
  *   node tools/build-gas-engines.js          # regenerate in place
  *   node tools/build-gas-engines.js --check  # exit 1 if Script.html is stale (pre-commit gate)
  *
- * See .agents/rules/sync-src-and-gas-app.md. This does NOT (yet) cover src/indexedDbStore.js or
- * src/gasBridge.js — gas-app/Script.html's copies of those have diverged enough (different
- * per-store function names, no memory-fallback branch) that a mechanical bundle swap would be a
- * behavior change, not a refactor; that reconciliation is tracked separately.
+ * See .agents/rules/sync-src-and-gas-app.md. This does NOT (yet) cover src/gasBridge.js —
+ * gas-app/Script.html's GASBridge class has diverged from src/gasBridge.js in ways beyond naming
+ * (duplicated mock-data literals, a reimplemented transferMasterTask), so a mechanical bundle
+ * swap there would be a behavior change, not a refactor; that reconciliation is tracked
+ * separately.
  */
 
 import { build } from 'esbuild';
@@ -59,7 +60,8 @@ async function main() {
   const generatedBlock = [
     START_MARKER,
     '  // Source of truth: src/taskEngine.js, src/futureMatrixEngine.js, src/syncEngine.js,',
-    "  // src/binderStore.js#getLocalDateStr. See .agents/rules/sync-src-and-gas-app.md.",
+    "  // src/indexedDbStore.js, src/binderStore.js#getLocalDateStr. See",
+    '  // .agents/rules/sync-src-and-gas-app.md.',
     indentedBody,
     END_MARKER,
   ].join('\n');

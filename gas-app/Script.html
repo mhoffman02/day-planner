@@ -1,7 +1,8 @@
 <script>
   // === GENERATED begin: src/ engine bundle — regenerate with `node tools/build-gas-engines.js`, do not hand-edit ===
   // Source of truth: src/taskEngine.js, src/futureMatrixEngine.js, src/syncEngine.js,
-  // src/binderStore.js#getLocalDateStr. See .agents/rules/sync-src-and-gas-app.md.
+  // src/indexedDbStore.js, src/binderStore.js#getLocalDateStr. See
+  // .agents/rules/sync-src-and-gas-app.md.
   // src/binderStore.js
   function getLocalDateStr(d = /* @__PURE__ */ new Date()) {
     if (typeof d === "string") {
@@ -249,192 +250,198 @@
     });
     return { taskUpdates, eventCreates, eventUpdates };
   }
-  // === GENERATED end: src/ engine bundle ===
 
-  // Client IndexedDB cache for offline-first daily data (tasks/appointments/notes).
-  // Mirrors src/indexedDbStore.js — HtmlService can't import ES modules, so this is
-  // a hand-duplicated inline copy; keep both in sync per sync-src-and-gas-app.md.
-  const IDB_NAME = 'day-planner-db';
-  const IDB_VERSION = 3;
-  const IDB_STORE_DAILY = 'dailyData';
-  const IDB_STORE_OUTBOX = 'outboxQueue';
-  // Read-only cache of a whole month's {tasks, calendarEvents, noteContent} per day, used to
-  // render the monthly-calendar view and warm the rolling 3-month cache in the background.
-  // Deliberately separate from IDB_STORE_DAILY so a background month-batch response can never
-  // race a fresher single-day write or a pending offline edit.
-  const IDB_STORE_MONTH_OVERVIEW = 'monthOverview';
-  // Not yet read/written by Script.html (no caller here needs them today), but declared and
-  // created to keep this DB's schema in step with src/indexedDbStore.js's STORES -- both files
-  // open the same 'day-planner-db' name, and IndexedDB only re-runs onupgradeneeded when the
-  // version number increases, so an already-onboarded browser would otherwise never gain these
-  // stores even after a later change starts relying on them.
-  const IDB_STORE_MONTHLY_NOTES = 'monthlyNotes';
-  const IDB_STORE_MASTER_TASKS = 'masterTasks';
-
+  // src/indexedDbStore.js
+  var IDB_NAME = "day-planner-db";
+  var IDB_VERSION = 3;
+  var IDB_STORE_DAILY = "dailyData";
+  var IDB_STORE_MONTHLY_NOTES = "monthlyNotes";
+  var IDB_STORE_MASTER_TASKS = "masterTasks";
+  var IDB_STORE_OUTBOX = "outboxQueue";
+  var IDB_STORE_MONTH_OVERVIEW = "monthOverview";
+  var STORES = {
+    DAILY_DATA: IDB_STORE_DAILY,
+    MONTHLY_NOTES: IDB_STORE_MONTHLY_NOTES,
+    MASTER_TASKS: IDB_STORE_MASTER_TASKS,
+    OUTBOX_QUEUE: IDB_STORE_OUTBOX,
+    MONTH_OVERVIEW: IDB_STORE_MONTH_OVERVIEW
+  };
+  var memoryFallbackStore = {
+    dailyData: {},
+    monthlyNotes: {},
+    masterTasks: {},
+    outboxQueue: [],
+    monthOverview: {}
+  };
   function idbSupported() {
-    return typeof indexedDB !== 'undefined' && indexedDB !== null;
+    return typeof indexedDB !== "undefined" && indexedDB !== null;
   }
-
-  // Opening the DB is idempotent, so cache the in-flight/opened promise instead of issuing a
-  // fresh indexedDB.open() per call — a month-batch write otherwise means ~30 separate opens.
-  let idbDbPromise = null;
-
+  var dbPromise = null;
   function idbOpen() {
-    if (!idbSupported()) return Promise.resolve(null);
-    if (idbDbPromise) return idbDbPromise;
-    idbDbPromise = new Promise((resolve) => {
+    if (!idbSupported()) {
+      return Promise.resolve(null);
+    }
+    if (dbPromise) return dbPromise;
+    dbPromise = new Promise((resolve) => {
       try {
         const request = indexedDB.open(IDB_NAME, IDB_VERSION);
         request.onupgradeneeded = (event) => {
           const db = event.target.result;
-          if (!db.objectStoreNames.contains(IDB_STORE_DAILY)) {
-            db.createObjectStore(IDB_STORE_DAILY, { keyPath: 'dateStr' });
+          if (!db.objectStoreNames.contains(STORES.DAILY_DATA)) {
+            db.createObjectStore(STORES.DAILY_DATA, { keyPath: "dateStr" });
           }
-          if (!db.objectStoreNames.contains(IDB_STORE_OUTBOX)) {
-            db.createObjectStore(IDB_STORE_OUTBOX, { keyPath: 'id', autoIncrement: true });
+          if (!db.objectStoreNames.contains(STORES.MONTHLY_NOTES)) {
+            db.createObjectStore(STORES.MONTHLY_NOTES, { keyPath: "monthStr" });
           }
-          if (!db.objectStoreNames.contains(IDB_STORE_MONTH_OVERVIEW)) {
-            db.createObjectStore(IDB_STORE_MONTH_OVERVIEW, { keyPath: 'monthStr' });
+          if (!db.objectStoreNames.contains(STORES.MASTER_TASKS)) {
+            db.createObjectStore(STORES.MASTER_TASKS, { keyPath: "monthStr" });
           }
-          if (!db.objectStoreNames.contains(IDB_STORE_MONTHLY_NOTES)) {
-            db.createObjectStore(IDB_STORE_MONTHLY_NOTES, { keyPath: 'monthStr' });
+          if (!db.objectStoreNames.contains(STORES.OUTBOX_QUEUE)) {
+            db.createObjectStore(STORES.OUTBOX_QUEUE, { keyPath: "id", autoIncrement: true });
           }
-          if (!db.objectStoreNames.contains(IDB_STORE_MASTER_TASKS)) {
-            db.createObjectStore(IDB_STORE_MASTER_TASKS, { keyPath: 'monthStr' });
+          if (!db.objectStoreNames.contains(STORES.MONTH_OVERVIEW)) {
+            db.createObjectStore(STORES.MONTH_OVERVIEW, { keyPath: "monthStr" });
           }
         };
-        request.onsuccess = (event) => resolve(event.target.result);
+        request.onsuccess = (event) => {
+          resolve(event.target.result);
+        };
         request.onerror = (event) => {
-          console.warn('IndexedDB open error:', event.target && event.target.error);
-          idbDbPromise = null;
+          console.warn("IndexedDB open error:", event.target?.error);
+          dbPromise = null;
           resolve(null);
         };
-        // A version bump (IDB_VERSION) can't run its upgrade transaction while another
-        // tab/window still holds an open connection at the old version -- the request just sits
-        // pending with no onsuccess/onupgradeneeded/onerror, which without this handler means
-        // every caller awaiting idbOpen() hangs silently forever (no console output, no error)
-        // instead of falling back to "no cache". Resolve null now and drop the memoized promise
-        // so the next call retries fresh, once the other tab has closed/upgraded.
         request.onblocked = () => {
-          console.warn('IndexedDB open blocked by another open tab/connection at an older version');
-          idbDbPromise = null;
+          console.warn("IndexedDB open blocked by another open tab/connection at an older version");
+          dbPromise = null;
           resolve(null);
         };
-      } catch (e) {
-        idbDbPromise = null;
+      } catch (err) {
+        console.warn("idbOpen: indexedDB.open() threw synchronously (e.g. private browsing)", err);
+        dbPromise = null;
         resolve(null);
       }
     });
-    return idbDbPromise;
+    return dbPromise;
   }
-
-  async function idbGetDaily(dateStr) {
+  async function getItem(storeName, key) {
     const db = await idbOpen();
-    if (!db) return null;
+    if (!db) {
+      return memoryFallbackStore[storeName] ? memoryFallbackStore[storeName][key] || null : null;
+    }
     return new Promise((resolve) => {
       try {
-        const tx = db.transaction([IDB_STORE_DAILY], 'readonly');
-        const req = tx.objectStore(IDB_STORE_DAILY).get(dateStr);
+        const tx = db.transaction([storeName], "readonly");
+        const store = tx.objectStore(storeName);
+        const req = store.get(key);
         req.onsuccess = () => resolve(req.result || null);
         req.onerror = () => resolve(null);
       } catch (e) {
+        console.warn(`getItem: transaction on store "${storeName}" threw synchronously`, e);
         resolve(null);
       }
     });
   }
-
-  async function idbSaveDaily(dateStr, payload) {
+  async function setItem(storeName, item) {
     const db = await idbOpen();
-    if (!db) return false;
-    const item = Object.assign({}, payload, { dateStr, cachedAt: new Date().toISOString() });
+    if (!db) {
+      if (storeName === STORES.OUTBOX_QUEUE) {
+        if (!item.id) item.id = Date.now() + Math.random();
+        memoryFallbackStore.outboxQueue.push(item);
+      } else {
+        const key = item.dateStr || item.monthStr || item.id;
+        if (key) {
+          memoryFallbackStore[storeName][key] = item;
+        }
+      }
+      return true;
+    }
     return new Promise((resolve) => {
       try {
-        const tx = db.transaction([IDB_STORE_DAILY], 'readwrite');
-        const req = tx.objectStore(IDB_STORE_DAILY).put(item);
+        const tx = db.transaction([storeName], "readwrite");
+        const store = tx.objectStore(storeName);
+        const req = store.put(item);
         req.onsuccess = () => resolve(true);
         req.onerror = () => resolve(false);
       } catch (e) {
+        console.warn(`setItem: transaction on store "${storeName}" threw synchronously`, e);
         resolve(false);
       }
     });
   }
-
-  async function idbGetMonthOverview(monthStr) {
+  async function getAllItems(storeName) {
     const db = await idbOpen();
-    if (!db) return null;
-    return new Promise((resolve) => {
-      try {
-        const tx = db.transaction([IDB_STORE_MONTH_OVERVIEW], 'readonly');
-        const req = tx.objectStore(IDB_STORE_MONTH_OVERVIEW).get(monthStr);
-        req.onsuccess = () => resolve(req.result || null);
-        req.onerror = () => resolve(null);
-      } catch (e) {
-        resolve(null);
+    if (!db) {
+      if (storeName === STORES.OUTBOX_QUEUE) {
+        return memoryFallbackStore.outboxQueue.slice();
       }
-    });
-  }
-
-  async function idbSaveMonthOverview(monthStr, days) {
-    const db = await idbOpen();
-    if (!db) return false;
-    const item = { monthStr, days, cachedAt: new Date().toISOString() };
+      return Object.values(memoryFallbackStore[storeName] || {});
+    }
     return new Promise((resolve) => {
       try {
-        const tx = db.transaction([IDB_STORE_MONTH_OVERVIEW], 'readwrite');
-        const req = tx.objectStore(IDB_STORE_MONTH_OVERVIEW).put(item);
-        req.onsuccess = () => resolve(true);
-        req.onerror = () => resolve(false);
-      } catch (e) {
-        resolve(false);
-      }
-    });
-  }
-
-  async function idbEnqueueMutation(type, payload) {
-    const db = await idbOpen();
-    const mutation = { type, payload, enqueuedAt: new Date().toISOString() };
-    if (!db) return false;
-    return new Promise((resolve) => {
-      try {
-        const tx = db.transaction([IDB_STORE_OUTBOX], 'readwrite');
-        const req = tx.objectStore(IDB_STORE_OUTBOX).put(mutation);
-        req.onsuccess = () => resolve(true);
-        req.onerror = () => resolve(false);
-      } catch (e) {
-        resolve(false);
-      }
-    });
-  }
-
-  async function idbGetOutbox() {
-    const db = await idbOpen();
-    if (!db) return [];
-    return new Promise((resolve) => {
-      try {
-        const tx = db.transaction([IDB_STORE_OUTBOX], 'readonly');
-        const req = tx.objectStore(IDB_STORE_OUTBOX).getAll();
+        const tx = db.transaction([storeName], "readonly");
+        const store = tx.objectStore(storeName);
+        const req = store.getAll();
         req.onsuccess = () => resolve(req.result || []);
         req.onerror = () => resolve([]);
       } catch (e) {
+        console.warn(`getAllItems: transaction on store "${storeName}" threw synchronously`, e);
         resolve([]);
       }
     });
   }
-
-  async function idbDequeueMutation(id) {
+  async function deleteItem(storeName, key) {
     const db = await idbOpen();
-    if (!db) return false;
+    if (!db) {
+      if (storeName === STORES.OUTBOX_QUEUE) {
+        memoryFallbackStore.outboxQueue = memoryFallbackStore.outboxQueue.filter((item) => item.id !== key);
+      } else if (memoryFallbackStore[storeName]) {
+        delete memoryFallbackStore[storeName][key];
+      }
+      return true;
+    }
     return new Promise((resolve) => {
       try {
-        const tx = db.transaction([IDB_STORE_OUTBOX], 'readwrite');
-        const req = tx.objectStore(IDB_STORE_OUTBOX).delete(id);
+        const tx = db.transaction([storeName], "readwrite");
+        const store = tx.objectStore(storeName);
+        const req = store.delete(key);
         req.onsuccess = () => resolve(true);
         req.onerror = () => resolve(false);
       } catch (e) {
+        console.warn(`deleteItem: transaction on store "${storeName}" threw synchronously`, e);
         resolve(false);
       }
     });
   }
+  async function idbGetDaily(dateStr) {
+    return getItem(STORES.DAILY_DATA, dateStr);
+  }
+  async function idbSaveDaily(dateStr, payload) {
+    const item = Object.assign({}, payload, { dateStr, cachedAt: (/* @__PURE__ */ new Date()).toISOString() });
+    return setItem(STORES.DAILY_DATA, item);
+  }
+  async function idbGetMonthOverview(monthStr) {
+    return getItem(STORES.MONTH_OVERVIEW, monthStr);
+  }
+  async function idbSaveMonthOverview(monthStr, days) {
+    const item = { monthStr, days, cachedAt: (/* @__PURE__ */ new Date()).toISOString() };
+    return setItem(STORES.MONTH_OVERVIEW, item);
+  }
+  async function idbEnqueueMutation(type, payload) {
+    const mutation = {
+      type,
+      payload,
+      enqueuedAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    return setItem(STORES.OUTBOX_QUEUE, mutation);
+  }
+  async function idbGetOutbox() {
+    return getAllItems(STORES.OUTBOX_QUEUE);
+  }
+  async function idbDequeueMutation(id) {
+    return deleteItem(STORES.OUTBOX_QUEUE, id);
+  }
+  // === GENERATED end: src/ engine bundle ===
 
   const MONTH_CACHE_TTL_MS = 15 * 60 * 1000;
 
