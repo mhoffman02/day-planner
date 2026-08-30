@@ -10,7 +10,8 @@ import {
   getCleanTitle,
   syncTaskToCalendar,
   syncCalendarToTask,
-  reconcileWorkspaceChanges
+  reconcileWorkspaceChanges,
+  planSyncPersistence
 } from '../src/syncEngine.js';
 
 describe('2-Way Sync Engine Unit Tests', () => {
@@ -405,6 +406,79 @@ describe('2-Way Sync Engine Unit Tests', () => {
         secondPass.tasks.map(t => ({ id: t.id, title: t.title, status: t.status })),
         firstPass.tasks.map(t => ({ id: t.id, title: t.title, status: t.status }))
       );
+    });
+  });
+
+  describe('planSyncPersistence', () => {
+    it('should plan a task update only when title or status actually changed', () => {
+      const beforeTasks = [
+        { id: 't1', title: '[A1] Team sync', status: '•' },
+        { id: 't2', title: '[B1] Untouched task', status: '•' }
+      ];
+      const reconciled = {
+        tasks: [
+          { id: 't1', title: '[✓] Team sync', status: '✓', dueDate: '2026-08-15' },
+          { id: 't2', title: '[B1] Untouched task', status: '•', dueDate: '2026-08-15' }
+        ],
+        calendarEvents: []
+      };
+
+      const plan = planSyncPersistence(beforeTasks, [], reconciled);
+      assert.equal(plan.taskUpdates.length, 1);
+      assert.deepEqual(plan.taskUpdates[0], { taskId: 't1', title: '[✓] Team sync', status: '✓', dueDate: '2026-08-15' });
+    });
+
+    it('should plan an event create for a reconciled event with no prior counterpart, carrying gasTaskId and disabling auto-extras', () => {
+      const reconciled = {
+        tasks: [],
+        calendarEvents: [
+          { id: 'evt_sync_1', title: '[A1] Deep work', startTime: '2026-08-15T13:00:00Z', endTime: '2026-08-15T14:00:00Z', syncTaskId: 't_blocked' }
+        ]
+      };
+
+      const plan = planSyncPersistence([], [], reconciled);
+      assert.equal(plan.eventCreates.length, 1);
+      assert.equal(plan.eventUpdates.length, 0);
+      assert.equal(plan.eventCreates[0].index, 0);
+      assert.equal(plan.eventCreates[0].payload.gasTaskId, 't_blocked');
+      assert.equal(plan.eventCreates[0].payload.autoGoogleMeet, false);
+      assert.equal(plan.eventCreates[0].payload.autoAgendaDoc, false);
+    });
+
+    it('should plan an event update only when title/startTime/endTime changed on an already-linked event', () => {
+      const beforeEvents = [
+        { id: 'e1', title: '[A1] Team sync', startTime: '2026-08-15T09:00:00Z', endTime: '2026-08-15T10:00:00Z' }
+      ];
+      const reconciled = {
+        tasks: [],
+        calendarEvents: [
+          { id: 'e1', title: '[A1] Team sync', startTime: '2026-08-15T15:00:00Z', endTime: '2026-08-15T16:00:00Z' }
+        ]
+      };
+
+      const plan = planSyncPersistence([], beforeEvents, reconciled);
+      assert.equal(plan.eventCreates.length, 0);
+      assert.equal(plan.eventUpdates.length, 1);
+      assert.deepEqual(plan.eventUpdates[0], {
+        eventId: 'e1',
+        title: '[A1] Team sync',
+        startTime: '2026-08-15T15:00:00Z',
+        endTime: '2026-08-15T16:00:00Z'
+      });
+    });
+
+    it('should plan nothing when reconciliation produced no diffs', () => {
+      const beforeTasks = [{ id: 't1', title: '[A1] Team sync', status: '•' }];
+      const beforeEvents = [{ id: 'e1', title: '[A1] Team sync', startTime: '2026-08-15T09:00:00Z', endTime: '2026-08-15T10:00:00Z' }];
+      const reconciled = {
+        tasks: [{ id: 't1', title: '[A1] Team sync', status: '•', dueDate: '2026-08-15' }],
+        calendarEvents: [{ id: 'e1', title: '[A1] Team sync', startTime: '2026-08-15T09:00:00Z', endTime: '2026-08-15T10:00:00Z' }]
+      };
+
+      const plan = planSyncPersistence(beforeTasks, beforeEvents, reconciled);
+      assert.equal(plan.taskUpdates.length, 0);
+      assert.equal(plan.eventCreates.length, 0);
+      assert.equal(plan.eventUpdates.length, 0);
     });
   });
 });

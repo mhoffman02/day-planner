@@ -6,5 +6,5 @@
  */
 export { STATUS_LIST, STATUS_OPTIONS, parseTaskTitle, formatTaskTitle, getNextStatus, isValidStatus } from '../../src/taskEngine.js';
 export { createFutureItem, nextMonthKey, emptyYearMatrix } from '../../src/futureMatrixEngine.js';
-export { getCleanTitle, syncTaskToCalendar, syncCalendarToTask, reconcileWorkspaceChanges } from '../../src/syncEngine.js';
+export { getCleanTitle, syncTaskToCalendar, syncCalendarToTask, reconcileWorkspaceChanges, planSyncPersistence } from '../../src/syncEngine.js';
 export { getLocalDateStr } from '../../src/binderStore.js';

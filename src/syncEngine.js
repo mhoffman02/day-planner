@@ -193,3 +193,60 @@ export function reconcileWorkspaceChanges(dailyTasks = [], calendarEvents = []) 
     syncTimestamp: new Date().toISOString()
   };
 }
+
+/**
+ * Computes which persistence calls `trigger2WaySync` needs to make against the bridge
+ * (Google Tasks / Calendar) to save a `reconcileWorkspaceChanges()` result, by diffing it
+ * against the pre-reconciliation snapshot. Pure planning only — callers execute the actual
+ * bridge calls and apply the returned event ids back onto `reconciled.calendarEvents`.
+ * @param {Array<object>} [beforeTasks=[]] Task snapshot before reconciliation.
+ * @param {Array<object>} [beforeEvents=[]] Calendar event snapshot before reconciliation.
+ * @param {{tasks: Array<object>, calendarEvents: Array<object>}} reconciled Result of `reconcileWorkspaceChanges()`.
+ * @returns {{
+ *   taskUpdates: Array<{taskId: string, title: string, status: string, dueDate: string}>,
+ *   eventCreates: Array<{index: number, payload: object}>,
+ *   eventUpdates: Array<{eventId: string, title: string, startTime: string, endTime: string}>
+ * }} Persistence plan. `eventCreates[].index` is the position in `reconciled.calendarEvents`
+ *   the caller should splice the saved (real-id) event back into.
+ */
+export function planSyncPersistence(beforeTasks = [], beforeEvents = [], reconciled) {
+  const taskUpdates = [];
+  reconciled.tasks.forEach((task) => {
+    const prior = beforeTasks.find(t => t.id === task.id);
+    if (prior && (prior.title !== task.title || prior.status !== task.status)) {
+      taskUpdates.push({
+        taskId: task.id,
+        title: task.title,
+        status: task.status,
+        dueDate: task.dueDate
+      });
+    }
+  });
+
+  const eventCreates = [];
+  const eventUpdates = [];
+  reconciled.calendarEvents.forEach((evt, index) => {
+    const prior = beforeEvents.find(e => e.id === evt.id);
+    if (!prior) {
+      eventCreates.push({
+        index,
+        payload: {
+          ...evt,
+          gasTaskId: evt.syncTaskId || (evt.extendedProperties && evt.extendedProperties.private && evt.extendedProperties.private.gasTaskId) || null,
+          autoGoogleMeet: false,
+          guestsCanModify: false,
+          autoAgendaDoc: false
+        }
+      });
+    } else if (prior.title !== evt.title || prior.startTime !== evt.startTime || prior.endTime !== evt.endTime) {
+      eventUpdates.push({
+        eventId: evt.id,
+        title: evt.title,
+        startTime: evt.startTime,
+        endTime: evt.endTime
+      });
+    }
+  });
+
+  return { taskUpdates, eventCreates, eventUpdates };
+}
