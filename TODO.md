@@ -22,13 +22,22 @@ completed entries, not tracked as PLAN.md checkboxes).
   `tools/gas-build/engines-entry.js` into the generated `Script.html` block,
   `trigger2WaySync` now just walks the plan. All 177 tests + build:gas:check pass.
 
-- [ ] **Decide on offline bundle SWR refresh in `gh-pwa-shell`.** The applied
-  `pwa.js.patch` removed all `fetchRemoteBundle` call sites, freezing the offline
-  bundle cache at whatever shipped in the shell (no more background refresh),
-  orphaning `getCompiledAppBundle()`/`tools/build-shell-bundle.js`. Needs a product
-  decision: is static-offline intended, or should a fire-and-forget
-  stale-while-revalidate refresh be added back? (separate `gh-pwa-shell` repo;
-  PLAN.md 14.6).
+- [x] **Decide on offline bundle SWR refresh in `gh-pwa-shell`.** — Closed
+  2026-08-30 as won't-fix: this was never a regression to restore. `gh-pwa-shell`
+  commit `a4e73e1` ("redirect to live GAS deployment instead of fetching/mounting
+  a bundle") removed `fetchRemoteBundle` deliberately, after **two** separate
+  fetch-based implementations (raw `fetch()`, then a JSONP `<script src>`
+  fallback) were both confirmed to never succeed — Google's GAS edge issues a
+  302-to-login redirect before `doGet()` ever runs, blocking both approaches
+  100% of the time. See `shell-gas-pattern.md` §9 for the full failed-approaches
+  table. The replacement architecture (also in that commit) is correct as-is:
+  an online, already-trusted app hands off via a real top-level navigation
+  (`window.location.href`, which works because it's first-party navigation, not
+  a cross-origin fetch/iframe); `BUILTIN_BUNDLES` + IndexedDB is purely the
+  offline-cold-start fallback, refreshed only at build/publish time via
+  `tools/build-shell-bundle.js` — never at runtime. **Do not re-attempt a
+  runtime fetch-based SWR refresh in `gh-pwa-shell`** — it is provably
+  impossible against GAS's current auth-redirect behavior, not merely unbuilt.
 
 - [ ] **Verify `Event.getTag()`/`setTag()` read/write `extendedProperties.shared`
   on live GAS.** The `gasTaskId` dual-write fix assumes this and is safe either way,
