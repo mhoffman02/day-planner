@@ -12,12 +12,15 @@ completed entries, not tracked as PLAN.md checkboxes).
   `taskEngine`/`futureMatrixEngine`/`syncEngine`. See `[[sync-src-and-gas-app]]`
   (PLAN.md 14.7c).
 
-- [ ] **Add unit-test coverage for the sync persistence orchestration.** The
+- [x] **Add unit-test coverage for the sync persistence orchestration.** The
   reconcile-then-persist loop in `trigger2WaySync` lives entirely inline in
   untested Alpine objects, so bugs there are invisible to `npm test`. Extract a
   pure `planSyncPersistence(beforeTasks, beforeEvents, reconciled)` into
   `src/syncEngine.js`, shared by both `Script.html` and any future callers, and
-  directly unit-testable (PLAN.md 14.6).
+  directly unit-testable (PLAN.md 14.6). — Done 2026-08-30: `planSyncPersistence`
+  added to `src/syncEngine.js` with 4 new unit tests, wired through
+  `tools/gas-build/engines-entry.js` into the generated `Script.html` block,
+  `trigger2WaySync` now just walks the plan. All 177 tests + build:gas:check pass.
 
 - [ ] **Decide on offline bundle SWR refresh in `gh-pwa-shell`.** The applied
   `pwa.js.patch` removed all `fetchRemoteBundle` call sites, freezing the offline
