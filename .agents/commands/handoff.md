@@ -46,4 +46,13 @@ changes, auto-fixes what it can (`eslint --fix`, missing `@file` JSDoc headers),
 and pushes. The pre-commit hook re-runs `eslint` (no `--fix`) as the hard gate on
 whatever auto-fix couldn't resolve, alongside the unit test suite.
 
+**Step 5 — Prune branches** (report-only)
+```bash
+node tools/prune-branches.js
+```
+Reports merged worktrees/branches left over from finished sessions and whether local
+`master` is behind `origin/master`. This step only reports — mention any findings in the
+handoff summary; don't run `--apply` here even if it finds candidates. See
+`/prune-branches` for the interactive cleanup flow.
+
 **Variant:** `node tools/handoff.js --read-only` — preview without writing or committing.
