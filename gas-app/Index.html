@@ -378,6 +378,13 @@
                 </div>
               </template>
 
+              <!-- Shared autocomplete source for the Topic field below -- free typing still works for a brand-new topic, this just suggests ones already used today -->
+              <datalist id="index-topics-datalist">
+                <template x-for="t in indexTopicOptions()" :key="t">
+                  <option :value="t"></option>
+                </template>
+              </datalist>
+
               <!-- Cards List -->
               <template x-for="card in filteredNoteCards" :key="card.id">
                 <article class="note-card-item" :id="'note-card-' + card.id" :data-card-id="card.id" :class="{ 'collapsed': card.collapsed, 'note-color-teal': cardNoteColor(card) === 'teal', 'note-color-red': cardNoteColor(card) === 'red', 'note-color-green': cardNoteColor(card) === 'green', 'note-color-blue': cardNoteColor(card) === 'blue' }" @click.away="clearLineSelection(card)" @keydown.escape.window="clearLineSelection(card)">
@@ -387,11 +394,13 @@
                       <span class="material-symbols-outlined icon-18" x-text="card.collapsed ? 'arrow_right' : 'arrow_drop_down'"></span>
                     </button>
 
-                    <input type="text" x-model="card.heading" @input="syncCardsToDailyNote()" placeholder="Topic Heading (e.g. #index [Architecture])..." class="card-heading-input" aria-label="Topic Heading">
+                    <input type="text" x-model="card.indexTopic" @input="syncCardsToDailyNote()" list="index-topics-datalist" placeholder="Local-only" class="card-topic-input" aria-label="Monthly Index Topic (optional)">
 
-                    <span class="card-heading-help" tabindex="0" role="note" aria-label="How topic headings work">
+                    <input type="text" x-model="card.heading" @input="syncCardsToDailyNote()" :disabled="!card.indexTopic" :placeholder="card.indexTopic ? 'Summary for the index...' : 'Set a Topic to index this card'" class="card-heading-input" aria-label="Card Summary">
+
+                    <span class="card-heading-help" tabindex="0" role="note" aria-label="How Topic and Summary work">
                       <span class="material-symbols-outlined">info</span>
-                      <span class="card-heading-help-tip">Tag it <code>#index [Topic] Summary</code> — lines like this feed the Monthly Index automatically. Skip the tag to keep this card private to the day.</span>
+                      <span class="card-heading-help-tip">Set a <b>Topic</b> to add this card to the Monthly Index; leave it blank and the card stays local to this day only. <b>Summary</b> is the one-line description shown in that index.</span>
                     </span>
 
                     <template x-if="taskLinkForCard(card)">
@@ -430,6 +439,11 @@
                       <button type="button" class="format-btn color-swatch-btn color-swatch-red" :class="{ active: cardNoteColor(card) === 'red' }" @mousedown.prevent @click="applyCardFormat(card, 'color-red')" title="Color: Red (Ctrl+Shift+R)" aria-label="Color: Red (Urgent)"></button>
                       <button type="button" class="format-btn color-swatch-btn color-swatch-green" :class="{ active: cardNoteColor(card) === 'green' }" @mousedown.prevent @click="applyCardFormat(card, 'color-green')" title="Color: Green (Ctrl+Shift+G)" aria-label="Color: Green (Done)"></button>
                       <button type="button" class="format-btn color-swatch-btn color-swatch-blue" :class="{ active: cardNoteColor(card) === 'blue' }" @mousedown.prevent @click="applyCardFormat(card, 'color-blue')" title="Color: Blue (Ctrl+Shift+B)" aria-label="Color: Blue (Info)"></button>
+                      <span class="toolbar-divider"></span>
+                      <span class="card-heading-help" tabindex="0" role="note" aria-label="Typing shortcuts for formatting">
+                        <span class="material-symbols-outlined icon-16">keyboard</span>
+                        <span class="card-heading-help-tip">Faster than the buttons: start a line with <code>- </code> for a bullet or <code>1. </code> for a numbered item. Inline: <code>**bold**</code>, <code>*italic*</code>, <code>__underline__</code>, <code>~~strike~~</code>.</span>
+                      </span>
                     </div>
 
                     <!-- Note Card Content: per-line live preview. Each line renders as styled HTML until clicked, then becomes a raw-marker input for just that one line -- so formatting/list toggles can never leak onto lines the user didn't touch. -->

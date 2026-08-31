@@ -1751,6 +1751,7 @@
       addNoteCard() {
         const newCard = {
           id: `nc_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          indexTopic: '',
           heading: '',
           content: '',
           category: 'Work',
@@ -1763,8 +1764,13 @@
 
       focusNoteCardHeading(cardId) {
         this.$nextTick(() => {
-          document.querySelector(`[data-card-id="${cardId}"] .card-heading-input`)?.focus();
+          document.querySelector(`[data-card-id="${cardId}"] .card-topic-input`)?.focus();
         });
+      },
+
+      indexTopicOptions() {
+        const topics = this.noteCards.map(c => (c.indexTopic || '').trim()).filter(Boolean);
+        return [...new Set(topics)];
       },
 
       deleteNoteCard(cardId) {
@@ -2136,11 +2142,29 @@
         return `<div class="note-render-line">${renderInline(text) || '&nbsp;'}</div>`;
       },
 
+      decomposeIndexHeading(headingClean) {
+        if (!/#index|\[INDEX\]/i.test(headingClean)) {
+          return { indexTopic: '', heading: headingClean };
+        }
+        let clean = headingClean.replace(/#index|\[INDEX\]/gi, '').trim();
+        let indexTopic = 'General';
+        const bracketMatch = clean.match(/^\[([^\]]+)\]\s*(.*)$/);
+        if (bracketMatch) {
+          indexTopic = bracketMatch[1].trim();
+          clean = bracketMatch[2].trim();
+        } else if (clean.includes(':')) {
+          const parts = clean.split(':');
+          indexTopic = parts[0].trim();
+          clean = parts.slice(1).join(':').trim();
+        }
+        return { indexTopic, heading: clean };
+      },
+
       parseDailyNoteToCards(noteText = '') {
         if (!noteText.trim() || noteText.startsWith('No notes recorded for')) {
           return [
-            { id: 'nc_1', heading: '#index [Architecture] System Design', content: 'Finalized 3-column binder layout with Alpine.js and clean CSS.', category: 'Work', collapsed: false },
-            { id: 'nc_2', heading: '#index [Finance] Budget Sync', content: '- Reviewed Q3 budget and Google Workspace API sync.\n- Approved GCP allocation.', category: 'Meeting', collapsed: false }
+            { id: 'nc_1', indexTopic: 'Architecture', heading: 'System Design', content: 'Finalized 3-column binder layout with Alpine.js and clean CSS.', category: 'Work', collapsed: false },
+            { id: 'nc_2', indexTopic: 'Finance', heading: 'Budget Sync', content: '- Reviewed Q3 budget and Google Workspace API sync.\n- Approved GCP allocation.', category: 'Meeting', collapsed: false }
           ];
         }
 
@@ -2170,9 +2194,11 @@
                                        .replace(/November/i, 'Nov')
                                        .replace(/December/i, 'Dec');
             const category = headingClean.toLowerCase().includes('meeting') ? 'Meeting' : headingClean.toLowerCase().includes('finance') ? 'Decision' : headingClean.toLowerCase().includes('personal') ? 'Personal' : 'Work';
+            const { indexTopic, heading } = this.decomposeIndexHeading(headingClean);
             currentCard = {
               id: `nc_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-              heading: headingClean,
+              indexTopic,
+              heading,
               content: '',
               category,
               collapsed: false
@@ -2181,6 +2207,7 @@
             if (!currentCard) {
               currentCard = {
                 id: `nc_default_${Date.now()}`,
+                indexTopic: '',
                 heading: 'General Notes',
                 content: '',
                 category: 'Work',
@@ -2201,7 +2228,12 @@
           this.scheduleDailyNoteSave();
           return;
         }
-        this.dailyNote = this.noteCards.map(c => `### ${c.heading || 'Topic'}\n${c.content || ''}`).join('\n\n');
+        this.dailyNote = this.noteCards.map(c => {
+          const headingLine = c.indexTopic
+            ? `#index [${c.indexTopic}] ${c.heading || 'Topic'}`
+            : (c.heading || 'Topic');
+          return `### ${headingLine}\n${c.content || ''}`;
+        }).join('\n\n');
         this.buildIndexRecords();
         this.scheduleDailyNoteSave();
       },

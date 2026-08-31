@@ -1308,6 +1308,45 @@ button.event-pill:hover {
   background: transparent;
 }
 
+.card-heading-input:disabled {
+  color: var(--theme-text-muted);
+  cursor: not-allowed;
+}
+
+.card-topic-input {
+  flex: 0 1 110px;
+  font-family: var(--header-font-family);
+  font-weight: 600;
+  font-size: 0.8rem;
+  border: none;
+  border-bottom: 1px dashed transparent;
+  background: transparent;
+  color: var(--theme-primary);
+  padding: 2px 4px;
+  outline: none;
+  box-shadow: none;
+  border-radius: 3px;
+  cursor: text;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.card-topic-input::placeholder {
+  font-weight: 400;
+  font-style: italic;
+  color: var(--theme-text-muted);
+}
+
+.card-topic-input:hover {
+  border-bottom-color: var(--theme-card-border);
+}
+
+.card-topic-input:focus {
+  outline: none;
+  border-bottom: 1px solid var(--theme-primary);
+  box-shadow: none;
+  background: transparent;
+}
+
 .card-heading-help {
   position: relative;
   display: inline-flex;

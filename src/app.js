@@ -982,6 +982,7 @@ function getLocalDateStr(d = new Date()) {
       addNoteCard() {
         const newCard = {
           id: `nc_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          indexTopic: '',
           heading: '',
           content: '',
           category: 'Work',
@@ -993,14 +994,26 @@ function getLocalDateStr(d = new Date()) {
       },
 
       /**
-       * Focuses a note card's heading input after it's added to the DOM.
+       * Focuses a note card's Topic input after it's added to the DOM -- Topic comes first
+       * because whether it's filled in is what decides if the card is private or indexed.
        * @param {string} cardId Note card id.
        * @returns {void}
        */
       focusNoteCardHeading(cardId) {
         this.$nextTick(() => {
-          document.querySelector(`[data-card-id="${cardId}"] .card-heading-input`)?.focus();
+          document.querySelector(`[data-card-id="${cardId}"] .card-topic-input`)?.focus();
         });
+      },
+
+      /**
+       * Unique, non-empty Topic values already used on this day's cards, for the Topic
+       * datalist's autocomplete suggestions. Free typing still works for a brand-new topic --
+       * this only surfaces ones already in use so far today.
+       * @returns {string[]}
+       */
+      indexTopicOptions() {
+        const topics = this.noteCards.map(c => (c.indexTopic || '').trim()).filter(Boolean);
+        return [...new Set(topics)];
       },
 
       /**
@@ -1449,17 +1462,44 @@ function getLocalDateStr(d = new Date()) {
       },
 
       /**
+       * Splits a `#index [Topic] Summary`/`[INDEX] Topic: Summary`-tagged heading line into its
+       * Topic and Summary parts, matching the format `indexParser.js`/`buildIndexRecords()`
+       * scan for. Untagged headings pass through unchanged with an empty topic. Kept as a
+       * decompose step so legacy notes written before the Topic/Summary field split still load
+       * into the structured fields instead of showing raw tag syntax in the Summary box.
+       * @param {string} headingClean Heading text with the leading `#`/`###` marker stripped.
+       * @returns {{indexTopic: string, heading: string}}
+       */
+      decomposeIndexHeading(headingClean) {
+        if (!/#index|\[INDEX\]/i.test(headingClean)) {
+          return { indexTopic: '', heading: headingClean };
+        }
+        let clean = headingClean.replace(/#index|\[INDEX\]/gi, '').trim();
+        let indexTopic = 'General';
+        const bracketMatch = clean.match(/^\[([^\]]+)\]\s*(.*)$/);
+        if (bracketMatch) {
+          indexTopic = bracketMatch[1].trim();
+          clean = bracketMatch[2].trim();
+        } else if (clean.includes(':')) {
+          const parts = clean.split(':');
+          indexTopic = parts[0].trim();
+          clean = parts.slice(1).join(':').trim();
+        }
+        return { indexTopic, heading: clean };
+      },
+
+      /**
        * Splits a daily note's raw markdown text into heading-delimited note cards (`###`/`#`
        * lines start a new card; content lines accumulate under the current card). Returns a
        * placeholder pair of sample cards when given empty/default note text.
        * @param {string} [noteText=''] Raw daily note markdown.
-       * @returns {Array<{id: string, heading: string, content: string, category: string, collapsed: boolean}>}
+       * @returns {Array<{id: string, indexTopic: string, heading: string, content: string, category: string, collapsed: boolean}>}
        */
       parseDailyNoteToCards(noteText = '') {
         if (!noteText.trim() || noteText.startsWith('No notes recorded for')) {
           return [
-            { id: 'nc_1', heading: '#index [Architecture] System Design', content: 'Finalized 3-column binder layout with Alpine.js and clean CSS.', category: 'Work', collapsed: false },
-            { id: 'nc_2', heading: '#index [Finance] Budget Sync', content: '- Reviewed Q3 budget and Google Workspace API sync.\n- Approved GCP allocation.', category: 'Meeting', collapsed: false }
+            { id: 'nc_1', indexTopic: 'Architecture', heading: 'System Design', content: 'Finalized 3-column binder layout with Alpine.js and clean CSS.', category: 'Work', collapsed: false },
+            { id: 'nc_2', indexTopic: 'Finance', heading: 'Budget Sync', content: '- Reviewed Q3 budget and Google Workspace API sync.\n- Approved GCP allocation.', category: 'Meeting', collapsed: false }
           ];
         }
 
@@ -1489,9 +1529,11 @@ function getLocalDateStr(d = new Date()) {
                                        .replace(/November/i, 'Nov')
                                        .replace(/December/i, 'Dec');
             const category = headingClean.toLowerCase().includes('meeting') ? 'Meeting' : headingClean.toLowerCase().includes('finance') ? 'Decision' : headingClean.toLowerCase().includes('personal') ? 'Personal' : 'Work';
+            const { indexTopic, heading } = this.decomposeIndexHeading(headingClean);
             currentCard = {
               id: `nc_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-              heading: headingClean,
+              indexTopic,
+              heading,
               content: '',
               category,
               collapsed: false
@@ -1500,6 +1542,7 @@ function getLocalDateStr(d = new Date()) {
             if (!currentCard) {
               currentCard = {
                 id: `nc_default_${Date.now()}`,
+                indexTopic: '',
                 heading: 'General Notes',
                 content: '',
                 category: 'Work',
@@ -1525,7 +1568,12 @@ function getLocalDateStr(d = new Date()) {
           this.scheduleDailyNoteSave();
           return;
         }
-        this.dailyNote = this.noteCards.map(c => `### ${c.heading || 'Topic'}\n${c.content || ''}`).join('\n\n');
+        this.dailyNote = this.noteCards.map(c => {
+          const headingLine = c.indexTopic
+            ? `#index [${c.indexTopic}] ${c.heading || 'Topic'}`
+            : (c.heading || 'Topic');
+          return `### ${headingLine}\n${c.content || ''}`;
+        }).join('\n\n');
         this.buildIndexRecords();
         this.scheduleDailyNoteSave();
       },
