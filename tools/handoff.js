@@ -14,6 +14,8 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const readOnly = process.argv.includes('--read-only');
+const preflight = process.argv.includes('--preflight');
+const completedArg = process.argv.find((a) => a.startsWith('--completed='));
 
 /**
  * Runs a shell command in the repo root and returns its trimmed stdout, or ''
@@ -93,7 +95,27 @@ function describeFileForHeader(content) {
 function autoFixFindings() {
   console.log('🧹 [FIX FINDINGS] Checking and fixing auto-fixable findings...');
   const stagedFiles = sh('git diff --cached --name-only --diff-filter=ACM').split('\n').filter(Boolean);
+  const lintable = stagedFiles.filter((relPath) =>
+    /\.(js|mjs)$/.test(relPath) &&
+    !/(^|\/)vendor\//.test(relPath) &&
+    !/\.min\.js$/.test(relPath) &&
+    fs.existsSync(path.join(ROOT, relPath))
+  );
   let fixedCount = 0;
+
+  // ── ESLint auto-fix ────────────────────────────────────────────────────────
+  // Purely mechanical (formatting, unused imports, etc.) — no LLM reasoning needed.
+  // Whatever eslint can't fix stays as-is; the real gate is the pre-commit hook's
+  // plain `eslint` check, which fails the commit loudly rather than swallowing it.
+  if (lintable.length > 0) {
+    const result = spawnSync('npx', ['eslint', '--fix', ...lintable], { cwd: ROOT, encoding: 'utf8' });
+    if (result.status === 0) {
+      console.log(`  🔧 [LINT] eslint --fix ran clean on ${lintable.length} staged file(s).`);
+    } else {
+      console.log(`  ⚠️ [LINT] eslint found issues it could not auto-fix:\n${(result.stdout || result.stderr || '').trim()}`);
+    }
+    sh('git add .');
+  }
 
   for (const relPath of stagedFiles) {
     if (!/\.(js|mjs)$/.test(relPath) || /\.test\.js$|\.config\.js$|server\.js/.test(relPath)) {
@@ -125,6 +147,67 @@ function autoFixFindings() {
   } else {
     console.log('✅ [FIX FINDINGS] No auto-fixable findings detected.');
   }
+}
+
+/**
+ * Fast, side-effect-free status check for the `/handoff` command to branch on before
+ * spending tokens on `npm test` / `/code-review` — e.g. a session that made no changes
+ * (NOOP) or only touched docs (SKIP_REVIEW) doesn't need either.
+ * @returns {void}
+ */
+function runPreflight() {
+  const changed = sh('git status --porcelain').split('\n').filter(Boolean)
+    .map((line) => line.slice(3));
+  const noop = changed.length === 0;
+  const docsOnly = !noop && changed.every((f) => /\.(md|txt)$/.test(f));
+  console.log(`NOOP: ${noop}`);
+  console.log(`FILES_CHANGED: ${changed.length}`);
+  console.log(`SKIP_REVIEW: ${noop || docsOnly}`);
+  if (changed.length > 0) console.log(`FILES:\n${changed.map((f) => `  ${f}`).join('\n')}`);
+}
+
+/**
+ * Scripted stand-in for hand-reconciling `PLAN.md`: flips each `- [ ]` line whose text
+ * contains one of the given (session TodoWrite) titles as a case-insensitive substring
+ * to `- [x]`, and reports any titles that matched no open line so the LLM only has to
+ * reason about those, not the whole file.
+ * @param {string} titlesArg Pipe-separated list of completed TodoWrite titles.
+ * @returns {void}
+ */
+function reconcilePlan(titlesArg) {
+  const titles = titlesArg.split('|').map((t) => t.trim()).filter(Boolean);
+  const planPath = path.join(ROOT, 'PLAN.md');
+  if (!fs.existsSync(planPath)) {
+    console.log('PLAN.md not found — nothing to reconcile.');
+    return;
+  }
+  const lines = fs.readFileSync(planPath, 'utf8').split('\n');
+  const unmatched = [];
+  for (const title of titles) {
+    const idx = lines.findIndex((l) => /^\s*-\s\[ \]/.test(l) && l.toLowerCase().includes(title.toLowerCase()));
+    if (idx === -1) {
+      unmatched.push(title);
+      continue;
+    }
+    lines[idx] = lines[idx].replace('- [ ]', '- [x]');
+    console.log(`  ✅ Checked off: ${lines[idx].trim()}`);
+  }
+  fs.writeFileSync(planPath, lines.join('\n'), 'utf8');
+  if (unmatched.length > 0) {
+    console.log(`UNMATCHED (reconcile by hand): ${unmatched.join(' | ')}`);
+  } else {
+    console.log('All completed items matched an open PLAN.md line.');
+  }
+}
+
+if (preflight) {
+  runPreflight();
+  process.exit(0);
+}
+
+if (completedArg) {
+  reconcilePlan(completedArg.slice('--completed='.length));
+  process.exit(0);
 }
 
 // 1. Gather git and project state

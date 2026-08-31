@@ -22,6 +22,13 @@ if [ -n "$JS_FILES" ]; then
     fi
   done
 
+  # ── ESLint ─────────────────────────────────────────────────────────────────
+  echo "🔍 Running eslint on staged files..."
+  if ! npx eslint $JS_FILES; then
+    echo "❌ [BLOCKER] eslint reported errors on staged files"
+    ERRORS=$((ERRORS + 1))
+  fi
+
   # ── Unit Test Suite ────────────────────────────────────────────────────────
   echo "🧪 Running unit tests..."
   if ! npm test; then
