@@ -211,3 +211,15 @@ All three cross-origin loading strategies fail when a GitHub Pages shell tries t
 - Test regexes assumed hand-written const/single-quote style and broke twice against esbuild's var/double-quote/member-expression output -- should have inspected esbuild's actual output style before writing the regex
 
 ---
+
+## 2026-08-31 — Live GAS verification (Event.getTag/setTag) + browser automation tool choice
+
+**Worked well:**
+- Layered verification (same-instance read, server refetch, raw Advanced-API inspection of shared vs private) caught real signal, not just a smoke check
+- Self-test's own bug (missing @google.com suffix strip before Calendar.Events.get) was self-caught and fixed via reasoning about CalendarApp vs Advanced API ID formats, not user-reported
+- Reused the project's existing tools/ensure-chrome.js + tools/e2e/cdp-client.js CDP driver once redirected to it, and it worked immediately against an already-authenticated persistent Chrome profile
+
+**Needs improvement:**
+- Defaulted to generic mcp__chrome-devtools__* MCP tools for a live Google-authenticated check, which tripped Google's automation-detection sign-in block — the project already has a purpose-built non-Puppeteer CDP driver (tools/ensure-chrome.js) specifically to avoid this, built in an earlier session; should check for existing project e2e tooling before reaching for generic browser-automation MCP tools whenever the target requires live Google sign-in
+
+---
