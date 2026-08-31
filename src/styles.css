@@ -1288,8 +1288,8 @@ button.event-pill:hover {
 .card-heading-input {
   flex: 1;
   font-family: var(--header-font-family);
-  font-weight: 700;
-  font-size: 0.95rem;
+  font-weight: 600;
+  font-size: 0.8rem;
   border: none;
   border-bottom: 1px dashed transparent;
   background: transparent;
