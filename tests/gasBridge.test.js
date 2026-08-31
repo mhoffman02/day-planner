@@ -255,7 +255,9 @@ describe('GAS Bridge Unit Tests', () => {
 
   it('should transfer master task to daily task via bridge', async () => {
     const bridge = new GASBridge(true);
-    const transferred = await bridge.transferMasterTask('m1', '2026-08-15', 'A');
+    const masterTasks = await bridge.getMasterTasks();
+    const m1 = masterTasks.find(m => m.id === 'm1');
+    const transferred = await bridge.transferMasterTask(m1, '2026-08-15', 'A');
     assert.ok(transferred);
     assert.ok(transferred.title.startsWith('[A3]'));
     assert.equal(transferred.category, 'Work');
@@ -274,9 +276,10 @@ describe('GAS Bridge Unit Tests', () => {
     assert.equal(await bridge.updateCalendarEvent('2026-08-15', 'nonexistent-id', { title: 'x' }), null);
   });
 
-  it('should return null when transferring a master task id that does not exist', async () => {
+  it('should return null when transferring without a valid master task object', async () => {
     const bridge = new GASBridge(true);
-    assert.equal(await bridge.transferMasterTask('nonexistent-master-id', '2026-08-15'), null);
+    assert.equal(await bridge.transferMasterTask(null, '2026-08-15'), null);
+    assert.equal(await bridge.transferMasterTask({}, '2026-08-15'), null);
   });
 
   it('should forward a daily task to the next day by default, marking the original FORWARDED', async () => {

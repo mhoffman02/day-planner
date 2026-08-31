@@ -1868,7 +1868,7 @@ function getLocalDateStr(d = new Date()) {
        */
       async moveMasterTaskToToday(mTask) {
         try {
-          const transferred = await this.bridge.transferMasterTask(mTask.id, this.selectedDate, 'A');
+          const transferred = await this.bridge.transferMasterTask(mTask, this.selectedDate, 'A');
           if (transferred) {
             this.dailyTasks.push(transferred);
             await this.trigger2WaySync();

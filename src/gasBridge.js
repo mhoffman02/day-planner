@@ -402,7 +402,7 @@ export class GASBridge {
         agendaDocUrl: agendaDocUrl,
         attendees: attendeesList,
         guestsCanModify: guestsCanModify,
-        syncTaskId: eventData.syncTaskId || null,
+        syncTaskId: eventData.gasTaskId || eventData.syncTaskId || null,
         isCompleted: eventData.isCompleted || false
       };
       this.mockData.calendarEvents[dateStr].push(newEvt);
@@ -435,7 +435,7 @@ export class GASBridge {
       agendaDocUrl: null,
       attendees: attendeesList,
       guestsCanModify: eventData.guestsCanModify !== undefined ? eventData.guestsCanModify : true,
-      syncTaskId: eventData.syncTaskId || null,
+      syncTaskId: eventData.gasTaskId || eventData.syncTaskId || null,
       isCompleted: eventData.isCompleted || false,
       _queuedOffline: true
     };
@@ -533,24 +533,22 @@ export class GASBridge {
   }
 
   /**
-   * Transfers a master task into the daily task list with priority prefix.
-   * @param {string} masterTaskId Unique identifier of the master task.
+   * Transfers a master task into the daily task list with priority prefix. Takes the full
+   * master task object (rather than re-looking it up by id) because the caller already has it
+   * in hand from the last `getMasterTasks()` fetch — mirroring `forwardDailyTask`'s
+   * `sourceTaskSnapshot` pattern, and avoiding a stale/mismatched internal lookup.
+   * @param {object} masterTask Master task object to transfer (must have `id`).
    * @param {string} dateStr Target date in YYYY-MM-DD format.
    * @param {string} [priorityGroup='A'] Priority group code ('A', 'B', or 'C').
-   * @returns {Promise<object|null>} Created daily task object promise or null if master task not found.
+   * @returns {Promise<object|null>} Created daily task object promise, or null if `masterTask` is missing/invalid.
    */
-  async transferMasterTask(masterTaskId, dateStr, priorityGroup = 'A') {
-    const masterTask = this.mockData.masterTasks.find(m => m.id === masterTaskId);
-    if (!masterTask) return null;
+  async transferMasterTask(masterTask, dateStr, priorityGroup = 'A') {
+    if (!masterTask || !masterTask.id) return null;
 
     const existingDaily = this.mockData.dailyTasks[dateStr] || [];
-    const newDailyTask = transferMasterTaskToToday(masterTask, existingDaily, priorityGroup, dateStr);
+    const { title, category } = transferMasterTaskToToday(masterTask, existingDaily, priorityGroup, dateStr);
 
-    if (!this.mockData.dailyTasks[dateStr]) {
-      this.mockData.dailyTasks[dateStr] = [];
-    }
-    this.mockData.dailyTasks[dateStr].push(newDailyTask);
-    return newDailyTask;
+    return this.addDailyTask(dateStr, title, category);
   }
 
   /**

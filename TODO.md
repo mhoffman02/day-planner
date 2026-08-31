@@ -4,13 +4,35 @@ Deferred follow-ups identified 2026-08-29 while auditing PLAN.md (all 74 checkli
 items there are checked off — these are sub-items explicitly left open within
 completed entries, not tracked as PLAN.md checkboxes).
 
-- [ ] **Reconcile `src/indexedDbStore.js` / `src/gasBridge.js` with their
+- [x] **Reconcile `src/indexedDbStore.js` / `src/gasBridge.js` with their
   `gas-app/Script.html` hand-duplicated copies, then fold them into
   `tools/build-gas-engines.js`.** The `Script.html` copies have diverged in shape
   (different per-store function names, no memory-fallback branch) — decide which
   shape is correct, reconcile, then extend the esbuild pipeline to cover them like
   `taskEngine`/`futureMatrixEngine`/`syncEngine`. See `[[sync-src-and-gas-app]]`
-  (PLAN.md 14.7c).
+  (PLAN.md 14.7c). — Done 2026-08-31: `indexedDbStore.js` was folded into the
+  esbuild pipeline in a separate session (commits `ceacbea`/`edd267c`/`ff43af6`).
+  For `gasBridge.js`, reconciled the `GASBridge` class methods by hand against
+  `src/gasBridge.js` and fixed two real behavioral bugs along the way, not just
+  cosmetic drift: (1) `transferMasterTask` in `Script.html` looked master tasks up
+  against a permanently-stale 4-item mock seed list instead of using the caller's
+  already-fetched task object, so transferring any real (non-seed) master task to
+  today silently failed — fixed by changing the signature to accept the full task
+  object directly (mirrors `forwardDailyTask`'s `sourceTaskSnapshot` pattern), and
+  hardcoded the new task's sequence to always `[A1]` instead of finding the next
+  open slot — now routes through `transferMasterTaskToToday`, matching `src/`.
+  (2) `addCalendarEvent`'s mock branch ignored the real `gasTaskId` field the sync
+  engine actually sends, only honoring a `syncTaskId` field nothing sends — fixed
+  in `src/` to match `Script.html`'s already-correct fallback chain. Also aligned
+  mock task-ID generation and `transferFutureItem`/`forwardDailyTask`'s mock
+  branches to reuse `transferMasterTaskToToday`/`forwardTaskToDate` instead of
+  ad hoc inline reimplementations. `gasBridge.js` was **not** folded into the
+  esbuild pipeline like the five pure-function files — unlike those, it's a
+  stateful class with a `useMock`/`window.google.script.run` runtime branch and a
+  real `_runGasCall` network path, so splicing it in isn't a mechanical extension
+  of the flat-function bundler; it stays hand-duplicated per
+  `[[sync-src-and-gas-app]]`, now with behavior reconciled by hand instead of
+  diverged. `npm test` (177/177) and `npm run build:gas:check` both pass.
 
 - [x] **Add unit-test coverage for the sync persistence orchestration.** The
   reconcile-then-persist loop in `trigger2WaySync` lives entirely inline in

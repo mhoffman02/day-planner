@@ -70,6 +70,44 @@
     }
     return STATUS_LIST[idx + 1];
   }
+  function getNextSequence(tasks = [], priorityGroup = "A") {
+    const pGroup = priorityGroup.toUpperCase();
+    const existingSeqs = tasks.map((t) => parseTaskTitle(t.title)).filter((p) => p.priorityGroup === pGroup && p.sequence !== null).map((p) => p.sequence);
+    for (let seq = 1; seq <= 9; seq++) {
+      if (!existingSeqs.includes(seq)) {
+        return seq;
+      }
+    }
+    return 9;
+  }
+  function forwardTaskToDate(sourceTask, existingTargetDayTasks = [], targetDateStr) {
+    const parsed = parseTaskTitle(sourceTask.title);
+    const priorityGroup = parsed.priorityGroup || "A";
+    const cleanTitle = parsed.cleanTitle || sourceTask.title || "Untitled Task";
+    const sequence = getNextSequence(existingTargetDayTasks, priorityGroup);
+    const formattedTitle = formatTaskTitle(priorityGroup, sequence, cleanTitle);
+    return {
+      id: `daily_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      title: formattedTitle,
+      status: TASK_STATUSES.OPEN,
+      dueDate: targetDateStr,
+      category: sourceTask.category || "General",
+      forwardedFromId: sourceTask.id || null
+    };
+  }
+  function transferMasterTaskToToday(masterTask, existingDailyTasks = [], targetPriorityGroup = "A", todayDateStr = getLocalDateStr()) {
+    const cleanTitle = parseTaskTitle(masterTask.title).cleanTitle || masterTask.title || "Untitled Task";
+    const sequence = getNextSequence(existingDailyTasks, targetPriorityGroup);
+    const formattedTitle = formatTaskTitle(targetPriorityGroup, sequence, cleanTitle);
+    return {
+      id: `daily_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      title: formattedTitle,
+      status: TASK_STATUSES.OPEN,
+      dueDate: todayDateStr,
+      category: masterTask.category || "General",
+      sourceMasterId: masterTask.id || null
+    };
+  }
 
   // src/futureMatrixEngine.js
   var MONTH_KEYS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
@@ -678,7 +716,7 @@
           this.mockData.dailyTasks[dateStr] = [];
         }
         const newTask = {
-          id: `t_${Date.now()}`,
+          id: `t_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
           title,
           status: '•',
           category,
@@ -700,13 +738,13 @@
       return { id: tempId, title, status: '•', category, dueDate: dateStr, _queuedOffline: true };
     }
 
-    async transferMasterTask(masterTaskId, dateStr, priorityGroup = 'A') {
-      const masterTask = (this.mockData.masterTasks || []).find(m => m.id === masterTaskId);
-      const cleanTitle = masterTask ? masterTask.title : 'Transferred Task';
-      const category = masterTask ? masterTask.category : 'General';
-      const formattedTitle = `[${priorityGroup.toUpperCase()}1] ${cleanTitle}`;
+    async transferMasterTask(masterTask, dateStr, priorityGroup = 'A') {
+      if (!masterTask || !masterTask.id) return null;
 
-      return this.addDailyTask(dateStr, formattedTitle, category);
+      const existingDaily = this.mockData.dailyTasks[dateStr] || [];
+      const { title, category } = transferMasterTaskToToday(masterTask, existingDaily, priorityGroup, dateStr);
+
+      return this.addDailyTask(dateStr, title, category);
     }
 
     async getFutureMatrix(year) {
@@ -751,8 +789,11 @@
         if (idx === -1) return null;
         const [item] = items.splice(idx, 1);
 
-        const formattedTitle = `[${priorityGroup.toUpperCase()}1] ${item.title}`;
-        return this.addDailyTask(dateStr, formattedTitle, item.category);
+        const existingDaily = this.mockData.dailyTasks[dateStr] || [];
+        const newDailyTask = transferMasterTaskToToday(item, existingDaily, priorityGroup, dateStr);
+        if (!this.mockData.dailyTasks[dateStr]) this.mockData.dailyTasks[dateStr] = [];
+        this.mockData.dailyTasks[dateStr].push(newDailyTask);
+        return newDailyTask;
       }
       return this._runGasCall('transferFutureItem', [year, monthKey, itemId, dateStr, priorityGroup]);
     }
@@ -811,13 +852,13 @@
         const sourceTask = tasks.find(t => t.id === taskId);
         if (!sourceTask) return null;
 
-        const match = (sourceTask.title || '').match(/^\[([A-C])[1-9]\]\s*(.*)$/i);
-        const priorityGroup = match ? match[1].toUpperCase() : 'A';
-        const cleanTitle = match ? match[2].trim() : (sourceTask.title || 'Untitled Task').trim();
-        const formattedTitle = `[${priorityGroup}1] ${cleanTitle}`;
+        const existingTargetDayTasks = this.mockData.dailyTasks[resolvedTargetDate] || [];
+        const forwardedTask = forwardTaskToDate(sourceTask, existingTargetDayTasks, resolvedTargetDate);
 
-        sourceTask.status = '→';
-        const forwardedTask = await this.addDailyTask(resolvedTargetDate, formattedTitle, sourceTask.category);
+        sourceTask.status = TASK_STATUSES.FORWARDED;
+        if (!this.mockData.dailyTasks[resolvedTargetDate]) this.mockData.dailyTasks[resolvedTargetDate] = [];
+        this.mockData.dailyTasks[resolvedTargetDate].push(forwardedTask);
+
         return { originalTask: sourceTask, forwardedTask };
       }
 
@@ -2532,7 +2573,7 @@
 
       async moveMasterTaskToToday(mTask) {
         try {
-          const transferred = await this.bridge.transferMasterTask(mTask.id, this.selectedDate, 'A');
+          const transferred = await this.bridge.transferMasterTask(mTask, this.selectedDate, 'A');
           if (transferred) {
             this.dailyTasks.push(transferred);
             await this.trigger2WaySync();
