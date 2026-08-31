@@ -113,6 +113,17 @@ test('gas-app/Index.html: renders separate Topic and Summary inputs, not raw tag
   );
 });
 
+test('gas-app/Index.html: Topic and Summary inputs carry a native title tooltip (fields are unlabeled)', () => {
+  assert.ok(
+    /class="card-topic-input"[^>]*title="Topic:/.test(indexHtml),
+    'the Topic input must have a title= tooltip explaining what it does, since it has no visible label'
+  );
+  assert.ok(
+    /class="card-heading-input"[^>]*title="Summary:/.test(indexHtml),
+    'the Summary input must have a title= tooltip explaining what it does, since it has no visible label'
+  );
+});
+
 test('gas-app/Index.html: heading help tip explains Topic vs Summary without showing raw tag syntax', () => {
   assert.ok(
     /class="card-heading-help"/.test(indexHtml),
