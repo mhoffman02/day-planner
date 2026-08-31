@@ -44,9 +44,16 @@ completed entries, not tracked as PLAN.md checkboxes).
   but the exact mechanism has never been confirmed against a live Apps Script run
   (PLAN.md 14.6).
 
-- [ ] **Smoke-test the re-landed esbuild bundler in a live browser before the next
-  production deploy.** The 14.7 re-land was pushed to `/dev` only (`clasp push
-  --force`) and verified via `npm test` / `npm run build:gas:check` / `node --check`,
-  not a live-browser load — no browser-automation tool was available in that
-  session. Load `/dev` manually and confirm the app mounts before the next `-i`
-  production `clasp deploy` (PLAN.md 14.7).
+- [x] **Smoke-test the re-landed esbuild bundler in a live browser before the next
+  production deploy.** — Done 2026-08-31: built `tools/ensure-chrome.js` +
+  `tools/e2e/{cdp-client.js,smoke-test.js}`, a dependency-free CDP driver that
+  attaches to a genuinely-launched (non-Puppeteer) Chrome so Google sign-in
+  isn't blocked by automation detection. Ran `smoke-test.js` against the pinned
+  production `/exec` deployment: planner mounts (`.binder-container`, no
+  `x-cloak`), zero console errors — confirmed via both an automated pass and a
+  visual screenshot. `/dev` itself still 404s even fully authenticated as the
+  script owner (untriaged, separate from this bundler question — `/exec` is the
+  URL that's actually deployed and load-bearing per
+  `.claude/rules/gas-deploy-pinned.md`, so this doesn't block anything). The
+  e2e tooling itself now lives on `master` for reuse on future live-browser
+  checks.
