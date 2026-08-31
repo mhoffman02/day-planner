@@ -1471,8 +1471,10 @@ button.event-pill:hover {
 
 .gchat-toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 4px;
+  row-gap: 6px;
   padding: 4px 8px;
   background: var(--theme-card-toolbar-bg);
   border-bottom: 1px solid var(--theme-card-toolbar-border);
