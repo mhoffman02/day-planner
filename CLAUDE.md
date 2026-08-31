@@ -28,6 +28,13 @@ by Node's test runner and by the browser. There *is* a small build step (esbuild
 `npm run build:gas` above) that compiles a subset of `src/*.js` into `gas-app/Script.html`; see
 Architecture below and `.agents/rules/sync-src-and-gas-app.md`.
 
+Live-browser smoke testing (local dev, or a real GAS `/dev`/`/exec` deployment):
+```bash
+node tools/ensure-chrome.js [url]      # once per session: launch/attach a real Chrome with a CDP debug port
+node tools/e2e/smoke-test.js [url]     # confirms the app mounted, reports console errors, saves a screenshot
+```
+See "E2E / live-browser driver" below.
+
 ## Architecture
 
 **Two runtime environments, one core logic layer.** `src/*.js` is the canonical implementation
@@ -98,6 +105,28 @@ and logic inside the private GAS backend. Full design rationale, the `getCompile
 backend contract, and the `BUILTIN_BUNDLES` CORS workaround (direct cross-origin fetch to a GAS
 `doGet` endpoint fails — see `shell-gas-pattern.md` §9) are documented in `shell-gas-pattern.md`.
 `tools/build-shell-bundle.js` and `tools/sync-gas-vendor.js` support this pipeline.
+
+### E2E / live-browser driver (`tools/ensure-chrome.js`, `tools/e2e/`)
+
+A dependency-free Chrome DevTools Protocol driver for smoke-testing a change in a real browser —
+local dev (`http://localhost:3000`) or a live GAS `/dev`/`/exec` URL. `tools/ensure-chrome.js`
+launches (or reuses) a plain, non-headless `chrome.exe` with a CDP debug port and a persistent
+profile — deliberately **not** Puppeteer/Playwright's `launch()`, since that sets
+`--enable-automation` / `navigator.webdriver`, which is what trips Google's sign-in
+"this browser may not be secure" block. Log into Google manually once in the window it opens; the
+profile persists across runs. `tools/e2e/cdp-client.js` then attaches over the raw CDP WebSocket
+(`connectCdp()`: navigate/evaluate/screenshot/getConsoleErrors/close), and
+`tools/e2e/smoke-test.js` is the ready-made check built on it — loads a URL, confirms the app
+mounted, reports console errors, saves a screenshot.
+
+A live GAS page is nested two frames deep — `script.google.com` embeds a
+`*.googleusercontent.com` `userCodeAppPanel` document (its own CDP `iframe`-type target), which in
+turn embeds `#userHtmlFrame`, a same-origin child iframe that does **not** get its own CDP target
+and holds the actual `HtmlService` markup. `smoke-test.js` reaches it via
+`document.getElementById('userHtmlFrame').contentDocument` from the outer iframe target's
+execution context, retrying since first paint on a live GAS run is slower (multi-second) than a
+plain page load. This tooling — not a one-off script — is the reusable path for any future
+live-browser check against this app.
 
 ## Shared agent config (`.agents/`)
 

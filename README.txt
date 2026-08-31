@@ -84,7 +84,8 @@ The project is architected to run in two environments:
 │   ├── UnitTests.gs       # Self-Test diagnostic suite & HTML report generator
 │   └── appsscript.json    # GAS manifest with minimal OAuth permissions
 ├── gh-pwa-shell/          # SEPARATE git repo: public Universal PWA Shell (GitHub Pages loader)
-└── tools/                 # Build/ops scripts (shell bundle build, screenshots, handoff, retro)
+└── tools/                 # Build/ops scripts (shell bundle build, screenshots, handoff, retro,
+                           #   CDP-based live-browser e2e driver — see CLAUDE.md)
 
 
 5. TRICKY DETAILS & TECHNICAL GOTCHAS
