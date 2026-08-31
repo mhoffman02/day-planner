@@ -61,10 +61,24 @@ completed entries, not tracked as PLAN.md checkboxes).
   runtime fetch-based SWR refresh in `gh-pwa-shell`** — it is provably
   impossible against GAS's current auth-redirect behavior, not merely unbuilt.
 
-- [ ] **Verify `Event.getTag()`/`setTag()` read/write `extendedProperties.shared`
+- [x] **Verify `Event.getTag()`/`setTag()` read/write `extendedProperties.shared`
   on live GAS.** The `gasTaskId` dual-write fix assumes this and is safe either way,
   but the exact mechanism has never been confirmed against a live Apps Script run
-  (PLAN.md 14.6).
+  (PLAN.md 14.6). — Done 2026-08-31: added Test 6 to `runSelfTest()` in
+  `gas-app/UnitTests.gs` — creates a throwaway Calendar event, `setTag()`s it,
+  reads it back both same-instance and via a fresh `CalendarApp.getEventById()`
+  refetch, then (when the Advanced Calendar service is enabled) fetches the raw
+  event via `Calendar.Events.get()` and inspects `extendedProperties.shared` vs.
+  `.private` directly, deleting the test event in a `finally`. Pushed via
+  `clasp push` and ran live against the `@HEAD` `/dev` self-test endpoint
+  (`tools/ensure-chrome.js` + a one-off CDP script, reusing the e2e driver from
+  the previous TODO item): **confirmed** — `extendedProperties.shared.<tag>` held
+  the written value, `extendedProperties.private.<tag>` was empty. Overall
+  self-test: `HEALTHY (100% PASS)`, 6/6. (First run caught an unrelated bug in
+  the new test itself — passed `Calendar.Events.get()` the raw
+  `CalendarApp`-style ID including the `@google.com` suffix, which that API
+  rejects with `Not Found`; fixed by stripping the suffix the same way
+  `addCalendarEvent` already does a few hundred lines up in `Code.gs`.)
 
 - [x] **Smoke-test the re-landed esbuild bundler in a live browser before the next
   production deploy.** — Done 2026-08-31: built `tools/ensure-chrome.js` +

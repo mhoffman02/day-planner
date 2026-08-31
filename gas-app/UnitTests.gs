@@ -12,7 +12,7 @@
 function runSelfTest() {
   var results = [];
   var passedCount = 0;
-  var totalTests = 5;
+  var totalTests = 6;
 
   Logger.log('====================================================');
   Logger.log('  DAY PLANNER AUTOMATED SELF-TEST DIAGNOSTICS ');
@@ -132,6 +132,88 @@ function runSelfTest() {
       test: '5. 2-Way Sync Engine & Trigger Health',
       status: 'FAIL',
       details: err5.toString() + ' | Stack: ' + (err5.stack || 'N/A')
+    });
+  }
+
+  // Test 6: Event.getTag()/setTag() extendedProperties.shared round-trip
+  // Confirms the assumption behind Code.gs's dual-write comment (search "Written to both
+  // maps") — that CalendarApp's setTag()/getTag() read/write extendedProperties.SHARED,
+  // not private, so getDailyData's evt.getTag('gasTaskId') read-back actually works.
+  try {
+    if (typeof CalendarApp !== 'undefined') {
+      var testTagKey = 'daypSelfTestTag';
+      var testTagValue = 'selftest_' + new Date().getTime();
+      var testCal = CalendarApp.getDefaultCalendar();
+      var testStart = new Date();
+      var testEnd = new Date(testStart.getTime() + 15 * 60 * 1000);
+      var testEvt = testCal.createEvent('Day Planner Self-Test (safe to delete)', testStart, testEnd);
+      var testEvtId = testEvt.getId();
+
+      try {
+        testEvt.setTag(testTagKey, testTagValue);
+        var sameInstanceRead = testEvt.getTag(testTagKey);
+
+        // Re-fetch by ID to prove the tag round-tripped through the server, not just an
+        // in-memory Event object.
+        var refetchedEvt = CalendarApp.getEventById(testEvtId);
+        var refetchedRead = refetchedEvt.getTag(testTagKey);
+
+        var advancedShared = null;
+        var advancedPrivate = null;
+        var advancedChecked = false;
+        if (typeof Calendar !== 'undefined' && Calendar.Events) {
+          advancedChecked = true;
+          // Advanced Calendar API wants the bare event ID; CalendarApp.getId() appends
+          // "@google.com" (see addCalendarEvent's matching .replace() a few hundred lines up).
+          var advancedEvtId = testEvtId.replace(/@google\.com$/, '');
+          var rawEvent = Calendar.Events.get('primary', advancedEvtId);
+          advancedShared = rawEvent.extendedProperties && rawEvent.extendedProperties.shared
+            ? rawEvent.extendedProperties.shared[testTagKey] : null;
+          advancedPrivate = rawEvent.extendedProperties && rawEvent.extendedProperties.private
+            ? rawEvent.extendedProperties.private[testTagKey] : null;
+        }
+
+        var sameInstanceOk = sameInstanceRead === testTagValue;
+        var refetchOk = refetchedRead === testTagValue;
+        var sharedOk = !advancedChecked || advancedShared === testTagValue;
+        var privateEmptyOk = !advancedChecked || !advancedPrivate;
+
+        if (sameInstanceOk && refetchOk && sharedOk && privateEmptyOk) {
+          results.push({
+            test: '6. Event.getTag()/setTag() -> extendedProperties.shared',
+            status: 'PASS',
+            details: 'Confirmed CalendarApp.setTag()/getTag() read/write extendedProperties.shared' +
+              (advancedChecked
+                ? ' (verified directly via Calendar.Events.get: shared.' + testTagKey + '="' + advancedShared + '", private.' + testTagKey + '=' + JSON.stringify(advancedPrivate) + ').'
+                : ' (Advanced Calendar service unavailable, so shared/private map itself was not directly inspected; same-instance and refetch reads both matched).') +
+              ' Same-instance read: ' + sameInstanceOk + ', refetch-by-ID read: ' + refetchOk + '.'
+          });
+          passedCount++;
+        } else {
+          results.push({
+            test: '6. Event.getTag()/setTag() -> extendedProperties.shared',
+            status: 'FAIL',
+            details: 'Mismatch — sameInstanceRead="' + sameInstanceRead + '", refetchedRead="' + refetchedRead + '"' +
+              (advancedChecked ? ', extendedProperties.shared.' + testTagKey + '="' + advancedShared + '", extendedProperties.private.' + testTagKey + '=' + JSON.stringify(advancedPrivate) : '') +
+              ' (expected "' + testTagValue + '" and empty private).'
+          });
+        }
+      } finally {
+        testEvt.deleteEvent();
+      }
+    } else {
+      results.push({
+        test: '6. Event.getTag()/setTag() -> extendedProperties.shared',
+        status: 'FAIL',
+        details: 'CalendarApp service unavailable.'
+      });
+    }
+  } catch (err6) {
+    console.error('🔥 [Self-Test 6 getTag/setTag]: ' + err6.toString() + '\nStack: ' + (err6.stack || 'N/A'));
+    results.push({
+      test: '6. Event.getTag()/setTag() -> extendedProperties.shared',
+      status: 'FAIL',
+      details: err6.toString() + ' | Stack: ' + (err6.stack || 'N/A')
     });
   }
 
