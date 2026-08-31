@@ -2130,13 +2130,16 @@ function getLocalDateStr(d = new Date()) {
       },
 
       /**
-       * Toggles the universal search modal, running a search on open.
+       * Toggles the global search dropdown, running a search and focusing the input on open.
        * @returns {void}
        */
       toggleSearchModal() {
         this.searchModalOpen = !this.searchModalOpen;
         if (this.searchModalOpen) {
           this.runSearch();
+          this.$nextTick(() => {
+            document.querySelector('.search-input-field')?.focus();
+          });
         }
       },
 

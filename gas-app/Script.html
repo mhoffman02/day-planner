@@ -2778,6 +2778,9 @@
         this.searchModalOpen = !this.searchModalOpen;
         if (this.searchModalOpen) {
           this.runSearch();
+          this.$nextTick(() => {
+            document.querySelector('.search-input-field')?.focus();
+          });
         }
       },
 

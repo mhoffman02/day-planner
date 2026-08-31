@@ -141,9 +141,42 @@
 
       <!-- Right: Global Action Utilities -->
       <div class="header-actions-compact">
-        <button type="button" class="search-trigger-compact" @click="toggleSearchModal()" title="Search Across All Items (Ctrl+K)">
-          <span class="material-symbols-outlined icon-18">search</span>
-        </button>
+        <div class="search-dropdown-wrap">
+          <button type="button" class="search-trigger-compact" @click="toggleSearchModal()" title="Global Search (Ctrl+K)" aria-haspopup="true" :aria-expanded="searchModalOpen">
+            <span class="material-symbols-outlined icon-18">search</span>
+          </button>
+
+          <div class="search-dropdown-panel" x-show="searchModalOpen" x-transition x-cloak @click.away="closeSearchModal()" @keydown.escape.window="closeSearchModal()" role="search" aria-label="Global search">
+            <h3 class="search-dropdown-title">
+              <span class="material-symbols-outlined icon-18">search</span> Global search
+            </h3>
+            <input type="search" x-model="searchQuery" @input="runSearch()" placeholder="Search calendar, tasks, notes, index..." class="search-input-field" aria-label="Global Search Input">
+
+            <div class="search-results-container">
+              <template x-if="searchResults.totalMatches === 0 && searchQuery">
+                <p class="search-no-results">No matching entries found.</p>
+              </template>
+
+              <template x-for="item in searchResults.calendar" :key="item.title">
+                <article class="search-result-item result-calendar">
+                  <b>[Calendar]</b> <span x-text="item.title"></span>
+                </article>
+              </template>
+
+              <template x-for="item in searchResults.tasks" :key="item.title">
+                <article class="search-result-item result-task">
+                  <b>[Task]</b> <span x-text="item.title"></span>
+                </article>
+              </template>
+
+              <template x-for="item in searchResults.index" :key="item.summary">
+                <article class="search-result-item result-index">
+                  <b>[Index]</b> <span x-text="item.topic + ': ' + item.summary"></span>
+                </article>
+              </template>
+            </div>
+          </div>
+        </div>
         <button type="button" class="sync-btn-compact" @click="trigger2WaySync()" :disabled="isSyncing" :title="outboxCount > 0 ? outboxCount + ' change' + (outboxCount === 1 ? '' : 's') + ' queued offline — will sync automatically' : 'Sync with Google Calendar & Tasks'">
           <span class="material-symbols-outlined icon-18" :class="{ 'spin': isSyncing }">sync</span>
           <span class="sync-label" x-text="isSyncing ? 'Syncing' : 'Sync'"></span>
@@ -837,47 +870,6 @@
             </div>
           </footer>
         </form>
-      </article>
-    </dialog>
-
-    <!-- Universal Search Modal -->
-    <dialog class="modal-backdrop" x-show="searchModalOpen" :open="searchModalOpen" x-transition x-cloak aria-labelledby="searchModalTitle">
-      <article class="modal-card modal-card-wide" @click.away="closeSearchModal()">
-        <header>
-          <h3 id="searchModalTitle" class="modal-title-with-icon">
-            <span class="material-symbols-outlined">search</span> Universal Search (Ctrl + K)
-          </h3>
-        </header>
-        <section>
-          <input type="search" x-model="searchQuery" @input="runSearch()" placeholder="Type to search calendar, tasks, notes, index..." class="search-input-field" aria-label="Universal Search Input">
-          
-          <div class="search-results-container">
-            <template x-if="searchResults.totalMatches === 0 && searchQuery">
-              <p class="search-no-results">No matching entries found.</p>
-            </template>
-
-            <template x-for="item in searchResults.calendar" :key="item.title">
-              <article class="search-result-item result-calendar">
-                <b>[Calendar]</b> <span x-text="item.title"></span>
-              </article>
-            </template>
-
-            <template x-for="item in searchResults.tasks" :key="item.title">
-              <article class="search-result-item result-task">
-                <b>[Task]</b> <span x-text="item.title"></span>
-              </article>
-            </template>
-
-            <template x-for="item in searchResults.index" :key="item.summary">
-              <article class="search-result-item result-index">
-                <b>[Index]</b> <span x-text="item.topic + ': ' + item.summary"></span>
-              </article>
-            </template>
-          </div>
-        </section>
-        <footer class="modal-actions">
-          <button type="button" class="btn-secondary" @click="closeSearchModal()">Close</button>
-        </footer>
       </article>
     </dialog>
 
