@@ -1,8 +1,8 @@
 # Session Context
 
-Generated: 2026-08-30T03:31:00.532Z
-Branch: worktree-logical-questing-wall
-Last commit: b1354dd docs(gas-app): restore openEventModal comment as block comment, not line comments
+Generated: 2026-08-31T15:21:35.090Z
+Branch: worktree-reconcile-indexeddb
+Last commit: ff43af6 docs(retro): Fold indexedDbStore.js into GAS build
 Uncommitted files: 0
 
 ## Open PLAN.md items
