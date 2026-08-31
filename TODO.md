@@ -51,9 +51,12 @@ completed entries, not tracked as PLAN.md checkboxes).
   isn't blocked by automation detection. Ran `smoke-test.js` against the pinned
   production `/exec` deployment: planner mounts (`.binder-container`, no
   `x-cloak`), zero console errors — confirmed via both an automated pass and a
-  visual screenshot. `/dev` itself still 404s even fully authenticated as the
-  script owner (untriaged, separate from this bundler question — `/exec` is the
-  URL that's actually deployed and load-bearing per
-  `.claude/rules/gas-deploy-pinned.md`, so this doesn't block anything). The
-  e2e tooling itself now lives on `master` for reuse on future live-browser
-  checks.
+  visual screenshot. The earlier "`/dev` 404s even as the authenticated script
+  owner" observation was a false alarm, not a real bug: `/dev` only resolves
+  against the deployment's own `@HEAD` ID (`clasp deployments` shows it
+  separately, e.g. `AKfycbwb...@HEAD`), never the pinned versioned deployment
+  ID from `.claude/rules/gas-deploy-pinned.md` — appending `/dev` to the
+  pinned ID 404s by design since that ID is a fixed version snapshot.
+  Re-tested `smoke-test.js` against the `@HEAD` deployment's own `/dev` URL:
+  `planner-mounted`, 0 console errors, PASS. The e2e tooling itself now lives
+  on `master` for reuse on future live-browser checks.
