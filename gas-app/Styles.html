@@ -1479,7 +1479,7 @@ button.event-pill:hover {
   justify-content: center;
 }
 
-.format-btn:hover {
+.format-btn:hover:not(.color-swatch-btn) {
   background: rgba(255, 255, 255, 0.2);
   color: var(--theme-card-toolbar-hover);
 }
@@ -1512,6 +1512,10 @@ button.event-pill:hover {
 
 .color-swatch-btn:hover {
   filter: brightness(1.1);
+}
+
+.color-swatch-default:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .color-swatch-btn.active {
