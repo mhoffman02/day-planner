@@ -982,13 +982,25 @@ function getLocalDateStr(d = new Date()) {
       addNoteCard() {
         const newCard = {
           id: `nc_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-          heading: '#index [Topic] New Card',
+          heading: '',
           content: '',
           category: 'Work',
           collapsed: false
         };
         this.noteCards.push(newCard);
         this.syncCardsToDailyNote();
+        this.focusNoteCardHeading(newCard.id);
+      },
+
+      /**
+       * Focuses a note card's heading input after it's added to the DOM.
+       * @param {string} cardId Note card id.
+       * @returns {void}
+       */
+      focusNoteCardHeading(cardId) {
+        this.$nextTick(() => {
+          document.querySelector(`[data-card-id="${cardId}"] .card-heading-input`)?.focus();
+        });
       },
 
       /**

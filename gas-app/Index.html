@@ -380,7 +380,7 @@
 
               <!-- Cards List -->
               <template x-for="card in filteredNoteCards" :key="card.id">
-                <article class="note-card-item" :id="'note-card-' + card.id" :class="{ 'collapsed': card.collapsed, 'note-color-teal': cardNoteColor(card) === 'teal', 'note-color-red': cardNoteColor(card) === 'red', 'note-color-green': cardNoteColor(card) === 'green', 'note-color-blue': cardNoteColor(card) === 'blue' }" @click.away="clearLineSelection(card)" @keydown.escape.window="clearLineSelection(card)">
+                <article class="note-card-item" :id="'note-card-' + card.id" :data-card-id="card.id" :class="{ 'collapsed': card.collapsed, 'note-color-teal': cardNoteColor(card) === 'teal', 'note-color-red': cardNoteColor(card) === 'red', 'note-color-green': cardNoteColor(card) === 'green', 'note-color-blue': cardNoteColor(card) === 'blue' }" @click.away="clearLineSelection(card)" @keydown.escape.window="clearLineSelection(card)">
                   <!-- Card Header -->
                   <header class="note-card-header">
                     <button type="button" class="card-twistie-btn" @click="toggleCardExpand(card)" :title="card.collapsed ? 'Expand Topic' : 'Collapse Topic'">
@@ -388,6 +388,11 @@
                     </button>
 
                     <input type="text" x-model="card.heading" @input="syncCardsToDailyNote()" placeholder="Topic Heading (e.g. #index [Architecture])..." class="card-heading-input" aria-label="Topic Heading">
+
+                    <span class="card-heading-help" tabindex="0" role="note" aria-label="How topic headings work">
+                      <span class="material-symbols-outlined">info</span>
+                      <span class="card-heading-help-tip">Tag it <code>#index [Topic] Summary</code> — lines like this feed the Monthly Index automatically. Skip the tag to keep this card private to the day.</span>
+                    </span>
 
                     <template x-if="taskLinkForCard(card)">
                       <span class="task-link-tag" :title="'Linked to Task ' + taskLinkForCard(card).priority" x-text="'→ ' + taskLinkForCard(card).priority"></span>

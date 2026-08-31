@@ -1291,19 +1291,83 @@ button.event-pill:hover {
   font-weight: 700;
   font-size: 0.95rem;
   border: none;
+  border-bottom: 1px dashed transparent;
   background: transparent;
   color: var(--theme-card-header-fg);
   padding: 2px 4px;
   margin-bottom: 0;
   outline: none;
   box-shadow: none;
+  border-radius: 3px;
+  cursor: text;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.card-heading-input::placeholder {
+  font-weight: 400;
+  color: var(--theme-text-muted);
+}
+
+.card-heading-input:hover {
+  border-bottom-color: var(--theme-card-border);
 }
 
 .card-heading-input:focus {
   outline: none;
-  border: none;
+  border-bottom: 1px solid var(--theme-primary);
   box-shadow: none;
   background: transparent;
+}
+
+.card-heading-help {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--theme-text-muted);
+  cursor: help;
+}
+
+.card-heading-help .material-symbols-outlined {
+  font-size: 15px;
+}
+
+.card-heading-help-tip {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 6px;
+  width: 230px;
+  padding: 8px 10px;
+  background: var(--theme-modal-bg);
+  color: var(--theme-card-header-fg);
+  border: 1px solid var(--theme-card-border);
+  border-radius: 6px;
+  box-shadow: var(--theme-panel-shadow);
+  font-size: 0.72rem;
+  font-weight: 400;
+  line-height: 1.4;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.card-heading-help:hover .card-heading-help-tip,
+.card-heading-help:focus-visible .card-heading-help-tip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.card-heading-help-tip code {
+  font-size: 0.7rem;
+  background: var(--theme-input-bg);
+  border-radius: 3px;
+  padding: 0 3px;
+  word-break: break-word;
 }
 
 .card-category-select {
