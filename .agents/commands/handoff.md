@@ -21,8 +21,10 @@ Fix any failures before proceeding. Skip if Step 0 reported `NOOP: true`.
 
 **Step 2 — Code review** (uncommitted changes)
 
-Use `/code-review` against the current diff and address any blocking findings before
-committing. Skip entirely when Step 0 reported `SKIP_REVIEW: true`.
+Use `/code-review` at `low` or `medium` effort against the current diff and address any
+blocking findings before committing. This is a safety-net pass over changes that (mostly)
+already had in-session review, not a from-scratch audit — don't default to `high`/`xhigh`
+effort here. Skip entirely when Step 0 reported `SKIP_REVIEW: true`.
 
 **Step 3 — Reconcile PLAN.md**
 

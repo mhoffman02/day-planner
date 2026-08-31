@@ -109,7 +109,11 @@ export default [
       globals: gasGlobals
     },
     rules: {
-      'no-unused-vars': 'warn',
+      // vars: 'local' skips top-level (global-scope) declarations — GAS entry points
+      // are called by name from HTML/triggers/other .gs files, never referenced within
+      // their own file, so the default 'all' setting flags every one as unused. Local
+      // vars/params inside function bodies are still checked normally.
+      'no-unused-vars': ['warn', { vars: 'local' }],
       // GAS concatenates all .gs files into one shared global scope at
       // runtime, so cross-file function refs are false positives here.
       'no-undef': 'off'
