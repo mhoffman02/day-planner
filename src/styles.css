@@ -1715,7 +1715,9 @@ button.event-pill:hover {
 
 .note-render-bold { font-weight: 700; }
 .note-render-italic { font-style: italic; }
+.note-render-underline { text-decoration: underline; }
 .note-render-strike { text-decoration: line-through; }
+.note-render-link { text-decoration: underline; }
 
 .note-render-color-teal { color: var(--note-color-teal); }
 .note-render-color-red { color: var(--note-color-red); }

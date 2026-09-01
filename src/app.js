@@ -1188,6 +1188,15 @@ function getLocalDateStr(d = new Date()) {
 
         if (!(e.ctrlKey || e.metaKey)) return;
         const key = e.key.toLowerCase();
+        // Ctrl/Cmd+K normally opens universal search (see setupKeyboardShortcuts) -- while a note
+        // line is focused it means "insert/edit a link" instead, matching Docs/Gmail convention.
+        // stopPropagation keeps the event from also reaching the window-level search listener.
+        if (key === 'k' && !e.shiftKey) {
+          e.preventDefault();
+          e.stopPropagation();
+          this.insertLineLink(card, idx);
+          return;
+        }
         if (e.shiftKey) {
           if (e.code === 'Digit7') { e.preventDefault(); this.applyLineFormat(card, idx, 'ordered'); return; }
           if (e.code === 'Digit8') { e.preventDefault(); this.applyLineFormat(card, idx, 'bullet'); return; }
@@ -1233,6 +1242,7 @@ function getLocalDateStr(d = new Date()) {
       clearLineFormatting(text) {
         let t = text || '';
         t = t.replace(/\[\[color:(?:teal|red|green|blue)\]\]([\s\S]*?)\[\[\/color\]\]/g, '$1');
+        t = t.replace(/\[\[link:[^\]]+\]\]([\s\S]*?)\[\[\/link\]\]/g, '$1');
         t = t.replace(/^-\s/, '');
         t = t.replace(/^\d+\.\s/, '');
         t = t.replace(/\*\*([\s\S]*?)\*\*/g, '$1');
@@ -1306,6 +1316,70 @@ function getLocalDateStr(d = new Date()) {
             restoreSelection(start + marker.length, end + marker.length);
           }
         }
+      },
+
+      /**
+       * Normalizes a user-entered link URL for storage in `[[link:URL]]...[[/link]]` markup:
+       * trims it, defaults a bare host like "example.com" to `https://`, and rejects anything
+       * not `http(s):`/`mailto:` -- notably `javascript:` -- so a typed/pasted URL can never
+       * become an executable href.
+       * @param {string} raw Raw URL text from the link prompt.
+       * @returns {string|null} Normalized URL, or null if empty/rejected.
+       */
+      normalizeLinkUrl(raw) {
+        if (!raw) return null;
+        let url = raw.trim();
+        if (!url) return null;
+        if (!/^[a-z][a-z0-9+.-]*:/i.test(url)) {
+          url = `https://${url}`;
+        }
+        if (!/^(https?|mailto):/i.test(url)) return null;
+        return url;
+      },
+
+      /**
+       * Inserts or edits a `[[link:URL]]text[[/link]]` around the current selection on one note
+       * line (or the whole line if nothing is selected), prompting for the URL. If the selection
+       * exactly matches an existing link's inner text, its current URL pre-fills the prompt so
+       * re-running this edits the link in place instead of nesting a duplicate wrapper. The note
+       * editor is a plain `<input>` (see handleLineKeydown/Ctrl+K and the toolbar's Link button),
+       * so a native prompt is the simplest UI that doesn't require a bespoke popover component.
+       * @param {object} card Note card to edit.
+       * @param {number} idx Line index to insert/edit the link on.
+       * @returns {void}
+       */
+      insertLineLink(card, idx) {
+        if (!card || idx == null || idx < 0) return;
+        const lines = this.cardLines(card);
+        if (idx >= lines.length) return;
+        const el = document.getElementById('card-line-' + card.id + '-' + idx);
+        const text = lines[idx] || '';
+        const hasSelection = !!(el && el.selectionEnd > el.selectionStart);
+        const start = hasSelection ? el.selectionStart : 0;
+        const end = hasSelection ? el.selectionEnd : text.length;
+
+        const before = text.slice(0, start);
+        const selected = text.slice(start, end);
+        const after = text.slice(end);
+
+        const existingLinkRe = /^\[\[link:([^\]]+)\]\]([\s\S]*)\[\[\/link\]\]$/;
+        const existingMatch = existingLinkRe.exec(selected);
+        const defaultUrl = existingMatch ? existingMatch[1] : 'https://';
+        const linkText = existingMatch ? existingMatch[2] : selected;
+
+        const rawUrl = window.prompt('Link URL', defaultUrl);
+        if (rawUrl === null) return; // cancelled
+        const url = this.normalizeLinkUrl(rawUrl);
+        if (!url) return; // empty or rejected scheme
+
+        const displayText = linkText || url;
+        const wrapped = `[[link:${url}]]${displayText}[[/link]]`;
+        lines[idx] = before + wrapped + after;
+        card.content = lines.join('\n');
+        this.syncCardsToDailyNote();
+
+        const caretPos = before.length + wrapped.length;
+        this.$nextTick(() => { el.focus(); el.setSelectionRange(caretPos, caretPos); });
       },
 
       /**
@@ -1397,6 +1471,13 @@ function getLocalDateStr(d = new Date()) {
        */
       applyCardFormat(card, formatType) {
         if (!card) return;
+        // Link insertion always targets one line's prompt-driven edit -- it has no meaningful
+        // multi-line range behavior (unlike bold/color/etc.), so it skips the range dispatch below.
+        if (formatType === 'link') {
+          if (card._activeLineIndex == null) return;
+          this.insertLineLink(card, card._activeLineIndex);
+          return;
+        }
         // A whole-line multi-select range always wins over a stray _activeLineIndex left over
         // from the click that anchored the range (that line's input blurs asynchronously, so
         // _activeLineIndex can still be set at the moment this runs).
@@ -1441,6 +1522,13 @@ function getLocalDateStr(d = new Date()) {
         const renderInline = (line) => {
           let html = escapeHtml(line);
           html = html.replace(/\[\[color:(teal|red|green|blue)\]\](.+?)\[\[\/color\]\]/g, '<span class="note-render-color-$1">$2</span>');
+          // Scheme allowlist (http/https/mailto only, matching normalizeLinkUrl) means a
+          // hand-crafted [[link:javascript:...]] simply fails to match and falls through as
+          // literal bracket text -- it can never become a live href.
+          html = html.replace(/\[\[link:((?:https?|mailto):[^\]\s]+)\]\](.+?)\[\[\/link\]\]/g, (m, url, linkText) => {
+            const safeHrefUrl = url.replace(/"/g, '&quot;');
+            return `<a href="${safeHrefUrl}" target="_blank" rel="noopener noreferrer" class="note-render-link">${linkText}</a>`;
+          });
           html = html.replace(/\*\*(.+?)\*\*/g, '<span class="note-render-bold">$1</span>');
           html = html.replace(/~~(.+?)~~/g, '<span class="note-render-strike">$1</span>');
           html = html.replace(/__(.+?)__/g, '<span class="note-render-underline">$1</span>');

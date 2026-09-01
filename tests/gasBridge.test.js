@@ -180,7 +180,7 @@ describe('GAS Bridge Unit Tests', () => {
   it('should fetch master tasks list', async () => {
     const bridge = new GASBridge(true);
     const masterTasks = await bridge.getMasterTasks('August 2026');
-    assert.equal(masterTasks.length, 4);
+    assert.equal(masterTasks.length, 1);
   });
 
   it('should add a new daily task via bridge handler', async () => {
@@ -260,7 +260,7 @@ describe('GAS Bridge Unit Tests', () => {
     const transferred = await bridge.transferMasterTask(m1, '2026-08-15', 'A');
     assert.ok(transferred);
     assert.ok(transferred.title.startsWith('[A1]'));
-    assert.equal(transferred.category, 'Work');
+    assert.equal(transferred.category, 'Personal');
   });
 
   it('should save daily doc cards content via bridge', async () => {
@@ -313,7 +313,7 @@ describe('GAS Bridge Unit Tests', () => {
     const matrix = await bridge.getFutureMatrix(2026);
     assert.equal(matrix.year, '2026');
     assert.equal(Object.keys(matrix.months).length, 12);
-    assert.equal(matrix.months['2026-09'].length, 1);
+    assert.equal(matrix.months['2026-10'].length, 1);
   });
 
   it('should add a future planning item to a month bucket via bridge', async () => {
@@ -327,19 +327,18 @@ describe('GAS Bridge Unit Tests', () => {
 
   it('should cycle a future item status via bridge', async () => {
     const bridge = new GASBridge(true);
-    const updated = await bridge.updateFutureItemStatus(2026, '2026-09', 'fm_seed', 'X');
+    const updated = await bridge.updateFutureItemStatus(2026, '2026-10', 'fm_seed', 'X');
     assert.equal(updated, null); // seeded id is randomized, not literally 'fm_seed'
 
     const matrix = await bridge.getFutureMatrix(2026);
-    const seeded = matrix.months['2026-09'][0];
-    const cycled = await bridge.updateFutureItemStatus(2026, '2026-09', seeded.id, '✓');
+    const seeded = matrix.months['2026-10'][0];
+    const cycled = await bridge.updateFutureItemStatus(2026, '2026-10', seeded.id, '✓');
     assert.equal(cycled.status, '✓');
   });
 
   it('should transfer a future item onto a specific day and remove it from its month bucket', async () => {
     const bridge = new GASBridge(true);
-    const matrix = await bridge.getFutureMatrix(2026);
-    const item = matrix.months['2026-11'][0];
+    const item = await bridge.addFutureItem(2026, '2026-11', 'Renew passport', 'Personal');
 
     const transferred = await bridge.transferFutureItem(2026, '2026-11', item.id, '2026-11-03', 'B');
     assert.ok(transferred.title.includes(item.title));
@@ -351,8 +350,7 @@ describe('GAS Bridge Unit Tests', () => {
 
   it('should push an open future item into next month, rolling into next year from December', async () => {
     const bridge = new GASBridge(true);
-    const matrix = await bridge.getFutureMatrix(2026);
-    const item = matrix.months['2026-12'][0];
+    const item = await bridge.addFutureItem(2026, '2026-12', 'Year-end budget review', 'Financial');
 
     const pushed = await bridge.pushFutureItemToNextMonth(2026, '2026-12', item.id);
     assert.equal(pushed.id, item.id);

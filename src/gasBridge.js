@@ -36,10 +36,9 @@ export class GASBridge {
     // Seed mock data for local dev server & unit tests. The '2026-08-15' bucket is also the
     // fallback every other date resolves to (see getDailyData/getMonthData below), which makes
     // it the actual first-run content a gh-pwa-shell visitor sees before ever syncing real data
-    // (see .agents/rules/sync-gas-app-and-shell-bundle.md) — so it's intentionally a single
-    // "demo" task rather than fabricated business content someone could mistake for their own
-    // synced data. Appointments/Master Tasks/Future Planning stay real-looking seed content;
-    // only Tasks/Appointments/Notes were flagged as visually indistinguishable from live data.
+    // (see .agents/rules/sync-gas-app-and-shell-bundle.md) — so every collection here is a single,
+    // clearly-labeled placeholder rather than fabricated business content someone could mistake
+    // for their own synced data.
     this.mockData = {
       dailyTasks: {
         '2026-08-15': [
@@ -47,17 +46,12 @@ export class GASBridge {
         ]
       },
       masterTasks: [
-        { id: 'm1', title: 'Prepare Q3 performance appraisals', category: 'Work', status: '•' },
-        { id: 'm2', title: 'Plan annual family retreat', category: 'Personal', status: '•' },
-        { id: 'm3', title: 'Rebalance investment portfolio', category: 'Financial', status: '•' },
-        { id: 'm4', title: 'Migrate server infrastructure to GCP', category: 'Projects', status: '•' }
+        { id: 'm1', title: 'Example: a long-term to-do that doesn’t belong on one specific day', category: 'Personal', status: '•' }
       ],
       futureMatrix: {
         2026: (() => {
           const matrix = emptyYearMatrix(2026);
-          matrix.months['2026-09'].push(createFutureItem('Book venue for annual offsite', 'Work'));
-          matrix.months['2026-11'].push(createFutureItem('Open enrollment: review benefits', 'Personal'));
-          matrix.months['2026-12'].push(createFutureItem('Year-end budget review', 'Financial'));
+          matrix.months['2026-10'].push(createFutureItem('Example: something planned for a future month', 'Personal'));
           return matrix;
         })()
       },

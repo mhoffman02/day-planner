@@ -139,6 +139,74 @@ for (const [label, src] of [['src/app.js', appJs], ['gas-app/Script.html', scrip
         'marker and revert it to plain text instead of carrying the marker to a new line'
     );
   });
+
+  // Feature: Ctrl+K inside a note line inserts/edits a [[link:URL]]text[[/link]] instead of
+  // opening universal search (which Ctrl+K normally does globally -- see setupKeyboardShortcuts).
+  test(`${label}: handleLineKeydown intercepts Ctrl/Cmd+K for link insertion and stops propagation`, () => {
+    assert.ok(
+      /if \(key === 'k' && !e\.shiftKey\) \{\s*e\.preventDefault\(\);\s*e\.stopPropagation\(\);\s*this\.insertLineLink\(card, idx\);/.test(src),
+      `${label}'s handleLineKeydown must intercept a non-shift Ctrl/Cmd+K, call ` +
+        'insertLineLink(card, idx), and stopPropagation so the window-level search shortcut does ' +
+        'not also fire while editing a note line'
+    );
+  });
+
+  test(`${label}: defines normalizeLinkUrl() restricting stored links to http(s)/mailto`, () => {
+    assert.ok(
+      /normalizeLinkUrl\(raw\) \{/.test(src),
+      `${label} must define normalizeLinkUrl(raw)`
+    );
+    assert.ok(
+      /if \(!\/\^\(https\?\|mailto\):\/i\.test\(url\)\) return null;/.test(src),
+      `${label}'s normalizeLinkUrl must reject any scheme other than http(s)/mailto (notably ` +
+        'javascript:), so a typed/pasted URL can never become an executable href'
+    );
+  });
+
+  test(`${label}: defines insertLineLink() wrapping the selection in [[link:URL]]...[[/link]]`, () => {
+    assert.ok(
+      /insertLineLink\(card, idx\) \{/.test(src),
+      `${label} must define insertLineLink(card, idx)`
+    );
+    assert.ok(
+      /const wrapped = `\[\[link:\$\{url\}\]\]\$\{displayText\}\[\[\/link\]\]`;/.test(src),
+      `${label}'s insertLineLink must wrap the resolved URL/text as [[link:URL]]text[[/link]]`
+    );
+    assert.ok(
+      /const existingMatch = existingLinkRe\.exec\(selected\);/.test(src),
+      `${label}'s insertLineLink must detect an existing link in the current selection so ` +
+        're-running Ctrl+K edits it in place instead of nesting a duplicate wrapper'
+    );
+  });
+
+  test(`${label}: applyCardFormat routes 'link' to insertLineLink instead of the range/line format path`, () => {
+    assert.ok(
+      /if \(formatType === 'link'\) \{\s*if \(card\._activeLineIndex == null\) return;\s*this\.insertLineLink\(card, card\._activeLineIndex\);/.test(src),
+      `${label}'s applyCardFormat must special-case formatType === 'link' to call insertLineLink ` +
+        'on the active line, before the multi-line range dispatch'
+    );
+  });
+
+  test(`${label}: renderCardLine renders [[link:URL]]text[[/link]] as a safe anchor tag`, () => {
+    assert.ok(
+      src.includes('\\[\\[link:((?:https?|mailto):[^\\]\\s]+)\\]\\](.+?)\\[\\[\\/link\\]\\]'),
+      `${label}'s renderInline must match [[link:URL]]text[[/link]] with a scheme allowlist ` +
+        '(http/https/mailto) so a hand-crafted javascript: link never matches and can\'t render live'
+    );
+    assert.ok(
+      /target="_blank" rel="noopener noreferrer" class="note-render-link"/.test(src),
+      `${label}'s rendered link anchor must carry target="_blank" rel="noopener noreferrer" ` +
+        '(project convention, see CLAUDE.md Key gotchas) and the note-render-link class'
+    );
+  });
+
+  test(`${label}: clearLineFormatting strips [[link:URL]]...[[/link]] markup back to plain text`, () => {
+    assert.ok(
+      /t = t\.replace\(\/\\\[\\\[link:\[\^\\\]\]\+\\\]\\\]\(\[\\s\\S\]\*\?\)\\\[\\\[\\\/link\\\]\\\]\/g, '\$1'\);/.test(src),
+      `${label}'s clearLineFormatting must strip [[link:URL]]...[[/link]] wrappers, leaving just ` +
+        "the link's display text"
+    );
+  });
 }
 
 test("gas-app/Index.html has a 'Clear Formatting' toolbar button wired to applyCardFormat", () => {
