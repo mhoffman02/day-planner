@@ -223,3 +223,16 @@ All three cross-origin loading strategies fail when a GitHub Pages shell tries t
 - Defaulted to generic mcp__chrome-devtools__* MCP tools for a live Google-authenticated check, which tripped Google's automation-detection sign-in block — the project already has a purpose-built non-Puppeteer CDP driver (tools/ensure-chrome.js) specifically to avoid this, built in an earlier session; should check for existing project e2e tooling before reaching for generic browser-automation MCP tools whenever the target requires live Google sign-in
 
 ---
+
+## 2026-09-01 — doGet() favicon fix (Google Calendar icon -> green day-planner icon)
+
+**Worked well:**
+- Recognized that ssl.gstatic.com only hosts real Google product logos (Calendar, Sheets, Keep, etc.) with no neutral/colorable option, so picking a different gstatic icon would've just swapped one 'looks like a Google app' problem for another
+- Avoided the inline data-URI approach once its GAS support was uncertain, rather than shipping something unverified
+- Full ship cycle (tests, build:gas:check, commit, push, clasp push, pinned clasp deploy) run consistently for every iteration, so each attempt was fully live and testable
+
+**Needs improvement:**
+- Deployed an SVG favicon URL to pinned production without checking GAS's setFaviconUrl() supported formats first (png/ico/gif/jpg only, no svg) -- this threw a live runtime exception ('The favicon icon image type is not supported.') that the user had to catch, instead of being caught by a quick docs check before the first deploy
+- For GAS-specific API methods with format/type constraints (setFaviconUrl, etc.), verify the accepted input shape against docs/existing working examples before deploying, not after a runtime exception surfaces
+
+---
