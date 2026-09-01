@@ -26,8 +26,10 @@ function logError(context, err) {
 
 // Green day-planner binder icon (same artwork as gh-pwa-shell/icons/icon.svg,
 // hosted on the Shell's GitHub Pages site) instead of the generic Google
-// Calendar icon, which read as an unrelated Google app to users.
-var DAY_PLANNER_FAVICON_URL = 'https://mhoffman02.github.io/shell/icons/icon.svg';
+// Calendar icon, which read as an unrelated Google app to users. Must be a
+// raster format (png/ico/gif/jpg) -- setFaviconUrl() rejects .svg with
+// "The favicon icon image type is not supported."
+var DAY_PLANNER_FAVICON_URL = 'https://mhoffman02.github.io/shell/icons/icon-192.png';
 
 /**
  * Multi-Tenant & Per-User Privacy Access Control Helper.
