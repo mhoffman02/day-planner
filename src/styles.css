@@ -102,6 +102,7 @@ a:hover {
   --theme-text-muted: #5c6b66;
   --theme-primary: #2d6a5a;
   --theme-primary-hover: #1b4332;
+  --theme-topic-fg: #2d6a5a;
 
   --theme-input-bg: #ffffff;
   --theme-input-border: #c8ded7;
@@ -216,6 +217,7 @@ a:hover {
   --theme-text-muted: #8eb5a5;
   --theme-primary: #48ab92;
   --theme-primary-hover: #5cdbb8;
+  --theme-topic-fg: #8eb5a5;
 
   --theme-input-bg: #0e2219;
   --theme-input-border: #27523f;
@@ -1441,7 +1443,7 @@ button.event-pill:hover {
   border: none;
   border-bottom: 1px dashed transparent;
   background: transparent;
-  color: var(--theme-primary);
+  color: var(--theme-topic-fg);
   padding: 2px 4px;
   outline: none;
   box-shadow: none;
