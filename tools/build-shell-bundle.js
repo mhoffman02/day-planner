@@ -52,29 +52,34 @@ function buildBundle() {
 }
 
 /**
- * Builds the current app bundle and injects/replaces the `BUILTIN_BUNDLES`
- * constant in the target `pwa.js`, so the shell can boot Day Planner offline
- * on first load without a cross-origin fetch. No-op if the target file
- * doesn't exist (e.g. the sibling gh-pwa-shell checkout isn't present).
+ * Builds the current app bundle and writes it to `bundles.json` next to the
+ * target `pwa.js`, so the shell can boot Day Planner offline on first load
+ * without a cross-origin fetch. pwa.js fetches this file at runtime (see
+ * getBuiltinBundles() there) and parses it with the native JSON parser,
+ * rather than embedding it as a JS object literal V8 would have to
+ * lex/parse as code. No-op if the target file doesn't exist (e.g. the
+ * sibling gh-pwa-shell checkout isn't present).
  * @param {string} targetPwaJsPath Absolute path to the shell's pwa.js.
  * @returns {void}
  */
 export function updateShellPwaJs(targetPwaJsPath) {
   if (!fs.existsSync(targetPwaJsPath)) return;
   const bundle = buildBundle();
+  const bundles = { 'day-planner': bundle, 'planner': bundle };
+  const bundlesJsonPath = path.join(path.dirname(targetPwaJsPath), 'bundles.json');
+  fs.writeFileSync(bundlesJsonPath, JSON.stringify(bundles), 'utf8');
+  console.log(`[Build Bundle] Wrote Day Planner built-in bundle to: ${bundlesJsonPath}`);
+
+  // One-time self-migration: strip a legacy inline BUILTIN_BUNDLES literal left over from
+  // before pwa.js switched to fetching bundles.json at runtime (see getBuiltinBundles()).
   let content = fs.readFileSync(targetPwaJsPath, 'utf8');
-
-  const bundleJson = JSON.stringify(bundle);
-  const bundleDeclaration = `// Built-in Default Offline Application Bundles\nconst BUILTIN_BUNDLES = {\n  'day-planner': ${bundleJson},\n  'planner': ${bundleJson}\n};`;
-
   if (content.includes('const BUILTIN_BUNDLES =')) {
-    content = content.replace(/\/\/ Built-in Default Offline Application Bundles[\s\S]*?const BUILTIN_BUNDLES =[\s\S]*?\n\};/, bundleDeclaration);
-  } else {
-    content = content.replace(/(const STORE_NAME = 'app_bundles';)/, `$1\n\n${bundleDeclaration}`);
+    const migrated = content.replace(/\/\/ Built-in Default Offline Application Bundles\nconst BUILTIN_BUNDLES =[\s\S]*?\n\};\n\n?/, '');
+    if (migrated !== content) {
+      fs.writeFileSync(targetPwaJsPath, migrated, 'utf8');
+      console.log(`[Build Bundle] Removed legacy inline BUILTIN_BUNDLES from: ${targetPwaJsPath}`);
+    }
   }
-
-  fs.writeFileSync(targetPwaJsPath, content, 'utf8');
-  console.log(`[Build Bundle] Injected Day Planner built-in bundle into: ${targetPwaJsPath}`);
 }
 
 // Run directly
