@@ -10,7 +10,9 @@
     "sync:agents": "node tools/sync-agent-config.js",
     "sync:agents:check": "node tools/sync-agent-config.js --check",
     "build:gas": "node tools/build-gas-engines.js",
-    "build:gas:check": "node tools/build-gas-engines.js --check"
+    "build:gas:check": "node tools/build-gas-engines.js --check",
+    "build:shell": "node tools/build-shell-bundle.js",
+    "build:shell:check": "node tools/build-shell-bundle.js --check"
   },
   "keywords": [
     "day-planner",

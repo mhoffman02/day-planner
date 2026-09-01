@@ -2,6 +2,12 @@
  * @file build-shell-bundle.js
  * @description Compiles the Day Planner application assets into a built-in offline bundle for the Universal PWA Shell.
  * Eliminates cross-origin CORS/401 hurdles on first launch while preserving background SWR hot-updates.
+ *
+ * Usage:
+ *   node tools/build-shell-bundle.js          # regenerate gh-pwa-shell/bundles.json in place
+ *   node tools/build-shell-bundle.js --check  # exit 1 if it's stale relative to gas-app/ (pre-commit gate)
+ *
+ * See .agents/rules/sync-gas-app-and-shell-bundle.md.
  */
 
 import fs from 'node:fs';
@@ -82,14 +88,54 @@ export function updateShellPwaJs(targetPwaJsPath) {
   }
 }
 
+/**
+ * Reads the `hash` field already baked into an on-disk bundles.json for the given app key,
+ * or null if the file/entry doesn't exist yet or fails to parse.
+ * @param {string} bundlesJsonPath
+ * @param {string} appKey
+ * @returns {string|null}
+ */
+function readExistingHash(bundlesJsonPath, appKey) {
+  if (!fs.existsSync(bundlesJsonPath)) return null;
+  try {
+    const data = JSON.parse(fs.readFileSync(bundlesJsonPath, 'utf8'));
+    return (data[appKey] && data[appKey].hash) || null;
+  } catch {
+    return null;
+  }
+}
+
 // Run directly
 const targetFiles = [
   path.join(ROOT_DIR, 'gh-pwa-shell/pwa.js'),
   path.resolve(ROOT_DIR, '../shell/pwa.js')
 ];
 
-for (const target of targetFiles) {
-  if (fs.existsSync(target)) {
-    updateShellPwaJs(target);
+const checkOnly = process.argv.includes('--check');
+
+if (checkOnly) {
+  // `timestamp` always differs run-to-run, so compare the content hash only — that's what
+  // actually reflects whether gas-app's Index/Styles/Script.html changed.
+  const fresh = buildBundle();
+  let stale = false;
+  for (const target of targetFiles) {
+    if (!fs.existsSync(target)) continue;
+    const bundlesJsonPath = path.join(path.dirname(target), 'bundles.json');
+    const existingHash = readExistingHash(bundlesJsonPath, 'day-planner');
+    if (existingHash !== fresh.hash) {
+      console.error(`${bundlesJsonPath} is stale relative to gas-app/ (hash mismatch) — run: npm run build:shell`);
+      stale = true;
+    }
+  }
+  if (stale) {
+    process.exitCode = 1;
+  } else {
+    console.log('Shell bundle(s) are up to date with gas-app/.');
+  }
+} else {
+  for (const target of targetFiles) {
+    if (fs.existsSync(target)) {
+      updateShellPwaJs(target);
+    }
   }
 }

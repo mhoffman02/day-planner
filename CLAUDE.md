@@ -10,6 +10,8 @@ node --test tests/taskEngine.test.js   # Run a single test file
 npm start               # Local preview server -> http://localhost:3000 (serves index.html, /src, /images)
 npm run build:gas       # Regenerate gas-app/Script.html's generated engine block from src/ (esbuild)
 npm run build:gas:check # Fail if that block is stale relative to src/ (pre-commit gate)
+npm run build:shell       # Regenerate gh-pwa-shell/bundles.json from current gas-app/ (offline shell snapshot)
+npm run build:shell:check # Fail if that snapshot is stale relative to gas-app/ (pre-commit gate)
 ```
 
 Deploying to the live Google Apps Script backend:
@@ -105,6 +107,9 @@ and logic inside the private GAS backend. Full design rationale, the `getCompile
 backend contract, and the `BUILTIN_BUNDLES` CORS workaround (direct cross-origin fetch to a GAS
 `doGet` endpoint fails — see `shell-gas-pattern.md` §9) are documented in `shell-gas-pattern.md`.
 `tools/build-shell-bundle.js` and `tools/sync-gas-vendor.js` support this pipeline.
+`npm run build:shell`/`build:shell:check` keep `gh-pwa-shell/bundles.json` (the offline-first
+snapshot the shell mounts by default) from silently drifting out of sync with `gas-app/`'s
+UI — see `.agents/rules/sync-gas-app-and-shell-bundle.md`.
 
 ### E2E / live-browser driver (`tools/ensure-chrome.js`, `tools/e2e/`)
 
