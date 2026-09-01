@@ -2474,6 +2474,44 @@ article.about-container {
   text-align: center;
 }
 
+.about-callout {
+  background: var(--theme-table-header-bg);
+  border: 1px solid var(--theme-panel-border);
+  border-left: 4px solid var(--theme-primary);
+  border-radius: 6px;
+  padding: 16px 18px;
+  margin-top: 24px;
+}
+
+.about-callout-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 1rem;
+  color: var(--theme-primary);
+}
+
+.about-install-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 8px 14px;
+  border: 1px solid var(--theme-primary);
+  border-radius: 6px;
+  color: var(--theme-primary);
+  font-weight: 600;
+  font-size: 0.88rem;
+  text-decoration: none;
+  background: transparent;
+  transition: background 0.15s ease;
+}
+
+.about-install-cta:hover {
+  background: var(--theme-panel-bg);
+}
+
 article.setup-card, article.card {
   background: var(--theme-panel-bg);
   border-radius: 12px;

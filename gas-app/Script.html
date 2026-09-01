@@ -988,6 +988,13 @@
   function _registerPlannerApp() {
     Alpine.data('plannerApp', () => ({
       activeView: 'daily',
+      // True only when this page is rendered directly at its script.google.com /
+      // googleusercontent.com origin — false when this same markup has instead been
+      // scraped into gh-pwa-shell's bundles.json and mounted inside the shell's own
+      // #app-root (a different origin). Gates the About-page "Get the App" install CTA
+      // so it doesn't tell someone already running inside the installed shell to go
+      // install it again.
+      showGetAppLink: /\.(google|googleusercontent)\.com$/.test(location.hostname),
       selectedDate: getLocalDateStr(),
       selectedYear: new Date().getFullYear(),
       selectedMonth: new Date().getMonth() + 1,
