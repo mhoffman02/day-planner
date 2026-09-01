@@ -1401,8 +1401,40 @@ button.event-pill:hover {
   cursor: not-allowed;
 }
 
+.card-header-resizer {
+  flex: 0 0 auto;
+  width: 10px;
+  margin: 0 -5px;
+  cursor: col-resize;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  touch-action: none;
+  background: transparent;
+  position: relative;
+  align-self: stretch;
+}
+
+.card-header-resizer::after {
+  content: "";
+  width: 2px;
+  height: 70%;
+  background: var(--theme-panel-border);
+  border-radius: 1px;
+  transition: all 0.2s ease;
+}
+
+.card-header-resizer:hover::after,
+.card-header-resizer.is-resizing::after {
+  width: 3px;
+  background: var(--theme-primary);
+}
+
 .card-topic-input {
-  flex: 0 1 88px;
+  flex: 0 0 64px;
+  width: 64px;
   font-family: var(--header-font-family);
   font-weight: 600;
   font-size: 0.8rem;

@@ -427,7 +427,19 @@
                       <span class="material-symbols-outlined icon-18" x-text="card.collapsed ? 'arrow_right' : 'arrow_drop_down'"></span>
                     </button>
 
-                    <input type="text" x-model="card.indexTopic" @input="syncCardsToDailyNote()" list="index-topics-datalist" placeholder="Local-only" class="card-topic-input" aria-label="Monthly Index Topic (optional)" title="Topic: set this to add the card to the Monthly Index. Leave blank to keep it private to today.">
+                    <input type="text" x-model="card.indexTopic" @input="syncCardsToDailyNote()" list="index-topics-datalist" placeholder="Local-only" class="card-topic-input" :style="'flex: 0 0 ' + topicColWidth + 'px; width: ' + topicColWidth + 'px'" aria-label="Monthly Index Topic (optional)" title="Topic: set this to add the card to the Monthly Index. Leave blank to keep it private to today.">
+
+                    <div class="card-header-resizer"
+                         :class="{ 'is-resizing': isHeaderResizing }"
+                         @mousedown="initHeaderResize($event)"
+                         @touchstart="initHeaderResize($event)"
+                         @dblclick="resetHeaderSplit()"
+                         role="separator"
+                         aria-orientation="vertical"
+                         aria-label="Resize Topic and Summary fields"
+                         title="Drag to resize Topic/Summary (double-click to reset)">
+                      <div class="resizer-handle"></div>
+                    </div>
 
                     <textarea rows="1" maxlength="60" x-model="card.heading" :disabled="!card.indexTopic" x-init="$nextTick(() => autoGrowNoteHeading($el))" @input="syncCardsToDailyNote(); autoGrowNoteHeading($event.target)" :placeholder="card.indexTopic ? 'Summary for the index...' : 'Set a Topic to index this card'" class="card-heading-input" aria-label="Card Summary" title="Summary: the one-line description shown in the Monthly Index (60 char max)."></textarea>
 

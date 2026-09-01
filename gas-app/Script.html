@@ -1090,6 +1090,10 @@
       isResizing: false,
       activeResizerIndex: null,
 
+      // Resizable Topic/Summary split (note card headers) -- one shared width for all cards
+      topicColWidth: 64,
+      isHeaderResizing: false,
+
       bridge: null,
 
       theme: 'light',
@@ -1122,6 +1126,7 @@
         window.showToast = (msg, type, dur, title) => this.showToast(msg, type, dur, title);
         this.initTheme();
         this.initColumnWidths();
+        this.initHeaderColumnWidth();
         await this.loadDayData();
         await this.loadMasterTasks();
         await this.loadRecentAttendees();
@@ -1315,6 +1320,82 @@
           window.removeEventListener('touchend', onPointerUp);
 
           this.saveColumnWidthsDebounced(500);
+        };
+
+        window.addEventListener('mousemove', onPointerMove);
+        window.addEventListener('mouseup', onPointerUp);
+        window.addEventListener('touchmove', onPointerMove, { passive: false });
+        window.addEventListener('touchend', onPointerUp);
+      },
+
+      initHeaderColumnWidth() {
+        try {
+          const saved = localStorage.getItem('dayPlannerTopicColWidth');
+          if (saved) {
+            const parsed = Number(saved);
+            if (Number.isFinite(parsed) && parsed >= 40 && parsed <= 220) {
+              this.topicColWidth = parsed;
+            }
+          }
+        } catch (e) {
+          console.warn('Could not load saved Topic/Summary split:', e);
+        }
+      },
+
+      saveHeaderWidthDebounced(delay = 500) {
+        if (this._headerWidthSaveTimer) {
+          clearTimeout(this._headerWidthSaveTimer);
+        }
+        this._headerWidthSaveTimer = setTimeout(() => {
+          try {
+            localStorage.setItem('dayPlannerTopicColWidth', String(this.topicColWidth));
+          } catch (e) {
+            console.warn('Could not save Topic/Summary split:', e);
+          }
+        }, delay);
+      },
+
+      resetHeaderSplit() {
+        if (this._headerWidthSaveTimer) {
+          clearTimeout(this._headerWidthSaveTimer);
+        }
+        this.topicColWidth = 64;
+        try {
+          localStorage.removeItem('dayPlannerTopicColWidth');
+        } catch (e) {}
+      },
+
+      // Drags the divider between a note card's Topic and Summary fields. One shared
+      // width applies to every card (matching the 3-column layout's single-split model)
+      // rather than per-card state, since all cards in the Notes column share the width.
+      initHeaderResize(event) {
+        if (event.type === 'mousedown' && event.button !== 0) return;
+        event.preventDefault();
+
+        const startX = event.touches ? event.touches[0].clientX : event.clientX;
+        const startWidth = this.topicColWidth;
+        this.isHeaderResizing = true;
+
+        const minWidth = 40;
+        const maxWidth = 220;
+
+        const onPointerMove = (e) => {
+          if (!this.isHeaderResizing) return;
+          const currentX = e.touches ? e.touches[0].clientX : e.clientX;
+          const deltaPx = currentX - startX;
+          this.topicColWidth = Math.min(maxWidth, Math.max(minWidth, startWidth + deltaPx));
+          this.saveHeaderWidthDebounced(500);
+        };
+
+        const onPointerUp = () => {
+          if (!this.isHeaderResizing) return;
+          this.isHeaderResizing = false;
+          window.removeEventListener('mousemove', onPointerMove);
+          window.removeEventListener('mouseup', onPointerUp);
+          window.removeEventListener('touchmove', onPointerMove);
+          window.removeEventListener('touchend', onPointerUp);
+
+          this.saveHeaderWidthDebounced(500);
         };
 
         window.addEventListener('mousemove', onPointerMove);
