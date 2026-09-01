@@ -114,23 +114,26 @@ const targetFiles = [
 const checkOnly = process.argv.includes('--check');
 
 if (checkOnly) {
-  // `timestamp` always differs run-to-run, so compare the content hash only — that's what
-  // actually reflects whether gas-app's Index/Styles/Script.html changed.
-  const fresh = buildBundle();
-  let stale = false;
-  for (const target of targetFiles) {
-    if (!fs.existsSync(target)) continue;
-    const bundlesJsonPath = path.join(path.dirname(target), 'bundles.json');
+  // Only the canonical gh-pwa-shell/ checkout is gated here, not the ../shell/pwa.js fallback
+  // above — that's a convenience for a differently-laid-out sibling checkout some other
+  // machine might have, not something every clone of day-planner is expected to carry (and
+  // requiring it in sync would make this check fail on any machine where it's just a stale,
+  // unrelated clone rather than an actively-used one).
+  const canonicalTarget = path.join(ROOT_DIR, 'gh-pwa-shell/pwa.js');
+  if (!fs.existsSync(canonicalTarget)) {
+    console.log('gh-pwa-shell/ checkout not present here — nothing to check.');
+  } else {
+    // `timestamp` always differs run-to-run, so compare the content hash only — that's what
+    // actually reflects whether gas-app's Index/Styles/Script.html changed.
+    const fresh = buildBundle();
+    const bundlesJsonPath = path.join(path.dirname(canonicalTarget), 'bundles.json');
     const existingHash = readExistingHash(bundlesJsonPath, 'day-planner');
     if (existingHash !== fresh.hash) {
       console.error(`${bundlesJsonPath} is stale relative to gas-app/ (hash mismatch) — run: npm run build:shell`);
-      stale = true;
+      process.exitCode = 1;
+    } else {
+      console.log('gh-pwa-shell/bundles.json is up to date with gas-app/.');
     }
-  }
-  if (stale) {
-    process.exitCode = 1;
-  } else {
-    console.log('Shell bundle(s) are up to date with gas-app/.');
   }
 } else {
   for (const target of targetFiles) {
