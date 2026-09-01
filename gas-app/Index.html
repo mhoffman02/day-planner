@@ -386,9 +386,15 @@
                     <div class="dropdown-divider"></div>
                     <div class="dropdown-item-group">
                       <label class="dropdown-label">View Mode:</label>
-                      <button type="button" class="btn-toggle-mode" @click="noteViewMode = noteViewMode === 'cards' ? 'doc' : 'cards'">
-                        <span x-text="noteViewMode === 'cards' ? 'Switch to Continuous Lined Doc (Future Preview)' : 'Switch to Topic Cards Mode'"></span>
-                      </button>
+                      <div class="view-mode-toggle" role="group" aria-label="Note view mode">
+                        <button type="button" class="view-mode-btn" :class="{ active: noteViewMode === 'cards' }" @click="noteViewMode = 'cards'">
+                          <span class="material-symbols-outlined">grid_view</span> Cards
+                        </button>
+                        <button type="button" class="view-mode-btn" :class="{ active: noteViewMode === 'doc' }" @click="noteViewMode = 'doc'">
+                          <span class="material-symbols-outlined">notes</span> Doc
+                          <span class="preview-badge">Preview</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
