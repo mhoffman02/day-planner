@@ -251,3 +251,18 @@ All three cross-origin loading strategies fail when a GitHub Pages shell tries t
 - git push/merge got blocked by the auto-mode classifier for no clear rule-based reason and succeeded on identical retry - adds friction/confusion, worth flagging as a product issue if it recurs
 
 ---
+
+## 2026-09-01 — Automating gh-pwa-shell bundle freshness
+
+**Worked well:**
+- Diagnosed two genuinely distinct freshness problems (same-origin bundles.json vs cross-origin live GAS app) and built a different mechanism for each instead of forcing one solution
+- Replaced the manual-rebake tribal knowledge with a real pre-commit gate (build:shell:check), mirroring the existing build-gas-engines.js pattern rather than inventing a new one
+- Caught an unintended side-effect mid-task (build script was dirtying an unrelated stale sibling clone at ../shell) and cleanly reverted it before it could get committed
+- A follow-up /review pass caught a real drift bug (shell-version label left at v17 after CACHE_NAME bumped to v18) and it was fixed and shipped in the same session
+
+**Needs improvement:**
+- The stale-sibling-clone bug in the --check gate should have been scoped to the canonical target on the first pass, not discovered via a false-fail and patched in a second commit
+- The version-label/CACHE_NAME mismatch should have been self-caught before ending the task (grep all version-string references when bumping one) rather than requiring a separate manual /review invocation
+- Spun up four separate short-lived worktrees (two in day-planner, two in gh-pwa-shell) for what was really one logical unit of work per repo — could consolidate into one worktree per repo held open across the whole fix-then-review arc
+
+---
