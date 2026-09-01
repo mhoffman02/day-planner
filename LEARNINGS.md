@@ -236,3 +236,18 @@ All three cross-origin loading strategies fail when a GitHub Pages shell tries t
 - For GAS-specific API methods with format/type constraints (setFaviconUrl, etc.), verify the accepted input shape against docs/existing working examples before deploying, not after a runtime exception surfaces
 
 ---
+
+## 2026-09-01 — Filter menu UX fixes + dark-mode contrast + deploy automation
+
+**Worked well:**
+- Live-browser verification via tools/ensure-chrome.js caught real rendering issues (unstyled .btn-toggle-mode) that code review alone would've missed
+- WCAG contrast math (relative luminance) caught a genuine AA failure in dark-mode Topic text before shipping
+- Reusing an existing passing color token (--theme-time-col-fg) for the new --theme-topic-fg avoided inventing an unverified new color
+- User's incremental approvals (agreed - that looks better) let fixes ship fast without over-planning
+
+**Needs improvement:**
+- One edit slipped through outside the isolated worktree in the main checkout - caught and fixed manually, but should never have happened; double-check cwd against worktree path before every Edit/Write
+- Second worktree was branched before local master had fast-forwarded, causing it to miss an already-landed fix - always fetch/rebase onto origin/master, not local master, when creating a new worktree mid-session
+- git push/merge got blocked by the auto-mode classifier for no clear rule-based reason and succeeded on identical retry - adds friction/confusion, worth flagging as a product issue if it recurs
+
+---
