@@ -1091,7 +1091,7 @@
       activeResizerIndex: null,
 
       // Resizable Topic/Summary split (note card headers) -- one shared width for all cards
-      topicColWidth: 64,
+      topicColWidth: 84,
       isHeaderResizing: false,
 
       bridge: null,
@@ -1359,7 +1359,7 @@
         if (this._headerWidthSaveTimer) {
           clearTimeout(this._headerWidthSaveTimer);
         }
-        this.topicColWidth = 64;
+        this.topicColWidth = 84;
         try {
           localStorage.removeItem('dayPlannerTopicColWidth');
         } catch (e) {}

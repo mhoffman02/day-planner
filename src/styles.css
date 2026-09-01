@@ -1433,8 +1433,8 @@ button.event-pill:hover {
 }
 
 .card-topic-input {
-  flex: 0 0 64px;
-  width: 64px;
+  flex: 0 0 84px;
+  width: 84px;
   font-family: var(--header-font-family);
   font-weight: 600;
   font-size: 0.8rem;
@@ -1447,6 +1447,7 @@ button.event-pill:hover {
   box-shadow: none;
   border-radius: 3px;
   cursor: text;
+  text-overflow: ellipsis;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
