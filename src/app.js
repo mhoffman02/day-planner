@@ -1383,6 +1383,71 @@ function getLocalDateStr(d = new Date()) {
       },
 
       /**
+       * Whether `url` is a Google Docs/Sheets/Slides/Forms document link or a Drive file link
+       * -- i.e. something `resolveDriveFileTitle` (gas-app/Code.gs) can look up a real title
+       * for. Anything else (a bare Drive folder, a non-Google URL) is left as a normal paste.
+       * @param {string} url
+       * @returns {boolean}
+       */
+      isGoogleDriveDocUrl(url) {
+        return /^https:\/\/docs\.google\.com\/(?:document|spreadsheets|presentation|forms)\/d\/[a-zA-Z0-9_-]+/.test(url)
+          || /^https:\/\/drive\.google\.com\/(?:file\/d\/[a-zA-Z0-9_-]+|open\?id=[a-zA-Z0-9_-]+)/.test(url);
+      },
+
+      /**
+       * "Smart paste": intercepts pasting a bare Google Docs/Sheets/Slides/Forms/Drive URL into
+       * a note line and replaces the "ugly" raw URL with a resolved
+       * `[[link:URL]]DocTitle[[/link]]`, via the backend's drive.readonly-scoped title lookup
+       * (see `resolveDriveFileTitle` in gas-app/Code.gs and `resolveLinkTitle` in gasBridge.js).
+       * Any other paste (plain text, a non-Drive URL, multi-line/multi-token content) is left
+       * untouched to fall through to the browser's normal paste. If the lookup fails (private
+       * file, local/mock mode, network error), falls back to inserting the plain URL -- exactly
+       * what a normal paste would have done -- rather than blocking or dropping the paste.
+       * @param {ClipboardEvent} e Native paste event from a note line's `<input>`.
+       * @param {object} card Note card being edited.
+       * @param {number} idx Line index being edited.
+       * @returns {Promise<void>}
+       */
+      async handleLinePaste(e, card, idx) {
+        if (!card || idx == null || idx < 0) return;
+        const clipboard = e.clipboardData || window.clipboardData;
+        const pasted = clipboard ? clipboard.getData('text/plain') : '';
+        const trimmed = (pasted || '').trim();
+        if (!trimmed || /\s/.test(trimmed) || !this.isGoogleDriveDocUrl(trimmed)) return;
+
+        e.preventDefault();
+        const el = document.getElementById('card-line-' + card.id + '-' + idx);
+        const lines = this.cardLines(card);
+        if (idx >= lines.length) return;
+        const text = lines[idx] || '';
+        const start = el ? el.selectionStart : text.length;
+        const end = el ? el.selectionEnd : text.length;
+        const before = text.slice(0, start);
+        const after = text.slice(end);
+
+        let displayText = trimmed;
+        try {
+          const result = this.bridge && typeof this.bridge.resolveLinkTitle === 'function'
+            ? await this.bridge.resolveLinkTitle(trimmed)
+            : { success: false };
+          if (result && result.success && result.title) {
+            displayText = result.title;
+          }
+        } catch (err) {
+          console.warn('Smart-paste title lookup failed, pasting plain URL instead:', err);
+        }
+
+        const wrapped = displayText === trimmed ? trimmed : `[[link:${trimmed}]]${displayText}[[/link]]`;
+        const freshLines = this.cardLines(card);
+        freshLines[idx] = before + wrapped + after;
+        card.content = freshLines.join('\n');
+        this.syncCardsToDailyNote();
+
+        const caretPos = before.length + wrapped.length;
+        this.$nextTick(() => { if (el) { el.focus(); el.setSelectionRange(caretPos, caretPos); } });
+      },
+
+      /**
        * Applies a format to every line in a note card's whole-line multi-select range
        * (`card._selectedLineRange`), reusing {@link applyLineFormat}'s own wrap/unwrap encode
        * path for each line rather than duplicating it. Bullet toggles each line independently

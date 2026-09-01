@@ -665,6 +665,17 @@
       });
     }
 
+    /* Resolves the title of a pasted Google Docs/Sheets/Slides/Forms/Drive URL via the
+     * backend's drive.readonly-scoped lookup, for the Notes "smart paste" hyperlink feature.
+     * Local/mock mode has no real Drive to query, so it always reports failure rather than
+     * fabricating a title -- callers fall back to inserting the plain URL. */
+    async resolveLinkTitle(url) {
+      if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+        return { success: false, error: 'Drive title lookup is unavailable in local/mock mode.' };
+      }
+      return this._runGasCall('resolveDriveFileTitle', [url]);
+    }
+
     async addDailyTask(dateStr, title, category = 'General') {
       if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
         if (!this.mockData.dailyTasks[dateStr]) {
@@ -2122,6 +2133,58 @@
 
         const caretPos = before.length + wrapped.length;
         this.$nextTick(() => { el.focus(); el.setSelectionRange(caretPos, caretPos); });
+      },
+
+      /* Whether `url` is a Google Docs/Sheets/Slides/Forms document link or a Drive file link
+       * -- i.e. something resolveDriveFileTitle (Code.gs) can look up a real title for.
+       * Anything else (a bare Drive folder, a non-Google URL) is left as a normal paste. */
+      isGoogleDriveDocUrl(url) {
+        return /^https:\/\/docs\.google\.com\/(?:document|spreadsheets|presentation|forms)\/d\/[a-zA-Z0-9_-]+/.test(url)
+          || /^https:\/\/drive\.google\.com\/(?:file\/d\/[a-zA-Z0-9_-]+|open\?id=[a-zA-Z0-9_-]+)/.test(url);
+      },
+
+      /* "Smart paste": intercepts pasting a bare Google Docs/Sheets/Slides/Forms/Drive URL into
+       * a note line and replaces the "ugly" raw URL with a resolved
+       * [[link:URL]]DocTitle[[/link]], via the backend's drive.readonly-scoped title lookup.
+       * Any other paste falls through to the browser's normal paste. If the lookup fails
+       * (private file, local/mock mode, network error), falls back to inserting the plain URL. */
+      async handleLinePaste(e, card, idx) {
+        if (!card || idx == null || idx < 0) return;
+        const clipboard = e.clipboardData || window.clipboardData;
+        const pasted = clipboard ? clipboard.getData('text/plain') : '';
+        const trimmed = (pasted || '').trim();
+        if (!trimmed || /\s/.test(trimmed) || !this.isGoogleDriveDocUrl(trimmed)) return;
+
+        e.preventDefault();
+        const el = document.getElementById('card-line-' + card.id + '-' + idx);
+        const lines = this.cardLines(card);
+        if (idx >= lines.length) return;
+        const text = lines[idx] || '';
+        const start = el ? el.selectionStart : text.length;
+        const end = el ? el.selectionEnd : text.length;
+        const before = text.slice(0, start);
+        const after = text.slice(end);
+
+        let displayText = trimmed;
+        try {
+          const result = this.bridge && typeof this.bridge.resolveLinkTitle === 'function'
+            ? await this.bridge.resolveLinkTitle(trimmed)
+            : { success: false };
+          if (result && result.success && result.title) {
+            displayText = result.title;
+          }
+        } catch (err) {
+          console.warn('Smart-paste title lookup failed, pasting plain URL instead:', err);
+        }
+
+        const wrapped = displayText === trimmed ? trimmed : `[[link:${trimmed}]]${displayText}[[/link]]`;
+        const freshLines = this.cardLines(card);
+        freshLines[idx] = before + wrapped + after;
+        card.content = freshLines.join('\n');
+        this.syncCardsToDailyNote();
+
+        const caretPos = before.length + wrapped.length;
+        this.$nextTick(() => { if (el) { el.focus(); el.setSelectionRange(caretPos, caretPos); } });
       },
 
       // Applies a format to every line in a note card's whole-line multi-select range

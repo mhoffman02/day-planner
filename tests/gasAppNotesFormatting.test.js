@@ -207,6 +207,40 @@ for (const [label, src] of [['src/app.js', appJs], ['gas-app/Script.html', scrip
         "the link's display text"
     );
   });
+
+  // Feature: "smart paste" -- pasting a bare Google Docs/Sheets/Slides/Forms/Drive URL into a
+  // note line auto-resolves its title via the backend's drive.readonly lookup instead of
+  // inserting the raw "ugly" URL. See resolveDriveFileTitle (gas-app/Code.gs) and
+  // resolveLinkTitle (gasBridge.js).
+  test(`${label}: defines isGoogleDriveDocUrl() recognizing Docs/Sheets/Slides/Forms/Drive links`, () => {
+    assert.ok(
+      /isGoogleDriveDocUrl\(url\) \{/.test(src),
+      `${label} must define isGoogleDriveDocUrl(url)`
+    );
+    assert.ok(
+      src.includes('docs\\.google\\.com\\/(?:document|spreadsheets|presentation|forms)\\/d\\/'),
+      `${label}'s isGoogleDriveDocUrl must recognize docs.google.com document/spreadsheets/` +
+        'presentation/forms URLs'
+    );
+  });
+
+  test(`${label}: handleLinePaste smart-pastes a Drive doc URL, falling back to the plain URL on failure`, () => {
+    assert.ok(
+      /handleLinePaste\(e, card, idx\) \{/.test(src),
+      `${label} must define handleLinePaste(e, card, idx)`
+    );
+    assert.ok(
+      /if \(!trimmed \|\| \/\\s\/\.test\(trimmed\) \|\| !this\.isGoogleDriveDocUrl\(trimmed\)\) return;/.test(src),
+      `${label}'s handleLinePaste must only intercept a paste that is a single, bare Drive doc ` +
+        'URL -- any other paste (plain text, multi-token, non-Drive URL) must fall through to ' +
+        "the browser's normal paste"
+    );
+    assert.ok(
+      /const wrapped = displayText === trimmed \? trimmed : `\[\[link:\$\{trimmed\}\]\]\$\{displayText\}\[\[\/link\]\]`;/.test(src),
+      `${label}'s handleLinePaste must fall back to inserting the plain URL (not a broken/empty ` +
+        'link) when the title lookup fails, since displayText only differs from the URL on success'
+    );
+  });
 }
 
 test("gas-app/Index.html has a 'Clear Formatting' toolbar button wired to applyCardFormat", () => {

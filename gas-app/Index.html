@@ -503,7 +503,7 @@
                       <template x-for="(line, idx) in cardLines(card)" :key="idx">
                         <div class="note-card-line-row" :class="{ 'note-line-selected': isLineInSelectedRange(card, idx) }">
                           <div class="note-render-line-item" x-show="card._activeLineIndex !== idx" @click="$event.shiftKey ? extendLineSelection(card, idx) : startEditingLine(card, idx)" x-html="renderCardLine(line, cardLines(card).length === 1 && !line)" aria-label="Note line, click to edit, shift+click to extend selection"></div>
-                          <input type="text" x-show="card._activeLineIndex === idx" :id="'card-line-' + card.id + '-' + idx" :value="line" @input="updateCardLine(card, idx, $event.target.value)" @keydown="handleLineKeydown($event, card, idx)" @blur="stopEditingLine(card, idx)" :placeholder="cardLines(card).length === 1 && idx === 0 ? 'Type notes for this topic (e.g. - #index [Topic] key decisions...)' : ''" class="note-card-line-input" aria-label="Note line">
+                          <input type="text" x-show="card._activeLineIndex === idx" :id="'card-line-' + card.id + '-' + idx" :value="line" @input="updateCardLine(card, idx, $event.target.value)" @keydown="handleLineKeydown($event, card, idx)" @paste="handleLinePaste($event, card, idx)" @blur="stopEditingLine(card, idx)" :placeholder="cardLines(card).length === 1 && idx === 0 ? 'Type notes for this topic (e.g. - #index [Topic] key decisions...)' : ''" class="note-card-line-input" aria-label="Note line">
                         </div>
                       </template>
                     </div>

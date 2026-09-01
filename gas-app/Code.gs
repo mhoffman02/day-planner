@@ -275,6 +275,38 @@ function readDriveFileContent(fileId) {
 }
 
 /**
+ * Resolves the display title of an arbitrary Google Docs/Sheets/Slides/Forms/Drive URL, for
+ * the Notes "smart paste" hyperlink feature (pasting one of these URLs into a note line auto-
+ * inserts [[link:URL]]DocTitle[[/link]] instead of the raw URL). Unlike every other Drive call
+ * in this file, this one intentionally reads a file the app did NOT create — that's the whole
+ * point (users paste links to their own existing docs/sheets) — so it requires the broader
+ * drive.readonly scope rather than drive.file; drive.file's own Drive.Files.get() would throw a
+ * permissions error on such a file (see getValidatedRootFolder()/validateAndSaveFolderUrl()
+ * above for that same failure mode against a manually-entered folder).
+ * @param {string} url A pasted Google Docs/Sheets/Slides/Forms/Drive URL.
+ * @returns {{success: boolean, title?: string, fileId?: string, error?: string}}
+ */
+function resolveDriveFileTitle(url) {
+  if (!url || typeof url !== 'string') {
+    return { success: false, error: 'No URL provided.' };
+  }
+  var idMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (!idMatch) {
+    return { success: false, error: 'Not a recognized Google Docs/Sheets/Slides/Forms/Drive URL.' };
+  }
+  try {
+    var fileId = idMatch[1];
+    var meta = Drive.Files.get(fileId, { fields: 'id,name,trashed' });
+    if (meta.trashed) {
+      return { success: false, error: 'File is trashed.' };
+    }
+    return { success: true, title: meta.name, fileId: fileId };
+  } catch (err) {
+    return logError('resolveDriveFileTitle(' + url + ')', err);
+  }
+}
+
+/**
  * Creates the "Day Planner" root folder under drive.file scope.
  * DriveApp.createFolder() requires the broad `drive` scope even when the manifest declares
  * only drive.file — Google enforces that at the API level regardless of oauthScopes. The

@@ -87,6 +87,11 @@ equivalents (`gasTaskId` tagging/sync) live in `gas-app/Code.gs` and must stay c
 - **Meeting Agenda Docs**: when creating a calendar event with `autoAgendaDoc` enabled, `Code.gs`
   auto-generates a structured Google Doc (objectives, attendees, Meet link, action items) via
   `DocumentApp` — this is the only current use of Google Docs; it's unrelated to daily notes.
+- **Notes hyperlinks**: `[[link:URL]]text[[/link]]` markup (Ctrl+K or the toolbar Link button).
+  Pasting a bare Google Docs/Sheets/Slides/Forms/Drive URL into a note line ("smart paste")
+  auto-resolves its title via `resolveDriveFileTitle()` in `Code.gs`, which needs the separate
+  `drive.readonly` scope (see Key gotchas) since it reads files the app didn't create — unlike
+  every other Drive access in this app, which stays under `drive.file`.
 - **Client cache**: browser IndexedDB with an offline outbox queue, stale-while-revalidate.
 
 ### `gas-app/` (clasp project, deploys to Apps Script)
@@ -152,7 +157,10 @@ Gemini CLI does not natively read `CLAUDE.md`). To activate the tracked cross-ma
 
 ## Key gotchas (see README.txt §5 for the full list)
 
-- OAuth scope must stay `drive.file`, not `drive` (`gas-app/appsscript.json`).
+- OAuth scope for Daily Notes/app-created files must stay `drive.file`, never the broad `drive`
+  scope (`gas-app/appsscript.json`). The one deliberate exception is `drive.readonly`, added
+  solely so `resolveDriveFileTitle()` can read the title of a pasted Docs/Sheets/Slides/Forms/
+  Drive link the app didn't create (Notes "smart paste") — don't widen that further to `drive`.
 - Date arithmetic must avoid `.toISOString()` on local dates — use local y/m/d math (see `binderStore.js`).
 - `target="_blank"` links must carry `rel="noopener noreferrer"`.
 - Use `slice()`, not the deprecated `String.prototype.substr()`.

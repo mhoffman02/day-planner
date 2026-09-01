@@ -183,6 +183,13 @@ describe('GAS Bridge Unit Tests', () => {
     assert.equal(masterTasks.length, 1);
   });
 
+  it('should report smart-paste title lookup unavailable in mock mode rather than fabricating a title', async () => {
+    const bridge = new GASBridge(true);
+    const result = await bridge.resolveLinkTitle('https://docs.google.com/document/d/abc123/edit');
+    assert.equal(result.success, false);
+    assert.ok(!result.title);
+  });
+
   it('should add a new daily task via bridge handler', async () => {
     const bridge = new GASBridge(true);
     const newTask = await bridge.addDailyTask('2026-08-15', '[B2] Send weekly status update', 'Work');

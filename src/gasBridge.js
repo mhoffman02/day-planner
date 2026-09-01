@@ -251,6 +251,21 @@ export class GASBridge {
   }
 
   /**
+   * Resolves the title of a pasted Google Docs/Sheets/Slides/Forms/Drive URL via the backend's
+   * drive.readonly-scoped lookup, for the Notes "smart paste" hyperlink feature. Local/mock mode
+   * has no real Drive to query, so it always reports failure rather than fabricating a title —
+   * callers fall back to inserting the plain URL, same as pasting any other link.
+   * @param {string} url A pasted Google Docs/Sheets/Slides/Forms/Drive URL.
+   * @returns {Promise<{success: boolean, title?: string, fileId?: string, error?: string}>}
+   */
+  async resolveLinkTitle(url) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      return { success: false, error: 'Drive title lookup is unavailable in local/mock mode.' };
+    }
+    return this._runGasCall('resolveDriveFileTitle', [url]);
+  }
+
+  /**
    * Adds a new task to the daily planner.
    * @param {string} dateStr Target date in YYYY-MM-DD format.
    * @param {string} title Task title description.
