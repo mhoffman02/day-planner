@@ -171,7 +171,7 @@
 
               <template x-for="item in searchResults.index" :key="item.summary">
                 <article class="search-result-item result-index">
-                  <b>[Index]</b> <span x-text="item.topic + ': ' + item.summary"></span>
+                  <b x-text="item.topic"></b><span x-text="': ' + item.summary"></span>
                 </article>
               </template>
             </div>

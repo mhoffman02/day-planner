@@ -1675,7 +1675,11 @@ function getLocalDateStr(d = new Date()) {
         const entries = [];
         lines.forEach(l => {
           if (/#index|\[INDEX\]/i.test(l)) {
-            let clean = l.replace(/#index|\[INDEX\]/gi, '').trim();
+            // Strip a leading markdown heading marker ("### "/"# ") first -- #index tags
+            // composed as a note card's heading (syncCardsToDailyNote()) are saved as
+            // "### #index [Topic] Summary", and without this the leftover "###" breaks the
+            // anchored [Topic] match below and leaks into the summary.
+            let clean = l.replace(/^#+\s+/, '').replace(/#index|\[INDEX\]/gi, '').trim();
             let topic = 'General';
             const match = clean.match(/^\[([^\]]+)\]\s*(.*)$/);
             if (match) {
