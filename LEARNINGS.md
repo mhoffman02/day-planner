@@ -266,3 +266,17 @@ All three cross-origin loading strategies fail when a GitHub Pages shell tries t
 - Spun up four separate short-lived worktrees (two in day-planner, two in gh-pwa-shell) for what was really one logical unit of work per repo — could consolidate into one worktree per repo held open across the whole fix-then-review arc
 
 ---
+
+## 2026-09-01 — Single-sourcing gh-pwa-shell's SHELL_VERSION
+
+**Worked well:**
+- Reading pwa.js/sw.js/build-shell-bundle.js in full before proposing a fix distinguished a real duplication bug (version string in two files/runtime contexts) from a false positive (build-shell-bundle.js's version constant, used in exactly one file, didn't need extraction)
+- Scoping the new rule to cross-file/cross-context duplication rather than a blanket no-magic-numbers ban kept it consistent with CLAUDE.md's own anti-overengineering guidance
+- importScripts() in sw.js vs a classic <script> tag in index.html was the right way to share one constant across two separate JS realms without introducing a bundler
+- Writing the memory update as an edit to the existing feedback_sw_cache_version_bump.md (linking to the new general rule) instead of leaving it stale avoided two overlapping memories saying slightly different things
+
+**Needs improvement:**
+- Could have proactively scanned for other duplicated literals (e.g. grepped both repos for suspicious repeated string patterns) instead of relying on ad hoc recall of files read earlier in the session
+- The rule file and memory file both restate the v17/v18 incident at length — a shorter shared reference in one place and a pointer from the other would read cleaner
+
+---
