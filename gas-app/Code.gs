@@ -24,7 +24,10 @@ function logError(context, err) {
 
 
 
-var DAY_PLANNER_FAVICON_URL = 'https://ssl.gstatic.com/calendar/images/dynamiclogo_2020q4/calendar_31_2x.png';
+// Green day-planner binder icon (same artwork as gh-pwa-shell/icons/icon.svg,
+// hosted on the Shell's GitHub Pages site) instead of the generic Google
+// Calendar icon, which read as an unrelated Google app to users.
+var DAY_PLANNER_FAVICON_URL = 'https://mhoffman02.github.io/shell/icons/icon.svg';
 
 /**
  * Multi-Tenant & Per-User Privacy Access Control Helper.
