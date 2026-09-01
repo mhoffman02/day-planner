@@ -33,14 +33,17 @@ export class GASBridge {
     // Test-only override; production offline detection uses navigator.onLine.
     this._forceOffline = false;
 
-    // Seed mock data for local dev server & unit tests
+    // Seed mock data for local dev server & unit tests. The '2026-08-15' bucket is also the
+    // fallback every other date resolves to (see getDailyData/getMonthData below), which makes
+    // it the actual first-run content a gh-pwa-shell visitor sees before ever syncing real data
+    // (see .agents/rules/sync-gas-app-and-shell-bundle.md) — so it's intentionally a single
+    // "demo" task rather than fabricated business content someone could mistake for their own
+    // synced data. Appointments/Master Tasks/Future Planning stay real-looking seed content;
+    // only Tasks/Appointments/Notes were flagged as visually indistinguishable from live data.
     this.mockData = {
       dailyTasks: {
         '2026-08-15': [
-          { id: 't1', title: '[A1] Finalize Day Planner PRD & architecture', status: '✓', category: 'Work', dueDate: '2026-08-15' },
-          { id: 't2', title: '[A2] Conduct team sync on Google Suite integration', status: '•', category: 'Work', dueDate: '2026-08-15' },
-          { id: 't3', title: '[B1] Review Q3 budget draft', status: '•', category: 'Financial', dueDate: '2026-08-15' },
-          { id: 't4', title: '[C1] Order ergonomic desk accessories', status: '•', category: 'Personal', dueDate: '2026-08-15' }
+          { id: 't1', title: 'Try the Day Planner app', status: '✓', category: 'Personal', dueDate: '2026-08-15' }
         ]
       },
       masterTasks: [
@@ -58,55 +61,18 @@ export class GASBridge {
           return matrix;
         })()
       },
-      calendarEvents: {
-        '2026-08-15': [
-          {
-            id: 'e1',
-            title: 'Morning Executive Briefing',
-            startTime: '2026-08-15T08:00:00',
-            endTime: '2026-08-15T08:30:00',
-            location: 'Conference Room 1',
-            description: 'Daily executive updates and Q3 metrics review.',
-            meetLink: 'https://meet.google.com/abc-defg-hij'
-          },
-          {
-            id: 'e2',
-            title: 'Architecture & Design Review',
-            startTime: '2026-08-15T10:30:00',
-            endTime: '2026-08-15T11:30:00',
-            location: 'Google Meet',
-            description: 'Reviewing Day Planner UI binder layout and Alpine.js state bridge.',
-            meetLink: 'https://meet.google.com/xyz-uvwx-rst'
-          },
-          {
-            id: 'e3',
-            title: 'Q3 Budget Approval Meeting',
-            startTime: '2026-08-15T14:00:00',
-            endTime: '2026-08-15T15:00:00',
-            location: 'Boardroom B',
-            description: 'Final sign-off on Q3 marketing & infrastructure budgets.',
-            meetLink: 'https://meet.google.com/q3-budget-meet'
-          }
-        ]
-      },
+      calendarEvents: {},
       dailyNotes: {
-        '2026-08-15': `# Aug 15, 2026
+        '2026-08-15': `### 👋 Sample data
+[[color:red]]**This is sample data.**[[/color]] Tap the sync button (🔄) above to connect your real tasks, appointments, and notes.
 
-## Key Meetings & Notes
-- Executive briefing focused on accelerating digital transformation.
-- #index [Architecture] Finalized single page binder layout using Alpine.js and clean UWSDS CSS.
-- #index [Finance] Approved $15,000 infrastructure allocation for GCP migration.
-- Team sync went smoothly. Reminded everyone about tomorrow's demo.
-
-## Daily Tracker
-- Water: 8 / 8 glasses
-- Fitness: 45 min cardio
-- Priority Focus: 100% on Day Planner Goals`
+### 🚀 Get started
+1. **Explore today's view** — tasks, appointments, and notes all live on one page.
+2. *Tap sync* (🔄) to pull in your real Google Tasks, Calendar, and Drive.
+3. [[color:teal]]**Install the app**[[/color]] from the banner below for one-tap access anytime.
+4. Want the full walkthrough? See the **About** page.`
       },
-      indexEntries: [
-        { id: 'i1', date: '2026-08-15', topic: 'Architecture', summary: 'Finalized single page binder layout using Alpine.js', docUrl: '#doc-2026-08-15' },
-        { id: 'i2', date: '2026-08-15', topic: 'Finance', summary: 'Approved $15,000 infrastructure allocation for GCP migration', docUrl: '#doc-2026-08-15' }
-      ]
+      indexEntries: []
     };
   }
 

@@ -158,9 +158,9 @@ describe('GAS Bridge Unit Tests', () => {
     const bridge = new GASBridge(true);
     const data = await bridge.getDailyData('2026-08-15');
     assert.equal(data.date, '2026-08-15');
-    assert.equal(data.tasks.length, 4);
-    assert.equal(data.calendarEvents.length, 3);
-    assert.ok(data.noteContent.includes('Executive briefing'));
+    assert.equal(data.tasks.length, 1);
+    assert.equal(data.calendarEvents.length, 0);
+    assert.ok(data.noteContent.includes('Get started'));
   });
 
   it('should fetch a whole month of mock data bucketed by day via getMonthData', async () => {
@@ -172,9 +172,9 @@ describe('GAS Bridge Unit Tests', () => {
     assert.ok(monthData.days['2026-08-31']);
 
     const day15 = monthData.days['2026-08-15'];
-    assert.equal(day15.tasks.length, 4);
-    assert.equal(day15.calendarEvents.length, 3);
-    assert.ok(day15.noteContent.includes('Executive briefing'));
+    assert.equal(day15.tasks.length, 1);
+    assert.equal(day15.calendarEvents.length, 0);
+    assert.ok(day15.noteContent.includes('Get started'));
   });
 
   it('should fetch master tasks list', async () => {
@@ -190,15 +190,15 @@ describe('GAS Bridge Unit Tests', () => {
     assert.equal(newTask.title, '[B2] Send weekly status update');
 
     const updatedData = await bridge.getDailyData('2026-08-15');
-    assert.equal(updatedData.tasks.length, 5);
+    assert.equal(updatedData.tasks.length, 2);
   });
 
   it('should update an existing daily task via bridge handler', async () => {
     const bridge = new GASBridge(true);
-    const updated = await bridge.updateDailyTask('2026-08-15', 't2', { status: '✓', title: '[A2] Conduct team sync (Completed)' });
+    const updated = await bridge.updateDailyTask('2026-08-15', 't1', { status: '✓', title: 'Try the Day Planner app (Completed)' });
     assert.ok(updated);
     assert.equal(updated.status, '✓');
-    assert.equal(updated.title, '[A2] Conduct team sync (Completed)');
+    assert.equal(updated.title, 'Try the Day Planner app (Completed)');
   });
 
   it('should add and update calendar events with attendees, Google Meet, and Agenda Doc via bridge', async () => {
@@ -245,7 +245,7 @@ describe('GAS Bridge Unit Tests', () => {
     
     const syncResult = await bridge.syncWorkspace('2026-08-15');
     assert.ok(syncResult);
-    assert.ok(syncResult.tasks.length >= 5);
+    assert.ok(syncResult.tasks.length >= 2);
 
     // Day planners keep Tasks and Appointments distinct: an untimed task must never
     // project into calendarEvents as a phantom appointment.
@@ -259,7 +259,7 @@ describe('GAS Bridge Unit Tests', () => {
     const m1 = masterTasks.find(m => m.id === 'm1');
     const transferred = await bridge.transferMasterTask(m1, '2026-08-15', 'A');
     assert.ok(transferred);
-    assert.ok(transferred.title.startsWith('[A3]'));
+    assert.ok(transferred.title.startsWith('[A1]'));
     assert.equal(transferred.category, 'Work');
   });
 
@@ -284,7 +284,8 @@ describe('GAS Bridge Unit Tests', () => {
 
   it('should forward a daily task to the next day by default, marking the original FORWARDED', async () => {
     const bridge = new GASBridge(true);
-    const result = await bridge.forwardDailyTask('2026-08-15', 't2', { title: '[A2] Conduct team sync on Google Suite integration', category: 'Work' });
+    const added = await bridge.addDailyTask('2026-08-15', '[A2] Conduct team sync on Google Suite integration', 'Work');
+    const result = await bridge.forwardDailyTask('2026-08-15', added.id, { title: added.title, category: 'Work' });
     assert.ok(result);
     assert.equal(result.originalTask.status, '→');
     assert.equal(result.forwardedTask.dueDate, '2026-08-16');
@@ -297,7 +298,8 @@ describe('GAS Bridge Unit Tests', () => {
 
   it('should forward a daily task to an explicit target date', async () => {
     const bridge = new GASBridge(true);
-    const result = await bridge.forwardDailyTask('2026-08-15', 't3', { title: '[B1] Review Q3 budget draft', category: 'Financial' }, '2026-08-20');
+    const added = await bridge.addDailyTask('2026-08-15', '[B1] Review Q3 budget draft', 'Financial');
+    const result = await bridge.forwardDailyTask('2026-08-15', added.id, { title: added.title, category: 'Financial' }, '2026-08-20');
     assert.equal(result.forwardedTask.dueDate, '2026-08-20');
   });
 
