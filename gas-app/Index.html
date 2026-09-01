@@ -429,7 +429,7 @@
 
                     <input type="text" x-model="card.indexTopic" @input="syncCardsToDailyNote()" list="index-topics-datalist" placeholder="Local-only" class="card-topic-input" aria-label="Monthly Index Topic (optional)" title="Topic: set this to add the card to the Monthly Index. Leave blank to keep it private to today.">
 
-                    <input type="text" x-model="card.heading" @input="syncCardsToDailyNote()" :disabled="!card.indexTopic" :placeholder="card.indexTopic ? 'Summary for the index...' : 'Set a Topic to index this card'" class="card-heading-input" aria-label="Card Summary" title="Summary: the one-line description shown in the Monthly Index.">
+                    <textarea rows="1" maxlength="60" x-model="card.heading" :disabled="!card.indexTopic" x-init="$nextTick(() => autoGrowNoteHeading($el))" @input="syncCardsToDailyNote(); autoGrowNoteHeading($event.target)" :placeholder="card.indexTopic ? 'Summary for the index...' : 'Set a Topic to index this card'" class="card-heading-input" aria-label="Card Summary" title="Summary: the one-line description shown in the Monthly Index (60 char max)."></textarea>
 
                     <span class="card-heading-help" tabindex="0" role="note" aria-label="How Topic and Summary work">
                       <span class="material-symbols-outlined">info</span>

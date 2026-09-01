@@ -1782,6 +1782,14 @@
         if (card) card.collapsed = !card.collapsed;
       },
 
+      // Auto-grows the Summary textarea to fit its (maxlength-capped) content instead of
+      // scrolling, so wrapped text stays visible without a manual resize handle.
+      autoGrowNoteHeading(el) {
+        if (!el) return;
+        el.style.height = 'auto';
+        el.style.height = el.scrollHeight + 'px';
+      },
+
       // Splits a note card's content into its lines for per-line live-preview editing.
       cardLines(card) {
         return ((card && card.content) || '').split('\n');
