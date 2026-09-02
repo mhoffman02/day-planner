@@ -153,8 +153,11 @@ drifted. Kilo Code's rules specifically need no mirror at all — `kilo.jsonc`'s
 `instructions` array points straight at `.agents/rules/*.md`. Gemini CLI has no
 rules-directory concept; it gets the same content via `GEMINI.md`'s `@CLAUDE.md` import
 (Gemini's own supported `@path` memory-import mechanism, not Claude-file auto-discovery —
-Gemini CLI does not natively read `CLAUDE.md`). To activate the tracked cross-machine hook
-(`.githooks/pre-commit`) on a new clone, run once: `git config core.hooksPath .githooks`.
+Gemini CLI does not natively read `CLAUDE.md`). The tracked cross-machine hook
+(`.githooks/pre-commit`) is wired up automatically by the `prepare` npm script (runs on
+`npm install`, including a fresh clone or worktree) — no manual `git config core.hooksPath`
+step needed anymore. `core.hooksPath` lives in the shared, non-worktree-specific `.git/config`,
+so setting it once from any worktree activates it for the whole repo, all worktrees included.
 
 ## Key gotchas (see README.txt §5 for the full list)
 

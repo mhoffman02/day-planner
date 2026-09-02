@@ -4,6 +4,7 @@
   "description": "Day Planner (GAS MVP)",
   "type": "module",
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks",
     "test": "node --test tests/*.test.js",
     "start": "node server.js",
     "lint": "eslint src gas-app/*.gs tools server.js sw.js",
