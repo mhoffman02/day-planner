@@ -584,20 +584,16 @@
                     <td x-text="mTask.title"></td>
                     <td>
                       <span class="status-btn" x-text="mTask.status"></span>
-                      <template x-if="mTask.movedTo">
-                        <span class="master-task-moved-note" x-text="'Moved to ' + formatMovedDate(mTask.movedTo)"></span>
-                      </template>
+                      <span class="master-task-moved-note" x-show="mTask.movedTo" x-text="'Moved to ' + formatMovedDate(mTask.movedTo)"></span>
                     </td>
                     <td class="master-task-action-cell">
-                      <template x-if="!mTask.movedTo">
-                        <span>
-                          <input type="date" x-model="mTask._moveDate" class="master-task-date-input" :aria-label="'Move date for ' + mTask.title" :disabled="mTask._moving">
-                          <button type="button" class="btn-move-to" @click="moveMasterTaskToDate(mTask)" :disabled="mTask._moving">
-                            <span class="material-symbols-outlined icon-18" :class="{ spin: mTask._moving }" x-show="mTask._moving">progress_activity</span>
-                            <span x-text="mTask._moving ? 'Moving' : 'Move'"></span>
-                          </button>
-                        </span>
-                      </template>
+                      <span x-show="!mTask.movedTo">
+                        <input type="date" x-model="mTask._moveDate" class="master-task-date-input" :aria-label="'Move date for ' + mTask.title" :disabled="mTask._moving">
+                        <button type="button" class="btn-move-to" @click="moveMasterTaskToDate(mTask)" :disabled="mTask._moving">
+                          <span class="material-symbols-outlined icon-18" :class="{ spin: mTask._moving }" x-show="mTask._moving">progress_activity</span>
+                          <span x-text="mTask._moving ? 'Moving' : 'Move'"></span>
+                        </button>
+                      </span>
                     </td>
                   </tr>
                 </template>
