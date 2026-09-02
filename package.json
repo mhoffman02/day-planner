@@ -10,6 +10,7 @@
     "lint": "eslint src gas-app/*.gs tools server.js sw.js",
     "sync:agents": "node tools/sync-agent-config.js",
     "sync:agents:check": "node tools/sync-agent-config.js --check",
+    "sync:shell": "node tools/sync-shell-repo.js",
     "build:gas": "node tools/build-gas-engines.js",
     "build:gas:check": "node tools/build-gas-engines.js --check",
     "build:shell": "node tools/build-shell-bundle.js",

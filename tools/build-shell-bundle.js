@@ -14,6 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { ensureShellRepo } from './sync-shell-repo.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -106,6 +107,11 @@ function readExistingHash(bundlesJsonPath, appKey) {
 }
 
 // Run directly
+// Self-heals the canonical gh-pwa-shell/ checkout (clone if missing, pull if present) before
+// checking/building, so a worktree or fresh clone that lacks it no longer silently no-ops here
+// — see tools/sync-shell-repo.js and .agents/rules/sync-gas-app-and-shell-bundle.md.
+ensureShellRepo();
+
 const targetFiles = [
   path.join(ROOT_DIR, 'gh-pwa-shell/pwa.js'),
   path.resolve(ROOT_DIR, '../shell/pwa.js')
@@ -121,7 +127,7 @@ if (checkOnly) {
   // unrelated clone rather than an actively-used one).
   const canonicalTarget = path.join(ROOT_DIR, 'gh-pwa-shell/pwa.js');
   if (!fs.existsSync(canonicalTarget)) {
-    console.log('gh-pwa-shell/ checkout not present here — nothing to check.');
+    console.log('gh-pwa-shell/ checkout not present here (and could not be auto-cloned) — nothing to check.');
   } else {
     // `timestamp` always differs run-to-run, so compare the content hash only — that's what
     // actually reflects whether gas-app's Index/Styles/Script.html changed.

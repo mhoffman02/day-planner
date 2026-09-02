@@ -25,6 +25,31 @@ warning, nothing to notice — until someone happens to compare screenshots.
    `gh-pwa-shell`'s regenerated `bundles.json` separately, in the same work session as the
    `gas-app/` change that prompted it.
 
+## Nested checkout is now self-healing (`tools/sync-shell-repo.js`)
+
+A worktree or fresh clone of `day-planner` doesn't carry `gh-pwa-shell/` — it's a plain nested
+directory, not a submodule, so `git worktree add` and `git clone` never bring it along. That used
+to make step 3's check a **silent no-op**: `build:shell:check` printed
+`"gh-pwa-shell/ checkout not present here — nothing to check."` and exited 0, so a worktree commit
+could ship stale UI to the public shell with a clean pre-commit run.
+
+`tools/build-shell-bundle.js` now calls `ensureShellRepo()` (`tools/sync-shell-repo.js`) as its
+first step, every run — both plain `npm run build:shell` and the `--check` pre-commit gate. It
+clones `gh-pwa-shell` from its remote if the directory is missing, or fast-forward pulls it if
+present, before anything else happens. This means:
+
+- The pre-commit gate is now a **real check in every worktree**, not just the main checkout — a
+  stale bundle actually blocks the commit instead of silently passing.
+- You no longer need to manually `cp` or clone `gh-pwa-shell` into a worktree before running
+  `npm run build:shell` there.
+- It's best-effort and never throws: a clone/pull failure (no network, auth) is logged as a
+  warning and the check falls back to the old no-op behavior rather than blocking on
+  infrastructure it can't control. A dirty `gh-pwa-shell` working tree (uncommitted local
+  changes) skips the pull and checks against whatever's on disk.
+- Committing and pushing `gh-pwa-shell`'s regenerated `bundles.json` in its own repo (step 4
+  above) is still a separate, unautomated step — this only makes the *checkout* and the
+  *staleness check* automatic, not the commit/push.
+
 ## Two different kinds of "fresh," two different mechanisms
 
 - **`bundles.json` freshness** (this file) — same-origin, no CORS restriction. `pwa.js` can and
