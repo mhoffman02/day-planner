@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Post-commit hook: auto-deploy gas-app/ changes to the live GAS backend.
+#
+# Tracked (see .githooks/pre-commit's header comment for why: the git-managed
+# .git/hooks/ dir is never cloned). Activated the same way as pre-commit, via the
+# prepare npm script setting core.hooksPath to .githooks — see
+# .agents/rules/gas-deploy-pinned.md for the pinned deployment ID this pushes to.
+#
+# Post-commit hooks cannot block or undo the commit that already happened, so any
+# failure here is reported (never swallowed - see .agents/rules/no-silent-failures.md)
+# but always exits 0.
+
+GAS_APP_FILES=$(git diff --name-only HEAD~1 HEAD -- gas-app/ 2>/dev/null || true)
+
+if [ -z "$GAS_APP_FILES" ]; then
+  exit 0
+fi
+
+if ! command -v clasp >/dev/null 2>&1; then
+  echo "NOTE: gas-app/ changed in this commit but clasp is not on PATH - skipping auto-deploy."
+  echo "      Run manually: cd gas-app && clasp push --force && clasp deploy -i AKfycbyAejUd5SWdt5dbmtSKYJZvwqQ2RHU-V3_mARJp3MDjMZ_jrlP0MfWnyTPYp6hVSyO4"
+  exit 0
+fi
+
+echo "gas-app/ changed - pushing to /dev and the pinned production deployment..."
+COMMIT_SUBJECT=$(git log -1 --format=%s)
+
+if (cd gas-app && clasp push --force && clasp deploy -i AKfycbyAejUd5SWdt5dbmtSKYJZvwqQ2RHU-V3_mARJp3MDjMZ_jrlP0MfWnyTPYp6hVSyO4 --description "$COMMIT_SUBJECT"); then
+  echo "gas-app auto-deploy complete."
+else
+  echo "WARNING: gas-app auto-deploy failed. The commit itself already succeeded -"
+  echo "         deploy manually: cd gas-app && clasp push --force && clasp deploy -i AKfycbyAejUd5SWdt5dbmtSKYJZvwqQ2RHU-V3_mARJp3MDjMZ_jrlP0MfWnyTPYp6hVSyO4"
+fi
+exit 0
