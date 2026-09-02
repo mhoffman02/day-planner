@@ -11,6 +11,7 @@
 import { GASBridge } from './gasBridge.js';
 import { reconcileWorkspaceChanges } from './syncEngine.js';
 import IndexedDbStore from './indexedDbStore.js';
+import { getLocalDateStr } from './binderStore.js';
 window.GASBridge = GASBridge;
 
 // Month-overview cache freshness window for the rolling 3-month background prefetch (see
@@ -98,23 +99,6 @@ if ('serviceWorker' in navigator) {
   function isValidStatus(status) {
     return STATUS_LIST.includes(status);
   }
-
-/**
- * Formats a Date object (or parses a date string) as a local YYYY-MM-DD string.
- * Local mirror of `src/binderStore.js`'s `getLocalDateStr` for this bundled client script.
- * @param {Date|string} [d=new Date()] Date object or string.
- * @returns {string}
- */
-function getLocalDateStr(d = new Date()) {
-  if (typeof d === 'string') {
-    if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
-    d = new Date(d);
-  }
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
 
   /**
    * Registers the `plannerApp` Alpine.js component (all app state and methods) once Alpine has
@@ -693,9 +677,7 @@ function getLocalDateStr(d = new Date()) {
       async navigateDay(delta) {
         const [y, m, day] = this.selectedDate.split('-').map(Number);
         const d = new Date(y, m - 1, day + delta);
-        const monthStr = String(d.getMonth() + 1).padStart(2, '0');
-        const dayStr = String(d.getDate()).padStart(2, '0');
-        this.selectedDate = `${d.getFullYear()}-${monthStr}-${dayStr}`;
+        this.selectedDate = getLocalDateStr(d);
         this.selectedYear = d.getFullYear();
         this.selectedMonth = d.getMonth() + 1;
         await this.loadDayData();
@@ -895,7 +877,7 @@ function getLocalDateStr(d = new Date()) {
         for (let delta = -7; delta <= 7; delta++) {
           if (delta === 0) continue;
           const d = new Date(y, m - 1, day + delta);
-          const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          const dateStr = getLocalDateStr(d);
           if (this._prefetchInFlight.has(dateStr)) continue;
           IndexedDbStore.idbGetDaily(dateStr).then(cached => {
             if (cached) return;

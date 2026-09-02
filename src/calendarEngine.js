@@ -66,6 +66,10 @@ export function mapEventsToGrid(gridSlots = [], events = []) {
     const matchingSlot = grid.find(s => s.timeKey === targetKey);
     if (matchingSlot) {
       matchingSlot.events.push(formatEventModalPayload(evt));
+    } else if (isNaN(start.getTime())) {
+      // A valid time outside the 7am-7pm grid (e.g. a late-evening event) is intentionally
+      // left unmapped — only an unparseable startTime is a real problem worth surfacing.
+      console.warn(`mapEventsToGrid: event "${evt.title || evt.id || 'untitled'}" has an unparseable startTime (${evt.startTime}); dropped from the schedule grid.`);
     }
   });
 
@@ -116,6 +120,16 @@ export function generateMonthlyCalendarGrid(year, month, events = []) {
 
   const days = [];
 
+  // Bucket events by date once up front, instead of re-filtering the full events array on
+  // every day of the month below.
+  const eventsByDate = new Map();
+  events.forEach(e => {
+    if (!e.startTime) return;
+    const eDate = getLocalDateStr(new Date(e.startTime));
+    if (!eventsByDate.has(eDate)) eventsByDate.set(eDate, []);
+    eventsByDate.get(eDate).push(e);
+  });
+
   // Padding days from previous month
   const prevMonthLastDay = new Date(year, month - 1, 0).getDate();
   for (let i = startingDayOfWeek - 1; i >= 0; i--) {
@@ -130,16 +144,12 @@ export function generateMonthlyCalendarGrid(year, month, events = []) {
   // Days of current month
   for (let day = 1; day <= totalDays; day++) {
     const dateStr = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-    const dayEvents = events.filter(e => {
-      const eDate = e.startTime ? getLocalDateStr(new Date(e.startTime)) : '';
-      return eDate === dateStr;
-    });
 
     days.push({
       dateStr,
       dayNumber: day,
       isCurrentMonth: true,
-      events: dayEvents
+      events: eventsByDate.get(dateStr) || []
     });
   }
 
