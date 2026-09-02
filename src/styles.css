@@ -1590,11 +1590,12 @@ button.event-pill:hover {
 
 .gchat-toolbar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 4px;
-  row-gap: 6px;
   padding: 4px 8px;
+  overflow-x: auto;
+  scrollbar-width: thin;
   background: var(--theme-card-toolbar-bg);
   border-bottom: 1px solid var(--theme-card-toolbar-border);
 }
@@ -1609,6 +1610,7 @@ button.event-pill:hover {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .format-btn:hover:not(.color-swatch-btn) {
@@ -1621,6 +1623,7 @@ button.event-pill:hover {
   height: 16px;
   background: var(--theme-card-toolbar-border);
   margin: 0 4px;
+  flex-shrink: 0;
 }
 
 .color-swatch-btn {
