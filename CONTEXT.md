@@ -1,8 +1,8 @@
 # Session Context
 
-Generated: 2026-09-02T05:35:05.400Z
+Generated: 2026-09-02T05:43:13.734Z
 Branch: worktree-shell-placeholder-data
-Last commit: 75d8226 feat(gas-app): add automated guard against HtmlService's // truncation bug
+Last commit: b019b0c refactor(src): dedup getLocalDateStr in app.js; bucket month-grid events; warn on dropped events
 Uncommitted files: 0
 
 ## Open PLAN.md items
