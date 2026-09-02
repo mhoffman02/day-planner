@@ -27,7 +27,7 @@ const rootDir = path.resolve(__dirname, '..');
 const entryPath = path.join(rootDir, 'tools/gas-build/engines-entry.js');
 const scriptHtmlPath = path.join(rootDir, 'gas-app/Script.html');
 
-const START_MARKER = '  // === GENERATED begin: src/ engine bundle — regenerate with `node tools/build-gas-engines.js`, do not hand-edit ===';
+const START_MARKER = '  // === GENERATED begin: src/ engine bundle — regenerate with node tools/build-gas-engines.js, do not hand-edit ===';
 const END_MARKER = '  // === GENERATED end: src/ engine bundle ===';
 
 async function generateBody() {

@@ -1047,7 +1047,7 @@ table.task-table tbody tr:hover {
   border: 1px solid var(--theme-modal-border);
   border-radius: 6px;
   padding: 4px;
-  /* padding-top, not margin-top: a margin gap sits outside both elements' hit areas, so moving
+  /* padding-top, not margin-top: a margin gap sits outside both elements’ hit areas, so moving
      the mouse across it toward a menu item counts as leaving the hoverable region entirely. */
   padding-top: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
@@ -1520,9 +1520,9 @@ button.event-pill:hover {
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
-/* Chromium renders a native dropdown affordance for inputs with a `list` datalist
-   attribute; it eats into the input's content width without being reflected in
-   layout, so text clips well before the box's nominal width is used up. */
+/* Chromium renders a native dropdown affordance for inputs with a list datalist
+   attribute; it eats into the input’s content width without being reflected in
+   layout, so text clips well before the box’s nominal width is used up. */
 .card-topic-input::-webkit-calendar-picker-indicator {
   display: none;
 }

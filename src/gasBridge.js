@@ -354,11 +354,11 @@ export class GASBridge {
       const autoAgendaDoc = eventData.autoAgendaDoc !== undefined ? eventData.autoAgendaDoc : true;
 
       const meetLink = autoGoogleMeet
-        ? (eventData.meetLink || `https://meet.google.com/${Math.random().toString(36).slice(2, 5)}-${Math.random().toString(36).slice(2, 6)}-${Math.random().toString(36).slice(2, 5)}`)
+        ? (eventData.meetLink || ('https://meet.google.com/' + Math.random().toString(36).slice(2, 5) + '-' + Math.random().toString(36).slice(2, 6) + '-' + Math.random().toString(36).slice(2, 5)))
         : null;
 
       const agendaDocUrl = autoAgendaDoc
-        ? (eventData.agendaDocUrl || `https://docs.google.com/document/create?title=${encodeURIComponent('Agenda: ' + (eventData.title || 'New Appointment'))}`)
+        ? (eventData.agendaDocUrl || ('https://docs.google.com/document/create?title=' + encodeURIComponent('Agenda: ' + (eventData.title || 'New Appointment'))))
         : null;
 
       let fullDesc = eventData.description || '';

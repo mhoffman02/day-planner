@@ -1331,7 +1331,7 @@ function getLocalDateStr(d = new Date()) {
         let url = raw.trim();
         if (!url) return null;
         if (!/^[a-z][a-z0-9+.-]*:/i.test(url)) {
-          url = `https://${url}`;
+          url = 'https://' + url;
         }
         if (!/^(https?|mailto):/i.test(url)) return null;
         return url;
@@ -2213,7 +2213,7 @@ function getLocalDateStr(d = new Date()) {
         const endH = (this.newEventData.endTime || '09:25').replace(':', '') + '00';
         const dates = `${dateFormatted}T${startH}/${dateFormatted}T${endH}`;
 
-        let gCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&location=${location}&details=${details}`;
+        let gCalUrl = 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + title + '&dates=' + dates + '&location=' + location + '&details=' + details;
         if (addGuests) {
           gCalUrl += `&add=${addGuests}`;
         }
@@ -2253,7 +2253,7 @@ function getLocalDateStr(d = new Date()) {
             agendaDocUrl: null,
             attendees: attendeesList,
             guestsCanModify: false,
-            gCalLink: `https://calendar.google.com/calendar/r/day/${this.selectedDate.replace(/-/g, '/')}`
+            gCalLink: 'https://calendar.google.com/calendar/r/day/' + this.selectedDate.replace(/-/g, '/')
           };
 
           this.calendarEvents.push(newEvt);

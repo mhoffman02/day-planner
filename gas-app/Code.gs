@@ -22,8 +22,6 @@ function logError(context, err) {
   };
 }
 
-
-
 // Green day-planner binder icon (same artwork as gh-pwa-shell/icons/icon.svg,
 // hosted on the Shell's GitHub Pages site) instead of the generic Google
 // Calendar icon, which read as an unrelated Google app to users. Must be a
@@ -116,6 +114,7 @@ function doGet(e) {
 
     // 0. Zero-Trust Access Control Verification
     var auth = validateUserAccess();
+
     if (!auth.authorized) {
       return HtmlService.createHtmlOutput(
         '<div style="font-family:serif;max-width:600px;margin:50px auto;padding:30px;background:#fcfbfa;border:2px solid #b3392f;border-radius:8px;color:#1c2d27;">' +

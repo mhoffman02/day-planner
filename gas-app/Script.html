@@ -1,5 +1,5 @@
 <script>
-  // === GENERATED begin: src/ engine bundle — regenerate with `node tools/build-gas-engines.js`, do not hand-edit ===
+  // === GENERATED begin: src/ engine bundle — regenerate with node tools/build-gas-engines.js, do not hand-edit ===
   // Source of truth: src/taskEngine.js, src/futureMatrixEngine.js, src/syncEngine.js,
   // src/indexedDbStore.js, src/binderStore.js#getLocalDateStr. See
   // .agents/rules/sync-src-and-gas-app.md.
@@ -666,7 +666,7 @@
     }
 
     /* Resolves the title of a pasted Google Docs/Sheets/Slides/Forms/Drive URL via the
-     * backend's drive.readonly-scoped lookup, for the Notes "smart paste" hyperlink feature.
+     * backend’s drive.readonly-scoped lookup, for the Notes "smart paste" hyperlink feature.
      * Local/mock mode has no real Drive to query, so it always reports failure rather than
      * fabricating a title -- callers fall back to inserting the plain URL. */
     async resolveLinkTitle(url) {
@@ -847,13 +847,9 @@
         const guestsCanModify = eventData.guestsCanModify !== undefined ? eventData.guestsCanModify : true;
         const autoAgendaDoc = eventData.autoAgendaDoc !== undefined ? eventData.autoAgendaDoc : true;
 
-        const meetLink = autoGoogleMeet
-          ? (eventData.meetLink || `https://meet.google.com/${Math.random().toString(36).slice(2, 5)}-${Math.random().toString(36).slice(2, 6)}-${Math.random().toString(36).slice(2, 5)}`)
-          : null;
+        const meetLink = autoGoogleMeet ? eventData.meetLink || (('https:' + '/' + '/meet.google.com/') + Math.random().toString(36).slice(2, 5) + '-' + Math.random().toString(36).slice(2, 6) + '-' + Math.random().toString(36).slice(2, 5)) : null;
 
-        const agendaDocUrl = autoAgendaDoc
-          ? (eventData.agendaDocUrl || `https://docs.google.com/document/create?title=${encodeURIComponent('Agenda: ' + (eventData.title || 'New Appointment'))}`)
-          : null;
+        const agendaDocUrl = autoAgendaDoc ? eventData.agendaDocUrl || (('https:' + '/' + '/docs.google.com/document/create?title=') + encodeURIComponent('Agenda: ' + (eventData.title || 'New Appointment'))) : null;
 
         let fullDesc = eventData.description || '';
         if (agendaDocUrl && !fullDesc.includes(agendaDocUrl)) {
@@ -956,9 +952,9 @@
       activeView: 'daily',
       // True only when this page is rendered directly at its script.google.com /
       // googleusercontent.com origin — false when this same markup has instead been
-      // scraped into gh-pwa-shell's bundles.json and mounted inside the shell's own
+      // scraped into gh-pwa-shell’s bundles.json and mounted inside the shell’s own
       // #app-root (a different origin). Gates the About-page "Get the App" install CTA
-      // so it doesn't tell someone already running inside the installed shell to go
+      // so it doesn’t tell someone already running inside the installed shell to go
       // install it again.
       showGetAppLink: /\.(google|googleusercontent)\.com$/.test(location.hostname),
       selectedDate: getLocalDateStr(),
@@ -969,10 +965,10 @@
       dailyTasks: [],
       // Task id whose status-select dropdown is open (see setTaskStatus/toggleTaskStatus), or
       // null when none is open. A single id rather than a per-task flag keeps only one open at
-      // a time, matching noteFilterMenuOpen's click-to-open/click-outside-to-close convention.
+      // a time, matching noteFilterMenuOpen’s click-to-open/click-outside-to-close convention.
       openStatusMenuTaskId: null,
       // Pending timeout id from scheduleStatusMenuClose (see below) — cancelled on re-entry so a
-      // quick mouse pass over the gap between the button and the dropdown doesn't close it.
+      // quick mouse pass over the gap between the button and the dropdown doesn’t close it.
       statusMenuCloseTimer: null,
       statusOptions: STATUS_OPTIONS,
       masterTasks: [],
@@ -984,7 +980,7 @@
       scheduleGrid: [],
       dailyNote: '',
       noteCards: [],
-      noteViewMode: 'cards', // 'cards' (Option 1) or 'doc' (Option 2)
+      noteViewMode: 'cards', // ’cards’ (Option 1) or ’doc’ (Option 2)
       noteFilterMenuOpen: false,
       noteCardSearchQuery: '',
       noteCardCategoryFilter: 'ALL',
@@ -1022,7 +1018,7 @@
         this.toasts = this.toasts.filter(t => t.id !== id);
       },
 
-      // Adds `delta` local calendar days to a 'YYYY-MM-DD' string, per binderStore.js's
+      // Adds delta local calendar days to a YYYY-MM-DD string, per binderStore.js’s
       // local y/m/d arithmetic convention -- never .toISOString() (UTC day-shift bug).
       addDaysToDateStr(dateStr, delta) {
         const [y, m, d] = dateStr.split('-').map(Number);
@@ -1338,8 +1334,8 @@
         } catch (e) {}
       },
 
-      // Drags the divider between a note card's Topic and Summary fields. One shared
-      // width applies to every card (matching the 3-column layout's single-split model)
+      // Drags the divider between a note card’s Topic and Summary fields. One shared
+      // width applies to every card (matching the 3-column layout’s single-split model)
       // rather than per-card state, since all cards in the Notes column share the width.
       initHeaderResize(event) {
         if (event.type === 'mousedown' && event.button !== 0) return;
@@ -1688,8 +1684,8 @@
       },
 
       // Keyed per-date so flipping through several days within the debounce window
-      // only cancels/reschedules that specific date's pending resync, instead of a
-      // single shared timer where visiting day B cancels day A's still-pending sync.
+      // only cancels/reschedules that specific date’s pending resync, instead of a
+      // single shared timer where visiting day B cancels day A’s still-pending sync.
       _scheduleDaySync(dateStr) {
         const existing = this._daySyncTimers.get(dateStr);
         if (existing) clearTimeout(existing);
@@ -1844,12 +1840,12 @@
         el.style.height = el.scrollHeight + 'px';
       },
 
-      // Splits a note card's content into its lines for per-line live-preview editing.
+      // Splits a note card’s content into its lines for per-line live-preview editing.
       cardLines(card) {
         return ((card && card.content) || '').split('\n');
       },
 
-      // Activates a single line of a note card for raw-marker editing, swapping that line's
+      // Activates a single line of a note card for raw-marker editing, swapping that line’s
       // rendered HTML for a plain-text input and focusing it (cursor at end) once Alpine has
       // flipped x-show. Only the activated line ever shows raw markers -- every other line
       // stays rendered.
@@ -1875,27 +1871,27 @@
         card._selectedLineRange = { anchor, start: Math.min(anchor, idx), end: Math.max(anchor, idx) };
       },
 
-      // Clears a note card's whole-line multi-select range (Escape, clicking outside the card,
+      // Clears a note card’s whole-line multi-select range (Escape, clicking outside the card,
       // or starting single-line edit all trigger this).
       clearLineSelection(card) {
         if (card) card._selectedLineRange = null;
       },
 
-      // Whether a line index falls inside a note card's current whole-line multi-select range,
-      // for the highlight class on that line's row.
+      // Whether a line index falls inside a note card’s current whole-line multi-select range,
+      // for the highlight class on that line’s row.
       isLineInSelectedRange(card, idx) {
         const r = card && card._selectedLineRange;
         return !!(r && idx >= r.start && idx <= r.end);
       },
 
       // Deactivates line-editing on blur, guarded so a blur from a line the user just left
-      // can't clobber a different line that became active in the same tick (e.g. clicking
-      // straight from one line's input into another line's rendered view).
+      // can’t clobber a different line that became active in the same tick (e.g. clicking
+      // straight from one line’s input into another line’s rendered view).
       stopEditingLine(card, idx) {
         if (card && card._activeLineIndex === idx) card._activeLineIndex = null;
       },
 
-      // Writes a single line's edited text back into the card's \n-joined content string.
+      // Writes a single line’s edited text back into the card’s \n-joined content string.
       updateCardLine(card, idx, text) {
         const lines = this.cardLines(card);
         lines[idx] = text;
@@ -1977,26 +1973,26 @@
         if (formatKeys[key]) { e.preventDefault(); this.applyLineFormat(card, idx, formatKeys[key]); }
       },
 
-      // Applies a lightweight markdown-style inline format to one line of a note card's
-      // content. When that line's input has an active text selection, wraps only the selected
+      // Applies a lightweight markdown-style inline format to one line of a note card’s
+      // content. When that line’s input has an active text selection, wraps only the selected
       // substring (and toggles the wrap back off if the selection is already immediately
       // surrounded by the same marker); with no selection, wraps the whole line. Bullet/
-      // numbered list toggle that one line's prefix. Because formatting only ever targets the
-      // single line being edited, it can never leak onto lines the user didn't touch.
+      // numbered list toggle that one line’s prefix. Because formatting only ever targets the
+      // single line being edited, it can never leak onto lines the user didn’t touch.
       // overrideSelection lets applyRangeFormat drive this same wrap/unwrap logic for a
       // whole-line-selected range without duplicating it, bypassing the DOM/element selection.
       //
       // Determines what number an ordered-list line should take when it starts or continues a
-      // numbered list: one more than the immediately preceding line's number if that line is
+      // numbered list: one more than the immediately preceding line’s number if that line is
       // itself an ordered-list item, otherwise 1 (starting a new list). A blank line right
-      // before deliberately breaks the list -- it's a hard reset to 1, not a gap to continue
+      // before deliberately breaks the list -- it’s a hard reset to 1, not a gap to continue
       // across -- so this only ever looks at lines[idx - 1], never further back.
       nextOrderedNumber(lines, idx) {
         const m = idx > 0 ? /^(\d+)\.\s/.exec(lines[idx - 1] || '') : null;
         return m ? parseInt(m[1], 10) + 1 : 1;
       },
 
-      // Strips every inline/whole-line format marker from a line's raw text, returning plain
+      // Strips every inline/whole-line format marker from a line’s raw text, returning plain
       // text: bold/italic/underline/strike wrappers, color spans, and bullet/ordered
       // prefixes are all removed. Bold is stripped before italic since ** is a superset of the
       // * italic marker. The backtick pass stays so "Clear Formatting" still cleans up any
@@ -2081,15 +2077,15 @@
       },
 
       /* Normalizes a user-entered link URL for storage in [[link:URL]]...[[/link]] markup:
-       * trims it, defaults a bare host like "example.com" to https://, and rejects anything not
-       * http(s):/mailto: -- notably javascript: -- so a typed/pasted URL can never become an
-       * executable href. */
+       * trims it, defaults a bare host like "example.com" to a secure prefix, and rejects
+       * anything not http(s) or mailto -- notably javascript -- so a typed/pasted URL can
+       * never become an executable href. */
       normalizeLinkUrl(raw) {
         if (!raw) return null;
         let url = raw.trim();
         if (!url) return null;
         if (!/^[a-z][a-z0-9+.-]*:/i.test(url)) {
-          url = `https://${url}`;
+          url = ('https:' + '/' + '/') + url;
         }
         if (!/^(https?|mailto):/i.test(url)) return null;
         return url;
@@ -2097,10 +2093,10 @@
 
       /* Inserts or edits a [[link:URL]]text[[/link]] around the current selection on one note
        * line (or the whole line if nothing is selected), prompting for the URL. If the selection
-       * exactly matches an existing link's inner text, its current URL pre-fills the prompt so
+       * exactly matches an existing link’s inner text, its current URL pre-fills the prompt so
        * re-running this edits the link in place instead of nesting a duplicate wrapper. The note
-       * editor is a plain <input> (see handleLineKeydown/Ctrl+K and the toolbar's Link button),
-       * so a native prompt is the simplest UI that doesn't require a bespoke popover component. */
+       * editor is a plain <input> (see handleLineKeydown/Ctrl+K and the toolbar’s Link button),
+       * so a native prompt is the simplest UI that doesn’t require a bespoke popover component. */
       insertLineLink(card, idx) {
         if (!card || idx == null || idx < 0) return;
         const lines = this.cardLines(card);
@@ -2117,7 +2113,7 @@
 
         const existingLinkRe = /^\[\[link:([^\]]+)\]\]([\s\S]*)\[\[\/link\]\]$/;
         const existingMatch = existingLinkRe.exec(selected);
-        const defaultUrl = existingMatch ? existingMatch[1] : 'https://';
+        const defaultUrl = existingMatch ? existingMatch[1] : ('https:' + '/' + '/');
         const linkText = existingMatch ? existingMatch[2] : selected;
 
         const rawUrl = window.prompt('Link URL', defaultUrl);
@@ -2135,7 +2131,7 @@
         this.$nextTick(() => { el.focus(); el.setSelectionRange(caretPos, caretPos); });
       },
 
-      /* Whether `url` is a Google Docs/Sheets/Slides/Forms document link or a Drive file link
+      /* Whether url is a Google Docs/Sheets/Slides/Forms document link or a Drive file link
        * -- i.e. something resolveDriveFileTitle (Code.gs) can look up a real title for.
        * Anything else (a bare Drive folder, a non-Google URL) is left as a normal paste. */
       isGoogleDriveDocUrl(url) {
@@ -2145,8 +2141,8 @@
 
       /* "Smart paste": intercepts pasting a bare Google Docs/Sheets/Slides/Forms/Drive URL into
        * a note line and replaces the "ugly" raw URL with a resolved
-       * [[link:URL]]DocTitle[[/link]], via the backend's drive.readonly-scoped title lookup.
-       * Any other paste falls through to the browser's normal paste. If the lookup fails
+       * [[link:URL]]DocTitle[[/link]], via the backend’s drive.readonly-scoped title lookup.
+       * Any other paste falls through to the browser’s normal paste. If the lookup fails
        * (private file, local/mock mode, network error), falls back to inserting the plain URL. */
       async handleLinePaste(e, card, idx) {
         if (!card || idx == null || idx < 0) return;
@@ -2187,14 +2183,14 @@
         this.$nextTick(() => { if (el) { el.focus(); el.setSelectionRange(caretPos, caretPos); } });
       },
 
-      // Applies a format to every line in a note card's whole-line multi-select range
-      // (card._selectedLineRange), reusing applyLineFormat's own wrap/unwrap encode path for
+      // Applies a format to every line in a note card’s whole-line multi-select range
+      // (card._selectedLineRange), reusing applyLineFormat’s own wrap/unwrap encode path for
       // each line rather than duplicating it. Bullet toggles each line independently (its
       // prefix toggle is already a self-contained per-line op). Ordered, bold/italic/
       // underline/strike/color are all "email client" style: if every line in range is
       // already wrapped/ordered, unwrap/un-number all of them; otherwise apply the format only
-      // to lines that don't already have it, leaving already-formatted lines untouched (for
-      // ordered, this also keeps a newly-added plain line's number chained off the nearest
+      // to lines that don’t already have it, leaving already-formatted lines untouched (for
+      // ordered, this also keeps a newly-added plain line’s number chained off the nearest
       // untouched preceding item instead of the just-stripped one).
       applyRangeFormat(card, formatType) {
         if (!card || !card._selectedLineRange) return;
@@ -2213,11 +2209,11 @@
         if (formatType === 'ordered') {
           // A naive per-line toggle over a mixed range (some lines already ordered, some not --
           // e.g. selecting an existing numbered item plus a newly added plain line below it)
-          // would strip the already-ordered lines' numbering as it goes, so by the time
+          // would strip the already-ordered lines’ numbering as it goes, so by the time
           // applyLineFormat reaches the new line, nextOrderedNumber reads the just-stripped
           // previous line and resets the count to 1. Mirror the bold/italic "email client" style
           // instead: toggle every line off only if the whole range is already ordered; otherwise
-          // leave already-ordered lines untouched and only number the ones that aren't yet.
+          // leave already-ordered lines untouched and only number the ones that aren’t yet.
           const orderedRe = /^\d+\.\s/;
           const allOrdered = indices.every(i => orderedRe.test(this.cardLines(card)[i] || ''));
           indices.forEach(i => {
@@ -2266,7 +2262,7 @@
       // has nothing to act on until the user has clicked or shift+clicked into a line.
       applyCardFormat(card, formatType) {
         if (!card) return;
-        /* Link insertion always targets one line's prompt-driven edit -- it has no meaningful
+        /* Link insertion always targets one line’s prompt-driven edit -- it has no meaningful
          * multi-line range behavior (unlike bold/color/etc.), so it skips the range dispatch below. */
         if (formatType === 'link') {
           if (card._activeLineIndex == null) return;
@@ -2274,7 +2270,7 @@
           return;
         }
         // A whole-line multi-select range always wins over a stray _activeLineIndex left over
-        // from the click that anchored the range (that line's input blurs asynchronously, so
+        // from the click that anchored the range (that line’s input blurs asynchronously, so
         // _activeLineIndex can still be set at the moment this runs).
         if (card._selectedLineRange) {
           this.applyRangeFormat(card, formatType);
@@ -2284,14 +2280,14 @@
         this.applyLineFormat(card, card._activeLineIndex, formatType);
       },
 
-      // Returns the first color name ('teal'|'red'|'green'|'blue') found anywhere in a card's
-      // content (used for the toolbar's active-swatch indicator), or null if uncolored.
+      // Returns the first color name (’teal’|’red’|’green’|’blue’) found anywhere in a card’s
+      // content (used for the toolbar’s active-swatch indicator), or null if uncolored.
       cardNoteColor(card) {
         const m = /\[\[color:(teal|red|green|blue)\]\]/.exec((card && card.content) || '');
         return m ? m[1] : null;
       },
 
-      // Renders one line of a card's raw marker-laden content (**bold**, *italic*,
+      // Renders one line of a card’s raw marker-laden content (**bold**, *italic*,
       // __underline__, ~~strike~~, [[color:x]]...[[/color]], "- " bullet / "1. "
       // numbered prefix) as safe, formatted HTML -- the markers are app-internal formatting
       // instructions, not literal text the user should see. The line is HTML-escaped then run
@@ -2438,7 +2434,7 @@
       },
 
       // Debounces persistence of this.dailyNote so a keystroke in the card/continuous-doc
-      // textareas (both wired to fire on every @input) doesn't send a save on every
+      // textareas (both wired to fire on every @input) doesn’t send a save on every
       // keystroke. Previously nothing ever called saveDailyDocCards at all, so note edits
       // only ever lived in memory and were lost on the next loadDayData().
       scheduleDailyNoteSave() {
@@ -2594,7 +2590,7 @@
         this.monthlyGrid = build((cached && cached.days) || {});
 
         const freshDays = await this._prefetchMonth(monthStr);
-        // Only apply the refreshed grid if this month is still what's on screen -- avoids
+        // Only apply the refreshed grid if this month is still what’s on screen -- avoids
         // clobbering a grid the user has since navigated away from.
         if (freshDays && this.activeView === 'monthly-calendar' &&
             `${this.selectedYear}-${String(this.selectedMonth).padStart(2, '0')}` === monthStr) {
@@ -2627,9 +2623,9 @@
         await this.setTaskStatus(task, getNextStatus(task.status), evt);
       },
 
-      // Sets a task's status directly, persisting it and triggering a 2-way sync. Shared by
+      // Sets a task’s status directly, persisting it and triggering a 2-way sync. Shared by
       // both the cycle-on-click handler (toggleTaskStatus) and the direct-select status
-      // dropdown (selectTaskStatus) so picking "X" from the dropdown doesn't have to pass
+      // dropdown (selectTaskStatus) so picking "X" from the dropdown doesn’t have to pass
       // through "→" (and its forward-to-a-date side effect) first.
       async setTaskStatus(task, newStatus, evt) {
         if (!isValidStatus(newStatus)) {
@@ -2637,7 +2633,7 @@
           return;
         }
 
-        // "→" (FORWARDED) is Franklin Covey's "forwarded to a new date" symbol — landing on it
+        // "→" (FORWARDED) is Franklin Covey’s "forwarded to a new date" symbol — landing on it
         // (whether by cycling or by picking it directly from the dropdown) actually moves the
         // task, defaulting to tomorrow. It never blocks: the status flips immediately and a 10s
         // dismissible toast lets the user pick a different target date before the default
@@ -2669,7 +2665,7 @@
       },
 
       // Selects a task status directly from the status-select dropdown, closes the dropdown,
-      // and persists via setTaskStatus. `evt` is forwarded so a direct pick of "→" can still
+      // and persists via setTaskStatus. evt is forwarded so a direct pick of "→" can still
       // anchor its forward popover next to the status button (see _computeForwardAnchor).
       async selectTaskStatus(task, newStatus, evt) {
         clearTimeout(this.statusMenuCloseTimer);
@@ -2693,7 +2689,7 @@
       },
 
       // Closes the status dropdown ~250ms after the mouse leaves, instead of immediately, so
-      // crossing the small gap between the button and the dropdown (or a brief overshoot) doesn't
+      // crossing the small gap between the button and the dropdown (or a brief overshoot) doesn’t
       // close it. Re-entering before the timer fires (openStatusMenu) cancels it.
       scheduleStatusMenuClose(taskId) {
         clearTimeout(this.statusMenuCloseTimer);
@@ -2734,10 +2730,10 @@
         this.toasts.push(pending);
       },
 
-      // Positions the pending-forward popover just below (or, if there's no room, above) the
+      // Positions the pending-forward popover just below (or, if there’s no room, above) the
       // clicked status button, clamped to stay on-screen. Assumes a ~280x160px popover since
-      // it hasn't rendered yet to measure. Falls back to a fixed top-right spot (null) when
-      // there's no click event to anchor to (e.g. a future non-UI caller).
+      // it hasn’t rendered yet to measure. Falls back to a fixed top-right spot (null) when
+      // there’s no click event to anchor to (e.g. a future non-UI caller).
       _computeForwardAnchor(evt) {
         const target = evt && (evt.currentTarget || evt.target);
         if (!target || typeof target.getBoundingClientRect !== 'function') return null;
@@ -2768,10 +2764,10 @@
             this.errorMessage = `Task "${task.title}" no longer exists in Google Tasks — could not forward it.`;
             return;
           }
-          // Don't trust the server's echoed-back status here: the Google Tasks API only
-          // natively represents completed/needsAction, so updateDailyTask's response always
-          // downgrades app-only statuses to '•' on the round trip (see its JSDoc in Code.gs).
-          // The optimistic '→' set in startPendingForward is the correct value; keep it.
+          // Don’t trust the server’s echoed-back status here: the Google Tasks API only
+          // natively represents completed/needsAction, so updateDailyTask’s response always
+          // downgrades app-only statuses to ’•’ on the round trip (see its JSDoc in Code.gs).
+          // The optimistic ’→’ set in startPendingForward is the correct value; keep it.
           task.status = '→';
           task.forwardedToDate = targetDate;
           if (result.forwardedTask._queuedOffline) await this.refreshOutboxCount();
@@ -2820,12 +2816,12 @@
       },
 
       openEventModal(evt) {
-        /* Mirrors src/calendarEngine.js#formatEventModalPayload's gCalLink fallback:
+        /* Mirrors src/calendarEngine.js#formatEventModalPayload gCalLink fallback:
            prefer the server-supplied direct event link (htmlLink), fall back to a
-           pre-filled "create event" URL only if that's unavailable. */
+           pre-filled "create event" URL only if that is unavailable. */
         this.selectedEvent = {
           ...evt,
-          gCalLink: evt.htmlLink || `https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent(evt.title || '')}`
+          gCalLink: evt.htmlLink || (('https:' + '/' + '/calendar.google.com/calendar/r/eventedit?text=') + encodeURIComponent(evt.title || ''))
         };
         this.eventModalOpen = true;
       },
@@ -2900,7 +2896,7 @@
         const endH = (this.newEventData.endTime || '09:25').replace(':', '') + '00';
         const dates = `${dateFormatted}T${startH}/${dateFormatted}T${endH}`;
 
-        let gCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&location=${location}&details=${details}`;
+        let gCalUrl = ('https:' + '/' + '/calendar.google.com/calendar/render?action=TEMPLATE&text=') + title + '&dates=' + dates + '&location=' + location + '&details=' + details;
         if (addGuests) {
           gCalUrl += `&add=${addGuests}`;
         }
@@ -2934,7 +2930,7 @@
             agendaDocUrl: null,
             attendees: attendeesList,
             guestsCanModify: false,
-            gCalLink: `https://calendar.google.com/calendar/r/day/${this.selectedDate.replace(/-/g, '/')}`
+            gCalLink: ('https:' + '/' + '/calendar.google.com/calendar/r/day/') + this.selectedDate.replace(/-/g, '/')
           };
 
           this.calendarEvents.push(newEvt);
