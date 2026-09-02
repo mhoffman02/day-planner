@@ -12,6 +12,7 @@ npm run build:gas       # Regenerate gas-app/Script.html's generated engine bloc
 npm run build:gas:check # Fail if that block is stale relative to src/ (pre-commit gate)
 npm run build:shell       # Regenerate gh-pwa-shell/bundles.json from current gas-app/ (offline shell snapshot)
 npm run build:shell:check # Fail if that snapshot is stale relative to gas-app/ (pre-commit gate)
+npm run check:gas-html-safe-chars # Fail if gas-app/Script.html has a `//`/backtick/apostrophe HtmlService truncates on (pre-commit gate)
 ```
 
 Deploying to the live Google Apps Script backend:

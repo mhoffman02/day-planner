@@ -60,6 +60,19 @@ if ! node tools/build-gas-engines.js --check >/tmp/build-gas-check.$$ 2>&1; then
 fi
 rm -f /tmp/build-gas-check.$$
 
+# ── gas-app/Script.html unsafe-char check ───────────────────────────────────
+# HtmlService.createHtmlOutputFromFile().getContent() silently truncates Script.html at a
+# literal `//` inside a string/template literal, or a backtick/apostrophe/`//` inside a
+# comment (caused the 2026-09-01 production outage — see
+# memory/project_gas_line_comment_syntax_error.md). Block the commit before that byte pattern
+# ever reaches production again.
+if ! node tools/check-gas-script-html-safe-chars.js >/tmp/gas-safe-chars-check.$$ 2>&1; then
+  cat /tmp/gas-safe-chars-check.$$
+  echo "❌ [BLOCKER] gas-app/Script.html contains a byte pattern HtmlService truncates on — see output above"
+  ERRORS=$((ERRORS + 1))
+fi
+rm -f /tmp/gas-safe-chars-check.$$
+
 # ── gh-pwa-shell/bundles.json drift check ───────────────────────────────────
 # gh-pwa-shell/bundles.json is a snapshot of gas-app's Index/Styles/Script.html baked in by
 # tools/build-shell-bundle.js. It's the offline-first payload the public shell mounts by

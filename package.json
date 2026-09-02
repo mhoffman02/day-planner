@@ -12,7 +12,8 @@
     "build:gas": "node tools/build-gas-engines.js",
     "build:gas:check": "node tools/build-gas-engines.js --check",
     "build:shell": "node tools/build-shell-bundle.js",
-    "build:shell:check": "node tools/build-shell-bundle.js --check"
+    "build:shell:check": "node tools/build-shell-bundle.js --check",
+    "check:gas-html-safe-chars": "node tools/check-gas-script-html-safe-chars.js"
   },
   "keywords": [
     "day-planner",
