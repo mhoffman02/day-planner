@@ -567,7 +567,7 @@
                   <th scope="col">Category</th>
                   <th scope="col">Task Title</th>
                   <th scope="col">Status</th>
-                  <th scope="col" class="th-w-150 th-align-right">Action</th>
+                  <th scope="col" class="th-w-150">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -576,11 +576,9 @@
                     <td><b x-text="mTask.category"></b></td>
                     <td x-text="mTask.title"></td>
                     <td><span class="status-btn" x-text="mTask.status"></span></td>
-                    <td class="td-align-right master-task-action-cell">
+                    <td class="master-task-action-cell">
                       <input type="date" x-model="mTask._moveDate" class="master-task-date-input" :aria-label="'Move date for ' + mTask.title">
-                      <button type="button" class="btn-primary btn-sm" @click="moveMasterTaskToDate(mTask)">
-                        <span class="material-symbols-outlined icon-14">east</span> Move to...
-                      </button>
+                      <button type="button" class="btn-move-to" @click="moveMasterTaskToDate(mTask)">Move</button>
                     </td>
                   </tr>
                 </template>

@@ -996,8 +996,8 @@ table.task-table tbody tr:hover {
 .master-task-action-cell {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
+  justify-content: flex-start;
+  gap: 0;
 }
 
 .master-task-date-input {
@@ -1006,10 +1006,31 @@ table.task-table tbody tr:hover {
   height: 24px;
   background-color: var(--theme-input-bg);
   color: var(--theme-input-fg);
-  border: 1px solid var(--theme-input-border);
-  border-radius: 4px;
+  border: 1px solid var(--theme-primary);
+  border-right: none;
+  border-radius: 4px 0 0 4px;
   outline: none;
   width: 128px;
+}
+
+.btn-move-to {
+  background: transparent;
+  color: var(--theme-primary);
+  border: 1px solid var(--theme-primary);
+  border-radius: 0 4px 4px 0;
+  height: 24px;
+  padding: 2px 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  transition: background-color 0.15s ease;
+}
+
+.btn-move-to:hover {
+  background: color-mix(in srgb, var(--theme-primary) 16%, transparent);
 }
 
 .priority-badge {
