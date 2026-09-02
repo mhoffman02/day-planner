@@ -1073,6 +1073,29 @@ table.task-table tbody tr:hover {
   white-space: nowrap;
 }
 
+.master-tasks-table {
+  table-layout: fixed;
+}
+
+.master-tasks-table th:nth-child(1),
+.master-tasks-table td:nth-child(1) {
+  width: 100px;
+}
+
+.master-tasks-table th:nth-child(3),
+.master-tasks-table td:nth-child(3) {
+  width: 140px;
+}
+
+.master-tasks-table th:nth-child(4),
+.master-tasks-table td:nth-child(4) {
+  width: 230px;
+}
+
+.master-tasks-table td:nth-child(2) {
+  overflow-wrap: break-word;
+}
+
 .master-task-category-input {
   max-width: 120px;
 }
