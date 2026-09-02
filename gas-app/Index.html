@@ -520,10 +520,6 @@
 
             <!-- Mode 2: Continuous Lined Doc (Option 2 - Future To-Do Preview) -->
             <div class="note-doc-container" x-show="noteViewMode === 'doc'">
-              <div class="doc-preview-badge">
-                <span class="material-symbols-outlined icon-16">info</span>
-                <span>Option 2 Preview: Continuous Lined Doc with Collapsible H3 Accordions</span>
-              </div>
               <div class="note-doc-render" x-show="!docPreviewEditing" @click="docPreviewEditing = true; $nextTick(() => $refs.docTextarea && $refs.docTextarea.focus())" x-html="renderDailyNotePreview()" aria-label="Daily notes rendered preview, click to edit" tabindex="0" @keydown.enter="docPreviewEditing = true; $nextTick(() => $refs.docTextarea && $refs.docTextarea.focus())"></div>
               <textarea x-show="docPreviewEditing" x-ref="docTextarea" x-model="dailyNote" @input="syncDailyNoteToCards()" @blur="docPreviewEditing = false" placeholder="# Aug 15, 2026\n\n### Topic 1\nNotes..." class="continuous-doc-textarea" aria-label="Continuous Daily Notes"></textarea>
             </div>
