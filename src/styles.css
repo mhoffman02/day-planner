@@ -1742,6 +1742,32 @@ button.event-pill:hover {
   outline: none;
 }
 
+.note-doc-render {
+  width: 100%;
+  min-height: 380px;
+  box-sizing: border-box;
+  font-family: var(--font-family);
+  font-size: 0.9rem;
+  line-height: 28px;
+  padding: 12px;
+  border: 1px solid var(--theme-card-textarea-border);
+  background: var(--theme-card-textarea-bg);
+  color: var(--theme-card-textarea-fg);
+  cursor: text;
+}
+
+.doc-preview-heading-main {
+  font-family: var(--header-font-family);
+  font-size: 1.3rem;
+  margin: 0 0 10px;
+}
+
+.doc-preview-heading {
+  font-family: var(--header-font-family);
+  font-size: 1.05rem;
+  margin: 18px 0 6px;
+}
+
 /* ==========================================================================
    9. MONTHLY CALENDAR, VIEWS & CARDS
    ========================================================================== */
@@ -2180,17 +2206,10 @@ article.about-container {
 }
 
 .about-version {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
   flex-shrink: 0;
-  padding: 4px 10px;
-  border-radius: 6px;
-  background: var(--theme-table-header-bg);
-  border: 1px solid var(--theme-panel-border);
   color: var(--theme-primary);
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: 0.85rem;
+  font-weight: 700;
   white-space: nowrap;
 }
 

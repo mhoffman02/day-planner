@@ -29,6 +29,21 @@ function logError(context, err) {
 // "The favicon icon image type is not supported."
 var DAY_PLANNER_FAVICON_URL = 'https://mhoffman02.github.io/shell/icons/icon-192.png';
 
+// Single source of truth for the app version shown on the Help page (About.html, via
+// getAppVersion()) and baked into the exported bundle's cache-validation hash
+// (getCompiledAppBundle()) -- see .agents/rules/single-source-of-truth-constants.md. All .gs
+// files in an Apps Script project share one global scope, so this is visible to both without
+// an import.
+var APP_VERSION = '1.3.0';
+
+/**
+ * Returns the single-source-of-truth app version for display (e.g. the Help page badge).
+ * @returns {string} Current app version string.
+ */
+function getAppVersion() {
+  return APP_VERSION;
+}
+
 /**
  * Multi-Tenant & Per-User Privacy Access Control Helper.
  * In public client / multi-user mode ("executeAs: USER_ACCESSING"):
@@ -557,6 +572,23 @@ function include(filename) {
     return HtmlService.createHtmlOutputFromFile(filename).getContent();
   } catch (err) {
     logError('include(' + filename + ')', err);
+    return '<!-- Error including ' + filename + ' -->';
+  }
+}
+
+/**
+ * Like include(), but evaluates the file as its own HtmlTemplate first so scriptlet tags
+ * (e.g. <?= getAppVersion() ?>) inside it are resolved. include() itself stays on the plain
+ * createHtmlOutputFromFile() path for Styles/Script, which must never be template-evaluated
+ * (see .agents/rules/sync-src-and-gas-app.md on Script.html's generated engine block).
+ * @param {string} filename Name of the HTML file to include (without extension).
+ * @returns {string} Evaluated file text content.
+ */
+function includeTemplate(filename) {
+  try {
+    return HtmlService.createTemplateFromFile(filename).evaluate().getContent();
+  } catch (err) {
+    logError('includeTemplate(' + filename + ')', err);
     return '<!-- Error including ' + filename + ' -->';
   }
 }
@@ -1202,11 +1234,12 @@ function getMasterTasks(monthYearStr) {
   if (!auth.authorized) return [];
 
   // Static placeholder data — no Drive-backed master task store exists yet, so there is
-  // nothing here that can throw; monthYearStr is accepted for the future real filter.
+  // nothing here that can throw; monthYearStr is accepted for the future real filter. A
+  // single, obviously-fake item (matching the Tasks/Notes seed fix) rather than several
+  // realistic-looking ones, so it can never be mistaken for actually-synced data; Sync has
+  // nothing to fetch this from, so it will keep showing until a real backing store exists.
   return [
-    { id: 'm1', title: 'Prepare Q3 performance appraisals', category: 'Work', status: '•' },
-    { id: 'm2', title: 'Plan annual family retreat', category: 'Personal', status: '•' },
-    { id: 'm3', title: 'Rebalance investment portfolio', category: 'Financial', status: '•' }
+    { id: 'm1', title: 'Example: a long-term to-do that doesn’t belong on one specific day', category: 'Personal', status: '•' }
   ];
 }
 
@@ -1947,7 +1980,7 @@ function searchAcrossAllMonthlyDocs(query) {
  * @returns {object} Compiled bundle object with hash, version, and code assets.
  */
 function getCompiledAppBundle() {
-  var appVersion = '1.3.0';
+  var appVersion = APP_VERSION;
   var styles;
   var script;
   var indexContent;

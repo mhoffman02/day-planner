@@ -131,6 +131,7 @@ if ('serviceWorker' in navigator) {
       dailyNote: '',
       noteCards: [],
       noteViewMode: 'cards', // 'cards' (Option 1) or 'doc' (Option 2)
+      docPreviewEditing: false, // Doc view: false shows the rendered rich-text preview, true swaps in the raw-text textarea
       noteFilterMenuOpen: false,
       noteCardSearchQuery: '',
       noteCardCategoryFilter: 'ALL',
@@ -1597,6 +1598,28 @@ if ('serviceWorker' in navigator) {
       },
 
       /**
+       * Renders the Doc view's raw `dailyNote` markdown as rich HTML, reusing `renderCardLine()`
+       * for the same inline formatting (bold/italic/lists/color/links) the Cards view already
+       * shows -- Doc mode just adds heading rendering for the `#`/`###` lines Cards never see
+       * (those get stripped into `card.heading` before `renderCardLine` runs).
+       * @returns {string} Rendered HTML for the continuous-doc preview.
+       */
+      renderDailyNotePreview() {
+        const text = this.dailyNote || '';
+        if (!text.trim()) return this.renderCardLine('', true);
+
+        const escapeHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+        return text.split('\n').map(line => {
+          const h3Match = /^###\s+(.*)$/.exec(line);
+          if (h3Match) return `<h3 class="doc-preview-heading">${escapeHtml(h3Match[1])}</h3>`;
+          const h1Match = /^#\s+(.*)$/.exec(line);
+          if (h1Match) return `<h2 class="doc-preview-heading-main">${escapeHtml(h1Match[1])}</h2>`;
+          return this.renderCardLine(line, false);
+        }).join('');
+      },
+
+      /**
        * Splits a `#index [Topic] Summary`/`[INDEX] Topic: Summary`-tagged heading line into its
        * Topic and Summary parts, matching the format `indexParser.js`/`buildIndexRecords()`
        * scan for. Untagged headings pass through unchanged with an empty topic. Kept as a
@@ -1825,6 +1848,21 @@ if ('serviceWorker' in navigator) {
           }
         });
         this.indexRecords = entries;
+      },
+
+      /**
+       * Jumps from a Monthly Index row to that entry's day in the Daily Notes view. There is no
+       * separate per-day Google Doc to link to (Daily Notes are stored as partitioned monthly
+       * JSON, not one Doc per day -- see CLAUDE.md's Data storage model), so "View Google Doc"
+       * navigates in-app to the day instead of following a dead `#doc-YYYY-MM-DD` anchor.
+       * @param {{date: string}} idx Monthly index record row.
+       * @returns {Promise<void>}
+       */
+      async goToIndexEntryDate(idx) {
+        if (!idx || !idx.date) return;
+        this.selectedDate = idx.date;
+        await this.setView('daily');
+        await this.loadDayData();
       },
 
       /**

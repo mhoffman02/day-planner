@@ -524,7 +524,8 @@
                 <span class="material-symbols-outlined icon-16">info</span>
                 <span>Option 2 Preview: Continuous Lined Doc with Collapsible H3 Accordions</span>
               </div>
-              <textarea x-model="dailyNote" @input="syncDailyNoteToCards()" placeholder="# Aug 15, 2026\n\n### Topic 1\nNotes..." class="continuous-doc-textarea" aria-label="Continuous Daily Notes"></textarea>
+              <div class="note-doc-render" x-show="!docPreviewEditing" @click="docPreviewEditing = true; $nextTick(() => $refs.docTextarea && $refs.docTextarea.focus())" x-html="renderDailyNotePreview()" aria-label="Daily notes rendered preview, click to edit" tabindex="0" @keydown.enter="docPreviewEditing = true; $nextTick(() => $refs.docTextarea && $refs.docTextarea.focus())"></div>
+              <textarea x-show="docPreviewEditing" x-ref="docTextarea" x-model="dailyNote" @input="syncDailyNoteToCards()" @blur="docPreviewEditing = false" placeholder="# Aug 15, 2026\n\n### Topic 1\nNotes..." class="continuous-doc-textarea" aria-label="Continuous Daily Notes"></textarea>
             </div>
 
           </article>
@@ -608,7 +609,7 @@
                   <th scope="col">Date</th>
                   <th scope="col">Topic / Category</th>
                   <th scope="col">Summary Highlight</th>
-                  <th scope="col">Direct Doc Link</th>
+                  <th scope="col">Jump to Day</th>
                 </tr>
               </thead>
               <tbody>
@@ -618,9 +619,9 @@
                     <td><b x-text="idx.topic"></b></td>
                     <td x-text="idx.summary"></td>
                     <td>
-                      <a :href="idx.docUrl" class="doc-link" target="_blank" rel="noopener noreferrer">
-                        <span class="material-symbols-outlined icon-16">description</span> View Google Doc
-                      </a>
+                      <button type="button" class="doc-link" @click="goToIndexEntryDate(idx)">
+                        <span class="material-symbols-outlined icon-16">description</span> Open Day's Notes
+                      </button>
                     </td>
                   </tr>
                 </template>
@@ -686,7 +687,7 @@
       <!-- View 6: Static About Page -->
       <template x-if="activeView === 'about'">
         <section class="view-container-compact" aria-label="About Day Planner">
-          <?!= include('About'); ?>
+          <?!= includeTemplate('About'); ?>
         </section>
       </template>
 
