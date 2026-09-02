@@ -2521,7 +2521,13 @@
         try {
           this.masterTasks = await this.bridge.getMasterTasks(`${this.selectedMonthName} ${this.selectedYear}`);
           const today = getLocalDateStr();
-          this.masterTasks.forEach(t => { if (!t._moveDate) t._moveDate = today; });
+          // Alpine :disabled treats an undefined expression result as true (its boolean-
+          // attribute presence semantics), so _moving must be a real false here -- leaving
+          // it unset renders the Move controls permanently disabled on every load.
+          this.masterTasks.forEach(t => {
+            if (!t._moveDate) t._moveDate = today;
+            t._moving = false;
+          });
         } catch (err) {
           console.error('🔥 loadMasterTasks error:', err);
           this.errorMessage = `Error loading master tasks: ${err.message || err.toString()}`;
@@ -2536,6 +2542,7 @@
           const category = this.newMasterTaskCategory.trim() || 'General';
           const created = await this.bridge.addMasterTask(title, category);
           created._moveDate = getLocalDateStr();
+          created._moving = false;
           this.masterTasks.push(created);
           this.newMasterTaskTitle = '';
           this.newMasterTaskCategory = '';
