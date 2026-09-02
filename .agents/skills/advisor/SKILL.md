@@ -11,7 +11,7 @@ Use this skill when seeking design feedback, architecture guidance, or structura
 
 ## Application Architecture Context
 - **Node.js Local Server**: `server.js` (Express/HTTP backend for local dev & testing)
-- **Google Apps Script (GAS) Client**: `gas-app/` (`Code.gs`, `UnitTests.gs`, `Index.html`, `Script.html`, `style.html`, `SetupFolder.html`)
+- **Google Apps Script (GAS) Client**: `gas-app/` (`Code.gs`, `UnitTests.gs`, `Index.html`, `Script.html`, `Styles.html`, `SetupFolder.html`)
 - **Core Modules (`src/`)**:
   - `calendarEngine.js`: Time-slot scheduling, overlapping event detection, day view layout engine
   - `taskEngine.js`: Task status transitions, due dates, priority sorting, binder associations
