@@ -7,7 +7,10 @@ version: 2.0.0
 
 # Day Planner Code Review Skill
 
-Performs code quality review on uncommitted changes (`git diff`/`git status`), targeting:
+Default scope: uncommitted changes (`git diff`/`git status`) or specific files named in the
+request. Only sweep the full codebase when explicitly asked for a full-tree pass.
+
+Performs code quality review on that scope, targeting:
 1. **Staged-File Hygiene**: Verify no unintended files or scratch logs are staged.
 2. **ESM Import Specifiers**: Ensure relative imports in `src/` use explicit `.js` extensions.
 3. **Dual Target Parity**: Run `npm run build:gas:check` first — it's a free, mechanical
