@@ -1,8 +1,8 @@
 # Session Handoff & Continuation Prompt — 2026-09-02
 
-**Generated**: 2026-09-02T19:27:01.908Z
-**Branch**: master
-**Last Commit**: 3b88a19 fix(notes): remove stale Doc Preview banner, flatten topic badge
+**Generated**: 2026-09-02T21:00:40.215Z
+**Branch**: worktree-master-tasks-move-btn-ux
+**Last Commit**: 2f6ee52 feat(tools): auto-clone/pull gh-pwa-shell so the bundle check never silently no-ops
 
 ## Project Overview & Current Architecture
 The **Day Planner** project is a standalone digital binder application styled in classic Day Planner aesthetic (Parchment `#fcfbfa`, Teal `#2d6a5a`, serif headers).
@@ -11,7 +11,7 @@ The **Day Planner** project is a standalone digital binder application styled in
 - Local server: `npm start` (`http://localhost:3000`).
 
 ## Recent Session Work & Commits
-3b88a19 fix(notes): remove stale Doc Preview banner, flatten topic badge
+2f6ee52 feat(tools): auto-clone/pull gh-pwa-shell so the bundle check never silently no-ops
 
 ## Open Checklist Items (PLAN.md)
 _None — PLAN.md fully checked off._

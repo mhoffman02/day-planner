@@ -1,8 +1,8 @@
 # Session Context
 
-Generated: 2026-09-02T19:27:01.908Z
-Branch: master
-Last commit: 3b88a19 fix(notes): remove stale Doc Preview banner, flatten topic badge
+Generated: 2026-09-02T21:00:40.215Z
+Branch: worktree-master-tasks-move-btn-ux
+Last commit: 2f6ee52 feat(tools): auto-clone/pull gh-pwa-shell so the bundle check never silently no-ops
 Uncommitted files: 0
 
 ## Open PLAN.md items
