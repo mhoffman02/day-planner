@@ -1957,9 +1957,9 @@
 
         if (!(e.ctrlKey || e.metaKey)) return;
         const key = e.key.toLowerCase();
-        // Ctrl/Cmd+K normally opens universal search (see setupKeyboardShortcuts) -- while a note
-        // line is focused it means "insert/edit a link" instead, matching Docs/Gmail convention.
-        // stopPropagation keeps the event from also reaching the window-level search listener.
+        /* Ctrl/Cmd+K normally opens universal search (see setupKeyboardShortcuts) -- while a note
+         * line is focused it means "insert/edit a link" instead, matching Docs/Gmail convention.
+         * stopPropagation keeps the event from also reaching the window-level search listener. */
         if (key === 'k' && !e.shiftKey) {
           e.preventDefault();
           e.stopPropagation();
@@ -2080,10 +2080,10 @@
         }
       },
 
-      // Normalizes a user-entered link URL for storage in [[link:URL]]...[[/link]] markup:
-      // trims it, defaults a bare host like "example.com" to https://, and rejects anything not
-      // http(s):/mailto: -- notably javascript: -- so a typed/pasted URL can never become an
-      // executable href.
+      /* Normalizes a user-entered link URL for storage in [[link:URL]]...[[/link]] markup:
+       * trims it, defaults a bare host like "example.com" to https://, and rejects anything not
+       * http(s):/mailto: -- notably javascript: -- so a typed/pasted URL can never become an
+       * executable href. */
       normalizeLinkUrl(raw) {
         if (!raw) return null;
         let url = raw.trim();
@@ -2095,12 +2095,12 @@
         return url;
       },
 
-      // Inserts or edits a [[link:URL]]text[[/link]] around the current selection on one note
-      // line (or the whole line if nothing is selected), prompting for the URL. If the selection
-      // exactly matches an existing link's inner text, its current URL pre-fills the prompt so
-      // re-running this edits the link in place instead of nesting a duplicate wrapper. The note
-      // editor is a plain <input> (see handleLineKeydown/Ctrl+K and the toolbar's Link button),
-      // so a native prompt is the simplest UI that doesn't require a bespoke popover component.
+      /* Inserts or edits a [[link:URL]]text[[/link]] around the current selection on one note
+       * line (or the whole line if nothing is selected), prompting for the URL. If the selection
+       * exactly matches an existing link's inner text, its current URL pre-fills the prompt so
+       * re-running this edits the link in place instead of nesting a duplicate wrapper. The note
+       * editor is a plain <input> (see handleLineKeydown/Ctrl+K and the toolbar's Link button),
+       * so a native prompt is the simplest UI that doesn't require a bespoke popover component. */
       insertLineLink(card, idx) {
         if (!card || idx == null || idx < 0) return;
         const lines = this.cardLines(card);
@@ -2266,8 +2266,8 @@
       // has nothing to act on until the user has clicked or shift+clicked into a line.
       applyCardFormat(card, formatType) {
         if (!card) return;
-        // Link insertion always targets one line's prompt-driven edit -- it has no meaningful
-        // multi-line range behavior (unlike bold/color/etc.), so it skips the range dispatch below.
+        /* Link insertion always targets one line's prompt-driven edit -- it has no meaningful
+         * multi-line range behavior (unlike bold/color/etc.), so it skips the range dispatch below. */
         if (formatType === 'link') {
           if (card._activeLineIndex == null) return;
           this.insertLineLink(card, card._activeLineIndex);
@@ -2308,9 +2308,9 @@
         const renderInline = (line) => {
           let html = escapeHtml(line);
           html = html.replace(/\[\[color:(teal|red|green|blue)\]\](.+?)\[\[\/color\]\]/g, '<span class="note-render-color-$1">$2</span>');
-          // Scheme allowlist (http/https/mailto only, matching normalizeLinkUrl) means a
-          // hand-crafted [[link:javascript:...]] simply fails to match and falls through as
-          // literal bracket text -- it can never become a live href.
+          /* Scheme allowlist (http/https/mailto only, matching normalizeLinkUrl) means a
+           * hand-crafted [[link:javascript:...]] simply fails to match and falls through as
+           * literal bracket text -- it can never become a live href. */
           html = html.replace(/\[\[link:((?:https?|mailto):[^\]\s]+)\]\](.+?)\[\[\/link\]\]/g, (m, url, linkText) => {
             const safeHrefUrl = url.replace(/"/g, '&quot;');
             return `<a href="${safeHrefUrl}" target="_blank" rel="noopener noreferrer" class="note-render-link">${linkText}</a>`;
