@@ -7,6 +7,9 @@ version: 2.0.0
 
 # Simplify Code Review Skill
 
+Default scope: uncommitted changes (`git diff`). Only sweep the full `src/` tree (4,871
+lines across 11 files) when explicitly asked for a full-codebase pass.
+
 Analyzes code for:
 - **Code Reuse**: Consolidating duplicate date/time formatters, storage keys, or task status helpers across `src/`.
 - **Quality**: Improving error boundary handling, null checks, and edge-case coverage.
