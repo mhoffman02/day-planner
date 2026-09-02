@@ -1,8 +1,8 @@
 # Session Context
 
-Generated: 2026-09-01T22:28:22.092Z
-Branch: master
-Last commit: d26221c docs(rules): add single-source-of-truth-constants rule
+Generated: 2026-09-02T05:35:05.400Z
+Branch: worktree-shell-placeholder-data
+Last commit: 75d8226 feat(gas-app): add automated guard against HtmlService's // truncation bug
 Uncommitted files: 0
 
 ## Open PLAN.md items
