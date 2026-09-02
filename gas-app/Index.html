@@ -560,6 +560,13 @@
               Monthly Master Tasks (<span x-text="selectedMonthName + ' ' + selectedYear"></span>)
             </h2>
           </header>
+          <form @submit.prevent="addMasterTask()" role="group" class="future-item-add-bar">
+            <input type="text" x-model="newMasterTaskTitle" placeholder="Add a long-term to-do..." class="future-item-input-field" aria-label="New master task title">
+            <input type="text" x-model="newMasterTaskCategory" placeholder="Category" class="future-item-input-field master-task-category-input" aria-label="New master task category">
+            <button type="submit" class="icon-nav-btn" :disabled="addingMasterTask" aria-label="Add master task" title="Add master task">
+              <span class="material-symbols-outlined">add</span>
+            </button>
+          </form>
           <figure class="table-container">
             <table class="task-table table-card">
               <thead>
@@ -575,10 +582,18 @@
                   <tr>
                     <td><b x-text="mTask.category"></b></td>
                     <td x-text="mTask.title"></td>
-                    <td><span class="status-btn" x-text="mTask.status"></span></td>
+                    <td>
+                      <span class="status-btn" x-text="mTask.status"></span>
+                      <template x-if="mTask.movedTo">
+                        <span class="master-task-moved-note" x-text="'Moved to ' + formatMovedDate(mTask.movedTo)"></span>
+                      </template>
+                    </td>
                     <td class="master-task-action-cell">
-                      <input type="date" x-model="mTask._moveDate" class="master-task-date-input" :aria-label="'Move date for ' + mTask.title">
-                      <button type="button" class="btn-move-to" @click="moveMasterTaskToDate(mTask)">Move</button>
+                      <input type="date" x-model="mTask._moveDate" class="master-task-date-input" :aria-label="'Move date for ' + mTask.title" :disabled="mTask._moving">
+                      <button type="button" class="btn-move-to" @click="moveMasterTaskToDate(mTask)" :disabled="mTask._moving">
+                        <span class="material-symbols-outlined icon-18" :class="{ spin: mTask._moving }" x-show="mTask._moving">progress_activity</span>
+                        <span x-text="mTask._moving ? 'Moving' : 'Move'"></span>
+                      </button>
                     </td>
                   </tr>
                 </template>

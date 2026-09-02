@@ -665,6 +665,33 @@
       });
     }
 
+    async addMasterTask(title, category = 'General') {
+      if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+        const newTask = {
+          id: `m_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          title,
+          category,
+          status: '•',
+          movedTo: null,
+          movedTaskId: null
+        };
+        this.mockData.masterTasks.push(newTask);
+        return newTask;
+      }
+      return this._runGasCall('addMasterTask', [title, category]);
+    }
+
+    async markMasterTaskMoved(masterTaskId, targetDateStr, movedTaskId) {
+      if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+        const task = this.mockData.masterTasks.find(t => t.id === masterTaskId);
+        if (!task) return null;
+        task.movedTo = targetDateStr;
+        task.movedTaskId = movedTaskId;
+        return task;
+      }
+      return this._runGasCall('markMasterTaskMoved', [masterTaskId, targetDateStr, movedTaskId]);
+    }
+
     /* Resolves the title of a pasted Google Docs/Sheets/Slides/Forms/Drive URL via the
      * backend’s drive.readonly-scoped lookup, for the Notes "smart paste" hyperlink feature.
      * Local/mock mode has no real Drive to query, so it always reports failure rather than
@@ -676,7 +703,7 @@
       return this._runGasCall('resolveDriveFileTitle', [url]);
     }
 
-    async addDailyTask(dateStr, title, category = 'General') {
+    async addDailyTask(dateStr, title, category = 'General', sourceMasterId) {
       if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
         if (!this.mockData.dailyTasks[dateStr]) {
           this.mockData.dailyTasks[dateStr] = [];
@@ -686,7 +713,8 @@
           title,
           status: '•',
           category,
-          dueDate: dateStr
+          dueDate: dateStr,
+          sourceMasterId: sourceMasterId || null
         };
         this.mockData.dailyTasks[dateStr].push(newTask);
         return newTask;
@@ -694,14 +722,14 @@
 
       if (this.isOnline()) {
         try {
-          return await this._runGasCall('addDailyTask', [dateStr, title, category]);
+          return await this._runGasCall('addDailyTask', [dateStr, title, category, sourceMasterId]);
         } catch (err) {
           console.warn('addDailyTask: network call failed, queueing offline', err);
         }
       }
       const tempId = `offline_task_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
       await idbEnqueueMutation(OUTBOX_MUTATION_TYPES.ADD_DAILY_TASK, { dateStr, title, category, tempId });
-      return { id: tempId, title, status: '•', category, dueDate: dateStr, _queuedOffline: true };
+      return { id: tempId, title, status: '•', category, dueDate: dateStr, sourceMasterId: sourceMasterId || null, _queuedOffline: true };
     }
 
     async transferMasterTask(masterTask, dateStr, priorityGroup = 'A') {
@@ -710,7 +738,7 @@
       const existingDaily = this.mockData.dailyTasks[dateStr] || [];
       const { title, category } = transferMasterTaskToToday(masterTask, existingDaily, priorityGroup, dateStr);
 
-      return this.addDailyTask(dateStr, title, category);
+      return this.addDailyTask(dateStr, title, category, masterTask.id);
     }
 
     async getFutureMatrix(year) {
@@ -792,6 +820,12 @@
 
         tasks[taskIndex] = { ...tasks[taskIndex], ...updates };
         this.mockData.dailyTasks[dateStr] = tasks;
+
+        if (updates.status !== undefined && tasks[taskIndex].sourceMasterId) {
+          const master = this.mockData.masterTasks.find(m => m.id === tasks[taskIndex].sourceMasterId);
+          if (master) master.status = updates.status;
+        }
+
         return tasks[taskIndex];
       }
 
@@ -972,6 +1006,9 @@
       statusMenuCloseTimer: null,
       statusOptions: STATUS_OPTIONS,
       masterTasks: [],
+      newMasterTaskTitle: '',
+      newMasterTaskCategory: '',
+      addingMasterTask: false,
       futureMatrix: { year: String(new Date().getFullYear()), months: {} },
       futureMatrixYear: new Date().getFullYear(),
       newFutureItemTitle: {},
@@ -2491,6 +2528,34 @@
         }
       },
 
+      async addMasterTask() {
+        const title = this.newMasterTaskTitle.trim();
+        if (!title || this.addingMasterTask) return;
+        this.addingMasterTask = true;
+        try {
+          const category = this.newMasterTaskCategory.trim() || 'General';
+          const created = await this.bridge.addMasterTask(title, category);
+          created._moveDate = getLocalDateStr();
+          this.masterTasks.push(created);
+          this.newMasterTaskTitle = '';
+          this.newMasterTaskCategory = '';
+        } catch (err) {
+          console.error('🔥 addMasterTask error:', err);
+          this.errorMessage = `Could not add master task: ${err.message || err.toString()}`;
+        } finally {
+          this.addingMasterTask = false;
+        }
+      },
+
+      // Short "Moved to <date>" label for the Master Tasks row note — reuses the existing
+      // y/m/d-safe date construction (never .toISOString(), see CLAUDE.md) to avoid a
+      // UTC-shifted displayed day.
+      formatMovedDate(dateStr) {
+        if (!dateStr) return '';
+        const [y, m, d] = dateStr.split('-').map(Number);
+        return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      },
+
       buildScheduleGrid() {
         const slots = [];
         for (let hour = 7; hour < 19; hour++) {
@@ -2846,6 +2911,11 @@
       },
 
       async moveMasterTaskToDate(mTask) {
+        // Busy-guard: without this, a double-click/double-tap re-entered this whole async
+        // flow before the first run’s toast even appeared, creating two duplicate daily
+        // tasks and two duplicate "Task Transferred" toasts for one click.
+        if (mTask._moving) return;
+        mTask._moving = true;
         const targetDate = mTask._moveDate || getLocalDateStr();
         try {
           const transferred = await this.bridge.transferMasterTask(mTask, targetDate, 'A');
@@ -2854,15 +2924,24 @@
             // target -- pushing a task transferred to some other date would make it show
             // up on the wrong day until the next reload.
             if (targetDate === this.selectedDate) this.dailyTasks.push(transferred);
+            const updatedMaster = await this.bridge.markMasterTaskMoved(mTask.id, targetDate, transferred.id);
+            if (updatedMaster) {
+              mTask.movedTo = updatedMaster.movedTo;
+              mTask.movedTaskId = updatedMaster.movedTaskId;
+            }
             await this.trigger2WaySync();
-            const dateLabel = targetDate === getLocalDateStr() ? "Today's" : `${targetDate}'s`;
-            this.showToast(`Moved "${mTask.title}" to ${dateLabel} Task List as ${transferred.title.substring(0, 4)}!`, 'success', 6000, 'Task Transferred');
+            // No confirmation toast here on purpose -- the row itself now shows a "Moved to
+            // <date>" note and the button returns to its normal state, which is confirmation
+            // enough for a single-row action; a corner popup for this was more ceremony than
+            // the action warranted.
           }
         } catch (err) {
           console.error('🔥 moveMasterTaskToDate error:', err);
           const errText = `Error moving master task: ${err.message || err.toString()}`;
           this.errorMessage = errText;
           this.showToast(errText, 'error', 10000, 'Task Transfer Error');
+        } finally {
+          mTask._moving = false;
         }
       },
 

@@ -757,6 +757,45 @@ function deriveTaskStatus(googleTask) {
   return googleTask.status === 'completed' ? '✓' : '•';
 }
 
+// A second, independent hidden line in `notes` carries app-only metadata that has nothing to
+// do with status: which master task a transferred daily task came from (sourceMasterId), and
+// on the master task itself, that it IS a master task plus its category/moved-to-date (Google
+// Tasks has no custom-field support, so this is the only place to persist app-specific shape).
+// It's a single JSON blob rather than one marker per field so adding a new piece of metadata
+// later never means inventing another regex. It coexists with TASK_STATUS_MARKER_RE above —
+// each strips/matches only its own line, so encodeTaskStatusNotes's existing-notes passthrough
+// already preserves this marker (and vice versa) without either needing to know about the other.
+var TASK_META_MARKER_RE = /<!--dp-meta:(.*?)-->\n?/;
+
+/**
+ * Decodes the hidden app-metadata blob from a Task's `notes`, if present.
+ * @param {string} notes Raw `notes` field from a Google Task.
+ * @returns {object} Parsed metadata object, or {} if absent/unparseable.
+ */
+function decodeTaskMeta(notes) {
+  var match = (notes || '').match(TASK_META_MARKER_RE);
+  if (!match) return {};
+  try {
+    return JSON.parse(match[1]);
+  } catch (err) {
+    return {};
+  }
+}
+
+/**
+ * Computes the `notes` value to persist after merging `metaPatch` into any existing metadata,
+ * preserving other notes content (e.g. a status marker) untouched.
+ * @param {string} existingNotes Current `notes` field on the task before this update.
+ * @param {object} metaPatch Fields to merge into the existing metadata object.
+ * @returns {string} New `notes` value to send in the patch.
+ */
+function encodeTaskMeta(existingNotes, metaPatch) {
+  var merged = Object.assign({}, decodeTaskMeta(existingNotes), metaPatch);
+  var rest = (existingNotes || '').replace(TASK_META_MARKER_RE, '');
+  var marker = '<!--dp-meta:' + JSON.stringify(merged) + '-->';
+  return rest ? marker + '\n' + rest : marker;
+}
+
 /**
  * Retrieves daily data: Calendar events, Google Tasks, and Google Doc daily notes for a given date.
  * @param {string} dateStr Target date string in YYYY-MM-DD format.
@@ -889,11 +928,13 @@ function getDailyData(dateStr) {
           result.tasks = taskList.items
             .filter(function(t) { return t.due && t.due.substring(0, 10) === dateStr; })
             .map(function(t) {
+              var meta = decodeTaskMeta(t.notes);
               return {
                 id: t.id,
                 title: t.title,
                 status: deriveTaskStatus(t),
-                dueDate: t.due.substring(0, 10)
+                dueDate: t.due.substring(0, 10),
+                sourceMasterId: meta.sourceMasterId || null
               };
             });
         }
@@ -1225,22 +1266,121 @@ function getFolderByNameOrCreate(parent, name) {
 }
 
 /**
- * Retrieves master task entries for monthly planning.
- * @param {string} [monthYearStr] Optional month/year string filter.
- * @returns {Array<{id: string, title: string, category: string, status: string}>} Array of master task items.
+ * Retrieves master task entries — long-term to-dos that don't belong on one specific day.
+ * Backed by the same '@default' Google Tasks list as daily tasks, distinguished purely by having
+ * no `due` date — daily tasks always carry one (see getDailyData's date-window filtering), so any
+ * undated task in the list is by definition a master task. This reuses the existing Tasks API
+ * CRUD/status-cycling instead of standing up a separate store, and — deliberately — also means
+ * tasks the user adds via Gmail's "Add to Tasks" (or the Google Tasks app directly), which land in
+ * this same default list undated, show up here automatically with no extra wiring. The optional
+ * `{master: true, category}` metadata marker (see encodeTaskMeta/decodeTaskMeta) is written by
+ * addMasterTask for tasks created in this app, but is not required for a task to appear here —
+ * externally-created undated tasks just fall back to category 'General'.
+ * Master tasks are inherently not date-bound, so monthYearStr is accepted (for client-call
+ * signature symmetry with other monthly views) but intentionally not filtered on.
+ * @param {string} [monthYearStr] Unused — see note above.
+ * @returns {Array<{id: string, title: string, category: string, status: string, movedTo: (string|null), movedTaskId: (string|null)}>} Array of master task items.
  */
 function getMasterTasks(monthYearStr) {
   var auth = validateUserAccess();
   if (!auth.authorized) return [];
 
-  // Static placeholder data — no Drive-backed master task store exists yet, so there is
-  // nothing here that can throw; monthYearStr is accepted for the future real filter. A
-  // single, obviously-fake item (matching the Tasks/Notes seed fix) rather than several
-  // realistic-looking ones, so it can never be mistaken for actually-synced data; Sync has
-  // nothing to fetch this from, so it will keep showing until a real backing store exists.
-  return [
-    { id: 'm1', title: 'Example: a long-term to-do that doesn’t belong on one specific day', category: 'Personal', status: '•' }
-  ];
+  try {
+    if (typeof Tasks === 'undefined') return [];
+    var resp = Tasks.Tasks.list('@default', { showCompleted: true, showHidden: true, maxResults: 100 });
+    var items = resp.items || [];
+    return items
+      .filter(function(t) { return !t.due; })
+      .map(function(t) {
+        var meta = decodeTaskMeta(t.notes);
+        return {
+          id: t.id,
+          title: t.title,
+          category: meta.category || 'General',
+          status: deriveTaskStatus(t),
+          movedTo: meta.movedTo || null,
+          movedTaskId: meta.movedTaskId || null
+        };
+      });
+  } catch (err) {
+    logError('getMasterTasks(' + monthYearStr + ')', err);
+    return [];
+  }
+}
+
+/**
+ * Creates a new master task — an undated Google Task flagged via the hidden metadata marker
+ * (see getMasterTasks). There is currently no UI-driven delete/archive for these; they persist
+ * until moved and, separately, completed.
+ * @param {string} title Task title.
+ * @param {string} [category='General'] Optional category classification.
+ * @returns {{id: string, title: string, category: string, status: string, movedTo: null, movedTaskId: null}} Created master task object.
+ */
+function addMasterTask(title, category) {
+  var auth = validateUserAccess();
+  if (!auth.authorized) {
+    throw new Error(auth.error || 'Access Denied');
+  }
+
+  try {
+    if (typeof Tasks === 'undefined') {
+      throw new Error('Tasks Advanced Service is not enabled for this deployment.');
+    }
+    var created = Tasks.Tasks.insert({
+      title: title,
+      notes: encodeTaskMeta('', { master: true, category: category || 'General' })
+    }, '@default');
+    return {
+      id: created.id,
+      title: created.title,
+      category: category || 'General',
+      status: deriveTaskStatus(created),
+      movedTo: null,
+      movedTaskId: null
+    };
+  } catch (err) {
+    logError('addMasterTask', err);
+    throw err;
+  }
+}
+
+/**
+ * Records that a master task was moved (transferred) to a specific daily task list, so the
+ * Master Tasks view can show a "Moved to <date>" note instead of silently leaving the row
+ * looking untouched. Does not change the master task's own status — it's still the same
+ * long-term item, now also represented by a linked daily task (see updateDailyTask's
+ * sourceMasterId completion-sync for the other half of that link).
+ * @param {string} masterTaskId Master task's Google Task id.
+ * @param {string} targetDateStr Date the task was moved to, in YYYY-MM-DD format.
+ * @param {string} movedTaskId Id of the newly created daily task.
+ * @returns {{id: string, title: string, category: string, status: string, movedTo: string, movedTaskId: string}} Updated master task object.
+ */
+function markMasterTaskMoved(masterTaskId, targetDateStr, movedTaskId) {
+  var auth = validateUserAccess();
+  if (!auth.authorized) {
+    throw new Error(auth.error || 'Access Denied');
+  }
+
+  try {
+    if (typeof Tasks === 'undefined') {
+      throw new Error('Tasks Advanced Service is not enabled for this deployment.');
+    }
+    var current = Tasks.Tasks.get('@default', masterTaskId);
+    var notes = encodeTaskMeta(current.notes, { movedTo: targetDateStr, movedTaskId: movedTaskId });
+    var updated = Tasks.Tasks.patch({ notes: notes }, '@default', masterTaskId);
+    var meta = decodeTaskMeta(updated.notes);
+    return {
+      id: updated.id,
+      title: updated.title,
+      category: meta.category || 'General',
+      status: deriveTaskStatus(updated),
+      movedTo: meta.movedTo || null,
+      movedTaskId: meta.movedTaskId || null
+    };
+  } catch (err) {
+    logError('markMasterTaskMoved(' + masterTaskId + ')', err);
+    throw err;
+  }
 }
 
 /**
@@ -1507,9 +1647,11 @@ function pushFutureItemToNextMonth(year, monthKey, itemId) {
  * @param {string} dateStr Target date string in YYYY-MM-DD format.
  * @param {string} title Task title description.
  * @param {string} [category='General'] Optional task category classification.
- * @returns {{id: string, title: string, status: string, category: string, dueDate: string}} Created task object.
+ * @param {string} [sourceMasterId] Id of the master task this was transferred from, if any —
+ *   persisted so a later status change on this task can be mirrored back onto that master task.
+ * @returns {{id: string, title: string, status: string, category: string, dueDate: string, sourceMasterId: (string|null)}} Created task object.
  */
-function addDailyTask(dateStr, title, category) {
+function addDailyTask(dateStr, title, category, sourceMasterId) {
   var auth = validateUserAccess();
   if (!auth.authorized) {
     throw new Error(auth.error || 'Access Denied');
@@ -1517,16 +1659,21 @@ function addDailyTask(dateStr, title, category) {
 
   try {
     if (typeof Tasks !== 'undefined') {
-      var created = Tasks.Tasks.insert({
+      var taskResource = {
         title: title,
         due: dateStr + 'T00:00:00.000Z'
-      }, '@default');
+      };
+      if (sourceMasterId) {
+        taskResource.notes = encodeTaskMeta('', { sourceMasterId: sourceMasterId });
+      }
+      var created = Tasks.Tasks.insert(taskResource, '@default');
       return {
         id: created.id,
         title: created.title,
         status: deriveTaskStatus(created),
         category: category || 'General',
-        dueDate: created.due ? created.due.substring(0, 10) : dateStr
+        dueDate: created.due ? created.due.substring(0, 10) : dateStr,
+        sourceMasterId: sourceMasterId || null
       };
     }
 
@@ -1598,12 +1745,13 @@ function updateDailyTask(dateStr, taskId, updates) {
     }
 
     var patch = {};
+    var current = null;
     if (updates && updates.title !== undefined) {
       patch.title = updates.title;
     }
     if (updates && updates.status !== undefined) {
       patch.status = (updates.status === '✓' || updates.status === 'D/✓') ? 'completed' : 'needsAction';
-      var current = Tasks.Tasks.get('@default', taskId);
+      current = Tasks.Tasks.get('@default', taskId);
       patch.notes = encodeTaskStatusNotes(updates.status, current.notes);
     }
     if (updates && updates.dueDate !== undefined) {
@@ -1611,6 +1759,26 @@ function updateDailyTask(dateStr, taskId, updates) {
     }
 
     var updated = Tasks.Tasks.patch(patch, '@default', taskId);
+
+    // Mirror a status change back onto this task's source master task, if it was transferred
+    // from one (see addDailyTask's sourceMasterId). Best-effort: a sync failure here shouldn't
+    // fail the daily task update that already succeeded, but it's still logged loudly, not
+    // swallowed, so a broken link is visible in the executions log instead of silently no-op'ing.
+    if (current && updates.status !== undefined) {
+      var meta = decodeTaskMeta(current.notes);
+      if (meta.sourceMasterId) {
+        try {
+          var masterCurrent = Tasks.Tasks.get('@default', meta.sourceMasterId);
+          Tasks.Tasks.patch({
+            status: patch.status,
+            notes: encodeTaskStatusNotes(updates.status, masterCurrent.notes)
+          }, '@default', meta.sourceMasterId);
+        } catch (syncErr) {
+          logError('updateDailyTask->masterSync(' + meta.sourceMasterId + ')', syncErr);
+        }
+      }
+    }
+
     return {
       id: updated.id,
       title: updated.title,

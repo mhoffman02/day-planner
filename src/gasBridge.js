@@ -251,6 +251,48 @@ export class GASBridge {
   }
 
   /**
+   * Creates a new master task (mock mode only appends to the in-memory list; production is
+   * backed by a real Google Task, see gas-app/Code.gs#addMasterTask).
+   * @param {string} title Task title.
+   * @param {string} [category='General'] Optional category classification.
+   * @returns {Promise<object>} Created master task object.
+   */
+  async addMasterTask(title, category = 'General') {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      const newTask = {
+        id: `m_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        title,
+        category,
+        status: '•',
+        movedTo: null,
+        movedTaskId: null
+      };
+      this.mockData.masterTasks.push(newTask);
+      return newTask;
+    }
+    return this._runGasCall('addMasterTask', [title, category]);
+  }
+
+  /**
+   * Records that a master task was moved to a specific daily task list, for the "Moved to
+   * <date>" note in the Master Tasks view. See gas-app/Code.gs#markMasterTaskMoved.
+   * @param {string} masterTaskId Master task id.
+   * @param {string} targetDateStr Date moved to, in YYYY-MM-DD format.
+   * @param {string} movedTaskId Id of the newly created daily task.
+   * @returns {Promise<object|null>} Updated master task object, or null if not found (mock mode only).
+   */
+  async markMasterTaskMoved(masterTaskId, targetDateStr, movedTaskId) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      const task = this.mockData.masterTasks.find(t => t.id === masterTaskId);
+      if (!task) return null;
+      task.movedTo = targetDateStr;
+      task.movedTaskId = movedTaskId;
+      return task;
+    }
+    return this._runGasCall('markMasterTaskMoved', [masterTaskId, targetDateStr, movedTaskId]);
+  }
+
+  /**
    * Resolves the title of a pasted Google Docs/Sheets/Slides/Forms/Drive URL via the backend's
    * drive.readonly-scoped lookup, for the Notes "smart paste" hyperlink feature. Local/mock mode
    * has no real Drive to query, so it always reports failure rather than fabricating a title —
@@ -270,9 +312,10 @@ export class GASBridge {
    * @param {string} dateStr Target date in YYYY-MM-DD format.
    * @param {string} title Task title description.
    * @param {string} [category='General'] Optional category name.
+   * @param {string} [sourceMasterId] Id of the master task this was transferred from, if any.
    * @returns {Promise<object>} Created daily task item promise.
    */
-  async addDailyTask(dateStr, title, category = 'General') {
+  async addDailyTask(dateStr, title, category = 'General', sourceMasterId) {
     if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
       if (!this.mockData.dailyTasks[dateStr]) {
         this.mockData.dailyTasks[dateStr] = [];
@@ -282,7 +325,8 @@ export class GASBridge {
         title,
         status: '•',
         category,
-        dueDate: dateStr
+        dueDate: dateStr,
+        sourceMasterId: sourceMasterId || null
       };
       this.mockData.dailyTasks[dateStr].push(newTask);
       return newTask;
@@ -290,7 +334,7 @@ export class GASBridge {
 
     if (this.isOnline()) {
       try {
-        return await this._runGasCall('addDailyTask', [dateStr, title, category]);
+        return await this._runGasCall('addDailyTask', [dateStr, title, category, sourceMasterId]);
       } catch (err) {
         console.warn('addDailyTask: network call failed, queueing offline', err);
       }
@@ -298,7 +342,7 @@ export class GASBridge {
 
     const tempId = `offline_task_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     await IndexedDbStore.idbEnqueueMutation(OUTBOX_MUTATION_TYPES.ADD_DAILY_TASK, { dateStr, title, category, tempId });
-    return { id: tempId, title, status: '•', category, dueDate: dateStr, _queuedOffline: true };
+    return { id: tempId, title, status: '•', category, dueDate: dateStr, sourceMasterId: sourceMasterId || null, _queuedOffline: true };
   }
 
   /**
@@ -316,6 +360,15 @@ export class GASBridge {
 
       tasks[taskIndex] = { ...tasks[taskIndex], ...updates };
       this.mockData.dailyTasks[dateStr] = tasks;
+
+      // Mirror a status change back onto the source master task, if this daily task was
+      // transferred from one — see gas-app/Code.gs#updateDailyTask for the production
+      // equivalent (best-effort; a missing master task shouldn't fail the daily task update).
+      if (updates.status !== undefined && tasks[taskIndex].sourceMasterId) {
+        const master = this.mockData.masterTasks.find(m => m.id === tasks[taskIndex].sourceMasterId);
+        if (master) master.status = updates.status;
+      }
+
       return tasks[taskIndex];
     }
 
@@ -523,7 +576,7 @@ export class GASBridge {
     const existingDaily = this.mockData.dailyTasks[dateStr] || [];
     const { title, category } = transferMasterTaskToToday(masterTask, existingDaily, priorityGroup, dateStr);
 
-    return this.addDailyTask(dateStr, title, category);
+    return this.addDailyTask(dateStr, title, category, masterTask.id);
   }
 
   /**
