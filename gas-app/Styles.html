@@ -993,6 +993,25 @@ table.task-table tbody tr:hover {
   background-color: var(--theme-table-row-hover);
 }
 
+.master-task-action-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.master-task-date-input {
+  font-size: 0.72rem;
+  padding: 2px 4px;
+  height: 24px;
+  background-color: var(--theme-input-bg);
+  color: var(--theme-input-fg);
+  border: 1px solid var(--theme-input-border);
+  border-radius: 4px;
+  outline: none;
+  width: 128px;
+}
+
 .priority-badge {
   display: inline-flex;
   align-items: center;
@@ -1833,6 +1852,28 @@ button.event-pill:hover {
   font-family: var(--header-font-family);
   font-size: 1.05rem;
   margin: 18px 0 6px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.doc-preview-topic-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--binder-teal);
+  background: var(--binder-teal-light);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.doc-preview-heading-text {
+  font-family: var(--font-family);
+  font-size: 0.92rem;
+  font-weight: 400;
+  color: var(--theme-text-muted);
 }
 
 /* ==========================================================================

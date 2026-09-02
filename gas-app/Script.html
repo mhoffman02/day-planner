@@ -2347,7 +2347,13 @@
 
         return text.split('\n').map(line => {
           const h3Match = /^###\s+(.*)$/.exec(line);
-          if (h3Match) return `<h3 class="doc-preview-heading">${escapeHtml(h3Match[1])}</h3>`;
+          if (h3Match) {
+            const { indexTopic, heading } = this.decomposeIndexHeading(h3Match[1].trim());
+            if (indexTopic) {
+              return `<h3 class="doc-preview-heading"><span class="doc-preview-topic-badge">${escapeHtml(indexTopic)}</span><span class="doc-preview-heading-text">${escapeHtml(heading || 'Topic')}</span></h3>`;
+            }
+            return `<h3 class="doc-preview-heading">${escapeHtml(heading)}</h3>`;
+          }
           const h1Match = /^#\s+(.*)$/.exec(line);
           if (h1Match) return `<h2 class="doc-preview-heading-main">${escapeHtml(h1Match[1])}</h2>`;
           return this.renderCardLine(line, false);
@@ -2477,6 +2483,8 @@
       async loadMasterTasks() {
         try {
           this.masterTasks = await this.bridge.getMasterTasks(`${this.selectedMonthName} ${this.selectedYear}`);
+          const today = getLocalDateStr();
+          this.masterTasks.forEach(t => { if (!t._moveDate) t._moveDate = today; });
         } catch (err) {
           console.error('🔥 loadMasterTasks error:', err);
           this.errorMessage = `Error loading master tasks: ${err.message || err.toString()}`;
@@ -2837,16 +2845,21 @@
         this.toasts = this.toasts.filter(t => t.id !== pending.id);
       },
 
-      async moveMasterTaskToToday(mTask) {
+      async moveMasterTaskToDate(mTask) {
+        const targetDate = mTask._moveDate || getLocalDateStr();
         try {
-          const transferred = await this.bridge.transferMasterTask(mTask, this.selectedDate, 'A');
+          const transferred = await this.bridge.transferMasterTask(mTask, targetDate, 'A');
           if (transferred) {
-            this.dailyTasks.push(transferred);
+            // Only splice into the currently-viewed day’s list when that’s actually the
+            // target -- pushing a task transferred to some other date would make it show
+            // up on the wrong day until the next reload.
+            if (targetDate === this.selectedDate) this.dailyTasks.push(transferred);
             await this.trigger2WaySync();
-            this.showToast(`Moved "${mTask.title}" to Today's Task List as ${transferred.title.substring(0, 4)}!`, 'success', 6000, 'Task Transferred');
+            const dateLabel = targetDate === getLocalDateStr() ? "Today's" : `${targetDate}'s`;
+            this.showToast(`Moved "${mTask.title}" to ${dateLabel} Task List as ${transferred.title.substring(0, 4)}!`, 'success', 6000, 'Task Transferred');
           }
         } catch (err) {
-          console.error('🔥 moveMasterTaskToToday error:', err);
+          console.error('🔥 moveMasterTaskToDate error:', err);
           const errText = `Error moving master task: ${err.message || err.toString()}`;
           this.errorMessage = errText;
           this.showToast(errText, 'error', 10000, 'Task Transfer Error');

@@ -557,11 +557,11 @@
 
       <!-- View 3: Monthly Master Task List Page -->
       <template x-if="activeView === 'master-tasks'">
-        <section class="view-container" aria-label="Monthly Master Task List">
+        <section class="view-container" aria-label="Monthly Master Tasks">
           <header>
             <h2 class="view-title">
               <span class="material-symbols-outlined">checklist</span>
-              Monthly Master Task List (<span x-text="selectedMonthName + ' ' + selectedYear"></span>)
+              Monthly Master Tasks (<span x-text="selectedMonthName + ' ' + selectedYear"></span>)
             </h2>
           </header>
           <figure class="table-container">
@@ -580,9 +580,10 @@
                     <td><b x-text="mTask.category"></b></td>
                     <td x-text="mTask.title"></td>
                     <td><span class="status-btn" x-text="mTask.status"></span></td>
-                    <td class="td-align-right">
-                      <button type="button" class="btn-primary btn-sm" @click="moveMasterTaskToToday(mTask)">
-                        <span class="material-symbols-outlined icon-14">east</span> Move to Today
+                    <td class="td-align-right master-task-action-cell">
+                      <input type="date" x-model="mTask._moveDate" class="master-task-date-input" :aria-label="'Move date for ' + mTask.title">
+                      <button type="button" class="btn-primary btn-sm" @click="moveMasterTaskToDate(mTask)">
+                        <span class="material-symbols-outlined icon-14">east</span> Move to...
                       </button>
                     </td>
                   </tr>
