@@ -1043,6 +1043,28 @@ table.task-table tbody tr:hover {
   margin-right: 4px;
 }
 
+.doc-link {
+  background: transparent;
+  color: var(--theme-primary);
+  border: 1px solid var(--theme-primary);
+  border-radius: 8px;
+  height: 28px;
+  padding: 4px 14px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.doc-link:hover {
+  background: var(--theme-primary);
+  color: #ffffff;
+}
+
 .master-task-moved-note {
   display: block;
   margin-top: 2px;
