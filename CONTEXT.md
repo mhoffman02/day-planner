@@ -1,8 +1,8 @@
 # Session Context
 
-Generated: 2026-09-02T05:58:17.868Z
-Branch: worktree-shell-placeholder-data
-Last commit: 1103bfb fix(notes): stop note-card toolbar from wrapping to a second row
+Generated: 2026-09-02T17:30:04.686Z
+Branch: worktree-doctor-skill-cleanup
+Last commit: 5fde711 perf(skills): scope review skill to diff/named-files by default
 Uncommitted files: 0
 
 ## Open PLAN.md items

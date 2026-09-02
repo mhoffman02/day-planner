@@ -1,8 +1,8 @@
 # Session Handoff & Continuation Prompt — 2026-09-02
 
-**Generated**: 2026-09-02T05:58:17.868Z
-**Branch**: worktree-shell-placeholder-data
-**Last Commit**: 1103bfb fix(notes): stop note-card toolbar from wrapping to a second row
+**Generated**: 2026-09-02T17:30:04.686Z
+**Branch**: worktree-doctor-skill-cleanup
+**Last Commit**: 5fde711 perf(skills): scope review skill to diff/named-files by default
 
 ## Project Overview & Current Architecture
 The **Day Planner** project is a standalone digital binder application styled in classic Day Planner aesthetic (Parchment `#fcfbfa`, Teal `#2d6a5a`, serif headers).
@@ -11,7 +11,7 @@ The **Day Planner** project is a standalone digital binder application styled in
 - Local server: `npm start` (`http://localhost:3000`).
 
 ## Recent Session Work & Commits
-1103bfb fix(notes): stop note-card toolbar from wrapping to a second row
+5fde711 perf(skills): scope review skill to diff/named-files by default
 
 ## Open Checklist Items (PLAN.md)
 _None — PLAN.md fully checked off._
