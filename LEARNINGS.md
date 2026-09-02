@@ -280,3 +280,17 @@ All three cross-origin loading strategies fail when a GitHub Pages shell tries t
 - The rule file and memory file both restate the v17/v18 incident at length — a shorter shared reference in one place and a pointer from the other would read cleaner
 
 ---
+
+## 2026-09-02 — Doc Preview/Version/Placeholder fixes + pre-commit hook wiring
+
+**Worked well:**
+- Reused Cards' renderCardLine for Doc Preview rich text instead of duplicating rendering logic
+- Traced the about-version hardcode to a real single-source fix (APP_VERSION + getAppVersion()) rather than a superficial string swap
+- Caught that core.hooksPath was never set, so ESLint/gas-drift/safe-chars/shell-bundle checks were silently not running via a stale untracked .git/hooks/pre-commit
+- Fixed the hook gap durably with an npm prepare script instead of a one-time manual git config, so future clones/worktrees self-activate
+
+**Needs improvement:**
+- gh-pwa-shell is gitignored and worktree-invisible, so build:shell:check silently no-ops in every worktree - no durable fix landed this session, only a documented workaround (symlink)
+- Master Task List placeholder fix only addressed getMasterTasks() cosmetic output; Sync still cannot clear it since there is no real Drive-backed master-task store, a known gap carried forward again
+
+---
