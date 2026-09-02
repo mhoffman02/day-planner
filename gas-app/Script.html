@@ -2915,6 +2915,12 @@
         // flow before the first run’s toast even appeared, creating two duplicate daily
         // tasks and two duplicate "Task Transferred" toasts for one click.
         if (mTask._moving) return;
+        // Guard against re-moving an already-moved master task: the row date
+        // input/button are hidden once movedTo is set, but this closes the gap for
+        // any stale-DOM click (e.g. a queued click firing after markMasterTaskMoved
+        // set movedTo) -- each move creates a brand new independent daily task, so a
+        // repeat call here duplicates it instead of no-opping.
+        if (mTask.movedTo) return;
         mTask._moving = true;
         const targetDate = mTask._moveDate || getLocalDateStr();
         try {
