@@ -52,6 +52,9 @@ export function createServer() {
 
     fs.stat(filePath, (err, stats) => {
       if (err || !stats.isFile()) {
+        if (err && err.code !== 'ENOENT') {
+          console.error(`stat failed for ${filePath}:`, err.stack || err);
+        }
         res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
         res.end('404 Not Found');
         return;
@@ -60,13 +63,26 @@ export function createServer() {
       const ext = path.extname(filePath).toLowerCase();
       const contentType = MIME_TYPES[ext] || 'application/octet-stream';
 
-      res.writeHead(200, {
-        'Content-Type': contentType,
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
+      const stream = fs.createReadStream(filePath);
+      stream.on('open', () => {
+        res.writeHead(200, {
+          'Content-Type': contentType,
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        });
+        stream.pipe(res);
       });
-      fs.createReadStream(filePath).pipe(res);
+      stream.on('error', (streamErr) => {
+        console.error(`Failed to read ${filePath}:`, streamErr.stack || streamErr);
+        if (!res.headersSent) {
+          const status = streamErr.code === 'ENOENT' ? 404 : 500;
+          res.writeHead(status, { 'Content-Type': 'text/plain; charset=utf-8' });
+          res.end(status === 404 ? '404 Not Found' : '500 Internal Server Error');
+        } else {
+          res.destroy();
+        }
+      });
     });
   });
 }
@@ -75,6 +91,14 @@ const isMain = process.argv[1] && fileURLToPath(import.meta.url) === path.resolv
 
 if (isMain) {
   const server = createServer();
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`Port ${PORT} already in use — is another instance of \`npm start\` already running?`);
+    } else {
+      console.error('Server failed to start:', err.stack || err);
+    }
+    process.exit(1);
+  });
   server.listen(PORT, () => {
     console.log(`Day Planner standalone server running at http://localhost:${PORT}`);
   });
