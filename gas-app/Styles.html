@@ -564,6 +564,7 @@ header.single-top-bar [role="button"] {
 
 nav.view-segmented-control {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
   background: transparent;
   padding: 0;
@@ -572,13 +573,12 @@ nav.view-segmented-control {
   box-sizing: border-box;
   /* The one element in the header allowed to shrink below its content width --
      header-left and .header-actions-compact are both pinned to their natural size
-     (see below), so when the window is too narrow for everything to fit, this nav
-     scrolls horizontally within its own strip instead of every flex sibling
-     compressing and visually overlapping. */
+     (see below). Tabs themselves never shrink (.segment-btn: flex-shrink: 0), so
+     once the window is too narrow for all of them on one line, the ones that don't
+     fit wrap onto a second line inside this box, growing the header's height,
+     rather than compressing/overlapping or requiring a scrollbar. */
+  flex: 1 1 auto;
   min-width: 0;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
 }
 
 .segment-btn {
@@ -2777,9 +2777,8 @@ article.setup-card, article.card {
   }
 
   nav.view-segmented-control {
-    /* overflow-x/-webkit-overflow-scrolling are already unconditional on the base rule
-       above -- this breakpoint only needs to additionally claim the full row width once
-       header-left has wrapped onto its own line. */
+    /* Claim the full row width once header-left has wrapped onto its own line above,
+       so tabs use the whole row before any of them wrap onto a second line. */
     width: 100%;
   }
 
