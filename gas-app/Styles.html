@@ -1180,13 +1180,15 @@ table.task-table tbody tr:hover {
   transition: background 0.15s ease;
 }
 
-.status-menu-item:hover {
-  background: var(--theme-primary);
-  color: #ffffff;
-}
-
 .status-menu-item.is-active {
   background: var(--theme-input-bg);
+  color: var(--theme-modal-fg);
+}
+
+.status-menu-item:hover,
+.status-menu-item.is-active:hover {
+  background: var(--theme-primary);
+  color: #ffffff;
 }
 
 .status-menu-item-glyph {

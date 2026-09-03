@@ -2031,6 +2031,12 @@ if ('serviceWorker' in navigator) {
           return;
         }
         task.status = newStatus;
+        // Backend already mirrors this status onto the task's source master task when it was
+        // transferred from one (see Code.gs updateDailyTask's sourceMasterId sync). Mirror the
+        // same change into the client's in-memory masterTasks array so Master Tasks reflects it
+        // immediately instead of only after a reload re-fetches getMasterTasks().
+        const linkedMaster = this.masterTasks.find(m => m.movedTaskId === task.id);
+        if (linkedMaster) linkedMaster.status = newStatus;
         try {
           if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
             const updated = await this.bridge.updateDailyTask(this.selectedDate, task.id, {
