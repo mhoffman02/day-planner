@@ -294,6 +294,10 @@ if ('serviceWorker' in navigator) {
           if (result && result.flushed > 0) {
             this.showToast(`Synced ${result.flushed} offline change${result.flushed === 1 ? '' : 's'}.`, 'success', 5000, 'Back Online');
           }
+          if (result && result.failed > 0) {
+            console.warn('🔥 flushOutboxIfPossible: failed mutations', result.failed);
+            this.showToast(`${result.failed} offline change${result.failed === 1 ? '' : 's'} could not be synced and remain queued.`, 'warning', 8000, 'Sync Incomplete');
+          }
         } catch (err) {
           console.error('🔥 flushOutboxIfPossible error:', err);
         }
@@ -648,11 +652,13 @@ if ('serviceWorker' in navigator) {
           if (syncWarnings.length > 0) {
             console.warn('🔥 trigger2WaySync: stale references', syncWarnings);
             this.errorMessage = syncWarnings.join(' ');
+            this.showToast(this.errorMessage, 'warning', 8000, 'Sync Warning');
           }
         } catch (err) {
           console.error('🔥 trigger2WaySync error:', err);
           if (!silent) {
             this.errorMessage = `2-Way Sync Warning: ${err.message || err.toString()}`;
+            this.showToast(this.errorMessage, 'error', 10000, 'Sync Error');
           }
         } finally {
           this.isSyncing = false;
@@ -886,7 +892,7 @@ if ('serviceWorker' in navigator) {
             this._prefetchInFlight.add(dateStr);
             this.bridge.getDailyData(dateStr)
               .then(data => { if (!data.error) return IndexedDbStore.idbSaveDaily(dateStr, data); })
-              .catch(() => {})
+              .catch(err => console.warn('_prefetchSurroundingDays failed for', dateStr, err))
               .finally(() => this._prefetchInFlight.delete(dateStr));
           });
         }
@@ -1765,6 +1771,7 @@ if ('serviceWorker' in navigator) {
           } catch (err) {
             console.error('🔥 saveDailyDocCards error:', err);
             this.errorMessage = `Could not save daily note: ${err.message || err.toString()}`;
+            this.showToast(this.errorMessage, 'error', 10000, 'Save Error');
           }
         }, 1200);
       },
@@ -2047,6 +2054,7 @@ if ('serviceWorker' in navigator) {
             });
             if (!updated) {
               this.errorMessage = `Task "${task.title}" no longer exists in Google Tasks — status change was not saved.`;
+              this.showToast(this.errorMessage, 'error', 10000, 'Task Not Saved');
             } else if (updated._queuedOffline) {
               await this.refreshOutboxCount();
             }
@@ -2054,6 +2062,7 @@ if ('serviceWorker' in navigator) {
         } catch (err) {
           console.error('🔥 toggleTaskStatus persist error:', err);
           this.errorMessage = `Could not save task status: ${err.message || err.toString()}`;
+          this.showToast(this.errorMessage, 'error', 10000, 'Task Not Saved');
         }
         await this.trigger2WaySync();
       },
