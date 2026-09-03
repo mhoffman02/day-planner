@@ -226,9 +226,12 @@ if ('serviceWorker' in navigator) {
         });
       },
 
-      /** @returns {boolean} Whether the active view is one of the month-scoped tabs. */
+      /**
+       * @returns {boolean} Whether the active view is one of the month-scoped tabs. master-tasks
+       * is deliberately excluded: master tasks are undated, so there's no month to scope them by.
+       */
       get isMonthlyView() {
-        return ['monthly-calendar', 'master-tasks', 'monthly-index', 'future-matrix'].includes(this.activeView);
+        return ['monthly-calendar', 'monthly-index', 'future-matrix'].includes(this.activeView);
       },
 
       /** @returns {string} Full month name for `selectedYear`/`selectedMonth`. */
@@ -698,7 +701,6 @@ if ('serviceWorker' in navigator) {
         this.selectedYear = d.getFullYear();
         this.selectedMonth = d.getMonth() + 1;
         await this.loadDayData();
-        await this.loadMasterTasks();
         if (this.activeView === 'monthly-calendar') {
           await this.buildMonthlyGrid();
         }
@@ -716,7 +718,6 @@ if ('serviceWorker' in navigator) {
         const monthStr = this.selectedMonth.toString().padStart(2, '0');
         this.selectedDate = `${this.selectedYear}-${monthStr}-01`;
         await this.loadDayData();
-        await this.loadMasterTasks();
         if (this.activeView === 'monthly-calendar') {
           await this.buildMonthlyGrid();
         }

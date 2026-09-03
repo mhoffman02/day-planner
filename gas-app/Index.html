@@ -88,7 +88,7 @@
         <!-- Context-aware Date Controls -->
         <div class="date-nav-compact">
           <!-- Daily Date Nav -->
-          <template x-if="!isMonthlyView">
+          <template x-if="!isMonthlyView && activeView !== 'master-tasks'">
             <div class="date-controls-group">
               <button type="button" class="icon-nav-btn" @click="navigateDay(-1)" title="Previous Day" aria-label="Previous Day">
                 <span class="material-symbols-outlined icon-18">chevron_left</span>
@@ -551,13 +551,13 @@
         </section>
       </template>
 
-      <!-- View 3: Monthly Master Task List Page -->
+      <!-- View 3: Master Task List Page (undated tasks - not scoped to a month) -->
       <template x-if="activeView === 'master-tasks'">
-        <section class="view-container" aria-label="Monthly Master Tasks">
+        <section class="view-container" aria-label="Master Tasks">
           <header>
             <h2 class="view-title">
               <span class="material-symbols-outlined">checklist</span>
-              Monthly Master Tasks (<span x-text="selectedMonthName + ' ' + selectedYear"></span>)
+              Master Tasks
             </h2>
           </header>
           <form @submit.prevent="addMasterTask()" role="group" class="future-item-add-bar">
