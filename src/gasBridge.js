@@ -336,7 +336,11 @@ export class GASBridge {
       try {
         return await this._runGasCall('addDailyTask', [dateStr, title, category, sourceMasterId]);
       } catch (err) {
-        console.warn('addDailyTask: network call failed, queueing offline', err);
+        // google.script.run's failure handler fires for both a real network drop and a
+        // server-side exception (GAS gives no way to tell them apart client-side) — log
+        // loudly rather than assume "just offline". If this is a genuine (non-transient)
+        // error, it will keep failing on retry and surface via flushOutbox's `failed` count.
+        console.error('addDailyTask online call failed — queueing for offline retry', err);
       }
     }
 
@@ -376,7 +380,9 @@ export class GASBridge {
       try {
         return await this._runGasCall('updateDailyTask', [dateStr, taskId, updates]);
       } catch (err) {
-        console.warn('updateDailyTask: network call failed, queueing offline', err);
+        // See addDailyTask above: this may be a real (non-transient) server error, not just
+        // offline — log loudly; a persistent failure surfaces via flushOutbox's `failed` count.
+        console.error('updateDailyTask online call failed — queueing for offline retry', err);
       }
     }
 
@@ -441,7 +447,9 @@ export class GASBridge {
       try {
         return await this._runGasCall('addCalendarEvent', [dateStr, eventData]);
       } catch (err) {
-        console.warn('addCalendarEvent: network call failed, queueing offline', err);
+        // See addDailyTask above: this may be a real (non-transient) server error, not just
+        // offline — log loudly; a persistent failure surfaces via flushOutbox's `failed` count.
+        console.error('addCalendarEvent online call failed — queueing for offline retry', err);
       }
     }
 
@@ -528,7 +536,9 @@ export class GASBridge {
       try {
         return await this._runGasCall('updateCalendarEvent', [dateStr, eventId, updates]);
       } catch (err) {
-        console.warn('updateCalendarEvent: network call failed, queueing offline', err);
+        // See addDailyTask above: this may be a real (non-transient) server error, not just
+        // offline — log loudly; a persistent failure surfaces via flushOutbox's `failed` count.
+        console.error('updateCalendarEvent online call failed — queueing for offline retry', err);
       }
     }
 
@@ -751,7 +761,9 @@ export class GASBridge {
       try {
         return await this._runGasCall('saveDailyDocCards', [dateStr, noteContent]);
       } catch (err) {
-        console.warn('saveDailyDocCards: network call failed, queueing offline', err);
+        // See addDailyTask above: this may be a real (non-transient) server error, not just
+        // offline — log loudly; a persistent failure surfaces via flushOutbox's `failed` count.
+        console.error('saveDailyDocCards online call failed — queueing for offline retry', err);
       }
     }
 
