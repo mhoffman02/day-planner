@@ -57,7 +57,7 @@ The universal shell is served centrally from:
    ```bash
    npm test
    ```
-   *Runs all 64 unit tests across 18 test suites.*
+   *Runs all 230 unit tests across 23 test suites.*
 
 2. **Start Local Dev Server**:
    ```bash
@@ -74,7 +74,7 @@ To push local code changes in `gas-app/` to the live Google Apps Script project:
 ```bash
 cd gas-app
 clasp push --force
-clasp deploy --description "Release Update Notes"
+clasp deploy -i AKfycbyAejUd5SWdt5dbmtSKYJZvwqQ2RHU-V3_mARJp3MDjMZ_jrlP0MfWnyTPYp6hVSyO4 --description "Release Update Notes"
 ```
 
 ---

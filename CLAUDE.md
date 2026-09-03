@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm test                # Run full suite: node --test tests/*.test.js (173 tests / 22 suites)
+npm test                # Run full suite: node --test tests/*.test.js (230 tests / 23 suites)
 node --test tests/taskEngine.test.js   # Run a single test file
 npm start               # Local preview server -> http://localhost:3000 (serves index.html, /src, /images)
 npm run build:gas       # Regenerate gas-app/Script.html's generated engine block from src/ (esbuild)

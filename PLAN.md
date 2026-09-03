@@ -28,7 +28,7 @@ synchronization.
 | GAS API Bridge | `src/gasBridge.js` | Mock backend + `google.script.run` adapter | `tests/gasBridge.test.js` |
 | Offline Cache | `src/indexedDbStore.js` | IndexedDB store + outbox queue | `tests/indexedDbStore.test.js` |
 
-Current: 173+ tests passing across 22+ suites (`npm test`).
+Current: 230 tests passing across 23 suites (`npm test`).
 
 ## Verification Criteria (standing, re-check after any significant change)
 - [ ] `npm test` passes cleanly with no skips.

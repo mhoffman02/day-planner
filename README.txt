@@ -73,7 +73,7 @@ The project is architected to run in two environments:
 │   ├── shellLoader.js     # PWA shell bootstrap (bundle load, hash check, mount)
 │   ├── app.js              # Alpine.js app wiring for local/browser preview
 │   └── vendor/             # Bundled Alpine.js, Pico CSS
-├── tests/                 # Unit Test Suite (107 tests / 19 suites, `npm test`)
+├── tests/                 # Unit Test Suite (230 tests / 23 suites, `npm test`)
 ├── gas-app/               # Google Apps Script Project Directory (clasp target)
 │   ├── Code.gs            # Server-side Apps Script logic & 2-Way Sync background trigger
 │   ├── Index.html         # Main SPA Binder Shell
@@ -121,7 +121,7 @@ The project is architected to run in two environments:
     To update the live Google Apps Script project:
     $ cd gas-app
     $ clasp push --force
-    $ clasp deploy --description "Release Notes Here"
+    $ clasp deploy -i AKfycbyAejUd5SWdt5dbmtSKYJZvwqQ2RHU-V3_mARJp3MDjMZ_jrlP0MfWnyTPYp6hVSyO4 --description "Release Notes Here"
 
 [!] Local Testing & Preview:
     To run all unit tests:
