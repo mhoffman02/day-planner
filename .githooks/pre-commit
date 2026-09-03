@@ -6,7 +6,7 @@
 set -e
 ERRORS=0
 
-JS_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(js|mjs)$' || true)
+JS_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(js|mjs|gs)$' || true)
 
 echo "🔍 Pre-commit checks..."
 

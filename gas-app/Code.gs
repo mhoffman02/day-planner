@@ -1240,7 +1240,7 @@ function saveDailyDocCards(dateStr, noteContent) {
           // already saved this month on top of a merely transient parse failure. Fail loud
           // instead so the save is rejected and the caller can retry, per
           // .agents/rules/no-silent-failures.md.
-          throw new Error('Existing ' + fileName + ' contains invalid JSON and cannot be safely overwritten without losing other days’ notes: ' + e.message);
+          throw new Error('Existing ' + fileName + ' contains invalid JSON and cannot be safely overwritten without losing other days’ notes: ' + e.message, { cause: e });
         }
       }
     }
