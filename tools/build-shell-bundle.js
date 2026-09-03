@@ -30,15 +30,26 @@ function buildBundle() {
   const indexHtml = fs.readFileSync(path.join(ROOT_DIR, 'gas-app/Index.html'), 'utf8');
   const stylesHtml = fs.readFileSync(path.join(ROOT_DIR, 'gas-app/Styles.html'), 'utf8');
   const scriptHtml = fs.readFileSync(path.join(ROOT_DIR, 'gas-app/Script.html'), 'utf8');
+  const aboutHtml = fs.readFileSync(path.join(ROOT_DIR, 'gas-app/About.html'), 'utf8');
+
+  const version = '1.3.0';
+
+  // About.html is pulled in server-side via `<?!= includeTemplate('About'); ?>` (a distinct
+  // scriptlet from the plain `include(...)` calls stripped below -- see Code.gs's
+  // includeTemplate(), which evaluates the file as its own HtmlTemplate so `<?= ... ?>`
+  // scriptlets inside it, like getAppVersion(), are resolved too). This static bundle has no
+  // GAS runtime to do that evaluation, so both scriptlets are resolved by hand here; leaving
+  // either as a literal `<?...?>` tag makes browsers silently drop it, rendering the About/
+  // Help view blank in the installed app while it renders fine live on script.google.com.
+  const resolvedAboutHtml = aboutHtml.replace(/<\?=\s*getAppVersion\(\)\s*\?>/g, version);
 
   // Clean and prepare HTML markup
   let resolvedHtml = indexHtml
     .replace(/<\?!= include\(['"]Styles['"]\); \?>/g, '')
     .replace(/<\?!= include\(['"]Script['"]\); \?>/g, '')
     .replace(/<\?!= include\(['"]AlpineJS['"]\); \?>/g, '')
-    .replace(/<\?!= include\(['"]PicoCSS['"]\); \?>/g, '');
-
-  const version = '1.3.0';
+    .replace(/<\?!= include\(['"]PicoCSS['"]\); \?>/g, '')
+    .replace(/<\?!= includeTemplate\(['"]About['"]\); \?>/g, resolvedAboutHtml);
   const rawPayload = `${version}:${stylesHtml}:${scriptHtml}:${resolvedHtml}`;
   const hash = crypto.createHash('md5').update(rawPayload).digest('base64');
 
@@ -57,6 +68,8 @@ function buildBundle() {
 
   return bundleObj;
 }
+
+export { buildBundle };
 
 /**
  * Builds the current app bundle and writes it to `bundles.json` next to the
@@ -106,7 +119,8 @@ function readExistingHash(bundlesJsonPath, appKey) {
   }
 }
 
-// Run directly
+// Run directly (not when imported, e.g. by tests, for buildBundle() alone)
+if (import.meta.url === `file://${process.argv[1]}`) {
 // Self-heals the canonical gh-pwa-shell/ checkout (clone if missing, pull if present) before
 // checking/building, so a worktree or fresh clone that lacks it no longer silently no-ops here
 // — see tools/sync-shell-repo.js and .agents/rules/sync-gas-app-and-shell-bundle.md.
@@ -147,4 +161,5 @@ if (checkOnly) {
       updateShellPwaJs(target);
     }
   }
+}
 }
