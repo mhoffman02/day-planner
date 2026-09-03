@@ -146,6 +146,17 @@ export async function getItem(storeName, key) {
 }
 
 /**
+ * Strips any Proxy-based reactivity wrapping (Alpine, Vue, etc.) from a value before it's
+ * handed to IndexedDB's structured-clone algorithm, which throws DataCloneError on a bare
+ * Proxy even when the data it wraps is plain and JSON-serializable.
+ * @param {object} item Value to store.
+ * @returns {object} Plain, clone-safe copy of `item`.
+ */
+function toCloneable(item) {
+  return JSON.parse(JSON.stringify(item));
+}
+
+/**
  * Stores or updates a record in the specified store.
  * @param {string} storeName Store name
  * @param {object} item Record item object
@@ -170,7 +181,10 @@ export async function setItem(storeName, item) {
     try {
       const tx = db.transaction([storeName], 'readwrite');
       const store = tx.objectStore(storeName);
-      const req = store.put(item);
+      // A reactive framework's Proxy-wrapped state (Alpine, Vue, etc.) throws DataCloneError
+      // from IndexedDB's structured-clone algorithm even when the underlying data is plain
+      // JSON -- round-trip through JSON first to hand the store a plain, clone-safe copy.
+      const req = store.put(toCloneable(item));
       req.onsuccess = () => resolve(true);
       req.onerror = () => {
         console.error(`setItem: IndexedDB request failed for store "${storeName}"`, req.error);
@@ -208,7 +222,7 @@ export async function setItems(storeName, items) {
     try {
       const tx = db.transaction([storeName], 'readwrite');
       const store = tx.objectStore(storeName);
-      items.forEach((item) => store.put(item));
+      items.forEach((item) => store.put(toCloneable(item)));
       tx.oncomplete = () => resolve(true);
       tx.onerror = () => {
         console.error(`setItems: IndexedDB transaction failed for store "${storeName}"`, tx.error);

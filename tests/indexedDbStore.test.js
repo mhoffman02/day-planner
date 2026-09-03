@@ -192,6 +192,79 @@ describe('IndexedDB Client Store Unit Tests', () => {
     }
   });
 
+  it('should still persist reactive-framework Proxy-wrapped data (would throw DataCloneError against a real IndexedDB otherwise)', async () => {
+    // Isolated module instance so this test's own `global.indexedDB`/dbPromise cache can't
+    // collide with the "should log the underlying error..." test above, which also swaps
+    // `global.indexedDB` and leaves the module's memoized connection pointed at its own fake
+    // db afterwards (idbOpen()'s dbPromise cache is never invalidated by restoring the global).
+    const { default: freshStore } = await import(`../src/indexedDbStore.js?dataCloneTest=${Date.now()}`);
+
+    const originalIndexedDB = global.indexedDB;
+    const backing = new Map();
+
+    const fakeStore = {
+      put(item) {
+        const req = {};
+        queueMicrotask(() => {
+          try {
+            // Real browsers structured-clone `item` here -- Node's structuredClone is the
+            // same V8 algorithm IndexedDB uses, and throws DataCloneError on a bare Proxy
+            // exactly like the one reported: "[object Object] could not be cloned".
+            const cloned = globalThis.structuredClone(item);
+            backing.set(cloned.dateStr, cloned);
+            if (req.onsuccess) req.onsuccess();
+          } catch (e) {
+            req.error = e;
+            if (req.onerror) req.onerror();
+          }
+        });
+        return req;
+      },
+      get(key) {
+        const req = {};
+        queueMicrotask(() => {
+          req.result = backing.get(key);
+          if (req.onsuccess) req.onsuccess();
+        });
+        return req;
+      }
+    };
+    const fakeDb = {
+      objectStoreNames: { contains: () => true },
+      transaction() {
+        return { objectStore: () => fakeStore };
+      }
+    };
+    global.indexedDB = {
+      open() {
+        const req = {};
+        queueMicrotask(() => {
+          if (req.onsuccess) req.onsuccess({ target: { result: fakeDb } });
+        });
+        return req;
+      }
+    };
+
+    try {
+      // Alpine (and Vue) wrap reactive state in a Proxy -- simulate that shape without
+      // depending on Alpine itself.
+      const reactiveTask = new Proxy({ id: 't1', title: '[A1] Reactive task' }, {
+        get: (t, k, r) => Reflect.get(t, k, r),
+        ownKeys: (t) => Reflect.ownKeys(t),
+        getOwnPropertyDescriptor: (t, k) => Reflect.getOwnPropertyDescriptor(t, k)
+      });
+
+      const saved = await freshStore.idbSaveDaily('2026-09-03', { tasks: [reactiveTask], calendarEvents: [] });
+      assert.strictEqual(saved, true, 'Proxy-wrapped payload must be sanitized before hitting IndexedDB, not silently dropped');
+
+      const readBack = await freshStore.idbGetDaily('2026-09-03');
+      assert.ok(readBack);
+      assert.deepStrictEqual(readBack.tasks, [{ id: 't1', title: '[A1] Reactive task' }]);
+    } finally {
+      global.indexedDB = originalIndexedDB;
+    }
+  });
+
   it('should enqueue, list, and dequeue offline mutations in outbox', async () => {
     await IndexedDbStore.idbEnqueueMutation('TASK_STATUS_CHANGE', { taskId: 't1', newStatus: '✓' });
     await IndexedDbStore.idbEnqueueMutation('SAVE_NOTE_CARD', { dateStr: '2026-08-17', noteContent: 'Updated note' });

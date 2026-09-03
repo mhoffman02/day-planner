@@ -383,6 +383,9 @@
       }
     });
   }
+  function toCloneable(item) {
+    return JSON.parse(JSON.stringify(item));
+  }
   async function setItem(storeName, item) {
     const db = await idbOpen();
     if (!db) {
@@ -402,7 +405,7 @@
       try {
         const tx = db.transaction([storeName], "readwrite");
         const store = tx.objectStore(storeName);
-        const req = store.put(item);
+        const req = store.put(toCloneable(item));
         req.onsuccess = () => resolve(true);
         req.onerror = () => {
           console.error(`setItem: IndexedDB request failed for store "${storeName}"`, req.error);
