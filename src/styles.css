@@ -515,6 +515,10 @@ header.single-top-bar {
   white-space: nowrap;
   line-height: 1;
   box-sizing: border-box;
+  /* Reserve width for the longest label this button ever shows ("September") so
+     switching between "Today" and a month name doesn't resize .header-left and
+     shove the tab nav sideways — see .date-text-display below. */
+  min-width: calc(10ch + 16px);
 }
 
 .today-jump-btn:hover {
@@ -531,7 +535,12 @@ header.single-top-bar {
   white-space: nowrap;
   display: inline-flex;
   align-items: center;
+  justify-content: flex-start;
   line-height: 1;
+  /* Reserve width for the longest date string this ever renders (e.g.
+     "Wed, Dec 22, 2026") so the tab nav to the right doesn't shift left/right
+     as the label changes length or switches between daily/monthly format. */
+  min-width: calc(19ch + 12px);
 }
 
 nav.view-segmented-control {
