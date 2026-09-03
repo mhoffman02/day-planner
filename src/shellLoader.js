@@ -83,7 +83,10 @@ export async function saveCachedBundle(bundleObj) {
       const store = tx.objectStore(STORE_NAME);
       store.put(bundleObj, BUNDLE_KEY);
       tx.oncomplete = () => resolve(true);
-      tx.onerror = () => resolve(false);
+      tx.onerror = (evt) => {
+        console.error('saveCachedBundle: IndexedDB write failed', evt.target && evt.target.error);
+        resolve(false);
+      };
     });
   } catch (e) {
     console.warn('Could not save bundle cache:', e);
@@ -145,8 +148,10 @@ export function mountBundle(bundleData) {
   if (typeof window !== 'undefined' && window.Alpine && typeof window.Alpine.start === 'function') {
     try {
       window.Alpine.start();
-    } catch {
-      // Alpine already running — starting it twice throws, which is expected on a hot-update remount.
+    } catch (err) {
+      // Alpine.start() itself only console.warns (never throws) when called a second time, so any
+      // error caught here is a genuine initialization failure, not the benign hot-update remount case.
+      console.error('Alpine.start() failed during bundle mount:', err);
     }
   }
 }
@@ -256,7 +261,7 @@ export async function boot() {
   if ('serviceWorker' in navigator) {
     try {
       navigator.serviceWorker.register('./sw.js').catch((err) => {
-        console.log('SW registration note:', err);
+        console.warn('SW registration note:', err);
       });
     } catch (e) {
       console.warn('boot: navigator.serviceWorker.register() threw synchronously', e);
