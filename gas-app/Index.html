@@ -125,14 +125,14 @@
         <button type="button" class="segment-btn" :class="{ 'active': activeView === 'monthly-calendar' }" @click="setView('monthly-calendar')" title="Monthly Calendar View">
           <span>Month</span>
         </button>
-        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'master-tasks' }" @click="setView('master-tasks')" title="Master Task List">
-          <span>Master Tasks</span>
+        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'master-tasks' }" @click="setView('master-tasks')" title="Undated Task Backlog">
+          <span>Backlog</span>
         </button>
         <button type="button" class="segment-btn" :class="{ 'active': activeView === 'monthly-index' }" @click="setView('monthly-index')" title="#index Decision Registry">
           <span>Index</span>
         </button>
-        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'future-matrix' }" @click="setView('future-matrix')" title="Future Planning Matrix">
-          <span>Future</span>
+        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'future-matrix' }" @click="setView('future-matrix')" title="Monthly Master Task List">
+          <span>Master Tasks</span>
         </button>
         <button type="button" class="segment-btn" :class="{ 'active': activeView === 'about' }" @click="setView('about')" title="Help">
           <span>Help</span>
@@ -551,13 +551,14 @@
         </section>
       </template>
 
-      <!-- View 3: Master Task List Page (undated tasks - not scoped to a month) -->
+      <!-- View 3: Undated Task Backlog Page (not scoped to a month - see Master Tasks/future-matrix
+           for the monthly list) -->
       <template x-if="activeView === 'master-tasks'">
-        <section class="view-container" aria-label="Master Tasks">
+        <section class="view-container" aria-label="Backlog">
           <header>
             <h2 class="view-title">
               <span class="material-symbols-outlined">checklist</span>
-              Master Tasks
+              Backlog
             </h2>
           </header>
           <form @submit.prevent="addMasterTask()" role="group" class="future-item-add-bar">
@@ -641,13 +642,14 @@
         </section>
       </template>
 
-      <!-- View 5: Future Planning Matrix -->
+      <!-- View 5: Master Tasks - monthly master list (paper-planner style: one page per month,
+           transfer an item to a day once scheduled, push it forward if it slips) -->
       <template x-if="activeView === 'future-matrix'">
-        <section class="view-container" aria-label="Future Planning Matrix">
+        <section class="view-container" aria-label="Master Tasks">
           <header class="future-matrix-header">
             <h2 class="view-title">
               <span class="material-symbols-outlined">explore</span>
-              Future Planning Matrix (12-Month Overview)
+              Master Tasks (12-Month Overview)
             </h2>
             <div class="future-matrix-year-nav">
               <button type="button" class="icon-nav-btn" @click="changeFutureMatrixYear(-1)" aria-label="Previous year">
@@ -665,13 +667,13 @@
                 <h3 class="future-month-title" x-text="label + ' ' + futureMatrixYear"></h3>
 
                 <form @submit.prevent="addFutureItemToMonth(String(idx + 1).padStart(2, '0'))" role="group" class="future-item-add-bar">
-                  <input type="text" x-model="newFutureItemTitle[futureMonthKey(String(idx + 1).padStart(2, '0'))]" placeholder="Add big item..." class="future-item-input-field" :aria-label="'Add future item for ' + label">
+                  <input type="text" x-model="newFutureItemTitle[futureMonthKey(String(idx + 1).padStart(2, '0'))]" placeholder="Add master task..." class="future-item-input-field" :aria-label="'Add master task for ' + label">
                   <button type="submit" class="icon-nav-btn" aria-label="Add item" title="Add item">
                     <span class="material-symbols-outlined">add</span>
                   </button>
                 </form>
 
-                <p class="future-month-empty" x-show="futureMonthItems(String(idx + 1).padStart(2, '0')).length === 0">No future milestones scheduled.</p>
+                <p class="future-month-empty" x-show="futureMonthItems(String(idx + 1).padStart(2, '0')).length === 0">No master tasks scheduled.</p>
 
                 <ul class="future-item-list" x-show="futureMonthItems(String(idx + 1).padStart(2, '0')).length > 0">
                   <template x-for="item in futureMonthItems(String(idx + 1).padStart(2, '0'))" :key="item.id">
