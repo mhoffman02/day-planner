@@ -21,7 +21,13 @@ function runSelfTest() {
   // Test 1: Drive Root & Folder Hierarchy Access
   try {
     var rootFolder = getFolderByNameOrCreate(null, 'Day Planner');
+    if (!rootFolder) {
+      throw new Error('getFolderByNameOrCreate(null, "Day Planner") returned null -- no valid/creatable Drive root folder (see getValidatedRootFolder logs above for the underlying cause).');
+    }
     var yearFolder = getFolderByNameOrCreate(rootFolder, new Date().getFullYear().toString());
+    if (!yearFolder) {
+      throw new Error('getFolderByNameOrCreate(rootFolder, <year>) returned null -- could not resolve/create the year subfolder.');
+    }
     results.push({
       test: '1. Google Drive & Folder Hierarchy',
       status: 'PASS',
@@ -29,11 +35,11 @@ function runSelfTest() {
     });
     passedCount++;
   } catch (err1) {
-    console.error('🔥 [Self-Test 1 Drive]: ' + err1.toString() + '\nStack: ' + (err1.stack || 'N/A'));
+    var logged1 = logError('Self-Test 1 Drive', err1);
     results.push({
       test: '1. Google Drive & Folder Hierarchy',
       status: 'FAIL',
-      details: err1.toString() + ' | Stack: ' + (err1.stack || 'N/A')
+      details: logged1.error + ' | Stack: ' + (logged1.stack || 'N/A')
     });
   }
 
@@ -55,11 +61,11 @@ function runSelfTest() {
       });
     }
   } catch (err2) {
-    console.error('🔥 [Self-Test 2 Tasks]: ' + err2.toString() + '\nStack: ' + (err2.stack || 'N/A'));
+    var logged2 = logError('Self-Test 2 Tasks', err2);
     results.push({
       test: '2. Google Tasks API (v1)',
       status: 'FAIL',
-      details: err2.toString() + ' | Stack: ' + (err2.stack || 'N/A')
+      details: logged2.error + ' | Stack: ' + (logged2.stack || 'N/A')
     });
   }
 
@@ -82,11 +88,11 @@ function runSelfTest() {
       });
     }
   } catch (err3) {
-    console.error('🔥 [Self-Test 3 Calendar]: ' + err3.toString() + '\nStack: ' + (err3.stack || 'N/A'));
+    var logged3 = logError('Self-Test 3 Calendar', err3);
     results.push({
       test: '3. Google Calendar Integration',
       status: 'FAIL',
-      details: err3.toString() + ' | Stack: ' + (err3.stack || 'N/A')
+      details: logged3.error + ' | Stack: ' + (logged3.stack || 'N/A')
     });
   }
 
@@ -101,11 +107,11 @@ function runSelfTest() {
     });
     passedCount++;
   } catch (err4) {
-    console.error('🔥 [Self-Test 4 Docs]: ' + err4.toString() + '\nStack: ' + (err4.stack || 'N/A'));
+    var logged4 = logError('Self-Test 4 Docs', err4);
     results.push({
       test: '4. Google Docs Daily Notes Provider',
       status: 'FAIL',
-      details: err4.toString() + ' | Stack: ' + (err4.stack || 'N/A')
+      details: logged4.error + ' | Stack: ' + (logged4.stack || 'N/A')
     });
   }
 
@@ -127,11 +133,11 @@ function runSelfTest() {
     });
     passedCount++;
   } catch (err5) {
-    console.error('🔥 [Self-Test 5 Sync]: ' + err5.toString() + '\nStack: ' + (err5.stack || 'N/A'));
+    var logged5 = logError('Self-Test 5 Sync', err5);
     results.push({
       test: '5. 2-Way Sync Engine & Trigger Health',
       status: 'FAIL',
-      details: err5.toString() + ' | Stack: ' + (err5.stack || 'N/A')
+      details: logged5.error + ' | Stack: ' + (logged5.stack || 'N/A')
     });
   }
 
@@ -209,11 +215,11 @@ function runSelfTest() {
       });
     }
   } catch (err6) {
-    console.error('🔥 [Self-Test 6 getTag/setTag]: ' + err6.toString() + '\nStack: ' + (err6.stack || 'N/A'));
+    var logged6 = logError('Self-Test 6 getTag/setTag', err6);
     results.push({
       test: '6. Event.getTag()/setTag() -> extendedProperties.shared',
       status: 'FAIL',
-      details: err6.toString() + ' | Stack: ' + (err6.stack || 'N/A')
+      details: logged6.error + ' | Stack: ' + (logged6.stack || 'N/A')
     });
   }
 

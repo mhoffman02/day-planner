@@ -366,7 +366,10 @@ function getValidatedRootFolder() {
       }
       console.warn('getValidatedRootFolder: cached folder ' + cachedId + ' is trashed');
     } catch (err) {
-      console.warn('getValidatedRootFolder: cached ID invalid or unreadable: ' + err.toString());
+      // Warn-and-continue is intentional here (this is one step of a multi-step fallback
+      // chain — cached ID -> auto-search -> auto-create below), but keep the stack, per
+      // .agents/rules/no-silent-failures.md, so a real cause isn't lost to a one-line message.
+      console.warn('getValidatedRootFolder: cached ID invalid or unreadable: ' + err.toString() + '\nStack:\n' + (err.stack || 'No stack trace available'));
     }
   }
 
@@ -382,7 +385,8 @@ function getValidatedRootFolder() {
       return makeFolderHandle(found.id, found.name);
     }
   } catch (err) {
-    console.warn('getValidatedRootFolder auto-search notice: ' + err.toString());
+    // Same rationale as above -- next step (auto-create) still runs; keep the stack.
+    console.warn('getValidatedRootFolder auto-search notice: ' + err.toString() + '\nStack:\n' + (err.stack || 'No stack trace available'));
   }
 
   // Under least-privilege drive.file scope, auto-create the dedicated folder seamlessly
@@ -952,7 +956,18 @@ function getDailyData(dateStr) {
     }
 
   } catch (err) {
-    return logError('getDailyData(' + dateStr + ')', err);
+    // Keep the documented success shape (date/tasks/calendarEvents/noteContent/warnings) even
+    // on failure -- returning logError()'s {success:false,error,stack,context} shape instead
+    // would leave every client reader of result.tasks/calendarEvents/noteContent undefined.
+    var logged = logError('getDailyData(' + dateStr + ')', err);
+    return {
+      date: dateStr,
+      tasks: [],
+      calendarEvents: [],
+      noteContent: '',
+      warnings: [logged.error],
+      error: logged.error
+    };
   }
 
   return result;
@@ -977,7 +992,8 @@ function getMonthlyNotesData(monthStr) {
     try {
       return JSON.parse(cached);
     } catch (cacheParseErr) {
-      console.warn('getMonthlyNotesData: bad cached JSON for ' + cacheKey + ', falling through to a real fetch', cacheParseErr);
+      // Self-healing: falls through to a real fetch below, so warn (not throw) is correct here.
+      console.warn('getMonthlyNotesData: bad cached JSON for ' + cacheKey + ', falling through to a real fetch: ' + cacheParseErr.toString() + '\nStack:\n' + (cacheParseErr.stack || 'No stack trace available'));
     }
   }
 
@@ -992,14 +1008,20 @@ function getMonthlyNotesData(monthStr) {
   if (files.hasNext()) {
     var file = files.next();
     var content = file.getBlob().getDataAsString();
+    var parseFailed = false;
     if (content && content.trim()) {
       try {
         monthData = JSON.parse(content);
       } catch (jsonErr) {
-        console.warn('JSON parse warning in ' + fileName + ': ' + jsonErr.toString());
+        parseFailed = true;
+        console.error('getMonthlyNotesData: JSON parse failed for ' + fileName + ': ' + jsonErr.toString() + '\nStack:\n' + (jsonErr.stack || 'No stack trace available'));
       }
     }
-    if (cache) cache.put(cacheKey, JSON.stringify(monthData), 300);
+    // Never cache a parse failure -- monthData is still the empty { days: {} } seed at this
+    // point, and caching it for 5 minutes would blank out every real note in the month for
+    // every reader until the window expires, turning one transient corrupt read into a
+    // 5-minute outage instead of a single failed request.
+    if (cache && !parseFailed) cache.put(cacheKey, JSON.stringify(monthData), 300);
   }
 
   return monthData;
@@ -1168,7 +1190,11 @@ function getMonthData(monthStr) {
       result.warnings.push(logError('getMonthData notes', notesErr).error);
     }
   } catch (err) {
-    return logError('getMonthData(' + monthStr + ')', err);
+    // Keep the documented success shape (month/days/warnings) even on failure -- returning
+    // logError()'s {success:false,error,stack,context} shape instead would leave every client
+    // reader of result.days undefined. Same rationale as getDailyData's matching outer catch.
+    var logged = logError('getMonthData(' + monthStr + ')', err);
+    return { month: monthStr, days: {}, warnings: [logged.error], error: logged.error };
   }
 
   return result;
@@ -1209,8 +1235,12 @@ function saveDailyDocCards(dateStr, noteContent) {
         try {
           monthData = JSON.parse(content);
         } catch (e) {
-          console.warn('saveDailyDocCards: bad existing JSON in ' + fileName + ', resetting month file', e);
-          monthData = { month: monthStr, days: {} };
+          // Do NOT reset-and-continue: monthData would then hold only today's entry, and the
+          // file.setContent() below would silently overwrite (destroy) every other day's notes
+          // already saved this month on top of a merely transient parse failure. Fail loud
+          // instead so the save is rejected and the caller can retry, per
+          // .agents/rules/no-silent-failures.md.
+          throw new Error('Existing ' + fileName + ' contains invalid JSON and cannot be safely overwritten without losing other days’ notes: ' + e.message);
         }
       }
     }
@@ -1421,7 +1451,8 @@ function getFutureMatrixData_(year) {
     try {
       return JSON.parse(cached);
     } catch (cacheParseErr) {
-      console.warn('getFutureMatrixData_: bad cached JSON for ' + cacheKey + ', falling through to a real fetch', cacheParseErr);
+      // Self-healing: falls through to a real fetch below, so warn (not throw) is correct here.
+      console.warn('getFutureMatrixData_: bad cached JSON for ' + cacheKey + ', falling through to a real fetch: ' + cacheParseErr.toString() + '\nStack:\n' + (cacheParseErr.stack || 'No stack trace available'));
     }
   }
 
@@ -1436,6 +1467,7 @@ function getFutureMatrixData_(year) {
   if (files.hasNext()) {
     var file = files.next();
     var content = file.getBlob().getDataAsString();
+    var parseFailed = false;
     if (content && content.trim()) {
       try {
         var parsed = JSON.parse(content);
@@ -1445,10 +1477,15 @@ function getFutureMatrixData_(year) {
           });
         }
       } catch (jsonErr) {
-        console.warn('JSON parse warning in ' + fileName + ': ' + jsonErr.toString());
+        parseFailed = true;
+        console.error('getFutureMatrixData_: JSON parse failed for ' + fileName + ': ' + jsonErr.toString() + '\nStack:\n' + (jsonErr.stack || 'No stack trace available'));
       }
     }
-    if (cache) cache.put(cacheKey, JSON.stringify(matrixData), 300);
+    // Never cache a parse failure -- matrixData is still the empty 12-month skeleton at this
+    // point, and caching it for 5 minutes would blank out the whole year's future-planning
+    // matrix for every reader until the window expires. Same rationale as
+    // getMonthlyNotesData's matching fix.
+    if (cache && !parseFailed) cache.put(cacheKey, JSON.stringify(matrixData), 300);
   }
 
   return matrixData;
@@ -2007,6 +2044,10 @@ function addCalendarEvent(dateStr, eventData) {
         Calendar.Events.patch({ description: fullDescription }, 'primary', createdId);
       } catch (patchErr) {
         logError('addCalendarEvent description patch', patchErr);
+        // The patch never landed server-side -- report back what's actually persisted
+        // (the description without the Agenda Doc URL) instead of claiming the patched
+        // content succeeded when it didn't.
+        fullDescription = description;
       }
     }
 
@@ -2152,18 +2193,19 @@ function getCompiledAppBundle() {
   var styles;
   var script;
   var indexContent;
+  var bundleErrors = [];
 
   try {
     styles = HtmlService.createHtmlOutputFromFile('Styles').getContent();
   } catch (e) {
-    console.warn('getCompiledAppBundle: Styles.html missing/unreadable, bundle will ship with no styles', e);
+    bundleErrors.push(logError('getCompiledAppBundle Styles.html', e).error);
     styles = '';
   }
 
   try {
     script = HtmlService.createHtmlOutputFromFile('Script').getContent();
   } catch (e) {
-    console.warn('getCompiledAppBundle: Script.html missing/unreadable, bundle will ship with no script', e);
+    bundleErrors.push(logError('getCompiledAppBundle Script.html', e).error);
     script = '';
   }
 
@@ -2176,11 +2218,11 @@ function getCompiledAppBundle() {
     template.isBundleExport = true;
     indexContent = template.evaluate().getContent();
   } catch (e) {
-    console.warn('getCompiledAppBundle: Index.html template evaluation failed, trying static read', e);
+    bundleErrors.push(logError('getCompiledAppBundle Index.html template evaluation', e).error);
     try {
       indexContent = HtmlService.createHtmlOutputFromFile('Index').getContent();
     } catch (e2) {
-      console.warn('getCompiledAppBundle: Index.html missing/unreadable, serving placeholder shell', e2);
+      bundleErrors.push(logError('getCompiledAppBundle Index.html static read', e2).error);
       indexContent = '<div>Application Shell Loading...</div>';
     }
   }
@@ -2194,6 +2236,13 @@ function getCompiledAppBundle() {
     version: appVersion,
     hash: hash,
     timestamp: new Date().toISOString(),
+    // Non-empty when Styles/Script/Index above failed to read/render -- callers should treat
+    // a degraded bundle as a serving failure rather than silently shipping blank styles/script
+    // or placeholder markup to every visitor of the public PWA shell. See
+    // .agents/rules/sync-gas-app-and-shell-bundle.md for why a silent bad bundle here is
+    // especially dangerous: nothing else would ever notice.
+    degraded: bundleErrors.length > 0,
+    errors: bundleErrors,
     bundle: {
       title: 'Day Planner',
       themeColor: '#2d6a5a',
@@ -2228,7 +2277,9 @@ function renderAppBundleJson(e) {
       version: bundleData.version,
       hash: bundleData.hash,
       timestamp: bundleData.timestamp,
-      bundle: bundleData.bundle
+      bundle: bundleData.bundle,
+      degraded: bundleData.degraded,
+      errors: bundleData.errors
     };
   }
 
