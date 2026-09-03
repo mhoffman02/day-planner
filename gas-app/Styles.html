@@ -433,6 +433,17 @@ header.single-top-bar {
   max-width: 100%;
   box-sizing: border-box;
   overflow: visible;
+  /* Harmless outside a Window Controls Overlay window (see the WCO block at the end of this
+     section) -- lets the OS drag the window by this bar once it merges with the title-bar
+     strip. Every interactive child below opts back out with -webkit-app-region: no-drag. */
+  -webkit-app-region: drag;
+}
+
+header.single-top-bar button,
+header.single-top-bar input,
+header.single-top-bar a,
+header.single-top-bar [role="button"] {
+  -webkit-app-region: no-drag;
 }
 
 .header-left {
@@ -763,6 +774,38 @@ nav.view-segmented-control {
 .theme-toggle-compact:hover {
   background: rgba(255, 255, 255, 0.12);
   color: #ffffff;
+}
+
+/* Installed-desktop-app polish: on Chromium/Edge desktop with the Window Controls Overlay
+   API (gh-pwa-shell/manifest.json's display_override), this media query only matches once
+   the OS actually grants the overlay -- unsupported browsers/OSes silently keep the normal
+   in-flow header above, so this is purely additive. It moves single-top-bar out of document
+   flow and into the reclaimed title-bar strip so the app's own header IS the title bar,
+   instead of sitting in a second row below a separate native one. env(titlebar-area-*)
+   already excludes the OS's minimize/maximize/close buttons, so no manual right-padding is
+   needed to stay clear of them. */
+@media (display-mode: window-controls-overlay) {
+  header.single-top-bar {
+    position: fixed;
+    top: env(titlebar-area-y, 0);
+    left: env(titlebar-area-x, 0);
+    width: env(titlebar-area-width, 100%);
+    height: env(titlebar-area-height, 40px);
+    min-height: env(titlebar-area-height, 40px);
+    border-bottom: none;
+    /* Flush with the window frame like a native title bar -- .binder-container below keeps
+       its own rounded top corners, which now sit just under this bar instead of behind it. */
+    border-radius: 0;
+    z-index: 1000;
+  }
+
+  .binder-container {
+    /* Margin, not padding: the fixed header above no longer reserves flow space, so this
+       replaces exactly what it used to occupy -- pushing the card's own top border/rounded
+       corner down below the title-bar strip, on top of body's existing 16px desk padding,
+       rather than opening a gap inside the card's border. */
+    margin-top: env(titlebar-area-height, 40px);
+  }
 }
 
 /* ==========================================================================
