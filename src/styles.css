@@ -468,6 +468,14 @@ header.single-top-bar {
 .date-nav-compact {
   display: flex;
   align-items: center;
+  /* On the Backlog tab (activeView master-tasks), neither date-controls-group x-if
+     branch renders — master tasks are undated, so there's no date nav at all — and
+     the whole group disappears from the DOM. Reserve its full width here, on the
+     wrapper that always stays mounted, so the tab nav to the right doesn't shift
+     left when that content vanishes. Width = 2 icon-nav-btn (28px) + 3 gaps (4px) +
+     today-jump-btn min-width (10ch + 16px) + date-text-display min-width
+     (19ch + 12px). */
+  min-width: calc(29ch + 96px);
 }
 
 .date-controls-group {
