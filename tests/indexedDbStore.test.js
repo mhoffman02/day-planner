@@ -116,6 +116,82 @@ describe('IndexedDB Client Store Unit Tests', () => {
     assert.strictEqual(await IndexedDbStore.setItems(STORES.DAILY_DATA, []), true);
   });
 
+  it('should not silently report success for a fallback setItem write with no usable key', async () => {
+    // Item has none of dateStr/monthStr/id, so the memory-fallback store has nowhere to put it —
+    // this must not be reported as a successful write (data would be silently dropped).
+    await assert.rejects(
+      () => IndexedDbStore.setItem(STORES.DAILY_DATA, { tasks: [] }),
+      /key/i
+    );
+  });
+
+  it('should not silently report success for a fallback setItems batch with a keyless item', async () => {
+    await assert.rejects(
+      () => IndexedDbStore.setItems(STORES.DAILY_DATA, [{ dateStr: '2026-11-01' }, { tasks: [] }]),
+      /key/i
+    );
+  });
+
+  it('should log the underlying error instead of swallowing it when a native IndexedDB request fails', async () => {
+    const originalIndexedDB = global.indexedDB;
+    const originalConsoleError = console.error;
+    const loggedErrors = [];
+    console.error = (...args) => loggedErrors.push(args);
+
+    function makeFailingRequest() {
+      const req = { error: null };
+      queueMicrotask(() => {
+        req.error = new Error('fake IDB request failure');
+        if (req.onerror) req.onerror();
+      });
+      return req;
+    }
+
+    const fakeStore = {
+      get: makeFailingRequest,
+      put: makeFailingRequest,
+      delete: makeFailingRequest,
+      getAll: makeFailingRequest
+    };
+    const fakeDb = {
+      objectStoreNames: { contains: () => true },
+      transaction() {
+        const tx = { error: null, objectStore: () => fakeStore };
+        queueMicrotask(() => {
+          tx.error = new Error('fake IDB transaction failure');
+          if (tx.onerror) tx.onerror();
+        });
+        return tx;
+      }
+    };
+    global.indexedDB = {
+      open() {
+        const req = {};
+        queueMicrotask(() => {
+          if (req.onsuccess) req.onsuccess({ target: { result: fakeDb } });
+        });
+        return req;
+      }
+    };
+
+    try {
+      assert.strictEqual(await IndexedDbStore.getItem(STORES.DAILY_DATA, 'x'), null);
+      assert.strictEqual(await IndexedDbStore.setItem(STORES.DAILY_DATA, { dateStr: 'x' }), false);
+      assert.strictEqual(await IndexedDbStore.setItems(STORES.DAILY_DATA, [{ dateStr: 'x' }]), false);
+      assert.deepStrictEqual(await IndexedDbStore.getAllItems(STORES.DAILY_DATA), []);
+      assert.strictEqual(await IndexedDbStore.deleteItem(STORES.DAILY_DATA, 'x'), false);
+
+      assert.ok(loggedErrors.length >= 5, `expected an error to be logged for each of the 5 failed ops, got ${loggedErrors.length}`);
+      assert.ok(
+        loggedErrors.every((args) => args.some((a) => a instanceof Error)),
+        'expected the real underlying Error object to be logged, not swallowed'
+      );
+    } finally {
+      console.error = originalConsoleError;
+      global.indexedDB = originalIndexedDB;
+    }
+  });
+
   it('should enqueue, list, and dequeue offline mutations in outbox', async () => {
     await IndexedDbStore.idbEnqueueMutation('TASK_STATUS_CHANGE', { taskId: 't1', newStatus: '✓' });
     await IndexedDbStore.idbEnqueueMutation('SAVE_NOTE_CARD', { dateStr: '2026-08-17', noteContent: 'Updated note' });

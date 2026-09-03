@@ -134,7 +134,10 @@ export async function getItem(storeName, key) {
       const store = tx.objectStore(storeName);
       const req = store.get(key);
       req.onsuccess = () => resolve(req.result || null);
-      req.onerror = () => resolve(null);
+      req.onerror = () => {
+        console.error(`getItem: IndexedDB request failed for store "${storeName}"`, req.error);
+        resolve(null);
+      };
     } catch (e) {
       console.warn(`getItem: transaction on store "${storeName}" threw synchronously`, e);
       resolve(null);
@@ -156,9 +159,10 @@ export async function setItem(storeName, item) {
       memoryFallbackStore.outboxQueue.push(item);
     } else {
       const key = item.dateStr || item.monthStr || item.id;
-      if (key) {
-        memoryFallbackStore[storeName][key] = item;
+      if (!key) {
+        throw new Error(`setItem: item for store "${storeName}" has no dateStr/monthStr/id key to store under`);
       }
+      memoryFallbackStore[storeName][key] = item;
     }
     return true;
   }
@@ -168,7 +172,10 @@ export async function setItem(storeName, item) {
       const store = tx.objectStore(storeName);
       const req = store.put(item);
       req.onsuccess = () => resolve(true);
-      req.onerror = () => resolve(false);
+      req.onerror = () => {
+        console.error(`setItem: IndexedDB request failed for store "${storeName}"`, req.error);
+        resolve(false);
+      };
     } catch (e) {
       console.warn(`setItem: transaction on store "${storeName}" threw synchronously`, e);
       resolve(false);
@@ -190,7 +197,10 @@ export async function setItems(storeName, items) {
   if (!db) {
     items.forEach((item) => {
       const key = item.dateStr || item.monthStr || item.id;
-      if (key) memoryFallbackStore[storeName][key] = item;
+      if (!key) {
+        throw new Error(`setItems: item for store "${storeName}" has no dateStr/monthStr/id key to store under`);
+      }
+      memoryFallbackStore[storeName][key] = item;
     });
     return true;
   }
@@ -200,7 +210,10 @@ export async function setItems(storeName, items) {
       const store = tx.objectStore(storeName);
       items.forEach((item) => store.put(item));
       tx.oncomplete = () => resolve(true);
-      tx.onerror = () => resolve(false);
+      tx.onerror = () => {
+        console.error(`setItems: IndexedDB transaction failed for store "${storeName}"`, tx.error);
+        resolve(false);
+      };
     } catch (e) {
       console.warn(`setItems: transaction on store "${storeName}" threw synchronously`, e);
       resolve(false);
@@ -227,7 +240,10 @@ export async function getAllItems(storeName) {
       const store = tx.objectStore(storeName);
       const req = store.getAll();
       req.onsuccess = () => resolve(req.result || []);
-      req.onerror = () => resolve([]);
+      req.onerror = () => {
+        console.error(`getAllItems: IndexedDB request failed for store "${storeName}"`, req.error);
+        resolve([]);
+      };
     } catch (e) {
       console.warn(`getAllItems: transaction on store "${storeName}" threw synchronously`, e);
       resolve([]);
@@ -257,7 +273,10 @@ export async function deleteItem(storeName, key) {
       const store = tx.objectStore(storeName);
       const req = store.delete(key);
       req.onsuccess = () => resolve(true);
-      req.onerror = () => resolve(false);
+      req.onerror = () => {
+        console.error(`deleteItem: IndexedDB request failed for store "${storeName}"`, req.error);
+        resolve(false);
+      };
     } catch (e) {
       console.warn(`deleteItem: transaction on store "${storeName}" threw synchronously`, e);
       resolve(false);

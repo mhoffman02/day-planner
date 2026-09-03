@@ -85,6 +85,30 @@ export default [
     }
   },
   {
+    // tests/*.test.js run under `node --test` (see CLAUDE.md Commands), not the browser or
+    // GAS runtime the other blocks above cover, so they need Node's own env globals -- several
+    // added test cases (queueMicrotask-driven fake IDB requests, global.document/window/
+    // indexedDB stubs) were the first to actually reference these, surfacing that this block
+    // was missing entirely.
+    files: ['tests/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: {
+        console: 'readonly',
+        global: 'writable',
+        process: 'readonly',
+        queueMicrotask: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        Buffer: 'readonly'
+      }
+    },
+    rules: {
+      'no-unused-vars': 'warn'
+    }
+  },
+  {
     files: ['sw.js'],
     languageOptions: {
       ecmaVersion: 'latest',
