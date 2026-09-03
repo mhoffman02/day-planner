@@ -179,6 +179,44 @@ for (const [label, src] of [['src/app.js', appJs], ['gas-app/Script.html', scrip
     );
   });
 
+  // Regression: applying color/bold/italic/underline/strike to a whole bulleted/ordered line
+  // (no inline selection) used to wrap the entire raw line text, including its "- "/"N. " list
+  // marker prefix -- e.g. [[color:blue]]- Blue[[/color]] -- instead of wrapping only the
+  // content after it. renderCardLine only recognizes a list line when the marker is the literal
+  // first characters of the line, so the wrapped marker rendered as a plain "-" character
+  // instead of a real bullet.
+  test(`${label}: applyLineFormat clamps the wrap boundary past a leading list marker`, () => {
+    assert.ok(
+      /const listMarkerLen = \(\/\^\(-\\s\|\\d\+\\\.\\s\)\/\.exec\(text\) \|\| \['']\)\[0\]\.length;/.test(src),
+      `${label}'s applyLineFormat must compute the leading "- "/"N. " list-marker length so it ` +
+        'can be excluded from the format-wrap boundary'
+    );
+    assert.ok(
+      /const start = rawStart < listMarkerLen \? listMarkerLen : rawStart;/.test(src),
+      `${label}'s applyLineFormat must clamp the wrap start past the list marker instead of ` +
+        'wrapping it along with the line content'
+    );
+  });
+
+  test(`${label}: applyRangeFormat's already-wrapped detection accounts for a leading list marker`, () => {
+    assert.ok(
+      src.includes('^(?:-\\\\s|\\\\d+\\\\.\\\\s)?\\\\[\\\\[color:${color}\\\\]\\\\]'),
+      `${label}'s applyRangeFormat sameColorRe must allow an optional leading list marker before ` +
+        'the [[color:x]] tag when detecting whether a range is already uniformly colored'
+    );
+  });
+
+  // Legacy defense: notes saved before the fix above can still have a marker trapped inside a
+  // leading wrapper (e.g. "[[color:blue]]- Blue[[/color]]"). renderCardLine normalizes that back
+  // to a real leading marker so old notes render as an actual list instead of a literal "-".
+  test(`${label}: renderCardLine normalizes a list marker trapped inside a leading format wrapper`, () => {
+    assert.ok(
+      /normalizeLeadingListMarker\(text\)/.test(src),
+      `${label}'s renderCardLine must call normalizeLeadingListMarker(text) to repair legacy ` +
+        'saved lines whose list marker ended up inside a leading formatting wrapper'
+    );
+  });
+
   test(`${label}: applyCardFormat routes 'link' to insertLineLink instead of the range/line format path`, () => {
     assert.ok(
       /if \(formatType === 'link'\) \{\s*if \(card\._activeLineIndex == null\) return;\s*this\.insertLineLink\(card, card\._activeLineIndex\);/.test(src),

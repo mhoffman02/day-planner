@@ -1250,8 +1250,14 @@ if ('serviceWorker' in navigator) {
         const el = document.getElementById('card-line-' + card.id + '-' + idx);
         const text = lines[idx] || '';
         const hasSelection = overrideSelection ? true : !!(el && el.selectionEnd > el.selectionStart);
-        const start = overrideSelection ? overrideSelection.start : (hasSelection ? el.selectionStart : 0);
-        const end = overrideSelection ? overrideSelection.end : (hasSelection ? el.selectionEnd : text.length);
+        const rawStart = overrideSelection ? overrideSelection.start : (hasSelection ? el.selectionStart : 0);
+        const rawEnd = overrideSelection ? overrideSelection.end : (hasSelection ? el.selectionEnd : text.length);
+        // Inline/color wraps must never swallow a leading "- "/"N. " list marker -- renderCardLine
+        // only recognizes the marker as a list prefix when it's the line's literal first
+        // characters, so clamp the wrap boundary to start just past it.
+        const listMarkerLen = (/^(-\s|\d+\.\s)/.exec(text) || [''])[0].length;
+        const start = rawStart < listMarkerLen ? listMarkerLen : rawStart;
+        const end = rawEnd < start ? start : rawEnd;
 
         const prefixMap = { bold: '**', italic: '*', strike: '~~', underline: '__' };
         const colorMap = {
@@ -1482,15 +1488,24 @@ if ('serviceWorker' in navigator) {
           return;
         }
 
+        // A list line's "- "/"N. " marker can precede a fully-applied wrapper (e.g.
+        // "- **Blue**"), so already-wrapped detection/unwrap must skip past it rather than
+        // requiring the format marker at position 0.
+        const listMarkerLenOf = (t) => (/^(-\s|\d+\.\s)/.exec(t) || [''])[0].length;
+
         const prefixMap = { bold: '**', italic: '*', strike: '~~', underline: '__' };
         if (formatType in prefixMap) {
           const marker = prefixMap[formatType];
-          const isWrapped = (t) => t.length >= marker.length * 2 && t.startsWith(marker) && t.endsWith(marker);
+          const isWrapped = (t) => {
+            const rest = t.slice(listMarkerLenOf(t));
+            return rest.length >= marker.length * 2 && rest.startsWith(marker) && rest.endsWith(marker);
+          };
           const allWrapped = indices.every(i => isWrapped(this.cardLines(card)[i] || ''));
           indices.forEach(i => {
             const t = this.cardLines(card)[i] || '';
             if (allWrapped) {
-              this.applyLineFormat(card, i, formatType, { start: marker.length, end: t.length - marker.length });
+              const mLen = listMarkerLenOf(t);
+              this.applyLineFormat(card, i, formatType, { start: mLen + marker.length, end: t.length - marker.length });
             } else if (!isWrapped(t)) {
               this.applyLineFormat(card, i, formatType, { start: 0, end: t.length });
             }
@@ -1501,7 +1516,7 @@ if ('serviceWorker' in navigator) {
         const colorMap = { 'color-teal': 'teal', 'color-red': 'red', 'color-green': 'green', 'color-blue': 'blue' };
         if (formatType in colorMap) {
           const color = colorMap[formatType];
-          const sameColorRe = new RegExp(`^\\[\\[color:${color}\\]\\][\\s\\S]*\\[\\[/color\\]\\]$`);
+          const sameColorRe = new RegExp(`^(?:-\\s|\\d+\\.\\s)?\\[\\[color:${color}\\]\\][\\s\\S]*\\[\\[/color\\]\\]$`);
           const allSameColor = indices.every(i => sameColorRe.test(this.cardLines(card)[i] || ''));
           indices.forEach(i => {
             if (allSameColor) {
@@ -1556,6 +1571,27 @@ if ('serviceWorker' in navigator) {
       },
 
       /**
+       * Repairs a line saved before applyLineFormat clamped its wrap boundary past a leading
+       * list marker: a "- "/"N. " marker that ended up trapped just inside a leading formatting
+       * wrapper (e.g. "[[color:blue]]- Blue[[/color]]") instead of at the very start of the line
+       * (renderCardLine's required "- " / /^\d+\.\s/ literal-prefix check). Moves the marker back
+       * in front of the wrapper so legacy notes still render as a real list. New content never
+       * needs this -- applyLineFormat no longer produces the trapped shape -- so it only ever
+       * fires on old saved data.
+       * @param {string} text Raw line text.
+       * @returns {string} Line with any trapped leading list marker moved back to the front.
+       */
+      normalizeLeadingListMarker(text) {
+        const wrapperOpenRe = /^(?:\[\[color:(?:teal|red|green|blue)\]\]|\*\*|~~|__|\*)/;
+        const wrapperMatch = wrapperOpenRe.exec(text);
+        if (!wrapperMatch) return text;
+        const rest = text.slice(wrapperMatch[0].length);
+        const listMatch = /^(-\s|\d+\.\s)/.exec(rest);
+        if (!listMatch) return text;
+        return listMatch[0] + wrapperMatch[0] + rest.slice(listMatch[0].length);
+      },
+
+      /**
        * Renders one line of a card's raw marker-laden content (**bold**, *italic*,
        * __underline__, ~~strike~~, [[color:x]]...[[/color]], "- " bullet / "1. "
        * numbered prefix) as safe, formatted HTML -- the markers are app-internal formatting
@@ -1571,6 +1607,8 @@ if ('serviceWorker' in navigator) {
         if (isPlaceholder) {
           return '<span class="note-card-empty-placeholder">Click to add notes for this topic&hellip;</span>';
         }
+
+        text = this.normalizeLeadingListMarker(text);
 
         const escapeHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
