@@ -64,11 +64,12 @@ describe('Calendar Engine Unit Tests', () => {
     sampleDate.setHours(8, 30, 0, 0);
     mockEvents[0].startTime = sampleDate.toISOString();
 
-    const mappedGrid = mapEventsToGrid(grid, mockEvents);
+    const { grid: mappedGrid, warnings } = mapEventsToGrid(grid, mockEvents);
     const slot0830 = mappedGrid.find(s => s.timeKey === '08:30');
     assert.ok(slot0830);
     assert.equal(slot0830.events.length, 1);
     assert.equal(slot0830.events[0].title, 'Morning Standup');
+    assert.deepEqual(warnings, []);
   });
 
   it('should generate monthly calendar grid matrix with proper padding and events', () => {
@@ -117,13 +118,26 @@ describe('Calendar Engine Unit Tests', () => {
   it('should leave events unmapped when they fall outside the 7am-7pm schedule grid', () => {
     const grid = generateScheduleGrid();
     const lateEvent = { id: 'e-late', title: 'Late Night Call', startTime: '2026-08-15T22:00:00' };
-    const mappedGrid = mapEventsToGrid(grid, [lateEvent]);
+    const { grid: mappedGrid, warnings } = mapEventsToGrid(grid, [lateEvent]);
     const totalMapped = mappedGrid.reduce((sum, s) => sum + s.events.length, 0);
     assert.equal(totalMapped, 0);
+    // Valid time simply outside the grid window is not an error, unlike an unparseable startTime.
+    assert.deepEqual(warnings, []);
   });
 
   it('should default to empty grid/events arrays when called with no arguments', () => {
-    assert.deepEqual(mapEventsToGrid(), []);
+    assert.deepEqual(mapEventsToGrid(), { grid: [], warnings: [] });
+  });
+
+  it('should surface an unparseable event startTime as a warning instead of silently dropping it', () => {
+    const grid = generateScheduleGrid();
+    const badEvent = { id: 'e-bad', title: 'Broken Event', startTime: 'not-a-real-date' };
+    const { grid: mappedGrid, warnings } = mapEventsToGrid(grid, [badEvent]);
+    const totalMapped = mappedGrid.reduce((sum, s) => sum + s.events.length, 0);
+    assert.equal(totalMapped, 0);
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /Broken Event/);
+    assert.match(warnings[0], /unparseable startTime/);
   });
 
   it('should correctly pad the leading and trailing weeks of the monthly grid', () => {

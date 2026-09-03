@@ -106,13 +106,13 @@ describe('Binder Store Unit Tests', () => {
     assert.equal(store.calculateEndTime('14:00', 80), '15:20');
   });
 
-  it('should ignore invalid view names and malformed date strings', () => {
+  it('should throw on invalid view names and malformed date strings instead of silently no-opping', () => {
     const store = new BinderStore('2026-08-15');
 
-    store.setView('not-a-real-view');
+    assert.throws(() => store.setView('not-a-real-view'), /invalid view/i);
     assert.equal(store.activeView, VIEWS.DAILY);
 
-    store.setSelectedDate('08/15/2026');
+    assert.throws(() => store.setSelectedDate('08/15/2026'), /invalid date/i);
     assert.equal(store.selectedDate, '2026-08-15');
 
     store.setSelectedDate('2026-09-01');

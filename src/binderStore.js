@@ -87,24 +87,28 @@ export class BinderStore {
    * Sets the active binder tab view.
    * @param {string} viewName Target view name from VIEWS enumeration.
    * @returns {void}
+   * @throws {Error} If viewName is not a member of VIEWS.
    */
   setView(viewName) {
-    if (Object.values(VIEWS).includes(viewName)) {
-      this.activeView = viewName;
+    if (!Object.values(VIEWS).includes(viewName)) {
+      throw new Error(`BinderStore.setView: invalid view name "${viewName}" (expected one of ${Object.values(VIEWS).join(', ')})`);
     }
+    this.activeView = viewName;
   }
 
   /**
    * Sets the selected active date for binder views.
    * @param {string} dateStr Target date in YYYY-MM-DD format.
    * @returns {void}
+   * @throws {Error} If dateStr is not in YYYY-MM-DD format.
    */
   setSelectedDate(dateStr) {
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-      this.selectedDate = dateStr;
-      this.selectedYear = parseInt(dateStr.slice(0, 4), 10);
-      this.selectedMonth = parseInt(dateStr.slice(5, 7), 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      throw new Error(`BinderStore.setSelectedDate: invalid date string "${dateStr}" (expected YYYY-MM-DD)`);
     }
+    this.selectedDate = dateStr;
+    this.selectedYear = parseInt(dateStr.slice(0, 4), 10);
+    this.selectedMonth = parseInt(dateStr.slice(5, 7), 10);
   }
 
   /**

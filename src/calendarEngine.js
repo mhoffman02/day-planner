@@ -51,10 +51,13 @@ export function generateScheduleGrid() {
  * Maps raw calendar events onto the schedule grid slots.
  * @param {Array<object>} [gridSlots=[]] Base schedule grid slots.
  * @param {Array<object>} [events=[]] List of raw calendar event objects.
- * @returns {Array<object>} Schedule grid slots with mapped events.
+ * @returns {{grid: Array<object>, warnings: Array<string>}} Schedule grid slots with mapped
+ *   events, plus any warnings for events dropped due to an unparseable startTime (mirrors the
+ *   `{..., warnings}` convention used by Code.gs's getDailyData/getMonthData).
  */
 export function mapEventsToGrid(gridSlots = [], events = []) {
   const grid = gridSlots.map(slot => ({ ...slot, events: [] }));
+  const warnings = [];
 
   events.forEach(evt => {
     const start = new Date(evt.startTime);
@@ -68,12 +71,16 @@ export function mapEventsToGrid(gridSlots = [], events = []) {
       matchingSlot.events.push(formatEventModalPayload(evt));
     } else if (isNaN(start.getTime())) {
       // A valid time outside the 7am-7pm grid (e.g. a late-evening event) is intentionally
-      // left unmapped — only an unparseable startTime is a real problem worth surfacing.
-      console.warn(`mapEventsToGrid: event "${evt.title || evt.id || 'untitled'}" has an unparseable startTime (${evt.startTime}); dropped from the schedule grid.`);
+      // left unmapped — only an unparseable startTime is a real problem worth surfacing. It's
+      // collected as a warning (not thrown) so one malformed event doesn't abort rendering the
+      // rest of the day's schedule for every other valid event in the same list.
+      const warning = `mapEventsToGrid: event "${evt.title || evt.id || 'untitled'}" has an unparseable startTime (${evt.startTime}); dropped from the schedule grid.`;
+      console.error(warning);
+      warnings.push(warning);
     }
   });
 
-  return grid;
+  return { grid, warnings };
 }
 
 /**
