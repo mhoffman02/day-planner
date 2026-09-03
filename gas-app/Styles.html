@@ -570,6 +570,15 @@ nav.view-segmented-control {
   gap: 2px;
   margin: 0;
   box-sizing: border-box;
+  /* The one element in the header allowed to shrink below its content width --
+     header-left and .header-actions-compact are both pinned to their natural size
+     (see below), so when the window is too narrow for everything to fit, this nav
+     scrolls horizontally within its own strip instead of every flex sibling
+     compressing and visually overlapping. */
+  min-width: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 
 .segment-btn {
@@ -589,6 +598,9 @@ nav.view-segmented-control {
   line-height: 1;
   white-space: nowrap;
   box-sizing: border-box;
+  /* Stay full-size and let the nav scroll (above) rather than shrinking the box while
+     the nowrap text overflows it -- that overflow is what bled into the header icons. */
+  flex-shrink: 0;
 }
 
 .segment-btn:hover {
@@ -606,10 +618,11 @@ nav.view-segmented-control {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-shrink: 0;
-  flex: 1;
+  /* Always render at full natural size -- nav.view-segmented-control above is the
+     element that absorbs a too-narrow window (it scrolls internally), not this one,
+     so the search/sync/theme icons never get squeezed into an overlap. */
+  flex: 0 0 auto;
   justify-content: flex-end;
-  min-width: 0;
   margin-left: auto;
 }
 
@@ -726,6 +739,7 @@ nav.view-segmented-control {
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
   width: auto;
+  flex-shrink: 0;
   line-height: 1;
   box-sizing: border-box;
 }
@@ -2763,9 +2777,10 @@ article.setup-card, article.card {
   }
 
   nav.view-segmented-control {
+    /* overflow-x/-webkit-overflow-scrolling are already unconditional on the base rule
+       above -- this breakpoint only needs to additionally claim the full row width once
+       header-left has wrapped onto its own line. */
     width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
   }
 
   .two-page-spread {
