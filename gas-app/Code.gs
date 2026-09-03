@@ -373,31 +373,61 @@ function getValidatedRootFolder() {
     }
   }
 
-  // Auto-search for existing "Day Planner" folder in Drive (under drive.file scope)
+  // From here on (search-then-create), concurrent executions under the SAME account --
+  // parallel google.script.run calls on page load, the 5-min sync trigger overlapping a
+  // manual visit, or a retry from validateAndSaveFolderUrl()/autoCreateRootFolder() -- could
+  // otherwise each pass the "no cached ID yet" check and independently create their own
+  // "Day Planner" folder before any of them has written DAY_PLANNER_ROOT_FOLDER_ID. Serialize
+  // per-user so only one execution at a time can reach the create step.
+  var lock = LockService.getUserLock();
+  var lockAcquired = false;
   try {
-    var resp = Drive.Files.list({
-      q: "mimeType = 'application/vnd.google-apps.folder' and name = 'Day Planner' and trashed = false",
-      fields: 'files(id,name)'
-    });
-    if (resp.files && resp.files.length > 0) {
-      var found = resp.files[0];
-      userProps.setProperty('DAY_PLANNER_ROOT_FOLDER_ID', found.id);
-      return makeFolderHandle(found.id, found.name);
-    }
-  } catch (err) {
-    // Same rationale as above -- next step (auto-create) still runs; keep the stack.
-    console.warn('getValidatedRootFolder auto-search notice: ' + err.toString() + '\nStack:\n' + (err.stack || 'No stack trace available'));
+    lockAcquired = lock.tryLock(10000);
+  } catch (lockErr) {
+    console.warn('getValidatedRootFolder: lock acquisition threw, proceeding unlocked: ' + lockErr.toString());
   }
 
-  // Under least-privilege drive.file scope, auto-create the dedicated folder seamlessly
   try {
-    var newFolder = createDayPlannerDriveFolder();
-    userProps.setProperty('DAY_PLANNER_ROOT_FOLDER_ID', newFolder.getId());
-    Logger.log('Auto-created dedicated Day Planner root folder ID: ' + newFolder.getId());
-    return newFolder;
-  } catch (createErr) {
-    logError('getValidatedRootFolder auto-create', createErr);
-    return null;
+    // Re-check the cache now that we (may) hold the lock -- another execution could have
+    // just created/cached the folder while we were waiting for it.
+    var relockedId = userProps.getProperty('DAY_PLANNER_ROOT_FOLDER_ID');
+    if (relockedId) {
+      try {
+        var relockedMeta = Drive.Files.get(relockedId, { fields: 'id,name,trashed' });
+        if (!relockedMeta.trashed) return makeFolderHandle(relockedMeta.id, relockedMeta.name);
+      } catch (relockedErr) {
+        // Fall through to search/create below, same as the outer cached-ID check above.
+      }
+    }
+
+    // Auto-search for existing "Day Planner" folder in Drive (under drive.file scope)
+    try {
+      var resp = Drive.Files.list({
+        q: "mimeType = 'application/vnd.google-apps.folder' and name = 'Day Planner' and trashed = false",
+        fields: 'files(id,name)'
+      });
+      if (resp.files && resp.files.length > 0) {
+        var found = resp.files[0];
+        userProps.setProperty('DAY_PLANNER_ROOT_FOLDER_ID', found.id);
+        return makeFolderHandle(found.id, found.name);
+      }
+    } catch (err) {
+      // Same rationale as above -- next step (auto-create) still runs; keep the stack.
+      console.warn('getValidatedRootFolder auto-search notice: ' + err.toString() + '\nStack:\n' + (err.stack || 'No stack trace available'));
+    }
+
+    // Under least-privilege drive.file scope, auto-create the dedicated folder seamlessly
+    try {
+      var newFolder = createDayPlannerDriveFolder();
+      userProps.setProperty('DAY_PLANNER_ROOT_FOLDER_ID', newFolder.getId());
+      Logger.log('Auto-created dedicated Day Planner root folder ID: ' + newFolder.getId());
+      return newFolder;
+    } catch (createErr) {
+      logError('getValidatedRootFolder auto-create', createErr);
+      return null;
+    }
+  } finally {
+    if (lockAcquired) lock.releaseLock();
   }
 }
 
@@ -452,31 +482,29 @@ function validateAndSaveFolderUrl(inputUrl) {
     var errStr = (err.message || err.toString());
     logError('validateAndSaveFolderUrl(' + extractedId + ')', err);
 
-    // Specific detection of drive.file scope sandbox limitation
-    if (errStr.indexOf('permissions are not sufficient') !== -1 || errStr.indexOf('drive.readonly') !== -1 || errStr.indexOf('drive.file') !== -1) {
-      try {
-        var autoFolder = createDayPlannerDriveFolder();
-        PropertiesService.getUserProperties().setProperty('DAY_PLANNER_ROOT_FOLDER_ID', autoFolder.getId());
-        return {
-          success: true,
-          folderId: autoFolder.getId(),
-          folderName: autoFolder.getName(),
-          autoCreated: true,
-          message: 'Notice: Under least-privilege security ("drive.file"), Day Planner cannot access folders created manually outside the app. We automatically created a new dedicated "Day Planner" folder in your Google Drive!'
-        };
-      } catch (autoErr) {
-        logError('validateAndSaveFolderUrl.autoCreate', autoErr);
-        return {
-          success: false,
-          error: 'Security Scope Notice: Under least-privilege permissions, Day Planner cannot access folders created outside this application. Click "Auto-Create Folder" below to create an authorized folder.'
-        };
-      }
+    // Any failure here -- wrong ID, a trashed/deleted folder, or (most commonly) a 404 "File
+    // not found" because the pasted folder is outside drive.file scope's visibility -- means
+    // the pasted link can't be connected directly. Recover through getValidatedRootFolder(),
+    // the same locked/deduped path the automatic first-load flow uses: it reuses a previously
+    // auto-created folder if one already exists instead of blindly creating a new one, so a
+    // mistaken paste (or a retry of one) can't proliferate duplicate "Day Planner" folders.
+    try {
+      var autoFolder = getValidatedRootFolder();
+      if (!autoFolder) throw new Error('getValidatedRootFolder returned null');
+      return {
+        success: true,
+        folderId: autoFolder.getId(),
+        folderName: autoFolder.getName(),
+        autoCreated: true,
+        message: 'Notice: Under least-privilege security ("drive.file"), Day Planner cannot access folders created outside the app. Connected you to your dedicated "Day Planner" folder instead!'
+      };
+    } catch (autoErr) {
+      logError('validateAndSaveFolderUrl.autoCreate', autoErr);
+      return {
+        success: false,
+        error: 'Security Scope Notice: Under least-privilege permissions, Day Planner cannot access folders created outside this application. Click "Auto-Create Folder" below to create an authorized folder.'
+      };
     }
-
-    return {
-      success: false,
-      error: 'Unable to access folder: ' + errStr + '. Please use the 1-click "Auto-Create Folder" button below.'
-    };
   }
 }
 
@@ -486,13 +514,16 @@ function validateAndSaveFolderUrl(inputUrl) {
  */
 function autoCreateRootFolder() {
   try {
-    var folder = createDayPlannerDriveFolder();
-    var folderId = folder.getId();
-    PropertiesService.getUserProperties().setProperty('DAY_PLANNER_ROOT_FOLDER_ID', folderId);
-    Logger.log('1-Click Created dedicated Day Planner root folder: ' + folderId);
+    // Route through getValidatedRootFolder() rather than creating directly -- it reuses a
+    // previously auto-created folder if one already exists (cache/search) before falling
+    // back to create, under a per-user lock, so this button can't spawn a duplicate folder
+    // if clicked after an earlier attempt actually succeeded.
+    var folder = getValidatedRootFolder();
+    if (!folder) throw new Error('Could not create or locate a Day Planner Drive folder.');
+    Logger.log('1-Click connected Day Planner root folder: ' + folder.getId());
     return {
       success: true,
-      folderId: folderId,
+      folderId: folder.getId(),
       folderName: folder.getName(),
       message: 'Dedicated "Day Planner" folder created and connected successfully!'
     };
