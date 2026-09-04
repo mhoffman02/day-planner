@@ -23,6 +23,13 @@ export const OUTBOX_MUTATION_TYPES = {
 
 const CALENDAR_API_BASE = 'https://www.googleapis.com/calendar/v3';
 const TASKS_API_BASE = 'https://tasks.googleapis.com/tasks/v1';
+const DRIVE_API_BASE = 'https://www.googleapis.com/drive/v3';
+// PropertiesService's replacement per the GAS-removal plan: a single root-folder-ID key. Unlike
+// gas-app/Code.gs#getValidatedRootFolder, there's no LockService/CacheService equivalent here —
+// single-user client-only usage makes the folder-creation race this guarded against rare and
+// low-stakes (worst case: a duplicate "Day Planner" folder to delete manually), so it's not
+// replicated client-side (see the GAS-removal migration plan's "GAS-only mechanisms" section).
+const ROOT_FOLDER_STORAGE_KEY = 'dayPlannerRootFolderId';
 
 // Ported from gas-app/Code.gs's TASK_STATUS_MARKER_RE / TASK_EXTRA_STATUSES / TASK_META_MARKER_RE
 // / deriveTaskStatus / decodeTaskMeta — Google Tasks has no custom-field support, so status
@@ -155,6 +162,303 @@ export async function fetchDayTasks(dateStr, accessToken) {
         sourceMasterId: meta.sourceMasterId || null
       };
     });
+}
+
+/**
+ * Fetches a whole month's Calendar events via the Calendar v3 REST API, paginated, and buckets
+ * them by day. Ported 1:1 from gas-app/Code.gs#getMonthData's Calendar.Events.list branch — see
+ * that function's comments for why the range is anchored in UTC rather than local time.
+ * @param {string} monthStr Target month in YYYY-MM format.
+ * @param {string} accessToken
+ * @returns {Promise<Object<string, Array<object>>>} Calendar events keyed by YYYY-MM-DD.
+ */
+export async function fetchMonthCalendarEvents(monthStr, accessToken) {
+  const [year, month] = monthStr.split('-').map(Number);
+  const monthStartUtc = new Date(Date.UTC(year, month - 1, 1));
+  const monthEndUtc = new Date(Date.UTC(year, month, 1));
+  const eventsByDate = {};
+  let pageToken = null;
+  do {
+    const params = new URLSearchParams({
+      timeMin: monthStartUtc.toISOString(),
+      timeMax: monthEndUtc.toISOString(),
+      singleEvents: 'true',
+      maxResults: '2500',
+      fields: 'nextPageToken,items(id,summary,start,end,location,hangoutLink,extendedProperties)'
+    });
+    if (pageToken) params.set('pageToken', pageToken);
+    const data = await googleApiFetch(`${CALENDAR_API_BASE}/calendars/primary/events?${params}`, accessToken);
+    for (const evt of data.items || []) {
+      const startIso = evt.start && (evt.start.dateTime || evt.start.date);
+      if (!startIso) continue;
+      const dateStr = startIso.substring(0, 10);
+      if (!eventsByDate[dateStr]) eventsByDate[dateStr] = [];
+      eventsByDate[dateStr].push({
+        id: evt.id,
+        title: evt.summary || '(untitled)',
+        startTime: startIso,
+        endTime: evt.end && (evt.end.dateTime || evt.end.date),
+        location: evt.location || '',
+        meetLink: evt.hangoutLink || null,
+        syncTaskId: (evt.extendedProperties && evt.extendedProperties.shared && evt.extendedProperties.shared.gasTaskId) || null
+      });
+    }
+    pageToken = data.nextPageToken || null;
+  } while (pageToken);
+  return eventsByDate;
+}
+
+/**
+ * Fetches a whole month's Google Tasks via the Tasks v1 REST API, paginated, and buckets them
+ * by due date. Ported 1:1 from gas-app/Code.gs#getMonthData's Tasks.Tasks.list branch — see
+ * fetchDayTasks above for why the query is padded a day past each UTC boundary.
+ * @param {string} monthStr Target month in YYYY-MM format.
+ * @param {string} accessToken
+ * @returns {Promise<Object<string, Array<object>>>} Tasks keyed by YYYY-MM-DD.
+ */
+export async function fetchMonthTasks(monthStr, accessToken) {
+  const [year, month] = monthStr.split('-').map(Number);
+  const monthStartUtc = new Date(Date.UTC(year, month - 1, 1));
+  const monthEndUtc = new Date(Date.UTC(year, month, 1));
+  const dueMin = new Date(monthStartUtc.getTime() - 24 * 60 * 60 * 1000).toISOString();
+  const dueMax = new Date(monthEndUtc.getTime() + 24 * 60 * 60 * 1000).toISOString();
+  const tasksByDate = {};
+  let pageToken = null;
+  do {
+    const params = new URLSearchParams({ dueMin, dueMax, showCompleted: 'true', showHidden: 'true', maxResults: '100' });
+    if (pageToken) params.set('pageToken', pageToken);
+    const data = await googleApiFetch(`${TASKS_API_BASE}/lists/@default/tasks?${params}`, accessToken);
+    for (const t of data.items || []) {
+      if (!t.due) continue;
+      const dateStr = t.due.substring(0, 10);
+      if (!tasksByDate[dateStr]) tasksByDate[dateStr] = [];
+      tasksByDate[dateStr].push({ id: t.id, title: t.title, status: deriveTaskStatus(t), dueDate: dateStr });
+    }
+    pageToken = data.nextPageToken || null;
+  } while (pageToken);
+  return tasksByDate;
+}
+
+/**
+ * Finds or creates the "Day Planner" Drive folder via the Drive v3 REST API, caching its id in
+ * localStorage — the PropertiesService replacement described in the GAS-removal migration plan.
+ * Ported from gas-app/Code.gs#getValidatedRootFolder/createDayPlannerDriveFolder, minus the
+ * LockService-guarded search-then-create race protection (see the ROOT_FOLDER_STORAGE_KEY
+ * comment above for why that's an intentionally accepted trade-off here).
+ * @param {string} accessToken
+ * @returns {Promise<string>} Drive folder id.
+ */
+export async function getOrCreateRootFolderId(accessToken) {
+  if (typeof localStorage !== 'undefined') {
+    const cached = localStorage.getItem(ROOT_FOLDER_STORAGE_KEY);
+    if (cached) return cached;
+  }
+
+  const searchParams = new URLSearchParams({
+    q: "mimeType = 'application/vnd.google-apps.folder' and name = 'Day Planner' and trashed = false",
+    fields: 'files(id,name)'
+  });
+  const searchResult = await googleApiFetch(`${DRIVE_API_BASE}/files?${searchParams}`, accessToken);
+
+  let folderId;
+  if (searchResult.files && searchResult.files.length > 0) {
+    folderId = searchResult.files[0].id;
+  } else {
+    const created = await googleApiFetch(`${DRIVE_API_BASE}/files`, accessToken, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Day Planner', mimeType: 'application/vnd.google-apps.folder' })
+    });
+    folderId = created.id;
+  }
+
+  if (typeof localStorage !== 'undefined') localStorage.setItem(ROOT_FOLDER_STORAGE_KEY, folderId);
+  return folderId;
+}
+
+/**
+ * Looks up a single file by exact name inside a Drive folder.
+ * @param {string} fileName
+ * @param {string} folderId
+ * @param {string} accessToken
+ * @returns {Promise<{id: string, name: string}|null>}
+ */
+async function findDriveFileInFolder(fileName, folderId, accessToken) {
+  const params = new URLSearchParams({
+    q: `'${folderId}' in parents and name = '${fileName}' and trashed = false`,
+    fields: 'files(id,name)'
+  });
+  const data = await googleApiFetch(`${DRIVE_API_BASE}/files?${params}`, accessToken);
+  return (data.files && data.files[0]) || null;
+}
+
+/**
+ * Downloads a Drive file's content as text. Neither drive.file nor drive.readonly expose a
+ * dedicated "download" client method the way Apps Script's Advanced Drive Service needed a
+ * UrlFetchApp workaround for — a plain authenticated GET against the alt=media endpoint is the
+ * REST-native equivalent, same URL gas-app/Code.gs#readDriveFileContent's workaround already used.
+ * @param {string} fileId
+ * @param {string} accessToken
+ * @returns {Promise<string>}
+ */
+async function downloadDriveFileText(fileId, accessToken) {
+  const res = await fetch(`${DRIVE_API_BASE}/files/${encodeURIComponent(fileId)}?alt=media`, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Drive file download failed (${res.status} ${res.statusText}): ${fileId} ${body}`);
+  }
+  return res.text();
+}
+
+/**
+ * Reads the month-partitioned daily-notes JSON file (Day Planner/notes-YYYY-MM.json) from
+ * Drive. Ported from gas-app/Code.gs#getMonthlyNotesData, minus its CacheService 5-minute
+ * cache (see the futureMatrix/JS-Map-cache trade-off note in the GAS-removal migration plan —
+ * not yet added here since Stage 2 is the first read path to need it; add a shared in-memory
+ * cache if repeated calls prove costly in practice, not preemptively).
+ * @param {string} monthStr Target month in YYYY-MM format.
+ * @param {string} accessToken
+ * @returns {Promise<{month: string, days: Object<string, {raw: string, updatedAt: string}>}>}
+ */
+export async function fetchMonthlyNotesData(monthStr, accessToken) {
+  const monthData = { month: monthStr, days: {} };
+  const folderId = await getOrCreateRootFolderId(accessToken);
+  const file = await findDriveFileInFolder(`notes-${monthStr}.json`, folderId, accessToken);
+  if (!file) return monthData;
+
+  const content = await downloadDriveFileText(file.id, accessToken);
+  if (!content || !content.trim()) return monthData;
+  try {
+    return JSON.parse(content);
+  } catch (err) {
+    console.error(`fetchMonthlyNotesData: JSON parse failed for notes-${monthStr}.json`, err);
+    return monthData;
+  }
+}
+
+/**
+ * Fetches master tasks — undated Google Tasks in the '@default' list — via the Tasks v1 REST
+ * API. Ported 1:1 from gas-app/Code.gs#getMasterTasks; see that function's comments for why an
+ * undated task is by definition a master task and externally-created ones still show up here.
+ * @param {string} accessToken
+ * @returns {Promise<Array<object>>}
+ */
+export async function fetchMasterTasks(accessToken) {
+  const params = new URLSearchParams({ showCompleted: 'true', showHidden: 'true', maxResults: '100' });
+  const data = await googleApiFetch(`${TASKS_API_BASE}/lists/@default/tasks?${params}`, accessToken);
+  return (data.items || [])
+    .filter(t => !t.due)
+    .map(t => {
+      const meta = decodeTaskMeta(t.notes);
+      return {
+        id: t.id,
+        title: t.title,
+        category: meta.category || 'General',
+        status: deriveTaskStatus(t),
+        movedTo: meta.movedTo || null,
+        movedTaskId: meta.movedTaskId || null
+      };
+    });
+}
+
+/**
+ * Reads the Future Planning Matrix JSON file (Day Planner/future-matrix-YYYY.json) from Drive,
+ * falling back to an empty 12-month skeleton when the file doesn't exist yet. Ported from
+ * gas-app/Code.gs#getFutureMatrixData_, minus its CacheService cache (see fetchMonthlyNotesData's
+ * matching note above).
+ * @param {number|string} year Target calendar year.
+ * @param {string} accessToken
+ * @returns {Promise<{year: string, months: Object<string, Array<object>>}>}
+ */
+export async function fetchFutureMatrix(year, accessToken) {
+  const yearStr = String(year);
+  const matrixData = { year: yearStr, months: {} };
+  for (let m = 1; m <= 12; m++) matrixData.months[`${yearStr}-${String(m).padStart(2, '0')}`] = [];
+
+  const folderId = await getOrCreateRootFolderId(accessToken);
+  const file = await findDriveFileInFolder(`future-matrix-${yearStr}.json`, folderId, accessToken);
+  if (!file) return matrixData;
+
+  const content = await downloadDriveFileText(file.id, accessToken);
+  if (content && content.trim()) {
+    try {
+      const parsed = JSON.parse(content);
+      if (parsed.months) Object.assign(matrixData.months, parsed.months);
+    } catch (err) {
+      console.error(`fetchFutureMatrix: JSON parse failed for future-matrix-${yearStr}.json`, err);
+    }
+  }
+  return matrixData;
+}
+
+/**
+ * Fetches attendee emails from Calendar events in a lookback/lookahead window via the Calendar
+ * v3 REST API. Ported from gas-app/Code.gs#getRecentAttendees's CalendarApp-based version, using
+ * the Advanced Calendar Service's REST shape (attendees array) instead of getGuestList().
+ * @param {number} lookbackDays
+ * @param {number} lookaheadDays
+ * @param {string} accessToken
+ * @returns {Promise<Array<string>>} Unique sorted list of attendee email addresses.
+ */
+export async function fetchRecentAttendees(lookbackDays, lookaheadDays, accessToken) {
+  const pastDays = (typeof lookbackDays === 'number' && lookbackDays > 0) ? lookbackDays : 60;
+  const futureDays = (typeof lookaheadDays === 'number' && lookaheadDays > 0) ? lookaheadDays : 15;
+  const now = new Date();
+  const timeMin = new Date(now.getTime() - pastDays * 24 * 60 * 60 * 1000).toISOString();
+  const timeMax = new Date(now.getTime() + futureDays * 24 * 60 * 60 * 1000).toISOString();
+
+  const attendeeSet = new Set();
+  let pageToken = null;
+  do {
+    const params = new URLSearchParams({
+      timeMin,
+      timeMax,
+      singleEvents: 'true',
+      maxResults: '2500',
+      fields: 'nextPageToken,items(attendees(email))'
+    });
+    if (pageToken) params.set('pageToken', pageToken);
+    const data = await googleApiFetch(`${CALENDAR_API_BASE}/calendars/primary/events?${params}`, accessToken);
+    for (const evt of data.items || []) {
+      for (const attendee of evt.attendees || []) {
+        if (attendee.email && attendee.email.includes('@')) attendeeSet.add(attendee.email.toLowerCase());
+      }
+    }
+    pageToken = data.nextPageToken || null;
+  } while (pageToken);
+
+  return Array.from(attendeeSet).sort();
+}
+
+/**
+ * Resolves the display title of a pasted Google Docs/Sheets/Slides/Forms/Drive URL via the
+ * Drive v3 REST API, for the Notes "smart paste" hyperlink feature. Ported 1:1 from
+ * gas-app/Code.gs#resolveDriveFileTitle — this is the one REST call in this file that
+ * deliberately reads a file the app did NOT create, hence needing drive.readonly (see
+ * src/googleAuth.js's scope comment).
+ * @param {string} url A pasted Google Docs/Sheets/Slides/Forms/Drive URL.
+ * @param {string} accessToken
+ * @returns {Promise<{success: boolean, title?: string, fileId?: string, error?: string}>}
+ */
+export async function resolveLinkTitleRest(url, accessToken) {
+  if (!url || typeof url !== 'string') {
+    return { success: false, error: 'No URL provided.' };
+  }
+  const idMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (!idMatch) {
+    return { success: false, error: 'Not a recognized Google Docs/Sheets/Slides/Forms/Drive URL.' };
+  }
+  const fileId = idMatch[1];
+  try {
+    const params = new URLSearchParams({ fields: 'id,name,trashed' });
+    const meta = await googleApiFetch(`${DRIVE_API_BASE}/files/${encodeURIComponent(fileId)}?${params}`, accessToken);
+    if (meta.trashed) return { success: false, error: 'File is trashed.' };
+    return { success: true, title: meta.name, fileId };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 }
 
 /**
@@ -347,13 +651,13 @@ export class GASBridge {
 
     const accessToken = getAccessToken();
     if (accessToken) {
-      // Drive notes aren't wired into the REST path yet (Stage 2 of the GAS-removal migration);
-      // noteContent is intentionally empty here rather than silently falling back to mock/stale data.
-      const [calendarEvents, tasks] = await Promise.all([
+      const [calendarEvents, tasks, monthNotes] = await Promise.all([
         fetchDayCalendarEvents(dateStr, accessToken),
-        fetchDayTasks(dateStr, accessToken)
+        fetchDayTasks(dateStr, accessToken),
+        fetchMonthlyNotesData(dateStr.slice(0, 7), accessToken)
       ]);
-      return { date: dateStr, tasks, calendarEvents, noteContent: '' };
+      const noteContent = (monthNotes.days && monthNotes.days[dateStr] && monthNotes.days[dateStr].raw) || '';
+      return { date: dateStr, tasks, calendarEvents, noteContent };
     }
 
     if (typeof window !== 'undefined' && window.google?.script?.run) {
@@ -375,24 +679,57 @@ export class GASBridge {
    * @param {string} monthStr Target month in YYYY-MM format.
    * @returns {Promise<{month: string, days: Object<string, {tasks: Array<object>, calendarEvents: Array<object>, noteContent: string}>}>}
    */
+  async _monthDataViaDailyLoop(monthStr) {
+    const [year, month] = monthStr.split('-').map(Number);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const days = {};
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${monthStr}-${String(d).padStart(2, '0')}`;
+      const dayData = await this.getDailyData(dateStr);
+      days[dateStr] = {
+        tasks: dayData.tasks || [],
+        calendarEvents: dayData.calendarEvents || [],
+        noteContent: dayData.noteContent || ''
+      };
+    }
+    return { month: monthStr, days };
+  }
+
   async getMonthData(monthStr) {
-    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+    if (this.useMock) {
+      return this._monthDataViaDailyLoop(monthStr);
+    }
+
+    const accessToken = getAccessToken();
+    if (accessToken) {
       const [year, month] = monthStr.split('-').map(Number);
       const daysInMonth = new Date(year, month, 0).getDate();
       const days = {};
       for (let d = 1; d <= daysInMonth; d++) {
         const dateStr = `${monthStr}-${String(d).padStart(2, '0')}`;
-        const dayData = await this.getDailyData(dateStr);
-        days[dateStr] = {
-          tasks: dayData.tasks || [],
-          calendarEvents: dayData.calendarEvents || [],
-          noteContent: dayData.noteContent || ''
-        };
+        days[dateStr] = { tasks: [], calendarEvents: [], noteContent: '' };
+      }
+
+      const [eventsByDate, tasksByDate, monthNotes] = await Promise.all([
+        fetchMonthCalendarEvents(monthStr, accessToken),
+        fetchMonthTasks(monthStr, accessToken),
+        fetchMonthlyNotesData(monthStr, accessToken)
+      ]);
+      for (const dateStr of Object.keys(days)) {
+        if (eventsByDate[dateStr]) days[dateStr].calendarEvents = eventsByDate[dateStr];
+        if (tasksByDate[dateStr]) days[dateStr].tasks = tasksByDate[dateStr];
+        if (monthNotes.days && monthNotes.days[dateStr] && monthNotes.days[dateStr].raw) {
+          days[dateStr].noteContent = monthNotes.days[dateStr].raw;
+        }
       }
       return { month: monthStr, days };
     }
 
-    return this._runGasCall('getMonthData', [monthStr]);
+    if (typeof window !== 'undefined' && window.google?.script?.run) {
+      return this._runGasCall('getMonthData', [monthStr]);
+    }
+
+    return this._monthDataViaDailyLoop(monthStr);
   }
 
   /**
@@ -401,16 +738,21 @@ export class GASBridge {
    * @returns {Promise<Array<object>>} List of master task items promise.
    */
   async getMasterTasks(monthYearStr) {
-    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
-      return this.mockData.masterTasks;
+    if (this.useMock) return this.mockData.masterTasks;
+
+    const accessToken = getAccessToken();
+    if (accessToken) return fetchMasterTasks(accessToken);
+
+    if (typeof window !== 'undefined' && window.google?.script?.run) {
+      return new Promise((resolve, reject) => {
+        window.google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .getMasterTasks(monthYearStr);
+      });
     }
 
-    return new Promise((resolve, reject) => {
-      window.google.script.run
-        .withSuccessHandler(resolve)
-        .withFailureHandler(reject)
-        .getMasterTasks(monthYearStr);
-    });
+    return this.mockData.masterTasks;
   }
 
   /**
@@ -464,10 +806,18 @@ export class GASBridge {
    * @returns {Promise<{success: boolean, title?: string, fileId?: string, error?: string}>}
    */
   async resolveLinkTitle(url) {
-    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+    if (this.useMock) {
       return { success: false, error: 'Drive title lookup is unavailable in local/mock mode.' };
     }
-    return this._runGasCall('resolveDriveFileTitle', [url]);
+
+    const accessToken = getAccessToken();
+    if (accessToken) return resolveLinkTitleRest(url, accessToken);
+
+    if (typeof window !== 'undefined' && window.google?.script?.run) {
+      return this._runGasCall('resolveDriveFileTitle', [url]);
+    }
+
+    return { success: false, error: 'Drive title lookup is unavailable in local/mock mode.' };
   }
 
   /**
@@ -646,35 +996,44 @@ export class GASBridge {
    * @param {number} [lookaheadDays=15] Days to look forward.
    * @returns {Promise<Array<string>>} Unique sorted list of attendee email addresses.
    */
-  async getRecentAttendees(lookbackDays = 60, lookaheadDays = 15) {
-    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
-      const emailSet = new Set([
-        'alex.rivera@example.com',
-        'sarah.chen@example.com',
-        'jordan.lee@example.com',
-        'taylor.smith@example.com',
-        'morgan.davis@example.com',
-        'pat.patel@example.com'
-      ]);
+  _mockRecentAttendees() {
+    const emailSet = new Set([
+      'alex.rivera@example.com',
+      'sarah.chen@example.com',
+      'jordan.lee@example.com',
+      'taylor.smith@example.com',
+      'morgan.davis@example.com',
+      'pat.patel@example.com'
+    ]);
 
-      // Collect from mock events
-      Object.values(this.mockData.calendarEvents || {}).forEach(events => {
-        events.forEach(evt => {
-          (evt.attendees || []).forEach(email => {
-            if (email && email.includes('@')) emailSet.add(email.toLowerCase().trim());
-          });
+    // Collect from mock events
+    Object.values(this.mockData.calendarEvents || {}).forEach(events => {
+      events.forEach(evt => {
+        (evt.attendees || []).forEach(email => {
+          if (email && email.includes('@')) emailSet.add(email.toLowerCase().trim());
         });
       });
+    });
 
-      return Array.from(emailSet).sort();
+    return Array.from(emailSet).sort();
+  }
+
+  async getRecentAttendees(lookbackDays = 60, lookaheadDays = 15) {
+    if (this.useMock) return this._mockRecentAttendees();
+
+    const accessToken = getAccessToken();
+    if (accessToken) return fetchRecentAttendees(lookbackDays, lookaheadDays, accessToken);
+
+    if (typeof window !== 'undefined' && window.google?.script?.run) {
+      return new Promise((resolve, reject) => {
+        window.google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .getRecentAttendees(lookbackDays, lookaheadDays);
+      });
     }
 
-    return new Promise((resolve, reject) => {
-      window.google.script.run
-        .withSuccessHandler(resolve)
-        .withFailureHandler(reject)
-        .getRecentAttendees(lookbackDays, lookaheadDays);
-    });
+    return this._mockRecentAttendees();
   }
 
   /**
@@ -798,14 +1157,24 @@ export class GASBridge {
    * @returns {Promise<{year: string, months: Object<string, Array<object>>}>} Year matrix promise.
    */
   async getFutureMatrix(year) {
-    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+    if (this.useMock) {
       if (!this.mockData.futureMatrix[year]) {
         this.mockData.futureMatrix[year] = emptyYearMatrix(year);
       }
       return this.mockData.futureMatrix[year];
     }
 
-    return this._runGasCall('getFutureMatrix', [year]);
+    const accessToken = getAccessToken();
+    if (accessToken) return fetchFutureMatrix(year, accessToken);
+
+    if (typeof window !== 'undefined' && window.google?.script?.run) {
+      return this._runGasCall('getFutureMatrix', [year]);
+    }
+
+    if (!this.mockData.futureMatrix[year]) {
+      this.mockData.futureMatrix[year] = emptyYearMatrix(year);
+    }
+    return this.mockData.futureMatrix[year];
   }
 
   /**

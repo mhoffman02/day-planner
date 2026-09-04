@@ -102,7 +102,8 @@ export default [
         queueMicrotask: 'readonly',
         setTimeout: 'readonly',
         clearTimeout: 'readonly',
-        Buffer: 'readonly'
+        Buffer: 'readonly',
+        URL: 'readonly'
       }
     },
     rules: {

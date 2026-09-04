@@ -5,7 +5,21 @@
 
 import { describe, it, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { GASBridge, fetchDayCalendarEvents, fetchDayTasks, deriveTaskStatus, decodeTaskMeta } from '../src/gasBridge.js';
+import {
+  GASBridge,
+  fetchDayCalendarEvents,
+  fetchDayTasks,
+  fetchMonthCalendarEvents,
+  fetchMonthTasks,
+  getOrCreateRootFolderId,
+  fetchMonthlyNotesData,
+  fetchMasterTasks,
+  fetchFutureMatrix,
+  fetchRecentAttendees,
+  resolveLinkTitleRest,
+  deriveTaskStatus,
+  decodeTaskMeta
+} from '../src/gasBridge.js';
 import IndexedDbStore from '../src/indexedDbStore.js';
 import * as googleAuth from '../src/googleAuth.js';
 
@@ -532,7 +546,7 @@ describe('GAS Bridge REST Unit Tests (Google Identity Services token present)', 
     await assert.rejects(() => fetchDayTasks('2026-08-15', 'tok_abc'), /403.*insufficient scope/s);
   });
 
-  it('getDailyData() uses the REST path (Calendar + Tasks) when a GIS access token is present, and skips notes for now', async () => {
+  it('getDailyData() uses the REST path (Calendar + Tasks + Drive notes) when a GIS access token is present', async () => {
     installFakeGisSignedIn('tok_rest');
     await googleAuth.initGoogleAuth('test-client-id');
     await googleAuth.signIn();
@@ -543,10 +557,20 @@ describe('GAS Bridge REST Unit Tests (Google Identity Services token present)', 
       if (url.includes('/calendar/v3/')) {
         return { ok: true, json: async () => ({ items: [] }) };
       }
-      return {
-        ok: true,
-        json: async () => ({ items: [{ id: 't1', title: 'REST task', status: 'needsAction', due: '2026-08-20T00:00:00.000Z' }] })
-      };
+      if (url.includes('tasks.googleapis.com')) {
+        return {
+          ok: true,
+          json: async () => ({ items: [{ id: 't1', title: 'REST task', status: 'needsAction', due: '2026-08-20T00:00:00.000Z' }] })
+        };
+      }
+      const q = new URL(url).searchParams.get('q') || '';
+      if (q.includes('in parents')) {
+        // The notes file search inside the folder finds nothing, so noteContent falls back
+        // to '' rather than fabricating content.
+        return { ok: true, json: async () => ({ files: [] }) };
+      }
+      // Drive: root folder search finds an existing folder.
+      return { ok: true, json: async () => ({ files: [{ id: 'folder1', name: 'Day Planner' }] }) };
     };
 
     const bridge = new GASBridge(false);
@@ -556,7 +580,31 @@ describe('GAS Bridge REST Unit Tests (Google Identity Services token present)', 
     assert.equal(data.calendarEvents.length, 0);
     assert.equal(data.tasks.length, 1);
     assert.equal(data.tasks[0].title, 'REST task');
-    assert.equal(fetchedUrls.length, 2);
+    // Calendar + Tasks + Drive folder search + notes file search (found no file, so no download call).
+    assert.equal(fetchedUrls.length, 4);
+  });
+
+  it('getDailyData() surfaces real note content from the monthly Drive notes JSON', async () => {
+    installFakeGisSignedIn('tok_rest');
+    await googleAuth.initGoogleAuth('test-client-id');
+    await googleAuth.signIn();
+
+    globalThis.fetch = async (url) => {
+      if (url.includes('/calendar/v3/')) return { ok: true, json: async () => ({ items: [] }) };
+      if (url.includes('tasks.googleapis.com')) return { ok: true, json: async () => ({ items: [] }) };
+      if (url.includes('alt=media')) {
+        return { ok: true, text: async () => JSON.stringify({ month: '2026-08', days: { '2026-08-20': { raw: 'Real note content' } } }) };
+      }
+      const q = new URL(url).searchParams.get('q') || '';
+      if (q.includes('in parents')) {
+        return { ok: true, json: async () => ({ files: [{ id: 'notesfile1', name: 'notes-2026-08.json' }] }) };
+      }
+      return { ok: true, json: async () => ({ files: [{ id: 'folder1', name: 'Day Planner' }] }) };
+    };
+
+    const bridge = new GASBridge(false);
+    const data = await bridge.getDailyData('2026-08-20');
+    assert.equal(data.noteContent, 'Real note content');
   });
 
   it('getDailyData() falls back to google.script.run when no access token is present but window.google.script.run is', async () => {
@@ -574,5 +622,290 @@ describe('GAS Bridge REST Unit Tests (Google Identity Services token present)', 
     const bridge = new GASBridge(false);
     const data = await bridge.getDailyData('2026-08-21');
     assert.deepEqual(data.tasks, ['from-gas']);
+  });
+
+  it('fetchMonthCalendarEvents() paginates and buckets events by day', async () => {
+    const calls = [];
+    globalThis.fetch = async (url) => {
+      calls.push(url);
+      const params = new URL(url).searchParams;
+      if (!params.get('pageToken')) {
+        return {
+          ok: true,
+          json: async () => ({
+            nextPageToken: 'page2',
+            items: [{ id: 'e1', summary: 'Standup', start: { dateTime: '2026-08-05T09:00:00-04:00' }, end: { dateTime: '2026-08-05T09:30:00-04:00' } }]
+          })
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          items: [{ id: 'e2', summary: 'Review', start: { date: '2026-08-20' }, end: { date: '2026-08-21' } }]
+        })
+      };
+    };
+
+    const byDate = await fetchMonthCalendarEvents('2026-08', 'tok_abc');
+    assert.equal(calls.length, 2);
+    assert.equal(byDate['2026-08-05'].length, 1);
+    assert.equal(byDate['2026-08-05'][0].title, 'Standup');
+    assert.equal(byDate['2026-08-20'][0].title, 'Review');
+  });
+
+  it('fetchMonthTasks() paginates and buckets tasks by due date, skipping undated tasks', async () => {
+    let call = 0;
+    globalThis.fetch = async () => {
+      call++;
+      if (call === 1) {
+        return { ok: true, json: async () => ({ nextPageToken: 'p2', items: [{ id: 't1', title: 'Dated', status: 'needsAction', due: '2026-08-10T00:00:00.000Z' }] }) };
+      }
+      return { ok: true, json: async () => ({ items: [{ id: 't2', title: 'Undated' }, { id: 't3', title: 'Later', status: 'completed', due: '2026-08-11T00:00:00.000Z' }] }) };
+    };
+
+    const byDate = await fetchMonthTasks('2026-08', 'tok_abc');
+    assert.equal(call, 2);
+    assert.deepEqual(Object.keys(byDate).sort(), ['2026-08-10', '2026-08-11']);
+    assert.equal(byDate['2026-08-10'][0].title, 'Dated');
+    assert.equal(byDate['2026-08-11'][0].status, '✓');
+  });
+
+  it('getOrCreateRootFolderId() returns a cached localStorage id without hitting the network', async () => {
+    const store = new Map([['dayPlannerRootFolderId', 'cached_folder_1']]);
+    globalThis.localStorage = {
+      getItem: (k) => (store.has(k) ? store.get(k) : null),
+      setItem: (k, v) => store.set(k, v),
+      removeItem: (k) => store.delete(k)
+    };
+    globalThis.fetch = async () => { throw new Error('should not fetch when a cached folder id exists'); };
+    try {
+      const id = await getOrCreateRootFolderId('tok_abc');
+      assert.equal(id, 'cached_folder_1');
+    } finally {
+      delete globalThis.localStorage;
+    }
+  });
+
+  it('getOrCreateRootFolderId() creates the folder via POST when no existing one is found, and caches it', async () => {
+    const store = new Map();
+    globalThis.localStorage = {
+      getItem: (k) => (store.has(k) ? store.get(k) : null),
+      setItem: (k, v) => store.set(k, v),
+      removeItem: (k) => store.delete(k)
+    };
+    const calls = [];
+    globalThis.fetch = async (url, options) => {
+      calls.push({ url, method: (options && options.method) || 'GET' });
+      if (options && options.method === 'POST') {
+        return { ok: true, json: async () => ({ id: 'created_folder_1' }) };
+      }
+      return { ok: true, json: async () => ({ files: [] }) };
+    };
+    try {
+      const id = await getOrCreateRootFolderId('tok_abc');
+      assert.equal(id, 'created_folder_1');
+      assert.equal(calls.length, 2);
+      assert.equal(calls[1].method, 'POST');
+      assert.equal(store.get('dayPlannerRootFolderId'), 'created_folder_1');
+    } finally {
+      delete globalThis.localStorage;
+    }
+  });
+
+  it('getOrCreateRootFolderId() reuses an existing folder found by search without creating one', async () => {
+    const calls = [];
+    globalThis.fetch = async (url, options) => {
+      calls.push({ url, method: (options && options.method) || 'GET' });
+      return { ok: true, json: async () => ({ files: [{ id: 'found_folder_1', name: 'Day Planner' }] }) };
+    };
+    const id = await getOrCreateRootFolderId('tok_abc');
+    assert.equal(id, 'found_folder_1');
+    assert.equal(calls.length, 1);
+  });
+
+  it('fetchMonthlyNotesData() returns an empty skeleton when the notes file does not exist', async () => {
+    globalThis.fetch = async (url) => {
+      const q = new URL(url).searchParams.get('q') || '';
+      if (q.includes('in parents')) return { ok: true, json: async () => ({ files: [] }) };
+      return { ok: true, json: async () => ({ files: [{ id: 'folder1' }] }) };
+    };
+    const data = await fetchMonthlyNotesData('2026-08', 'tok_abc');
+    assert.deepEqual(data, { month: '2026-08', days: {} });
+  });
+
+  it('fetchMonthlyNotesData() falls back to an empty skeleton and logs on a JSON parse failure', async () => {
+    const originalError = console.error;
+    const errors = [];
+    console.error = (...args) => errors.push(args);
+    globalThis.fetch = async (url) => {
+      const q = new URL(url).searchParams.get('q') || '';
+      if (q.includes('in parents')) return { ok: true, json: async () => ({ files: [{ id: 'notesfile1' }] }) };
+      if (url.includes('alt=media')) return { ok: true, text: async () => '{not valid json' };
+      return { ok: true, json: async () => ({ files: [{ id: 'folder1' }] }) };
+    };
+    try {
+      const data = await fetchMonthlyNotesData('2026-08', 'tok_abc');
+      assert.deepEqual(data, { month: '2026-08', days: {} });
+      assert.equal(errors.length, 1);
+    } finally {
+      console.error = originalError;
+    }
+  });
+
+  it('fetchMonthlyNotesData() returns the parsed file content when found and valid', async () => {
+    globalThis.fetch = async (url) => {
+      const q = new URL(url).searchParams.get('q') || '';
+      if (q.includes('in parents')) return { ok: true, json: async () => ({ files: [{ id: 'notesfile1' }] }) };
+      if (url.includes('alt=media')) return { ok: true, text: async () => JSON.stringify({ month: '2026-08', days: { '2026-08-05': { raw: 'hi' } } }) };
+      return { ok: true, json: async () => ({ files: [{ id: 'folder1' }] }) };
+    };
+    const data = await fetchMonthlyNotesData('2026-08', 'tok_abc');
+    assert.equal(data.days['2026-08-05'].raw, 'hi');
+  });
+
+  it('fetchMasterTasks() keeps only undated tasks and decodes their meta/status', async () => {
+    globalThis.fetch = async () => ({
+      ok: true,
+      json: async () => ({
+        items: [
+          { id: 'm1', title: 'Master item', status: 'needsAction', notes: '<!--dp-meta:{"category":"Work","movedTo":"2026-08-20","movedTaskId":"t9"}-->\n' },
+          { id: 'd1', title: 'Has a due date', status: 'needsAction', due: '2026-08-20T00:00:00.000Z' }
+        ]
+      })
+    });
+    const tasks = await fetchMasterTasks('tok_abc');
+    assert.equal(tasks.length, 1);
+    assert.deepEqual(tasks[0], { id: 'm1', title: 'Master item', category: 'Work', status: '•', movedTo: '2026-08-20', movedTaskId: 't9' });
+  });
+
+  it('fetchFutureMatrix() returns an empty 12-month skeleton when the file does not exist', async () => {
+    globalThis.fetch = async (url) => {
+      const q = new URL(url).searchParams.get('q') || '';
+      if (q.includes('in parents')) return { ok: true, json: async () => ({ files: [] }) };
+      return { ok: true, json: async () => ({ files: [{ id: 'folder1' }] }) };
+    };
+    const matrix = await fetchFutureMatrix(2026, 'tok_abc');
+    assert.equal(matrix.year, '2026');
+    assert.equal(Object.keys(matrix.months).length, 12);
+    assert.deepEqual(matrix.months['2026-01'], []);
+  });
+
+  it('fetchFutureMatrix() merges found file content into the skeleton', async () => {
+    globalThis.fetch = async (url) => {
+      const q = new URL(url).searchParams.get('q') || '';
+      if (q.includes('in parents')) return { ok: true, json: async () => ({ files: [{ id: 'matrixfile1' }] }) };
+      if (url.includes('alt=media')) return { ok: true, text: async () => JSON.stringify({ months: { '2026-10': [{ id: 'f1', title: 'Plan trip' }] } }) };
+      return { ok: true, json: async () => ({ files: [{ id: 'folder1' }] }) };
+    };
+    const matrix = await fetchFutureMatrix(2026, 'tok_abc');
+    assert.equal(matrix.months['2026-10'].length, 1);
+    assert.equal(matrix.months['2026-01'].length, 0);
+  });
+
+  it('fetchRecentAttendees() dedupes, lowercases, and sorts attendee emails across pages', async () => {
+    let call = 0;
+    globalThis.fetch = async () => {
+      call++;
+      if (call === 1) {
+        return { ok: true, json: async () => ({ nextPageToken: 'p2', items: [{ attendees: [{ email: 'Zed@Example.com' }, { email: 'not-an-email' }] }] }) };
+      }
+      return { ok: true, json: async () => ({ items: [{ attendees: [{ email: 'amy@example.com' }, { email: 'zed@example.com' }] }] }) };
+    };
+    const emails = await fetchRecentAttendees(60, 15, 'tok_abc');
+    assert.deepEqual(emails, ['amy@example.com', 'zed@example.com']);
+  });
+
+  it('resolveLinkTitleRest() resolves a Docs URL title', async () => {
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({ id: 'doc1', name: 'Meeting Notes', trashed: false }) });
+    const result = await resolveLinkTitleRest('https://docs.google.com/document/d/doc1/edit', 'tok_abc');
+    assert.deepEqual(result, { success: true, title: 'Meeting Notes', fileId: 'doc1' });
+  });
+
+  it('resolveLinkTitleRest() reports failure for a non-Drive URL', async () => {
+    const result = await resolveLinkTitleRest('https://example.com/not-drive', 'tok_abc');
+    assert.equal(result.success, false);
+    assert.match(result.error, /Not a recognized/);
+  });
+
+  it('resolveLinkTitleRest() reports failure for a trashed file', async () => {
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({ id: 'doc1', name: 'Old Doc', trashed: true }) });
+    const result = await resolveLinkTitleRest('https://docs.google.com/document/d/doc1/edit', 'tok_abc');
+    assert.deepEqual(result, { success: false, error: 'File is trashed.' });
+  });
+
+  it('GASBridge#getMonthData() uses the REST path, pre-seeding every day and overlaying fetched data', async () => {
+    installFakeGisSignedIn('tok_rest');
+    await googleAuth.initGoogleAuth('test-client-id');
+    await googleAuth.signIn();
+
+    globalThis.fetch = async (url) => {
+      if (url.includes('/calendar/v3/')) {
+        return { ok: true, json: async () => ({ items: [{ id: 'e1', summary: 'Standup', start: { dateTime: '2026-08-05T09:00:00-04:00' }, end: { dateTime: '2026-08-05T09:30:00-04:00' } }] }) };
+      }
+      if (url.includes('tasks.googleapis.com')) {
+        return { ok: true, json: async () => ({ items: [{ id: 't1', title: 'A task', status: 'needsAction', due: '2026-08-06T00:00:00.000Z' }] }) };
+      }
+      if (url.includes('alt=media')) return { ok: true, text: async () => '' };
+      const q = new URL(url).searchParams.get('q') || '';
+      if (q.includes('in parents')) return { ok: true, json: async () => ({ files: [] }) };
+      return { ok: true, json: async () => ({ files: [{ id: 'folder1' }] }) };
+    };
+
+    const bridge = new GASBridge(false);
+    const data = await bridge.getMonthData('2026-08');
+    assert.equal(Object.keys(data.days).length, 31);
+    assert.equal(data.days['2026-08-05'].calendarEvents[0].title, 'Standup');
+    assert.equal(data.days['2026-08-06'].tasks[0].title, 'A task');
+    assert.deepEqual(data.days['2026-08-01'], { tasks: [], calendarEvents: [], noteContent: '' });
+  });
+
+  it('GASBridge#getMasterTasks() uses the REST path when a token is present', async () => {
+    installFakeGisSignedIn('tok_rest');
+    await googleAuth.initGoogleAuth('test-client-id');
+    await googleAuth.signIn();
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({ items: [{ id: 'm1', title: 'Master item', status: 'needsAction' }] }) });
+
+    const bridge = new GASBridge(false);
+    const tasks = await bridge.getMasterTasks();
+    assert.equal(tasks.length, 1);
+    assert.equal(tasks[0].id, 'm1');
+  });
+
+  it('GASBridge#getFutureMatrix() uses the REST path when a token is present', async () => {
+    installFakeGisSignedIn('tok_rest');
+    await googleAuth.initGoogleAuth('test-client-id');
+    await googleAuth.signIn();
+    globalThis.fetch = async (url) => {
+      const q = new URL(url).searchParams.get('q') || '';
+      if (q.includes('in parents')) return { ok: true, json: async () => ({ files: [] }) };
+      return { ok: true, json: async () => ({ files: [{ id: 'folder1' }] }) };
+    };
+
+    const bridge = new GASBridge(false);
+    const matrix = await bridge.getFutureMatrix(2027);
+    assert.equal(matrix.year, '2027');
+    assert.equal(Object.keys(matrix.months).length, 12);
+  });
+
+  it('GASBridge#getRecentAttendees() uses the REST path when a token is present', async () => {
+    installFakeGisSignedIn('tok_rest');
+    await googleAuth.initGoogleAuth('test-client-id');
+    await googleAuth.signIn();
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({ items: [{ attendees: [{ email: 'rest@example.com' }] }] }) });
+
+    const bridge = new GASBridge(false);
+    const emails = await bridge.getRecentAttendees();
+    assert.deepEqual(emails, ['rest@example.com']);
+  });
+
+  it('GASBridge#resolveLinkTitle() uses the REST path when a token is present', async () => {
+    installFakeGisSignedIn('tok_rest');
+    await googleAuth.initGoogleAuth('test-client-id');
+    await googleAuth.signIn();
+    globalThis.fetch = async () => ({ ok: true, json: async () => ({ id: 'doc1', name: 'Rest Doc', trashed: false }) });
+
+    const bridge = new GASBridge(false);
+    const result = await bridge.resolveLinkTitle('https://docs.google.com/document/d/doc1/edit');
+    assert.deepEqual(result, { success: true, title: 'Rest Doc', fileId: 'doc1' });
   });
 });
