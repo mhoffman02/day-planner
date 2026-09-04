@@ -87,9 +87,9 @@ describe('googleAuth', () => {
     assert.equal(capturedConfigs[0].scope, googleAuth.GOOGLE_AUTH_SCOPES);
     assert.match(googleAuth.GOOGLE_AUTH_SCOPES, /drive\.file/);
     assert.match(googleAuth.GOOGLE_AUTH_SCOPES, /drive\.readonly/);
-    assert.match(googleAuth.GOOGLE_AUTH_SCOPES, /\bcalendar\b/);
+    assert.match(googleAuth.GOOGLE_AUTH_SCOPES, /\bcalendar\.events\b/);
     assert.match(googleAuth.GOOGLE_AUTH_SCOPES, /\btasks\b/);
-    assert.match(googleAuth.GOOGLE_AUTH_SCOPES, /\bdocuments\b/);
+    assert.doesNotMatch(googleAuth.GOOGLE_AUTH_SCOPES, /\bdocuments\b/);
   });
 
   it('signIn() resolves with the access token and getAccessToken() then returns it', async () => {

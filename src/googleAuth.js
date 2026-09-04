@@ -14,15 +14,16 @@ const TOKEN_STORAGE_KEY = 'dayPlannerGoogleAuthToken';
 // Scope-minimization mirrors the existing drive.file/drive.readonly split in
 // gas-app/appsscript.json (drive.readonly is requested *only* because resolveLinkTitle needs to
 // read the title of a pasted Doc/Sheet/Slide/Form/Drive link the app didn't create — drive.file
-// alone only covers app-created files). `documents` is net-new versus appsscript.json: GAS's
-// implicit execution grant covered DocumentApp's agenda-doc creation for free; calling the Docs
-// REST API directly requires requesting it explicitly.
+// alone only covers app-created files). No separate Docs scope is requested: the Docs API accepts
+// drive.file for any document the app itself created via Drive/Docs, which covers the
+// agenda-doc feature — Day Planner never opens a pre-existing Doc it didn't create. calendar.events
+// (not the broader calendar scope) is used since Day Planner only ever reads/writes events, never
+// creates/deletes/shares whole calendars.
 export const GOOGLE_AUTH_SCOPES = [
   'https://www.googleapis.com/auth/drive.file',
   'https://www.googleapis.com/auth/drive.readonly',
-  'https://www.googleapis.com/auth/calendar',
+  'https://www.googleapis.com/auth/calendar.events',
   'https://www.googleapis.com/auth/tasks',
-  'https://www.googleapis.com/auth/documents',
   'https://www.googleapis.com/auth/userinfo.email'
 ].join(' ');
 
