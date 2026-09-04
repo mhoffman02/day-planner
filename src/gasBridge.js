@@ -24,6 +24,7 @@ export const OUTBOX_MUTATION_TYPES = {
 const CALENDAR_API_BASE = 'https://www.googleapis.com/calendar/v3';
 const TASKS_API_BASE = 'https://tasks.googleapis.com/tasks/v1';
 const DRIVE_API_BASE = 'https://www.googleapis.com/drive/v3';
+const DRIVE_UPLOAD_API_BASE = 'https://www.googleapis.com/upload/drive/v3';
 // PropertiesService's replacement per the GAS-removal plan: a single root-folder-ID key. Unlike
 // gas-app/Code.gs#getValidatedRootFolder, there's no LockService/CacheService equivalent here —
 // single-user client-only usage makes the folder-creation race this guarded against rare and
@@ -66,6 +67,47 @@ export function decodeTaskMeta(notes) {
   } catch {
     return {};
   }
+}
+
+/**
+ * Strips the hidden dp-status marker line from a task's notes, if present. Ported from
+ * gas-app/Code.gs#stripTaskStatusMarker.
+ * @param {string} notes
+ * @returns {string}
+ */
+function stripTaskStatusMarker(notes) {
+  return (notes || '').replace(TASK_STATUS_MARKER_RE, '');
+}
+
+/**
+ * Computes the `notes` value to persist for a given app status, preserving any existing
+ * non-marker notes content. Native statuses ('•'/'✓') need no marker, since 'completed'/
+ * 'needsAction' already represent them; only the 3 extra statuses get one. Ported 1:1 from
+ * gas-app/Code.gs#encodeTaskStatusNotes.
+ * @param {string} status App status glyph being written.
+ * @param {string} existingNotes Current `notes` field on the task before this update.
+ * @returns {string} New `notes` value to send in the patch.
+ */
+export function encodeTaskStatusNotes(status, existingNotes) {
+  const rest = stripTaskStatusMarker(existingNotes);
+  if (!TASK_EXTRA_STATUSES.includes(status)) return rest;
+  const marker = `<!--dp-status:${status}-->`;
+  return rest ? `${marker}\n${rest}` : marker;
+}
+
+/**
+ * Computes the `notes` value to persist after merging `metaPatch` into any existing metadata,
+ * preserving other notes content (e.g. a status marker) untouched. Ported 1:1 from
+ * gas-app/Code.gs#encodeTaskMeta.
+ * @param {string} existingNotes Current `notes` field on the task before this update.
+ * @param {object} metaPatch Fields to merge into the existing metadata object.
+ * @returns {string} New `notes` value to send in the patch.
+ */
+export function encodeTaskMeta(existingNotes, metaPatch) {
+  const merged = Object.assign({}, decodeTaskMeta(existingNotes), metaPatch);
+  const rest = (existingNotes || '').replace(TASK_META_MARKER_RE, '');
+  const marker = `<!--dp-meta:${JSON.stringify(merged)}-->`;
+  return rest ? `${marker}\n${rest}` : marker;
 }
 
 /**
@@ -462,6 +504,459 @@ export async function resolveLinkTitleRest(url, accessToken) {
 }
 
 /**
+ * Creates a new Google Task via the Tasks v1 REST API.
+ * @param {object} taskResource Task resource body (title, notes, due, etc.).
+ * @param {string} accessToken
+ * @returns {Promise<object>} The created Task resource.
+ */
+async function insertTask(taskResource, accessToken) {
+  return googleApiFetch(`${TASKS_API_BASE}/lists/@default/tasks`, accessToken, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(taskResource)
+  });
+}
+
+/**
+ * Patches an existing Google Task via the Tasks v1 REST API.
+ * @param {string} taskId
+ * @param {object} patch Partial Task resource fields to update.
+ * @param {string} accessToken
+ * @returns {Promise<object>} The updated Task resource.
+ */
+async function patchTask(taskId, patch, accessToken) {
+  return googleApiFetch(`${TASKS_API_BASE}/lists/@default/tasks/${encodeURIComponent(taskId)}`, accessToken, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch)
+  });
+}
+
+/**
+ * Fetches a single Google Task by id via the Tasks v1 REST API.
+ * @param {string} taskId
+ * @param {string} accessToken
+ * @returns {Promise<object>} The Task resource.
+ */
+async function getTaskById(taskId, accessToken) {
+  return googleApiFetch(`${TASKS_API_BASE}/lists/@default/tasks/${encodeURIComponent(taskId)}`, accessToken);
+}
+
+/**
+ * Creates a new master task — an undated Google Task flagged via the hidden metadata marker.
+ * Ported 1:1 from gas-app/Code.gs#addMasterTask.
+ * @param {string} title
+ * @param {string} category
+ * @param {string} accessToken
+ * @returns {Promise<object>} Created master task object.
+ */
+export async function addMasterTaskRest(title, category, accessToken) {
+  const created = await insertTask({
+    title,
+    notes: encodeTaskMeta('', { master: true, category: category || 'General' })
+  }, accessToken);
+  return {
+    id: created.id,
+    title: created.title,
+    category: category || 'General',
+    status: deriveTaskStatus(created),
+    movedTo: null,
+    movedTaskId: null
+  };
+}
+
+/**
+ * Records that a master task was moved (transferred) to a specific daily task list. Ported 1:1
+ * from gas-app/Code.gs#markMasterTaskMoved.
+ * @param {string} masterTaskId
+ * @param {string} targetDateStr
+ * @param {string} movedTaskId
+ * @param {string} accessToken
+ * @returns {Promise<object>} Updated master task object.
+ */
+export async function markMasterTaskMovedRest(masterTaskId, targetDateStr, movedTaskId, accessToken) {
+  const current = await getTaskById(masterTaskId, accessToken);
+  const notes = encodeTaskMeta(current.notes, { movedTo: targetDateStr, movedTaskId });
+  const updated = await patchTask(masterTaskId, { notes }, accessToken);
+  const meta = decodeTaskMeta(updated.notes);
+  return {
+    id: updated.id,
+    title: updated.title,
+    category: meta.category || 'General',
+    status: deriveTaskStatus(updated),
+    movedTo: meta.movedTo || null,
+    movedTaskId: meta.movedTaskId || null
+  };
+}
+
+/**
+ * Creates and appends a new daily task item for the specified date. Ported 1:1 from
+ * gas-app/Code.gs#addDailyTask.
+ * @param {string} dateStr
+ * @param {string} title
+ * @param {string} category
+ * @param {string} [sourceMasterId]
+ * @param {string} accessToken
+ * @returns {Promise<object>} Created task object.
+ */
+export async function addDailyTaskRest(dateStr, title, category, sourceMasterId, accessToken) {
+  const metaPatch = { category: category || 'General' };
+  if (sourceMasterId) metaPatch.sourceMasterId = sourceMasterId;
+  const created = await insertTask({
+    title,
+    due: `${dateStr}T00:00:00.000Z`,
+    notes: encodeTaskMeta('', metaPatch)
+  }, accessToken);
+  return {
+    id: created.id,
+    title: created.title,
+    status: deriveTaskStatus(created),
+    category: category || 'General',
+    dueDate: created.due ? created.due.substring(0, 10) : dateStr,
+    sourceMasterId: sourceMasterId || null
+  };
+}
+
+/**
+ * Updates an existing Google Task's title/status/category/due date, mirroring a status change
+ * onto its source master task best-effort. Ported 1:1 from gas-app/Code.gs#updateDailyTask,
+ * including its 404-as-null handling (a task deleted elsewhere shouldn't surface as a hard error)
+ * and the best-effort master-task sync (logged loudly on failure per no-silent-failures.md,
+ * never allowed to fail the daily task update that already succeeded).
+ * @param {string} dateStr
+ * @param {string} taskId
+ * @param {object} updates {title, status, category, dueDate}
+ * @param {string} accessToken
+ * @returns {Promise<object|null>} Updated task object, or null if the task no longer exists.
+ */
+export async function updateDailyTaskRest(dateStr, taskId, updates = {}, accessToken) {
+  try {
+    const patch = {};
+    let current = null;
+    async function ensureCurrent() {
+      if (!current) current = await getTaskById(taskId, accessToken);
+      return current;
+    }
+
+    if (updates.title !== undefined) patch.title = updates.title;
+    if (updates.status !== undefined) {
+      patch.status = (updates.status === '✓' || updates.status === 'D/✓') ? 'completed' : 'needsAction';
+      patch.notes = encodeTaskStatusNotes(updates.status, (await ensureCurrent()).notes);
+    }
+    if (updates.category !== undefined) {
+      const notesBase = patch.notes !== undefined ? patch.notes : (await ensureCurrent()).notes;
+      patch.notes = encodeTaskMeta(notesBase, { category: updates.category });
+    }
+    if (updates.dueDate !== undefined) patch.due = `${updates.dueDate}T00:00:00.000Z`;
+
+    const updated = await patchTask(taskId, patch, accessToken);
+
+    if (current && updates.status !== undefined) {
+      const meta = decodeTaskMeta(current.notes);
+      if (meta.sourceMasterId) {
+        try {
+          const masterCurrent = await getTaskById(meta.sourceMasterId, accessToken);
+          await patchTask(meta.sourceMasterId, {
+            status: patch.status,
+            notes: encodeTaskStatusNotes(updates.status, masterCurrent.notes)
+          }, accessToken);
+        } catch (syncErr) {
+          console.error(`updateDailyTaskRest->masterSync(${meta.sourceMasterId})`, syncErr);
+        }
+      }
+    }
+
+    return {
+      id: updated.id,
+      title: updated.title,
+      status: deriveTaskStatus(updated),
+      category: decodeTaskMeta(updated.notes).category || 'General',
+      dueDate: updated.due ? updated.due.substring(0, 10) : (updates.dueDate || dateStr)
+    };
+  } catch (err) {
+    if (err.message && err.message.includes('404')) return null;
+    throw err;
+  }
+}
+
+/**
+ * Forwards a daily task to a new date, composed from addDailyTaskRest + updateDailyTaskRest.
+ * Ported 1:1 from gas-app/Code.gs#forwardDailyTask.
+ * @param {string} dateStr
+ * @param {string} taskId
+ * @param {{title: string, category?: string}} sourceTaskSnapshot
+ * @param {string} targetDateStr
+ * @param {string} accessToken
+ * @returns {Promise<{originalTask: object, forwardedTask: object}>}
+ */
+export async function forwardDailyTaskRest(dateStr, taskId, sourceTaskSnapshot, targetDateStr, accessToken) {
+  const match = (sourceTaskSnapshot.title || '').match(/^\[([A-C])[1-9]\]\s*(.*)$/i);
+  const priorityGroup = match ? match[1].toUpperCase() : 'A';
+  const cleanTitle = match ? match[2].trim() : (sourceTaskSnapshot.title || 'Untitled Task').trim();
+  const formattedTitle = `[${priorityGroup}1] ${cleanTitle}`;
+
+  const forwardedTask = await addDailyTaskRest(targetDateStr, formattedTitle, sourceTaskSnapshot.category, undefined, accessToken);
+  const originalTask = await updateDailyTaskRest(dateStr, taskId, { title: sourceTaskSnapshot.title, status: '→', dueDate: dateStr }, accessToken);
+
+  return { originalTask, forwardedTask };
+}
+
+/**
+ * Updates an existing calendar event's title/timing via the Calendar v3 REST API. Ported from
+ * gas-app/Code.gs#updateCalendarEvent's Advanced-Calendar-Service branch — timeZone is required
+ * on start/end the same way Session.getScriptTimeZone() supplied it server-side; the browser's
+ * equivalent is Intl.DateTimeFormat().resolvedOptions().timeZone.
+ * @param {string} eventId
+ * @param {object} updates {title, startTime, endTime, location, description}
+ * @param {string} accessToken
+ * @returns {Promise<object|null>} Updated event payload, or null if the event no longer exists.
+ */
+export async function updateCalendarEventRest(eventId, updates = {}, accessToken) {
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const patch = {};
+  if (updates.title !== undefined) patch.summary = updates.title;
+  if (updates.location !== undefined) patch.location = updates.location;
+  if (updates.description !== undefined) patch.description = updates.description;
+  if (updates.startTime !== undefined) patch.start = { dateTime: updates.startTime, timeZone };
+  if (updates.endTime !== undefined) patch.end = { dateTime: updates.endTime, timeZone };
+
+  try {
+    const updated = await googleApiFetch(`${CALENDAR_API_BASE}/calendars/primary/events/${encodeURIComponent(eventId)}`, accessToken, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch)
+    });
+    return {
+      id: updated.id,
+      title: updated.summary,
+      startTime: updated.start && (updated.start.dateTime || updated.start.date),
+      endTime: updated.end && (updated.end.dateTime || updated.end.date),
+      location: updated.location || '',
+      description: updated.description || ''
+    };
+  } catch (err) {
+    if (err.message && err.message.includes('404')) return null;
+    throw err;
+  }
+}
+
+/**
+ * Overwrites an existing Drive file's content (simple/media upload). Used for updating a monthly
+ * notes/future-matrix JSON file that already exists.
+ * @param {string} fileId
+ * @param {string} content
+ * @param {string} accessToken
+ * @returns {Promise<object>}
+ */
+async function updateDriveFileContent(fileId, content, accessToken) {
+  const res = await fetch(`${DRIVE_UPLOAD_API_BASE}/files/${encodeURIComponent(fileId)}?uploadType=media`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: content
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Drive file update failed (${res.status} ${res.statusText}): ${fileId} ${body}`);
+  }
+  return res.json();
+}
+
+/**
+ * Creates a new Drive file with metadata + content in one request (multipart upload) — the REST
+ * equivalent of DriveApp.Folder#createFile, which sets name/parent/content together.
+ * @param {string} fileName
+ * @param {string} folderId
+ * @param {string} content
+ * @param {string} accessToken
+ * @returns {Promise<{id: string}>}
+ */
+async function createDriveFileWithContent(fileName, folderId, content, accessToken) {
+  const boundary = `dayplanner_${Math.random().toString(36).slice(2)}`;
+  const metadata = { name: fileName, parents: [folderId], mimeType: 'text/plain' };
+  const body =
+    `--${boundary}\r\n` +
+    'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+    `${JSON.stringify(metadata)}\r\n` +
+    `--${boundary}\r\n` +
+    'Content-Type: text/plain\r\n\r\n' +
+    `${content}\r\n` +
+    `--${boundary}--`;
+
+  const res = await fetch(`${DRIVE_UPLOAD_API_BASE}/files?uploadType=multipart&fields=id`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': `multipart/related; boundary=${boundary}` },
+    body
+  });
+  if (!res.ok) {
+    const errBody = await res.text().catch(() => '');
+    throw new Error(`Drive file create failed (${res.status} ${res.statusText}): ${fileName} ${errBody}`);
+  }
+  return res.json();
+}
+
+/**
+ * Read-modify-write of the month-partitioned daily-notes JSON file. Ported 1:1 from
+ * gas-app/Code.gs#saveDailyDocCards, including its fail-loud-on-invalid-JSON behavior — see that
+ * function's comment for why a parse failure must reject the save rather than silently
+ * overwriting every other day's notes already saved this month (.agents/rules/no-silent-failures.md).
+ * @param {string} dateStr
+ * @param {string} noteContent
+ * @param {string} accessToken
+ * @returns {Promise<{success: boolean, fileName: string, fileId: string}>}
+ */
+export async function saveDailyDocCardsRest(dateStr, noteContent, accessToken) {
+  const monthStr = (dateStr || '').substring(0, 7);
+  const fileName = `notes-${monthStr}.json`;
+  const folderId = await getOrCreateRootFolderId(accessToken);
+  const file = await findDriveFileInFolder(fileName, folderId, accessToken);
+
+  let monthData = { month: monthStr, days: {} };
+  if (file) {
+    const content = await downloadDriveFileText(file.id, accessToken);
+    if (content && content.trim()) {
+      try {
+        monthData = JSON.parse(content);
+      } catch (e) {
+        throw new Error(`Existing ${fileName} contains invalid JSON and cannot be safely overwritten without losing other days' notes: ${e.message}`, { cause: e });
+      }
+    }
+  }
+
+  if (!monthData.days) monthData.days = {};
+  monthData.days[dateStr] = { raw: noteContent || '', updatedAt: new Date().toISOString() };
+  const serialized = JSON.stringify(monthData, null, 2);
+
+  let fileId;
+  if (file) {
+    await updateDriveFileContent(file.id, serialized, accessToken);
+    fileId = file.id;
+  } else {
+    const created = await createDriveFileWithContent(fileName, folderId, serialized, accessToken);
+    fileId = created.id;
+  }
+
+  return { success: true, fileName, fileId };
+}
+
+/**
+ * Writes the Future Planning Matrix JSON file for a given year back to Drive. Ported from
+ * gas-app/Code.gs#saveFutureMatrixData_, minus its CacheService refresh (no client-side cache
+ * exists for this file yet — see fetchFutureMatrix's matching note).
+ * @param {number|string} year
+ * @param {object} matrixData
+ * @param {string} accessToken
+ * @returns {Promise<void>}
+ */
+async function saveFutureMatrixRest(year, matrixData, accessToken) {
+  const yearStr = String(year);
+  const fileName = `future-matrix-${yearStr}.json`;
+  const folderId = await getOrCreateRootFolderId(accessToken);
+  const file = await findDriveFileInFolder(fileName, folderId, accessToken);
+  const serialized = JSON.stringify(matrixData, null, 2);
+  if (file) {
+    await updateDriveFileContent(file.id, serialized, accessToken);
+  } else {
+    await createDriveFileWithContent(fileName, folderId, serialized, accessToken);
+  }
+}
+
+/**
+ * Adds a new future planning item to a month's bucket and persists the year file. Ported 1:1
+ * from gas-app/Code.gs#addFutureItem.
+ * @param {number|string} year
+ * @param {string} monthKey
+ * @param {string} title
+ * @param {string} category
+ * @param {string} accessToken
+ * @returns {Promise<object>} Created future item.
+ */
+export async function addFutureItemRest(year, monthKey, title, category, accessToken) {
+  const matrixData = await fetchFutureMatrix(year, accessToken);
+  if (!matrixData.months[monthKey]) matrixData.months[monthKey] = [];
+  const newItem = createFutureItem(title, category);
+  matrixData.months[monthKey].push(newItem);
+  await saveFutureMatrixRest(year, matrixData, accessToken);
+  return newItem;
+}
+
+/**
+ * Cycles a future item's Franklin-style status marker and persists the year file. Ported 1:1
+ * from gas-app/Code.gs#updateFutureItemStatus.
+ * @param {number|string} year
+ * @param {string} monthKey
+ * @param {string} itemId
+ * @param {string} status
+ * @param {string} accessToken
+ * @returns {Promise<object|null>} Updated future item, or null if not found.
+ */
+export async function updateFutureItemStatusRest(year, monthKey, itemId, status, accessToken) {
+  const matrixData = await fetchFutureMatrix(year, accessToken);
+  const items = matrixData.months[monthKey] || [];
+  const item = items.find(i => i.id === itemId);
+  if (!item) return null;
+  item.status = status;
+  await saveFutureMatrixRest(year, matrixData, accessToken);
+  return item;
+}
+
+/**
+ * Transfers a future planning item onto a specific day's task list, removing it from its month
+ * bucket. Ported 1:1 from gas-app/Code.gs#transferFutureItem.
+ * @param {number|string} year
+ * @param {string} monthKey
+ * @param {string} itemId
+ * @param {string} dateStr
+ * @param {string} priorityGroup
+ * @param {string} accessToken
+ * @returns {Promise<object|null>} Created daily task object, or null if item not found.
+ */
+export async function transferFutureItemRest(year, monthKey, itemId, dateStr, priorityGroup, accessToken) {
+  const matrixData = await fetchFutureMatrix(year, accessToken);
+  const items = matrixData.months[monthKey] || [];
+  const idx = items.findIndex(i => i.id === itemId);
+  if (idx === -1) return null;
+  const [item] = items.splice(idx, 1);
+  await saveFutureMatrixRest(year, matrixData, accessToken);
+
+  const formattedTitle = `[${(priorityGroup || 'A').toUpperCase()}1] ${item.title}`;
+  return addDailyTaskRest(dateStr, formattedTitle, item.category, undefined, accessToken);
+}
+
+/**
+ * Carries a still-open future item forward into next month's bucket, rolling into next calendar
+ * year's matrix file when pushed from December. Ported 1:1 from
+ * gas-app/Code.gs#pushFutureItemToNextMonth.
+ * @param {number|string} year
+ * @param {string} monthKey
+ * @param {string} itemId
+ * @param {string} accessToken
+ * @returns {Promise<object|null>} The carried-forward item, or null if not found.
+ */
+export async function pushFutureItemToNextMonthRest(year, monthKey, itemId, accessToken) {
+  const matrixData = await fetchFutureMatrix(year, accessToken);
+  const items = matrixData.months[monthKey] || [];
+  const idx = items.findIndex(i => i.id === itemId);
+  if (idx === -1) return null;
+  const [item] = items.splice(idx, 1);
+
+  const nextKey = nextMonthKey(monthKey);
+  const nextYear = nextKey.slice(0, 4);
+
+  if (nextYear === String(year)) {
+    if (!matrixData.months[nextKey]) matrixData.months[nextKey] = [];
+    matrixData.months[nextKey].push(item);
+    await saveFutureMatrixRest(year, matrixData, accessToken);
+  } else {
+    await saveFutureMatrixRest(year, matrixData, accessToken);
+    const nextYearData = await fetchFutureMatrix(nextYear, accessToken);
+    if (!nextYearData.months[nextKey]) nextYearData.months[nextKey] = [];
+    nextYearData.months[nextKey].push(item);
+    await saveFutureMatrixRest(nextYear, nextYearData, accessToken);
+  }
+  return item;
+}
+
+/**
  * Service bridge for invoking Apps Script backend functions or providing mock fallback data.
  */
 export class GASBridge {
@@ -548,7 +1043,10 @@ export class GASBridge {
    * @returns {Promise<{flushed: number, remaining: number, failed: number}>}
    */
   async flushOutbox(onResolved) {
-    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+    const accessToken = !this.useMock ? getAccessToken() : null;
+    const hasGasRpc = !this.useMock && typeof window !== 'undefined' && !!window.google?.script?.run;
+
+    if (this.useMock || (!accessToken && !hasGasRpc)) {
       return { flushed: 0, remaining: 0, failed: 0 };
     }
     if (!this.isOnline()) {
@@ -569,16 +1067,24 @@ export class GASBridge {
         switch (mutation.type) {
           case OUTBOX_MUTATION_TYPES.ADD_DAILY_TASK: {
             const { dateStr, title, category, tempId } = mutation.payload;
-            result = await this._runGasCall('addDailyTask', [dateStr, title, category]);
+            result = accessToken
+              ? await addDailyTaskRest(dateStr, title, category, undefined, accessToken)
+              : await this._runGasCall('addDailyTask', [dateStr, title, category]);
             if (result && result.id && tempId) tempIdMap[tempId] = result.id;
             break;
           }
           case OUTBOX_MUTATION_TYPES.UPDATE_DAILY_TASK: {
             const { dateStr, taskId, updates } = mutation.payload;
-            result = await this._runGasCall('updateDailyTask', [dateStr, resolveId(taskId), updates]);
+            result = accessToken
+              ? await updateDailyTaskRest(dateStr, resolveId(taskId), updates, accessToken)
+              : await this._runGasCall('updateDailyTask', [dateStr, resolveId(taskId), updates]);
             break;
           }
           case OUTBOX_MUTATION_TYPES.ADD_CALENDAR_EVENT: {
+            // Stage 4 (not yet implemented): addCalendarEvent's REST orchestration is a
+            // separate 4-call chain (Calendar insert + Docs create/batchUpdate + Drive move +
+            // Calendar patch) isolated from this stage's mechanical endpoint swaps. GAS-RPC-only
+            // until that lands.
             const { dateStr, eventData, tempId } = mutation.payload;
             result = await this._runGasCall('addCalendarEvent', [dateStr, eventData]);
             if (result && result.id && tempId) tempIdMap[tempId] = result.id;
@@ -586,12 +1092,16 @@ export class GASBridge {
           }
           case OUTBOX_MUTATION_TYPES.UPDATE_CALENDAR_EVENT: {
             const { dateStr, eventId, updates } = mutation.payload;
-            result = await this._runGasCall('updateCalendarEvent', [dateStr, resolveId(eventId), updates]);
+            result = accessToken
+              ? await updateCalendarEventRest(resolveId(eventId), updates, accessToken)
+              : await this._runGasCall('updateCalendarEvent', [dateStr, resolveId(eventId), updates]);
             break;
           }
           case OUTBOX_MUTATION_TYPES.SAVE_DAILY_NOTE: {
             const { dateStr, noteContent } = mutation.payload;
-            result = await this._runGasCall('saveDailyDocCards', [dateStr, noteContent]);
+            result = accessToken
+              ? await saveDailyDocCardsRest(dateStr, noteContent, accessToken)
+              : await this._runGasCall('saveDailyDocCards', [dateStr, noteContent]);
             break;
           }
           default:
@@ -763,7 +1273,10 @@ export class GASBridge {
    * @returns {Promise<object>} Created master task object.
    */
   async addMasterTask(title, category = 'General') {
-    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+    const accessToken = !this.useMock ? getAccessToken() : null;
+    const hasGasRpc = !this.useMock && typeof window !== 'undefined' && !!window.google?.script?.run;
+
+    if (this.useMock || (!accessToken && !hasGasRpc)) {
       const newTask = {
         id: `m_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         title,
@@ -775,6 +1288,7 @@ export class GASBridge {
       this.mockData.masterTasks.push(newTask);
       return newTask;
     }
+    if (accessToken) return addMasterTaskRest(title, category, accessToken);
     return this._runGasCall('addMasterTask', [title, category]);
   }
 
@@ -787,13 +1301,17 @@ export class GASBridge {
    * @returns {Promise<object|null>} Updated master task object, or null if not found (mock mode only).
    */
   async markMasterTaskMoved(masterTaskId, targetDateStr, movedTaskId) {
-    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+    const accessToken = !this.useMock ? getAccessToken() : null;
+    const hasGasRpc = !this.useMock && typeof window !== 'undefined' && !!window.google?.script?.run;
+
+    if (this.useMock || (!accessToken && !hasGasRpc)) {
       const task = this.mockData.masterTasks.find(t => t.id === masterTaskId);
       if (!task) return null;
       task.movedTo = targetDateStr;
       task.movedTaskId = movedTaskId;
       return task;
     }
+    if (accessToken) return markMasterTaskMovedRest(masterTaskId, targetDateStr, movedTaskId, accessToken);
     return this._runGasCall('markMasterTaskMoved', [masterTaskId, targetDateStr, movedTaskId]);
   }
 
@@ -829,7 +1347,10 @@ export class GASBridge {
    * @returns {Promise<object>} Created daily task item promise.
    */
   async addDailyTask(dateStr, title, category = 'General', sourceMasterId) {
-    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+    const accessToken = !this.useMock ? getAccessToken() : null;
+    const hasGasRpc = !this.useMock && typeof window !== 'undefined' && !!window.google?.script?.run;
+
+    if (this.useMock || (!accessToken && !hasGasRpc)) {
       if (!this.mockData.dailyTasks[dateStr]) {
         this.mockData.dailyTasks[dateStr] = [];
       }
@@ -847,11 +1368,12 @@ export class GASBridge {
 
     if (this.isOnline()) {
       try {
+        if (accessToken) return await addDailyTaskRest(dateStr, title, category, sourceMasterId, accessToken);
         return await this._runGasCall('addDailyTask', [dateStr, title, category, sourceMasterId]);
       } catch (err) {
-        // google.script.run's failure handler fires for both a real network drop and a
-        // server-side exception (GAS gives no way to tell them apart client-side) — log
-        // loudly rather than assume "just offline". If this is a genuine (non-transient)
+        // A REST fetch failure and google.script.run's failure handler both fire for either a
+        // real network drop or a server-side exception (no way to tell them apart client-side)
+        // — log loudly rather than assume "just offline". If this is a genuine (non-transient)
         // error, it will keep failing on retry and surface via flushOutbox's `failed` count.
         console.error('addDailyTask online call failed — queueing for offline retry', err);
       }
@@ -870,7 +1392,10 @@ export class GASBridge {
    * @returns {Promise<object|null>} Updated task object or null.
    */
   async updateDailyTask(dateStr, taskId, updates = {}) {
-    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+    const accessToken = !this.useMock ? getAccessToken() : null;
+    const hasGasRpc = !this.useMock && typeof window !== 'undefined' && !!window.google?.script?.run;
+
+    if (this.useMock || (!accessToken && !hasGasRpc)) {
       const tasks = this.mockData.dailyTasks[dateStr] || this.mockData.dailyTasks['2026-08-15'] || [];
       const taskIndex = tasks.findIndex(t => t.id === taskId);
       if (taskIndex === -1) return null;
@@ -891,6 +1416,7 @@ export class GASBridge {
 
     if (this.isOnline()) {
       try {
+        if (accessToken) return await updateDailyTaskRest(dateStr, taskId, updates, accessToken);
         return await this._runGasCall('updateDailyTask', [dateStr, taskId, updates]);
       } catch (err) {
         // See addDailyTask above: this may be a real (non-transient) server error, not just
@@ -1044,7 +1570,10 @@ export class GASBridge {
    * @returns {Promise<object|null>} Updated event object or null.
    */
   async updateCalendarEvent(dateStr, eventId, updates = {}) {
-    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+    const accessToken = !this.useMock ? getAccessToken() : null;
+    const hasGasRpc = !this.useMock && typeof window !== 'undefined' && !!window.google?.script?.run;
+
+    if (this.useMock || (!accessToken && !hasGasRpc)) {
       const events = this.mockData.calendarEvents[dateStr] || this.mockData.calendarEvents['2026-08-15'] || [];
       const eventIndex = events.findIndex(e => e.id === eventId);
       if (eventIndex === -1) return null;
@@ -1056,6 +1585,7 @@ export class GASBridge {
 
     if (this.isOnline()) {
       try {
+        if (accessToken) return await updateCalendarEventRest(eventId, updates, accessToken);
         return await this._runGasCall('updateCalendarEvent', [dateStr, eventId, updates]);
       } catch (err) {
         // See addDailyTask above: this may be a real (non-transient) server error, not just
@@ -1131,7 +1661,10 @@ export class GASBridge {
       return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`;
     })();
 
-    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+    const accessToken = !this.useMock ? getAccessToken() : null;
+    const hasGasRpc = !this.useMock && typeof window !== 'undefined' && !!window.google?.script?.run;
+
+    if (this.useMock || (!accessToken && !hasGasRpc)) {
       const tasks = this.mockData.dailyTasks[dateStr] || [];
       const sourceTask = tasks.find(t => t.id === taskId);
       if (!sourceTask) return null;
@@ -1146,6 +1679,7 @@ export class GASBridge {
       return { originalTask: sourceTask, forwardedTask };
     }
 
+    if (accessToken) return forwardDailyTaskRest(dateStr, taskId, sourceTaskSnapshot, resolvedTargetDate, accessToken);
     return this._runGasCall('forwardDailyTask', [dateStr, taskId, sourceTaskSnapshot, resolvedTargetDate]);
   }
 
@@ -1186,7 +1720,10 @@ export class GASBridge {
    * @returns {Promise<object>} Created future item promise.
    */
   async addFutureItem(year, monthKey, title, category = 'General') {
-    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+    const accessToken = !this.useMock ? getAccessToken() : null;
+    const hasGasRpc = !this.useMock && typeof window !== 'undefined' && !!window.google?.script?.run;
+
+    if (this.useMock || (!accessToken && !hasGasRpc)) {
       if (!this.mockData.futureMatrix[year]) {
         this.mockData.futureMatrix[year] = emptyYearMatrix(year);
       }
@@ -1197,6 +1734,7 @@ export class GASBridge {
       return newItem;
     }
 
+    if (accessToken) return addFutureItemRest(year, monthKey, title, category, accessToken);
     return this._runGasCall('addFutureItem', [year, monthKey, title, category]);
   }
 
@@ -1210,7 +1748,10 @@ export class GASBridge {
    * @returns {Promise<object|null>} Updated future item promise, or null if not found.
    */
   async updateFutureItemStatus(year, monthKey, itemId, status) {
-    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+    const accessToken = !this.useMock ? getAccessToken() : null;
+    const hasGasRpc = !this.useMock && typeof window !== 'undefined' && !!window.google?.script?.run;
+
+    if (this.useMock || (!accessToken && !hasGasRpc)) {
       const items = this.mockData.futureMatrix[year]?.months?.[monthKey] || [];
       const item = items.find(i => i.id === itemId);
       if (!item) return null;
@@ -1218,6 +1759,7 @@ export class GASBridge {
       return item;
     }
 
+    if (accessToken) return updateFutureItemStatusRest(year, monthKey, itemId, status, accessToken);
     return this._runGasCall('updateFutureItemStatus', [year, monthKey, itemId, status]);
   }
 
@@ -1232,7 +1774,10 @@ export class GASBridge {
    * @returns {Promise<object|null>} Created daily task object promise, or null if not found.
    */
   async transferFutureItem(year, monthKey, itemId, dateStr, priorityGroup = 'A') {
-    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+    const accessToken = !this.useMock ? getAccessToken() : null;
+    const hasGasRpc = !this.useMock && typeof window !== 'undefined' && !!window.google?.script?.run;
+
+    if (this.useMock || (!accessToken && !hasGasRpc)) {
       const items = this.mockData.futureMatrix[year]?.months?.[monthKey] || [];
       const idx = items.findIndex(i => i.id === itemId);
       if (idx === -1) return null;
@@ -1245,6 +1790,7 @@ export class GASBridge {
       return newDailyTask;
     }
 
+    if (accessToken) return transferFutureItemRest(year, monthKey, itemId, dateStr, priorityGroup, accessToken);
     return this._runGasCall('transferFutureItem', [year, monthKey, itemId, dateStr, priorityGroup]);
   }
 
@@ -1257,7 +1803,10 @@ export class GASBridge {
    * @returns {Promise<object|null>} The carried-forward item promise, or null if not found.
    */
   async pushFutureItemToNextMonth(year, monthKey, itemId) {
-    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+    const accessToken = !this.useMock ? getAccessToken() : null;
+    const hasGasRpc = !this.useMock && typeof window !== 'undefined' && !!window.google?.script?.run;
+
+    if (this.useMock || (!accessToken && !hasGasRpc)) {
       const items = this.mockData.futureMatrix[year]?.months?.[monthKey] || [];
       const idx = items.findIndex(i => i.id === itemId);
       if (idx === -1) return null;
@@ -1274,6 +1823,7 @@ export class GASBridge {
       return item;
     }
 
+    if (accessToken) return pushFutureItemToNextMonthRest(year, monthKey, itemId, accessToken);
     return this._runGasCall('pushFutureItemToNextMonth', [year, monthKey, itemId]);
   }
 
@@ -1284,13 +1834,17 @@ export class GASBridge {
    * @returns {Promise<{success: boolean, docName?: string}>} Promise of save result.
    */
   async saveDailyDocCards(dateStr, noteContent) {
-    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+    const accessToken = !this.useMock ? getAccessToken() : null;
+    const hasGasRpc = !this.useMock && typeof window !== 'undefined' && !!window.google?.script?.run;
+
+    if (this.useMock || (!accessToken && !hasGasRpc)) {
       this.mockData.dailyNotes[dateStr] = noteContent;
       return { success: true, docName: `Day Planner Notes - Mock ${dateStr}` };
     }
 
     if (this.isOnline()) {
       try {
+        if (accessToken) return await saveDailyDocCardsRest(dateStr, noteContent, accessToken);
         return await this._runGasCall('saveDailyDocCards', [dateStr, noteContent]);
       } catch (err) {
         // See addDailyTask above: this may be a real (non-transient) server error, not just

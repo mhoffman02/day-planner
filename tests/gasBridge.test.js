@@ -18,7 +18,19 @@ import {
   fetchRecentAttendees,
   resolveLinkTitleRest,
   deriveTaskStatus,
-  decodeTaskMeta
+  decodeTaskMeta,
+  encodeTaskMeta,
+  addMasterTaskRest,
+  markMasterTaskMovedRest,
+  addDailyTaskRest,
+  updateDailyTaskRest,
+  forwardDailyTaskRest,
+  updateCalendarEventRest,
+  saveDailyDocCardsRest,
+  addFutureItemRest,
+  updateFutureItemStatusRest,
+  transferFutureItemRest,
+  pushFutureItemToNextMonthRest
 } from '../src/gasBridge.js';
 import IndexedDbStore from '../src/indexedDbStore.js';
 import * as googleAuth from '../src/googleAuth.js';
@@ -907,5 +919,288 @@ describe('GAS Bridge REST Unit Tests (Google Identity Services token present)', 
     const bridge = new GASBridge(false);
     const result = await bridge.resolveLinkTitle('https://docs.google.com/document/d/doc1/edit');
     assert.deepEqual(result, { success: true, title: 'Rest Doc', fileId: 'doc1' });
+  });
+});
+
+/**
+ * Routes a fake fetch() to the first matching entry in `routes` (checked in order), by request
+ * method and a URL substring/regex. Throws loudly if nothing matches, rather than silently
+ * returning undefined, so a wrong-shaped request in the implementation fails the test instead of
+ * hanging.
+ */
+function fakeFetch(routes) {
+  return async (url, options = {}) => {
+    const method = options.method || 'GET';
+    const decodedUrl = decodeURIComponent(url.replace(/\+/g, ' '));
+    for (const route of routes) {
+      const methodOk = !route.method || route.method === method;
+      const urlOk = typeof route.match === 'string' ? decodedUrl.includes(route.match) : route.match.test(url);
+      if (methodOk && urlOk) {
+        return typeof route.respond === 'function' ? route.respond(url, options) : route.respond;
+      }
+    }
+    throw new Error(`fakeFetch: no route matched ${method} ${url}`);
+  };
+}
+
+const okJson = (body) => ({ ok: true, json: async () => body });
+const okText = (text) => ({ ok: true, text: async () => text });
+const notFound = () => ({ ok: false, status: 404, statusText: 'Not Found', text: async () => 'Not Found' });
+
+/**
+ * Extracts and parses the text/plain content part of a hand-built multipart/related upload body
+ * (see createDriveFileWithContent) — unlike the simple/media PATCH path, its body isn't raw JSON.
+ */
+function parseMultipartUploadContent(rawBody) {
+  const boundary = rawBody.match(/^--(\S+)/)[1];
+  const segments = rawBody.split(`--${boundary}`).map((s) => s).filter((s) => s.trim() && s.trim() !== '--');
+  const contentPart = segments[1];
+  const jsonText = contentPart.replace(/^\r\n[\s\S]*?\r\n\r\n/, '').replace(/\r\n$/, '');
+  return JSON.parse(jsonText);
+}
+
+describe('GAS Bridge Stage 3 REST Write Path Unit Tests', () => {
+  afterEach(() => {
+    delete globalThis.fetch;
+  });
+
+  it('addMasterTaskRest() creates an undated task with a master:true meta marker', async () => {
+    let capturedBody;
+    globalThis.fetch = fakeFetch([
+      {
+        match: 'https://tasks.googleapis.com/tasks/v1/lists/@default/tasks', method: 'POST',
+        respond: (url, options) => {
+          capturedBody = JSON.parse(options.body);
+          return okJson({ id: 'm1', title: capturedBody.title, notes: capturedBody.notes, status: 'needsAction' });
+        }
+      }
+    ]);
+
+    const result = await addMasterTaskRest('Long-term goal', 'Work', 'tok_abc');
+    assert.equal(capturedBody.due, undefined);
+    assert.match(capturedBody.notes, /"master":true/);
+    assert.match(capturedBody.notes, /"category":"Work"/);
+    assert.deepEqual(result, { id: 'm1', title: 'Long-term goal', category: 'Work', status: '•', movedTo: null, movedTaskId: null });
+  });
+
+  it('markMasterTaskMovedRest() merges movedTo/movedTaskId into the existing meta marker', async () => {
+    globalThis.fetch = fakeFetch([
+      {
+        match: /\/tasks\/m1$/, method: 'GET',
+        respond: okJson({ id: 'm1', title: 'Old goal', notes: encodeTaskMeta('', { category: 'Personal' }) })
+      },
+      {
+        match: /\/tasks\/m1$/, method: 'PATCH',
+        respond: (url, options) => {
+          const patch = JSON.parse(options.body);
+          return okJson({ id: 'm1', title: 'Old goal', notes: patch.notes, status: 'needsAction' });
+        }
+      }
+    ]);
+
+    const result = await markMasterTaskMovedRest('m1', '2026-09-10', 't99', 'tok_abc');
+    assert.deepEqual(result, { id: 'm1', title: 'Old goal', category: 'Personal', status: '•', movedTo: '2026-09-10', movedTaskId: 't99' });
+  });
+
+  it('addDailyTaskRest() creates a due-dated task carrying category + sourceMasterId meta', async () => {
+    let capturedBody;
+    globalThis.fetch = fakeFetch([
+      {
+        match: 'https://tasks.googleapis.com/tasks/v1/lists/@default/tasks', method: 'POST',
+        respond: (url, options) => {
+          capturedBody = JSON.parse(options.body);
+          return okJson({ id: 't1', title: capturedBody.title, due: capturedBody.due, status: 'needsAction' });
+        }
+      }
+    ]);
+
+    const result = await addDailyTaskRest('2026-09-05', '[A1] Ship it', 'Work', 'm1', 'tok_abc');
+    assert.equal(capturedBody.due, '2026-09-05T00:00:00.000Z');
+    assert.match(capturedBody.notes, /"sourceMasterId":"m1"/);
+    assert.deepEqual(result, { id: 't1', title: '[A1] Ship it', status: '•', category: 'Work', dueDate: '2026-09-05', sourceMasterId: 'm1' });
+  });
+
+  it('updateDailyTaskRest() patches status and mirrors it onto the linked master task best-effort', async () => {
+    const masterPatchBodies = [];
+    globalThis.fetch = fakeFetch([
+      { match: /\/tasks\/t1$/, method: 'GET', respond: okJson({ id: 't1', title: '[A1] Ship it', notes: encodeTaskMeta('', { sourceMasterId: 'm1', category: 'Work' }) }) },
+      { match: /\/tasks\/t1$/, method: 'PATCH', respond: (url, options) => okJson({ id: 't1', title: '[A1] Ship it', status: 'completed', notes: JSON.parse(options.body).notes, due: '2026-09-05T00:00:00.000Z' }) },
+      { match: /\/tasks\/m1$/, method: 'GET', respond: okJson({ id: 'm1', title: 'Ship it', notes: '' }) },
+      { match: /\/tasks\/m1$/, method: 'PATCH', respond: (url, options) => { masterPatchBodies.push(JSON.parse(options.body)); return okJson({ id: 'm1' }); } }
+    ]);
+
+    const result = await updateDailyTaskRest('2026-09-05', 't1', { status: '✓' }, 'tok_abc');
+    assert.deepEqual(result, { id: 't1', title: '[A1] Ship it', status: '✓', category: 'Work', dueDate: '2026-09-05' });
+    assert.equal(masterPatchBodies.length, 1, 'expected the master task status to be mirrored');
+    assert.equal(masterPatchBodies[0].status, 'completed');
+  });
+
+  it('updateDailyTaskRest() returns null instead of throwing when the task was already deleted (404)', async () => {
+    globalThis.fetch = fakeFetch([
+      { match: /\/tasks\/gone$/, method: 'PATCH', respond: notFound() }
+    ]);
+
+    const result = await updateDailyTaskRest('2026-09-05', 'gone', { title: 'renamed' }, 'tok_abc');
+    assert.equal(result, null);
+  });
+
+  it('forwardDailyTaskRest() creates the forwarded task and marks the original as forwarded', async () => {
+    globalThis.fetch = fakeFetch([
+      { match: 'https://tasks.googleapis.com/tasks/v1/lists/@default/tasks', method: 'POST', respond: (url, options) => { const body = JSON.parse(options.body); return okJson({ id: 't2', title: body.title, due: body.due, status: 'needsAction' }); } },
+      { match: /\/tasks\/t1$/, method: 'GET', respond: okJson({ id: 't1', title: '[B2] Old thing', notes: '' }) },
+      { match: /\/tasks\/t1$/, method: 'PATCH', respond: (url, options) => okJson({ id: 't1', title: JSON.parse(options.body).title, status: 'needsAction', notes: JSON.parse(options.body).notes, due: '2026-09-05T00:00:00.000Z' }) }
+    ]);
+
+    const { originalTask, forwardedTask } = await forwardDailyTaskRest('2026-09-05', 't1', { title: '[B2] Old thing', category: 'Work' }, '2026-09-06', 'tok_abc');
+    assert.equal(forwardedTask.title, '[B1] Old thing');
+    assert.equal(forwardedTask.dueDate, '2026-09-06');
+    assert.equal(originalTask.title, '[B2] Old thing');
+  });
+
+  it('updateCalendarEventRest() patches the event with a resolved IANA timeZone on start/end', async () => {
+    let capturedBody;
+    globalThis.fetch = fakeFetch([
+      {
+        match: /\/calendar\/v3\/calendars\/primary\/events\/evt1$/, method: 'PATCH',
+        respond: (url, options) => {
+          capturedBody = JSON.parse(options.body);
+          return okJson({ id: 'evt1', summary: capturedBody.summary, start: capturedBody.start, end: capturedBody.end, location: '', description: '' });
+        }
+      }
+    ]);
+
+    const result = await updateCalendarEventRest('evt1', { title: 'Standup', startTime: '2026-09-05T09:00:00-04:00', endTime: '2026-09-05T09:30:00-04:00' }, 'tok_abc');
+    assert.equal(capturedBody.start.timeZone, Intl.DateTimeFormat().resolvedOptions().timeZone);
+    assert.deepEqual(result, {
+      id: 'evt1', title: 'Standup',
+      startTime: '2026-09-05T09:00:00-04:00', endTime: '2026-09-05T09:30:00-04:00',
+      location: '', description: ''
+    });
+  });
+
+  it('updateCalendarEventRest() returns null instead of throwing when the event no longer exists (404)', async () => {
+    globalThis.fetch = fakeFetch([
+      { match: /\/events\/gone$/, method: 'PATCH', respond: notFound() }
+    ]);
+    const result = await updateCalendarEventRest('gone', { title: 'x' }, 'tok_abc');
+    assert.equal(result, null);
+  });
+
+  it('saveDailyDocCardsRest() creates a new month notes file when none exists yet', async () => {
+    let uploadedBody;
+    globalThis.fetch = fakeFetch([
+      { match: "mimeType = 'application/vnd.google-apps.folder'", respond: okJson({ files: [{ id: 'folder1', name: 'Day Planner' }] }) },
+      { match: "name = 'notes-2026-09.json'", respond: okJson({ files: [] }) },
+      {
+        match: 'uploadType=multipart', method: 'POST',
+        respond: (url, options) => { uploadedBody = options.body; return okJson({ id: 'file1' }); }
+      }
+    ]);
+
+    const result = await saveDailyDocCardsRest('2026-09-05', 'Wrote some notes', 'tok_abc');
+    assert.deepEqual(result, { success: true, fileName: 'notes-2026-09.json', fileId: 'file1' });
+    assert.match(uploadedBody, /Wrote some notes/);
+  });
+
+  it('saveDailyDocCardsRest() fails loud instead of overwriting the month file when its existing JSON is corrupt', async () => {
+    globalThis.fetch = fakeFetch([
+      { match: "mimeType = 'application/vnd.google-apps.folder'", respond: okJson({ files: [{ id: 'folder1', name: 'Day Planner' }] }) },
+      { match: "name = 'notes-2026-09.json'", respond: okJson({ files: [{ id: 'existing1', name: 'notes-2026-09.json' }] }) },
+      { match: /\/files\/existing1\?alt=media$/, respond: okText('{not valid json') }
+    ]);
+
+    await assert.rejects(
+      () => saveDailyDocCardsRest('2026-09-05', 'New notes', 'tok_abc'),
+      /contains invalid JSON/
+    );
+  });
+
+  it('addFutureItemRest() appends a new item to the month bucket and persists the year file', async () => {
+    let uploadedBody;
+    globalThis.fetch = fakeFetch([
+      { match: "mimeType = 'application/vnd.google-apps.folder'", respond: okJson({ files: [{ id: 'folder1', name: 'Day Planner' }] }) },
+      { match: "name = 'future-matrix-2026.json'", respond: okJson({ files: [] }) },
+      { match: 'uploadType=multipart', method: 'POST', respond: (url, options) => { uploadedBody = parseMultipartUploadContent(options.body); return okJson({ id: 'fm1' }); } }
+    ]);
+
+    const item = await addFutureItemRest(2026, '2026-11', 'Plan the offsite', 'Work', 'tok_abc');
+    assert.equal(item.title, 'Plan the offsite');
+    assert.equal(item.category, 'Work');
+    assert.equal(item.status, '•');
+    assert.deepEqual(uploadedBody.months['2026-11'], [item]);
+  });
+
+  it('updateFutureItemStatusRest() cycles an existing item\'s status and persists the year file', async () => {
+    const seedItem = { id: 'fm9', title: 'Renew passport', category: 'Personal', status: '•' };
+    globalThis.fetch = fakeFetch([
+      { match: "mimeType = 'application/vnd.google-apps.folder'", respond: okJson({ files: [{ id: 'folder1', name: 'Day Planner' }] }) },
+      { match: "name = 'future-matrix-2026.json'", respond: okJson({ files: [{ id: 'fmfile1', name: 'future-matrix-2026.json' }] }) },
+      { match: /\/files\/fmfile1\?alt=media$/, respond: okText(JSON.stringify({ months: { '2026-11': [seedItem] } })) },
+      { match: 'uploadType=media', method: 'PATCH', respond: okJson({}) }
+    ]);
+
+    const result = await updateFutureItemStatusRest(2026, '2026-11', 'fm9', '✓', 'tok_abc');
+    assert.deepEqual(result, { id: 'fm9', title: 'Renew passport', category: 'Personal', status: '✓' });
+  });
+
+  it('updateFutureItemStatusRest() returns null when the item id is not found in that month', async () => {
+    globalThis.fetch = fakeFetch([
+      { match: "mimeType = 'application/vnd.google-apps.folder'", respond: okJson({ files: [{ id: 'folder1', name: 'Day Planner' }] }) },
+      { match: "name = 'future-matrix-2026.json'", respond: okJson({ files: [] }) }
+    ]);
+    const result = await updateFutureItemStatusRest(2026, '2026-11', 'missing', '✓', 'tok_abc');
+    assert.equal(result, null);
+  });
+
+  it('transferFutureItemRest() removes the item from its month bucket and creates a daily task from it', async () => {
+    const seedItem = { id: 'fm9', title: 'Renew passport', category: 'Personal', status: '•' };
+    let savedMatrixBody;
+    let createdTaskBody;
+    globalThis.fetch = fakeFetch([
+      { match: "mimeType = 'application/vnd.google-apps.folder'", respond: okJson({ files: [{ id: 'folder1', name: 'Day Planner' }] }) },
+      { match: "name = 'future-matrix-2026.json'", respond: okJson({ files: [{ id: 'fmfile1', name: 'future-matrix-2026.json' }] }) },
+      { match: /\/files\/fmfile1\?alt=media$/, respond: okText(JSON.stringify({ months: { '2026-11': [seedItem] } })) },
+      { match: 'uploadType=media', method: 'PATCH', respond: (url, options) => { savedMatrixBody = JSON.parse(options.body); return okJson({}); } },
+      { match: 'https://tasks.googleapis.com/tasks/v1/lists/@default/tasks', method: 'POST', respond: (url, options) => { createdTaskBody = JSON.parse(options.body); return okJson({ id: 't5', title: createdTaskBody.title, due: createdTaskBody.due, status: 'needsAction' }); } }
+    ]);
+
+    const result = await transferFutureItemRest(2026, '2026-11', 'fm9', '2026-11-03', 'b', 'tok_abc');
+    assert.deepEqual(savedMatrixBody.months['2026-11'], [], 'item should be removed from the month bucket');
+    assert.equal(result.title, '[B1] Renew passport');
+    assert.equal(result.dueDate, '2026-11-03');
+  });
+
+  it('pushFutureItemToNextMonthRest() carries an item into next month within the same year', async () => {
+    const seedItem = { id: 'fm9', title: 'Renew passport', category: 'Personal', status: '•' };
+    let savedMatrixBody;
+    globalThis.fetch = fakeFetch([
+      { match: "mimeType = 'application/vnd.google-apps.folder'", respond: okJson({ files: [{ id: 'folder1', name: 'Day Planner' }] }) },
+      { match: "name = 'future-matrix-2026.json'", respond: okJson({ files: [{ id: 'fmfile1', name: 'future-matrix-2026.json' }] }) },
+      { match: /\/files\/fmfile1\?alt=media$/, respond: okText(JSON.stringify({ months: { '2026-11': [seedItem] } })) },
+      { match: 'uploadType=media', method: 'PATCH', respond: (url, options) => { savedMatrixBody = JSON.parse(options.body); return okJson({}); } }
+    ]);
+
+    const result = await pushFutureItemToNextMonthRest(2026, '2026-11', 'fm9', 'tok_abc');
+    assert.deepEqual(result, seedItem);
+    assert.deepEqual(savedMatrixBody.months['2026-11'], []);
+    assert.deepEqual(savedMatrixBody.months['2026-12'], [seedItem]);
+  });
+
+  it('pushFutureItemToNextMonthRest() rolls a December item into next year\'s matrix file', async () => {
+    const seedItem = { id: 'fm9', title: 'Renew passport', category: 'Personal', status: '•' };
+    const savedBodiesByFile = {};
+    globalThis.fetch = fakeFetch([
+      { match: "mimeType = 'application/vnd.google-apps.folder'", respond: okJson({ files: [{ id: 'folder1', name: 'Day Planner' }] }) },
+      { match: "name = 'future-matrix-2026.json'", respond: okJson({ files: [{ id: 'fmfile2026', name: 'future-matrix-2026.json' }] }) },
+      { match: "name = 'future-matrix-2027.json'", respond: okJson({ files: [] }) },
+      { match: /\/files\/fmfile2026\?alt=media$/, respond: okText(JSON.stringify({ months: { '2026-12': [seedItem] } })) },
+      { match: 'uploadType=media', method: 'PATCH', respond: (url, options) => { savedBodiesByFile['2026'] = JSON.parse(options.body); return okJson({}); } },
+      { match: 'uploadType=multipart', method: 'POST', respond: (url, options) => { savedBodiesByFile['2027'] = parseMultipartUploadContent(options.body); return okJson({ id: 'fmfile2027' }); } }
+    ]);
+
+    const result = await pushFutureItemToNextMonthRest(2026, '2026-12', 'fm9', 'tok_abc');
+    assert.deepEqual(result, seedItem);
+    assert.deepEqual(savedBodiesByFile['2026'].months['2026-12'], []);
+    assert.deepEqual(savedBodiesByFile['2027'].months['2027-01'], [seedItem]);
   });
 });
