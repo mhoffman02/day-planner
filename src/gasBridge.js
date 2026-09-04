@@ -8,6 +8,7 @@ import { transferMasterTaskToToday, forwardTaskToDate, TASK_STATUSES } from './t
 import { reconcileWorkspaceChanges } from './syncEngine.js';
 import IndexedDbStore from './indexedDbStore.js';
 import { createFutureItem, nextMonthKey, emptyYearMatrix } from './futureMatrixEngine.js';
+import { getAccessToken } from './googleAuth.js';
 
 /**
  * Outbox mutation type tags used to queue and later replay writes made while offline.
@@ -19,6 +20,142 @@ export const OUTBOX_MUTATION_TYPES = {
   UPDATE_CALENDAR_EVENT: 'UPDATE_CALENDAR_EVENT',
   SAVE_DAILY_NOTE: 'SAVE_DAILY_NOTE'
 };
+
+const CALENDAR_API_BASE = 'https://www.googleapis.com/calendar/v3';
+const TASKS_API_BASE = 'https://tasks.googleapis.com/tasks/v1';
+
+// Ported from gas-app/Code.gs's TASK_STATUS_MARKER_RE / TASK_EXTRA_STATUSES / TASK_META_MARKER_RE
+// / deriveTaskStatus / decodeTaskMeta — Google Tasks has no custom-field support, so status
+// glyphs beyond plain done/not-done and app metadata (e.g. which master task a daily task was
+// transferred from) are both hidden JSON/marker lines inside the task's `notes` field. This is
+// the first time this decoding has needed to run in a browser rather than only in Apps Script.
+const TASK_STATUS_MARKER_RE = /^<!--dp-status:(.+?)-->\n?/;
+const TASK_EXTRA_STATUSES = ['→', 'X', 'D/✓'];
+const TASK_META_MARKER_RE = /<!--dp-meta:(.*?)-->\n?/;
+
+/**
+ * Derives the display status glyph for a Google Task, preferring the hidden dp-status marker
+ * (for statuses like FORWARDED/CANCELED/DELEGATED that Google Tasks has no native concept of)
+ * over the task's plain completed/needsAction state.
+ * @param {{status?: string, notes?: string}} googleTask
+ * @returns {string}
+ */
+export function deriveTaskStatus(googleTask) {
+  const match = (googleTask.notes || '').match(TASK_STATUS_MARKER_RE);
+  if (match && TASK_EXTRA_STATUSES.includes(match[1])) return match[1];
+  return googleTask.status === 'completed' ? '✓' : '•';
+}
+
+/**
+ * Decodes the hidden dp-meta JSON blob from a Task's `notes`, if present.
+ * @param {string} notes
+ * @returns {object}
+ */
+export function decodeTaskMeta(notes) {
+  const match = (notes || '').match(TASK_META_MARKER_RE);
+  if (!match) return {};
+  try {
+    return JSON.parse(match[1]);
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Thin fetch() wrapper for authenticated Google REST API calls: attaches the bearer token and
+ * throws with the response body on a non-2xx status (no-silent-failures — a caller that awaits
+ * this and doesn't catch will see exactly which endpoint/status failed).
+ * @param {string} url
+ * @param {string} accessToken
+ * @param {RequestInit} [options]
+ * @returns {Promise<any>} Parsed JSON response body.
+ */
+async function googleApiFetch(url, accessToken, options = {}) {
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      ...(options.headers || {})
+    }
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Google API request failed (${res.status} ${res.statusText}): ${url} ${body}`);
+  }
+  return res.json();
+}
+
+/**
+ * Fetches a single day's Calendar events via the Calendar v3 REST API. Ported 1:1 from
+ * gas-app/Code.gs#getDailyData's Calendar.Events.list branch (field selection, htmlLink,
+ * gasTaskId extraction) — see that function's comments for why timeMin/timeMax is built from a
+ * local-midnight Date before calling toISOString() rather than by string-slicing.
+ * @param {string} dateStr YYYY-MM-DD
+ * @param {string} accessToken
+ * @returns {Promise<Array<object>>}
+ */
+export async function fetchDayCalendarEvents(dateStr, accessToken) {
+  const targetDate = new Date(`${dateStr}T00:00:00`);
+  const nextDate = new Date(targetDate.getTime() + 24 * 60 * 60 * 1000);
+  const params = new URLSearchParams({
+    timeMin: targetDate.toISOString(),
+    timeMax: nextDate.toISOString(),
+    singleEvents: 'true',
+    maxResults: '250',
+    fields: 'items(id,summary,start,end,location,description,hangoutLink,htmlLink,extendedProperties)'
+  });
+  const data = await googleApiFetch(`${CALENDAR_API_BASE}/calendars/primary/events?${params}`, accessToken);
+  return (data.items || []).map(evt => ({
+    id: evt.id,
+    title: evt.summary || '(untitled)',
+    startTime: evt.start && (evt.start.dateTime || evt.start.date),
+    endTime: evt.end && (evt.end.dateTime || evt.end.date),
+    location: evt.location || '',
+    description: evt.description || '',
+    meetLink: evt.hangoutLink || null,
+    htmlLink: evt.htmlLink || null,
+    syncTaskId: (evt.extendedProperties && evt.extendedProperties.shared && evt.extendedProperties.shared.gasTaskId) || null
+  }));
+}
+
+/**
+ * Fetches a single day's Google Tasks via the Tasks v1 REST API. Ported 1:1 from
+ * gas-app/Code.gs#getDailyData's Tasks.Tasks.list branch, including the +/-1-day query padding
+ * and exact-date re-filter — the Tasks API stores `due` as UTC midnight, so querying a
+ * script-timezone day window can silently return an adjacent day's tasks; padding the query and
+ * then filtering on the task's own `due` date string sidesteps that instead of trying to convert
+ * timezones exactly. Note: unlike gas-app/Code.gs, this does not (and never did, in production)
+ * return a `category` field — see PLAN.md/migration notes on this gap.
+ * @param {string} dateStr YYYY-MM-DD
+ * @param {string} accessToken
+ * @returns {Promise<Array<object>>}
+ */
+export async function fetchDayTasks(dateStr, accessToken) {
+  const dueMinUtc = new Date(`${dateStr}T00:00:00.000Z`);
+  dueMinUtc.setUTCDate(dueMinUtc.getUTCDate() - 1);
+  const dueMaxUtc = new Date(`${dateStr}T00:00:00.000Z`);
+  dueMaxUtc.setUTCDate(dueMaxUtc.getUTCDate() + 2);
+
+  const params = new URLSearchParams({
+    dueMin: dueMinUtc.toISOString(),
+    dueMax: dueMaxUtc.toISOString(),
+    showCompleted: 'true',
+    showHidden: 'true'
+  });
+  const data = await googleApiFetch(`${TASKS_API_BASE}/lists/@default/tasks?${params}`, accessToken);
+  return (data.items || [])
+    .filter(t => t.due && t.due.substring(0, 10) === dateStr)
+    .map(t => {
+      const meta = decodeTaskMeta(t.notes);
+      return {
+        id: t.id,
+        title: t.title,
+        status: deriveTaskStatus(t),
+        dueDate: t.due.substring(0, 10),
+        sourceMasterId: meta.sourceMasterId || null
+      };
+    });
+}
 
 /**
  * Service bridge for invoking Apps Script backend functions or providing mock fallback data.
@@ -172,37 +309,63 @@ export class GASBridge {
   }
 
   /**
+   * The in-memory mock fallback for getDailyData(), used when no real backend (REST token or
+   * google.script.run) is reachable — kept as its own method so getDailyData()'s branching stays
+   * readable now that it has three paths instead of two.
+   * @param {string} dateStr Target date in YYYY-MM-DD format.
+   * @returns {{date: string, tasks: Array<object>, calendarEvents: Array<object>, noteContent: string}}
+   */
+  _mockDailyData(dateStr) {
+    const seedTasks = this.mockData.dailyTasks[dateStr] || this.mockData.dailyTasks['2026-08-15'] || [];
+    const seedEvents = this.mockData.calendarEvents[dateStr] || this.mockData.calendarEvents['2026-08-15'] || [];
+    const seedNote = this.mockData.dailyNotes[dateStr] || this.mockData.dailyNotes['2026-08-15'] || `No notes recorded for ${dateStr}.`;
+
+    const adjustedTasks = seedTasks.map(t => ({ ...t, dueDate: dateStr }));
+    const adjustedEvents = seedEvents.map(e => ({
+      ...e,
+      startTime: e.startTime ? e.startTime.replace(/^\d{4}-\d{2}-\d{2}/, dateStr).replace(/Z$/, '') : `${dateStr}T09:00:00`,
+      endTime: e.endTime ? e.endTime.replace(/^\d{4}-\d{2}-\d{2}/, dateStr).replace(/Z$/, '') : `${dateStr}T10:00:00`
+    }));
+
+    return {
+      date: dateStr,
+      tasks: adjustedTasks,
+      calendarEvents: adjustedEvents,
+      noteContent: seedNote
+    };
+  }
+
+  /**
    * Fetches tasks, calendar events, and notes for a specific date.
    * @param {string} dateStr Target date in YYYY-MM-DD format.
    * @returns {Promise<{date: string, tasks: Array<object>, calendarEvents: Array<object>, noteContent: string}>} Daily dataset promise.
    */
   async getDailyData(dateStr) {
-    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
-      const seedTasks = this.mockData.dailyTasks[dateStr] || this.mockData.dailyTasks['2026-08-15'] || [];
-      const seedEvents = this.mockData.calendarEvents[dateStr] || this.mockData.calendarEvents['2026-08-15'] || [];
-      const seedNote = this.mockData.dailyNotes[dateStr] || this.mockData.dailyNotes['2026-08-15'] || `No notes recorded for ${dateStr}.`;
-
-      const adjustedTasks = seedTasks.map(t => ({ ...t, dueDate: dateStr }));
-      const adjustedEvents = seedEvents.map(e => ({
-        ...e,
-        startTime: e.startTime ? e.startTime.replace(/^\d{4}-\d{2}-\d{2}/, dateStr).replace(/Z$/, '') : `${dateStr}T09:00:00`,
-        endTime: e.endTime ? e.endTime.replace(/^\d{4}-\d{2}-\d{2}/, dateStr).replace(/Z$/, '') : `${dateStr}T10:00:00`
-      }));
-
-      return {
-        date: dateStr,
-        tasks: adjustedTasks,
-        calendarEvents: adjustedEvents,
-        noteContent: seedNote
-      };
+    if (this.useMock) {
+      return this._mockDailyData(dateStr);
     }
 
-    return new Promise((resolve, reject) => {
-      window.google.script.run
-        .withSuccessHandler(resolve)
-        .withFailureHandler(reject)
-        .getDailyData(dateStr);
-    });
+    const accessToken = getAccessToken();
+    if (accessToken) {
+      // Drive notes aren't wired into the REST path yet (Stage 2 of the GAS-removal migration);
+      // noteContent is intentionally empty here rather than silently falling back to mock/stale data.
+      const [calendarEvents, tasks] = await Promise.all([
+        fetchDayCalendarEvents(dateStr, accessToken),
+        fetchDayTasks(dateStr, accessToken)
+      ]);
+      return { date: dateStr, tasks, calendarEvents, noteContent: '' };
+    }
+
+    if (typeof window !== 'undefined' && window.google?.script?.run) {
+      return new Promise((resolve, reject) => {
+        window.google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .getDailyData(dateStr);
+      });
+    }
+
+    return this._mockDailyData(dateStr);
   }
 
   /**

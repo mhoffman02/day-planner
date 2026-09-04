@@ -44,6 +44,7 @@ export default [
         fetch: 'readonly',
         indexedDB: 'readonly',
         localStorage: 'readonly',
+        sessionStorage: 'readonly',
         navigator: 'readonly',
         Alpine: 'readonly',
         google: 'readonly',

@@ -3,10 +3,11 @@
  * @description Unit tests for GASBridge client API wrapper, mock data handling, task/calendar updates, and 2-way synchronization.
  */
 
-import { describe, it } from 'node:test';
+import { describe, it, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { GASBridge } from '../src/gasBridge.js';
+import { GASBridge, fetchDayCalendarEvents, fetchDayTasks, deriveTaskStatus, decodeTaskMeta } from '../src/gasBridge.js';
 import IndexedDbStore from '../src/indexedDbStore.js';
+import * as googleAuth from '../src/googleAuth.js';
 
 /**
  * Simulates `window.google.script.run.withSuccessHandler(fn).withFailureHandler(fn).method(...)`
@@ -397,10 +398,178 @@ describe('GAS Bridge Unit Tests', () => {
     const bridge = new GASBridge(true);
     const newTask = await bridge.addDailyTask('2026-09-01', 'Fresh task on a blank day', 'Personal');
     assert.equal(newTask.category, 'Personal');
-    const data = await bridge.getDailyData('2026-09-01');
+    await bridge.getDailyData('2026-09-01');
     // getDailyData falls back to the seeded 2026-08-15 tasks when a date has no entry of its own,
     // so re-read the raw mock store to confirm the new date's own list was created in isolation.
     assert.equal(bridge.mockData.dailyTasks['2026-09-01'].length, 1);
     assert.equal(bridge.mockData.dailyTasks['2026-09-01'][0].title, 'Fresh task on a blank day');
+  });
+});
+
+/**
+ * Fakes window.google.accounts.oauth2 well enough to sign in a real googleAuth.js module
+ * instance — the same module gasBridge.js's `getAccessToken` import resolves to, so a signed-in
+ * token here is what getDailyData()'s REST branch will see.
+ */
+function installFakeGisSignedIn(accessToken) {
+  const tokenClient = {
+    callback: () => {},
+    requestAccessToken() {
+      tokenClient.callback({ access_token: accessToken, expires_in: 3600 });
+    }
+  };
+  globalThis.window = {
+    google: {
+      accounts: {
+        oauth2: {
+          initTokenClient(config) {
+            tokenClient.callback = config.callback;
+            return tokenClient;
+          },
+          revoke(_token, cb) {
+            cb();
+          }
+        }
+      }
+    }
+  };
+  const store = new Map();
+  globalThis.sessionStorage = {
+    getItem: (k) => (store.has(k) ? store.get(k) : null),
+    setItem: (k, v) => store.set(k, String(v)),
+    removeItem: (k) => store.delete(k)
+  };
+}
+
+function uninstallFakeGis() {
+  delete globalThis.window;
+  delete globalThis.sessionStorage;
+  delete globalThis.fetch;
+}
+
+describe('GAS Bridge REST Unit Tests (Google Identity Services token present)', () => {
+  afterEach(() => {
+    googleAuth.signOut();
+    uninstallFakeGis();
+  });
+
+  it('deriveTaskStatus() prefers a dp-status marker over the plain completed/needsAction state', () => {
+    assert.equal(deriveTaskStatus({ status: 'needsAction', notes: '<!--dp-status:→-->\nsome notes' }), '→');
+    assert.equal(deriveTaskStatus({ status: 'completed', notes: '' }), '✓');
+    assert.equal(deriveTaskStatus({ status: 'needsAction', notes: '' }), '•');
+    assert.equal(deriveTaskStatus({ status: 'needsAction', notes: '<!--dp-status:bogus-->\n' }), '•');
+  });
+
+  it('decodeTaskMeta() parses the dp-meta JSON blob and tolerates missing/malformed notes', () => {
+    assert.deepEqual(decodeTaskMeta('<!--dp-meta:{"sourceMasterId":"m1"}-->\ntext'), { sourceMasterId: 'm1' });
+    assert.deepEqual(decodeTaskMeta('no marker here'), {});
+    assert.deepEqual(decodeTaskMeta('<!--dp-meta:{not json-->\n'), {});
+    assert.deepEqual(decodeTaskMeta(undefined), {});
+  });
+
+  it('fetchDayCalendarEvents() maps Calendar API items to the app event shape', async () => {
+    const calls = [];
+    globalThis.fetch = async (url) => {
+      calls.push(url);
+      return {
+        ok: true,
+        json: async () => ({
+          items: [{
+            id: 'evt1',
+            summary: 'Standup',
+            start: { dateTime: '2026-08-15T09:00:00-04:00' },
+            end: { dateTime: '2026-08-15T09:30:00-04:00' },
+            location: 'Room 1',
+            description: 'Daily sync',
+            hangoutLink: 'https://meet.google.com/abc',
+            htmlLink: 'https://calendar.google.com/event?eid=1',
+            extendedProperties: { shared: { gasTaskId: 'task1' } }
+          }]
+        })
+      };
+    };
+
+    const events = await fetchDayCalendarEvents('2026-08-15', 'tok_abc');
+    assert.equal(events.length, 1);
+    assert.deepEqual(events[0], {
+      id: 'evt1',
+      title: 'Standup',
+      startTime: '2026-08-15T09:00:00-04:00',
+      endTime: '2026-08-15T09:30:00-04:00',
+      location: 'Room 1',
+      description: 'Daily sync',
+      meetLink: 'https://meet.google.com/abc',
+      htmlLink: 'https://calendar.google.com/event?eid=1',
+      syncTaskId: 'task1'
+    });
+    assert.match(calls[0], /^https:\/\/www\.googleapis\.com\/calendar\/v3\/calendars\/primary\/events\?/);
+  });
+
+  it('fetchDayTasks() filters to the exact due date and decodes status/meta markers', async () => {
+    globalThis.fetch = async () => ({
+      ok: true,
+      json: async () => ({
+        items: [
+          { id: 't1', title: 'In range', status: 'needsAction', due: '2026-08-15T00:00:00.000Z', notes: '<!--dp-meta:{"sourceMasterId":"m9"}-->\n' },
+          { id: 't2', title: 'Adjacent day', status: 'needsAction', due: '2026-08-16T00:00:00.000Z' },
+          { id: 't3', title: 'Done', status: 'completed', due: '2026-08-15T00:00:00.000Z' }
+        ]
+      })
+    });
+
+    const tasks = await fetchDayTasks('2026-08-15', 'tok_abc');
+    assert.equal(tasks.length, 2);
+    assert.deepEqual(tasks[0], { id: 't1', title: 'In range', status: '•', dueDate: '2026-08-15', sourceMasterId: 'm9' });
+    assert.equal(tasks[1].status, '✓');
+    assert.equal(tasks.find(t => t.id === 't2'), undefined);
+  });
+
+  it('googleApiFetch throws with the status and body on a non-2xx response', async () => {
+    globalThis.fetch = async () => ({ ok: false, status: 403, statusText: 'Forbidden', text: async () => 'insufficient scope' });
+    await assert.rejects(() => fetchDayTasks('2026-08-15', 'tok_abc'), /403.*insufficient scope/s);
+  });
+
+  it('getDailyData() uses the REST path (Calendar + Tasks) when a GIS access token is present, and skips notes for now', async () => {
+    installFakeGisSignedIn('tok_rest');
+    await googleAuth.initGoogleAuth('test-client-id');
+    await googleAuth.signIn();
+
+    const fetchedUrls = [];
+    globalThis.fetch = async (url) => {
+      fetchedUrls.push(url);
+      if (url.includes('/calendar/v3/')) {
+        return { ok: true, json: async () => ({ items: [] }) };
+      }
+      return {
+        ok: true,
+        json: async () => ({ items: [{ id: 't1', title: 'REST task', status: 'needsAction', due: '2026-08-20T00:00:00.000Z' }] })
+      };
+    };
+
+    const bridge = new GASBridge(false);
+    const data = await bridge.getDailyData('2026-08-20');
+    assert.equal(data.date, '2026-08-20');
+    assert.equal(data.noteContent, '');
+    assert.equal(data.calendarEvents.length, 0);
+    assert.equal(data.tasks.length, 1);
+    assert.equal(data.tasks[0].title, 'REST task');
+    assert.equal(fetchedUrls.length, 2);
+  });
+
+  it('getDailyData() falls back to google.script.run when no access token is present but window.google.script.run is', async () => {
+    globalThis.window = {
+      google: {
+        script: {
+          run: {
+            withSuccessHandler(fn) {
+              return { withFailureHandler: () => ({ getDailyData: (dateStr) => fn({ date: dateStr, tasks: ['from-gas'], calendarEvents: [], noteContent: 'n' }) }) };
+            }
+          }
+        }
+      }
+    };
+    const bridge = new GASBridge(false);
+    const data = await bridge.getDailyData('2026-08-21');
+    assert.deepEqual(data.tasks, ['from-gas']);
   });
 });
