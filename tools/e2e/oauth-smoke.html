@@ -18,14 +18,28 @@
     <button id="btn-matrix">5. Fetch future matrix (getFutureMatrix)</button>
     <button id="btn-signout">Sign out</button>
   </p>
+  <h3>Stage 3 write-path + offline outbox test</h3>
+  <p>To test the offline round-trip: open DevTools → Network → set throttling to "Offline",
+  click "Add test task" (it queues to the outbox instead of failing), set Network back to
+  "Online" (or wait for the browser's own online event), then click "Flush outbox" and confirm
+  the task shows up via "Check outbox" going to 0 and a subsequent getDailyData fetch.</p>
+  <p>
+    <button id="btn-add-task">Add test task</button>
+    <button id="btn-update-task">Toggle last task's status</button>
+    <button id="btn-check-outbox">Check outbox</button>
+    <button id="btn-flush-outbox">Flush outbox</button>
+  </p>
   <pre id="out" style="background:#f0f0f0; padding:12px; white-space:pre-wrap;"></pre>
 
   <script type="module">
     import { initGoogleAuth, signIn, signOut, isSignedIn } from '../../src/googleAuth.js';
     import { GASBridge } from '../../src/gasBridge.js';
+    import * as IndexedDbStore from '../../src/indexedDbStore.js';
 
     const out = document.getElementById('out');
     const log = (msg) => { out.textContent += msg + '\n'; };
+    let lastTaskId = null;
+    let lastTaskDate = null;
 
     const clientId = new URLSearchParams(location.search).get('clientId');
     if (!clientId) {
@@ -92,6 +106,51 @@
         log('getFutureMatrix(' + year + ') result:\n' + JSON.stringify(data, null, 2));
       } catch (e) {
         log('getFutureMatrix failed: ' + e.message);
+      }
+    });
+
+    document.getElementById('btn-add-task').addEventListener('click', async () => {
+      const bridge = new GASBridge(false);
+      const today = new Date().toISOString().slice(0, 10);
+      try {
+        const task = await bridge.addDailyTask(today, 'Smoke test task ' + Date.now(), 'General');
+        lastTaskId = task.id;
+        lastTaskDate = today;
+        log('addDailyTask result:\n' + JSON.stringify(task, null, 2));
+      } catch (e) {
+        log('addDailyTask failed: ' + e.message);
+      }
+    });
+
+    document.getElementById('btn-update-task').addEventListener('click', async () => {
+      if (!lastTaskId) { log('No task added yet this session — click "Add test task" first.'); return; }
+      const bridge = new GASBridge(false);
+      try {
+        const result = await bridge.updateDailyTask(lastTaskDate, lastTaskId, { status: '✓' });
+        log('updateDailyTask(' + lastTaskId + ') result:\n' + JSON.stringify(result, null, 2));
+      } catch (e) {
+        log('updateDailyTask failed: ' + e.message);
+      }
+    });
+
+    document.getElementById('btn-check-outbox').addEventListener('click', async () => {
+      try {
+        const pending = await IndexedDbStore.idbGetOutbox();
+        log('Outbox: ' + pending.length + ' pending mutation(s)\n' + JSON.stringify(pending, null, 2));
+      } catch (e) {
+        log('Outbox check failed: ' + e.message);
+      }
+    });
+
+    document.getElementById('btn-flush-outbox').addEventListener('click', async () => {
+      const bridge = new GASBridge(false);
+      try {
+        const result = await bridge.flushOutbox((mutation, mutationResult) => {
+          log('  resolved: ' + mutation.type + ' -> ' + JSON.stringify(mutationResult));
+        });
+        log('flushOutbox result: ' + JSON.stringify(result));
+      } catch (e) {
+        log('flushOutbox failed: ' + e.message);
       }
     });
   </script>
