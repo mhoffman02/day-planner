@@ -969,6 +969,7 @@ function getDailyData(dateStr) {
                 title: t.title,
                 status: deriveTaskStatus(t),
                 dueDate: t.due.substring(0, 10),
+                category: meta.category || 'General',
                 sourceMasterId: meta.sourceMasterId || null
               };
             });
@@ -1731,9 +1732,9 @@ function addDailyTask(dateStr, title, category, sourceMasterId) {
         title: title,
         due: dateStr + 'T00:00:00.000Z'
       };
-      if (sourceMasterId) {
-        taskResource.notes = encodeTaskMeta('', { sourceMasterId: sourceMasterId });
-      }
+      var metaPatch = { category: category || 'General' };
+      if (sourceMasterId) metaPatch.sourceMasterId = sourceMasterId;
+      taskResource.notes = encodeTaskMeta('', metaPatch);
       var created = Tasks.Tasks.insert(taskResource, '@default');
       return {
         id: created.id,
@@ -1814,13 +1815,23 @@ function updateDailyTask(dateStr, taskId, updates) {
 
     var patch = {};
     var current = null;
+    function ensureCurrent() {
+      if (!current) current = Tasks.Tasks.get('@default', taskId);
+      return current;
+    }
     if (updates && updates.title !== undefined) {
       patch.title = updates.title;
     }
     if (updates && updates.status !== undefined) {
       patch.status = (updates.status === '✓' || updates.status === 'D/✓') ? 'completed' : 'needsAction';
-      current = Tasks.Tasks.get('@default', taskId);
-      patch.notes = encodeTaskStatusNotes(updates.status, current.notes);
+      patch.notes = encodeTaskStatusNotes(updates.status, ensureCurrent().notes);
+    }
+    if (updates && updates.category !== undefined) {
+      // Chain onto patch.notes (not ensureCurrent().notes) if the status branch above already
+      // computed a new notes value this call, so the two updates compose instead of one clobbering
+      // the other — encodeTaskMeta/encodeTaskStatusNotes each only touch their own marker line.
+      var notesBase = patch.notes !== undefined ? patch.notes : ensureCurrent().notes;
+      patch.notes = encodeTaskMeta(notesBase, { category: updates.category });
     }
     if (updates && updates.dueDate !== undefined) {
       patch.due = updates.dueDate + 'T00:00:00.000Z';
@@ -1851,7 +1862,7 @@ function updateDailyTask(dateStr, taskId, updates) {
       id: updated.id,
       title: updated.title,
       status: deriveTaskStatus(updated),
-      category: (updates && updates.category) || 'General',
+      category: decodeTaskMeta(updated.notes).category || 'General',
       dueDate: updated.due ? updated.due.substring(0, 10) : (updates && updates.dueDate) || dateStr
     };
   } catch (err) {

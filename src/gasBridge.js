@@ -124,8 +124,7 @@ export async function fetchDayCalendarEvents(dateStr, accessToken) {
  * and exact-date re-filter — the Tasks API stores `due` as UTC midnight, so querying a
  * script-timezone day window can silently return an adjacent day's tasks; padding the query and
  * then filtering on the task's own `due` date string sidesteps that instead of trying to convert
- * timezones exactly. Note: unlike gas-app/Code.gs, this does not (and never did, in production)
- * return a `category` field — see PLAN.md/migration notes on this gap.
+ * timezones exactly.
  * @param {string} dateStr YYYY-MM-DD
  * @param {string} accessToken
  * @returns {Promise<Array<object>>}
@@ -152,6 +151,7 @@ export async function fetchDayTasks(dateStr, accessToken) {
         title: t.title,
         status: deriveTaskStatus(t),
         dueDate: t.due.substring(0, 10),
+        category: meta.category || 'General',
         sourceMasterId: meta.sourceMasterId || null
       };
     });

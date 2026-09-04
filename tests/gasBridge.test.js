@@ -510,7 +510,7 @@ describe('GAS Bridge REST Unit Tests (Google Identity Services token present)', 
       ok: true,
       json: async () => ({
         items: [
-          { id: 't1', title: 'In range', status: 'needsAction', due: '2026-08-15T00:00:00.000Z', notes: '<!--dp-meta:{"sourceMasterId":"m9"}-->\n' },
+          { id: 't1', title: 'In range', status: 'needsAction', due: '2026-08-15T00:00:00.000Z', notes: '<!--dp-meta:{"sourceMasterId":"m9","category":"Work"}-->\n' },
           { id: 't2', title: 'Adjacent day', status: 'needsAction', due: '2026-08-16T00:00:00.000Z' },
           { id: 't3', title: 'Done', status: 'completed', due: '2026-08-15T00:00:00.000Z' }
         ]
@@ -519,8 +519,11 @@ describe('GAS Bridge REST Unit Tests (Google Identity Services token present)', 
 
     const tasks = await fetchDayTasks('2026-08-15', 'tok_abc');
     assert.equal(tasks.length, 2);
-    assert.deepEqual(tasks[0], { id: 't1', title: 'In range', status: '•', dueDate: '2026-08-15', sourceMasterId: 'm9' });
+    assert.deepEqual(tasks[0], { id: 't1', title: 'In range', status: '•', dueDate: '2026-08-15', category: 'Work', sourceMasterId: 'm9' });
     assert.equal(tasks[1].status, '✓');
+    // No dp-meta marker at all (e.g. an externally-created task) still defaults to 'General',
+    // matching gas-app/Code.gs#getDailyData's category fallback.
+    assert.equal(tasks.find(t => t.id === 't3').category, 'General');
     assert.equal(tasks.find(t => t.id === 't2'), undefined);
   });
 
