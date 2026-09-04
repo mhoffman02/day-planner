@@ -32,6 +32,14 @@ const DRIVE_UPLOAD_API_BASE = 'https://www.googleapis.com/upload/drive/v3';
 // replicated client-side (see the GAS-removal migration plan's "GAS-only mechanisms" section).
 const ROOT_FOLDER_STORAGE_KEY = 'dayPlannerRootFolderId';
 
+// Single visible marker on every mock-mode object, so mock data can never be silently mistaken
+// for a real API response mid-debugging — e.g. an expired/missing access token falling through
+// to the mock branch and returning plausible-looking fake data with no other signal that it
+// wasn't real (this bit us once during Stage 3's live smoke testing).
+const MOCK_DATA_FLAG = '🚩 MOCK DATA';
+const tagMock = (obj) => ({ ...obj, _mock: MOCK_DATA_FLAG });
+const mockYearMatrix = (year) => tagMock(emptyYearMatrix(year));
+
 // Ported from gas-app/Code.gs's TASK_STATUS_MARKER_RE / TASK_EXTRA_STATUSES / TASK_META_MARKER_RE
 // / deriveTaskStatus / decodeTaskMeta — Google Tasks has no custom-field support, so status
 // glyphs beyond plain done/not-done and app metadata (e.g. which master task a daily task was
@@ -978,16 +986,16 @@ export class GASBridge {
     this.mockData = {
       dailyTasks: {
         '2026-08-15': [
-          { id: 't1', title: 'Try the Day Planner app', status: '✓', category: 'Personal', dueDate: '2026-08-15' }
+          tagMock({ id: 't1', title: 'Try the Day Planner app', status: '✓', category: 'Personal', dueDate: '2026-08-15' })
         ]
       },
       masterTasks: [
-        { id: 'm1', title: 'Example: a long-term to-do that doesn’t belong on one specific day', category: 'Personal', status: '•' }
+        tagMock({ id: 'm1', title: 'Example: a long-term to-do that doesn’t belong on one specific day', category: 'Personal', status: '•' })
       ],
       futureMatrix: {
         2026: (() => {
-          const matrix = emptyYearMatrix(2026);
-          matrix.months['2026-10'].push(createFutureItem('Example: something planned for a future month', 'Personal'));
+          const matrix = mockYearMatrix(2026);
+          matrix.months['2026-10'].push(tagMock(createFutureItem('Example: something planned for a future month', 'Personal')));
           return matrix;
         })()
       },
@@ -1141,12 +1149,12 @@ export class GASBridge {
       endTime: e.endTime ? e.endTime.replace(/^\d{4}-\d{2}-\d{2}/, dateStr).replace(/Z$/, '') : `${dateStr}T10:00:00`
     }));
 
-    return {
+    return tagMock({
       date: dateStr,
       tasks: adjustedTasks,
       calendarEvents: adjustedEvents,
       noteContent: seedNote
-    };
+    });
   }
 
   /**
@@ -1202,7 +1210,7 @@ export class GASBridge {
         noteContent: dayData.noteContent || ''
       };
     }
-    return { month: monthStr, days };
+    return tagMock({ month: monthStr, days });
   }
 
   async getMonthData(monthStr) {
@@ -1277,14 +1285,14 @@ export class GASBridge {
     const hasGasRpc = !this.useMock && typeof window !== 'undefined' && !!window.google?.script?.run;
 
     if (this.useMock || (!accessToken && !hasGasRpc)) {
-      const newTask = {
+      const newTask = tagMock({
         id: `m_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         title,
         category,
         status: '•',
         movedTo: null,
         movedTaskId: null
-      };
+      });
       this.mockData.masterTasks.push(newTask);
       return newTask;
     }
@@ -1354,14 +1362,14 @@ export class GASBridge {
       if (!this.mockData.dailyTasks[dateStr]) {
         this.mockData.dailyTasks[dateStr] = [];
       }
-      const newTask = {
+      const newTask = tagMock({
         id: `t_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         title,
         status: '•',
         category,
         dueDate: dateStr,
         sourceMasterId: sourceMasterId || null
-      };
+      });
       this.mockData.dailyTasks[dateStr].push(newTask);
       return newTask;
     }
@@ -1464,7 +1472,7 @@ export class GASBridge {
         fullDesc += (fullDesc ? '\n\n' : '') + `📄 Meeting Agenda Doc: ${agendaDocUrl}`;
       }
 
-      const newEvt = {
+      const newEvt = tagMock({
         id: `e_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         title: eventData.title || 'New Appointment',
         startTime: eventData.startTime || `${dateStr}T09:00:00`,
@@ -1477,7 +1485,7 @@ export class GASBridge {
         guestsCanModify: guestsCanModify,
         syncTaskId: eventData.gasTaskId || eventData.syncTaskId || null,
         isCompleted: eventData.isCompleted || false
-      };
+      });
       this.mockData.calendarEvents[dateStr].push(newEvt);
       return newEvt;
     }
@@ -1670,7 +1678,7 @@ export class GASBridge {
       if (!sourceTask) return null;
 
       const existingTargetDayTasks = this.mockData.dailyTasks[resolvedTargetDate] || [];
-      const forwardedTask = forwardTaskToDate(sourceTask, existingTargetDayTasks, resolvedTargetDate);
+      const forwardedTask = tagMock(forwardTaskToDate(sourceTask, existingTargetDayTasks, resolvedTargetDate));
 
       sourceTask.status = TASK_STATUSES.FORWARDED;
       if (!this.mockData.dailyTasks[resolvedTargetDate]) this.mockData.dailyTasks[resolvedTargetDate] = [];
@@ -1693,7 +1701,7 @@ export class GASBridge {
   async getFutureMatrix(year) {
     if (this.useMock) {
       if (!this.mockData.futureMatrix[year]) {
-        this.mockData.futureMatrix[year] = emptyYearMatrix(year);
+        this.mockData.futureMatrix[year] = mockYearMatrix(year);
       }
       return this.mockData.futureMatrix[year];
     }
@@ -1706,7 +1714,7 @@ export class GASBridge {
     }
 
     if (!this.mockData.futureMatrix[year]) {
-      this.mockData.futureMatrix[year] = emptyYearMatrix(year);
+      this.mockData.futureMatrix[year] = mockYearMatrix(year);
     }
     return this.mockData.futureMatrix[year];
   }
@@ -1725,11 +1733,11 @@ export class GASBridge {
 
     if (this.useMock || (!accessToken && !hasGasRpc)) {
       if (!this.mockData.futureMatrix[year]) {
-        this.mockData.futureMatrix[year] = emptyYearMatrix(year);
+        this.mockData.futureMatrix[year] = mockYearMatrix(year);
       }
       const matrix = this.mockData.futureMatrix[year];
       if (!matrix.months[monthKey]) matrix.months[monthKey] = [];
-      const newItem = createFutureItem(title, category);
+      const newItem = tagMock(createFutureItem(title, category));
       matrix.months[monthKey].push(newItem);
       return newItem;
     }
@@ -1784,7 +1792,7 @@ export class GASBridge {
       const [item] = items.splice(idx, 1);
 
       const existingDaily = this.mockData.dailyTasks[dateStr] || [];
-      const newDailyTask = transferMasterTaskToToday(item, existingDaily, priorityGroup, dateStr);
+      const newDailyTask = tagMock(transferMasterTaskToToday(item, existingDaily, priorityGroup, dateStr));
       if (!this.mockData.dailyTasks[dateStr]) this.mockData.dailyTasks[dateStr] = [];
       this.mockData.dailyTasks[dateStr].push(newDailyTask);
       return newDailyTask;
@@ -1815,7 +1823,7 @@ export class GASBridge {
       const nextKey = nextMonthKey(monthKey);
       const nextYear = nextKey.slice(0, 4);
       if (!this.mockData.futureMatrix[nextYear]) {
-        this.mockData.futureMatrix[nextYear] = emptyYearMatrix(nextYear);
+        this.mockData.futureMatrix[nextYear] = mockYearMatrix(nextYear);
       }
       const nextMatrix = this.mockData.futureMatrix[nextYear];
       if (!nextMatrix.months[nextKey]) nextMatrix.months[nextKey] = [];
@@ -1839,7 +1847,7 @@ export class GASBridge {
 
     if (this.useMock || (!accessToken && !hasGasRpc)) {
       this.mockData.dailyNotes[dateStr] = noteContent;
-      return { success: true, docName: `Day Planner Notes - Mock ${dateStr}` };
+      return tagMock({ success: true, docName: `Day Planner Notes - Mock ${dateStr}` });
     }
 
     if (this.isOnline()) {
