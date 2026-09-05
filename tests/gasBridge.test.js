@@ -637,6 +637,60 @@ describe('GAS Bridge REST Unit Tests (Google Identity Services token present)', 
     assert.deepEqual(data.tasks, ['from-gas']);
   });
 
+  it('syncWorkspace() reconciles via REST and persists the resulting diff when a GIS access token is present', async () => {
+    installFakeGisSignedIn('tok_rest');
+    await googleAuth.initGoogleAuth('test-client-id');
+    await googleAuth.signIn();
+
+    const patchCalls = [];
+    globalThis.fetch = async (url, opts = {}) => {
+      if (url.includes('/calendar/v3/') && opts.method === 'PATCH') {
+        patchCalls.push({ url, body: JSON.parse(opts.body) });
+        return {
+          ok: true,
+          json: async () => ({
+            id: 'evt1',
+            summary: '[✓] Test Task',
+            start: { dateTime: '2026-09-05T09:00:00Z' },
+            end: { dateTime: '2026-09-05T09:30:00Z' }
+          })
+        };
+      }
+      if (url.includes('/calendar/v3/')) {
+        return {
+          ok: true,
+          json: async () => ({
+            items: [{
+              id: 'evt1',
+              summary: '[A1] Test Task',
+              start: { dateTime: '2026-09-05T09:00:00Z' },
+              end: { dateTime: '2026-09-05T09:30:00Z' },
+              extendedProperties: { shared: { gasTaskId: 't1' } }
+            }]
+          })
+        };
+      }
+      if (url.includes('tasks.googleapis.com')) {
+        return {
+          ok: true,
+          json: async () => ({ items: [{ id: 't1', title: '[A1] Test Task', status: 'completed', due: '2026-09-05T00:00:00.000Z' }] })
+        };
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    };
+
+    const bridge = new GASBridge(false);
+    const result = await bridge.syncWorkspace('2026-09-05');
+
+    // Task was already marked done ('completed' -> status '✓') but the linked event's title
+    // hadn't caught up yet — reconciliation must patch the real Calendar event via REST,
+    // not silently mock it, and reflect the patched title back in the returned result.
+    assert.equal(patchCalls.length, 1);
+    assert.equal(patchCalls[0].body.summary, '[✓] Test Task');
+    const syncedEvt = result.calendarEvents.find(e => e.id === 'evt1');
+    assert.equal(syncedEvt.title, '[✓] Test Task');
+  });
+
   it('fetchMonthCalendarEvents() paginates and buckets events by day', async () => {
     const calls = [];
     globalThis.fetch = async (url) => {

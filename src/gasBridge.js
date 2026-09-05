@@ -5,7 +5,7 @@
  */
 
 import { transferMasterTaskToToday, forwardTaskToDate, TASK_STATUSES } from './taskEngine.js';
-import { reconcileWorkspaceChanges } from './syncEngine.js';
+import { reconcileWorkspaceChanges, planSyncPersistence } from './syncEngine.js';
 import IndexedDbStore from './indexedDbStore.js';
 import { createFutureItem, nextMonthKey, emptyYearMatrix } from './futureMatrixEngine.js';
 import { getAccessToken } from './googleAuth.js';
@@ -1794,7 +1794,7 @@ export class GASBridge {
    * @returns {Promise<{tasks: Array<object>, calendarEvents: Array<object>, syncTimestamp: string}>}
    */
   async syncWorkspace(dateStr) {
-    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+    if (this.useMock) {
       const tasks = this.mockData.dailyTasks[dateStr] || this.mockData.dailyTasks['2026-08-15'] || [];
       const events = this.mockData.calendarEvents[dateStr] || this.mockData.calendarEvents['2026-08-15'] || [];
 
@@ -1804,12 +1804,43 @@ export class GASBridge {
       return reconciled;
     }
 
-    return new Promise((resolve, reject) => {
-      window.google.script.run
-        .withSuccessHandler(resolve)
-        .withFailureHandler(reject)
-        .syncWorkspaceChanges(dateStr);
-    });
+    const accessToken = getAccessToken();
+    if (accessToken) {
+      const [beforeEvents, beforeTasks] = await Promise.all([
+        fetchDayCalendarEvents(dateStr, accessToken),
+        fetchDayTasks(dateStr, accessToken)
+      ]);
+      const reconciled = reconcileWorkspaceChanges(beforeTasks, beforeEvents);
+      const plan = planSyncPersistence(beforeTasks, beforeEvents, reconciled);
+
+      for (const upd of plan.taskUpdates) {
+        await updateDailyTaskRest(dateStr, upd.taskId, { title: upd.title, status: upd.status, dueDate: upd.dueDate }, accessToken);
+      }
+      for (const create of plan.eventCreates) {
+        const saved = await addCalendarEventRest(dateStr, create.payload, accessToken);
+        if (saved && saved.id) {
+          reconciled.calendarEvents[create.index] = { ...reconciled.calendarEvents[create.index], ...saved };
+        }
+      }
+      for (const upd of plan.eventUpdates) {
+        await updateCalendarEventRest(upd.eventId, { title: upd.title, startTime: upd.startTime, endTime: upd.endTime }, accessToken);
+      }
+
+      return reconciled;
+    }
+
+    if (typeof window !== 'undefined' && window.google?.script?.run) {
+      return new Promise((resolve, reject) => {
+        window.google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .syncWorkspaceChanges(dateStr);
+      });
+    }
+
+    const tasks = this.mockData.dailyTasks[dateStr] || this.mockData.dailyTasks['2026-08-15'] || [];
+    const events = this.mockData.calendarEvents[dateStr] || this.mockData.calendarEvents['2026-08-15'] || [];
+    return reconcileWorkspaceChanges(tasks, events);
   }
 
   /**
