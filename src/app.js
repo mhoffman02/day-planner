@@ -285,7 +285,6 @@ if ('serviceWorker' in navigator) {
       // via window.DAY_PLANNER_GOOGLE_CLIENT_ID in index.html.
       isGoogleSignedIn: false,
       googleAuthReady: false,
-      _warnedLocalOnly: false,
 
       theme: 'light',
 
@@ -375,6 +374,7 @@ if ('serviceWorker' in navigator) {
           try {
             await ensureAccessToken();
             this.isGoogleSignedIn = isSignedIn();
+            if (this.isGoogleSignedIn) await this.flushOutboxIfPossible();
           } catch {
             // No active Google session to refresh silently — user can click Sign in.
           }
@@ -384,32 +384,22 @@ if ('serviceWorker' in navigator) {
       },
 
       /**
-       * Interactive Google sign-in, then reloads the current day/master-task data now that the
-       * bridge has a valid access token to call the real Google APIs with.
+       * Interactive Google sign-in. Flushes any mutations that were queued while signed out
+       * (see gasBridge.js's addDailyTask/addCalendarEvent/saveDailyDocCards — "not signed in"
+       * and "offline" share the same outbox queue), then reloads the current day/master-task
+       * data now that the bridge has a valid access token to call the real Google APIs with.
        * @returns {Promise<void>}
        */
       async signInWithGoogle() {
         try {
           await signIn();
           this.isGoogleSignedIn = isSignedIn();
+          await this.flushOutboxIfPossible();
           await this.loadDayData();
           await this.loadMasterTasks();
         } catch (e) {
           this.errorMessage = 'Google sign-in failed: ' + e.message;
         }
-      },
-
-      /**
-       * Warns the user that a change they just made is local-only (not signed in to Google, so
-       * it's sitting in the in-memory mock store and will vanish on refresh) — see gasBridge.js's
-       * `_localOnly` flag. Throttled to one toast per page load so rapid task edits don't spam
-       * the same warning repeatedly.
-       * @returns {void}
-       */
-      warnLocalOnlyChange() {
-        if (this._warnedLocalOnly) return;
-        this._warnedLocalOnly = true;
-        this.showToast('Not signed in to Google — this change is local only and will be lost on refresh. Sign in to save it.', 'warning', 10000, 'Not Saved to Google');
       },
 
       /**
@@ -420,7 +410,6 @@ if ('serviceWorker' in navigator) {
       signOutOfGoogle() {
         signOut();
         this.isGoogleSignedIn = false;
-        this._warnedLocalOnly = false;
       },
 
       /**
@@ -2189,7 +2178,6 @@ if ('serviceWorker' in navigator) {
           this.dailyTasks.push(newTask);
           this.newTaskTitle = '';
           if (newTask._queuedOffline) await this.refreshOutboxCount();
-          if (newTask._localOnly) this.warnLocalOnlyChange();
           await this.trigger2WaySync();
         } catch (err) {
           console.error('🔥 addDailyTask error:', err);
@@ -2241,8 +2229,6 @@ if ('serviceWorker' in navigator) {
               this.showToast(this.errorMessage, 'error', 10000, 'Task Not Saved');
             } else if (updated._queuedOffline) {
               await this.refreshOutboxCount();
-            } else if (updated._localOnly) {
-              this.warnLocalOnlyChange();
             }
           }
         } catch (err) {

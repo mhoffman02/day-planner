@@ -2483,6 +2483,58 @@ article.setup-card, article.card {
    TOAST NOTIFICATION COMPONENT (Day Planner Themed & Accessible)
    ========================================================================== */
 
+.error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 16px 12px;
+  padding: 10px 14px;
+  background: var(--theme-card-bg);
+  border: 1px solid var(--theme-card-border);
+  border-left: 4px solid #b3392f;
+  border-radius: 6px;
+  color: var(--theme-text-primary);
+}
+
+.error-banner.info-banner {
+  border-left-color: #b78103;
+}
+
+.error-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+}
+
+.error-banner-content .material-symbols-outlined {
+  font-size: 20px;
+  color: #b3392f;
+}
+
+.info-banner .error-banner-content .material-symbols-outlined {
+  color: #b78103;
+}
+
+.error-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--theme-text-muted);
+}
+
+.error-close-btn:hover {
+  color: var(--theme-text-primary);
+  background-color: var(--theme-table-header-bg);
+}
+
 .toast-container {
   position: fixed;
   top: 20px;

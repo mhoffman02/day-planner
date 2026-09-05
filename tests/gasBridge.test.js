@@ -164,21 +164,82 @@ describe('GAS Bridge Offline Write Queue Unit Tests', () => {
 describe('GAS Bridge Signed-Out Fallback Unit Tests', () => {
   // Real (non-mock) bridge instance -- exactly what app.js constructs (`new GASBridge(false)`)
   // -- with no Google sign-in performed, matching a user typing into the app before ever
-  // clicking "Sign in". Both methods fall back to the same in-memory mock store as explicit
-  // mock mode, but that fallback is invisible to the caller unless it's flagged: without a
-  // marker distinguishing "not signed in yet" from a real, persisted write, this data silently
-  // vanishes on refresh with no warning -- see no-silent-failures.md.
-  it('should flag addDailyTask\'s mock fallback as local-only when no Google session is active', async () => {
-    const bridge = new GASBridge(false);
-    const result = await bridge.addDailyTask('2026-09-05', '[A1] Not signed in yet', 'Work');
-    assert.equal(result._localOnly, true);
+  // clicking "Sign in". These writes must behave exactly like the offline-outbox path (queued
+  // in IndexedDB, replayed once flushOutbox has a real access token) rather than the ephemeral
+  // in-memory mock store, which silently vanishes on refresh -- see no-silent-failures.md. Not
+  // signed in and offline are really the same case from the bridge's point of view: "no access
+  // token available right now" -- so they share the exact same queuing mechanism.
+  afterEach(async () => {
+    const outbox = await IndexedDbStore.idbGetOutbox();
+    for (const m of outbox) await IndexedDbStore.idbDequeueMutation(m.id);
   });
 
-  it('should flag updateDailyTask\'s mock fallback as local-only when no Google session is active', async () => {
+  it('should queue addDailyTask to the outbox (not the ephemeral mock store) when no Google session is active', async () => {
     const bridge = new GASBridge(false);
-    const created = await bridge.addDailyTask('2026-09-05', '[A1] Not signed in yet', 'Work');
-    const result = await bridge.updateDailyTask('2026-09-05', created.id, { status: '✓' });
-    assert.equal(result._localOnly, true);
+    const result = await bridge.addDailyTask('2026-09-05', '[A1] Not signed in yet', 'Work');
+    assert.equal(result._queuedOffline, true);
+    assert.equal(result._localOnly, undefined);
+
+    const outbox = await IndexedDbStore.idbGetOutbox();
+    assert.ok(outbox.some(m => m.type === 'ADD_DAILY_TASK' && m.payload.tempId === result.id));
+  });
+
+  it('should queue updateDailyTask to the outbox when no Google session is active', async () => {
+    const bridge = new GASBridge(false);
+    const result = await bridge.updateDailyTask('2026-09-05', 'real_task_1', { status: '✓' });
+    assert.equal(result._queuedOffline, true);
+
+    const outbox = await IndexedDbStore.idbGetOutbox();
+    assert.ok(outbox.some(m => m.type === 'UPDATE_DAILY_TASK' && m.payload.taskId === 'real_task_1'));
+  });
+
+  it('should queue addCalendarEvent to the outbox when no Google session is active', async () => {
+    const bridge = new GASBridge(false);
+    const result = await bridge.addCalendarEvent('2026-09-05', { title: 'Not signed in yet' });
+    assert.equal(result._queuedOffline, true);
+
+    const outbox = await IndexedDbStore.idbGetOutbox();
+    assert.ok(outbox.some(m => m.type === 'ADD_CALENDAR_EVENT' && m.payload.tempId === result.id));
+  });
+
+  it('should queue updateCalendarEvent to the outbox when no Google session is active', async () => {
+    const bridge = new GASBridge(false);
+    const result = await bridge.updateCalendarEvent('2026-09-05', 'real_evt_1', { title: 'Renamed' });
+    assert.equal(result._queuedOffline, true);
+
+    const outbox = await IndexedDbStore.idbGetOutbox();
+    assert.ok(outbox.some(m => m.type === 'UPDATE_CALENDAR_EVENT' && m.payload.eventId === 'real_evt_1'));
+  });
+
+  it('should queue saveDailyDocCards to the outbox when no Google session is active', async () => {
+    const bridge = new GASBridge(false);
+    const result = await bridge.saveDailyDocCards('2026-09-05', 'Notes typed before signing in');
+    assert.equal(result.queued, true);
+
+    const outbox = await IndexedDbStore.idbGetOutbox();
+    assert.ok(outbox.some(m => m.type === 'SAVE_DAILY_NOTE' && m.payload.dateStr === '2026-09-05'));
+  });
+
+  it('should flush signed-out-queued mutations once the user signs in, via the same flushOutbox path as offline', async () => {
+    const bridge = new GASBridge(false);
+    const queued = await bridge.addDailyTask('2026-09-05', '[A1] Queued before sign-in', 'Work');
+    assert.equal(queued._queuedOffline, true);
+
+    installFakeGisSignedIn('tok_after_signin');
+    await googleAuth.initGoogleAuth('test-client-id');
+    await googleAuth.signIn();
+    try {
+      globalThis.fetch = async () => ({
+        ok: true,
+        json: async () => ({ id: 'real_task_100', title: '[A1] Queued before sign-in', status: 'needsAction', due: '2026-09-05T00:00:00.000Z' })
+      });
+      const flushResult = await bridge.flushOutbox();
+      assert.equal(flushResult.flushed, 1);
+      assert.equal(flushResult.failed, 0);
+    } finally {
+      googleAuth.signOut();
+      uninstallFakeGis();
+    }
   });
 });
 

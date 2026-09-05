@@ -170,6 +170,23 @@
       </aside>
     </template>
 
+    <!-- Not-Signed-In Status Banner: shown whenever real Google auth is configured but the user
+         hasn't signed in yet, so changes are being queued locally instead of lost -- see
+         addDailyTask/addCalendarEvent/saveDailyDocCards in gasBridge.js. -->
+    <template x-if="googleAuthReady && !isGoogleSignedIn">
+      <aside class="error-banner info-banner" role="status">
+        <div class="error-banner-content">
+          <span class="material-symbols-outlined">cloud_off</span>
+          <span x-text="outboxCount > 0
+            ? ('Not signed in to Google — ' + outboxCount + ' change' + (outboxCount === 1 ? '' : 's') + ' saved locally, will sync once you sign in.')
+            : 'Not signed in to Google — changes are saved locally and will sync once you sign in.'"></span>
+        </div>
+        <button type="button" @click="signInWithGoogle()" class="error-close-btn" title="Sign in with Google" aria-label="Sign in with Google">
+          <span class="material-symbols-outlined icon-18">login</span>
+        </button>
+      </aside>
+    </template>
+
     <!-- Main Workspace Area -->
     <section class="binder-body">
 

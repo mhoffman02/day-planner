@@ -1476,9 +1476,7 @@ export class GASBridge {
    * @returns {Promise<object>} Created daily task item promise.
    */
   async addDailyTask(dateStr, title, category = 'General', sourceMasterId) {
-    const accessToken = !this.useMock ? getAccessToken() : null;
-
-    if (this.useMock || !accessToken) {
+    if (this.useMock) {
       if (!this.mockData.dailyTasks[dateStr]) {
         this.mockData.dailyTasks[dateStr] = [];
       }
@@ -1490,16 +1488,15 @@ export class GASBridge {
         dueDate: dateStr,
         sourceMasterId: sourceMasterId || null
       });
-      // Not explicit mock mode (that's the documented, expected local-dev experience) but no
-      // Google session either -- this write is only ever going into the in-memory mock store
-      // and will vanish on refresh. Flag it so the caller can warn the user rather than let it
-      // disappear silently (no-silent-failures.md).
-      if (!this.useMock) newTask._localOnly = true;
       this.mockData.dailyTasks[dateStr].push(newTask);
       return newTask;
     }
 
-    if (this.isOnline()) {
+    // Not signed in and offline are the same case here: no access token available right now.
+    // Both fall through to the same outbox queue below and replay via flushOutbox once a
+    // session exists — see addCalendarEvent/saveDailyDocCards for the same pattern.
+    const accessToken = getAccessToken();
+    if (accessToken && this.isOnline()) {
       try {
         return await addDailyTaskRest(dateStr, title, category, sourceMasterId, accessToken);
       } catch (err) {
@@ -1524,15 +1521,12 @@ export class GASBridge {
    * @returns {Promise<object|null>} Updated task object or null.
    */
   async updateDailyTask(dateStr, taskId, updates = {}) {
-    const accessToken = !this.useMock ? getAccessToken() : null;
-
-    if (this.useMock || !accessToken) {
+    if (this.useMock) {
       const tasks = this.mockData.dailyTasks[dateStr] || this.mockData.dailyTasks['2026-08-15'] || [];
       const taskIndex = tasks.findIndex(t => t.id === taskId);
       if (taskIndex === -1) return null;
 
       tasks[taskIndex] = { ...tasks[taskIndex], ...updates };
-      if (!this.useMock) tasks[taskIndex]._localOnly = true;
       this.mockData.dailyTasks[dateStr] = tasks;
 
       // Mirror a status change back onto the source master task, if this daily task was
@@ -1546,7 +1540,8 @@ export class GASBridge {
       return tasks[taskIndex];
     }
 
-    if (this.isOnline()) {
+    const accessToken = getAccessToken();
+    if (accessToken && this.isOnline()) {
       try {
         return await updateDailyTaskRest(dateStr, taskId, updates, accessToken);
       } catch (err) {
@@ -1567,9 +1562,7 @@ export class GASBridge {
    * @returns {Promise<object>} Created calendar event.
    */
   async addCalendarEvent(dateStr, eventData = {}) {
-    const accessToken = !this.useMock ? getAccessToken() : null;
-
-    if (this.useMock || !accessToken) {
+    if (this.useMock) {
       if (!this.mockData.calendarEvents[dateStr]) {
         this.mockData.calendarEvents[dateStr] = [];
       }
@@ -1615,7 +1608,8 @@ export class GASBridge {
       return newEvt;
     }
 
-    if (this.isOnline()) {
+    const accessToken = getAccessToken();
+    if (accessToken && this.isOnline()) {
       try {
         return await addCalendarEventRest(dateStr, eventData, accessToken);
       } catch (err) {
@@ -1694,9 +1688,7 @@ export class GASBridge {
    * @returns {Promise<object|null>} Updated event object or null.
    */
   async updateCalendarEvent(dateStr, eventId, updates = {}) {
-    const accessToken = !this.useMock ? getAccessToken() : null;
-
-    if (this.useMock || !accessToken) {
+    if (this.useMock) {
       const events = this.mockData.calendarEvents[dateStr] || this.mockData.calendarEvents['2026-08-15'] || [];
       const eventIndex = events.findIndex(e => e.id === eventId);
       if (eventIndex === -1) return null;
@@ -1706,7 +1698,8 @@ export class GASBridge {
       return events[eventIndex];
     }
 
-    if (this.isOnline()) {
+    const accessToken = getAccessToken();
+    if (accessToken && this.isOnline()) {
       try {
         return await updateCalendarEventRest(eventId, updates, accessToken);
       } catch (err) {
@@ -1968,14 +1961,13 @@ export class GASBridge {
    * @returns {Promise<{success: boolean, docName?: string}>} Promise of save result.
    */
   async saveDailyDocCards(dateStr, noteContent) {
-    const accessToken = !this.useMock ? getAccessToken() : null;
-
-    if (this.useMock || !accessToken) {
+    if (this.useMock) {
       this.mockData.dailyNotes[dateStr] = noteContent;
       return tagMock({ success: true, docName: `Day Planner Notes - Mock ${dateStr}` });
     }
 
-    if (this.isOnline()) {
+    const accessToken = getAccessToken();
+    if (accessToken && this.isOnline()) {
       try {
         return await saveDailyDocCardsRest(dateStr, noteContent, accessToken);
       } catch (err) {
