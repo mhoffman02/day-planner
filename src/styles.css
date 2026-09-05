@@ -172,6 +172,8 @@ a:hover {
   --note-color-green: #2b8a3e;
   --note-color-blue: #1d5fa8;
 
+  --theme-binder-border-width: 12px;
+
   --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%231c2826' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
 
   /* Backward Compatibility Aliases */
@@ -195,6 +197,7 @@ a:hover {
 [data-theme="dark"] {
   color-scheme: dark;
   /* Theme Surfaces (Dark Mode - Dark Forest Executive) */
+  --theme-binder-border-width: 6px;
   --theme-desk-bg: #0a1611;
   --theme-binder-border: #c5a059;
   --theme-binder-canvas: #0e2018;
@@ -393,7 +396,7 @@ h1, h2, h3, h4, h5, h6,
   background: var(--theme-binder-canvas);
   border-radius: 12px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
-  border: 12px solid var(--theme-binder-border);
+  border: var(--theme-binder-border-width) solid var(--theme-binder-border);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -476,8 +479,8 @@ header.single-top-bar {
      and date-text-display each resolve `ch` against their own font (different
      from this wrapper's), so a ch-based total here doesn't add up to theirs —
      measured sum: 2 icon-nav-btn (24px) + 3 gaps (3px) + today-jump-btn min-width
-     (~94px) + date-text-display min-width (~175px) = ~326px. */
-  min-width: 330px;
+     (~94px) + date-text-display min-width (~127px) = ~278px. */
+  min-width: 280px;
 }
 
 .date-controls-group {
@@ -549,8 +552,11 @@ header.single-top-bar {
   line-height: 1;
   /* Reserve width for the longest date string this ever renders (e.g.
      "Wed, Dec 22, 2026") so the tab nav to the right doesn't shift left/right
-     as the label changes length or switches between daily/monthly format. */
-  min-width: calc(19ch + 8px);
+     as the label changes length or switches between daily/monthly format.
+     Trimmed to the string's actual measured width plus a small rendering-
+     variance buffer, rather than a full extra multi-character margin, to
+     close up the dead space that previously sat between the date and nav. */
+  min-width: calc(14ch + 4px);
 }
 
 nav.view-segmented-control {
