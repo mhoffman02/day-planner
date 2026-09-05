@@ -18,11 +18,19 @@ in manually once and the session persists across runs without tripping the
 block. See `CLAUDE.md`'s "E2E / live-browser driver" section for the full
 mechanics (frame nesting, `smoke-test.js`, etc.).
 
-**Generic browser-automation tools are still fine for pages that don't need
-Google auth** — e.g. `http://localhost:3000` in local-dev/mock mode never hits
-a real sign-in flow, so `mcp__chrome-devtools__*` is a reasonable choice
-there. The trigger for this rule is "does this page's flow require an
-authenticated Google session," not "is this any kind of browser check."
+**No local-dev/mock-mode exception.** An earlier version of this rule carved
+out `http://localhost:3000` mock mode as safe for generic tools, on the theory
+that mock mode never hits a real sign-in flow. That's false in practice: the
+underlying browser instance a generic tool attaches to can carry real Google
+session state from unrelated prior work, and `googleAuth.js`'s GIS init can
+still attempt a background/silent sign-in against that state — which trips
+the same automation block via an unexpected new tab, even though the page
+itself never asked for one (confirmed 2026-09-05: a plain reload of
+`localhost:3000` in `mcp__chrome-devtools__*` spawned an unrequested
+`accounts.google.com` tab that hit "This browser or app may not be secure").
+Use `ensure-chrome.js` + `tools/e2e/*` for **every** day-planner browser
+check, full stop — there is no page in this app for which the generic tool is
+the right choice.
 
 ## Why
 
