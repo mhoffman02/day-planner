@@ -22,6 +22,8 @@ export {
   idbSaveDaily,
   idbGetMonthOverview,
   idbSaveMonthOverview,
+  idbGetMasterTasks,
+  idbSaveMasterTasks,
   idbEnqueueMutation,
   idbGetOutbox,
   idbDequeueMutation

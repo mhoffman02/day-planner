@@ -474,6 +474,14 @@
     const item = Object.assign({}, payload, { dateStr, cachedAt: (/* @__PURE__ */ new Date()).toISOString() });
     return setItem(STORES.DAILY_DATA, item);
   }
+  var MASTER_TASKS_CACHE_KEY = "all";
+  async function idbGetMasterTasks() {
+    return getItem(STORES.MASTER_TASKS, MASTER_TASKS_CACHE_KEY);
+  }
+  async function idbSaveMasterTasks(tasks) {
+    const item = { monthStr: MASTER_TASKS_CACHE_KEY, tasks: tasks || [], cachedAt: (/* @__PURE__ */ new Date()).toISOString() };
+    return setItem(STORES.MASTER_TASKS, item);
+  }
   async function idbGetMonthOverview(monthStr) {
     return getItem(STORES.MONTH_OVERVIEW, monthStr);
   }

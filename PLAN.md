@@ -39,22 +39,28 @@ Current: 230 tests passing across 23 suites (`npm test`).
 - [x] `npm run build:gas:check` / `build:shell:check` clean (no drift in generated files).
 
 ## Feature Backlog
-- **Master Tasks has no offline cache.** `loadMasterTasks()` (`gas-app/Script.html`) calls
-  `bridge.getMasterTasks()` directly on every load with no IndexedDB read/write around it, unlike
-  daily tasks/notes which go through `idbGetDaily`/`idbSaveDaily` for stale-while-revalidate
-  offline support. `IDB_STORE_MASTER_TASKS` exists in the schema (`src/indexedDbStore.js`,
-  `gas-app/Script.html`) but nothing reads or writes it. Effect: opening the Master Tasks tab
-  while offline shows an error instead of last-known data, and `addMasterTask`/
-  `moveMasterTaskToDate` don't queue into the offline outbox the way daily task edits do. Added
-  2026-09-02 during the master-task persistence work (see git log around that date for the
-  commit that introduced the real Tasks-API-backed store this would cache).
-- **`src/gasBridge.js` / `gas-app/Script.html`'s `GASBridge` reconciliation pass** (mock-data ID
-  generation, `transferMasterTask` reimplementation) — still hand-duplicated per
-  `.agents/rules/sync-src-and-gas-app.md`; folding into the `build:gas` esbuild step needs that
-  reconciliation done first, not just wiring up the bundler.
-- **`gas-app/Code.gs` has no unit test coverage** — it depends on live GAS globals (`CalendarApp`,
-  `Tasks`, `DriveApp`) that would need a substantial mocking layer under `node --test`.
-  `src/syncEngine.js`'s local model is the only tested version of that reconciliation logic.
+- ~~Master Tasks has no offline cache.~~ **Done (2026-09-04).** `loadMasterTasks()`
+  (`src/app.js`) is now offline-first: `IndexedDbStore.idbGetMasterTasks()` applies any cached
+  list immediately (single fixed cache key, since `getMasterTasks()`'s `monthYearStr` param is
+  inert — the backend always returns the same global undated-task list regardless of month), then
+  refreshes live and re-caches via `idbSaveMasterTasks()`; `errorMessage` is only set when there's
+  no cache to fall back on. New `idbGetMasterTasks`/`idbSaveMasterTasks` exports added to
+  `src/indexedDbStore.js` and wired into `gas-app/Script.html`'s generated engine block via
+  `tools/gas-build/engines-entry.js` (`npm run build:gas`). Tests in `tests/indexedDbStore.test.js`.
+  Outbox-queueing for `addMasterTask`/`moveMasterTaskToDate` was intentionally left out of scope —
+  see below.
+- ~~`src/gasBridge.js` / `gas-app/Script.html`'s `GASBridge` reconciliation pass~~ **Marked
+  obsolete (2026-09-04), not implemented.** This branch's own migration plan
+  (`gas-removal-static-client`, Stage 5) deletes `gas-app/` entirely once the static-client
+  rewrite cuts over — `src/gasBridge.js` is already a full REST implementation talking directly
+  to Google APIs, superseding the old `google.script.run` bridge this item was written against.
+  Hand-porting reconciliation work into code slated for deletion isn't worth doing; the
+  live/mock-mode divergence in `gas-app/Script.html`'s `GASBridge` (and its `addMasterTask`/
+  `moveMasterTaskToDate` outbox gap, above) go away with the rest of `gas-app/` at cutover instead.
+- ~~`gas-app/Code.gs` has no unit test coverage~~ **Marked obsolete (2026-09-04), not
+  implemented.** Same reasoning: `Code.gs` is deleted at Stage 5 cutover, so building a GAS-globals
+  mocking harness for it is effort spent on code with no future. `src/syncEngine.js`'s already-
+  tested local model is the logic that survives the migration.
 
 ## History
 Phases 1-14 (initial build through full regression pass, security hardening, and the esbuild

@@ -309,6 +309,23 @@ export async function idbSaveDaily(dateStr, payload) {
   return setItem(STORES.DAILY_DATA, item);
 }
 
+// getMasterTasks() always returns the same global undated-task list regardless of which month is
+// selected (the "monthYearStr" param it's called with is just a display label) -- so unlike
+// idbGetDaily/getMonthlyNotes, master tasks are cached under one fixed key rather than duplicating
+// the identical list once per month a user happens to visit.
+const MASTER_TASKS_CACHE_KEY = 'all';
+
+/** @returns {Promise<{tasks: Array<object>, cachedAt: string}|null>} Cached master task list, if any. */
+export async function idbGetMasterTasks() {
+  return getItem(STORES.MASTER_TASKS, MASTER_TASKS_CACHE_KEY);
+}
+
+/** @param {Array<object>} tasks Master task list to cache. @returns {Promise<boolean>} */
+export async function idbSaveMasterTasks(tasks) {
+  const item = { monthStr: MASTER_TASKS_CACHE_KEY, tasks: tasks || [], cachedAt: new Date().toISOString() };
+  return setItem(STORES.MASTER_TASKS, item);
+}
+
 /** @param {string} monthStr Month string e.g. "2026-08". @returns {Promise<object|null>} Cached monthly-notes record, if any. */
 export async function getMonthlyNotes(monthStr) {
   return getItem(STORES.MONTHLY_NOTES, monthStr);
@@ -371,6 +388,8 @@ const IndexedDbStore = {
   idbSaveDaily,
   idbGetMonthOverview,
   idbSaveMonthOverview,
+  idbGetMasterTasks,
+  idbSaveMasterTasks,
   getMonthlyNotes,
   saveMonthlyNotes,
   idbEnqueueMutation,

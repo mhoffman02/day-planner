@@ -96,6 +96,35 @@ describe('IndexedDB Client Store Unit Tests', () => {
     assert.strictEqual(await IndexedDbStore.idbGetMonthOverview('1999-01'), null);
   });
 
+  it('should return null for master tasks when nothing was ever cached', async () => {
+    assert.strictEqual(await IndexedDbStore.idbGetMasterTasks(), null);
+  });
+
+  it('should save and retrieve the cached master task list', async () => {
+    const tasks = [
+      { id: 'm1', title: 'Renew passport', category: 'Personal', status: '•' },
+      { id: 'm2', title: 'File Q3 taxes', category: 'Finance', status: '✓' }
+    ];
+
+    const saved = await IndexedDbStore.idbSaveMasterTasks(tasks);
+    assert.strictEqual(saved, true);
+
+    const retrieved = await IndexedDbStore.idbGetMasterTasks();
+    assert.ok(retrieved);
+    assert.ok(retrieved.cachedAt);
+    assert.strictEqual(retrieved.tasks.length, 2);
+    assert.strictEqual(retrieved.tasks[1].title, 'File Q3 taxes');
+  });
+
+  it('should overwrite (not accumulate) the cached master task list on each save', async () => {
+    await IndexedDbStore.idbSaveMasterTasks([{ id: 'm1', title: 'Stale entry' }]);
+    await IndexedDbStore.idbSaveMasterTasks([{ id: 'm2', title: 'Fresh entry' }]);
+
+    const retrieved = await IndexedDbStore.idbGetMasterTasks();
+    assert.strictEqual(retrieved.tasks.length, 1);
+    assert.strictEqual(retrieved.tasks[0].title, 'Fresh entry');
+  });
+
   it('should bulk-write many records via setItems in one call', async () => {
     const items = [
       { dateStr: '2026-10-01', tasks: [] },

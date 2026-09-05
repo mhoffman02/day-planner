@@ -1937,15 +1937,25 @@ if ('serviceWorker' in navigator) {
       },
 
       /**
-       * Loads the master task list for the selected month.
+       * Loads the master task list for the selected month, offline-first: applies any cached
+       * copy immediately (so opening this tab while offline shows last-known data instead of an
+       * error), then refreshes from the backend in the background. Master tasks aren't actually
+       * server-side month-partitioned (see idbGetMasterTasks's comment), so the cache is shared
+       * across every month view rather than keyed per month.
        * @returns {Promise<void>}
        */
       async loadMasterTasks() {
+        const cached = await IndexedDbStore.idbGetMasterTasks();
+        if (cached) this.masterTasks = cached.tasks || [];
         try {
-          this.masterTasks = await this.bridge.getMasterTasks(`${this.selectedMonthName} ${this.selectedYear}`);
+          const tasks = await this.bridge.getMasterTasks(`${this.selectedMonthName} ${this.selectedYear}`);
+          this.masterTasks = tasks;
+          await IndexedDbStore.idbSaveMasterTasks(tasks);
         } catch (err) {
           console.error('🔥 loadMasterTasks error:', err);
-          this.errorMessage = `Error loading master tasks: ${err.message || err.toString()}`;
+          if (!cached) {
+            this.errorMessage = `Error loading master tasks: ${err.message || err.toString()}`;
+          }
         }
       },
 
