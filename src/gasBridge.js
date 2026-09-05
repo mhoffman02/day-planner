@@ -10,6 +10,7 @@ import { reconcileWorkspaceChanges, planSyncPersistence } from './syncEngine.js'
 import IndexedDbStore from './indexedDbStore.js';
 import { createFutureItem, nextMonthKey, emptyYearMatrix } from './futureMatrixEngine.js';
 import { getAccessToken } from './googleAuth.js';
+import { generateLocalId } from './binderStore.js';
 
 /**
  * Outbox mutation type tags used to queue and later replay writes made while offline.
@@ -1414,7 +1415,7 @@ export class GASBridge {
 
     if (this.useMock || !accessToken) {
       const newTask = tagMock({
-        id: `m_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        id: generateLocalId('m'),
         title,
         category,
         status: '•',
@@ -1481,7 +1482,7 @@ export class GASBridge {
         this.mockData.dailyTasks[dateStr] = [];
       }
       const newTask = tagMock({
-        id: `t_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        id: generateLocalId('t'),
         title,
         status: '•',
         category,
@@ -1508,7 +1509,7 @@ export class GASBridge {
       }
     }
 
-    const tempId = `offline_task_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const tempId = generateLocalId('offline_task');
     await IndexedDbStore.idbEnqueueMutation(OUTBOX_MUTATION_TYPES.ADD_DAILY_TASK, { dateStr, title, category, tempId });
     return { id: tempId, title, status: '•', category, dueDate: dateStr, sourceMasterId: sourceMasterId || null, _queuedOffline: true };
   }
@@ -1591,7 +1592,7 @@ export class GASBridge {
       }
 
       const newEvt = tagMock({
-        id: `e_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        id: generateLocalId('e'),
         title: eventData.title || 'New Appointment',
         startTime: eventData.startTime || `${dateStr}T09:00:00`,
         endTime: eventData.endTime || `${dateStr}T09:30:00`,
@@ -1619,7 +1620,7 @@ export class GASBridge {
       }
     }
 
-    const tempId = `offline_evt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const tempId = generateLocalId('offline_evt');
     const attendeesList = Array.isArray(eventData.attendees)
       ? eventData.attendees
       : (typeof eventData.attendees === 'string'

@@ -5,7 +5,7 @@
  */
 
 import { parseTaskTitle, formatTaskTitle, TASK_STATUSES } from './taskEngine.js';
-import { getLocalDateStr } from './binderStore.js';
+import { getLocalDateStr, generateLocalId } from './binderStore.js';
 
 /**
  * Strips priority codes [A1-C9] and completion markers [✓] from a title string.
@@ -84,7 +84,7 @@ export function syncTaskToCalendar(task, calendarEvents = []) {
   // Create new linked event
   return {
     updatedEvent: {
-      id: `evt_sync_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      id: generateLocalId('evt_sync'),
       title: eventTitle,
       startTime,
       endTime,

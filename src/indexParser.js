@@ -4,7 +4,7 @@
  * Scans daily note lines for #index or [INDEX] tags, extracts topic categories, highlights, and doc links.
  */
 
-import { getLocalDateStr } from './binderStore.js';
+import { getLocalDateStr, generateLocalId } from './binderStore.js';
 
 /**
  * Parses daily notes content string into structured index entries.
@@ -38,7 +38,7 @@ export function parseIndexEntriesFromNote(noteText = '', dateStr = '', docUrl = 
       }
 
       indexEntries.push({
-        id: `idx_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        id: generateLocalId('idx', 7),
         date: dateStr || getLocalDateStr(),
         topic,
         summary: cleanText || trimmed,

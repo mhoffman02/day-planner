@@ -9,7 +9,7 @@
 import { GASBridge } from './gasBridge.js';
 import { reconcileWorkspaceChanges, planSyncPersistence } from './syncEngine.js';
 import IndexedDbStore from './indexedDbStore.js';
-import { getLocalDateStr } from './binderStore.js';
+import { getLocalDateStr, generateLocalId } from './binderStore.js';
 import { initGoogleAuth, signIn, signOut, isSignedIn, ensureAccessToken, onAuthStateChanged } from './googleAuth.js';
 window.GASBridge = GASBridge;
 
@@ -189,7 +189,7 @@ if ('serviceWorker' in navigator) {
        * @returns {void}
        */
       showToast(message, type = 'info', duration = 10000, title = '', action = null) {
-        const id = 't_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+        const id = generateLocalId('t');
         const toastTitle = title || (type === 'error' ? 'Notice' : type === 'warning' ? 'Warning' : type === 'success' ? 'Success' : 'Information');
         const toast = { id, message, type, title: toastTitle, duration, action };
         this.toasts.push(toast);
@@ -1097,7 +1097,7 @@ if ('serviceWorker' in navigator) {
        */
       addNoteCard() {
         const newCard = {
-          id: `nc_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          id: generateLocalId('nc'),
           indexTopic: '',
           heading: '',
           content: '',
@@ -1860,7 +1860,7 @@ if ('serviceWorker' in navigator) {
             const category = headingClean.toLowerCase().includes('meeting') ? 'Meeting' : headingClean.toLowerCase().includes('finance') ? 'Decision' : headingClean.toLowerCase().includes('personal') ? 'Personal' : 'Work';
             const { indexTopic, heading } = this.decomposeIndexHeading(headingClean);
             currentCard = {
-              id: `nc_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+              id: generateLocalId('nc'),
               indexTopic,
               heading,
               content: '',
@@ -2455,7 +2455,7 @@ if ('serviceWorker' in navigator) {
           const autoAgendaDoc = this.newEventData.autoAgendaDoc;
 
           const newEvt = {
-            id: `evt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            id: generateLocalId('evt'),
             title: this.newEventData.title.trim(),
             startTime: startIso,
             endTime: endIso,

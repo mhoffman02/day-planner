@@ -33,6 +33,17 @@ export function getLocalDateStr(d = new Date()) {
 }
 
 /**
+ * Generates a locally-unique, non-persistent id for entities created client-side before a
+ * server assigns a real one (task/event drafts, toasts, offline-outbox temp ids).
+ * @param {string} prefix Id namespace, e.g. 'daily', 'evt', 'offline_task'.
+ * @param {number} [randEnd=6] End index for the random suffix's `.slice(2, randEnd)` — controls suffix length.
+ * @returns {string} `${prefix}_${Date.now()}_${randomSuffix}`.
+ */
+export function generateLocalId(prefix, randEnd = 6) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, randEnd)}`;
+}
+
+/**
  * State store managing binder views, selected dates, tasks, calendar events, and modal dialog states.
  */
 export class BinderStore {

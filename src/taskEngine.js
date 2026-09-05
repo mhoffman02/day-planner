@@ -4,7 +4,7 @@
  * Handles task priorities (A1-C9), status codes, task ordering, and "Move to Today" transfer logic.
  */
 
-import { getLocalDateStr } from './binderStore.js';
+import { getLocalDateStr, generateLocalId } from './binderStore.js';
 
 /**
  * Task status code symbols dictionary.
@@ -172,7 +172,7 @@ export function forwardTaskToDate(sourceTask, existingTargetDayTasks = [], targe
   const formattedTitle = formatTaskTitle(priorityGroup, sequence, cleanTitle);
 
   return {
-    id: `daily_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    id: generateLocalId('daily', 7),
     title: formattedTitle,
     status: TASK_STATUSES.OPEN,
     dueDate: targetDateStr,
@@ -195,7 +195,7 @@ export function transferMasterTaskToToday(masterTask, existingDailyTasks = [], t
   const formattedTitle = formatTaskTitle(targetPriorityGroup, sequence, cleanTitle);
 
   return {
-    id: `daily_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    id: generateLocalId('daily', 7),
     title: formattedTitle,
     status: TASK_STATUSES.OPEN,
     dueDate: todayDateStr,

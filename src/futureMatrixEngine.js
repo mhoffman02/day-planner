@@ -6,6 +6,8 @@
  * handles that transfer) or carried forward to the next month if still open.
  */
 
+import { generateLocalId } from './binderStore.js';
+
 /** Month keys 'MM' for a 12-month year, in order. */
 export const MONTH_KEYS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
 
@@ -27,7 +29,7 @@ export function monthKeyFor(year, monthNum) {
  */
 export function createFutureItem(title, category = 'General') {
   return {
-    id: `fm_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    id: generateLocalId('fm', 7),
     title,
     category,
     status: '•',
