@@ -1995,12 +1995,18 @@ article.modal-card {
   border-radius: 8px;
   width: 90%;
   max-width: 550px;
+  max-height: 90vh;
   padding: 24px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
   display: flex;
   flex-direction: column;
   gap: 16px;
   margin: 0;
+}
+
+.modal-body-details {
+  overflow-y: auto;
+  min-height: 0;
 }
 
 article.modal-card header {
