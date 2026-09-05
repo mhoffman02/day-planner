@@ -294,3 +294,19 @@ All three cross-origin loading strategies fail when a GitHub Pages shell tries t
 - Master Task List placeholder fix only addressed getMasterTasks() cosmetic output; Sync still cannot clear it since there is no real Drive-backed master-task store, a known gap carried forward again
 
 ---
+
+## 2026-09-05 — Unify signed-out/offline write queuing + dismissible status banner
+
+**Worked well:**
+- Followed red-test-first for gasBridge.js: wrote and confirmed failing outbox tests before touching the queue-unification code
+- Fixed the root cause (two divergent write paths: ephemeral signed-out mock vs. persisted offline outbox) instead of patching the symptom (a one-shot loss-warning toast)
+- Reused the existing offline outbox/flush machinery for the signed-out case instead of building a second parallel queue
+- Kept banner-dismiss state in-memory (not localStorage) to match the explicit 'comes back on next reload' requirement exactly, no over-persisting
+- Verified the existing connectivity/auto-sync mechanism against best practice before touching it, confirmed it was already correct and left it alone
+
+**Needs improvement:**
+- The live Drive file OAuth-identity-migration fix was diagnosed and executed ad hoc via MCP tools mid-session; a repeat of this class of issue would benefit from a documented runbook instead of re-deriving it
+- .error-banner had no CSS despite being live in the app for the general error message — went unnoticed until a new feature was built on top of it; an earlier full-tree review would have caught it sooner
+- The fetch+merge-base+push worktree pattern was retyped by hand three times in one session and would be worth a one-line npm script
+
+---
