@@ -248,16 +248,16 @@
                 <thead>
                   <tr>
                     <th scope="col" class="th-w-40 th-sortable" @click="setTaskSort('dailyTaskSort', 'priority')">
-                      Pri<span class="sort-arrow" x-show="dailyTaskSort.column === 'priority'" x-text="dailyTaskSort.direction === 'asc' ? '▲' : '▼'"></span>
+                      Pri<span class="sort-arrow" :class="{ 'sort-arrow-hidden': dailyTaskSort.column !== 'priority' }" x-text="dailyTaskSort.column === 'priority' ? (dailyTaskSort.direction === 'asc' ? '▲' : '▼') : '▲'"></span>
                     </th>
                     <th scope="col" class="th-w-40 th-sortable" @click="setTaskSort('dailyTaskSort', 'status')">
-                      Sts<span class="sort-arrow" x-show="dailyTaskSort.column === 'status'" x-text="dailyTaskSort.direction === 'asc' ? '▲' : '▼'"></span>
+                      Sts<span class="sort-arrow" :class="{ 'sort-arrow-hidden': dailyTaskSort.column !== 'status' }" x-text="dailyTaskSort.column === 'status' ? (dailyTaskSort.direction === 'asc' ? '▲' : '▼') : '▲'"></span>
                     </th>
                     <th scope="col" class="th-sortable" @click="setTaskSort('dailyTaskSort', 'title')">
-                      Task Description<span class="sort-arrow" x-show="dailyTaskSort.column === 'title'" x-text="dailyTaskSort.direction === 'asc' ? '▲' : '▼'"></span>
+                      Task Description<span class="sort-arrow" :class="{ 'sort-arrow-hidden': dailyTaskSort.column !== 'title' }" x-text="dailyTaskSort.column === 'title' ? (dailyTaskSort.direction === 'asc' ? '▲' : '▼') : '▲'"></span>
                     </th>
                     <th scope="col" class="th-w-80 th-sortable" @click="setTaskSort('dailyTaskSort', 'category')">
-                      Category<span class="sort-arrow" x-show="dailyTaskSort.column === 'category'" x-text="dailyTaskSort.direction === 'asc' ? '▲' : '▼'"></span>
+                      Category<span class="sort-arrow" :class="{ 'sort-arrow-hidden': dailyTaskSort.column !== 'category' }" x-text="dailyTaskSort.column === 'category' ? (dailyTaskSort.direction === 'asc' ? '▲' : '▼') : '▲'"></span>
                     </th>
                   </tr>
                 </thead>
@@ -547,13 +547,13 @@
               <thead>
                 <tr class="table-header-row">
                   <th scope="col" class="th-sortable" @click="setTaskSort('masterTaskSort', 'category')">
-                    Category<span class="sort-arrow" x-show="masterTaskSort.column === 'category'" x-text="masterTaskSort.direction === 'asc' ? '▲' : '▼'"></span>
+                    Category<span class="sort-arrow" :class="{ 'sort-arrow-hidden': masterTaskSort.column !== 'category' }" x-text="masterTaskSort.column === 'category' ? (masterTaskSort.direction === 'asc' ? '▲' : '▼') : '▲'"></span>
                   </th>
                   <th scope="col" class="th-sortable" @click="setTaskSort('masterTaskSort', 'title')">
-                    Task Title<span class="sort-arrow" x-show="masterTaskSort.column === 'title'" x-text="masterTaskSort.direction === 'asc' ? '▲' : '▼'"></span>
+                    Task Title<span class="sort-arrow" :class="{ 'sort-arrow-hidden': masterTaskSort.column !== 'title' }" x-text="masterTaskSort.column === 'title' ? (masterTaskSort.direction === 'asc' ? '▲' : '▼') : '▲'"></span>
                   </th>
                   <th scope="col" class="th-sortable" @click="setTaskSort('masterTaskSort', 'status')">
-                    Status<span class="sort-arrow" x-show="masterTaskSort.column === 'status'" x-text="masterTaskSort.direction === 'asc' ? '▲' : '▼'"></span>
+                    Status<span class="sort-arrow" :class="{ 'sort-arrow-hidden': masterTaskSort.column !== 'status' }" x-text="masterTaskSort.column === 'status' ? (masterTaskSort.direction === 'asc' ? '▲' : '▼') : '▲'"></span>
                   </th>
                   <th scope="col" class="th-w-150 th-align-right">Action</th>
                 </tr>

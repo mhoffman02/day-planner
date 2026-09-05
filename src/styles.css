@@ -1051,6 +1051,10 @@ table.task-table tbody tr:hover {
   opacity: 0.75;
 }
 
+.sort-arrow.sort-arrow-hidden {
+  visibility: hidden;
+}
+
 .star-toggle {
   display: inline-flex;
   align-items: center;
@@ -1061,6 +1065,7 @@ table.task-table tbody tr:hover {
   color: var(--text-muted);
   margin-right: 4px;
   vertical-align: middle;
+  transform: translateY(-2px);
 }
 
 .star-toggle.is-starred {
