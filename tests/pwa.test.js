@@ -29,8 +29,11 @@ describe('PWA Manifest Validity Tests', () => {
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
     assert.equal(manifest.name, 'Day Planner');
     assert.equal(manifest.short_name, 'Day Planner');
-    assert.equal(manifest.start_url, '/');
-    assert.equal(manifest.scope, '/');
+    // Relative, not root-absolute: this app is served from a GitHub Pages project
+    // subpath (/day-planner/), not domain root, so start_url/scope must resolve
+    // relative to manifest.json's own location rather than the origin root.
+    assert.equal(manifest.start_url, '.');
+    assert.equal(manifest.scope, '.');
     assert.equal(manifest.display, 'standalone');
     assert.ok(manifest.theme_color, 'theme_color should be defined');
     assert.ok(manifest.background_color, 'background_color should be defined');
@@ -54,9 +57,9 @@ describe('PWA Manifest Validity Tests', () => {
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
     assert.ok(Array.isArray(manifest.shortcuts), 'shortcuts should be an array');
     const urls = manifest.shortcuts.map(s => s.url);
-    assert.ok(urls.includes('/?view=daily'), 'shortcuts should include daily view');
-    assert.ok(urls.includes('/?view=monthly'), 'shortcuts should include monthly view');
-    assert.ok(urls.includes('/?view=tasks'), 'shortcuts should include master tasks view');
+    assert.ok(urls.includes('?view=daily'), 'shortcuts should include daily view');
+    assert.ok(urls.includes('?view=monthly'), 'shortcuts should include monthly view');
+    assert.ok(urls.includes('?view=tasks'), 'shortcuts should include master tasks view');
   });
 });
 

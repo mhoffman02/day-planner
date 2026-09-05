@@ -6,13 +6,19 @@
  * and fall back to it only on network failure).
  */
 
-const CACHE_NAME = 'day-planner-shell-v1';
+// Relative (not root-absolute) paths: this worker's own scope is whatever directory it's
+// served from (local dev root, or GitHub Pages' /day-planner/ subpath) — an absolute "/"
+// path resolves against the origin root instead and 404s under the subpath, which fails the
+// whole cache.addAll() and leaves the worker stuck uninstalled.
+const CACHE_NAME = 'day-planner-shell-v2';
 const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/src/shellLoader.js',
-  '/icons/icon.svg'
+  './',
+  './index.html',
+  './manifest.json',
+  './src/app.js',
+  './src/styles.css',
+  './src/vendor/alpine.min.js',
+  './icons/icon.svg'
 ];
 
 // Install Event: Pre-cache static shell assets

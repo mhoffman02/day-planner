@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Day Planner</title>
 
   <!-- OAuth Web client ID (Google Cloud Console) — not a secret, safe to commit. Single source
@@ -12,84 +12,847 @@
     window.DAY_PLANNER_GOOGLE_CLIENT_ID = 'REPLACE_WITH_OAUTH_CLIENT_ID';
   </script>
 
-  <!-- PWA & Mobile Web App Meta Tags -->
-  <meta name="theme-color" content="#1c2d27">
+  <script>
+    (function() {
+      try {
+        var saved = localStorage.getItem('dayPlannerTheme');
+        if (saved) {
+          document.documentElement.setAttribute('data-theme', saved);
+        } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        } else {
+          document.documentElement.setAttribute('data-theme', 'light');
+        }
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    })();
+  </script>
+  <!-- Relative (not root-absolute) paths throughout this file: GitHub Pages serves this repo
+       from a /day-planner/ subpath, not domain root, so a leading "/" would resolve to the
+       wrong origin-level path there (it only happened to work for local dev at localhost:3000/). -->
+  <link rel="stylesheet" href="src/styles.css?v=6">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2d6a5a">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Day Planner">
-  <link rel="manifest" href="manifest.json">
-  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
   <link rel="apple-touch-icon" href="icons/icon.svg">
-
-  <style>
-    :root {
-      --shell-bg: #1c2d27;
-      --shell-card: #fcfbfa;
-      --shell-text: #1c2d27;
-      --shell-gold: #c5a059;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Georgia, serif;
-      background-color: var(--shell-bg);
-      color: var(--shell-text);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-    #app-root {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-    }
-    #shell-skeleton {
-      max-width: 650px;
-      margin: 40px auto;
-      padding: 30px;
-      background: var(--shell-card);
-      border-radius: 8px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-      border: 2px solid var(--shell-gold);
-      text-align: center;
-      animation: shellPulse 1.8s infinite ease-in-out;
-    }
-    .skeleton-header {
-      font-family: Georgia, serif;
-      font-size: 1.5rem;
-      color: var(--shell-bg);
-      margin-bottom: 12px;
-    }
-    .skeleton-line {
-      height: 14px;
-      background: #e5e0d8;
-      border-radius: 4px;
-      margin: 10px auto;
-    }
-    .skeleton-line.w-80 { width: 80%; }
-    .skeleton-line.w-60 { width: 60%; }
-    .skeleton-line.w-40 { width: 40%; }
-    @keyframes shellPulse {
-      0%, 100% { opacity: 0.95; }
-      50% { opacity: 0.65; }
-    }
-  </style>
-
-  <!-- Vendor UI Runtime -->
-  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
 </head>
 <body>
-  <div id="app-root">
-    <!-- Instant Loading Skeleton Placeholder -->
-    <div id="shell-skeleton" aria-label="Loading Day Planner">
-      <h1 class="skeleton-header">Day Planner</h1>
-      <div class="skeleton-line w-80"></div>
-      <div class="skeleton-line w-60"></div>
-      <div class="skeleton-line w-40"></div>
-      <p style="font-size: 0.85rem; color: #736e65; margin-top: 16px;">Loading secure workspace...</p>
-    </div>
-  </div>
+  <!-- Skip to Main Content Link for Keyboard Accessibility -->
+  <a href="#main-content" class="skip-link">Skip to main content</a>
 
-  <!-- PWA Bootloader Script -->
-  <script type="module" src="src/shellLoader.js"></script>
+  <!-- Main Binder Application Container -->
+  <main id="main-content" class="binder-container" x-data="plannerApp" x-cloak>
+    
+    <!-- Toast Notification Container -->
+    <div class="toast-container" aria-live="assertive" role="region" aria-label="Notifications">
+      <template x-for="toast in toasts" :key="toast.id">
+        <div class="toast-item" :class="'toast-' + toast.type" role="alert">
+          <div class="toast-body">
+            <span class="material-symbols-outlined toast-icon" x-text="toast.type === 'error' ? 'error' : toast.type === 'warning' ? 'warning' : toast.type === 'success' ? 'check_circle' : 'info'"></span>
+            <div class="toast-content">
+              <div class="toast-title" x-text="toast.title"></div>
+              <div class="toast-message" x-text="toast.message"></div>
+            </div>
+            <button type="button" class="toast-dismiss-btn" @click="dismissToast(toast.id)" aria-label="Dismiss notification">✕</button>
+          </div>
+          <div class="toast-progress-bar">
+            <div class="toast-progress-fill" :style="`animation-duration: ${toast.duration}ms;`"></div>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- Single Consolidated Top Bar (Brand, Date Controls, View Tabs, & Actions) -->
+    <header class="binder-header single-top-bar" aria-label="Day Planner Header">
+      
+      <!-- Left: Brand & Date Controls -->
+      <div class="header-left">
+        <h1 class="brand-title-compact" title="Day Planner SPA">
+          <span class="material-symbols-outlined icon-22">auto_stories</span>
+          <span class="brand-name">Day Planner</span>
+        </h1>
+
+        <span class="header-vdivider" role="separator"></span>
+
+        <!-- Context-aware Date Controls -->
+        <div class="date-nav-compact">
+          <!-- Daily Date Nav -->
+          <template x-if="!isMonthlyView">
+            <div class="date-controls-group">
+              <button type="button" class="icon-nav-btn" @click="navigateDay(-1)" title="Previous Day" aria-label="Previous Day">
+                <span class="material-symbols-outlined icon-18">chevron_left</span>
+              </button>
+              <button type="button" class="today-jump-btn" @click="jumpToToday()" title="Jump to Today">Today</button>
+              <button type="button" class="icon-nav-btn" @click="navigateDay(1)" title="Next Day" aria-label="Next Day">
+                <span class="material-symbols-outlined icon-18">chevron_right</span>
+              </button>
+              <span class="date-text-display" x-text="new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })"></span>
+            </div>
+          </template>
+
+          <!-- Monthly Date Nav -->
+          <template x-if="isMonthlyView">
+            <div class="date-controls-group">
+              <button type="button" class="icon-nav-btn" @click="navigateMonth(-1)" title="Previous Month" aria-label="Previous Month">
+                <span class="material-symbols-outlined icon-18">chevron_left</span>
+              </button>
+              <button type="button" class="today-jump-btn" @click="jumpToCurrentMonth()" x-text="currentMonthName" title="Jump to Current Month"></button>
+              <button type="button" class="icon-nav-btn" @click="navigateMonth(1)" title="Next Month" aria-label="Next Month">
+                <span class="material-symbols-outlined icon-18">chevron_right</span>
+              </button>
+              <span class="date-text-display" x-text="selectedMonthName + ' ' + selectedYear"></span>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- Center: View Navigation Segmented Control -->
+      <nav class="view-segmented-control" aria-label="Planner Views">
+        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'daily' }" @click="setView('daily')" title="Daily 3-Column View">
+          <span>Today</span>
+        </button>
+        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'monthly-calendar' }" @click="setView('monthly-calendar')" title="Monthly Calendar View">
+          <span>Month</span>
+        </button>
+        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'master-tasks' }" @click="setView('master-tasks')" title="Master Task List">
+          <span>Master Tasks</span>
+        </button>
+        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'monthly-index' }" @click="setView('monthly-index')" title="#index Decision Registry">
+          <span>Index</span>
+        </button>
+        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'future-matrix' }" @click="setView('future-matrix')" title="Future Planning Matrix">
+          <span>Future</span>
+        </button>
+        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'about' }" @click="setView('about')" title="About & Specs">
+          <span>About</span>
+        </button>
+      </nav>
+
+      <!-- Right: Global Action Utilities -->
+      <div class="header-actions-compact">
+        <button type="button" class="search-trigger-compact" @click="toggleSearchModal()" title="Search Across All Items (Ctrl+K)">
+          <span class="material-symbols-outlined icon-18">search</span>
+          <span class="search-label">Search planner...</span>
+          <kbd class="kbd-shortcut-sm">⌘K</kbd>
+        </button>
+        <button type="button" class="sync-btn-compact" @click="trigger2WaySync()" :disabled="isSyncing" title="Sync with Google Calendar & Tasks">
+          <span class="material-symbols-outlined icon-18" :class="{ 'spin': isSyncing }">sync</span>
+          <span class="sync-label" x-text="isSyncing ? 'Syncing' : 'Sync'"></span>
+        </button>
+        <template x-if="googleAuthReady">
+          <button type="button" class="sync-btn-compact" @click="isGoogleSignedIn ? signOutOfGoogle() : signInWithGoogle()" :title="isGoogleSignedIn ? 'Sign out of Google' : 'Sign in with Google'">
+            <span class="material-symbols-outlined icon-18" x-text="isGoogleSignedIn ? 'logout' : 'login'"></span>
+            <span class="sync-label" x-text="isGoogleSignedIn ? 'Sign out' : 'Sign in'"></span>
+          </button>
+        </template>
+        <button type="button" class="theme-toggle-compact" @click="toggleTheme()" :aria-label="'Switch to ' + (theme === 'dark' ? 'Light' : 'Dark') + ' Mode'" :title="'Switch to ' + (theme === 'dark' ? 'Light' : 'Dark') + ' Mode'">
+          <span class="material-symbols-outlined icon-18" x-text="theme === 'dark' ? 'light_mode' : 'dark_mode'"></span>
+        </button>
+      </div>
+
+    </header>
+
+    <!-- Centralized Error & Warning Banner -->
+    <template x-if="errorMessage">
+      <aside class="error-banner" role="alert">
+        <div class="error-banner-content">
+          <span class="material-symbols-outlined">warning</span>
+          <span x-text="errorMessage"></span>
+        </div>
+        <button type="button" @click="errorMessage = null" class="error-close-btn" aria-label="Close">
+          <span class="material-symbols-outlined icon-18">close</span>
+        </button>
+      </aside>
+    </template>
+
+    <!-- Main Workspace Area -->
+    <section class="binder-body">
+
+      <!-- View 1: 3-Column Daily Spread -->
+      <template x-if="activeView === 'daily'">
+        <section class="daily-workspace-wrapper">
+          <!-- Mobile 3-Column Tab Switcher (< 768px) -->
+          <nav class="mobile-col-switcher" aria-label="Daily Workspace Panels">
+            <button type="button" class="mobile-col-btn" :class="{ 'active': activeDailyColumn === 'tasks' }" @click="activeDailyColumn = 'tasks'">
+              <span class="material-symbols-outlined icon-16">format_list_numbered</span>
+              <span>Tasks (<span x-text="dailyTasks.length"></span>)</span>
+            </button>
+            <button type="button" class="mobile-col-btn" :class="{ 'active': activeDailyColumn === 'appointments' }" @click="activeDailyColumn = 'appointments'">
+              <span class="material-symbols-outlined icon-16">schedule</span>
+              <span>Schedule (<span x-text="calendarEvents.length"></span>)</span>
+            </button>
+            <button type="button" class="mobile-col-btn" :class="{ 'active': activeDailyColumn === 'notes' }" @click="activeDailyColumn = 'notes'">
+              <span class="material-symbols-outlined icon-16">description</span>
+              <span>Daily Notes</span>
+            </button>
+          </nav>
+
+          <div class="two-page-spread"
+               aria-label="Daily Planner 3-Column Workspace"
+               :class="{ 'is-resizing': isResizing }"
+               :style="{ '--col1-w': colWidths[0] + '%', '--col2-w': colWidths[1] + '%', '--col3-w': colWidths[2] + '%' }">
+          
+          <!-- Column 1: Daily Task List Panel -->
+          <article class="page-panel col-tasks" :class="{ 'mobile-active': activeDailyColumn === 'tasks' }">
+            <header class="panel-header">
+              <h3 class="panel-header-title">
+                <span class="material-symbols-outlined">format_list_numbered</span> Tasks
+              </h3>
+            </header>
+
+            <!-- Task Quick Add Form -->
+            <form @submit.prevent="addDailyTask()" role="group" class="task-quick-add-bar">
+              <select x-model="newTaskPriorityGroup" class="task-priority-select" aria-label="Task priority group">
+                <option value="A">Priority A</option>
+                <option value="B">Priority B</option>
+                <option value="C">Priority C</option>
+              </select>
+              <input type="text" x-model="newTaskTitle" placeholder="Add task title (e.g. Call vendor)..." class="task-input-field" aria-label="New task description">
+              <button type="submit" class="btn-primary btn-add-task-round" aria-label="Add Task" title="Add Task">
+                <span class="material-symbols-outlined">add</span>
+              </button>
+            </form>
+
+            <!-- Task Table Grid -->
+            <figure class="table-container">
+              <table class="task-table">
+                <thead>
+                  <tr>
+                    <th scope="col" class="th-w-40">Pri</th>
+                    <th scope="col" class="th-w-40">Sts</th>
+                    <th scope="col">Task Description</th>
+                    <th scope="col" class="th-w-80">Category</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="task in dailyTasks" :key="task.id">
+                    <tr>
+                      <td>
+                        <span class="priority-badge" :class="parseTask(task.title).priorityGroup || 'A'" x-text="parseTask(task.title).priorityCode || 'A1'"></span>
+                      </td>
+                      <td>
+                        <button type="button" class="status-btn" @click="toggleTaskStatus(task)" x-text="task.status || '•'" :aria-label="'Task status: ' + (task.status || 'Open') + '. Click to cycle status.'"></button>
+                      </td>
+                      <td class="task-title-cell" x-text="parseTask(task.title).cleanTitle"></td>
+                      <td class="td-category" x-text="task.category || 'Work'"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </figure>
+
+          </article>
+
+          <!-- Column Resizer 1 (Between Tasks & Appointments) -->
+          <div class="column-resizer"
+               :class="{ 'is-resizing': activeResizerIndex === 1 }"
+               @mousedown="initResize(1, $event)"
+               @touchstart="initResize(1, $event)"
+               @dblclick="resetColumnWidths()"
+               role="separator"
+               aria-orientation="vertical"
+               aria-label="Resize Tasks and Appointments columns"
+               title="Drag left or right to resize columns (Double-click to reset)">
+            <div class="resizer-handle"></div>
+          </div>
+
+          <!-- Column 2: Appointment Panel -->
+          <article class="page-panel col-appointments" :class="{ 'mobile-active': activeDailyColumn === 'appointments' }">
+            <header class="panel-header appointments-header">
+              <h3 class="panel-header-title">
+                <span class="material-symbols-outlined">schedule</span> Appointments
+              </h3>
+              <div class="appointments-header-actions">
+                <button type="button" class="btn-primary btn-add-task-round" @click="openCreateEventModal()" title="Add New Appointment" aria-label="Add New Appointment">
+                  <span class="material-symbols-outlined">add</span>
+                </button>
+              </div>
+            </header>
+
+            <!-- Hourly Schedule Grid -->
+            <section class="schedule-list" aria-label="Hourly Schedule">
+              <template x-for="slot in scheduleGrid" :key="slot.timeKey">
+                <div class="schedule-row" :class="{ 'half-hour': slot.timeKey.endsWith(':30') }">
+                  <time class="schedule-time" x-text="slot.displayTime"></time>
+                  <div class="schedule-content">
+                    <template x-for="evt in slot.events" :key="evt.id">
+                      <button type="button" class="event-pill" @click="openEventModal(evt)">
+                        <span class="material-symbols-outlined icon-14">event</span>
+                        <span class="event-pill-text" x-text="evt.title"></span>
+                      </button>
+                    </template>
+                  </div>
+                </div>
+              </template>
+            </section>
+          </article>
+
+          <!-- Column Resizer 2 (Between Appointments & Notes) -->
+          <div class="column-resizer"
+               :class="{ 'is-resizing': activeResizerIndex === 2 }"
+               @mousedown="initResize(2, $event)"
+               @touchstart="initResize(2, $event)"
+               @dblclick="resetColumnWidths()"
+               role="separator"
+               aria-orientation="vertical"
+               aria-label="Resize Appointments and Notes columns"
+               title="Drag left or right to resize columns (Double-click to reset)">
+            <div class="resizer-handle"></div>
+          </div>
+
+          <!-- Column 3: Daily Notes Panel (Franklin Lined Paper & Modular Topic Cards) -->
+          <article class="page-panel notes-column-panel col-notes" :class="{ 'mobile-active': activeDailyColumn === 'notes' }">
+            <header class="panel-header notes-header">
+              <h3 class="panel-header-title">
+                <span class="material-symbols-outlined">description</span> Daily Notes
+                <span class="notes-date-text" x-text="new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })"></span>
+              </h3>
+
+              <div class="notes-header-actions">
+                <!-- Dropdown Filter Menu Toggle -->
+                <div class="dropdown-container">
+                  <button type="button" class="btn-icon-subtle" @click="noteFilterMenuOpen = !noteFilterMenuOpen" title="Filter & Search Notes" aria-label="Filter & Search Notes">
+                    <span class="material-symbols-outlined">tune</span>
+                  </button>
+                  
+                  <div class="dropdown-menu notes-filter-menu" x-show="noteFilterMenuOpen" @click.outside="noteFilterMenuOpen = false" x-cloak>
+                    <div class="dropdown-header">Filter & Search Cards</div>
+                    <div class="dropdown-item-group">
+                      <input type="search" x-model="noteCardSearchQuery" placeholder="Search card heading, notes..." class="dropdown-search-input">
+                    </div>
+                    <div class="dropdown-item-group">
+                      <label class="dropdown-label">Category Filter:</label>
+                      <select x-model="noteCardCategoryFilter" class="dropdown-select">
+                        <option value="ALL">All Categories</option>
+                        <option value="Work">Work</option>
+                        <option value="Personal">Personal</option>
+                        <option value="Meeting">Meeting</option>
+                        <option value="Decision">Decision</option>
+                        <option value="Project">Project</option>
+                      </select>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    <div class="dropdown-item-group">
+                      <label class="dropdown-label">View Mode:</label>
+                      <button type="button" class="btn-toggle-mode" @click="noteViewMode = noteViewMode === 'cards' ? 'doc' : 'cards'">
+                        <span x-text="noteViewMode === 'cards' ? 'Switch to Continuous Lined Doc (Future Preview)' : 'Switch to Topic Cards Mode'"></span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Add Topic Card Button (Round button matching Tasks) -->
+                <button type="button" class="btn-primary btn-add-task-round" @click="addNoteCard()" title="Add Topic Card" aria-label="Add Topic Card">
+                  <span class="material-symbols-outlined">add</span>
+                </button>
+              </div>
+            </header>
+
+            <!-- Mode 1: Modular Topic Cards (Option 1) -->
+            <div class="note-cards-container" x-show="noteViewMode === 'cards'">
+              
+              <!-- Filter Active Indicator -->
+              <template x-if="noteCardSearchQuery || noteCardCategoryFilter !== 'ALL'">
+                <div class="filter-indicator-bar">
+                  <span>Filtered: <strong x-text="noteCardCategoryFilter !== 'ALL' ? noteCardCategoryFilter : ''"></strong> <span x-text="noteCardSearchQuery ? ('&quot;' + noteCardSearchQuery + '&quot;') : ''"></span></span>
+                  <button type="button" class="btn-link-sm" @click="clearNoteCardFilter()">Clear</button>
+                </div>
+              </template>
+
+              <!-- Cards List -->
+              <template x-for="card in filteredNoteCards" :key="card.id">
+                <article class="note-card-item" :class="{ 'collapsed': card.collapsed }">
+                  <!-- Card Header -->
+                  <header class="note-card-header">
+                    <button type="button" class="card-twistie-btn" @click="toggleCardExpand(card)" :title="card.collapsed ? 'Expand Topic' : 'Collapse Topic'">
+                      <span class="material-symbols-outlined icon-18" x-text="card.collapsed ? 'arrow_right' : 'arrow_drop_down'"></span>
+                    </button>
+
+                    <input type="text" x-model="card.heading" @input="syncCardsToDailyNote()" placeholder="Topic Heading (e.g. #index [Architecture])..." class="card-heading-input" aria-label="Topic Heading">
+
+                    <select x-model="card.category" @change="syncCardsToDailyNote()" class="card-category-select" aria-label="Card Category">
+                      <option value="Work">Work</option>
+                      <option value="Personal">Personal</option>
+                      <option value="Meeting">Meeting</option>
+                      <option value="Decision">Decision</option>
+                      <option value="Project">Project</option>
+                    </select>
+
+                    <button type="button" class="card-delete-btn" @click="deleteNoteCard(card.id)" title="Delete Card" aria-label="Delete Card">
+                      <span class="material-symbols-outlined icon-16">delete</span>
+                    </button>
+                  </header>
+
+                  <!-- Card Body & Rich Formatting Bar -->
+                  <div class="note-card-body" x-show="!card.collapsed">
+                    <!-- Google Chat Style Formatting Toolbar -->
+                    <div class="gchat-toolbar" role="toolbar" aria-label="Rich text formatting">
+                      <button type="button" class="format-btn" @click="applyCardFormat(card, 'bold')" title="Bold"><span class="material-symbols-outlined icon-16">format_bold</span></button>
+                      <button type="button" class="format-btn" @click="applyCardFormat(card, 'italic')" title="Italic"><span class="material-symbols-outlined icon-16">format_italic</span></button>
+                      <button type="button" class="format-btn" @click="applyCardFormat(card, 'strike')" title="Strikethrough"><span class="material-symbols-outlined icon-16">strikethrough_s</span></button>
+                      <span class="toolbar-divider"></span>
+                      <button type="button" class="format-btn" @click="applyCardFormat(card, 'bullet')" title="Bullet List"><span class="material-symbols-outlined icon-16">format_list_bulleted</span></button>
+                      <button type="button" class="format-btn" @click="applyCardFormat(card, 'code')" title="Code/Quote"><span class="material-symbols-outlined icon-16">code</span></button>
+                    </div>
+
+                    <!-- Note Card Text Area -->
+                    <textarea x-model="card.content" @input="syncCardsToDailyNote()" placeholder="Type notes for this topic (e.g. - #index [Topic] key decisions...)" class="note-card-textarea" aria-label="Note card content"></textarea>
+                  </div>
+                </article>
+              </template>
+
+              <template x-if="filteredNoteCards.length === 0">
+                <div class="empty-cards-notice">
+                  <p>No note cards found. Click <strong>+ Add Card</strong> above to create a new topic section.</p>
+                </div>
+              </template>
+            </div>
+
+            <!-- Mode 2: Continuous Lined Doc (Option 2 - Future To-Do Preview) -->
+            <div class="note-doc-container" x-show="noteViewMode === 'doc'">
+              <div class="doc-preview-badge">
+                <span class="material-symbols-outlined icon-16">info</span>
+                <span>Option 2 Preview: Continuous Lined Doc with Collapsible H3 Accordions</span>
+              </div>
+              <textarea x-model="dailyNote" @input="syncDailyNoteToCards()" placeholder="# Aug 15, 2026\n\n### Topic 1\nNotes..." class="continuous-doc-textarea" aria-label="Continuous Daily Notes"></textarea>
+            </div>
+
+          </article>
+
+          </div>
+        </section>
+      </template>
+
+      <!-- View 2: Full-Screen Monthly Overview Calendar -->
+      <template x-if="activeView === 'monthly-calendar'">
+        <section class="view-container" aria-label="Monthly Overview Calendar">
+          <header class="view-header-bar">
+            <h2 class="view-title">
+              <span class="material-symbols-outlined">calendar_month</span>
+              Monthly Overview - <span x-text="selectedMonthName + ' ' + selectedYear"></span>
+            </h2>
+          </header>
+          <section class="monthly-grid" aria-label="Calendar Grid Matrix">
+            <template x-for="day in monthlyGrid">
+              <article class="calendar-day-cell" :class="{ 'other-month': !day.isCurrentMonth }" @click="selectCalendarDay(day)">
+                <header class="day-num" x-text="day.dayNum"></header>
+                <template x-for="evt in day.events" :key="evt.id">
+                  <div class="event-pill event-pill-sm" x-text="evt.title"></div>
+                </template>
+              </article>
+            </template>
+          </section>
+        </section>
+      </template>
+
+      <!-- View 3: Monthly Master Task List Page -->
+      <template x-if="activeView === 'master-tasks'">
+        <section class="view-container" aria-label="Monthly Master Task List">
+          <header>
+            <h2 class="view-title">
+              <span class="material-symbols-outlined">checklist</span>
+              Monthly Master Task List (<span x-text="selectedMonthName + ' ' + selectedYear"></span>)
+            </h2>
+          </header>
+          <figure class="table-container">
+            <table class="task-table table-card">
+              <thead>
+                <tr class="table-header-row">
+                  <th scope="col">Category</th>
+                  <th scope="col">Task Title</th>
+                  <th scope="col">Status</th>
+                  <th scope="col" class="th-w-150 th-align-right">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="mTask in masterTasks" :key="mTask.id">
+                  <tr>
+                    <td><b x-text="mTask.category"></b></td>
+                    <td x-text="mTask.title"></td>
+                    <td><span class="status-btn" x-text="mTask.status"></span></td>
+                    <td class="td-align-right">
+                      <button type="button" class="btn-primary btn-sm" @click="moveMasterTaskToToday(mTask)">
+                        <span class="material-symbols-outlined icon-14">east</span> Move to Today
+                      </button>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </figure>
+        </section>
+      </template>
+
+      <!-- View 4: Monthly Index Page -->
+      <template x-if="activeView === 'monthly-index'">
+        <section class="view-container" aria-label="Monthly Index Page">
+          <header>
+            <h2 class="view-title">
+              <span class="material-symbols-outlined">topic</span>
+              Monthly Index & Tagged Decision Registry (#index) - <span x-text="selectedMonthName + ' ' + selectedYear"></span>
+            </h2>
+          </header>
+          <figure class="table-container">
+            <table class="task-table table-card">
+              <thead>
+                <tr class="table-header-row">
+                  <th scope="col">Date</th>
+                  <th scope="col">Topic / Category</th>
+                  <th scope="col">Summary Highlight</th>
+                  <th scope="col">Direct Doc Link</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="idx in indexRecords" :key="idx.summary">
+                  <tr>
+                    <td x-text="idx.date"></td>
+                    <td><b x-text="idx.topic"></b></td>
+                    <td x-text="idx.summary"></td>
+                    <td>
+                      <a :href="idx.docUrl" class="doc-link" target="_blank" rel="noopener noreferrer">
+                        <span class="material-symbols-outlined icon-16">description</span> View Google Doc
+                      </a>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </figure>
+        </section>
+      </template>
+
+      <!-- View 5: Future Planning Matrix -->
+      <template x-if="activeView === 'future-matrix'">
+        <section class="view-container" aria-label="Future Planning Matrix">
+          <header>
+            <h2 class="view-title">
+              <span class="material-symbols-outlined">explore</span>
+              Future Planning Matrix (12-Month Overview)
+            </h2>
+          </header>
+          <section class="future-matrix-grid">
+            <template x-for="m in ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']">
+              <article class="future-month-card">
+                <h3 class="future-month-title" x-text="m + ' ' + selectedYear"></h3>
+                <p class="future-month-empty">No future milestones scheduled.</p>
+              </article>
+            </template>
+          </section>
+        </section>
+      </template>
+
+      <!-- View 6: Static About Page -->
+      <template x-if="activeView === 'about'">
+        <section class="view-container-compact" aria-label="About Day Planner">
+          <article class="about-container">
+  
+  <header class="about-header">
+    <div>
+      <h1 class="about-title">
+        <span class="material-symbols-outlined icon-32">menu_book</span>
+        About Day Planner
+      </h1>
+      <p class="about-subtitle">User Guide & Features Overview</p>
+    </div>
+    <span class="about-version">
+      <span class="material-symbols-outlined icon-16">verified</span> v2.9
+    </span>
+  </header>
+
+  <section aria-labelledby="heading-purpose">
+    <h2 id="heading-purpose" class="about-section-heading">1. Purpose & Product Vision</h2>
+    <p class="about-paragraph">
+      The <b>Day Planner</b> bridges timeless paper day planner productivity methodology with real-time Google Workspace cloud capabilities.
+    </p>
+  </section>
+
+  <section aria-labelledby="heading-setup">
+    <h2 id="heading-setup" class="about-section-heading">2. Google Drive Folder Setup</h2>
+    <aside class="security-callout">
+      <h3 class="security-callout-title">
+        <span class="material-symbols-outlined">lock</span> Privacy & Security
+      </h3>
+      <p class="callout-text">
+        To protect your privacy, Day Planner <b>CANNOT read or write any existing files</b> across your Google Drive.
+      </p>
+      <div class="folder-instructions-box">
+        <b>Google Drive Folder Link Instructions:</b>
+        <ol class="styled-ordered-list">
+          <li>Create a dedicated folder named <b><code>Day Planner</code></b> in your Google Drive (e.g. <code>https://drive.google.com/drive/u/0/folders/1N2WRrFmtsAWKgqeaFIj9HtiQ2wupFEk0</code>).</li>
+          <li>The application securely links your folder ID to store your planner notes and documents.</li>
+          <li>All daily notes documents and monthly subfolders are created under <code>/Day Planner/</code>.</li>
+        </ol>
+      </div>
+    </aside>
+  </section>
+
+  <section aria-labelledby="heading-workspace">
+    <h2 id="heading-workspace" class="about-section-heading">3. Google Workspace Integrations</h2>
+    <figure class="table-container">
+      <table class="task-table matrix-table">
+        <thead>
+          <tr class="table-header-row">
+            <th scope="col">Google Service</th>
+            <th scope="col">Feature</th>
+            <th scope="col">Capabilities & Benefits</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b>Google Calendar</b></td>
+            <td>Schedule & Appointments</td>
+            <td>Renders 07:00 AM – 07:00 PM appointment schedule grid, event details modal, Google Meet launcher, and 2-way workspace sync.</td>
+          </tr>
+          <tr>
+            <td><b>Google Tasks</b></td>
+            <td>Task Management</td>
+            <td>Manages daily <code>[A1-C9]</code> prioritized tasks and Monthly Master Task Lists with 1-click transfer.</td>
+          </tr>
+          <tr>
+            <td><b>Google Docs</b></td>
+            <td>Daily Notes & Indexing</td>
+            <td>Backs the daily notes pane with Google Docs stored in <code>/Day Planner/</code>; scans <code>#index</code> decision tags.</td>
+          </tr>
+          <tr>
+            <td><b>Google Drive</b></td>
+            <td>Cloud Storage</td>
+            <td>Organizes your daily notes and monthly binder archives inside your dedicated <code>Day Planner</code> folder.</td>
+          </tr>
+        </tbody>
+      </table>
+    </figure>
+  </section>
+
+  <section aria-labelledby="heading-guide">
+    <h2 id="heading-guide" class="about-section-heading">4. User Instructions & Workflow Guide</h2>
+
+    <section class="cards-stack">
+      <article class="guide-card">
+        <h3 class="guide-card-title">
+          <span class="material-symbols-outlined">format_list_bulleted</span> A1–C9 Task Prioritization & Status Codes
+        </h3>
+        <p class="guide-card-text">
+          Tasks are categorized into Priority Groups (A = Urgent, B = Important, C = Low) with sequence numbers (1–9). Click the status box to cycle: 
+          <span class="material-symbols-outlined icon-16">fiber_manual_record</span> (Open) <span class="material-symbols-outlined icon-16">arrow_forward</span> <span class="material-symbols-outlined icon-16">check</span> (Completed) <span class="material-symbols-outlined icon-16">arrow_forward</span> <span class="material-symbols-outlined icon-16">east</span> (Forwarded) <span class="material-symbols-outlined icon-16">arrow_forward</span> <span class="material-symbols-outlined icon-16">close</span> (Canceled) <span class="material-symbols-outlined icon-16">arrow_forward</span> <b>G/✓</b> (Delegated).
+        </p>
+      </article>
+
+      <article class="guide-card">
+        <h3 class="guide-card-title">
+          <span class="material-symbols-outlined">move_item</span> Monthly Master Task Transfer
+        </h3>
+        <p class="guide-card-text">
+          Open the <b>Master Task List</b> tab to view categorized monthly objectives (Work, Personal, Financial, Projects). Click <b>Move to Today</b> to assign an active <code>[A1]</code> priority tag and transfer it directly to today's task list.
+        </p>
+      </article>
+
+      <article class="guide-card">
+        <h3 class="guide-card-title">
+          <span class="material-symbols-outlined">tag</span> Automated Monthly Indexing (#index)
+        </h3>
+        <p class="guide-card-text">
+          Tag key meeting outcomes or decisions in your daily notes using <code>#index [Topic] Summary</code>. The Monthly Index automatically aggregates and links these entries chronologically.
+        </p>
+      </article>
+
+      <article class="guide-card">
+        <h3 class="guide-card-title">
+          <span class="material-symbols-outlined">sync</span> 2-Way Workspace Sync
+        </h3>
+        <p class="guide-card-text">
+          Click <b>2-Way Sync</b> in the top header bar to reconcile tasks and calendar appointments. Background triggers automatically run every 5 minutes.
+        </p>
+      </article>
+    </section>
+  </section>
+
+  <footer class="about-footer">
+    Day Planner • Google Workspace Edition
+  </footer>
+
+</article>
+
+        </section>
+      </template>
+
+    </section>
+
+    <!-- Event Detail Modal -->
+    <dialog class="modal-backdrop" x-show="eventModalOpen" x-transition x-cloak aria-labelledby="eventModalTitle" aria-modal="true" @keydown.escape.window="closeEventModal()">
+      <article class="modal-card" @click.away="closeEventModal()">
+        <header>
+          <h3 id="eventModalTitle" class="modal-title" x-text="selectedEvent?.title || 'Event Details'"></h3>
+        </header>
+        <div class="modal-body-details">
+          <p class="modal-detail-row">
+            <span class="material-symbols-outlined icon-18">schedule</span> <span x-text="selectedEvent?.startTime"></span>
+          </p>
+          <p class="modal-detail-row">
+            <span class="material-symbols-outlined icon-18">location_on</span> <span x-text="selectedEvent?.location || 'No location set'"></span>
+          </p>
+          <p class="modal-description" x-text="selectedEvent?.description || 'No description'"></p>
+        </div>
+        <footer class="modal-actions">
+          <template x-if="selectedEvent?.meetLink">
+            <a :href="selectedEvent.meetLink" target="_blank" class="btn-primary btn-meet" role="button">
+              <span class="material-symbols-outlined">videocam</span> Join Google Meet
+            </a>
+          </template>
+          <a :href="selectedEvent?.gCalLink" target="_blank" class="btn-primary" role="button">
+            <span class="material-symbols-outlined">calendar_today</span> Open in gCal
+          </a>
+          <button type="button" class="btn-secondary" @click="closeEventModal()">Close</button>
+        </footer>
+      </article>
+    </dialog>
+
+    <!-- Create New Event / Appointment Modal -->
+    <dialog class="modal-backdrop" x-show="createEventModalOpen" x-transition x-cloak aria-labelledby="createEventModalTitle" aria-modal="true" @keydown.escape.window="closeCreateEventModal()">
+      <article class="modal-card modal-card-form" @click.away="closeCreateEventModal()">
+        <header class="modal-header-spaced">
+          <h3 id="createEventModalTitle" class="modal-title-with-icon">
+            <span class="material-symbols-outlined">event</span> Add New Appointment
+          </h3>
+          <button type="button" class="btn-icon-subtle" @click="closeCreateEventModal()" title="Close">
+            <span class="material-symbols-outlined icon-18">close</span>
+          </button>
+        </header>
+
+        <form @submit.prevent="saveNewEvent()" class="create-event-form">
+          <div class="form-group">
+            <label for="evtTitleInput" class="form-label">Appointment Title <span class="required-star">*</span></label>
+            <input type="text" id="evtTitleInput" x-model="newEventData.title" placeholder="e.g. Client Strategy Sync" required class="form-input">
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label for="evtStartTime" class="form-label">Start Time</label>
+              <select id="evtStartTime" x-model="newEventData.startTime" class="form-select">
+                <option value="08:00">08:00 AM</option>
+                <option value="08:30">08:30 AM</option>
+                <option value="09:00">09:00 AM</option>
+                <option value="09:30">09:30 AM</option>
+                <option value="10:00">10:00 AM</option>
+                <option value="10:30">10:30 AM</option>
+                <option value="11:00">11:00 AM</option>
+                <option value="11:30">11:30 AM</option>
+                <option value="12:00">12:00 PM</option>
+                <option value="12:30">12:30 PM</option>
+                <option value="13:00">01:00 PM</option>
+                <option value="13:30">01:30 PM</option>
+                <option value="14:00">02:00 PM</option>
+                <option value="14:30">02:30 PM</option>
+                <option value="15:00">03:00 PM</option>
+                <option value="15:30">03:30 PM</option>
+                <option value="16:00">04:00 PM</option>
+                <option value="16:30">04:30 PM</option>
+                <option value="17:00">05:00 PM</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="evtEndTime" class="form-label">End Time</label>
+              <select id="evtEndTime" x-model="newEventData.endTime" class="form-select">
+                <option value="08:30">08:30 AM</option>
+                <option value="09:00">09:00 AM</option>
+                <option value="09:30">09:30 AM</option>
+                <option value="10:00">10:00 AM</option>
+                <option value="10:30">10:30 AM</option>
+                <option value="11:00">11:00 AM</option>
+                <option value="11:30">11:30 AM</option>
+                <option value="12:00">12:00 PM</option>
+                <option value="12:30">12:30 PM</option>
+                <option value="13:00">01:00 PM</option>
+                <option value="13:30">01:30 PM</option>
+                <option value="14:00">02:00 PM</option>
+                <option value="14:30">02:30 PM</option>
+                <option value="15:00">03:00 PM</option>
+                <option value="15:30">03:30 PM</option>
+                <option value="16:00">04:00 PM</option>
+                <option value="16:30">04:30 PM</option>
+                <option value="17:00">05:00 PM</option>
+                <option value="17:30">05:30 PM</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="evtLocationInput" class="form-label">Location / Meet</label>
+            <input type="text" id="evtLocationInput" x-model="newEventData.location" placeholder="e.g. Conference Room A / Google Meet" class="form-input">
+          </div>
+
+          <div class="form-group">
+            <label for="evtDescInput" class="form-label">Notes / Agenda</label>
+            <textarea id="evtDescInput" x-model="newEventData.description" placeholder="Appointment agenda..." class="form-textarea" rows="2"></textarea>
+          </div>
+
+          <footer class="modal-form-actions">
+            <button type="button" class="btn-secondary btn-gcal-popup" @click="launchNativeGCalCreate()" title="Open pre-filled Google Calendar event creator window">
+              <span class="material-symbols-outlined icon-16">open_in_new</span> Open Native gCal Window
+            </button>
+            <div class="action-right-group">
+              <button type="button" class="btn-link" @click="closeCreateEventModal()">Cancel</button>
+              <button type="submit" class="btn-primary">
+                <span class="material-symbols-outlined icon-16">add</span> Create Appointment
+              </button>
+            </div>
+          </footer>
+        </form>
+      </article>
+    </dialog>
+
+    <!-- Universal Search Modal -->
+    <dialog class="modal-backdrop" x-show="searchModalOpen" x-transition x-cloak aria-labelledby="searchModalTitle" aria-modal="true" @keydown.escape.window="closeSearchModal()">
+      <article class="modal-card modal-card-wide" @click.away="closeSearchModal()">
+        <header>
+          <h3 id="searchModalTitle" class="modal-title-with-icon">
+            <span class="material-symbols-outlined">search</span> Universal Search (Ctrl + K)
+          </h3>
+        </header>
+        <section>
+          <input type="search" x-model="searchQuery" @input="runSearch()" placeholder="Type to search calendar, tasks, notes, index..." class="search-input-field" aria-label="Universal Search Input">
+          
+          <div class="search-results-container">
+            <template x-if="searchResults.totalMatches === 0 && searchQuery">
+              <p class="search-no-results">No matching entries found.</p>
+            </template>
+
+            <template x-for="item in searchResults.calendar" :key="item.title">
+              <article class="search-result-item result-calendar">
+                <b>[Calendar]</b> <span x-text="item.title"></span>
+              </article>
+            </template>
+
+            <template x-for="item in searchResults.tasks" :key="item.title">
+              <article class="search-result-item result-task">
+                <b>[Task]</b> <span x-text="item.title"></span>
+              </article>
+            </template>
+
+            <template x-for="item in searchResults.index" :key="item.summary">
+              <article class="search-result-item result-index">
+                <b>[Index]</b> <span x-text="item.topic + ': ' + item.summary"></span>
+              </article>
+            </template>
+          </div>
+        </section>
+        <footer class="modal-actions">
+          <button type="button" class="btn-secondary" @click="closeSearchModal()">Close</button>
+        </footer>
+      </article>
+    </dialog>
+
+  </main>
+
+  <script type="module">
+    import './src/app.js';
+    const script = document.createElement('script');
+    script.src = 'src/vendor/alpine.min.js';
+    document.head.appendChild(script);
+  </script>
 </body>
 </html>

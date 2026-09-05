@@ -2,15 +2,15 @@
   "name": "Day Planner",
   "short_name": "Day Planner",
   "description": "Standalone digital binder application styled in classic Day Planner aesthetic with 2-Way Google Workspace Sync.",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": ".",
+  "scope": ".",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#fcfbfa",
   "theme_color": "#2d6a5a",
   "icons": [
     {
-      "src": "/icons/icon.svg",
+      "src": "icons/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
@@ -22,19 +22,19 @@
       "name": "Daily Planner Spread",
       "short_name": "Daily View",
       "description": "Open Daily Planner Spread view",
-      "url": "/?view=daily"
+      "url": "?view=daily"
     },
     {
       "name": "Monthly Calendar",
       "short_name": "Monthly",
       "description": "Open Monthly Calendar grid view",
-      "url": "/?view=monthly"
+      "url": "?view=monthly"
     },
     {
       "name": "Master Tasks",
       "short_name": "Tasks",
       "description": "Open Master Task list view",
-      "url": "/?view=tasks"
+      "url": "?view=tasks"
     }
   ]
 }

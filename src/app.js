@@ -23,7 +23,9 @@ const MONTH_CACHE_TTL_MS = 15 * 60 * 1000;
 // Register ServiceWorker for PWA offline support
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function() {
-    navigator.serviceWorker.register('/sw.js').then(function(registration) {
+    // Relative, not root-absolute: GitHub Pages serves this app from a /day-planner/
+    // subpath, not domain root, so a leading "/" would register against the wrong scope there.
+    navigator.serviceWorker.register('sw.js').then(function(registration) {
       console.log('[PWA] ServiceWorker registered with scope:', registration.scope);
     }).catch(function(err) {
       console.warn('[PWA] ServiceWorker registration failed:', err);
