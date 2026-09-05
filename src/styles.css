@@ -1036,7 +1036,7 @@ table.task-table tbody tr:hover {
 }
 
 .th-sortable {
-  cursor: pointer;
+  cursor: ns-resize;
   user-select: none;
 }
 
@@ -1056,7 +1056,7 @@ table.task-table tbody tr:hover {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 0.95rem;
+  font-size: 1.1875rem;
   line-height: 1;
   color: var(--text-muted);
   margin-right: 4px;
