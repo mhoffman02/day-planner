@@ -1192,7 +1192,7 @@ button.schedule-time-btn {
   margin: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   cursor: pointer;
   width: 65px;
   min-width: 65px;
@@ -1222,7 +1222,7 @@ time.schedule-time {
   color: var(--theme-time-col-fg);
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   padding: 2px 4px;
   pointer-events: none;
 }

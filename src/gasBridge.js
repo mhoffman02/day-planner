@@ -1490,6 +1490,11 @@ export class GASBridge {
         dueDate: dateStr,
         sourceMasterId: sourceMasterId || null
       });
+      // Not explicit mock mode (that's the documented, expected local-dev experience) but no
+      // Google session either -- this write is only ever going into the in-memory mock store
+      // and will vanish on refresh. Flag it so the caller can warn the user rather than let it
+      // disappear silently (no-silent-failures.md).
+      if (!this.useMock) newTask._localOnly = true;
       this.mockData.dailyTasks[dateStr].push(newTask);
       return newTask;
     }
@@ -1527,6 +1532,7 @@ export class GASBridge {
       if (taskIndex === -1) return null;
 
       tasks[taskIndex] = { ...tasks[taskIndex], ...updates };
+      if (!this.useMock) tasks[taskIndex]._localOnly = true;
       this.mockData.dailyTasks[dateStr] = tasks;
 
       // Mirror a status change back onto the source master task, if this daily task was

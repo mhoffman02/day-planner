@@ -278,10 +278,12 @@
             <section class="schedule-list" aria-label="Hourly Schedule">
               <template x-for="slot in scheduleGrid" :key="slot.timeKey">
                 <div class="schedule-row" :class="{ 'half-hour': slot.timeKey.endsWith(':30') }">
-                  <time class="schedule-time" x-text="slot.displayTime"></time>
-                  <div class="schedule-content">
+                  <button type="button" class="schedule-time-btn" @click="openCreateEventModal(slot.timeKey)" :title="'Add appointment at ' + slot.displayTime" :aria-label="'Add appointment at ' + slot.displayTime">
+                    <time class="schedule-time" x-text="slot.displayTime"></time>
+                  </button>
+                  <div class="schedule-content" @click.self="openCreateEventModal(slot.timeKey)">
                     <template x-for="evt in slot.events" :key="evt.id">
-                      <button type="button" class="event-pill" @click="openEventModal(evt)">
+                      <button type="button" class="event-pill" @click.stop="openEventModal(evt)">
                         <span class="material-symbols-outlined icon-14">event</span>
                         <span class="event-pill-text" x-text="evt.title"></span>
                       </button>
@@ -392,16 +394,38 @@
                   <div class="note-card-body" x-show="!card.collapsed">
                     <!-- Google Chat Style Formatting Toolbar -->
                     <div class="gchat-toolbar" role="toolbar" aria-label="Rich text formatting">
-                      <button type="button" class="format-btn" @click="applyCardFormat(card, 'bold')" title="Bold"><span class="material-symbols-outlined icon-16">format_bold</span></button>
-                      <button type="button" class="format-btn" @click="applyCardFormat(card, 'italic')" title="Italic"><span class="material-symbols-outlined icon-16">format_italic</span></button>
-                      <button type="button" class="format-btn" @click="applyCardFormat(card, 'strike')" title="Strikethrough"><span class="material-symbols-outlined icon-16">strikethrough_s</span></button>
+                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'clear')" title="Clear All Formatting (bold/italic/color/lists)" aria-label="Clear All Formatting"><span class="material-symbols-outlined icon-16">format_clear</span></button>
                       <span class="toolbar-divider"></span>
-                      <button type="button" class="format-btn" @click="applyCardFormat(card, 'bullet')" title="Bullet List"><span class="material-symbols-outlined icon-16">format_list_bulleted</span></button>
-                      <button type="button" class="format-btn" @click="applyCardFormat(card, 'code')" title="Code/Quote"><span class="material-symbols-outlined icon-16">code</span></button>
+                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'bold')" title="Bold (Ctrl+B)"><span class="material-symbols-outlined icon-16">format_bold</span></button>
+                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'italic')" title="Italic (Ctrl+I)"><span class="material-symbols-outlined icon-16">format_italic</span></button>
+                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'underline')" title="Underline (Ctrl+U)"><span class="material-symbols-outlined icon-16">format_underlined</span></button>
+                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'strike')" title="Strikethrough"><span class="material-symbols-outlined icon-16">strikethrough_s</span></button>
+                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'link')" title="Insert Link (Ctrl+K)" aria-label="Insert Link"><span class="material-symbols-outlined icon-16">link</span></button>
+                      <span class="toolbar-divider"></span>
+                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'bullet')" title="Bullet List (Ctrl+Shift+8)"><span class="material-symbols-outlined icon-16">format_list_bulleted</span></button>
+                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'ordered')" title="Numbered List (Ctrl+Shift+7)"><span class="material-symbols-outlined icon-16">format_list_numbered</span></button>
+                      <span class="toolbar-divider"></span>
+                      <button type="button" class="format-btn color-swatch-btn color-swatch-default" @mousedown.prevent @click="applyCardFormat(card, 'color-default')" title="Remove Text Color Only"><span class="material-symbols-outlined icon-16">format_color_reset</span></button>
+                      <button type="button" class="format-btn color-swatch-btn color-swatch-teal" :class="{ active: cardNoteColor(card) === 'teal' }" @mousedown.prevent @click="applyCardFormat(card, 'color-teal')" title="Color: Teal (Ctrl+Shift+T)" aria-label="Color: Teal"></button>
+                      <button type="button" class="format-btn color-swatch-btn color-swatch-red" :class="{ active: cardNoteColor(card) === 'red' }" @mousedown.prevent @click="applyCardFormat(card, 'color-red')" title="Color: Red (Ctrl+Shift+R)" aria-label="Color: Red (Urgent)"></button>
+                      <button type="button" class="format-btn color-swatch-btn color-swatch-green" :class="{ active: cardNoteColor(card) === 'green' }" @mousedown.prevent @click="applyCardFormat(card, 'color-green')" title="Color: Green (Ctrl+Shift+G)" aria-label="Color: Green (Done)"></button>
+                      <button type="button" class="format-btn color-swatch-btn color-swatch-blue" :class="{ active: cardNoteColor(card) === 'blue' }" @mousedown.prevent @click="applyCardFormat(card, 'color-blue')" title="Color: Blue (Ctrl+Shift+B)" aria-label="Color: Blue (Info)"></button>
+                      <span class="toolbar-divider"></span>
+                      <span class="card-heading-help" tabindex="0" role="note" aria-label="Typing shortcuts for formatting">
+                        <span class="material-symbols-outlined icon-16">keyboard</span>
+                        <span class="card-heading-help-tip">Faster than the buttons: start a line with <code>- </code> for a bullet or <code>1. </code> for a numbered item. Inline: <code>**bold**</code>, <code>*italic*</code>, <code>__underline__</code>, <code>~~strike~~</code>.</span>
+                      </span>
                     </div>
 
-                    <!-- Note Card Text Area -->
-                    <textarea x-model="card.content" @input="syncCardsToDailyNote()" placeholder="Type notes for this topic (e.g. - #index [Topic] key decisions...)" class="note-card-textarea" aria-label="Note card content"></textarea>
+                    <!-- Note Card Content: per-line live preview. Each line renders as styled HTML until clicked, then becomes a raw-marker input for just that one line -- so formatting/list toggles can never leak onto lines the user didn't touch. -->
+                    <div class="note-card-lines">
+                      <template x-for="(line, idx) in cardLines(card)" :key="idx">
+                        <div class="note-card-line-row" :class="{ 'note-line-selected': isLineInSelectedRange(card, idx) }">
+                          <div class="note-render-line-item" x-show="card._activeLineIndex !== idx" @click="$event.shiftKey ? extendLineSelection(card, idx) : startEditingLine(card, idx)" x-html="renderCardLine(line, cardLines(card).length === 1 && !line)" aria-label="Note line, click to edit, shift+click to extend selection"></div>
+                          <input type="text" x-show="card._activeLineIndex === idx" :id="'card-line-' + card.id + '-' + idx" :value="line" @input="updateCardLine(card, idx, $event.target.value)" @keydown="handleLineKeydown($event, card, idx)" @paste="handleLinePaste($event, card, idx)" @blur="stopEditingLine(card, idx)" :placeholder="cardLines(card).length === 1 && idx === 0 ? 'Type notes for this topic (e.g. - #index [Topic] key decisions...)' : ''" class="note-card-line-input" aria-label="Note line">
+                        </div>
+                      </template>
+                    </div>
                   </div>
                 </article>
               </template>
@@ -693,7 +717,7 @@
     </section>
 
     <!-- Event Detail Modal -->
-    <dialog class="modal-backdrop" x-show="eventModalOpen" x-transition x-cloak aria-labelledby="eventModalTitle" aria-modal="true" @keydown.escape.window="closeEventModal()">
+    <dialog class="modal-backdrop" x-show="eventModalOpen" :open="eventModalOpen" x-transition x-cloak aria-labelledby="eventModalTitle" aria-modal="true" @keydown.escape.window="closeEventModal()">
       <article class="modal-card" @click.away="closeEventModal()">
         <header>
           <h3 id="eventModalTitle" class="modal-title" x-text="selectedEvent?.title || 'Event Details'"></h3>
@@ -722,7 +746,7 @@
     </dialog>
 
     <!-- Create New Event / Appointment Modal -->
-    <dialog class="modal-backdrop" x-show="createEventModalOpen" x-transition x-cloak aria-labelledby="createEventModalTitle" aria-modal="true" @keydown.escape.window="closeCreateEventModal()">
+    <dialog class="modal-backdrop" x-show="createEventModalOpen" :open="createEventModalOpen" x-transition x-cloak aria-labelledby="createEventModalTitle" aria-modal="true" @keydown.escape.window="closeCreateEventModal()">
       <article class="modal-card modal-card-form" @click.away="closeCreateEventModal()">
         <header class="modal-header-spaced">
           <h3 id="createEventModalTitle" class="modal-title-with-icon">
@@ -817,7 +841,7 @@
     </dialog>
 
     <!-- Universal Search Modal -->
-    <dialog class="modal-backdrop" x-show="searchModalOpen" x-transition x-cloak aria-labelledby="searchModalTitle" aria-modal="true" @keydown.escape.window="closeSearchModal()">
+    <dialog class="modal-backdrop" x-show="searchModalOpen" :open="searchModalOpen" x-transition x-cloak aria-labelledby="searchModalTitle" aria-modal="true" @keydown.escape.window="closeSearchModal()">
       <article class="modal-card modal-card-wide" @click.away="closeSearchModal()">
         <header>
           <h3 id="searchModalTitle" class="modal-title-with-icon">

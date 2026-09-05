@@ -161,6 +161,27 @@ describe('GAS Bridge Offline Write Queue Unit Tests', () => {
   });
 });
 
+describe('GAS Bridge Signed-Out Fallback Unit Tests', () => {
+  // Real (non-mock) bridge instance -- exactly what app.js constructs (`new GASBridge(false)`)
+  // -- with no Google sign-in performed, matching a user typing into the app before ever
+  // clicking "Sign in". Both methods fall back to the same in-memory mock store as explicit
+  // mock mode, but that fallback is invisible to the caller unless it's flagged: without a
+  // marker distinguishing "not signed in yet" from a real, persisted write, this data silently
+  // vanishes on refresh with no warning -- see no-silent-failures.md.
+  it('should flag addDailyTask\'s mock fallback as local-only when no Google session is active', async () => {
+    const bridge = new GASBridge(false);
+    const result = await bridge.addDailyTask('2026-09-05', '[A1] Not signed in yet', 'Work');
+    assert.equal(result._localOnly, true);
+  });
+
+  it('should flag updateDailyTask\'s mock fallback as local-only when no Google session is active', async () => {
+    const bridge = new GASBridge(false);
+    const created = await bridge.addDailyTask('2026-09-05', '[A1] Not signed in yet', 'Work');
+    const result = await bridge.updateDailyTask('2026-09-05', created.id, { status: '✓' });
+    assert.equal(result._localOnly, true);
+  });
+});
+
 describe('GAS Bridge Unit Tests', () => {
   it('should fetch daily mock data correctly', async () => {
     const bridge = new GASBridge(true);

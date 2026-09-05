@@ -285,6 +285,7 @@ if ('serviceWorker' in navigator) {
       // via window.DAY_PLANNER_GOOGLE_CLIENT_ID in index.html.
       isGoogleSignedIn: false,
       googleAuthReady: false,
+      _warnedLocalOnly: false,
 
       theme: 'light',
 
@@ -399,6 +400,19 @@ if ('serviceWorker' in navigator) {
       },
 
       /**
+       * Warns the user that a change they just made is local-only (not signed in to Google, so
+       * it's sitting in the in-memory mock store and will vanish on refresh) — see gasBridge.js's
+       * `_localOnly` flag. Throttled to one toast per page load so rapid task edits don't spam
+       * the same warning repeatedly.
+       * @returns {void}
+       */
+      warnLocalOnlyChange() {
+        if (this._warnedLocalOnly) return;
+        this._warnedLocalOnly = true;
+        this.showToast('Not signed in to Google — this change is local only and will be lost on refresh. Sign in to save it.', 'warning', 10000, 'Not Saved to Google');
+      },
+
+      /**
        * Signs out of Google and revokes the local token. No explicit data reload needed — the
        * bridge falls back to mock data on its next call.
        * @returns {void}
@@ -406,6 +420,7 @@ if ('serviceWorker' in navigator) {
       signOutOfGoogle() {
         signOut();
         this.isGoogleSignedIn = false;
+        this._warnedLocalOnly = false;
       },
 
       /**
@@ -2174,6 +2189,7 @@ if ('serviceWorker' in navigator) {
           this.dailyTasks.push(newTask);
           this.newTaskTitle = '';
           if (newTask._queuedOffline) await this.refreshOutboxCount();
+          if (newTask._localOnly) this.warnLocalOnlyChange();
           await this.trigger2WaySync();
         } catch (err) {
           console.error('🔥 addDailyTask error:', err);
@@ -2225,6 +2241,8 @@ if ('serviceWorker' in navigator) {
               this.showToast(this.errorMessage, 'error', 10000, 'Task Not Saved');
             } else if (updated._queuedOffline) {
               await this.refreshOutboxCount();
+            } else if (updated._localOnly) {
+              this.warnLocalOnlyChange();
             }
           }
         } catch (err) {
