@@ -2030,6 +2030,24 @@ footer.modal-actions {
   width: auto;
 }
 
+.btn-link {
+  background: transparent;
+  color: var(--theme-text-muted);
+  border: 1px solid var(--theme-panel-border);
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.85rem;
+  width: auto;
+}
+
+.btn-link:hover {
+  background: var(--theme-input-bg);
+  color: var(--theme-text-primary);
+  border-color: var(--theme-primary);
+}
+
 .btn-primary:hover {
   background: var(--theme-primary-hover);
   color: #ffffff;
