@@ -476,9 +476,14 @@
                     <td x-text="mTask.title"></td>
                     <td><span class="status-btn" x-text="mTask.status"></span></td>
                     <td class="td-align-right">
-                      <button type="button" class="btn-primary btn-sm" @click="moveMasterTaskToToday(mTask)">
-                        <span class="material-symbols-outlined icon-14">east</span> Move to Today
-                      </button>
+                      <span x-show="!mTask.movedTo">
+                        <button type="button" class="btn-primary btn-sm" @click="moveMasterTaskToToday(mTask)">
+                          <span class="material-symbols-outlined icon-14">east</span> Move to Today
+                        </button>
+                      </span>
+                      <span x-show="mTask.movedTo" style="color: var(--text-muted); font-size: 0.85em;">
+                        Moved to <span x-text="mTask.movedTo"></span>
+                      </span>
                     </td>
                   </tr>
                 </template>

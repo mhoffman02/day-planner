@@ -278,6 +278,18 @@ describe('GAS Bridge Unit Tests', () => {
     assert.equal(transferred.category, 'Personal');
   });
 
+  it('should mark the master task as moved after transferring it, so it cannot be moved twice', async () => {
+    const bridge = new GASBridge(true);
+    const masterTasks = await bridge.getMasterTasks();
+    const m1 = masterTasks.find(m => m.id === 'm1');
+    const transferred = await bridge.transferMasterTask(m1, '2026-08-15', 'A');
+
+    const afterTransfer = await bridge.getMasterTasks();
+    const m1After = afterTransfer.find(m => m.id === 'm1');
+    assert.equal(m1After.movedTo, '2026-08-15');
+    assert.equal(m1After.movedTaskId, transferred.id);
+  });
+
   it('should save daily doc cards content via bridge', async () => {
     const bridge = new GASBridge(true);
     const result = await bridge.saveDailyDocCards('2026-08-16', '### #index [Architecture] System Design\n- Clean 3-col layout');

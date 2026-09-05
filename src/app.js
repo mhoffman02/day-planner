@@ -2291,6 +2291,8 @@ if ('serviceWorker' in navigator) {
         try {
           const transferred = await this.bridge.transferMasterTask(mTask, this.selectedDate, 'A');
           if (transferred) {
+            mTask.movedTo = this.selectedDate;
+            mTask.movedTaskId = transferred.id;
             this.dailyTasks.push(transferred);
             await this.trigger2WaySync();
             this.showToast(`Moved "${mTask.title}" to Today's Task List as ${transferred.title.substring(0, 4)}!`, 'success', 6000, 'Task Transferred');

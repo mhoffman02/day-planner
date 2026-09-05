@@ -1776,7 +1776,11 @@ export class GASBridge {
     const existingDaily = this.mockData.dailyTasks[dateStr] || [];
     const { title, category } = transferMasterTaskToToday(masterTask, existingDaily, priorityGroup, dateStr);
 
-    return this.addDailyTask(dateStr, title, category, masterTask.id);
+    const created = await this.addDailyTask(dateStr, title, category, masterTask.id);
+    if (created) {
+      await this.markMasterTaskMoved(masterTask.id, dateStr, created.id);
+    }
+    return created;
   }
 
   /**
