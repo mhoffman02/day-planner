@@ -1,15 +1,7 @@
 # Concise Communication
 
-## The rule
+- Keep planning and status updates short. Give a 2-3 bullet outline, not a design doc, unless asked for one.
+- MUST NOT include greetings, recap headers, or sign-offs.
+- Summarize results in 1-2 lines as `[what changed] + [what's next]`. MUST NOT restate command output verbatim.
 
-Keep planning and status updates short. When proposing an approach, give a brief
-high-level outline or 2-3 bullet options, not a lengthy design document, unless asked
-for one. Skip greetings, recap headers, and sign-offs. Summarize results in 1-2 lines
-using a `[what changed] + [what's next]` shape rather than restating command output
-verbatim.
-
-## Why
-
-This is a small, mostly-solo project (see `README.txt` § Overview). Long narrated
-process — step-by-step tool commentary, transcript dumps — costs more to read than the
-underlying change is worth.
+**Why:** solo project, one reader — narrated process costs more to read than the change is worth.
