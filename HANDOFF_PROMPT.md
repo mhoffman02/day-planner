@@ -1,8 +1,8 @@
 # Session Handoff & Continuation Prompt — 2026-09-05
 
-**Generated**: 2026-09-05T20:40:55.528Z
-**Branch**: worktree-gasbridge-cleanup
-**Last Commit**: a3b75e9 feat(tasks): add star toggle, per-column sort, and notes-preview popover
+**Generated**: 2026-09-05T22:59:48.583Z
+**Branch**: worktree-notes-popover-offset
+**Last Commit**: 62a0b75 fix(ui): cap event detail modal height, scroll body when content overflows
 
 ## Project Overview & Current Architecture
 The **Day Planner** project is a standalone digital binder application styled in classic Day Planner aesthetic (Parchment `#fcfbfa`, Teal `#2d6a5a`, serif headers).
@@ -11,7 +11,7 @@ The **Day Planner** project is a standalone digital binder application styled in
 - Local server: `npm start` (`http://localhost:3000`).
 
 ## Recent Session Work & Commits
-a3b75e9 feat(tasks): add star toggle, per-column sort, and notes-preview popover
+62a0b75 fix(ui): cap event detail modal height, scroll body when content overflows
 
 ## Open Checklist Items (PLAN.md)
 _None — PLAN.md fully checked off._
