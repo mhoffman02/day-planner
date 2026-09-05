@@ -37,6 +37,18 @@ if [ -n "$JS_FILES" ]; then
   fi
 fi
 
+# ── sw.js cache-version drift check ─────────────────────────────────────────
+# sw.js's CACHE_NAME is derived from a content hash of ASSETS_TO_CACHE by
+# tools/update-sw-cache-version.js, not hand-bumped. If a cached asset's content changed without
+# regenerating it, block the commit — a stale CACHE_NAME means real users keep getting served
+# an old app shell until they happen to fully clear the service worker themselves.
+if ! node tools/update-sw-cache-version.js --check >/tmp/sw-cache-check.$$ 2>&1; then
+  cat /tmp/sw-cache-check.$$
+  echo "❌ [HIGH] sw.js CACHE_NAME is stale relative to its cached assets — run: npm run build:sw"
+  ERRORS=$((ERRORS + 1))
+fi
+rm -f /tmp/sw-cache-check.$$
+
 # ── Agent-config mirror drift check ─────────────────────────────────────────
 # .agents/{rules,commands,skills} is the only hand-edited source; .claude/ and .kilo/
 # hold generated real-file mirrors (see tools/sync-agent-config.js). If a staged change

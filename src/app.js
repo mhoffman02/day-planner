@@ -27,8 +27,37 @@ if ('serviceWorker' in navigator) {
     // subpath, not domain root, so a leading "/" would register against the wrong scope there.
     navigator.serviceWorker.register('sw.js').then(function(registration) {
       console.log('[PWA] ServiceWorker registered with scope:', registration.scope);
+      window.__swRegistration = registration;
+      // The browser only auto-checks sw.js for changes on navigation; a long-lived open tab
+      // (the common case for this app) never navigates again, so it would otherwise never learn
+      // a new version exists until manually closed and reopened. Poll explicitly instead.
+      registration.update().catch(() => {});
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') registration.update().catch(() => {});
+      });
     }).catch(function(err) {
       console.warn('[PWA] ServiceWorker registration failed:', err);
+    });
+
+    // sw.js calls skipWaiting()/clients.claim() unconditionally, so a newly-installed worker
+    // takes over this page's future network requests as soon as it activates — but already
+    // in-memory Alpine state and rendered DOM don't reflect the new code until a reload. Prompt
+    // once rather than silently reloading out from under an in-progress edit.
+    let swUpdateReloadOffered = false;
+    navigator.serviceWorker.addEventListener('controllerchange', function() {
+      if (swUpdateReloadOffered) return;
+      swUpdateReloadOffered = true;
+      if (typeof window.showToast === 'function') {
+        window.showToast(
+          'A new version of Day Planner has finished loading in the background.',
+          'info',
+          60000,
+          'Update Ready',
+          { label: 'Reload', run: () => window.location.reload() }
+        );
+      } else {
+        window.location.reload();
+      }
     });
   });
 }
@@ -158,12 +187,13 @@ if ('serviceWorker' in navigator) {
        * @param {'info'|'success'|'warning'|'error'} [type='info'] Toast style/severity.
        * @param {number} [duration=10000] Milliseconds before auto-dismiss.
        * @param {string} [title=''] Optional title override; defaults based on `type`.
+       * @param {{label: string, run: () => void}|null} [action=null] Optional action button.
        * @returns {void}
        */
-      showToast(message, type = 'info', duration = 10000, title = '') {
+      showToast(message, type = 'info', duration = 10000, title = '', action = null) {
         const id = 't_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
         const toastTitle = title || (type === 'error' ? 'Notice' : type === 'warning' ? 'Warning' : type === 'success' ? 'Success' : 'Information');
-        const toast = { id, message, type, title: toastTitle, duration };
+        const toast = { id, message, type, title: toastTitle, duration, action };
         this.toasts.push(toast);
 
         setTimeout(() => {
@@ -178,6 +208,43 @@ if ('serviceWorker' in navigator) {
        */
       dismissToast(id) {
         this.toasts = this.toasts.filter(t => t.id !== id);
+      },
+
+      /**
+       * Runs a toast's action callback (if any) and dismisses it.
+       * @param {{id: string, action: {label: string, run: () => void}|null}} toast Toast to act on.
+       * @returns {void}
+       */
+      runToastAction(toast) {
+        if (toast.action && typeof toast.action.run === 'function') {
+          toast.action.run();
+        }
+        this.dismissToast(toast.id);
+      },
+
+      /**
+       * Manually asks the service worker to check for a newer app shell. If one is found, the
+       * `controllerchange` handler registered at load time shows the "Update Ready" reload
+       * prompt once it activates; this just surfaces immediate feedback that a check happened.
+       * @returns {Promise<void>}
+       */
+      async checkForAppUpdate() {
+        if (!('serviceWorker' in navigator)) {
+          this.showToast('This browser does not support offline updates.', 'info', 6000, 'Check for Updates');
+          return;
+        }
+        try {
+          const registration = window.__swRegistration || await navigator.serviceWorker.getRegistration();
+          if (!registration) {
+            this.showToast('No active service worker to check.', 'info', 6000, 'Check for Updates');
+            return;
+          }
+          await registration.update();
+          this.showToast('Checked for the latest version — you’ll be prompted to reload if an update was found.', 'info', 7000, 'Check for Updates');
+        } catch (err) {
+          console.warn('[PWA] checkForAppUpdate failed:', err);
+          this.showToast('Could not check for updates right now.', 'warning', 6000, 'Check for Updates');
+        }
       },
 
       // Modals
@@ -261,7 +328,7 @@ if ('serviceWorker' in navigator) {
        */
       async init() {
         this.bridge = new GASBridge(false);
-        window.showToast = (msg, type, dur, title) => this.showToast(msg, type, dur, title);
+        window.showToast = (msg, type, dur, title, action) => this.showToast(msg, type, dur, title, action);
         this.initTheme();
         this.initColumnWidths();
         await this.initGoogleAuthIfConfigured();

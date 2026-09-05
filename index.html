@@ -57,6 +57,7 @@
               <div class="toast-title" x-text="toast.title"></div>
               <div class="toast-message" x-text="toast.message"></div>
             </div>
+            <button type="button" class="toast-action-btn" x-show="toast.action" @click="runToastAction(toast)" x-text="toast.action && toast.action.label"></button>
             <button type="button" class="toast-dismiss-btn" @click="dismissToast(toast.id)" aria-label="Dismiss notification">✕</button>
           </div>
           <div class="toast-progress-bar">
@@ -558,9 +559,14 @@
       </h1>
       <p class="about-subtitle">User Guide & Features Overview</p>
     </div>
-    <span class="about-version">
-      <span class="material-symbols-outlined icon-16">verified</span> v2.9
-    </span>
+    <div class="about-version-block">
+      <span class="about-version">
+        <span class="material-symbols-outlined icon-16">verified</span> v2.9
+      </span>
+      <button type="button" class="about-update-check-btn" @click="checkForAppUpdate()" title="Check for the latest version">
+        <span class="material-symbols-outlined icon-16">refresh</span> Check for Updates
+      </button>
+    </div>
   </header>
 
   <section aria-labelledby="heading-purpose">

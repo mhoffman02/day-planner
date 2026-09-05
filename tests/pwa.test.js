@@ -10,6 +10,7 @@ import path from 'node:path';
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { createServer } from '../server.js';
+import { computeCacheName, readCurrentCacheName } from '../tools/update-sw-cache-version.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -91,6 +92,15 @@ describe('Service Worker Asset Listing Tests', () => {
       const filePath = path.join(projectRoot, relativePath);
       assert.ok(fs.existsSync(filePath), `Service worker cached asset "${assetPath}" must exist on disk at ${filePath}`);
     });
+  });
+
+  it('CACHE_NAME should match the content hash of ASSETS_TO_CACHE (see tools/update-sw-cache-version.js)', () => {
+    const content = fs.readFileSync(swPath, 'utf8');
+    assert.equal(
+      readCurrentCacheName(content),
+      computeCacheName(content),
+      'sw.js CACHE_NAME is stale relative to its cached assets — run: npm run build:sw'
+    );
   });
 });
 

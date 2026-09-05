@@ -6,11 +6,16 @@
  * and fall back to it only on network failure).
  */
 
+// GENERATED value — derived from a content hash of ASSETS_TO_CACHE below by
+// tools/update-sw-cache-version.js. Never hand-edit this string: run `npm run build:sw` after
+// changing any cached asset's content, which is enforced pre-commit by `build:sw:check`. This
+// exists so a cache-busting bump can never again be forgotten by hand (see git history).
+//
 // Relative (not root-absolute) paths: this worker's own scope is whatever directory it's
 // served from (local dev root, or GitHub Pages' /day-planner/ subpath) — an absolute "/"
 // path resolves against the origin root instead and 404s under the subpath, which fails the
 // whole cache.addAll() and leaves the worker stuck uninstalled.
-const CACHE_NAME = 'day-planner-shell-v3';
+const CACHE_NAME = 'day-planner-shell-84fa2e67df';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
