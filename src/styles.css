@@ -2013,6 +2013,13 @@ article.modal-card header {
   border: none;
 }
 
+.modal-description pre {
+  font-family: inherit;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  margin: 0;
+}
+
 footer.modal-actions {
   display: flex;
   gap: 10px;

@@ -8,6 +8,7 @@
 
 import { GASBridge } from './gasBridge.js';
 import { reconcileWorkspaceChanges, planSyncPersistence, mergeExternalChanges } from './syncEngine.js';
+import { formatEventModalPayload, formatEventDescriptionHtml } from './calendarEngine.js';
 import IndexedDbStore from './indexedDbStore.js';
 import { getLocalDateStr, generateLocalId } from './binderStore.js';
 import { initGoogleAuth, signIn, signOut, isSignedIn, ensureAccessToken, onAuthStateChanged } from './googleAuth.js';
@@ -2394,7 +2395,7 @@ if ('serviceWorker' in navigator) {
        * @returns {void}
        */
       openEventModal(evt) {
-        this.selectedEvent = evt;
+        this.selectedEvent = formatEventModalPayload(evt);
         this.eventModalOpen = true;
       },
 
@@ -2405,6 +2406,18 @@ if ('serviceWorker' in navigator) {
       closeEventModal() {
         this.eventModalOpen = false;
         this.selectedEvent = null;
+      },
+
+      /**
+       * Formats a calendar event description for the event detail modal: HTML-bearing
+       * descriptions (e.g. an invite from another Calendar client) are sanitized and rendered as
+       * HTML, plain-text descriptions are escaped and wrapped in <pre> so manual line breaks
+       * survive. See calendarEngine.js#formatEventDescriptionHtml.
+       * @param {string} [description] Raw event description text.
+       * @returns {string} Safe HTML fragment for x-html binding.
+       */
+      formatEventDescription(description) {
+        return formatEventDescriptionHtml(description);
       },
 
       /**

@@ -112,6 +112,48 @@ export function formatEventModalPayload(rawEvent = {}) {
   };
 }
 
+const HTML_TAG_PATTERN = /<[a-z][\s\S]*?>/i;
+
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Strips script/style blocks (tag + content), inline event-handler attributes (onclick, onerror,
+ * ...), and javascript:/data: URIs from href/src attributes, so untrusted HTML pasted into an
+ * invite's description (e.g. by another attendee/organizer) can't execute script in this app.
+ * @param {string} html Raw HTML markup.
+ * @returns {string} Sanitized HTML markup.
+ */
+function sanitizeDescriptionHtml(html) {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/(href|src)\s*=\s*("|')\s*(?:javascript|data):[^"']*\2/gi, '$1="#"');
+}
+
+/**
+ * Formats a calendar event description for display. Descriptions containing HTML markup (e.g.
+ * an invite created by another Calendar client with `<a>`/`<br>` formatting) are sanitized and
+ * returned as HTML; plain-text descriptions are escaped and wrapped in `<pre>` so manual line
+ * breaks survive instead of collapsing under normal HTML whitespace rules.
+ * @param {string} [description=''] Raw event description text.
+ * @returns {string} Safe HTML fragment ready to bind via x-html; '' if there's no description.
+ */
+export function formatEventDescriptionHtml(description = '') {
+  if (!description) return '';
+  if (HTML_TAG_PATTERN.test(description)) {
+    return sanitizeDescriptionHtml(description);
+  }
+  return `<pre>${escapeHtml(description)}</pre>`;
+}
+
 /**
  * Generates monthly calendar grid matrix for a given year & month (1-indexed month).
  * @param {number} year Four-digit year (e.g. 2026).

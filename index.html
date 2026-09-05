@@ -806,7 +806,7 @@
           <p class="modal-detail-row">
             <span class="material-symbols-outlined icon-18">location_on</span> <span x-text="selectedEvent?.location || 'No location set'"></span>
           </p>
-          <p class="modal-description" x-text="selectedEvent?.description || 'No description'"></p>
+          <div class="modal-description" x-html="selectedEvent?.description ? formatEventDescription(selectedEvent.description) : 'No description'"></div>
         </div>
         <footer class="modal-actions">
           <template x-if="selectedEvent?.meetLink">
