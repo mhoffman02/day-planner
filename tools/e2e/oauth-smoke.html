@@ -29,6 +29,15 @@
     <button id="btn-check-outbox">Check outbox</button>
     <button id="btn-flush-outbox">Flush outbox</button>
   </p>
+  <h3>Stage 4 addCalendarEvent test</h3>
+  <p>Creates a real event on your primary calendar with a Google Meet conference and an
+  auto-generated agenda Doc (Calendar insert -> Docs create -> Docs batchUpdate -> Drive move ->
+  Calendar patch). Check the printed <code>htmlLink</code>/<code>agendaDocUrl</code> by hand to
+  confirm the event and doc actually exist, and that the doc landed in the Day Planner Drive
+  folder.</p>
+  <p>
+    <button id="btn-add-event">Add test calendar event (Meet + agenda doc)</button>
+  </p>
   <pre id="out" style="background:#f0f0f0; padding:12px; white-space:pre-wrap;"></pre>
 
   <script type="module">
@@ -139,6 +148,24 @@
         log('Outbox: ' + pending.length + ' pending mutation(s)\n' + JSON.stringify(pending, null, 2));
       } catch (e) {
         log('Outbox check failed: ' + e.message);
+      }
+    });
+
+    document.getElementById('btn-add-event').addEventListener('click', async () => {
+      const bridge = new GASBridge(false);
+      const startTime = new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 19);
+      const endTime = new Date(Date.now() + 90 * 60 * 1000).toISOString().slice(0, 19);
+      try {
+        const evt = await bridge.addCalendarEvent(new Date().toISOString().slice(0, 10), {
+          title: 'Day Planner smoke test ' + Date.now(),
+          startTime,
+          endTime,
+          description: 'Created by tools/e2e/oauth-smoke.html Stage 4 test.'
+        });
+        log('addCalendarEvent result:\n' + JSON.stringify(evt, null, 2));
+        if (evt.agendaDocError) log('WARNING: agendaDocError set — agenda doc chain failed, see above.');
+      } catch (e) {
+        log('addCalendarEvent failed: ' + e.message);
       }
     });
 
