@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Day Planner</title>
 
+  <!-- OAuth Web client ID (Google Cloud Console) — not a secret, safe to commit. Single source
+       of truth per single-source-of-truth-constants.md; see docs/google-cloud-oauth-setup-guide.md
+       for how to create one and fill this in. -->
+  <script>
+    window.DAY_PLANNER_GOOGLE_CLIENT_ID = 'REPLACE_WITH_OAUTH_CLIENT_ID';
+  </script>
+
   <!-- PWA & Mobile Web App Meta Tags -->
   <meta name="theme-color" content="#1c2d27">
   <meta name="mobile-web-app-capable" content="yes">

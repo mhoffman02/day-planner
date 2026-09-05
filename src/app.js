@@ -12,6 +12,7 @@ import { GASBridge } from './gasBridge.js';
 import { reconcileWorkspaceChanges } from './syncEngine.js';
 import IndexedDbStore from './indexedDbStore.js';
 import { getLocalDateStr } from './binderStore.js';
+import { initGoogleAuth, signIn, signOut, isSignedIn, ensureAccessToken, onAuthStateChanged } from './googleAuth.js';
 window.GASBridge = GASBridge;
 
 // Month-overview cache freshness window for the rolling 3-month background prefetch (see
@@ -212,6 +213,12 @@ if ('serviceWorker' in navigator) {
 
       bridge: null,
 
+      // Google sign-in (GIS) state — see initGoogleAuthIfConfigured(). googleAuthReady is false
+      // (and the sign-in control should stay hidden) until a real OAuth client ID is configured
+      // via window.DAY_PLANNER_GOOGLE_CLIENT_ID in index.html.
+      isGoogleSignedIn: false,
+      googleAuthReady: false,
+
       theme: 'light',
 
       /** @returns {Array<object>} Note cards matching the current search text and category filter. */
@@ -255,6 +262,7 @@ if ('serviceWorker' in navigator) {
         window.showToast = (msg, type, dur, title) => this.showToast(msg, type, dur, title);
         this.initTheme();
         this.initColumnWidths();
+        await this.initGoogleAuthIfConfigured();
         await this.loadDayData();
         await this.loadMasterTasks();
         await this.loadRecentAttendees();
@@ -275,6 +283,62 @@ if ('serviceWorker' in navigator) {
         } catch (e) {
           console.warn('Could not read outbox count:', e);
         }
+      },
+
+      /**
+       * Initializes Google sign-in (GIS) if a real OAuth client ID is configured via
+       * `window.DAY_PLANNER_GOOGLE_CLIENT_ID` (see index.html), and attempts a silent token
+       * refresh so a returning user with an active Google browser session doesn't have to click
+       * "Sign in" again. No-ops — app keeps running in mock-data mode via GASBridge's existing
+       * fallback — if no client ID is configured yet.
+       * @returns {Promise<void>}
+       */
+      async initGoogleAuthIfConfigured() {
+        const clientId = typeof window !== 'undefined' ? window.DAY_PLANNER_GOOGLE_CLIENT_ID : null;
+        if (!clientId || clientId === 'REPLACE_WITH_OAUTH_CLIENT_ID') {
+          console.warn('Google sign-in not configured (window.DAY_PLANNER_GOOGLE_CLIENT_ID unset) — running in mock-data mode. See docs/google-cloud-oauth-setup-guide.md.');
+          return;
+        }
+        try {
+          await initGoogleAuth(clientId);
+          this.googleAuthReady = true;
+          this.isGoogleSignedIn = isSignedIn();
+          onAuthStateChanged((signedIn) => { this.isGoogleSignedIn = signedIn; });
+          try {
+            await ensureAccessToken();
+            this.isGoogleSignedIn = isSignedIn();
+          } catch {
+            // No active Google session to refresh silently — user can click Sign in.
+          }
+        } catch (e) {
+          console.warn('Google sign-in setup failed:', e);
+        }
+      },
+
+      /**
+       * Interactive Google sign-in, then reloads the current day/master-task data now that the
+       * bridge has a valid access token to call the real Google APIs with.
+       * @returns {Promise<void>}
+       */
+      async signInWithGoogle() {
+        try {
+          await signIn();
+          this.isGoogleSignedIn = isSignedIn();
+          await this.loadDayData();
+          await this.loadMasterTasks();
+        } catch (e) {
+          this.errorMessage = 'Google sign-in failed: ' + e.message;
+        }
+      },
+
+      /**
+       * Signs out of Google and revokes the local token. No explicit data reload needed — the
+       * bridge falls back to mock data on its next call.
+       * @returns {void}
+       */
+      signOutOfGoogle() {
+        signOut();
+        this.isGoogleSignedIn = false;
       },
 
       /**
