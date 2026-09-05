@@ -26,6 +26,7 @@ import {
   updateDailyTaskRest,
   forwardDailyTaskRest,
   updateCalendarEventRest,
+  addCalendarEventRest,
   saveDailyDocCardsRest,
   addFutureItemRest,
   updateFutureItemStatusRest,
@@ -1202,5 +1203,54 @@ describe('GAS Bridge Stage 3 REST Write Path Unit Tests', () => {
     assert.deepEqual(result, seedItem);
     assert.deepEqual(savedBodiesByFile['2026'].months['2026-12'], []);
     assert.deepEqual(savedBodiesByFile['2027'].months['2027-01'], [seedItem]);
+  });
+
+  it('addCalendarEventRest() creates a Meet event with an agenda doc and patches the description with its link', async () => {
+    let insertBody, batchUpdateBody, patchBody;
+    globalThis.fetch = fakeFetch([
+      { match: '/calendars/primary/events?', method: 'POST', respond: (url, options) => { insertBody = JSON.parse(options.body); return okJson({ id: 'evt1', hangoutLink: 'https://meet.google.com/abc-defg-hij' }); } },
+      { match: ':batchUpdate', method: 'POST', respond: (url, options) => { batchUpdateBody = JSON.parse(options.body); return okJson({}); } },
+      { match: 'https://docs.googleapis.com/v1/documents', method: 'POST', respond: okJson({ documentId: 'doc1' }) },
+      { match: "mimeType = 'application/vnd.google-apps.folder'", respond: okJson({ files: [{ id: 'folder1', name: 'Day Planner' }] }) },
+      { match: /\/files\/doc1\?fields=parents$/, method: 'GET', respond: okJson({ parents: ['root'] }) },
+      { match: /\/files\/doc1\?/, method: 'PATCH', respond: okJson({ id: 'doc1', parents: ['folder1'] }) },
+      { match: /\/events\/evt1$/, method: 'PATCH', respond: (url, options) => { patchBody = JSON.parse(options.body); return okJson({}); } }
+    ]);
+
+    const result = await addCalendarEventRest('2026-09-10', { title: 'Kickoff', attendees: ['a@example.com'] }, 'tok_abc');
+
+    assert.equal(insertBody.conferenceData.createRequest.conferenceSolutionKey.type, 'hangoutsMeet');
+    assert.equal(result.id, 'evt1');
+    assert.equal(result.meetLink, 'https://meet.google.com/abc-defg-hij');
+    assert.equal(result.agendaDocUrl, 'https://docs.google.com/document/d/doc1/edit');
+    assert.match(batchUpdateBody.requests[0].insertText.text, /Kickoff/);
+    assert.match(patchBody.description, /Meeting Agenda & Notes Doc: https:\/\/docs\.google\.com\/document\/d\/doc1\/edit/);
+    assert.equal(result.agendaDocError, undefined);
+  });
+
+  it('addCalendarEventRest() still returns the created event with agendaDocError when the agenda-doc chain fails', async () => {
+    globalThis.fetch = fakeFetch([
+      { match: '/calendars/primary/events?', method: 'POST', respond: okJson({ id: 'evt2' }) },
+      { match: 'https://docs.googleapis.com/v1/documents', method: 'POST', respond: notFound() }
+    ]);
+
+    const result = await addCalendarEventRest('2026-09-10', { title: 'Standup', autoGoogleMeet: false }, 'tok_abc');
+    assert.equal(result.id, 'evt2');
+    assert.equal(result.agendaDocUrl, null);
+    assert.match(result.agendaDocError, /404/);
+    assert.equal(result.description, '');
+  });
+
+  it('addCalendarEventRest() skips the Meet conference and agenda doc chain when both are disabled', async () => {
+    let insertBody;
+    globalThis.fetch = fakeFetch([
+      { match: '/calendars/primary/events?', method: 'POST', respond: (url, options) => { insertBody = JSON.parse(options.body); return okJson({ id: 'evt3' }); } }
+    ]);
+
+    const result = await addCalendarEventRest('2026-09-10', { title: 'Quick check-in', autoGoogleMeet: false, autoAgendaDoc: false }, 'tok_abc');
+    assert.equal(insertBody.conferenceData, undefined);
+    assert.equal(result.meetLink, null);
+    assert.equal(result.agendaDocUrl, null);
+    assert.equal(result.agendaDocError, undefined);
   });
 });

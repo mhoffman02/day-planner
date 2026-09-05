@@ -25,6 +25,7 @@ const CALENDAR_API_BASE = 'https://www.googleapis.com/calendar/v3';
 const TASKS_API_BASE = 'https://tasks.googleapis.com/tasks/v1';
 const DRIVE_API_BASE = 'https://www.googleapis.com/drive/v3';
 const DRIVE_UPLOAD_API_BASE = 'https://www.googleapis.com/upload/drive/v3';
+const DOCS_API_BASE = 'https://docs.googleapis.com/v1';
 // PropertiesService's replacement per the GAS-removal plan: a single root-folder-ID key. Unlike
 // gas-app/Code.gs#getValidatedRootFolder, there's no LockService/CacheService equivalent here —
 // single-user client-only usage makes the folder-creation race this guarded against rare and
@@ -749,6 +750,185 @@ export async function updateCalendarEventRest(eventId, updates = {}, accessToken
 }
 
 /**
+ * Moves an existing Drive file into a target folder, replacing whatever parent(s) it currently
+ * has. Needed because the Docs API's `documents.create` always drops a new doc into the user's
+ * Drive root — there's no "create directly inside this folder" option the way
+ * `DriveApp.Folder#createFile`/`doc.moveTo()` gave gas-app/Code.gs#addCalendarEvent.
+ * @param {string} fileId
+ * @param {string} folderId
+ * @param {string} accessToken
+ * @returns {Promise<void>}
+ */
+async function moveDriveFileToFolder(fileId, folderId, accessToken) {
+  const meta = await googleApiFetch(`${DRIVE_API_BASE}/files/${encodeURIComponent(fileId)}?fields=parents`, accessToken);
+  const params = new URLSearchParams({ addParents: folderId, fields: 'id,parents' });
+  const previousParents = (meta.parents || []).join(',');
+  if (previousParents) params.set('removeParents', previousParents);
+  await googleApiFetch(`${DRIVE_API_BASE}/files/${encodeURIComponent(fileId)}?${params}`, accessToken, { method: 'PATCH' });
+}
+
+/**
+ * Creates the structured meeting-agenda Google Doc (objectives/discussion/action-items sections)
+ * via the Docs v3 REST API and files it into the Day Planner Drive folder. Ported from
+ * gas-app/Code.gs#addCalendarEvent's `autoAgendaDoc` branch (DocumentApp create + appendParagraph
+ * + DriveApp move) — REST has no single call for "create with initial content", so this is a
+ * create, then a batchUpdate to insert the body text, then a Drive move, run in sequence.
+ * @param {string} title Event title.
+ * @param {string} dateStr Event date in YYYY-MM-DD format.
+ * @param {string} startIso Event start time (used for the doc's date/time header line).
+ * @param {Array<string>} attendeesList
+ * @param {string|null} meetLink
+ * @param {string} accessToken
+ * @returns {Promise<string>} The created doc's edit URL.
+ */
+async function createAgendaDoc(title, dateStr, startIso, attendeesList, meetLink, accessToken) {
+  const docName = `Agenda: ${title} (${dateStr})`;
+  const created = await googleApiFetch(`${DOCS_API_BASE}/documents`, accessToken, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: docName })
+  });
+  const documentId = created.documentId;
+
+  const lines = [title, `📅 Date & Time: ${dateStr} ${startIso}`];
+  if (attendeesList.length > 0) lines.push(`👥 Attendees: ${attendeesList.join(', ')}`);
+  if (meetLink) lines.push(`📹 Google Meet: ${meetLink}`);
+  lines.push('', '🎯 Objectives & Goals', '• ', '', '📋 Discussion Topics', '• ', '', '✅ Action Items & Next Steps', '• ');
+  const contentText = `${lines.join('\n')}\n`;
+
+  await googleApiFetch(`${DOCS_API_BASE}/documents/${documentId}:batchUpdate`, accessToken, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ requests: [{ insertText: { location: { index: 1 }, text: contentText } }] })
+  });
+
+  const folderId = await getOrCreateRootFolderId(accessToken);
+  await moveDriveFileToFolder(documentId, folderId, accessToken);
+
+  return `https://docs.google.com/document/d/${documentId}/edit`;
+}
+
+/**
+ * Creates a new calendar event via the Calendar v3 REST API, with a real Google Meet conference
+ * and an auto-generated agenda Doc — the one method in this file that is an intentional
+ * multi-call orchestration rather than a mechanical endpoint swap (see the GAS-removal migration
+ * plan's Stage 4 section). Ported from gas-app/Code.gs#addCalendarEvent, split into REST's
+ * necessarily separate steps: Calendar insert (with conferenceData) -> Docs create -> Docs
+ * batchUpdate -> Drive move -> Calendar patch (to fold the agenda doc link into the description
+ * once the doc exists). Each step after the initial event insert can fail independently; per
+ * .agents/rules/no-silent-failures.md, a failure there is surfaced via `agendaDocError` and a
+ * loud console.error rather than silently downgrading to a fake placeholder URL or losing the
+ * event that was already created.
+ * @param {string} dateStr Target date in YYYY-MM-DD format.
+ * @param {object} eventData Calendar event payload (see addCalendarEvent's JSDoc for shape).
+ * @param {string} accessToken
+ * @returns {Promise<object>} Created calendar event, with `agendaDocError` set if the agenda-doc
+ *   chain failed after the event itself was created successfully.
+ */
+export async function addCalendarEventRest(dateStr, eventData = {}, accessToken) {
+  const title = (eventData.title || 'New Appointment').trim();
+  const startIso = eventData.startTime || `${dateStr}T09:00:00`;
+  const endIso = eventData.endTime || `${dateStr}T09:30:00`;
+  const location = eventData.location || '';
+  const description = eventData.description || '';
+  const attendeesList = Array.isArray(eventData.attendees)
+    ? eventData.attendees
+    : (typeof eventData.attendees === 'string'
+        ? eventData.attendees.split(/[,;]+/).map(s => s.trim()).filter(Boolean)
+        : []);
+  const autoGoogleMeet = eventData.autoGoogleMeet !== undefined ? eventData.autoGoogleMeet : true;
+  const guestsCanModify = eventData.guestsCanModify !== undefined ? eventData.guestsCanModify : true;
+  const autoAgendaDoc = eventData.autoAgendaDoc !== undefined ? eventData.autoAgendaDoc : true;
+  const gasTaskId = eventData.gasTaskId || eventData.syncTaskId || null;
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  const eventResource = {
+    summary: title,
+    location,
+    description,
+    start: { dateTime: startIso, timeZone },
+    end: { dateTime: endIso, timeZone },
+    guestsCanModify: !!guestsCanModify
+  };
+  if (attendeesList.length > 0) {
+    eventResource.attendees = attendeesList.map(email => ({ email }));
+  }
+  if (gasTaskId) {
+    // Written to both maps like gas-app/Code.gs's equivalent: `shared` is what a later
+    // fetchDayCalendarEvents/fetchMonthCalendarEvents read back as syncTaskId.
+    eventResource.extendedProperties = { private: { gasTaskId }, shared: { gasTaskId } };
+  }
+
+  const insertParams = new URLSearchParams({ sendUpdates: attendeesList.length > 0 ? 'all' : 'none' });
+  if (autoGoogleMeet) {
+    eventResource.conferenceData = {
+      createRequest: {
+        requestId: (typeof crypto !== 'undefined' && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : `${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        conferenceSolutionKey: { type: 'hangoutsMeet' }
+      }
+    };
+    insertParams.set('conferenceDataVersion', '1');
+  }
+
+  const createdEvent = await googleApiFetch(`${CALENDAR_API_BASE}/calendars/primary/events?${insertParams}`, accessToken, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(eventResource)
+  });
+
+  const meetLink = createdEvent.hangoutLink ||
+    (createdEvent.conferenceData && createdEvent.conferenceData.entryPoints && createdEvent.conferenceData.entryPoints.length > 0
+      ? createdEvent.conferenceData.entryPoints[0].uri
+      : null);
+
+  let agendaDocUrl = null;
+  let agendaDocError = null;
+  if (autoAgendaDoc) {
+    try {
+      agendaDocUrl = await createAgendaDoc(title, dateStr, startIso, attendeesList, meetLink, accessToken);
+    } catch (err) {
+      console.error('addCalendarEventRest: agenda doc creation failed — event was still created', err);
+      agendaDocError = err.message;
+    }
+  }
+
+  let fullDescription = description;
+  if (agendaDocUrl && !fullDescription.includes(agendaDocUrl)) {
+    fullDescription += (fullDescription ? '\n\n' : '') + `📄 Meeting Agenda & Notes Doc: ${agendaDocUrl}`;
+  }
+
+  if (fullDescription !== description) {
+    try {
+      await googleApiFetch(`${CALENDAR_API_BASE}/calendars/primary/events/${encodeURIComponent(createdEvent.id)}`, accessToken, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: fullDescription })
+      });
+    } catch (err) {
+      console.error('addCalendarEventRest: description patch (agenda doc link) failed', err);
+      fullDescription = description;
+    }
+  }
+
+  return {
+    id: createdEvent.id,
+    title,
+    startTime: startIso,
+    endTime: endIso,
+    location,
+    description: fullDescription,
+    meetLink,
+    agendaDocUrl,
+    ...(agendaDocError ? { agendaDocError } : {}),
+    attendees: attendeesList,
+    guestsCanModify: !!guestsCanModify,
+    syncTaskId: gasTaskId
+  };
+}
+
+/**
  * Overwrites an existing Drive file's content (simple/media upload). Used for updating a monthly
  * notes/future-matrix JSON file that already exists.
  * @param {string} fileId
@@ -1089,12 +1269,10 @@ export class GASBridge {
             break;
           }
           case OUTBOX_MUTATION_TYPES.ADD_CALENDAR_EVENT: {
-            // Stage 4 (not yet implemented): addCalendarEvent's REST orchestration is a
-            // separate 4-call chain (Calendar insert + Docs create/batchUpdate + Drive move +
-            // Calendar patch) isolated from this stage's mechanical endpoint swaps. GAS-RPC-only
-            // until that lands.
             const { dateStr, eventData, tempId } = mutation.payload;
-            result = await this._runGasCall('addCalendarEvent', [dateStr, eventData]);
+            result = accessToken
+              ? await addCalendarEventRest(dateStr, eventData, accessToken)
+              : await this._runGasCall('addCalendarEvent', [dateStr, eventData]);
             if (result && result.id && tempId) tempIdMap[tempId] = result.id;
             break;
           }
@@ -1444,7 +1622,10 @@ export class GASBridge {
    * @returns {Promise<object>} Created calendar event.
    */
   async addCalendarEvent(dateStr, eventData = {}) {
-    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+    const accessToken = !this.useMock ? getAccessToken() : null;
+    const hasGasRpc = !this.useMock && typeof window !== 'undefined' && !!window.google?.script?.run;
+
+    if (this.useMock || (!accessToken && !hasGasRpc)) {
       if (!this.mockData.calendarEvents[dateStr]) {
         this.mockData.calendarEvents[dateStr] = [];
       }
@@ -1492,6 +1673,7 @@ export class GASBridge {
 
     if (this.isOnline()) {
       try {
+        if (accessToken) return await addCalendarEventRest(dateStr, eventData, accessToken);
         return await this._runGasCall('addCalendarEvent', [dateStr, eventData]);
       } catch (err) {
         // See addDailyTask above: this may be a real (non-transient) server error, not just

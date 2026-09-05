@@ -56,7 +56,8 @@ export default [
         clearInterval: 'readonly',
         requestIdleCallback: 'readonly',
         URL: 'readonly',
-        URLSearchParams: 'readonly'
+        URLSearchParams: 'readonly',
+        crypto: 'readonly'
       }
     },
     rules: {
