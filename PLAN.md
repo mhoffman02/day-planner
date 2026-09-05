@@ -31,12 +31,12 @@ synchronization.
 Current: 230 tests passing across 23 suites (`npm test`).
 
 ## Verification Criteria (standing, re-check after any significant change)
-- [ ] `npm test` passes cleanly with no skips.
-- [ ] UI matches Day Planner design rules (`#fcfbfa` cream, `#2d6a5a` teal, serif headers, no
+- [x] `npm test` passes cleanly with no skips.
+- [x] UI matches Day Planner design rules (`#fcfbfa` cream, `#2d6a5a` teal, serif headers, no
   pills — `.agents/rules/no-pills.md`).
 - [x] 2-way sync correctly cross-references tasks and calendar appointments.
 - [ ] Views work in both local dev (`http://localhost:3000`) and the live GAS bundle.
-- [ ] `npm run build:gas:check` / `build:shell:check` clean (no drift in generated files).
+- [x] `npm run build:gas:check` / `build:shell:check` clean (no drift in generated files).
 
 ## Feature Backlog
 - **Master Tasks has no offline cache.** `loadMasterTasks()` (`gas-app/Script.html`) calls
