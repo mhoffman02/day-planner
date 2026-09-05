@@ -1,34 +1,26 @@
 {
   "name": "day-planner",
   "version": "1.0.0",
-  "description": "Day Planner (GAS MVP)",
+  "description": "Day Planner (static client-only PWA)",
   "type": "module",
   "scripts": {
     "prepare": "git config core.hooksPath .githooks",
     "test": "node --test tests/*.test.js",
     "start": "node server.js",
-    "lint": "eslint src gas-app/*.gs tools server.js sw.js",
+    "lint": "eslint src tools server.js sw.js",
     "sync:agents": "node tools/sync-agent-config.js",
     "sync:agents:check": "node tools/sync-agent-config.js --check",
-    "sync:shell": "node tools/sync-shell-repo.js",
-    "build:gas": "node tools/build-gas-engines.js",
-    "build:gas:check": "node tools/build-gas-engines.js --check",
-    "build:shell": "node tools/build-shell-bundle.js",
-    "build:shell:check": "node tools/build-shell-bundle.js --check",
     "build:sw": "node tools/update-sw-cache-version.js",
-    "build:sw:check": "node tools/update-sw-cache-version.js --check",
-    "check:gas-html-safe-chars": "node tools/check-gas-script-html-safe-chars.js"
+    "build:sw:check": "node tools/update-sw-cache-version.js --check"
   },
   "keywords": [
     "day-planner",
-    "google-apps-script",
-    "gsuite"
+    "google-workspace"
   ],
   "author": "",
   "license": "MIT",
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "esbuild": "^0.28.2",
     "eslint": "^10.9.1"
   }
 }

@@ -1,7 +1,8 @@
 /**
  * @file gasBridge.js
- * @description Day Planner GAS API Bridge & Local Mock Provider.
- * Bridges client requests to Google Apps Script backend `google.script.run` or local mock state.
+ * @description Day Planner Google Workspace REST Bridge & Local Mock Provider.
+ * Talks directly to Calendar/Tasks/Drive/Docs REST APIs using a token from `googleAuth.js`,
+ * falling back to local mock state when signed out or in local-dev mock mode.
  */
 
 import { transferMasterTaskToToday, forwardTaskToDate, TASK_STATUSES } from './taskEngine.js';
@@ -1159,10 +1160,9 @@ export class GASBridge {
 
     // Seed mock data for local dev server & unit tests. The '2026-08-15' bucket is also the
     // fallback every other date resolves to (see getDailyData/getMonthData below), which makes
-    // it the actual first-run content a gh-pwa-shell visitor sees before ever syncing real data
-    // (see .agents/rules/sync-gas-app-and-shell-bundle.md) — so every collection here is a single,
-    // clearly-labeled placeholder rather than fabricated business content someone could mistake
-    // for their own synced data.
+    // it the actual first-run content a visitor sees before ever signing in — so every collection
+    // here is a single, clearly-labeled placeholder rather than fabricated business content
+    // someone could mistake for their own synced data.
     this.mockData = {
       dailyTasks: {
         '2026-08-15': [

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Pre-commit hook: JSDoc @file header check + unit tests + agent-config/gas-engine/shell-bundle drift checks.
+# Pre-commit hook: JSDoc @file header check + unit tests + agent-config drift check + sw.js cache-version check.
 #
 # Tracked (unlike the git-managed .git/hooks/ dir, which is never cloned). To activate on
 # a given machine, run once: git config core.hooksPath .githooks
 set -e
 ERRORS=0
 
-JS_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(js|mjs|gs)$' || true)
+JS_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(js|mjs)$' || true)
 
 echo "🔍 Pre-commit checks..."
 
@@ -60,43 +60,6 @@ if ! node tools/sync-agent-config.js --check >/tmp/sync-agents-check.$$ 2>&1; th
   ERRORS=$((ERRORS + 1))
 fi
 rm -f /tmp/sync-agents-check.$$
-
-# ── gas-app/Script.html generated engine bundle drift check ────────────────
-# The engine block inside gas-app/Script.html (taskEngine/futureMatrixEngine/syncEngine
-# logic) is generated from src/ via esbuild (tools/build-gas-engines.js), not hand-edited.
-# If src/ changed without regenerating it, block the commit rather than shipping stale logic.
-if ! node tools/build-gas-engines.js --check >/tmp/build-gas-check.$$ 2>&1; then
-  cat /tmp/build-gas-check.$$
-  echo "❌ [HIGH] gas-app/Script.html's generated engine bundle is out of sync with src/ — run: npm run build:gas"
-  ERRORS=$((ERRORS + 1))
-fi
-rm -f /tmp/build-gas-check.$$
-
-# ── gas-app/Script.html unsafe-char check ───────────────────────────────────
-# HtmlService.createHtmlOutputFromFile().getContent() silently truncates Script.html at a
-# literal `//` inside a string/template literal, or a backtick/apostrophe/`//` inside a
-# comment (caused the 2026-09-01 production outage — see
-# memory/project_gas_line_comment_syntax_error.md). Block the commit before that byte pattern
-# ever reaches production again.
-if ! node tools/check-gas-script-html-safe-chars.js >/tmp/gas-safe-chars-check.$$ 2>&1; then
-  cat /tmp/gas-safe-chars-check.$$
-  echo "❌ [BLOCKER] gas-app/Script.html contains a byte pattern HtmlService truncates on — see output above"
-  ERRORS=$((ERRORS + 1))
-fi
-rm -f /tmp/gas-safe-chars-check.$$
-
-# ── gh-pwa-shell/bundles.json drift check ───────────────────────────────────
-# gh-pwa-shell/bundles.json is a snapshot of gas-app's Index/Styles/Script.html baked in by
-# tools/build-shell-bundle.js. It's the offline-first payload the public shell mounts by
-# default, so a stale bake silently ships outdated UI to every shell visitor. A no-op when
-# no gh-pwa-shell/ checkout is present (e.g. inside an isolated worktree). See
-# .agents/rules/sync-gas-app-and-shell-bundle.md.
-if ! node tools/build-shell-bundle.js --check >/tmp/build-shell-check.$$ 2>&1; then
-  cat /tmp/build-shell-check.$$
-  echo "❌ [HIGH] gh-pwa-shell/bundles.json is stale relative to gas-app/ — run: npm run build:shell (then commit+push gh-pwa-shell separately, it's its own repo)"
-  ERRORS=$((ERRORS + 1))
-fi
-rm -f /tmp/build-shell-check.$$
 
 if [ "$ERRORS" -gt 0 ]; then
   echo ""

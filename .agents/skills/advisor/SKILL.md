@@ -10,20 +10,23 @@ version: 2.0.0
 Use this skill when seeking design feedback, architecture guidance, or structural advice for the `day-planner` codebase.
 
 ## Application Architecture Context
-- **Node.js Local Server**: `server.js` (Express/HTTP backend for local dev & testing)
-- **Google Apps Script (GAS) Client**: `gas-app/` (`Code.gs`, `UnitTests.gs`, `Index.html`, `Script.html`, `Styles.html`, `SetupFolder.html`)
+- **Node.js Local Server**: `server.js` (static file server for local dev & testing)
+- **Static client-only app**: no server-side backend — the browser talks directly to Google's
+  Calendar/Tasks/Drive/Docs REST APIs, authenticated via client-side Google Identity Services
+  OAuth (`src/googleAuth.js`), hosted as a plain static site on GitHub Pages.
 - **Core Modules (`src/`)**:
   - `calendarEngine.js`: Time-slot scheduling, overlapping event detection, day view layout engine
   - `taskEngine.js`: Task status transitions, due dates, priority sorting, binder associations
   - `binderStore.js`: Persistent store for binders, notes, checklists, and items
-  - `gasBridge.js`: Bridge logic between web client and Google Apps Script endpoints
+  - `gasBridge.js`: REST bridge to Google Workspace APIs, with a mock-data fallback for local dev
+  - `googleAuth.js`: Client-side Google Identity Services OAuth (sign-in, token management)
   - `syncEngine.js`: Synchronization between local binder state and Google Calendar/Tasks
   - `searchEngine.js`: Full-text search and filtering across binders, tasks, and events
   - `indexParser.js`: Parsing index formats and markdown structured notes
 - **Test Suite**: `tests/*.test.js` (`npm test` or `node --test tests/*.test.js`)
 
 ## When to Consult the Advisor
-1. Adding new engine modules or extending GAS HTML UI components.
-2. Modifying state synchronization between `src/` and `gas-app/`.
+1. Adding new engine modules or extending the client-side UI.
+2. Modifying REST integration with Google Workspace APIs or the OAuth flow.
 3. Refactoring binder storage or search indexes.
 4. Designing multi-step background sync or error recovery workflows.

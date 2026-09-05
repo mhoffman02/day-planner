@@ -1,9 +1,8 @@
 /**
  * @file googleAuth.js
- * @description Client-side Google OAuth via Google Identity Services (GIS) — the browser-obtained
- * access token that replaces GAS's implicit per-user session auth now that the app talks to
- * Google's REST APIs directly instead of through google.script.run. See the "eliminate GAS
- * server-side" migration plan for why this exists; src/gasBridge.js is the consumer.
+ * @description Client-side Google OAuth via Google Identity Services (GIS) — obtains the
+ * browser-side access token `src/gasBridge.js` uses to call Google's Calendar/Tasks/Drive/Docs
+ * REST APIs directly, with no server-side backend involved.
  */
 
 const GIS_SCRIPT_SRC = 'https://accounts.google.com/gsi/client';
@@ -11,8 +10,7 @@ const GIS_SCRIPT_SRC = 'https://accounts.google.com/gsi/client';
 // window should end when the tab closes, same spirit as GAS's own short-lived session.
 const TOKEN_STORAGE_KEY = 'dayPlannerGoogleAuthToken';
 
-// Scope-minimization mirrors the existing drive.file/drive.readonly split in
-// gas-app/appsscript.json (drive.readonly is requested *only* because resolveLinkTitle needs to
+// Scope-minimization: drive.readonly is requested *only* because resolveLinkTitle needs to
 // read the title of a pasted Doc/Sheet/Slide/Form/Drive link the app didn't create — drive.file
 // alone only covers app-created files). No separate Docs scope is requested: the Docs API accepts
 // drive.file for any document the app itself created via Drive/Docs, which covers the

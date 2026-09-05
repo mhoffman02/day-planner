@@ -3,9 +3,7 @@
  * @description Alpine.js app wiring for the local/browser preview (`index.html` + `server.js`).
  * Defines the `plannerApp` Alpine component (daily/monthly/master-task/future-matrix views,
  * task/event/note CRUD, search, sync, offline outbox, rolling 3-month IndexedDB prefetch) and
- * registers the PWA service worker. Bundled client-script mirrors of `src/taskEngine.js`'s
- * priority parsing/formatting/status-cycling helpers live inline here for the same reason
- * `gas-app/Script.html` duplicates them — see `.agents/rules/sync-src-and-gas-app.md`.
+ * registers the PWA service worker.
  */
 
 import { GASBridge } from './gasBridge.js';

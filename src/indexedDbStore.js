@@ -4,10 +4,6 @@
  * Enables 0ms instant startup, offline persistence, and optimistic mutation queuing.
  */
 
-// Names below (IDB_* prefix, idb* function names) are kept identical to gas-app/Script.html's
-// hand-duplicated copy on purpose -- see .agents/rules/sync-src-and-gas-app.md. Script.html
-// can't `import` ES modules, so a future build step folding this file into its generated engine
-// bundle can only splice in flat top-level declarations verbatim; the names here ARE the contract.
 export const IDB_NAME = 'day-planner-db';
 export const IDB_VERSION = 3;
 
