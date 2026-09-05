@@ -49,7 +49,11 @@ const mockYearMatrix = (year) => tagMock(emptyYearMatrix(year));
 // transferred from) are both hidden JSON/marker lines inside the task's `notes` field. This is
 // the first time this decoding has needed to run in a browser rather than only in Apps Script.
 const TASK_STATUS_MARKER_RE = /^<!--dp-status:(.+?)-->\n?/;
-const TASK_EXTRA_STATUSES = ['→', 'X', 'D/✓'];
+const TASK_EXTRA_STATUSES = ['→', 'X', 'D/✓', '○'];
+// Statuses that close out the underlying Google Task (marked 'completed') rather than leaving
+// it 'needsAction' — a canceled task is done from Google Tasks' perspective just as much as a
+// completed/delegated one, so it shouldn't linger in the active list forever.
+const CLOSING_STATUSES = ['✓', 'D/✓', 'X'];
 const TASK_META_MARKER_RE = /<!--dp-meta:(.*?)-->\n?/;
 
 /**
@@ -651,7 +655,7 @@ export async function updateDailyTaskRest(dateStr, taskId, updates = {}, accessT
 
     if (updates.title !== undefined) patch.title = updates.title;
     if (updates.status !== undefined) {
-      patch.status = (updates.status === '✓' || updates.status === 'D/✓') ? 'completed' : 'needsAction';
+      patch.status = CLOSING_STATUSES.includes(updates.status) ? 'completed' : 'needsAction';
       patch.notes = encodeTaskStatusNotes(updates.status, (await ensureCurrent()).notes);
     }
     if (updates.category !== undefined) {

@@ -11,7 +11,8 @@ import {
   syncTaskToCalendar,
   syncCalendarToTask,
   reconcileWorkspaceChanges,
-  planSyncPersistence
+  planSyncPersistence,
+  mergeExternalChanges
 } from '../src/syncEngine.js';
 
 describe('2-Way Sync Engine Unit Tests', () => {
@@ -479,6 +480,33 @@ describe('2-Way Sync Engine Unit Tests', () => {
       assert.equal(plan.taskUpdates.length, 0);
       assert.equal(plan.eventCreates.length, 0);
       assert.equal(plan.eventUpdates.length, 0);
+    });
+  });
+
+  describe('mergeExternalChanges (pulling in items created outside this app)', () => {
+    it('should add a task created directly in Google Tasks that the app never knew about', () => {
+      const local = [{ id: 't1', title: '[A1] Existing task', status: '•' }];
+      const server = [
+        { id: 't1', title: '[A1] Existing task', status: '•' },
+        { id: 't2', title: 'Added from the Google Tasks app', status: '•' }
+      ];
+      const merged = mergeExternalChanges(local, server);
+      assert.equal(merged.length, 2);
+      assert.ok(merged.some(t => t.id === 't2'));
+    });
+
+    it('should keep a purely local item (e.g. still queued offline) that the server fetch does not know about yet', () => {
+      const local = [{ id: 'temp_123', title: 'Not synced yet', status: '•', _queuedOffline: true }];
+      const server = [];
+      const merged = mergeExternalChanges(local, server);
+      assert.deepEqual(merged, local);
+    });
+
+    it('should prefer the server copy for shared fields but preserve local-only fields like scheduledTime', () => {
+      const local = [{ id: 't1', title: '[A1] Old title', status: '•', scheduledTime: '2026-09-05T09:00:00Z' }];
+      const server = [{ id: 't1', title: '[A1] Old title', status: '✓' }];
+      const merged = mergeExternalChanges(local, server);
+      assert.deepEqual(merged, [{ id: 't1', title: '[A1] Old title', status: '✓', scheduledTime: '2026-09-05T09:00:00Z' }]);
     });
   });
 });

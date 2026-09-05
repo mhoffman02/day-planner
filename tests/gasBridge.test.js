@@ -559,6 +559,7 @@ describe('GAS Bridge REST Unit Tests (Google Identity Services token present)', 
     assert.equal(deriveTaskStatus({ status: 'completed', notes: '' }), '✓');
     assert.equal(deriveTaskStatus({ status: 'needsAction', notes: '' }), '•');
     assert.equal(deriveTaskStatus({ status: 'needsAction', notes: '<!--dp-status:bogus-->\n' }), '•');
+    assert.equal(deriveTaskStatus({ status: 'needsAction', notes: '<!--dp-status:○-->\n' }), '○');
   });
 
   it('decodeTaskMeta() parses the dp-meta JSON blob and tolerates missing/malformed notes', () => {
@@ -1153,6 +1154,18 @@ describe('GAS Bridge Stage 3 REST Write Path Unit Tests', () => {
     assert.deepEqual(result, { id: 't1', title: '[A1] Ship it', status: '✓', category: 'Work', dueDate: '2026-09-05' });
     assert.equal(masterPatchBodies.length, 1, 'expected the master task status to be mirrored');
     assert.equal(masterPatchBodies[0].status, 'completed');
+  });
+
+  it('updateDailyTaskRest() marks a canceled (X) task completed in Google Tasks so it closes out', async () => {
+    let capturedPatch;
+    globalThis.fetch = fakeFetch([
+      { match: /\/tasks\/t1$/, method: 'GET', respond: okJson({ id: 't1', title: '[A1] Ship it', notes: '' }) },
+      { match: /\/tasks\/t1$/, method: 'PATCH', respond: (url, options) => { capturedPatch = JSON.parse(options.body); return okJson({ id: 't1', title: '[A1] Ship it', status: capturedPatch.status, notes: capturedPatch.notes }); } }
+    ]);
+
+    const result = await updateDailyTaskRest('2026-09-05', 't1', { status: 'X' }, 'tok_abc');
+    assert.equal(capturedPatch.status, 'completed');
+    assert.equal(result.status, 'X');
   });
 
   it('updateDailyTaskRest() returns null instead of throwing when the task was already deleted (404)', async () => {

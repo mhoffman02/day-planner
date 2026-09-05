@@ -7,10 +7,11 @@
  */
 
 import { GASBridge } from './gasBridge.js';
-import { reconcileWorkspaceChanges, planSyncPersistence } from './syncEngine.js';
+import { reconcileWorkspaceChanges, planSyncPersistence, mergeExternalChanges } from './syncEngine.js';
 import IndexedDbStore from './indexedDbStore.js';
 import { getLocalDateStr, generateLocalId } from './binderStore.js';
 import { initGoogleAuth, signIn, signOut, isSignedIn, ensureAccessToken, onAuthStateChanged } from './googleAuth.js';
+import { parseTaskTitle, formatTaskTitle, getNextStatus, isValidStatus, STATUS_OPTIONS } from './taskEngine.js';
 window.GASBridge = GASBridge;
 
 // Month-overview cache freshness window for the rolling 3-month background prefetch (see
@@ -59,76 +60,6 @@ if ('serviceWorker' in navigator) {
     });
   });
 }
-
-// Helper engine definitions bundled for GAS SPA client
-  const STATUS_LIST = ['•', '✓', '→', 'X', 'D/✓'];
-
-  /**
-   * Parses a task title that may contain a priority prefix like [A1] or [B3].
-   * Local mirror of `src/taskEngine.js`'s `parseTaskTitle` for this bundled client script.
-   * @param {string} [rawTitle=''] Raw task title string.
-   * @returns {{priorityGroup: string|null, sequence: number|null, priorityCode: string|null, cleanTitle: string}}
-   */
-  function parseTaskTitle(rawTitle = '') {
-    if (!rawTitle) return { priorityGroup: null, sequence: null, priorityCode: null, cleanTitle: '' };
-    const match = rawTitle.match(/^\[([A-C])([1-9])\]\s*(.*)$/i);
-    if (match) {
-      return {
-        priorityGroup: match[1].toUpperCase(),
-        sequence: parseInt(match[2], 10),
-        priorityCode: `${match[1].toUpperCase()}${match[2]}`,
-        cleanTitle: match[3].trim()
-      };
-    }
-    return { priorityGroup: null, sequence: null, priorityCode: null, cleanTitle: rawTitle.trim() };
-  }
-
-  /**
-   * Rebuilds a `[A1] Title`-style task title from its parsed parts.
-   * @param {string} priorityGroup Priority group letter, e.g. 'A'.
-   * @param {number} sequence Sequence number within the group.
-   * @param {string} cleanTitle Title text without the priority prefix.
-   * @returns {string}
-   */
-  function formatTaskTitle(priorityGroup, sequence, cleanTitle) {
-    const trimmed = (cleanTitle || '').trim();
-    if (priorityGroup && sequence) return `[${priorityGroup.toUpperCase()}${sequence}] ${trimmed}`;
-    return trimmed;
-  }
-
-  /**
-   * Advances a task's status glyph to the next one in `STATUS_LIST`, wrapping around at the end.
-   * @param {string} curr Current status glyph.
-   * @returns {string} Next status glyph.
-   */
-  function getNextStatus(curr) {
-    const idx = STATUS_LIST.indexOf(curr);
-    if (idx === -1 || idx === STATUS_LIST.length - 1) return STATUS_LIST[0];
-    return STATUS_LIST[idx + 1];
-  }
-
-  /**
-   * Human-readable labels for each status glyph, backing the status-select dropdown.
-   * Local mirror of `src/taskEngine.js`'s `STATUS_OPTIONS` for this bundled client script.
-   * @type {Array<{value: string, label: string}>}
-   */
-  const STATUS_OPTIONS = [
-    { value: '•', label: 'Open' },
-    { value: '✓', label: 'Done' },
-    { value: '→', label: 'Forward' },
-    { value: 'X', label: 'Canceled' },
-    { value: 'D/✓', label: 'Delegated (Done)' }
-  ];
-
-  /**
-   * Checks whether a status glyph is a member of `STATUS_LIST`.
-   * Local mirror of `src/taskEngine.js`'s `isValidStatus` for this bundled client script.
-   * @param {string} status Status glyph to validate.
-   * @returns {boolean}
-   */
-  function isValidStatus(status) {
-    return STATUS_LIST.includes(status);
-  }
 
   /**
    * Registers the `plannerApp` Alpine.js component (all app state and methods) once Alpine has
@@ -720,8 +651,23 @@ if ('serviceWorker' in navigator) {
 
           await this.flushOutboxIfPossible();
 
-          const beforeTasks = this.dailyTasks;
-          const beforeEvents = this.calendarEvents;
+          // Pull in anything created/edited directly in Google Tasks/Calendar (outside this
+          // app) before reconciling — otherwise an externally-added task/event stays invisible
+          // until the user navigates away from the day and back. Best-effort: if the fetch
+          // fails (e.g. offline), fall back to reconciling local state only, same as before.
+          let beforeTasks = this.dailyTasks;
+          let beforeEvents = this.calendarEvents;
+          if (this.bridge && typeof this.bridge.getDailyData === 'function') {
+            try {
+              const fresh = await this.bridge.getDailyData(this.selectedDate);
+              if (!fresh.error) {
+                beforeTasks = mergeExternalChanges(beforeTasks, fresh.tasks || []);
+                beforeEvents = mergeExternalChanges(beforeEvents, fresh.calendarEvents || []);
+              }
+            } catch (err) {
+              console.warn('trigger2WaySync: could not fetch fresh day data, reconciling local state only', err);
+            }
+          }
           const reconciled = reconcileWorkspaceChanges(beforeTasks, beforeEvents);
           // updateDailyTask/updateCalendarEvent return null when the target was deleted
           // upstream (e.g. removed directly in Google Tasks/Calendar) — collected here and

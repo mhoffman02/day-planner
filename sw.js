@@ -15,7 +15,7 @@
 // served from (local dev root, or GitHub Pages' /day-planner/ subpath) — an absolute "/"
 // path resolves against the origin root instead and 404s under the subpath, which fails the
 // whole cache.addAll() and leaves the worker stuck uninstalled.
-const CACHE_NAME = 'day-planner-shell-4186e82f41';
+const CACHE_NAME = 'day-planner-shell-ec09f810db';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

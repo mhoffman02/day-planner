@@ -195,6 +195,30 @@ export function reconcileWorkspaceChanges(dailyTasks = [], calendarEvents = []) 
 }
 
 /**
+ * Merges a fresh backend fetch into the locally-known item list, so a task/event created (or
+ * edited) directly in Google Tasks/Calendar — outside this app — gets picked up the next time
+ * 2-way sync runs, instead of staying invisible until the user navigates away from the day and
+ * back (which is the only other place a live re-fetch happens). The server copy wins for any
+ * id both sides know about, but local-only fields the server fetch never carries (e.g. a task's
+ * `scheduledTime`/`endTime` calendar-linking hints) are preserved from the local copy. A purely
+ * local item the server fetch doesn't know about yet (e.g. still queued in the offline outbox)
+ * is kept appended rather than dropped.
+ * @param {Array<object>} [localItems=[]] Current in-memory items.
+ * @param {Array<object>} [serverItems=[]] Freshly-fetched items for the same day, from the backend.
+ * @returns {Array<object>} Merged item list.
+ */
+export function mergeExternalChanges(localItems = [], serverItems = []) {
+  const localById = new Map(localItems.map(item => [item.id, item]));
+  const merged = serverItems.map(serverItem => {
+    const local = localById.get(serverItem.id);
+    return local ? { ...local, ...serverItem } : serverItem;
+  });
+  const serverIds = new Set(serverItems.map(item => item.id));
+  const localOnly = localItems.filter(item => !serverIds.has(item.id));
+  return [...merged, ...localOnly];
+}
+
+/**
  * Computes which persistence calls `trigger2WaySync` needs to make against the bridge
  * (Google Tasks / Calendar) to save a `reconcileWorkspaceChanges()` result, by diffing it
  * against the pre-reconciliation snapshot. Pure planning only — callers execute the actual

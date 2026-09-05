@@ -48,7 +48,8 @@ describe('Task Engine Unit Tests', () => {
   });
 
   it('should cycle through task status codes accurately', () => {
-    assert.equal(getNextStatus('•'), '✓');
+    assert.equal(getNextStatus('•'), '○');
+    assert.equal(getNextStatus('○'), '✓');
     assert.equal(getNextStatus('✓'), '→');
     assert.equal(getNextStatus('→'), 'X');
     assert.equal(getNextStatus('X'), 'D/✓');

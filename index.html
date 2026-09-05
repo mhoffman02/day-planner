@@ -260,7 +260,22 @@
                         <span class="priority-badge" :class="parseTask(task.title).priorityGroup || 'A'" x-text="parseTask(task.title).priorityCode || 'A1'"></span>
                       </td>
                       <td>
-                        <button type="button" class="status-btn" @click="toggleTaskStatus(task)" x-text="task.status || '•'" :aria-label="'Task status: ' + (task.status || 'Open') + '. Click to cycle status.'"></button>
+                        <div class="status-menu-wrap" @mouseenter="openStatusMenu(task.id)" @mouseleave="scheduleStatusMenuClose(task.id)">
+                          <button type="button" class="status-btn" @click="toggleStatusMenu(task.id)" x-text="task.status || '•'"
+                                  aria-haspopup="menu" :aria-expanded="openStatusMenuTaskId === task.id"
+                                  :aria-label="'Task status: ' + (task.status || 'Open') + '. Click to choose a status.'"></button>
+                          <div class="status-menu" role="menu" x-show="openStatusMenuTaskId === task.id" @click.outside="openStatusMenuTaskId = null" x-cloak>
+                            <template x-for="opt in statusOptions" :key="opt.value">
+                              <button type="button" class="status-menu-item" role="menuitem"
+                                      :class="{ 'is-active': (task.status || '•') === opt.value }"
+                                      @click="selectTaskStatus(task, opt.value)"
+                                      :aria-label="'Set status: ' + opt.label">
+                                <span class="status-menu-item-glyph" x-text="opt.value"></span>
+                                <span x-text="opt.label"></span>
+                              </button>
+                            </template>
+                          </div>
+                        </div>
                       </td>
                       <td class="task-title-cell" x-text="parseTask(task.title).cleanTitle"></td>
                       <td class="td-category" x-text="task.category || 'Work'"></td>
