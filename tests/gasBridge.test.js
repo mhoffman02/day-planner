@@ -20,8 +20,10 @@ import {
   deriveTaskStatus,
   decodeTaskMeta,
   encodeTaskMeta,
+  stripDpTokens,
   addMasterTaskRest,
   markMasterTaskMovedRest,
+  setMasterTaskStarredRest,
   addDailyTaskRest,
   updateDailyTaskRest,
   forwardDailyTaskRest,
@@ -372,6 +374,18 @@ describe('GAS Bridge Unit Tests', () => {
     assert.equal(m1After.movedTaskId, transferred.id);
   });
 
+  it('should toggle a master task\'s starred flag via bridge, and report null for an unknown id', async () => {
+    const bridge = new GASBridge(true);
+    const starred = await bridge.toggleMasterTaskStar('m1', true);
+    assert.equal(starred.starred, true);
+
+    const unstarred = await bridge.toggleMasterTaskStar('m1', false);
+    assert.equal(unstarred.starred, false);
+
+    const missing = await bridge.toggleMasterTaskStar('does-not-exist', true);
+    assert.equal(missing, null);
+  });
+
   it('should save daily doc cards content via bridge', async () => {
     const bridge = new GASBridge(true);
     const result = await bridge.saveDailyDocCards('2026-08-16', '### #index [Architecture] System Design\n- Clean 3-col layout');
@@ -569,6 +583,17 @@ describe('GAS Bridge REST Unit Tests (Google Identity Services token present)', 
     assert.deepEqual(decodeTaskMeta(undefined), {});
   });
 
+  it('stripDpTokens() removes every hidden dp-status/dp-meta marker line regardless of order, leaving only real notes', () => {
+    assert.equal(stripDpTokens('<!--dp-status:→-->\n<!--dp-meta:{"category":"Work"}-->\nCall the vendor back'), 'Call the vendor back');
+    // dp-meta written first (e.g. via encodeTaskMeta prepending ahead of an existing dp-status
+    // marker) must still be fully stripped — TASK_STATUS_MARKER_RE alone would miss the
+    // dp-status marker here since it's no longer at the very start of the string.
+    assert.equal(stripDpTokens('<!--dp-meta:{"category":"Work"}-->\n<!--dp-status:X-->\nReal note text'), 'Real note text');
+    assert.equal(stripDpTokens('Just a plain note, no markers'), 'Just a plain note, no markers');
+    assert.equal(stripDpTokens(''), '');
+    assert.equal(stripDpTokens(undefined), '');
+  });
+
   it('fetchDayCalendarEvents() maps Calendar API items to the app event shape', async () => {
     const calls = [];
     globalThis.fetch = async (url) => {
@@ -621,7 +646,7 @@ describe('GAS Bridge REST Unit Tests (Google Identity Services token present)', 
 
     const tasks = await fetchDayTasks('2026-08-15', 'tok_abc');
     assert.equal(tasks.length, 2);
-    assert.deepEqual(tasks[0], { id: 't1', title: 'In range', status: '•', dueDate: '2026-08-15', category: 'Work', sourceMasterId: 'm9' });
+    assert.deepEqual(tasks[0], { id: 't1', title: 'In range', status: '•', dueDate: '2026-08-15', category: 'Work', sourceMasterId: 'm9', starred: false, notes: '' });
     assert.equal(tasks[1].status, '✓');
     // No dp-meta marker at all (e.g. an externally-created task) still defaults to 'General',
     // matching gas-app/Code.gs#getDailyData's category fallback.
@@ -908,7 +933,7 @@ describe('GAS Bridge REST Unit Tests (Google Identity Services token present)', 
     });
     const tasks = await fetchMasterTasks('tok_abc');
     assert.equal(tasks.length, 1);
-    assert.deepEqual(tasks[0], { id: 'm1', title: 'Master item', category: 'Work', status: '•', movedTo: '2026-08-20', movedTaskId: 't9' });
+    assert.deepEqual(tasks[0], { id: 'm1', title: 'Master item', category: 'Work', status: '•', movedTo: '2026-08-20', movedTaskId: 't9', starred: false, notes: '' });
   });
 
   it('fetchFutureMatrix() returns an empty 12-month skeleton when the file does not exist', async () => {
@@ -1101,7 +1126,7 @@ describe('GAS Bridge Stage 3 REST Write Path Unit Tests', () => {
     assert.equal(capturedBody.due, undefined);
     assert.match(capturedBody.notes, /"master":true/);
     assert.match(capturedBody.notes, /"category":"Work"/);
-    assert.deepEqual(result, { id: 'm1', title: 'Long-term goal', category: 'Work', status: '•', movedTo: null, movedTaskId: null });
+    assert.deepEqual(result, { id: 'm1', title: 'Long-term goal', category: 'Work', status: '•', movedTo: null, movedTaskId: null, starred: false, notes: '' });
   });
 
   it('markMasterTaskMovedRest() merges movedTo/movedTaskId into the existing meta marker', async () => {
@@ -1120,7 +1145,23 @@ describe('GAS Bridge Stage 3 REST Write Path Unit Tests', () => {
     ]);
 
     const result = await markMasterTaskMovedRest('m1', '2026-09-10', 't99', 'tok_abc');
-    assert.deepEqual(result, { id: 'm1', title: 'Old goal', category: 'Personal', status: '•', movedTo: '2026-09-10', movedTaskId: 't99' });
+    assert.deepEqual(result, { id: 'm1', title: 'Old goal', category: 'Personal', status: '•', movedTo: '2026-09-10', movedTaskId: 't99', starred: false, notes: '' });
+  });
+
+  it('setMasterTaskStarredRest() encodes starred into the dp-meta marker, preserving other meta and real notes', async () => {
+    globalThis.fetch = fakeFetch([
+      {
+        match: /\/tasks\/m1$/, method: 'GET',
+        respond: okJson({ id: 'm1', title: 'Old goal', notes: encodeTaskMeta('Some real note', { category: 'Personal' }) })
+      },
+      {
+        match: /\/tasks\/m1$/, method: 'PATCH',
+        respond: (url, options) => okJson({ id: 'm1', title: 'Old goal', notes: JSON.parse(options.body).notes, status: 'needsAction' })
+      }
+    ]);
+
+    const result = await setMasterTaskStarredRest('m1', true, 'tok_abc');
+    assert.deepEqual(result, { id: 'm1', title: 'Old goal', category: 'Personal', status: '•', movedTo: null, movedTaskId: null, starred: true, notes: 'Some real note' });
   });
 
   it('addDailyTaskRest() creates a due-dated task carrying category + sourceMasterId meta', async () => {
@@ -1138,7 +1179,7 @@ describe('GAS Bridge Stage 3 REST Write Path Unit Tests', () => {
     const result = await addDailyTaskRest('2026-09-05', '[A1] Ship it', 'Work', 'm1', 'tok_abc');
     assert.equal(capturedBody.due, '2026-09-05T00:00:00.000Z');
     assert.match(capturedBody.notes, /"sourceMasterId":"m1"/);
-    assert.deepEqual(result, { id: 't1', title: '[A1] Ship it', status: '•', category: 'Work', dueDate: '2026-09-05', sourceMasterId: 'm1' });
+    assert.deepEqual(result, { id: 't1', title: '[A1] Ship it', status: '•', category: 'Work', dueDate: '2026-09-05', sourceMasterId: 'm1', starred: false, notes: '' });
   });
 
   it('updateDailyTaskRest() patches status and mirrors it onto the linked master task best-effort', async () => {
@@ -1151,9 +1192,19 @@ describe('GAS Bridge Stage 3 REST Write Path Unit Tests', () => {
     ]);
 
     const result = await updateDailyTaskRest('2026-09-05', 't1', { status: '✓' }, 'tok_abc');
-    assert.deepEqual(result, { id: 't1', title: '[A1] Ship it', status: '✓', category: 'Work', dueDate: '2026-09-05' });
+    assert.deepEqual(result, { id: 't1', title: '[A1] Ship it', status: '✓', category: 'Work', dueDate: '2026-09-05', starred: false, notes: '' });
     assert.equal(masterPatchBodies.length, 1, 'expected the master task status to be mirrored');
     assert.equal(masterPatchBodies[0].status, 'completed');
+  });
+
+  it('updateDailyTaskRest() encodes updates.starred into dp-meta, preserving other meta and real notes', async () => {
+    globalThis.fetch = fakeFetch([
+      { match: /\/tasks\/t1$/, method: 'GET', respond: okJson({ id: 't1', title: '[A1] Ship it', notes: encodeTaskMeta('Pick up dry cleaning', { category: 'Work' }) }) },
+      { match: /\/tasks\/t1$/, method: 'PATCH', respond: (url, options) => okJson({ id: 't1', title: '[A1] Ship it', status: 'needsAction', notes: JSON.parse(options.body).notes, due: '2026-09-05T00:00:00.000Z' }) }
+    ]);
+
+    const result = await updateDailyTaskRest('2026-09-05', 't1', { starred: true }, 'tok_abc');
+    assert.deepEqual(result, { id: 't1', title: '[A1] Ship it', status: '•', category: 'Work', dueDate: '2026-09-05', starred: true, notes: 'Pick up dry cleaning' });
   });
 
   it('updateDailyTaskRest() marks a canceled (X) task completed in Google Tasks so it closes out', async () => {

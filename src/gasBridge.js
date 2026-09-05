@@ -55,6 +55,24 @@ const TASK_EXTRA_STATUSES = ['→', 'X', 'D/✓', '○'];
 // completed/delegated one, so it shouldn't linger in the active list forever.
 const CLOSING_STATUSES = ['✓', 'D/✓', 'X'];
 const TASK_META_MARKER_RE = /<!--dp-meta:(.*?)-->\n?/;
+// Strips every hidden dp-* marker line regardless of order/position, for showing real
+// user-authored notes content in the UI. Independent of the two regexes above (which are each
+// anchored/scoped for their own single-marker encode/decode role) because dp-status and dp-meta
+// markers aren't written in a fixed relative order — encodeTaskStatusNotes/encodeTaskMeta each
+// prepend their own marker ahead of whatever "rest" text already existed, so either marker may
+// end up first. `^`-anchoring alone (as TASK_STATUS_MARKER_RE does) would miss a marker that
+// isn't at the very start of the string; multiline+global here strips all of them everywhere.
+const DP_TOKEN_LINE_RE = /^<!--dp-(?:status|meta):.*?-->\n?/gm;
+
+/**
+ * Strips all hidden dp-status/dp-meta marker lines from a task's notes, leaving only real
+ * user-authored content safe to display in the UI (e.g. a notes-preview popover).
+ * @param {string} notes
+ * @returns {string}
+ */
+export function stripDpTokens(notes) {
+  return (notes || '').replace(DP_TOKEN_LINE_RE, '').trim();
+}
 
 /**
  * Derives the display status glyph for a Google Task, preferring the hidden dp-status marker
@@ -216,7 +234,9 @@ export async function fetchDayTasks(dateStr, accessToken) {
         status: deriveTaskStatus(t),
         dueDate: t.due.substring(0, 10),
         category: meta.category || 'General',
-        sourceMasterId: meta.sourceMasterId || null
+        sourceMasterId: meta.sourceMasterId || null,
+        starred: Boolean(meta.starred),
+        notes: stripDpTokens(t.notes)
       };
     });
 }
@@ -415,7 +435,9 @@ export async function fetchMasterTasks(accessToken) {
         category: meta.category || 'General',
         status: deriveTaskStatus(t),
         movedTo: meta.movedTo || null,
-        movedTaskId: meta.movedTaskId || null
+        movedTaskId: meta.movedTaskId || null,
+        starred: Boolean(meta.starred),
+        notes: stripDpTokens(t.notes)
       };
     });
 }
@@ -576,7 +598,9 @@ export async function addMasterTaskRest(title, category, accessToken) {
     category: category || 'General',
     status: deriveTaskStatus(created),
     movedTo: null,
-    movedTaskId: null
+    movedTaskId: null,
+    starred: false,
+    notes: stripDpTokens(created.notes)
   };
 }
 
@@ -600,7 +624,36 @@ export async function markMasterTaskMovedRest(masterTaskId, targetDateStr, moved
     category: meta.category || 'General',
     status: deriveTaskStatus(updated),
     movedTo: meta.movedTo || null,
-    movedTaskId: meta.movedTaskId || null
+    movedTaskId: meta.movedTaskId || null,
+    starred: Boolean(meta.starred),
+    notes: stripDpTokens(updated.notes)
+  };
+}
+
+/**
+ * Toggles the client-side "starred" flag on a master task, encoded in the hidden dp-meta
+ * marker — Google's Tasks API has no `starred` field (confirmed: absent from the Tasks
+ * discovery document, and tracked as unsupported/blocked in Google's public issue tracker,
+ * issue 236524523), so this is the only place star state can live.
+ * @param {string} masterTaskId
+ * @param {boolean} starred
+ * @param {string} accessToken
+ * @returns {Promise<object>} Updated master task object.
+ */
+export async function setMasterTaskStarredRest(masterTaskId, starred, accessToken) {
+  const current = await getTaskById(masterTaskId, accessToken);
+  const notes = encodeTaskMeta(current.notes, { starred: Boolean(starred) });
+  const updated = await patchTask(masterTaskId, { notes }, accessToken);
+  const meta = decodeTaskMeta(updated.notes);
+  return {
+    id: updated.id,
+    title: updated.title,
+    category: meta.category || 'General',
+    status: deriveTaskStatus(updated),
+    movedTo: meta.movedTo || null,
+    movedTaskId: meta.movedTaskId || null,
+    starred: Boolean(meta.starred),
+    notes: stripDpTokens(updated.notes)
   };
 }
 
@@ -628,7 +681,9 @@ export async function addDailyTaskRest(dateStr, title, category, sourceMasterId,
     status: deriveTaskStatus(created),
     category: category || 'General',
     dueDate: created.due ? created.due.substring(0, 10) : dateStr,
-    sourceMasterId: sourceMasterId || null
+    sourceMasterId: sourceMasterId || null,
+    starred: false,
+    notes: stripDpTokens(created.notes)
   };
 }
 
@@ -662,6 +717,10 @@ export async function updateDailyTaskRest(dateStr, taskId, updates = {}, accessT
       const notesBase = patch.notes !== undefined ? patch.notes : (await ensureCurrent()).notes;
       patch.notes = encodeTaskMeta(notesBase, { category: updates.category });
     }
+    if (updates.starred !== undefined) {
+      const notesBase = patch.notes !== undefined ? patch.notes : (await ensureCurrent()).notes;
+      patch.notes = encodeTaskMeta(notesBase, { starred: Boolean(updates.starred) });
+    }
     if (updates.dueDate !== undefined) patch.due = `${updates.dueDate}T00:00:00.000Z`;
 
     const updated = await patchTask(taskId, patch, accessToken);
@@ -681,12 +740,15 @@ export async function updateDailyTaskRest(dateStr, taskId, updates = {}, accessT
       }
     }
 
+    const updatedMeta = decodeTaskMeta(updated.notes);
     return {
       id: updated.id,
       title: updated.title,
       status: deriveTaskStatus(updated),
-      category: decodeTaskMeta(updated.notes).category || 'General',
-      dueDate: updated.due ? updated.due.substring(0, 10) : (updates.dueDate || dateStr)
+      category: updatedMeta.category || 'General',
+      dueDate: updated.due ? updated.due.substring(0, 10) : (updates.dueDate || dateStr),
+      starred: Boolean(updatedMeta.starred),
+      notes: stripDpTokens(updated.notes)
     };
   } catch (err) {
     if (err.message && err.message.includes('404')) return null;
@@ -1451,6 +1513,28 @@ export class GASBridge {
       return task;
     }
     return markMasterTaskMovedRest(masterTaskId, targetDateStr, movedTaskId, accessToken);
+  }
+
+  /**
+   * Toggles the client-side "starred" flag on a master task. Google's Tasks API has no starred
+   * field to persist server-side, so this reuses the hidden dp-meta marker the same way
+   * category/movedTo do (see setMasterTaskStarredRest). Mirrors addMasterTask/markMasterTaskMoved's
+   * mock/REST branching; like those two, Master Tasks have no offline-outbox path (an established
+   * asymmetry with Daily Tasks in this codebase, not new scope for this feature).
+   * @param {string} masterTaskId Master task id.
+   * @param {boolean} starred New starred state.
+   * @returns {Promise<object|null>} Updated master task object, or null if not found (mock mode only).
+   */
+  async toggleMasterTaskStar(masterTaskId, starred) {
+    const accessToken = !this.useMock ? getAccessToken() : null;
+
+    if (this.useMock || !accessToken) {
+      const task = this.mockData.masterTasks.find(t => t.id === masterTaskId);
+      if (!task) return null;
+      task.starred = Boolean(starred);
+      return task;
+    }
+    return setMasterTaskStarredRest(masterTaskId, starred, accessToken);
   }
 
   /**

@@ -136,6 +136,65 @@ export function sortTasks(tasks = []) {
 }
 
 /**
+ * Computes the sort key for a task under a given column, for interactive click-to-sort
+ * table headers (distinct from `sortTasks`'s fixed priority-first default ordering, which
+ * stays unchanged and is used elsewhere).
+ * @param {object} task Task object ({ title, status, category, starred, ... }).
+ * @param {'priority'|'status'|'title'|'category'} column Column to compute a sort key for.
+ * @returns {string|number} Sortable key for `column`. Unprioritized tasks sort last under
+ *   'priority'; unknown statuses sort last under 'status'.
+ */
+export function getTaskSortValue(task, column) {
+  switch (column) {
+    case 'priority': {
+      const parsed = parseTaskTitle(task.title);
+      return parsed.priorityCode || '￿';
+    }
+    case 'status': {
+      const idx = STATUS_LIST.indexOf(task.status);
+      return idx === -1 ? STATUS_LIST.length : idx;
+    }
+    case 'title': {
+      const parsed = parseTaskTitle(task.title);
+      const cleanTitle = parsed.cleanTitle || task.title || '';
+      return (task.starred ? '★' : '☆') + cleanTitle;
+    }
+    case 'category':
+      return task.category || '';
+    default:
+      return '';
+  }
+}
+
+/**
+ * Sorts a task list by a single clickable column, ascending or descending. Stable: ties
+ * keep their prior relative order in both directions (uses a comparator multiplier rather
+ * than `.reverse()`, which would flip tie-order too).
+ * @param {Array<object>} [tasks=[]] Tasks to sort.
+ * @param {'priority'|'status'|'title'|'category'} column Column to sort by.
+ * @param {'asc'|'desc'} [direction='asc'] Sort direction.
+ * @returns {Array<object>} New sorted array.
+ */
+export function sortTasksByColumn(tasks = [], column, direction = 'asc') {
+  const dir = direction === 'desc' ? -1 : 1;
+  return [...tasks]
+    .map((task, index) => ({ task, index }))
+    .sort((a, b) => {
+      const va = getTaskSortValue(a.task, column);
+      const vb = getTaskSortValue(b.task, column);
+      let cmp;
+      if (typeof va === 'number' && typeof vb === 'number') {
+        cmp = va - vb;
+      } else {
+        cmp = String(va).localeCompare(String(vb));
+      }
+      if (cmp === 0) return a.index - b.index;
+      return cmp * dir;
+    })
+    .map(({ task }) => task);
+}
+
+/**
  * Finds next available sequence integer for a priority group ('A', 'B', or 'C').
  * @param {Array<object>} [tasks=[]] Array of existing task objects.
  * @param {string} [priorityGroup='A'] Target priority group letter.

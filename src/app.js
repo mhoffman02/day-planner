@@ -11,7 +11,7 @@ import { reconcileWorkspaceChanges, planSyncPersistence, mergeExternalChanges } 
 import IndexedDbStore from './indexedDbStore.js';
 import { getLocalDateStr, generateLocalId } from './binderStore.js';
 import { initGoogleAuth, signIn, signOut, isSignedIn, ensureAccessToken, onAuthStateChanged } from './googleAuth.js';
-import { parseTaskTitle, formatTaskTitle, getNextStatus, isValidStatus, STATUS_OPTIONS } from './taskEngine.js';
+import { parseTaskTitle, formatTaskTitle, getNextStatus, isValidStatus, STATUS_OPTIONS, sortTasksByColumn } from './taskEngine.js';
 window.GASBridge = GASBridge;
 
 // Month-overview cache freshness window for the rolling 3-month background prefetch (see
@@ -89,6 +89,16 @@ if ('serviceWorker' in navigator) {
       // quick mouse pass over the gap between the button and the dropdown doesn't close it.
       statusMenuCloseTimer: null,
       statusOptions: STATUS_OPTIONS,
+      // Active sort column/direction for each task table's clickable headers (see setTaskSort/
+      // sortedTasks). `column: null` means "no header clicked yet" — the table shows its
+      // natural/default order until then.
+      dailyTaskSort: { column: null, direction: 'asc' },
+      masterTaskSort: { column: null, direction: 'asc' },
+      // Task id whose notes-preview popover is open (hover or tap), or null. Shared across both
+      // task tables since only one table view is ever visible at a time — mirrors
+      // openStatusMenuTaskId/statusMenuCloseTimer's single-id + delayed-close convention.
+      openNotesPopoverTaskId: null,
+      notesPopoverCloseTimer: null,
       dailyNote: '',
       noteCards: [],
       noteViewMode: 'cards', // 'cards' (Option 1) or 'doc' (Option 2)
@@ -2255,6 +2265,127 @@ if ('serviceWorker' in navigator) {
           this.errorMessage = errText;
           this.showToast(errText, 'error', 10000, 'Task Transfer Error');
         }
+      },
+
+      /**
+       * Sets the active sort column/direction for a task table's clickable headers. Clicking the
+       * already-active column flips direction; clicking a different column starts it ascending.
+       * @param {'dailyTaskSort'|'masterTaskSort'} sortStateKey Which table's sort state to update.
+       * @param {'priority'|'status'|'title'|'category'} column Column that was clicked.
+       * @returns {void}
+       */
+      setTaskSort(sortStateKey, column) {
+        const state = this[sortStateKey];
+        if (state.column === column) {
+          state.direction = state.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+          state.column = column;
+          state.direction = 'asc';
+        }
+      },
+
+      /**
+       * Returns `tasks` sorted per `sortState` via `sortTasksByColumn`, or unchanged when no
+       * header has been clicked yet (`column: null`), so a table shows its natural/default order
+       * until the user opts into a column sort.
+       * @param {Array<object>} tasks
+       * @param {{column: string|null, direction: 'asc'|'desc'}} sortState
+       * @returns {Array<object>}
+       */
+      sortedTasks(tasks, sortState) {
+        if (!sortState.column) return tasks;
+        return sortTasksByColumn(tasks, sortState.column, sortState.direction);
+      },
+
+      /**
+       * Toggles a daily task's client-side star flag (Google Tasks has no `starred` field to
+       * persist server-side — see gasBridge.js's dp-meta/stripDpTokens comments) and persists it,
+       * rolling back the optimistic UI update if the save fails. Mirrors setTaskStatus's pattern.
+       * @param {object} task Daily task to toggle (mutated in place).
+       * @returns {Promise<void>}
+       */
+      async toggleTaskStar(task) {
+        const previous = Boolean(task.starred);
+        task.starred = !previous;
+        try {
+          const updated = await this.bridge.updateDailyTask(this.selectedDate, task.id, { starred: task.starred });
+          if (!updated) {
+            task.starred = previous;
+            this.showToast(`Task "${task.title}" no longer exists in Google Tasks — star was not saved.`, 'error', 10000, 'Task Not Saved');
+          } else if (updated._queuedOffline) {
+            await this.refreshOutboxCount();
+          }
+        } catch (err) {
+          task.starred = previous;
+          console.error('🔥 toggleTaskStar persist error:', err);
+          this.showToast(`Could not save star: ${err.message || err.toString()}`, 'error', 10000, 'Task Not Saved');
+        }
+      },
+
+      /**
+       * Toggles a master task's client-side star flag and persists it via
+       * `GASBridge#toggleMasterTaskStar`, rolling back on failure. Master tasks have no
+       * offline-outbox path (an established asymmetry with daily tasks — see moveMasterTaskToToday
+       * and gasBridge.js#toggleMasterTaskStar), so unlike toggleTaskStar there's no `_queuedOffline` case.
+       * @param {object} mTask Master task to toggle (mutated in place).
+       * @returns {Promise<void>}
+       */
+      async toggleMasterTaskStar(mTask) {
+        const previous = Boolean(mTask.starred);
+        mTask.starred = !previous;
+        try {
+          const updated = await this.bridge.toggleMasterTaskStar(mTask.id, mTask.starred);
+          if (!updated) {
+            mTask.starred = previous;
+            this.showToast(`Task "${mTask.title}" no longer exists in Google Tasks — star was not saved.`, 'error', 10000, 'Task Not Saved');
+          }
+        } catch (err) {
+          mTask.starred = previous;
+          console.error('🔥 toggleMasterTaskStar persist error:', err);
+          this.showToast(`Could not save star: ${err.message || err.toString()}`, 'error', 10000, 'Task Not Saved');
+        }
+      },
+
+      /**
+       * True when a task has real, user-authored notes content worth showing an indicator for.
+       * dp-status/dp-meta marker text is already stripped server-side (see fetchDayTasks/
+       * fetchMasterTasks's `stripDpTokens` call), so any non-empty `notes` here is genuine.
+       * @param {object} task
+       * @returns {boolean}
+       */
+      hasNotes(task) {
+        return Boolean(task.notes && task.notes.trim());
+      },
+
+      /**
+       * Opens the notes-preview popover for a task (hover or tap) and cancels any pending
+       * delayed-close, mirroring openStatusMenu.
+       * @param {string} taskId Task whose popover to open.
+       */
+      openNotesPopover(taskId) {
+        clearTimeout(this.notesPopoverCloseTimer);
+        this.openNotesPopoverTaskId = taskId;
+      },
+
+      /**
+       * Tap/click handler for the notes indicator icon: toggles the popover open/closed,
+       * mirroring toggleStatusMenu.
+       * @param {string} taskId Task whose popover to toggle.
+       */
+      toggleNotesPopover(taskId) {
+        clearTimeout(this.notesPopoverCloseTimer);
+        this.openNotesPopoverTaskId = (this.openNotesPopoverTaskId === taskId ? null : taskId);
+      },
+
+      /**
+       * Closes the notes popover ~250ms after the mouse leaves, mirroring scheduleStatusMenuClose.
+       * @param {string} taskId Task whose popover to close if still open.
+       */
+      scheduleNotesPopoverClose(taskId) {
+        clearTimeout(this.notesPopoverCloseTimer);
+        this.notesPopoverCloseTimer = setTimeout(() => {
+          if (this.openNotesPopoverTaskId === taskId) this.openNotesPopoverTaskId = null;
+        }, 250);
       },
 
       /**

@@ -10,6 +10,8 @@ import {
   formatTaskTitle,
   getNextStatus,
   sortTasks,
+  getTaskSortValue,
+  sortTasksByColumn,
   getNextSequence,
   transferMasterTaskToToday,
   forwardTaskToDate,
@@ -180,5 +182,59 @@ describe('Task Engine Unit Tests', () => {
     const forwarded = forwardTaskToDate(sourceTask, [], '2026-08-21');
     assert.equal(forwarded.title, '[A1] Untitled task');
     assert.equal(forwarded.category, 'General');
+  });
+
+  it('getTaskSortValue() should sort unprioritized tasks last under the priority column', () => {
+    const prioritized = { title: '[B2] Something' };
+    const unprioritized = { title: 'No prefix' };
+    assert.equal(getTaskSortValue(prioritized, 'priority'), 'B2');
+    assert.ok(getTaskSortValue(unprioritized, 'priority') > 'C9');
+  });
+
+  it('getTaskSortValue() should rank status by STATUS_LIST order, unknown statuses last', () => {
+    assert.equal(getTaskSortValue({ status: '•' }, 'status'), STATUS_LIST.indexOf('•'));
+    assert.equal(getTaskSortValue({ status: 'D/✓' }, 'status'), STATUS_LIST.indexOf('D/✓'));
+    assert.equal(getTaskSortValue({ status: 'bogus' }, 'status'), STATUS_LIST.length);
+  });
+
+  it('getTaskSortValue() should prefix the clean title with a star glyph so starred tasks cluster together on title sort', () => {
+    assert.equal(getTaskSortValue({ title: '[A1] Ship it', starred: true }, 'title'), '★Ship it');
+    assert.equal(getTaskSortValue({ title: '[A1] Ship it', starred: false }, 'title'), '☆Ship it');
+  });
+
+  it('getTaskSortValue() should read category directly, defaulting to an empty string', () => {
+    assert.equal(getTaskSortValue({ category: 'Work' }, 'category'), 'Work');
+    assert.equal(getTaskSortValue({}, 'category'), '');
+  });
+
+  it('sortTasksByColumn() should sort ascending/descending by the given column and stay stable on ties', () => {
+    const tasks = [
+      { id: 't1', title: '[B1] Bravo', category: 'Work' },
+      { id: 't2', title: '[A1] Alpha', category: 'Work' },
+      { id: 't3', title: '[C1] Charlie', category: 'Home' }
+    ];
+    const asc = sortTasksByColumn(tasks, 'priority', 'asc');
+    assert.deepEqual(asc.map(t => t.id), ['t2', 't1', 't3']);
+
+    const desc = sortTasksByColumn(tasks, 'priority', 'desc');
+    assert.deepEqual(desc.map(t => t.id), ['t3', 't1', 't2']);
+
+    // t1/t2 share category 'Work'; t3 is 'Home'. Ties keep their original relative order
+    // (t1 before t2) in both directions, rather than .reverse()'s effect of flipping tie order
+    // along with everything else.
+    const tiedAsc = sortTasksByColumn(tasks, 'category', 'asc');
+    assert.deepEqual(tiedAsc.map(t => t.id), ['t3', 't1', 't2']);
+    const tiedDesc = sortTasksByColumn(tasks, 'category', 'desc');
+    assert.deepEqual(tiedDesc.map(t => t.id), ['t1', 't2', 't3']);
+  });
+
+  it('sortTasksByColumn() should cluster starred tasks first on an ascending title sort', () => {
+    const tasks = [
+      { id: 't1', title: 'Zebra task', starred: false },
+      { id: 't2', title: 'Alpha task', starred: true },
+      { id: 't3', title: 'Middle task', starred: false }
+    ];
+    const sorted = sortTasksByColumn(tasks, 'title', 'asc');
+    assert.equal(sorted[0].id, 't2');
   });
 });
