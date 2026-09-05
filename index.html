@@ -172,8 +172,10 @@
 
     <!-- Not-Signed-In Status Banner: shown whenever real Google auth is configured but the user
          hasn't signed in yet, so changes are being queued locally instead of lost -- see
-         addDailyTask/addCalendarEvent/saveDailyDocCards in gasBridge.js. -->
-    <template x-if="googleAuthReady && !isGoogleSignedIn">
+         addDailyTask/addCalendarEvent/saveDailyDocCards in gasBridge.js. Dismissible (e.g. for
+         a user working offline on purpose) -- dismissal lives only in Alpine state, so it
+         resets on reload/sign-out rather than being suppressed permanently. -->
+    <template x-if="googleAuthReady && !isGoogleSignedIn && !notSignedInBannerDismissed">
       <aside class="error-banner info-banner" role="status">
         <div class="error-banner-content">
           <span class="material-symbols-outlined">cloud_off</span>
@@ -181,9 +183,14 @@
             ? ('Not signed in to Google — ' + outboxCount + ' change' + (outboxCount === 1 ? '' : 's') + ' saved locally, will sync once you sign in.')
             : 'Not signed in to Google — changes are saved locally and will sync once you sign in.'"></span>
         </div>
-        <button type="button" @click="signInWithGoogle()" class="error-close-btn" title="Sign in with Google" aria-label="Sign in with Google">
-          <span class="material-symbols-outlined icon-18">login</span>
-        </button>
+        <div class="error-banner-actions">
+          <button type="button" @click="signInWithGoogle()" class="error-close-btn" title="Sign in with Google" aria-label="Sign in with Google">
+            <span class="material-symbols-outlined icon-18">login</span>
+          </button>
+          <button type="button" @click="notSignedInBannerDismissed = true" class="error-close-btn" title="Dismiss (working offline on purpose)" aria-label="Dismiss">
+            <span class="material-symbols-outlined icon-18">close</span>
+          </button>
+        </div>
       </aside>
     </template>
 

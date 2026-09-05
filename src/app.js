@@ -285,6 +285,7 @@ if ('serviceWorker' in navigator) {
       // via window.DAY_PLANNER_GOOGLE_CLIENT_ID in index.html.
       isGoogleSignedIn: false,
       googleAuthReady: false,
+      notSignedInBannerDismissed: false,
 
       theme: 'light',
 
@@ -410,6 +411,7 @@ if ('serviceWorker' in navigator) {
       signOutOfGoogle() {
         signOut();
         this.isGoogleSignedIn = false;
+        this.notSignedInBannerDismissed = false;
       },
 
       /**

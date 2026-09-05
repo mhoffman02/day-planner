@@ -2517,6 +2517,13 @@ article.setup-card, article.card {
   color: #b78103;
 }
 
+.error-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
 .error-close-btn {
   display: flex;
   align-items: center;
