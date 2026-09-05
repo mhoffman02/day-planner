@@ -196,7 +196,7 @@ a:hover {
   color-scheme: dark;
   /* Theme Surfaces (Dark Mode - Dark Forest Executive) */
   --theme-desk-bg: #0a1611;
-  --theme-binder-border: #050d09;
+  --theme-binder-border: #c5a059;
   --theme-binder-canvas: #0e2018;
   --theme-header-bg: #0a1c14;
   --theme-header-border: #050d09;
@@ -438,7 +438,7 @@ header.single-top-bar {
 .header-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-shrink: 0;
 }
 
@@ -472,24 +472,26 @@ header.single-top-bar {
      branch renders — master tasks are undated, so there's no date nav at all — and
      the whole group disappears from the DOM. Reserve its full width here, on the
      wrapper that always stays mounted, so the tab nav to the right doesn't shift
-     left when that content vanishes. Width = 2 icon-nav-btn (28px) + 3 gaps (4px) +
-     today-jump-btn min-width (10ch + 16px) + date-text-display min-width
-     (19ch + 12px). */
-  min-width: calc(29ch + 96px);
+     left when that content vanishes. Hardcoded px, not ch, because today-jump-btn
+     and date-text-display each resolve `ch` against their own font (different
+     from this wrapper's), so a ch-based total here doesn't add up to theirs —
+     measured sum: 2 icon-nav-btn (24px) + 3 gaps (3px) + today-jump-btn min-width
+     (~94px) + date-text-display min-width (~175px) = ~326px. */
+  min-width: 330px;
 }
 
 .date-controls-group {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
 }
 
 .icon-nav-btn {
   background: transparent;
   border: none;
   color: rgba(255, 255, 255, 0.78);
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   border-radius: 6px;
   display: inline-flex;
@@ -510,8 +512,8 @@ header.single-top-bar {
   background: transparent;
   border: none;
   color: rgba(255, 255, 255, 0.9);
-  height: 28px;
-  padding: 0 8px;
+  height: 24px;
+  padding: 0 6px;
   border-radius: 6px;
   font-size: 0.78rem;
   font-weight: 600;
@@ -526,7 +528,7 @@ header.single-top-bar {
   /* Reserve width for the longest label this button ever shows ("September") so
      switching between "Today" and a month name doesn't resize .header-left and
      shove the tab nav sideways — see .date-text-display below. */
-  min-width: calc(10ch + 16px);
+  min-width: calc(10ch + 12px);
 }
 
 .today-jump-btn:hover {
@@ -537,9 +539,9 @@ header.single-top-bar {
 .date-text-display {
   font-family: var(--header-font-family);
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   color: #ffffff;
-  padding: 0 6px;
+  padding: 0 4px;
   white-space: nowrap;
   display: inline-flex;
   align-items: center;
@@ -548,7 +550,7 @@ header.single-top-bar {
   /* Reserve width for the longest date string this ever renders (e.g.
      "Wed, Dec 22, 2026") so the tab nav to the right doesn't shift left/right
      as the label changes length or switches between daily/monthly format. */
-  min-width: calc(19ch + 12px);
+  min-width: calc(19ch + 8px);
 }
 
 nav.view-segmented-control {
