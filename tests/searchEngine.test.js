@@ -84,4 +84,20 @@ describe('Universal Search Engine Unit Tests', () => {
     assert.ok(searchRes.notes[0].snippet.startsWith('...'));
     assert.ok(searchRes.notes[0].snippet.endsWith('...'));
   });
+
+  it('should strip [[link:URL]]...[[/link]] hyperlink markup from note snippets, keeping only the display text', () => {
+    const searchRes = executeUniversalSearch('planning', {
+      dailyNotes: [
+        {
+          date: '2026-08-20',
+          content: 'Reviewed the [[link:https://docs.google.com/document/d/xyz]]Q4 planning doc[[/link]] before the meeting.'
+        }
+      ]
+    });
+    assert.equal(searchRes.notes.length, 1);
+    const { snippet } = searchRes.notes[0];
+    assert.ok(snippet.includes('Q4 planning doc'));
+    assert.ok(!snippet.includes('[[link:'));
+    assert.ok(!snippet.includes('[[/link]]'));
+  });
 });

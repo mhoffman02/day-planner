@@ -71,13 +71,17 @@ export function executeUniversalSearch(query = '', store = {}) {
 
   // 3. Search Daily Notes
   dailyNotes.forEach(note => {
-    const textMatch = (note.content || '').toLowerCase().includes(cleanQuery);
+    // Strip [[link:URL]]display text[[/link]] hyperlink markup down to its display text before
+    // matching/snippeting, so raw markup tokens never leak into the search snippet (see the same
+    // stripping pattern in src/app.js's plain-text rendering path).
+    const plainContent = (note.content || '').replace(/\[\[link:[^\]]+\]\]([\s\S]*?)\[\[\/link\]\]/g, '$1');
+    const textMatch = plainContent.toLowerCase().includes(cleanQuery);
     if (textMatch) {
       // Extract snippet around query
-      const idx = note.content.toLowerCase().indexOf(cleanQuery);
+      const idx = plainContent.toLowerCase().indexOf(cleanQuery);
       const start = Math.max(0, idx - 20);
-      const end = Math.min(note.content.length, idx + cleanQuery.length + 40);
-      const snippet = '...' + note.content.substring(start, end).replace(/\n/g, ' ') + '...';
+      const end = Math.min(plainContent.length, idx + cleanQuery.length + 40);
+      const snippet = '...' + plainContent.substring(start, end).replace(/\n/g, ' ') + '...';
 
       results.notes.push({
         type: 'note',
