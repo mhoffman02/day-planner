@@ -1206,22 +1206,7 @@ export class GASBridge {
   }
 
   /**
-   * Invokes a named `google.script.run` server function and resolves/rejects with its result.
-   * @param {string} fnName Server-side function name on `google.script.run`.
-   * @param {Array<any>} args Positional arguments to forward.
-   * @returns {Promise<any>}
-   */
-  _runGasCall(fnName, args) {
-    return new Promise((resolve, reject) => {
-      const runner = window.google.script.run
-        .withSuccessHandler(resolve)
-        .withFailureHandler(reject);
-      runner[fnName](...args);
-    });
-  }
-
-  /**
-   * Replays queued offline mutations (in FIFO order) against the live GAS backend once
+   * Replays queued offline mutations (in FIFO order) against the live backend once
    * connectivity is restored, dequeuing each on success and stopping at the first failure
    * so ordering/dependencies (e.g. an edit queued after its own offline create) are preserved
    * for retry on the next flush.
@@ -1232,9 +1217,8 @@ export class GASBridge {
    */
   async flushOutbox(onResolved) {
     const accessToken = !this.useMock ? getAccessToken() : null;
-    const hasGasRpc = !this.useMock && typeof window !== 'undefined' && !!window.google?.script?.run;
 
-    if (this.useMock || (!accessToken && !hasGasRpc)) {
+    if (this.useMock || !accessToken) {
       return { flushed: 0, remaining: 0, failed: 0 };
     }
     if (!this.isOnline()) {
@@ -1255,39 +1239,29 @@ export class GASBridge {
         switch (mutation.type) {
           case OUTBOX_MUTATION_TYPES.ADD_DAILY_TASK: {
             const { dateStr, title, category, tempId } = mutation.payload;
-            result = accessToken
-              ? await addDailyTaskRest(dateStr, title, category, undefined, accessToken)
-              : await this._runGasCall('addDailyTask', [dateStr, title, category]);
+            result = await addDailyTaskRest(dateStr, title, category, undefined, accessToken);
             if (result && result.id && tempId) tempIdMap[tempId] = result.id;
             break;
           }
           case OUTBOX_MUTATION_TYPES.UPDATE_DAILY_TASK: {
             const { dateStr, taskId, updates } = mutation.payload;
-            result = accessToken
-              ? await updateDailyTaskRest(dateStr, resolveId(taskId), updates, accessToken)
-              : await this._runGasCall('updateDailyTask', [dateStr, resolveId(taskId), updates]);
+            result = await updateDailyTaskRest(dateStr, resolveId(taskId), updates, accessToken);
             break;
           }
           case OUTBOX_MUTATION_TYPES.ADD_CALENDAR_EVENT: {
             const { dateStr, eventData, tempId } = mutation.payload;
-            result = accessToken
-              ? await addCalendarEventRest(dateStr, eventData, accessToken)
-              : await this._runGasCall('addCalendarEvent', [dateStr, eventData]);
+            result = await addCalendarEventRest(dateStr, eventData, accessToken);
             if (result && result.id && tempId) tempIdMap[tempId] = result.id;
             break;
           }
           case OUTBOX_MUTATION_TYPES.UPDATE_CALENDAR_EVENT: {
-            const { dateStr, eventId, updates } = mutation.payload;
-            result = accessToken
-              ? await updateCalendarEventRest(resolveId(eventId), updates, accessToken)
-              : await this._runGasCall('updateCalendarEvent', [dateStr, resolveId(eventId), updates]);
+            const { eventId, updates } = mutation.payload;
+            result = await updateCalendarEventRest(resolveId(eventId), updates, accessToken);
             break;
           }
           case OUTBOX_MUTATION_TYPES.SAVE_DAILY_NOTE: {
             const { dateStr, noteContent } = mutation.payload;
-            result = accessToken
-              ? await saveDailyDocCardsRest(dateStr, noteContent, accessToken)
-              : await this._runGasCall('saveDailyDocCards', [dateStr, noteContent]);
+            result = await saveDailyDocCardsRest(dateStr, noteContent, accessToken);
             break;
           }
           default:
@@ -1309,9 +1283,8 @@ export class GASBridge {
   }
 
   /**
-   * The in-memory mock fallback for getDailyData(), used when no real backend (REST token or
-   * google.script.run) is reachable — kept as its own method so getDailyData()'s branching stays
-   * readable now that it has three paths instead of two.
+   * The in-memory mock fallback for getDailyData(), used when no real backend (REST token) is
+   * reachable — kept as its own method so getDailyData()'s branching stays readable.
    * @param {string} dateStr Target date in YYYY-MM-DD format.
    * @returns {{date: string, tasks: Array<object>, calendarEvents: Array<object>, noteContent: string}}
    */
@@ -1354,15 +1327,6 @@ export class GASBridge {
       ]);
       const noteContent = (monthNotes.days && monthNotes.days[dateStr] && monthNotes.days[dateStr].raw) || '';
       return { date: dateStr, tasks, calendarEvents, noteContent };
-    }
-
-    if (typeof window !== 'undefined' && window.google?.script?.run) {
-      return new Promise((resolve, reject) => {
-        window.google.script.run
-          .withSuccessHandler(resolve)
-          .withFailureHandler(reject)
-          .getDailyData(dateStr);
-      });
     }
 
     return this._mockDailyData(dateStr);
@@ -1421,10 +1385,6 @@ export class GASBridge {
       return { month: monthStr, days };
     }
 
-    if (typeof window !== 'undefined' && window.google?.script?.run) {
-      return this._runGasCall('getMonthData', [monthStr]);
-    }
-
     return this._monthDataViaDailyLoop(monthStr);
   }
 
@@ -1439,15 +1399,6 @@ export class GASBridge {
     const accessToken = getAccessToken();
     if (accessToken) return fetchMasterTasks(accessToken);
 
-    if (typeof window !== 'undefined' && window.google?.script?.run) {
-      return new Promise((resolve, reject) => {
-        window.google.script.run
-          .withSuccessHandler(resolve)
-          .withFailureHandler(reject)
-          .getMasterTasks(monthYearStr);
-      });
-    }
-
     return this.mockData.masterTasks;
   }
 
@@ -1460,9 +1411,8 @@ export class GASBridge {
    */
   async addMasterTask(title, category = 'General') {
     const accessToken = !this.useMock ? getAccessToken() : null;
-    const hasGasRpc = !this.useMock && typeof window !== 'undefined' && !!window.google?.script?.run;
 
-    if (this.useMock || (!accessToken && !hasGasRpc)) {
+    if (this.useMock || !accessToken) {
       const newTask = tagMock({
         id: `m_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         title,
@@ -1474,8 +1424,7 @@ export class GASBridge {
       this.mockData.masterTasks.push(newTask);
       return newTask;
     }
-    if (accessToken) return addMasterTaskRest(title, category, accessToken);
-    return this._runGasCall('addMasterTask', [title, category]);
+    return addMasterTaskRest(title, category, accessToken);
   }
 
   /**
@@ -1488,17 +1437,15 @@ export class GASBridge {
    */
   async markMasterTaskMoved(masterTaskId, targetDateStr, movedTaskId) {
     const accessToken = !this.useMock ? getAccessToken() : null;
-    const hasGasRpc = !this.useMock && typeof window !== 'undefined' && !!window.google?.script?.run;
 
-    if (this.useMock || (!accessToken && !hasGasRpc)) {
+    if (this.useMock || !accessToken) {
       const task = this.mockData.masterTasks.find(t => t.id === masterTaskId);
       if (!task) return null;
       task.movedTo = targetDateStr;
       task.movedTaskId = movedTaskId;
       return task;
     }
-    if (accessToken) return markMasterTaskMovedRest(masterTaskId, targetDateStr, movedTaskId, accessToken);
-    return this._runGasCall('markMasterTaskMoved', [masterTaskId, targetDateStr, movedTaskId]);
+    return markMasterTaskMovedRest(masterTaskId, targetDateStr, movedTaskId, accessToken);
   }
 
   /**
@@ -1517,10 +1464,6 @@ export class GASBridge {
     const accessToken = getAccessToken();
     if (accessToken) return resolveLinkTitleRest(url, accessToken);
 
-    if (typeof window !== 'undefined' && window.google?.script?.run) {
-      return this._runGasCall('resolveDriveFileTitle', [url]);
-    }
-
     return { success: false, error: 'Drive title lookup is unavailable in local/mock mode.' };
   }
 
@@ -1534,9 +1477,8 @@ export class GASBridge {
    */
   async addDailyTask(dateStr, title, category = 'General', sourceMasterId) {
     const accessToken = !this.useMock ? getAccessToken() : null;
-    const hasGasRpc = !this.useMock && typeof window !== 'undefined' && !!window.google?.script?.run;
 
-    if (this.useMock || (!accessToken && !hasGasRpc)) {
+    if (this.useMock || !accessToken) {
       if (!this.mockData.dailyTasks[dateStr]) {
         this.mockData.dailyTasks[dateStr] = [];
       }
@@ -1554,13 +1496,12 @@ export class GASBridge {
 
     if (this.isOnline()) {
       try {
-        if (accessToken) return await addDailyTaskRest(dateStr, title, category, sourceMasterId, accessToken);
-        return await this._runGasCall('addDailyTask', [dateStr, title, category, sourceMasterId]);
+        return await addDailyTaskRest(dateStr, title, category, sourceMasterId, accessToken);
       } catch (err) {
-        // A REST fetch failure and google.script.run's failure handler both fire for either a
-        // real network drop or a server-side exception (no way to tell them apart client-side)
-        // — log loudly rather than assume "just offline". If this is a genuine (non-transient)
-        // error, it will keep failing on retry and surface via flushOutbox's `failed` count.
+        // Could be a real network drop or a server-side exception (no way to tell them apart
+        // client-side) — log loudly rather than assume "just offline". If this is a genuine
+        // (non-transient) error, it will keep failing on retry and surface via flushOutbox's
+        // `failed` count.
         console.error('addDailyTask online call failed — queueing for offline retry', err);
       }
     }
@@ -1579,9 +1520,8 @@ export class GASBridge {
    */
   async updateDailyTask(dateStr, taskId, updates = {}) {
     const accessToken = !this.useMock ? getAccessToken() : null;
-    const hasGasRpc = !this.useMock && typeof window !== 'undefined' && !!window.google?.script?.run;
 
-    if (this.useMock || (!accessToken && !hasGasRpc)) {
+    if (this.useMock || !accessToken) {
       const tasks = this.mockData.dailyTasks[dateStr] || this.mockData.dailyTasks['2026-08-15'] || [];
       const taskIndex = tasks.findIndex(t => t.id === taskId);
       if (taskIndex === -1) return null;
@@ -1602,8 +1542,7 @@ export class GASBridge {
 
     if (this.isOnline()) {
       try {
-        if (accessToken) return await updateDailyTaskRest(dateStr, taskId, updates, accessToken);
-        return await this._runGasCall('updateDailyTask', [dateStr, taskId, updates]);
+        return await updateDailyTaskRest(dateStr, taskId, updates, accessToken);
       } catch (err) {
         // See addDailyTask above: this may be a real (non-transient) server error, not just
         // offline — log loudly; a persistent failure surfaces via flushOutbox's `failed` count.
@@ -1623,9 +1562,8 @@ export class GASBridge {
    */
   async addCalendarEvent(dateStr, eventData = {}) {
     const accessToken = !this.useMock ? getAccessToken() : null;
-    const hasGasRpc = !this.useMock && typeof window !== 'undefined' && !!window.google?.script?.run;
 
-    if (this.useMock || (!accessToken && !hasGasRpc)) {
+    if (this.useMock || !accessToken) {
       if (!this.mockData.calendarEvents[dateStr]) {
         this.mockData.calendarEvents[dateStr] = [];
       }
@@ -1673,8 +1611,7 @@ export class GASBridge {
 
     if (this.isOnline()) {
       try {
-        if (accessToken) return await addCalendarEventRest(dateStr, eventData, accessToken);
-        return await this._runGasCall('addCalendarEvent', [dateStr, eventData]);
+        return await addCalendarEventRest(dateStr, eventData, accessToken);
       } catch (err) {
         // See addDailyTask above: this may be a real (non-transient) server error, not just
         // offline — log loudly; a persistent failure surfaces via flushOutbox's `failed` count.
@@ -1740,15 +1677,6 @@ export class GASBridge {
     const accessToken = getAccessToken();
     if (accessToken) return fetchRecentAttendees(lookbackDays, lookaheadDays, accessToken);
 
-    if (typeof window !== 'undefined' && window.google?.script?.run) {
-      return new Promise((resolve, reject) => {
-        window.google.script.run
-          .withSuccessHandler(resolve)
-          .withFailureHandler(reject)
-          .getRecentAttendees(lookbackDays, lookaheadDays);
-      });
-    }
-
     return this._mockRecentAttendees();
   }
 
@@ -1761,9 +1689,8 @@ export class GASBridge {
    */
   async updateCalendarEvent(dateStr, eventId, updates = {}) {
     const accessToken = !this.useMock ? getAccessToken() : null;
-    const hasGasRpc = !this.useMock && typeof window !== 'undefined' && !!window.google?.script?.run;
 
-    if (this.useMock || (!accessToken && !hasGasRpc)) {
+    if (this.useMock || !accessToken) {
       const events = this.mockData.calendarEvents[dateStr] || this.mockData.calendarEvents['2026-08-15'] || [];
       const eventIndex = events.findIndex(e => e.id === eventId);
       if (eventIndex === -1) return null;
@@ -1775,8 +1702,7 @@ export class GASBridge {
 
     if (this.isOnline()) {
       try {
-        if (accessToken) return await updateCalendarEventRest(eventId, updates, accessToken);
-        return await this._runGasCall('updateCalendarEvent', [dateStr, eventId, updates]);
+        return await updateCalendarEventRest(eventId, updates, accessToken);
       } catch (err) {
         // See addDailyTask above: this may be a real (non-transient) server error, not just
         // offline — log loudly; a persistent failure surfaces via flushOutbox's `failed` count.
@@ -1829,15 +1755,6 @@ export class GASBridge {
       return reconciled;
     }
 
-    if (typeof window !== 'undefined' && window.google?.script?.run) {
-      return new Promise((resolve, reject) => {
-        window.google.script.run
-          .withSuccessHandler(resolve)
-          .withFailureHandler(reject)
-          .syncWorkspaceChanges(dateStr);
-      });
-    }
-
     const tasks = this.mockData.dailyTasks[dateStr] || this.mockData.dailyTasks['2026-08-15'] || [];
     const events = this.mockData.calendarEvents[dateStr] || this.mockData.calendarEvents['2026-08-15'] || [];
     return reconcileWorkspaceChanges(tasks, events);
@@ -1883,9 +1800,8 @@ export class GASBridge {
     })();
 
     const accessToken = !this.useMock ? getAccessToken() : null;
-    const hasGasRpc = !this.useMock && typeof window !== 'undefined' && !!window.google?.script?.run;
 
-    if (this.useMock || (!accessToken && !hasGasRpc)) {
+    if (this.useMock || !accessToken) {
       const tasks = this.mockData.dailyTasks[dateStr] || [];
       const sourceTask = tasks.find(t => t.id === taskId);
       if (!sourceTask) return null;
@@ -1900,8 +1816,7 @@ export class GASBridge {
       return { originalTask: sourceTask, forwardedTask };
     }
 
-    if (accessToken) return forwardDailyTaskRest(dateStr, taskId, sourceTaskSnapshot, resolvedTargetDate, accessToken);
-    return this._runGasCall('forwardDailyTask', [dateStr, taskId, sourceTaskSnapshot, resolvedTargetDate]);
+    return forwardDailyTaskRest(dateStr, taskId, sourceTaskSnapshot, resolvedTargetDate, accessToken);
   }
 
   /**
@@ -1922,10 +1837,6 @@ export class GASBridge {
     const accessToken = getAccessToken();
     if (accessToken) return fetchFutureMatrix(year, accessToken);
 
-    if (typeof window !== 'undefined' && window.google?.script?.run) {
-      return this._runGasCall('getFutureMatrix', [year]);
-    }
-
     if (!this.mockData.futureMatrix[year]) {
       this.mockData.futureMatrix[year] = mockYearMatrix(year);
     }
@@ -1942,9 +1853,8 @@ export class GASBridge {
    */
   async addFutureItem(year, monthKey, title, category = 'General') {
     const accessToken = !this.useMock ? getAccessToken() : null;
-    const hasGasRpc = !this.useMock && typeof window !== 'undefined' && !!window.google?.script?.run;
 
-    if (this.useMock || (!accessToken && !hasGasRpc)) {
+    if (this.useMock || !accessToken) {
       if (!this.mockData.futureMatrix[year]) {
         this.mockData.futureMatrix[year] = mockYearMatrix(year);
       }
@@ -1955,8 +1865,7 @@ export class GASBridge {
       return newItem;
     }
 
-    if (accessToken) return addFutureItemRest(year, monthKey, title, category, accessToken);
-    return this._runGasCall('addFutureItem', [year, monthKey, title, category]);
+    return addFutureItemRest(year, monthKey, title, category, accessToken);
   }
 
   /**
@@ -1970,9 +1879,8 @@ export class GASBridge {
    */
   async updateFutureItemStatus(year, monthKey, itemId, status) {
     const accessToken = !this.useMock ? getAccessToken() : null;
-    const hasGasRpc = !this.useMock && typeof window !== 'undefined' && !!window.google?.script?.run;
 
-    if (this.useMock || (!accessToken && !hasGasRpc)) {
+    if (this.useMock || !accessToken) {
       const items = this.mockData.futureMatrix[year]?.months?.[monthKey] || [];
       const item = items.find(i => i.id === itemId);
       if (!item) return null;
@@ -1980,8 +1888,7 @@ export class GASBridge {
       return item;
     }
 
-    if (accessToken) return updateFutureItemStatusRest(year, monthKey, itemId, status, accessToken);
-    return this._runGasCall('updateFutureItemStatus', [year, monthKey, itemId, status]);
+    return updateFutureItemStatusRest(year, monthKey, itemId, status, accessToken);
   }
 
   /**
@@ -1996,9 +1903,8 @@ export class GASBridge {
    */
   async transferFutureItem(year, monthKey, itemId, dateStr, priorityGroup = 'A') {
     const accessToken = !this.useMock ? getAccessToken() : null;
-    const hasGasRpc = !this.useMock && typeof window !== 'undefined' && !!window.google?.script?.run;
 
-    if (this.useMock || (!accessToken && !hasGasRpc)) {
+    if (this.useMock || !accessToken) {
       const items = this.mockData.futureMatrix[year]?.months?.[monthKey] || [];
       const idx = items.findIndex(i => i.id === itemId);
       if (idx === -1) return null;
@@ -2011,8 +1917,7 @@ export class GASBridge {
       return newDailyTask;
     }
 
-    if (accessToken) return transferFutureItemRest(year, monthKey, itemId, dateStr, priorityGroup, accessToken);
-    return this._runGasCall('transferFutureItem', [year, monthKey, itemId, dateStr, priorityGroup]);
+    return transferFutureItemRest(year, monthKey, itemId, dateStr, priorityGroup, accessToken);
   }
 
   /**
@@ -2025,9 +1930,8 @@ export class GASBridge {
    */
   async pushFutureItemToNextMonth(year, monthKey, itemId) {
     const accessToken = !this.useMock ? getAccessToken() : null;
-    const hasGasRpc = !this.useMock && typeof window !== 'undefined' && !!window.google?.script?.run;
 
-    if (this.useMock || (!accessToken && !hasGasRpc)) {
+    if (this.useMock || !accessToken) {
       const items = this.mockData.futureMatrix[year]?.months?.[monthKey] || [];
       const idx = items.findIndex(i => i.id === itemId);
       if (idx === -1) return null;
@@ -2044,8 +1948,7 @@ export class GASBridge {
       return item;
     }
 
-    if (accessToken) return pushFutureItemToNextMonthRest(year, monthKey, itemId, accessToken);
-    return this._runGasCall('pushFutureItemToNextMonth', [year, monthKey, itemId]);
+    return pushFutureItemToNextMonthRest(year, monthKey, itemId, accessToken);
   }
 
   /**
@@ -2056,17 +1959,15 @@ export class GASBridge {
    */
   async saveDailyDocCards(dateStr, noteContent) {
     const accessToken = !this.useMock ? getAccessToken() : null;
-    const hasGasRpc = !this.useMock && typeof window !== 'undefined' && !!window.google?.script?.run;
 
-    if (this.useMock || (!accessToken && !hasGasRpc)) {
+    if (this.useMock || !accessToken) {
       this.mockData.dailyNotes[dateStr] = noteContent;
       return tagMock({ success: true, docName: `Day Planner Notes - Mock ${dateStr}` });
     }
 
     if (this.isOnline()) {
       try {
-        if (accessToken) return await saveDailyDocCardsRest(dateStr, noteContent, accessToken);
-        return await this._runGasCall('saveDailyDocCards', [dateStr, noteContent]);
+        return await saveDailyDocCardsRest(dateStr, noteContent, accessToken);
       } catch (err) {
         // See addDailyTask above: this may be a real (non-transient) server error, not just
         // offline — log loudly; a persistent failure surfaces via flushOutbox's `failed` count.

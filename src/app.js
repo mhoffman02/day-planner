@@ -995,8 +995,8 @@ if ('serviceWorker' in navigator) {
 
       /**
        * Keeps `centerDateStr` +/- 7 days warm in IndexedDB in the background so day-to-day
-       * navigation reads from cache instantly instead of waiting on a live google.script.run
-       * round trip. Skips dates already cached or already in flight.
+       * navigation reads from cache instantly instead of waiting on a live REST round trip.
+       * Skips dates already cached or already in flight.
        * @param {string} centerDateStr Date to prefetch around, in YYYY-MM-DD format.
        * @returns {void}
        */

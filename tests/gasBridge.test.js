@@ -36,42 +36,11 @@ import {
 import IndexedDbStore from '../src/indexedDbStore.js';
 import * as googleAuth from '../src/googleAuth.js';
 
-/**
- * Simulates `window.google.script.run.withSuccessHandler(fn).withFailureHandler(fn).method(...)`
- * against a plain map of { methodName: (...args) => result | throws }.
- */
-function createFakeGoogleScriptRun(handlers) {
-  function makeRunner(successHandler, failureHandler) {
-    return new Proxy({}, {
-      get(_target, prop) {
-        if (prop === 'withSuccessHandler') return (fn) => makeRunner(fn, failureHandler);
-        if (prop === 'withFailureHandler') return (fn) => makeRunner(successHandler, fn);
-        return (...args) => {
-          const impl = handlers[prop];
-          try {
-            if (!impl) throw new Error(`No fake handler registered for ${String(prop)}`);
-            successHandler(impl(...args));
-          } catch (err) {
-            failureHandler(err);
-          }
-        };
-      }
-    });
-  }
-  return makeRunner(null, null);
-}
-
-function installFakeWindow(handlers) {
-  globalThis.window = { google: { script: { run: createFakeGoogleScriptRun(handlers) } } };
-}
-
-function uninstallFakeWindow() {
-  delete globalThis.window;
-}
-
 describe('GAS Bridge Offline Write Queue Unit Tests', () => {
   it('should queue an add-task mutation to the outbox when offline and return a temp-id placeholder', async () => {
-    installFakeWindow({});
+    installFakeGisSignedIn('tok_offline');
+    await googleAuth.initGoogleAuth('test-client-id');
+    await googleAuth.signIn();
     try {
       const bridge = new GASBridge(false);
       bridge._forceOffline = true;
@@ -86,12 +55,15 @@ describe('GAS Bridge Offline Write Queue Unit Tests', () => {
 
       await IndexedDbStore.idbDequeueMutation(match.id);
     } finally {
-      uninstallFakeWindow();
+      googleAuth.signOut();
+      uninstallFakeGis();
     }
   });
 
   it('should queue an update-task mutation when offline and return an optimistic merge', async () => {
-    installFakeWindow({});
+    installFakeGisSignedIn('tok_offline');
+    await googleAuth.initGoogleAuth('test-client-id');
+    await googleAuth.signIn();
     try {
       const bridge = new GASBridge(false);
       bridge._forceOffline = true;
@@ -107,14 +79,15 @@ describe('GAS Bridge Offline Write Queue Unit Tests', () => {
 
       await IndexedDbStore.idbDequeueMutation(match.id);
     } finally {
-      uninstallFakeWindow();
+      googleAuth.signOut();
+      uninstallFakeGis();
     }
   });
 
   it('should replay queued mutations in order once back online and resolve temp ids to real ids', async () => {
-    installFakeWindow({
-      addDailyTask: (dateStr, title, category) => ({ id: 'real_task_99', title, status: '•', category, dueDate: dateStr })
-    });
+    installFakeGisSignedIn('tok_offline');
+    await googleAuth.initGoogleAuth('test-client-id');
+    await googleAuth.signIn();
     try {
       const bridge = new GASBridge(false);
       bridge._forceOffline = true;
@@ -122,6 +95,10 @@ describe('GAS Bridge Offline Write Queue Unit Tests', () => {
       assert.ok(queued.id.startsWith('offline_task_'));
 
       bridge._forceOffline = false;
+      globalThis.fetch = async () => ({
+        ok: true,
+        json: async () => ({ id: 'real_task_99', title: '[A1] Flush me', status: 'needsAction', due: '2026-08-21T00:00:00.000Z' })
+      });
       const resolutions = [];
       const flushResult = await bridge.flushOutbox((mutation, result, tempIdMap) => {
         resolutions.push({ mutation, result, tempIdMap });
@@ -137,14 +114,15 @@ describe('GAS Bridge Offline Write Queue Unit Tests', () => {
       const outbox = await IndexedDbStore.idbGetOutbox();
       assert.equal(outbox.some(m => m.payload.tempId === queued.id), false);
     } finally {
-      uninstallFakeWindow();
+      googleAuth.signOut();
+      uninstallFakeGis();
     }
   });
 
   it('should stop flushing at the first failed mutation, leaving later ones queued for retry', async () => {
-    installFakeWindow({
-      addDailyTask: () => { throw new Error('simulated backend failure'); }
-    });
+    installFakeGisSignedIn('tok_offline');
+    await googleAuth.initGoogleAuth('test-client-id');
+    await googleAuth.signIn();
     let firstId, secondId;
     try {
       const bridge = new GASBridge(false);
@@ -155,6 +133,7 @@ describe('GAS Bridge Offline Write Queue Unit Tests', () => {
       secondId = second.id;
 
       bridge._forceOffline = false;
+      globalThis.fetch = async () => ({ ok: false, status: 500, statusText: 'Error', text: async () => 'simulated backend failure' });
       const flushResult = await bridge.flushOutbox();
 
       assert.equal(flushResult.flushed, 0);
@@ -164,7 +143,8 @@ describe('GAS Bridge Offline Write Queue Unit Tests', () => {
       const outbox = await IndexedDbStore.idbGetOutbox();
       assert.equal(outbox.filter(m => m.payload.tempId === firstId || m.payload.tempId === secondId).length, 2);
     } finally {
-      uninstallFakeWindow();
+      googleAuth.signOut();
+      uninstallFakeGis();
       const outbox = await IndexedDbStore.idbGetOutbox();
       for (const m of outbox) {
         if (m.payload.tempId === firstId || m.payload.tempId === secondId) {
@@ -620,21 +600,12 @@ describe('GAS Bridge REST Unit Tests (Google Identity Services token present)', 
     assert.equal(data.noteContent, 'Real note content');
   });
 
-  it('getDailyData() falls back to google.script.run when no access token is present but window.google.script.run is', async () => {
-    globalThis.window = {
-      google: {
-        script: {
-          run: {
-            withSuccessHandler(fn) {
-              return { withFailureHandler: () => ({ getDailyData: (dateStr) => fn({ date: dateStr, tasks: ['from-gas'], calendarEvents: [], noteContent: 'n' }) }) };
-            }
-          }
-        }
-      }
-    };
+  it('getDailyData() falls back to mock data when no access token is present (signed out)', async () => {
     const bridge = new GASBridge(false);
-    const data = await bridge.getDailyData('2026-08-21');
-    assert.deepEqual(data.tasks, ['from-gas']);
+    const data = await bridge.getDailyData('2026-08-15');
+    assert.equal(data.date, '2026-08-15');
+    assert.equal(data.tasks.length, 1);
+    assert.ok(data.noteContent.includes('Get started'));
   });
 
   it('syncWorkspace() reconciles via REST and persists the resulting diff when a GIS access token is present', async () => {

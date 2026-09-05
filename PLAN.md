@@ -53,14 +53,11 @@ Current: `npm test` for the up-to-date count/suite total.
   `gas-removal-static-client` Stage 5 deleted `gas-app/` entirely — `src/gasBridge.js`'s REST
   implementation is now the only copy of this logic, so there's nothing left to reconcile or
   duplicate test coverage for.
-- Known follow-up, not yet done: `src/gasBridge.js` still carries ~15 dead
-  `window.google.script.run`/`_runGasCall` fallback branches from the pre-REST era. They're
-  inert (never reachable — there's no GAS runtime left to call) but not yet stripped; a
-  mechanical cleanup pass, not urgent.
-- Known follow-up, not yet done: `tools/e2e/smoke-test.js` still carries GAS-iframe-nesting
-  detection logic (`userCodeAppPanel`/`#userHtmlFrame`) from when the only Google-authenticated
-  target was a live GAS deployment. It degrades gracefully for the current plain static site
-  (falls through to `document` directly) but is now dead complexity worth simplifying.
+- ~~`src/gasBridge.js`'s dead `window.google.script.run`/`_runGasCall` fallback branches~~ /
+  ~~`tools/e2e/smoke-test.js`'s GAS-iframe-nesting detection~~ **Done (2026-09-05).** Both
+  mechanical cleanup passes landed: `gasBridge.js` dropped `_runGasCall()` and ~15 dead
+  branches (mock/REST paths only now); `smoke-test.js` dropped the `userCodeAppPanel`/
+  `#userHtmlFrame` iframe detection (137→82 lines, always queries `document` directly).
 
 ## History
 Phases 1-14 (initial build through full regression pass, security hardening, and the esbuild
