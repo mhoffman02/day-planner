@@ -1,8 +1,8 @@
 # Session Context
 
-Generated: 2026-09-05T16:37:03.687Z
+Generated: 2026-09-05T20:40:55.528Z
 Branch: worktree-gasbridge-cleanup
-Last commit: ba2b07a docs(retro): Unify signed-out/offline write queuing + dismissible status banner
+Last commit: a3b75e9 feat(tasks): add star toggle, per-column sort, and notes-preview popover
 Uncommitted files: 0
 
 ## Open PLAN.md items
