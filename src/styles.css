@@ -1955,6 +1955,15 @@ footer.modal-actions {
   color: #ffffff;
 }
 
+.btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-primary:disabled:hover {
+  background: var(--theme-primary);
+}
+
 .btn-add-task-round {
   width: 26px;
   height: 26px;

@@ -237,7 +237,7 @@
                 <option value="C">Priority C</option>
               </select>
               <input type="text" x-model="newTaskTitle" placeholder="Add task title (e.g. Call vendor)..." class="task-input-field" aria-label="New task description">
-              <button type="submit" class="btn-primary btn-add-task-round" aria-label="Add Task" title="Add Task">
+              <button type="submit" class="btn-primary btn-add-task-round" :disabled="newTaskTitle.trim().length < 2" aria-label="Add Task" title="Add Task">
                 <span class="material-symbols-outlined">add</span>
               </button>
             </form>

@@ -2172,7 +2172,7 @@ if ('serviceWorker' in navigator) {
        * @returns {Promise<void>}
        */
       async addDailyTask() {
-        if (!this.newTaskTitle.trim()) return;
+        if (this.newTaskTitle.trim().length < 2) return;
         try {
           const existingCount = this.dailyTasks.length + 1;
           const formattedTitle = formatTaskTitle(this.newTaskPriorityGroup, existingCount, this.newTaskTitle);
