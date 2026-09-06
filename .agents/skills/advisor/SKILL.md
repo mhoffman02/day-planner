@@ -2,7 +2,7 @@
 name: advisor
 description: Ask the Opus / Claude / Gemini Pro Advisor for design decisions, architecture choices, or debugging advice for day-planner.
 tags: [advisor, design, architecture, day-planner, review]
-version: 2.2.0
+version: 2.3.0
 ---
 
 # Advisor Skill — Architecture & Design Consultant
@@ -23,9 +23,15 @@ Use this skill when seeking design feedback, architecture guidance, or structura
     ```
 - **In Claude Code CLI (`claude`)**:
   - For deep design decisions (new engine modules, storage-contract changes, OAuth re-scoping,
-    sync/reconciliation algorithm design), dispatch the `architecture-advisor` subagent
-    (`.claude/agents/architecture-advisor.md`, Opus, read-only) via the Agent tool.
-  - For lighter/quick questions, answer directly using Claude Sonnet 5 / Opus 5.
+    sync/reconciliation algorithm design): first dispatch `scout` (`.claude/agents/scout.md`,
+    Haiku, read-only) to gather a repo-context digest, and `web-scout`
+    (`.claude/agents/web-scout.md`, Haiku, read-only) too if the question depends on current
+    external information (Google API/OAuth changes, library status, current best practices).
+    Then dispatch `architecture-advisor` (`.claude/agents/architecture-advisor.md`, Opus,
+    read-only) via the Agent tool with both digests included in its prompt, so it reasons over
+    curated context instead of re-exploring/re-researching from scratch.
+  - For lighter/quick questions, answer directly using Claude Sonnet 5 / Opus 5 — skip the scout
+    step entirely; it's only worth the extra hop for non-trivial dispatches.
 
 ## Application Architecture Context
 - **Node.js Local Server**: `server.js` (static file server for local dev & testing)

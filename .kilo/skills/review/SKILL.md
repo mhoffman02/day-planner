@@ -2,7 +2,7 @@
 name: review
 description: Perform code quality, safety, and synchronization review on day-planner uncommitted changes or specific files.
 tags: [review, code-review, quality, esm, day-planner]
-version: 2.2.0
+version: 2.3.0
 ---
 
 # Day Planner Code Review Skill
@@ -34,6 +34,11 @@ Targeting:
 - **DOM Injection & External Links**: Check that all dynamic HTML is escaped and `target="_blank"` carries `rel="noopener noreferrer"`.
 - **Harness Routing**:
   - In **Antigravity CLI**: Dispatch `invoke_subagent(Model="pro", Role="Security Reviewer", Prompt="...")` for a first pass. For a deep pre-merge audit, run `/consult-claude` to delegate it to Claude Code headlessly in this same session (per [[cross-cli-headless-invocation]]). Only fall back to posting a review request to the bridge (`node tools/agent-bridge.js send --from agy --to claude --type review "..."`) and prompting the user to switch to **Claude Code CLI** if a full interactive handoff is what's actually wanted.
-  - In **Claude Code CLI**: Dispatch the `deep-reviewer` subagent (`.claude/agents/deep-reviewer.md`,
-    Opus, read-only) for the Stage 2 semantic/security audit via the Agent tool — Stage 1
-    mechanical checks above still run directly, not through the subagent.
+  - In **Claude Code CLI**: For a non-trivial diff, first dispatch `scout`
+    (`.claude/agents/scout.md`, Haiku, read-only) to gather a digest of the changed code and its
+    call sites — add `web-scout` (`.claude/agents/web-scout.md`, Haiku, read-only) too if the
+    change touches Google API/OAuth behavior that may have shifted since the code was written.
+    Then dispatch `deep-reviewer` (`.claude/agents/deep-reviewer.md`, Opus, read-only) for the
+    Stage 2 semantic/security audit via the Agent tool, with the digest(s) included in its prompt.
+    Stage 1 mechanical checks above still run directly, not through any subagent. For a small,
+    localized diff, skip straight to `deep-reviewer` — the scout hop isn't worth it.
