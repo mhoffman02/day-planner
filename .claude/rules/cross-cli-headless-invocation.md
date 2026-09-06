@@ -8,33 +8,37 @@ Both binaries (`agy`, `claude`) are installed locally; a plain shell-out is suff
 ## Invoking Claude Code headlessly (target: `claude`)
 
 ```bash
-claude --bare -p "<task>" --permission-mode acceptEdits --allowedTools "<scoped list>" --add-dir <repo-root>
+claude --safe-mode -p "<task>" --permission-mode acceptEdits --allowedTools "<scoped list>" --add-dir <repo-root>
 ```
 
 - `--permission-mode acceptEdits` (or `auto` with `--permission-prompts none`) is **mandatory**
   for any unattended call — without it, headless Claude Code hangs forever waiting for a tool-use
   approval no one is present to give.
-- `--bare` skips CLAUDE.md/hooks/settings auto-load. The caller must inline enough context in the
-  prompt itself (relevant file paths, the constraint that matters) rather than relying on ambient
-  project config being loaded for it.
+- `--safe-mode` skips CLAUDE.md/skills/plugins/hooks while preserving OAuth credentials and tool
+  execution. The caller must inline enough context in the prompt itself (relevant file paths, the
+  constraint that matters).
 - Scope `--allowedTools` to what the task actually needs (e.g. `"Read"` for an inspection call,
   `"Read,Edit,Bash"` for a scoped fix) — don't grant blanket tool access to a one-shot call.
-- **Auth caveat**: these flags are correct per `claude --help`, but a headless child process needs
-  its own valid login (`~/.claude/.credentials.json` on a normal machine). A sandboxed/background-
-  job session does not necessarily inherit that credential even when one exists for interactive use
-  on the same machine (`Not logged in · Please run /login`) — verify with a trivial read-only call
-  before relying on this from inside such a session; it's expected to work from a normal
-  interactive terminal where `claude` is already logged in.
+- **Auth caveat (`--bare` vs `--safe-mode`)**: `--bare` skips keychain reads per `claude --help`.
+  When using OAuth subscription login (`claudeAiOauth`), `--bare` fails with
+  `Not logged in · Please run /login` unless `ANTHROPIC_API_KEY` is explicitly set in the environment.
+  Using `--safe-mode` preserves OAuth credentials from `~/.claude/.credentials.json` while still
+  disabling hooks and extraneous customization.
 
 ## Invoking AGY headlessly (target: `agy`)
 
 ```bash
-agy -p "<task>"
+agy -p "<task>" --dangerously-skip-permissions
 ```
 
-Permission-equivalent flags for unattended AGY invocation are AGY's own side of this contract —
-to be filled in by the Antigravity session against its own hooks/settings model, not hardcoded
-here from the Claude Code side.
+- `--dangerously-skip-permissions` is **mandatory** for unattended calls — without it, headless AGY
+  auto-denies tool calls that require permission confirmation, exiting with:
+  `jetski: no output produced — a tool required the "command" permission that headless mode cannot prompt for, so it was auto-denied`.
+- `--mode accept-edits` can be specified if the delegation is strictly limited to file modifications,
+  but `--dangerously-skip-permissions` is required for command execution (tests, git queries, lint).
+- `-p` (or `--print`) runs non-interactively and prints the agent's response to stdout.
+- `--model <model>` can optionally select the model tier (e.g. flash for rapid Tier 2/3 worker loops).
+- `--add-dir <repo-root>` adds the repo root when invoking from an outside working directory.
 
 ## Routing table
 

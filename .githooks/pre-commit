@@ -29,6 +29,13 @@ if [ -n "$JS_FILES" ]; then
     ERRORS=$((ERRORS + 1))
   fi
 
+  # ── ESM Import Specifiers ──────────────────────────────────────────────────
+  echo "🔍 Checking ESM relative import extensions..."
+  if ! node tools/check-esm-imports.js; then
+    echo "❌ [BLOCKER] Missing explicit .js extensions on relative imports"
+    ERRORS=$((ERRORS + 1))
+  fi
+
   # ── Unit Test Suite ────────────────────────────────────────────────────────
   echo "🧪 Running unit tests..."
   if ! npm test; then

@@ -18,7 +18,7 @@ commit in this session).
 ## Execution
 
 ```bash
-agy -p "<scoped task description, with relevant file paths inlined>"
+agy -p "<scoped task description, with relevant file paths inlined>" --dangerously-skip-permissions
 ```
 
 Then:

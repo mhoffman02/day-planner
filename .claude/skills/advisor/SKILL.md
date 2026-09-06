@@ -1,13 +1,24 @@
 ---
 name: advisor
-description: Ask the Opus / Gemini Advisor for design decisions, architecture choices, or debugging advice for day-planner.
+description: Ask the Opus / Claude / Gemini Pro Advisor for design decisions, architecture choices, or debugging advice for day-planner.
 tags: [advisor, design, architecture, day-planner, review]
-version: 2.0.0
+version: 2.1.0
 ---
 
 # Advisor Skill — Architecture & Design Consultant
 
 Use this skill when seeking design feedback, architecture guidance, or structural advice for the `day-planner` codebase.
+
+## Harness Execution Strategy
+
+- **In Antigravity CLI (`agy`)**:
+  - Dispatch a Tier 1 strategic subagent via `invoke_subagent(Model="pro", Role="Architect Advisor", Prompt="...")`.
+  - For deep design decisions affecting OAuth scopes or whole-architecture pivots, post to the bridge and prompt the user to switch to **Claude Code CLI**:
+    ```bash
+    node tools/agent-bridge.js send --from agy --to claude --type question "..."
+    ```
+- **In Claude Code CLI (`claude`)**:
+  - Execute directly using Claude Pro (Claude 3.7 Sonnet / Opus).
 
 ## Application Architecture Context
 - **Node.js Local Server**: `server.js` (static file server for local dev & testing)
