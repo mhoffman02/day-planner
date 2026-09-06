@@ -36,8 +36,11 @@ function loadState() {
   if (fs.existsSync(STATE_FILE)) {
     try {
       return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
-    } catch {
-      // fallback
+    } catch (err) {
+      console.error(`⚠️ Warning: Failed to parse ${STATE_FILE}: ${err.message}`);
+      const backup = `${STATE_FILE}.corrupt-${Date.now()}`;
+      fs.copyFileSync(STATE_FILE, backup);
+      console.error(`📦 Corrupted state backed up to ${backup}`);
     }
   }
   return { messages: [] };
