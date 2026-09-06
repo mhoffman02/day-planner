@@ -4,6 +4,8 @@ Either CLI may act as the interactive driver for a session; the other is invoked
 mid-session, as a synchronous one-shot expert/worker call — not via a human switching terminals.
 This supplements [[dual-cli-blended-workflow]]'s tier table with the actual invocation mechanics.
 Both binaries (`agy`, `claude`) are installed locally; a plain shell-out is sufficient plumbing.
+**Neither CLI uses API keys** (`ANTHROPIC_API_KEY` / `GEMINI_API_KEY` are NOT used) — this is a pure
+CLI-to-CLI protocol relying on each tool's local authenticated subscription login.
 
 ## Invoking Claude Code headlessly (target: `claude`)
 
@@ -11,6 +13,8 @@ Both binaries (`agy`, `claude`) are installed locally; a plain shell-out is suff
 claude --safe-mode -p "<task>" --permission-mode acceptEdits --allowedTools "<scoped list>" --add-dir <repo-root>
 ```
 
+- If stuck or needing deep architectural guidance from AGY, invoke the Opus advisor directly with:
+  `claude --safe-mode --model opus --effort medium -p "<task>" --permission-mode acceptEdits --allowedTools "Read" --add-dir <repo-root>`
 - `--permission-mode acceptEdits` (or `auto` with `--permission-prompts none`) is **mandatory**
   for any unattended call — without it, headless Claude Code hangs forever waiting for a tool-use
   approval no one is present to give.

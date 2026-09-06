@@ -13,7 +13,11 @@ Use this skill when seeking design feedback, architecture guidance, or structura
 
 - **In Antigravity CLI (`agy`)**:
   - Dispatch a Tier 1 strategic subagent via `invoke_subagent(Model="pro", Role="Architect Advisor", Prompt="...")`.
-  - For deep design decisions affecting OAuth scopes or whole-architecture pivots, post to the bridge and prompt the user to switch to **Claude Code CLI**:
+  - For deep design decisions or if stuck, shell out headlessly directly to Opus as advisor (CLI-to-CLI, using local subscription login, no API keys):
+    ```bash
+    claude --safe-mode --model opus --effort medium -p "<task or architecture question>" --permission-mode acceptEdits --allowedTools "Read" --add-dir /home/mike/projects/day-planner
+    ```
+  - For full interactive session handoffs, post to the bridge and prompt the user to switch to **Claude Code CLI**:
     ```bash
     node tools/agent-bridge.js send --from agy --to claude --type question "..."
     ```
