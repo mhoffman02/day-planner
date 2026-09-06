@@ -620,8 +620,8 @@
                     <td><b x-text="idx.topic"></b></td>
                     <td x-text="idx.summary"></td>
                     <td>
-                      <a :href="idx.docUrl" class="doc-link" target="_blank" rel="noopener noreferrer">
-                        <span class="material-symbols-outlined icon-16">description</span> View Google Doc
+                      <a href="#" class="doc-link" @click.prevent="goToIndexEntryDate(idx)">
+                        <span class="material-symbols-outlined icon-16">description</span> Go to Day
                       </a>
                     </td>
                   </tr>

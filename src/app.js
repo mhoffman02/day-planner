@@ -1983,7 +1983,7 @@ if ('serviceWorker' in navigator) {
               topic = match[1];
               clean = match[2];
             }
-            entries.push({ date: this.selectedDate, topic, summary: clean, docUrl: `#doc-${this.selectedDate}` });
+            entries.push({ date: this.selectedDate, topic, summary: clean });
           }
         });
         this.indexRecords = entries;
