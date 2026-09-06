@@ -310,3 +310,17 @@ All three cross-origin loading strategies fail when a GitHub Pages shell tries t
 - The fetch+merge-base+push worktree pattern was retyped by hand three times in one session and would be worth a one-line npm script
 
 ---
+
+## 2026-09-06 — Symmetric Cross-CLI Headless Protocol
+
+**Worked well:**
+- Established clear routing table between AGY and Claude Code
+- Implemented synchronous subprocess invocation for headless worker tasks
+- Created standard audit trail via agent-bridge.js
+- Verified pure CLI-to-CLI execution without API keys
+
+**Needs improvement:**
+- Ensuring clean credential inheritance across all sub-shell environments
+- Automatic execution of sync-agent-config in pre-commit
+
+---
