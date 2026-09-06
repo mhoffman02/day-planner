@@ -33,5 +33,5 @@ Targeting:
 - **Date Arithmetic Safety**: Check that no local dates use `.toISOString()` (prevents UTC day-shift bugs).
 - **DOM Injection & External Links**: Check that all dynamic HTML is escaped and `target="_blank"` carries `rel="noopener noreferrer"`.
 - **Harness Routing**:
-  - In **Antigravity CLI**: Dispatch `invoke_subagent(Model="pro", Role="Security Reviewer", Prompt="...")`. For deep pre-merge audits, post a review request to the bridge (`node tools/agent-bridge.js send --from agy --to claude --type review "..."`) and prompt the user to run `/review` in **Claude Code CLI**.
-  - In **Claude Code CLI**: Run with Claude Pro (Sonnet/Opus).
+  - In **Antigravity CLI**: Dispatch `invoke_subagent(Model="pro", Role="Security Reviewer", Prompt="...")` for a first pass. For a deep pre-merge audit, run `/consult-claude` to delegate it to Claude Code headlessly in this same session (per [[cross-cli-headless-invocation]]). Only fall back to posting a review request to the bridge (`node tools/agent-bridge.js send --from agy --to claude --type review "..."`) and prompting the user to switch to **Claude Code CLI** if a full interactive handoff is what's actually wanted.
+  - In **Claude Code CLI**: Run with Claude Pro (Sonnet 5/Opus 5).

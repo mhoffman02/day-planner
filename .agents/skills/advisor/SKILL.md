@@ -22,7 +22,7 @@ Use this skill when seeking design feedback, architecture guidance, or structura
     node tools/agent-bridge.js send --from agy --to claude --type question "..."
     ```
 - **In Claude Code CLI (`claude`)**:
-  - Execute directly using Claude Pro (Claude 3.7 Sonnet / Opus).
+  - Execute directly using Claude Pro (Claude Sonnet 5 / Opus 5).
 
 ## Application Architecture Context
 - **Node.js Local Server**: `server.js` (static file server for local dev & testing)
