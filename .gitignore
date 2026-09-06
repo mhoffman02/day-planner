@@ -9,3 +9,4 @@ gh-pwa-shell/
 .vscode/
 output/
 *.tmp
+/smoke-test.png
