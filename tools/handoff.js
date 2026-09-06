@@ -248,7 +248,7 @@ const handoffPrompt = `# Session Handoff & Continuation Prompt — ${dateStr}
 ## Project Overview & Current Architecture
 The **Day Planner** project is a standalone digital binder application styled in classic Day Planner aesthetic (Parchment \`#fcfbfa\`, Teal \`#2d6a5a\`, serif headers).
 - Standalone SPA files: \`index.html\`, \`src/styles.css\`, \`src/app.js\`, \`src/gasBridge.js\`
-- All 41 unit tests pass cleanly (\`npm test\`).
+- All 250 unit tests pass cleanly across 12 test files (\`npm test\`).
 - Local server: \`npm start\` (\`http://localhost:3000\`).
 
 ## Recent Session Work & Commits

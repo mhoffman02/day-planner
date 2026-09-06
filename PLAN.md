@@ -58,6 +58,12 @@ Current: `npm test` for the up-to-date count/suite total.
   mechanical cleanup passes landed: `gasBridge.js` dropped `_runGasCall()` and ~15 dead
   branches (mock/REST paths only now); `smoke-test.js` dropped the `userCodeAppPanel`/
   `#userHtmlFrame` iframe detection (137→82 lines, always queries `document` directly).
+- ~~Dual-CLI Blended Multi-Model Workflow & Symmetric Headless Protocol~~ **Done (2026-09-06).**
+  Added symmetric AGY ↔ Claude Code headless-invocation contract (`.agents/rules/cross-cli-headless-invocation.md`,
+  `.agents/rules/dual-cli-blended-workflow.md`), reciprocal one-shot delegation commands
+  (`/consult-agy` and `/consult-claude`), agent bridge (`tools/agent-bridge.js`), deterministic
+  ESM relative import specifier checker (`tools/check-esm-imports.js`), pre-commit enforcement,
+  and CLI-to-CLI Opus advisor routing without API keys.
 
 ## History
 Phases 1-14 (initial build through full regression pass, security hardening, and the esbuild

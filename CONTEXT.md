@@ -1,8 +1,8 @@
 # Session Context
 
-Generated: 2026-09-05T20:40:55.528Z
-Branch: worktree-gasbridge-cleanup
-Last commit: a3b75e9 feat(tasks): add star toggle, per-column sort, and notes-preview popover
+Generated: 2026-09-06T18:25:00.000Z
+Branch: master
+Last commit: 981690d fix(bridge): protect bridge-state against silent JSON parse overwrites
 Uncommitted files: 0
 
 ## Open PLAN.md items

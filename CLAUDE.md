@@ -8,8 +8,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm test                # Run full suite: node --test tests/*.test.js
 node --test tests/taskEngine.test.js   # Run a single test file
 npm start               # Local preview server -> http://localhost:3000 (serves index.html, /src, /images)
+npm run lint            # ESLint + ESM import extension check
+npm run lint:esm        # Validate explicit .js extensions on relative imports
+npm run bridge          # Inter-harness messaging bridge (node tools/agent-bridge.js)
 npm run build:sw        # Regenerate sw.js's CACHE_NAME hash from current cached asset contents
 npm run build:sw:check  # Fail if that hash is stale relative to the cached assets (pre-commit gate)
+npm run sync:agents     # Mirror .agents/{rules,commands,skills} into .claude/ and .kilo/
+npm run sync:agents:check # Verify mirrors match .agents/ source (pre-commit gate)
 ```
 
 There is no build step for `src/*.js` — it's plain ES modules, served as-is by GitHub Pages,
@@ -116,6 +121,18 @@ Gemini CLI does not natively read `CLAUDE.md`). The tracked cross-machine hook
 `npm install`, including a fresh clone or worktree) — no manual `git config core.hooksPath`
 step needed anymore. `core.hooksPath` lives in the shared, non-worktree-specific `.git/config`,
 so setting it once from any worktree activates it for the whole repo, all worktrees included.
+
+### Dual-CLI Blended Workflow & Headless Protocol
+
+This repository implements a symmetric, multi-model blended workflow between **Claude Code CLI (`claude`)**
+(Tier 1 Architect / Reviewer) and **Antigravity CLI (`agy`)** (Tier 2 Driver / Tier 3 Worker):
+- **Cross-CLI Headless Protocol** (`.agents/rules/cross-cli-headless-invocation.md`): Either CLI can shell
+  out to the other headlessly for synchronous one-shot delegation:
+  - From Claude to AGY: `agy -p "<task>" --dangerously-skip-permissions` (via `/consult-agy`).
+  - From AGY to Claude: `claude --safe-mode -p "<task>" --permission-mode acceptEdits --allowedTools "<tools>" --add-dir <root>` (via `/consult-claude`).
+  - **No API Keys**: Pure CLI-to-CLI invocation relying on local user subscription logins (`~/.claude/.credentials.json`, local AGY auth).
+  - **Opus Advisor**: If AGY driver needs deep architectural consultation without switching terminals, it shells out to Opus via `claude --safe-mode --model opus --effort medium -p "..."`.
+- **Inter-Harness Bridge** (`tools/agent-bridge.js`, `/bridge`): Records audit history, tasks, questions, and handoff directives between harnesses in `.agents/BRIDGE.md` and `.agents/bridge-state.json`.
 
 ## Key gotchas (see README.txt §5 for the full list)
 
