@@ -2,8 +2,8 @@
 /**
  * @file tools/handoff.js
  * @description End-of-session handoff tool: updates PLAN.md/CONTEXT.md, builds HANDOFF_PROMPT.md,
- * stages changes, runs pre-commit findings check & auto-fix, commits (triggers pre-commit linter/test hook),
- * pushes to remote origin, and copies prompt to clipboard.
+ * stages and commits ONLY the files it writes, pushes to remote origin, and copies prompt to clipboard.
+ * Leftover working-tree changes are reported so they keep their own truthful commits.
  */
 
 import { execSync, spawnSync } from 'node:child_process';
@@ -16,6 +16,24 @@ const ROOT = path.resolve(__dirname, '..');
 const readOnly = process.argv.includes('--read-only');
 const preflight = process.argv.includes('--preflight');
 const completedArg = process.argv.find((a) => a.startsWith('--completed='));
+
+/**
+ * Tracks every path written during this handoff run.
+ * Derived from real writes so handoff commits ONLY what it actually produced.
+ * @type {Set<string>}
+ */
+const writtenPaths = new Set();
+
+/**
+ * Writes file content and logs the path for targeted staging.
+ * @param {string} filePath Absolute file path.
+ * @param {string} content File text.
+ * @returns {void}
+ */
+function trackedWrite(filePath, content) {
+  fs.writeFileSync(filePath, content, 'utf8');
+  writtenPaths.add(filePath);
+}
 
 /**
  * Runs a shell command in the repo root and returns its trimmed stdout, or ''
@@ -54,15 +72,7 @@ function toClipboard(text) {
 
 /**
  * Derives a real, one-line `@description` for the auto-injected `@file`
- * header from whatever static signal the source actually contains, since
- * this runs unattended at commit time with no LLM available to write prose.
- * Prefers the file's top-level exported symbols (matches this project's
- * `export function/class/const NAME` style — see src/taskEngine.js etc.);
- * falls back to flagging a Node CLI script by its shebang; and as a last
- * resort says so explicitly rather than emitting a description-shaped
- * sentence with no actual content, which is how the old placeholder text
- * ("Auto-generated JSDoc header for X") ended up committed as if it were
- * real documentation.
+ * header from whatever static signal the source actually contains.
  * @param {string} content File source.
  * @returns {string} One-line description for the injected `@description` tag.
  */
@@ -85,15 +95,11 @@ function describeFileForHeader(content) {
 }
 
 /**
- * Auto-fixes one class of pre-commit finding on currently staged .js files:
- * injects an `@file` JSDoc header — with a real, content-derived
- * `@description` (see describeFileForHeader) — into any staged, non-test,
- * non-config, non-vendor JS file that's missing one, then re-stages the
- * changes.
+ * Auto-fixes findings on currently staged JS files (targeting only files
+ * staged in this run, never running git add .).
  * @returns {void}
  */
 function autoFixFindings() {
-  console.log('🧹 [FIX FINDINGS] Checking and fixing auto-fixable findings...');
   const stagedFiles = sh('git diff --cached --name-only --diff-filter=ACM').split('\n').filter(Boolean);
   const lintable = stagedFiles.filter((relPath) =>
     /\.(js|mjs)$/.test(relPath) &&
@@ -103,10 +109,6 @@ function autoFixFindings() {
   );
   let fixedCount = 0;
 
-  // ── ESLint auto-fix ────────────────────────────────────────────────────────
-  // Purely mechanical (formatting, unused imports, etc.) — no LLM reasoning needed.
-  // Whatever eslint can't fix stays as-is; the real gate is the pre-commit hook's
-  // plain `eslint` check, which fails the commit loudly rather than swallowing it.
   if (lintable.length > 0) {
     const result = spawnSync('npx', ['eslint', '--fix', ...lintable], { cwd: ROOT, encoding: 'utf8' });
     if (result.status === 0) {
@@ -114,45 +116,41 @@ function autoFixFindings() {
     } else {
       console.log(`  ⚠️ [LINT] eslint found issues it could not auto-fix:\n${(result.stdout || result.stderr || '').trim()}`);
     }
-    sh('git add .');
+    for (const rel of lintable) {
+      sh(`git add -- "${rel}"`);
+    }
   }
 
   for (const relPath of stagedFiles) {
     if (!/\.(js|mjs)$/.test(relPath) || /\.test\.js$|\.config\.js$|server\.js/.test(relPath)) {
       continue;
     }
-    // Never stamp a header into vendored/minified third-party code — it isn't
-    // ours to document, and a minified bundle has no meaningful top-level
-    // exports for describeFileForHeader to find anyway.
     if (/(^|\/)vendor\//.test(relPath) || /\.min\.js$/.test(relPath)) {
       continue;
     }
     const fullPath = path.join(ROOT, relPath);
     if (!fs.existsSync(fullPath)) continue;
 
-    let content = fs.readFileSync(fullPath, 'utf8');
+    const content = fs.readFileSync(fullPath, 'utf8');
     if (!/@file|@module/.test(content)) {
       console.log(`  🔧 [HIGH] Auto-injecting missing @file JSDoc header into: ${relPath}`);
       const filename = path.basename(relPath);
       const description = describeFileForHeader(content);
       const jsdocHeader = `/**\n * @file ${filename}\n * @description ${description}\n */\n\n`;
       fs.writeFileSync(fullPath, jsdocHeader + content, 'utf8');
+      sh(`git add -- "${relPath}"`);
       fixedCount++;
     }
   }
 
   if (fixedCount > 0) {
-    console.log(`✅ [FIX FINDINGS] Automatically resolved ${fixedCount} finding(s). Re-staging files...`);
-    sh('git add .');
-  } else {
-    console.log('✅ [FIX FINDINGS] No auto-fixable findings detected.');
+    console.log(`✅ [FIX FINDINGS] Automatically resolved ${fixedCount} finding(s).`);
   }
 }
 
 /**
  * Fast, side-effect-free status check for the `/handoff` command to branch on before
- * spending tokens on `npm test` / `/code-review` — e.g. a session that made no changes
- * (NOOP) or only touched docs (SKIP_REVIEW) doesn't need either.
+ * spending tokens on `npm test` / `/review`.
  * @returns {void}
  */
 function runPreflight() {
@@ -167,10 +165,66 @@ function runPreflight() {
 }
 
 /**
- * Scripted stand-in for hand-reconciling `PLAN.md`: flips each `- [ ]` line whose text
- * contains one of the given (session TodoWrite) titles as a case-insensitive substring
- * to `- [x]`, and reports any titles that matched no open line so the LLM only has to
- * reason about those, not the whole file.
+ * Describes working-tree changes handoff deliberately did NOT commit.
+ * @returns {string} Warning block, or '' when the tree is clean.
+ */
+function describeLeftovers() {
+  const rest = sh('git status --short');
+  if (!rest) return '';
+  const lines = rest.split('\n').filter(Boolean);
+  const shown = lines.slice(0, 10).map((l) => `    ${l}`);
+  if (lines.length > 10) shown.push(`    …and ${lines.length - 10} more`);
+  return [
+    `⚠️  ${lines.length} file(s) still uncommitted — handoff did NOT include them:`,
+    ...shown,
+    '',
+    '    Handoff stages only the files it writes, so code/test changes keep',
+    '    their own commit and a truthful message. Commit them separately:',
+    '      git add <paths>',
+    '      git commit -m "<type>(<scope>): <subject>"',
+  ].join('\n');
+}
+
+/**
+ * Extracts action items from the previous prompt text.
+ * @param {string} promptText Previous HANDOFF_PROMPT.md content.
+ * @returns {string[]} List of previous action item strings.
+ */
+function extractPrevNextActions(promptText) {
+  if (!promptText) return [];
+  const m = promptText.match(/## Open Checklist Items \(PLAN\.md\)\s*\r?\n\r?\n([\s\S]*?)(?=\r?\n\r?\n##|\r?\n\r?\n---|$)/);
+  if (!m) return [];
+  return m[1]
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l.startsWith('-'))
+    .map((l) => l.replace(/^-+\s*/, '').trim())
+    .filter(Boolean);
+}
+
+/**
+ * Finds items from previous prompt that disappeared from PLAN.md without being checked off.
+ * @param {string[]} prevItems Previous prompt checklist items.
+ * @param {string} planText Current PLAN.md content.
+ * @param {string[]} currentItems Current open checklist items.
+ * @returns {string[]} Dropped item strings.
+ */
+function findDroppedSessionItems(prevItems, planText, currentItems) {
+  const FALLBACK_RE = /None — PLAN\.md fully checked off/i;
+  const haystack = `${planText}\n${currentItems.join('\n')}`.toLowerCase();
+  const currentSet = new Set(currentItems.map((i) => i.toLowerCase().trim()));
+
+  return prevItems.filter((item) => {
+    if (FALLBACK_RE.test(item)) return false;
+    const norm = item.toLowerCase().trim();
+    if (currentSet.has(norm)) return false;
+    const bare = norm.replace(/^\[[ x]\]\s*/i, '');
+    return bare.length > 0 && !haystack.includes(bare);
+  });
+}
+
+/**
+ * Flips each matching `- [ ]` line in PLAN.md to `- [x]`.
  * @param {string} titlesArg Pipe-separated list of completed TodoWrite titles.
  * @returns {void}
  */
@@ -192,7 +246,7 @@ function reconcilePlan(titlesArg) {
     lines[idx] = lines[idx].replace('- [ ]', '- [x]');
     console.log(`  ✅ Checked off: ${lines[idx].trim()}`);
   }
-  fs.writeFileSync(planPath, lines.join('\n'), 'utf8');
+  trackedWrite(planPath, lines.join('\n'));
   if (unmatched.length > 0) {
     console.log(`UNMATCHED (reconcile by hand): ${unmatched.join(' | ')}`);
   } else {
@@ -217,27 +271,56 @@ const now = new Date();
 const dateStr = now.toISOString().slice(0, 10);
 const timestamp = now.toISOString();
 
-// 2. Read open PLAN.md items
-const planPath = path.join(ROOT, 'PLAN.md');
-let openItems = [];
-if (fs.existsSync(planPath)) {
-  const lines = fs.readFileSync(planPath, 'utf8').split('\n');
-  openItems = lines.filter((l) => /^\s*-\s\[ \]/.test(l)).map((l) => l.trim());
+// Count test files dynamically
+let testFileCount = 12;
+try {
+  testFileCount = fs.readdirSync(path.join(ROOT, 'tests')).filter((f) => f.endsWith('.test.js')).length;
+} catch {
+  // fallback
 }
 
-// 3. Update CONTEXT.md & HANDOFF_PROMPT.md BEFORE git commit/push
+// 2. Read open PLAN.md items
+const planPath = path.join(ROOT, 'PLAN.md');
+let planContent = '';
+let openItems = [];
+if (fs.existsSync(planPath)) {
+  planContent = fs.readFileSync(planPath, 'utf8');
+  openItems = planContent.split('\n').filter((l) => /^\s*-\s\[ \]/.test(l)).map((l) => l.trim());
+}
+
+// 3. Detect dropped session items from previous HANDOFF_PROMPT.md
+const promptPath = path.join(ROOT, 'HANDOFF_PROMPT.md');
+let droppedItems = [];
+if (fs.existsSync(promptPath)) {
+  const prevPrompt = fs.readFileSync(promptPath, 'utf8');
+  const prevItems = extractPrevNextActions(prevPrompt);
+  droppedItems = findDroppedSessionItems(prevItems, planContent, openItems);
+}
+
+if (droppedItems.length > 0) {
+  console.log(`⚠️  ${droppedItems.length} item(s) carried over from last session missing from PLAN.md:`);
+  for (const d of droppedItems) {
+    console.log(`    - ${d}`);
+  }
+}
+
+// 4. Update CONTEXT.md & HANDOFF_PROMPT.md
 const contextContent = [
   '# Session Context',
   '',
   `Generated: ${timestamp}`,
   `Branch: ${branch}`,
   `Last commit: ${lastCommit}`,
-  `Uncommitted files: 0`,
   '',
   '## Open PLAN.md items',
   openItems.length ? openItems.join('\n') : '_None — PLAN.md fully checked off._',
   ''
 ].join('\n');
+
+const checklistSection = [
+  openItems.length ? openItems.join('\n') : '_None — PLAN.md fully checked off._',
+  droppedItems.length ? `\n### ⚠️ Carried over from last session (reconcile into PLAN.md):\n${droppedItems.map((d) => `- [ ] ${d}`).join('\n')}` : ''
+].filter(Boolean).join('\n');
 
 const handoffPrompt = `# Session Handoff & Continuation Prompt — ${dateStr}
 
@@ -248,14 +331,15 @@ const handoffPrompt = `# Session Handoff & Continuation Prompt — ${dateStr}
 ## Project Overview & Current Architecture
 The **Day Planner** project is a standalone digital binder application styled in classic Day Planner aesthetic (Parchment \`#fcfbfa\`, Teal \`#2d6a5a\`, serif headers).
 - Standalone SPA files: \`index.html\`, \`src/styles.css\`, \`src/app.js\`, \`src/gasBridge.js\`
-- All 250 unit tests pass cleanly across 12 test files (\`npm test\`).
+- All unit tests pass cleanly across ${testFileCount} test files (\`npm test\`).
 - Local server: \`npm start\` (\`http://localhost:3000\`).
+- Multi-model architecture: Symmetric AGY ↔ Claude Code headless invocation protocol (\`.agents/rules/cross-cli-headless-invocation.md\`) with zero API keys and Opus advisor integration.
 
 ## Recent Session Work & Commits
 ${lastCommit}
 
 ## Open Checklist Items (PLAN.md)
-${openItems.length ? openItems.join('\n') : '_None — PLAN.md fully checked off._'}
+${checklistSection}
 
 ## Next Steps for Continuing Session
 1. Run \`npm start\` to start local server (\`http://localhost:3000\`).
@@ -264,49 +348,63 @@ ${openItems.length ? openItems.join('\n') : '_None — PLAN.md fully checked off
 `;
 
 if (!readOnly) {
-  fs.writeFileSync(path.join(ROOT, 'CONTEXT.md'), contextContent, 'utf8');
-  fs.writeFileSync(path.join(ROOT, 'HANDOFF_PROMPT.md'), handoffPrompt, 'utf8');
+  trackedWrite(path.join(ROOT, 'CONTEXT.md'), contextContent);
+  trackedWrite(path.join(ROOT, 'HANDOFF_PROMPT.md'), handoffPrompt);
 }
 
-// 4. Perform Git Add, Fix Findings, Commit (runs linter hook), and Push
-const dirtyFiles = sh('git status --porcelain').split('\n').filter(Boolean);
-
+// 5. Commit handoff files (committing ONLY what handoff wrote)
 if (!readOnly) {
-  if (dirtyFiles.length > 0) {
-    console.log('📦 Step 1: Staging working tree changes (git add .)...');
-    sh('git add .');
-
-    console.log('🧹 Step 1.5: [FIX FINDINGS] Running linter / findings review & auto-fix...');
-    autoFixFindings();
-
-    console.log('🔧 Step 2: Committing changes (triggers pre-commit linter & unit tests)...');
-    try {
-      execSync(`git commit -m ${JSON.stringify(`docs(handoff): session handoff update ${dateStr}`)}`, {
-        cwd: ROOT,
-        stdio: 'inherit'
-      });
-      console.log('✅ Commit successful.');
-    } catch (err) {
-      console.error('❌ [BLOCKER] Pre-commit hook or commit failed. Please fix remaining findings and re-run.', err.message);
-      process.exit(1);
+  const paths = [...writtenPaths].filter((p) => fs.existsSync(p));
+  if (paths.length > 0) {
+    console.log(`📦 Step 1: Staging handoff files (${paths.length} file(s))...`);
+    for (const p of paths) {
+      sh(`git add -- "${p}"`);
     }
 
-    console.log('🚀 Step 3: Pushing commits to remote origin...');
-    try {
-      execSync('git push origin ' + branch, { cwd: ROOT, stdio: 'inherit' });
-      console.log('✅ Push successful.');
-    } catch (pushErr) {
-      console.warn('⚠️ Push to remote failed or remote unavailable. Continuing local handoff.', pushErr.message);
+    const staged = sh('git diff --cached --name-only');
+    if (!staged) {
+      console.log('ℹ️ Handoff files unchanged — nothing to commit.');
+      const leftovers = describeLeftovers();
+      if (leftovers) console.log(`\n${leftovers}`);
+    } else {
+      console.log('🧹 Step 1.5: [FIX FINDINGS] Checking staged files...');
+      autoFixFindings();
+
+      console.log('🔧 Step 2: Committing handoff files...');
+      try {
+        const commitMsg = `docs(handoff): session ${dateStr}`;
+        execSync(`git commit -m ${JSON.stringify(commitMsg)}`, {
+          cwd: ROOT,
+          stdio: 'inherit'
+        });
+        console.log('✅ Commit successful.');
+      } catch (err) {
+        console.error('❌ [BLOCKER] Pre-commit hook or commit failed. Please fix remaining findings and re-run.', err.message);
+        process.exit(1);
+      }
+
+      console.log('🚀 Step 3: Pushing commits to remote origin...');
+      try {
+        execSync(`git push origin ${branch}`, { cwd: ROOT, stdio: 'inherit' });
+        console.log('✅ Push successful.');
+      } catch (pushErr) {
+        console.warn('⚠️ Push to remote failed or remote unavailable. Continuing local handoff.', pushErr.message);
+      }
+
+      const leftovers = describeLeftovers();
+      if (leftovers) console.log(`\n${leftovers}`);
     }
   } else {
-    console.log('ℹ️ Working tree is clean. Skipping git commit & push.');
+    console.log('ℹ️ Handoff wrote no files. Skipping git commit & push.');
+    const leftovers = describeLeftovers();
+    if (leftovers) console.log(`\n${leftovers}`);
   }
 }
 
-// 5. Copy to clipboard
+// 6. Copy to clipboard
 const clipped = toClipboard(handoffPrompt);
 
-// 6. Output user guidance
+// 7. Output user guidance
 console.log('\n==================================================');
 if (clipped) {
   console.log('📋 Handoff prompt copied to clipboard!');
