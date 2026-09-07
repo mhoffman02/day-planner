@@ -83,7 +83,9 @@ async function connectCdp({ port = 9222, urlContains, type = 'page' } = {}) {
     /** Evaluate a JS expression in the page and return its value. */
     async evaluate(expression) {
       const result = await send('Runtime.evaluate', { expression, returnByValue: true });
-      if (result.exceptionDetails) throw new Error(result.exceptionDetails.text);
+      if (result.exceptionDetails) {
+        throw new Error(result.exceptionDetails.text + ': ' + (result.exceptionDetails.exception?.description || ''));
+      }
       return result.result.value;
     },
     /** Capture a PNG screenshot to `outputFile`. */

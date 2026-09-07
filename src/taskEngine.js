@@ -215,6 +215,8 @@ export function getNextSequence(tasks = [], priorityGroup = 'A') {
   return 9; // Cap at 9
 }
 
+export { getNextSequence as findNextAvailableSequence };
+
 /**
  * Forwards a daily task to a new date, creating a new task entry on the target day —
  * Franklin Covey's "➜ forwarded to a new date" semantics: the original task keeps its

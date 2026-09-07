@@ -943,6 +943,23 @@ if ('serviceWorker' in navigator) {
         try {
           // 1. Load milestones from IndexedDB
           let milestones = await IndexedDbStore.idbGetMilestones();
+
+          // 2. Load future matrix 12-month items from IndexedDB / bridge
+          let matrixData = await IndexedDbStore.idbGetFutureMatrix(this.selectedYear);
+          if (!matrixData || !matrixData.months) {
+            matrixData = await this.bridge.getFutureMatrix(this.selectedYear);
+            if (matrixData) {
+              await IndexedDbStore.idbSaveFutureMatrix(this.selectedYear, matrixData);
+              if (Array.isArray(matrixData.milestones) && matrixData.milestones.length > 0) {
+                milestones = matrixData.milestones;
+                await IndexedDbStore.idbSaveMilestones(milestones);
+              }
+            }
+          } else if (Array.isArray(matrixData.milestones) && matrixData.milestones.length > 0 && (!milestones || milestones.length === 0)) {
+            milestones = matrixData.milestones;
+            await IndexedDbStore.idbSaveMilestones(milestones);
+          }
+
           if (!milestones || milestones.length === 0) {
             const currentY = this.selectedYear;
             milestones = [
@@ -985,17 +1002,9 @@ if ('serviceWorker' in navigator) {
               })
             ];
             await IndexedDbStore.idbSaveMilestones(milestones);
+            this.bridge.saveFutureMilestones(this.selectedYear, milestones).catch(e => console.warn('Bridge saveFutureMilestones seed failed:', e));
           }
           this.futureMilestones = milestones;
-
-          // 2. Load future matrix 12-month items from IndexedDB / bridge
-          let matrixData = await IndexedDbStore.idbGetFutureMatrix(this.selectedYear);
-          if (!matrixData || !matrixData.months) {
-            matrixData = await this.bridge.getFutureMatrix(this.selectedYear);
-            if (matrixData) {
-              await IndexedDbStore.idbSaveFutureMatrix(this.selectedYear, matrixData);
-            }
-          }
           this.futureMatrix = matrixData?.months || {};
         } catch (err) {
           console.warn('loadFutureMatrixAndMilestones error:', err);
@@ -1108,6 +1117,7 @@ if ('serviceWorker' in navigator) {
           this.showToast(`Created milestone: "${newMs.title}"`, 'success', 3500, 'Milestone Created');
         }
 
+        this.bridge.saveFutureMilestones(this.selectedYear, this.futureMilestones).catch(e => console.warn('Bridge saveFutureMilestones failed:', e));
         this.closeMilestoneModal();
       },
 
@@ -1121,6 +1131,7 @@ if ('serviceWorker' in navigator) {
         const idx = this.futureMilestones.findIndex(m => m.id === milestone.id);
         if (idx !== -1) this.futureMilestones.splice(idx, 1, updated);
         await IndexedDbStore.idbSaveMilestone(updated);
+        this.bridge.saveFutureMilestones(this.selectedYear, this.futureMilestones).catch(e => console.warn('Bridge saveFutureMilestones failed:', e));
         this.showToast(updated.status === '✓' ? `Completed: "${updated.title}"` : `Reopened: "${updated.title}"`, 'info', 2500);
       },
 
@@ -1135,6 +1146,7 @@ if ('serviceWorker' in navigator) {
         const idx = this.futureMilestones.findIndex(m => m.id === milestone.id);
         if (idx !== -1) this.futureMilestones.splice(idx, 1, updated);
         await IndexedDbStore.idbSaveMilestone(updated);
+        this.bridge.saveFutureMilestones(this.selectedYear, this.futureMilestones).catch(e => console.warn('Bridge saveFutureMilestones failed:', e));
       },
 
       /**
@@ -1149,6 +1161,7 @@ if ('serviceWorker' in navigator) {
         const idx = this.futureMilestones.findIndex(m => m.id === milestone.id);
         if (idx !== -1) this.futureMilestones.splice(idx, 1, updated);
         await IndexedDbStore.idbSaveMilestone(updated);
+        this.bridge.saveFutureMilestones(this.selectedYear, this.futureMilestones).catch(e => console.warn('Bridge saveFutureMilestones failed:', e));
         this.showToast(`Rescheduled to ${newQ}: "${updated.title}"`, 'info', 3500, 'Milestone Rescheduled');
       },
 
@@ -1163,6 +1176,7 @@ if ('serviceWorker' in navigator) {
           const title = this.futureMilestones[idx].title;
           this.futureMilestones.splice(idx, 1);
           await IndexedDbStore.idbDeleteMilestone(milestoneId);
+          this.bridge.saveFutureMilestones(this.selectedYear, this.futureMilestones).catch(e => console.warn('Bridge saveFutureMilestones failed:', e));
           this.showToast(`Deleted milestone: "${title}"`, 'info', 3000, 'Milestone Removed');
         }
       },

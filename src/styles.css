@@ -2909,3 +2909,178 @@ article.setup-card, article.card {
     max-width: 100%;
   }
 }
+
+/* ==========================================================================
+   Franklin Covey Print Layout (Physical Binder Punch Margins & 12-Month Horizon)
+   ========================================================================== */
+@media print {
+  @page {
+    size: letter portrait;
+    margin: 16mm 14mm 16mm 22mm; /* 22mm left punch margin for physical binder rings */
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #111111 !important;
+    font-size: 11pt !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Hide screen chrome, navigation, dialogs, modals, and toasts */
+  .site-header,
+  .top-bar,
+  .binder-header,
+  .single-top-bar,
+  .segment-controls,
+  .binder-nav,
+  .navigation-controls,
+  .date-picker-trigger,
+  .sync-button,
+  .app-header,
+  .toast-container,
+  .modal-backdrop,
+  dialog,
+  .future-month-add-form,
+  button.btn-primary,
+  button.btn-icon-subtle,
+  button.btn-link,
+  .btn,
+  .material-symbols-outlined.icon-14,
+  .material-symbols-outlined.icon-16,
+  .future-item-row button:not(.status-marker-btn),
+  .milestone-item-row button.btn-icon-subtle,
+  .milestone-item-row div:has(> button.btn-icon-subtle) {
+    display: none !important;
+  }
+
+  /* Binder layout expands cleanly across full print width with punch margin */
+  .binder-container {
+    box-shadow: none !important;
+    border: none !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 0 0 0 16mm !important; /* Punch margin for physical binder rings */
+    margin: 0 !important;
+  }
+
+  .view-container {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Header title styling */
+  .view-title {
+    font-size: 16pt !important;
+    color: #111111 !important;
+    margin-bottom: 4pt !important;
+    border-bottom: 1.5pt solid #222222 !important;
+    padding-bottom: 4pt !important;
+  }
+
+  /* Quarterly Strategic Milestones Horizon (Page 1) */
+  .milestones-horizon-bar {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12pt !important;
+    margin-bottom: 16pt !important;
+    page-break-inside: auto;
+  }
+
+  .quarter-summary-card {
+    background: #ffffff !important;
+    border: 1pt solid #444444 !important;
+    border-radius: 4pt !important;
+    padding: 8pt !important;
+    box-shadow: none !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .quarter-summary-card strong {
+    font-size: 12pt !important;
+    color: #111111 !important;
+  }
+
+  .milestone-item-row {
+    background: #fafafa !important;
+    border: 0.75pt solid #cccccc !important;
+    border-radius: 3pt !important;
+    padding: 6pt !important;
+    margin-bottom: 6pt !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .milestone-item-row .status-marker-btn {
+    display: inline-block !important;
+    font-weight: bold !important;
+    font-size: 12pt !important;
+  }
+
+  /* Sub-deliverables and progress */
+  .milestone-item-row input[type="checkbox"] {
+    appearance: auto !important;
+    -webkit-appearance: checkbox !important;
+  }
+
+  /* 12-Month Matrix Horizon Grid (Page 2) */
+  .future-matrix-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8pt !important;
+    page-break-inside: auto;
+  }
+
+  /* Force clean page break before the 12-month horizon matrix */
+  .future-matrix-grid,
+  section[aria-label="Future Planning Matrix"] > h3:nth-of-type(2) {
+    break-before: page !important;
+    page-break-before: always !important;
+  }
+
+  article.future-month-card {
+    background: #ffffff !important;
+    border: 1pt solid #555555 !important;
+    border-radius: 4pt !important;
+    padding: 6pt !important;
+    min-height: 85pt !important;
+    box-shadow: none !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .future-month-title {
+    font-size: 11pt !important;
+    font-weight: bold !important;
+    color: #111111 !important;
+    border-bottom: 1pt solid #777777 !important;
+    padding-bottom: 3pt !important;
+    margin-bottom: 4pt !important;
+  }
+
+  .future-item-row {
+    background: #f7f7f7 !important;
+    border: 0.5pt solid #dddddd !important;
+    padding: 3pt 5pt !important;
+    font-size: 9pt !important;
+    break-inside: avoid !important;
+  }
+
+  .future-item-row span {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+  }
+
+  .future-month-empty {
+    font-size: 9pt !important;
+    color: #777777 !important;
+  }
+}
+

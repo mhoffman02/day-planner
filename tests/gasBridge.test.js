@@ -30,6 +30,7 @@ import {
   updateCalendarEventRest,
   addCalendarEventRest,
   saveDailyDocCardsRest,
+  saveFutureMatrixRest,
   addFutureItemRest,
   updateFutureItemStatusRest,
   transferFutureItemRest,
@@ -948,17 +949,92 @@ describe('GAS Bridge REST Unit Tests (Google Identity Services token present)', 
     assert.deepEqual(matrix.months['2026-01'], []);
   });
 
-  it('fetchFutureMatrix() merges found file content into the skeleton', async () => {
+  it('fetchFutureMatrix() merges found file content including quarterly milestones into skeleton', async () => {
     globalThis.fetch = async (url) => {
       const q = new URL(url).searchParams.get('q') || '';
       if (q.includes('in parents')) return { ok: true, json: async () => ({ files: [{ id: 'matrixfile1' }] }) };
-      if (url.includes('alt=media')) return { ok: true, text: async () => JSON.stringify({ months: { '2026-10': [{ id: 'f1', title: 'Plan trip' }] } }) };
+      if (url.includes('alt=media')) {
+        return {
+          ok: true,
+          text: async () => JSON.stringify({
+            months: { '2026-10': [{ id: 'f1', title: 'Plan trip' }] },
+            milestones: [{ id: 'ms1', title: 'Q1 Objective', targetQuarter: '2026-Q1', status: '•' }]
+          })
+        };
+      }
       return { ok: true, json: async () => ({ files: [{ id: 'folder1' }] }) };
     };
     const matrix = await fetchFutureMatrix(2026, 'tok_abc');
     assert.equal(matrix.months['2026-10'].length, 1);
     assert.equal(matrix.months['2026-01'].length, 0);
+    assert.equal(matrix.milestones.length, 1);
+    assert.equal(matrix.milestones[0].title, 'Q1 Objective');
   });
+
+  it('saveFutureMatrixRest() creates a new file with months and milestones when none exists', async () => {
+    let uploadedBody = null;
+    globalThis.fetch = async (url, opts = {}) => {
+      const q = new URL(url).searchParams.get('q') || '';
+      if (q.includes('in parents')) {
+        return { ok: true, json: async () => ({ files: [] }) };
+      }
+      if (opts.method === 'POST' && url.includes('/upload/drive/v3/files')) {
+        uploadedBody = opts.body;
+        return { ok: true, json: async () => ({ id: 'new_file_id' }) };
+      }
+      return { ok: true, json: async () => ({ files: [{ id: 'root_folder_id' }] }) };
+    };
+
+    const saved = await saveFutureMatrixRest(2026, {
+      months: { '2026-03': [{ id: 'f1', title: 'Spring review' }] },
+      milestones: [{ id: 'ms1', title: 'Q1 Launch' }]
+    }, 'tok_test');
+
+    assert.equal(saved.year, '2026');
+    assert.equal(saved.milestones.length, 1);
+    assert.equal(saved.months['2026-03'].length, 1);
+    assert.ok(uploadedBody);
+    assert.ok(uploadedBody.includes('Spring review'));
+    assert.ok(uploadedBody.includes('Q1 Launch'));
+  });
+
+  it('saveFutureMatrixRest() merges into existing file preserving existing content', async () => {
+    let patchBody = null;
+    globalThis.fetch = async (url, opts = {}) => {
+      const q = new URL(url).searchParams.get('q') || '';
+      if (q.includes('in parents')) {
+        return { ok: true, json: async () => ({ files: [{ id: 'existing_file_id' }] }) };
+      }
+      if (url.includes('alt=media')) {
+        return {
+          ok: true,
+          text: async () => JSON.stringify({
+            year: '2026',
+            months: { '2026-05': [{ id: 'f5', title: 'May summit' }] },
+            milestones: [{ id: 'ms1', title: 'Q1 Launch' }]
+          })
+        };
+      }
+      if (opts.method === 'PATCH') {
+        patchBody = opts.body;
+        return { ok: true, json: async () => ({ id: 'existing_file_id' }) };
+      }
+      return { ok: true, json: async () => ({ files: [{ id: 'root_folder_id' }] }) };
+    };
+
+    // Update only milestones; months should be preserved from existing file
+    const saved = await saveFutureMatrixRest(2026, {
+      milestones: [{ id: 'ms1', title: 'Q1 Launch' }, { id: 'ms2', title: 'Q2 Scale' }]
+    }, 'tok_test');
+
+    assert.equal(saved.milestones.length, 2);
+    assert.equal(saved.months['2026-05'].length, 1);
+    assert.equal(saved.months['2026-05'][0].title, 'May summit');
+    assert.ok(patchBody);
+    assert.ok(patchBody.includes('May summit'));
+    assert.ok(patchBody.includes('Q2 Scale'));
+  });
+
 
   it('fetchRecentAttendees() dedupes, lowercases, and sorts attendee emails across pages', async () => {
     let call = 0;
@@ -1043,7 +1119,53 @@ describe('GAS Bridge REST Unit Tests (Google Identity Services token present)', 
     const matrix = await bridge.getFutureMatrix(2027);
     assert.equal(matrix.year, '2027');
     assert.equal(Object.keys(matrix.months).length, 12);
+    assert.deepEqual(matrix.milestones, []);
   });
+
+  it('GASBridge#saveFutureMatrix() and saveFutureMilestones() work in mock mode', async () => {
+    const bridge = new GASBridge(true);
+    const saved = await bridge.saveFutureMatrix(2026, {
+      months: { '2026-04': [{ id: 'm4', title: 'Tax deadline' }] },
+      milestones: [{ id: 'ms1', title: 'Q2 Goal', targetQuarter: '2026-Q2', status: '•' }]
+    });
+    assert.equal(saved.milestones.length, 1);
+    assert.equal(saved.months['2026-04'].length, 1);
+
+    await bridge.saveFutureMilestones(2026, [
+      { id: 'ms1', title: 'Q2 Goal', targetQuarter: '2026-Q2', status: '✓' },
+      { id: 'ms2', title: 'Q3 Goal', targetQuarter: '2026-Q3', status: '•' }
+    ]);
+    const retrieved = await bridge.getFutureMatrix(2026);
+    assert.equal(retrieved.milestones.length, 2);
+    assert.equal(retrieved.milestones[0].status, '✓');
+    assert.equal(retrieved.months['2026-04'].length, 1); // Preserved
+  });
+
+  it('GASBridge#saveFutureMatrix() uses the REST path when a token is present', async () => {
+    installFakeGisSignedIn('tok_rest');
+    await googleAuth.initGoogleAuth('test-client-id');
+    await googleAuth.signIn();
+
+    let uploadedBody = null;
+    globalThis.fetch = async (url, opts = {}) => {
+      const q = new URL(url).searchParams.get('q') || '';
+      if (q.includes('in parents')) return { ok: true, json: async () => ({ files: [] }) };
+      if (opts.method === 'POST' && url.includes('/upload/drive/v3/files')) {
+        uploadedBody = opts.body;
+        return { ok: true, json: async () => ({ id: 'new_matrix_file' }) };
+      }
+      return { ok: true, json: async () => ({ files: [{ id: 'folder1' }] }) };
+    };
+
+    const bridge = new GASBridge(false);
+    const saved = await bridge.saveFutureMilestones(2027, [
+      { id: 'ms-rest', title: 'REST Milestone' }
+    ]);
+    assert.equal(saved.milestones.length, 1);
+    assert.ok(uploadedBody);
+    assert.ok(uploadedBody.includes('REST Milestone'));
+  });
+
 
   it('GASBridge#getRecentAttendees() uses the REST path when a token is present', async () => {
     installFakeGisSignedIn('tok_rest');

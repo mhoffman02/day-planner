@@ -48,31 +48,89 @@ async function main() {
 
   const errors = client.getConsoleMessages().filter((m) => m.type === 'error');
 
-  await client.screenshot(out);
-  client.close();
-
   console.log(`[smoke-test] Title: ${title}`);
   console.log(`[smoke-test] Page state: ${state}`);
   console.log(`[smoke-test] Login form present: ${bodyHasLoginForm}`);
   console.log(`[smoke-test] Console errors: ${errors.length}`);
   for (const e of errors) console.log(`  [error] ${e.text}`);
-  console.log(`[smoke-test] Screenshot saved: ${out}`);
 
   if (bodyHasLoginForm) {
+    await client.screenshot(out);
+    client.close();
     console.log('[smoke-test] Blocked on a login form — log in manually in that Chrome window, then re-run.');
     process.exitCode = 2;
     return;
   }
   if (state === 'shell-setup-screen') {
+    await client.screenshot(out);
+    client.close();
     console.log('[smoke-test] Shell has no cached bundle configured — not a failure, but not the planner UI either.');
     process.exitCode = 2;
     return;
   }
   if (state !== 'planner-mounted') {
+    await client.screenshot(out);
+    client.close();
     console.error(`[smoke-test] FAIL: planner did not mount (state: ${state}).`);
     process.exitCode = 1;
     return;
   }
+
+  // Verify Future Planning Matrix mounting and milestone modal trigger
+  const futureMatrixCheck = await client.evaluate(`(() => {
+    const tabBtn = Array.from(document.querySelectorAll('.segment-btn')).find((b) =>
+      b.textContent.includes('Future') || (b.getAttribute('title') && b.getAttribute('title').includes('Future'))
+    );
+    if (!tabBtn) return { error: 'Future tab button not found' };
+    tabBtn.click();
+    return { ok: true };
+  })()`);
+
+  if (futureMatrixCheck.ok) {
+    await new Promise((r) => setTimeout(r, 400));
+    const matrixDom = await client.evaluate(`(() => {
+      const matrixSection = document.querySelector('section[aria-label="Future Planning Matrix"]');
+      const quarters = document.querySelectorAll('.quarter-summary-card');
+      const months = document.querySelectorAll('.future-month-card');
+      const addBtn = Array.from(document.querySelectorAll('button')).find((b) => b.textContent.includes('Add Milestone'));
+      if (addBtn) addBtn.click();
+      return {
+        mounted: !!matrixSection,
+        quarters: quarters.length,
+        months: months.length,
+        hasAddBtn: !!addBtn,
+      };
+    })()`);
+
+    await new Promise((r) => setTimeout(r, 400));
+    const modalCheck = await client.evaluate(`(() => {
+      const dialog = document.querySelector('dialog[aria-labelledby="milestoneModalTitle"]');
+      const isOpen = dialog ? (dialog.open || dialog.hasAttribute('open')) : false;
+      const closeBtn = dialog ? dialog.querySelector('button[title="Close"]') : null;
+      if (closeBtn) closeBtn.click();
+      return { dialogMounted: !!dialog, isOpen };
+    })()`);
+
+    // Switch back to daily view
+    await client.evaluate(`(() => {
+      const dailyBtn = Array.from(document.querySelectorAll('.segment-btn')).find((b) =>
+        b.textContent.includes('Daily') || (b.getAttribute('title') && b.getAttribute('title').includes('Daily'))
+      );
+      if (dailyBtn) dailyBtn.click();
+    })()`);
+
+    console.log(`[smoke-test] Future Matrix: mounted=${matrixDom.mounted}, quarters=${matrixDom.quarters}, months=${matrixDom.months}, modalOpened=${modalCheck.isOpen}`);
+    if (!matrixDom.mounted || matrixDom.quarters !== 4 || matrixDom.months !== 12 || !modalCheck.isOpen) {
+      console.error('[smoke-test] FAIL: Future Matrix or Milestone Modal did not mount correctly.');
+      process.exitCode = 1;
+      return;
+    }
+  }
+
+  await client.screenshot(out);
+  console.log(`[smoke-test] Screenshot saved: ${out}`);
+  client.close();
+
   if (errors.length > 0) {
     console.error('[smoke-test] FAIL: console errors present.');
     process.exitCode = 1;

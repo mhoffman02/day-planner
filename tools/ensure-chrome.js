@@ -52,9 +52,7 @@ async function cdpAlive(port) {
 
 async function waitForCdp(port, attempts = 15) {
   for (let i = 0; i < attempts; i++) {
-    // eslint-disable-next-line no-await-in-loop
     if (await cdpAlive(port)) return true;
-    // eslint-disable-next-line no-await-in-loop
     await new Promise((r) => setTimeout(r, 1000));
   }
   return false;

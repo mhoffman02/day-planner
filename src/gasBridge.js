@@ -467,7 +467,7 @@ export async function fetchMasterTasks(accessToken) {
  */
 export async function fetchFutureMatrix(year, accessToken) {
   const yearStr = String(year);
-  const matrixData = { year: yearStr, months: {} };
+  const matrixData = { year: yearStr, months: {}, milestones: [] };
   for (let m = 1; m <= 12; m++) matrixData.months[`${yearStr}-${String(m).padStart(2, '0')}`] = [];
 
   const folderId = await getOrCreateRootFolderId(accessToken);
@@ -479,6 +479,7 @@ export async function fetchFutureMatrix(year, accessToken) {
     try {
       const parsed = JSON.parse(content);
       if (parsed.months) Object.assign(matrixData.months, parsed.months);
+      if (Array.isArray(parsed.milestones)) matrixData.milestones = parsed.milestones;
     } catch (err) {
       console.error(`fetchFutureMatrix: JSON parse failed for future-matrix-${yearStr}.json`, err);
     }
@@ -1117,17 +1118,40 @@ export async function saveDailyDocCardsRest(dateStr, noteContent, accessToken) {
  * @param {string} accessToken
  * @returns {Promise<void>}
  */
-async function saveFutureMatrixRest(year, matrixData, accessToken) {
+export async function saveFutureMatrixRest(year, matrixData, accessToken) {
   const yearStr = String(year);
   const fileName = `future-matrix-${yearStr}.json`;
   const folderId = await getOrCreateRootFolderId(accessToken);
   const file = await findDriveFileInFolder(fileName, folderId, accessToken);
-  const serialized = JSON.stringify(matrixData, null, 2);
+
+  let fullData = { year: yearStr, months: {}, milestones: [] };
+  for (let m = 1; m <= 12; m++) fullData.months[`${yearStr}-${String(m).padStart(2, '0')}`] = [];
+
+  if (file) {
+    const existingContent = await downloadDriveFileText(file.id, accessToken);
+    if (existingContent && existingContent.trim()) {
+      try {
+        const parsed = JSON.parse(existingContent);
+        if (parsed.months) Object.assign(fullData.months, parsed.months);
+        if (Array.isArray(parsed.milestones)) fullData.milestones = parsed.milestones;
+      } catch (e) {
+        console.warn(`saveFutureMatrixRest: existing ${fileName} contains unparseable JSON, overwriting`, e);
+      }
+    }
+  }
+
+  if (matrixData) {
+    if (matrixData.months) Object.assign(fullData.months, matrixData.months);
+    if (Array.isArray(matrixData.milestones)) fullData.milestones = matrixData.milestones;
+  }
+
+  const serialized = JSON.stringify(fullData, null, 2);
   if (file) {
     await updateDriveFileContent(file.id, serialized, accessToken);
   } else {
     await createDriveFileWithContent(fileName, folderId, serialized, accessToken);
   }
+  return fullData;
 }
 
 /**
@@ -1481,7 +1505,7 @@ export class GASBridge {
    * @param {string} monthYearStr Target month/year identifier string.
    * @returns {Promise<Array<object>>} List of master task items promise.
    */
-  async getMasterTasks(monthYearStr) {
+  async getMasterTasks(/* monthYearStr */) {
     if (this.useMock) return this.mockData.masterTasks;
 
     const accessToken = getAccessToken();
@@ -1946,6 +1970,9 @@ export class GASBridge {
       if (!this.mockData.futureMatrix[year]) {
         this.mockData.futureMatrix[year] = mockYearMatrix(year);
       }
+      if (!this.mockData.futureMatrix[year].milestones) {
+        this.mockData.futureMatrix[year].milestones = [];
+      }
       return this.mockData.futureMatrix[year];
     }
 
@@ -1955,7 +1982,45 @@ export class GASBridge {
     if (!this.mockData.futureMatrix[year]) {
       this.mockData.futureMatrix[year] = mockYearMatrix(year);
     }
+    if (!this.mockData.futureMatrix[year].milestones) {
+      this.mockData.futureMatrix[year].milestones = [];
+    }
     return this.mockData.futureMatrix[year];
+  }
+
+  /**
+   * Persists Future Planning Matrix data (months and/or quarterly milestones) for a given year.
+   * @param {number|string} year Target calendar year.
+   * @param {object} matrixData Matrix data containing months and/or milestones.
+   * @returns {Promise<object>} Saved matrix data promise.
+   */
+  async saveFutureMatrix(year, matrixData) {
+    const accessToken = !this.useMock ? getAccessToken() : null;
+
+    if (this.useMock || !accessToken) {
+      if (!this.mockData.futureMatrix[year]) {
+        this.mockData.futureMatrix[year] = mockYearMatrix(year);
+      }
+      if (matrixData.months) {
+        this.mockData.futureMatrix[year].months = matrixData.months;
+      }
+      if (Array.isArray(matrixData.milestones)) {
+        this.mockData.futureMatrix[year].milestones = matrixData.milestones;
+      }
+      return this.mockData.futureMatrix[year];
+    }
+
+    return saveFutureMatrixRest(year, matrixData, accessToken);
+  }
+
+  /**
+   * Persists quarterly milestones for a given year to Drive or mock storage.
+   * @param {number|string} year Target calendar year.
+   * @param {Array<object>} milestones Array of milestone objects.
+   * @returns {Promise<object>} Saved matrix data promise.
+   */
+  async saveFutureMilestones(year, milestones) {
+    return this.saveFutureMatrix(year, { milestones });
   }
 
   /**
