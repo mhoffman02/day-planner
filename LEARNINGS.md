@@ -324,3 +324,17 @@ All three cross-origin loading strategies fail when a GitHub Pages shell tries t
 - Automatic execution of sync-agent-config in pre-commit
 
 ---
+
+## 2026-09-07 — Offline Conflict Resolution, Binder Export & Future Matrix Enhancements
+
+**Worked well:**
+- Stored _etag and _updated on cached IDB task and event records and captured _baseEtag at mutation queuing time
+- Implemented conflict detection in mergeExternalChanges to prevent silent overwrites and surfaced an inline resolution banner allowing user to Keep local or Accept server
+- Built one-click full binder export utilities for formatted JSON snapshot and bundled Markdown archive
+- Extended futureMatrixEngine with multi-quarter milestone tracking and rolling horizon projections
+- Maintained 100% passing pre-commit gates across 272 tests, lint, agent sync, and service worker cache hash
+
+**Needs improvement:**
+- Remember to register any new standard browser globals like Blob in eslint.config.js when adding browser export utilities
+
+---
