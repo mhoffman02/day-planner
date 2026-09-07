@@ -42,6 +42,11 @@ Current: `npm test` for the up-to-date count/suite total (307 tests across 38 su
 - [x] `node tools/check-accessibility.js` clean (zero WCAG contrast or ARIA violations).
 
 ## Feature Backlog
+- ~~End-of-Session /handoff Skill & Targeted Staging Tooling~~ **Done (2026-09-07).**
+  Adapted \`/handoff\` skill from \`maximo-uat\` into \`day-planner\`: created \`.agents/skills/handoff/SKILL.md\`
+  (mirrored to \`.claude\` and \`.kilo\`), updated \`tools/handoff.js\` with tracked file writes, targeted
+  staging (committing only files written by handoff), leftover uncommitted file reporting, and dropped
+  session item recovery from previous \`HANDOFF_PROMPT.md\`.
 - ~~Master Tasks Drive Persistence / Outbox Sync~~ **Done (2026-09-07).**
   Undated master tasks now have dedicated Drive REST archive persistence (`Day Planner/master-tasks.json`),
   live fallback on Tasks API failure, IndexedDB offline caching, inline Quick Add form, and full offline
