@@ -35,7 +35,8 @@ export default [
         requestIdleCallback: 'readonly',
         URL: 'readonly',
         URLSearchParams: 'readonly',
-        crypto: 'readonly'
+        crypto: 'readonly',
+        Blob: 'readonly'
       }
     },
     rules: {

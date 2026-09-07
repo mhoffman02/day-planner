@@ -13,6 +13,8 @@ import IndexedDbStore from './indexedDbStore.js';
 import { getLocalDateStr, generateLocalId } from './binderStore.js';
 import { initGoogleAuth, signIn, signOut, isSignedIn, ensureAccessToken, onAuthStateChanged } from './googleAuth.js';
 import { parseTaskTitle, formatTaskTitle, getNextStatus, isValidStatus, STATUS_OPTIONS, sortTasksByColumn } from './taskEngine.js';
+import { collectFullBinderState, downloadBinderJson, downloadBinderMarkdown } from './exportEngine.js';
+import { generateRollingHorizon, projectRollingHorizon, trackMultiQuarterMilestones, quarterKeyFor } from './futureMatrixEngine.js';
 window.GASBridge = GASBridge;
 
 // Month-overview cache freshness window for the rolling 3-month background prefetch (see
@@ -259,6 +261,28 @@ if ('serviceWorker' in navigator) {
       /** @returns {string} Full month name for today's date. */
       get currentMonthName() {
         return new Date().toLocaleDateString('en-US', { month: 'long' });
+      },
+
+      /** @returns {Array<{type: 'task'|'event', item: object}>} List of items with detected external sync conflicts. */
+      get conflictingItems() {
+        const taskConflicts = (this.dailyTasks || []).filter(t => t && t._conflict).map(t => ({ type: 'task', item: t }));
+        const eventConflicts = (this.calendarEvents || []).filter(e => e && e._conflict).map(e => ({ type: 'event', item: e }));
+        return [...taskConflicts, ...eventConflicts];
+      },
+
+      futureMilestones: [],
+
+      /** @returns {object} Projections of load density and milestones across a rolling 12-month window. */
+      get rollingHorizonProjections() {
+        const startKey = `${this.selectedYear}-${String(this.selectedMonth).padStart(2, '0')}`;
+        const horizon = generateRollingHorizon(startKey, 12);
+        return projectRollingHorizon(horizon, {}, this.futureMilestones || []);
+      },
+
+      /** @returns {object} Milestone breakdown across quarters relative to active quarter. */
+      get quarterlyMilestoneTracker() {
+        const currentQ = quarterKeyFor(this.selectedYear, Math.ceil(this.selectedMonth / 3));
+        return trackMultiQuarterMilestones(this.futureMilestones || [], currentQ);
       },
 
       /**
@@ -672,8 +696,9 @@ if ('serviceWorker' in navigator) {
             try {
               const fresh = await this.bridge.getDailyData(this.selectedDate);
               if (!fresh.error) {
-                beforeTasks = mergeExternalChanges(beforeTasks, fresh.tasks || []);
-                beforeEvents = mergeExternalChanges(beforeEvents, fresh.calendarEvents || []);
+                const outbox = (await IndexedDbStore.idbGetOutbox()) || [];
+                beforeTasks = mergeExternalChanges(beforeTasks, fresh.tasks || [], outbox);
+                beforeEvents = mergeExternalChanges(beforeEvents, fresh.calendarEvents || [], outbox);
               }
             } catch (err) {
               console.warn('trigger2WaySync: could not fetch fresh day data, reconciling local state only', err);
@@ -745,6 +770,125 @@ if ('serviceWorker' in navigator) {
           }
         } finally {
           this.isSyncing = false;
+        }
+      },
+
+      /**
+       * Resolves a conflicted task or calendar event.
+       * @param {object} item The conflicted task or event.
+       * @param {'local'|'server'} resolution Either 'local' (keep local edits) or 'server' (accept server version).
+       * @returns {Promise<void>}
+       */
+      async resolveConflict(item, resolution) {
+        if (!item) return;
+        const isTask = (this.dailyTasks || []).some(t => t.id === item.id);
+        if (resolution === 'local') {
+          delete item._conflict;
+          item._baseEtag = item._serverEtag || item._etag || null;
+          delete item._serverVersion;
+          delete item._localVersion;
+          delete item._serverEtag;
+
+          if (isTask) {
+            if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
+              await this.bridge.updateDailyTask(this.selectedDate, item.id, item);
+            }
+          } else {
+            if (this.bridge && typeof this.bridge.updateCalendarEvent === 'function') {
+              await this.bridge.updateCalendarEvent(this.selectedDate, item.id, item);
+            }
+          }
+          this.showToast(`Kept local changes for "${item.title || '(untitled)'}"`, 'success', 4000);
+        } else if (resolution === 'server') {
+          const serverCopy = item._serverVersion || item;
+          delete serverCopy._conflict;
+          delete serverCopy._serverVersion;
+          delete serverCopy._localVersion;
+
+          if (isTask) {
+            const idx = (this.dailyTasks || []).findIndex(t => t.id === item.id);
+            if (idx !== -1) {
+              this.dailyTasks[idx] = { ...serverCopy };
+            }
+          } else {
+            const idx = (this.calendarEvents || []).findIndex(e => e.id === item.id);
+            if (idx !== -1) {
+              this.calendarEvents[idx] = { ...serverCopy };
+            }
+          }
+          this.showToast(`Accepted server changes for "${serverCopy.title || '(untitled)'}"`, 'info', 4000);
+        }
+        await this._persistCurrentDailyCache();
+        this.buildScheduleGrid();
+      },
+
+      /**
+       * Resolves all currently active conflicts with a single decision ('local' or 'server').
+       * @param {'local'|'server'} resolution
+       * @returns {Promise<void>}
+       */
+      async resolveAllConflicts(resolution) {
+        const list = [...this.conflictingItems];
+        for (const c of list) {
+          await this.resolveConflict(c.item, resolution);
+        }
+      },
+
+      /**
+       * Collects the full binder state from IndexedDB and current in-memory view.
+       * @returns {Promise<object>}
+       */
+      async getFullBinderExportData() {
+        const [dailyData, masterTasksObj, monthlyNotes] = await Promise.all([
+          IndexedDbStore.getAllItems(IndexedDbStore.STORES.DAILY_DATA),
+          IndexedDbStore.idbGetMasterTasks(),
+          IndexedDbStore.getAllItems(IndexedDbStore.STORES.MONTHLY_NOTES)
+        ]);
+
+        const currentDaily = {
+          dateStr: this.selectedDate,
+          tasks: this.dailyTasks,
+          calendarEvents: this.calendarEvents,
+          noteContent: this.dailyNote
+        };
+
+        const masterTasks = (masterTasksObj && masterTasksObj.tasks) || this.masterTasks || [];
+
+        return collectFullBinderState({
+          dailyData: dailyData || [],
+          masterTasks,
+          monthlyNotes: monthlyNotes || [],
+          currentDaily
+        });
+      },
+
+      /**
+       * Exports and downloads full binder state as a formatted .json snapshot.
+       * @returns {Promise<void>}
+       */
+      async exportBinderJson() {
+        try {
+          const state = await this.getFullBinderExportData();
+          downloadBinderJson(state);
+          this.showToast('Binder JSON snapshot downloaded', 'success', 5000, 'Export Complete');
+        } catch (err) {
+          console.error('exportBinderJson error:', err);
+          this.showToast('Could not export binder JSON: ' + (err.message || err.toString()), 'error', 8000, 'Export Error');
+        }
+      },
+
+      /**
+       * Exports and downloads full binder state as a bundled .md markdown archive.
+       * @returns {Promise<void>}
+       */
+      async exportBinderMarkdown() {
+        try {
+          const state = await this.getFullBinderExportData();
+          downloadBinderMarkdown(state);
+          this.showToast('Binder Markdown archive (.md) downloaded', 'success', 5000, 'Archive Complete');
+        } catch (err) {
+          console.error('exportBinderMarkdown error:', err);
+          this.showToast('Could not export binder Markdown: ' + (err.message || err.toString()), 'error', 8000, 'Export Error');
         }
       },
 
@@ -941,12 +1085,16 @@ if ('serviceWorker' in navigator) {
           }
           // Don't cache an error payload as if it were real daily data.
           if (!data.error) {
-            await IndexedDbStore.idbSaveDaily(dateStr, data);
+            const outbox = (await IndexedDbStore.idbGetOutbox()) || [];
+            const mergedTasks = mergeExternalChanges(this.dailyTasks || [], data.tasks || [], outbox);
+            const mergedEvents = mergeExternalChanges(this.calendarEvents || [], data.calendarEvents || [], outbox);
+            const mergedData = { ...data, tasks: mergedTasks, calendarEvents: mergedEvents };
+            await IndexedDbStore.idbSaveDaily(dateStr, mergedData);
+            if (applyIfCurrent && this.selectedDate === dateStr) {
+              this._applyDailyData(mergedData);
+            }
+            return mergedData;
           }
-          if (applyIfCurrent && this.selectedDate === dateStr) {
-            this._applyDailyData(data);
-          }
-          return data;
         } catch (err) {
           console.error('🔥 loadDayData error:', err);
           const errText = `Error loading daily workspace: ${err.message || err.toString()}`;
@@ -2176,12 +2324,16 @@ if ('serviceWorker' in navigator) {
         // immediately instead of only after a reload re-fetches getMasterTasks().
         const linkedMaster = this.masterTasks.find(m => m.movedTaskId === task.id);
         if (linkedMaster) linkedMaster.status = newStatus;
+        if (task._etag && !task._baseEtag) {
+          task._baseEtag = task._etag;
+        }
         try {
           if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
             const updated = await this.bridge.updateDailyTask(this.selectedDate, task.id, {
               title: task.title,
               status: task.status,
-              dueDate: task.dueDate
+              dueDate: task.dueDate,
+              _baseEtag: task._baseEtag || task._etag || null
             });
             if (!updated) {
               this.errorMessage = `Task "${task.title}" no longer exists in Google Tasks — status change was not saved.`;

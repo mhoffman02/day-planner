@@ -2629,6 +2629,10 @@ article.setup-card, article.card {
   border-left-color: #b78103;
 }
 
+.error-banner.conflict-banner {
+  border-left-color: #d97706;
+}
+
 .error-banner-content {
   display: flex;
   align-items: center;
@@ -2643,6 +2647,28 @@ article.setup-card, article.card {
 
 .info-banner .error-banner-content .material-symbols-outlined {
   color: #b78103;
+}
+
+.conflict-banner .error-banner-content .material-symbols-outlined {
+  color: #d97706;
+}
+
+.btn-conflict-action {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--theme-card-border);
+  background: var(--theme-header-bg);
+  color: var(--theme-text-primary);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-conflict-action:hover {
+  background: var(--theme-hover-bg, rgba(0, 0, 0, 0.08));
+  border-color: var(--theme-text-muted);
 }
 
 .error-banner-actions {

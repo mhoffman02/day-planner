@@ -203,15 +203,47 @@ export function reconcileWorkspaceChanges(dailyTasks = [], calendarEvents = []) 
  * `scheduledTime`/`endTime` calendar-linking hints) are preserved from the local copy. A purely
  * local item the server fetch doesn't know about yet (e.g. still queued in the offline outbox)
  * is kept appended rather than dropped.
+ * If a local item has a recorded _baseEtag that diverges from the server's _etag, it marks
+ * the record with `_conflict: true` rather than silently overwriting local edits.
  * @param {Array<object>} [localItems=[]] Current in-memory items.
  * @param {Array<object>} [serverItems=[]] Freshly-fetched items for the same day, from the backend.
+ * @param {Array<object>} [outbox=[]] Optional outbox queue mutations to resolve _baseEtag.
  * @returns {Array<object>} Merged item list.
  */
-export function mergeExternalChanges(localItems = [], serverItems = []) {
+export function mergeExternalChanges(localItems = [], serverItems = [], outbox = []) {
   const localById = new Map(localItems.map(item => [item.id, item]));
+  const outboxBaseEtagById = new Map();
+  if (Array.isArray(outbox)) {
+    for (const m of outbox) {
+      const id = m?.payload?.taskId || m?.payload?.eventId || m?.payload?.id;
+      const baseEtag = m?._baseEtag || m?.payload?._baseEtag;
+      if (id && baseEtag) {
+        outboxBaseEtagById.set(id, baseEtag);
+      }
+    }
+  }
+
   const merged = serverItems.map(serverItem => {
     const local = localById.get(serverItem.id);
-    return local ? { ...local, ...serverItem } : serverItem;
+    if (!local) return serverItem;
+
+    const serverEtag = serverItem._etag || serverItem.etag || null;
+    const baseEtag = local._baseEtag || local.baseEtag || outboxBaseEtagById.get(serverItem.id) || null;
+
+    const hasConflict = Boolean(baseEtag && serverEtag && baseEtag !== serverEtag);
+    if (hasConflict || local._conflict) {
+      return {
+        ...serverItem,
+        ...local,
+        _conflict: true,
+        _baseEtag: baseEtag,
+        _serverEtag: serverEtag,
+        _serverVersion: serverItem,
+        _localVersion: local
+      };
+    }
+
+    return { ...local, ...serverItem };
   });
   const serverIds = new Set(serverItems.map(item => item.id));
   const localOnly = localItems.filter(item => !serverIds.has(item.id));

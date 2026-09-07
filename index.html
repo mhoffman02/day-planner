@@ -144,6 +144,22 @@
           <span class="material-symbols-outlined icon-18" :class="{ 'spin': isSyncing }">sync</span>
           <span class="sync-label" x-text="isSyncing ? 'Syncing' : 'Sync'"></span>
         </button>
+        <div class="export-dropdown-wrapper" style="position: relative;" x-data="{ open: false }">
+          <button type="button" class="sync-btn-compact" @click="open = !open" title="Export Binder Snapshot or Markdown Archive" aria-label="Export Binder State">
+            <span class="material-symbols-outlined icon-18">download</span>
+            <span class="sync-label">Export</span>
+          </button>
+          <div x-show="open" @click.outside="open = false" style="position: absolute; right: 0; top: calc(100% + 4px); background: var(--theme-card-bg); border: 1px solid var(--theme-card-border); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.18); z-index: 1000; min-width: 195px; padding: 4px 0;" x-transition x-cloak>
+            <button type="button" class="dropdown-item-btn" style="display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 8px 12px; background: transparent; border: none; font-size: 12px; color: var(--theme-text-primary); cursor: pointer;" @click="exportBinderJson(); open = false;">
+              <span class="material-symbols-outlined icon-16">data_object</span>
+              <span>JSON Snapshot (.json)</span>
+            </button>
+            <button type="button" class="dropdown-item-btn" style="display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 8px 12px; background: transparent; border: none; font-size: 12px; color: var(--theme-text-primary); cursor: pointer;" @click="exportBinderMarkdown(); open = false;">
+              <span class="material-symbols-outlined icon-16">description</span>
+              <span>Markdown Archive (.md)</span>
+            </button>
+          </div>
+        </div>
         <template x-if="googleAuthReady">
           <button type="button" class="sync-btn-compact" @click="isGoogleSignedIn ? signOutOfGoogle() : signInWithGoogle()" :title="isGoogleSignedIn ? 'Sign out of Google' : 'Sign in with Google'">
             <span class="material-symbols-outlined icon-18" x-text="isGoogleSignedIn ? 'logout' : 'login'"></span>
@@ -190,6 +206,38 @@
           <button type="button" @click="notSignedInBannerDismissed = true" class="error-close-btn" title="Dismiss (working offline on purpose)" aria-label="Dismiss">
             <span class="material-symbols-outlined icon-18">close</span>
           </button>
+        </div>
+      </aside>
+    </template>
+
+    <!-- Inline Conflict Resolution Banner -->
+    <template x-if="conflictingItems.length > 0">
+      <aside class="error-banner conflict-banner" role="alert">
+        <div class="error-banner-content" style="align-items: flex-start; width: 100%;">
+          <span class="material-symbols-outlined" style="margin-top: 2px;">sync_problem</span>
+          <div style="flex: 1;">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+              <div>
+                <strong>Sync Conflict Detected:</strong>
+                <span x-text="conflictingItems.length + ' item' + (conflictingItems.length === 1 ? '' : 's') + ' diverged between local offline edits and server.'"></span>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <button type="button" class="btn-conflict-action" @click="resolveAllConflicts('local')" title="Keep all local changes">Keep local</button>
+                <button type="button" class="btn-conflict-action" @click="resolveAllConflicts('server')" title="Accept all server versions">Accept server</button>
+              </div>
+            </div>
+            <div class="conflict-items-list" style="margin-top: 8px; display: flex; flex-direction: column; gap: 6px;">
+              <template x-for="c in conflictingItems" :key="c.item.id">
+                <div class="conflict-item-card" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 10px; background: rgba(0,0,0,0.06); border-radius: 4px; font-size: 13px;">
+                  <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" x-text="(c.type === 'task' ? 'Task: ' : 'Event: ') + (c.item.title || '(untitled)')"></span>
+                  <div style="display: flex; gap: 6px; flex-shrink: 0;">
+                    <button type="button" class="btn-conflict-action" @click="resolveConflict(c.item, 'local')">Keep local</button>
+                    <button type="button" class="btn-conflict-action" @click="resolveConflict(c.item, 'server')">Accept server</button>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
         </div>
       </aside>
     </template>
@@ -635,16 +683,36 @@
       <!-- View 5: Future Planning Matrix -->
       <template x-if="activeView === 'future-matrix'">
         <section class="view-container" aria-label="Future Planning Matrix">
-          <header>
-            <h2 class="view-title">
+          <header style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+            <h2 class="view-title" style="margin-bottom: 0;">
               <span class="material-symbols-outlined">explore</span>
-              Future Planning Matrix (12-Month Overview)
+              Future Planning Matrix (12-Month Horizon)
             </h2>
+            <div style="font-size: 13px; color: var(--theme-text-muted);">
+              Rolling Projections & Multi-Quarter Horizons
+            </div>
           </header>
+
+          <!-- Multi-Quarter Milestone Summary Cards -->
+          <div class="milestones-horizon-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px;">
+            <template x-for="q in ['Q1', 'Q2', 'Q3', 'Q4']" :key="q">
+              <div class="quarter-summary-card" style="padding: 10px 14px; background: var(--theme-card-bg); border: 1px solid var(--theme-card-border); border-radius: 6px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <strong x-text="selectedYear + '-' + q" style="font-size: 13px;"></strong>
+                  <span class="badge" style="font-size: 11px; padding: 2px 6px; border-radius: 4px; background: rgba(0,0,0,0.06);" x-text="(quarterlyMilestoneTracker.byQuarter[selectedYear + '-' + q] || []).length + ' milestones'"></span>
+                </div>
+                <div style="font-size: 12px; color: var(--theme-text-muted);" x-text="(quarterlyMilestoneTracker.byQuarter[selectedYear + '-' + q] || []).map(m => m.title).join(', ') || 'No quarterly milestones scheduled'"></div>
+              </div>
+            </template>
+          </div>
+
           <section class="future-matrix-grid">
-            <template x-for="m in ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']">
+            <template x-for="(m, idx) in ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']" :key="m">
               <article class="future-month-card">
-                <h3 class="future-month-title" x-text="m + ' ' + selectedYear"></h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <h3 class="future-month-title" style="margin-bottom: 0;" x-text="m + ' ' + selectedYear"></h3>
+                  <span style="font-size: 11px; color: var(--theme-text-muted);" x-text="'Q' + (Math.floor(idx / 3) + 1)"></span>
+                </div>
                 <p class="future-month-empty">No future milestones scheduled.</p>
               </article>
             </template>
@@ -780,6 +848,21 @@
         </p>
       </article>
     </section>
+  <section aria-labelledby="heading-export" style="margin-top: 24px;">
+    <h2 id="heading-export" class="about-section-heading">5. One-Click Binder Export & Backup</h2>
+    <p class="about-paragraph">
+      Download and back up your entire Day Planner state at any time for local reading, offline archiving, or external migration.
+    </p>
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px;">
+      <button type="button" class="btn btn-primary" style="display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 6px; cursor: pointer;" @click="exportBinderJson()">
+        <span class="material-symbols-outlined icon-18">data_object</span>
+        <span>Download JSON Snapshot</span>
+      </button>
+      <button type="button" class="btn btn-secondary" style="display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 6px; cursor: pointer;" @click="exportBinderMarkdown()">
+        <span class="material-symbols-outlined icon-18">description</span>
+        <span>Download Markdown Archive (.md)</span>
+      </button>
+    </div>
   </section>
 
   <footer class="about-footer">

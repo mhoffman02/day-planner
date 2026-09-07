@@ -184,20 +184,25 @@ export async function fetchDayCalendarEvents(dateStr, accessToken) {
     timeMax: nextDate.toISOString(),
     singleEvents: 'true',
     maxResults: '250',
-    fields: 'items(id,summary,start,end,location,description,hangoutLink,htmlLink,extendedProperties)'
+    fields: 'items(id,summary,start,end,location,description,hangoutLink,htmlLink,extendedProperties,etag,updated)'
   });
   const data = await googleApiFetch(`${CALENDAR_API_BASE}/calendars/primary/events?${params}`, accessToken);
-  return (data.items || []).map(evt => ({
-    id: evt.id,
-    title: evt.summary || '(untitled)',
-    startTime: evt.start && (evt.start.dateTime || evt.start.date),
-    endTime: evt.end && (evt.end.dateTime || evt.end.date),
-    location: evt.location || '',
-    description: evt.description || '',
-    meetLink: evt.hangoutLink || null,
-    htmlLink: evt.htmlLink || null,
-    syncTaskId: (evt.extendedProperties && evt.extendedProperties.shared && evt.extendedProperties.shared.gasTaskId) || null
-  }));
+  return (data.items || []).map(evt => {
+    const obj = {
+      id: evt.id,
+      title: evt.summary || '(untitled)',
+      startTime: evt.start && (evt.start.dateTime || evt.start.date),
+      endTime: evt.end && (evt.end.dateTime || evt.end.date),
+      location: evt.location || '',
+      description: evt.description || '',
+      meetLink: evt.hangoutLink || null,
+      htmlLink: evt.htmlLink || null,
+      syncTaskId: (evt.extendedProperties && evt.extendedProperties.shared && evt.extendedProperties.shared.gasTaskId) || null
+    };
+    if (evt.etag) obj._etag = evt.etag;
+    if (evt.updated) obj._updated = evt.updated;
+    return obj;
+  });
 }
 
 /**
@@ -228,7 +233,7 @@ export async function fetchDayTasks(dateStr, accessToken) {
     .filter(t => t.due && t.due.substring(0, 10) === dateStr)
     .map(t => {
       const meta = decodeTaskMeta(t.notes);
-      return {
+      const obj = {
         id: t.id,
         title: t.title,
         status: deriveTaskStatus(t),
@@ -238,6 +243,9 @@ export async function fetchDayTasks(dateStr, accessToken) {
         starred: Boolean(meta.starred),
         notes: stripDpTokens(t.notes)
       };
+      if (t.etag) obj._etag = t.etag;
+      if (t.updated) obj._updated = t.updated;
+      return obj;
     });
 }
 
@@ -261,7 +269,7 @@ export async function fetchMonthCalendarEvents(monthStr, accessToken) {
       timeMax: monthEndUtc.toISOString(),
       singleEvents: 'true',
       maxResults: '2500',
-      fields: 'nextPageToken,items(id,summary,start,end,location,hangoutLink,extendedProperties)'
+      fields: 'nextPageToken,items(id,summary,start,end,location,hangoutLink,extendedProperties,etag,updated)'
     });
     if (pageToken) params.set('pageToken', pageToken);
     const data = await googleApiFetch(`${CALENDAR_API_BASE}/calendars/primary/events?${params}`, accessToken);
@@ -270,7 +278,7 @@ export async function fetchMonthCalendarEvents(monthStr, accessToken) {
       if (!startIso) continue;
       const dateStr = startIso.substring(0, 10);
       if (!eventsByDate[dateStr]) eventsByDate[dateStr] = [];
-      eventsByDate[dateStr].push({
+      const obj = {
         id: evt.id,
         title: evt.summary || '(untitled)',
         startTime: startIso,
@@ -278,7 +286,10 @@ export async function fetchMonthCalendarEvents(monthStr, accessToken) {
         location: evt.location || '',
         meetLink: evt.hangoutLink || null,
         syncTaskId: (evt.extendedProperties && evt.extendedProperties.shared && evt.extendedProperties.shared.gasTaskId) || null
-      });
+      };
+      if (evt.etag) obj._etag = evt.etag;
+      if (evt.updated) obj._updated = evt.updated;
+      eventsByDate[dateStr].push(obj);
     }
     pageToken = data.nextPageToken || null;
   } while (pageToken);
@@ -309,7 +320,10 @@ export async function fetchMonthTasks(monthStr, accessToken) {
       if (!t.due) continue;
       const dateStr = t.due.substring(0, 10);
       if (!tasksByDate[dateStr]) tasksByDate[dateStr] = [];
-      tasksByDate[dateStr].push({ id: t.id, title: t.title, status: deriveTaskStatus(t), dueDate: dateStr });
+      const obj = { id: t.id, title: t.title, status: deriveTaskStatus(t), dueDate: dateStr };
+      if (t.etag) obj._etag = t.etag;
+      if (t.updated) obj._updated = t.updated;
+      tasksByDate[dateStr].push(obj);
     }
     pageToken = data.nextPageToken || null;
   } while (pageToken);
@@ -1360,11 +1374,18 @@ export class GASBridge {
     const seedEvents = this.mockData.calendarEvents[dateStr] || this.mockData.calendarEvents['2026-08-15'] || [];
     const seedNote = this.mockData.dailyNotes[dateStr] || this.mockData.dailyNotes['2026-08-15'] || `No notes recorded for ${dateStr}.`;
 
-    const adjustedTasks = seedTasks.map(t => ({ ...t, dueDate: dateStr }));
+    const adjustedTasks = seedTasks.map(t => ({
+      ...t,
+      dueDate: dateStr,
+      _etag: t._etag || t.etag || `mock-etag-task-${t.id}`,
+      _updated: t._updated || t.updated || `${dateStr}T08:00:00.000Z`
+    }));
     const adjustedEvents = seedEvents.map(e => ({
       ...e,
       startTime: e.startTime ? e.startTime.replace(/^\d{4}-\d{2}-\d{2}/, dateStr).replace(/Z$/, '') : `${dateStr}T09:00:00`,
-      endTime: e.endTime ? e.endTime.replace(/^\d{4}-\d{2}-\d{2}/, dateStr).replace(/Z$/, '') : `${dateStr}T10:00:00`
+      endTime: e.endTime ? e.endTime.replace(/^\d{4}-\d{2}-\d{2}/, dateStr).replace(/Z$/, '') : `${dateStr}T10:00:00`,
+      _etag: e._etag || e.etag || `mock-etag-evt-${e.id}`,
+      _updated: e._updated || e.updated || `${dateStr}T08:00:00.000Z`
     }));
 
     return tagMock({
@@ -1640,7 +1661,8 @@ export class GASBridge {
       }
     }
 
-    await IndexedDbStore.idbEnqueueMutation(OUTBOX_MUTATION_TYPES.UPDATE_DAILY_TASK, { dateStr, taskId, updates });
+    const baseEtag = updates._baseEtag || updates._etag || null;
+    await IndexedDbStore.idbEnqueueMutation(OUTBOX_MUTATION_TYPES.UPDATE_DAILY_TASK, { dateStr, taskId, updates }, baseEtag);
     return { id: taskId, ...updates, _queuedOffline: true };
   }
 
@@ -1798,7 +1820,8 @@ export class GASBridge {
       }
     }
 
-    await IndexedDbStore.idbEnqueueMutation(OUTBOX_MUTATION_TYPES.UPDATE_CALENDAR_EVENT, { dateStr, eventId, updates });
+    const baseEtag = updates._baseEtag || updates._etag || null;
+    await IndexedDbStore.idbEnqueueMutation(OUTBOX_MUTATION_TYPES.UPDATE_CALENDAR_EVENT, { dateStr, eventId, updates }, baseEtag);
     return { id: eventId, ...updates, _queuedOffline: true };
   }
 

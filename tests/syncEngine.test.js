@@ -508,5 +508,47 @@ describe('2-Way Sync Engine Unit Tests', () => {
       const merged = mergeExternalChanges(local, server);
       assert.deepEqual(merged, [{ id: 't1', title: '[A1] Old title', status: '✓', scheduledTime: '2026-09-05T09:00:00Z' }]);
     });
+
+    it('should mark record with _conflict: true when _baseEtag diverges from server _etag rather than silently overwriting', () => {
+      const local = [{ id: 't1', title: '[A1] Local edited title', status: '•', _baseEtag: 'etag_v1' }];
+      const server = [{ id: 't1', title: '[A1] Server modified title', status: '✓', _etag: 'etag_v2' }];
+
+      const merged = mergeExternalChanges(local, server);
+      assert.equal(merged.length, 1);
+      const item = merged[0];
+      assert.equal(item.id, 't1');
+      assert.equal(item._conflict, true);
+      assert.equal(item.title, '[A1] Local edited title'); // Local edits preserved, not silently overwritten
+      assert.equal(item._baseEtag, 'etag_v1');
+      assert.equal(item._serverEtag, 'etag_v2');
+      assert.ok(item._serverVersion);
+      assert.equal(item._serverVersion.title, '[A1] Server modified title');
+    });
+
+    it('should resolve _baseEtag from outbox queue when not on local item directly', () => {
+      const local = [{ id: 't1', title: '[A1] Local offline edit', status: '•' }];
+      const server = [{ id: 't1', title: '[A1] Server upstream edit', status: '✓', _etag: 'etag_server_2' }];
+      const outbox = [{
+        type: 'UPDATE_DAILY_TASK',
+        payload: { taskId: 't1' },
+        _baseEtag: 'etag_server_1'
+      }];
+
+      const merged = mergeExternalChanges(local, server, outbox);
+      assert.equal(merged.length, 1);
+      assert.equal(merged[0]._conflict, true);
+      assert.equal(merged[0].title, '[A1] Local offline edit');
+      assert.equal(merged[0]._serverEtag, 'etag_server_2');
+    });
+
+    it('should not mark conflict when _baseEtag matches incoming server _etag', () => {
+      const local = [{ id: 't1', title: '[A1] Local title', status: '•', _baseEtag: 'etag_match' }];
+      const server = [{ id: 't1', title: '[A1] Server updated status', status: '✓', _etag: 'etag_match' }];
+
+      const merged = mergeExternalChanges(local, server);
+      assert.equal(merged.length, 1);
+      assert.equal(merged[0]._conflict, undefined);
+      assert.equal(merged[0].status, '✓');
+    });
   });
 });

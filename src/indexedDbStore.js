@@ -302,6 +302,22 @@ export async function idbGetDaily(dateStr) {
 /** @param {string} dateStr Date string e.g. "2026-08-15". @param {object} payload Daily-page data to cache. @returns {Promise<boolean>} */
 export async function idbSaveDaily(dateStr, payload) {
   const item = Object.assign({}, payload, { dateStr: dateStr, cachedAt: new Date().toISOString() });
+  if (Array.isArray(item.tasks)) {
+    item.tasks = item.tasks.map(t => {
+      const copy = { ...t };
+      if (t._etag || t.etag) copy._etag = t._etag || t.etag;
+      if (t._updated || t.updated) copy._updated = t._updated || t.updated;
+      return copy;
+    });
+  }
+  if (Array.isArray(item.calendarEvents)) {
+    item.calendarEvents = item.calendarEvents.map(e => {
+      const copy = { ...e };
+      if (e._etag || e.etag) copy._etag = e._etag || e.etag;
+      if (e._updated || e.updated) copy._updated = e._updated || e.updated;
+      return copy;
+    });
+  }
   return setItem(STORES.DAILY_DATA, item);
 }
 
@@ -318,7 +334,12 @@ export async function idbGetMasterTasks() {
 
 /** @param {Array<object>} tasks Master task list to cache. @returns {Promise<boolean>} */
 export async function idbSaveMasterTasks(tasks) {
-  const item = { monthStr: MASTER_TASKS_CACHE_KEY, tasks: tasks || [], cachedAt: new Date().toISOString() };
+  const normalizedTasks = Array.isArray(tasks) ? tasks.map(t => ({
+    ...t,
+    _etag: t._etag || t.etag || null,
+    _updated: t._updated || t.updated || null
+  })) : [];
+  const item = { monthStr: MASTER_TASKS_CACHE_KEY, tasks: normalizedTasks, cachedAt: new Date().toISOString() };
   return setItem(STORES.MASTER_TASKS, item);
 }
 
@@ -348,12 +369,37 @@ export async function idbSaveMonthOverview(monthStr, days) {
  * Queues an offline write for later replay once connectivity returns.
  * @param {string} type Mutation type tag (see `OUTBOX_MUTATION_TYPES` in gasBridge.js).
  * @param {object} payload Mutation payload to replay.
+ * @param {string|null} [baseEtag=null] Optional base ETag at mutation time for conflict detection.
  * @returns {Promise<boolean>}
  */
-export async function idbEnqueueMutation(type, payload) {
+export async function idbEnqueueMutation(type, payload, baseEtag = null) {
+  let resolvedBaseEtag = baseEtag || payload?._baseEtag || payload?._etag || payload?.updates?._baseEtag || null;
+
+  if (!resolvedBaseEtag && payload?.dateStr && (payload?.taskId || payload?.eventId)) {
+    try {
+      const daily = await getItem(STORES.DAILY_DATA, payload.dateStr);
+      if (daily) {
+        if (payload.taskId && Array.isArray(daily.tasks)) {
+          const match = daily.tasks.find(t => t.id === payload.taskId);
+          if (match && (match._etag || match.etag)) {
+            resolvedBaseEtag = match._etag || match.etag;
+          }
+        } else if (payload.eventId && Array.isArray(daily.calendarEvents)) {
+          const match = daily.calendarEvents.find(e => e.id === payload.eventId);
+          if (match && (match._etag || match.etag)) {
+            resolvedBaseEtag = match._etag || match.etag;
+          }
+        }
+      }
+    } catch {
+      // ignore lookup error and proceed with null baseEtag
+    }
+  }
+
   const mutation = {
     type: type,
     payload: payload,
+    _baseEtag: resolvedBaseEtag,
     enqueuedAt: new Date().toISOString()
   };
   return setItem(STORES.OUTBOX_QUEUE, mutation);

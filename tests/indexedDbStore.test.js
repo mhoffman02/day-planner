@@ -312,4 +312,36 @@ describe('IndexedDB Client Store Unit Tests', () => {
     const remainingOutbox = await IndexedDbStore.idbGetOutbox();
     assert.strictEqual(remainingOutbox.some(item => item.id === firstItem.id), false);
   });
+
+  it('should store and preserve _etag and _updated on cached IDB task and event records', async () => {
+    const testDate = '2026-08-19';
+    const payload = {
+      tasks: [{ id: 't_etag', title: 'Task with etag', etag: 'etag-task-123', updated: '2026-08-19T10:00:00Z' }],
+      calendarEvents: [{ id: 'e_etag', title: 'Event with etag', _etag: 'etag-evt-456', _updated: '2026-08-19T10:00:00Z' }]
+    };
+
+    await IndexedDbStore.idbSaveDaily(testDate, payload);
+    const retrieved = await IndexedDbStore.idbGetDaily(testDate);
+    assert.ok(retrieved);
+    assert.strictEqual(retrieved.tasks[0]._etag, 'etag-task-123');
+    assert.strictEqual(retrieved.tasks[0]._updated, '2026-08-19T10:00:00Z');
+    assert.strictEqual(retrieved.calendarEvents[0]._etag, 'etag-evt-456');
+    assert.strictEqual(retrieved.calendarEvents[0]._updated, '2026-08-19T10:00:00Z');
+  });
+
+  it('should capture _baseEtag on outbox items at mutation queuing time', async () => {
+    // 1. Explicit baseEtag parameter
+    await IndexedDbStore.idbEnqueueMutation('UPDATE_DAILY_TASK', { taskId: 't_custom', dateStr: '2026-08-19' }, 'etag-explicit-999');
+    // 2. BaseEtag present in payload
+    await IndexedDbStore.idbEnqueueMutation('UPDATE_DAILY_TASK', { taskId: 't_payload', _baseEtag: 'etag-in-payload' });
+
+    const outbox = await IndexedDbStore.idbGetOutbox();
+    const explicitItem = outbox.find(m => m.payload.taskId === 't_custom');
+    const payloadItem = outbox.find(m => m.payload.taskId === 't_payload');
+
+    assert.ok(explicitItem);
+    assert.strictEqual(explicitItem._baseEtag, 'etag-explicit-999');
+    assert.ok(payloadItem);
+    assert.strictEqual(payloadItem._baseEtag, 'etag-in-payload');
+  });
 });
