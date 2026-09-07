@@ -165,4 +165,35 @@ describe('Export Engine Unit Tests', () => {
     assert.equal(downloadBinderJson(state), false);
     assert.equal(downloadBinderMarkdown(state), false);
   });
+
+  it('collectFullBinderState and exportBinderAsMarkdown include future milestones', () => {
+    const sampleMilestones = [
+      {
+        id: 'ms1',
+        title: 'Launch Global Sync',
+        targetQuarter: '2026-Q3',
+        category: 'Product',
+        status: '•',
+        progress: 50,
+        deliverables: [
+          { id: 'd1', title: 'Backend schema', status: '✓' },
+          { id: 'd2', title: 'Client UI', status: '•' }
+        ]
+      }
+    ];
+
+    const state = collectFullBinderState({
+      futureMilestones: sampleMilestones
+    });
+
+    assert.equal(state.stats.totalMilestones, 1);
+    assert.equal(state.milestones.length, 1);
+    assert.equal(state.milestones[0].title, 'Launch Global Sync');
+
+    const md = exportBinderAsMarkdown(state);
+    assert.ok(md.includes('## 4. Quarterly Milestones & Future Planning'));
+    assert.ok(md.includes('Launch Global Sync *[Product]* **(2026-Q3)** — 50%'));
+    assert.ok(md.includes('[x] Backend schema'));
+    assert.ok(md.includes('[ ] Client UI'));
+  });
 });

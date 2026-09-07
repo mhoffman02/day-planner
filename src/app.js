@@ -12,9 +12,24 @@ import { formatEventModalPayload, formatEventDescriptionHtml } from './calendarE
 import IndexedDbStore from './indexedDbStore.js';
 import { getLocalDateStr, generateLocalId } from './binderStore.js';
 import { initGoogleAuth, signIn, signOut, isSignedIn, ensureAccessToken, onAuthStateChanged } from './googleAuth.js';
-import { parseTaskTitle, formatTaskTitle, getNextStatus, isValidStatus, STATUS_OPTIONS, sortTasksByColumn } from './taskEngine.js';
+import { parseTaskTitle, formatTaskTitle, getNextStatus, isValidStatus, STATUS_OPTIONS, sortTasksByColumn, findNextAvailableSequence } from './taskEngine.js';
 import { collectFullBinderState, downloadBinderJson, downloadBinderMarkdown } from './exportEngine.js';
-import { generateRollingHorizon, projectRollingHorizon, trackMultiQuarterMilestones, quarterKeyFor } from './futureMatrixEngine.js';
+import {
+  generateRollingHorizon,
+  projectRollingHorizon,
+  trackMultiQuarterMilestones,
+  quarterKeyFor,
+  createMilestone,
+  updateMilestone,
+  toggleMilestoneStatus,
+  cycleMilestoneStatus,
+  toggleDeliverable,
+  rescheduleMilestone,
+  advanceQuarterKey,
+  regressQuarterKey,
+  createFutureItem,
+  nextMonthKey
+} from './futureMatrixEngine.js';
 window.GASBridge = GASBridge;
 
 // Month-overview cache freshness window for the rolling 3-month background prefetch (see
@@ -271,12 +286,36 @@ if ('serviceWorker' in navigator) {
       },
 
       futureMilestones: [],
+      futureMatrix: {},
+      futureMatrixLoading: false,
+
+      // Milestone modal state
+      milestoneModalOpen: false,
+      isEditingMilestone: false,
+      milestoneForm: {
+        id: '',
+        title: '',
+        targetQuarter: '',
+        targetMonth: '',
+        category: 'General',
+        description: '',
+        deliverablesText: ''
+      },
+
+      // Quick inline future month item inputs
+      newFutureItemText: {},
+
+      /** @returns {Array<string>} Quarter keys for dropdown selection spanning current and next year. */
+      get availableQuarters() {
+        const y = this.selectedYear;
+        return [`${y}-Q1`, `${y}-Q2`, `${y}-Q3`, `${y}-Q4`, `${y + 1}-Q1`, `${y + 1}-Q2`];
+      },
 
       /** @returns {object} Projections of load density and milestones across a rolling 12-month window. */
       get rollingHorizonProjections() {
         const startKey = `${this.selectedYear}-${String(this.selectedMonth).padStart(2, '0')}`;
         const horizon = generateRollingHorizon(startKey, 12);
-        return projectRollingHorizon(horizon, {}, this.futureMilestones || []);
+        return projectRollingHorizon(horizon, this.futureMatrix || {}, this.futureMilestones || []);
       },
 
       /** @returns {object} Milestone breakdown across quarters relative to active quarter. */
@@ -300,6 +339,7 @@ if ('serviceWorker' in navigator) {
         await this.loadDayData();
         await this.loadMasterTasks();
         await this.loadRecentAttendees();
+        await this.loadFutureMatrixAndMilestones();
         await this.refreshOutboxCount();
         this.setupKeyboardShortcuts();
         this.setupAutoSync();
@@ -858,6 +898,7 @@ if ('serviceWorker' in navigator) {
           dailyData: dailyData || [],
           masterTasks,
           monthlyNotes: monthlyNotes || [],
+          futureMilestones: this.futureMilestones || [],
           currentDaily
         });
       },
@@ -893,6 +934,352 @@ if ('serviceWorker' in navigator) {
       },
 
       /**
+       * Loads future milestones and 12-month future matrix items from IndexedDB or the bridge.
+       * Automatically seeds starter Franklin Covey quarterly milestones if empty.
+       * @returns {Promise<void>}
+       */
+      async loadFutureMatrixAndMilestones() {
+        this.futureMatrixLoading = true;
+        try {
+          // 1. Load milestones from IndexedDB
+          let milestones = await IndexedDbStore.idbGetMilestones();
+          if (!milestones || milestones.length === 0) {
+            const currentY = this.selectedYear;
+            milestones = [
+              createMilestone('Q1 Strategic Objectives & Annual Budget', `${currentY}-Q1`, {
+                category: 'Strategic',
+                description: 'Finalize core business plan, annual OKRs, and preliminary budget allocations.',
+                targetMonth: `${currentY}-01`,
+                deliverables: [
+                  { title: 'Draft executive summary and department goals', status: '✓' },
+                  { title: 'Align resource capacity and contractor budgets', status: '✓' },
+                  { title: 'Secure executive committee approval', status: '•' }
+                ]
+              }),
+              createMilestone('Q2 Infrastructure Modernization', `${currentY}-Q2`, {
+                category: 'Operations',
+                description: 'Upgrade cloud architecture, reduce service latencies, and automate E2E test gates.',
+                targetMonth: `${currentY}-05`,
+                deliverables: [
+                  { title: 'Benchmark compute clusters and database queries', status: '•' },
+                  { title: 'Migrate legacy staging environment', status: '•' }
+                ]
+              }),
+              createMilestone('Q3 Strategic Growth & Executive Offsite', `${currentY}-Q3`, {
+                category: 'Strategic',
+                description: 'Conduct mid-year review and host annual team strategic retreat.',
+                targetMonth: `${currentY}-08`,
+                deliverables: [
+                  { title: 'Finalize offsite agenda and keynote speaker', status: '•' },
+                  { title: 'Publish H1 retrospective report', status: '•' }
+                ]
+              }),
+              createMilestone('Q4 Year-End Closeout & 2027 Horizon', `${currentY}-Q4`, {
+                category: 'Finance',
+                description: 'Complete fiscal audits, tax planning, and establish upcoming year strategic matrix.',
+                targetMonth: `${currentY}-11`,
+                deliverables: [
+                  { title: 'Audit vendor contracts and renew SaaS licenses', status: '•' },
+                  { title: 'Distribute year-end performance reviews', status: '•' }
+                ]
+              })
+            ];
+            await IndexedDbStore.idbSaveMilestones(milestones);
+          }
+          this.futureMilestones = milestones;
+
+          // 2. Load future matrix 12-month items from IndexedDB / bridge
+          let matrixData = await IndexedDbStore.idbGetFutureMatrix(this.selectedYear);
+          if (!matrixData || !matrixData.months) {
+            matrixData = await this.bridge.getFutureMatrix(this.selectedYear);
+            if (matrixData) {
+              await IndexedDbStore.idbSaveFutureMatrix(this.selectedYear, matrixData);
+            }
+          }
+          this.futureMatrix = matrixData?.months || {};
+        } catch (err) {
+          console.warn('loadFutureMatrixAndMilestones error:', err);
+        } finally {
+          this.futureMatrixLoading = false;
+        }
+      },
+
+      /**
+       * Opens modal to create a new quarterly milestone.
+       * @param {string|null} [targetQuarter=null] Pre-selected quarter (e.g. "2026-Q3").
+       * @param {string|null} [targetMonth=null] Optional pre-selected target month.
+       */
+      openCreateMilestoneModal(targetQuarter = null, targetMonth = null) {
+        const defaultQ = targetQuarter || quarterKeyFor(this.selectedYear, Math.ceil(this.selectedMonth / 3));
+        this.milestoneForm = {
+          id: '',
+          title: '',
+          targetQuarter: defaultQ,
+          targetMonth: targetMonth || '',
+          category: 'General',
+          description: '',
+          deliverablesText: ''
+        };
+        this.isEditingMilestone = false;
+        this.milestoneModalOpen = true;
+      },
+
+      /**
+       * Opens modal to edit an existing quarterly milestone.
+       * @param {object} milestone Target milestone.
+       */
+      openEditMilestoneModal(milestone) {
+        this.milestoneForm = {
+          id: milestone.id,
+          title: milestone.title,
+          targetQuarter: milestone.targetQuarter,
+          targetMonth: milestone.targetMonth || '',
+          category: milestone.category || 'General',
+          description: milestone.description || '',
+          deliverablesText: (milestone.deliverables || []).map(d => d.title).join('\n')
+        };
+        this.isEditingMilestone = true;
+        this.milestoneModalOpen = true;
+      },
+
+      /** Closes the milestone modal. */
+      closeMilestoneModal() {
+        this.milestoneModalOpen = false;
+      },
+
+      /**
+       * Saves a milestone (create or edit) from the modal form and persists to IndexedDB.
+       * @returns {Promise<void>}
+       */
+      async saveMilestoneFromModal() {
+        const title = (this.milestoneForm.title || '').trim();
+        if (!title) {
+          this.showToast('Milestone title is required', 'warning', 3000, 'Missing Title');
+          return;
+        }
+
+        const lines = (this.milestoneForm.deliverablesText || '').split('\n').map(s => s.trim()).filter(Boolean);
+
+        if (this.isEditingMilestone) {
+          const existing = this.futureMilestones.find(m => m.id === this.milestoneForm.id);
+          const prevDeliverables = existing?.deliverables || [];
+          const deliverables = lines.map((lineTitle, idx) => {
+            const prev = prevDeliverables.find(d => d.title.toLowerCase() === lineTitle.toLowerCase()) || prevDeliverables[idx];
+            return {
+              id: prev?.id || generateLocalId('dlv', 5),
+              title: lineTitle,
+              status: prev ? prev.status : '•'
+            };
+          });
+
+          const updated = updateMilestone(existing || { id: this.milestoneForm.id }, {
+            title,
+            targetQuarter: this.milestoneForm.targetQuarter,
+            targetMonth: this.milestoneForm.targetMonth || null,
+            category: this.milestoneForm.category || 'General',
+            description: (this.milestoneForm.description || '').trim(),
+            deliverables
+          });
+
+          const idx = this.futureMilestones.findIndex(m => m.id === updated.id);
+          if (idx !== -1) {
+            this.futureMilestones.splice(idx, 1, updated);
+          } else {
+            this.futureMilestones.push(updated);
+          }
+          await IndexedDbStore.idbSaveMilestone(updated);
+          this.showToast(`Updated milestone: "${updated.title}"`, 'success', 3500, 'Milestone Updated');
+        } else {
+          const deliverables = lines.map(lineTitle => ({
+            id: generateLocalId('dlv', 5),
+            title: lineTitle,
+            status: '•'
+          }));
+
+          const newMs = createMilestone(title, this.milestoneForm.targetQuarter, {
+            category: this.milestoneForm.category || 'General',
+            description: (this.milestoneForm.description || '').trim(),
+            targetMonth: this.milestoneForm.targetMonth || null,
+            deliverables
+          });
+
+          this.futureMilestones.push(newMs);
+          await IndexedDbStore.idbSaveMilestone(newMs);
+          this.showToast(`Created milestone: "${newMs.title}"`, 'success', 3500, 'Milestone Created');
+        }
+
+        this.closeMilestoneModal();
+      },
+
+      /**
+       * Toggles milestone status between completed and open.
+       * @param {object} milestone
+       * @returns {Promise<void>}
+       */
+      async toggleMilestone(milestone) {
+        const updated = toggleMilestoneStatus(milestone);
+        const idx = this.futureMilestones.findIndex(m => m.id === milestone.id);
+        if (idx !== -1) this.futureMilestones.splice(idx, 1, updated);
+        await IndexedDbStore.idbSaveMilestone(updated);
+        this.showToast(updated.status === '✓' ? `Completed: "${updated.title}"` : `Reopened: "${updated.title}"`, 'info', 2500);
+      },
+
+      /**
+       * Toggles a single deliverable sub-task within a milestone.
+       * @param {object} milestone
+       * @param {string} deliverableId
+       * @returns {Promise<void>}
+       */
+      async toggleMilestoneDeliverable(milestone, deliverableId) {
+        const updated = toggleDeliverable(milestone, deliverableId);
+        const idx = this.futureMilestones.findIndex(m => m.id === milestone.id);
+        if (idx !== -1) this.futureMilestones.splice(idx, 1, updated);
+        await IndexedDbStore.idbSaveMilestone(updated);
+      },
+
+      /**
+       * Reschedules a milestone to the next or previous quarter.
+       * @param {object} milestone
+       * @param {'next'|'prev'} [direction='next']
+       * @returns {Promise<void>}
+       */
+      async rescheduleMilestoneQuick(milestone, direction = 'next') {
+        const newQ = direction === 'prev' ? regressQuarterKey(milestone.targetQuarter) : advanceQuarterKey(milestone.targetQuarter);
+        const updated = rescheduleMilestone(milestone, newQ, null);
+        const idx = this.futureMilestones.findIndex(m => m.id === milestone.id);
+        if (idx !== -1) this.futureMilestones.splice(idx, 1, updated);
+        await IndexedDbStore.idbSaveMilestone(updated);
+        this.showToast(`Rescheduled to ${newQ}: "${updated.title}"`, 'info', 3500, 'Milestone Rescheduled');
+      },
+
+      /**
+       * Deletes a milestone by ID and removes from IndexedDB.
+       * @param {string} milestoneId
+       * @returns {Promise<void>}
+       */
+      async deleteMilestone(milestoneId) {
+        const idx = this.futureMilestones.findIndex(m => m.id === milestoneId);
+        if (idx !== -1) {
+          const title = this.futureMilestones[idx].title;
+          this.futureMilestones.splice(idx, 1);
+          await IndexedDbStore.idbDeleteMilestone(milestoneId);
+          this.showToast(`Deleted milestone: "${title}"`, 'info', 3000, 'Milestone Removed');
+        }
+      },
+
+      /**
+       * Adds a new item to a specific month's bucket in the 12-month Future Matrix.
+       * @param {string} monthKey YYYY-MM key e.g. "2026-08".
+       * @returns {Promise<void>}
+       */
+      async addFutureMonthItem(monthKey) {
+        const title = (this.newFutureItemText[monthKey] || '').trim();
+        if (!title) return;
+
+        const newItem = createFutureItem(title, 'General');
+        if (!this.futureMatrix[monthKey]) this.futureMatrix[monthKey] = [];
+        this.futureMatrix[monthKey].push(newItem);
+        this.newFutureItemText[monthKey] = '';
+
+        await IndexedDbStore.idbSaveFutureMatrix(this.selectedYear, { year: String(this.selectedYear), months: this.futureMatrix });
+        this.bridge.addFutureItem(this.selectedYear, monthKey, title, 'General').catch(e => console.warn('Bridge addFutureItem failed:', e));
+        this.showToast(`Added future item: "${title}"`, 'success', 2500);
+      },
+
+      /**
+       * Cycles status of an item in a month's bucket.
+       * @param {string} monthKey
+       * @param {string} itemId
+       * @returns {Promise<void>}
+       */
+      async cycleFutureMonthItemStatus(monthKey, itemId) {
+        const items = this.futureMatrix[monthKey] || [];
+        const item = items.find(i => i.id === itemId);
+        if (!item) return;
+
+        item.status = cycleMilestoneStatus(item.status);
+        await IndexedDbStore.idbSaveFutureMatrix(this.selectedYear, { year: String(this.selectedYear), months: this.futureMatrix });
+        this.bridge.updateFutureItemStatus(this.selectedYear, monthKey, itemId, item.status).catch(e => console.warn('Bridge updateFutureItemStatus failed:', e));
+      },
+
+      /**
+       * Transfers an item from a future month bucket onto the currently selected daily task list.
+       * @param {string} monthKey
+       * @param {string} itemId
+       * @returns {Promise<void>}
+       */
+      async transferFutureMonthItemToDay(monthKey, itemId) {
+        const items = this.futureMatrix[monthKey] || [];
+        const itemIdx = items.findIndex(i => i.id === itemId);
+        if (itemIdx === -1) return;
+
+        const item = items[itemIdx];
+        items.splice(itemIdx, 1);
+        await IndexedDbStore.idbSaveFutureMatrix(this.selectedYear, { year: String(this.selectedYear), months: this.futureMatrix });
+
+        // Add to current day's tasks
+        const nextSeq = findNextAvailableSequence(this.dailyTasks, 'A');
+        const priorityTitle = formatTaskTitle('A', nextSeq, item.title);
+        const newTask = {
+          id: generateLocalId('t', 7),
+          title: priorityTitle,
+          status: '•',
+          category: item.category || 'General',
+          date: this.selectedDate
+        };
+        this.dailyTasks.push(newTask);
+        const cached = (await IndexedDbStore.idbGetDaily(this.selectedDate)) || {};
+        await IndexedDbStore.idbSaveDaily(this.selectedDate, { ...cached, tasks: this.dailyTasks, calendarEvents: this.calendarEvents });
+
+        this.bridge.transferFutureItem(this.selectedYear, monthKey, itemId, this.selectedDate, 'A').catch(e => console.warn('Bridge transferFutureItem failed:', e));
+        this.showToast(`Transferred "${item.title}" to ${this.selectedDate} ([A${nextSeq}])`, 'success', 4000, 'Task Transferred');
+      },
+
+      /**
+       * Pushes an uncompleted future month item to the next calendar month.
+       * @param {string} monthKey
+       * @param {string} itemId
+       * @returns {Promise<void>}
+       */
+      async pushFutureMonthItemNext(monthKey, itemId) {
+        const items = this.futureMatrix[monthKey] || [];
+        const itemIdx = items.findIndex(i => i.id === itemId);
+        if (itemIdx === -1) return;
+
+        const item = items[itemIdx];
+        items.splice(itemIdx, 1);
+        const targetMonth = nextMonthKey(monthKey);
+
+        if (!this.futureMatrix[targetMonth]) this.futureMatrix[targetMonth] = [];
+        this.futureMatrix[targetMonth].push({
+          ...item,
+          rolledFrom: monthKey,
+          targetMonth
+        });
+
+        await IndexedDbStore.idbSaveFutureMatrix(this.selectedYear, { year: String(this.selectedYear), months: this.futureMatrix });
+        this.bridge.pushFutureItemToNextMonth(this.selectedYear, monthKey, itemId).catch(e => console.warn('Bridge pushFutureItemToNextMonth failed:', e));
+        this.showToast(`Pushed "${item.title}" to ${targetMonth}`, 'info', 3000);
+      },
+
+      /**
+       * Deletes an item from a month's bucket.
+       * @param {string} monthKey
+       * @param {string} itemId
+       * @returns {Promise<void>}
+       */
+      async deleteFutureMonthItem(monthKey, itemId) {
+        const items = this.futureMatrix[monthKey] || [];
+        const itemIdx = items.findIndex(i => i.id === itemId);
+        if (itemIdx === -1) return;
+
+        const item = items[itemIdx];
+        items.splice(itemIdx, 1);
+        await IndexedDbStore.idbSaveFutureMatrix(this.selectedYear, { year: String(this.selectedYear), months: this.futureMatrix });
+        this.showToast(`Deleted item: "${item.title}"`, 'info', 2500);
+      },
+
+      /**
        * Switches the active binder tab, rebuilding the monthly grid and warming the
        * rolling-month cache when switching into the monthly-calendar view.
        * @param {string} viewName Target view name (e.g. 'daily', 'monthly-calendar').
@@ -903,6 +1290,8 @@ if ('serviceWorker' in navigator) {
         if (viewName === 'monthly-calendar') {
           await this.buildMonthlyGrid();
           this._scheduleMonthWindowPrefetch(`${this.selectedYear}-${String(this.selectedMonth).padStart(2, '0')}`);
+        } else if (viewName === 'future-matrix') {
+          await this.loadFutureMatrixAndMilestones();
         }
       },
 
@@ -936,6 +1325,8 @@ if ('serviceWorker' in navigator) {
         await this.loadDayData();
         if (this.activeView === 'monthly-calendar') {
           await this.buildMonthlyGrid();
+        } else if (this.activeView === 'future-matrix') {
+          await this.loadFutureMatrixAndMilestones();
         }
         this._scheduleMonthWindowPrefetch(`${this.selectedYear}-${String(this.selectedMonth).padStart(2, '0')}`);
       },
@@ -953,6 +1344,8 @@ if ('serviceWorker' in navigator) {
         await this.loadDayData();
         if (this.activeView === 'monthly-calendar') {
           await this.buildMonthlyGrid();
+        } else if (this.activeView === 'future-matrix') {
+          await this.loadFutureMatrixAndMilestones();
         }
         this._scheduleMonthWindowPrefetch(`${this.selectedYear}-${monthStr}`);
       },

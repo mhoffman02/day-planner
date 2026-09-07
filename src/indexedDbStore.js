@@ -5,7 +5,7 @@
  */
 
 export const IDB_NAME = 'day-planner-db';
-export const IDB_VERSION = 3;
+export const IDB_VERSION = 4;
 
 export const IDB_STORE_DAILY = 'dailyData';
 export const IDB_STORE_MONTHLY_NOTES = 'monthlyNotes';
@@ -17,6 +17,8 @@ export const IDB_STORE_OUTBOX = 'outboxQueue';
 // currently open day) so a background month-batch response can never race a fresher
 // single-day write or a pending offline edit.
 export const IDB_STORE_MONTH_OVERVIEW = 'monthOverview';
+export const IDB_STORE_FUTURE_MILESTONES = 'futureMilestones';
+export const IDB_STORE_FUTURE_MATRIX = 'futureMatrix';
 
 // Generic storeName-keyed API below still addresses stores via this object -- kept for that
 // internal use and for tests exercising the generic API directly.
@@ -25,7 +27,9 @@ export const STORES = {
   MONTHLY_NOTES: IDB_STORE_MONTHLY_NOTES,
   MASTER_TASKS: IDB_STORE_MASTER_TASKS,
   OUTBOX_QUEUE: IDB_STORE_OUTBOX,
-  MONTH_OVERVIEW: IDB_STORE_MONTH_OVERVIEW
+  MONTH_OVERVIEW: IDB_STORE_MONTH_OVERVIEW,
+  FUTURE_MILESTONES: IDB_STORE_FUTURE_MILESTONES,
+  FUTURE_MATRIX: IDB_STORE_FUTURE_MATRIX
 };
 
 const memoryFallbackStore = {
@@ -33,7 +37,9 @@ const memoryFallbackStore = {
   monthlyNotes: {},
   masterTasks: {},
   outboxQueue: [],
-  monthOverview: {}
+  monthOverview: {},
+  futureMilestones: {},
+  futureMatrix: {}
 };
 
 /**
@@ -79,6 +85,12 @@ export function idbOpen() {
         }
         if (!db.objectStoreNames.contains(STORES.MONTH_OVERVIEW)) {
           db.createObjectStore(STORES.MONTH_OVERVIEW, { keyPath: 'monthStr' });
+        }
+        if (!db.objectStoreNames.contains(STORES.FUTURE_MILESTONES)) {
+          db.createObjectStore(STORES.FUTURE_MILESTONES, { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains(STORES.FUTURE_MATRIX)) {
+          db.createObjectStore(STORES.FUTURE_MATRIX, { keyPath: 'year' });
         }
       };
 
@@ -165,9 +177,9 @@ export async function setItem(storeName, item) {
       if (!item.id) item.id = Date.now() + Math.random();
       memoryFallbackStore.outboxQueue.push(item);
     } else {
-      const key = item.dateStr || item.monthStr || item.id;
+      const key = item.dateStr || item.monthStr || item.year || item.id;
       if (!key) {
-        throw new Error(`setItem: item for store "${storeName}" has no dateStr/monthStr/id key to store under`);
+        throw new Error(`setItem: item for store "${storeName}" has no dateStr/monthStr/year/id key to store under`);
       }
       memoryFallbackStore[storeName][key] = item;
     }
@@ -206,9 +218,9 @@ export async function setItems(storeName, items) {
   const db = await idbOpen();
   if (!db) {
     items.forEach((item) => {
-      const key = item.dateStr || item.monthStr || item.id;
+      const key = item.dateStr || item.monthStr || item.year || item.id;
       if (!key) {
-        throw new Error(`setItems: item for store "${storeName}" has no dateStr/monthStr/id key to store under`);
+        throw new Error(`setItems: item for store "${storeName}" has no dateStr/monthStr/year/id key to store under`);
       }
       memoryFallbackStore[storeName][key] = item;
     });
@@ -415,6 +427,37 @@ export async function idbDequeueMutation(id) {
   return deleteItem(STORES.OUTBOX_QUEUE, id);
 }
 
+/** @returns {Promise<Array<object>>} All cached future planning milestones. */
+export async function idbGetMilestones() {
+  return getAllItems(STORES.FUTURE_MILESTONES);
+}
+
+/** @param {object} milestone Milestone object to cache. @returns {Promise<boolean>} */
+export async function idbSaveMilestone(milestone) {
+  return setItem(STORES.FUTURE_MILESTONES, milestone);
+}
+
+/** @param {Array<object>} milestones Milestones list to cache. @returns {Promise<boolean>} */
+export async function idbSaveMilestones(milestones) {
+  return setItems(STORES.FUTURE_MILESTONES, milestones);
+}
+
+/** @param {string} id Milestone ID. @returns {Promise<boolean>} */
+export async function idbDeleteMilestone(id) {
+  return deleteItem(STORES.FUTURE_MILESTONES, id);
+}
+
+/** @param {string|number} year @returns {Promise<object|null>} Cached future matrix record for year, if any. */
+export async function idbGetFutureMatrix(year) {
+  return getItem(STORES.FUTURE_MATRIX, String(year));
+}
+
+/** @param {string|number} year @param {object} matrixData @returns {Promise<boolean>} */
+export async function idbSaveFutureMatrix(year, matrixData) {
+  const item = Object.assign({}, matrixData, { year: String(year), cachedAt: new Date().toISOString() });
+  return setItem(STORES.FUTURE_MATRIX, item);
+}
+
 const IndexedDbStore = {
   IDB_NAME,
   IDB_VERSION,
@@ -434,6 +477,12 @@ const IndexedDbStore = {
   idbSaveMasterTasks,
   getMonthlyNotes,
   saveMonthlyNotes,
+  idbGetMilestones,
+  idbSaveMilestone,
+  idbSaveMilestones,
+  idbDeleteMilestone,
+  idbGetFutureMatrix,
+  idbSaveFutureMatrix,
   idbEnqueueMutation,
   idbGetOutbox,
   idbDequeueMutation,

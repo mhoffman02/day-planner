@@ -344,4 +344,65 @@ describe('IndexedDB Client Store Unit Tests', () => {
     assert.ok(payloadItem);
     assert.strictEqual(payloadItem._baseEtag, 'etag-in-payload');
   });
+
+  it('should save, retrieve, batch save, and delete future milestones', async () => {
+    const ms1 = {
+      id: 'ms_test_1',
+      title: 'Launch Project Falcon',
+      targetQuarter: '2026-Q3',
+      category: 'Work',
+      status: '•',
+      progress: 0
+    };
+    const ms2 = {
+      id: 'ms_test_2',
+      title: 'Personal Retreat',
+      targetQuarter: '2026-Q4',
+      category: 'Personal',
+      status: '✓',
+      progress: 100
+    };
+
+    // Single save
+    const saved1 = await IndexedDbStore.idbSaveMilestone(ms1);
+    assert.strictEqual(saved1, true);
+
+    let allMilestones = await IndexedDbStore.idbGetMilestones();
+    assert.ok(allMilestones.some(m => m.id === 'ms_test_1'));
+
+    // Batch save
+    const savedBatch = await IndexedDbStore.idbSaveMilestones([ms1, ms2]);
+    assert.strictEqual(savedBatch, true);
+
+    allMilestones = await IndexedDbStore.idbGetMilestones();
+    assert.ok(allMilestones.some(m => m.id === 'ms_test_1'));
+    assert.ok(allMilestones.some(m => m.id === 'ms_test_2'));
+
+    // Delete
+    const deleted = await IndexedDbStore.idbDeleteMilestone('ms_test_1');
+    assert.strictEqual(deleted, true);
+
+    const afterDelete = await IndexedDbStore.idbGetMilestones();
+    assert.strictEqual(afterDelete.some(m => m.id === 'ms_test_1'), false);
+    assert.ok(afterDelete.some(m => m.id === 'ms_test_2'));
+  });
+
+  it('should save and retrieve future matrix data for a given year', async () => {
+    const year = 2026;
+    const matrixData = {
+      months: {
+        '2026-08': [{ id: 'fm_1', title: 'Plan Q4 roadmap', status: '•' }]
+      }
+    };
+
+    const saved = await IndexedDbStore.idbSaveFutureMatrix(year, matrixData);
+    assert.strictEqual(saved, true);
+
+    const retrieved = await IndexedDbStore.idbGetFutureMatrix(year);
+    assert.ok(retrieved);
+    assert.strictEqual(retrieved.year, '2026');
+    assert.ok(retrieved.cachedAt);
+    assert.strictEqual(retrieved.months['2026-08'].length, 1);
+    assert.strictEqual(retrieved.months['2026-08'][0].title, 'Plan Q4 roadmap');
+  });
 });

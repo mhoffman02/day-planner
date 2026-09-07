@@ -21,7 +21,15 @@ import {
   trackMultiQuarterMilestones,
   generateRollingHorizon,
   projectRollingHorizon,
-  rollForwardPendingItems
+  rollForwardPendingItems,
+  advanceQuarterKey,
+  regressQuarterKey,
+  updateMilestone,
+  toggleMilestoneStatus,
+  cycleMilestoneStatus,
+  addDeliverable,
+  toggleDeliverable,
+  rescheduleMilestone
 } from '../src/futureMatrixEngine.js';
 
 describe('Future Matrix Engine Unit Tests', () => {
@@ -248,6 +256,119 @@ describe('Future Matrix Engine Unit Tests', () => {
       assert.equal(updatedSourceItems.find(i => i.id === 'it2').status, '→');
       assert.equal(updatedSourceItems.find(i => i.id === 'it1').status, '✓');
       assert.equal(updatedSourceItems.find(i => i.id === 'it3').status, 'X');
+    });
+  });
+
+  describe('Quarter Arithmetic & Milestone Interactive Operations', () => {
+    it('advanceQuarterKey correctly rolls forward quarters and rolls over year', () => {
+      assert.equal(advanceQuarterKey('2026-Q1'), '2026-Q2');
+      assert.equal(advanceQuarterKey('2026-Q3'), '2026-Q4');
+      assert.equal(advanceQuarterKey('2026-Q4'), '2027-Q1');
+      assert.equal(advanceQuarterKey('invalid'), 'invalid');
+    });
+
+    it('regressQuarterKey correctly rolls backward quarters and decrements year', () => {
+      assert.equal(regressQuarterKey('2026-Q2'), '2026-Q1');
+      assert.equal(regressQuarterKey('2026-Q4'), '2026-Q3');
+      assert.equal(regressQuarterKey('2026-Q1'), '2025-Q4');
+      assert.equal(regressQuarterKey('invalid'), 'invalid');
+    });
+
+    it('cycleMilestoneStatus cycles through Franklin states in order', () => {
+      assert.equal(cycleMilestoneStatus('•'), '→');
+      assert.equal(cycleMilestoneStatus('→'), '✓');
+      assert.equal(cycleMilestoneStatus('✓'), 'X');
+      assert.equal(cycleMilestoneStatus('X'), '•');
+      assert.equal(cycleMilestoneStatus('unknown'), '•');
+    });
+
+    it('toggleMilestoneStatus toggles between completed and open, syncing deliverables', () => {
+      const ms = createMilestone('Launch MVP', '2026-Q3', {
+        deliverables: ['Design spec', 'Frontend implementation', 'E2E tests']
+      });
+      assert.equal(ms.status, '•');
+      assert.equal(ms.progress, 0);
+
+      // Toggle to complete
+      const completedMs = toggleMilestoneStatus(ms);
+      assert.equal(completedMs.status, '✓');
+      assert.equal(completedMs.progress, 100);
+      assert.ok(completedMs.deliverables.every(d => d.status === '✓'));
+
+      // Toggle back to open
+      const reopenedMs = toggleMilestoneStatus(completedMs);
+      assert.equal(reopenedMs.status, '•');
+      assert.equal(reopenedMs.progress, 0);
+      assert.ok(reopenedMs.deliverables.every(d => d.status === '•'));
+    });
+
+    it('addDeliverable adds deliverable and updates milestone progress and status', () => {
+      let ms = createMilestone('Infrastructure migration', '2026-Q2');
+      assert.equal(ms.deliverables.length, 0);
+
+      ms = addDeliverable(ms, 'Audit AWS resources');
+      assert.equal(ms.deliverables.length, 1);
+      assert.equal(ms.deliverables[0].title, 'Audit AWS resources');
+      assert.equal(ms.deliverables[0].status, '•');
+      assert.equal(ms.progress, 0);
+
+      // Empty title should no-op
+      const unchanged = addDeliverable(ms, '');
+      assert.equal(unchanged.deliverables.length, 1);
+    });
+
+    it('toggleDeliverable toggles sub-task and dynamically updates milestone progress', () => {
+      let ms = createMilestone('Quarterly Security Audit', '2026-Q4', {
+        deliverables: ['Dependency check', 'Penetration test']
+      });
+      assert.equal(ms.progress, 0);
+      assert.equal(ms.status, '•');
+
+      const d1Id = ms.deliverables[0].id;
+      const d2Id = ms.deliverables[1].id;
+
+      // Check first deliverable (50%)
+      ms = toggleDeliverable(ms, d1Id);
+      assert.equal(ms.deliverables[0].status, '✓');
+      assert.equal(ms.progress, 50);
+      assert.equal(ms.status, '→');
+
+      // Check second deliverable (100%)
+      ms = toggleDeliverable(ms, d2Id);
+      assert.equal(ms.deliverables[1].status, '✓');
+      assert.equal(ms.progress, 100);
+      assert.equal(ms.status, '✓');
+
+      // Uncheck first deliverable (drops to 50%)
+      ms = toggleDeliverable(ms, d1Id);
+      assert.equal(ms.deliverables[0].status, '•');
+      assert.equal(ms.progress, 50);
+      assert.equal(ms.status, '→');
+    });
+
+    it('updateMilestone updates attributes and preserves id', () => {
+      const ms = createMilestone('Initial Title', '2026-Q1', { category: 'General' });
+      const updated = updateMilestone(ms, {
+        title: 'Updated Title',
+        category: 'Strategic',
+        description: 'New description',
+        targetQuarter: '2026-Q2',
+        targetMonth: '2026-05'
+      });
+
+      assert.equal(updated.id, ms.id);
+      assert.equal(updated.title, 'Updated Title');
+      assert.equal(updated.category, 'Strategic');
+      assert.equal(updated.description, 'New description');
+      assert.equal(updated.targetQuarter, '2026-Q2');
+      assert.equal(updated.targetMonth, '2026-05');
+    });
+
+    it('rescheduleMilestone updates targetQuarter and targetMonth', () => {
+      const ms = createMilestone('Roadmap milestone', '2026-Q2');
+      const rescheduled = rescheduleMilestone(ms, '2026-Q3', '2026-08');
+      assert.equal(rescheduled.targetQuarter, '2026-Q3');
+      assert.equal(rescheduled.targetMonth, '2026-08');
     });
   });
 });

@@ -30,6 +30,7 @@ export function collectFullBinderState({
   dailyData = [],
   masterTasks = [],
   monthlyNotes = [],
+  futureMilestones = [],
   currentDaily = null
 } = {}) {
   const dayMap = new Map();
@@ -131,12 +132,14 @@ export function collectFullBinderState({
       totalTasks: tasks.length,
       totalAppointments: appointments.length,
       totalNotes: notes.length,
-      totalIndexRecords: dedupedIndexRecords.length
+      totalIndexRecords: dedupedIndexRecords.length,
+      totalMilestones: futureMilestones.length
     },
     tasks,
     appointments,
     notes,
-    indexRecords: dedupedIndexRecords
+    indexRecords: dedupedIndexRecords,
+    milestones: futureMilestones
   };
 }
 
@@ -296,6 +299,25 @@ export function exportBinderAsMarkdown(binderState) {
       lines.push('---');
       lines.push('');
     }
+  }
+
+  // 4. Quarterly Milestones & Future Planning
+  if (Array.isArray(binderState.milestones) && binderState.milestones.length > 0) {
+    lines.push('## 4. Quarterly Milestones & Future Planning');
+    lines.push('');
+    for (const ms of binderState.milestones) {
+      const chk = statusToCheckbox(ms.status);
+      const cat = ms.category ? ` *[${ms.category}]*` : '';
+      const q = ms.targetQuarter ? ` **(${ms.targetQuarter})**` : '';
+      const prog = typeof ms.progress === 'number' ? ` — ${ms.progress}%` : '';
+      lines.push(`- ${chk} ${ms.title || '(untitled)'}${cat}${q}${prog}`);
+      if (Array.isArray(ms.deliverables) && ms.deliverables.length > 0) {
+        for (const d of ms.deliverables) {
+          lines.push(`  - ${statusToCheckbox(d.status)} ${d.title}`);
+        }
+      }
+    }
+    lines.push('');
   }
 
   return lines.join('\n');

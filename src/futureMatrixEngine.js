@@ -168,6 +168,179 @@ export function createMilestone(title, targetQuarter, options = {}) {
 }
 
 /**
+ * Advances a quarter key forward by one quarter (e.g. "2026-Q1" -> "2026-Q2", "2026-Q4" -> "2027-Q1").
+ * @param {string} quarterKey Quarter string e.g. "2026-Q3".
+ * @returns {string} The advanced quarter key.
+ */
+export function advanceQuarterKey(quarterKey) {
+  const match = String(quarterKey).match(/^(\d{4})-Q([1-4])$/);
+  if (!match) return quarterKey;
+  let year = parseInt(match[1], 10);
+  let q = parseInt(match[2], 10) + 1;
+  if (q > 4) {
+    q = 1;
+    year += 1;
+  }
+  return `${year}-Q${q}`;
+}
+
+/**
+ * Regresses a quarter key backward by one quarter (e.g. "2026-Q2" -> "2026-Q1", "2026-Q1" -> "2025-Q4").
+ * @param {string} quarterKey Quarter string e.g. "2026-Q3".
+ * @returns {string} The regressed quarter key.
+ */
+export function regressQuarterKey(quarterKey) {
+  const match = String(quarterKey).match(/^(\d{4})-Q([1-4])$/);
+  if (!match) return quarterKey;
+  let year = parseInt(match[1], 10);
+  let q = parseInt(match[2], 10) - 1;
+  if (q < 1) {
+    q = 4;
+    year -= 1;
+  }
+  return `${year}-Q${q}`;
+}
+
+/**
+ * Updates an existing milestone with new field values, keeping id/createdAt intact
+ * and recalculating deliverable progress.
+ * @param {object} milestone Target milestone.
+ * @param {object} [updates={}] Partial milestone fields to update.
+ * @returns {object} Updated milestone record.
+ */
+export function updateMilestone(milestone, updates = {}) {
+  const updated = { ...milestone, ...updates };
+
+  if (Array.isArray(updates.deliverables)) {
+    updated.deliverables = updates.deliverables.map(d => ({
+      id: d.id || generateLocalId('dlv', 5),
+      title: typeof d === 'string' ? d : d.title,
+      status: d.status || '•'
+    }));
+  }
+
+  const dList = updated.deliverables || [];
+  if (dList.length > 0) {
+    const completed = dList.filter(d => d.status === '✓').length;
+    updated.progress = Math.round((completed / dList.length) * 100);
+    if (updated.progress === 100) {
+      updated.status = '✓';
+    } else if (updated.status === '✓' && updated.progress < 100) {
+      updated.status = '→';
+    }
+  } else if (updates.status !== undefined) {
+    updated.status = updates.status;
+    if (updated.status === '✓') updated.progress = 100;
+    else if (updated.status === '•') updated.progress = 0;
+  }
+
+  return updated;
+}
+
+/**
+ * Cycles a milestone or future item status marker across Franklin Covey states:
+ * '•' (open) -> '→' (in progress) -> '✓' (completed) -> 'X' (cancelled) -> '•'.
+ * @param {string} currentStatus
+ * @returns {'•'|'→'|'✓'|'X'}
+ */
+export function cycleMilestoneStatus(currentStatus) {
+  const cycle = { '•': '→', '→': '✓', '✓': 'X', 'X': '•' };
+  return cycle[currentStatus] || '•';
+}
+
+/**
+ * Toggles milestone completion status between completed ('✓') and open ('•').
+ * Automatically syncs all sub-deliverables to match.
+ * @param {object} milestone
+ * @returns {object}
+ */
+export function toggleMilestoneStatus(milestone) {
+  const isCompleted = milestone.status === '✓';
+  const newStatus = isCompleted ? '•' : '✓';
+  const newProgress = isCompleted ? 0 : 100;
+  const deliverables = (milestone.deliverables || []).map(d => ({
+    ...d,
+    status: newStatus
+  }));
+
+  return {
+    ...milestone,
+    status: newStatus,
+    progress: newProgress,
+    deliverables
+  };
+}
+
+/**
+ * Adds a new deliverable sub-task to a milestone and recalculates progress.
+ * @param {object} milestone
+ * @param {string} title
+ * @returns {object}
+ */
+export function addDeliverable(milestone, title) {
+  if (!title || !title.trim()) return { ...milestone };
+  const deliverables = [
+    ...(milestone.deliverables || []),
+    { id: generateLocalId('dlv', 5), title: title.trim(), status: '•' }
+  ];
+  const completed = deliverables.filter(d => d.status === '✓').length;
+  const progress = Math.round((completed / deliverables.length) * 100);
+
+  return {
+    ...milestone,
+    deliverables,
+    progress,
+    status: progress === 100 ? '✓' : (milestone.status === '✓' ? '→' : milestone.status)
+  };
+}
+
+/**
+ * Toggles a single deliverable's completion status within a milestone and recalculates progress.
+ * @param {object} milestone
+ * @param {string} deliverableId
+ * @returns {object}
+ */
+export function toggleDeliverable(milestone, deliverableId) {
+  const deliverables = (milestone.deliverables || []).map(d => {
+    if (d.id !== deliverableId) return d;
+    return { ...d, status: d.status === '✓' ? '•' : '✓' };
+  });
+
+  const completed = deliverables.filter(d => d.status === '✓').length;
+  const progress = deliverables.length > 0 ? Math.round((completed / deliverables.length) * 100) : 0;
+  let status = milestone.status;
+  if (progress === 100) {
+    status = '✓';
+  } else if (progress > 0) {
+    status = '→';
+  } else if (milestone.status === '✓') {
+    status = '•';
+  }
+
+  return {
+    ...milestone,
+    deliverables,
+    progress,
+    status
+  };
+}
+
+/**
+ * Reschedules a milestone to a new target quarter and optional target month.
+ * @param {object} milestone
+ * @param {string} newTargetQuarter
+ * @param {string|null} [newTargetMonth=null]
+ * @returns {object}
+ */
+export function rescheduleMilestone(milestone, newTargetQuarter, newTargetMonth = null) {
+  return {
+    ...milestone,
+    targetQuarter: newTargetQuarter,
+    targetMonth: newTargetMonth
+  };
+}
+
+/**
  * Groups items in a 12-month year matrix into quarterly buckets.
  * @param {{year: string, months: Object<string, Array<object>>}} yearMatrix
  * @returns {Object<'Q1'|'Q2'|'Q3'|'Q4', Array<object>>}

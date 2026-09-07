@@ -1941,14 +1941,29 @@ section.future-matrix-grid {
   margin: 0;
 }
 
+@media (max-width: 960px) {
+  section.future-matrix-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  section.future-matrix-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 article.future-month-card {
   background: var(--theme-panel-bg);
   border: 1px solid var(--theme-panel-border);
   border-radius: 6px;
   padding: 12px;
-  min-height: 100px;
+  min-height: 120px;
   margin: 0;
+  display: flex;
+  flex-direction: column;
   color: var(--theme-text-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .future-month-title {
@@ -1958,7 +1973,35 @@ article.future-month-card {
   padding-bottom: 4px;
   margin-top: 0;
   margin-bottom: 8px;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
+}
+
+.future-month-empty {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--theme-text-muted);
+  margin: 6px 0;
+}
+
+.quarter-summary-card {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.milestone-item-row {
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.milestone-item-row:hover {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: var(--theme-primary);
+}
+
+.future-item-row {
+  transition: background-color 0.15s ease;
+}
+
+.future-item-row:hover {
+  background: rgba(0, 0, 0, 0.06);
 }
 
 /* Modals & Dialogs */

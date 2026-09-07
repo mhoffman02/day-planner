@@ -684,36 +684,163 @@
       <template x-if="activeView === 'future-matrix'">
         <section class="view-container" aria-label="Future Planning Matrix">
           <header style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
-            <h2 class="view-title" style="margin-bottom: 0;">
-              <span class="material-symbols-outlined">explore</span>
-              Future Planning Matrix (12-Month Horizon)
-            </h2>
-            <div style="font-size: 13px; color: var(--theme-text-muted);">
-              Rolling Projections & Multi-Quarter Horizons
+            <div>
+              <h2 class="view-title" style="margin-bottom: 2px;">
+                <span class="material-symbols-outlined">explore</span>
+                Future Planning Matrix (<span x-text="selectedYear"></span>)
+              </h2>
+              <div style="font-size: 13px; color: var(--theme-text-muted);">
+                Franklin Covey Multi-Quarter Milestones & 12-Month Rolling Horizon
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="badge" style="padding: 4px 8px; border-radius: 4px; background: rgba(0,0,0,0.06); font-size: 12px;" x-text="quarterlyMilestoneTracker.stats.completed + '/' + quarterlyMilestoneTracker.stats.total + ' milestones (' + quarterlyMilestoneTracker.stats.completionRate + '%)'"></span>
+              <button type="button" class="btn-primary" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 4px; font-size: 13px; cursor: pointer;" @click="openCreateMilestoneModal()">
+                <span class="material-symbols-outlined icon-16">add</span>
+                <span>Add Milestone</span>
+              </button>
             </div>
           </header>
 
-          <!-- Multi-Quarter Milestone Summary Cards -->
-          <div class="milestones-horizon-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px;">
+          <!-- Multi-Quarter Milestone Horizon Grid -->
+          <h3 style="font-size: 14px; font-weight: 600; margin: 0 0 10px 0; color: var(--theme-text-primary); display: flex; align-items: center; gap: 6px;">
+            <span class="material-symbols-outlined icon-18">flag</span>
+            Quarterly Strategic Milestones
+          </h3>
+          <div class="milestones-horizon-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin-bottom: 24px;">
             <template x-for="q in ['Q1', 'Q2', 'Q3', 'Q4']" :key="q">
-              <div class="quarter-summary-card" style="padding: 10px 14px; background: var(--theme-card-bg); border: 1px solid var(--theme-card-border); border-radius: 6px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                  <strong x-text="selectedYear + '-' + q" style="font-size: 13px;"></strong>
-                  <span class="badge" style="font-size: 11px; padding: 2px 6px; border-radius: 4px; background: rgba(0,0,0,0.06);" x-text="(quarterlyMilestoneTracker.byQuarter[selectedYear + '-' + q] || []).length + ' milestones'"></span>
+              <div class="quarter-summary-card" style="padding: 12px; background: var(--theme-panel-bg); border: 1px solid var(--theme-panel-border); border-radius: 8px; display: flex; flex-direction: column;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid var(--theme-panel-border); padding-bottom: 6px;">
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <strong x-text="selectedYear + '-' + q" style="font-size: 14px; color: var(--theme-primary);"></strong>
+                    <span class="badge" style="font-size: 11px; padding: 1px 6px; border-radius: 10px; background: rgba(0,0,0,0.06);" x-text="(quarterlyMilestoneTracker.byQuarter[selectedYear + '-' + q] || []).length"></span>
+                  </div>
+                  <button type="button" class="btn-icon-subtle" @click="openCreateMilestoneModal(selectedYear + '-' + q)" title="Add milestone to this quarter" style="padding: 2px 6px; font-size: 12px; display: flex; align-items: center; gap: 2px;">
+                    <span class="material-symbols-outlined icon-16">add</span>
+                  </button>
                 </div>
-                <div style="font-size: 12px; color: var(--theme-text-muted);" x-text="(quarterlyMilestoneTracker.byQuarter[selectedYear + '-' + q] || []).map(m => m.title).join(', ') || 'No quarterly milestones scheduled'"></div>
+
+                <div class="milestone-card-list" style="display: flex; flex-direction: column; gap: 8px; flex: 1;">
+                  <template x-for="ms in (quarterlyMilestoneTracker.byQuarter[selectedYear + '-' + q] || [])" :key="ms.id">
+                    <div class="milestone-item-row" style="background: rgba(0,0,0,0.02); border: 1px solid var(--theme-panel-border); border-radius: 6px; padding: 8px 10px;">
+                      <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;">
+                        <div style="display: flex; align-items: flex-start; gap: 8px; flex: 1;">
+                          <button type="button" @click="toggleMilestone(ms)" class="status-marker-btn" :title="ms.status === '✓' ? 'Completed (click to reopen)' : 'Click to mark completed'" style="margin-top: 1px; background: transparent; border: none; cursor: pointer; padding: 0; font-size: 16px; line-height: 1;">
+                            <span x-text="ms.status === '✓' ? '✓' : (ms.status === '→' ? '→' : '•')" :style="ms.status === '✓' ? 'color: var(--theme-success, #2e7d32); font-weight: bold;' : (ms.status === '→' ? 'color: #ed6c02; font-weight: bold;' : 'color: var(--theme-text-muted);')"></span>
+                          </button>
+                          <div style="flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                              <span :style="ms.status === '✓' ? 'text-decoration: line-through; color: var(--theme-text-muted); font-size: 13px;' : 'font-size: 13px; font-weight: 500;'" x-text="ms.title"></span>
+                              <span class="badge" style="font-size: 10px; padding: 1px 5px; border-radius: 3px; background: rgba(0,0,0,0.05); color: var(--theme-text-muted);" x-text="ms.category"></span>
+                              <template x-if="ms.targetMonth">
+                                <span class="badge" style="font-size: 10px; padding: 1px 5px; border-radius: 3px; background: rgba(0,0,0,0.05); color: var(--theme-primary);" x-text="ms.targetMonth"></span>
+                              </template>
+                            </div>
+                            <template x-if="ms.description">
+                              <p style="font-size: 11px; color: var(--theme-text-muted); margin: 3px 0 0 0;" x-text="ms.description"></p>
+                            </template>
+                          </div>
+                        </div>
+
+                        <!-- Milestone Actions -->
+                        <div style="display: flex; align-items: center; gap: 2px; flex-shrink: 0;">
+                          <button type="button" class="btn-icon-subtle" @click="rescheduleMilestoneQuick(ms, 'next')" title="Advance to next quarter" style="padding: 2px;">
+                            <span class="material-symbols-outlined icon-14">fast_forward</span>
+                          </button>
+                          <button type="button" class="btn-icon-subtle" @click="openEditMilestoneModal(ms)" title="Edit milestone" style="padding: 2px;">
+                            <span class="material-symbols-outlined icon-14">edit</span>
+                          </button>
+                          <button type="button" class="btn-icon-subtle" @click="deleteMilestone(ms.id)" title="Delete milestone" style="padding: 2px; color: var(--theme-danger, #d32f2f);">
+                            <span class="material-symbols-outlined icon-14">delete</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <!-- Sub-Deliverables Checklist & Progress -->
+                      <template x-if="ms.deliverables && ms.deliverables.length > 0">
+                        <div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--theme-panel-border);">
+                          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                            <span style="font-size: 11px; color: var(--theme-text-muted);" x-text="ms.deliverables.filter(d => d.status === '✓').length + '/' + ms.deliverables.length + ' deliverables'"></span>
+                            <span style="font-size: 11px; font-weight: 600; color: var(--theme-primary);" x-text="ms.progress + '%'"></span>
+                          </div>
+                          <div style="width: 100%; height: 4px; background: rgba(0,0,0,0.08); border-radius: 2px; overflow: hidden; margin-bottom: 6px;">
+                            <div :style="'width: ' + ms.progress + '%; height: 100%; background: var(--theme-primary); transition: width 0.2s;'"></div>
+                          </div>
+                          <div style="display: flex; flex-direction: column; gap: 3px;">
+                            <template x-for="d in ms.deliverables" :key="d.id">
+                              <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
+                                <input type="checkbox" :checked="d.status === '✓'" @change="toggleMilestoneDeliverable(ms, d.id)" style="cursor: pointer;">
+                                <span :style="d.status === '✓' ? 'text-decoration: line-through; color: var(--theme-text-muted);' : ''" x-text="d.title"></span>
+                              </label>
+                            </template>
+                          </div>
+                        </div>
+                      </template>
+                    </div>
+                  </template>
+
+                  <template x-if="!(quarterlyMilestoneTracker.byQuarter[selectedYear + '-' + q] || []).length">
+                    <div style="text-align: center; padding: 16px 8px; color: var(--theme-text-muted); font-size: 12px;">
+                      No milestones for <span x-text="q"></span>.
+                      <div style="margin-top: 6px;">
+                        <button type="button" class="btn-link" style="font-size: 12px;" @click="openCreateMilestoneModal(selectedYear + '-' + q)">+ Add one</button>
+                      </div>
+                    </div>
+                  </template>
+                </div>
               </div>
             </template>
           </div>
 
+          <!-- 12-Month Matrix Horizon Grid -->
+          <h3 style="font-size: 14px; font-weight: 600; margin: 0 0 10px 0; color: var(--theme-text-primary); display: flex; align-items: center; gap: 6px;">
+            <span class="material-symbols-outlined icon-18">calendar_month</span>
+            12-Month Planning Matrix (Monthly Buckets)
+          </h3>
           <section class="future-matrix-grid">
             <template x-for="(m, idx) in ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']" :key="m">
-              <article class="future-month-card">
+              <article class="future-month-card" :id="'future-month-' + (idx + 1)">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                   <h3 class="future-month-title" style="margin-bottom: 0;" x-text="m + ' ' + selectedYear"></h3>
-                  <span style="font-size: 11px; color: var(--theme-text-muted);" x-text="'Q' + (Math.floor(idx / 3) + 1)"></span>
+                  <span style="font-size: 11px; color: var(--theme-text-muted); font-weight: 500;" x-text="'Q' + (Math.floor(idx / 3) + 1)"></span>
                 </div>
-                <p class="future-month-empty">No future milestones scheduled.</p>
+
+                <!-- Monthly items list -->
+                <div class="future-items-list" style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px;">
+                  <template x-for="item in (futureMatrix[selectedYear + '-' + String(idx + 1).padStart(2, '0')] || [])" :key="item.id">
+                    <div class="future-item-row" style="display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 4px 6px; background: rgba(0,0,0,0.03); border-radius: 4px; font-size: 12px;">
+                      <div style="display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0;">
+                        <button type="button" class="btn-icon-subtle status-marker-btn" @click="cycleFutureMonthItemStatus(selectedYear + '-' + String(idx + 1).padStart(2, '0'), item.id)" :title="'Cycle status: current is ' + item.status" style="padding: 0; min-width: 18px; font-size: 14px; line-height: 1;">
+                          <span x-text="item.status"></span>
+                        </button>
+                        <span :style="item.status === '✓' ? 'text-decoration: line-through; color: var(--theme-text-muted);' : ''" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" x-text="item.title"></span>
+                      </div>
+                      <div style="display: flex; align-items: center; gap: 2px; flex-shrink: 0;">
+                        <button type="button" class="btn-icon-subtle" @click="transferFutureMonthItemToDay(selectedYear + '-' + String(idx + 1).padStart(2, '0'), item.id)" title="Transfer onto today's daily task list" style="padding: 1px;">
+                          <span class="material-symbols-outlined icon-14">arrow_downward</span>
+                        </button>
+                        <button type="button" class="btn-icon-subtle" @click="pushFutureMonthItemNext(selectedYear + '-' + String(idx + 1).padStart(2, '0'), item.id)" title="Push to next month" style="padding: 1px;">
+                          <span class="material-symbols-outlined icon-14">arrow_forward</span>
+                        </button>
+                        <button type="button" class="btn-icon-subtle" @click="deleteFutureMonthItem(selectedYear + '-' + String(idx + 1).padStart(2, '0'), item.id)" title="Delete" style="padding: 1px; color: var(--theme-danger, #d32f2f);">
+                          <span class="material-symbols-outlined icon-14">close</span>
+                        </button>
+                      </div>
+                    </div>
+                  </template>
+
+                  <template x-if="!(futureMatrix[selectedYear + '-' + String(idx + 1).padStart(2, '0')] || []).length">
+                    <p class="future-month-empty" style="font-size: 12px; margin: 4px 0;">No items scheduled.</p>
+                  </template>
+                </div>
+
+                <!-- Inline Add Future Item Input -->
+                <div class="future-month-add-form" style="display: flex; gap: 4px; margin-top: auto; padding-top: 6px; border-top: 1px solid var(--theme-panel-border);">
+                  <input type="text" x-model="newFutureItemText[selectedYear + '-' + String(idx + 1).padStart(2, '0')]" @keydown.enter.prevent="addFutureMonthItem(selectedYear + '-' + String(idx + 1).padStart(2, '0'))" placeholder="+ Jot down item..." style="flex: 1; font-size: 11px; padding: 4px 6px; border: 1px solid var(--theme-panel-border); border-radius: 4px; background: transparent; color: var(--theme-text-primary);">
+                  <button type="button" class="btn-icon-subtle" @click="addFutureMonthItem(selectedYear + '-' + String(idx + 1).padStart(2, '0'))" title="Add item" style="padding: 2px 6px;">
+                    <span class="material-symbols-outlined icon-14">add</span>
+                  </button>
+                </div>
               </article>
             </template>
           </section>
@@ -1038,6 +1165,83 @@
         <footer class="modal-actions">
           <button type="button" class="btn-secondary" @click="closeSearchModal()">Close</button>
         </footer>
+      </article>
+    </dialog>
+
+    <!-- Milestone Modal (Create / Edit) -->
+    <dialog class="modal-backdrop" x-show="milestoneModalOpen" :open="milestoneModalOpen" x-transition x-cloak aria-labelledby="milestoneModalTitle" aria-modal="true" @keydown.escape.window="closeMilestoneModal()">
+      <article class="modal-card modal-card-form" @click.away="closeMilestoneModal()">
+        <header class="modal-header-spaced">
+          <h3 id="milestoneModalTitle" class="modal-title-with-icon">
+            <span class="material-symbols-outlined" x-text="isEditingMilestone ? 'edit_note' : 'flag'"></span>
+            <span x-text="isEditingMilestone ? 'Edit Quarterly Milestone' : 'New Quarterly Milestone'"></span>
+          </h3>
+          <button type="button" class="btn-icon-subtle" @click="closeMilestoneModal()" title="Close">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </header>
+
+        <form @submit.prevent="saveMilestoneFromModal()">
+          <div class="form-group">
+            <label for="milestoneTitleInput" class="form-label">Milestone Objective / Title *</label>
+            <input type="text" id="milestoneTitleInput" x-model="milestoneForm.title" required placeholder="e.g. Q3 Strategic Growth & Executive Offsite" class="form-input">
+          </div>
+
+          <div class="form-row" style="display: flex; gap: 12px; margin-bottom: 12px;">
+            <div class="form-group" style="flex: 1;">
+              <label for="milestoneQuarterSelect" class="form-label">Target Quarter *</label>
+              <select id="milestoneQuarterSelect" x-model="milestoneForm.targetQuarter" class="form-input">
+                <template x-for="q in availableQuarters" :key="q">
+                  <option :value="q" x-text="q" :selected="q === milestoneForm.targetQuarter"></option>
+                </template>
+              </select>
+            </div>
+
+            <div class="form-group" style="flex: 1;">
+              <label for="milestoneCategorySelect" class="form-label">Category</label>
+              <select id="milestoneCategorySelect" x-model="milestoneForm.category" class="form-input">
+                <option value="General">General</option>
+                <option value="Strategic">Strategic</option>
+                <option value="Operations">Operations</option>
+                <option value="Finance">Finance</option>
+                <option value="Product">Product</option>
+                <option value="Personal">Personal</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="milestoneMonthSelect" class="form-label">Specific Month Target (Optional)</label>
+            <select id="milestoneMonthSelect" x-model="milestoneForm.targetMonth" class="form-input">
+              <option value="">None (Entire Quarter)</option>
+              <template x-for="(m, idx) in ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']" :key="m">
+                <option :value="selectedYear + '-' + String(idx + 1).padStart(2, '0')" x-text="m + ' ' + selectedYear"></option>
+              </template>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="milestoneDescInput" class="form-label">Description / Success Criteria</label>
+            <textarea id="milestoneDescInput" x-model="milestoneForm.description" placeholder="Key outcomes, context, or definition of done..." class="form-textarea" rows="2"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="milestoneDeliverablesInput" class="form-label">Checklist Deliverables (One per line)</label>
+            <textarea id="milestoneDeliverablesInput" x-model="milestoneForm.deliverablesText" placeholder="Draft executive summary&#10;Align team capacity and budget&#10;Secure final sign-off" class="form-textarea" rows="3"></textarea>
+            <small style="font-size: 11px; color: var(--theme-text-muted);">Each line creates an interactive sub-deliverable with dynamic completion tracking.</small>
+          </div>
+
+          <footer class="modal-form-actions">
+            <div></div>
+            <div class="action-right-group">
+              <button type="button" class="btn-link" @click="closeMilestoneModal()">Cancel</button>
+              <button type="submit" class="btn-primary">
+                <span class="material-symbols-outlined icon-16" x-text="isEditingMilestone ? 'save' : 'add'"></span>
+                <span x-text="isEditingMilestone ? 'Save Changes' : 'Create Milestone'"></span>
+              </button>
+            </div>
+          </footer>
+        </form>
       </article>
     </dialog>
 
