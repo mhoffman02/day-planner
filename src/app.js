@@ -13,6 +13,7 @@ import IndexedDbStore from './indexedDbStore.js';
 import { getLocalDateStr, generateLocalId } from './binderStore.js';
 import { initGoogleAuth, signIn, signOut, isSignedIn, ensureAccessToken, onAuthStateChanged } from './googleAuth.js';
 import { parseTaskTitle, formatTaskTitle, getNextStatus, isValidStatus, STATUS_OPTIONS, sortTasksByColumn, findNextAvailableSequence } from './taskEngine.js';
+import { parseDailyNoteToSections, serializeSectionsToDailyNote, decomposeIndexHeading } from './indexParser.js';
 import { collectFullBinderState, downloadBinderJson, downloadBinderMarkdown } from './exportEngine.js';
 import {
   generateRollingHorizon,
@@ -97,6 +98,8 @@ if ('serviceWorker' in navigator) {
       // Data collections
       dailyTasks: [],
       masterTasks: [],
+      newMasterTaskTitle: '',
+      newMasterTaskCategory: 'General',
       calendarEvents: [],
       scheduleGrid: [],
       // Task id whose status-select dropdown is open (see setTaskStatus/toggleTaskStatus), or
@@ -121,6 +124,8 @@ if ('serviceWorker' in navigator) {
       noteCards: [],
       noteViewMode: 'cards', // 'cards' (Option 1) or 'doc' (Option 2)
       docPreviewEditing: false, // Doc view: false shows the rendered rich-text preview, true swaps in the raw-text textarea
+      noteDateHeading: '', // Preserved top-level document date heading (e.g. "Aug 15, 2026")
+      docRawEditorOpen: false, // In doc mode, toggle between lined accordion sheet and raw markdown textarea
       noteFilterMenuOpen: false,
       noteCardSearchQuery: '',
       noteCardCategoryFilter: 'ALL',
@@ -462,6 +467,9 @@ if ('serviceWorker' in navigator) {
         } else if (mutation.type === 'ADD_CALENDAR_EVENT' && mutation.payload.tempId) {
           const idx = this.calendarEvents.findIndex(e => e.id === mutation.payload.tempId);
           if (idx !== -1) this.calendarEvents[idx] = { ...this.calendarEvents[idx], ...result, _queuedOffline: false };
+        } else if (mutation.type === 'ADD_MASTER_TASK' && mutation.payload.tempId) {
+          const idx = this.masterTasks.findIndex(t => t.id === mutation.payload.tempId);
+          if (idx !== -1) this.masterTasks[idx] = { ...this.masterTasks[idx], ...result, _queuedOffline: false };
         }
         this.buildScheduleGrid();
       },
@@ -2312,94 +2320,24 @@ if ('serviceWorker' in navigator) {
        * @returns {{indexTopic: string, heading: string}}
        */
       decomposeIndexHeading(headingClean) {
-        if (!/#index|\[INDEX\]/i.test(headingClean)) {
-          return { indexTopic: '', heading: headingClean };
-        }
-        let clean = headingClean.replace(/#index|\[INDEX\]/gi, '').trim();
-        let indexTopic = 'General';
-        const bracketMatch = clean.match(/^\[([^\]]+)\]\s*(.*)$/);
-        if (bracketMatch) {
-          indexTopic = bracketMatch[1].trim();
-          clean = bracketMatch[2].trim();
-        } else if (clean.includes(':')) {
-          const parts = clean.split(':');
-          indexTopic = parts[0].trim();
-          clean = parts.slice(1).join(':').trim();
-        }
-        return { indexTopic, heading: clean };
+        return decomposeIndexHeading(headingClean);
       },
 
       /**
-       * Splits a daily note's raw markdown text into heading-delimited note cards (`###`/`#`
-       * lines start a new card; content lines accumulate under the current card). Returns a
-       * placeholder pair of sample cards when given empty/default note text.
+       * Splits a daily note's raw markdown text into heading-delimited note cards / continuous doc
+       * sections. Uses the reconciling parser to preserve section IDs, categories, and collapsed states.
        * @param {string} [noteText=''] Raw daily note markdown.
        * @returns {Array<{id: string, indexTopic: string, heading: string, content: string, category: string, collapsed: boolean}>}
        */
       parseDailyNoteToCards(noteText = '') {
-        if (!noteText.trim() || noteText.startsWith('No notes recorded for')) {
-          return [
-            { id: 'nc_1', indexTopic: 'Architecture', heading: 'System Design', content: 'Finalized 3-column binder layout with Alpine.js and clean CSS.', category: 'Work', collapsed: false },
-            { id: 'nc_2', indexTopic: 'Finance', heading: 'Budget Sync', content: '- Reviewed Q3 budget and Google Workspace API sync.\n- Approved GCP allocation.', category: 'Meeting', collapsed: false }
-          ];
-        }
-
-        const lines = noteText.split('\n');
-        const cards = [];
-        let currentCard = null;
-
-        lines.forEach(line => {
-          if (line.startsWith('### ') || line.startsWith('# ')) {
-            let headingClean = line.replace(/^#+\s*/, '').trim();
-            // Skip document date header lines (e.g., "# Aug 15, 2026") from creating boxed topic cards
-            if (/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},\s*\d{4}$/i.test(headingClean) ||
-                /^\d{4}-\d{2}-\d{2}$/.test(headingClean)) {
-              return;
-            }
-            if (currentCard) cards.push(currentCard);
-            headingClean = headingClean.replace(/Daily Log\s*-\s*/i, '');
-            headingClean = headingClean.replace(/January/i, 'Jan')
-                                       .replace(/February/i, 'Feb')
-                                       .replace(/March/i, 'Mar')
-                                       .replace(/April/i, 'Apr')
-                                       .replace(/June/i, 'Jun')
-                                       .replace(/July/i, 'Jul')
-                                       .replace(/August/i, 'Aug')
-                                       .replace(/September/i, 'Sep')
-                                       .replace(/October/i, 'Oct')
-                                       .replace(/November/i, 'Nov')
-                                       .replace(/December/i, 'Dec');
-            const category = headingClean.toLowerCase().includes('meeting') ? 'Meeting' : headingClean.toLowerCase().includes('finance') ? 'Decision' : headingClean.toLowerCase().includes('personal') ? 'Personal' : 'Work';
-            const { indexTopic, heading } = this.decomposeIndexHeading(headingClean);
-            currentCard = {
-              id: generateLocalId('nc'),
-              indexTopic,
-              heading,
-              content: '',
-              category,
-              collapsed: false
-            };
-          } else {
-            if (!currentCard) {
-              currentCard = {
-                id: `nc_default_${Date.now()}`,
-                indexTopic: '',
-                heading: 'General Notes',
-                content: '',
-                category: 'Work',
-                collapsed: false
-              };
-            }
-            currentCard.content += (currentCard.content ? '\n' : '') + line;
-          }
-        });
-        if (currentCard) cards.push(currentCard);
-        return cards;
+        const { dateHeading, sections } = parseDailyNoteToSections(noteText, this.noteCards);
+        if (dateHeading) this.noteDateHeading = dateHeading;
+        return sections;
       },
 
       /**
-       * Serializes `noteCards` back into `dailyNote`'s markdown text (the cards view is the
-       * source of truth), rebuilds index records, and schedules a debounced save.
+       * Serializes `noteCards` back into `dailyNote`'s markdown text, preserving the top-level
+       * date heading, rebuilds index records, and schedules a debounced save.
        * @returns {void}
        */
       syncCardsToDailyNote() {
@@ -2409,12 +2347,7 @@ if ('serviceWorker' in navigator) {
           this.scheduleDailyNoteSave();
           return;
         }
-        this.dailyNote = this.noteCards.map(c => {
-          const headingLine = c.indexTopic
-            ? `#index [${c.indexTopic}] ${c.heading || 'Topic'}`
-            : (c.heading || 'Topic');
-          return `### ${headingLine}\n${c.content || ''}`;
-        }).join('\n\n');
+        this.dailyNote = serializeSectionsToDailyNote(this.noteCards, this.noteDateHeading);
         this.buildIndexRecords();
         this.scheduleDailyNoteSave();
       },
@@ -2428,6 +2361,43 @@ if ('serviceWorker' in navigator) {
         this.noteCards = this.parseDailyNoteToCards(this.dailyNote);
         this.buildIndexRecords();
         this.scheduleDailyNoteSave();
+      },
+
+      /**
+       * Expands all H3 accordion sections in Option 2 Continuous Doc mode.
+       * @returns {void}
+       */
+      expandAllDocSections() {
+        (this.noteCards || []).forEach(c => { c.collapsed = false; });
+      },
+
+      /**
+       * Collapses all H3 accordion sections in Option 2 Continuous Doc mode.
+       * @returns {void}
+       */
+      collapseAllDocSections() {
+        (this.noteCards || []).forEach(c => { c.collapsed = true; });
+      },
+
+      /**
+       * Adds a new H3 section to the continuous doc and focuses its heading.
+       * @returns {void}
+       */
+      addDocSection() {
+        const newSection = {
+          id: generateLocalId('nc'),
+          indexTopic: '',
+          heading: '',
+          content: '',
+          category: 'Work',
+          collapsed: false
+        };
+        this.noteCards.push(newSection);
+        this.syncCardsToDailyNote();
+        this.$nextTick(() => {
+          const input = document.querySelector(`[data-card-id="${newSection.id}"] .doc-accordion-heading-input`);
+          if (input) input.focus();
+        });
       },
 
       /**
@@ -2817,6 +2787,10 @@ if ('serviceWorker' in navigator) {
             mTask.movedTaskId = transferred.id;
             this.dailyTasks.push(transferred);
             await this.trigger2WaySync();
+            if (transferred._queuedOffline) {
+              await this.refreshOutboxCount();
+            }
+            await IndexedDbStore.idbSaveMasterTasks(this.masterTasks);
             this.showToast(`Moved "${mTask.title}" to Today's Task List as ${transferred.title.substring(0, 4)}!`, 'success', 6000, 'Task Transferred');
           }
         } catch (err) {
@@ -2824,6 +2798,34 @@ if ('serviceWorker' in navigator) {
           const errText = `Error moving master task: ${err.message || err.toString()}`;
           this.errorMessage = errText;
           this.showToast(errText, 'error', 10000, 'Task Transfer Error');
+        }
+      },
+
+      /**
+       * Adds a new undated master task, updating the in-memory array and IndexedDB cache,
+       * and queueing for offline replay when offline.
+       * @returns {Promise<void>}
+       */
+      async addNewMasterTask() {
+        const title = (this.newMasterTaskTitle || '').trim();
+        if (!title) return;
+        const category = this.newMasterTaskCategory || 'General';
+        try {
+          const created = await this.bridge.addMasterTask(title, category);
+          if (created) {
+            this.masterTasks.push(created);
+            this.newMasterTaskTitle = '';
+            await IndexedDbStore.idbSaveMasterTasks(this.masterTasks);
+            if (created._queuedOffline) {
+              await this.refreshOutboxCount();
+              this.showToast(`Queued master task "${title}" offline.`, 'info', 4000, 'Saved Offline');
+            } else {
+              this.showToast(`Added master task "${title}".`, 'success', 4000, 'Master Task Created');
+            }
+          }
+        } catch (err) {
+          console.error('🔥 addNewMasterTask error:', err);
+          this.showToast(`Error adding master task: ${err.message || err.toString()}`, 'error', 10000, 'Create Error');
         }
       },
 
@@ -2884,9 +2886,7 @@ if ('serviceWorker' in navigator) {
 
       /**
        * Toggles a master task's client-side star flag and persists it via
-       * `GASBridge#toggleMasterTaskStar`, rolling back on failure. Master tasks have no
-       * offline-outbox path (an established asymmetry with daily tasks — see moveMasterTaskToToday
-       * and gasBridge.js#toggleMasterTaskStar), so unlike toggleTaskStar there's no `_queuedOffline` case.
+       * `GASBridge#toggleMasterTaskStar`, rolling back on failure. Supports offline outbox queueing.
        * @param {object} mTask Master task to toggle (mutated in place).
        * @returns {Promise<void>}
        */
@@ -2898,6 +2898,11 @@ if ('serviceWorker' in navigator) {
           if (!updated) {
             mTask.starred = previous;
             this.showToast(`Task "${mTask.title}" no longer exists in Google Tasks — star was not saved.`, 'error', 10000, 'Task Not Saved');
+          } else {
+            await IndexedDbStore.idbSaveMasterTasks(this.masterTasks);
+            if (updated._queuedOffline) {
+              await this.refreshOutboxCount();
+            }
           }
         } catch (err) {
           mTask.starred = previous;

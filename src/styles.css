@@ -1861,6 +1861,295 @@ button.event-pill:hover {
   outline: none;
 }
 
+.note-doc-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.doc-toolbar-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--theme-card-header-bg);
+  border: 1px solid var(--theme-card-border);
+  border-radius: 6px;
+}
+
+.doc-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.doc-sheet-heading-label {
+  font-family: var(--header-font-family);
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--theme-card-header-fg);
+}
+
+.doc-section-count-badge {
+  font-size: 0.72rem;
+  color: var(--theme-text-muted);
+  background: var(--theme-table-row-hover);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.doc-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-doc-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  background: var(--theme-table-row-bg, #fff);
+  color: var(--theme-card-header-fg);
+  border: 1px solid var(--theme-card-border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-doc-tool:hover {
+  background: var(--theme-primary);
+  color: #fff;
+  border-color: var(--theme-primary);
+}
+
+.btn-doc-tool-primary {
+  background: var(--theme-primary);
+  color: #fff;
+  border-color: var(--theme-primary);
+}
+
+.btn-doc-tool-primary:hover {
+  filter: brightness(1.1);
+}
+
+.doc-raw-editor-wrap {
+  width: 100%;
+}
+
+/* Continuous Lined Doc Sheet (Ruled Binder Paper Aesthetic) */
+.doc-lined-sheet {
+  position: relative;
+  width: 100%;
+  min-height: 420px;
+  background-color: var(--theme-card-textarea-bg);
+  background-image: repeating-linear-gradient(
+    transparent,
+    transparent 27px,
+    var(--theme-card-border, rgba(120, 140, 160, 0.18)) 27px,
+    var(--theme-card-border, rgba(120, 140, 160, 0.18)) 28px
+  );
+  border: 1px solid var(--theme-card-textarea-border);
+  border-left: 4px solid var(--note-color-red, #c25953);
+  border-radius: 6px;
+  padding: 10px 14px 18px 16px;
+  box-sizing: border-box;
+  box-shadow: var(--theme-card-shadow);
+}
+
+/* Accordion Section */
+.doc-accordion-section {
+  position: relative;
+  margin-bottom: 8px;
+  transition: background 0.15s ease;
+}
+
+.doc-accordion-section.doc-section-collapsed {
+  margin-bottom: 2px;
+}
+
+/* H3 Accordion Header */
+.doc-accordion-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  line-height: 28px;
+  padding: 2px 4px;
+  border-bottom: 1px solid var(--theme-card-border);
+  border-radius: 3px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s ease;
+}
+
+.doc-accordion-header:hover {
+  background: var(--theme-table-row-hover);
+}
+
+.doc-accordion-twistie {
+  background: transparent;
+  border: none;
+  color: var(--theme-primary);
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.doc-h3-marker {
+  font-family: monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--theme-primary);
+  opacity: 0.55;
+  flex-shrink: 0;
+}
+
+.doc-topic-pill {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--theme-primary);
+  background: var(--theme-table-row-hover);
+  padding: 1px 5px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.doc-accordion-heading-input {
+  flex: 1;
+  font-family: var(--header-font-family);
+  font-weight: 700;
+  font-size: 0.95rem;
+  line-height: 24px;
+  height: 24px;
+  color: var(--theme-card-header-fg);
+  border: none;
+  border-bottom: 1px dashed transparent;
+  background: transparent;
+  padding: 0 4px;
+  outline: none;
+  box-shadow: none;
+  cursor: text;
+  transition: border-color 0.15s ease;
+}
+
+.doc-accordion-heading-input:hover {
+  border-bottom-color: var(--theme-card-border);
+}
+
+.doc-accordion-heading-input:focus {
+  border-bottom: 1px solid var(--theme-primary);
+  background: transparent;
+}
+
+.doc-category-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  opacity: 0.8;
+  flex-shrink: 0;
+}
+
+.doc-category-badge.cat-work { color: #2563eb; background: rgba(37, 99, 235, 0.08); }
+.doc-category-badge.cat-meeting { color: #7c3aed; background: rgba(124, 58, 237, 0.08); }
+.doc-category-badge.cat-decision { color: #059669; background: rgba(5, 150, 105, 0.08); }
+.doc-category-badge.cat-personal { color: #d97706; background: rgba(217, 119, 6, 0.08); }
+.doc-category-badge.cat-project { color: #dc2626; background: rgba(220, 38, 38, 0.08); }
+
+.doc-collapsed-count {
+  font-size: 0.72rem;
+  font-style: italic;
+  color: var(--theme-text-muted);
+  margin-left: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.doc-section-delete-btn {
+  background: transparent;
+  border: none;
+  color: var(--theme-text-muted);
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.doc-accordion-header:hover .doc-section-delete-btn {
+  opacity: 0.7;
+}
+
+.doc-section-delete-btn:hover {
+  opacity: 1 !important;
+  color: var(--note-color-red, #dc2626);
+}
+
+/* Accordion Body & Lined Rows */
+.doc-accordion-body {
+  padding-left: 20px;
+  padding-top: 2px;
+  padding-bottom: 4px;
+}
+
+.doc-lined-lines {
+  display: flex;
+  flex-direction: column;
+}
+
+.doc-line-row {
+  min-height: 28px;
+  line-height: 28px;
+}
+
+.doc-render-line-item {
+  min-height: 28px;
+  line-height: 28px;
+  font-family: var(--font-family);
+  font-size: 0.9rem;
+  cursor: text;
+}
+
+.doc-line-input {
+  min-height: 28px;
+  height: 28px;
+  line-height: 28px;
+  font-family: var(--font-family);
+  font-size: 0.9rem;
+}
+
+.empty-doc-notice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: var(--theme-text-muted);
+  cursor: pointer;
+  border: 1px dashed var(--theme-card-border);
+  border-radius: 6px;
+  margin: 16px 0;
+}
+
+.empty-doc-notice:hover {
+  color: var(--theme-primary);
+  border-color: var(--theme-primary);
+}
+
 .note-doc-render {
   width: 100%;
   min-height: 380px;

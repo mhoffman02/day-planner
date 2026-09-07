@@ -408,6 +408,21 @@ export async function idbEnqueueMutation(type, payload, baseEtag = null) {
     }
   }
 
+  if (!resolvedBaseEtag && payload?.masterTaskId) {
+    const tid = payload.masterTaskId;
+    try {
+      const masterCache = await getItem(STORES.MASTER_TASKS, MASTER_TASKS_CACHE_KEY);
+      if (masterCache && Array.isArray(masterCache.tasks)) {
+        const match = masterCache.tasks.find(t => t.id === tid);
+        if (match && (match._etag || match.etag)) {
+          resolvedBaseEtag = match._etag || match.etag;
+        }
+      }
+    } catch {
+      // ignore lookup error and proceed with null baseEtag
+    }
+  }
+
   const mutation = {
     type: type,
     payload: payload,

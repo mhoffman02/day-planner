@@ -20,7 +20,11 @@ export const OUTBOX_MUTATION_TYPES = {
   UPDATE_DAILY_TASK: 'UPDATE_DAILY_TASK',
   ADD_CALENDAR_EVENT: 'ADD_CALENDAR_EVENT',
   UPDATE_CALENDAR_EVENT: 'UPDATE_CALENDAR_EVENT',
-  SAVE_DAILY_NOTE: 'SAVE_DAILY_NOTE'
+  SAVE_DAILY_NOTE: 'SAVE_DAILY_NOTE',
+  ADD_MASTER_TASK: 'ADD_MASTER_TASK',
+  UPDATE_MASTER_TASK: 'UPDATE_MASTER_TASK',
+  MOVE_MASTER_TASK: 'MOVE_MASTER_TASK',
+  SAVE_MASTER_TASKS_ARCHIVE: 'SAVE_MASTER_TASKS_ARCHIVE'
 };
 
 const CALENDAR_API_BASE = 'https://www.googleapis.com/calendar/v3';
@@ -454,6 +458,63 @@ export async function fetchMasterTasks(accessToken) {
         notes: stripDpTokens(t.notes)
       };
     });
+}
+
+/**
+ * Reads the master tasks archive (Day Planner/master-tasks.json) from Drive,
+ * falling back to null when the file doesn't exist yet or is empty.
+ * @param {string} accessToken
+ * @returns {Promise<{updatedAt: string, tasks: Array<object>}|null>}
+ */
+export async function fetchMasterTasksDriveArchive(accessToken) {
+  const folderId = await getOrCreateRootFolderId(accessToken);
+  const file = await findDriveFileInFolder('master-tasks.json', folderId, accessToken);
+  if (!file) return null;
+
+  const content = await downloadDriveFileText(file.id, accessToken);
+  if (!content || !content.trim()) return null;
+
+  try {
+    const parsed = JSON.parse(content);
+    if (Array.isArray(parsed)) {
+      return { updatedAt: new Date().toISOString(), tasks: parsed };
+    }
+    return {
+      updatedAt: parsed.updatedAt || new Date().toISOString(),
+      tasks: Array.isArray(parsed.tasks) ? parsed.tasks : []
+    };
+  } catch (err) {
+    console.error('fetchMasterTasksDriveArchive: JSON parse failed for master-tasks.json', err);
+    return null;
+  }
+}
+
+/**
+ * Saves/updates the master tasks archive (Day Planner/master-tasks.json) on Google Drive.
+ * @param {Array<object>} tasks Array of master task objects.
+ * @param {string} accessToken
+ * @returns {Promise<{success: boolean, fileId: string, count: number}>}
+ */
+export async function saveMasterTasksDriveArchiveRest(tasks, accessToken) {
+  const fileName = 'master-tasks.json';
+  const folderId = await getOrCreateRootFolderId(accessToken);
+  const file = await findDriveFileInFolder(fileName, folderId, accessToken);
+
+  const archiveData = {
+    updatedAt: new Date().toISOString(),
+    tasks: Array.isArray(tasks) ? tasks : []
+  };
+  const serialized = JSON.stringify(archiveData, null, 2);
+
+  let fileId;
+  if (file) {
+    await updateDriveFileContent(file.id, serialized, accessToken);
+    fileId = file.id;
+  } else {
+    const created = await createDriveFileWithContent(fileName, folderId, serialized, accessToken);
+    fileId = created.id;
+  }
+  return { success: true, fileId, count: archiveData.tasks.length };
 }
 
 /**
@@ -1369,6 +1430,45 @@ export class GASBridge {
             result = await saveDailyDocCardsRest(dateStr, noteContent, accessToken);
             break;
           }
+          case OUTBOX_MUTATION_TYPES.ADD_MASTER_TASK: {
+            const { title, category, tempId } = mutation.payload;
+            result = await addMasterTaskRest(title, category, accessToken);
+            if (result && result.id && tempId) {
+              tempIdMap[tempId] = result.id;
+              try {
+                const masterCache = await IndexedDbStore.idbGetMasterTasks();
+                if (masterCache && Array.isArray(masterCache.tasks)) {
+                  const item = masterCache.tasks.find(t => t.id === tempId);
+                  if (item) {
+                    item.id = result.id;
+                    delete item._queuedOffline;
+                    await IndexedDbStore.idbSaveMasterTasks(masterCache.tasks);
+                  }
+                }
+              } catch {
+                // non-fatal
+              }
+            }
+            break;
+          }
+          case OUTBOX_MUTATION_TYPES.UPDATE_MASTER_TASK: {
+            const { masterTaskId, updates } = mutation.payload;
+            const resolvedTaskId = resolveId(masterTaskId);
+            if (updates && updates.starred !== undefined) {
+              result = await setMasterTaskStarredRest(resolvedTaskId, updates.starred, accessToken);
+            }
+            break;
+          }
+          case OUTBOX_MUTATION_TYPES.MOVE_MASTER_TASK: {
+            const { masterTaskId, targetDateStr, movedTaskId } = mutation.payload;
+            result = await markMasterTaskMovedRest(resolveId(masterTaskId), targetDateStr, resolveId(movedTaskId), accessToken);
+            break;
+          }
+          case OUTBOX_MUTATION_TYPES.SAVE_MASTER_TASKS_ARCHIVE: {
+            const { tasks } = mutation.payload;
+            result = await saveMasterTasksDriveArchiveRest(tasks, accessToken);
+            break;
+          }
           default:
             result = null;
         }
@@ -1509,22 +1609,38 @@ export class GASBridge {
     if (this.useMock) return this.mockData.masterTasks;
 
     const accessToken = getAccessToken();
-    if (accessToken) return fetchMasterTasks(accessToken);
+    if (accessToken && this.isOnline()) {
+      try {
+        const tasks = await fetchMasterTasks(accessToken);
+        saveMasterTasksDriveArchiveRest(tasks, accessToken).catch(err => {
+          console.warn('saveMasterTasksDriveArchiveRest background sync failed:', err);
+        });
+        return tasks;
+      } catch (err) {
+        console.warn('fetchMasterTasks online call failed — attempting Drive archive fallback', err);
+        try {
+          const archive = await fetchMasterTasksDriveArchive(accessToken);
+          if (archive && Array.isArray(archive.tasks) && archive.tasks.length > 0) {
+            return archive.tasks;
+          }
+        } catch (archiveErr) {
+          console.error('fetchMasterTasksDriveArchive fallback failed:', archiveErr);
+        }
+      }
+    }
 
     return this.mockData.masterTasks;
   }
 
   /**
-   * Creates a new master task (mock mode only appends to the in-memory list; production is
-   * backed by a real Google Task, see gas-app/Code.gs#addMasterTask).
+   * Creates a new master task (mock mode appends to the in-memory list; production is
+   * backed by a real Google Task and Drive archive, with offline outbox queueing).
    * @param {string} title Task title.
    * @param {string} [category='General'] Optional category classification.
    * @returns {Promise<object>} Created master task object.
    */
   async addMasterTask(title, category = 'General') {
-    const accessToken = !this.useMock ? getAccessToken() : null;
-
-    if (this.useMock || !accessToken) {
+    if (this.useMock) {
       const newTask = tagMock({
         id: generateLocalId('m'),
         title,
@@ -1536,50 +1652,143 @@ export class GASBridge {
       this.mockData.masterTasks.push(newTask);
       return newTask;
     }
-    return addMasterTaskRest(title, category, accessToken);
+
+    const accessToken = getAccessToken();
+    if (accessToken && this.isOnline()) {
+      try {
+        const created = await addMasterTaskRest(title, category, accessToken);
+        fetchMasterTasks(accessToken)
+          .then(tasks => saveMasterTasksDriveArchiveRest(tasks, accessToken))
+          .catch(() => {});
+        return created;
+      } catch (err) {
+        console.error('addMasterTask online call failed — queueing for offline retry', err);
+      }
+    }
+
+    const tempId = generateLocalId('offline_master_task');
+    await IndexedDbStore.idbEnqueueMutation(OUTBOX_MUTATION_TYPES.ADD_MASTER_TASK, { title, category, tempId });
+    const cached = await IndexedDbStore.idbGetMasterTasks();
+    const tasks = (cached && Array.isArray(cached.tasks)) ? [...cached.tasks] : [];
+    const offlineTask = {
+      id: tempId,
+      title,
+      category,
+      status: '•',
+      movedTo: null,
+      movedTaskId: null,
+      starred: false,
+      _queuedOffline: true
+    };
+    tasks.push(offlineTask);
+    await IndexedDbStore.idbSaveMasterTasks(tasks);
+
+    return offlineTask;
   }
 
   /**
    * Records that a master task was moved to a specific daily task list, for the "Moved to
-   * <date>" note in the Master Tasks view. See gas-app/Code.gs#markMasterTaskMoved.
+   * <date>" note in the Master Tasks view.
    * @param {string} masterTaskId Master task id.
    * @param {string} targetDateStr Date moved to, in YYYY-MM-DD format.
    * @param {string} movedTaskId Id of the newly created daily task.
    * @returns {Promise<object|null>} Updated master task object, or null if not found (mock mode only).
    */
   async markMasterTaskMoved(masterTaskId, targetDateStr, movedTaskId) {
-    const accessToken = !this.useMock ? getAccessToken() : null;
-
-    if (this.useMock || !accessToken) {
+    if (this.useMock) {
       const task = this.mockData.masterTasks.find(t => t.id === masterTaskId);
       if (!task) return null;
       task.movedTo = targetDateStr;
       task.movedTaskId = movedTaskId;
       return task;
     }
-    return markMasterTaskMovedRest(masterTaskId, targetDateStr, movedTaskId, accessToken);
+
+    const accessToken = getAccessToken();
+    if (accessToken && this.isOnline()) {
+      try {
+        const updated = await markMasterTaskMovedRest(masterTaskId, targetDateStr, movedTaskId, accessToken);
+        fetchMasterTasks(accessToken)
+          .then(tasks => saveMasterTasksDriveArchiveRest(tasks, accessToken))
+          .catch(() => {});
+        return updated;
+      } catch (err) {
+        console.error('markMasterTaskMoved online call failed — queueing for offline retry', err);
+      }
+    }
+
+    await IndexedDbStore.idbEnqueueMutation(OUTBOX_MUTATION_TYPES.MOVE_MASTER_TASK, { masterTaskId, targetDateStr, movedTaskId });
+    const cached = await IndexedDbStore.idbGetMasterTasks();
+    if (cached && Array.isArray(cached.tasks)) {
+      const match = cached.tasks.find(t => t.id === masterTaskId);
+      if (match) {
+        match.movedTo = targetDateStr;
+        match.movedTaskId = movedTaskId;
+        await IndexedDbStore.idbSaveMasterTasks(cached.tasks);
+      }
+    }
+
+    return { id: masterTaskId, movedTo: targetDateStr, movedTaskId, _queuedOffline: true };
   }
 
   /**
-   * Toggles the client-side "starred" flag on a master task. Google's Tasks API has no starred
-   * field to persist server-side, so this reuses the hidden dp-meta marker the same way
-   * category/movedTo do (see setMasterTaskStarredRest). Mirrors addMasterTask/markMasterTaskMoved's
-   * mock/REST branching; like those two, Master Tasks have no offline-outbox path (an established
-   * asymmetry with Daily Tasks in this codebase, not new scope for this feature).
+   * Toggles the client-side "starred" flag on a master task.
    * @param {string} masterTaskId Master task id.
    * @param {boolean} starred New starred state.
    * @returns {Promise<object|null>} Updated master task object, or null if not found (mock mode only).
    */
   async toggleMasterTaskStar(masterTaskId, starred) {
-    const accessToken = !this.useMock ? getAccessToken() : null;
-
-    if (this.useMock || !accessToken) {
+    if (this.useMock) {
       const task = this.mockData.masterTasks.find(t => t.id === masterTaskId);
       if (!task) return null;
       task.starred = Boolean(starred);
       return task;
     }
-    return setMasterTaskStarredRest(masterTaskId, starred, accessToken);
+
+    const accessToken = getAccessToken();
+    if (accessToken && this.isOnline()) {
+      try {
+        const updated = await setMasterTaskStarredRest(masterTaskId, starred, accessToken);
+        fetchMasterTasks(accessToken)
+          .then(tasks => saveMasterTasksDriveArchiveRest(tasks, accessToken))
+          .catch(() => {});
+        return updated;
+      } catch (err) {
+        console.error('toggleMasterTaskStar online call failed — queueing for offline retry', err);
+      }
+    }
+
+    const cached = await IndexedDbStore.idbGetMasterTasks();
+    let baseEtag = null;
+    if (cached && Array.isArray(cached.tasks)) {
+      const match = cached.tasks.find(t => t.id === masterTaskId);
+      if (match) {
+        baseEtag = match._etag || match.etag || null;
+        match.starred = Boolean(starred);
+        await IndexedDbStore.idbSaveMasterTasks(cached.tasks);
+      }
+    }
+
+    await IndexedDbStore.idbEnqueueMutation(
+      OUTBOX_MUTATION_TYPES.UPDATE_MASTER_TASK,
+      { masterTaskId, updates: { starred: Boolean(starred) } },
+      baseEtag
+    );
+    return { id: masterTaskId, starred: Boolean(starred), _queuedOffline: true };
+  }
+
+  /**
+   * Persists master tasks to the Drive archive file (Day Planner/master-tasks.json).
+   * @param {Array<object>} tasks Array of master task objects.
+   * @returns {Promise<object>}
+   */
+  async saveMasterTasksArchive(tasks) {
+    if (this.useMock) return { success: true, count: tasks ? tasks.length : 0 };
+    const accessToken = getAccessToken();
+    if (accessToken && this.isOnline()) {
+      return saveMasterTasksDriveArchiveRest(tasks, accessToken);
+    }
+    await IndexedDbStore.idbEnqueueMutation(OUTBOX_MUTATION_TYPES.SAVE_MASTER_TASKS_ARCHIVE, { tasks });
+    return { success: true, count: tasks ? tasks.length : 0, _queuedOffline: true };
   }
 
   /**

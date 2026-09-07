@@ -432,11 +432,11 @@
                   <div class="dropdown-menu notes-filter-menu" x-show="noteFilterMenuOpen" @click.outside="noteFilterMenuOpen = false" x-cloak>
                     <div class="dropdown-header">Filter & Search Cards</div>
                     <div class="dropdown-item-group">
-                      <input type="search" x-model="noteCardSearchQuery" placeholder="Search card heading, notes..." class="dropdown-search-input">
+                      <input type="search" x-model="noteCardSearchQuery" placeholder="Search card heading, notes..." class="dropdown-search-input" aria-label="Search card heading and notes">
                     </div>
                     <div class="dropdown-item-group">
                       <label class="dropdown-label">Category Filter:</label>
-                      <select x-model="noteCardCategoryFilter" class="dropdown-select">
+                      <select x-model="noteCardCategoryFilter" class="dropdown-select" aria-label="Filter cards by category">
                         <option value="ALL">All Categories</option>
                         <option value="Work">Work</option>
                         <option value="Personal">Personal</option>
@@ -449,7 +449,7 @@
                     <div class="dropdown-item-group">
                       <label class="dropdown-label">View Mode:</label>
                       <button type="button" class="btn-toggle-mode" @click="noteViewMode = noteViewMode === 'cards' ? 'doc' : 'cards'">
-                        <span x-text="noteViewMode === 'cards' ? 'Switch to Continuous Lined Doc (Future Preview)' : 'Switch to Topic Cards Mode'"></span>
+                        <span x-text="noteViewMode === 'cards' ? 'Switch to Continuous Lined Doc' : 'Switch to Topic Cards Mode'"></span>
                       </button>
                     </div>
                   </div>
@@ -544,13 +544,91 @@
               </template>
             </div>
 
-            <!-- Mode 2: Continuous Lined Doc (Option 2 - Future To-Do Preview) -->
+            <!-- Mode 2: Continuous Lined Doc (Option 2) with Collapsible H3 Accordions -->
             <div class="note-doc-container" x-show="noteViewMode === 'doc'">
-              <div class="doc-preview-badge">
-                <span class="material-symbols-outlined icon-16">info</span>
-                <span>Option 2 Preview: Continuous Lined Doc with Collapsible H3 Accordions</span>
+              <!-- Doc Toolbar Bar -->
+              <div class="doc-toolbar-bar">
+                <div class="doc-toolbar-left">
+                  <span class="doc-sheet-heading-label" x-text="noteDateHeading || ('Daily Notes - ' + selectedDateFormatted)"></span>
+                  <span class="doc-section-count-badge" x-text="filteredNoteCards.length + (filteredNoteCards.length === 1 ? ' section' : ' sections')"></span>
+                </div>
+                <div class="doc-toolbar-actions">
+                  <button type="button" class="btn-doc-tool" @click="expandAllDocSections()" title="Expand all H3 sections">
+                    <span class="material-symbols-outlined icon-16">unfold_more</span> Expand All
+                  </button>
+                  <button type="button" class="btn-doc-tool" @click="collapseAllDocSections()" title="Collapse all H3 sections">
+                    <span class="material-symbols-outlined icon-16">unfold_less</span> Collapse All
+                  </button>
+                  <button type="button" class="btn-doc-tool" @click="docRawEditorOpen = !docRawEditorOpen" :title="docRawEditorOpen ? 'Switch to Lined Accordion Doc' : 'Edit Raw Markdown'">
+                    <span class="material-symbols-outlined icon-16" x-text="docRawEditorOpen ? 'view_agenda' : 'code'"></span>
+                    <span x-text="docRawEditorOpen ? 'Accordion View' : 'Markdown View'"></span>
+                  </button>
+                  <button type="button" class="btn-doc-tool btn-doc-tool-primary" @click="addDocSection()" title="Add H3 Section">
+                    <span class="material-symbols-outlined icon-16">add</span> Add Section
+                  </button>
+                </div>
               </div>
-              <textarea x-model="dailyNote" @input="syncDailyNoteToCards()" placeholder="# Aug 15, 2026\n\n### Topic 1\nNotes..." class="continuous-doc-textarea" aria-label="Continuous Daily Notes"></textarea>
+
+              <!-- Raw Markdown Mode (when toggled) -->
+              <div class="doc-raw-editor-wrap" x-show="docRawEditorOpen">
+                <textarea x-model="dailyNote" @input="syncDailyNoteToCards()" placeholder="# Aug 15, 2026&#10;&#10;### Topic 1&#10;Notes..." class="continuous-doc-textarea" aria-label="Raw Markdown Daily Notes"></textarea>
+              </div>
+
+              <!-- Lined Accordion Sheet Mode (Primary Continuous Doc) -->
+              <div class="doc-lined-sheet" x-show="!docRawEditorOpen">
+                <template x-for="card in filteredNoteCards" :key="card.id">
+                  <section class="doc-accordion-section" :class="{ 'doc-section-collapsed': card.collapsed }" :data-card-id="card.id">
+                    <!-- H3 Accordion Header -->
+                    <header class="doc-accordion-header" @click.self="toggleCardExpand(card)">
+                      <button type="button" class="doc-accordion-twistie" @click.stop="toggleCardExpand(card)" :title="card.collapsed ? 'Expand H3 Section' : 'Collapse H3 Section'" :aria-label="card.collapsed ? 'Expand section' : 'Collapse section'">
+                        <span class="material-symbols-outlined icon-18" x-text="card.collapsed ? 'chevron_right' : 'expand_more'"></span>
+                      </button>
+
+                      <span class="doc-h3-marker" aria-hidden="true">###</span>
+
+                      <!-- Inline Editable Topic (Optional Tag) -->
+                      <template x-if="card.indexTopic">
+                        <span class="doc-topic-pill" x-text="card.indexTopic" title="Index Topic"></span>
+                      </template>
+
+                      <!-- Inline Editable Heading -->
+                      <input type="text" x-model="card.heading" @input="syncCardsToDailyNote()" placeholder="Heading (e.g. System Design)..." class="doc-accordion-heading-input" aria-label="H3 Section Heading">
+
+                      <!-- Category Indicator -->
+                      <span class="doc-category-badge" x-text="card.category" :class="'cat-' + (card.category || 'work').toLowerCase()"></span>
+
+                      <!-- Collapsed summary preview / count badge -->
+                      <template x-if="card.collapsed">
+                        <span class="doc-collapsed-count" @click="toggleCardExpand(card)" x-text="'(' + (cardLines(card).filter(l => l.trim()).length || 0) + ' lines)'"></span>
+                      </template>
+
+                      <!-- Delete Section -->
+                      <button type="button" class="doc-section-delete-btn" @click.stop="deleteNoteCard(card.id)" title="Delete Section" aria-label="Delete Section">
+                        <span class="material-symbols-outlined icon-16">close</span>
+                      </button>
+                    </header>
+
+                    <!-- Accordion Body: Continuous Lined Lines -->
+                    <div class="doc-accordion-body" x-show="!card.collapsed">
+                      <div class="doc-lined-lines">
+                        <template x-for="(line, idx) in cardLines(card)" :key="idx">
+                          <div class="note-card-line-row doc-line-row" :class="{ 'note-line-selected': isLineInSelectedRange(card, idx) }">
+                            <div class="note-render-line-item doc-render-line-item" x-show="card._activeLineIndex !== idx" @click="$event.shiftKey ? extendLineSelection(card, idx) : startEditingLine(card, idx)" x-html="renderCardLine(line, cardLines(card).length === 1 && !line)" aria-label="Note line, click to edit, shift+click to extend selection"></div>
+                            <input type="text" x-show="card._activeLineIndex === idx" :id="'card-line-' + card.id + '-' + idx" :value="line" @input="updateCardLine(card, idx, $event.target.value)" @keydown="handleLineKeydown($event, card, idx)" @paste="handleLinePaste($event, card, idx)" @blur="stopEditingLine(card, idx)" :placeholder="cardLines(card).length === 1 && idx === 0 ? 'Type notes for this section...' : ''" class="note-card-line-input doc-line-input" aria-label="Note line">
+                          </div>
+                        </template>
+                      </div>
+                    </div>
+                  </section>
+                </template>
+
+                <template x-if="filteredNoteCards.length === 0">
+                  <div class="empty-doc-notice" @click="addDocSection()">
+                    <span class="material-symbols-outlined icon-20">edit_note</span>
+                    <p>No sections yet on this lined page. Click <strong>+ Add Section</strong> to write notes.</p>
+                  </div>
+                </template>
+              </div>
             </div>
 
           </article>
@@ -590,6 +668,20 @@
               Monthly Master Task List (<span x-text="selectedMonthName + ' ' + selectedYear"></span>)
             </h2>
           </header>
+          <!-- Master Task Quick Add Form -->
+          <form @submit.prevent="addNewMasterTask()" role="group" class="task-quick-add-bar">
+            <select x-model="newMasterTaskCategory" class="task-priority-select" aria-label="Master task category">
+              <option value="General">General</option>
+              <option value="Work">Work</option>
+              <option value="Personal">Personal</option>
+              <option value="Financial">Financial</option>
+              <option value="Projects">Projects</option>
+            </select>
+            <input type="text" x-model="newMasterTaskTitle" placeholder="Add master task title..." class="task-input-field" aria-label="New master task description">
+            <button type="submit" class="btn-primary btn-add-task-round" :disabled="newMasterTaskTitle.trim().length < 2" aria-label="Add Master Task" title="Add Master Task">
+              <span class="material-symbols-outlined">add</span>
+            </button>
+          </form>
           <figure class="table-container">
             <table class="task-table table-card">
               <thead>
@@ -769,7 +861,7 @@
                           <div style="display: flex; flex-direction: column; gap: 3px;">
                             <template x-for="d in ms.deliverables" :key="d.id">
                               <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
-                                <input type="checkbox" :checked="d.status === '✓'" @change="toggleMilestoneDeliverable(ms, d.id)" style="cursor: pointer;">
+                                <input type="checkbox" :checked="d.status === '✓'" @change="toggleMilestoneDeliverable(ms, d.id)" :aria-label="d.title || 'Complete deliverable'" style="cursor: pointer;">
                                 <span :style="d.status === '✓' ? 'text-decoration: line-through; color: var(--theme-text-muted);' : ''" x-text="d.title"></span>
                               </label>
                             </template>
@@ -836,7 +928,7 @@
 
                 <!-- Inline Add Future Item Input -->
                 <div class="future-month-add-form" style="display: flex; gap: 4px; margin-top: auto; padding-top: 6px; border-top: 1px solid var(--theme-panel-border);">
-                  <input type="text" x-model="newFutureItemText[selectedYear + '-' + String(idx + 1).padStart(2, '0')]" @keydown.enter.prevent="addFutureMonthItem(selectedYear + '-' + String(idx + 1).padStart(2, '0'))" placeholder="+ Jot down item..." style="flex: 1; font-size: 11px; padding: 4px 6px; border: 1px solid var(--theme-panel-border); border-radius: 4px; background: transparent; color: var(--theme-text-primary);">
+                  <input type="text" x-model="newFutureItemText[selectedYear + '-' + String(idx + 1).padStart(2, '0')]" @keydown.enter.prevent="addFutureMonthItem(selectedYear + '-' + String(idx + 1).padStart(2, '0'))" :aria-label="'Add future item for ' + monthName" placeholder="+ Jot down item..." style="flex: 1; font-size: 11px; padding: 4px 6px; border: 1px solid var(--theme-panel-border); border-radius: 4px; background: transparent; color: var(--theme-text-primary);">
                   <button type="button" class="btn-icon-subtle" @click="addFutureMonthItem(selectedYear + '-' + String(idx + 1).padStart(2, '0'))" title="Add item" style="padding: 2px 6px;">
                     <span class="material-symbols-outlined icon-14">add</span>
                   </button>
@@ -1020,11 +1112,11 @@
         </div>
         <footer class="modal-actions">
           <template x-if="selectedEvent?.meetLink">
-            <a :href="selectedEvent.meetLink" target="_blank" class="btn-primary btn-meet" role="button">
+            <a :href="selectedEvent.meetLink" target="_blank" rel="noopener noreferrer" class="btn-primary btn-meet" aria-label="Join Google Meet (opens in new window)">
               <span class="material-symbols-outlined">videocam</span> Join Google Meet
             </a>
           </template>
-          <a :href="selectedEvent?.gCalLink" target="_blank" class="btn-primary" role="button">
+          <a :href="selectedEvent?.gCalLink" target="_blank" rel="noopener noreferrer" class="btn-primary" aria-label="Open in Google Calendar (opens in new window)">
             <span class="material-symbols-outlined">calendar_today</span> Open in gCal
           </a>
           <button type="button" class="btn-secondary" @click="closeEventModal()">Close</button>

@@ -34,7 +34,10 @@ import {
   addFutureItemRest,
   updateFutureItemStatusRest,
   transferFutureItemRest,
-  pushFutureItemToNextMonthRest
+  pushFutureItemToNextMonthRest,
+  fetchMasterTasksDriveArchive,
+  saveMasterTasksDriveArchiveRest,
+  OUTBOX_MUTATION_TYPES
 } from '../src/gasBridge.js';
 import IndexedDbStore from '../src/indexedDbStore.js';
 import * as googleAuth from '../src/googleAuth.js';
@@ -1557,5 +1560,178 @@ describe('GAS Bridge Stage 3 REST Write Path Unit Tests', () => {
     assert.equal(result.meetLink, null);
     assert.equal(result.agendaDocUrl, null);
     assert.equal(result.agendaDocError, undefined);
+  });
+});
+
+describe('Master Tasks Drive REST Persistence & Offline Outbox Tests', () => {
+  it('fetchMasterTasksDriveArchive() returns null when master-tasks.json does not exist', async () => {
+    globalThis.fetch = async (url) => {
+      const q = new URL(url).searchParams.get('q') || '';
+      if (q.includes('in parents')) return { ok: true, json: async () => ({ files: [] }) };
+      return { ok: true, json: async () => ({ files: [{ id: 'folder1' }] }) };
+    };
+    const archive = await fetchMasterTasksDriveArchive('tok_abc');
+    assert.equal(archive, null);
+  });
+
+  it('fetchMasterTasksDriveArchive() returns parsed tasks from master-tasks.json', async () => {
+    globalThis.fetch = async (url) => {
+      const q = new URL(url).searchParams.get('q') || '';
+      if (q.includes('in parents')) return { ok: true, json: async () => ({ files: [{ id: 'master_file_id' }] }) };
+      if (url.includes('alt=media')) {
+        return {
+          ok: true,
+          text: async () => JSON.stringify({
+            updatedAt: '2026-09-07T00:00:00.000Z',
+            tasks: [{ id: 'm1', title: 'File Taxes', category: 'Financial', status: '•', starred: true }]
+          })
+        };
+      }
+      return { ok: true, json: async () => ({ files: [{ id: 'folder1' }] }) };
+    };
+    const archive = await fetchMasterTasksDriveArchive('tok_abc');
+    assert.ok(archive);
+    assert.equal(archive.tasks.length, 1);
+    assert.equal(archive.tasks[0].title, 'File Taxes');
+    assert.equal(archive.tasks[0].category, 'Financial');
+  });
+
+  it('saveMasterTasksDriveArchiveRest() creates new master-tasks.json when none exists', async () => {
+    let uploadedBody = null;
+    globalThis.fetch = async (url, opts = {}) => {
+      const q = new URL(url).searchParams.get('q') || '';
+      if (q.includes('in parents')) return { ok: true, json: async () => ({ files: [] }) };
+      if (opts.method === 'POST' && url.includes('/upload/drive/v3/files')) {
+        uploadedBody = opts.body;
+        return { ok: true, json: async () => ({ id: 'new_master_file_id' }) };
+      }
+      return { ok: true, json: async () => ({ files: [{ id: 'folder1' }] }) };
+    };
+
+    const result = await saveMasterTasksDriveArchiveRest([
+      { id: 'm1', title: 'Buy equipment', category: 'Work', status: '•' }
+    ], 'tok_abc');
+
+    assert.equal(result.success, true);
+    assert.equal(result.fileId, 'new_master_file_id');
+    assert.equal(result.count, 1);
+    assert.ok(uploadedBody);
+    assert.ok(uploadedBody.includes('Buy equipment'));
+  });
+
+  it('saveMasterTasksDriveArchiveRest() updates existing master-tasks.json', async () => {
+    let patchedBody = null;
+    globalThis.fetch = async (url, opts = {}) => {
+      const q = new URL(url).searchParams.get('q') || '';
+      if (q.includes('in parents')) return { ok: true, json: async () => ({ files: [{ id: 'existing_master_id' }] }) };
+      if (opts.method === 'PATCH' && url.includes('/upload/drive/v3/files/existing_master_id')) {
+        patchedBody = opts.body;
+        return { ok: true, json: async () => ({ id: 'existing_master_id' }) };
+      }
+      return { ok: true, json: async () => ({ files: [{ id: 'folder1' }] }) };
+    };
+
+    const result = await saveMasterTasksDriveArchiveRest([
+      { id: 'm2', title: 'Audit logs', category: 'Security', status: '•' }
+    ], 'tok_abc');
+
+    assert.equal(result.success, true);
+    assert.equal(result.fileId, 'existing_master_id');
+    assert.ok(patchedBody);
+    assert.ok(patchedBody.includes('Audit logs'));
+  });
+
+  it('queues master task mutations when offline and replays via flushOutbox', async () => {
+    installFakeGisSignedIn('tok_offline');
+    await googleAuth.initGoogleAuth('test-client-id');
+    await googleAuth.signIn();
+
+    try {
+      const bridge = new GASBridge(false);
+      bridge._forceOffline = true;
+
+      const created = await bridge.addMasterTask('Renew passport', 'Personal');
+      assert.ok(created.id.startsWith('offline_master_task_'));
+      assert.equal(created._queuedOffline, true);
+      assert.equal(created.title, 'Renew passport');
+
+      const moved = await bridge.markMasterTaskMoved(created.id, '2026-09-08', 'daily_task_123');
+      assert.equal(moved._queuedOffline, true);
+      assert.equal(moved.movedTo, '2026-09-08');
+
+      const starred = await bridge.toggleMasterTaskStar(created.id, true);
+      assert.equal(starred._queuedOffline, true);
+      assert.equal(starred.starred, true);
+
+      const outbox = await IndexedDbStore.idbGetOutbox();
+      const masterMutations = outbox.filter(m => [
+        OUTBOX_MUTATION_TYPES.ADD_MASTER_TASK,
+        OUTBOX_MUTATION_TYPES.MOVE_MASTER_TASK,
+        OUTBOX_MUTATION_TYPES.UPDATE_MASTER_TASK
+      ].includes(m.type));
+      assert.equal(masterMutations.length, 3);
+
+      bridge._forceOffline = false;
+      globalThis.fetch = async (url, opts = {}) => {
+        if (opts.method === 'POST') {
+          return { ok: true, json: async () => ({ id: 'real_master_task_55', title: 'Renew passport', notes: '' }) };
+        }
+        if (opts.method === 'PATCH') {
+          return { ok: true, json: async () => ({ id: 'real_master_task_55', notes: '' }) };
+        }
+        return { ok: true, json: async () => ({ id: 'real_master_task_55', title: 'Renew passport', notes: '' }) };
+      };
+
+      const flushResult = await bridge.flushOutbox();
+      assert.equal(flushResult.flushed >= 3, true);
+      assert.equal(flushResult.failed, 0);
+
+      const remainingOutbox = await IndexedDbStore.idbGetOutbox();
+      const remainingMaster = remainingOutbox.filter(m => [
+        OUTBOX_MUTATION_TYPES.ADD_MASTER_TASK,
+        OUTBOX_MUTATION_TYPES.MOVE_MASTER_TASK,
+        OUTBOX_MUTATION_TYPES.UPDATE_MASTER_TASK
+      ].includes(m.type));
+      assert.equal(remainingMaster.length, 0);
+    } finally {
+      googleAuth.signOut();
+      uninstallFakeGis();
+    }
+  });
+
+  it('getMasterTasks() falls back to Drive archive if Google Tasks API call fails', async () => {
+    installFakeGisSignedIn('tok_drive_fallback');
+    await googleAuth.initGoogleAuth('test-client-id');
+    await googleAuth.signIn();
+
+    try {
+      const bridge = new GASBridge(false);
+      globalThis.fetch = async (url) => {
+        if (url.includes('tasks.googleapis.com')) {
+          return { ok: false, status: 503, statusText: 'Service Unavailable', text: async () => 'Tasks down' };
+        }
+        const q = new URL(url).searchParams.get('q') || '';
+        if (q.includes('in parents')) {
+          return { ok: true, json: async () => ({ files: [{ id: 'drive_archive_file' }] }) };
+        }
+        if (url.includes('alt=media')) {
+          return {
+            ok: true,
+            text: async () => JSON.stringify({
+              tasks: [{ id: 'archived_m1', title: 'Archived task', category: 'Work', status: '•' }]
+            })
+          };
+        }
+        return { ok: true, json: async () => ({ files: [{ id: 'root_folder' }] }) };
+      };
+
+      const tasks = await bridge.getMasterTasks('2026-09');
+      assert.ok(tasks);
+      assert.equal(tasks.length, 1);
+      assert.equal(tasks[0].title, 'Archived task');
+    } finally {
+      googleAuth.signOut();
+      uninstallFakeGis();
+    }
   });
 });

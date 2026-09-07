@@ -338,3 +338,19 @@ All three cross-origin loading strategies fail when a GitHub Pages shell tries t
 - Remember to register any new standard browser globals like Blob in eslint.config.js when adding browser export utilities
 
 ---
+
+## 2026-09-07 — Master Tasks Outbox & Drive Persistence, Continuous Doc Accordions, Automated Accessibility Linter
+
+**Worked well:**
+- Built full offline outbox queueing (`ADD_MASTER_TASK`, `UPDATE_MASTER_TASK`, `MOVE_MASTER_TASK`, `SAVE_MASTER_TASKS_ARCHIVE`) and dedicated Drive REST archive persistence (`Day Planner/master-tasks.json`) with live fallback for undated master tasks
+- Consulted Claude Opus via symmetric headless CLI protocol (`claude --safe-mode --model opus ...`) from delegated subagent to establish an optimal, loss-free data architecture for Option 2 Continuous Doc mode
+- Replaced unstable markdown string coupling with a structured projection model (`parseDailyNoteToSections` and `serializeSectionsToDailyNote` in `indexParser.js`), preserving stable IDs, user categories, collapse states, and document date headings
+- Implemented automated WCAG 2.1 Level AA color contrast auditing across all theme tokens and semantic ARIA validation (`tools/check-accessibility.js`, `tests/accessibility.test.js`) wired directly into `npm test` and `.githooks/pre-commit`
+- Resolved real accessibility findings in `index.html`: missing form control labels, interactive button labels, and removed incorrect `role="button"` on external navigation links
+- Total unit tests grew from 287 to 307 across 38 suites, all passing with zero skips, clean ESLint, and synchronized service worker cache hash
+
+**Needs improvement:**
+- Remember to update `sw.js` cache hash whenever `index.html` or `src/` files are touched for accessibility attributes, as they are cached shell assets
+
+---
+

@@ -36,6 +36,13 @@ if [ -n "$JS_FILES" ]; then
     ERRORS=$((ERRORS + 1))
   fi
 
+  # ── Automated Accessibility (WCAG 2.1 AA & ARIA) ───────────────────────────
+  echo "♿ Checking WCAG 2.1 AA contrast and ARIA semantics..."
+  if ! node tools/check-accessibility.js; then
+    echo "❌ [BLOCKER] Accessibility violations found in theme contrast or ARIA semantics"
+    ERRORS=$((ERRORS + 1))
+  fi
+
   # ── Unit Test Suite ────────────────────────────────────────────────────────
   echo "🧪 Running unit tests..."
   if ! npm test; then

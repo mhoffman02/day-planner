@@ -27,8 +27,9 @@ synchronization. Static client-only app: no server-side backend, hosted directly
 | Google Workspace REST Bridge | `src/gasBridge.js` | Mock backend + REST adapter to Calendar/Tasks/Drive/Docs | `tests/gasBridge.test.js` |
 | Google Auth | `src/googleAuth.js` | Client-side Google Identity Services OAuth | `tests/googleAuth.test.js` |
 | Offline Cache | `src/indexedDbStore.js` | IndexedDB store + outbox queue | `tests/indexedDbStore.test.js` |
+| Accessibility & WCAG Linter | `tools/check-accessibility.js` | WCAG 2.1 AA contrast math & ARIA semantics linter | `tests/accessibility.test.js` |
 
-Current: `npm test` for the up-to-date count/suite total.
+Current: `npm test` for the up-to-date count/suite total (307 tests across 38 suites).
 
 ## Verification Criteria (standing, re-check after any significant change)
 - [x] `npm test` passes cleanly with no skips.
@@ -38,8 +39,23 @@ Current: `npm test` for the up-to-date count/suite total.
 - [x] Views work in both local dev (`http://localhost:3000`, mock mode) and the live GitHub Pages
   deployment (`https://mhoffman02.github.io/day-planner/`, real Google sign-in).
 - [x] `npm run build:sw:check` clean (sw.js cache-version not stale).
+- [x] `node tools/check-accessibility.js` clean (zero WCAG contrast or ARIA violations).
 
 ## Feature Backlog
+- ~~Master Tasks Drive Persistence / Outbox Sync~~ **Done (2026-09-07).**
+  Undated master tasks now have dedicated Drive REST archive persistence (`Day Planner/master-tasks.json`),
+  live fallback on Tasks API failure, IndexedDB offline caching, inline Quick Add form, and full offline
+  outbox queueing/replay (`ADD_MASTER_TASK`, `UPDATE_MASTER_TASK`, `MOVE_MASTER_TASK`, `SAVE_MASTER_TASKS_ARCHIVE`)
+  with automatic tempId resolution and star/move sync.
+- ~~Continuous Doc Accordion Parsing (Option 2 Mode)~~ **Done (2026-09-07).**
+  Integrated reversible section parsing (`parseDailyNoteToSections` and `serializeSectionsToDailyNote`) in
+  `src/indexParser.js`, preserving stable section IDs, headings, categories, collapse states, and top-level date
+  headings. Added interactive H3 collapsible accordions, lined notebook paper styling, inline line-editing,
+  and section additions for Option 2 mode.
+- ~~Automated Accessibility Testing (WCAG 2.1 AA Contrast & ARIA Linters)~~ **Done (2026-09-07).**
+  Added `tools/check-accessibility.js` and `tests/accessibility.test.js` implementing WCAG 2.1 AA color contrast
+  ratio calculations across all theme tokens and semantic ARIA validation on `index.html`. Enforced automatically
+  via pre-commit git hook and `npm run lint:a11y`.
 - ~~Master Tasks has no offline cache.~~ **Done (2026-09-04).** `loadMasterTasks()`
   (`src/app.js`) is now offline-first: `IndexedDbStore.idbGetMasterTasks()` applies any cached
   list immediately (single fixed cache key, since `getMasterTasks()`'s `monthYearStr` param is
