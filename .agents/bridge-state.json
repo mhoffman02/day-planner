@@ -25,7 +25,7 @@
       "to": "claude",
       "type": "task",
       "text": "Architectural consultation on offline outbox conflict resolution detection & resolution strategy",
-      "status": "pending"
+      "status": "read"
     },
     {
       "id": "msg-mtqez31b",
