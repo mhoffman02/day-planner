@@ -15,7 +15,7 @@
 // served from (local dev root, or GitHub Pages' /day-planner/ subpath) — an absolute "/"
 // path resolves against the origin root instead and 404s under the subpath, which fails the
 // whole cache.addAll() and leaves the worker stuck uninstalled.
-const CACHE_NAME = 'day-planner-shell-0b039951ef';
+const CACHE_NAME = 'day-planner-shell-32555997d8';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -23,7 +23,8 @@ const ASSETS_TO_CACHE = [
   './src/app.js',
   './src/styles.css',
   './src/vendor/alpine.min.js',
-  './icons/icon.svg'
+  './icons/icon.svg',
+  './icons/apple-touch-icon.png'
 ];
 
 // Install Event: Pre-cache static shell assets
