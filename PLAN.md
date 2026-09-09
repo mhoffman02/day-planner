@@ -42,6 +42,25 @@ Current: `npm test` for the up-to-date count/suite total (307 tests across 38 su
 - [x] `node tools/check-accessibility.js` clean (zero WCAG contrast or ARIA violations).
 
 ## Feature Backlog
+- [ ] gas-app MEDIUM: `searchAcrossAllMonthlyDocs()` (`Code.gs:2178-2242`) is dead code — never
+  exported, never called from `Script.html`. The Ctrl+K search modal's `runSearch()`
+  (`Script.html:3341-3377`) is client-side only, matching against data already loaded into Alpine
+  state: `calendarEvents`, `dailyTasks`+`masterTasks`, `indexRecords` (monthly `#index` topic
+  lines), and `dailyNote` — but `dailyNote` is only the *currently open day's* note text. There is
+  currently no way to search note content from a different day/month than the one on screen.
+  `searchAcrossAllMonthlyDocs()` (grep every `Day Planner/notes-YYYY-MM.json` in Drive) already
+  implements the missing backend; it just needs a `_runGasCall` site added to `runSearch()` (async,
+  merged into `res.notes`) and to be added to `Code.gs`'s IIFE export list
+  (`.agents/rules/gas-namespace-iife.md`). Surfaced 2026-09-09 while auditing reachable globals for
+  the IIFE refactor below.
+- ~~gas-app IIFE namespace refactor~~ **Done (2026-09-09).** Wrapped `gas-app/Code.gs` and
+  `gas-app/UnitTests.gs` in `(function(global) {...})(this);` IIFEs with an explicit
+  `global.x = x` export list per file, curating the client-callable RPC surface
+  (`google.script.run`/`_runGasCall`, HtmlService template scriptlets, trigger handler-name
+  strings, IDE manual-run, cross-file globals) instead of leaving every top-level function
+  globally reachable by default. Caught and removed a dead duplicate `testDoGetInIDE` in
+  `Code.gs` (silently shadowed by `UnitTests.gs`'s copy due to clasp's alphabetical load order).
+  Documented in `.agents/rules/gas-namespace-iife.md`.
 - ~~gas-app MEDIUM: `?action=bundle` bypassed `validateUserAccess()`~~ **Done (2026-09-09).**
   `doGet()` now runs `validateUserAccess()` before the bundle-request dispatch; an unauthorized
   caller (allowlist configured, account not on it) gets a JSON/JSONP-shaped 403
