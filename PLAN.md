@@ -70,10 +70,23 @@ Current: `npm test` for the up-to-date count/suite total (307 tests across 38 su
   `src/indexedDbStore.js`. Tests in `tests/indexedDbStore.test.js`. Outbox-queueing for
   `addMasterTask`/`moveMasterTaskToDate` was intentionally left out of scope — see below.
 - ~~`src/gasBridge.js` / `gas-app/Script.html`'s `GASBridge` reconciliation pass~~ /
-  ~~`gas-app/Code.gs` has no unit test coverage~~ **Resolved by deletion (2026-09-04).**
-  `gas-removal-static-client` Stage 5 deleted `gas-app/` entirely — `src/gasBridge.js`'s REST
-  implementation is now the only copy of this logic, so there's nothing left to reconcile or
-  duplicate test coverage for.
+  ~~`gas-app/Code.gs` has no unit test coverage~~ **Deleted 2026-09-04, reinstated 2026-09-09** —
+  see below; note kept for history, no longer accurate as "resolved by deletion."
+- ~~`gas-app/` reinstated for .gov Workspace access~~ **Done (2026-09-09).** Restored
+  `gas-app/` (GAS-served web app) from `02dd287`, the last commit before its Sep 4 deletion, to
+  run alongside the GitHub Pages PWA — the work .gov Workspace's API Controls block REST+GIS
+  OAuth, but trust Apps Script's own first-party `ScriptApp` auth already. `tools/build-gas-engines.js`
+  regenerates `gas-app/Script.html`'s engine block from current `src/` (taskEngine/futureMatrixEngine/
+  syncEngine/indexedDbStore), so pure-logic improvements from the 46 post-removal commits are
+  already current with zero manual porting; UI-only fixes in those commits don't apply since
+  gas-app's hand-written `Index.html`/`Script.html`/`PicoCSS.html` diverged from the PWA's
+  `index.html`/`styles.css` at removal time — treat any specific missing UI feature as its own
+  small request against gas-app's real markup, not a bulk backport. Restored GAS-aware eslint/
+  pre-commit gates (engine-bundle drift check, `HtmlService` unsafe-char check) and added
+  home-screen meta tags (`apple-touch-icon`, `apple-mobile-web-app-capable`) to `Index.html` —
+  full PWA installability isn't possible there since the sandboxed `script.google.com` iframe
+  can't register a service worker. `clasp login`/`clasp push` to actually deploy is a manual
+  follow-up, not yet done.
 - ~~`src/gasBridge.js`'s dead `window.google.script.run`/`_runGasCall` fallback branches~~ /
   ~~`tools/e2e/smoke-test.js`'s GAS-iframe-nesting detection~~ **Done (2026-09-05).** Both
   mechanical cleanup passes landed: `gasBridge.js` dropped `_runGasCall()` and ~15 dead
