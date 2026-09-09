@@ -70,6 +70,25 @@ methods — likely none, since it's DOM-wired; if so, keep the new backfill logi
 helper function that *is* unit-testable, mirroring how `_prefetchMonth`'s core logic could be
 extracted, rather than adding more untested inline Alpine-object code).
 
+### Constraint: don't regress offline behavior
+
+Opening the app at all still requires being online (gas-app server dependency, load-to-home-screen
+included — this is a known, accepted limitation, not something this task fixes). But once open,
+the app's existing offline-capable behavior — outbox-queued writes while offline, periodic
+reconnect checks, manual "sync now" — is a standing requirement this task must preserve, not just
+avoid breaking:
+- The ±6-month lazy backfill described above is a *read* path — if offline, backfill requests
+  simply fail/no-op (matching `_prefetchMonth`'s existing `catch`-and-warn behavior); don't add
+  retry/blocking logic that stalls search UI waiting on network.
+- Any writes involved in search (there shouldn't be any — search is read-only) must go through
+  the existing outbox queue (`IDB_STORE_OUTBOX`) like every other mutation, never a new bypass path.
+  Not expected to apply here, called out because it's a hard rule if scope ever grows.
+- When connectivity returns, backfill should periodically retry stale/failed months in the
+  background (reuse whatever periodic-reconnect mechanism already drives outbox flush/resync —
+  check `app.js` for the existing online/offline event listener and resync trigger before adding
+  a second one) and support the same on-user-demand manual resync pattern this task already adds
+  for "search wider."
+
 ### Files involved
 
 - `src/app.js` — `runSearch()`, `toggleSearchModal()`, `_prefetchMonth`,
