@@ -3,7 +3,17 @@
  * @description Day Planner Server-Side Self-Test & Diagnostic Suite.
  * Runs an automated major systems & integration check to ensure system health and Google Workspace API connections.
  * All errors log detailed error message and err.stack using console.error for diagnostic clarity.
+ *
+ * Wrapped in a single IIFE (all .gs files in a project share one global scope) so only the
+ * functions in the export list at the bottom are reachable from web-app clients
+ * (`google.script.run`/`_runGasCall`), HtmlService templates, time-driven triggers (referenced
+ * by name string), or the Apps Script IDE's manual-run dropdown. Everything else here is a
+ * private helper invisible outside this file. `logError`, `getFolderByNameOrCreate`,
+ * `getOrCreateDailyDocContent`, `DAY_PLANNER_FAVICON_URL`, `syncWorkspaceChanges`, and `doGet`
+ * are Code.gs internals consumed here via its own export list -- see
+ * .agents/rules/gas-namespace-iife.md before adding or removing an export.
  */
+(function(global) {
 
 /**
  * Runs automated self-test diagnostics across Drive, Tasks, Calendar, Docs, and Sync triggers.
@@ -318,3 +328,12 @@ function renderSelfTestDiagnosticReport() {
     .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
+
+// ── Explicit export surface ──────────────────────────────────────────────────
+// See the header comment above and .agents/rules/gas-namespace-iife.md.
+global.runSelfTest = runSelfTest;                             // IDE manual-run
+global.runPowerOnSelfTest = runPowerOnSelfTest;               // IDE manual-run (backward-compat alias)
+global.testDoGetInIDE = testDoGetInIDE;                       // IDE manual-run
+global.renderSelfTestDiagnosticReport = renderSelfTestDiagnosticReport; // called by Code.gs's doGet
+
+})(this);

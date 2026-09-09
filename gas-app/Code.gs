@@ -3,7 +3,16 @@
  * @description Day Planner Google Apps Script server-side entry points, Drive folder management, error logging, and data handlers.
  * Robust Architecture with centralized error handling using console.error for stack tracing.
  * Uses strict drive.file scope with user-configured root folder ID.
+ *
+ * Wrapped in a single IIFE (all .gs files in a project share one global scope) so only the
+ * functions in the export list at the bottom are reachable from web-app clients
+ * (`google.script.run`/`_runGasCall`), HtmlService templates, time-driven triggers (referenced
+ * by name string), or the Apps Script IDE's manual-run dropdown. Everything else here is a
+ * private helper invisible outside this file. Existing indentation is left as-is (JS doesn't
+ * care) to keep this a pure wrap with no line-by-line diff. See
+ * .agents/rules/gas-namespace-iife.md before adding or removing an export.
  */
+(function(global) {
 
 /**
  * Centralized error logging utility. Logs formatted error and stack trace to console.error.
@@ -559,25 +568,6 @@ function autoCreateRootFolder() {
 }
 
 /**
- * IDE Debugger Helper Function:
- * Select "testDoGetInIDE" in the IDE toolbar dropdown and click "Debug" or "Run".
- * @returns {GoogleAppsScript.HTML.HtmlOutput} Output of doGet execution.
- */
-function testDoGetInIDE() {
-  var mockEvent = {
-    pathInfo: 'self-test',
-    queryString: 'view=self-test',
-    parameter: { view: 'self-test' },
-    parameters: { view: ['self-test'] },
-    contextPath: ''
-  };
-  Logger.log('Executing doGet(mockEvent)...');
-  var output = doGet(mockEvent);
-  Logger.log('doGet Output Length: ' + output.getContent().length);
-  return output;
-}
-
-/**
  * Direct OAuth Consent Trigger:
  * Select "grantAllPermissions" in the Apps Script IDE toolbar and click "Run".
  * Directly calls DriveApp, CalendarApp, and Tasks under least-privilege scopes (drive.file, calendar, tasks).
@@ -652,6 +642,8 @@ function includeTemplate(filename) {
 
 /**
  * Ensures automated time-driven 2-Way Sync trigger is installed.
+ * IDE Setup Helper: select "ensure2WaySyncTriggerInstalled" in the IDE toolbar and click "Run"
+ * to install the recurring sync trigger without disturbing one that already exists.
  * @param {number} [minutes=5] Interval frequency in minutes.
  * @returns {void}
  */
@@ -681,7 +673,8 @@ function ensure2WaySyncTriggerInstalled(minutes) {
 }
 
 /**
- * Resets and installs a fresh 5-minute recurring time-driven 2-Way Sync trigger.
+ * IDE Setup Helper: select "setup2WaySyncTrigger" in the IDE toolbar and click "Run" to reset
+ * and install a fresh 5-minute recurring time-driven 2-Way Sync trigger.
  * @returns {void}
  */
 function setup2WaySyncTrigger() {
@@ -2381,3 +2374,51 @@ function renderAppBundleJson(e) {
   return ContentService.createTextOutput(jsonString)
     .setMimeType(ContentService.MimeType.JSON);
 }
+
+// ── Explicit export surface ──────────────────────────────────────────────────
+// Everything above is private to this IIFE. Only names assigned here are visible to: the Apps
+// Script runtime (doGet), google.script.run / Script.html's `_runGasCall(fnName, args)` bracket
+// dispatch, HtmlService template scriptlets (<?= ?>), a time-driven trigger looked up by handler
+// name string, or the Apps Script IDE's manual "select function, click Run" dropdown. Adding a
+// function here means any script running in the web app page can invoke it by name -- keep this
+// list to exactly what's actually called from one of those places. See
+// .agents/rules/gas-namespace-iife.md.
+global.doGet = doGet;                                        // Apps Script web app entry point
+global.syncWorkspaceChanges = syncWorkspaceChanges;          // time-driven trigger handler (by name)
+global.getAppVersion = getAppVersion;                        // template: About.html
+global.include = include;                                    // template: Index.html, SetupFolder.html
+global.includeTemplate = includeTemplate;                    // template: Index.html
+global.autoCreateRootFolder = autoCreateRootFolder;          // google.script.run: SetupScript.html
+global.validateAndSaveFolderUrl = validateAndSaveFolderUrl;  // google.script.run: SetupScript.html
+global.getDailyData = getDailyData;                          // google.script.run: Script.html
+global.getMonthData = getMonthData;                          // google.script.run: Script.html
+global.getMasterTasks = getMasterTasks;                      // google.script.run: Script.html
+global.getRecentAttendees = getRecentAttendees;              // google.script.run: Script.html
+global.addMasterTask = addMasterTask;                        // _runGasCall: Script.html
+global.markMasterTaskMoved = markMasterTaskMoved;            // _runGasCall: Script.html
+global.resolveDriveFileTitle = resolveDriveFileTitle;        // _runGasCall: Script.html
+global.getFutureMatrix = getFutureMatrix;                    // _runGasCall: Script.html
+global.addFutureItem = addFutureItem;                        // _runGasCall: Script.html
+global.updateFutureItemStatus = updateFutureItemStatus;      // _runGasCall: Script.html
+global.transferFutureItem = transferFutureItem;              // _runGasCall: Script.html
+global.pushFutureItemToNextMonth = pushFutureItemToNextMonth; // _runGasCall: Script.html
+global.addDailyTask = addDailyTask;                          // _runGasCall: Script.html
+global.forwardDailyTask = forwardDailyTask;                  // _runGasCall: Script.html
+global.updateDailyTask = updateDailyTask;                    // _runGasCall: Script.html
+global.updateCalendarEvent = updateCalendarEvent;            // _runGasCall: Script.html
+global.addCalendarEvent = addCalendarEvent;                  // _runGasCall: Script.html
+global.saveDailyDocCards = saveDailyDocCards;                // _runGasCall: Script.html
+global.grantAllPermissions = grantAllPermissions;            // IDE manual-run
+global.authorizeAndTestServices = authorizeAndTestServices;  // IDE manual-run
+global.ensure2WaySyncTriggerInstalled = ensure2WaySyncTriggerInstalled; // IDE manual-run
+global.setup2WaySyncTrigger = setup2WaySyncTrigger;          // IDE manual-run
+
+// Cross-file only (not reachable from any client/template/trigger/IDE surface above, but needed
+// by other .gs files' own IIFEs since GAS has no import statement -- this global object is the
+// only channel between files):
+global.logError = logError;                                  // used by UnitTests.gs
+global.getFolderByNameOrCreate = getFolderByNameOrCreate;    // used by UnitTests.gs
+global.getOrCreateDailyDocContent = getOrCreateDailyDocContent; // used by UnitTests.gs
+global.DAY_PLANNER_FAVICON_URL = DAY_PLANNER_FAVICON_URL;    // used by UnitTests.gs
+
+})(this);
