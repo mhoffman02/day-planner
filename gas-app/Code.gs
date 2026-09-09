@@ -121,14 +121,18 @@ function renderSetupFolderPage() {
  */
 function doGet(e) {
   try {
+    // 0. Zero-Trust Access Control Verification -- must run before any dispatch, including the
+    // bundle API below, so an operator-configured allowlist actually gates every response shape.
+    var auth = validateUserAccess();
+
     // 1. Dynamic bundle API endpoint for PWA Shell Loader (CORS / SWR bundle fetch)
     var isBundleRequest = e && e.parameter && (e.parameter.action === 'bundle' || e.parameter.view === 'bundle');
     if (isBundleRequest) {
+      if (!auth.authorized) {
+        return renderAccessDeniedJson(e, auth);
+      }
       return renderAppBundleJson(e);
     }
-
-    // 0. Zero-Trust Access Control Verification
-    var auth = validateUserAccess();
 
     if (!auth.authorized) {
       return HtmlService.createHtmlOutput(
@@ -2311,6 +2315,28 @@ function getCompiledAppBundle() {
       script: script
     }
   };
+}
+
+/**
+ * JSON/JSONP-shaped 403 for the bundle API endpoint when validateUserAccess() rejects the
+ * caller -- same response envelope as renderAppBundleJson so the PWA shell loader (or any
+ * caller checking `authorized`) gets a well-formed answer instead of an HTML error page.
+ * @param {GoogleAppsScript.Events.DoGet} e Event object.
+ * @param {{authorized: boolean, userEmail: string, error?: string}} auth Failed auth result.
+ * @returns {GoogleAppsScript.Content.TextOutput} JSON/JSONP 403 response.
+ */
+function renderAccessDeniedJson(e, auth) {
+  var response = { authorized: false, error: auth.error || 'Access Denied' };
+  var jsonString = JSON.stringify(response);
+  var callback = e && e.parameter ? (e.parameter.callback || e.parameter.prefix) : null;
+
+  if (callback && /^[$A-Z_][0-9A-Z_$.]*$/i.test(callback)) {
+    return ContentService.createTextOutput(callback + '(' + jsonString + ');')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+
+  return ContentService.createTextOutput(jsonString)
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 /**

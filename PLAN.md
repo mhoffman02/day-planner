@@ -42,12 +42,11 @@ Current: `npm test` for the up-to-date count/suite total (307 tests across 38 su
 - [x] `node tools/check-accessibility.js` clean (zero WCAG contrast or ARIA violations).
 
 ## Feature Backlog
-- [ ] gas-app MEDIUM: `?action=bundle` in `renderAppBundleJson()` (`Code.gs:124-131`) dispatches
-  and returns *before* `validateUserAccess()` runs, so an operator-configured
-  `DAY_PLANNER_ALLOWED_EMAILS` allowlist doesn't gate it — any signed-in account gets the full
-  app bundle. A JSONP `&callback=` path in the same handler (`Code.gs:2337-2341`) lets any
-  third-party page pull it cross-origin via `<script src>`. Move the access-control check before
-  the bundle dispatch.
+- ~~gas-app MEDIUM: `?action=bundle` bypassed `validateUserAccess()`~~ **Done (2026-09-09).**
+  `doGet()` now runs `validateUserAccess()` before the bundle-request dispatch; an unauthorized
+  caller (allowlist configured, account not on it) gets a JSON/JSONP-shaped 403
+  (`renderAccessDeniedJson()`) instead of the full app bundle, preserving the CORS/JSONP
+  response contract for the PWA shell loader.
 - [ ] gas-app MEDIUM: `include()`/`includeTemplate()` (`Code.gs:608-631`) swallow template-read
   failures into an invisible `<!-- Error including ... -->` HTML comment instead of throwing —
   `doGet` already has a visible failure page (`Code.gs:175-186`) that `include()` should throw
