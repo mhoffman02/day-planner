@@ -396,7 +396,10 @@ function getValidatedRootFolder() {
         var relockedMeta = Drive.Files.get(relockedId, { fields: 'id,name,trashed' });
         if (!relockedMeta.trashed) return makeFolderHandle(relockedMeta.id, relockedMeta.name);
       } catch (relockedErr) {
-        // Fall through to search/create below, same as the outer cached-ID check above.
+        // Fall through to search/create below, same as the outer cached-ID check above --
+        // but keep the stack, per .agents/rules/no-silent-failures.md, so a real cause isn't
+        // lost to a one-line message.
+        console.warn('getValidatedRootFolder: relocked ID invalid or unreadable: ' + relockedErr.toString() + '\nStack:\n' + (relockedErr.stack || 'No stack trace available'));
       }
     }
 

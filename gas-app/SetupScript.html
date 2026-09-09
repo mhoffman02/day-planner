@@ -94,7 +94,7 @@
         showToast(res.message || 'Connected to folder: ' + res.folderName, 'success', 10000, 'Folder Ready');
         statusBox.className = 'status-box success';
         statusBox.style.display = 'block';
-        statusBox.innerHTML = '<b><span class="material-symbols-outlined">check_circle</span> Success!</b> Connected to Google Drive folder: <b>"' + (res.folderName || 'Day Planner') + '"</b>.';
+        statusBox.innerHTML = '<b><span class="material-symbols-outlined">check_circle</span> Success!</b> Connected to Google Drive folder: <b>"' + escapeHtml(res.folderName || 'Day Planner') + '"</b>.';
         document.getElementById('formContainer').style.display = 'none';
         autoCreateBtn.parentElement.style.display = 'none';
         ackContainer.style.display = 'block';
@@ -103,7 +103,7 @@
         showToast(errText, 'error', 10000, 'Folder Creation Notice');
         statusBox.className = 'status-box error';
         statusBox.style.display = 'block';
-        statusBox.innerHTML = '<b><span class="material-symbols-outlined">error</span> Notice:</b> ' + errText;
+        statusBox.innerHTML = '<b><span class="material-symbols-outlined">error</span> Notice:</b> ' + escapeHtml(errText);
       }
     }
 
@@ -114,7 +114,7 @@
       showToast(errText, 'error', 10000, 'Connection Error');
       statusBox.className = 'status-box error';
       statusBox.style.display = 'block';
-      statusBox.innerHTML = '<b><span class="material-symbols-outlined">error</span> Error:</b> ' + errText;
+      statusBox.innerHTML = '<b><span class="material-symbols-outlined">error</span> Error:</b> ' + escapeHtml(errText);
     }
   }
 
@@ -156,7 +156,7 @@
         showToast(msg, 'success', 10000, 'Folder Connected');
         statusBox.className = 'status-box success';
         statusBox.style.display = 'block';
-        statusBox.innerHTML = '<b><span class="material-symbols-outlined">check_circle</span> Success!</b> ' + msg;
+        statusBox.innerHTML = '<b><span class="material-symbols-outlined">check_circle</span> Success!</b> ' + escapeHtml(msg);
         document.getElementById('formContainer').style.display = 'none';
         if (document.getElementById('autoCreateBtn')) {
           document.getElementById('autoCreateBtn').parentElement.style.display = 'none';
@@ -167,7 +167,7 @@
         showToast(errText, 'error', 10000, 'Connection Notice');
         statusBox.className = 'status-box error';
         statusBox.style.display = 'block';
-        statusBox.innerHTML = '<b><span class="material-symbols-outlined">error</span> Notice:</b> ' + errText;
+        statusBox.innerHTML = '<b><span class="material-symbols-outlined">error</span> Notice:</b> ' + escapeHtml(errText);
       }
     }
 
@@ -178,7 +178,7 @@
       showToast(errText, 'error', 10000, 'Error');
       statusBox.className = 'status-box error';
       statusBox.style.display = 'block';
-      statusBox.innerHTML = '<b><span class="material-symbols-outlined">error</span> Error:</b> ' + errText;
+      statusBox.innerHTML = '<b><span class="material-symbols-outlined">error</span> Error:</b> ' + escapeHtml(errText);
     }
   }
 </script>
