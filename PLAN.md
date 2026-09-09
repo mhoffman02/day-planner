@@ -42,6 +42,40 @@ Current: `npm test` for the up-to-date count/suite total (307 tests across 38 su
 - [x] `node tools/check-accessibility.js` clean (zero WCAG contrast or ARIA violations).
 
 ## Feature Backlog
+- [ ] gas-app MEDIUM: `?action=bundle` in `renderAppBundleJson()` (`Code.gs:124-131`) dispatches
+  and returns *before* `validateUserAccess()` runs, so an operator-configured
+  `DAY_PLANNER_ALLOWED_EMAILS` allowlist doesn't gate it — any signed-in account gets the full
+  app bundle. A JSONP `&callback=` path in the same handler (`Code.gs:2337-2341`) lets any
+  third-party page pull it cross-origin via `<script src>`. Move the access-control check before
+  the bundle dispatch.
+- [ ] gas-app MEDIUM: `include()`/`includeTemplate()` (`Code.gs:608-631`) swallow template-read
+  failures into an invisible `<!-- Error including ... -->` HTML comment instead of throwing —
+  `doGet` already has a visible failure page (`Code.gs:175-186`) that `include()` should throw
+  into instead of silently rendering a blank app.
+- [ ] gas-app MEDIUM: `degraded: true` on the app bundle (`Code.gs:2243-2290`, set when
+  Styles/Script reads fail) has no consumer anywhere — `renderAppBundleJson` still ships it with
+  a 200, and `src/shellLoader.js` never checks the field, so a broken/blank bundle gets cached by
+  hash and served to every visitor until content changes again.
+- [ ] docs LOW: `CLAUDE.md`'s scope gotcha names only `src/googleAuth.js`'s `GOOGLE_AUTH_SCOPES`
+  as where OAuth scopes live; `gas-app/appsscript.json`'s `oauthScopes` is a second, independent
+  registry (the one that actually holds `drive.readonly`) and isn't mentioned — a future scope
+  audit following the documented pointer checks the wrong file.
+- [ ] gas-app LOW: in the smart-paste link-markup renderer (`Script.html:2550-2557` and
+  `src/app.js`, kept in sync by hand), the bold/italic/underline/strike passes run *after* the
+  link pass, so a pasted Drive/Docs URL containing `__` or `**` (file IDs routinely do) gets its
+  `href` corrupted by emphasis markup applied to the already-emitted `<a>` tag. Not XSS (fixed
+  literal class names, `escapeHtml` already ran) but breaks the link. Run emphasis passes before
+  the link pass, or placeholder-out emitted anchors first.
+- [ ] repo LOW: `.agents/rules/sync-src-and-gas-app.md` and
+  `.agents/rules/sync-gas-app-and-shell-bundle.md` are referenced by `tools/build-gas-engines.js`,
+  `tools/check-gas-script-html-safe-chars.js`, `gas-app/Code.gs`, `gas-app/Script.html`, and
+  `docs/TODO.md`, but neither file exists in `.agents/rules/` — either write them or drop the
+  dead references.
+- [ ] gas-app LOW: `renderCardLine`/`normalizeLeadingListMarker` (the app's only HTML-generating
+  sink, feeding `x-html`) is hand-duplicated between `src/app.js` and `gas-app/Script.html:2518-2572`
+  with no drift gate — `tools/build-gas-engines.js` covers other shared engines but not this one,
+  the single function where a future divergence would be an XSS difference rather than a logic
+  difference. Consider adding it to the generated-bundle drift check.
 - ~~End-of-Session /handoff Skill & Targeted Staging Tooling~~ **Done (2026-09-07).**
   Adapted \`/handoff\` skill from \`maximo-uat\` into \`day-planner\`: created \`.agents/skills/handoff/SKILL.md\`
   (mirrored to \`.claude\` and \`.kilo\`), updated \`tools/handoff.js\` with tracked file writes, targeted
