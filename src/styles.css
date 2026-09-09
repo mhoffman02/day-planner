@@ -720,6 +720,12 @@ nav.view-segmented-control {
   border: none;
 }
 
+.search-result-meta {
+  float: right;
+  opacity: 0.6;
+  font-size: 0.75rem;
+}
+
 .search-label {
   flex: 1;
   text-align: left;

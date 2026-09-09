@@ -5,6 +5,7 @@
  */
 
 import { getLocalDateStr } from './binderStore.js';
+import { parseIndexEntriesFromNote } from './indexParser.js';
 
 /**
  * Executes cross-service universal search query across calendar, tasks, notes, and index entries.
@@ -114,4 +115,82 @@ export function executeUniversalSearch(query = '', store = {}) {
   });
 
   return results;
+}
+
+/**
+ * Extracts search-relevant data (calendar events, non-blank daily notes, parsed index entries)
+ * out of one month's `_prefetchMonth`/`getMonthData` overview payload, so a backfilled month can
+ * be folded into the global search store without a second IndexedDB read or a second note-parse
+ * pass elsewhere.
+ * @param {Object<string, {calendarEvents?: Array<object>, noteContent?: string}>} [days={}]
+ *   Per-day overview map keyed by "YYYY-MM-DD", as returned by `getMonthData`/`_prefetchMonth`.
+ * @returns {{calendarEvents: Array<object>, dailyNotes: Array<{date: string, content: string}>, indexEntries: Array<object>}}
+ */
+export function extractMonthSearchData(days = {}) {
+  const calendarEvents = [];
+  const dailyNotes = [];
+  const indexEntries = [];
+
+  Object.entries(days || {}).forEach(([dateStr, day]) => {
+    if (Array.isArray(day?.calendarEvents)) {
+      calendarEvents.push(...day.calendarEvents);
+    }
+    const noteContent = day?.noteContent || '';
+    if (noteContent.trim()) {
+      dailyNotes.push({ date: dateStr, content: noteContent });
+      indexEntries.push(...parseIndexEntriesFromNote(noteContent, dateStr));
+    }
+  });
+
+  return { calendarEvents, dailyNotes, indexEntries };
+}
+
+/**
+ * Assembles the full store `executeUniversalSearch()` searches against: the currently-loaded
+ * "live" Alpine state for the selected day, plus whatever months have been backfilled into
+ * IndexedDB so far. Cached-month notes/index/calendar entries for the selected date itself are
+ * dropped, since the live state already covers that day and is the more current copy (an edit
+ * made this session hasn't necessarily round-tripped into the cached month overview yet).
+ * @param {{liveCalendarEvents?: Array<object>, dailyTasks?: Array<object>, masterTasks?: Array<object>,
+ *   liveDailyNote?: string, selectedDate?: string, liveIndexRecords?: Array<object>,
+ *   monthCache?: Map<string, {calendarEvents: Array<object>, dailyNotes: Array<object>, indexEntries: Array<object>}>}} [opts={}]
+ * @returns {{calendarEvents: Array<object>, dailyTasks: Array<object>, masterTasks: Array<object>, dailyNotes: Array<object>, indexEntries: Array<object>}}
+ */
+export function buildGlobalSearchStore({
+  liveCalendarEvents = [],
+  dailyTasks = [],
+  masterTasks = [],
+  liveDailyNote = '',
+  selectedDate = '',
+  liveIndexRecords = [],
+  monthCache = new Map()
+} = {}) {
+  const cachedCalendarEvents = [];
+  const cachedDailyNotes = [];
+  const cachedIndexEntries = [];
+
+  monthCache.forEach((monthData) => {
+    (monthData.calendarEvents || []).forEach(evt => {
+      const evtDateStr = evt.startTime ? getLocalDateStr(new Date(evt.startTime)) : '';
+      if (evtDateStr !== selectedDate) cachedCalendarEvents.push(evt);
+    });
+    (monthData.dailyNotes || []).forEach(note => {
+      if (note.date !== selectedDate) cachedDailyNotes.push(note);
+    });
+    (monthData.indexEntries || []).forEach(entry => {
+      if (entry.date !== selectedDate) cachedIndexEntries.push(entry);
+    });
+  });
+
+  const dailyNotes = liveDailyNote.trim()
+    ? [{ date: selectedDate, content: liveDailyNote }, ...cachedDailyNotes]
+    : cachedDailyNotes;
+
+  return {
+    calendarEvents: [...liveCalendarEvents, ...cachedCalendarEvents],
+    dailyTasks,
+    masterTasks,
+    dailyNotes,
+    indexEntries: [...liveIndexRecords, ...cachedIndexEntries]
+  };
 }

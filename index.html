@@ -1236,26 +1236,37 @@
               <p class="search-no-results">No matching entries found.</p>
             </template>
 
-            <template x-for="item in searchResults.calendar" :key="item.title">
+            <template x-for="(item, idx) in searchResults.calendar" :key="'cal-' + idx">
               <article class="search-result-item result-calendar">
                 <b>[Calendar]</b> <span x-text="item.title"></span>
+                <span class="search-result-meta" x-text="item.date"></span>
               </article>
             </template>
 
-            <template x-for="item in searchResults.tasks" :key="item.title">
+            <template x-for="(item, idx) in searchResults.tasks" :key="'task-' + idx">
               <article class="search-result-item result-task">
                 <b>[Task]</b> <span x-text="item.title"></span>
+                <span class="search-result-meta" x-text="item.date"></span>
               </article>
             </template>
 
-            <template x-for="item in searchResults.index" :key="item.summary">
+            <template x-for="(item, idx) in searchResults.notes" :key="'note-' + idx">
+              <article class="search-result-item result-note">
+                <b>[Note]</b> <span x-text="item.snippet"></span>
+                <span class="search-result-meta" x-text="item.date"></span>
+              </article>
+            </template>
+
+            <template x-for="(item, idx) in searchResults.index" :key="'idx-' + idx">
               <article class="search-result-item result-index">
-                <b>[Index]</b> <span x-text="item.topic + ': ' + item.summary"></span>
+                <b>[Index]</b> <span x-text="item.title"></span>
+                <span class="search-result-meta" x-text="item.date"></span>
               </article>
             </template>
           </div>
         </section>
         <footer class="modal-actions">
+          <button type="button" class="btn-secondary" @click="widenSearchBackfill()" title="Backfill more months into search coverage">Search Wider</button>
           <button type="button" class="btn-secondary" @click="closeSearchModal()">Close</button>
         </footer>
       </article>

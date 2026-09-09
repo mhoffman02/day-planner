@@ -14,6 +14,7 @@ import { getLocalDateStr, generateLocalId } from './binderStore.js';
 import { initGoogleAuth, signIn, signOut, isSignedIn, ensureAccessToken, onAuthStateChanged } from './googleAuth.js';
 import { parseTaskTitle, formatTaskTitle, getNextStatus, isValidStatus, STATUS_OPTIONS, sortTasksByColumn, findNextAvailableSequence } from './taskEngine.js';
 import { parseDailyNoteToSections, serializeSectionsToDailyNote, decomposeIndexHeading } from './indexParser.js';
+import { executeUniversalSearch, extractMonthSearchData, buildGlobalSearchStore } from './searchEngine.js';
 import { collectFullBinderState, downloadBinderJson, downloadBinderMarkdown } from './exportEngine.js';
 import {
   generateRollingHorizon,
@@ -142,6 +143,13 @@ if ('serviceWorker' in navigator) {
       _prefetchInFlight: new Set(),
       _monthPrefetchInFlight: new Set(),
       outboxCount: 0,
+
+      // Global search backfill state (see runSearch/_scheduleSearchBackfill): monthStr -> the
+      // extracted {calendarEvents, dailyNotes, indexEntries} search data for that cached month.
+      _searchMonthCache: new Map(),
+      _searchBackfilledMonths: new Set(),
+      _searchBackfillFailedMonths: new Set(),
+      _searchBackfillRadiusMonths: 0,
 
       /**
        * Queues a toast notification, auto-dismissing it after `duration` ms.
@@ -514,6 +522,7 @@ if ('serviceWorker' in navigator) {
           if (!this.isSyncing) {
             this.trigger2WaySync(true);
           }
+          this._retryFailedSearchBackfill();
         });
       },
 
@@ -1584,11 +1593,16 @@ if ('serviceWorker' in navigator) {
        * iOS Safari) rather than fired in parallel, current month first, so this never competes
        * with the interactive day-load path for network or CPU.
        * @param {string} centerMonthStr Month to prefetch around, in YYYY-MM format.
+       * @param {number} [radius=1] How many months out on each side of center to include.
        * @returns {void}
        */
-      _scheduleMonthWindowPrefetch(centerMonthStr) {
+      _scheduleMonthWindowPrefetch(centerMonthStr, radius = 1) {
         const [y, m] = centerMonthStr.split('-').map(Number);
-        const queue = [centerMonthStr, this._monthStrOffset(y, m, 1), this._monthStrOffset(y, m, -1)];
+        const queue = [centerMonthStr];
+        for (let i = 1; i <= radius; i++) {
+          queue.push(this._monthStrOffset(y, m, i));
+          queue.push(this._monthStrOffset(y, m, -i));
+        }
         const idle = typeof requestIdleCallback === 'function' ? requestIdleCallback : (fn) => setTimeout(fn, 200);
 
         const runNext = () => {
@@ -1597,6 +1611,85 @@ if ('serviceWorker' in navigator) {
           idle(() => { this._prefetchMonth(monthStr).finally(runNext); });
         };
         runNext();
+      },
+
+      /**
+       * Lazily widens global search coverage outward from `centerMonthStr` (the currently-open
+       * month) by backfilling `radius` months on each side into `_searchMonthCache`, one month
+       * at a time via `requestIdleCallback` so this never competes with interactive work for
+       * network/CPU (same staggering pattern as `_scheduleMonthWindowPrefetch`). Skips months
+       * already backfilled. Re-runs `runSearch()` after each month lands so results widen
+       * progressively while the search modal is open, rather than all at once at the end.
+       * A month that fails (e.g. offline) is recorded in `_searchBackfillFailedMonths` and simply
+       * skipped — no retry/blocking here; `window.addEventListener('online', ...)` in
+       * `setupAutoSync()` is what retries those once connectivity returns.
+       * @param {string} centerMonthStr Month to backfill around, in YYYY-MM format.
+       * @param {number} [radius=6] How many months out on each side of center to backfill.
+       * @returns {void}
+       */
+      _scheduleSearchBackfill(centerMonthStr, radius = 6) {
+        const [y, m] = centerMonthStr.split('-').map(Number);
+        const months = [centerMonthStr];
+        for (let i = 1; i <= radius; i++) {
+          months.push(this._monthStrOffset(y, m, i));
+          months.push(this._monthStrOffset(y, m, -i));
+        }
+        this._searchBackfillRadiusMonths = Math.max(this._searchBackfillRadiusMonths, radius);
+
+        const queue = months.filter(monthStr => !this._searchBackfilledMonths.has(monthStr));
+        if (queue.length === 0) return;
+        const idle = typeof requestIdleCallback === 'function' ? requestIdleCallback : (fn) => setTimeout(fn, 200);
+
+        const runNext = () => {
+          const monthStr = queue.shift();
+          if (!monthStr) return;
+          idle(() => {
+            this._prefetchMonth(monthStr)
+              .then(days => {
+                this._searchBackfillFailedMonths.delete(monthStr);
+                if (days) {
+                  this._searchMonthCache.set(monthStr, extractMonthSearchData(days));
+                  this._searchBackfilledMonths.add(monthStr);
+                  if (this.searchModalOpen) this.runSearch();
+                } else {
+                  this._searchBackfillFailedMonths.add(monthStr);
+                }
+              })
+              .catch(err => {
+                console.warn('_scheduleSearchBackfill failed for', monthStr, err);
+                this._searchBackfillFailedMonths.add(monthStr);
+              })
+              .finally(runNext);
+          });
+        };
+        runNext();
+      },
+
+      /**
+       * Manual "search wider" affordance: doubles the backfill radius from wherever it currently
+       * stands (0 -> 6 -> 12 -> ...) and schedules the newly-included months. Also retries any
+       * previously-failed months within the existing radius, for a user-visible way to retry
+       * beyond the passive online-reconnect retry.
+       * @returns {void}
+       */
+      widenSearchBackfill() {
+        const nextRadius = this._searchBackfillRadiusMonths > 0 ? this._searchBackfillRadiusMonths * 2 : 6;
+        this._searchBackfillFailedMonths.forEach(monthStr => this._searchBackfilledMonths.delete(monthStr));
+        this._searchBackfillFailedMonths.clear();
+        this._scheduleSearchBackfill(this.selectedDate.slice(0, 7), nextRadius);
+      },
+
+      /**
+       * Retries any months that failed to backfill (e.g. while offline) now that connectivity is
+       * back. Called from the `window.addEventListener('online', ...)` handler in
+       * `setupAutoSync()`.
+       * @returns {void}
+       */
+      _retryFailedSearchBackfill() {
+        if (this._searchBackfillFailedMonths.size === 0) return;
+        this._searchBackfillFailedMonths.forEach(monthStr => this._searchBackfilledMonths.delete(monthStr));
+        this._searchBackfillFailedMonths.clear();
+        this._scheduleSearchBackfill(this.selectedDate.slice(0, 7), this._searchBackfillRadiusMonths || 6);
       },
 
       /**
@@ -3160,6 +3253,7 @@ if ('serviceWorker' in navigator) {
         this.searchModalOpen = !this.searchModalOpen;
         if (this.searchModalOpen) {
           this.runSearch();
+          this._scheduleSearchBackfill(this.selectedDate.slice(0, 7));
           this.$nextTick(() => {
             document.querySelector('.search-input-field')?.focus();
           });
@@ -3175,46 +3269,30 @@ if ('serviceWorker' in navigator) {
       },
 
       /**
-       * Runs `searchQuery` against calendar events, daily/master tasks, the current daily note,
-       * and index records, populating `searchResults`.
+       * Runs `searchQuery` via `executeUniversalSearch()` against a store assembled from the
+       * currently-loaded ("live") day's state plus every month backfilled so far into
+       * `_searchMonthCache` (see `_scheduleSearchBackfill`), populating `searchResults`. Purely
+       * synchronous/in-memory — no IndexedDB reads here, so it's cheap to call on every keystroke;
+       * the backfill that feeds `_searchMonthCache` runs separately in the background.
        * @returns {void}
        */
       runSearch() {
-        const q = this.searchQuery.trim().toLowerCase();
-        if (!q) {
+        if (!this.searchQuery.trim()) {
           this.searchResults = { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [] };
           return;
         }
 
-        const res = { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [] };
-
-        this.calendarEvents.forEach(e => {
-          if ((e.title || '').toLowerCase().includes(q) || (e.description || '').toLowerCase().includes(q)) {
-            res.calendar.push(e);
-            res.totalMatches++;
-          }
+        const store = buildGlobalSearchStore({
+          liveCalendarEvents: this.calendarEvents,
+          dailyTasks: this.dailyTasks,
+          masterTasks: this.masterTasks,
+          liveDailyNote: this.dailyNote,
+          selectedDate: this.selectedDate,
+          liveIndexRecords: this.indexRecords,
+          monthCache: this._searchMonthCache
         });
 
-        [...this.dailyTasks, ...this.masterTasks].forEach(t => {
-          if ((t.title || '').toLowerCase().includes(q)) {
-            res.tasks.push(t);
-            res.totalMatches++;
-          }
-        });
-
-        if (this.dailyNote.toLowerCase().includes(q)) {
-          res.notes.push({ date: this.selectedDate, content: this.dailyNote });
-          res.totalMatches++;
-        }
-
-        this.indexRecords.forEach(i => {
-          if ((i.summary || '').toLowerCase().includes(q) || (i.topic || '').toLowerCase().includes(q)) {
-            res.index.push(i);
-            res.totalMatches++;
-          }
-        });
-
-        this.searchResults = res;
+        this.searchResults = executeUniversalSearch(this.searchQuery, store);
       },
 
       /**

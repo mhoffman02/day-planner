@@ -5,7 +5,7 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { executeUniversalSearch } from '../src/searchEngine.js';
+import { executeUniversalSearch, extractMonthSearchData, buildGlobalSearchStore } from '../src/searchEngine.js';
 
 describe('Universal Search Engine Unit Tests', () => {
   const sampleStore = {
@@ -99,5 +99,85 @@ describe('Universal Search Engine Unit Tests', () => {
     assert.ok(snippet.includes('Q4 planning doc'));
     assert.ok(!snippet.includes('[[link:'));
     assert.ok(!snippet.includes('[[/link]]'));
+  });
+});
+
+describe('extractMonthSearchData', () => {
+  it('flattens calendar events and parses index entries out of non-blank notes only', () => {
+    const days = {
+      '2026-07-01': {
+        calendarEvents: [{ title: 'Standup', startTime: '2026-07-01T09:00:00' }],
+        noteContent: '#index [Finance] Reviewed July budget'
+      },
+      '2026-07-02': {
+        calendarEvents: [],
+        noteContent: ''
+      }
+    };
+    const result = extractMonthSearchData(days);
+    assert.equal(result.calendarEvents.length, 1);
+    assert.equal(result.dailyNotes.length, 1);
+    assert.equal(result.dailyNotes[0].date, '2026-07-01');
+    assert.equal(result.indexEntries.length, 1);
+    assert.equal(result.indexEntries[0].topic, 'Finance');
+  });
+
+  it('tolerates an empty/missing days map', () => {
+    assert.deepEqual(extractMonthSearchData(), { calendarEvents: [], dailyNotes: [], indexEntries: [] });
+    assert.deepEqual(extractMonthSearchData({}), { calendarEvents: [], dailyNotes: [], indexEntries: [] });
+  });
+});
+
+describe('buildGlobalSearchStore', () => {
+  it('merges live selected-day state with backfilled month-cache data', () => {
+    const monthCache = new Map([
+      ['2026-06', {
+        calendarEvents: [{ title: 'June planning', startTime: '2026-06-10T10:00:00' }],
+        dailyNotes: [{ date: '2026-06-10', content: 'June note' }],
+        indexEntries: [{ topic: 'Ops', summary: 'June index entry', date: '2026-06-10' }]
+      }]
+    ]);
+    const store = buildGlobalSearchStore({
+      liveCalendarEvents: [{ title: 'Today event', startTime: '2026-07-15T09:00:00' }],
+      dailyTasks: [{ title: 'Task A' }],
+      masterTasks: [{ title: 'Master A' }],
+      liveDailyNote: 'Today note',
+      selectedDate: '2026-07-15',
+      liveIndexRecords: [{ topic: 'Today', summary: 'Today index', date: '2026-07-15' }],
+      monthCache
+    });
+
+    assert.equal(store.calendarEvents.length, 2);
+    assert.equal(store.dailyNotes.length, 2);
+    assert.deepEqual(store.dailyNotes[0], { date: '2026-07-15', content: 'Today note' });
+    assert.equal(store.indexEntries.length, 2);
+    assert.equal(store.dailyTasks.length, 1);
+    assert.equal(store.masterTasks.length, 1);
+  });
+
+  it('drops cached-month entries for the selected date so the live copy is not duplicated', () => {
+    const monthCache = new Map([
+      ['2026-07', {
+        calendarEvents: [{ title: 'Stale cached event', startTime: '2026-07-15T09:00:00' }],
+        dailyNotes: [{ date: '2026-07-15', content: 'Stale cached note' }],
+        indexEntries: [{ topic: 'Stale', summary: 'Stale index', date: '2026-07-15' }]
+      }]
+    ]);
+    const store = buildGlobalSearchStore({
+      liveCalendarEvents: [],
+      liveDailyNote: 'Fresh live note',
+      selectedDate: '2026-07-15',
+      monthCache
+    });
+
+    assert.equal(store.calendarEvents.length, 0);
+    assert.equal(store.dailyNotes.length, 1);
+    assert.equal(store.dailyNotes[0].content, 'Fresh live note');
+    assert.equal(store.indexEntries.length, 0);
+  });
+
+  it('omits the selected-day placeholder note when liveDailyNote is blank', () => {
+    const store = buildGlobalSearchStore({ liveDailyNote: '   ', selectedDate: '2026-07-15' });
+    assert.equal(store.dailyNotes.length, 0);
   });
 });

@@ -42,28 +42,22 @@ Current: `npm test` for the up-to-date count/suite total (307 tests across 38 su
 - [x] `node tools/check-accessibility.js` clean (zero WCAG contrast or ARIA violations).
 
 ## Feature Backlog
-- [ ] **feature HIGH: Make Ctrl+K search actually global (cross-day/cross-month), via local
-  IndexedDB backfill — not the dead GAS server search.** See `HANDOFF_PROMPT.md` for the full
-  spec; summary below. Decided 2026-09-09 after evaluating server-side search
-  (`searchAcrossAllMonthlyDocs()`, `gas-app/Code.gs:2178-2242`, dead/never exported) vs. extending
-  the existing local IDB prefetch — rejected server search: per-query Drive round trips, no
-  offline search, fights the app's offline-first design. Chose local-index instead, reusing the
-  rolling-prefetch machinery already in `app.js` (`_prefetchMonth`, `_scheduleMonthWindowPrefetch`,
-  `IDB_STORE_MONTHLY_NOTES`/`IDB_STORE_MONTH_OVERVIEW`) rather than inventing a new mechanism.
-  - Today's gap: `runSearch()` (`app.js:3178-3216`) is a second, worse, inline reimplementation of
-    the already-written-and-tested `executeUniversalSearch()` (`src/searchEngine.js`) — and it
-    only ever searches `this.dailyNote` (the one currently-open day) and `this.indexRecords`
-    (parsed from that same single note), so notes/index search silently only "works" for whatever
-    day happens to be on screen. `calendarEvents`/`dailyTasks`+`masterTasks` are already
-    effectively global (Tasks API is global; calendar range depends on what's loaded).
-  - Target shape: current month loads fast/eagerly (already does); ±6 months lazily
-    backfilled into IndexedDB on demand (triggered by opening search or widening a search,
-    not an eager full-history load) using the existing idle-queue staggering pattern, widened
-    from the current ±1 month rolling window; `runSearch()` calls `executeUniversalSearch()`
-    against accumulated IDB state instead of reimplementing matching inline.
-  - Data shape to design around: notes are currently sparse, calendar events are rich/dense,
-    tasks are sparse — so the calendar side of a ±6-month backfill is the one to budget for
-    (call volume/response size), not notes.
+- ~~feature HIGH: Make Ctrl+K search actually global (cross-day/cross-month), via local
+  IndexedDB backfill~~ **Done (2026-09-09).** `runSearch()` (`src/app.js`) now calls
+  `executeUniversalSearch()` (`src/searchEngine.js`) against a store assembled by the new pure
+  `buildGlobalSearchStore()`, merging live selected-day state with every month backfilled so far
+  into `_searchMonthCache`. `_scheduleSearchBackfill()` generalizes `_scheduleMonthWindowPrefetch`'s
+  idle-queue staggering to a ±6-month window, triggered on search-modal open; a new
+  `extractMonthSearchData()` pulls calendar events, non-blank notes, and parsed `#index` entries
+  out of each `_prefetchMonth` payload (reusing `parseIndexEntriesFromNote`, no second IDB read).
+  Added a "Search Wider" button (`widenSearchBackfill()`, doubles the radius) and reconnect retry
+  for failed months (`_retryFailedSearchBackfill()`, wired into the existing `online` listener in
+  `setupAutoSync()`) — no new mechanism, no eager full-history load, no offline-behavior regression
+  (a failed/offline backfill month just no-ops like `_prefetchMonth` already does). Covered by new
+  `extractMonthSearchData`/`buildGlobalSearchStore` unit tests in `tests/searchEngine.test.js` and
+  a live mock-mode smoke check (seeded a March 2026 note via IndexedDB, confirmed `runSearch()`
+  found it only after the backfill scheduler picked up that month). The dead
+  `searchAcrossAllMonthlyDocs()` GAS server-search path was left alone (still tracked below).
 - ~~gas-app IIFE namespace refactor~~ **Done (2026-09-09).** Wrapped `gas-app/Code.gs` and
   `gas-app/UnitTests.gs` in `(function(global) {...})(this);` IIFEs with an explicit
   `global.x = x` export list per file, curating the client-callable RPC surface
