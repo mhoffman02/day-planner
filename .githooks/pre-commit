@@ -86,6 +86,19 @@ if ! node tools/build-gas-engines.js --check >/tmp/build-gas-check.$$ 2>&1; then
 fi
 rm -f /tmp/build-gas-check.$$
 
+# ── gas-app/*.gs global init-order check ────────────────────────────────────
+# clasp push executes .gs files in plain alphabetical-by-filename order (overriding any manual
+# reorder in the Apps Script editor's file list -- see
+# .agents/rules/gas-global-init-order.md), so a top-level global initialized by calling a
+# function/service can silently read undefined if the defining file sorts later. Block a
+# top-level initializer that isn't a plain literal before it ships.
+if ! node tools/check-gas-global-init-order.js >/tmp/gas-global-order-check.$$ 2>&1; then
+  cat /tmp/gas-global-order-check.$$
+  echo "❌ [BLOCKER] gas-app/*.gs has a load-order-unsafe top-level global initializer — see output above"
+  ERRORS=$((ERRORS + 1))
+fi
+rm -f /tmp/gas-global-order-check.$$
+
 # ── gas-app/Script.html unsafe-char check ───────────────────────────────────
 # HtmlService.createHtmlOutputFromFile().getContent() silently truncates Script.html at a
 # literal `//` inside a string/template literal, or a backtick/apostrophe/`//` inside a

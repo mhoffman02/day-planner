@@ -7,7 +7,7 @@
     "prepare": "git config core.hooksPath .githooks",
     "test": "node --test tests/*.test.js",
     "start": "node server.js",
-    "lint": "eslint src gas-app/*.gs tools server.js sw.js && node tools/check-esm-imports.js && node tools/check-accessibility.js",
+    "lint": "eslint src gas-app/*.gs tools server.js sw.js && node tools/check-esm-imports.js && node tools/check-accessibility.js && node tools/check-gas-global-init-order.js",
     "lint:esm": "node tools/check-esm-imports.js",
     "lint:a11y": "node tools/check-accessibility.js",
     "bridge": "node tools/agent-bridge.js",
@@ -16,6 +16,7 @@
     "build:gas": "node tools/build-gas-engines.js",
     "build:gas:check": "node tools/build-gas-engines.js --check",
     "check:gas-html-safe-chars": "node tools/check-gas-script-html-safe-chars.js",
+    "check:gas-global-init-order": "node tools/check-gas-global-init-order.js",
     "build:sw": "node tools/update-sw-cache-version.js",
     "build:sw:check": "node tools/update-sw-cache-version.js --check"
   },
