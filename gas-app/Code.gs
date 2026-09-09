@@ -383,6 +383,9 @@ function getValidatedRootFolder() {
   var lockAcquired = false;
   try {
     lockAcquired = lock.tryLock(10000);
+    if (!lockAcquired) {
+      console.warn('getValidatedRootFolder: lock timed out after 10s (contended by a concurrent execution), proceeding unlocked -- duplicate "Day Planner" folder creation is possible');
+    }
   } catch (lockErr) {
     console.warn('getValidatedRootFolder: lock acquisition threw, proceeding unlocked: ' + lockErr.toString());
   }
@@ -403,10 +406,14 @@ function getValidatedRootFolder() {
       }
     }
 
-    // Auto-search for existing "Day Planner" folder in Drive (under drive.file scope)
+    // Auto-search for an existing "Day Planner" folder. drive.readonly (added for
+    // resolveLinkTitleRest's smart-paste feature) makes every folder the user can READ visible
+    // here too, not just app-created ones -- 'me' in owners restricts the match back down to
+    // folders this account owns, so a folder merely shared with the user (e.g. a colleague's
+    // identically-named "Day Planner" folder) can never be auto-adopted as the notes store.
     try {
       var resp = Drive.Files.list({
-        q: "mimeType = 'application/vnd.google-apps.folder' and name = 'Day Planner' and trashed = false",
+        q: "mimeType = 'application/vnd.google-apps.folder' and name = 'Day Planner' and trashed = false and 'me' in owners",
         fields: 'files(id,name)'
       });
       if (resp.files && resp.files.length > 0) {
@@ -465,9 +472,17 @@ function validateAndSaveFolderUrl(inputUrl) {
   }
 
   try {
-    var meta = Drive.Files.get(extractedId, { fields: 'id,name,mimeType,trashed' });
+    var meta = Drive.Files.get(extractedId, { fields: 'id,name,mimeType,trashed,owners(me)' });
     if (meta.trashed || meta.mimeType !== 'application/vnd.google-apps.folder') {
       throw new Error('Not a valid, non-trashed Drive folder.');
+    }
+    // drive.readonly (added for smart-paste link resolution) makes any folder the user can READ
+    // visible to Drive.Files.get, not just app-created ones. Without this check, pasting a link
+    // to a folder someone else shared as editable would silently persist it as the notes store,
+    // writing private daily notes into a folder the sharer can also read.
+    var isOwner = meta.owners && meta.owners.length > 0 && meta.owners.some(function (o) { return o.me; });
+    if (!isOwner) {
+      throw new Error('Folder is not owned by this account -- refusing to connect a shared folder as the notes store.');
     }
     var folderName = meta.name;
 
@@ -499,13 +514,13 @@ function validateAndSaveFolderUrl(inputUrl) {
         folderId: autoFolder.getId(),
         folderName: autoFolder.getName(),
         autoCreated: true,
-        message: 'Notice: Under least-privilege security ("drive.file"), Day Planner cannot access folders created outside the app. Connected you to your dedicated "Day Planner" folder instead!'
+        message: 'Notice: Day Planner can only connect to a folder this account owns (not one merely shared with you). Connected you to your dedicated "Day Planner" folder instead!'
       };
     } catch (autoErr) {
       logError('validateAndSaveFolderUrl.autoCreate', autoErr);
       return {
         success: false,
-        error: 'Security Scope Notice: Under least-privilege permissions, Day Planner cannot access folders created outside this application. Click "Auto-Create Folder" below to create an authorized folder.'
+        error: 'Ownership Notice: Day Planner can only connect to a folder this account owns. Click "Auto-Create Folder" below to create an owned folder.'
       };
     }
   }
