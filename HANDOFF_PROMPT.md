@@ -1,8 +1,8 @@
 # Session Handoff & Continuation Prompt — 2026-09-09
 
-**Generated**: 2026-09-09T18:30:54.591Z
+**Generated**: 2026-09-09T19:40:20.720Z
 **Branch**: master
-**Last Commit**: e84e82a fix(gas-app): restrict folder auto-adoption/paste to folders the account owns
+**Last Commit**: 51a229f refactor(gas-app): wrap Code.gs/UnitTests.gs in IIFEs with explicit global exports
 
 ## Project Overview & Current Architecture
 The **Day Planner** project is a standalone digital binder application styled in classic Day Planner aesthetic (Parchment `#fcfbfa`, Teal `#2d6a5a`, serif headers).
@@ -12,10 +12,10 @@ The **Day Planner** project is a standalone digital binder application styled in
 - Multi-model architecture: Symmetric AGY ↔ Claude Code headless invocation protocol (`.agents/rules/cross-cli-headless-invocation.md`) with zero API keys and Opus advisor integration.
 
 ## Recent Session Work & Commits
-e84e82a fix(gas-app): restrict folder auto-adoption/paste to folders the account owns
+51a229f refactor(gas-app): wrap Code.gs/UnitTests.gs in IIFEs with explicit global exports
 
 ## Open Checklist Items (PLAN.md)
-- [ ] gas-app MEDIUM: `?action=bundle` in `renderAppBundleJson()` (`Code.gs:124-131`) dispatches
+- [ ] gas-app MEDIUM: `searchAcrossAllMonthlyDocs()` (`Code.gs:2178-2242`) is dead code — never
 - [ ] gas-app MEDIUM: `include()`/`includeTemplate()` (`Code.gs:608-631`) swallow template-read
 - [ ] gas-app MEDIUM: `degraded: true` on the app bundle (`Code.gs:2243-2290`, set when
 - [ ] docs LOW: `CLAUDE.md`'s scope gotcha names only `src/googleAuth.js`'s `GOOGLE_AUTH_SCOPES`
