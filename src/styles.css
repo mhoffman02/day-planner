@@ -1292,6 +1292,86 @@
     color: var(--text-muted);
     margin-top: 8px;
   }
+  .future-matrix-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .future-matrix-year-nav {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .future-matrix-year-label {
+    font-family: var(--pico-header-font-family);
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--binder-teal);
+    min-width: 3.5ch;
+    text-align: center;
+  }
+  .future-item-add-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .future-item-input-field {
+    flex: 1;
+    margin-bottom: 0;
+    font-size: 0.8rem;
+    padding: 4px 8px;
+    height: 28px;
+    background-color: #ffffff;
+    color: inherit;
+    border: 1px solid var(--border-line);
+    border-radius: 4px;
+    outline: none;
+  }
+  .future-item-input-field:focus {
+    border-color: var(--binder-teal);
+  }
+  .future-item-input-field::placeholder {
+    color: var(--text-muted);
+  }
+  .future-item-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .future-item-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .future-item-title {
+    flex: 1;
+    font-size: 0.82rem;
+    color: inherit;
+    word-break: break-word;
+  }
+  .future-item-date-input {
+    font-size: 0.72rem;
+    padding: 2px 4px;
+    height: 24px;
+    background-color: #ffffff;
+    color: inherit;
+    border: 1px solid var(--border-line);
+    border-radius: 4px;
+    outline: none;
+    width: 128px;
+  }
+  [data-theme="dark"] .future-item-input-field,
+  [data-theme="dark"] .future-item-date-input {
+    background-color: var(--card-bg-dark, #262626);
+    color: var(--text-dark, #fcfbfa);
+    border-color: var(--border-line-dark, #404040);
+  }
 
   /* Appointments Header Actions */
   .appointments-header {

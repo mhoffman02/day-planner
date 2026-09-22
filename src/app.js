@@ -42,6 +42,10 @@ window.GASBridge = GASBridge;
       // Data collections
       dailyTasks: [],
       masterTasks: [],
+      futureMatrix: { year: String(new Date().getFullYear()), months: {} },
+      futureMatrixYear: new Date().getFullYear(),
+      newFutureItemTitle: {},
+      FUTURE_MONTH_LABELS: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
       calendarEvents: [],
       scheduleGrid: [],
       dailyNote: '',
@@ -299,6 +303,109 @@ window.GASBridge = GASBridge;
         this.activeView = viewName;
         if (viewName === 'monthly-calendar') {
           this.buildMonthlyGrid();
+        }
+        if (viewName === 'future-matrix') {
+          await this.loadFutureMatrix();
+        }
+      },
+
+      futureMonthKey(mm) {
+        return `${this.futureMatrixYear}-${mm}`;
+      },
+
+      futureMonthItems(mm) {
+        return this.futureMatrix.months?.[this.futureMonthKey(mm)] || [];
+      },
+
+      async loadFutureMatrix() {
+        try {
+          const matrix = await this.bridge.getFutureMatrix(this.futureMatrixYear);
+          Object.keys(matrix.months || {}).forEach(monthKey => {
+            (matrix.months[monthKey] || []).forEach(item => {
+              if (!item._transferDate) item._transferDate = `${monthKey}-01`;
+            });
+          });
+          this.futureMatrix = matrix;
+        } catch (err) {
+          console.error('loadFutureMatrix error:', err);
+          this.errorMessage = `Could not load Future Planning Matrix: ${err.message || err.toString()}`;
+        }
+      },
+
+      async changeFutureMatrixYear(delta) {
+        this.futureMatrixYear += delta;
+        await this.loadFutureMatrix();
+      },
+
+      async addFutureItemToMonth(mm) {
+        const monthKey = this.futureMonthKey(mm);
+        const title = (this.newFutureItemTitle[monthKey] || '').trim();
+        if (!title) return;
+        try {
+          const newItem = await this.bridge.addFutureItem(this.futureMatrixYear, monthKey, title, 'General');
+          newItem._transferDate = `${monthKey}-01`;
+          if (!this.futureMatrix.months[monthKey]) this.futureMatrix.months[monthKey] = [];
+          this.futureMatrix.months[monthKey].push(newItem);
+          this.newFutureItemTitle[monthKey] = '';
+        } catch (err) {
+          console.error('addFutureItemToMonth error:', err);
+          this.errorMessage = `Error adding item: ${err.message || err.toString()}`;
+        }
+      },
+
+      async toggleFutureItemStatus(mm, item) {
+        const monthKey = this.futureMonthKey(mm);
+        item.status = getNextStatus(item.status);
+        try {
+          await this.bridge.updateFutureItemStatus(this.futureMatrixYear, monthKey, item.id, item.status);
+        } catch (err) {
+          console.error('toggleFutureItemStatus error:', err);
+          this.errorMessage = `Could not save item status: ${err.message || err.toString()}`;
+        }
+      },
+
+      async transferFutureItemToDay(mm, item) {
+        const monthKey = this.futureMonthKey(mm);
+        const targetDate = item._transferDate;
+        if (!targetDate) return;
+        try {
+          const transferred = await this.bridge.transferFutureItem(this.futureMatrixYear, monthKey, item.id, targetDate, 'A');
+          if (transferred) {
+            const items = this.futureMatrix.months[monthKey] || [];
+            const idx = items.findIndex(i => i.id === item.id);
+            if (idx !== -1) items.splice(idx, 1);
+          }
+        } catch (err) {
+          console.error('transferFutureItemToDay error:', err);
+          this.errorMessage = `Error transferring item: ${err.message || err.toString()}`;
+        }
+      },
+
+      async pushFutureItemForward(mm, item) {
+        const monthKey = this.futureMonthKey(mm);
+        try {
+          const pushed = await this.bridge.pushFutureItemToNextMonth(this.futureMatrixYear, monthKey, item.id);
+          if (pushed) {
+            const items = this.futureMatrix.months[monthKey] || [];
+            const idx = items.findIndex(i => i.id === item.id);
+            if (idx !== -1) items.splice(idx, 1);
+          }
+        } catch (err) {
+          console.error('pushFutureItemForward error:', err);
+          this.errorMessage = `Error pushing item forward: ${err.message || err.toString()}`;
+        }
+      },
+
+      async deleteFutureItemFromMonth(mm, item) {
+        const monthKey = this.futureMonthKey(mm);
+        try {
+          await this.bridge.deleteFutureItem(this.futureMatrixYear, monthKey, item.id);
+          const items = this.futureMatrix.months[monthKey] || [];
+          const idx = items.findIndex(i => i.id === item.id);
+          if (idx !== -1) items.splice(idx, 1);
+        } catch (err) {
+          console.error('deleteFutureItemFromMonth error:', err);
+          this.errorMessage = `Error deleting item: ${err.message || err.toString()}`;
         }
       },
 

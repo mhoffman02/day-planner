@@ -17,14 +17,41 @@ export const VIEWS = {
 };
 
 /**
+ * Formats a Date object or returns a local date string in YYYY-MM-DD format using local timezone.
+ * @param {Date|string} [d=new Date()] Date object or string.
+ * @returns {string} Date string in YYYY-MM-DD format.
+ */
+export function getLocalDateStr(d = new Date()) {
+  if (typeof d === 'string') {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+    d = new Date(d);
+  }
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Generates a locally-unique, non-persistent id for entities created client-side before a
+ * server assigns a real one.
+ * @param {string} prefix Id namespace, e.g. 'fm', 'daily', 'evt'.
+ * @param {number} [randEnd=6] End index for random suffix slicing.
+ * @returns {string} `${prefix}_${Date.now()}_${randomSuffix}`.
+ */
+export function generateLocalId(prefix, randEnd = 6) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, randEnd)}`;
+}
+
+/**
  * State store managing binder views, selected dates, tasks, calendar events, and modal dialog states.
  */
 export class BinderStore {
   /**
    * Initializes a new BinderStore instance.
-   * @param {string} [initialDateStr] Initial date in YYYY-MM-DD format (defaults to current date).
+   * @param {string} [initialDateStr] Initial date in YYYY-MM-DD format (defaults to current local date).
    */
-  constructor(initialDateStr = new Date().toISOString().slice(0, 10)) {
+  constructor(initialDateStr = getLocalDateStr()) {
     this.activeView = VIEWS.DAILY;
     this.selectedDate = initialDateStr; // YYYY-MM-DD
     this.selectedYear = parseInt(initialDateStr.slice(0, 4), 10);
