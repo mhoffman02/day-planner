@@ -13,14 +13,20 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 - **Zero External Hosting & Zero Service Worker**: No GitHub Pages (`mhoffman02.github.io`), no `sw.js` service worker, no client-side GIS OAuth tokens. The web app runs inside Google Apps Script (`script.google.com`) using native first-party Workspace authentication (`Session.getActiveUser().getEmail()`).
 - **Online-Only Execution**: The app runs online; no complex offline outbox syncing is required in the sandboxed GAS iframe.
 - **Close-to-Installable PWA in Pure GAS**: Web App Manifest ([`manifest.json`](file:///home/mike/projects/day-planner/manifest.json)), mobile meta tags (`mobile-web-app-capable`, `apple-mobile-web-app-capable`, `apple-touch-icon`, `theme-color`), and desktop "Open as Window" shortcut guidance in [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html).
-- **Lightweight Handoff Model**: Adopted the clean, prompt-driven `trip-planner` single-doc handoff model ([`HANDOFF.md`](file:///home/mike/projects/day-planner/HANDOFF.md)) across the repository, eliminating tool bloat from `tools/handoff.js`.
+- **Pre-Flight Verified Handoff Pipeline**: All test and lint checks (`npm run lint && npm test`) MUST run and pass BEFORE initiating any handoff actions. The session handoff strictly executes:
+  1. Pre-flight verification (`npm run lint && npm test`).
+  2. Move completed items from [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) to [`TODO_HISTORY.md`](file:///home/mike/projects/day-planner/TODO_HISTORY.md) and purge them from [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md).
+  3. Sync roadmap status in [`PLAN.md`](file:///home/mike/projects/day-planner/PLAN.md).
+  4. Move next active phase items from [`PLAN.md`](file:///home/mike/projects/day-planner/PLAN.md) into [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md).
+  5. Update [`HANDOFF.md`](file:///home/mike/projects/day-planner/HANDOFF.md).
+  6. Direct commit of all documentation files and print [`HANDOFF.md`](file:///home/mike/projects/day-planner/HANDOFF.md).
 - **Strict Lint Gate**: Flat ESLint config ([`eslint.config.js`](file:///home/mike/projects/day-planner/eslint.config.js)) configured to cover `src/`, `gas-app/*.gs`, `tools/`, `server.js`, and `tests/`.
 
 ---
 
 ### CURRENT STATE
 
-- **Repository**: Branch `pure-gas-main` at commit [`61b7792`](https://github.com/mhoffman02/day-planner/commit/61b7792).
+- **Repository**: Branch `pure-gas-main` at commit [`56af556`](https://github.com/mhoffman02/day-planner/commit/56af556).
 - **Phase 1 Complete**: Baseline established at `d294262`, documentation backported, test baseline verified (30/30 passing).
 - **Phase 2 Complete**: Decommissioned GitHub Pages & Service Worker artifacts:
   - Pruned untracked `gh-pwa-shell/` and removed from [`.gitignore`](file:///home/mike/projects/day-planner/.gitignore).
@@ -34,6 +40,9 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
   - Resolved unused variables in [`src/binderStore.js`](file:///home/mike/projects/day-planner/src/binderStore.js#L95-L101), [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L30), and [`gas-app/UnitTests.gs`](file:///home/mike/projects/day-planner/gas-app/UnitTests.gs#L24).
   - Fixed unnecessary regex escape in [`server.js`](file:///home/mike/projects/day-planner/server.js#L36).
   - Cleaned unreachable catch in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L568-L578).
+- **Handoff & Task Management Protocol Established**:
+  - Created [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) and [`TODO_HISTORY.md`](file:///home/mike/projects/day-planner/TODO_HISTORY.md).
+  - Updated [`.agents/skills/handoff/SKILL.md`](file:///home/mike/projects/day-planner/.agents/skills/handoff/SKILL.md) and [`.agents/commands/handoff.md`](file:///home/mike/projects/day-planner/.agents/commands/handoff.md) to enforce pre-flight test/lint and sequential task sync.
 - **Test & Lint Status**: 0 lint errors/warnings (`npm run lint`), 30/30 baseline tests passing across 7 suites (`npm test`).
 
 ---
@@ -46,6 +55,13 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 - **Design System Constraints**: Day Planner aesthetic — parchment cream `#fcfbfa`, forest teal `#2d6a5a`, serif headers, strictly no pills ([`.agents/rules/no-pills.md`](file:///home/mike/projects/day-planner/.agents/rules/no-pills.md)).
 - **Date Math**: Pure local year/month/day date arithmetic (`new Date(y, m - 1, d + delta)`), never `.toISOString()` on local dates to prevent UTC day-shift bugs.
 - **OAuth Scopes**: Minimal `drive.file` and `drive.readonly` (for link title lookup). Never request broad `drive`.
+- **Handoff Execution Order**:
+  1. `npm run lint && npm test` FIRST.
+  2. Move completed items from `TODO.md` to `TODO_HISTORY.md` and remove from `TODO.md`.
+  3. Update `PLAN.md` roadmap.
+  4. Move next planned items from `PLAN.md` to `TODO.md`.
+  5. Update `HANDOFF.md`.
+  6. Direct commit of all documentation files.
 
 ---
 
