@@ -22,10 +22,10 @@ export class GASBridge {
     this.mockData = {
       dailyTasks: {
         '2026-08-15': [
-          { id: 't1', title: '[A1] Finalize Day Planner PRD & architecture', status: '✓', category: 'Work', dueDate: '2026-08-15' },
-          { id: 't2', title: '[A2] Conduct team sync on Google Suite integration', status: '•', category: 'Work', dueDate: '2026-08-15' },
-          { id: 't3', title: '[B1] Review Q3 budget draft', status: '•', category: 'Financial', dueDate: '2026-08-15' },
-          { id: 't4', title: '[C1] Order ergonomic desk accessories', status: '•', category: 'Personal', dueDate: '2026-08-15' }
+          { id: 't1', title: '[A1] Finalize Day Planner PRD & architecture', status: '✓', category: 'Work', dueDate: '2026-08-15', starred: false, notes: '' },
+          { id: 't2', title: '[A2] Conduct team sync on Google Suite integration', status: '•', category: 'Work', dueDate: '2026-08-15', starred: true, notes: 'Agenda: OAuth, scopes, and quotas' },
+          { id: 't3', title: '[B1] Review Q3 budget draft', status: '•', category: 'Financial', dueDate: '2026-08-15', starred: false, notes: '' },
+          { id: 't4', title: '[C1] Order ergonomic desk accessories', status: '•', category: 'Personal', dueDate: '2026-08-15', starred: false, notes: 'Standing desk mat + monitor arm' }
         ]
       },
       masterTasks: [
@@ -164,7 +164,9 @@ export class GASBridge {
         title,
         status: '•',
         category,
-        dueDate: dateStr
+        dueDate: dateStr,
+        starred: false,
+        notes: ''
       };
       this.mockData.dailyTasks[dateStr].push(newTask);
       return newTask;
@@ -175,6 +177,39 @@ export class GASBridge {
         .withSuccessHandler(resolve)
         .withFailureHandler(reject)
         .addDailyTask(dateStr, title, category);
+    });
+  }
+
+  /**
+   * Updates an existing daily task.
+   * @param {string} dateStr Target date in YYYY-MM-DD format.
+   * @param {string} taskId Task identifier.
+   * @param {object} updates Updated task properties.
+   * @returns {Promise<object|null>} Updated task object or null.
+   */
+  async updateDailyTask(dateStr, taskId, updates = {}) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      const tasks = this.mockData.dailyTasks[dateStr] || this.mockData.dailyTasks['2026-08-15'] || [];
+      const taskIndex = tasks.findIndex(t => t.id === taskId);
+      if (taskIndex === -1) return null;
+
+      tasks[taskIndex] = { ...tasks[taskIndex], ...updates };
+      this.mockData.dailyTasks[dateStr] = tasks;
+
+      // Mirror a status change back onto the source master task, if this daily task was transferred from one
+      if (updates.status !== undefined && tasks[taskIndex].sourceMasterId) {
+        const master = this.mockData.masterTasks.find(m => m.id === tasks[taskIndex].sourceMasterId);
+        if (master) master.status = updates.status;
+      }
+
+      return tasks[taskIndex];
+    }
+
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .updateDailyTask(dateStr, taskId, updates);
     });
   }
 

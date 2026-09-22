@@ -1,46 +1,30 @@
 import { GASBridge } from './gasBridge.js';
+import { getLocalDateStr } from './binderStore.js';
+import {
+  parseTaskTitle,
+  formatTaskTitle,
+  getNextStatus,
+  isValidStatus,
+  STATUS_OPTIONS,
+  sortTasksByColumn
+} from './taskEngine.js';
 window.GASBridge = GASBridge;
-
-// Helper engine definitions bundled for GAS SPA client
-  const STATUS_LIST = ['•', '✓', '→', 'X', 'G/✓'];
-
-  function parseTaskTitle(rawTitle = '') {
-    if (!rawTitle) return { priorityGroup: null, sequence: null, priorityCode: null, cleanTitle: '' };
-    const match = rawTitle.match(/^\[([A-C])([1-9])\]\s*(.*)$/i);
-    if (match) {
-      return {
-        priorityGroup: match[1].toUpperCase(),
-        sequence: parseInt(match[2], 10),
-        priorityCode: `${match[1].toUpperCase()}${match[2]}`,
-        cleanTitle: match[3].trim()
-      };
-    }
-    return { priorityGroup: null, sequence: null, priorityCode: null, cleanTitle: rawTitle.trim() };
-  }
-
-  function formatTaskTitle(priorityGroup, sequence, cleanTitle) {
-    const trimmed = (cleanTitle || '').trim();
-    if (priorityGroup && sequence) return `[${priorityGroup.toUpperCase()}${sequence}] ${trimmed}`;
-    return trimmed;
-  }
-
-  function getNextStatus(curr) {
-    const idx = STATUS_LIST.indexOf(curr);
-    if (idx === -1 || idx === STATUS_LIST.length - 1) return STATUS_LIST[0];
-    return STATUS_LIST[idx + 1];
-  }
-
-
 
   document.addEventListener('alpine:init', () => {
     Alpine.data('plannerApp', () => ({
       activeView: 'daily',
-      selectedDate: new Date().toISOString().slice(0, 10),
+      selectedDate: getLocalDateStr(),
       selectedYear: new Date().getFullYear(),
       selectedMonth: new Date().getMonth() + 1,
       
       // Data collections
       dailyTasks: [],
+      openStatusMenuTaskId: null,
+      statusMenuCloseTimer: null,
+      statusOptions: STATUS_OPTIONS,
+      dailyTaskSort: { column: null, direction: 'asc' },
+      openNotesPopoverTaskId: null,
+      notesPopoverCloseTimer: null,
       masterTasks: [],
       futureMatrix: { year: String(new Date().getFullYear()), months: {} },
       futureMatrixYear: new Date().getFullYear(),
@@ -664,9 +648,104 @@ window.GASBridge = GASBridge;
         }
       },
 
-      async toggleTaskStatus(task) {
-        task.status = getNextStatus(task.status);
+      setTaskSort(sortStateKey, column) {
+        const state = this[sortStateKey];
+        if (state.column === column) {
+          state.direction = state.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+          state.column = column;
+          state.direction = 'asc';
+        }
+      },
+
+      sortedTasks(tasks, sortState) {
+        if (!sortState || !sortState.column) return tasks;
+        return sortTasksByColumn(tasks, sortState.column, sortState.direction);
+      },
+
+      async toggleTaskStar(task) {
+        const previous = Boolean(task.starred);
+        task.starred = !previous;
+        try {
+          const updated = await this.bridge.updateDailyTask(this.selectedDate, task.id, { starred: task.starred });
+          if (!updated) {
+            task.starred = previous;
+          }
+        } catch (err) {
+          task.starred = previous;
+          console.error('🔥 toggleTaskStar persist error:', err);
+        }
+      },
+
+      hasNotes(task) {
+        return Boolean(task.notes && task.notes.trim());
+      },
+
+      openNotesPopover(taskId) {
+        clearTimeout(this.notesPopoverCloseTimer);
+        this.openNotesPopoverTaskId = taskId;
+      },
+
+      toggleNotesPopover(taskId) {
+        clearTimeout(this.notesPopoverCloseTimer);
+        this.openNotesPopoverTaskId = (this.openNotesPopoverTaskId === taskId ? null : taskId);
+      },
+
+      scheduleNotesPopoverClose(taskId) {
+        clearTimeout(this.notesPopoverCloseTimer);
+        this.notesPopoverCloseTimer = setTimeout(() => {
+          if (this.openNotesPopoverTaskId === taskId) this.openNotesPopoverTaskId = null;
+        }, 250);
+      },
+
+      openStatusMenu(taskId) {
+        clearTimeout(this.statusMenuCloseTimer);
+        this.openStatusMenuTaskId = taskId;
+      },
+
+      toggleStatusMenu(taskId) {
+        clearTimeout(this.statusMenuCloseTimer);
+        this.openStatusMenuTaskId = (this.openStatusMenuTaskId === taskId ? null : taskId);
+      },
+
+      scheduleStatusMenuClose(taskId) {
+        clearTimeout(this.statusMenuCloseTimer);
+        this.statusMenuCloseTimer = setTimeout(() => {
+          if (this.openStatusMenuTaskId === taskId) this.openStatusMenuTaskId = null;
+        }, 250);
+      },
+
+      async selectTaskStatus(task, newStatus) {
+        clearTimeout(this.statusMenuCloseTimer);
+        this.openStatusMenuTaskId = null;
+        await this.setTaskStatus(task, newStatus);
+      },
+
+      async setTaskStatus(task, newStatus) {
+        if (!isValidStatus(newStatus)) {
+          console.error(`🔥 setTaskStatus: ignoring invalid status "${newStatus}"`);
+          return;
+        }
+        task.status = newStatus;
+        const linkedMaster = this.masterTasks.find(m => m.movedTaskId === task.id);
+        if (linkedMaster) linkedMaster.status = newStatus;
+        try {
+          if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
+            await this.bridge.updateDailyTask(this.selectedDate, task.id, {
+              title: task.title,
+              status: task.status,
+              dueDate: task.dueDate
+            });
+          }
+        } catch (err) {
+          console.error('🔥 setTaskStatus persist error:', err);
+          this.errorMessage = `Could not save task status: ${err.message || err.toString()}`;
+        }
         await this.trigger2WaySync();
+      },
+
+      async toggleTaskStatus(task) {
+        await this.setTaskStatus(task, getNextStatus(task.status));
       },
 
       async moveMasterTaskToToday(mTask) {

@@ -174,22 +174,57 @@
               <table class="task-table">
                 <thead>
                   <tr>
-                    <th scope="col" class="th-w-40">Pri</th>
-                    <th scope="col" class="th-w-40">Sts</th>
-                    <th scope="col">Task Description</th>
-                    <th scope="col" class="th-w-80">Category</th>
+                    <th scope="col" class="th-w-40 th-sortable" @click="setTaskSort('dailyTaskSort', 'priority')">
+                      Pri<span class="sort-arrow" x-show="dailyTaskSort.column === 'priority'" x-text="dailyTaskSort.direction === 'asc' ? '▲' : '▼'"></span>
+                    </th>
+                    <th scope="col" class="th-w-40 th-sortable" @click="setTaskSort('dailyTaskSort', 'status')">
+                      Sts<span class="sort-arrow" x-show="dailyTaskSort.column === 'status'" x-text="dailyTaskSort.direction === 'asc' ? '▲' : '▼'"></span>
+                    </th>
+                    <th scope="col" class="th-sortable" @click="setTaskSort('dailyTaskSort', 'title')">
+                      Task Description<span class="sort-arrow" x-show="dailyTaskSort.column === 'title'" x-text="dailyTaskSort.direction === 'asc' ? '▲' : '▼'"></span>
+                    </th>
+                    <th scope="col" class="th-w-80 th-sortable" @click="setTaskSort('dailyTaskSort', 'category')">
+                      Category<span class="sort-arrow" x-show="dailyTaskSort.column === 'category'" x-text="dailyTaskSort.direction === 'asc' ? '▲' : '▼'"></span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  <template x-for="task in dailyTasks" :key="task.id">
+                  <template x-for="task in sortedTasks(dailyTasks, dailyTaskSort)" :key="task.id">
                     <tr>
                       <td>
                         <span class="priority-badge" :class="parseTask(task.title).priorityGroup || 'A'" x-text="parseTask(task.title).priorityCode || 'A1'"></span>
                       </td>
                       <td>
-                        <button type="button" class="status-btn" @click="toggleTaskStatus(task)" x-text="task.status || '•'" :aria-label="'Task status: ' + (task.status || 'Open') + '. Click to cycle status.'"></button>
+                        <div class="status-menu-wrap" @mouseenter="openStatusMenu(task.id)" @mouseleave="scheduleStatusMenuClose(task.id)">
+                          <button type="button" class="status-btn" @click="toggleStatusMenu(task.id)" x-text="task.status || '•'"
+                                  aria-haspopup="menu" :aria-expanded="openStatusMenuTaskId === task.id"
+                                  :aria-label="'Task status: ' + (task.status || 'Open') + '. Click to choose a status.'"></button>
+                          <div class="status-menu" role="menu" x-show="openStatusMenuTaskId === task.id" @click.outside="openStatusMenuTaskId = null" x-cloak>
+                            <template x-for="opt in statusOptions" :key="opt.value">
+                              <button type="button" class="status-menu-item" role="menuitem"
+                                      :class="{ 'is-active': (task.status || '•') === opt.value }"
+                                      @click="selectTaskStatus(task, opt.value)"
+                                      :aria-label="'Set status: ' + opt.label">
+                                <span class="status-menu-item-glyph" x-text="opt.value"></span>
+                                <span x-text="opt.label"></span>
+                              </button>
+                            </template>
+                          </div>
+                        </div>
                       </td>
-                      <td class="task-title-cell" x-text="parseTask(task.title).cleanTitle"></td>
+                      <td class="task-title-cell" :class="{ 'task-canceled': task.status === 'X', 'task-done': task.status === '✓' || task.status === 'D/✓' }">
+                        <span class="star-toggle" :class="{ 'is-starred': task.starred }" @click.stop="toggleTaskStar(task)"
+                              role="button" tabindex="0" @keydown.enter.stop="toggleTaskStar(task)"
+                              :aria-label="task.starred ? 'Unstar task' : 'Star task'" x-text="task.starred ? '★' : '☆'"></span>
+                        <span x-text="parseTask(task.title).cleanTitle"></span>
+                        <span class="notes-indicator-wrap" x-show="hasNotes(task)" @mouseenter="openNotesPopover(task.id)" @mouseleave="scheduleNotesPopoverClose(task.id)">
+                          <button type="button" class="notes-indicator" @click.stop="toggleNotesPopover(task.id)"
+                                  aria-label="View notes" aria-haspopup="true" :aria-expanded="openNotesPopoverTaskId === task.id">
+                            <span class="material-symbols-outlined icon-14">sticky_note_2</span>
+                          </button>
+                          <div class="notes-popover" role="tooltip" x-show="openNotesPopoverTaskId === task.id" x-cloak x-text="task.notes"></div>
+                        </span>
+                      </td>
                       <td class="td-category" x-text="task.category || 'Work'"></td>
                     </tr>
                   </template>

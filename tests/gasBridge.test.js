@@ -41,6 +41,33 @@ describe('GAS Bridge Unit Tests', () => {
     assert.equal(transferred.category, 'Work');
   });
 
+  it('should update daily task status, star, and notes via bridge', async () => {
+    const bridge = new GASBridge(true);
+    const updated = await bridge.updateDailyTask('2026-08-15', 't1', {
+      status: 'X',
+      starred: true,
+      notes: 'Postponed pending review'
+    });
+    assert.ok(updated);
+    assert.equal(updated.status, 'X');
+    assert.equal(updated.starred, true);
+    assert.equal(updated.notes, 'Postponed pending review');
+
+    const nonExistent = await bridge.updateDailyTask('2026-08-15', 't_missing', { status: '✓' });
+    assert.equal(nonExistent, null);
+  });
+
+  it('should mirror daily task status change to source master task via bridge', async () => {
+    const bridge = new GASBridge(true);
+    const transferred = await bridge.transferMasterTask('m2', '2026-08-15', 'A');
+    assert.ok(transferred);
+
+    await bridge.updateDailyTask('2026-08-15', transferred.id, { status: '✓' });
+    const masterTasks = await bridge.getMasterTasks('August 2026');
+    const master = masterTasks.find(m => m.id === 'm2');
+    assert.equal(master.status, '✓');
+  });
+
   it('should save daily doc cards content via bridge', async () => {
     const bridge = new GASBridge(true);
     const result = await bridge.saveDailyDocCards('2026-08-16', '### #index [Architecture] System Design\n- Clean 3-col layout');

@@ -1,8 +1,10 @@
 /**
  * @file taskEngine.js
- * @description Franklin Planner Task Engine.
+ * @description Day Planner Task Engine.
  * Handles task priorities (A1-C9), status codes, task ordering, and "Move to Today" transfer logic.
  */
+
+import { getLocalDateStr, generateLocalId } from './binderStore.js';
 
 /**
  * Task status code symbols dictionary.
@@ -10,17 +12,44 @@
  */
 export const TASK_STATUSES = {
   OPEN: '•',
+  IN_PROGRESS: '○',
   COMPLETED: '✓',
   FORWARDED: '→',
   CANCELED: 'X',
-  DELEGATED: 'G/✓'
+  DELEGATED: 'D/✓'
 };
 
 /**
  * List of status codes for status cycling.
  * @type {Array<string>}
  */
-export const STATUS_LIST = ['•', '✓', '→', 'X', 'G/✓'];
+export const STATUS_LIST = ['•', '○', '✓', '→', 'X', 'D/✓'];
+
+/**
+ * Human-readable labels for each status glyph in `STATUS_LIST`, in display order.
+ * Backs the status-select dropdown UI, which lets a user jump directly to any status
+ * (e.g. picking "X" without first cycling through "→" and its forward-to-a-date side effect).
+ * @type {Array<{value: string, label: string}>}
+ */
+export const STATUS_OPTIONS = [
+  { value: '•', label: 'Open' },
+  { value: '○', label: 'In Progress' },
+  { value: '✓', label: 'Done' },
+  { value: '→', label: 'Forward' },
+  { value: 'X', label: 'Canceled' },
+  { value: 'D/✓', label: 'Delegated (Done)' }
+];
+
+/**
+ * Checks whether a status glyph is one of the valid `STATUS_LIST` members.
+ * Guards direct status-jump UI actions (e.g. a status-select dropdown) against
+ * being handed a value outside the known set.
+ * @param {string} status Status glyph to validate.
+ * @returns {boolean} True if `status` is a member of `STATUS_LIST`.
+ */
+export function isValidStatus(status) {
+  return STATUS_LIST.includes(status);
+}
 
 /**
  * Parses a task title that may contain a priority prefix like [A1] or [B3].
@@ -107,6 +136,65 @@ export function sortTasks(tasks = []) {
 }
 
 /**
+ * Computes the sort key for a task under a given column, for interactive click-to-sort
+ * table headers (distinct from `sortTasks`'s fixed priority-first default ordering, which
+ * stays unchanged and is used elsewhere).
+ * @param {object} task Task object ({ title, status, category, starred, ... }).
+ * @param {'priority'|'status'|'title'|'category'} column Column to compute a sort key for.
+ * @returns {string|number} Sortable key for `column`. Unprioritized tasks sort last under
+ *   'priority'; unknown statuses sort last under 'status'.
+ */
+export function getTaskSortValue(task, column) {
+  switch (column) {
+    case 'priority': {
+      const parsed = parseTaskTitle(task.title);
+      return parsed.priorityCode || '\uFFFD';
+    }
+    case 'status': {
+      const idx = STATUS_LIST.indexOf(task.status);
+      return idx === -1 ? STATUS_LIST.length : idx;
+    }
+    case 'title': {
+      const parsed = parseTaskTitle(task.title);
+      const cleanTitle = parsed.cleanTitle || task.title || '';
+      return (task.starred ? '★' : '☆') + cleanTitle;
+    }
+    case 'category':
+      return task.category || '';
+    default:
+      return '';
+  }
+}
+
+/**
+ * Sorts a task list by a single clickable column, ascending or descending. Stable: ties
+ * keep their prior relative order in both directions (uses a comparator multiplier rather
+ * than `.reverse()`, which would flip tie-order too).
+ * @param {Array<object>} [tasks=[]] Tasks to sort.
+ * @param {'priority'|'status'|'title'|'category'} column Column to sort by.
+ * @param {'asc'|'desc'} [direction='asc'] Sort direction.
+ * @returns {Array<object>} New sorted array.
+ */
+export function sortTasksByColumn(tasks = [], column, direction = 'asc') {
+  const dir = direction === 'desc' ? -1 : 1;
+  return [...tasks]
+    .map((task, index) => ({ task, index }))
+    .sort((a, b) => {
+      const va = getTaskSortValue(a.task, column);
+      const vb = getTaskSortValue(b.task, column);
+      let cmp;
+      if (typeof va === 'number' && typeof vb === 'number') {
+        cmp = va - vb;
+      } else {
+        cmp = String(va).localeCompare(String(vb));
+      }
+      if (cmp === 0) return a.index - b.index;
+      return cmp * dir;
+    })
+    .map(({ task }) => task);
+}
+
+/**
  * Finds next available sequence integer for a priority group ('A', 'B', or 'C').
  * @param {Array<object>} [tasks=[]] Array of existing task objects.
  * @param {string} [priorityGroup='A'] Target priority group letter.
@@ -127,21 +215,50 @@ export function getNextSequence(tasks = [], priorityGroup = 'A') {
   return 9; // Cap at 9
 }
 
+export { getNextSequence as findNextAvailableSequence };
+
+/**
+ * Forwards a daily task to a new date, creating a new task entry on the target day —
+ * Franklin Covey's "➜ forwarded to a new date" semantics: the original task keeps its
+ * FORWARDED status marker in place (so today's page still shows it was handled), while a
+ * fresh open task carrying the same priority group/category is created on the target date.
+ * @param {object} sourceTask Source daily task object being forwarded.
+ * @param {Array<object>} [existingTargetDayTasks=[]] Current daily tasks list on the target date.
+ * @param {string} targetDateStr Target date string in YYYY-MM-DD format.
+ * @returns {{id: string, title: string, status: string, dueDate: string, category: string, forwardedFromId: string|null}} Newly created daily task object on the target date.
+ */
+export function forwardTaskToDate(sourceTask, existingTargetDayTasks = [], targetDateStr) {
+  const parsed = parseTaskTitle(sourceTask.title);
+  const priorityGroup = parsed.priorityGroup || 'A';
+  const cleanTitle = parsed.cleanTitle || sourceTask.title || 'Untitled Task';
+  const sequence = getNextSequence(existingTargetDayTasks, priorityGroup);
+  const formattedTitle = formatTaskTitle(priorityGroup, sequence, cleanTitle);
+
+  return {
+    id: generateLocalId('daily', 7),
+    title: formattedTitle,
+    status: TASK_STATUSES.OPEN,
+    dueDate: targetDateStr,
+    category: sourceTask.category || 'General',
+    forwardedFromId: sourceTask.id || null
+  };
+}
+
 /**
  * Transfers a monthly master task to the daily task list for today with assigned priority.
  * @param {object} masterTask Source master task object.
  * @param {Array<object>} [existingDailyTasks=[]] Current daily tasks list.
  * @param {string} [targetPriorityGroup='A'] Priority group letter to assign ('A', 'B', or 'C').
- * @param {string} [todayDateStr] Target date string in YYYY-MM-DD format (defaults to current date).
+ * @param {string} [todayDateStr] Target date string in YYYY-MM-DD format (defaults to current local date).
  * @returns {{id: string, title: string, status: string, dueDate: string, category: string, sourceMasterId: string|null}} Newly created daily task object.
  */
-export function transferMasterTaskToToday(masterTask, existingDailyTasks = [], targetPriorityGroup = 'A', todayDateStr = new Date().toISOString().slice(0, 10)) {
+export function transferMasterTaskToToday(masterTask, existingDailyTasks = [], targetPriorityGroup = 'A', todayDateStr = getLocalDateStr()) {
   const cleanTitle = parseTaskTitle(masterTask.title).cleanTitle || masterTask.title || 'Untitled Task';
   const sequence = getNextSequence(existingDailyTasks, targetPriorityGroup);
   const formattedTitle = formatTaskTitle(targetPriorityGroup, sequence, cleanTitle);
 
   return {
-    id: `daily_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    id: generateLocalId('daily', 7),
     title: formattedTitle,
     status: TASK_STATUSES.OPEN,
     dueDate: todayDateStr,

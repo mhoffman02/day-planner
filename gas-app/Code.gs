@@ -349,6 +349,85 @@ function syncWorkspaceChanges() {
   }
 }
 
+var TASK_STATUS_MARKER_RE = /^<!--dp-status:(.+?)-->\n?/;
+var TASK_EXTRA_STATUSES = ['○', '→', 'X', 'D/✓'];
+var DP_TOKEN_LINE_RE = /^<!--dp-(?:status|meta):.*?-->\n?/gm;
+var TASK_META_MARKER_RE = /<!--dp-meta:(.*?)-->\n?/;
+
+/**
+ * Strips the hidden status marker line from a Task's notes, if present.
+ * @param {string} notes Raw notes field from a Google Task.
+ * @returns {string} Notes with any status marker line removed.
+ */
+function stripTaskStatusMarker(notes) {
+  return (notes || '').replace(TASK_STATUS_MARKER_RE, '');
+}
+
+/**
+ * Strips all hidden dp-status and dp-meta markers from notes for display in UI.
+ * @param {string} notes Raw notes field from a Google Task.
+ * @returns {string} Clean user notes.
+ */
+function stripDpTokens(notes) {
+  return (notes || '').replace(DP_TOKEN_LINE_RE, '').trim();
+}
+
+/**
+ * Computes the notes value to persist for a given app status.
+ * @param {string} status App status glyph being written.
+ * @param {string} existingNotes Current notes field on the task before this update.
+ * @returns {string} New notes value to send in the patch.
+ */
+function encodeTaskStatusNotes(status, existingNotes) {
+  var rest = stripTaskStatusMarker(existingNotes);
+  if (TASK_EXTRA_STATUSES.indexOf(status) === -1) {
+    return rest;
+  }
+  var marker = '<!--dp-status:' + status + '-->';
+  return rest ? marker + '\n' + rest : marker;
+}
+
+/**
+ * Derives the app-facing status glyph for a Google Task.
+ * @param {object} googleTask Task resource from the Tasks API.
+ * @returns {string} One of '•', '○', '✓', '→', 'X', 'D/✓'.
+ */
+function deriveTaskStatus(googleTask) {
+  var match = (googleTask.notes || '').match(TASK_STATUS_MARKER_RE);
+  if (match && TASK_EXTRA_STATUSES.indexOf(match[1]) !== -1) {
+    return match[1];
+  }
+  return googleTask.status === 'completed' ? '✓' : '•';
+}
+
+/**
+ * Decodes the hidden app-metadata blob from a Task's notes.
+ * @param {string} notes Raw notes field from a Google Task.
+ * @returns {object} Parsed metadata object, or {} if absent/unparseable.
+ */
+function decodeTaskMeta(notes) {
+  var match = (notes || '').match(TASK_META_MARKER_RE);
+  if (!match) return {};
+  try {
+    return JSON.parse(match[1]);
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Computes the notes value to persist after merging metaPatch into existing metadata.
+ * @param {string} existingNotes Current notes field on the task before this update.
+ * @param {object} metaPatch Fields to merge into the existing metadata object.
+ * @returns {string} New notes value to send in the patch.
+ */
+function encodeTaskMeta(existingNotes, metaPatch) {
+  var merged = Object.assign({}, decodeTaskMeta(existingNotes), metaPatch);
+  var rest = (existingNotes || '').replace(TASK_META_MARKER_RE, '');
+  var marker = '<!--dp-meta:' + JSON.stringify(merged) + '-->';
+  return rest ? marker + '\n' + rest : marker;
+}
+
 /**
  * Retrieves daily data: Calendar events, Google Tasks, and Google Doc daily notes for a given date.
  * @param {string} dateStr Target date string in YYYY-MM-DD format.
@@ -402,14 +481,21 @@ function getDailyData(dateStr) {
       try {
         var taskList = Tasks.Tasks.list('@default');
         if (taskList.items) {
-          result.tasks = taskList.items.map(function(t) {
-            return {
-              id: t.id,
-              title: t.title,
-              status: t.status === 'completed' ? '✓' : '•',
-              dueDate: t.due ? t.due.substring(0, 10) : dateStr
-            };
-          });
+          result.tasks = taskList.items
+            .filter(function(t) { return !t.due || t.due.substring(0, 10) === dateStr; })
+            .map(function(t) {
+              var meta = decodeTaskMeta(t.notes);
+              return {
+                id: t.id,
+                title: t.title,
+                status: deriveTaskStatus(t),
+                category: meta.category || 'General',
+                dueDate: t.due ? t.due.substring(0, 10) : dateStr,
+                sourceMasterId: meta.sourceMasterId || null,
+                starred: Boolean(meta.starred),
+                notes: stripDpTokens(t.notes)
+              };
+            });
         }
       } catch (tasksErr) {
         result.warnings.push(logError('Tasks.Tasks.list', tasksErr).error);
@@ -587,19 +673,123 @@ function getMasterTasks() {
  * @param {string} dateStr Target date string in YYYY-MM-DD format.
  * @param {string} title Task title description.
  * @param {string} [category='General'] Optional task category classification.
- * @returns {{id: string, title: string, status: string, category: string, dueDate: string}} Created task object.
+ * @returns {{id: string, title: string, status: string, category: string, dueDate: string, starred: boolean, notes: string}} Created task object.
  */
 function addDailyTask(dateStr, title, category) {
   try {
+    if (typeof Tasks !== 'undefined') {
+      var metaPatch = { category: category || 'General' };
+      var taskResource = {
+        title: title,
+        due: dateStr + 'T00:00:00.000Z',
+        notes: encodeTaskMeta('', metaPatch)
+      };
+      var created = Tasks.Tasks.insert(taskResource, '@default');
+      return {
+        id: created.id,
+        title: created.title,
+        status: deriveTaskStatus(created),
+        category: category || 'General',
+        dueDate: created.due ? created.due.substring(0, 10) : dateStr,
+        sourceMasterId: null,
+        starred: false,
+        notes: stripDpTokens(created.notes)
+      };
+    }
     return {
       id: 'task_' + new Date().getTime(),
       title: title,
       status: '•',
       category: category || 'General',
-      dueDate: dateStr
+      dueDate: dateStr,
+      starred: false,
+      notes: ''
     };
   } catch (err) {
     logError('addDailyTask', err);
+    throw err;
+  }
+}
+
+/**
+ * Updates an existing Google Task's title and/or completion status and metadata.
+ * @param {string} dateStr Target date string in YYYY-MM-DD format.
+ * @param {string} taskId Google Task id.
+ * @param {object} updates Fields to update: { title, status, category, dueDate, starred, notes }.
+ * @returns {object|null} Updated task object, or null if the task no longer exists.
+ */
+function updateDailyTask(dateStr, taskId, updates) {
+  try {
+    if (typeof Tasks === 'undefined') {
+      return {
+        id: taskId,
+        title: (updates && updates.title !== undefined) ? updates.title : '',
+        status: (updates && updates.status !== undefined) ? updates.status : '•',
+        category: (updates && updates.category !== undefined) ? updates.category : 'General',
+        dueDate: (updates && updates.dueDate !== undefined) ? updates.dueDate : dateStr,
+        starred: Boolean(updates && updates.starred),
+        notes: (updates && updates.notes !== undefined) ? updates.notes : ''
+      };
+    }
+
+    var patch = {};
+    var current = null;
+    function ensureCurrent() {
+      if (!current) current = Tasks.Tasks.get('@default', taskId);
+      return current;
+    }
+    if (updates && updates.title !== undefined) {
+      patch.title = updates.title;
+    }
+    if (updates && updates.status !== undefined) {
+      patch.status = (updates.status === '✓' || updates.status === 'D/✓') ? 'completed' : 'needsAction';
+      patch.notes = encodeTaskStatusNotes(updates.status, ensureCurrent().notes);
+    }
+    if (updates && updates.category !== undefined) {
+      var notesBaseCat = patch.notes !== undefined ? patch.notes : ensureCurrent().notes;
+      patch.notes = encodeTaskMeta(notesBaseCat, { category: updates.category });
+    }
+    if (updates && updates.starred !== undefined) {
+      var notesBaseStar = patch.notes !== undefined ? patch.notes : ensureCurrent().notes;
+      patch.notes = encodeTaskMeta(notesBaseStar, { starred: Boolean(updates.starred) });
+    }
+    if (updates && updates.dueDate !== undefined) {
+      patch.due = updates.dueDate + 'T00:00:00.000Z';
+    }
+
+    var updated = Tasks.Tasks.patch(patch, '@default', taskId);
+
+    // Mirror a status change back onto this task's source master task, if it was transferred from one
+    if (current && updates && updates.status !== undefined) {
+      var meta = decodeTaskMeta(current.notes);
+      if (meta.sourceMasterId) {
+        try {
+          var masterCurrent = Tasks.Tasks.get('@default', meta.sourceMasterId);
+          Tasks.Tasks.patch({
+            status: patch.status,
+            notes: encodeTaskStatusNotes(updates.status, masterCurrent.notes)
+          }, '@default', meta.sourceMasterId);
+        } catch (syncErr) {
+          logError('updateDailyTask->masterSync(' + meta.sourceMasterId + ')', syncErr);
+        }
+      }
+    }
+
+    var updatedMeta = decodeTaskMeta(updated.notes);
+    return {
+      id: updated.id,
+      title: updated.title,
+      status: deriveTaskStatus(updated),
+      category: updatedMeta.category || 'General',
+      dueDate: updated.due ? updated.due.substring(0, 10) : ((updates && updates.dueDate) || dateStr),
+      starred: Boolean(updatedMeta.starred),
+      notes: stripDpTokens(updated.notes)
+    };
+  } catch (err) {
+    if (err.message && (err.message.indexOf('404') !== -1 || err.message.indexOf('Not Found') !== -1)) {
+      return null;
+    }
+    logError('updateDailyTask(' + taskId + ')', err);
     throw err;
   }
 }
