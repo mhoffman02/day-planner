@@ -22,49 +22,51 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 
 ### CURRENT STATE
 
-- **Repository**: Branch `pure-gas-main` at commit [`c50785e`](https://github.com/mhoffman02/day-planner/commit/c50785e).
-- **Test & Lint Status**: 0 lint errors (`npm run lint`), 84/84 unit tests passing across 11 suites (`npm test`).
+- **Repository**: Branch `pure-gas-main` at commit [`8335a4d`](https://github.com/mhoffman02/day-planner/commit/8335a4d).
+- **Test & Lint Status**: 0 lint errors (`npm run lint`), 88/88 unit tests passing across 11 suites (`npm test`).
 - **Phase 1 Complete**: Baseline established, documentation backported, test baseline verified.
 - **Phase 2 Complete**: GitHub Pages and Service Worker artifacts removed, clean local preview server ([`server.js`](file:///home/mike/projects/day-planner/server.js)).
 - **Phase 3 Complete**: Standalone display meta tags, manifest, high-res icons, desktop window guide.
-- **Phase 4 Completed Tasks**:
+- **Phase 4 Complete (All 6 Tasks Backported)**:
   - **Task 1 (Future Planning Matrix)**: 12-month forward look, quarter milestones, Drive-backed persistence in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs), interactive month cards ([`src/futureMatrixEngine.js`](file:///home/mike/projects/day-planner/src/futureMatrixEngine.js)).
   - **Task 2 (Daily Tasks Enhancements)**: Multi-column sorting, star toggle, Franklin status dropdown (`•`, `○`, `✓`, `→`, `X`, `D/✓`), notes hover popover ([`src/taskEngine.js`](file:///home/mike/projects/day-planner/src/taskEngine.js)).
   - **Task 3 (Modular Note Cards & Rich Formatting)**: Topic + Summary split, rich text formatting toolbar (bold, italic, underline, strike, colors, lists), smart-paste Drive URL title resolution (`resolveDriveLinkTitle`), link syntax parsing (`[[link:URL]]text[[/link]]`).
   - **Task 4 (Monthly Master Tasks / Backlog)**: Undated task list (`getMasterTasks`) querying Google Tasks API (`!t.due`), metadata decoding, add bar (`addMasterTask`), target date picker with inline move action (`moveMasterTaskToDate`), and `markMasterTaskMoved` sync.
   - **Task 5 (Server Security & Robustness)**: IIFE encapsulation with explicit export surface in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) and [`gas-app/UnitTests.gs`](file:///home/mike/projects/day-planner/gas-app/UnitTests.gs); `LockService.getUserLock()` concurrency locking; folder ownership validation; safe HTML escaping in [`gas-app/SetupFolder.html`](file:///home/mike/projects/day-planner/gas-app/SetupFolder.html).
+  - **Task 6 (Universal Search)**: Multi-entity search across Tasks, Calendar appointments, Daily Notes, and Monthly Index in [`src/searchEngine.js`](file:///home/mike/projects/day-planner/src/searchEngine.js); `Ctrl+K` modal, keyboard navigation (`↑`/`↓`/`Enter`/`Esc`), instant jump to date/record, and accessible results listbox in [`index.html`](file:///home/mike/projects/day-planner/index.html), [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html), [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js), and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html). Legacy 50% border-radii flattened to 4px per [`.agents/rules/no-pills.md`](file:///home/mike/projects/day-planner/.agents/rules/no-pills.md).
 
 ---
 
 ### CONSTRAINTS & PREFERENCES
 
-- **Direct Communication**: Address user as "Mike," lead with direct answers, no pleasantries or filler.
-- **Clickable Links**: All file paths and code symbols MUST use clickable markdown links with `file://` scheme.
-- **No PR Theater**: Direct commits on working branch (`pure-gas-main`).
-- **Design System Constraints**: Day Planner aesthetic — parchment cream `#fcfbfa`, forest teal `#2d6a5a`, serif headers, strictly **no pills** ([`.agents/rules/no-pills.md`](file:///home/mike/projects/day-planner/.agents/rules/no-pills.md)).
-- **Date Math**: Pure local year/month/day date arithmetic (`new Date(y, m - 1, d + delta)`), never `.toISOString()` on local dates to prevent UTC day-shift bugs.
-- **OAuth Scopes**: Minimal `drive.file` and `drive.readonly` (for link title lookup). Never request broad `drive`.
+1. **Conciseness & Directness**: Default to short, direct answers. Short is much more important than grammar. Drop opening pleasantries and wrap-up summaries. Lead with the answer, provide code and detail only when needed, and stop immediately when done. Push back directly when the user's premise is flawed.
+2. **Salutation**: Start every reply with `🔋Mike:`.
+3. **Clickable Links**: All file paths and code symbols MUST use clickable markdown links with `file://` scheme.
+4. **No PR Theater**: Direct commits on working branch (`pure-gas-main`).
+5. **Design System Constraints**: Day Planner aesthetic — parchment cream `#fcfbfa`, forest teal `#2d6a5a`, serif headers, strictly **no pills** ([`.agents/rules/no-pills.md`](file:///home/mike/projects/day-planner/.agents/rules/no-pills.md)).
+6. **Date Math**: Pure local year/month/day date arithmetic (`new Date(y, m - 1, d + delta)`), never `.toISOString()` on local dates to prevent UTC day-shift bugs.
+7. **OAuth Scopes**: Minimal `drive.file` and `drive.readonly` (for link title lookup). Never request broad `drive`.
 
 ---
 
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
-1. **Universal Search (Immediate Next Task)**:
-   - Verify and wire universal search modal (Ctrl + K) in [`src/searchEngine.js`](file:///home/mike/projects/day-planner/src/searchEngine.js), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), and [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js) indexing Tasks, Calendar appointments, and Daily/Monthly Notes.
-   - Support keyboard navigation (`↑`/`↓`/`Enter`/`Esc`) and instant jump to matching date/record.
-2. **Phase 5 Verification & Local Smoke Testing**:
-   - Verify local dev server `npm start` at `http://localhost:3000` with mock bridges.
-   - Verify 0 lint errors, safe chars checks, and all test suites passing.
+1. **Phase 5 Verification & Local Smoke Testing (Immediate Next Task)**:
+   - Run linter and full unit test suite: `npm run lint && npm test`.
+   - Start local dev server via `npm start` at `http://localhost:3000`.
+   - Perform end-to-end smoke test across all views: Daily view, Monthly Calendar, Monthly Index, Master Tasks backlog, Future Planning matrix, and Universal Search (`Ctrl+K`).
+2. **Safe Characters & HTML Scriptlet Audit**:
+   - Verify all Apps Script HTML template scriptlets (`<?!= ... ?>`) in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html) avoid risky single-line `//` comment truncation.
 3. **Phase 5 Clasp Deployment Gate**:
-   - Push code to Google Apps Script development deployment via `clasp push`.
-   - Run `/self-test` diagnostic suite to verify live Google Workspace service integrations.
+   - Deploy code to Google Apps Script development deployment via `clasp push`.
+   - Run `/self-test` diagnostic suite to verify live Google Workspace service integrations (Calendar, Tasks, Drive).
 
 ---
 
 ### IMMEDIATE NEXT STEP
 
-Execute Phase 4 Task 6: Universal Search:
-1. Audit [`src/searchEngine.js`](file:///home/mike/projects/day-planner/src/searchEngine.js) and [`tests/searchEngine.test.js`](file:///home/mike/projects/day-planner/tests/searchEngine.test.js) for search index coverage.
-2. Inspect search modal handlers in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), and [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js).
-3. Verify Ctrl+K keybinding, search results rendering, and navigation.
-4. Verify with `npm run lint && npm test`.
+Execute Phase 5 Verification & Local Smoke Testing:
+
+1. Run `npm run lint && npm test` to confirm zero regressions.
+2. Run `npm start` to launch local standalone server on `http://localhost:3000`.
+3. Test `Ctrl+K` search navigation, master tasks move, and note cards formatting in browser.

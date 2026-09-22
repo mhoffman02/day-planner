@@ -69,7 +69,7 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
   - Deduplicated Drive folder creation with `LockService.getUserLock()`.
   - Folder ownership validation for auto-adopted folders.
   - Safe HTML escaping for server-returned messages.
-- [ ] **Universal Search**:
+- [x] **Universal Search**:
   - Anchored Ctrl+K dropdown indexing Tasks, Appointments, and Notes.
 
 ### Phase 5: Verification & Clasp Deployment Gate

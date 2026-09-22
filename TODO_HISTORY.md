@@ -57,4 +57,11 @@
   - Added safe HTML escaping (`escapeHtml`) for server-returned folder names and error messages in [`gas-app/SetupFolder.html`](file:///home/mike/projects/day-planner/gas-app/SetupFolder.html) and `escapeHtml_` in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs).
   - Removed duplicate `testDoGetInIDE` function from [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs).
   - Verified 0 lint errors, 84/84 unit tests passing (commit [`c50785e`](https://github.com/mhoffman02/day-planner/commit/c50785e)).
+- [x] **Universal Search**:
+  - Enhanced [`src/searchEngine.js`](file:///home/mike/projects/day-planner/src/searchEngine.js) with local date extraction without `.toISOString()` UTC shift bugs, store array/object normalization, task notes matching, and exported [`flattenSearchResults()`](file:///home/mike/projects/day-planner/src/searchEngine.js#L50).
+  - Wired `Ctrl+K` / `Cmd+K` keyboard shortcuts, input autofocus, arrow navigation (`↑`/`↓`), `Enter` jump, `Esc` dismissal, and [`selectSearchResult()`](file:///home/mike/projects/day-planner/src/app.js#L1453) in [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html).
+  - Implemented accessible listbox results rendering with type badges (Calendar, Task, Note, Index), date displays, and snippet context in [`index.html`](file:///home/mike/projects/day-planner/index.html) and [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html).
+  - Styled search results, selection outlines, and dark mode themes in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html), flattening all legacy 50% border-radii to 4px per [`.agents/rules/no-pills.md`](file:///home/mike/projects/day-planner/.agents/rules/no-pills.md).
+  - Expanded unit test coverage in [`tests/searchEngine.test.js`](file:///home/mike/projects/day-planner/tests/searchEngine.test.js); verified 0 lint errors, 88/88 tests passing across 11 suites (commit [`8335a4d`](https://github.com/mhoffman02/day-planner/commit/8335a4d)).
+
 
