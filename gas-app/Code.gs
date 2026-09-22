@@ -27,7 +27,7 @@ function logError(context, err) {
  * @param {object} e Open event parameter.
  * @returns {void}
  */
-function onOpen(e) {
+function onOpen() {
   if (typeof DocumentApp !== 'undefined') {
     try {
       var ui = DocumentApp.getUi();
@@ -562,20 +562,14 @@ function getFolderByNameOrCreate(parent, name) {
 
 /**
  * Retrieves master task entries for monthly planning.
- * @param {string} [monthYearStr] Optional month/year string filter.
  * @returns {Array<{id: string, title: string, category: string, status: string}>} Array of master task items.
  */
-function getMasterTasks(monthYearStr) {
-  try {
-    return [
-      { id: 'm1', title: 'Prepare Q3 performance appraisals', category: 'Work', status: '•' },
-      { id: 'm2', title: 'Plan annual family retreat', category: 'Personal', status: '•' },
-      { id: 'm3', title: 'Rebalance investment portfolio', category: 'Financial', status: '•' }
-    ];
-  } catch (err) {
-    logError('getMasterTasks', err);
-    return [];
-  }
+function getMasterTasks() {
+  return [
+    { id: 'm1', title: 'Prepare Q3 performance appraisals', category: 'Work', status: '•' },
+    { id: 'm2', title: 'Plan annual family retreat', category: 'Personal', status: '•' },
+    { id: 'm3', title: 'Rebalance investment portfolio', category: 'Financial', status: '•' }
+  ];
 }
 
 /**

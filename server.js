@@ -33,7 +33,7 @@ const server = http.createServer((req, res) => {
   }
 
   // Prevent directory traversal attacks
-  const safePath = path.normalize(pathname).replace(/^(\.\.[\/\\])+/, '');
+  const safePath = path.normalize(pathname).replace(/^(\.\.[/\\])+/, '');
   const filePath = path.join(__dirname, safePath);
 
   fs.stat(filePath, (err, stats) => {

@@ -30,151 +30,7 @@ window.GASBridge = GASBridge;
     return STATUS_LIST[idx + 1];
   }
 
-  class GASBridge {
-    constructor(useMock = false) {
-      this.useMock = useMock;
-      this.mockData = {
-        dailyTasks: {
-          '2026-08-15': [
-            { id: 't1', title: '[A1] Finalize Day Planner PRD & architecture', status: '✓', category: 'Work', dueDate: '2026-08-15' },
-            { id: 't2', title: '[A2] Conduct team sync on Google Suite integration', status: '•', category: 'Work', dueDate: '2026-08-15' },
-            { id: 't3', title: '[B1] Review Q3 budget draft', status: '•', category: 'Financial', dueDate: '2026-08-15' },
-            { id: 't4', title: '[C1] Order ergonomic desk accessories', status: '•', category: 'Personal', dueDate: '2026-08-15' }
-          ]
-        },
-        masterTasks: [
-          { id: 'm1', title: 'Prepare Q3 performance appraisals', category: 'Work', status: '•' },
-          { id: 'm2', title: 'Plan annual family retreat', category: 'Personal', status: '•' },
-          { id: 'm3', title: 'Rebalance investment portfolio', category: 'Financial', status: '•' },
-          { id: 'm4', title: 'Migrate server infrastructure to GCP', category: 'Projects', status: '•' }
-        ],
-        calendarEvents: {
-          '2026-08-15': [
-            {
-              id: 'e1',
-              title: 'Morning Executive Briefing',
-              startTime: '2026-08-15T08:00:00',
-              endTime: '2026-08-15T08:30:00',
-              location: 'Conference Room 1',
-              description: 'Daily executive updates and Q3 metrics review.',
-              meetLink: 'https://meet.google.com/abc-defg-hij'
-            },
-            {
-              id: 'e2',
-              title: 'Architecture & Design Review',
-              startTime: '2026-08-15T10:30:00',
-              endTime: '2026-08-15T11:30:00',
-              location: 'Google Meet',
-              description: 'Reviewing Day Planner UI binder layout and Alpine.js state bridge.',
-              meetLink: 'https://meet.google.com/xyz-uvwx-rst'
-            },
-            {
-              id: 'e3',
-              title: 'Q3 Budget Approval Meeting',
-              startTime: '2026-08-15T14:00:00',
-              endTime: '2026-08-15T15:00:00',
-              location: 'Boardroom B',
-              description: 'Final sign-off on Q3 marketing & infrastructure budgets.',
-              meetLink: 'https://meet.google.com/q3-budget-meet'
-            }
-          ]
-        },
-        dailyNotes: {
-          '2026-08-15': `# Daily Log - August 15, 2026
 
-## Key Meetings & Notes
-- Executive briefing focused on accelerating digital transformation.
-- #index [Architecture] Finalized single page binder layout using Alpine.js and clean UWSDS CSS.
-- #index [Finance] Approved $15,000 infrastructure allocation for GCP migration.
-- Team sync went smoothly. Reminded everyone about tomorrow's demo.
-
-## Daily Tracker
-- Water: 8 / 8 glasses
-- Fitness: 45 min cardio
-- Priority Focus: 100% on Day Planner Goals`
-        },
-        indexEntries: [
-          { id: 'i1', date: '2026-08-15', topic: 'Architecture', summary: 'Finalized single page binder layout using Alpine.js', docUrl: '#doc-2026-08-15' },
-          { id: 'i2', date: '2026-08-15', topic: 'Finance', summary: 'Approved $15,000 infrastructure allocation for GCP migration', docUrl: '#doc-2026-08-15' }
-        ]
-      };
-    }
-
-    async getDailyData(dateStr) {
-      if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
-        const seedTasks = this.mockData.dailyTasks[dateStr] || this.mockData.dailyTasks['2026-08-15'] || [];
-        const seedEvents = this.mockData.calendarEvents[dateStr] || this.mockData.calendarEvents['2026-08-15'] || [];
-        const seedNote = this.mockData.dailyNotes[dateStr] || this.mockData.dailyNotes['2026-08-15'] || `No notes recorded for ${dateStr}.`;
-
-        const adjustedTasks = seedTasks.map(t => ({ ...t, dueDate: dateStr }));
-        const adjustedEvents = seedEvents.map(e => ({
-          ...e,
-          startTime: e.startTime ? e.startTime.replace(/^\d{4}-\d{2}-\d{2}/, dateStr).replace(/Z$/, '') : `${dateStr}T09:00:00`,
-          endTime: e.endTime ? e.endTime.replace(/^\d{4}-\d{2}-\d{2}/, dateStr).replace(/Z$/, '') : `${dateStr}T10:00:00`
-        }));
-
-        return {
-          date: dateStr,
-          tasks: adjustedTasks,
-          calendarEvents: adjustedEvents,
-          noteContent: seedNote
-        };
-      }
-
-      return new Promise((resolve, reject) => {
-        window.google.script.run
-          .withSuccessHandler(resolve)
-          .withFailureHandler(reject)
-          .getDailyData(dateStr);
-      });
-    }
-
-    async getMasterTasks(monthYearStr) {
-      if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
-        return this.mockData.masterTasks;
-      }
-
-      return new Promise((resolve, reject) => {
-        window.google.script.run
-          .withSuccessHandler(resolve)
-          .withFailureHandler(reject)
-          .getMasterTasks(monthYearStr);
-      });
-    }
-
-    async addDailyTask(dateStr, title, category = 'General') {
-      if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
-        if (!this.mockData.dailyTasks[dateStr]) {
-          this.mockData.dailyTasks[dateStr] = [];
-        }
-        const newTask = {
-          id: `t_${Date.now()}`,
-          title,
-          status: '•',
-          category,
-          dueDate: dateStr
-        };
-        this.mockData.dailyTasks[dateStr].push(newTask);
-        return newTask;
-      }
-
-      return new Promise((resolve, reject) => {
-        window.google.script.run
-          .withSuccessHandler(resolve)
-          .withFailureHandler(reject)
-          .addDailyTask(dateStr, title, category);
-      });
-    }
-
-    async transferMasterTask(masterTaskId, dateStr, priorityGroup = 'A') {
-      const masterTask = (this.mockData.masterTasks || []).find(m => m.id === masterTaskId);
-      const cleanTitle = masterTask ? masterTask.title : 'Transferred Task';
-      const category = masterTask ? masterTask.category : 'General';
-      const formattedTitle = `[${priorityGroup.toUpperCase()}1] ${cleanTitle}`;
-
-      return this.addDailyTask(dateStr, formattedTitle, category);
-    }
-  }
 
   document.addEventListener('alpine:init', () => {
     Alpine.data('plannerApp', () => ({
@@ -282,7 +138,9 @@ window.GASBridge = GASBridge;
         this.colWidths = [33.33, 33.33, 33.34];
         try {
           localStorage.removeItem('dayPlannerColumnWidths');
-        } catch (e) {}
+        } catch {
+          // ignore localStorage unavailable
+        }
       },
 
       initResize(resizerIdx, event) {
@@ -354,7 +212,9 @@ window.GASBridge = GASBridge;
 
           try {
             localStorage.setItem('dayPlannerColumnWidths', JSON.stringify(this.colWidths));
-          } catch (e) {}
+          } catch {
+            // ignore localStorage quota/disabled errors
+          }
         };
 
         window.addEventListener('mousemove', onPointerMove);
@@ -373,7 +233,7 @@ window.GASBridge = GASBridge;
           } else {
             this.theme = 'light';
           }
-        } catch (e) {
+        } catch {
           this.theme = 'light';
         }
         this.applyTheme();
@@ -383,7 +243,9 @@ window.GASBridge = GASBridge;
         this.theme = this.theme === 'dark' ? 'light' : 'dark';
         try {
           localStorage.setItem('dayPlannerTheme', this.theme);
-        } catch (e) {}
+        } catch {
+          // ignore localStorage quota/disabled errors
+        }
         this.applyTheme();
       },
 
@@ -706,7 +568,7 @@ window.GASBridge = GASBridge;
           if (transferred) {
             this.dailyTasks.push(transferred);
             await this.trigger2WaySync();
-            alert(`Moved "${mTask.title}" to Today's Task List as ${transferred.title.substring(0, 4)}!`);
+            window.alert(`Moved "${mTask.title}" to Today's Task List as ${transferred.title.substring(0, 4)}!`);
           }
         } catch (err) {
           console.error('🔥 moveMasterTaskToToday error:', err);
