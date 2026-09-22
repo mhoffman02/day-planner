@@ -61,7 +61,7 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
   - Split heading into Topic + Summary fields.
   - Rich text formatting toolbar (bold, italic, underline, strike, color swatches, lists).
   - External link syntax (`[[link:URL]]text[[/link]]`) and smart-paste Drive URL title resolution.
-- [ ] **Monthly Master Tasks**:
+- [x] **Monthly Master Tasks**:
   - Google Tasks API or Drive JSON archive persistence.
   - "Move to Today" action with target date picker.
 - [ ] **Server Security & Robustness**:

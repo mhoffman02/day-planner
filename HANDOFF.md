@@ -20,8 +20,8 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 
 ### CURRENT STATE
 
-- **Repository**: Branch `pure-gas-main` at commit [`19a28e3`](https://github.com/mhoffman02/day-planner/commit/19a28e3).
-- **Test & Lint Status**: 0 lint errors (`npm run lint`), 81/81 unit tests passing across 11 suites (`npm test`).
+- **Repository**: Branch `pure-gas-main` at commit [`516d023`](https://github.com/mhoffman02/day-planner/commit/516d023).
+- **Test & Lint Status**: 0 lint errors (`npm run lint`), 84/84 unit tests passing across 11 suites (`npm test`).
 - **Phase 1 Complete**: Baseline established, documentation backported, test baseline verified.
 - **Phase 2 Complete**: GitHub Pages and Service Worker artifacts removed, clean local preview server ([`server.js`](file:///home/mike/projects/day-planner/server.js)).
 - **Phase 3 Complete**: Standalone display meta tags, manifest, high-res icons, desktop window guide.
@@ -29,6 +29,7 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
   - **Task 1 (Future Planning Matrix)**: 12-month forward look, quarter milestones, Drive-backed persistence in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs), interactive month cards ([`src/futureMatrixEngine.js`](file:///home/mike/projects/day-planner/src/futureMatrixEngine.js)).
   - **Task 2 (Daily Tasks Enhancements)**: Multi-column sorting, star toggle, Franklin status dropdown (`•`, `○`, `✓`, `→`, `X`, `D/✓`), notes hover popover ([`src/taskEngine.js`](file:///home/mike/projects/day-planner/src/taskEngine.js)).
   - **Task 3 (Modular Note Cards & Rich Formatting)**: Topic + Summary split, rich text formatting toolbar (bold, italic, underline, strike, colors, lists), smart-paste Drive URL title resolution (`resolveDriveLinkTitle`), link syntax parsing (`[[link:URL]]text[[/link]]`).
+  - **Task 4 (Monthly Master Tasks / Backlog)**: Undated task list (`getMasterTasks`) querying Google Tasks API (`!t.due`), metadata decoding, add bar (`addMasterTask`), target date picker with inline move action (`moveMasterTaskToDate`), and `markMasterTaskMoved` sync.
 
 ---
 
@@ -45,25 +46,22 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
-1. **Monthly Master Tasks (Immediate Next Task)**:
-   - Wire `getMasterTasks(monthYearStr)` to Google Tasks API (`Tasks.Tasks.list('@default')`) for undated tasks (`!t.due`), decoding metadata for `category`, `movedTo`, and `movedTaskId`.
-   - Add `addMasterTask(title, category)` in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) and [`src/gasBridge.js`](file:///home/mike/projects/day-planner/src/gasBridge.js) with `master: true` metadata.
-   - Add `markMasterTaskMoved(masterTaskId, targetDateStr, movedTaskId)` to tag master task with `movedTo` date and prevent duplicate transfers.
-   - Backport interactive Master Tasks view into [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), [`index.html`](file:///home/mike/projects/day-planner/index.html), and [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js): Add bar (Title + Category), sortable table, inline "Moved to <date>" note, and target date picker with "Move to Day" action.
-2. **Server Security & Robustness**:
-   - IIFE wrapping for [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) and [`gas-app/UnitTests.gs`](file:///home/mike/projects/day-planner/gas-app/UnitTests.gs) with explicit exports.
-   - Deduplicated Drive folder creation with `LockService.getUserLock()`.
+1. **Server Security & Robustness (Immediate Next Task)**:
+   - IIFE wrapping for [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) and [`gas-app/UnitTests.gs`](file:///home/mike/projects/day-planner/gas-app/UnitTests.gs) with explicit exports to `this` / `global` scope (protecting helper functions while keeping `doGet`, `getDailyData`, etc. callable).
+   - Deduplicated Drive folder creation using `LockService.getUserLock()`.
    - Folder ownership validation for auto-adopted folders.
-   - Safe HTML escaping for server-returned messages.
-3. **Universal Search**:
+   - Safe HTML escaping for server-returned error messages.
+2. **Universal Search**:
    - Anchored Ctrl+K dropdown indexing Tasks, Appointments, and Notes across both daily and monthly records.
+3. **Phase 5 Verification & Clasp Deployment Gate**:
+   - Full test and lint verification followed by `clasp push` deployment to GAS dev endpoint and `/self-test` execution.
 
 ---
 
 ### IMMEDIATE NEXT STEP
 
-Execute Phase 4 Task 4: Monthly Master Tasks:
-1. Implement `getMasterTasks`, `addMasterTask`, and `markMasterTaskMoved` in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) and wire simulated equivalents in [`src/gasBridge.js`](file:///home/mike/projects/day-planner/src/gasBridge.js) with unit tests in [`tests/gasBridge.test.js`](file:///home/mike/projects/day-planner/tests/gasBridge.test.js).
-2. Backport Master Tasks UI template and styling in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html), [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html), [`index.html`](file:///home/mike/projects/day-planner/index.html), and [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css).
-3. Backport Alpine.js controller methods (`loadMasterTasks`, `addNewMasterTask`, `moveMasterTaskToDate`, `formatMovedDate`) in [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html) and [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js).
-4. Run `npm run lint && npm test` to verify.
+Execute Phase 4 Task 5: Server Security & Robustness:
+1. Audit `master:gas-app/Code.gs` and `master:gas-app/UnitTests.gs` for IIFE boundary patterns, `global` export table, and lock handling.
+2. Wrap [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) and [`gas-app/UnitTests.gs`](file:///home/mike/projects/day-planner/gas-app/UnitTests.gs) in IIFEs with explicit top-level export assignments.
+3. Implement `LockService.getUserLock()` concurrency lock in `getFolderByNameOrCreate` and add folder ownership check.
+4. Verify with `npm run lint && npm test`.
