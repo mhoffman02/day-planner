@@ -1,156 +1,93 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides core guidance to Claude Code (`claude.ai/code`) and AI agents working in this repository.
 
-## User Rules & Interaction Preferences
+---
 
-1. **Conciseness & Directness**: Default to short, direct answers. Drop the opening pleasantries and the wrap-up summary. Lead with the answer, add detail only if it’s needed, and stop when you’re done. Be direct and pushback when USER is wrong.
-2. **Salutation**: Start every reply with "🔋Mike:"
-3. **Session Handoff**: Run "handoff" skill at end of each session.
+## 1. User Rules & Interaction Preferences
+
+1. **Conciseness & Directness**: Default to short, direct answers. Drop opening pleasantries and wrap-up summaries. Lead with the answer, provide code and detail only when needed, and stop immediately when done. Push back directly when the user's premise is flawed.
+2. **Salutation**: Start every reply with `🔋Mike:`.
+3. **Session Handoff**: Run the [`handoff`](file:///home/mike/projects/day-planner/.agents/skills/handoff/SKILL.md) skill at the end of every session.
 4. **Session Startup & Handoff Ingestion**: At the start of each new session:
-   - Check the age / timestamp of [`HANDOFF.md`](file:///home/mike/projects/day-planner/HANDOFF.md).
-   - If it is **less than 10 minutes old**: Automatically read [`HANDOFF.md`](file:///home/mike/projects/day-planner/HANDOFF.md) and execute the next queued tasks to run it.
-   - If it is **older than 10 minutes old**: Tell the user how old it is, explain how stale it might be (e.g. context drift, uncommitted changes, or work performed since the handoff was written), and ask the user: *"Should we read and execute this handoff?"* before proceeding.
+   - Check the age and timestamp of [`HANDOFF.md`](file:///home/mike/projects/day-planner/HANDOFF.md) (or git commit timestamp of the latest handoff).
+   - If it is **less than 10 minutes old**: Automatically read [`HANDOFF.md`](file:///home/mike/projects/day-planner/HANDOFF.md) and immediately execute the next queued tasks.
+   - If it is **older than 10 minutes old**: Report to the user exactly how old the handoff is (e.g. minutes, hours, or days), explain potential staleness (e.g. code drift, uncommitted changes, or work performed since the handoff was written), and explicitly ask: *"Should we read and execute this handoff?"* before proceeding.
+5. **No PR Theater**: Commit directly on the working branch (`pure-gas-main`). Do not simulate pull requests, reviews, or branch dances ([`.agents/rules/no-pr-theater.md`](file:///home/mike/projects/day-planner/.agents/rules/no-pr-theater.md)).
+6. **Design System & Aesthetics**: Follow the classic Day Planner binder aesthetic — parchment cream `#fcfbfa`, forest teal `#2d6a5a`, serif headers. Strictly **no pills** or bubbly tag capsules; use crisp tabular layouts, borders, and typography ([`.agents/rules/no-pills.md`](file:///home/mike/projects/day-planner/.agents/rules/no-pills.md)).
+7. **Clickable Links**: All file paths and code symbols referenced in responses and documentation MUST use clickable markdown links with the `file://` scheme (e.g. [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs)).
 
-## Commands
+---
+
+## 2. Core Development Commands
 
 ```bash
-npm test                # Run full suite: node --test tests/*.test.js
-node --test tests/taskEngine.test.js   # Run a single test file
-npm start               # Local preview server -> http://localhost:3000 (serves index.html, /src, /images)
-npm run lint            # ESLint + ESM import extension check
-npm run lint:esm        # Validate explicit .js extensions on relative imports
-npm run bridge          # Inter-harness messaging bridge (node tools/agent-bridge.js)
-npm run build:sw        # Regenerate sw.js's CACHE_NAME hash from current cached asset contents
-npm run build:sw:check  # Fail if that hash is stale relative to the cached assets (pre-commit gate)
-npm run sync:agents     # Mirror .agents/{rules,commands,skills} into .claude/ and .kilo/
+npm test                  # Run full unit test suite (node --test tests/*.test.js)
+node --test <test-file>   # Run a single test file (e.g. tests/taskEngine.test.js)
+npm run lint              # Run ESLint across src/, gas-app/*.gs, tools/, server.js
+npm start                 # Launch local standalone dev server at http://localhost:3000
+npm run sync:agents       # Mirror .agents/{rules,commands,skills} into .claude/ and .kilo/
 npm run sync:agents:check # Verify mirrors match .agents/ source (pre-commit gate)
 ```
 
-There is no build step for `src/*.js` — it's plain ES modules, served as-is by GitHub Pages,
-`server.js` (local dev), and run directly by Node's test runner. The one generated artifact is
-`sw.js`'s `CACHE_NAME`, a content hash kept in sync by `npm run build:sw` (see `sw.js`'s header
-comment).
+---
 
-Live-browser smoke testing (local dev, or the live GitHub Pages deployment, when the flow needs a
-real Google sign-in):
-```bash
-node tools/ensure-chrome.js [url]      # once per session: launch/attach a real Chrome with a CDP debug port
-node tools/e2e/smoke-test.js [url]     # confirms the app mounted, reports console errors, saves a screenshot
-```
-See "E2E / live-browser driver" below.
+## 3. Architecture & Deployment Model
 
-## Architecture
+The **Google Digital Day Planner** is a single-page digital binder application bridging Day Planner productivity methodology with Google Workspace APIs (Calendar, Tasks, Drive, Docs) via full 2-way synchronization.
 
-**Static client-only app — one runtime, no server-side backend.** `src/*.js` is the canonical
-implementation (pure functions, unit-tested via `tests/*.test.js`) and it's also exactly what
-ships: no build/transpile step, no server-side duplicate to keep in sync. It runs in two modes,
-both using the same code:
+- **Pure Google Apps Script (GAS) Web App**: 100% natively hosted on Google Apps Script (`script.google.com`) and deployed via `clasp`.
+- **Zero Service Worker & Zero GIS OAuth**: No `sw.js`, no GitHub Pages hosting, and no client-side Google Identity Services (GIS) token management. Authentication is first-party Workspace authentication (`Session.getActiveUser().getEmail()`).
+- **Dual Execution Environments**:
+  1. **Local Preview Mode**: [`server.js`](file:///home/mike/projects/day-planner/server.js) serves root [`index.html`](file:///home/mike/projects/day-planner/index.html), [`src/`](file:///home/mike/projects/day-planner/src/), [`icons/`](file:///home/mike/projects/day-planner/icons/), and [`manifest.json`](file:///home/mike/projects/day-planner/manifest.json) at `http://localhost:3000`. [`src/gasBridge.js`](file:///home/mike/projects/day-planner/src/gasBridge.js) supplies simulated mock data.
+  2. **Production GAS Web App**: [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) evaluates [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) with embedded components, calling native Google Apps Script services (`CalendarApp`, `Tasks`, `DriveApp`, `DocumentApp`).
+- **Standalone PWA Affordances**: Web App Manifest ([`manifest.json`](file:///home/mike/projects/day-planner/manifest.json)), high-resolution icons ([`icons/icon.svg`](file:///home/mike/projects/day-planner/icons/icon.svg), [`icons/apple-touch-icon.png`](file:///home/mike/projects/day-planner/icons/apple-touch-icon.png)), standalone mobile meta tags, and desktop "Open as Window" shortcut guidance in [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html).
 
-1. **Local Dev** — `server.js` serves `index.html` + `src/` directly at `http://localhost:3000`.
-   No `window.DAY_PLANNER_GOOGLE_CLIENT_ID` is required here; `src/gasBridge.js` falls back to a
-   local in-memory mock data store so the whole app is usable offline with fake data.
-2. **Production** — a plain static site on GitHub Pages
-   (`https://mhoffman02.github.io/day-planner/`). `index.html` sets
-   `window.DAY_PLANNER_GOOGLE_CLIENT_ID` to a real OAuth Web client ID (Google Cloud Console; see
-   `docs/google-cloud-oauth-setup-guide.md`). `src/googleAuth.js` drives Google Identity Services
-   (GIS) sign-in and hands `src/gasBridge.js` a live access token, which it uses to call Google's
-   Calendar/Tasks/Drive/Docs REST APIs directly from the browser — no server of any kind sits
-   between the browser and Google's APIs.
+---
 
-`npm test` exercises `src/` directly with GIS/`fetch` mocked — there is no second copy of this
-logic anywhere else to drift out of sync with.
+## 4. Codebase Structure & Core Engines
 
-### Core engines (`src/`)
+### Client Engines ([`src/`](file:///home/mike/projects/day-planner/src/))
 
-- `taskEngine.js` — `[A1]`–`[C9]` priority prefix parsing/formatting, status cycling (`✓`, `→`,
-  `X`, `D/✓`, `•`), master-task-to-daily-task transfer.
-- `calendarEngine.js` — 07:00–19:00 time grid, event popup modal payload generation.
-- `syncEngine.js` — 2-way Task ↔ Calendar reconciliation logic (idempotent; tags events with
-  `gasTaskId` to link them to tasks).
-- `indexParser.js` — extracts `#index [Topic] Summary` lines from daily notes for the monthly index.
-- `searchEngine.js` — cross-service universal search (Ctrl+K).
-- `binderStore.js` — SPA view router / date navigation store. Uses pure local y/m/d arithmetic
-  (`new Date(y, m - 1, d + delta)`), never `.toISOString()`, to avoid UTC day-shift bugs.
-- `gasBridge.js` — REST bridge to Google's Calendar/Tasks/Drive/Docs APIs (real mode) with a
-  local mock-data fallback (mock mode / signed out). See "Data storage model" below.
-- `googleAuth.js` — client-side Google Identity Services (GIS) OAuth: sign-in/out, access-token
-  management, in-memory + `sessionStorage`-backed token cache.
-- `indexedDbStore.js` / `shellLoader.js` — client-side offline cache and PWA shell bootstrap.
-- `app.js` — Alpine.js app wiring, wired to both local dev and production.
+- [`src/taskEngine.js`](file:///home/mike/projects/day-planner/src/taskEngine.js): `[A1]`–`[C9]` priority parsing, status cycling (`✓`, `→`, `X`, `D/✓`, `•`), multi-column sorting, star toggles, and master task transfer.
+- [`src/calendarEngine.js`](file:///home/mike/projects/day-planner/src/calendarEngine.js): 07:00–19:00 half-hour appointment schedule grid, event modal payloads with Google Meet links, and monthly calendar matrices.
+- [`src/syncEngine.js`](file:///home/mike/projects/day-planner/src/syncEngine.js): Bidirectional, idempotent Task ↔ Calendar reconciliation tagging events with `gasTaskId`.
+- [`src/futureMatrixEngine.js`](file:///home/mike/projects/day-planner/src/futureMatrixEngine.js): 12-month forward-look planning matrix, quarter aggregation, rolling horizon projections, and multi-quarter milestone tracking.
+- [`src/indexParser.js`](file:///home/mike/projects/day-planner/src/indexParser.js): Extraction of `#index [Topic] Summary` entries from daily notes for chronological decision indexing.
+- [`src/searchEngine.js`](file:///home/mike/projects/day-planner/src/searchEngine.js): Cross-service universal search (Ctrl + K) indexing tasks, calendar appointments, and notes.
+- [`src/binderStore.js`](file:///home/mike/projects/day-planner/src/binderStore.js): View router and local date navigation store.
+- [`src/gasBridge.js`](file:///home/mike/projects/day-planner/src/gasBridge.js): Communication layer abstracting `google.script.run` RPC in production and rich mock datasets in local dev.
+- [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js): Alpine.js binder reactive controller and state orchestration.
+- [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css): Complete Day Planner CSS design system (mirrored in [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html)).
 
-### Data storage model
+### Google Apps Script Backend ([`gas-app/`](file:///home/mike/projects/day-planner/gas-app/))
 
-- **Tasks**: Google Tasks API.
-- **Appointments**: Google Calendar API, 07:00–19:00 grid, Meet links.
-- **Daily Notes**: partitioned monthly JSON (`Day Planner/notes-YYYY-MM.json`) in Google Drive
-  (`drive.file` scope only — never the broad `drive` scope, to keep access sandboxed to
-  app-created files). Not per-day Google Docs.
-- **Meeting Agenda Docs**: when creating a calendar event with `autoAgendaDoc` enabled,
-  `src/gasBridge.js`'s `addCalendarEventRest` auto-generates a structured Google Doc (objectives,
-  attendees, Meet link, action items) via the Docs REST API — this is the only current use of
-  Google Docs; it's unrelated to daily notes.
-- **Notes hyperlinks**: `[[link:URL]]text[[/link]]` markup (Ctrl+K or the toolbar Link button).
-  Pasting a bare Google Docs/Sheets/Slides/Forms/Drive URL into a note line ("smart paste")
-  auto-resolves its title via `resolveLinkTitleRest()` in `src/gasBridge.js`, which needs the
-  separate `drive.readonly` scope (see Key gotchas) since it reads files the app didn't create —
-  unlike every other Drive access in this app, which stays under `drive.file`.
-- **Client cache**: browser IndexedDB with an offline outbox queue, stale-while-revalidate.
+- [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs): Server entry (`doGet`), folder setup handler, Google Workspace RPC endpoints, and background 5-minute sync triggers.
+- [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html): 5-view digital binder shell markup.
+- [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html): Client-side Alpine.js initialization and GAS bridge binding.
+- [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html): Standalone styling scriptlet included via `<?!= include('Styles'); ?>`.
+- [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html): Built-in user guide, privacy setup, and desktop window installation instructions.
+- [`gas-app/SetupFolder.html`](file:///home/mike/projects/day-planner/gas-app/SetupFolder.html): First-run onboarding to bind the user's dedicated `Day Planner` Drive folder.
+- [`gas-app/UnitTests.gs`](file:///home/mike/projects/day-planner/gas-app/UnitTests.gs): Server-side self-test diagnostics executable via `POST /self-test`.
+- [`gas-app/appsscript.json`](file:///home/mike/projects/day-planner/gas-app/appsscript.json): Manifest declaring minimal OAuth scopes (`drive.file`, `calendar`, `tasks`, `documents`, `script.scriptapp`).
 
-### E2E / live-browser driver (`tools/ensure-chrome.js`, `tools/e2e/`)
+---
 
-A dependency-free Chrome DevTools Protocol driver for smoke-testing a change in a real browser —
-local dev (`http://localhost:3000`, mock mode) or the live GitHub Pages deployment with a real
-Google sign-in. `tools/ensure-chrome.js` launches (or reuses) a plain, non-headless `chrome.exe`
-with a CDP debug port and a persistent profile — deliberately **not** Puppeteer/Playwright's
-`launch()`, since that sets `--enable-automation` / `navigator.webdriver`, which is what trips
-Google's sign-in "this browser may not be secure" block. Log into Google manually once in the
-window it opens; the profile persists across runs. `tools/e2e/cdp-client.js` then attaches over
-the raw CDP WebSocket (`connectCdp()`: navigate/evaluate/screenshot/getConsoleErrors/close), and
-`tools/e2e/smoke-test.js` is the ready-made check built on it — loads a URL, confirms the app
-mounted, reports console errors, saves a screenshot. This tooling — not a one-off script — is the
-reusable path for any future live-browser check against this app. See
-`.agents/rules/live-google-auth-browser-tool.md`.
+## 5. Agent Configuration & Cross-CLI Protocol
 
-## Shared agent config (`.agents/`)
+- **Single Source of Truth**: Hand-edit configs strictly inside [`.agents/`](file:///home/mike/projects/day-planner/.agents/) (`rules/`, `commands/`, `skills/`). Never edit [`.claude/`](file:///home/mike/projects/day-planner/.claude/) or [`.kilo/`](file:///home/mike/projects/day-planner/.kilo/) directly.
+- **Mirror Sync**: Run `npm run sync:agents` to regenerate tracked real-file mirrors. Pre-commit hooks enforce `npm run sync:agents:check`.
+- **Dual-CLI Headless Protocol** ([`.agents/rules/cross-cli-headless-invocation.md`](file:///home/mike/projects/day-planner/.agents/rules/cross-cli-headless-invocation.md)):
+  - From Claude to Antigravity: `agy -p "<task>" --dangerously-skip-permissions` (via `/consult-agy`).
+  - From Antigravity to Claude: `claude --safe-mode -p "<task>" --permission-mode acceptEdits --allowedTools "<tools>" --add-dir <root>` (via `/consult-claude`).
+  - Rely on local user subscription logins without external API keys.
 
-`.agents/{rules,commands,skills}` is the single hand-edited source of truth for guidance
-shared across Claude Code, Kilo Code, and Gemini CLI. Never edit `.claude/rules/`,
-`.claude/commands/`, `.claude/skills/`, or `.kilo/{skills,workflows}` directly — they are
-generated real-file mirrors (not symlinks — symlinks silently degrade to plain-text stub
-files on Windows checkouts without Developer Mode, which both breaks the tool locally and
-corrupts the tracked blob for every other clone on that machine's next commit). After
-editing anything under `.agents/`, run `npm run sync:agents` to regenerate the mirrors;
-`npm run sync:agents:check` (wired into the pre-commit hook) fails the commit if they've
-drifted. Kilo Code's rules specifically need no mirror at all — `kilo.jsonc`'s
-`instructions` array points straight at `.agents/rules/*.md`. Gemini CLI has no
-rules-directory concept; it gets the same content via `GEMINI.md`'s `@CLAUDE.md` import
-(Gemini's own supported `@path` memory-import mechanism, not Claude-file auto-discovery —
-Gemini CLI does not natively read `CLAUDE.md`). The tracked cross-machine hook
-(`.githooks/pre-commit`) is wired up automatically by the `prepare` npm script (runs on
-`npm install`, including a fresh clone or worktree) — no manual `git config core.hooksPath`
-step needed anymore. `core.hooksPath` lives in the shared, non-worktree-specific `.git/config`,
-so setting it once from any worktree activates it for the whole repo, all worktrees included.
+---
 
-### Dual-CLI Blended Workflow & Headless Protocol
+## 6. Critical Technical Constraints & Gotchas
 
-This repository implements a symmetric, multi-model blended workflow between **Claude Code CLI (`claude`)**
-(Tier 1 Architect / Reviewer) and **Antigravity CLI (`agy`)** (Tier 2 Driver / Tier 3 Worker):
-- **Cross-CLI Headless Protocol** (`.agents/rules/cross-cli-headless-invocation.md`): Either CLI can shell
-  out to the other headlessly for synchronous one-shot delegation:
-  - From Claude to AGY: `agy -p "<task>" --dangerously-skip-permissions` (via `/consult-agy`).
-  - From AGY to Claude: `claude --safe-mode -p "<task>" --permission-mode acceptEdits --allowedTools "<tools>" --add-dir <root>` (via `/consult-claude`).
-  - **No API Keys**: Pure CLI-to-CLI invocation relying on local user subscription logins (`~/.claude/.credentials.json`, local AGY auth).
-  - **Opus Advisor**: If AGY driver needs deep architectural consultation without switching terminals, it shells out to Opus via `claude --safe-mode --model opus --effort medium -p "..."`.
-- **Inter-Harness Bridge** (`tools/agent-bridge.js`, `/bridge`): Records audit history, tasks, questions, and handoff directives between harnesses in `.agents/BRIDGE.md` and `.agents/bridge-state.json`.
-
-## Key gotchas (see README.txt §5 for the full list)
-
-- OAuth scope for Daily Notes/app-created files must stay `drive.file`, never the broad `drive`
-  scope (`src/googleAuth.js`'s `GOOGLE_AUTH_SCOPES`). The one deliberate exception is
-  `drive.readonly`, added solely so `resolveLinkTitleRest()` can read the title of a pasted
-  Docs/Sheets/Slides/Forms/Drive link the app didn't create (Notes "smart paste") — don't widen
-  that further to `drive`.
-- Date arithmetic must avoid `.toISOString()` on local dates — use local y/m/d math (see `binderStore.js`).
-- `target="_blank"` links must carry `rel="noopener noreferrer"`.
-- Use `slice()`, not the deprecated `String.prototype.substr()`.
+1. **Date Arithmetic**: Always use pure local year/month/day date arithmetic (`new Date(y, m - 1, d + delta)`). Never call `.toISOString()` on local date variables to prevent timezone and UTC day-shift bugs.
+2. **Drive OAuth Scopes**: Keep Drive permissions sandboxed to `drive.file`. Never request broad `drive`.
+3. **Link Attributes**: External links must carry `target="_blank"` and `rel="noopener noreferrer"`.
+4. **String Methods**: Use `slice()`, never deprecated `String.prototype.substr()`.
+5. **Pre-Flight Gates**: Before committing or performing a session handoff, ensure `npm run lint && npm test` runs and passes with zero errors and zero warnings.
