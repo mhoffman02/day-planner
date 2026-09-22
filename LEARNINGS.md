@@ -27,3 +27,17 @@
 - Ensure mobile breakpoints cleanly hide drag handles to prevent accidental touch resize triggers on phone screens
 
 ---
+
+## 2026-09-22 — Phase 2: Decommission GitHub Pages & Service Worker files
+
+**Worked well:**
+- Pruned untracked gh-pwa-shell and cleaned .gitignore
+- Decommissioned stale GIS OAuth and SW references across .agents/ rules
+- Synced .claude/ and .kilo/ mirrors cleanly via sync-agent-config.js
+- Fixed unclosed event dialog tags in Index.html and gas-app/Index.html
+- 30/30 baseline tests pass
+
+**Needs improvement:**
+- Run linter and fix code as immediate next step before Phase 3
+
+---
