@@ -14,20 +14,27 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 - **Online-Only Execution**: The app runs online; no complex offline outbox syncing is required in the sandboxed GAS iframe.
 - **Close-to-Installable PWA in Pure GAS**: Web App Manifest ([`manifest.json`](file:///home/mike/projects/day-planner/manifest.json)), mobile meta tags (`mobile-web-app-capable`, `apple-mobile-web-app-capable`, `apple-touch-icon`, `theme-color`), and desktop "Open as Window" shortcut guidance in [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html).
 - **Lightweight Handoff Model**: Adopted the clean, prompt-driven `trip-planner` single-doc handoff model ([`HANDOFF.md`](file:///home/mike/projects/day-planner/HANDOFF.md)) across the repository, eliminating tool bloat from `tools/handoff.js`.
+- **Strict Lint Gate**: Flat ESLint config ([`eslint.config.js`](file:///home/mike/projects/day-planner/eslint.config.js)) configured to cover `src/`, `gas-app/*.gs`, `tools/`, `server.js`, and `tests/`.
 
 ---
 
 ### CURRENT STATE
 
-- **Repository**: Branch `pure-gas-main` at commit [`e824956`](https://github.com/mhoffman02/day-planner/commit/e824956).
+- **Repository**: Branch `pure-gas-main` at commit [`61b7792`](https://github.com/mhoffman02/day-planner/commit/61b7792).
 - **Phase 1 Complete**: Baseline established at `d294262`, documentation backported, test baseline verified (30/30 passing).
 - **Phase 2 Complete**: Decommissioned GitHub Pages & Service Worker artifacts:
   - Pruned untracked `gh-pwa-shell/` and removed from [`.gitignore`](file:///home/mike/projects/day-planner/.gitignore).
   - Purged stale Service Worker, GIS OAuth, and GitHub Pages references across [`.agents/rules/`](file:///home/mike/projects/day-planner/.agents/rules/), [`.agents/commands/`](file:///home/mike/projects/day-planner/.agents/commands/), and [`.agents/skills/`](file:///home/mike/projects/day-planner/.agents/skills/).
   - Synchronized `.claude/` and `.kilo/` mirrors via [`tools/sync-agent-config.js`](file:///home/mike/projects/day-planner/tools/sync-agent-config.js).
   - Fixed unclosed event dialog tags in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) and root [`index.html`](file:///home/mike/projects/day-planner/index.html).
-- **Test Suite Status**: 30/30 baseline tests passing across 7 suites (`npm test`).
-- **User Instructions**: Ingested interaction preferences into [`CLAUDE.md`](file:///home/mike/projects/day-planner/CLAUDE.md): salutation `"🔋Mike:"` and mandatory `"handoff"` skill run at end of each session.
+- **Linter & Code Cleanup Complete**:
+  - Backported [`eslint.config.js`](file:///home/mike/projects/day-planner/eslint.config.js) tailored for pure GAS (no `sw.js`) and added `"lint": "eslint src gas-app/*.gs tools server.js"` to [`package.json`](file:///home/mike/projects/day-planner/package.json).
+  - Fixed syntax error in [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js) by deduplicating [`GASBridge`](file:///home/mike/projects/day-planner/src/gasBridge.js#L12).
+  - Fixed empty catch blocks and unused error variables in [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js).
+  - Resolved unused variables in [`src/binderStore.js`](file:///home/mike/projects/day-planner/src/binderStore.js#L95-L101), [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L30), and [`gas-app/UnitTests.gs`](file:///home/mike/projects/day-planner/gas-app/UnitTests.gs#L24).
+  - Fixed unnecessary regex escape in [`server.js`](file:///home/mike/projects/day-planner/server.js#L36).
+  - Cleaned unreachable catch in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L568-L578).
+- **Test & Lint Status**: 0 lint errors/warnings (`npm run lint`), 30/30 baseline tests passing across 7 suites (`npm test`).
 
 ---
 
@@ -44,23 +51,24 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
-1. **do this first: run linter and fix code**:
-   - Run linter across codebase and resolve any style/syntax errors.
-2. **Phase 3: "Close-to-Installable PWA" Affordances in Pure G.A.S.**:
-   - Ensure [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) includes standalone display meta tags (`mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style`, `theme-color`).
+1. **Phase 3: "Close-to-Installable PWA" Affordances in Pure G.A.S.**:
+   - Ensure [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) and [`index.html`](file:///home/mike/projects/day-planner/index.html) include standalone display meta tags (`mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style`, `theme-color`).
    - Add desktop window shortcut guide ("Install Day Planner" / "Open as window") in [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html).
-3. **Phase 4: Feature & Bugfix Backporting**:
+2. **Phase 4: Feature & Bugfix Backporting**:
    - Future Planning Matrix ([`src/futureMatrixEngine.js`](file:///home/mike/projects/day-planner/src/futureMatrixEngine.js), [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs)).
    - Daily Tasks status dropdown, star toggles, per-column sorting, and Notes hover popover.
    - Note formatting toolbar, Topic/Summary headers, and Drive URL resolution.
    - Monthly Master Tasks with target date picker.
    - Server security (IIFE namespace wrapping, user lock Drive mutex, safe HTML escaping).
+3. **Phase 5: Automated Verification & Live Smoke Test**:
+   - Verify GAS templates build/render cleanly via local preview server ([`server.js`](file:///home/mike/projects/day-planner/server.js)).
+   - Execute test suites against backported features.
 
 ---
 
 ### IMMEDIATE NEXT STEP
 
-do this first: run linter and fix code:
-1. Backport `eslint.config.js` from `master` and configure `"lint"` in [`package.json`](file:///home/mike/projects/day-planner/package.json).
-2. Execute `npm run lint` across `src/`, `gas-app/`, and `tools/`.
-3. Fix all identified lint/syntax issues.
+Phase 3: Configure "Close-to-Installable PWA" Affordances:
+1. Verify and update meta tags in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) and root [`index.html`](file:///home/mike/projects/day-planner/index.html).
+2. Add desktop standalone / "Open as Window" shortcut guidance in [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html).
+3. Run `npm run lint && npm test` to ensure zero regressions.
