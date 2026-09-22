@@ -55,6 +55,11 @@ function renderSetupFolderPage() {
     .setTitle('Day Planner - Setup Google Drive Folder')
     .setFaviconUrl(DAY_PLANNER_FAVICON_URL)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
+    .addMetaTag('mobile-web-app-capable', 'yes')
+    .addMetaTag('apple-mobile-web-app-capable', 'yes')
+    .addMetaTag('apple-mobile-web-app-status-bar-style', 'default')
+    .addMetaTag('apple-mobile-web-app-title', 'Day Planner')
+    .addMetaTag('theme-color', '#2d6a5a')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
@@ -101,6 +106,11 @@ function doGet(e) {
       .setTitle('Day Planner')
       .setFaviconUrl(DAY_PLANNER_FAVICON_URL)
       .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
+      .addMetaTag('mobile-web-app-capable', 'yes')
+      .addMetaTag('apple-mobile-web-app-capable', 'yes')
+      .addMetaTag('apple-mobile-web-app-status-bar-style', 'default')
+      .addMetaTag('apple-mobile-web-app-title', 'Day Planner')
+      .addMetaTag('theme-color', '#2d6a5a')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 
   } catch (err) {
