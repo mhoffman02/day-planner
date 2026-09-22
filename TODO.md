@@ -2,10 +2,15 @@
 
 ## Phase 4: Feature & Bugfix Backporting
 
-- [x] **Server Security & Robustness**:
-  - IIFE wrapping for [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) and [`gas-app/UnitTests.gs`](file:///home/mike/projects/day-planner/gas-app/UnitTests.gs) with explicit exports.
-  - Deduplicated Drive folder creation with `LockService.getUserLock()`.
-  - Folder ownership validation for auto-adopted folders.
-  - Safe HTML escaping for server-returned messages.
 - [ ] **Universal Search**:
-  - Anchored Ctrl+K dropdown indexing Tasks, Appointments, and Notes.
+  - Anchored Ctrl+K modal/dropdown indexing Tasks, Appointments, and Notes across both daily records and monthly Google Docs archives.
+  - Fast client-side index querying with keyboard navigation (`↑`/`↓`/`Enter`/`Esc`).
+
+## Phase 5: Verification & Clasp Deployment Gate
+
+- [ ] **Verification & Clasp Deployment Gate**:
+  - Full test suite: `npm test` passing 100% with no skips.
+  - Linter: `npm run lint` clean across `gas-app/`, `src/`, `tools/`.
+  - Check safe chars: verify no `//` comment truncation risks.
+  - Verify local dev server: `npm start` runs at `http://localhost:3000`.
+  - Deploy to GAS development endpoint via `clasp push` and run `/self-test` diagnostic suite.

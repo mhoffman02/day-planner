@@ -50,3 +50,11 @@
   - Backported Master Tasks Backlog UI with add-bar (Title + Category), sortable table, inline "Moved to <date>" note, and target date picker with "Move" action in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html), [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html), [`index.html`](file:///home/mike/projects/day-planner/index.html), and [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css).
   - Added controller methods (`loadMasterTasks`, `addMasterTask`, `formatMovedDate`, `moveMasterTaskToDate`, `jumpToToday`) in [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html) and [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js).
   - Verified 0 lint errors, 84/84 unit tests passing (commit [`516d023`](https://github.com/mhoffman02/day-planner/commit/516d023)).
+- [x] **Server Security & Robustness**:
+  - Wrapped [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) and [`gas-app/UnitTests.gs`](file:///home/mike/projects/day-planner/gas-app/UnitTests.gs) in individual IIFEs (`(function(global) { ... })(this);`) with explicit top-level export surface assignments per `.agents/rules/gas-namespace-iife.md`.
+  - Implemented `LockService.getUserLock()` concurrency locking across `getValidatedRootFolder` and `getFolderByNameOrCreate` to prevent race conditions and duplicate folder creation during concurrent requests.
+  - Added folder ownership validation (`owner.getEmail() === currentUser` and `owners(me)`) in `getValidatedRootFolder` auto-search and `validateAndSaveFolderUrl` to prevent auto-adopting or connecting shared folders as private notes stores.
+  - Added safe HTML escaping (`escapeHtml`) for server-returned folder names and error messages in [`gas-app/SetupFolder.html`](file:///home/mike/projects/day-planner/gas-app/SetupFolder.html) and `escapeHtml_` in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs).
+  - Removed duplicate `testDoGetInIDE` function from [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs).
+  - Verified 0 lint errors, 84/84 unit tests passing (commit [`c50785e`](https://github.com/mhoffman02/day-planner/commit/c50785e)).
+
