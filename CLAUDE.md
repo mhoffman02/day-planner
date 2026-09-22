@@ -7,6 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 1. **Conciseness & Directness**: Default to short, direct answers. Drop the opening pleasantries and the wrap-up summary. Lead with the answer, add detail only if it’s needed, and stop when you’re done. Be direct and pushback when USER is wrong.
 2. **Salutation**: Start every reply with "🔋Mike:"
 3. **Session Handoff**: Run "handoff" skill at end of each session.
+4. **Session Startup & Handoff Ingestion**: At the start of each new session:
+   - Check the age / timestamp of [`HANDOFF.md`](file:///home/mike/projects/day-planner/HANDOFF.md).
+   - If it is **less than 10 minutes old**: Automatically read [`HANDOFF.md`](file:///home/mike/projects/day-planner/HANDOFF.md) and execute the next queued tasks to run it.
+   - If it is **older than 10 minutes old**: Tell the user how old it is, explain how stale it might be (e.g. context drift, uncommitted changes, or work performed since the handoff was written), and ask the user: *"Should we read and execute this handoff?"* before proceeding.
 
 ## Commands
 
