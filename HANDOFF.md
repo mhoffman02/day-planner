@@ -19,7 +19,7 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 
 ### CURRENT STATE
 
-- **Repository**: Branch `pure-gas-main` at commit [`6810c97`](https://github.com/mhoffman02/day-planner/commit/6810c97).
+- **Repository**: Branch `pure-gas-main` at commit [`e824956`](https://github.com/mhoffman02/day-planner/commit/e824956).
 - **Phase 1 Complete**: Baseline established at `d294262`, documentation backported, test baseline verified (30/30 passing).
 - **Phase 2 Complete**: Decommissioned GitHub Pages & Service Worker artifacts:
   - Pruned untracked `gh-pwa-shell/` and removed from [`.gitignore`](file:///home/mike/projects/day-planner/.gitignore).
@@ -60,4 +60,7 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 
 ### IMMEDIATE NEXT STEP
 
-do this first: run linter and fix code
+do this first: run linter and fix code:
+1. Backport `eslint.config.js` from `master` and configure `"lint"` in [`package.json`](file:///home/mike/projects/day-planner/package.json).
+2. Execute `npm run lint` across `src/`, `gas-app/`, and `tools/`.
+3. Fix all identified lint/syntax issues.
