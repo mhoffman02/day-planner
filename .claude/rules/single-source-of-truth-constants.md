@@ -5,7 +5,7 @@
 - Not a ban on literals used once in one obvious place (a CSS `border-radius: 6px`, a local timeout constant) — those don't need extraction. The trigger is duplication across files/contexts, not "is this a bare number."
 
 Current examples in this repo:
-- The Google OAuth client ID is defined once, in `index.html` (`window.DAY_PLANNER_GOOGLE_CLIENT_ID`); `src/googleAuth.js`/`src/app.js` read it from `window` rather than hardcoding a second copy.
-- `sw.js`'s `CACHE_NAME` is not hand-authored at all — `npm run build:sw` (`tools/update-sw-cache-version.js`) derives it as a content hash of the cached assets, and `build:sw:check` (pre-commit) fails the commit if it's stale. This is the generated-artifact version of the same principle: one computed source, never a second hand-typed value.
+- Google Workspace scopes and settings are defined once in `gas-app/appsscript.json`; server code relies directly on Apps Script runtime services (`CalendarApp`, `Tasks`, `DriveApp`).
+- Core business logic constants (priority groups, task statuses, hour grid boundaries) are defined once in `src/taskEngine.js` and `src/calendarEngine.js` and shared by the UI and test suites.
 
-Before hardcoding a version/ID/URL/pattern literal: MUST check whether another file or runtime context (page vs. service worker, client vs. build script) needs the same value. If yes, put it in one place and have every consumer read from there.
+Before hardcoding a version/ID/URL/pattern literal: MUST check whether another file or runtime context (client vs. server, UI vs. engine) needs the same value. If yes, put it in one place and have every consumer read from there.

@@ -8,7 +8,7 @@ version: 1.0.0
 # /consult-claude — Delegate to Claude Code
 
 Use when Antigravity CLI (agy) is the current driver and the task at hand is Tier-1 work:
-architecture/design decisions, Google OAuth/scope changes (`googleAuth.js`, `drive.file` boundaries),
+architecture/design decisions, Google Workspace API scope changes (`gas-app/appsscript.json`, `drive.file` boundaries),
 or deep adversarial security and code reviews — per the routing table in
 [[cross-cli-headless-invocation]]. Do **not** use this for browser/CDP checks (those stay on
 `tools/ensure-chrome.js`/`tools/e2e/*`), bulk mechanical edits/summarization (handle those

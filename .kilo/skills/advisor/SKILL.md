@@ -34,16 +34,14 @@ Use this skill when seeking design feedback, architecture guidance, or structura
     step entirely; it's only worth the extra hop for non-trivial dispatches.
 
 ## Application Architecture Context
-- **Node.js Local Server**: `server.js` (static file server for local dev & testing)
-- **Static client-only app**: no server-side backend — the browser talks directly to Google's
-  Calendar/Tasks/Drive/Docs REST APIs, authenticated via client-side Google Identity Services
-  OAuth (`src/googleAuth.js`), hosted as a plain static site on GitHub Pages.
+- **Pure Google Apps Script Web App**: Native backend hosted on `script.google.com` (`gas-app/Code.gs`),
+  executed under user identity with first-party Google Workspace service bindings (`CalendarApp`, `Tasks`, `DriveApp`).
+- **Node.js Local Server**: `server.js` (static file server for local dev mock preview & testing at `http://localhost:3000`)
 - **Core Modules (`src/`)**:
   - `calendarEngine.js`: Time-slot scheduling, overlapping event detection, day view layout engine
   - `taskEngine.js`: Task status transitions, due dates, priority sorting, binder associations
   - `binderStore.js`: Persistent store for binders, notes, checklists, and items
-  - `gasBridge.js`: REST bridge to Google Workspace APIs, with a mock-data fallback for local dev
-  - `googleAuth.js`: Client-side Google Identity Services OAuth (sign-in, token management)
+  - `gasBridge.js`: Bridge connecting UI to `google.script.run` in GAS or local mock data in dev preview
   - `syncEngine.js`: Synchronization between local binder state and Google Calendar/Tasks
   - `searchEngine.js`: Full-text search and filtering across binders, tasks, and events
   - `indexParser.js`: Parsing index formats and markdown structured notes
@@ -51,6 +49,6 @@ Use this skill when seeking design feedback, architecture guidance, or structura
 
 ## When to Consult the Advisor
 1. Adding new engine modules or extending the client-side UI.
-2. Modifying REST integration with Google Workspace APIs or the OAuth flow.
+2. Modifying Google Apps Script backend RPC endpoints or data serialization.
 3. Refactoring binder storage or search indexes.
 4. Designing multi-step background sync or error recovery workflows.

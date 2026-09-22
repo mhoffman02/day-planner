@@ -14,7 +14,7 @@ This repository uses a **3-tier blended multi-model architecture** split across 
 | :--- | :--- | :--- |
 | **Tier 1: Lead Architect & Strategic Reviewer** | **Claude Sonnet 5 / Opus 5** (via `claude` CLI)<br>*In-harness fallback: Gemini Pro (`invoke_subagent(Model="pro")` in `agy`)* | • Architectural design, ADRs, and schema boundary design.<br>• OAuth token lifecycle and Google Workspace REST API scopes (`drive.file`).<br>• Complex algorithmic Spikes (e.g. `syncEngine.js` 2-way reconciliation).<br>• Adversarial pre-commit security & code reviews. |
 | **Tier 2: Interactive Driver & Orchestrator** | **Gemini 3.8 Flash (Medium)** (via `agy` CLI) | • Active tactical feature coding and refactoring.<br>• Rapid edit-test-debug loops (`npm test`).<br>• CDP browser smoke testing (`tools/ensure-chrome.js`, `tools/e2e/smoke-test.js`).<br>• Massive whole-repo context ingestion. |
-| **Tier 3: Local & Lightweight Workers** | **Gemini Flash-Lite** (`invoke_subagent(Model="flash_lite")` in `agy`)<br>+ **Deterministic Local Scripts** (`tools/`) | • Session context compaction (`/compact-kilo`).<br>• Structured changelogs & retrospective append (`/retro`).<br>• Mechanical ESM `.js` import checks (`node tools/check-esm-imports.js`).<br>• JSDoc `@file` headers, ESLint, and service worker cache hash checks. |
+| **Tier 3: Local & Lightweight Workers** | **Gemini Flash-Lite** (`invoke_subagent(Model="flash_lite")` in `agy`)<br>+ **Deterministic Local Scripts** (`tools/`) | • Session context compaction (`/compact-kilo`).<br>• Structured changelogs & retrospective append (`/retro`).<br>• Mechanical ESM `.js` import checks (`node tools/check-esm-imports.js`).<br>• JSDoc `@file` headers, ESLint, and GAS safety checks. |
 
 ---
 
@@ -29,7 +29,7 @@ to keep driving in the other CLI for an extended stretch, not just get one deleg
 ### A. When in `agy` (Antigravity CLI) ➔ delegate to `claude`:
 When a task involves:
 1. **Architectural Pivots**: Designing new subsystems or changing cross-module storage contracts.
-2. **Google OAuth / Security Re-scoping**: Modifying `src/googleAuth.js` or Google Workspace API scopes.
+2. **Google OAuth / Security Re-scoping**: Modifying `gas-app/appsscript.json` or Google Workspace API scopes.
 3. **Deep Adversarial Code Review**: Final review pass of non-trivial code changes before merging.
 
 **Action**: run `/consult-claude` (headless, synchronous, stays in this session). Only if the user
@@ -76,7 +76,7 @@ Both harnesses must follow these practices:
    Acknowledge read messages with `node tools/agent-bridge.js ack`.
 
 2. **Session Handoff**:
-   Always run `/handoff` (or `node tools/handoff.js`) before switching tools. This updates `PLAN.md`, writes `CONTEXT.md`, and creates a clean commit so the counterpart never encounters uncommitted drift.
+   Always run `/handoff` before switching tools. This updates `PLAN.md`, writes `HANDOFF.md`, and creates a clean commit so the counterpart never encounters uncommitted drift.
 
 3. **Shared Agent Configuration**:
    All rules, commands, and skills live under `.agents/`. Any modifications must be synced with `node tools/sync-agent-config.js` so both `claude` and `agy` stay in lockstep.

@@ -29,16 +29,16 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 ## 3. Phased Implementation Roadmap
 
 ### Phase 1: Baseline Establishment & Branch Management
-- [ ] User alignment on baseline commit selection (`d294262` vs alternative) and branch naming.
-- [ ] Create dedicated rollback branch (e.g., `pure-gas-main`) rooted at baseline or preserve `master` tag `PWA-installable-22-Sep-2026`.
-- [ ] Audit working tree cleanliness and verify clasp configuration (`gas-app/.clasp.json`).
+- [x] User alignment on baseline commit selection (`d294262` vs alternative) and branch naming.
+- [x] Create dedicated rollback branch (e.g., `pure-gas-main`) rooted at baseline or preserve `master` tag `PWA-installable-22-Sep-2026`.
+- [x] Audit working tree cleanliness and verify clasp configuration (`gas-app/.clasp.json`).
 
 ### Phase 2: Elimination of GitHub Pages & Service Worker Artifacts
-- [ ] Remove `sw.js` and Service Worker build/cache-version tooling (`tools/update-sw-cache-version.js`).
-- [ ] Remove `.nojekyll`, `gh-pwa-shell/` (if present), and GitHub Pages static hosting references.
-- [ ] Decommission client-side GIS OAuth (`src/googleAuth.js`, `tests/googleAuth.test.js`, OAuth client setup guides).
-- [ ] Replace root `index.html` with clean local development mock harness matching `gas-app/Index.html`.
-- [ ] Update `package.json` scripts to remove stale PWA/SW gates and focus on GAS linting and testing.
+- [x] Remove `sw.js` and Service Worker build/cache-version tooling (`tools/update-sw-cache-version.js`).
+- [x] Remove `.nojekyll`, `gh-pwa-shell/` (if present), and GitHub Pages static hosting references.
+- [x] Decommission client-side GIS OAuth (`src/googleAuth.js`, `tests/googleAuth.test.js`, OAuth client setup guides).
+- [x] Replace root `index.html` with clean local development mock harness matching `gas-app/Index.html`.
+- [x] Update `package.json` scripts to remove stale PWA/SW gates and focus on GAS linting and testing.
 
 ### Phase 3: "Close-to-Installable PWA" Affordances in Pure G.A.S.
 - [ ] Ensure `gas-app/Index.html` includes standalone display meta tags:

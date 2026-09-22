@@ -19,11 +19,15 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 
 ### CURRENT STATE
 
-- **Repository**: Branch `master` at commit [`96616df`](https://github.com/mhoffman02/day-planner/commit/96616df) (tagged `PWA-installable-22-Sep-2026`).
-- **Specs & Plans**: Created [`REQUIREMENTS.md`](file:///home/mike/projects/day-planner/REQUIREMENTS.md), updated [`PLAN.md`](file:///home/mike/projects/day-planner/PLAN.md), and generated implementation plan artifact.
-- **Test Suite Status**: 312/312 tests passing across 40 suites (`npm test`).
-- **Linter Status**: `npm run lint` passes with 0 errors.
-- **Tooling Cleaned**: Removed overweight `tools/handoff.js`, deleted legacy `HANDOFF_PROMPT.md` and `CONTEXT.md`, and established [`HANDOFF.md`](file:///home/mike/projects/day-planner/HANDOFF.md) as the single source of truth.
+- **Repository**: Branch `pure-gas-main` at commit [`6810c97`](https://github.com/mhoffman02/day-planner/commit/6810c97).
+- **Phase 1 Complete**: Baseline established at `d294262`, documentation backported, test baseline verified (30/30 passing).
+- **Phase 2 Complete**: Decommissioned GitHub Pages & Service Worker artifacts:
+  - Pruned untracked `gh-pwa-shell/` and removed from [`.gitignore`](file:///home/mike/projects/day-planner/.gitignore).
+  - Purged stale Service Worker, GIS OAuth, and GitHub Pages references across [`.agents/rules/`](file:///home/mike/projects/day-planner/.agents/rules/), [`.agents/commands/`](file:///home/mike/projects/day-planner/.agents/commands/), and [`.agents/skills/`](file:///home/mike/projects/day-planner/.agents/skills/).
+  - Synchronized `.claude/` and `.kilo/` mirrors via [`tools/sync-agent-config.js`](file:///home/mike/projects/day-planner/tools/sync-agent-config.js).
+  - Fixed unclosed event dialog tags in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) and root [`index.html`](file:///home/mike/projects/day-planner/index.html).
+- **Test Suite Status**: 30/30 baseline tests passing across 7 suites (`npm test`).
+- **User Instructions**: Ingested interaction preferences into [`CLAUDE.md`](file:///home/mike/projects/day-planner/CLAUDE.md): salutation `"🔋Mike:"` and mandatory `"handoff"` skill run at end of each session.
 
 ---
 
@@ -40,26 +44,20 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
-1. **Phase 1: Create `pure-gas-main` branch at `d294262` and establish baseline**:
-   - Check out [`d294262`](https://github.com/mhoffman02/day-planner/commit/d294262) into new branch `pure-gas-main`.
-   - Bring over [`REQUIREMENTS.md`](file:///home/mike/projects/day-planner/REQUIREMENTS.md), [`PLAN.md`](file:///home/mike/projects/day-planner/PLAN.md), [`HANDOFF.md`](file:///home/mike/projects/day-planner/HANDOFF.md), and updated `.agents/` config.
-   - Verify clean test suite and local preview on baseline.
-2. **Phase 2: Decommission GitHub Pages & Service Worker files**:
-   - Delete `sw.js`, `.nojekyll`, and GIS OAuth client modules.
-   - Restore root `index.html` as the local mock preview harness ([`server.js`](file:///home/mike/projects/day-planner/server.js)).
-   - Remove stale SW scripts from [`package.json`](file:///home/mike/projects/day-planner/package.json).
-3. **Phase 3 & 4: Systematic backport of core features & security hardening**:
+1. **do this first: run linter and fix code**:
+   - Run linter across codebase and resolve any style/syntax errors.
+2. **Phase 3: "Close-to-Installable PWA" Affordances in Pure G.A.S.**:
+   - Ensure [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) includes standalone display meta tags (`mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style`, `theme-color`).
+   - Add desktop window shortcut guide ("Install Day Planner" / "Open as window") in [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html).
+3. **Phase 4: Feature & Bugfix Backporting**:
    - Future Planning Matrix ([`src/futureMatrixEngine.js`](file:///home/mike/projects/day-planner/src/futureMatrixEngine.js), [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs)).
-   - Note formatting toolbar, Topic/Summary headers, and smart-paste Drive title resolution.
-   - Task status dropdown, star toggles, and per-column sorting.
-   - Master Tasks with "Move to Today" date picker.
-   - GAS server IIFE namespace encapsulation and Drive folder creation user lock mutex.
+   - Daily Tasks status dropdown, star toggles, per-column sorting, and Notes hover popover.
+   - Note formatting toolbar, Topic/Summary headers, and Drive URL resolution.
+   - Monthly Master Tasks with target date picker.
+   - Server security (IIFE namespace wrapping, user lock Drive mutex, safe HTML escaping).
 
 ---
 
 ### IMMEDIATE NEXT STEP
 
-Execute Phase 1 of the implementation plan: check out baseline commit [`d294262`](https://github.com/mhoffman02/day-planner/commit/d294262) into the new branch `pure-gas-main`:
-```bash
-git checkout -b pure-gas-main d294262
-```
+do this first: run linter and fix code

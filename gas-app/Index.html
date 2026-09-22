@@ -525,6 +525,9 @@
           </a>
           <button type="button" class="btn-secondary" @click="closeEventModal()">Close</button>
         </footer>
+      </article>
+    </dialog>
+
     <!-- Create New Event / Appointment Modal -->
     <dialog class="modal-backdrop" :open="createEventModalOpen" x-show="createEventModalOpen" x-transition x-cloak aria-labelledby="createEventModalTitle">
       <article class="modal-card modal-card-form" @click.away="closeCreateEventModal()">

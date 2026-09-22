@@ -5,7 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## User Rules & Interaction Preferences
 
 1. **Conciseness & Directness**: Default to short, direct answers. Drop the opening pleasantries and the wrap-up summary. Lead with the answer, add detail only if it’s needed, and stop when you’re done. Be direct and pushback when USER is wrong.
-2. **Salutation**: Start every reply with "🔋 Mike".
+2. **Salutation**: Start every reply with "🔋Mike:"
+3. **Session Handoff**: Run "handoff" skill at end of each session.
 
 ## Commands
 
