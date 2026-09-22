@@ -46,4 +46,11 @@ Execute these steps in strict sequence:
      ```
    - Print the full content of [**`HANDOFF.md`**](file:///home/mike/projects/day-planner/HANDOFF.md) in the chat response.
 
+7. **Copy to Clipboard & Notify**:
+   - Copy `HANDOFF.md` to the system clipboard and print confirmation:
+     ```bash
+     clip.exe < HANDOFF.md 2>/dev/null || xclip -selection clipboard < HANDOFF.md 2>/dev/null || pbcopy < HANDOFF.md 2>/dev/null
+     echo "Handoff copied."
+     ```
+
 Be specific, quote actual user preferences, use clickable `file://` markdown links, and write it so a stranger could pick up the work cold.

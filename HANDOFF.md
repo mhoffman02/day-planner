@@ -20,6 +20,7 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
   4. Move next active phase items from [`PLAN.md`](file:///home/mike/projects/day-planner/PLAN.md) into [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md).
   5. Update [`HANDOFF.md`](file:///home/mike/projects/day-planner/HANDOFF.md).
   6. Direct commit of all documentation files and print [`HANDOFF.md`](file:///home/mike/projects/day-planner/HANDOFF.md).
+  7. Copy `HANDOFF.md` to clipboard, then console print `'Handoff copied.'`.
 - **Strict Lint Gate**: Flat ESLint config ([`eslint.config.js`](file:///home/mike/projects/day-planner/eslint.config.js)) configured to cover `src/`, `gas-app/*.gs`, `tools/`, `server.js`, and `tests/`.
 
 ---
@@ -62,6 +63,7 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
   4. Move next planned items from `PLAN.md` to `TODO.md`.
   5. Update `HANDOFF.md`.
   6. Direct commit of all documentation files.
+  7. Copy `HANDOFF.md` to clipboard, then console print `'Handoff copied.'`.
 
 ---
 

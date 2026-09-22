@@ -30,3 +30,9 @@ Run the following steps in strict order:
 
 6. **Commit & Print**:
    Commit `HANDOFF.md`, `PLAN.md`, `TODO.md`, and `TODO_HISTORY.md`, and output full contents of `HANDOFF.md` to the conversation.
+
+7. **Copy to Clipboard & Notify**:
+   ```bash
+   clip.exe < HANDOFF.md 2>/dev/null || xclip -selection clipboard < HANDOFF.md 2>/dev/null || pbcopy < HANDOFF.md 2>/dev/null
+   echo "Handoff copied."
+   ```
