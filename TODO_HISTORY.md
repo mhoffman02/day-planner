@@ -36,3 +36,10 @@
   - Backported Notes hover popover for tasks with descriptions (`hasNotes(task)`).
   - Added CSS classes for sortable headers, star toggle, status menu, notes popover, and canceled task styles to both [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html) including dark mode.
   - Verified 0 lint errors, 80/80 unit tests passing (commit [`beb6ee8`](https://github.com/mhoffman02/day-planner/commit/beb6ee8)).
+- [x] **Modular Note Cards & Rich Formatting**:
+  - Split note cards into Topic + Summary fields with category filtering.
+  - Added rich formatting toolbar (bold, italic, underline, strike, text color swatches, bullet/ordered lists).
+  - Added smart-paste Drive URL title resolution (`resolveDriveLinkTitle`) in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) and [`src/gasBridge.js`](file:///home/mike/projects/day-planner/src/gasBridge.js) with 2 new bridge unit tests.
+  - Added link syntax parsing (`[[link:URL]]text[[/link]]`) and sanitized HTML preview rendering in [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html) and [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js).
+  - Added dark mode and theme styling in [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html) and [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css).
+  - Verified 0 lint errors, 81/81 unit tests passing (commit [`c9c0b71`](https://github.com/mhoffman02/day-planner/commit/c9c0b71)).

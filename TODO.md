@@ -2,10 +2,6 @@
 
 ## Phase 4: Feature & Bugfix Backporting
 
-- [ ] **Modular Note Cards & Rich Formatting**:
-  - Split heading into Topic + Summary fields.
-  - Rich text formatting toolbar (bold, italic, underline, strike, color swatches, lists).
-  - External link syntax (`[[link:URL]]text[[/link]]`) and smart-paste Drive URL title resolution.
 - [ ] **Monthly Master Tasks**:
   - Google Tasks API or Drive JSON archive persistence.
   - "Move to Today" action with target date picker.
