@@ -550,7 +550,7 @@
               <!-- Doc Toolbar Bar -->
               <div class="doc-toolbar-bar">
                 <div class="doc-toolbar-left">
-                  <span class="doc-sheet-heading-label" x-text="noteDateHeading || ('Daily Notes - ' + selectedDateFormatted)"></span>
+                  <span class="doc-sheet-heading-label" x-text="noteDateHeading || ('Daily Notes - ' + new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }))"></span>
                   <span class="doc-section-count-badge" x-text="filteredNoteCards.length + (filteredNoteCards.length === 1 ? ' section' : ' sections')"></span>
                 </div>
                 <div class="doc-toolbar-actions">
