@@ -41,13 +41,13 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 - [x] Update `package.json` scripts to remove stale PWA/SW gates and focus on GAS linting and testing.
 
 ### Phase 3: "Close-to-Installable PWA" Affordances in Pure G.A.S.
-- [ ] Ensure `gas-app/Index.html` includes standalone display meta tags:
+- [x] Ensure `gas-app/Index.html` includes standalone display meta tags:
   - `<meta name="mobile-web-app-capable" content="yes">`
   - `<meta name="apple-mobile-web-app-capable" content="yes">`
   - `<meta name="apple-mobile-web-app-status-bar-style" content="default">`
   - `<meta name="apple-mobile-web-app-title" content="Day Planner">`
   - High-resolution apple-touch-icon PNG and favicon references.
-- [ ] Add in-app user guide in `gas-app/About.html` explaining how to create desktop window shortcuts ("Install Day Planner" / "Open as window") in Chrome and Edge.
+- [x] Add in-app user guide in `gas-app/About.html` explaining how to create desktop window shortcuts ("Install Day Planner" / "Open as window") in Chrome and Edge.
 
 ### Phase 4: Feature & Bugfix Backporting
 - [ ] **Future Planning Matrix**:

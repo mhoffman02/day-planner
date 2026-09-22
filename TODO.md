@@ -1,13 +1,25 @@
 # Active Tasks (TODO)
 
-## Phase 3: "Close-to-Installable PWA" Affordances in Pure G.A.S.
+## Phase 4: Feature & Bugfix Backporting
 
-- [ ] Add standalone display meta tags to [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) and root [`index.html`](file:///home/mike/projects/day-planner/index.html):
-  - `<meta name="mobile-web-app-capable" content="yes">`
-  - `<meta name="apple-mobile-web-app-capable" content="yes">`
-  - `<meta name="apple-mobile-web-app-status-bar-style" content="default">`
-  - `<meta name="apple-mobile-web-app-title" content="Day Planner">`
-  - `<meta name="theme-color" content="#2d6a5a">`
-  - High-resolution apple-touch-icon and favicon references.
-- [ ] Add desktop window shortcut guide ("Install Day Planner" / "Open as window") in [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html).
-- [ ] Run `npm run lint && npm test` to verify zero regressions.
+- [ ] **Future Planning Matrix**:
+  - Verify [`src/futureMatrixEngine.js`](file:///home/mike/projects/day-planner/src/futureMatrixEngine.js), [`tests/futureMatrixEngine.test.js`](file:///home/mike/projects/day-planner/tests/futureMatrixEngine.test.js), and [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) Drive-backed persistence.
+  - Verify interactive month cards and status cycling in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) & [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html).
+- [ ] **Daily Tasks Enhancements**:
+  - Backport status dropdown menu with In-Progress (`•`), Forwarded (`→`), Delegated (`D/✓`), Canceled (`X`).
+  - Backport star toggle and per-column sorting (Priority, Status, Title, Category).
+  - Backport Notes hover popover.
+- [ ] **Modular Note Cards & Rich Formatting**:
+  - Split heading into Topic + Summary fields.
+  - Rich text formatting toolbar (bold, italic, underline, strike, color swatches, lists).
+  - External link syntax (`[[link:URL]]text[[/link]]`) and smart-paste Drive URL title resolution.
+- [ ] **Monthly Master Tasks**:
+  - Google Tasks API or Drive JSON archive persistence.
+  - "Move to Today" action with target date picker.
+- [ ] **Server Security & Robustness**:
+  - IIFE wrapping for [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) and [`gas-app/UnitTests.gs`](file:///home/mike/projects/day-planner/gas-app/UnitTests.gs) with explicit exports.
+  - Deduplicated Drive folder creation with `LockService.getUserLock()`.
+  - Folder ownership validation for auto-adopted folders.
+  - Safe HTML escaping for server-returned messages.
+- [ ] **Universal Search**:
+  - Anchored Ctrl+K dropdown indexing Tasks, Appointments, and Notes.
