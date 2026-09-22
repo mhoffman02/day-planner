@@ -28,7 +28,7 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 
 ### CURRENT STATE
 
-- **Repository**: Branch `pure-gas-main` at commit [`82cf35f`](https://github.com/mhoffman02/day-planner/commit/82cf35f).
+- **Repository**: Branch `pure-gas-main` at commit [`beb6ee8`](https://github.com/mhoffman02/day-planner/commit/beb6ee8).
 - **Phase 1 Complete**: Baseline established at `d294262`, documentation backported, test baseline verified (30/30 passing).
 - **Phase 2 Complete**: Decommissioned GitHub Pages & Service Worker artifacts:
   - Pruned untracked `gh-pwa-shell/` and removed from [`.gitignore`](file:///home/mike/projects/day-planner/.gitignore).
@@ -44,7 +44,13 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
   - Implemented Drive-backed persistence in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) (`future-matrix-<YYYY>.json` in root folder with 5-min caching).
   - Backported interactive month cards with Franklin status cycling, add/delete, transfer to date, and push-forward in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html), mirrored in root [`index.html`](file:///home/mike/projects/day-planner/index.html), [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js), and [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css).
   - Added Future Matrix mock dataset and RPC methods to [`src/gasBridge.js`](file:///home/mike/projects/day-planner/src/gasBridge.js) and 6 new bridge tests in [`tests/gasBridge.test.js`](file:///home/mike/projects/day-planner/tests/gasBridge.test.js).
-- **Test & Lint Status**: 0 lint errors/warnings (`npm run lint`), 61/61 unit tests passing across 8 suites (`npm test`).
+- **Phase 4 Task 2 Complete**: Daily Tasks Enhancements:
+  - Backported status dropdown menu (`•`, `○`, `✓`, `→`, `X`, `D/✓`) in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), [`index.html`](file:///home/mike/projects/day-planner/index.html), and [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js).
+  - Backported star toggle and per-column sorting (Priority, Status, Title, Category) in [`src/taskEngine.js`](file:///home/mike/projects/day-planner/src/taskEngine.js), [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html), and [`index.html`](file:///home/mike/projects/day-planner/index.html) with 23 passing tests in [`tests/taskEngine.test.js`](file:///home/mike/projects/day-planner/tests/taskEngine.test.js).
+  - Added `updateDailyTask` with star, status, notes, and sourceMasterId sync to [`src/gasBridge.js`](file:///home/mike/projects/day-planner/src/gasBridge.js) and [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) with 13 passing tests in [`tests/gasBridge.test.js`](file:///home/mike/projects/day-planner/tests/gasBridge.test.js).
+  - Backported Notes hover popover for tasks with descriptions (`hasNotes(task)`).
+  - Added CSS classes for sortable headers, star toggle, status menu, notes popover, and canceled task styles to both [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html) including dark mode.
+- **Test & Lint Status**: 0 lint errors/warnings (`npm run lint`), 80/80 unit tests passing across 11 suites (`npm test`).
 
 ---
 
@@ -69,22 +75,23 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
-1. **Daily Tasks Enhancements**:
-   - Backport status dropdown menu with In-Progress (`•`), Forwarded (`→`), Delegated (`D/✓`), Canceled (`X`) in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html).
-   - Backport star toggle and per-column sorting (Priority, Status, Title, Category) in [`src/taskEngine.js`](file:///home/mike/projects/day-planner/src/taskEngine.js) and [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html).
-   - Backport Notes hover popover for tasks with descriptions.
-2. **Modular Note Cards & Rich Formatting**:
+1. **Modular Note Cards & Rich Formatting**:
    - Split note headers into Topic + Summary fields with rich formatting toolbar in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html).
    - External link syntax (`[[link:URL]]text[[/link]]`) and smart-paste Drive URL title resolution.
-3. **Monthly Master Tasks**:
+2. **Monthly Master Tasks**:
    - Google Tasks API or Drive JSON archive persistence.
    - "Move to Today" action with target date picker.
+3. **Server Security & Robustness**:
+   - IIFE wrapping for [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) and [`gas-app/UnitTests.gs`](file:///home/mike/projects/day-planner/gas-app/UnitTests.gs) with explicit exports.
+   - Deduplicated Drive folder creation with `LockService.getUserLock()`.
+   - Folder ownership validation for auto-adopted folders.
+   - Safe HTML escaping for server-returned messages.
 
 ---
 
 ### IMMEDIATE NEXT STEP
 
-Begin Phase 4 Task 2: Daily Tasks Enhancements:
-1. Audit `master:src/taskEngine.js` and `master:tests/taskEngine.test.js` for sorting and status enhancements.
-2. Backport status dropdown menu (`•`, `→`, `D/✓`, `X`) and star toggle in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html).
+Begin Phase 4 Task 3: Modular Note Cards & Rich Formatting:
+1. Audit reference implementation in `master` for note card Topic + Summary splitting, category tag filtering, and rich text formatting toolbar.
+2. Backport rich formatting controls and link syntax parsing to [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html).
 3. Mirror changes into root [`index.html`](file:///home/mike/projects/day-planner/index.html) and [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js), and verify with `npm run lint && npm test`.

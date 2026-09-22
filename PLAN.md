@@ -53,7 +53,7 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 - [x] **Future Planning Matrix**:
   - Verify `src/futureMatrixEngine.js` and `gas-app/Code.gs` Drive-backed persistence.
   - Verify interactive month cards and status cycling in `gas-app/Index.html` & `gas-app/Script.html`.
-- [ ] **Daily Tasks Enhancements**:
+- [x] **Daily Tasks Enhancements**:
   - Backport status dropdown menu with In-Progress (`•`), Forwarded (`→`), Delegated (`D/✓`), Canceled (`X`).
   - Backport star toggle and per-column sorting (Priority, Status, Title, Category).
   - Backport Notes hover popover.

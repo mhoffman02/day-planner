@@ -2,10 +2,6 @@
 
 ## Phase 4: Feature & Bugfix Backporting
 
-- [ ] **Daily Tasks Enhancements**:
-  - Backport status dropdown menu with In-Progress (`•`), Forwarded (`→`), Delegated (`D/✓`), Canceled (`X`).
-  - Backport star toggle and per-column sorting (Priority, Status, Title, Category).
-  - Backport Notes hover popover.
 - [ ] **Modular Note Cards & Rich Formatting**:
   - Split heading into Topic + Summary fields.
   - Rich text formatting toolbar (bold, italic, underline, strike, color swatches, lists).
