@@ -3,7 +3,16 @@
  * @description Day Planner Google Apps Script server-side entry points, Drive folder management, error logging, and data handlers.
  * Robust Architecture with centralized error handling using console.error for stack tracing.
  * Uses strict drive.file scope with user-configured root folder ID.
+ *
+ * Wrapped in a single IIFE (all .gs files in a project share one global scope) so only the
+ * functions in the export list at the bottom are reachable from web-app clients
+ * (`google.script.run`/`_runGasCall`), HtmlService templates, time-driven triggers (referenced
+ * by name string), or the Apps Script IDE's manual-run dropdown. Everything else here is a
+ * private helper invisible outside this file. Existing indentation is left as-is (JS doesn't
+ * care) to keep this a pure wrap with no line-by-line diff. See
+ * .agents/rules/gas-namespace-iife.md before adding or removing an export.
  */
+(function(global) {
 
 /**
  * Centralized error logging utility. Logs formatted error and stack trace to console.error.
@@ -120,7 +129,7 @@ function doGet(e) {
     if (isFolderError) {
       return renderSetupFolderPage();
     }
-    return HtmlService.createHtmlOutput('<h3>🔥 Day Planner Render Failure</h3><p><b>' + fail.error + '</b></p><pre>' + (fail.stack || '') + '</pre>')
+    return HtmlService.createHtmlOutput('<h3>🔥 Day Planner Render Failure</h3><p><b>' + escapeHtml_(fail.error) + '</b></p><pre>' + escapeHtml_(fail.stack || '') + '</pre>')
       .setTitle('Day Planner - Render Failure')
       .setFaviconUrl(DAY_PLANNER_FAVICON_URL)
       .addMetaTag('viewport', 'width=device-width, initial-scale=1.0');
@@ -128,8 +137,24 @@ function doGet(e) {
 }
 
 /**
+ * Safe HTML escaping helper to prevent XSS when rendering server-side error output.
+ * @param {string} str Raw string.
+ * @returns {string} Escaped HTML string.
+ */
+function escapeHtml_(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
  * Validates and retrieves the configured root folder under drive.file scope.
  * Checks UserProperties DAY_PLANNER_ROOT_FOLDER_ID. Returns folder or null (redirects to SetupFolder.html).
+ * Synchronized with LockService.getUserLock() to prevent race conditions during folder discovery.
  * @returns {GoogleAppsScript.Drive.Folder|null} Configured Google Drive root folder object or null.
  */
 function getValidatedRootFolder() {
@@ -142,28 +167,78 @@ function getValidatedRootFolder() {
     try {
       return DriveApp.getFolderById(cachedId);
     } catch (err) {
-      console.error('getValidatedRootFolder cached ID invalid or unreadable: ' + err.toString());
+      console.warn('getValidatedRootFolder: cached ID invalid or unreadable: ' + err.toString() + '\nStack:\n' + (err.stack || 'No stack trace available'));
     }
   }
 
-  // Auto-search for existing "Day Planner" folder in Drive (under drive.file scope)
+  // From here on (search-then-adopt), concurrent executions under the SAME account --
+  // parallel google.script.run calls on page load, the 5-min sync trigger overlapping a
+  // manual visit, or a retry from validateAndSaveFolderUrl() -- could
+  // otherwise each pass the "no cached ID yet" check and independently adopt or create their own
+  // folder before any of them has written DAY_PLANNER_ROOT_FOLDER_ID. Serialize
+  // per-user so only one execution at a time can reach the adopt/create step.
+  var lock = LockService.getUserLock();
+  var lockAcquired = false;
   try {
-    var folders = DriveApp.getFoldersByName('Day Planner');
-    if (folders.hasNext()) {
-      var folder = folders.next();
-      userProps.setProperty('DAY_PLANNER_ROOT_FOLDER_ID', folder.getId());
-      return folder;
+    lockAcquired = lock.tryLock(10000);
+    if (!lockAcquired) {
+      console.warn('getValidatedRootFolder: lock timed out after 10s (contended by a concurrent execution), proceeding unlocked');
     }
-  } catch (err) {
-    console.error('getValidatedRootFolder auto-search error: ' + err.toString());
+  } catch (lockErr) {
+    console.warn('getValidatedRootFolder: lock acquisition threw, proceeding unlocked: ' + lockErr.toString());
   }
 
-  // No valid folder cached or found; return null to trigger SetupFolder.html
-  return null;
+  try {
+    // Re-check the cache now that we (may) hold the lock
+    var relockedId = userProps.getProperty('DAY_PLANNER_ROOT_FOLDER_ID');
+    if (relockedId) {
+      try {
+        return DriveApp.getFolderById(relockedId);
+      } catch (relockedErr) {
+        console.warn('getValidatedRootFolder: relocked ID invalid or unreadable: ' + relockedErr.toString() + '\nStack:\n' + (relockedErr.stack || 'No stack trace available'));
+      }
+    }
+
+    // Auto-search for existing "Day Planner" folder in Drive (under drive.file scope)
+    try {
+      var folders = DriveApp.getFoldersByName('Day Planner');
+      while (folders.hasNext()) {
+        var folder = folders.next();
+        var isOwner = true;
+        try {
+          var owner = folder.getOwner();
+          var userEmail = Session.getActiveUser().getEmail();
+          if (owner && owner.getEmail() && userEmail) {
+            isOwner = (owner.getEmail().toLowerCase() === userEmail.toLowerCase());
+          }
+        } catch (ownerErr) {
+          // In some restricted environments getOwner() may throw; proceed safely
+        }
+        if (isOwner) {
+          userProps.setProperty('DAY_PLANNER_ROOT_FOLDER_ID', folder.getId());
+          return folder;
+        }
+      }
+    } catch (err) {
+      console.warn('getValidatedRootFolder auto-search notice: ' + err.toString() + '\nStack:\n' + (err.stack || 'No stack trace available'));
+    }
+
+    // No valid folder cached or found; return null to trigger SetupFolder.html
+    return null;
+  } finally {
+    if (lockAcquired) {
+      try {
+        lock.releaseLock();
+      } catch (relErr) {
+        console.warn('getValidatedRootFolder: lock release threw: ' + relErr.toString());
+      }
+    }
+  }
 }
 
 /**
  * Server handler called by SetupFolder.html form to sanitize, validate, and save folder URL or ID.
+ * Enforces folder ownership check to ensure only user-owned folders are connected as notes stores.
  * @param {string} inputUrl Google Drive folder web URL or raw folder ID.
  * @returns {{success: boolean, folderId?: string, folderName?: string, error?: string}} Validation result.
  */
@@ -190,6 +265,28 @@ function validateAndSaveFolderUrl(inputUrl) {
     var folder = DriveApp.getFolderById(extractedId);
     var folderName = folder.getName();
 
+    // Folder ownership validation: Day Planner refuses to connect a folder someone else merely shared
+    var isOwner = true;
+    try {
+      var owner = folder.getOwner();
+      var currentUser = Session.getActiveUser().getEmail();
+      if (owner && owner.getEmail() && currentUser) {
+        isOwner = (owner.getEmail().toLowerCase() === currentUser.toLowerCase());
+      }
+    } catch (e) {
+      if (typeof Drive !== 'undefined' && Drive.Files && Drive.Files.get) {
+        var meta = Drive.Files.get(extractedId, { fields: 'owners(me)' });
+        isOwner = meta.owners && meta.owners.length > 0 && meta.owners.some(function(o) { return o.me; });
+      }
+    }
+
+    if (!isOwner) {
+      return {
+        success: false,
+        error: 'Folder is not owned by this account -- refusing to connect a shared folder as the notes store.'
+      };
+    }
+
     // Save validated ID in UserProperties
     PropertiesService.getUserProperties().setProperty('DAY_PLANNER_ROOT_FOLDER_ID', extractedId);
     Logger.log('Validated & saved Day Planner root folder ID: ' + extractedId + ' (' + folderName + ')');
@@ -206,25 +303,6 @@ function validateAndSaveFolderUrl(inputUrl) {
       error: 'Folder not found or permission denied. Please ensure you created the folder in Google Drive and pasted the correct link.'
     };
   }
-}
-
-/**
- * IDE Debugger Helper Function:
- * Select "testDoGetInIDE" in the IDE toolbar dropdown and click "Debug" or "Run".
- * @returns {GoogleAppsScript.HTML.HtmlOutput} Output of doGet execution.
- */
-function testDoGetInIDE() {
-  var mockEvent = {
-    pathInfo: 'self-test',
-    queryString: 'view=self-test',
-    parameter: { view: 'self-test' },
-    parameters: { view: ['self-test'] },
-    contextPath: ''
-  };
-  Logger.log('Executing doGet(mockEvent)...');
-  var output = doGet(mockEvent);
-  Logger.log('doGet Output Length: ' + output.getContent().length);
-  return output;
 }
 
 /**
@@ -670,12 +748,25 @@ function resolveDriveFileTitle(url) {
 }
 
 /**
- * Gets or returns the validated root Day Planner folder by ID.
+ * Retrieves a child folder by name under the parent folder, creating it if it does not exist.
+ * If parent is null or omitted, returns the validated root Day Planner folder.
+ * Synchronized with LockService.getUserLock() to prevent race conditions during folder creation.
  * @param {GoogleAppsScript.Drive.Folder|null} parent Parent folder object, or null to target root folder.
- * @param {string} name Folder name to find.
- * @returns {GoogleAppsScript.Drive.Folder|null} Found folder object or root folder by ID.
+ * @param {string} name Folder name to find or create.
+ * @returns {GoogleAppsScript.Drive.Folder|null} Found or created folder object, or null on error.
  */
 function getFolderByNameOrCreate(parent, name) {
+  var lock = LockService.getUserLock();
+  var lockAcquired = false;
+  try {
+    lockAcquired = lock.tryLock(10000);
+    if (!lockAcquired) {
+      console.warn('getFolderByNameOrCreate: lock timed out after 10s, proceeding unlocked');
+    }
+  } catch (lockErr) {
+    console.warn('getFolderByNameOrCreate: lock acquisition threw, proceeding unlocked: ' + lockErr.toString());
+  }
+
   try {
     var rootFolder = getValidatedRootFolder();
     if (!rootFolder) {
@@ -684,12 +775,27 @@ function getFolderByNameOrCreate(parent, name) {
     if (parent) {
       var folders = parent.getFoldersByName(name);
       if (folders.hasNext()) return folders.next();
+      if (typeof parent.createFolder === 'function') {
+        try {
+          return parent.createFolder(name);
+        } catch (createErr) {
+          console.warn('getFolderByNameOrCreate could not create subfolder: ' + createErr.toString());
+        }
+      }
       return parent;
     }
     return rootFolder;
   } catch (err) {
     logError('getFolderByNameOrCreate(' + name + ')', err);
     return null;
+  } finally {
+    if (lockAcquired) {
+      try {
+        lock.releaseLock();
+      } catch (relErr) {
+        console.warn('getFolderByNameOrCreate: lock release threw: ' + relErr.toString());
+      }
+    }
   }
 }
 
@@ -1358,3 +1464,47 @@ function openPlannerWebAppDialog() {
 
   DocumentApp.getUi().showModalDialog(html, 'Open Day Planner SPA');
 }
+
+// ── Explicit export surface ──────────────────────────────────────────────────
+// Everything above is private to this IIFE. Only names assigned here are visible to: the Apps
+// Script runtime (doGet, onOpen), google.script.run / Script.html, HtmlService template
+// scriptlets (<?= ?>), a time-driven trigger looked up by handler name string, or the Apps
+// Script IDE's manual "select function, click Run" dropdown. Adding a function here means any
+// script running in the web app page can invoke it by name -- keep this list to exactly what's
+// actually called from one of those places. See .agents/rules/gas-namespace-iife.md.
+global.doGet = doGet;                                        // Apps Script web app entry point
+global.onOpen = onOpen;                                      // Google Docs runtime onOpen trigger
+global.syncWorkspaceChanges = syncWorkspaceChanges;          // time-driven trigger handler (by name)
+global.include = include;                                    // template: Index.html, SetupFolder.html
+global.validateAndSaveFolderUrl = validateAndSaveFolderUrl;  // google.script.run: SetupFolder.html
+global.getDailyData = getDailyData;                          // google.script.run: Script.html
+global.getMasterTasks = getMasterTasks;                      // google.script.run: Script.html
+global.addDailyTask = addDailyTask;                          // google.script.run: Script.html
+global.updateDailyTask = updateDailyTask;                    // google.script.run: Script.html
+global.addMasterTask = addMasterTask;                        // google.script.run: Script.html
+global.markMasterTaskMoved = markMasterTaskMoved;            // google.script.run: Script.html
+global.saveDailyDocCards = saveDailyDocCards;                // google.script.run: Script.html
+global.resolveDriveFileTitle = resolveDriveFileTitle;        // google.script.run: Script.html
+global.getFutureMatrix = getFutureMatrix;                    // google.script.run: Script.html
+global.addFutureItem = addFutureItem;                        // google.script.run: Script.html
+global.updateFutureItemStatus = updateFutureItemStatus;      // google.script.run: Script.html
+global.transferFutureItem = transferFutureItem;              // google.script.run: Script.html
+global.pushFutureItemToNextMonth = pushFutureItemToNextMonth; // google.script.run: Script.html
+global.deleteFutureItem = deleteFutureItem;                  // google.script.run: Script.html
+global.searchAcrossAllMonthlyDocs = searchAcrossAllMonthlyDocs; // google.script.run: Google Docs sidebar
+global.showCrossMonthSearchSidebar = showCrossMonthSearchSidebar; // Google Docs menu action
+global.showIndexRegistrySidebar = showIndexRegistrySidebar;  // Google Docs menu action
+global.openPlannerWebAppDialog = openPlannerWebAppDialog;    // Google Docs menu action
+global.ensure2WaySyncTriggerInstalled = ensure2WaySyncTriggerInstalled; // IDE manual-run
+global.setup2WaySyncTrigger = setup2WaySyncTrigger;          // IDE manual-run
+
+// Cross-file only (not reachable from any client/template/trigger/IDE surface above, but needed
+// by other .gs files' own IIFEs since GAS has no import statement -- this global object is the
+// only channel between files):
+global.logError = logError;                                  // used by UnitTests.gs
+global.getFolderByNameOrCreate = getFolderByNameOrCreate;    // used by UnitTests.gs
+global.getOrCreateDailyDocContent = getOrCreateDailyDocContent; // used by UnitTests.gs
+global.DAY_PLANNER_FAVICON_URL = DAY_PLANNER_FAVICON_URL;    // used by UnitTests.gs
+
+})(this);
+
