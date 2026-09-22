@@ -1786,6 +1786,102 @@
     width: 90%;
   }
 
+  /* Master Tasks Backlog Table & Action Styles */
+  .master-task-action-cell {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0;
+  }
+
+  .master-task-date-input {
+    font-size: 0.72rem;
+    padding: 2px 4px;
+    height: 24px;
+    background-color: #ffffff;
+    color: var(--text-primary);
+    border: 1px solid var(--binder-teal);
+    border-right: none;
+    border-radius: 4px 0 0 4px;
+    outline: none;
+    width: 128px;
+  }
+
+  .btn-move-to {
+    background: transparent;
+    color: var(--binder-teal);
+    border: 1px solid var(--binder-teal);
+    border-radius: 0 4px 4px 0;
+    height: 24px;
+    padding: 2px 10px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    transition: background-color 0.15s ease;
+  }
+
+  .btn-move-to:hover {
+    background: color-mix(in srgb, var(--binder-teal) 16%, transparent);
+  }
+
+  .btn-move-to:disabled {
+    opacity: 0.7;
+    cursor: default;
+  }
+
+  .btn-move-to .icon-18 {
+    font-size: 16px;
+    margin-right: 4px;
+  }
+
+  .master-task-moved-note {
+    display: inline-block;
+    margin-left: 6px;
+    vertical-align: middle;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  .master-tasks-table {
+    table-layout: fixed;
+  }
+
+  .master-tasks-table th:nth-child(1),
+  .master-tasks-table td:nth-child(1) {
+    width: 100px;
+  }
+
+  .master-tasks-table th:nth-child(3),
+  .master-tasks-table td:nth-child(3) {
+    width: 170px;
+  }
+
+  .master-tasks-table th:nth-child(4),
+  .master-tasks-table td:nth-child(4) {
+    width: 230px;
+  }
+
+  .master-tasks-table td:nth-child(2) {
+    overflow-wrap: break-word;
+  }
+
+  .master-task-category-input {
+    max-width: 120px;
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .spin {
+    animation: spin 1s linear infinite;
+  }
+
   .modal-header-spaced {
     display: flex;
     justify-content: space-between;

@@ -694,15 +694,112 @@ function getFolderByNameOrCreate(parent, name) {
 }
 
 /**
- * Retrieves master task entries for monthly planning.
- * @returns {Array<{id: string, title: string, category: string, status: string}>} Array of master task items.
+ * Retrieves master task entries for monthly planning / backlog.
+ * Undated Google Tasks flagged via the hidden metadata marker or without due dates.
+ * @param {string} [monthYearStr] Optional month/year string (kept for signature compatibility).
+ * @returns {Array<{id: string, title: string, category: string, status: string, movedTo: (string|null), movedTaskId: (string|null)}>} Array of master task items.
  */
-function getMasterTasks() {
-  return [
-    { id: 'm1', title: 'Prepare Q3 performance appraisals', category: 'Work', status: '•' },
-    { id: 'm2', title: 'Plan annual family retreat', category: 'Personal', status: '•' },
-    { id: 'm3', title: 'Rebalance investment portfolio', category: 'Financial', status: '•' }
-  ];
+function getMasterTasks(monthYearStr) {
+  try {
+    if (typeof Tasks === 'undefined') {
+      return [
+        { id: 'm1', title: 'Prepare Q3 performance appraisals', category: 'Work', status: '•', movedTo: null, movedTaskId: null },
+        { id: 'm2', title: 'Plan annual family retreat', category: 'Personal', status: '•', movedTo: null, movedTaskId: null },
+        { id: 'm3', title: 'Rebalance investment portfolio', category: 'Financial', status: '•', movedTo: null, movedTaskId: null }
+      ];
+    }
+    var resp = Tasks.Tasks.list('@default', { showCompleted: true, showHidden: true, maxResults: 100 });
+    var items = resp.items || [];
+    return items
+      .filter(function(t) { return !t.due; })
+      .map(function(t) {
+        var meta = decodeTaskMeta(t.notes);
+        return {
+          id: t.id,
+          title: t.title,
+          category: meta.category || 'General',
+          status: deriveTaskStatus(t),
+          movedTo: meta.movedTo || null,
+          movedTaskId: meta.movedTaskId || null
+        };
+      });
+  } catch (err) {
+    logError('getMasterTasks(' + (monthYearStr || '') + ')', err);
+    return [];
+  }
+}
+
+/**
+ * Creates a new master task — an undated Google Task flagged via metadata marker.
+ * @param {string} title Task title.
+ * @param {string} [category='General'] Optional category classification.
+ * @returns {{id: string, title: string, category: string, status: string, movedTo: null, movedTaskId: null}} Created master task object.
+ */
+function addMasterTask(title, category) {
+  try {
+    if (typeof Tasks === 'undefined') {
+      return {
+        id: 'master_' + new Date().getTime(),
+        title: title,
+        category: category || 'General',
+        status: '•',
+        movedTo: null,
+        movedTaskId: null
+      };
+    }
+    var created = Tasks.Tasks.insert({
+      title: title,
+      notes: encodeTaskMeta('', { master: true, category: category || 'General' })
+    }, '@default');
+    return {
+      id: created.id,
+      title: created.title,
+      category: category || 'General',
+      status: deriveTaskStatus(created),
+      movedTo: null,
+      movedTaskId: null
+    };
+  } catch (err) {
+    logError('addMasterTask', err);
+    throw err;
+  }
+}
+
+/**
+ * Records that a master task was moved (transferred) to a specific daily task list.
+ * @param {string} masterTaskId Master task's Google Task id.
+ * @param {string} targetDateStr Date the task was moved to, in YYYY-MM-DD format.
+ * @param {string} movedTaskId Id of the newly created daily task.
+ * @returns {{id: string, title: string, category: string, status: string, movedTo: string, movedTaskId: string}} Updated master task object.
+ */
+function markMasterTaskMoved(masterTaskId, targetDateStr, movedTaskId) {
+  try {
+    if (typeof Tasks === 'undefined') {
+      return {
+        id: masterTaskId,
+        title: '',
+        category: 'General',
+        status: '•',
+        movedTo: targetDateStr,
+        movedTaskId: movedTaskId
+      };
+    }
+    var current = Tasks.Tasks.get('@default', masterTaskId);
+    var notes = encodeTaskMeta(current.notes, { movedTo: targetDateStr, movedTaskId: movedTaskId });
+    var updated = Tasks.Tasks.patch({ notes: notes }, '@default', masterTaskId);
+    var meta = decodeTaskMeta(updated.notes);
+    return {
+      id: updated.id,
+      title: updated.title,
+      category: meta.category || 'General',
+      status: deriveTaskStatus(updated),
+      movedTo: meta.movedTo || null,
+      movedTaskId: meta.movedTaskId || null
+    };
+  } catch (err) {
+    logError('markMasterTaskMoved(' + masterTaskId + ')', err);
+    throw err;
+  }
 }
 
 /**
@@ -710,12 +807,14 @@ function getMasterTasks() {
  * @param {string} dateStr Target date string in YYYY-MM-DD format.
  * @param {string} title Task title description.
  * @param {string} [category='General'] Optional task category classification.
- * @returns {{id: string, title: string, status: string, category: string, dueDate: string, starred: boolean, notes: string}} Created task object.
+ * @param {string} [sourceMasterId] Optional originating master task ID.
+ * @returns {{id: string, title: string, status: string, category: string, dueDate: string, starred: boolean, notes: string, sourceMasterId: (string|null)}} Created task object.
  */
-function addDailyTask(dateStr, title, category) {
+function addDailyTask(dateStr, title, category, sourceMasterId) {
   try {
     if (typeof Tasks !== 'undefined') {
       var metaPatch = { category: category || 'General' };
+      if (sourceMasterId) metaPatch.sourceMasterId = sourceMasterId;
       var taskResource = {
         title: title,
         due: dateStr + 'T00:00:00.000Z',
@@ -728,7 +827,7 @@ function addDailyTask(dateStr, title, category) {
         status: deriveTaskStatus(created),
         category: category || 'General',
         dueDate: created.due ? created.due.substring(0, 10) : dateStr,
-        sourceMasterId: null,
+        sourceMasterId: sourceMasterId || null,
         starred: false,
         notes: stripDpTokens(created.notes)
       };
@@ -739,6 +838,7 @@ function addDailyTask(dateStr, title, category) {
       status: '•',
       category: category || 'General',
       dueDate: dateStr,
+      sourceMasterId: sourceMasterId || null,
       starred: false,
       notes: ''
     };

@@ -29,10 +29,10 @@ export class GASBridge {
         ]
       },
       masterTasks: [
-        { id: 'm1', title: 'Prepare Q3 performance appraisals', category: 'Work', status: '•' },
-        { id: 'm2', title: 'Plan annual family retreat', category: 'Personal', status: '•' },
-        { id: 'm3', title: 'Rebalance investment portfolio', category: 'Financial', status: '•' },
-        { id: 'm4', title: 'Migrate server infrastructure to GCP', category: 'Projects', status: '•' }
+        { id: 'm1', title: 'Prepare Q3 performance appraisals', category: 'Work', status: '•', movedTo: null, movedTaskId: null },
+        { id: 'm2', title: 'Plan annual family retreat', category: 'Personal', status: '•', movedTo: null, movedTaskId: null },
+        { id: 'm3', title: 'Rebalance investment portfolio', category: 'Financial', status: '•', movedTo: null, movedTaskId: null },
+        { id: 'm4', title: 'Migrate server infrastructure to GCP', category: 'Projects', status: '•', movedTo: null, movedTaskId: null }
       ],
       futureMatrix: {
         2026: (() => {
@@ -152,9 +152,10 @@ export class GASBridge {
    * @param {string} dateStr Target date in YYYY-MM-DD format.
    * @param {string} title Task title description.
    * @param {string} [category='General'] Optional category name.
+   * @param {string} [sourceMasterId] Optional originating master task ID.
    * @returns {Promise<object>} Created daily task item promise.
    */
-  async addDailyTask(dateStr, title, category = 'General') {
+  async addDailyTask(dateStr, title, category = 'General', sourceMasterId = null) {
     if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
       if (!this.mockData.dailyTasks[dateStr]) {
         this.mockData.dailyTasks[dateStr] = [];
@@ -165,6 +166,7 @@ export class GASBridge {
         status: '•',
         category,
         dueDate: dateStr,
+        sourceMasterId: sourceMasterId || null,
         starred: false,
         notes: ''
       };
@@ -176,7 +178,59 @@ export class GASBridge {
       window.google.script.run
         .withSuccessHandler(resolve)
         .withFailureHandler(reject)
-        .addDailyTask(dateStr, title, category);
+        .addDailyTask(dateStr, title, category, sourceMasterId);
+    });
+  }
+
+  /**
+   * Adds a new master task to the undated backlog.
+   * @param {string} title Task title description.
+   * @param {string} [category='General'] Optional category classification.
+   * @returns {Promise<object>} Created master task item promise.
+   */
+  async addMasterTask(title, category = 'General') {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      const newTask = {
+        id: `m_${Date.now()}`,
+        title,
+        category: category || 'General',
+        status: '•',
+        movedTo: null,
+        movedTaskId: null
+      };
+      this.mockData.masterTasks.push(newTask);
+      return newTask;
+    }
+
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .addMasterTask(title, category);
+    });
+  }
+
+  /**
+   * Marks a master task as moved to a specific daily task list.
+   * @param {string} masterTaskId Master task ID.
+   * @param {string} targetDateStr Target date in YYYY-MM-DD format.
+   * @param {string} movedTaskId Linked daily task ID.
+   * @returns {Promise<object|null>} Updated master task object or null.
+   */
+  async markMasterTaskMoved(masterTaskId, targetDateStr, movedTaskId) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      const task = this.mockData.masterTasks.find(t => t.id === masterTaskId);
+      if (!task) return null;
+      task.movedTo = targetDateStr;
+      task.movedTaskId = movedTaskId;
+      return task;
+    }
+
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .markMasterTaskMoved(masterTaskId, targetDateStr, movedTaskId);
     });
   }
 
@@ -215,23 +269,33 @@ export class GASBridge {
 
   /**
    * Transfers a master task into the daily task list with priority prefix.
-   * @param {string} masterTaskId Unique identifier of the master task.
+   * @param {string|object} masterTaskOrId Unique identifier or master task object.
    * @param {string} dateStr Target date in YYYY-MM-DD format.
    * @param {string} [priorityGroup='A'] Priority group code ('A', 'B', or 'C').
    * @returns {Promise<object|null>} Created daily task object promise or null if master task not found.
    */
-  async transferMasterTask(masterTaskId, dateStr, priorityGroup = 'A') {
-    const masterTask = this.mockData.masterTasks.find(m => m.id === masterTaskId);
+  async transferMasterTask(masterTaskOrId, dateStr, priorityGroup = 'A') {
+    const masterTaskId = typeof masterTaskOrId === 'object' && masterTaskOrId !== null
+      ? masterTaskOrId.id
+      : masterTaskOrId;
+    const masterTask = typeof masterTaskOrId === 'object' && masterTaskOrId !== null && masterTaskOrId.title
+      ? masterTaskOrId
+      : this.mockData?.masterTasks?.find(m => m.id === masterTaskId);
     if (!masterTask) return null;
 
-    const existingDaily = this.mockData.dailyTasks[dateStr] || [];
-    const newDailyTask = transferMasterTaskToToday(masterTask, existingDaily, priorityGroup, dateStr);
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      const existingDaily = this.mockData.dailyTasks[dateStr] || [];
+      const newDailyTask = transferMasterTaskToToday(masterTask, existingDaily, priorityGroup, dateStr);
 
-    if (!this.mockData.dailyTasks[dateStr]) {
-      this.mockData.dailyTasks[dateStr] = [];
+      if (!this.mockData.dailyTasks[dateStr]) {
+        this.mockData.dailyTasks[dateStr] = [];
+      }
+      this.mockData.dailyTasks[dateStr].push(newDailyTask);
+      return newDailyTask;
     }
-    this.mockData.dailyTasks[dateStr].push(newDailyTask);
-    return newDailyTask;
+
+    const { title, category } = transferMasterTaskToToday(masterTask, [], priorityGroup, dateStr);
+    return this.addDailyTask(dateStr, title, category, masterTaskId);
   }
 
   /**

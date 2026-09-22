@@ -50,12 +50,12 @@
         <!-- Context-aware Date Controls -->
         <div class="date-nav-compact">
           <!-- Daily Date Nav -->
-          <template x-if="!isMonthlyView">
+          <template x-if="!isMonthlyView && activeView !== 'master-tasks'">
             <div class="date-controls-group">
               <button type="button" class="icon-nav-btn" @click="navigateDay(-1)" title="Previous Day" aria-label="Previous Day">
                 <span class="material-symbols-outlined icon-18">chevron_left</span>
               </button>
-              <button type="button" class="today-jump-btn" @click="selectedDate = new Date().toISOString().slice(0, 10); loadDayData()" title="Jump to Today">Today</button>
+              <button type="button" class="today-jump-btn" @click="jumpToToday()" title="Jump to Today">Today</button>
               <button type="button" class="icon-nav-btn" @click="navigateDay(1)" title="Next Day" aria-label="Next Day">
                 <span class="material-symbols-outlined icon-18">chevron_right</span>
               </button>
@@ -64,7 +64,7 @@
           </template>
 
           <!-- Monthly Date Nav -->
-          <template x-if="isMonthlyView">
+          <template x-if="isMonthlyView && activeView !== 'future-matrix'">
             <div class="date-controls-group">
               <button type="button" class="icon-nav-btn" @click="navigateMonth(-1)" title="Previous Month" aria-label="Previous Month">
                 <span class="material-symbols-outlined icon-18">chevron_left</span>
@@ -487,22 +487,30 @@
       </template>
 
       <!-- View 3: Monthly Master Task List Page -->
+      <!-- View 3: Master Tasks / Undated Task Backlog Page -->
       <template x-if="activeView === 'master-tasks'">
-        <section class="view-container" aria-label="Monthly Master Task List">
+        <section class="view-container" aria-label="Master Tasks Backlog">
           <header>
             <h2 class="view-title">
               <span class="material-symbols-outlined">checklist</span>
-              Monthly Master Task List (<span x-text="selectedMonthName + ' ' + selectedYear"></span>)
+              Master Task List (Backlog)
             </h2>
           </header>
+          <form @submit.prevent="addMasterTask()" role="group" class="future-item-add-bar">
+            <input type="text" x-model="newMasterTaskTitle" placeholder="Add a master task / long-term to-do..." class="future-item-input-field" aria-label="New master task title">
+            <input type="text" x-model="newMasterTaskCategory" placeholder="Category" class="future-item-input-field master-task-category-input" aria-label="New master task category">
+            <button type="submit" class="icon-nav-btn" :disabled="addingMasterTask" aria-label="Add master task" title="Add master task">
+              <span class="material-symbols-outlined">add</span>
+            </button>
+          </form>
           <figure class="table-container">
-            <table class="task-table table-card">
+            <table class="task-table table-card master-tasks-table">
               <thead>
                 <tr class="table-header-row">
                   <th scope="col">Category</th>
                   <th scope="col">Task Title</th>
                   <th scope="col">Status</th>
-                  <th scope="col" class="th-w-150 th-align-right">Action</th>
+                  <th scope="col" class="th-w-150">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -510,11 +518,18 @@
                   <tr>
                     <td><b x-text="mTask.category"></b></td>
                     <td x-text="mTask.title"></td>
-                    <td><span class="status-btn" x-text="mTask.status"></span></td>
-                    <td class="td-align-right">
-                      <button type="button" class="btn-primary btn-sm" @click="moveMasterTaskToToday(mTask)">
-                        <span class="material-symbols-outlined icon-14">east</span> Move to Today
-                      </button>
+                    <td>
+                      <span class="status-btn" x-text="mTask.status"></span>
+                      <span class="master-task-moved-note" x-show="mTask.movedTo" x-text="'Moved to ' + formatMovedDate(mTask.movedTo)"></span>
+                    </td>
+                    <td class="master-task-action-cell">
+                      <span x-show="!mTask.movedTo">
+                        <input type="date" x-model="mTask._moveDate" class="master-task-date-input" :aria-label="'Move date for ' + mTask.title" :disabled="mTask._moving">
+                        <button type="button" class="btn-move-to" @click="moveMasterTaskToDate(mTask)" :disabled="mTask._moving">
+                          <span class="material-symbols-outlined icon-18" :class="{ spin: mTask._moving }" x-show="mTask._moving">progress_activity</span>
+                          <span x-text="mTask._moving ? 'Moving' : 'Move'"></span>
+                        </button>
+                      </span>
                     </td>
                   </tr>
                 </template>

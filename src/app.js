@@ -26,6 +26,9 @@ window.GASBridge = GASBridge;
       openNotesPopoverTaskId: null,
       notesPopoverCloseTimer: null,
       masterTasks: [],
+      newMasterTaskTitle: '',
+      newMasterTaskCategory: '',
+      addingMasterTask: false,
       futureMatrix: { year: String(new Date().getFullYear()), months: {} },
       futureMatrixYear: new Date().getFullYear(),
       newFutureItemTitle: {},
@@ -95,7 +98,7 @@ window.GASBridge = GASBridge;
       },
 
       get isMonthlyView() {
-        return ['monthly-calendar', 'master-tasks', 'monthly-index', 'future-matrix'].includes(this.activeView);
+        return ['monthly-calendar', 'monthly-index', 'future-matrix'].includes(this.activeView);
       },
 
       get selectedMonthName() {
@@ -299,6 +302,9 @@ window.GASBridge = GASBridge;
         if (viewName === 'future-matrix') {
           await this.loadFutureMatrix();
         }
+        if (viewName === 'master-tasks') {
+          await this.loadMasterTasks();
+        }
       },
 
       futureMonthKey(mm) {
@@ -407,6 +413,14 @@ window.GASBridge = GASBridge;
         this.selectedDate = d.toISOString().slice(0, 10);
         this.selectedYear = d.getFullYear();
         this.selectedMonth = d.getMonth() + 1;
+        await this.loadDayData();
+      },
+
+      async jumpToToday() {
+        this.selectedDate = getLocalDateStr();
+        const [y, m] = this.selectedDate.split('-').map(Number);
+        this.selectedYear = y;
+        this.selectedMonth = m;
         await this.loadDayData();
       },
 
@@ -1013,9 +1027,66 @@ window.GASBridge = GASBridge;
       async loadMasterTasks() {
         try {
           this.masterTasks = await this.bridge.getMasterTasks(`${this.selectedMonthName} ${this.selectedYear}`);
+          const today = getLocalDateStr();
+          this.masterTasks.forEach(t => {
+            if (!t._moveDate) t._moveDate = today;
+            t._moving = false;
+          });
         } catch (err) {
           console.error('🔥 loadMasterTasks error:', err);
           this.errorMessage = `Error loading master tasks: ${err.message || err.toString()}`;
+        }
+      },
+
+      async addMasterTask() {
+        const title = this.newMasterTaskTitle.trim();
+        if (!title || this.addingMasterTask) return;
+        this.addingMasterTask = true;
+        try {
+          const category = this.newMasterTaskCategory.trim() || 'General';
+          const created = await this.bridge.addMasterTask(title, category);
+          created._moveDate = getLocalDateStr();
+          created._moving = false;
+          this.masterTasks.push(created);
+          this.newMasterTaskTitle = '';
+          this.newMasterTaskCategory = '';
+        } catch (err) {
+          console.error('🔥 addMasterTask error:', err);
+          this.errorMessage = `Could not add master task: ${err.message || err.toString()}`;
+        } finally {
+          this.addingMasterTask = false;
+        }
+      },
+
+      formatMovedDate(dateStr) {
+        if (!dateStr) return '';
+        const [y, m, d] = dateStr.split('-').map(Number);
+        return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      },
+
+      async moveMasterTaskToDate(mTask) {
+        if (mTask._moving) return;
+        if (mTask.movedTo) return;
+        mTask._moving = true;
+        const targetDate = mTask._moveDate || getLocalDateStr();
+        try {
+          const transferred = await this.bridge.transferMasterTask(mTask, targetDate, 'A');
+          if (transferred) {
+            if (targetDate === this.selectedDate) {
+              this.dailyTasks.push(transferred);
+            }
+            const updatedMaster = await this.bridge.markMasterTaskMoved(mTask.id, targetDate, transferred.id);
+            if (updatedMaster) {
+              mTask.movedTo = updatedMaster.movedTo;
+              mTask.movedTaskId = updatedMaster.movedTaskId;
+            }
+            await this.trigger2WaySync();
+          }
+        } catch (err) {
+          console.error('🔥 moveMasterTaskToDate error:', err);
+          this.errorMessage = `Error moving master task: ${err.message || err.toString()}`;
+        } finally {
+          mTask._moving = false;
         }
       },
 
@@ -1214,17 +1285,8 @@ window.GASBridge = GASBridge;
       },
 
       async moveMasterTaskToToday(mTask) {
-        try {
-          const transferred = await this.bridge.transferMasterTask(mTask.id, this.selectedDate, 'A');
-          if (transferred) {
-            this.dailyTasks.push(transferred);
-            await this.trigger2WaySync();
-            window.alert(`Moved "${mTask.title}" to Today's Task List as ${transferred.title.substring(0, 4)}!`);
-          }
-        } catch (err) {
-          console.error('🔥 moveMasterTaskToToday error:', err);
-          this.errorMessage = `Error moving master task: ${err.message || err.toString()}`;
-        }
+        mTask._moveDate = this.selectedDate;
+        await this.moveMasterTaskToDate(mTask);
       },
 
       openEventModal(evt) {
