@@ -50,7 +50,7 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 - [x] Add in-app user guide in `gas-app/About.html` explaining how to create desktop window shortcuts ("Install Day Planner" / "Open as window") in Chrome and Edge.
 
 ### Phase 4: Feature & Bugfix Backporting
-- [ ] **Future Planning Matrix**:
+- [x] **Future Planning Matrix**:
   - Verify `src/futureMatrixEngine.js` and `gas-app/Code.gs` Drive-backed persistence.
   - Verify interactive month cards and status cycling in `gas-app/Index.html` & `gas-app/Script.html`.
 - [ ] **Daily Tasks Enhancements**:

@@ -12,6 +12,7 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 - **Branching Strategy**: Branch `pure-gas-main` rooted at `d294262`. The original `master` branch is preserved and tagged with `PWA-installable-22-Sep-2026`.
 - **Zero External Hosting & Zero Service Worker**: No GitHub Pages (`mhoffman02.github.io`), no `sw.js` service worker, no client-side GIS OAuth tokens. The web app runs inside Google Apps Script (`script.google.com`) using native first-party Workspace authentication (`Session.getActiveUser().getEmail()`).
 - **Online-Only Execution**: The app runs online; no complex offline outbox syncing is required in the sandboxed GAS iframe.
+- **Google Native Auth Over Custom Gates**: No custom application-level authorization gates (such as `validateUserAccess()` or domain/email whitelists). A pure GAS app deployed with `executeAs: USER_ACCESSING` runs in the caller's native Google Workspace security sandbox, isolating Drive files and Google services under `drive.file` scope automatically.
 - **Close-to-Installable PWA in Pure GAS**: Web App Manifest ([`manifest.json`](file:///home/mike/projects/day-planner/manifest.json)), high-resolution icons ([`icons/icon.svg`](file:///home/mike/projects/day-planner/icons/icon.svg), [`icons/apple-touch-icon.png`](file:///home/mike/projects/day-planner/icons/apple-touch-icon.png)), mobile meta tags (`mobile-web-app-capable`, `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style`, `apple-mobile-web-app-title`, `theme-color`), and desktop "Open as Window" shortcut guidance in [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html) and root [`index.html`](file:///home/mike/projects/day-planner/index.html).
 - **Pre-Flight Verified Handoff Pipeline**: All test and lint checks (`npm run lint && npm test`) MUST run and pass BEFORE initiating any handoff actions. The session handoff strictly executes:
   1. Pre-flight verification (`npm run lint && npm test`).
@@ -27,7 +28,7 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 
 ### CURRENT STATE
 
-- **Repository**: Branch `pure-gas-main` at commit [`494592d`](https://github.com/mhoffman02/day-planner/commit/494592d).
+- **Repository**: Branch `pure-gas-main` at commit [`82cf35f`](https://github.com/mhoffman02/day-planner/commit/82cf35f).
 - **Phase 1 Complete**: Baseline established at `d294262`, documentation backported, test baseline verified (30/30 passing).
 - **Phase 2 Complete**: Decommissioned GitHub Pages & Service Worker artifacts:
   - Pruned untracked `gh-pwa-shell/` and removed from [`.gitignore`](file:///home/mike/projects/day-planner/.gitignore).
@@ -37,9 +38,13 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 - **Phase 3 Complete**: "Close-to-Installable PWA" Affordances in Pure G.A.S.:
   - Added standalone display meta tags (`mobile-web-app-capable`, `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style`, `apple-mobile-web-app-title`, `theme-color`) to [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html), root [`index.html`](file:///home/mike/projects/day-planner/index.html), and [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs).
   - Restored Web App Manifest ([`manifest.json`](file:///home/mike/projects/day-planner/manifest.json)) and high-resolution icons ([`icons/icon.svg`](file:///home/mike/projects/day-planner/icons/icon.svg), [`icons/apple-touch-icon.png`](file:///home/mike/projects/day-planner/icons/apple-touch-icon.png)).
-  - Added Section 5 desktop window shortcut guide ("Install Day Planner" / "Open as window" for Chrome, Edge, and Mobile) in [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html) and mirrored in [`index.html`](file:///home/mike/projects/day-planner/index.html).
-  - Verified local dev preview server ([`server.js`](file:///home/mike/projects/day-planner/server.js)) serving manifest and icons with status 200.
-- **Test & Lint Status**: 0 lint errors/warnings (`npm run lint`), 30/30 baseline tests passing across 7 suites (`npm test`).
+  - Added Section 5 desktop window shortcut guide in [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html) and mirrored in [`index.html`](file:///home/mike/projects/day-planner/index.html).
+- **Phase 4 Task 1 Complete**: Future Planning Matrix:
+  - Backported [`src/futureMatrixEngine.js`](file:///home/mike/projects/day-planner/src/futureMatrixEngine.js) and [`tests/futureMatrixEngine.test.js`](file:///home/mike/projects/day-planner/tests/futureMatrixEngine.test.js) (25 unit tests).
+  - Implemented Drive-backed persistence in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) (`future-matrix-<YYYY>.json` in root folder with 5-min caching).
+  - Backported interactive month cards with Franklin status cycling, add/delete, transfer to date, and push-forward in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html), mirrored in root [`index.html`](file:///home/mike/projects/day-planner/index.html), [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js), and [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css).
+  - Added Future Matrix mock dataset and RPC methods to [`src/gasBridge.js`](file:///home/mike/projects/day-planner/src/gasBridge.js) and 6 new bridge tests in [`tests/gasBridge.test.js`](file:///home/mike/projects/day-planner/tests/gasBridge.test.js).
+- **Test & Lint Status**: 0 lint errors/warnings (`npm run lint`), 61/61 unit tests passing across 8 suites (`npm test`).
 
 ---
 
@@ -64,22 +69,22 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
-1. **Future Planning Matrix Backport**:
-   - Verify and integrate [`src/futureMatrixEngine.js`](file:///home/mike/projects/day-planner/src/futureMatrixEngine.js) and [`tests/futureMatrixEngine.test.js`](file:///home/mike/projects/day-planner/tests/futureMatrixEngine.test.js) (lines 1–100) with Drive-backed persistence in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs).
-   - Ensure interactive month cards, item add/delete, and status cycling operate smoothly in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html#L380) & [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html).
-2. **Daily Tasks Enhancements**:
-   - Backport status dropdown menu with In-Progress (`•`), Forwarded (`→`), Delegated (`D/✓`), Canceled (`X`) in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html#L180).
+1. **Daily Tasks Enhancements**:
+   - Backport status dropdown menu with In-Progress (`•`), Forwarded (`→`), Delegated (`D/✓`), Canceled (`X`) in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html).
    - Backport star toggle and per-column sorting (Priority, Status, Title, Category) in [`src/taskEngine.js`](file:///home/mike/projects/day-planner/src/taskEngine.js) and [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html).
-   - Backport Notes hover popover.
-3. **Modular Note Cards & Server Security**:
-   - Split note headers into Topic + Summary fields with rich formatting toolbar in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html#L320).
-   - Secure [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) with IIFE encapsulation, `LockService.getUserLock()` for folder creation deduplication, and safe HTML escaping.
+   - Backport Notes hover popover for tasks with descriptions.
+2. **Modular Note Cards & Rich Formatting**:
+   - Split note headers into Topic + Summary fields with rich formatting toolbar in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html).
+   - External link syntax (`[[link:URL]]text[[/link]]`) and smart-paste Drive URL title resolution.
+3. **Monthly Master Tasks**:
+   - Google Tasks API or Drive JSON archive persistence.
+   - "Move to Today" action with target date picker.
 
 ---
 
 ### IMMEDIATE NEXT STEP
 
-Begin Phase 4 Task 1: Future Planning Matrix:
-1. Audit [`src/futureMatrixEngine.js`](file:///home/mike/projects/day-planner/src/futureMatrixEngine.js) and [`tests/futureMatrixEngine.test.js`](file:///home/mike/projects/day-planner/tests/futureMatrixEngine.test.js) against `gas-app/Code.gs` future planning endpoints.
-2. Verify month key generation, item CRUD helpers, and status cycling.
-3. Run `npm run lint && npm test` to confirm test coverage.
+Begin Phase 4 Task 2: Daily Tasks Enhancements:
+1. Audit `master:src/taskEngine.js` and `master:tests/taskEngine.test.js` for sorting and status enhancements.
+2. Backport status dropdown menu (`•`, `→`, `D/✓`, `X`) and star toggle in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html).
+3. Mirror changes into root [`index.html`](file:///home/mike/projects/day-planner/index.html) and [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js), and verify with `npm run lint && npm test`.

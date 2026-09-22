@@ -2,9 +2,6 @@
 
 ## Phase 4: Feature & Bugfix Backporting
 
-- [ ] **Future Planning Matrix**:
-  - Verify [`src/futureMatrixEngine.js`](file:///home/mike/projects/day-planner/src/futureMatrixEngine.js), [`tests/futureMatrixEngine.test.js`](file:///home/mike/projects/day-planner/tests/futureMatrixEngine.test.js), and [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) Drive-backed persistence.
-  - Verify interactive month cards and status cycling in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) & [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html).
 - [ ] **Daily Tasks Enhancements**:
   - Backport status dropdown menu with In-Progress (`•`), Forwarded (`→`), Delegated (`D/✓`), Canceled (`X`).
   - Backport star toggle and per-column sorting (Priority, Status, Title, Category).
