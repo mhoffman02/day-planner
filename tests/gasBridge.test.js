@@ -75,6 +75,24 @@ describe('GAS Bridge Unit Tests', () => {
     assert.ok(result.docName.includes('Day Planner Notes'));
   });
 
+  it('should resolve drive link title via bridge', async () => {
+    const bridge = new GASBridge(true);
+    const resDoc = await bridge.resolveLinkTitle('https://docs.google.com/document/d/doc12345/edit');
+    assert.ok(resDoc.success);
+    assert.equal(resDoc.title, 'Executive Briefing Doc');
+    assert.equal(resDoc.fileId, 'doc12345');
+
+    const resSheet = await bridge.resolveLinkTitle('https://docs.google.com/spreadsheets/d/sheet67890/edit');
+    assert.ok(resSheet.success);
+    assert.equal(resSheet.title, 'Financial Planning Spreadsheet');
+
+    const resInvalid = await bridge.resolveLinkTitle('https://example.com/not-drive');
+    assert.equal(resInvalid.success, false);
+
+    const resEmpty = await bridge.resolveLinkTitle('');
+    assert.equal(resEmpty.success, false);
+  });
+
   it('should fetch the future planning matrix for a year with all 12 months present', async () => {
     const bridge = new GASBridge(true);
     const matrix = await bridge.getFutureMatrix(2026);

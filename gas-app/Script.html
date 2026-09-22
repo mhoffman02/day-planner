@@ -414,6 +414,41 @@
           .deleteFutureItem(year, monthKey, itemId);
       });
     }
+
+    async saveDailyDocCards(dateStr, noteContent) {
+      if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+        this.mockData.dailyNotes[dateStr] = noteContent;
+        return { success: true, docName: `Day Planner Notes - Mock ${dateStr}` };
+      }
+
+      return new Promise((resolve, reject) => {
+        window.google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .saveDailyDocCards(dateStr, noteContent);
+      });
+    }
+
+    async resolveLinkTitle(url) {
+      if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+        if (!url || typeof url !== 'string') return { success: false, error: 'No URL provided.' };
+        const idMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+        if (!idMatch) return { success: false, error: 'Not a recognized Drive URL.' };
+        const fileId = idMatch[1];
+        let title = 'Document Title';
+        if (url.includes('spreadsheets')) title = 'Financial Planning Spreadsheet';
+        else if (url.includes('presentation')) title = 'Architecture Slide Deck';
+        else if (url.includes('document')) title = 'Executive Briefing Doc';
+        return { success: true, title, fileId };
+      }
+
+      return new Promise((resolve, reject) => {
+        window.google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .resolveDriveFileTitle(url);
+      });
+    }
   }
 
   document.addEventListener('alpine:init', () => {
@@ -444,6 +479,11 @@
       noteFilterMenuOpen: false,
       noteCardSearchQuery: '',
       noteCardCategoryFilter: 'ALL',
+      topicColWidth: 112,
+      isHeaderResizing: false,
+      docPreviewEditing: false,
+      noteSaveTimer: null,
+      taskNoteLinks: [],
       indexRecords: [],
       monthlyGrid: [],
 
@@ -487,7 +527,10 @@
 
         return (this.noteCards || []).filter(card => {
           const matchCat = cat === 'ALL' || card.category === cat;
-          const matchText = !q || (card.heading || '').toLowerCase().includes(q) || (card.content || '').toLowerCase().includes(q);
+          const matchText = !q ||
+            (card.indexTopic || '').toLowerCase().includes(q) ||
+            (card.heading || '').toLowerCase().includes(q) ||
+            (card.content || '').toLowerCase().includes(q);
           return matchCat && matchText;
         });
       },
@@ -850,10 +893,107 @@
         }
       },
 
+      initHeaderResize(e) {
+        e.preventDefault();
+        this.isHeaderResizing = true;
+        const startX = e.clientX || (e.touches && e.touches[0].clientX);
+        const startWidth = this.topicColWidth;
+        const onMouseMove = (moveEvt) => {
+          if (!this.isHeaderResizing) return;
+          const currentX = moveEvt.clientX || (moveEvt.touches && moveEvt.touches[0].clientX);
+          const diff = currentX - startX;
+          this.topicColWidth = Math.max(60, Math.min(220, startWidth + diff));
+        };
+        const onMouseUp = () => {
+          this.isHeaderResizing = false;
+          window.removeEventListener('mousemove', onMouseMove);
+          window.removeEventListener('mouseup', onMouseUp);
+          window.removeEventListener('touchmove', onMouseMove);
+          window.removeEventListener('touchend', onMouseUp);
+        };
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+        window.addEventListener('touchmove', onMouseMove);
+        window.addEventListener('touchend', onMouseUp);
+      },
+
+      resetHeaderSplit() {
+        this.topicColWidth = 112;
+      },
+
+      autoGrowNoteHeading(el) {
+        if (!el) return;
+        el.style.height = 'auto';
+        el.style.height = `${el.scrollHeight}px`;
+      },
+
+      indexTopicOptions() {
+        const topics = new Set();
+        (this.noteCards || []).forEach(c => {
+          if (c.indexTopic && c.indexTopic.trim()) topics.add(c.indexTopic.trim());
+        });
+        (this.indexRecords || []).forEach(r => {
+          if (r.topic && r.topic.trim()) topics.add(r.topic.trim());
+        });
+        return Array.from(topics).sort();
+      },
+
+      buildTaskNoteLinks() {
+        if (!this.dailyNote) {
+          this.taskNoteLinks = [];
+          return;
+        }
+        const lines = this.dailyNote.split('\n');
+        const links = [];
+        lines.forEach(l => {
+          const trimmed = l.trim();
+          const dehashed = trimmed.replace(/^#+\s+/, '');
+          if (/#task\b/i.test(dehashed) || /\[TASK\]/i.test(dehashed)) {
+            const clean = dehashed.replace(/#task/i, '').replace(/\[TASK\]/i, '').trim();
+            const match = clean.match(/^\[([^\]]+)\]\s*(.*)$/);
+            if (match) {
+              links.push({ priority: match[1].trim().toUpperCase(), summary: match[2].trim(), rawText: trimmed });
+            }
+          }
+        });
+        this.taskNoteLinks = links;
+      },
+
+      linkedNoteForTask(task) {
+        const priorityCode = this.parseTask(task.title).priorityCode;
+        if (!priorityCode) return null;
+        return (this.taskNoteLinks || []).find(link => link.priority === priorityCode) || null;
+      },
+
+      jumpToLinkedNote(task) {
+        const link = this.linkedNoteForTask(task);
+        if (!link) return;
+        this.noteViewMode = 'cards';
+        const card = (this.noteCards || []).find(c =>
+          (c.heading || '').includes(link.rawText.replace(/^#+\s+/, '')) ||
+          (c.content || '').includes(link.rawText)
+        );
+        if (!card) return;
+        card.collapsed = false;
+        this.$nextTick(() => {
+          const el = document.getElementById(`note-card-${card.id}`);
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+      },
+
+      taskLinkForCard(card) {
+        if (!this.taskNoteLinks || !card) return null;
+        return this.taskNoteLinks.find(link =>
+          (card.heading || '').includes(link.rawText.replace(/^#+\s+/, '')) ||
+          (card.content || '').includes(link.rawText)
+        ) || null;
+      },
+
       addNoteCard() {
         const newCard = {
           id: `nc_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-          heading: '#index [Topic] New Card',
+          indexTopic: '',
+          heading: '',
           content: '',
           category: 'Work',
           collapsed: false
@@ -871,30 +1011,362 @@
         if (card) card.collapsed = !card.collapsed;
       },
 
+      cardLines(card) {
+        if (!card || typeof card.content !== 'string') return [''];
+        const lines = card.content.split('\n');
+        return lines.length > 0 ? lines : [''];
+      },
+
+      startEditingLine(card, idx) {
+        if (!card) return;
+        card._activeLineIndex = idx;
+        card._selectedLineRange = null;
+        this.$nextTick(() => {
+          const el = document.getElementById(`card-line-${card.id}-${idx}`);
+          if (el) {
+            el.focus();
+            el.setSelectionRange(el.value.length, el.value.length);
+          }
+        });
+      },
+
+      stopEditingLine(card, idx) {
+        if (!card) return;
+        if (card._activeLineIndex === idx) {
+          card._activeLineIndex = null;
+        }
+      },
+
+      updateCardLine(card, idx, val) {
+        if (!card) return;
+        const lines = this.cardLines(card);
+        lines[idx] = val;
+        card.content = lines.join('\n');
+        this.syncCardsToDailyNote();
+      },
+
+      handleLineKeydown(e, card, idx) {
+        if (!card) return;
+        const lines = this.cardLines(card);
+        const currentLine = lines[idx] || '';
+
+        if ((e.ctrlKey || e.metaKey) && !e.shiftKey) {
+          if (e.key === 'b' || e.key === 'B') {
+            e.preventDefault();
+            this.applyLineFormat(card, idx, 'bold');
+            return;
+          }
+          if (e.key === 'i' || e.key === 'I') {
+            e.preventDefault();
+            this.applyLineFormat(card, idx, 'italic');
+            return;
+          }
+          if (e.key === 'u' || e.key === 'U') {
+            e.preventDefault();
+            this.applyLineFormat(card, idx, 'underline');
+            return;
+          }
+          if (e.key === 'k' || e.key === 'K') {
+            e.preventDefault();
+            this.insertLineLink(card, idx);
+            return;
+          }
+        }
+
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          let prefix = '';
+          if (currentLine.startsWith('- ')) prefix = '- ';
+          else {
+            const numMatch = /^(\d+)\.\s/.exec(currentLine);
+            if (numMatch) prefix = `${parseInt(numMatch[1], 10) + 1}. `;
+          }
+          lines.splice(idx + 1, 0, prefix);
+          card.content = lines.join('\n');
+          this.syncCardsToDailyNote();
+          this.$nextTick(() => {
+            this.startEditingLine(card, idx + 1);
+          });
+        } else if (e.key === 'Backspace' && !currentLine && lines.length > 1) {
+          e.preventDefault();
+          lines.splice(idx, 1);
+          card.content = lines.join('\n');
+          this.syncCardsToDailyNote();
+          this.$nextTick(() => {
+            this.startEditingLine(card, Math.max(0, idx - 1));
+          });
+        } else if (e.key === 'ArrowUp' && idx > 0) {
+          e.preventDefault();
+          this.startEditingLine(card, idx - 1);
+        } else if (e.key === 'ArrowDown' && idx < lines.length - 1) {
+          e.preventDefault();
+          this.startEditingLine(card, idx + 1);
+        }
+      },
+
+      clearLineSelection(card) {
+        if (!card) return;
+        card._selectedLineRange = null;
+      },
+
+      isLineInSelectedRange(card, idx) {
+        if (!card || !card._selectedLineRange) return false;
+        const lo = Math.min(card._selectedLineRange.start, card._selectedLineRange.end);
+        const hi = Math.max(card._selectedLineRange.start, card._selectedLineRange.end);
+        return idx >= lo && idx <= hi;
+      },
+
+      extendLineSelection(card, idx) {
+        if (!card) return;
+        const anchor = card._selectedLineRange ? card._selectedLineRange.start : (card._activeLineIndex ?? idx);
+        card._selectedLineRange = { start: anchor, end: idx };
+        card._activeLineIndex = null;
+      },
+
+      normalizeLinkUrl(url) {
+        if (!url || typeof url !== 'string') return '';
+        const trimmed = url.trim();
+        if (/^(https?|mailto):/i.test(trimmed)) return trimmed;
+        if (/^[\w.-]+\.[a-z]{2,}/i.test(trimmed)) return `https://${trimmed}`;
+        return '';
+      },
+
+      insertLineLink(card, idx) {
+        if (!card) return;
+        const lines = this.cardLines(card);
+        const text = lines[idx] || '';
+        const rawUrl = window.prompt('Enter web link URL (https://...):', 'https://');
+        if (!rawUrl) return;
+        const url = this.normalizeLinkUrl(rawUrl);
+        if (!url) return;
+        const linkText = window.prompt('Enter link text (leave empty to use URL):', '') || url;
+        const wrapped = `[[link:${url}]]${linkText}[[/link]]`;
+        lines[idx] = text ? `${text} ${wrapped}` : wrapped;
+        card.content = lines.join('\n');
+        this.syncCardsToDailyNote();
+      },
+
+      isGoogleDriveDocUrl(url) {
+        return /^https:\/\/docs\.google\.com\/(?:document|spreadsheets|presentation|forms)\/d\/[a-zA-Z0-9_-]+/.test(url)
+          || /^https:\/\/drive\.google\.com\/(?:file\/d\/[a-zA-Z0-9_-]+|open\?id=[a-zA-Z0-9_-]+)/.test(url);
+      },
+
+      async handleLinePaste(e, card, idx) {
+        if (!card || idx == null || idx < 0) return;
+        const clipboard = e.clipboardData || window.clipboardData;
+        const pasted = clipboard ? clipboard.getData('text/plain') : '';
+        const trimmed = (pasted || '').trim();
+        if (!trimmed || /\s/.test(trimmed) || !this.isGoogleDriveDocUrl(trimmed)) return;
+
+        e.preventDefault();
+        const el = document.getElementById(`card-line-${card.id}-${idx}`);
+        const lines = this.cardLines(card);
+        if (idx >= lines.length) return;
+        const text = lines[idx] || '';
+        const start = el ? el.selectionStart : text.length;
+        const end = el ? el.selectionEnd : text.length;
+        const before = text.slice(0, start);
+        const after = text.slice(end);
+
+        let displayText = trimmed;
+        try {
+          const result = this.bridge && typeof this.bridge.resolveLinkTitle === 'function'
+            ? await this.bridge.resolveLinkTitle(trimmed)
+            : { success: false };
+          if (result && result.success && result.title) {
+            displayText = result.title;
+          }
+        } catch (err) {
+          console.warn('Smart-paste title lookup failed, pasting plain URL instead:', err);
+        }
+
+        const wrapped = displayText === trimmed ? trimmed : `[[link:${trimmed}]]${displayText}[[/link]]`;
+        lines[idx] = before + wrapped + after;
+        card.content = lines.join('\n');
+        this.syncCardsToDailyNote();
+
+        const caretPos = before.length + wrapped.length;
+        this.$nextTick(() => { if (el) { el.focus(); el.setSelectionRange(caretPos, caretPos); } });
+      },
+
+      applyRangeFormat(card, formatType) {
+        if (!card || !card._selectedLineRange) return;
+        const totalLines = this.cardLines(card).length;
+        const lo = Math.max(0, Math.min(card._selectedLineRange.start, card._selectedLineRange.end));
+        const hi = Math.min(totalLines - 1, Math.max(card._selectedLineRange.start, card._selectedLineRange.end));
+        if (lo > hi) return;
+        for (let i = lo; i <= hi; i++) {
+          this.applyLineFormat(card, i, formatType);
+        }
+      },
+
       applyCardFormat(card, formatType) {
         if (!card) return;
-        const prefixMap = {
-          bold: '**',
-          italic: '*',
-          strike: '~~',
-          code: '`'
+        if (formatType === 'link') {
+          const idx = card._activeLineIndex ?? 0;
+          this.insertLineLink(card, idx);
+          return;
+        }
+        if (card._selectedLineRange) {
+          this.applyRangeFormat(card, formatType);
+          return;
+        }
+        const idx = card._activeLineIndex ?? 0;
+        this.applyLineFormat(card, idx, formatType);
+      },
+
+      applyLineFormat(card, idx, formatType) {
+        if (!card) return;
+        const lines = this.cardLines(card);
+        if (idx >= lines.length) return;
+        let line = lines[idx] || '';
+
+        const prefixMap = { bold: '**', italic: '*', strike: '~~', underline: '__' };
+        if (formatType === 'clear') {
+          line = line.replace(/\*\*|~~|__|\*/g, '')
+                     .replace(/\[\[color:[a-z]+\]\]/g, '')
+                     .replace(/\[\[\/color\]\]/g, '')
+                     .replace(/^(-\s|\d+\.\s)/, '');
+        } else if (formatType === 'bullet') {
+          if (line.startsWith('- ')) line = line.slice(2);
+          else if (/^\d+\.\s/.test(line)) line = `- ${line.replace(/^\d+\.\s/, '')}`;
+          else line = `- ${line}`;
+        } else if (formatType === 'ordered') {
+          const numMatch = /^(\d+)\.\s/.exec(line);
+          if (numMatch) {
+            line = line.replace(/^\d+\.\s/, '');
+          } else {
+            let prevNum = 0;
+            if (idx > 0) {
+              const prevMatch = /^(\d+)\.\s/.exec(lines[idx - 1] || '');
+              if (prevMatch) prevNum = parseInt(prevMatch[1], 10);
+            }
+            if (line.startsWith('- ')) line = line.slice(2);
+            line = `${prevNum + 1}. ${line}`;
+          }
+        } else if (formatType === 'color-default') {
+          line = line.replace(/\[\[color:[a-z]+\]\]/g, '').replace(/\[\[\/color\]\]/g, '');
+        } else if (formatType.startsWith('color-')) {
+          const color = formatType.replace('color-', '');
+          line = line.replace(/\[\[color:[a-z]+\]\]/g, '').replace(/\[\[\/color\]\]/g, '');
+          const listMatch = /^(-\s|\d+\.\s)/.exec(line);
+          if (listMatch) {
+            const marker = listMatch[0];
+            const rest = line.slice(marker.length);
+            line = `${marker}[[color:${color}]]${rest}[[/color]]`;
+          } else {
+            line = `[[color:${color}]]${line}[[/color]]`;
+          }
+        } else if (prefixMap[formatType]) {
+          const m = prefixMap[formatType];
+          const listMatch = /^(-\s|\d+\.\s)/.exec(line);
+          const markerLen = listMatch ? listMatch[0].length : 0;
+          const prefix = listMatch ? listMatch[0] : '';
+          const body = line.slice(markerLen);
+          if (body.startsWith(m) && body.endsWith(m) && body.length >= m.length * 2) {
+            line = prefix + body.slice(m.length, body.length - m.length);
+          } else {
+            line = `${prefix}${m}${body}${m}`;
+          }
+        }
+        lines[idx] = line;
+        card.content = lines.join('\n');
+        this.syncCardsToDailyNote();
+      },
+
+      cardNoteColor(card) {
+        const m = /\[\[color:(teal|red|green|blue)\]\]/.exec((card && card.content) || '');
+        return m ? m[1] : null;
+      },
+
+      normalizeLeadingListMarker(text) {
+        const wrapperOpenRe = /^(?:\[\[color:(?:teal|red|green|blue)\]\]|\*\*|~~|__|\*)/;
+        const wrapperMatch = wrapperOpenRe.exec(text);
+        if (!wrapperMatch) return text;
+        const rest = text.slice(wrapperMatch[0].length);
+        const listMatch = /^(-\s|\d+\.\s)/.exec(rest);
+        if (!listMatch) return text;
+        return listMatch[0] + wrapperMatch[0] + rest.slice(listMatch[0].length);
+      },
+
+      renderCardLine(text, isPlaceholder) {
+        if (isPlaceholder) {
+          return '<span class="note-card-empty-placeholder">Click to add notes for this topic&hellip;</span>';
+        }
+
+        text = this.normalizeLeadingListMarker(text);
+
+        const escapeHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+        const renderInline = (line) => {
+          let html = escapeHtml(line);
+          html = html.replace(/\[\[color:(teal|red|green|blue)\]\](.+?)\[\[\/color\]\]/g, '<span class="note-render-color-$1">$2</span>');
+          html = html.replace(/\[\[link:((?:https?|mailto):[^\]\s]+)\]\](.+?)\[\[\/link\]\]/g, (_m, url, linkText) => {
+            const safeHrefUrl = url.replace(/"/g, '&quot;');
+            return `<a href="${safeHrefUrl}" target="_blank" rel="noopener noreferrer" class="note-render-link">${linkText}</a>`;
+          });
+          html = html.replace(/\*\*(.+?)\*\*/g, '<span class="note-render-bold">$1</span>');
+          html = html.replace(/~~(.+?)~~/g, '<span class="note-render-strike">$1</span>');
+          html = html.replace(/__(.+?)__/g, '<span class="note-render-underline">$1</span>');
+          html = html.replace(/\*(.+?)\*/g, '<span class="note-render-italic">$1</span>');
+          return html;
         };
 
-        if (formatType === 'bullet') {
-          const lines = (card.content || '').split('\n');
-          card.content = lines.map(line => line.startsWith('- ') ? line.substring(2) : `- ${line}`).join('\n');
-        } else if (prefixMap[formatType]) {
-          const p = prefixMap[formatType];
-          card.content = `${p}${card.content || ''}${p}`;
+        const orderedRe = /^\d+\.\s/;
+        if (text.startsWith('- ')) {
+          return `<ul class="note-render-list"><li>${renderInline(text.slice(2))}</li></ul>`;
         }
-        this.syncCardsToDailyNote();
+        if (orderedRe.test(text)) {
+          const num = parseInt(orderedRe.exec(text)[0], 10);
+          return `<ol class="note-render-list"><li value="${num}">${renderInline(text.replace(orderedRe, ''))}</li></ol>`;
+        }
+        return `<div class="note-render-line">${renderInline(text) || '&nbsp;'}</div>`;
+      },
+
+      renderDailyNotePreview() {
+        const text = this.dailyNote || '';
+        if (!text.trim()) return this.renderCardLine('', true);
+
+        const escapeHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+        return text.split('\n').map(line => {
+          const h3Match = /^###\s+(.*)$/.exec(line);
+          if (h3Match) {
+            const { indexTopic, heading } = this.decomposeIndexHeading(h3Match[1].trim());
+            if (indexTopic) {
+              return `<h3 class="doc-preview-heading"><span class="doc-preview-topic-badge">${escapeHtml(indexTopic)}</span><span class="doc-preview-heading-text">${escapeHtml(heading || 'Topic')}</span></h3>`;
+            }
+            return `<h3 class="doc-preview-heading">${escapeHtml(heading)}</h3>`;
+          }
+          const h1Match = /^#\s+(.*)$/.exec(line);
+          if (h1Match) return `<h2 class="doc-preview-heading-main">${escapeHtml(h1Match[1])}</h2>`;
+          return this.renderCardLine(line, false);
+        }).join('');
+      },
+
+      decomposeIndexHeading(headingClean) {
+        if (!/#index|\[INDEX\]/i.test(headingClean)) {
+          return { indexTopic: '', heading: headingClean };
+        }
+        let clean = headingClean.replace(/#index|\[INDEX\]/gi, '').trim();
+        let indexTopic = 'General';
+        const bracketMatch = clean.match(/^\[([^\]]+)\]\s*(.*)$/);
+        if (bracketMatch) {
+          indexTopic = bracketMatch[1].trim();
+          clean = bracketMatch[2].trim();
+        } else if (clean.includes(':')) {
+          const parts = clean.split(':');
+          indexTopic = parts[0].trim();
+          clean = parts.slice(1).join(':').trim();
+        }
+        return { indexTopic, heading: clean };
       },
 
       parseDailyNoteToCards(noteText = '') {
         if (!noteText.trim() || noteText.startsWith('No notes recorded for')) {
           return [
-            { id: 'nc_1', heading: '#index [Architecture] System Design', content: 'Finalized 3-column binder layout with Alpine.js and clean CSS.', category: 'Work', collapsed: false },
-            { id: 'nc_2', heading: '#index [Finance] Budget Sync', content: '- Reviewed Q3 budget and Google Workspace API sync.\n- Approved GCP allocation.', category: 'Meeting', collapsed: false }
+            { id: 'nc_1', indexTopic: 'Architecture', heading: 'System Design', content: 'Finalized 3-column binder layout with Alpine.js and clean CSS.', category: 'Work', collapsed: false },
+            { id: 'nc_2', indexTopic: 'Finance', heading: 'Budget Sync', content: '- Reviewed Q3 budget and Google Workspace API sync.\n- Approved GCP allocation.', category: 'Meeting', collapsed: false }
           ];
         }
 
@@ -904,12 +1376,18 @@
 
         lines.forEach(line => {
           if (line.startsWith('### ') || line.startsWith('# ')) {
+            let headingClean = line.replace(/^#+\s*/, '').trim();
+            if (/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},\s*\d{4}$/i.test(headingClean) ||
+                /^\d{4}-\d{2}-\d{2}$/.test(headingClean)) {
+              return;
+            }
             if (currentCard) cards.push(currentCard);
-            const headingClean = line.replace(/^#+\s*/, '').trim();
             const category = headingClean.toLowerCase().includes('meeting') ? 'Meeting' : headingClean.toLowerCase().includes('finance') ? 'Decision' : headingClean.toLowerCase().includes('personal') ? 'Personal' : 'Work';
+            const { indexTopic, heading } = this.decomposeIndexHeading(headingClean);
             currentCard = {
               id: `nc_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-              heading: headingClean,
+              indexTopic,
+              heading,
               content: '',
               category,
               collapsed: false
@@ -918,6 +1396,7 @@
             if (!currentCard) {
               currentCard = {
                 id: `nc_default_${Date.now()}`,
+                indexTopic: '',
                 heading: 'General Notes',
                 content: '',
                 category: 'Work',
@@ -935,15 +1414,35 @@
         if (!this.noteCards || this.noteCards.length === 0) {
           this.dailyNote = '';
           this.buildIndexRecords();
+          this.scheduleDailyNoteSave();
           return;
         }
-        this.dailyNote = this.noteCards.map(c => `### ${c.heading || 'Topic'}\n${c.content || ''}`).join('\n\n');
+        this.dailyNote = this.noteCards.map(c => {
+          const headingLine = c.indexTopic
+            ? `#index [${c.indexTopic}] ${c.heading || 'Topic'}`
+            : (c.heading || 'Topic');
+          return `### ${headingLine}\n${c.content || ''}`;
+        }).join('\n\n');
         this.buildIndexRecords();
+        this.scheduleDailyNoteSave();
       },
 
       syncDailyNoteToCards() {
         this.noteCards = this.parseDailyNoteToCards(this.dailyNote);
         this.buildIndexRecords();
+      },
+
+      scheduleDailyNoteSave() {
+        if (this.noteSaveTimer) clearTimeout(this.noteSaveTimer);
+        this.noteSaveTimer = setTimeout(async () => {
+          if (!this.bridge || typeof this.bridge.saveDailyDocCards !== 'function') return;
+          try {
+            await this.bridge.saveDailyDocCards(this.selectedDate, this.dailyNote);
+          } catch (err) {
+            console.error('🔥 saveDailyDocCards error:', err);
+            this.errorMessage = `Could not save daily note: ${err.message || err.toString()}`;
+          }
+        }, 1200);
       },
 
       async loadMasterTasks() {
@@ -1009,6 +1508,7 @@
           }
         });
         this.indexRecords = entries;
+        this.buildTaskNoteLinks();
       },
 
       buildMonthlyGrid() {

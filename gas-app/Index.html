@@ -352,16 +352,46 @@
                 </div>
               </template>
 
+              <!-- Shared autocomplete source for the Topic field below -->
+              <datalist id="index-topics-datalist">
+                <template x-for="t in indexTopicOptions()" :key="t">
+                  <option :value="t"></option>
+                </template>
+              </datalist>
+
               <!-- Cards List -->
               <template x-for="card in filteredNoteCards" :key="card.id">
-                <article class="note-card-item" :class="{ 'collapsed': card.collapsed }">
+                <article class="note-card-item" :id="'note-card-' + card.id" :data-card-id="card.id" :class="{ 'collapsed': card.collapsed, 'note-color-teal': cardNoteColor(card) === 'teal', 'note-color-red': cardNoteColor(card) === 'red', 'note-color-green': cardNoteColor(card) === 'green', 'note-color-blue': cardNoteColor(card) === 'blue' }" @click.away="clearLineSelection(card)" @keydown.escape.window="clearLineSelection(card)">
                   <!-- Card Header -->
                   <header class="note-card-header">
                     <button type="button" class="card-twistie-btn" @click="toggleCardExpand(card)" :title="card.collapsed ? 'Expand Topic' : 'Collapse Topic'">
                       <span class="material-symbols-outlined icon-18" x-text="card.collapsed ? 'arrow_right' : 'arrow_drop_down'"></span>
                     </button>
 
-                    <input type="text" x-model="card.heading" @input="syncCardsToDailyNote()" placeholder="Topic Heading (e.g. #index [Architecture])..." class="card-heading-input" aria-label="Topic Heading">
+                    <input type="text" x-model="card.indexTopic" @input="syncCardsToDailyNote()" list="index-topics-datalist" placeholder="Local-only" class="card-topic-input" :style="'flex: 0 0 ' + topicColWidth + 'px; width: ' + topicColWidth + 'px'" aria-label="Monthly Index Topic (optional)" title="Topic: set this to add the card to the Monthly Index. Leave blank to keep it private to today.">
+
+                    <div class="card-header-resizer"
+                         :class="{ 'is-resizing': isHeaderResizing }"
+                         @mousedown="initHeaderResize($event)"
+                         @touchstart="initHeaderResize($event)"
+                         @dblclick="resetHeaderSplit()"
+                         role="separator"
+                         aria-orientation="vertical"
+                         aria-label="Resize Topic and Summary fields"
+                         title="Drag to resize Topic/Summary (double-click to reset)">
+                      <div class="resizer-handle"></div>
+                    </div>
+
+                    <textarea rows="1" maxlength="60" x-model="card.heading" :disabled="!card.indexTopic" x-init="$nextTick(() => autoGrowNoteHeading($el))" @input="syncCardsToDailyNote(); autoGrowNoteHeading($event.target)" :placeholder="card.indexTopic ? 'Summary for the index...' : 'Set a Topic to index this card'" class="card-heading-input" aria-label="Card Summary" title="Summary: the one-line description shown in the Monthly Index (60 char max)."></textarea>
+
+                    <span class="card-heading-help" tabindex="0" role="note" aria-label="How Topic and Summary work">
+                      <span class="material-symbols-outlined">info</span>
+                      <span class="card-heading-help-tip">Set a <b>Topic</b> to add this card to the Monthly Index; leave it blank and the card stays local to this day only. <b>Summary</b> is the one-line description shown in that index.</span>
+                    </span>
+
+                    <template x-if="taskLinkForCard(card)">
+                      <span class="task-link-tag" :title="'Linked to Task ' + taskLinkForCard(card).priority" x-text="'→ ' + taskLinkForCard(card).priority"></span>
+                    </template>
 
                     <select x-model="card.category" @change="syncCardsToDailyNote()" class="card-category-select" aria-label="Card Category">
                       <option value="Work">Work</option>
@@ -380,16 +410,38 @@
                   <div class="note-card-body" x-show="!card.collapsed">
                     <!-- Google Chat Style Formatting Toolbar -->
                     <div class="gchat-toolbar" role="toolbar" aria-label="Rich text formatting">
-                      <button type="button" class="format-btn" @click="applyCardFormat(card, 'bold')" title="Bold"><span class="material-symbols-outlined icon-16">format_bold</span></button>
-                      <button type="button" class="format-btn" @click="applyCardFormat(card, 'italic')" title="Italic"><span class="material-symbols-outlined icon-16">format_italic</span></button>
-                      <button type="button" class="format-btn" @click="applyCardFormat(card, 'strike')" title="Strikethrough"><span class="material-symbols-outlined icon-16">strikethrough_s</span></button>
+                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'clear')" title="Clear All Formatting" aria-label="Clear All Formatting"><span class="material-symbols-outlined icon-16">format_clear</span></button>
                       <span class="toolbar-divider"></span>
-                      <button type="button" class="format-btn" @click="applyCardFormat(card, 'bullet')" title="Bullet List"><span class="material-symbols-outlined icon-16">format_list_bulleted</span></button>
-                      <button type="button" class="format-btn" @click="applyCardFormat(card, 'code')" title="Code/Quote"><span class="material-symbols-outlined icon-16">code</span></button>
+                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'bold')" title="Bold (Ctrl+B)"><span class="material-symbols-outlined icon-16">format_bold</span></button>
+                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'italic')" title="Italic (Ctrl+I)"><span class="material-symbols-outlined icon-16">format_italic</span></button>
+                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'underline')" title="Underline (Ctrl+U)"><span class="material-symbols-outlined icon-16">format_underlined</span></button>
+                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'strike')" title="Strikethrough"><span class="material-symbols-outlined icon-16">strikethrough_s</span></button>
+                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'link')" title="Insert Link (Ctrl+K)" aria-label="Insert Link"><span class="material-symbols-outlined icon-16">link</span></button>
+                      <span class="toolbar-divider"></span>
+                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'bullet')" title="Bullet List"><span class="material-symbols-outlined icon-16">format_list_bulleted</span></button>
+                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'ordered')" title="Numbered List"><span class="material-symbols-outlined icon-16">format_list_numbered</span></button>
+                      <span class="toolbar-divider"></span>
+                      <button type="button" class="format-btn color-swatch-btn color-swatch-default" @mousedown.prevent @click="applyCardFormat(card, 'color-default')" title="Remove Text Color Only"><span class="material-symbols-outlined icon-16">format_color_reset</span></button>
+                      <button type="button" class="format-btn color-swatch-btn color-swatch-teal" :class="{ active: cardNoteColor(card) === 'teal' }" @mousedown.prevent @click="applyCardFormat(card, 'color-teal')" title="Color: Teal" aria-label="Color: Teal"></button>
+                      <button type="button" class="format-btn color-swatch-btn color-swatch-red" :class="{ active: cardNoteColor(card) === 'red' }" @mousedown.prevent @click="applyCardFormat(card, 'color-red')" title="Color: Red" aria-label="Color: Red"></button>
+                      <button type="button" class="format-btn color-swatch-btn color-swatch-green" :class="{ active: cardNoteColor(card) === 'green' }" @mousedown.prevent @click="applyCardFormat(card, 'color-green')" title="Color: Green" aria-label="Color: Green"></button>
+                      <button type="button" class="format-btn color-swatch-btn color-swatch-blue" :class="{ active: cardNoteColor(card) === 'blue' }" @mousedown.prevent @click="applyCardFormat(card, 'color-blue')" title="Color: Blue" aria-label="Color: Blue"></button>
+                      <span class="toolbar-divider"></span>
+                      <span class="card-heading-help" tabindex="0" role="note" aria-label="Typing shortcuts for formatting">
+                        <span class="material-symbols-outlined icon-16">keyboard</span>
+                        <span class="card-heading-help-tip">Start a line with <code>- </code> for bullets, <code>1. </code> for numbers. Inline: <code>**bold**</code>, <code>*italic*</code>, <code>__underline__</code>, <code>~~strike~~</code>.</span>
+                      </span>
                     </div>
 
-                    <!-- Note Card Text Area -->
-                    <textarea x-model="card.content" @input="syncCardsToDailyNote()" placeholder="Type notes for this topic (e.g. - #index [Topic] key decisions...)" class="note-card-textarea" aria-label="Note card content"></textarea>
+                    <!-- Note Card Content: per-line live preview -->
+                    <div class="note-card-lines">
+                      <template x-for="(line, idx) in cardLines(card)" :key="idx">
+                        <div class="note-card-line-row" :class="{ 'note-line-selected': isLineInSelectedRange(card, idx) }">
+                          <div class="note-render-line-item" x-show="card._activeLineIndex !== idx" @click="$event.shiftKey ? extendLineSelection(card, idx) : startEditingLine(card, idx)" x-html="renderCardLine(line, cardLines(card).length === 1 && !line)" aria-label="Note line, click to edit, shift+click to extend selection"></div>
+                          <input type="text" x-show="card._activeLineIndex === idx" :id="'card-line-' + card.id + '-' + idx" :value="line" @input="updateCardLine(card, idx, $event.target.value)" @keydown="handleLineKeydown($event, card, idx)" @paste="handleLinePaste($event, card, idx)" @blur="stopEditingLine(card, idx)" :placeholder="cardLines(card).length === 1 && idx === 0 ? 'Type notes for this topic (e.g. - #index [Topic] key decisions...)' : ''" class="note-card-line-input" aria-label="Note line">
+                        </div>
+                      </template>
+                    </div>
                   </div>
                 </article>
               </template>

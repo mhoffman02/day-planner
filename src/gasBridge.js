@@ -415,4 +415,30 @@ export class GASBridge {
         .saveDailyDocCards(dateStr, noteContent);
     });
   }
+
+  /**
+   * Resolves the display title for a Google Drive / Docs / Sheets URL.
+   * @param {string} url Target URL.
+   * @returns {Promise<{success: boolean, title?: string, fileId?: string, error?: string}>}
+   */
+  async resolveLinkTitle(url) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      if (!url || typeof url !== 'string') return { success: false, error: 'No URL provided.' };
+      const idMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+      if (!idMatch) return { success: false, error: 'Not a recognized Drive URL.' };
+      const fileId = idMatch[1];
+      let title = 'Document Title';
+      if (url.includes('spreadsheets')) title = 'Financial Planning Spreadsheet';
+      else if (url.includes('presentation')) title = 'Architecture Slide Deck';
+      else if (url.includes('document')) title = 'Executive Briefing Doc';
+      return { success: true, title, fileId };
+    }
+
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .resolveDriveFileTitle(url);
+    });
+  }
 }

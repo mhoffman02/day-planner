@@ -633,6 +633,43 @@ function saveDailyDocCards(dateStr, noteContent) {
 }
 
 /**
+ * Resolves the display title for a Google Drive / Docs / Sheets / Slides / Forms URL.
+ * Used for smart-paste in note cards.
+ * @param {string} url Target Google Drive file URL.
+ * @returns {{success: boolean, title?: string, fileId?: string, error?: string}} Resolution result.
+ */
+function resolveDriveFileTitle(url) {
+  if (!url || typeof url !== 'string') {
+    return { success: false, error: 'No URL provided.' };
+  }
+  var idMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (!idMatch) {
+    return { success: false, error: 'Not a recognized Google Docs/Sheets/Slides/Forms/Drive URL.' };
+  }
+  try {
+    var fileId = idMatch[1];
+    if (typeof Drive !== 'undefined' && Drive.Files && Drive.Files.get) {
+      var meta = Drive.Files.get(fileId, { fields: 'id,name,trashed' });
+      if (meta.trashed) {
+        return { success: false, error: 'File is trashed.' };
+      }
+      return { success: true, title: meta.name, fileId: fileId };
+    }
+    if (typeof DriveApp !== 'undefined') {
+      var file = DriveApp.getFileById(fileId);
+      if (file.isTrashed()) {
+        return { success: false, error: 'File is trashed.' };
+      }
+      return { success: true, title: file.getName(), fileId: fileId };
+    }
+    return { success: true, title: 'Document (' + fileId.slice(0, 6) + ')', fileId: fileId };
+  } catch (err) {
+    logError('resolveDriveFileTitle(' + url + ')', err);
+    return { success: false, error: err.message || err.toString() };
+  }
+}
+
+/**
  * Gets or returns the validated root Day Planner folder by ID.
  * @param {GoogleAppsScript.Drive.Folder|null} parent Parent folder object, or null to target root folder.
  * @param {string} name Folder name to find.
