@@ -931,7 +931,7 @@
     </dialog>
 
     <!-- Universal Search Modal -->
-    <dialog class="modal-backdrop" :open="searchModalOpen" x-show="searchModalOpen" x-transition x-cloak aria-labelledby="searchModalTitle">
+    <dialog class="modal-backdrop" :open="searchModalOpen" x-show="searchModalOpen" x-transition x-cloak aria-labelledby="searchModalTitle" @keydown.escape.window="if (searchModalOpen) closeSearchModal()">
       <article class="modal-card modal-card-wide" @click.away="closeSearchModal()">
         <header>
           <h3 id="searchModalTitle" class="modal-title-with-icon">
@@ -939,28 +939,45 @@
           </h3>
         </header>
         <section>
-          <input type="search" x-model="searchQuery" @input="runSearch()" placeholder="Type to search calendar, tasks, notes, index..." class="search-input-field" aria-label="Universal Search Input">
+          <input
+            type="search"
+            x-model="searchQuery"
+            @input="runSearch()"
+            @keydown.down.prevent="navigateSearchResults(1)"
+            @keydown.up.prevent="navigateSearchResults(-1)"
+            @keydown.enter.prevent="selectActiveSearchResult()"
+            @keydown.escape.prevent="closeSearchModal()"
+            placeholder="Type to search calendar, tasks, notes, index..."
+            class="search-input-field"
+            aria-label="Universal Search Input"
+          >
           
-          <div class="search-results-container">
+          <div class="search-results-container" role="listbox">
             <template x-if="searchResults.totalMatches === 0 && searchQuery">
               <p class="search-no-results">No matching entries found.</p>
             </template>
 
-            <template x-for="item in searchResults.calendar" :key="item.title">
-              <article class="search-result-item result-calendar">
-                <b>[Calendar]</b> <span x-text="item.title"></span>
-              </article>
-            </template>
-
-            <template x-for="item in searchResults.tasks" :key="item.title">
-              <article class="search-result-item result-task">
-                <b>[Task]</b> <span x-text="item.title"></span>
-              </article>
-            </template>
-
-            <template x-for="item in searchResults.index" :key="item.summary">
-              <article class="search-result-item result-index">
-                <b>[Index]</b> <span x-text="item.topic + ': ' + item.summary"></span>
+            <template x-for="(item, idx) in getFlattenedSearchResults()" :key="item.type + '-' + (item.title || item.snippet) + '-' + idx">
+              <article
+                class="search-result-item"
+                :class="{
+                  'result-calendar': item.type === 'calendar',
+                  'result-task': item.type === 'task',
+                  'result-note': item.type === 'note',
+                  'result-index': item.type === 'index',
+                  'selected': selectedSearchIndex === idx
+                }"
+                role="option"
+                :aria-selected="selectedSearchIndex === idx"
+                @mouseenter="selectedSearchIndex = idx"
+                @click="selectSearchResult(item)"
+              >
+                <div class="search-result-header">
+                  <span class="search-result-badge" x-text="item.type.toUpperCase()"></span>
+                  <strong class="search-result-title" x-text="item.title"></strong>
+                  <span class="search-result-date" x-show="item.date" x-text="item.date"></span>
+                </div>
+                <div class="search-result-snippet" x-show="item.snippet" x-text="item.snippet"></div>
               </article>
             </template>
           </div>

@@ -125,6 +125,160 @@
     return { year: String(year), months };
   }
 
+  function extractLocalDateStr(dateVal) {
+    if (!dateVal) return '';
+    if (typeof dateVal === 'string') {
+      const match = dateVal.match(/^(\d{4}-\d{2}-\d{2})/);
+      if (match) return match[1];
+      const parsed = new Date(dateVal);
+      if (isNaN(parsed.getTime())) return '';
+      const y = parsed.getFullYear();
+      const m = String(parsed.getMonth() + 1).padStart(2, '0');
+      const d = String(parsed.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    if (dateVal instanceof Date && !isNaN(dateVal.getTime())) {
+      const y = dateVal.getFullYear();
+      const m = String(dateVal.getMonth() + 1).padStart(2, '0');
+      const d = String(dateVal.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+    return '';
+  }
+
+  function normalizeCollection(input) {
+    if (!input) return [];
+    if (Array.isArray(input)) return input;
+    if (typeof input === 'object') return Object.values(input).flat();
+    return [];
+  }
+
+  function flattenSearchResults(results = {}) {
+    if (!results) return [];
+    return [
+      ...(results.calendar || []),
+      ...(results.tasks || []),
+      ...(results.notes || []),
+      ...(results.index || [])
+    ];
+  }
+
+  function executeUniversalSearch(query = '', store = {}) {
+    const cleanQuery = query.trim().toLowerCase();
+    const results = {
+      totalMatches: 0,
+      calendar: [],
+      tasks: [],
+      notes: [],
+      index: []
+    };
+
+    if (!cleanQuery) return results;
+
+    const {
+      calendarEvents,
+      dailyTasks,
+      masterTasks = [],
+      dailyNotes,
+      indexEntries = []
+    } = store;
+
+    // 1. Search Calendar Events
+    normalizeCollection(calendarEvents).forEach(evt => {
+      const titleMatch = (evt.title || '').toLowerCase().includes(cleanQuery);
+      const locMatch = (evt.location || '').toLowerCase().includes(cleanQuery);
+      const descMatch = (evt.description || '').toLowerCase().includes(cleanQuery);
+
+      if (titleMatch || locMatch || descMatch) {
+        const evtDate = evt.date || extractLocalDateStr(evt.startTime);
+        results.calendar.push({
+          type: 'calendar',
+          title: evt.title || 'Untitled Event',
+          snippet: evt.location ? `Location: ${evt.location}` : (evt.description || 'Calendar Event'),
+          date: evtDate,
+          targetView: 'daily',
+          item: evt
+        });
+        results.totalMatches++;
+      }
+    });
+
+    // 2. Search Tasks (Daily & Master)
+    const allTasks = [...normalizeCollection(dailyTasks), ...normalizeCollection(masterTasks)];
+    allTasks.forEach(task => {
+      const titleMatch = (task.title || '').toLowerCase().includes(cleanQuery);
+      const catMatch = (task.category || '').toLowerCase().includes(cleanQuery);
+      const notesMatch = (task.notes || '').toLowerCase().includes(cleanQuery);
+
+      if (titleMatch || catMatch || notesMatch) {
+        const isMaster = !task.dueDate || task.master;
+        results.tasks.push({
+          type: 'task',
+          title: task.title || 'Untitled Task',
+          snippet: task.category ? `Category: ${task.category}` : (task.notes ? `Notes: ${task.notes}` : `Status: ${task.status || 'Open'}`),
+          date: task.dueDate || '',
+          targetView: isMaster ? 'master-tasks' : 'daily',
+          item: task
+        });
+        results.totalMatches++;
+      }
+    });
+
+    // 3. Search Daily Notes
+    let normalizedNotes = [];
+    if (Array.isArray(dailyNotes)) {
+      normalizedNotes = dailyNotes.map(n => ({
+        date: n.date || '',
+        content: n.content || n.noteContent || ''
+      }));
+    } else if (dailyNotes && typeof dailyNotes === 'object') {
+      normalizedNotes = Object.entries(dailyNotes).map(([date, val]) => ({
+        date,
+        content: typeof val === 'string' ? val : (val?.content || val?.noteContent || '')
+      }));
+    }
+
+    normalizedNotes.forEach(note => {
+      const text = note.content || '';
+      if (text.toLowerCase().includes(cleanQuery)) {
+        const idx = text.toLowerCase().indexOf(cleanQuery);
+        const start = Math.max(0, idx - 20);
+        const end = Math.min(text.length, idx + cleanQuery.length + 40);
+        const snippet = '...' + text.substring(start, end).replace(/\n/g, ' ') + '...';
+
+        results.notes.push({
+          type: 'note',
+          title: `Daily Note (${note.date || 'Undated'})`,
+          snippet,
+          date: note.date || '',
+          targetView: 'daily',
+          item: note
+        });
+        results.totalMatches++;
+      }
+    });
+
+    // 4. Search Monthly Index Entries
+    normalizeCollection(indexEntries).forEach(idx => {
+      const topicMatch = (idx.topic || '').toLowerCase().includes(cleanQuery);
+      const summaryMatch = (idx.summary || '').toLowerCase().includes(cleanQuery);
+
+      if (topicMatch || summaryMatch) {
+        results.index.push({
+          type: 'index',
+          title: `[${idx.topic || 'General'}] ${idx.summary || ''}`,
+          snippet: `Topic: ${idx.topic || 'General'}`,
+          date: idx.date || '',
+          targetView: 'monthly-index',
+          item: idx
+        });
+        results.totalMatches++;
+      }
+    });
+
+    return results;
+  }
+
   class GASBridge {
     constructor(useMock = false) {
       this.useMock = useMock;
@@ -555,6 +709,7 @@
       searchModalOpen: false,
       searchQuery: '',
       searchResults: { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [] },
+      selectedSearchIndex: -1,
 
       // Task inputs
       newTaskTitle: '',
@@ -734,9 +889,12 @@
 
       setupKeyboardShortcuts() {
         window.addEventListener('keydown', (e) => {
-          if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+          if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
             e.preventDefault();
             this.toggleSearchModal();
+          } else if (e.key === 'Escape' && this.searchModalOpen) {
+            e.preventDefault();
+            this.closeSearchModal();
           }
         });
       },
@@ -1835,49 +1993,114 @@
         }
       },
 
+      openSearchModal() {
+        this.searchModalOpen = true;
+        this.selectedSearchIndex = this.getFlattenedSearchResults().length > 0 ? 0 : -1;
+        this.$nextTick(() => {
+          const input = document.querySelector('.search-input-field');
+          if (input) {
+            input.focus();
+            input.select();
+          }
+        });
+      },
+
+      closeSearchModal() {
+        this.searchModalOpen = false;
+        this.searchQuery = '';
+        this.searchResults = { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [] };
+        this.selectedSearchIndex = -1;
+      },
+
       toggleSearchModal() {
-        this.searchModalOpen = !this.searchModalOpen;
         if (this.searchModalOpen) {
-          this.runSearch();
+          this.closeSearchModal();
+        } else {
+          this.openSearchModal();
+          if (this.searchQuery) {
+            this.runSearch();
+          }
         }
       },
 
+      getFlattenedSearchResults() {
+        return flattenSearchResults(this.searchResults);
+      },
+
       runSearch() {
-        const q = this.searchQuery.trim().toLowerCase();
+        const q = this.searchQuery.trim();
         if (!q) {
           this.searchResults = { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [] };
+          this.selectedSearchIndex = -1;
           return;
         }
 
-        const res = { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [] };
+        const store = {
+          calendarEvents: (this.bridge?.useMock && this.bridge?.mockData?.calendarEvents
+            ? Object.values(this.bridge.mockData.calendarEvents).flat()
+            : this.calendarEvents) || [],
+          dailyTasks: (this.bridge?.useMock && this.bridge?.mockData?.dailyTasks
+            ? Object.values(this.bridge.mockData.dailyTasks).flat()
+            : this.dailyTasks) || [],
+          masterTasks: this.masterTasks || [],
+          dailyNotes: (this.bridge?.useMock && this.bridge?.mockData?.dailyNotes
+            ? this.bridge.mockData.dailyNotes
+            : (this.dailyNote ? [{ date: this.selectedDate, content: this.dailyNote }] : [])) || [],
+          indexEntries: (this.bridge?.useMock && this.bridge?.mockData?.indexEntries
+            ? this.bridge.mockData.indexEntries
+            : this.indexRecords) || []
+        };
 
-        this.calendarEvents.forEach(e => {
-          if ((e.title || '').toLowerCase().includes(q) || (e.description || '').toLowerCase().includes(q)) {
-            res.calendar.push(e);
-            res.totalMatches++;
+        this.searchResults = executeUniversalSearch(q, store);
+        const flat = this.getFlattenedSearchResults();
+        this.selectedSearchIndex = flat.length > 0 ? 0 : -1;
+      },
+
+      navigateSearchResults(delta) {
+        const list = this.getFlattenedSearchResults();
+        if (!list.length) {
+          this.selectedSearchIndex = -1;
+          return;
+        }
+        let nextIdx = this.selectedSearchIndex + delta;
+        if (nextIdx < 0) nextIdx = list.length - 1;
+        if (nextIdx >= list.length) nextIdx = 0;
+        this.selectedSearchIndex = nextIdx;
+
+        this.$nextTick(() => {
+          const selectedEl = document.querySelector('.search-result-item.selected');
+          if (selectedEl) {
+            selectedEl.scrollIntoView({ block: 'nearest' });
           }
         });
+      },
 
-        [...this.dailyTasks, ...this.masterTasks].forEach(t => {
-          if ((t.title || '').toLowerCase().includes(q)) {
-            res.tasks.push(t);
-            res.totalMatches++;
-          }
-        });
+      selectActiveSearchResult() {
+        const list = this.getFlattenedSearchResults();
+        if (this.selectedSearchIndex >= 0 && this.selectedSearchIndex < list.length) {
+          this.selectSearchResult(list[this.selectedSearchIndex]);
+        }
+      },
 
-        if (this.dailyNote.toLowerCase().includes(q)) {
-          res.notes.push({ date: this.selectedDate, content: this.dailyNote });
-          res.totalMatches++;
+      async selectSearchResult(item) {
+        if (!item) return;
+        this.closeSearchModal();
+
+        const targetDate = item.date;
+        const targetView = item.targetView || 'daily';
+
+        if (targetDate && /^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
+          this.selectedDate = targetDate;
+          const [y, m] = targetDate.split('-').map(Number);
+          this.selectedYear = y;
+          this.selectedMonth = m;
         }
 
-        this.indexRecords.forEach(i => {
-          if ((i.summary || '').toLowerCase().includes(q) || (i.topic || '').toLowerCase().includes(q)) {
-            res.index.push(i);
-            res.totalMatches++;
-          }
-        });
+        await this.setView(targetView);
 
-        this.searchResults = res;
+        if (targetView === 'daily' || targetDate) {
+          await this.loadDayData();
+        }
       },
 
       parseTask(title) {

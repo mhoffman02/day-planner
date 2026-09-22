@@ -8,6 +8,7 @@ import {
   STATUS_OPTIONS,
   sortTasksByColumn
 } from './taskEngine.js';
+import { executeUniversalSearch, flattenSearchResults } from './searchEngine.js';
 window.GASBridge = GASBridge;
 
   document.addEventListener('alpine:init', () => {
@@ -69,6 +70,7 @@ window.GASBridge = GASBridge;
       searchModalOpen: false,
       searchQuery: '',
       searchResults: { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [] },
+      selectedSearchIndex: -1,
 
       // Task inputs
       newTaskTitle: '',
@@ -254,9 +256,12 @@ window.GASBridge = GASBridge;
 
       setupKeyboardShortcuts() {
         window.addEventListener('keydown', (e) => {
-          if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+          if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
             e.preventDefault();
             this.toggleSearchModal();
+          } else if (e.key === 'Escape' && this.searchModalOpen) {
+            e.preventDefault();
+            this.closeSearchModal();
           }
         });
       },
@@ -1355,49 +1360,114 @@ window.GASBridge = GASBridge;
         }
       },
 
+      openSearchModal() {
+        this.searchModalOpen = true;
+        this.selectedSearchIndex = this.getFlattenedSearchResults().length > 0 ? 0 : -1;
+        this.$nextTick(() => {
+          const input = document.querySelector('.search-input-field');
+          if (input) {
+            input.focus();
+            input.select();
+          }
+        });
+      },
+
+      closeSearchModal() {
+        this.searchModalOpen = false;
+        this.searchQuery = '';
+        this.searchResults = { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [] };
+        this.selectedSearchIndex = -1;
+      },
+
       toggleSearchModal() {
-        this.searchModalOpen = !this.searchModalOpen;
         if (this.searchModalOpen) {
-          this.runSearch();
+          this.closeSearchModal();
+        } else {
+          this.openSearchModal();
+          if (this.searchQuery) {
+            this.runSearch();
+          }
         }
       },
 
+      getFlattenedSearchResults() {
+        return flattenSearchResults(this.searchResults);
+      },
+
       runSearch() {
-        const q = this.searchQuery.trim().toLowerCase();
+        const q = this.searchQuery.trim();
         if (!q) {
           this.searchResults = { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [] };
+          this.selectedSearchIndex = -1;
           return;
         }
 
-        const res = { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [] };
+        const store = {
+          calendarEvents: (this.bridge?.useMock && this.bridge?.mockData?.calendarEvents
+            ? Object.values(this.bridge.mockData.calendarEvents).flat()
+            : this.calendarEvents) || [],
+          dailyTasks: (this.bridge?.useMock && this.bridge?.mockData?.dailyTasks
+            ? Object.values(this.bridge.mockData.dailyTasks).flat()
+            : this.dailyTasks) || [],
+          masterTasks: this.masterTasks || [],
+          dailyNotes: (this.bridge?.useMock && this.bridge?.mockData?.dailyNotes
+            ? this.bridge.mockData.dailyNotes
+            : (this.dailyNote ? [{ date: this.selectedDate, content: this.dailyNote }] : [])) || [],
+          indexEntries: (this.bridge?.useMock && this.bridge?.mockData?.indexEntries
+            ? this.bridge.mockData.indexEntries
+            : this.indexRecords) || []
+        };
 
-        this.calendarEvents.forEach(e => {
-          if ((e.title || '').toLowerCase().includes(q) || (e.description || '').toLowerCase().includes(q)) {
-            res.calendar.push(e);
-            res.totalMatches++;
+        this.searchResults = executeUniversalSearch(q, store);
+        const flat = this.getFlattenedSearchResults();
+        this.selectedSearchIndex = flat.length > 0 ? 0 : -1;
+      },
+
+      navigateSearchResults(delta) {
+        const list = this.getFlattenedSearchResults();
+        if (!list.length) {
+          this.selectedSearchIndex = -1;
+          return;
+        }
+        let nextIdx = this.selectedSearchIndex + delta;
+        if (nextIdx < 0) nextIdx = list.length - 1;
+        if (nextIdx >= list.length) nextIdx = 0;
+        this.selectedSearchIndex = nextIdx;
+
+        this.$nextTick(() => {
+          const selectedEl = document.querySelector('.search-result-item.selected');
+          if (selectedEl) {
+            selectedEl.scrollIntoView({ block: 'nearest' });
           }
         });
+      },
 
-        [...this.dailyTasks, ...this.masterTasks].forEach(t => {
-          if ((t.title || '').toLowerCase().includes(q)) {
-            res.tasks.push(t);
-            res.totalMatches++;
-          }
-        });
+      selectActiveSearchResult() {
+        const list = this.getFlattenedSearchResults();
+        if (this.selectedSearchIndex >= 0 && this.selectedSearchIndex < list.length) {
+          this.selectSearchResult(list[this.selectedSearchIndex]);
+        }
+      },
 
-        if (this.dailyNote.toLowerCase().includes(q)) {
-          res.notes.push({ date: this.selectedDate, content: this.dailyNote });
-          res.totalMatches++;
+      async selectSearchResult(item) {
+        if (!item) return;
+        this.closeSearchModal();
+
+        const targetDate = item.date;
+        const targetView = item.targetView || 'daily';
+
+        if (targetDate && /^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
+          this.selectedDate = targetDate;
+          const [y, m] = targetDate.split('-').map(Number);
+          this.selectedYear = y;
+          this.selectedMonth = m;
         }
 
-        this.indexRecords.forEach(i => {
-          if ((i.summary || '').toLowerCase().includes(q) || (i.topic || '').toLowerCase().includes(q)) {
-            res.index.push(i);
-            res.totalMatches++;
-          }
-        });
+        await this.setView(targetView);
 
-        this.searchResults = res;
+        if (targetView === 'daily' || targetDate) {
+          await this.loadDayData();
+        }
       },
 
       parseTask(title) {

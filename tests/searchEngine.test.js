@@ -5,7 +5,7 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { executeUniversalSearch } from '../src/searchEngine.js';
+import { executeUniversalSearch, flattenSearchResults } from '../src/searchEngine.js';
 
 describe('Universal Search Engine Unit Tests', () => {
   const sampleStore = {
@@ -45,5 +45,67 @@ describe('Universal Search Engine Unit Tests', () => {
   it('should return empty results for unmatched query', () => {
     const searchRes = executeUniversalSearch('nonexistentxyz', sampleStore);
     assert.equal(searchRes.totalMatches, 0);
+  });
+
+  it('should flatten search results preserving sequential order', () => {
+    const searchRes = executeUniversalSearch('Q3', sampleStore);
+    const flat = flattenSearchResults(searchRes);
+    assert.equal(flat.length, 5);
+    assert.equal(flat[0].type, 'calendar');
+    assert.equal(flat[1].type, 'task');
+    assert.equal(flat[2].type, 'task');
+    assert.equal(flat[3].type, 'note');
+    assert.equal(flat[4].type, 'index');
+  });
+
+  it('should extract local date for calendar events without UTC day shift', () => {
+    const store = {
+      calendarEvents: [
+        { title: 'Evening Sync', startTime: '2026-08-15T23:30:00', location: 'Home Office' }
+      ]
+    };
+    const res = executeUniversalSearch('Evening', store);
+    assert.equal(res.calendar.length, 1);
+    assert.equal(res.calendar[0].date, '2026-08-15');
+    assert.equal(res.calendar[0].targetView, 'daily');
+  });
+
+  it('should search tasks by notes content and set master-tasks target view for undated tasks', () => {
+    const store = {
+      dailyTasks: [
+        { title: '[B2] Refactor UI', notes: 'Check accessibility and keyboard focus states', dueDate: '2026-08-15' }
+      ],
+      masterTasks: [
+        { title: 'Evaluate Cloud Providers', notes: 'Compare GCP vs AWS costs', category: 'Infrastructure' }
+      ]
+    };
+    const res = executeUniversalSearch('accessibility', store);
+    assert.equal(res.tasks.length, 1);
+    assert.equal(res.tasks[0].title, '[B2] Refactor UI');
+    assert.equal(res.tasks[0].targetView, 'daily');
+
+    const masterRes = executeUniversalSearch('AWS', store);
+    assert.equal(masterRes.tasks.length, 1);
+    assert.equal(masterRes.tasks[0].title, 'Evaluate Cloud Providers');
+    assert.equal(masterRes.tasks[0].targetView, 'master-tasks');
+  });
+
+  it('should support object-keyed collections in store', () => {
+    const objStore = {
+      dailyTasks: {
+        '2026-08-15': [{ title: 'Daily standup', dueDate: '2026-08-15' }]
+      },
+      calendarEvents: {
+        '2026-08-15': [{ title: 'Quarterly Planning', startTime: '2026-08-15T09:00:00' }]
+      },
+      dailyNotes: {
+        '2026-08-15': 'Discussed quarterly roadmap milestones.'
+      }
+    };
+    const res = executeUniversalSearch('quarterly', objStore);
+    assert.equal(res.totalMatches, 2);
+    assert.equal(res.calendar.length, 1);
+    assert.equal(res.notes.length, 1);
+    assert.equal(res.notes[0].date, '2026-08-15');
   });
 });
