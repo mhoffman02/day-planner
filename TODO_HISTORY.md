@@ -1,5 +1,19 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-23 — Phase 5 Verification, A11y & Clasp Deployment Gate
+
+- [x] **Local Smoke Testing & Safe Chars Check**:
+  - Verified Apps Script template scriptlets across [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html) with 0 single-line `//` comment truncation hazards.
+  - Built automated headless Chrome CDP smoke test suite in [`tools/smoke-test.js`](file:///home/mike/projects/day-planner/tools/smoke-test.js) and configured `npm run smoke` in [`package.json`](file:///home/mike/projects/day-planner/package.json).
+  - Verified all 5 active views (Daily, Month Calendar, Master Tasks, Monthly Index, Future Planning), Universal Search modal (`Ctrl+K`), and theme toggle execute with zero console/runtime exceptions (commit [`2a43cc9`](https://github.com/mhoffman02/day-planner/commit/2a43cc9)).
+- [x] **WCAG Contrast & Responsive Viewport Verification**:
+  - Built automated accessibility and responsive audit suite in [`tools/audit-wcag-responsive.js`](file:///home/mike/projects/day-planner/tools/audit-wcag-responsive.js) and configured `npm run audit:a11y` in [`package.json`](file:///home/mike/projects/day-planner/package.json).
+  - Verified 100% of top-bar and panel headers pass WCAG 2.1 AA/AAA contrast ratios across both light parchment (`#fcfbfa`) and dark mode (`#0c1813` / `#142820`) palettes.
+  - Verified zero horizontal overflow across all 5 views at 1440px, 1200px, 992px, and 768px viewports (commit [`3e9076a`](https://github.com/mhoffman02/day-planner/commit/3e9076a)).
+- [x] **Phase 5 Clasp Development Deployment Gate**:
+  - Pushed all 8 project files (`About.html`, `appsscript.json`, `Code.gs`, `Index.html`, `Script.html`, `SetupFolder.html`, `Styles.html`, `UnitTests.gs`) to Google Apps Script dev deployment `@HEAD` via `clasp push`.
+  - Verified self-test diagnostic endpoint routing (`/dev?view=self-test`) and manual execution readiness in Apps Script IDE.
+
 ## 2026-09-23 — Header Overlap Fix & Kilo Configuration
 
 - [x] **Navbar Text Overlap on Month View Resolved**:

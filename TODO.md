@@ -1,17 +1,17 @@
 # Active Tasks (TODO)
 
-## Phase 5: Verification & Local Smoke Testing
+## Phase 6: Live Workspace UAT & Production Release
 
-- [ ] **Local Smoke Testing & Safe Chars Check**:
-  - Full test suite: `npm test` passing 100% with no skips (currently 88/88).
-  - Linter: `npm run lint` clean across `gas-app/`, `src/`, `tools/`.
-  - Check safe chars: verify no single-line `//` comment truncation risks inside scriptlets in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html).
-  - Verify local dev server: run `npm start` at `http://localhost:3000` and manually smoke-test all 5 active views (Daily, Month Calendar, Master Tasks, Monthly Index, Future Planning) and Universal Search (`Ctrl+K`).
+- [ ] **Live Workspace UAT on Web App Dev Endpoint**:
+  - Open dev web app endpoint (`/dev`: `https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev`) in personal Google account (HOME).
+  - Open `/self-test` diagnostic endpoint (`https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test`) to confirm live Google Drive, Tasks, and Calendar service bindings.
+  - Verify Day Planner folder auto-creation and 2-way sync with live Google Calendar and Google Tasks.
+  - Test on federal locked-down WORK environment (without Chrome extensions/dev tools).
 
-- [ ] **Phase 5 Clasp Deployment Gate**:
-  - Deploy to GAS development endpoint via `clasp push`.
-  - Run live `/self-test` diagnostic suite to verify Google Workspace service integrations (Calendar, Tasks, Drive).
+- [ ] **Production Release Deployment (`clasp deploy`)**:
+  - After live UAT sign-off, redeploy production deployment `AKfycbyAejUd5SWdt5dbmtSKYJZvwqQ2RHU-V3_mARJp3MDjMZ_jrlP0MfWnyTPYp6hVSyO4` via `clasp deploy -i AKfycbyAejUd5SWdt5dbmtSKYJZvwqQ2RHU-V3_mARJp3MDjMZ_jrlP0MfWnyTPYp6hVSyO4 -d "Pure GAS v1.0 release"`.
+  - Tag git repository with release version tag (e.g. `v1.0-pure-gas`).
 
-- [ ] **WCAG Contrast & Responsive Verification**:
-  - Audit top-bar and panel headers across light parchment (`#fcfbfa`) and dark mode (`#0c1813` / `#142820`) palettes.
-  - Verify responsive breakpoint scaling down to 768px (mobile viewport) without horizontal overflow.
+- [ ] **Desktop Shortcut Verification ("Open as Window")**:
+  - Follow installation guide in [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html) on Chrome and Edge.
+  - Verify standalone window title bar, icon resolution, and persistent authentication across restarts.

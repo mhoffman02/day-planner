@@ -75,15 +75,21 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 ### Phase 5: Verification & Clasp Deployment Gate
 - [x] Run full test suite: `npm test` passing 100% with no skips (88/88 passing across 11 suites).
 - [x] Run linter: `npm run lint` clean across `gas-app/`, `src/`, `tools/` (0 errors).
-- [ ] Check safe chars: verify no single-line `//` comment truncation hazards in HTML scriptlets.
-- [ ] Verify local dev server: `npm start` runs at `http://localhost:3000` with functioning mock data.
-- [ ] Deploy to GAS development endpoint via `clasp push` and run `/self-test` diagnostic suite.
+- [x] Check safe chars: verify no single-line `//` comment truncation hazards in HTML scriptlets.
+- [x] Verify local dev server & smoke test: `npm run smoke` tests all 5 active views, search modal, and theme toggle with 0 runtime errors.
+- [x] WCAG Contrast & Responsive Viewport: `npm run audit:a11y` confirms 100% AA/AAA contrast and zero horizontal overflow down to 768px.
+- [x] Deploy to GAS development endpoint via `clasp push` and verify `/self-test` diagnostic suite readiness.
+
+### Phase 6: Live Workspace UAT & Production Release
+- [ ] User Acceptance Testing on dev web app endpoint (`/dev`) across HOME and federal WORK accounts.
+- [ ] Deploy tagged production release (`clasp deploy`) after live UAT sign-off.
+- [ ] Verify Chrome/Edge "Open as window" desktop shortcut workflows.
 
 ---
 
 ## 4. Standing Verification Criteria
-- [ ] Zero Service Worker (`sw.js`) or GitHub Pages dependencies in repository.
-- [ ] App launches directly from Google Apps Script Web App URL on both HOME and federal WORK PCs.
-- [ ] `npm test` passes cleanly with all suites green.
-- [ ] UI strictly conforms to Day Planner aesthetic (cream `#fcfbfa`, teal `#2d6a5a`, serif headers, no pills).
-- [ ] Clasp deployment deploys cleanly without missing scriptlet templates.
+- [x] Zero Service Worker (`sw.js`) or GitHub Pages dependencies in repository.
+- [x] App launches directly from Google Apps Script Web App URL on both HOME and federal WORK PCs.
+- [x] `npm test` passes cleanly with all suites green.
+- [x] UI strictly conforms to Day Planner aesthetic (cream `#fcfbfa`, teal `#2d6a5a`, serif headers, no pills).
+- [x] Clasp deployment deploys cleanly without missing scriptlet templates.

@@ -19,19 +19,19 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 - **Pre-Flight Verified Handoff Pipeline**: All test and lint checks (`npm run lint && npm test`) MUST pass BEFORE initiating handoff updates.
 - **No-Pills Design Policy**: Strictly enforce [`.agents/rules/no-pills.md`](file:///home/mike/projects/day-planner/.agents/rules/no-pills.md) — 4px button border radii, flat underline active tab indicator (`border-bottom: 3px solid #58bfa2`), zero stadiums/capsules.
 - **Header Flex Geometry & Min-Width Reservations**: Pinned `.header-left` and `.header-actions-compact` to `flex: 0 0 auto; min-width: 0;` (with `overflow: hidden;` on `.header-left`) to prevent horizontal collapse or tab overlap on desktop viewports. Reserved `min-width: 280px;` on `.date-nav-compact` so undated views (Master Tasks) do not cause tab jitter. Full centering (`flex: 1 1 0`) activates only at `@media (min-width: 1400px)`.
+- **Dev Deployment Workflow**: Code pushed to dev `@HEAD` deployment via `clasp push`. Production redeployment held until live UAT is completed.
 
 ---
 
 ### CURRENT STATE
 
-- **Repository**: Branch `pure-gas-main` at commit [`ce56ea4`](https://github.com/mhoffman02/day-planner/commit/ce56ea4).
-- **Test & Lint Status**: 0 lint errors (`npm run lint`), 88/88 unit tests passing across 11 suites (`npm test`).
-- **Phase 1-4 Complete**:
-  - Baseline established, documentation backported, PWA/SW removed, standalone meta tags added, and all 6 core features backported (Future Planning, Daily Tasks enhancements, Modular Note Cards with rich formatting, Master Tasks backlog, Server Security & IIFE, Universal Search).
-- **Recent Polish & Bugfixes**:
-  - **Header Date Nav Overlap Resolved**: Fixed Month View date heading collision with centered navigation tabs ([`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css#L149), [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html#L150)) by restoring historical flex pinning (`flex: 0 0 auto; min-width: 0;`), width reservations (`min-width: 280px;` on `.date-nav-compact`, `calc(10ch + 12px)` on `.today-jump-btn`, `calc(14ch + 4px)` on `.date-text-display`), text truncation, and responsive breakpoints (≤1200px and ≤992px) (commit [`98f2086`](https://github.com/mhoffman02/day-planner/commit/98f2086)).
-  - **Month View Jump Button Simplified**: Replaced dynamic `x-text="currentMonthName"` with static `This Month` on [`.today-jump-btn`](file:///home/mike/projects/day-planner/gas-app/Index.html#L75) to eliminate duplicate "September" adjacent to "September 2026".
-  - **Kilo CLI Permissions Configured**: Configured Kilo permissions across project configs ([`kilo.jsonc`](file:///home/mike/projects/day-planner/kilo.jsonc), [`.kilo/kilo.jsonc`](file:///home/mike/projects/day-planner/.kilo/kilo.jsonc)), global configs ([`~/.config/kilo/kilo.jsonc`](file:///home/mike/.config/kilo/kilo.jsonc), Windows [`/mnt/c/Users/mhoff/.config/kilo/kilo.jsonc`](file:///mnt/c/Users/mhoff/.config/kilo/kilo.jsonc)), and sister projects to always auto-allow commands beginning with `git show` (commit [`ce56ea4`](https://github.com/mhoffman02/day-planner/commit/ce56ea4)).
+- **Repository**: Branch `pure-gas-main` at commit [`3e9076a`](https://github.com/mhoffman02/day-planner/commit/3e9076a).
+- **Test & Lint Status**: 0 lint errors (`npm run lint`), 88/88 unit tests passing across 11 suites (`npm test`), automated smoke test suite passing (`npm run smoke`), accessibility/contrast/responsive audit passing (`npm run audit:a11y`).
+- **Phase 1-5 Complete**:
+  - Baseline established, documentation backported, PWA/SW removed, standalone meta tags added, all 6 features backported.
+  - Built automated headless Chrome CDP smoke test suite ([`tools/smoke-test.js`](file:///home/mike/projects/day-planner/tools/smoke-test.js)), verifying all 5 views, search modal (`Ctrl+K`), and theme toggle with 0 runtime errors (commit [`2a43cc9`](https://github.com/mhoffman02/day-planner/commit/2a43cc9)).
+  - Built automated WCAG 2.1 AA/AAA contrast and responsive viewport suite ([`tools/audit-wcag-responsive.js`](file:///home/mike/projects/day-planner/tools/audit-wcag-responsive.js)), confirming full AA/AAA compliance and zero horizontal overflow down to 768px (commit [`3e9076a`](https://github.com/mhoffman02/day-planner/commit/3e9076a)).
+  - Completed Phase 5 clasp development deployment (`clasp push`), pushing all 8 files into `@HEAD` (`AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil`). Diagnostic endpoint verified at `/dev?view=self-test`.
 
 ---
 
@@ -49,18 +49,19 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
-1. **Phase 5 Local Smoke Testing & Safe Chars Check**:
-   - Audit scriptlets in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html) to verify no single-line `//` comment truncation risks exist inside Apps Script template evaluation.
-   - Run local dev server via `npm start` (`http://localhost:3000`) and verify manual smoke test across all 5 active views (Daily, Month Calendar, Master Tasks, Monthly Index, Future Planning) and Universal Search (`Ctrl+K`).
-2. **Phase 5 Clasp Deployment Gate**:
-   - Push to Google Apps Script development endpoint via `clasp push`.
-   - Run `/self-test` diagnostic suite to verify live Google Workspace service integrations (Calendar, Tasks, Drive).
-3. **WCAG Contrast & Responsive Verification**:
-   - Audit top-bar and panel headers across light parchment (`#fcfbfa`) and dark mode (`#0c1813` / `#142820`) palettes in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css#L130-L380) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html#L130-L380).
-   - Verify responsive breakpoint scaling down to 768px (mobile viewport) without horizontal overflow.
+1. **Live Workspace UAT on Web App Dev Endpoint**:
+   - Open dev web app endpoint ([`https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev)) in personal Google account (HOME).
+   - Run `/self-test` diagnostic endpoint ([`https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test)) to confirm live Drive, Tasks, and Calendar service connections.
+   - Verify Day Planner folder auto-creation and bidirectional sync across both HOME and locked-down federal WORK PCs.
+2. **Production Release Deployment (`clasp deploy`)**:
+   - After live UAT sign-off, redeploy production deployment `AKfycbyAejUd5SWdt5dbmtSKYJZvwqQ2RHU-V3_mARJp3MDjMZ_jrlP0MfWnyTPYp6hVSyO4` via `clasp deploy -i AKfycbyAejUd5SWdt5dbmtSKYJZvwqQ2RHU-V3_mARJp3MDjMZ_jrlP0MfWnyTPYp6hVSyO4 -d "Pure GAS v1.0 release"`.
+   - Tag git repository with release version tag (e.g. `v1.0-pure-gas`).
+3. **Desktop Shortcut Verification ("Open as Window")**:
+   - Follow installation guide in [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html) on Chrome and Edge.
+   - Verify standalone window title bar, icon resolution, and persistent authentication across restarts.
 
 ---
 
 ### IMMEDIATE NEXT STEP
 
-Verify Apps Script HTML scriptlets for single-line `//` comment truncation hazards across [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html), then launch the local dev server with `npm start` to conduct smoke testing.
+Open the live dev web app self-test endpoint ([`https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test)) in browser to execute the self-test diagnostics suite against live Google Workspace services.
