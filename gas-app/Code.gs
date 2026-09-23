@@ -1037,6 +1037,23 @@ function getFolderByNameOrCreate(parent, name) {
     if (parent) {
       var folders = parent.getFoldersByName(name);
       if (folders.hasNext()) return folders.next();
+
+      // Preferred under drive.file scope: create directly in parent folder via Drive Advanced Service
+      if (typeof Drive !== 'undefined' && Drive.Files && Drive.Files.insert) {
+        try {
+          var folderResource = {
+            title: name,
+            mimeType: 'application/vnd.google-apps.folder',
+            parents: [{ id: parent.getId() }]
+          };
+          var createdFolder = Drive.Files.insert(folderResource);
+          return DriveApp.getFolderById(createdFolder.id);
+        } catch (driveApiErr) {
+          console.warn('Drive.Files.insert folder creation fallback: ' + driveApiErr.toString());
+        }
+      }
+
+      // Fallback: parent.createFolder (may require broad drive scope under DriveApp)
       if (typeof parent.createFolder === 'function') {
         try {
           return parent.createFolder(name);
