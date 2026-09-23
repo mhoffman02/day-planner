@@ -151,8 +151,9 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    flex: 1 1 0;
+    flex: 0 0 auto;
     min-width: 0;
+    overflow: hidden;
   }
 
   .brand-title-compact {
@@ -179,6 +180,7 @@
   .date-nav-compact {
     display: flex;
     align-items: center;
+    min-width: 280px;
   }
 
   .date-controls-group {
@@ -217,6 +219,9 @@
     cursor: pointer;
     transition: background 0.15s ease;
     width: auto;
+    min-width: calc(10ch + 12px);
+    justify-content: center;
+    text-align: center;
   }
 
   .today-jump-btn:hover {
@@ -230,6 +235,9 @@
     color: #ffffff !important;
     margin-left: 4px;
     white-space: nowrap;
+    min-width: calc(14ch + 4px);
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   /* View Navigation Tabs (Flat Underline - No Pills) */
@@ -298,7 +306,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    flex: 1 1 0;
+    flex: 0 0 auto;
     min-width: 0;
     justify-content: flex-end;
   }
@@ -368,6 +376,45 @@
 
   .theme-toggle-compact:hover {
     background: rgba(255, 255, 255, 0.3) !important;
+  }
+
+  /* Responsive Top Bar Layout Guards */
+  @media (min-width: 1400px) {
+    .header-left {
+      flex: 1 1 0;
+    }
+    .header-actions-compact {
+      flex: 1 1 0;
+    }
+  }
+
+  @media (max-width: 1200px) {
+    .kbd-shortcut-sm {
+      display: none;
+    }
+    .search-label,
+    .sync-label {
+      display: none;
+    }
+    .segment-btn {
+      padding: 0 8px;
+      font-size: 0.8rem;
+    }
+  }
+
+  @media (max-width: 992px) {
+    .brand-title-compact span:last-child {
+      display: none;
+    }
+    nav.view-segmented-control {
+      gap: 2px;
+    }
+    .segment-btn span:not(.material-symbols-outlined) {
+      display: none;
+    }
+    .segment-btn {
+      padding: 0 10px;
+    }
   }
 
   /* Alpine Cloak Guard */
