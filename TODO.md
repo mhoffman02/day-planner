@@ -2,10 +2,10 @@
 
 ## Phase 6: Live Workspace UAT & Production Release
 
-- [ ] **Verify Minimal Baseline `doGet()` on HOME Script (`@HEAD`)**:
-  - Test HOME Dev Web App endpoint: [`/dev`](https://script.google.com/macros/s/AKfycbw_OpkC0kTkrhkwI8AipH7jTeZeJfUYS7Xcy9BstG8/dev) (signed in with HOME account `mhoffman02@gmail.com`).
-  - Confirm page renders `<h1>Basic test</h1><p>Pass</p>`.
-  - Once verified, restore `doGet` in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) to delegate to full application logic (`_doGetInternal`).
+- [ ] **Verify Web App on HOME Script (`@HEAD`)**:
+  - Push code to HOME script ID `1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W`.
+  - Test HOME Dev Web App endpoint: [`/dev`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev) (signed in with HOME account `mhoffman02@gmail.com`).
+  - Confirm page renders properly.
 
 - [ ] **Live Workspace UAT on Web App Endpoint**:
   > ⚠️ NEVER use `/a/macros/gsa.gov/` — consumer script, enterprise proxy returns 404 before `doGet()` runs.

@@ -10,10 +10,10 @@
   - Identified root cause of Prod URL render failure: frozen Version 151 deployment contained deprecated `addMetaTag('mobile-web-app-capable', ...)` calls that Google Apps Script `HtmlOutput` rejects with `The meta tag you specified is not allowed in this context`.
   - Diagnosed `Only users in the same domain as the script owner may deploy this script` error: `~/.clasprc.json` was logged into `michael.hoffman@gsa.gov` (`gsa.gov`) while script owner is `mhoffman02@gmail.com` (`gmail.com`).
   - Clarified that Google restricts `/dev` strictly to project editors/owners; non-owner work accounts receive "Page not found".
-- [x] **HOME Script Target Migration (`clasp push --force`)**:
-  - Re-targeted [`gas-app/.clasp.json`](file:///home/mike/projects/day-planner/gas-app/.clasp.json#L2) to HOME script ID `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`.
-  - Pushed all 8 project files cleanly to HOME project via `clasp push --force`.
-  - Identified live `@HEAD` deployment ID `AKfycbw_OpkC0kTkrhkwI8AipH7jTeZeJfUYS7Xcy9BstG8` for HOME dev testing.
+- [x] **HOME vs WORK Script Disambiguation**:
+  - Disambiguated HOME script (`1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W`, owned by `mhoffman02@gmail.com`) from WORK script (`1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`, owned by `michael.hoffman@gsa.gov`).
+  - Re-targeted [`gas-app/.clasp.json`](file:///home/mike/projects/day-planner/gas-app/.clasp.json#L2) to HOME script ID `1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W`.
+  - Identified that local `~/.clasprc.json` is logged in as `michael.hoffman@gsa.gov`; pushing to HOME script requires `clasp login` as `mhoffman02@gmail.com` or granting editor rights to `michael.hoffman@gsa.gov` on the HOME script.
 
 ## 2026-09-23 — Runtime Permissions, Drive moveTo Fix & Server Run Log Engine
 
