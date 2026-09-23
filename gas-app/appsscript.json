@@ -6,6 +6,11 @@
         "userSymbol": "Tasks",
         "serviceId": "tasks",
         "version": "v1"
+      },
+      {
+        "userSymbol": "Drive",
+        "serviceId": "drive",
+        "version": "v2"
       }
     ]
   },

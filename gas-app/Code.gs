@@ -596,6 +596,56 @@ function getDailyData(dateStr) {
 }
 
 /**
+ * Retrieves an existing Monthly Notes Google Doc from the target folder, or creates
+ * a new one directly inside targetFolder using Drive Advanced Service (avoiding moveTo
+ * which requires broad drive scope).
+ * @param {GoogleAppsScript.Drive.Folder} targetFolder Destination folder.
+ * @param {string} docName Title of the monthly Google Doc.
+ * @param {string} monthName Name of the month.
+ * @param {number} year Four-digit year.
+ * @returns {GoogleAppsScript.Document.Document} Opened Google Document instance.
+ */
+function getOrCreateMonthlyNotesDoc_(targetFolder, docName, monthName, year) {
+  var files = targetFolder.getFilesByName(docName);
+  if (files.hasNext()) {
+    return DocumentApp.openById(files.next().getId());
+  }
+
+  var doc = null;
+  // 1. Preferred: create directly inside targetFolder via Drive API without touching root or calling moveTo
+  if (typeof Drive !== 'undefined' && Drive.Files && Drive.Files.insert) {
+    try {
+      var resource = {
+        title: docName,
+        mimeType: 'application/vnd.google-apps.document',
+        parents: [{ id: targetFolder.getId() }]
+      };
+      var created = Drive.Files.insert(resource);
+      doc = DocumentApp.openById(created.id);
+    } catch (driveApiErr) {
+      console.warn('Drive.Files.insert doc creation fallback: ' + driveApiErr.toString());
+    }
+  }
+
+  // 2. Fallback if Drive Advanced Service unavailable: DocumentApp.create with safe moveTo
+  if (!doc) {
+    doc = DocumentApp.create(docName);
+    try {
+      var docFile = DriveApp.getFileById(doc.getId());
+      docFile.moveTo(targetFolder);
+    } catch (moveErr) {
+      console.warn('docFile.moveTo skipped (requires broad drive scope, using existing parent): ' + moveErr.toString());
+    }
+  }
+
+  var body = doc.getBody();
+  body.appendParagraph('Day Planner Notes - ' + monthName + ' ' + year)
+      .setHeading(DocumentApp.ParagraphHeading.HEADING1);
+  doc.saveAndClose();
+  return DocumentApp.openById(doc.getId());
+}
+
+/**
  * Gets or creates the Monthly Note Google Doc (12 per year) and extracts/appends daily note content.
  * Script-efficient and formatted for human readability & printing.
  * @param {string} dateStr Target date string in YYYY-MM-DD format.
@@ -618,23 +668,7 @@ function getOrCreateDailyDocContent(dateStr) {
     var year = d.getFullYear();
     var docName = 'Day Planner Notes - ' + monthName + ' ' + year;
 
-    var files = targetFolder.getFilesByName(docName);
-    var doc = null;
-
-    if (files.hasNext()) {
-      var file = files.next();
-      doc = DocumentApp.openById(file.getId());
-    } else {
-      doc = DocumentApp.create(docName);
-      var docFile = DriveApp.getFileById(doc.getId());
-      docFile.moveTo(targetFolder);
-
-      var body = doc.getBody();
-      body.appendParagraph('Day Planner Notes - ' + monthName + ' ' + year)
-          .setHeading(DocumentApp.ParagraphHeading.HEADING1);
-      doc.saveAndClose();
-      doc = DocumentApp.openById(docFile.getId());
-    }
+    var doc = getOrCreateMonthlyNotesDoc_(targetFolder, docName, monthName, year);
 
     var fullText = doc.getBody().getText();
     var dateHeader = '## ' + dateStr;
@@ -675,15 +709,7 @@ function saveDailyDocCards(dateStr, noteContent) {
     var year = d.getFullYear();
     var docName = 'Day Planner Notes - ' + monthName + ' ' + year;
 
-    var files = targetFolder.getFilesByName(docName);
-    var doc = files.hasNext() ? DocumentApp.openById(files.next().getId()) : DocumentApp.create(docName);
-
-    if (!files.hasNext()) {
-      var docFile = DriveApp.getFileById(doc.getId());
-      docFile.moveTo(targetFolder);
-      doc.getBody().appendParagraph('Day Planner Notes - ' + monthName + ' ' + year)
-         .setHeading(DocumentApp.ParagraphHeading.HEADING1);
-    }
+    var doc = getOrCreateMonthlyNotesDoc_(targetFolder, docName, monthName, year);
 
     var body = doc.getBody();
     var dayFormatted = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
