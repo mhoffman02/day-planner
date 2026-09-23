@@ -50,10 +50,31 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 
 ---
 
+### URL ROUTING — ANTI-PATTERN & CANONICAL URLS
+
+> **NEVER** use the enterprise proxy path `/a/macros/gsa.gov/...` for this script.
+> The script is owned by `mhoffman02@gmail.com` (consumer Gmail). GSA's enterprise proxy
+> rejects consumer-owned deployments with HTTP 404 before `doGet()` is ever reached.
+> **NEVER** request `/exec` against the `@HEAD` deployment ID (`AKfycbwb...vwil`);
+> `/exec` is only valid on versioned deployment IDs. `/dev` is the correct suffix for `@HEAD`.
+
+| Purpose | URL |
+|---|---|
+| **Dev self-test** (`@HEAD`, must be `mhoffman02@gmail.com`) | [`/dev?view=self-test`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test) |
+| **Dev app** (`@HEAD`) | [`/dev`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev) |
+| **Production self-test** (`day-planner-v01`, anyone) | [`/exec?view=self-test`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec?view=self-test) |
+| **Production app** (`day-planner-v01`) | [`/exec`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec) |
+
+> If Chrome has multiple Google accounts signed in, prefix with `/u/0/` or `/u/1/` matching
+> `mhoffman02@gmail.com`: e.g. `https://script.google.com/u/0/macros/s/.../dev?view=self-test`
+
+---
+
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
 1. **Live Workspace UAT on Web App Endpoint (`day-planner-v01` & `/dev`)**:
-   - Open `/self-test` diagnostic endpoint ([`https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test)) in personal Google account (HOME).
+   - Dev self-test (signed in as `mhoffman02@gmail.com`): [`/dev?view=self-test`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test)
+   - Production self-test (anyone): [`/exec?view=self-test`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec?view=self-test)
    - Confirm all 5 test suites pass (100% HEALTHY) and verify the Recent Server Execution Logs table.
    - Verify `Day Planner - Run Log` document auto-created in your Google Drive `Day Planner` folder.
    - Test bidirectional sync across both HOME and locked-down federal WORK PCs.
@@ -68,4 +89,11 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 
 ### IMMEDIATE NEXT STEP
 
-Open the live dev web app self-test endpoint ([`https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test)) in browser to execute the self-test diagnostics suite and verify the recent execution logs table and Google Doc run-log button.
+Start with the production self-test (anyone, no account switching needed):
+[`/exec?view=self-test`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec?view=self-test)
+
+Or the dev self-test (must be signed in as `mhoffman02@gmail.com`):
+[`/dev?view=self-test`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test)
+
+Confirm all 5 test suites 100% HEALTHY, then proceed to production `clasp deploy` (Phase 6, Task 2).
+

@@ -84,9 +84,21 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 - [x] In-App Server Diagnostics: Built persistent 25-entry ring buffer, self-test log table, and permanent Google Doc run-log (`Day Planner - Run Log`).
 
 ### Phase 6: Live Workspace UAT & Production Release
-- [ ] User Acceptance Testing on web app endpoints (`/exec` and `/dev`) across HOME and federal WORK accounts.
-- [ ] Deploy tagged production release (`clasp deploy` onto `day-planner-v01`) after live UAT sign-off.
+
+> **URL anti-pattern**: NEVER use `/a/macros/gsa.gov/...` (enterprise proxy) — script is owned by
+> `mhoffman02@gmail.com` (consumer). NEVER use `/exec` with the `@HEAD` ID (`AKfycbwb...vwil`).
+
+| Endpoint | URL | Who Can Access |
+|---|---|---|
+| Dev self-test | [`/dev?view=self-test`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test) | `mhoffman02@gmail.com` only |
+| Dev app | [`/dev`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev) | `mhoffman02@gmail.com` only |
+| Production self-test | [`/exec?view=self-test`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec?view=self-test) | Anyone |
+| Production app | [`/exec`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec) | Anyone |
+
+- [ ] User Acceptance Testing: open production `/exec?view=self-test` (anyone) and dev `/dev?view=self-test` (HOME account) across HOME and federal WORK accounts.
+- [ ] Deploy tagged production release (`clasp deploy -i AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q -d "day-planner-v01 update"`) after live UAT sign-off.
 - [ ] Verify Chrome/Edge "Open as window" desktop shortcut workflows.
+
 
 ---
 
