@@ -50,11 +50,13 @@ Roll back the Day Planner project from an installable GitHub Pages PWA to a 100%
 
 - **Repository**: Branch `pure-gas-main`.
 - **Test & Lint Status**: 0 lint errors (`npm run lint`), 88/88 unit tests passing across 11 suites (`npm test`).
-- **Session Accomplishments (2026-09-23 PM)**:
-  - **Script Identity Disambiguation**: Verified and disambiguated HOME script (`1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W` owned by `mhoffman02@gmail.com`) and WORK script (`1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq` owned by `michael.hoffman@gsa.gov`).
-  - **Minimal `doGet()` Isolation**: Replaced top `doGet()` with minimal HTML output (`<h1>Basic test</h1><p>Pass</p>`) while preserving the full original implementation as `doGet_original` inside the IIFE and `doGet_original_wrapper` at bottom.
-  - **Clasp Auth Status**: Identified that `~/.clasprc.json` is logged in as `michael.hoffman@gsa.gov`. To push to HOME via clasp, re-auth via `clasp login` or add `michael.hoffman@gsa.gov` as Editor on the HOME script.
-  - **Stale Meta Tag Root Cause**: Identified that Prod failure was due to old deprecated `addMetaTag('mobile-web-app-capable')` calls rejected by GAS runtime. Removed disallowed meta tags from `Code.gs`.
+- **Production Deployment**: Version 162 (`@162`) deployed to pinned production ID `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
+- **Live Verification**:
+  - Production Self-Test diagnostics: 100% HEALTHY / All 5 suites Pass.
+  - Production Web App: Verified loaded cleanly in Chrome — digital binder workspace populated without errors.
+- **Root Cause & Guard**:
+  - Fixed Apps Script `HtmlService` silent truncation bug caused by literal `//` in string literals (e.g. `https://`) and apostrophes in comments.
+  - Enforced via [`tools/check-gas-script-html-safe-chars.js`](file:///home/mike/projects/day-planner/tools/check-gas-script-html-safe-chars.js), wired into `npm run lint` and executable [`.githooks/pre-commit`](file:///home/mike/projects/day-planner/.githooks/pre-commit).
 
 ---
 
@@ -72,10 +74,8 @@ Roll back the Day Planner project from an installable GitHub Pages PWA to a 100%
 
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
-1. **Workspace UAT on HOME Web App (Prod & Dev)**:
-   - Run Self-Test diagnostics on Production: [`/exec?view=self-test`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec?view=self-test). Confirm all 5 test suites report 100% HEALTHY.
-   - Open Production Web App: [`/exec`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec). Confirm daily tasks, appointments, and future matrix load cleanly without errors.
-   - Verify folder auto-creation and 2-way sync with Google Calendar and Google Tasks.
+1. **2-Way Sync Verification on Production Web App**:
+   - Create a task or appointment in the web app and verify it syncs to Google Tasks / Google Calendar.
    - Verify `Day Planner - Run Log` document auto-created in Google Drive `Day Planner` folder.
 2. **Release Tagging & Work Environment Validation**:
    - Verify access on locked-down federal WORK PC using the production URL [`/exec`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec).
@@ -88,11 +88,6 @@ Roll back the Day Planner project from an installable GitHub Pages PWA to a 100%
 
 ### IMMEDIATE NEXT STEP
 
-Open the newly deployed **Version 159** Production endpoints in Chrome:
-1. **Production Self-Test Diagnostics (100% Health Check)**:
-   👉 **[`https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec?view=self-test`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec?view=self-test)**
-
-2. **Production Day Planner Web App**:
-   👉 **[`https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec)**
-
-Confirm `getDailyData is not a function` error is gone and the daily workspace loads cleanly.
+Verify live 2-way sync:
+1. Add a test task in the production daily workspace: [`/exec`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec).
+2. Confirm the task reflects in Google Tasks and triggers sync cleanly.
