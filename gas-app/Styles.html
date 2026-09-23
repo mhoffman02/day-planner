@@ -1603,6 +1603,7 @@
   .th-w-40 { width: 40px; }
   .th-w-80 { width: 80px; }
   .th-w-150 { width: 150px; }
+  .th-w-230 { width: 230px; }
   .th-align-right, .td-align-right { text-align: right; }
   .td-category {
     font-size: 0.78rem;
@@ -1855,15 +1856,16 @@
 
   /* Master Tasks Backlog Table & Action Styles */
   .master-task-action-cell {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
+    white-space: nowrap;
+    vertical-align: middle;
   }
 
   .master-task-action-wrap {
     display: inline-flex;
     align-items: center;
     gap: 8px;
+    flex-wrap: nowrap;
+    white-space: nowrap;
   }
 
   .master-task-date-input {
@@ -1876,6 +1878,7 @@
     border-radius: 4px;
     outline: none;
     width: 130px;
+    flex-shrink: 0;
     box-sizing: border-box;
   }
 
