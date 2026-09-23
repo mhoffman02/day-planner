@@ -7,6 +7,7 @@
     "test": "node --test tests/*.test.js",
     "lint": "eslint src gas-app/*.gs tools server.js",
     "start": "node server.js",
+    "smoke": "node tools/smoke-test.js",
     "sync:agents": "node tools/sync-agent-config.js",
     "sync:agents:check": "node tools/sync-agent-config.js --check"
   },
