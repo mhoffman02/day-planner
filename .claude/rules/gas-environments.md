@@ -10,11 +10,11 @@ Day Planner has two separate Google Apps Script deployments running under differ
 - **Script ID**: `1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W`
 - **Owner Account**: `mhoffman02@gmail.com` (Consumer Gmail)
 - **Active clasp Target**: `gas-app/.clasp.json` `"scriptId": "1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W"`
-- **Dev Endpoint (`@HEAD`)**: `https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev` (requires login as `mhoffman02@gmail.com`)
-- **Dev Self-Test**: `https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test`
+- **Dev Endpoint (`@HEAD`)**: `https://script.google.com/u/1/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev` (or `/u/0/` if primary)
+- **Dev Self-Test**: `https://script.google.com/u/1/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test`
 - **Production Endpoint (`day-planner-v01`)**: `https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec`
 - **Production Self-Test**: `https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec?view=self-test`
-- **Script IDE**: `https://script.google.com/d/1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W/edit`
+- **Script IDE**: `https://script.google.com/u/1/home/projects/1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W/edit` (or `/settings`)
 
 ### WORK Environment (`day-planner-work`)
 - **Script ID**: `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`
