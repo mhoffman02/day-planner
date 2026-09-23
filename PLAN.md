@@ -73,9 +73,9 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
   - Anchored Ctrl+K dropdown indexing Tasks, Appointments, and Notes.
 
 ### Phase 5: Verification & Clasp Deployment Gate
-- [ ] Run full test suite: `npm test` passing 100% with no skips.
-- [ ] Run linter: `npm run lint` clean across `gas-app/`, `src/`, `tools/`.
-- [ ] Check safe chars: `npm run check:gas-html-safe-chars` passes (no `//` comment truncation risks).
+- [x] Run full test suite: `npm test` passing 100% with no skips (88/88 passing across 11 suites).
+- [x] Run linter: `npm run lint` clean across `gas-app/`, `src/`, `tools/` (0 errors).
+- [ ] Check safe chars: verify no single-line `//` comment truncation hazards in HTML scriptlets.
 - [ ] Verify local dev server: `npm start` runs at `http://localhost:3000` with functioning mock data.
 - [ ] Deploy to GAS development endpoint via `clasp push` and run `/self-test` diagnostic suite.
 

@@ -8,7 +8,7 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 
 ### KEY DECISIONS
 
-- **Baseline & Branch**: Rooted at baseline commit [`d294262`](https://github.com/mhoffman02/day-planner/commit/d294262) on branch `pure-gas-main`. Master tagged `PWA-installable-22-Sep-2026`.
+- **Baseline & Branch**: Rooted at baseline commit [`d294262`](https://github.com/mhoffman02/day-planner/commit/d294262) on branch `pure-gas-main`. Master preserved and tagged `PWA-installable-22-Sep-2026`.
 - **Zero External Hosting & Zero SW**: No GitHub Pages (`mhoffman02.github.io`), no `sw.js`, no client-side GIS OAuth tokens. The web app runs inside Google Apps Script (`script.google.com`) using first-party Workspace authentication (`Session.getActiveUser().getEmail()`).
 - **Online-Only Sandbox**: No complex offline outbox syncing needed in sandboxed GAS iframe.
 - **Native Auth Over Custom Gates**: No application-level whitelist/access gates. Pure GAS deployed with `executeAs: USER_ACCESSING` isolates Drive files and Google services under `drive.file` automatically.
@@ -18,19 +18,20 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 - **Session Startup Check**: New sessions run only `git log -n 1 --oneline && git status -s`. If HEAD matches the handoff commit and the tree is clean, proceed immediately with **zero file reads** of `TODO.md`, `PLAN.md`, or `HANDOFF.md`.
 - **Pre-Flight Verified Handoff Pipeline**: All test and lint checks (`npm run lint && npm test`) MUST pass BEFORE initiating handoff updates.
 - **No-Pills Design Policy**: Strictly enforce [`.agents/rules/no-pills.md`](file:///home/mike/projects/day-planner/.agents/rules/no-pills.md) — 4px button border radii, flat underline active tab indicator (`border-bottom: 3px solid #58bfa2`), zero stadiums/capsules.
+- **Header Flex Geometry & Min-Width Reservations**: Pinned `.header-left` and `.header-actions-compact` to `flex: 0 0 auto; min-width: 0;` (with `overflow: hidden;` on `.header-left`) to prevent horizontal collapse or tab overlap on desktop viewports. Reserved `min-width: 280px;` on `.date-nav-compact` so undated views (Master Tasks) do not cause tab jitter. Full centering (`flex: 1 1 0`) activates only at `@media (min-width: 1400px)`.
 
 ---
 
 ### CURRENT STATE
 
-- **Repository**: Branch `pure-gas-main` at commit [`53962c5`](https://github.com/mhoffman02/day-planner/commit/53962c5).
+- **Repository**: Branch `pure-gas-main` at commit [`ce56ea4`](https://github.com/mhoffman02/day-planner/commit/ce56ea4).
 - **Test & Lint Status**: 0 lint errors (`npm run lint`), 88/88 unit tests passing across 11 suites (`npm test`).
 - **Phase 1-4 Complete**:
   - Baseline established, documentation backported, PWA/SW removed, standalone meta tags added, and all 6 core features backported (Future Planning, Daily Tasks enhancements, Modular Note Cards with rich formatting, Master Tasks backlog, Server Security & IIFE, Universal Search).
-- **Recent Polish & Bugfixes (Commit `53962c5` and prior)**:
-  - **Master Task List**: View title renamed to "Master Task List"; moved status simplified to date-only `Sep 22` with `→` arrow glyph; status column widened to 200px (`.th-w-200`) and wrapped in inline-flex container (`.master-task-status-wrap`); fixed Pico CSS `input:not(...)` specificity bug where date picker took 100% width and pushed Move button off-screen.
-  - **Future Planning**: View title renamed to "Future Planning"; status cycling replaced with 6-state Franklin popup menu (`•`, `○`, `✓`, `→`, `X`, `D/✓`); month cards restructured into responsive two-tier layout.
-  - **Centered Navbar**: Balanced 1:1 flex layout (`.header-left` and `.header-actions-compact` at `flex: 1 1 0; min-width: 0;`, `nav.view-segmented-control` at `flex: 0 0 auto; margin: 0 auto;`); obsolete pill tabs replaced with 48px flat tabs and mint-teal bottom border (`border-bottom: 3px solid #58bfa2`); compact buttons flattened to 4px border radii.
+- **Recent Polish & Bugfixes**:
+  - **Header Date Nav Overlap Resolved**: Fixed Month View date heading collision with centered navigation tabs ([`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css#L149), [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html#L150)) by restoring historical flex pinning (`flex: 0 0 auto; min-width: 0;`), width reservations (`min-width: 280px;` on `.date-nav-compact`, `calc(10ch + 12px)` on `.today-jump-btn`, `calc(14ch + 4px)` on `.date-text-display`), text truncation, and responsive breakpoints (≤1200px and ≤992px) (commit [`98f2086`](https://github.com/mhoffman02/day-planner/commit/98f2086)).
+  - **Month View Jump Button Simplified**: Replaced dynamic `x-text="currentMonthName"` with static `This Month` on [`.today-jump-btn`](file:///home/mike/projects/day-planner/gas-app/Index.html#L75) to eliminate duplicate "September" adjacent to "September 2026".
+  - **Kilo CLI Permissions Configured**: Configured Kilo permissions across project configs ([`kilo.jsonc`](file:///home/mike/projects/day-planner/kilo.jsonc), [`.kilo/kilo.jsonc`](file:///home/mike/projects/day-planner/.kilo/kilo.jsonc)), global configs ([`~/.config/kilo/kilo.jsonc`](file:///home/mike/.config/kilo/kilo.jsonc), Windows [`/mnt/c/Users/mhoff/.config/kilo/kilo.jsonc`](file:///mnt/c/Users/mhoff/.config/kilo/kilo.jsonc)), and sister projects to always auto-allow commands beginning with `git show` (commit [`ce56ea4`](https://github.com/mhoffman02/day-planner/commit/ce56ea4)).
 
 ---
 
@@ -48,26 +49,18 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
-1. **Fix Navbar Text Overlap on Month View** ([`screen-shots/broken-navbar.png`](file:///home/mike/projects/day-planner/screen-shots/broken-navbar.png)):
-   - **Problem**: In Month view, the serif date heading `.date-text-display` ("September 2026") collides and paints directly on top of the centered view navigation tabs (`nav.view-segmented-control` under "Today" / "Month").
-   - **Root Cause**: In [`header.single-top-bar`](file:///home/mike/projects/day-planner/src/styles.css#L133), `.header-left` has `flex: 1 1 0; min-width: 0;` to balance against `.header-actions-compact`. On viewport widths < 1400px (e.g. 1280px or 1024px), `.header-left` shrinks below the ~420px needed for its contents (`.brand-title-compact`, `.header-vdivider`, `.date-controls-group`, and `.date-text-display`). Because `.date-text-display` has `white-space: nowrap;` without overflow containment, "September 2026" spills over the boundary rightward into the center nav container.
-   - **Target Locations**:
-     - [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css#L149-L246)
-     - [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html#L150-L247)
-     - [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html#L69-L81) (monthly date nav template)
-   - **Proposed Solutions**:
-     - Deduplicate or streamline: on Month view, `.today-jump-btn` already displays "September" (`x-text="currentMonthName"`). Showing both jump button "September" and display text "September 2026" is redundant and wastes horizontal space.
-     - Add responsive rules / overflow handling (e.g., hiding or truncating `.date-text-display` at narrow widths, or setting flex constraints so text never overlaps tabs).
-2. **Phase 5 Verification & Local Smoke Testing**:
-   - Verify dev server: `npm start` at `http://localhost:3000`.
-   - Comprehensive smoke test across all views: Daily view, Monthly Calendar, Monthly Index, Master Tasks backlog, Future Planning matrix, and Universal Search (`Ctrl+K`).
-   - Audit scriptlets in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html) to ensure safe chars (no single-line `//` comment truncation risk).
-3. **Phase 5 Clasp Deployment Gate**:
+1. **Phase 5 Local Smoke Testing & Safe Chars Check**:
+   - Audit scriptlets in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html) to verify no single-line `//` comment truncation risks exist inside Apps Script template evaluation.
+   - Run local dev server via `npm start` (`http://localhost:3000`) and verify manual smoke test across all 5 active views (Daily, Month Calendar, Master Tasks, Monthly Index, Future Planning) and Universal Search (`Ctrl+K`).
+2. **Phase 5 Clasp Deployment Gate**:
    - Push to Google Apps Script development endpoint via `clasp push`.
    - Run `/self-test` diagnostic suite to verify live Google Workspace service integrations (Calendar, Tasks, Drive).
+3. **WCAG Contrast & Responsive Verification**:
+   - Audit top-bar and panel headers across light parchment (`#fcfbfa`) and dark mode (`#0c1813` / `#142820`) palettes in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css#L130-L380) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html#L130-L380).
+   - Verify responsive breakpoint scaling down to 768px (mobile viewport) without horizontal overflow.
 
 ---
 
 ### IMMEDIATE NEXT STEP
 
-Open [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html#L69-L81) and [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css#L149-L246) to fix the Month view date controls overlap (`screen-shots/broken-navbar.png`). In the monthly date nav block, evaluate whether `.today-jump-btn` can simply say "This Month" (or only show `selectedYear` in `.date-text-display`), or add responsive containment so `.header-left` never overlaps `nav.view-segmented-control`.
+Verify Apps Script HTML scriptlets for single-line `//` comment truncation hazards across [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html), then launch the local dev server with `npm start` to conduct smoke testing.

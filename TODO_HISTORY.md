@@ -1,5 +1,21 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-23 — Header Overlap Fix & Kilo Configuration
+
+- [x] **Navbar Text Overlap on Month View Resolved**:
+  - Restored header flex pinning and min-width reservations from git history (`dc5ea69`, `34285fd`, `af66d01`, `f14e34b`, `77f1d21`) in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html).
+  - Pinned `.header-left` and `.header-actions-compact` to `flex: 0 0 auto; min-width: 0;` (with `overflow: hidden;` on `.header-left`), re-enabling `flex: 1 1 0` centering only at `@media (min-width: 1400px)`.
+  - Restored `min-width: 280px;` on `.date-nav-compact` so undated views (Master Tasks) do not cause horizontal tab jitter.
+  - Sized `.today-jump-btn` to `min-width: calc(10ch + 12px); text-align: center;` and `.date-text-display` to `min-width: calc(14ch + 4px); overflow: hidden; text-overflow: ellipsis;`.
+  - Replaced dynamic `x-text="currentMonthName"` on Month view `.today-jump-btn` with static `This Month` in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) and [`index.html`](file:///home/mike/projects/day-planner/index.html) to eliminate duplicate "September" adjacent to "September 2026".
+  - Added responsive media queries for ≤1200px (action labels hidden) and ≤992px (brand title text hidden, icon-only tabs).
+  - Verified 0 lint errors and 88/88 unit tests passing (commit [`98f2086`](https://github.com/mhoffman02/day-planner/commit/98f2086)).
+- [x] **Kilo Permissions Configuration**:
+  - Configured Kilo to always allow commands starting with `git show` (`git show*`, `git show *`, `git show`).
+  - Added project configs [`kilo.jsonc`](file:///home/mike/projects/day-planner/kilo.jsonc) and [`.kilo/kilo.jsonc`](file:///home/mike/projects/day-planner/.kilo/kilo.jsonc) in [`ce56ea4`](https://github.com/mhoffman02/day-planner/commit/ce56ea4).
+  - Updated global configs in Linux/WSL ([`~/.config/kilo/kilo.jsonc`](file:///home/mike/.config/kilo/kilo.jsonc)) and Windows ([`/mnt/c/Users/mhoff/.config/kilo/kilo.jsonc`](file:///mnt/c/Users/mhoff/.config/kilo/kilo.jsonc)).
+  - Synced sister projects [`maximo-uat/.kilo/kilo.jsonc`](file:///home/mike/projects/maximo-uat/.kilo/kilo.jsonc) and [`STT-TTS/kilo.json`](file:///home/mike/projects/STT-TTS/kilo.json).
+
 ## 2026-09-22 — Rollback to Pure GAS & Code Cleanup
 
 - [x] **Phase 1: Baseline Establishment**:
