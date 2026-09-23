@@ -15,15 +15,6 @@
  * .agents/rules/gas-namespace-iife.md before adding or removing an export.
  */
 
-/**
- * Temporary minimal doGet() for baseline testing / debugging.
- * @param {GoogleAppsScript.Events.DoGet} [e] Request parameters.
- * @returns {GoogleAppsScript.HTML.HtmlOutput} Minimal test page HTML.
- */
-function doGet(e) {
-  return HtmlService.createHtmlOutput('<h1>Basic test</h1><p>Pass</p>');
-}
-
 (function(global) {
 
 var MAX_RING_LOGS_ = 25;
@@ -1831,12 +1822,13 @@ global._ensure2WaySyncTriggerInstalledInternal = ensure2WaySyncTriggerInstalled;
 // appear in the IDE menu. These top-level wrappers delegate to the internal implementations.
 
 /**
- * Original primary HTTP GET web app handler wrapper.
- * Kept for reference / restoration after minimal doGet baseline testing.
+ * Primary HTTP GET web app handler for Google Apps Script.
+ * MUST be declared as a top-level function outside any IIFE so the Apps Script
+ * gateway AST parser discovers the web app entry point and routes HTTP requests.
  * @param {GoogleAppsScript.Events.DoGet} e Request parameters.
  * @returns {GoogleAppsScript.HTML.HtmlOutput} Rendered web page output.
  */
-function doGet_original_wrapper(e) {
+function doGet(e) {
   return (typeof _doGetInternal === 'function') ? _doGetInternal(e) : (globalThis._doGetInternal ? globalThis._doGetInternal(e) : null);
 }
 
