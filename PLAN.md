@@ -79,10 +79,13 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 - [x] Verify local dev server & smoke test: `npm run smoke` tests all 5 active views, search modal, and theme toggle with 0 runtime errors.
 - [x] WCAG Contrast & Responsive Viewport: `npm run audit:a11y` confirms 100% AA/AAA contrast and zero horizontal overflow down to 768px.
 - [x] Deploy to GAS development endpoint via `clasp push` and verify `/self-test` diagnostic suite readiness.
+- [x] Runtime Scope Resolution: Resolved `DriveApp.getFolderById` permissions by restoring minimal `drive.readonly`.
+- [x] Least-Privilege Drive API: Eliminated `moveTo` broad `drive` scope requirement by creating monthly notes and run-logs directly in destination folders via `Drive.Files.insert`.
+- [x] In-App Server Diagnostics: Built persistent 25-entry ring buffer, self-test log table, and permanent Google Doc run-log (`Day Planner - Run Log`).
 
 ### Phase 6: Live Workspace UAT & Production Release
-- [ ] User Acceptance Testing on dev web app endpoint (`/dev`) across HOME and federal WORK accounts.
-- [ ] Deploy tagged production release (`clasp deploy`) after live UAT sign-off.
+- [ ] User Acceptance Testing on web app endpoints (`/exec` and `/dev`) across HOME and federal WORK accounts.
+- [ ] Deploy tagged production release (`clasp deploy` onto `day-planner-v01`) after live UAT sign-off.
 - [ ] Verify Chrome/Edge "Open as window" desktop shortcut workflows.
 
 ---

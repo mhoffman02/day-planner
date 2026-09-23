@@ -15,23 +15,26 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 - **Close-to-Installable PWA**: Standalone meta tags, manifest ([`manifest.json`](file:///home/mike/projects/day-planner/manifest.json)), high-res icons, and desktop "Open as Window" shortcut guidance in [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html).
 - **GAS IIFE Isolation**: Both [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) and [`gas-app/UnitTests.gs`](file:///home/mike/projects/day-planner/gas-app/UnitTests.gs) are strictly wrapped in `(function(global) { ... })(this);` with explicit global export blocks ([`.agents/rules/gas-namespace-iife.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-namespace-iife.md)).
 - **Concurrency & Ownership Guards**: `LockService.getUserLock()` prevents race conditions in Drive folder creation/discovery; folder ownership validation blocks auto-adopting or connecting non-owned folders.
+- **Least-Privilege Drive Creation**: Enabled `Drive` Advanced Service v2 in [`gas-app/appsscript.json`](file:///home/mike/projects/day-planner/gas-app/appsscript.json) and use `Drive.Files.insert({ title, mimeType, parents: [{id: targetFolder.getId()}] })` to create Google Docs directly in destination folders under `drive.file` scope, eliminating `docFile.moveTo()` which required broad `drive`.
+- **Dual In-App & Google Doc Logging**: Reused existing `documents` and `drive.file` scopes (avoiding new `spreadsheets` scope) to record permanent monospace audit logs in `Day Planner - Run Log` inside the Day Planner folder, paired with a 25-entry `UserProperties` ring buffer for instant `/self-test` table rendering and raw JSON export (`?view=logs&format=json`).
+- **Target Production Deployment**: Pinned production deployment ID `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q` (`day-planner-v01`) for all future `/exec` releases.
 - **Session Startup Check**: New sessions run only `git log -n 1 --oneline && git status -s`. If HEAD matches the handoff commit and the tree is clean, proceed immediately with **zero file reads** of `TODO.md`, `PLAN.md`, or `HANDOFF.md`.
 - **Pre-Flight Verified Handoff Pipeline**: All test and lint checks (`npm run lint && npm test`) MUST pass BEFORE initiating handoff updates.
 - **No-Pills Design Policy**: Strictly enforce [`.agents/rules/no-pills.md`](file:///home/mike/projects/day-planner/.agents/rules/no-pills.md) — 4px button border radii, flat underline active tab indicator (`border-bottom: 3px solid #58bfa2`), zero stadiums/capsules.
 - **Header Flex Geometry & Min-Width Reservations**: Pinned `.header-left` and `.header-actions-compact` to `flex: 0 0 auto; min-width: 0;` (with `overflow: hidden;` on `.header-left`) to prevent horizontal collapse or tab overlap on desktop viewports. Reserved `min-width: 280px;` on `.date-nav-compact` so undated views (Master Tasks) do not cause tab jitter. Full centering (`flex: 1 1 0`) activates only at `@media (min-width: 1400px)`.
-- **Dev Deployment Workflow**: Code pushed to dev `@HEAD` deployment via `clasp push`. Production redeployment held until live UAT is completed.
 
 ---
 
 ### CURRENT STATE
 
-- **Repository**: Branch `pure-gas-main` at commit [`3e9076a`](https://github.com/mhoffman02/day-planner/commit/3e9076a).
+- **Repository**: Branch `pure-gas-main` at commit [`32084b9`](https://github.com/mhoffman02/day-planner/commit/32084b9).
 - **Test & Lint Status**: 0 lint errors (`npm run lint`), 88/88 unit tests passing across 11 suites (`npm test`), automated smoke test suite passing (`npm run smoke`), accessibility/contrast/responsive audit passing (`npm run audit:a11y`).
-- **Phase 1-5 Complete**:
-  - Baseline established, documentation backported, PWA/SW removed, standalone meta tags added, all 6 features backported.
-  - Built automated headless Chrome CDP smoke test suite ([`tools/smoke-test.js`](file:///home/mike/projects/day-planner/tools/smoke-test.js)), verifying all 5 views, search modal (`Ctrl+K`), and theme toggle with 0 runtime errors (commit [`2a43cc9`](https://github.com/mhoffman02/day-planner/commit/2a43cc9)).
-  - Built automated WCAG 2.1 AA/AAA contrast and responsive viewport suite ([`tools/audit-wcag-responsive.js`](file:///home/mike/projects/day-planner/tools/audit-wcag-responsive.js)), confirming full AA/AAA compliance and zero horizontal overflow down to 768px (commit [`3e9076a`](https://github.com/mhoffman02/day-planner/commit/3e9076a)).
-  - Completed Phase 5 clasp development deployment (`clasp push`), pushing all 8 files into `@HEAD` (`AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil`). Diagnostic endpoint verified at `/dev?view=self-test`.
+- **Session Accomplishments**:
+  - Restored minimal `https://www.googleapis.com/auth/drive.readonly` scope in [`gas-app/appsscript.json`](file:///home/mike/projects/day-planner/gas-app/appsscript.json) to satisfy `DriveApp.getFolderById` permissions without broad `drive` (commit [`abcdf03`](file:///home/mike/projects/day-planner/commit/abcdf03)).
+  - Eliminated `docFile.moveTo()` broad drive requirement via `Drive.Files.insert` helper [`getOrCreateMonthlyNotesDoc_`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L607) in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) (commit [`ea39b71`](file:///home/mike/projects/day-planner/commit/ea39b71)).
+  - Built persistent in-app 25-entry ring buffer in `UserProperties` (`RECENT_SERVER_LOGS`) and rendered formatted log table on `/self-test` (commit [`ecf9850`](file:///home/mike/projects/day-planner/commit/ecf9850)).
+  - Built permanent Google Doc run-log ([`appendRunLogToDoc_`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L74)) under existing `documents` scope with zero new scopes, accessible via **📄 Open Google Doc Run Log** on `/self-test` (commit [`32084b9`](file:///home/mike/projects/day-planner/commit/32084b9)).
+  - Pinned production deployment ID `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q` (`day-planner-v01`) and pushed all 8 files to `@HEAD` via `clasp push --force`.
 
 ---
 
@@ -43,19 +46,20 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 4. **No PR Theater**: Direct commits on working branch (`pure-gas-main`).
 5. **Design System Constraints**: Day Planner aesthetic — parchment cream `#fcfbfa`, forest teal `#2d6a5a`, serif headers, strictly **no pills** ([`.agents/rules/no-pills.md`](file:///home/mike/projects/day-planner/.agents/rules/no-pills.md)).
 6. **Date Math**: Pure local year/month/day date arithmetic (`new Date(y, m - 1, d + delta)`), never `.toISOString()` on local dates to prevent UTC day-shift bugs.
-7. **OAuth Scopes**: Minimal `drive.file` and `drive.readonly` (for link title lookup). Never request broad `drive`.
+7. **OAuth Scopes**: Minimal `drive.file` and `drive.readonly` (for link title lookup and `getFolderById`). Never request broad `drive`. Never add `spreadsheets` scope when existing `documents` scope can be used.
 
 ---
 
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
-1. **Live Workspace UAT on Web App Dev Endpoint**:
-   - Open dev web app endpoint ([`https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev)) in personal Google account (HOME).
-   - Run `/self-test` diagnostic endpoint ([`https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test)) to confirm live Drive, Tasks, and Calendar service connections.
-   - Verify Day Planner folder auto-creation and bidirectional sync across both HOME and locked-down federal WORK PCs.
-2. **Production Release Deployment (`clasp deploy`)**:
-   - After live UAT sign-off, redeploy production deployment `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q` via `clasp deploy -i AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q -d "day-planner-v01 update"`.
-   - Tag git repository with release version tag (e.g. `v1.0-pure-gas`).
+1. **Live Workspace UAT on Web App Endpoint (`day-planner-v01` & `/dev`)**:
+   - Open `/self-test` diagnostic endpoint ([`https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test)) in personal Google account (HOME).
+   - Confirm all 5 test suites pass (100% HEALTHY) and verify the Recent Server Execution Logs table.
+   - Verify `Day Planner - Run Log` document auto-created in your Google Drive `Day Planner` folder.
+   - Test bidirectional sync across both HOME and locked-down federal WORK PCs.
+2. **Production Release Deployment (`clasp deploy` onto `day-planner-v01`)**:
+   - In Apps Script IDE, update deployment `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q` (`day-planner-v01`) to "New version" to publish latest changes to `/exec`.
+   - After UAT sign-off, tag git repository with release version tag (e.g. `v1.0-pure-gas`).
 3. **Desktop Shortcut Verification ("Open as Window")**:
    - Follow installation guide in [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html) on Chrome and Edge.
    - Verify standalone window title bar, icon resolution, and persistent authentication across restarts.
@@ -64,4 +68,4 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 
 ### IMMEDIATE NEXT STEP
 
-Open the live dev web app self-test endpoint ([`https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test)) in browser to execute the self-test diagnostics suite against live Google Workspace services.
+Open the live dev web app self-test endpoint ([`https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test)) in browser to execute the self-test diagnostics suite and verify the recent execution logs table and Google Doc run-log button.

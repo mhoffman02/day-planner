@@ -1,5 +1,28 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-23 — Runtime Permissions, Drive moveTo Fix & Server Run Log Engine
+
+- [x] **OAuth Scope Minimal Permission Resolution**:
+  - Identified `DriveApp.getFolderById` failure throwing `Specified permissions are not sufficient (drive.readonly || drive)`.
+  - Added minimal `"https://www.googleapis.com/auth/drive.readonly"` scope to [`gas-app/appsscript.json`](file:///home/mike/projects/day-planner/gas-app/appsscript.json) without requesting broad `drive` (commit [`abcdf03`](file:///home/mike/projects/day-planner)).
+- [x] **Drive `moveTo` Least-Privilege Elimination**:
+  - Eliminated `DocumentApp.create()` + `docFile.moveTo(targetFolder)` pattern which required Google's broad `https://www.googleapis.com/auth/drive` scope.
+  - Enabled `Drive` Advanced Service (`drive: v2`) in [`gas-app/appsscript.json`](file:///home/mike/projects/day-planner/gas-app/appsscript.json).
+  - Created [`getOrCreateMonthlyNotesDoc_`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L607) helper in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) using `Drive.Files.insert({ title, mimeType, parents: [{id: targetFolder.getId()}] })` to create monthly docs directly in the destination folder under `drive.file` scope.
+  - Wrapped fallback `moveTo` in `try/catch` so an unhandled exception cannot crash `syncWorkspaceChanges()` (commit [`ea39b71`](file:///home/mike/projects/day-planner)).
+- [x] **In-App Server Execution Log Ring Buffer & Report**:
+  - Implemented persistent 25-entry ring buffer in `UserProperties` (`RECENT_SERVER_LOGS`) via `recordServerLog(level, context, message, stack)`.
+  - Upgraded [`logError()`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L93) and added [`logWarn()`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L107) to record structured events and stack traces.
+  - Rendered **Recent Server Execution Logs** table on `/self-test` diagnostic page with level badges (strictly 4px radius per `no-pills.md`), timestamps, contexts, and expandable stack traces.
+  - Added raw JSON endpoint `?view=logs&format=json` and Clear Logs action `?view=self-test&clear_logs=1` (commit [`ecf9850`](file:///home/mike/projects/day-planner)).
+- [x] **Permanent Google Doc Run-Log Engine**:
+  - Evaluated Google Sheets vs. Google Docs for run logs against least privilege. Chose Google Docs to leverage existing `documents` and `drive.file` scopes with zero new OAuth scopes required.
+  - Built [`appendRunLogToDoc_`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L74) and [`getRunLogDocUrl`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L173), writing timestamped Consolas monospace log entries to `Day Planner - Run Log` inside the Day Planner Drive folder.
+  - Caches doc ID in `UserProperties` (`DAY_PLANNER_RUN_LOG_DOC_ID`) for single-roundtrip appends.
+  - Added **📄 Open Google Doc Run Log** button on self-test diagnostic report (commit [`32084b9`](file:///home/mike/projects/day-planner)).
+- [x] **Production Release Deployment ID Pinned**:
+  - Pinned target production deployment ID `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q` (`day-planner-v01`) in [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) and [`HANDOFF.md`](file:///home/mike/projects/day-planner/HANDOFF.md) for all future `/exec` releases (commit [`1d2eb50`](file:///home/mike/projects/day-planner)).
+
 ## 2026-09-23 — Phase 5 Verification, A11y & Clasp Deployment Gate
 
 - [x] **Local Smoke Testing & Safe Chars Check**:

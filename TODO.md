@@ -2,10 +2,11 @@
 
 ## Phase 6: Live Workspace UAT & Production Release
 
-- [ ] **Live Workspace UAT on Web App Dev Endpoint**:
-  - Open dev web app endpoint (`/dev`: `https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev`) in personal Google account (HOME).
-  - Open `/self-test` diagnostic endpoint (`https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test`) to confirm live Google Drive, Tasks, and Calendar service bindings.
+- [ ] **Live Workspace UAT on Web App Endpoint (`day-planner-v01`)**:
+  - Open web app endpoint (`/exec`: `https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec`) in personal Google account (HOME).
+  - Open `/self-test` diagnostic endpoint (`https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec?view=self-test`) to confirm live Google Drive, Tasks, Calendar, and Docs service bindings (100% HEALTHY).
   - Verify Day Planner folder auto-creation and 2-way sync with live Google Calendar and Google Tasks.
+  - Verify Google Doc run-log (`Day Planner - Run Log`) created inside Day Planner folder.
   - Test on federal locked-down WORK environment (without Chrome extensions/dev tools).
 
 - [ ] **Production Release Deployment (`clasp deploy`)**:
