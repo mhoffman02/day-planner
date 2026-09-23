@@ -9,7 +9,7 @@
   - Test on federal locked-down WORK environment (without Chrome extensions/dev tools).
 
 - [ ] **Production Release Deployment (`clasp deploy`)**:
-  - After live UAT sign-off, redeploy production deployment `AKfycbyAejUd5SWdt5dbmtSKYJZvwqQ2RHU-V3_mARJp3MDjMZ_jrlP0MfWnyTPYp6hVSyO4` via `clasp deploy -i AKfycbyAejUd5SWdt5dbmtSKYJZvwqQ2RHU-V3_mARJp3MDjMZ_jrlP0MfWnyTPYp6hVSyO4 -d "Pure GAS v1.0 release"`.
+  - After live UAT sign-off, redeploy production deployment `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q` via `clasp deploy -i AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q -d "day-planner-v01 update"`.
   - Tag git repository with release version tag (e.g. `v1.0-pure-gas`).
 
 - [ ] **Desktop Shortcut Verification ("Open as Window")**:

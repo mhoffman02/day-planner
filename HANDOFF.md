@@ -54,7 +54,7 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
    - Run `/self-test` diagnostic endpoint ([`https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test)) to confirm live Drive, Tasks, and Calendar service connections.
    - Verify Day Planner folder auto-creation and bidirectional sync across both HOME and locked-down federal WORK PCs.
 2. **Production Release Deployment (`clasp deploy`)**:
-   - After live UAT sign-off, redeploy production deployment `AKfycbyAejUd5SWdt5dbmtSKYJZvwqQ2RHU-V3_mARJp3MDjMZ_jrlP0MfWnyTPYp6hVSyO4` via `clasp deploy -i AKfycbyAejUd5SWdt5dbmtSKYJZvwqQ2RHU-V3_mARJp3MDjMZ_jrlP0MfWnyTPYp6hVSyO4 -d "Pure GAS v1.0 release"`.
+   - After live UAT sign-off, redeploy production deployment `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q` via `clasp deploy -i AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q -d "day-planner-v01 update"`.
    - Tag git repository with release version tag (e.g. `v1.0-pure-gas`).
 3. **Desktop Shortcut Verification ("Open as Window")**:
    - Follow installation guide in [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html) on Chrome and Edge.
