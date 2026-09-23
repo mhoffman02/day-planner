@@ -1,0 +1,14 @@
+{
+  "$schema": "https://app.kilo.ai/config.json",
+  "instructions": [
+    ".agents/rules/*.md"
+  ],
+  "permission": {
+    "bash": {
+      "git show*": "allow",
+      "git show *": "allow",
+      "git show": "allow",
+      "git *": "allow"
+    }
+  }
+}
