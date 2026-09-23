@@ -1691,6 +1691,11 @@
     display: flex;
     flex-direction: column;
   }
+  article.future-month-card:has(.status-menu-wrap:hover),
+  article.future-month-card:focus-within {
+    z-index: 40;
+    position: relative;
+  }
   .future-month-title {
     font-family: var(--pico-header-font-family);
     color: var(--binder-teal);
@@ -1766,6 +1771,11 @@
   }
   .future-item-row:last-child {
     border-bottom: none;
+  }
+  .future-item-row:has(.status-menu-wrap:hover),
+  .future-item-row:focus-within {
+    z-index: 50;
+    position: relative;
   }
   .future-item-main {
     display: flex;

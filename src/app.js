@@ -368,6 +368,23 @@ Alpine.data('plannerApp', () => ({
         }
       },
 
+      async selectFutureItemStatus(mm, item, newStatus) {
+        clearTimeout(this.statusMenuCloseTimer);
+        this.openStatusMenuTaskId = null;
+        if (!isValidStatus(newStatus)) {
+          console.error(`🔥 selectFutureItemStatus: ignoring invalid status "${newStatus}"`);
+          return;
+        }
+        item.status = newStatus;
+        const monthKey = this.futureMonthKey(mm);
+        try {
+          await this.bridge.updateFutureItemStatus(this.futureMatrixYear, monthKey, item.id, item.status);
+        } catch (err) {
+          console.error('selectFutureItemStatus error:', err);
+          this.errorMessage = `Could not save item status: ${err.message || err.toString()}`;
+        }
+      },
+
       async transferFutureItemToDay(mm, item) {
         const monthKey = this.futureMonthKey(mm);
         const targetDate = item._transferDate;

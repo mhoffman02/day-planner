@@ -97,7 +97,7 @@
           <span class="material-symbols-outlined icon-16">topic</span>
           <span>Index</span>
         </button>
-        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'future-matrix' }" @click="setView('future-matrix')" title="Future Planning Matrix">
+        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'future-matrix' }" @click="setView('future-matrix')" title="Future Planning">
           <span class="material-symbols-outlined icon-16">explore</span>
           <span>Future</span>
         </button>
@@ -577,13 +577,13 @@
         </section>
       </template>
 
-      <!-- View 5: Future Planning Matrix -->
+      <!-- View 5: Future Planning -->
       <template x-if="activeView === 'future-matrix'">
-        <section class="view-container" aria-label="Future Planning Matrix">
+        <section class="view-container" aria-label="Future Planning">
           <header class="future-matrix-header">
             <h2 class="view-title">
               <span class="material-symbols-outlined">explore</span>
-              Future Planning Matrix (12-Month Overview)
+              Future Planning
             </h2>
             <div class="future-matrix-year-nav">
               <button type="button" class="icon-nav-btn" @click="changeFutureMatrixYear(-1)" aria-label="Previous year">
@@ -613,8 +613,23 @@
                   <template x-for="item in futureMonthItems(String(idx + 1).padStart(2, '0'))" :key="item.id">
                     <li class="future-item-row">
                       <div class="future-item-main">
-                        <button type="button" class="status-btn" @click="toggleFutureItemStatus(String(idx + 1).padStart(2, '0'), item)" x-text="item.status" :aria-label="'Item status: ' + item.status + '. Click to cycle status.'"></button>
-                        <span class="future-item-title" x-text="item.title"></span>
+                        <div class="status-menu-wrap" @mouseenter="openStatusMenu(item.id)" @mouseleave="scheduleStatusMenuClose(item.id)">
+                          <button type="button" class="status-btn" @click="toggleStatusMenu(item.id)" x-text="item.status || '•'"
+                                  aria-haspopup="menu" :aria-expanded="openStatusMenuTaskId === item.id"
+                                  :aria-label="'Item status: ' + (item.status || 'Open') + '. Click to choose a status.'"></button>
+                          <div class="status-menu" role="menu" x-show="openStatusMenuTaskId === item.id" @click.outside="openStatusMenuTaskId = null" x-cloak>
+                            <template x-for="opt in statusOptions" :key="opt.value">
+                              <button type="button" class="status-menu-item" role="menuitem"
+                                      :class="{ 'is-active': (item.status || '•') === opt.value }"
+                                      @click="selectFutureItemStatus(String(idx + 1).padStart(2, '0'), item, opt.value)"
+                                      :aria-label="'Set status: ' + opt.label">
+                                <span class="status-menu-item-glyph" x-text="opt.value"></span>
+                                <span x-text="opt.label"></span>
+                              </button>
+                            </template>
+                          </div>
+                        </div>
+                        <span class="future-item-title" :class="{ 'task-done': item.status === '✓' || item.status === 'X' }" x-text="item.title"></span>
                         <button type="button" class="icon-nav-btn icon-nav-btn-subtle" @click="deleteFutureItemFromMonth(String(idx + 1).padStart(2, '0'), item)" title="Delete item" aria-label="Delete item">
                           <span class="material-symbols-outlined icon-14">close</span>
                         </button>
