@@ -56,12 +56,24 @@
   - Added folder ownership validation (`owner.getEmail() === currentUser` and `owners(me)`) in `getValidatedRootFolder` auto-search and `validateAndSaveFolderUrl` to prevent auto-adopting or connecting shared folders as private notes stores.
   - Added safe HTML escaping (`escapeHtml`) for server-returned folder names and error messages in [`gas-app/SetupFolder.html`](file:///home/mike/projects/day-planner/gas-app/SetupFolder.html) and `escapeHtml_` in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs).
   - Removed duplicate `testDoGetInIDE` function from [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs).
-  - Verified 0 lint errors, 84/84 unit tests passing (commit [`c50785e`](https://github.com/mhoffman02/day-planner/commit/c50785e)).
 - [x] **Universal Search**:
   - Enhanced [`src/searchEngine.js`](file:///home/mike/projects/day-planner/src/searchEngine.js) with local date extraction without `.toISOString()` UTC shift bugs, store array/object normalization, task notes matching, and exported [`flattenSearchResults()`](file:///home/mike/projects/day-planner/src/searchEngine.js#L50).
   - Wired `Ctrl+K` / `Cmd+K` keyboard shortcuts, input autofocus, arrow navigation (`↑`/`↓`), `Enter` jump, `Esc` dismissal, and [`selectSearchResult()`](file:///home/mike/projects/day-planner/src/app.js#L1453) in [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html).
   - Implemented accessible listbox results rendering with type badges (Calendar, Task, Note, Index), date displays, and snippet context in [`index.html`](file:///home/mike/projects/day-planner/index.html) and [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html).
   - Styled search results, selection outlines, and dark mode themes in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html), flattening all legacy 50% border-radii to 4px per [`.agents/rules/no-pills.md`](file:///home/mike/projects/day-planner/.agents/rules/no-pills.md).
   - Expanded unit test coverage in [`tests/searchEngine.test.js`](file:///home/mike/projects/day-planner/tests/searchEngine.test.js); verified 0 lint errors, 88/88 tests passing across 11 suites (commit [`8335a4d`](https://github.com/mhoffman02/day-planner/commit/8335a4d)).
+- [x] **Master Task List & Status Column Fixes**:
+  - Renamed view title from "Master Task List (Backlog)" to "Master Task List" in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) and [`index.html`](file:///home/mike/projects/day-planner/index.html).
+  - Simplified moved status text from "Moved to Sep 22" to date-only `Sep 22`, letting the `→` arrow glyph convey the moved state.
+  - Widened status column to 200px (`.th-w-200`) and wrapped glyph and date in `.master-task-status-wrap` with `inline-flex; align-items: center; gap: 8px; white-space: nowrap;` in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html).
+  - Fixed Pico CSS `input:not(...)` specificity bug where the date picker expanded to 100% width and pushed the `[ Move ]` button off-screen (commits [`95c891a`](https://github.com/mhoffman02/day-planner/commit/95c891a), [`049f6d2`](https://github.com/mhoffman02/day-planner/commit/049f6d2)).
+- [x] **Future Planning Matrix Enhancements**:
+  - Renamed view title to "Future Planning" in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) and [`index.html`](file:///home/mike/projects/day-planner/index.html).
+  - Replaced single-click cycling status button with Franklin status popup menu matching Today view task controls, listing all 6 Franklin states (`•`, `○`, `✓`, `→`, `X`, `D/✓`).
+  - Implemented responsive two-tier layout for future month cards, giving tasks horizontal breathing room.
+- [x] **Centered Navbar & Flat Underline Navigation Tabs**:
+  - Centered navigation items via balanced flex geometry: `.header-left` (`flex: 1 1 0; min-width: 0;`), `.header-actions-compact` (`flex: 1 1 0; min-width: 0; justify-content: flex-end;`), and `nav.view-segmented-control` (`flex: 0 0 auto; margin: 0 auto;`).
+  - Replaced obsolete pill/capsule styling on navigation tabs with full-height (48px) flat tabs and `border-bottom: 3px solid #58bfa2` for the active tab in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html).
+  - Enforced [`.agents/rules/no-pills.md`](file:///home/mike/projects/day-planner/.agents/rules/no-pills.md) across all top-bar compact action buttons (`.today-jump-btn`, `.search-trigger-compact`, `.sync-btn-compact`, `.security-badge`), setting `border-radius: 4px` (commit [`53962c5`](https://github.com/mhoffman02/day-planner/commit/53962c5)).
 
 
