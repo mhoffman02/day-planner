@@ -13,7 +13,7 @@
 - [ ] **Live Workspace UAT on Web App Endpoint**:
   > ⚠️ NEVER use `/a/macros/gsa.gov/` — consumer script, enterprise proxy returns 404 before `doGet()` runs.
   - [x] Run Self-Test diagnostics: [`/exec?view=self-test`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec?view=self-test) — **100% HEALTHY / All Pass** (Drive, Tasks, Calendar, Docs, Sync Trigger).
-  - [ ] Verify daily binder workspace (tasks, appointments, notes) loads cleanly in production [`/exec`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec).
+  - [x] Verify daily binder workspace (tasks, appointments, notes) loads cleanly in production [`/exec`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec) — **Passed** in Chrome (Version 162).
   - [ ] Verify 2-way sync with live Google Calendar and Google Tasks.
   - [ ] Verify Google Doc run-log (`Day Planner - Run Log`) created inside Day Planner folder.
   - [ ] Test on federal locked-down WORK environment.

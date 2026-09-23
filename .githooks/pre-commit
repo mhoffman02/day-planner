@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Pre-commit hook: JSDoc @file header check + ESLint + Unit tests + safe-chars check + agent-config drift check.
+#
+# Tracked in repo. Activated via: git config core.hooksPath .githooks
+set -e
+ERRORS=0
+
+echo "🔍 Pre-commit checks..."
+
+# ── Safe Characters Check for gas-app/Script.html ───────────────────────────
+# HtmlService.createHtmlOutputFromFile().getContent() silently truncates Script.html at a
+# literal `//` inside a string/template literal, or an apostrophe/backtick inside a comment.
+if ! node tools/check-gas-script-html-safe-chars.js; then
+  echo "❌ [BLOCKER] gas-app/Script.html contains an unsafe pattern that triggers HtmlService truncation!"
+  ERRORS=$((ERRORS + 1))
+fi
+
+# ── Agent Config Mirror Drift Check ─────────────────────────────────────────
+if ! node tools/sync-agent-config.js --check >/tmp/sync-agents-check.$$ 2>&1; then
+  cat /tmp/sync-agents-check.$$
+  echo "❌ [HIGH] .claude/.kilo mirrors are out of sync with .agents/ — run: npm run sync:agents"
+  ERRORS=$((ERRORS + 1))
+fi
+rm -f /tmp/sync-agents-check.$$
+
+# ── ESLint & Unit Tests ──────────────────────────────────────────────────────
+echo "🔍 Running linter and safe-char checks..."
+if ! npm run lint; then
+  echo "❌ [BLOCKER] npm run lint failed"
+  ERRORS=$((ERRORS + 1))
+fi
+
+echo "🧪 Running unit tests..."
+if ! npm test; then
+  echo "❌ [BLOCKER] npm test failed"
+  ERRORS=$((ERRORS + 1))
+fi
+
+if [ "$ERRORS" -gt 0 ]; then
+  echo ""
+  echo "❌ Pre-commit checks failed ($ERRORS error(s)). Fix issues before committing."
+  exit 1
+else
+  echo "✅ All pre-commit checks passed cleanly."
+  exit 0
+fi
