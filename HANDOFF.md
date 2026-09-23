@@ -67,6 +67,5 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 
 Execute Phase 5 Verification & Local Smoke Testing:
 
-1. Run `npm run lint && npm test` to confirm zero regressions.
-2. Run `npm start` to launch local standalone server on `http://localhost:3000`.
-3. Test `Ctrl+K` search navigation, master tasks move, and note cards formatting in browser.
+1. Run `npm start` to launch local standalone server on `http://localhost:3000`.
+2. Test `Ctrl+K` search navigation, master tasks move, and note cards formatting in browser.

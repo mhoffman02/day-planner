@@ -13,11 +13,10 @@ You are about to be replaced by a fresh instance of yourself that will have NONE
 
 Execute these steps in strict sequence:
 
-1. **Pre-Flight Verification (MUST RUN FIRST)**:
-   Run test suite and linter BEFORE touching any handoff artifacts. Fix any regressions immediately.
+1. **Pre-Flight Verification (MUST RUN FIRST IN CURRENT SESSION)**:
+   Run `npm run lint && npm test` to confirm zero regressions in the current session BEFORE touching any handoff artifacts. Fix any regressions immediately.
    ```bash
-   npm run lint
-   npm test
+   npm run lint && npm test
    ```
 
 2. **Archive Completed Tasks to `TODO_HISTORY.md`**:
@@ -36,7 +35,7 @@ Execute these steps in strict sequence:
    - **`CURRENT STATE`** — exactly where we are, git commit/branch, and what was just done
    - **`CONSTRAINTS & PREFERENCES`** — user style, tone, format, do’s and don’ts, anything corrected
    - **`OPEN THREADS (THE 3 MOST IMPORTANT TASKS)`** — the top 3 ranked next tasks matching [**`TODO.md`**](file:///home/mike/projects/day-planner/TODO.md) with exact file links and line numbers
-   - **`IMMEDIATE NEXT STEP`** — the first concrete command or code edit the new instance should execute
+   - **`IMMEDIATE NEXT STEP`** — the first concrete command or code edit the new instance should execute (do NOT instruct running tests/lint as step 1; pre-flight verification in step 1 already confirmed zero regressions in the current session)
 
 6. **Commit & Print**:
    - Commit all updated documents:

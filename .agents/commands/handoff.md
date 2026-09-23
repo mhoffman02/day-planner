@@ -4,10 +4,10 @@ description: Generate structured CONTEXT HANDOFF DOCUMENT (HANDOFF.md) following
 
 Run the following steps in strict order:
 
-1. **Pre-Flight Verification (FIRST)**:
+1. **Pre-Flight Verification (FIRST IN CURRENT SESSION)**:
+   Run `npm run lint && npm test` to confirm zero regressions in the current session.
    ```bash
-   npm run lint
-   npm test
+   npm run lint && npm test
    ```
 
 2. **Archive Completed Tasks**:
@@ -26,7 +26,7 @@ Run the following steps in strict order:
    - `CURRENT STATE`
    - `CONSTRAINTS & PREFERENCES`
    - `OPEN THREADS (THE 3 MOST IMPORTANT TASKS)`
-   - `IMMEDIATE NEXT STEP`
+   - `IMMEDIATE NEXT STEP` (actionable next command/edit, omitting redundant test/lint preflight)
 
 6. **Commit & Print**:
    Commit `HANDOFF.md`, `PLAN.md`, `TODO.md`, and `TODO_HISTORY.md`, and output full contents of `HANDOFF.md` to the conversation.

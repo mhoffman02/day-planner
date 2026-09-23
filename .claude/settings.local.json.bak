@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node tools/ensure-chrome.js*)"
+    ]
+  },
+  "enabledMcpjsonServers": [
+    "chrome-devtools"
+  ],
+  "outputStyle": "default",
+  "spinnerTipsEnabled": true
+}
