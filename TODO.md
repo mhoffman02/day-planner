@@ -7,8 +7,8 @@
   - Tested HOME Dev Web App endpoint [`/dev`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev) in Chrome (signed into `mhoffman02@gmail.com`). Confirmed full digital binder UI loads cleanly.
 
 - [x] **Production Release Deployment (`clasp deploy`)**:
-  - Updated production deployment `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q` to Version 161 (`@161`).
-  - Restored synchronous Alpine load order at end of body (per commit `b86e451`) and added RPC readiness polling in `GASBridge`.
+  - Updated production deployment `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q` to Version 162 (`@162`).
+  - Fixed Apps Script `HtmlService` silent truncation bug by eliminating literal `//` in URL strings (split as `'https:' + '/' + '/...'`) and sanitizing comment apostrophes per commit `087b7ef`. Restored `tools/check-gas-script-html-safe-chars.js` guard.
 
 - [ ] **Live Workspace UAT on Web App Endpoint**:
   > ⚠️ NEVER use `/a/macros/gsa.gov/` — consumer script, enterprise proxy returns 404 before `doGet()` runs.
