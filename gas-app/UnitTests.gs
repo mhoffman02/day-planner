@@ -31,13 +31,29 @@ function runSelfTest() {
   // Test 1: Drive Root & Folder Hierarchy Access
   try {
     var rootFolder = getFolderByNameOrCreate(null, 'Day Planner');
-    var yearFolder = getFolderByNameOrCreate(rootFolder, new Date().getFullYear().toString());
-    results.push({
-      test: '1. Google Drive & Folder Hierarchy',
-      status: 'PASS',
-      details: 'Day Planner root folder ID: ' + rootFolder.getId() + ', year folder ID: ' + yearFolder.getId()
-    });
-    passedCount++;
+    if (!rootFolder) {
+      results.push({
+        test: '1. Google Drive & Folder Hierarchy',
+        status: 'FAIL',
+        details: 'Day Planner root folder is not yet initialized or connected in UserProperties.'
+      });
+    } else {
+      var yearFolder = getFolderByNameOrCreate(rootFolder, new Date().getFullYear().toString());
+      if (!yearFolder) {
+        results.push({
+          test: '1. Google Drive & Folder Hierarchy',
+          status: 'FAIL',
+          details: 'Root folder connected (ID: ' + rootFolder.getId() + '), but failed to access or create year subfolder.'
+        });
+      } else {
+        results.push({
+          test: '1. Google Drive & Folder Hierarchy',
+          status: 'PASS',
+          details: 'Day Planner root folder ID: ' + rootFolder.getId() + ', year folder ID: ' + yearFolder.getId()
+        });
+        passedCount++;
+      }
+    }
   } catch (err1) {
     console.error('🔥 [Self-Test 1 Drive]: ' + err1.toString() + '\nStack: ' + (err1.stack || 'N/A'));
     results.push({
@@ -275,7 +291,7 @@ function renderSelfTestDiagnosticReport() {
 
   html += '</div>' +
     '<div class="diag-footer">' +
-    '<a href="../dev" class="btn-return">Return to Day Planner App &rarr;</a>' +
+    '<a href="?" class="btn-return">Return to Day Planner App &rarr;</a>' +
     '</div></div></body></html>';
 
   return HtmlService.createHtmlOutput(html)

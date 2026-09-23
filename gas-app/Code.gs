@@ -14,6 +14,16 @@
  * care) to keep this a pure wrap with no line-by-line diff. See
  * .agents/rules/gas-namespace-iife.md before adding or removing an export.
  */
+
+/**
+ * Temporary minimal doGet() for baseline testing / debugging.
+ * @param {GoogleAppsScript.Events.DoGet} [e] Request parameters.
+ * @returns {GoogleAppsScript.HTML.HtmlOutput} Minimal test page HTML.
+ */
+function doGet(e) {
+  return HtmlService.createHtmlOutput('<h1>Basic test</h1><p>Pass</p>');
+}
+
 (function(global) {
 
 var MAX_RING_LOGS_ = 25;
@@ -287,11 +297,6 @@ function renderSetupFolderPage() {
     .setTitle('Day Planner - Setup Google Drive Folder')
     .setFaviconUrl(DAY_PLANNER_FAVICON_URL)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
-    .addMetaTag('mobile-web-app-capable', 'yes')
-    .addMetaTag('apple-mobile-web-app-capable', 'yes')
-    .addMetaTag('apple-mobile-web-app-status-bar-style', 'default')
-    .addMetaTag('apple-mobile-web-app-title', 'Day Planner')
-    .addMetaTag('theme-color', '#2d6a5a')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
@@ -301,7 +306,7 @@ function renderSetupFolderPage() {
  * @param {GoogleAppsScript.Events.DoGet} e Event parameter containing request query parameters and path information.
  * @returns {GoogleAppsScript.HTML.HtmlOutput} Rendered web page output.
  */
-function doGet(e) {
+function doGet_original(e) {
   try {
     console.info('doGet: ' + JSON.stringify(e, null, 2));
 
@@ -351,11 +356,6 @@ function doGet(e) {
       .setTitle('Day Planner')
       .setFaviconUrl(DAY_PLANNER_FAVICON_URL)
       .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
-      .addMetaTag('mobile-web-app-capable', 'yes')
-      .addMetaTag('apple-mobile-web-app-capable', 'yes')
-      .addMetaTag('apple-mobile-web-app-status-bar-style', 'default')
-      .addMetaTag('apple-mobile-web-app-title', 'Day Planner')
-      .addMetaTag('theme-color', '#2d6a5a')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 
   } catch (err) {
@@ -459,7 +459,29 @@ function getValidatedRootFolder() {
       console.warn('getValidatedRootFolder auto-search notice: ' + err.toString() + '\nStack:\n' + (err.stack || 'No stack trace available'));
     }
 
-    // No valid folder cached or found; return null to trigger SetupFolder.html
+    // Fallback: Check known default folder ID if accessible under drive.file
+    try {
+      var defaultFolder = DriveApp.getFolderById('1N2WRrFmtsAWKgqeaFIj9HtiQ2wupFEk0');
+      if (defaultFolder) {
+        userProps.setProperty('DAY_PLANNER_ROOT_FOLDER_ID', '1N2WRrFmtsAWKgqeaFIj9HtiQ2wupFEk0');
+        return defaultFolder;
+      }
+    } catch (defaultFolderErr) {
+      console.warn('Known folder lookup skipped: ' + defaultFolderErr.toString());
+    }
+
+    // Auto-create "Day Planner" root folder if none exists
+    try {
+      var newFolder = DriveApp.createFolder('Day Planner');
+      if (newFolder) {
+        userProps.setProperty('DAY_PLANNER_ROOT_FOLDER_ID', newFolder.getId());
+        return newFolder;
+      }
+    } catch (createErr) {
+      console.warn('getValidatedRootFolder auto-create notice: ' + createErr.toString());
+    }
+
+    // No valid folder cached, found, or created; return null to trigger SetupFolder.html
     return null;
   } finally {
     if (lockAcquired) {
@@ -1793,7 +1815,7 @@ global.getOrCreateDailyDocContent = getOrCreateDailyDocContent; // used by UnitT
 global.DAY_PLANNER_FAVICON_URL = DAY_PLANNER_FAVICON_URL;    // used by UnitTests.gs
 
 // Internal aliases for top-level entry point delegators
-global._doGetInternal = doGet;
+global._doGetInternal = doGet_original;
 global._onOpenInternal = onOpen;
 global._syncWorkspaceChangesInternal = syncWorkspaceChanges;
 global._setup2WaySyncTriggerInternal = setup2WaySyncTrigger;
@@ -1809,13 +1831,12 @@ global._ensure2WaySyncTriggerInstalledInternal = ensure2WaySyncTriggerInstalled;
 // appear in the IDE menu. These top-level wrappers delegate to the internal implementations.
 
 /**
- * Primary HTTP GET web app handler for Google Apps Script.
- * MUST be declared as a top-level function outside any IIFE so the Apps Script
- * gateway AST parser discovers the web app entry point and routes HTTP requests.
+ * Original primary HTTP GET web app handler wrapper.
+ * Kept for reference / restoration after minimal doGet baseline testing.
  * @param {GoogleAppsScript.Events.DoGet} e Request parameters.
  * @returns {GoogleAppsScript.HTML.HtmlOutput} Rendered web page output.
  */
-function doGet(e) {
+function doGet_original_wrapper(e) {
   return (typeof _doGetInternal === 'function') ? _doGetInternal(e) : (globalThis._doGetInternal ? globalThis._doGetInternal(e) : null);
 }
 
