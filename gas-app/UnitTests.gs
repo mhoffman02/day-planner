@@ -201,20 +201,34 @@ function renderSelfTestDiagnosticReport() {
   var badgeColor = isHealthy ? '#2e7d32' : '#c62828';
   var badgeBg = isHealthy ? '#e8f5e9' : '#ffebee';
 
+  var serverLogs = (typeof getRecentServerLogs === 'function') ? getRecentServerLogs() : (global.getRecentServerLogs ? global.getRecentServerLogs() : []);
+
+  var escape = function(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  };
+
   var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Day Planner Self-Test Diagnostics</title>' +
     '<style>' +
     'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #fcfbfa; color: #1c2826; padding: 30px; max-width: 900px; margin: 0 auto; }' +
-    '.card { background: #ffffff; border: 1px solid #c8ded7; border-radius: 8px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }' +
-    '.badge { display: inline-block; padding: 6px 16px; border-radius: 20px; font-weight: bold; font-size: 0.9rem; background: ' + badgeBg + '; color: ' + badgeColor + '; border: 1px solid ' + badgeColor + '; }' +
-    'table { width: 100%; border-collapse: collapse; margin-top: 20px; }' +
-    'th, td { text-align: left; padding: 12px; border-bottom: 1px solid #eef5f2; font-size: 0.9rem; }' +
-    'th { background: #f4f9f7; color: #5c6b66; text-transform: uppercase; font-size: 0.75rem; }' +
+    '.card { background: #ffffff; border: 1px solid #c8ded7; border-radius: 4px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }' +
+    '.badge { display: inline-block; padding: 4px 10px; border-radius: 4px; font-weight: bold; font-size: 0.85rem; background: ' + badgeBg + '; color: ' + badgeColor + '; border: 1px solid ' + badgeColor + '; }' +
+    '.log-level { display: inline-block; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; }' +
+    '.log-ERROR { background: #ffebee; color: #c62828; border: 1px solid #ef5350; }' +
+    '.log-WARN { background: #fff8e1; color: #f57f17; border: 1px solid #ffb74d; }' +
+    '.log-INFO { background: #e8f5e9; color: #2e7d32; border: 1px solid #81c784; }' +
+    'table { width: 100%; border-collapse: collapse; margin-top: 16px; }' +
+    'th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #eef5f2; font-size: 0.85rem; vertical-align: top; }' +
+    'th { background: #f4f9f7; color: #5c6b66; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; }' +
     '.status-pass { color: #2e7d32; font-weight: bold; }' +
     '.status-fail { color: #c62828; font-weight: bold; }' +
     '.diag-header { display: flex; justify-content: space-between; align-items: center; }' +
-    '.diag-meta { color: #5c6b66; font-size: 0.9rem; }' +
+    '.diag-meta { color: #5c6b66; font-size: 0.85rem; margin-top: 6px; }' +
     '.diag-footer { margin-top: 24px; text-align: right; }' +
-    '.btn-return { display: inline-block; padding: 10px 20px; background: #2d6a5a; color: #fff; text-decoration: none; border-radius: 4px; font-weight: bold; }' +
+    '.btn-return { display: inline-block; padding: 8px 18px; background: #2d6a5a; color: #fff; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 0.9rem; }' +
+    '.btn-sec { display: inline-block; padding: 5px 12px; background: #f4f9f7; border: 1px solid #c8ded7; color: #2d6a5a; text-decoration: none; border-radius: 4px; font-size: 0.8rem; font-weight: 600; margin-left: 6px; }' +
+    '.btn-sec:hover { background: #e4efe9; }' +
+    'pre.stack-box { white-space: pre-wrap; word-break: break-all; font-family: monospace; font-size: 0.75rem; background: #f8fbf9; border: 1px solid #dbeae3; border-radius: 4px; padding: 8px; margin: 6px 0 0; }' +
     '</style></head><body>' +
     '<div class="card">' +
     '<div class="diag-header">' +
@@ -226,10 +240,37 @@ function renderSelfTestDiagnosticReport() {
 
   testResult.results.forEach(function(r) {
     var cls = r.status === 'PASS' ? 'status-pass' : 'status-fail';
-    html += '<tr><td><b>' + r.test + '</b></td><td class="' + cls + '">' + r.status + '</td><td>' + r.details + '</td></tr>';
+    html += '<tr><td><b>' + escape(r.test) + '</b></td><td class="' + cls + '">' + escape(r.status) + '</td><td>' + escape(r.details) + '</td></tr>';
   });
 
   html += '</tbody></table>' +
+    '<div style="margin-top: 36px; padding-top: 20px; border-top: 1px solid #eef5f2;">' +
+    '<div class="diag-header">' +
+    '<h3 style="margin: 0; color: #2d6a5a;">📋 Recent Server Execution Logs</h3>' +
+    '<div>' +
+    '<a href="?view=logs&format=json" target="_blank" class="btn-sec">Export JSON</a>' +
+    '<a href="?view=self-test&clear_logs=1" class="btn-sec">Clear Logs</a>' +
+    '</div></div>';
+
+  if (serverLogs.length === 0) {
+    html += '<p style="color: #5c6b66; font-style: italic; margin-top: 12px; font-size: 0.85rem;">No recent server warnings or errors recorded.</p>';
+  } else {
+    html += '<table><thead><tr><th style="width:140px;">Time</th><th style="width:70px;">Level</th><th style="width:160px;">Context</th><th>Message / Stack</th></tr></thead><tbody>';
+    serverLogs.forEach(function(l) {
+      var lvl = escape(l.level || 'INFO');
+      var timeFormatted = l.timestamp ? l.timestamp.replace('T', ' ').substring(0, 19) : 'N/A';
+      var stackHtml = l.stack ? '<details style="margin-top:4px;"><summary style="cursor:pointer; color:#2d6a5a; font-size:0.75rem;">View Stack Trace</summary><pre class="stack-box">' + escape(l.stack) + '</pre></details>' : '';
+      html += '<tr>' +
+        '<td style="color:#5c6b66; font-size:0.8rem;">' + escape(timeFormatted) + '</td>' +
+        '<td><span class="log-level log-' + lvl + '">' + lvl + '</span></td>' +
+        '<td><b>' + escape(l.context || 'general') + '</b></td>' +
+        '<td>' + escape(l.message || '') + stackHtml + '</td>' +
+        '</tr>';
+    });
+    html += '</tbody></table>';
+  }
+
+  html += '</div>' +
     '<div class="diag-footer">' +
     '<a href="../dev" class="btn-return">Return to Day Planner App &rarr;</a>' +
     '</div></div></body></html>';

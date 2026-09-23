@@ -14,21 +14,105 @@
  */
 (function(global) {
 
+var MAX_RING_LOGS_ = 25;
+
 /**
- * Centralized error logging utility. Logs formatted error and stack trace to console.error.
+ * Records a structured execution log entry into a persistent UserProperties ring buffer.
+ * @param {'ERROR'|'WARN'|'INFO'} level Log severity level.
+ * @param {string} context Descriptive context or operation name.
+ * @param {string} message Log message.
+ * @param {string|null} [stack] Optional error stack trace.
+ */
+function recordServerLog(level, context, message, stack) {
+  try {
+    var userProps = PropertiesService.getUserProperties();
+    var raw = userProps.getProperty('RECENT_SERVER_LOGS');
+    var logs = [];
+    if (raw) {
+      try {
+        logs = JSON.parse(raw);
+        if (!Array.isArray(logs)) logs = [];
+      } catch (parseErr) {
+        logs = [];
+      }
+    }
+
+    logs.unshift({
+      timestamp: new Date().toISOString(),
+      level: level || 'INFO',
+      context: context || 'general',
+      message: String(message || ''),
+      stack: stack || null
+    });
+
+    if (logs.length > MAX_RING_LOGS_) {
+      logs = logs.slice(0, MAX_RING_LOGS_);
+    }
+
+    userProps.setProperty('RECENT_SERVER_LOGS', JSON.stringify(logs));
+  } catch (propErr) {
+    console.warn('recordServerLog storage exception: ' + propErr.toString());
+  }
+}
+
+/**
+ * Retrieves the recent execution logs from UserProperties.
+ * @returns {Array<{timestamp: string, level: string, context: string, message: string, stack: string|null}>} Recent logs list.
+ */
+function getRecentServerLogs() {
+  try {
+    var raw = PropertiesService.getUserProperties().getProperty('RECENT_SERVER_LOGS');
+    if (!raw) return [];
+    var logs = JSON.parse(raw);
+    return Array.isArray(logs) ? logs : [];
+  } catch (err) {
+    return [{ timestamp: new Date().toISOString(), level: 'ERROR', context: 'getRecentServerLogs', message: err.toString(), stack: err.stack || null }];
+  }
+}
+
+/**
+ * Clears the persistent execution log ring buffer.
+ * @returns {{success: boolean}} Operation status.
+ */
+function clearRecentServerLogs() {
+  try {
+    PropertiesService.getUserProperties().deleteProperty('RECENT_SERVER_LOGS');
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
+}
+
+/**
+ * Centralized error logging utility. Logs formatted error and stack trace to console.error
+ * and records to the in-app execution log ring buffer.
  * @param {string} context Descriptive name or operation context where the error occurred.
  * @param {Error|object|string} err The thrown Error object or error message.
  * @returns {{success: boolean, error: string, stack: string|null, context: string}} Standardized error payload.
  */
 function logError(context, err) {
-  var errorMsg = '🔥 ' + context + ': ' + (err.message || err.toString());
-  console.error(errorMsg + '\nStack:\n' + (err.stack || 'No stack trace available'));
+  var errorMsg = '🔥 ' + context + ': ' + (err ? (err.message || err.toString()) : 'Unknown error');
+  var stack = (err && err.stack) ? err.stack : null;
+  console.error(errorMsg + '\nStack:\n' + (stack || 'No stack trace available'));
+  recordServerLog('ERROR', context, errorMsg, stack);
   return {
     success: false,
     error: errorMsg,
-    stack: err.stack || null,
+    stack: stack,
     context: context
   };
+}
+
+/**
+ * Warning logging helper. Logs to console.warn and records to the in-app execution log ring buffer.
+ * @param {string} context Descriptive context or operation name.
+ * @param {string} message Warning message.
+ * @param {string|null} [stack] Optional stack trace.
+ */
+function logWarn(context, message, stack) {
+  var warnMsg = '⚠️ ' + context + ': ' + (message || '');
+  console.warn(warnMsg + (stack ? '\nStack:\n' + stack : ''));
+  recordServerLog('WARN', context, warnMsg, stack || null);
 }
 
 /**
@@ -80,10 +164,21 @@ function renderSetupFolderPage() {
  */
 function doGet(e) {
   try {
+    // 0. Check for log maintenance actions
+    if (e && e.parameter && e.parameter.clear_logs === '1') {
+      clearRecentServerLogs();
+    }
+
+    // Check if requested raw JSON execution logs endpoint
+    if (e && e.parameter && (e.parameter.view === 'logs' || e.parameter.logs === '1') && e.parameter.format === 'json') {
+      return ContentService.createTextOutput(JSON.stringify(getRecentServerLogs(), null, 2))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     // 1. Check if requested /self-test diagnostic endpoint (via pathInfo or query param)
     var isSelfTest = e && (
-      (e.pathInfo && (e.pathInfo.indexOf('self-test') !== -1 || e.pathInfo.indexOf('selftest') !== -1)) ||
-      (e.parameter && (e.parameter.view === 'self-test' || e.parameter['self-test'] !== undefined || e.parameter.post === '1'))
+      (e.pathInfo && (e.pathInfo.indexOf('self-test') !== -1 || e.pathInfo.indexOf('selftest') !== -1 || e.pathInfo.indexOf('logs') !== -1)) ||
+      (e.parameter && (e.parameter.view === 'self-test' || e.parameter['self-test'] !== undefined || e.parameter.post === '1' || e.parameter.view === 'logs' || e.parameter.logs === '1'))
     );
 
     if (isSelfTest) {
@@ -167,7 +262,7 @@ function getValidatedRootFolder() {
     try {
       return DriveApp.getFolderById(cachedId);
     } catch (err) {
-      console.warn('getValidatedRootFolder: cached ID invalid or unreadable: ' + err.toString() + '\nStack:\n' + (err.stack || 'No stack trace available'));
+      logWarn('getValidatedRootFolder', 'cached ID invalid or unreadable: ' + err.toString(), err.stack);
     }
   }
 
@@ -182,10 +277,10 @@ function getValidatedRootFolder() {
   try {
     lockAcquired = lock.tryLock(10000);
     if (!lockAcquired) {
-      console.warn('getValidatedRootFolder: lock timed out after 10s (contended by a concurrent execution), proceeding unlocked');
+      logWarn('getValidatedRootFolder', 'lock timed out after 10s (contended by a concurrent execution), proceeding unlocked');
     }
   } catch (lockErr) {
-    console.warn('getValidatedRootFolder: lock acquisition threw, proceeding unlocked: ' + lockErr.toString());
+    logWarn('getValidatedRootFolder', 'lock acquisition threw, proceeding unlocked: ' + lockErr.toString());
   }
 
   try {
@@ -195,7 +290,7 @@ function getValidatedRootFolder() {
       try {
         return DriveApp.getFolderById(relockedId);
       } catch (relockedErr) {
-        console.warn('getValidatedRootFolder: relocked ID invalid or unreadable: ' + relockedErr.toString() + '\nStack:\n' + (relockedErr.stack || 'No stack trace available'));
+        logWarn('getValidatedRootFolder', 'relocked ID invalid or unreadable: ' + relockedErr.toString(), relockedErr.stack);
       }
     }
 
@@ -1529,6 +1624,11 @@ global.setup2WaySyncTrigger = setup2WaySyncTrigger;          // IDE manual-run
 // by other .gs files' own IIFEs since GAS has no import statement -- this global object is the
 // only channel between files):
 global.logError = logError;                                  // used by UnitTests.gs
+global.logWarn = logWarn;                                    // used by UnitTests.gs
+global.recordServerLog = recordServerLog;                    // used by UnitTests.gs
+global.getRecentServerLogs = getRecentServerLogs;            // used by UnitTests.gs
+global.clearRecentServerLogs = clearRecentServerLogs;        // used by UnitTests.gs
+global.escapeHtml_ = escapeHtml_;                            // used by UnitTests.gs
 global.getFolderByNameOrCreate = getFolderByNameOrCreate;    // used by UnitTests.gs
 global.getOrCreateDailyDocContent = getOrCreateDailyDocContent; // used by UnitTests.gs
 global.DAY_PLANNER_FAVICON_URL = DAY_PLANNER_FAVICON_URL;    // used by UnitTests.gs
