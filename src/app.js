@@ -880,11 +880,14 @@ Alpine.data('plannerApp', () => ({
         }
 
         text = this.normalizeLeadingListMarker(text);
+        text = text.replace(/^#+\s*/, '');
 
         const escapeHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
         const renderInline = (line) => {
           let html = escapeHtml(line);
+          html = html.replace(/#index\s+\[([^\]]+)\]/gi, '<span class="doc-preview-topic-badge">$1</span>');
+          html = html.replace(/#task\s+\[([A-C]\d)\]/gi, '<span class="priority-badge">[$1]</span>');
           html = html.replace(/\[\[color:(teal|red|green|blue)\]\](.+?)\[\[\/color\]\]/g, '<span class="note-render-color-$1">$2</span>');
           html = html.replace(/\[\[link:((?:https?|mailto):[^\]\s]+)\]\](.+?)\[\[\/link\]\]/g, (_m, url, linkText) => {
             const safeHrefUrl = url.replace(/"/g, '&quot;');
@@ -950,7 +953,7 @@ Alpine.data('plannerApp', () => ({
       parseDailyNoteToCards(noteText = '') {
         if (!noteText.trim() || noteText.startsWith('No notes recorded for')) {
           return [
-            { id: 'nc_1', indexTopic: 'Architecture', heading: 'System Design', content: 'Finalized 3-column binder layout with Alpine.js and clean CSS.', category: 'Work', collapsed: false },
+            { id: 'nc_1', indexTopic: 'Architecture', heading: 'System Design', content: '- Finalized 3-column binder layout with Alpine.js and clean CSS.', category: 'Work', collapsed: false },
             { id: 'nc_2', indexTopic: 'Finance', heading: 'Budget Sync', content: '- Reviewed Q3 budget and Google Workspace API sync.\n- Approved GCP allocation.', category: 'Meeting', collapsed: false }
           ];
         }
@@ -960,19 +963,33 @@ Alpine.data('plannerApp', () => ({
         let currentCard = null;
 
         lines.forEach(line => {
-          if (line.startsWith('### ') || line.startsWith('# ')) {
-            let headingClean = line.replace(/^#+\s*/, '').trim();
+          const trimmed = line.trim();
+          if (!trimmed) {
+            if (currentCard && currentCard.content) {
+              currentCard.content += '\n';
+            }
+            return;
+          }
+
+          // Skip document title headers (e.g. "# Daily Log - Aug 15, 2026", "# Aug 15, 2026")
+          if (/^#\s+(Daily Log|Day Planner|\w+\s+\d{1,2},|\d{4}-\d{2}-\d{2})/i.test(trimmed)) {
+            return;
+          }
+
+          if (/^#{2,3}\s+/.test(trimmed)) {
+            let headingClean = trimmed.replace(/^#+\s*/, '').trim();
             if (/^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},\s*\d{4}$/i.test(headingClean) ||
                 /^\d{4}-\d{2}-\d{2}$/.test(headingClean)) {
               return;
             }
             if (currentCard) cards.push(currentCard);
+            headingClean = headingClean.replace(/^Daily Log\s*[-–—]?\s*/i, '');
             const category = headingClean.toLowerCase().includes('meeting') ? 'Meeting' : headingClean.toLowerCase().includes('finance') ? 'Decision' : headingClean.toLowerCase().includes('personal') ? 'Personal' : 'Work';
             const { indexTopic, heading } = this.decomposeIndexHeading(headingClean);
             currentCard = {
               id: `nc_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
               indexTopic,
-              heading,
+              heading: heading || 'Topic',
               content: '',
               category,
               collapsed: false

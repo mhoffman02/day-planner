@@ -75,15 +75,15 @@ export class GASBridge {
         ]
       },
       dailyNotes: {
-        '2026-08-15': `# Daily Log - August 15, 2026
-
-## Key Meetings & Notes
+        '2026-08-15': `### #index [Architecture] System Design
 - Executive briefing focused on accelerating digital transformation.
-- #index [Architecture] Finalized single page binder layout using Alpine.js and clean UWSDS CSS.
-- #index [Finance] Approved $15,000 infrastructure allocation for GCP migration.
+- Finalized single page binder layout using Alpine.js and clean UWSDS CSS.
 - Team sync went smoothly. Reminded everyone about tomorrow's demo.
 
-## Daily Tracker
+### #index [Finance] Budget Allocation
+- Approved $15,000 infrastructure allocation for GCP migration.
+
+### Daily Tracker
 - Water: 8 / 8 glasses
 - Fitness: 45 min cardio
 - Priority Focus: 100% on Day Planner Goals`
