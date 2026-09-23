@@ -614,18 +614,23 @@
                 <ul class="future-item-list" x-show="futureMonthItems(String(idx + 1).padStart(2, '0')).length > 0">
                   <template x-for="item in futureMonthItems(String(idx + 1).padStart(2, '0'))" :key="item.id">
                     <li class="future-item-row">
-                      <button type="button" class="status-btn" @click="toggleFutureItemStatus(String(idx + 1).padStart(2, '0'), item)" x-text="item.status" :aria-label="'Item status: ' + item.status + '. Click to cycle status.'"></button>
-                      <span class="future-item-title" x-text="item.title"></span>
-                      <input type="date" x-model="item._transferDate" class="future-item-date-input" :aria-label="'Transfer date for ' + item.title">
-                      <button type="button" class="icon-nav-btn" @click="transferFutureItemToDay(String(idx + 1).padStart(2, '0'), item)" title="Transfer to this day's task list" aria-label="Transfer to day">
-                        <span class="material-symbols-outlined">arrow_forward</span>
-                      </button>
-                      <button type="button" class="icon-nav-btn" @click="pushFutureItemForward(String(idx + 1).padStart(2, '0'), item)" title="Push to next month" aria-label="Push to next month">
-                        <span class="material-symbols-outlined">redo</span>
-                      </button>
-                      <button type="button" class="icon-nav-btn" @click="deleteFutureItemFromMonth(String(idx + 1).padStart(2, '0'), item)" title="Delete item" aria-label="Delete item">
-                        <span class="material-symbols-outlined">close</span>
-                      </button>
+                      <div class="future-item-main">
+                        <button type="button" class="status-btn" @click="toggleFutureItemStatus(String(idx + 1).padStart(2, '0'), item)" x-text="item.status" :aria-label="'Item status: ' + item.status + '. Click to cycle status.'"></button>
+                        <span class="future-item-title" x-text="item.title"></span>
+                        <button type="button" class="icon-nav-btn icon-nav-btn-subtle" @click="deleteFutureItemFromMonth(String(idx + 1).padStart(2, '0'), item)" title="Delete item" aria-label="Delete item">
+                          <span class="material-symbols-outlined icon-14">close</span>
+                        </button>
+                      </div>
+                      <div class="future-item-actions">
+                        <input type="date" x-model="item._transferDate" class="future-item-date-input" :aria-label="'Transfer date for ' + item.title">
+                        <button type="button" class="btn-move-to" @click="transferFutureItemToDay(String(idx + 1).padStart(2, '0'), item)" title="Transfer to this day's task list" aria-label="Transfer to day">
+                          <span class="material-symbols-outlined icon-14">arrow_forward</span>
+                          <span>Move</span>
+                        </button>
+                        <button type="button" class="icon-nav-btn" @click="pushFutureItemForward(String(idx + 1).padStart(2, '0'), item)" title="Push to next month" aria-label="Push to next month">
+                          <span class="material-symbols-outlined icon-16">redo</span>
+                        </button>
+                      </div>
                     </li>
                   </template>
                 </ul>

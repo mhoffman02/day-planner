@@ -1676,7 +1676,7 @@
   /* Future Planning Matrix */
   section.future-matrix-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 16px;
     margin: 0;
   }
@@ -1687,6 +1687,8 @@
     padding: 12px;
     min-height: 100px;
     margin: 0;
+    display: flex;
+    flex-direction: column;
   }
   .future-month-title {
     font-family: var(--pico-header-font-family);
@@ -1752,18 +1754,39 @@
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
   }
   .future-item-row {
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    gap: 4px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border-line);
+  }
+  .future-item-row:last-child {
+    border-bottom: none;
+  }
+  .future-item-main {
+    display: flex;
+    align-items: flex-start;
     gap: 6px;
+    width: 100%;
   }
   .future-item-title {
     flex: 1;
     font-size: 0.82rem;
+    line-height: 1.35;
     color: inherit;
     word-break: break-word;
+    padding-top: 1px;
+  }
+  .future-item-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    padding-left: 28px;
+    flex-wrap: wrap;
   }
   .future-item-date-input {
     font-size: 0.72rem;
@@ -1774,7 +1797,30 @@
     border: 1px solid var(--border-line);
     border-radius: 4px;
     outline: none;
-    width: 128px;
+    width: 120px;
+    box-sizing: border-box;
+  }
+  .future-item-actions .btn-move-to {
+    height: 24px;
+    padding: 1px 8px;
+    font-size: 0.72rem;
+    gap: 3px;
+  }
+  .future-item-actions .icon-nav-btn {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .icon-nav-btn-subtle {
+    opacity: 0.5;
+    transition: opacity 0.15s ease;
+  }
+  .icon-nav-btn-subtle:hover {
+    opacity: 1;
   }
   [data-theme="dark"] .future-item-input-field,
   [data-theme="dark"] .future-item-date-input {
