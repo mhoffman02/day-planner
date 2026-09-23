@@ -885,13 +885,14 @@ function markMasterTaskMoved(masterTaskId, targetDateStr, movedTaskId) {
         id: masterTaskId,
         title: '',
         category: 'General',
-        status: '•',
+        status: '→',
         movedTo: targetDateStr,
         movedTaskId: movedTaskId
       };
     }
     var current = Tasks.Tasks.get('@default', masterTaskId);
     var notes = encodeTaskMeta(current.notes, { movedTo: targetDateStr, movedTaskId: movedTaskId });
+    notes = encodeTaskStatus(notes, '→');
     var updated = Tasks.Tasks.patch({ notes: notes }, '@default', masterTaskId);
     var meta = decodeTaskMeta(updated.notes);
     return {

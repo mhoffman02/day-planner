@@ -1085,6 +1085,7 @@ Alpine.data('plannerApp', () => ({
             if (updatedMaster) {
               mTask.movedTo = updatedMaster.movedTo;
               mTask.movedTaskId = updatedMaster.movedTaskId;
+              mTask.status = updatedMaster.status || '→';
             }
             await this.trigger2WaySync();
           }

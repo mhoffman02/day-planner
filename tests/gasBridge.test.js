@@ -179,11 +179,13 @@ describe('GAS Bridge Unit Tests', () => {
     assert.ok(updated);
     assert.equal(updated.movedTo, '2026-08-20');
     assert.equal(updated.movedTaskId, 't_new_123');
+    assert.equal(updated.status, '→');
 
     const masterTasks = await bridge.getMasterTasks('August 2026');
     const m3 = masterTasks.find(m => m.id === 'm3');
     assert.equal(m3.movedTo, '2026-08-20');
     assert.equal(m3.movedTaskId, 't_new_123');
+    assert.equal(m3.status, '→');
   });
 
   it('should transfer master task passed as an object and attach sourceMasterId', async () => {

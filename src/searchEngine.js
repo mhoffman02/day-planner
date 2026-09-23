@@ -139,7 +139,8 @@ export function executeUniversalSearch(query = '', store = {}) {
   }
 
   normalizedNotes.forEach(note => {
-    const text = note.content || '';
+    // Strip [[link:URL]]display text[[/link]] hyperlink markup down to display text before matching/snippeting
+    const text = (note.content || '').replace(/\[\[link:[^\]]+\]\]([\s\S]*?)\[\[\/link\]\]/g, '$1');
     if (text.toLowerCase().includes(cleanQuery)) {
       const idx = text.toLowerCase().indexOf(cleanQuery);
       const start = Math.max(0, idx - 20);
@@ -160,14 +161,16 @@ export function executeUniversalSearch(query = '', store = {}) {
 
   // 4. Search Monthly Index Entries
   normalizeCollection(indexEntries).forEach(idx => {
-    const topicMatch = (idx.topic || '').toLowerCase().includes(cleanQuery);
-    const summaryMatch = (idx.summary || '').toLowerCase().includes(cleanQuery);
+    const cleanTopic = (idx.topic || 'General').replace(/^###\s*/, '');
+    const cleanSummary = (idx.summary || '').replace(/^###\s*/, '');
+    const topicMatch = cleanTopic.toLowerCase().includes(cleanQuery);
+    const summaryMatch = cleanSummary.toLowerCase().includes(cleanQuery);
 
     if (topicMatch || summaryMatch) {
       results.index.push({
         type: 'index',
-        title: `[${idx.topic || 'General'}] ${idx.summary || ''}`,
-        snippet: `Topic: ${idx.topic || 'General'}`,
+        title: `[${cleanTopic}] ${cleanSummary}`,
+        snippet: `Topic: ${cleanTopic}`,
         date: idx.date || '',
         targetView: 'monthly-index',
         item: idx

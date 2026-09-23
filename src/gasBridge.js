@@ -223,6 +223,7 @@ export class GASBridge {
       if (!task) return null;
       task.movedTo = targetDateStr;
       task.movedTaskId = movedTaskId;
+      task.status = '→';
       return task;
     }
 

@@ -1805,6 +1805,11 @@
     gap: 0;
   }
 
+  .master-task-action-wrap {
+    display: inline-flex;
+    align-items: center;
+  }
+
   .master-task-date-input {
     font-size: 0.72rem;
     padding: 2px 4px;
@@ -1816,6 +1821,12 @@
     border-radius: 4px 0 0 4px;
     outline: none;
     width: 128px;
+  }
+
+  [data-theme="dark"] .master-task-date-input {
+    background-color: var(--card-bg-dark, #262626);
+    color: var(--text-dark, #fcfbfa);
+    border-color: var(--border-line-dark, #404040);
   }
 
   .btn-move-to {

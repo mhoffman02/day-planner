@@ -510,7 +510,7 @@
                   <th scope="col">Category</th>
                   <th scope="col">Task Title</th>
                   <th scope="col">Status</th>
-                  <th scope="col" class="th-w-150">Action</th>
+                  <th scope="col" class="th-w-230">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -523,7 +523,7 @@
                       <span class="master-task-moved-note" x-show="mTask.movedTo" x-text="'Moved to ' + formatMovedDate(mTask.movedTo)"></span>
                     </td>
                     <td class="master-task-action-cell">
-                      <span x-show="!mTask.movedTo">
+                      <span class="master-task-action-wrap" x-show="!mTask.movedTo">
                         <input type="date" x-model="mTask._moveDate" class="master-task-date-input" :aria-label="'Move date for ' + mTask.title" :disabled="mTask._moving">
                         <button type="button" class="btn-move-to" @click="moveMasterTaskToDate(mTask)" :disabled="mTask._moving">
                           <span class="material-symbols-outlined icon-18" :class="{ spin: mTask._moving }" x-show="mTask._moving">progress_activity</span>
