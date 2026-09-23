@@ -33,6 +33,7 @@ function recordServerLog(level, context, message, stack) {
         logs = JSON.parse(raw);
         if (!Array.isArray(logs)) logs = [];
       } catch (parseErr) {
+        console.warn('recordServerLog parse exception: ' + parseErr.toString());
         logs = [];
       }
     }
@@ -52,6 +53,142 @@ function recordServerLog(level, context, message, stack) {
     userProps.setProperty('RECENT_SERVER_LOGS', JSON.stringify(logs));
   } catch (propErr) {
     console.warn('recordServerLog storage exception: ' + propErr.toString());
+  }
+
+  // Also persist to the permanent Google Doc Run Log in the user's Day Planner folder
+  try {
+    appendRunLogToDoc_(level, context, message, stack);
+  } catch (docLogErr) {
+    console.warn('appendRunLogToDoc_ trigger exception: ' + docLogErr.toString());
+  }
+}
+
+/**
+ * Appends a log entry to the permanent 'Day Planner - Run Log' Google Doc located
+ * in the user's Day Planner Drive folder.
+ * @param {'ERROR'|'WARN'|'INFO'} level Log severity.
+ * @param {string} context Operation context.
+ * @param {string} message Log message.
+ * @param {string|null} [stack] Stack trace if available.
+ */
+function appendRunLogToDoc_(level, context, message, stack) {
+  if (typeof DocumentApp === 'undefined') return;
+
+  try {
+    var userProps = PropertiesService.getUserProperties();
+    var cachedDocId = userProps.getProperty('DAY_PLANNER_RUN_LOG_DOC_ID');
+    var doc = null;
+
+    if (cachedDocId) {
+      try {
+        doc = DocumentApp.openById(cachedDocId);
+      } catch (openErr) {
+        console.warn('cachedDocId open exception: ' + openErr.toString());
+        userProps.deleteProperty('DAY_PLANNER_RUN_LOG_DOC_ID');
+        doc = null;
+      }
+    }
+
+    if (!doc) {
+      var targetFolder = getValidatedRootFolder();
+      if (!targetFolder) return;
+
+      var docName = 'Day Planner - Run Log';
+      var files = targetFolder.getFilesByName(docName);
+      if (files.hasNext()) {
+        doc = DocumentApp.openById(files.next().getId());
+      } else {
+        if (typeof Drive !== 'undefined' && Drive.Files && Drive.Files.insert) {
+          try {
+            var newFile = Drive.Files.insert({
+              title: docName,
+              mimeType: 'application/vnd.google-apps.document',
+              parents: [{ id: targetFolder.getId() }]
+            });
+            doc = DocumentApp.openById(newFile.id);
+          } catch (driveErr) {
+            console.warn('Drive.Files.insert run log fallback: ' + driveErr.toString());
+          }
+        }
+
+        if (!doc) {
+          doc = DocumentApp.create(docName);
+          try {
+            var docFile = DriveApp.getFileById(doc.getId());
+            docFile.moveTo(targetFolder);
+          } catch (moveErr) {
+            console.warn('fallback moveTo skipped: ' + moveErr.toString());
+          }
+        }
+
+        var headerBody = doc.getBody();
+        headerBody.appendParagraph('Day Planner - System Diagnostics & Run Log')
+          .setHeading(DocumentApp.ParagraphHeading.HEADING1);
+        headerBody.appendParagraph('Permanent audit log of server-side events, warnings, and error diagnostics.')
+          .setFontSize(10).setForegroundColor('#5c6b66');
+        headerBody.appendHorizontalRule();
+        doc.saveAndClose();
+        doc = DocumentApp.openById(doc.getId());
+      }
+
+      if (doc) {
+        userProps.setProperty('DAY_PLANNER_RUN_LOG_DOC_ID', doc.getId());
+      }
+    }
+
+    if (!doc) return;
+
+    var body = doc.getBody();
+    var timeStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'America/Los_Angeles', 'yyyy-MM-dd HH:mm:ss');
+    var logLine = '[' + timeStr + '] [' + (level || 'INFO') + '] [' + (context || 'general') + '] ' + (message || '');
+    var p = body.appendParagraph(logLine);
+    p.setFontFamily('Consolas');
+    p.setFontSize(9);
+
+    if (level === 'ERROR') {
+      p.setForegroundColor('#c62828').setBold(true);
+    } else if (level === 'WARN') {
+      p.setForegroundColor('#e65100').setBold(true);
+    } else {
+      p.setForegroundColor('#1c2826');
+    }
+
+    if (stack) {
+      var pStack = body.appendParagraph(stack);
+      pStack.setFontFamily('Consolas');
+      pStack.setFontSize(8);
+      pStack.setForegroundColor('#5c6b66');
+      pStack.setIndentStart(24);
+    }
+
+    doc.saveAndClose();
+  } catch (err) {
+    console.warn('appendRunLogToDoc_ exception: ' + err.toString());
+  }
+}
+
+/**
+ * Retrieves the URL to the 'Day Planner - Run Log' Google Document.
+ * @returns {string|null} Google Docs URL or null if not yet created.
+ */
+function getRunLogDocUrl() {
+  try {
+    var userProps = PropertiesService.getUserProperties();
+    var cachedDocId = userProps.getProperty('DAY_PLANNER_RUN_LOG_DOC_ID');
+    if (cachedDocId) {
+      return 'https://docs.google.com/document/d/' + cachedDocId + '/edit';
+    }
+    var targetFolder = getValidatedRootFolder();
+    if (!targetFolder) return null;
+    var files = targetFolder.getFilesByName('Day Planner - Run Log');
+    if (files.hasNext()) {
+      var id = files.next().getId();
+      userProps.setProperty('DAY_PLANNER_RUN_LOG_DOC_ID', id);
+      return 'https://docs.google.com/document/d/' + id + '/edit';
+    }
+  } catch (err) {
+    console.warn('getRunLogDocUrl exception: ' + err.toString());
+    return null;
   }
 }
 
@@ -1628,6 +1765,7 @@ global.logWarn = logWarn;                                    // used by UnitTest
 global.recordServerLog = recordServerLog;                    // used by UnitTests.gs
 global.getRecentServerLogs = getRecentServerLogs;            // used by UnitTests.gs
 global.clearRecentServerLogs = clearRecentServerLogs;        // used by UnitTests.gs
+global.getRunLogDocUrl = getRunLogDocUrl;                    // used by UnitTests.gs
 global.escapeHtml_ = escapeHtml_;                            // used by UnitTests.gs
 global.getFolderByNameOrCreate = getFolderByNameOrCreate;    // used by UnitTests.gs
 global.getOrCreateDailyDocContent = getOrCreateDailyDocContent; // used by UnitTests.gs

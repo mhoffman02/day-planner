@@ -208,6 +208,8 @@ function renderSelfTestDiagnosticReport() {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   };
 
+  var runLogDocUrl = (typeof getRunLogDocUrl === 'function') ? getRunLogDocUrl() : (global.getRunLogDocUrl ? global.getRunLogDocUrl() : null);
+
   var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Day Planner Self-Test Diagnostics</title>' +
     '<style>' +
     'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #fcfbfa; color: #1c2826; padding: 30px; max-width: 900px; margin: 0 auto; }' +
@@ -248,6 +250,7 @@ function renderSelfTestDiagnosticReport() {
     '<div class="diag-header">' +
     '<h3 style="margin: 0; color: #2d6a5a;">📋 Recent Server Execution Logs</h3>' +
     '<div>' +
+    (runLogDocUrl ? '<a href="' + escape(runLogDocUrl) + '" target="_blank" class="btn-sec">📄 Open Google Doc Run Log</a>' : '') +
     '<a href="?view=logs&format=json" target="_blank" class="btn-sec">Export JSON</a>' +
     '<a href="?view=self-test&clear_logs=1" class="btn-sec">Clear Logs</a>' +
     '</div></div>';
