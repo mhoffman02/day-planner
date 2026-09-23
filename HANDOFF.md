@@ -89,5 +89,9 @@ Roll back the Day Planner project from an installable GitHub Pages PWA to a 100%
 
 ### IMMEDIATE NEXT STEP
 
-Re-authenticate clasp to HOME account (`mhoffman02@gmail.com`) via `clasp login` or grant editor access to `michael.hoffman@gsa.gov` on the HOME script [1XUrbUS55yQf_...](https://script.google.com/d/1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W/edit), then push latest code via `clasp push --force` and test:
-👉 **[`https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev)**
+Open the full Day Planner Web App on HOME `@HEAD` dev endpoint in Chrome (signed in as `mhoffman02@gmail.com`):
+👉 **[`https://script.google.com/u/1/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev`](https://script.google.com/u/1/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev)**
+*(or without account index: [`https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev))*
+
+Verify that the full Day Planner UI renders cleanly. Then run the self-test diagnostics endpoint:
+👉 **[`https://script.google.com/u/1/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test`](https://script.google.com/u/1/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test)**
