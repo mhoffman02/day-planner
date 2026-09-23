@@ -350,6 +350,11 @@
     background: rgba(255, 255, 255, 0.3) !important;
   }
 
+  /* Alpine Cloak Guard */
+  [x-cloak] {
+    display: none !important;
+  }
+
   /* Main Workspace Spread */
   main.binder-body, section.binder-body {
     display: flex;
@@ -414,7 +419,7 @@
     cursor: col-resize !important;
   }
 
-  @media (min-width: 992px) {
+  @media (min-width: 768px) {
     section.two-page-spread {
       display: flex;
       flex-direction: row;
@@ -443,7 +448,7 @@
     }
   }
 
-  @media (max-width: 991px) {
+  @media (max-width: 767px) {
     section.two-page-spread {
       display: flex;
       flex-direction: column;
@@ -1432,8 +1437,13 @@
     max-height: 100%;
   }
 
+  dialog.modal-backdrop:not([open]),
+  dialog.modal-backdrop[open="false"] {
+    display: none !important;
+  }
+
   dialog.modal-backdrop[open] {
-    display: flex;
+    display: flex !important;
   }
 
   article.modal-card {

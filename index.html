@@ -807,7 +807,7 @@
     </section>
 
     <!-- Event Detail Modal -->
-    <dialog class="modal-backdrop" :open="eventModalOpen" x-show="eventModalOpen" x-transition x-cloak aria-labelledby="eventModalTitle">
+    <dialog class="modal-backdrop" :open="eventModalOpen" x-show="eventModalOpen" x-cloak aria-labelledby="eventModalTitle">
       <article class="modal-card" @click.away="closeEventModal()">
         <header>
           <h3 id="eventModalTitle" class="modal-title" x-text="selectedEvent?.title || 'Event Details'"></h3>
@@ -836,7 +836,7 @@
     </dialog>
 
     <!-- Create New Event / Appointment Modal -->
-    <dialog class="modal-backdrop" :open="createEventModalOpen" x-show="createEventModalOpen" x-transition x-cloak aria-labelledby="createEventModalTitle">
+    <dialog class="modal-backdrop" :open="createEventModalOpen" x-show="createEventModalOpen" x-cloak aria-labelledby="createEventModalTitle">
       <article class="modal-card modal-card-form" @click.away="closeCreateEventModal()">
         <header class="modal-header-spaced">
           <h3 id="createEventModalTitle" class="modal-title-with-icon">
@@ -931,7 +931,7 @@
     </dialog>
 
     <!-- Universal Search Modal -->
-    <dialog class="modal-backdrop" :open="searchModalOpen" x-show="searchModalOpen" x-transition x-cloak aria-labelledby="searchModalTitle" @keydown.escape.window="if (searchModalOpen) closeSearchModal()">
+    <dialog class="modal-backdrop" :open="searchModalOpen" x-show="searchModalOpen" x-cloak aria-labelledby="searchModalTitle" @keydown.escape.window="if (searchModalOpen) closeSearchModal()">
       <article class="modal-card modal-card-wide" @click.away="closeSearchModal()">
         <header>
           <h3 id="searchModalTitle" class="modal-title-with-icon">
@@ -941,12 +941,14 @@
         <section>
           <input
             type="search"
+            x-ref="searchInput"
+            autofocus
             x-model="searchQuery"
             @input="runSearch()"
             @keydown.down.prevent="navigateSearchResults(1)"
             @keydown.up.prevent="navigateSearchResults(-1)"
             @keydown.enter.prevent="selectActiveSearchResult()"
-            @keydown.escape.prevent="closeSearchModal()"
+            @keydown.escape.prevent.stop="closeSearchModal()"
             placeholder="Type to search calendar, tasks, notes, index..."
             class="search-input-field"
             aria-label="Universal Search Input"
@@ -990,7 +992,6 @@
 
   </main>
 
-  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
   <script type="module" src="/src/app.js"></script>
 </body>
 </html>

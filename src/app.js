@@ -1,3 +1,4 @@
+import Alpine from 'https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/module.esm.js';
 import { GASBridge } from './gasBridge.js';
 import { getLocalDateStr } from './binderStore.js';
 import {
@@ -10,9 +11,9 @@ import {
 } from './taskEngine.js';
 import { executeUniversalSearch, flattenSearchResults } from './searchEngine.js';
 window.GASBridge = GASBridge;
+window.Alpine = Alpine;
 
-  document.addEventListener('alpine:init', () => {
-    Alpine.data('plannerApp', () => ({
+Alpine.data('plannerApp', () => ({
       activeView: 'daily',
       selectedDate: getLocalDateStr(),
       selectedYear: new Date().getFullYear(),
@@ -1364,11 +1365,15 @@ window.GASBridge = GASBridge;
         this.searchModalOpen = true;
         this.selectedSearchIndex = this.getFlattenedSearchResults().length > 0 ? 0 : -1;
         this.$nextTick(() => {
-          const input = document.querySelector('.search-input-field');
-          if (input) {
-            input.focus();
-            input.select();
-          }
+          const focusInput = () => {
+            const input = this.$refs.searchInput || document.querySelector('.search-input-field');
+            if (input) {
+              input.focus();
+              input.select();
+            }
+          };
+          focusInput();
+          setTimeout(focusInput, 50);
         });
       },
 
@@ -1474,4 +1479,4 @@ window.GASBridge = GASBridge;
         return parseTaskTitle(title);
       }
     }));
-  });
+Alpine.start();

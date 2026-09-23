@@ -650,8 +650,9 @@
     }
   }
 
-  document.addEventListener('alpine:init', () => {
-    Alpine.data('plannerApp', () => ({
+  function initPlannerApp() {
+    if (window.Alpine) {
+      window.Alpine.data('plannerApp', () => ({
       activeView: 'daily',
       selectedDate: getLocalDateStr(),
       selectedYear: new Date().getFullYear(),
@@ -1997,11 +1998,15 @@
         this.searchModalOpen = true;
         this.selectedSearchIndex = this.getFlattenedSearchResults().length > 0 ? 0 : -1;
         this.$nextTick(() => {
-          const input = document.querySelector('.search-input-field');
-          if (input) {
-            input.focus();
-            input.select();
-          }
+          const focusInput = () => {
+            const input = this.$refs.searchInput || document.querySelector('.search-input-field');
+            if (input) {
+              input.focus();
+              input.select();
+            }
+          };
+          focusInput();
+          setTimeout(focusInput, 50);
         });
       },
 
@@ -2107,5 +2112,12 @@
         return parseTaskTitle(title);
       }
     }));
-  });
+    }
+  }
+
+  if (window.Alpine) {
+    initPlannerApp();
+  } else {
+    document.addEventListener('alpine:init', initPlannerApp);
+  }
 </script>
