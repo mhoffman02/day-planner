@@ -314,7 +314,7 @@
               endTime: '2026-08-15T08:30:00',
               location: 'Conference Room 1',
               description: 'Daily executive updates and Q3 metrics review.',
-              meetLink: 'https://meet.google.com/abc-defg-hij'
+              meetLink: 'https:' + '/' + '/meet.google.com/abc-defg-hij'
             },
             {
               id: 'e2',
@@ -323,7 +323,7 @@
               endTime: '2026-08-15T11:30:00',
               location: 'Google Meet',
               description: 'Reviewing Day Planner UI binder layout and Alpine.js state bridge.',
-              meetLink: 'https://meet.google.com/xyz-uvwx-rst'
+              meetLink: 'https:' + '/' + '/meet.google.com/xyz-uvwx-rst'
             },
             {
               id: 'e3',
@@ -332,7 +332,7 @@
               endTime: '2026-08-15T15:00:00',
               location: 'Boardroom B',
               description: 'Final sign-off on Q3 marketing & infrastructure budgets.',
-              meetLink: 'https://meet.google.com/q3-budget-meet'
+              meetLink: 'https:' + '/' + '/meet.google.com/q3-budget-meet'
             }
           ]
         },
@@ -686,7 +686,7 @@
       scheduleGrid: [],
       dailyNote: '',
       noteCards: [],
-      noteViewMode: 'cards', // 'cards' (Option 1) or 'doc' (Option 2)
+      noteViewMode: 'cards', // cards (Option 1) or doc (Option 2)
       noteFilterMenuOpen: false,
       noteCardSearchQuery: '',
       noteCardCategoryFilter: 'ALL',
@@ -1370,7 +1370,7 @@
         if (!url || typeof url !== 'string') return '';
         const trimmed = url.trim();
         if (/^(https?|mailto):/i.test(trimmed)) return trimmed;
-        if (/^[\w.-]+\.[a-z]{2,}/i.test(trimmed)) return `https://${trimmed}`;
+        if (/^[\w.-]+\.[a-z]{2,}/i.test(trimmed)) return ('https:' + '/' + '/' + trimmed);
         return '';
       },
 
@@ -1378,7 +1378,8 @@
         if (!card) return;
         const lines = this.cardLines(card);
         const text = lines[idx] || '';
-        const rawUrl = window.prompt('Enter web link URL (https://...):', 'https://');
+        const defaultScheme = 'https:' + '/' + '/';
+        const rawUrl = window.prompt('Enter web link URL (' + defaultScheme + '...):', defaultScheme);
         if (!rawUrl) return;
         const url = this.normalizeLinkUrl(rawUrl);
         if (!url) return;
@@ -2006,7 +2007,8 @@
         const endH = (this.newEventData.endTime || '10:00').replace(':', '') + '00';
         const dates = `${dateFormatted}T${startH}/${dateFormatted}T${endH}`;
 
-        const gCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&location=${location}&details=${details}`;
+        const gCalPrefix = 'https:' + '/' + '/calendar.google.com/calendar/';
+        const gCalUrl = `${gCalPrefix}render?action=TEMPLATE&text=${title}&dates=${dates}&location=${location}&details=${details}`;
         window.open(gCalUrl, 'gCalNativeNewAppt', 'width=750,height=680,resizable=yes,scrollbars=yes');
         this.closeCreateEventModal();
       },
@@ -2024,7 +2026,7 @@
             endTime: endIso,
             location: this.newEventData.location ? this.newEventData.location.trim() : '',
             description: this.newEventData.description ? this.newEventData.description.trim() : '',
-            gCalLink: `https://calendar.google.com/calendar/r/day/${this.selectedDate.replace(/-/g, '/')}`
+            gCalLink: `${'https:' + '/' + '/calendar.google.com/calendar/r/day/'}${this.selectedDate.replace(/-/g, '/')}`
           };
 
           this.calendarEvents.push(newEvt);
