@@ -133,7 +133,7 @@
   header.single-top-bar {
     background: #142e23 !important;
     color: #ffffff !important;
-    padding: 8px 16px;
+    padding: 0 16px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -150,7 +150,8 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    flex-shrink: 0;
+    flex: 1 1 0;
+    min-width: 0;
   }
 
   .brand-title-compact {
@@ -209,7 +210,7 @@
     border: 1px solid rgba(255, 255, 255, 0.28) !important;
     color: #ffffff !important;
     padding: 2px 9px;
-    border-radius: 12px;
+    border-radius: 4px;
     font-weight: 600;
     font-size: 0.78rem;
     cursor: pointer;
@@ -230,48 +231,65 @@
     white-space: nowrap;
   }
 
-  /* View Segmented Control (Pills) */
+  /* View Navigation Tabs (Flat Underline - No Pills) */
   nav.view-segmented-control {
     display: flex;
-    background: rgba(0, 0, 0, 0.22);
-    padding: 3px;
-    border-radius: 20px;
-    gap: 2px;
-    align-items: center;
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+    border: none;
+    gap: 4px;
+    align-items: stretch;
+    height: 48px;
+    flex: 0 0 auto;
+    margin: 0 auto;
   }
 
   .segment-btn {
     background: transparent !important;
     border: none !important;
-    color: rgba(255, 255, 255, 0.82) !important;
-    padding: 4px 12px;
-    border-radius: 16px;
-    font-size: 0.82rem;
-    font-weight: 600;
+    border-bottom: 3px solid transparent !important;
+    color: rgba(255, 255, 255, 0.75) !important;
+    padding: 0 12px;
+    border-radius: 0;
+    font-size: 0.85rem;
+    font-weight: 500;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    transition: all 0.15s ease;
+    gap: 6px;
+    transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
     white-space: nowrap;
     width: auto;
+    box-shadow: none !important;
+  }
+
+  .segment-btn .material-symbols-outlined {
+    font-size: 18px;
+    color: rgba(255, 255, 255, 0.65);
+    transition: color 0.15s ease;
   }
 
   .segment-btn:hover {
     color: #ffffff !important;
-    background: rgba(255, 255, 255, 0.12) !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-bottom: 3px solid rgba(255, 255, 255, 0.4) !important;
+  }
+
+  .segment-btn:hover .material-symbols-outlined {
+    color: #ffffff !important;
   }
 
   .segment-btn.active {
-    background: #ffffff !important;
-    color: #142e23 !important;
-    font-weight: 700 !important;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+    background: transparent !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    border-bottom: 3px solid #58bfa2 !important;
+    box-shadow: none !important;
   }
 
   .segment-btn.active .material-symbols-outlined {
-    color: #2d6a5a !important;
+    color: #58bfa2 !important;
   }
 
   /* Compact Actions */
@@ -279,7 +297,9 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    flex-shrink: 0;
+    flex: 1 1 0;
+    min-width: 0;
+    justify-content: flex-end;
   }
 
   .search-trigger-compact {
@@ -287,7 +307,7 @@
     border: 1px solid rgba(255, 255, 255, 0.25) !important;
     color: #ffffff !important;
     padding: 3px 9px;
-    border-radius: 16px;
+    border-radius: 4px;
     font-size: 0.8rem;
     display: inline-flex;
     align-items: center;
@@ -315,7 +335,7 @@
     border: 1px solid rgba(255, 255, 255, 0.25) !important;
     color: #ffffff !important;
     padding: 3px 9px;
-    border-radius: 16px;
+    border-radius: 4px;
     font-size: 0.8rem;
     font-weight: 600;
     display: inline-flex;
@@ -2225,7 +2245,7 @@
     font-weight: 700;
     padding: 6px 14px;
     font-size: 0.8rem;
-    border-radius: 20px;
+    border-radius: 4px;
     display: inline-flex;
     align-items: center;
     gap: 4px;
