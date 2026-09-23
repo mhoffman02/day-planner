@@ -1602,7 +1602,9 @@
   /* Table Helper Classes */
   .th-w-40 { width: 40px; }
   .th-w-80 { width: 80px; }
+  .th-w-100 { width: 100px; }
   .th-w-150 { width: 150px; }
+  .th-w-200 { width: 200px; }
   .th-w-230 { width: 230px; }
   .th-align-right, .td-align-right { text-align: right; }
   .td-category {
@@ -1926,13 +1928,24 @@
     margin-right: 4px;
   }
 
-  .master-task-moved-note {
-    display: inline-block;
-    margin-left: 6px;
+  .master-task-status-cell {
+    white-space: nowrap;
     vertical-align: middle;
-    font-size: 0.7rem;
+  }
+
+  .master-task-status-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+  }
+
+  .master-task-moved-note {
+    font-size: 0.8rem;
+    font-weight: 500;
     color: var(--text-muted);
     white-space: nowrap;
+    line-height: 1;
   }
 
   .master-tasks-table {
@@ -1946,7 +1959,7 @@
 
   .master-tasks-table th:nth-child(3),
   .master-tasks-table td:nth-child(3) {
-    width: 170px;
+    width: 200px;
   }
 
   .master-tasks-table th:nth-child(4),

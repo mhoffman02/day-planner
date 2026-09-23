@@ -507,9 +507,9 @@
             <table class="task-table table-card master-tasks-table">
               <thead>
                 <tr class="table-header-row">
-                  <th scope="col">Category</th>
+                  <th scope="col" class="th-w-100">Category</th>
                   <th scope="col">Task Title</th>
-                  <th scope="col">Status</th>
+                  <th scope="col" class="th-w-200">Status</th>
                   <th scope="col" class="th-w-230">Action</th>
                 </tr>
               </thead>
@@ -518,9 +518,11 @@
                   <tr>
                     <td><b x-text="mTask.category"></b></td>
                     <td x-text="mTask.title"></td>
-                    <td>
-                      <span class="status-btn" x-text="mTask.status"></span>
-                      <span class="master-task-moved-note" x-show="mTask.movedTo" x-text="formatMovedDate(mTask.movedTo)"></span>
+                    <td class="master-task-status-cell">
+                      <span class="master-task-status-wrap">
+                        <span class="status-btn" x-text="mTask.status"></span>
+                        <span class="master-task-moved-note" x-show="mTask.movedTo" x-text="formatMovedDate(mTask.movedTo)"></span>
+                      </span>
                     </td>
                     <td class="master-task-action-cell">
                       <span class="master-task-action-wrap" x-show="!mTask.movedTo">
