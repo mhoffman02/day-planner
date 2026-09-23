@@ -86,17 +86,17 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 ### Phase 6: Live Workspace UAT & Production Release
 
 > **URL anti-pattern**: NEVER use `/a/macros/gsa.gov/...` (enterprise proxy) — script is owned by
-> `mhoffman02@gmail.com` (consumer). NEVER use `/exec` with the `@HEAD` ID (`AKfycbwb...vwil`).
+> `mhoffman02@gmail.com` (consumer). NEVER use `/exec` with the `@HEAD` ID.
 
 | Endpoint | URL | Who Can Access |
 |---|---|---|
-| Dev self-test | [`/dev?view=self-test`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test) | `mhoffman02@gmail.com` only |
-| Dev app | [`/dev`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev) | `mhoffman02@gmail.com` only |
-| Production self-test | [`/exec?view=self-test`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec?view=self-test) | Anyone |
-| Production app | [`/exec`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec) | Anyone |
+| **HOME Dev minimal app** (`@HEAD`) | [`/dev`](https://script.google.com/macros/s/AKfycbw_OpkC0kTkrhkwI8AipH7jTeZeJfUYS7Xcy9BstG8/dev) | `mhoffman02@gmail.com` only |
+| **HOME Prod app** (`@1`) | [`/exec`](https://script.google.com/macros/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec) | Anyone |
 
-- [ ] User Acceptance Testing: open production `/exec?view=self-test` (anyone) and dev `/dev?view=self-test` (HOME account) across HOME and federal WORK accounts.
-- [ ] Deploy tagged production release (`clasp deploy -i AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q -d "day-planner-v01 update"`) after live UAT sign-off.
+- [ ] Verify minimal baseline `doGet()` renders `<h1>Basic test</h1><p>Pass</p>` on HOME `@HEAD` dev endpoint.
+- [ ] Restore full `doGet()` in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) once serving connectivity is verified.
+- [ ] User Acceptance Testing: confirm 2-way sync, Drive folder auto-creation, and Google Doc run-log across HOME and WORK environments.
+- [ ] Deploy tagged production release (`clasp deploy`) after live UAT sign-off.
 - [ ] Verify Chrome/Edge "Open as window" desktop shortcut workflows.
 
 

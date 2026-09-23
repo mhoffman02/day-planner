@@ -1,5 +1,20 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-23 — Minimal doGet Baseline Testing, Domain Diagnosis & HOME Script Migration
+
+- [x] **Minimal `doGet()` Baseline Test Endpoint**:
+  - Implemented top-level minimal `doGet(e)` returning `<h1>Basic test</h1><p>Pass</p>` in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L23-L25) to isolate Apps Script web-app serving issues from application render complexity.
+  - Preserved original complete implementation as [`doGet_original(e)`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L309-L373) inside the IIFE and updated delegator export `global._doGetInternal = doGet_original`.
+  - Preserved top-level wrapper as [`doGet_original_wrapper(e)`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L1839-L1841).
+- [x] **Deployment Domain & Access Root Cause Analysis**:
+  - Identified root cause of Prod URL render failure: frozen Version 151 deployment contained deprecated `addMetaTag('mobile-web-app-capable', ...)` calls that Google Apps Script `HtmlOutput` rejects with `The meta tag you specified is not allowed in this context`.
+  - Diagnosed `Only users in the same domain as the script owner may deploy this script` error: `~/.clasprc.json` was logged into `michael.hoffman@gsa.gov` (`gsa.gov`) while script owner is `mhoffman02@gmail.com` (`gmail.com`).
+  - Clarified that Google restricts `/dev` strictly to project editors/owners; non-owner work accounts receive "Page not found".
+- [x] **HOME Script Target Migration (`clasp push --force`)**:
+  - Re-targeted [`gas-app/.clasp.json`](file:///home/mike/projects/day-planner/gas-app/.clasp.json#L2) to HOME script ID `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`.
+  - Pushed all 8 project files cleanly to HOME project via `clasp push --force`.
+  - Identified live `@HEAD` deployment ID `AKfycbw_OpkC0kTkrhkwI8AipH7jTeZeJfUYS7Xcy9BstG8` for HOME dev testing.
+
 ## 2026-09-23 — Runtime Permissions, Drive moveTo Fix & Server Run Log Engine
 
 - [x] **OAuth Scope Minimal Permission Resolution**:
