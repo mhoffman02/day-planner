@@ -14,6 +14,7 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 - **Native Auth Over Custom Gates**: No application-level whitelist/access gates. Pure GAS deployed with `executeAs: USER_ACCESSING` isolates Drive files and Google services under `drive.file` automatically.
 - **Close-to-Installable PWA**: Standalone meta tags, manifest ([`manifest.json`](file:///home/mike/projects/day-planner/manifest.json)), high-res icons, and desktop "Open as Window" shortcut guidance in [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html).
 - **GAS IIFE Isolation**: Both [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) and [`gas-app/UnitTests.gs`](file:///home/mike/projects/day-planner/gas-app/UnitTests.gs) are strictly wrapped in `(function(global) { ... })(this);` with explicit global export blocks ([`.agents/rules/gas-namespace-iife.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-namespace-iife.md)).
+- **Top-Level Entry Point Delegators**: `doGet()`, `onOpen()`, `syncWorkspaceChanges()`, `setup2WaySyncTrigger()`, and `ensure2WaySyncTriggerInstalled()` are declared as **top-level functions outside the IIFE** (lines 1818–1856 of [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L1818-L1856)) so Google's AST parser can discover them for web app routing and IDE dropdown. Functions only inside an IIFE are silently invisible to the GAS gateway and cause HTTP 404.
 - **Concurrency & Ownership Guards**: `LockService.getUserLock()` prevents race conditions in Drive folder creation/discovery; folder ownership validation blocks auto-adopting or connecting non-owned folders.
 - **Least-Privilege Drive Creation**: Enabled `Drive` Advanced Service v2 in [`gas-app/appsscript.json`](file:///home/mike/projects/day-planner/gas-app/appsscript.json) and use `Drive.Files.insert({ title, mimeType, parents: [{id: targetFolder.getId()}] })` to create Google Docs directly in destination folders under `drive.file` scope, eliminating `docFile.moveTo()` which required broad `drive`.
 - **Dual In-App & Google Doc Logging**: Reused existing `documents` and `drive.file` scopes (avoiding new `spreadsheets` scope) to record permanent monospace audit logs in `Day Planner - Run Log` inside the Day Planner folder, paired with a 25-entry `UserProperties` ring buffer for instant `/self-test` table rendering and raw JSON export (`?view=logs&format=json`).
@@ -25,16 +26,33 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 
 ---
 
+### URL ROUTING — ANTI-PATTERN & CANONICAL URLS
+
+> **NEVER** use the enterprise proxy path `/a/macros/gsa.gov/...` for this script.
+> The script is owned by `mhoffman02@gmail.com` (consumer Gmail). GSA's enterprise proxy
+> rejects consumer-owned deployments with HTTP 404 before `doGet()` is ever reached.
+> **NEVER** request `/exec` against the `@HEAD` deployment ID (`AKfycbwb...vwil`);
+> `/exec` is only valid on versioned deployment IDs. `/dev` is the correct suffix for `@HEAD`.
+
+| Purpose | URL | Who Can Access |
+|---|---|---|
+| **Dev self-test** (`@HEAD`) | [`/dev?view=self-test`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test) | `mhoffman02@gmail.com` only |
+| **Dev app** (`@HEAD`) | [`/dev`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev) | `mhoffman02@gmail.com` only |
+| **Production self-test** (`day-planner-v01`) | [`/exec?view=self-test`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec?view=self-test) | Anyone |
+| **Production app** (`day-planner-v01`) | [`/exec`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec) | Anyone |
+
+> If Chrome has multiple Google accounts signed in, prefix with `/u/0/` or `/u/1/` matching
+> `mhoffman02@gmail.com`: e.g. `https://script.google.com/u/0/macros/s/.../dev?view=self-test`
+
+---
+
 ### CURRENT STATE
 
-- **Repository**: Branch `pure-gas-main` at commit [`32084b9`](https://github.com/mhoffman02/day-planner/commit/32084b9).
+- **Repository**: Branch `pure-gas-main` at commit [`492000f`](https://github.com/mhoffman02/day-planner/commit/492000f).
 - **Test & Lint Status**: 0 lint errors (`npm run lint`), 88/88 unit tests passing across 11 suites (`npm test`), automated smoke test suite passing (`npm run smoke`), accessibility/contrast/responsive audit passing (`npm run audit:a11y`).
-- **Session Accomplishments**:
-  - Restored minimal `https://www.googleapis.com/auth/drive.readonly` scope in [`gas-app/appsscript.json`](file:///home/mike/projects/day-planner/gas-app/appsscript.json) to satisfy `DriveApp.getFolderById` permissions without broad `drive` (commit [`abcdf03`](file:///home/mike/projects/day-planner/commit/abcdf03)).
-  - Eliminated `docFile.moveTo()` broad drive requirement via `Drive.Files.insert` helper [`getOrCreateMonthlyNotesDoc_`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L607) in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) (commit [`ea39b71`](file:///home/mike/projects/day-planner/commit/ea39b71)).
-  - Built persistent in-app 25-entry ring buffer in `UserProperties` (`RECENT_SERVER_LOGS`) and rendered formatted log table on `/self-test` (commit [`ecf9850`](file:///home/mike/projects/day-planner/commit/ecf9850)).
-  - Built permanent Google Doc run-log ([`appendRunLogToDoc_`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L74)) under existing `documents` scope with zero new scopes, accessible via **📄 Open Google Doc Run Log** on `/self-test` (commit [`32084b9`](file:///home/mike/projects/day-planner/commit/32084b9)).
-  - Pinned production deployment ID `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q` (`day-planner-v01`) and pushed all 8 files to `@HEAD` via `clasp push --force`.
+- **Session Accomplishments (2026-09-23 AM)**:
+  - **RCA on HTTP 404**: Diagnosed ESF (Google Enterprise Server Frontend) 404 on `script.google.com/a/macros/gsa.gov/...` — dual-cause: (A) consumer-owned script in enterprise proxy, (B) `/exec` requested against `@HEAD` deployment ID. `doGet()` was never reached; code was never the issue.
+  - **URL Routing Documentation**: Added `### URL ROUTING — ANTI-PATTERN & CANONICAL URLS` section to [`HANDOFF.md`](file:///home/mike/projects/day-planner/HANDOFF.md), expanded Phase 6 in [`PLAN.md`](file:///home/mike/projects/day-planner/PLAN.md) with 4-row URL table and pinned `clasp deploy -i` command, and updated [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) with ⚠️ warning and clickable self-test links (commit [`492000f`](https://github.com/mhoffman02/day-planner/commit/492000f)).
 
 ---
 
@@ -50,37 +68,18 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 
 ---
 
-### URL ROUTING — ANTI-PATTERN & CANONICAL URLS
-
-> **NEVER** use the enterprise proxy path `/a/macros/gsa.gov/...` for this script.
-> The script is owned by `mhoffman02@gmail.com` (consumer Gmail). GSA's enterprise proxy
-> rejects consumer-owned deployments with HTTP 404 before `doGet()` is ever reached.
-> **NEVER** request `/exec` against the `@HEAD` deployment ID (`AKfycbwb...vwil`);
-> `/exec` is only valid on versioned deployment IDs. `/dev` is the correct suffix for `@HEAD`.
-
-| Purpose | URL |
-|---|---|
-| **Dev self-test** (`@HEAD`, must be `mhoffman02@gmail.com`) | [`/dev?view=self-test`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test) |
-| **Dev app** (`@HEAD`) | [`/dev`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev) |
-| **Production self-test** (`day-planner-v01`, anyone) | [`/exec?view=self-test`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec?view=self-test) |
-| **Production app** (`day-planner-v01`) | [`/exec`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec) |
-
-> If Chrome has multiple Google accounts signed in, prefix with `/u/0/` or `/u/1/` matching
-> `mhoffman02@gmail.com`: e.g. `https://script.google.com/u/0/macros/s/.../dev?view=self-test`
-
----
-
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
 1. **Live Workspace UAT on Web App Endpoint (`day-planner-v01` & `/dev`)**:
+   - Production self-test (anyone, no account switching): [`/exec?view=self-test`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec?view=self-test)
    - Dev self-test (signed in as `mhoffman02@gmail.com`): [`/dev?view=self-test`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test)
-   - Production self-test (anyone): [`/exec?view=self-test`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec?view=self-test)
    - Confirm all 5 test suites pass (100% HEALTHY) and verify the Recent Server Execution Logs table.
    - Verify `Day Planner - Run Log` document auto-created in your Google Drive `Day Planner` folder.
    - Test bidirectional sync across both HOME and locked-down federal WORK PCs.
 2. **Production Release Deployment (`clasp deploy` onto `day-planner-v01`)**:
    - In Apps Script IDE, update deployment `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q` (`day-planner-v01`) to "New version" to publish latest changes to `/exec`.
-   - After UAT sign-off, tag git repository with release version tag (e.g. `v1.0-pure-gas`).
+   - Or via clasp: `clasp deploy -i AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q -d "day-planner-v01 update"`
+   - After UAT sign-off, tag git: `git tag v1.0-pure-gas && git push origin v1.0-pure-gas`.
 3. **Desktop Shortcut Verification ("Open as Window")**:
    - Follow installation guide in [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html) on Chrome and Edge.
    - Verify standalone window title bar, icon resolution, and persistent authentication across restarts.
@@ -89,11 +88,7 @@ Roll back the Day Planner project from an installable GitHub Pages PWA (with ser
 
 ### IMMEDIATE NEXT STEP
 
-Start with the production self-test (anyone, no account switching needed):
+Open the production self-test endpoint (anyone, no account switching needed):
 [`/exec?view=self-test`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec?view=self-test)
 
-Or the dev self-test (must be signed in as `mhoffman02@gmail.com`):
-[`/dev?view=self-test`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test)
-
-Confirm all 5 test suites 100% HEALTHY, then proceed to production `clasp deploy` (Phase 6, Task 2).
-
+Confirm all 5 suites show 100% HEALTHY. Then open the dev endpoint (`/dev`) signed in as `mhoffman02@gmail.com` and verify the Recent Server Execution Logs table and the **📄 Open Google Doc Run Log** button. Once UAT passes, proceed to `clasp deploy` (Task 2 above).
