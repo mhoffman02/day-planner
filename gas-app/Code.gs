@@ -1811,6 +1811,26 @@ global._onOpenInternal = onOpen;
 global._syncWorkspaceChangesInternal = syncWorkspaceChanges;
 global._setup2WaySyncTriggerInternal = setup2WaySyncTrigger;
 global._ensure2WaySyncTriggerInstalledInternal = ensure2WaySyncTriggerInstalled;
+global._includeInternal = include;
+global._validateAndSaveFolderUrlInternal = validateAndSaveFolderUrl;
+global._getDailyDataInternal = getDailyData;
+global._getMasterTasksInternal = getMasterTasks;
+global._addDailyTaskInternal = addDailyTask;
+global._updateDailyTaskInternal = updateDailyTask;
+global._addMasterTaskInternal = addMasterTask;
+global._markMasterTaskMovedInternal = markMasterTaskMoved;
+global._saveDailyDocCardsInternal = saveDailyDocCards;
+global._resolveDriveFileTitleInternal = resolveDriveFileTitle;
+global._getFutureMatrixInternal = getFutureMatrix;
+global._addFutureItemInternal = addFutureItem;
+global._updateFutureItemStatusInternal = updateFutureItemStatus;
+global._transferFutureItemInternal = transferFutureItem;
+global._pushFutureItemToNextMonthInternal = pushFutureItemToNextMonth;
+global._deleteFutureItemInternal = deleteFutureItem;
+global._searchAcrossAllMonthlyDocsInternal = searchAcrossAllMonthlyDocs;
+global._showCrossMonthSearchSidebarInternal = showCrossMonthSearchSidebar;
+global._showIndexRegistrySidebarInternal = showIndexRegistrySidebar;
+global._openPlannerWebAppDialogInternal = openPlannerWebAppDialog;
 
 })(typeof globalThis !== 'undefined' ? globalThis : this);
 
@@ -1867,4 +1887,91 @@ function setup2WaySyncTrigger() {
 function ensure2WaySyncTriggerInstalled() {
   return (typeof _ensure2WaySyncTriggerInstalledInternal === 'function') ? _ensure2WaySyncTriggerInstalledInternal() : (globalThis._ensure2WaySyncTriggerInstalledInternal ? globalThis._ensure2WaySyncTriggerInstalledInternal() : null);
 }
+
+// ── Client-side google.script.run RPC entry points ───────────────────────────
+// Google Apps Script's HTML compiler statically inspects project source code
+// for top-level `function` declarations to synthesize the client-side
+// `google.script.run` proxy. Functions defined only inside an IIFE closure
+// are NOT discovered, causing `google.script.run.<fn> is not a function`.
+
+function include(filename) {
+  return (typeof _includeInternal === 'function') ? _includeInternal(filename) : (globalThis._includeInternal ? globalThis._includeInternal(filename) : null);
+}
+
+function validateAndSaveFolderUrl(url) {
+  return (typeof _validateAndSaveFolderUrlInternal === 'function') ? _validateAndSaveFolderUrlInternal(url) : (globalThis._validateAndSaveFolderUrlInternal ? globalThis._validateAndSaveFolderUrlInternal(url) : null);
+}
+
+function getDailyData(dateStr) {
+  return (typeof _getDailyDataInternal === 'function') ? _getDailyDataInternal(dateStr) : (globalThis._getDailyDataInternal ? globalThis._getDailyDataInternal(dateStr) : null);
+}
+
+function getMasterTasks(monthYearStr) {
+  return (typeof _getMasterTasksInternal === 'function') ? _getMasterTasksInternal(monthYearStr) : (globalThis._getMasterTasksInternal ? globalThis._getMasterTasksInternal(monthYearStr) : null);
+}
+
+function addDailyTask(dateStr, title, category, sourceMasterId) {
+  return (typeof _addDailyTaskInternal === 'function') ? _addDailyTaskInternal(dateStr, title, category, sourceMasterId) : (globalThis._addDailyTaskInternal ? globalThis._addDailyTaskInternal(dateStr, title, category, sourceMasterId) : null);
+}
+
+function updateDailyTask(dateStr, taskId, updates) {
+  return (typeof _updateDailyTaskInternal === 'function') ? _updateDailyTaskInternal(dateStr, taskId, updates) : (globalThis._updateDailyTaskInternal ? globalThis._updateDailyTaskInternal(dateStr, taskId, updates) : null);
+}
+
+function addMasterTask(title, category) {
+  return (typeof _addMasterTaskInternal === 'function') ? _addMasterTaskInternal(title, category) : (globalThis._addMasterTaskInternal ? globalThis._addMasterTaskInternal(title, category) : null);
+}
+
+function markMasterTaskMoved(masterTaskId, targetDateStr, movedTaskId) {
+  return (typeof _markMasterTaskMovedInternal === 'function') ? _markMasterTaskMovedInternal(masterTaskId, targetDateStr, movedTaskId) : (globalThis._markMasterTaskMovedInternal ? globalThis._markMasterTaskMovedInternal(masterTaskId, targetDateStr, movedTaskId) : null);
+}
+
+function saveDailyDocCards(dateStr, noteContent) {
+  return (typeof _saveDailyDocCardsInternal === 'function') ? _saveDailyDocCardsInternal(dateStr, noteContent) : (globalThis._saveDailyDocCardsInternal ? globalThis._saveDailyDocCardsInternal(dateStr, noteContent) : null);
+}
+
+function resolveDriveFileTitle(url) {
+  return (typeof _resolveDriveFileTitleInternal === 'function') ? _resolveDriveFileTitleInternal(url) : (globalThis._resolveDriveFileTitleInternal ? globalThis._resolveDriveFileTitleInternal(url) : null);
+}
+
+function getFutureMatrix(year) {
+  return (typeof _getFutureMatrixInternal === 'function') ? _getFutureMatrixInternal(year) : (globalThis._getFutureMatrixInternal ? globalThis._getFutureMatrixInternal(year) : null);
+}
+
+function addFutureItem(year, monthKey, title, category) {
+  return (typeof _addFutureItemInternal === 'function') ? _addFutureItemInternal(year, monthKey, title, category) : (globalThis._addFutureItemInternal ? globalThis._addFutureItemInternal(year, monthKey, title, category) : null);
+}
+
+function updateFutureItemStatus(year, monthKey, itemId, status) {
+  return (typeof _updateFutureItemStatusInternal === 'function') ? _updateFutureItemStatusInternal(year, monthKey, itemId, status) : (globalThis._updateFutureItemStatusInternal ? globalThis._updateFutureItemStatusInternal(year, monthKey, itemId, status) : null);
+}
+
+function transferFutureItem(year, monthKey, itemId, dateStr, priorityGroup) {
+  return (typeof _transferFutureItemInternal === 'function') ? _transferFutureItemInternal(year, monthKey, itemId, dateStr, priorityGroup) : (globalThis._transferFutureItemInternal ? globalThis._transferFutureItemInternal(year, monthKey, itemId, dateStr, priorityGroup) : null);
+}
+
+function pushFutureItemToNextMonth(year, monthKey, itemId) {
+  return (typeof _pushFutureItemToNextMonthInternal === 'function') ? _pushFutureItemToNextMonthInternal(year, monthKey, itemId) : (globalThis._pushFutureItemToNextMonthInternal ? globalThis._pushFutureItemToNextMonthInternal(year, monthKey, itemId) : null);
+}
+
+function deleteFutureItem(year, monthKey, itemId) {
+  return (typeof _deleteFutureItemInternal === 'function') ? _deleteFutureItemInternal(year, monthKey, itemId) : (globalThis._deleteFutureItemInternal ? globalThis._deleteFutureItemInternal(year, monthKey, itemId) : null);
+}
+
+function searchAcrossAllMonthlyDocs(query) {
+  return (typeof _searchAcrossAllMonthlyDocsInternal === 'function') ? _searchAcrossAllMonthlyDocsInternal(query) : (globalThis._searchAcrossAllMonthlyDocsInternal ? globalThis._searchAcrossAllMonthlyDocsInternal(query) : null);
+}
+
+function showCrossMonthSearchSidebar() {
+  return (typeof _showCrossMonthSearchSidebarInternal === 'function') ? _showCrossMonthSearchSidebarInternal() : (globalThis._showCrossMonthSearchSidebarInternal ? globalThis._showCrossMonthSearchSidebarInternal() : null);
+}
+
+function showIndexRegistrySidebar() {
+  return (typeof _showIndexRegistrySidebarInternal === 'function') ? _showIndexRegistrySidebarInternal() : (globalThis._showIndexRegistrySidebarInternal ? globalThis._showIndexRegistrySidebarInternal() : null);
+}
+
+function openPlannerWebAppDialog() {
+  return (typeof _openPlannerWebAppDialogInternal === 'function') ? _openPlannerWebAppDialogInternal() : (globalThis._openPlannerWebAppDialogInternal ? globalThis._openPlannerWebAppDialogInternal() : null);
+}
+
 
