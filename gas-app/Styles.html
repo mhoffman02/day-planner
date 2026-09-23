@@ -1800,7 +1800,7 @@
     padding-left: 28px;
     flex-wrap: wrap;
   }
-  .future-item-date-input {
+  input.future-item-date-input {
     font-size: 0.72rem;
     padding: 2px 4px;
     height: 24px;
@@ -1809,7 +1809,10 @@
     border: 1px solid var(--border-line);
     border-radius: 4px;
     outline: none;
-    width: 120px;
+    width: 120px !important;
+    max-width: 120px !important;
+    margin-bottom: 0 !important;
+    flex: 0 0 120px !important;
     box-sizing: border-box;
   }
   .future-item-actions .btn-move-to {
@@ -1868,7 +1871,7 @@
     white-space: nowrap;
   }
 
-  .master-task-date-input {
+  input.master-task-date-input {
     font-size: 0.75rem;
     padding: 2px 6px;
     height: 26px;
@@ -1877,8 +1880,10 @@
     border: 1px solid var(--binder-teal);
     border-radius: 4px;
     outline: none;
-    width: 130px;
-    flex-shrink: 0;
+    width: 130px !important;
+    max-width: 130px !important;
+    margin-bottom: 0 !important;
+    flex: 0 0 130px !important;
     box-sizing: border-box;
   }
 
@@ -1903,6 +1908,8 @@
     white-space: nowrap;
     transition: background-color 0.15s ease;
     box-sizing: border-box;
+    margin-bottom: 0 !important;
+    flex-shrink: 0;
   }
 
   .btn-move-to:hover {
