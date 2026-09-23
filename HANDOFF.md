@@ -72,15 +72,14 @@ Roll back the Day Planner project from an installable GitHub Pages PWA to a 100%
 
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
-1. **Verify Baseline `doGet()` on HOME Script (`@HEAD`)**:
-   - Authenticate clasp as `mhoffman02@gmail.com` via `clasp login` (or share HOME script with `michael.hoffman@gsa.gov` as Editor), push via `clasp push --force`.
-   - Open HOME dev endpoint: [`/dev`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev) signed into `mhoffman02@gmail.com`.
-   - Confirm page renders properly. Once verified, restore `doGet` in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) to delegate to full application logic (`_doGetInternal`), push, and verify full UI loads.
-2. **Workspace UAT & Production Deployment on HOME Script**:
-   - In Apps Script IDE for HOME script [`1XUrbUS55yQf_...`](https://script.google.com/d/1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W/edit), update deployment `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q` (`day-planner-v01`) to new version.
+1. **Workspace UAT on HOME Web App (Prod & Dev)**:
+   - Run Self-Test diagnostics on Production: [`/exec?view=self-test`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec?view=self-test). Confirm all 5 test suites report 100% HEALTHY.
+   - Open Production Web App: [`/exec`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec). Confirm daily tasks, appointments, and future matrix load cleanly without errors.
    - Verify folder auto-creation and 2-way sync with Google Calendar and Google Tasks.
-   - Verify `Day Planner - Run Log` document auto-created in your Google Drive `Day Planner` folder.
-   - Tag git: `git tag v1.0-pure-gas && git push origin v1.0-pure-gas`.
+   - Verify `Day Planner - Run Log` document auto-created in Google Drive `Day Planner` folder.
+2. **Release Tagging & Work Environment Validation**:
+   - Verify access on locked-down federal WORK PC using the production URL [`/exec`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec).
+   - Tag git release: `git tag v1.0-pure-gas && git push origin v1.0-pure-gas`.
 3. **Desktop Shortcut Verification ("Open as Window")**:
    - Follow installation guide in [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html) on Chrome and Edge.
    - Verify standalone window title bar, icon resolution, and persistent authentication across restarts.
@@ -89,9 +88,11 @@ Roll back the Day Planner project from an installable GitHub Pages PWA to a 100%
 
 ### IMMEDIATE NEXT STEP
 
-Open the full Day Planner Web App on HOME `@HEAD` dev endpoint in Chrome (signed in as `mhoffman02@gmail.com`):
-👉 **[`https://script.google.com/u/1/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev`](https://script.google.com/u/1/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev)**
-*(or without account index: [`https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev))*
+Open the newly deployed **Version 159** Production endpoints in Chrome:
+1. **Production Self-Test Diagnostics (100% Health Check)**:
+   👉 **[`https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec?view=self-test`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec?view=self-test)**
 
-Verify that the full Day Planner UI renders cleanly. Then run the self-test diagnostics endpoint:
-👉 **[`https://script.google.com/u/1/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test`](https://script.google.com/u/1/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test)**
+2. **Production Day Planner Web App**:
+   👉 **[`https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec)**
+
+Confirm `getDailyData is not a function` error is gone and the daily workspace loads cleanly.

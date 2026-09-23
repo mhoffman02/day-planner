@@ -13,7 +13,12 @@
 - [x] **HOME vs WORK Script Disambiguation**:
   - Disambiguated HOME script (`1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W`, owned by `mhoffman02@gmail.com`) from WORK script (`1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`, owned by `michael.hoffman@gsa.gov`).
   - Re-targeted [`gas-app/.clasp.json`](file:///home/mike/projects/day-planner/gas-app/.clasp.json#L2) to HOME script ID `1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W`.
-  - Identified that local `~/.clasprc.json` is logged in as `michael.hoffman@gsa.gov`; pushing to HOME script requires `clasp login` as `mhoffman02@gmail.com` or granting editor rights to `michael.hoffman@gsa.gov` on the HOME script.
+  - Re-authenticated clasp to `mhoffman02@gmail.com` via `clasp login`.
+- [x] **Full doGet Restoration & Production Release (@159)**:
+  - Verified baseline connectivity on HOME dev `@HEAD` (`Basic test Pass`).
+  - Restored full `doGet` delegator in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L1824-L1832) to route all requests through `_doGetInternal`.
+  - Deployed to pinned production deployment `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q` at Version 159 (`@159`).
+  - Resolves `getDailyData is not a function` error previously seen on Prod by exporting top-level delegators for Google Apps Script AST parser.
 
 ## 2026-09-23 — Runtime Permissions, Drive moveTo Fix & Server Run Log Engine
 
