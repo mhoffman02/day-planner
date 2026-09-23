@@ -1,3 +1,5 @@
+"use strict";
+
 /**
  * @file Code.gs
  * @description Day Planner Google Apps Script server-side entry points, Drive folder management, error logging, and data handlers.
@@ -301,6 +303,8 @@ function renderSetupFolderPage() {
  */
 function doGet(e) {
   try {
+    console.info('doGet: ' + JSON.stringify(e, null, 2));
+
     // 0. Check for log maintenance actions
     if (e && e.parameter && e.parameter.clear_logs === '1') {
       clearRecentServerLogs();
@@ -1771,5 +1775,66 @@ global.getFolderByNameOrCreate = getFolderByNameOrCreate;    // used by UnitTest
 global.getOrCreateDailyDocContent = getOrCreateDailyDocContent; // used by UnitTests.gs
 global.DAY_PLANNER_FAVICON_URL = DAY_PLANNER_FAVICON_URL;    // used by UnitTests.gs
 
-})(this);
+// Internal aliases for top-level entry point delegators
+global._doGetInternal = doGet;
+global._onOpenInternal = onOpen;
+global._syncWorkspaceChangesInternal = syncWorkspaceChanges;
+global._setup2WaySyncTriggerInternal = setup2WaySyncTrigger;
+global._ensure2WaySyncTriggerInstalledInternal = ensure2WaySyncTriggerInstalled;
+
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+// ── Top-level entry points for Google Apps Script runtime & IDE ──────────────
+// The Google Apps Script Web App gateway, Google Docs trigger engine, and the IDE
+// "Select function" dropdown statically scan project source code for top-level `function`
+// declarations. Functions declared solely inside an IIFE (even when assigned to `global`)
+// are NOT detected by Google's Web App router (causing HTTP 404 Page Not Found) and do NOT
+// appear in the IDE menu. These top-level wrappers delegate to the internal implementations.
+
+/**
+ * Primary HTTP GET web app handler for Google Apps Script.
+ * MUST be declared as a top-level function outside any IIFE so the Apps Script
+ * gateway AST parser discovers the web app entry point and routes HTTP requests.
+ * @param {GoogleAppsScript.Events.DoGet} e Request parameters.
+ * @returns {GoogleAppsScript.HTML.HtmlOutput} Rendered web page output.
+ */
+function doGet(e) {
+  return (typeof _doGetInternal === 'function') ? _doGetInternal(e) : (globalThis._doGetInternal ? globalThis._doGetInternal(e) : null);
+}
+
+/**
+ * Google Docs custom menu trigger.
+ * MUST be declared as a top-level function outside any IIFE so Docs can discover
+ * and execute the onOpen simple trigger upon document load.
+ * @param {object} e Open event.
+ */
+function onOpen(e) {
+  return (typeof _onOpenInternal === 'function') ? _onOpenInternal(e) : (globalThis._onOpenInternal ? globalThis._onOpenInternal(e) : null);
+}
+
+/**
+ * Time-driven trigger handler for 2-Way Sync.
+ * MUST be declared as a top-level function outside any IIFE so time-based triggers
+ * can invoke it by name.
+ */
+function syncWorkspaceChanges() {
+  return (typeof _syncWorkspaceChangesInternal === 'function') ? _syncWorkspaceChangesInternal() : (globalThis._syncWorkspaceChangesInternal ? globalThis._syncWorkspaceChangesInternal() : null);
+}
+
+/**
+ * IDE Setup helper for installing the 2-Way Sync trigger.
+ * MUST be declared as a top-level function outside any IIFE so it appears in the
+ * Apps Script IDE's "Select function" dropdown for manual execution.
+ */
+function setup2WaySyncTrigger() {
+  return (typeof _setup2WaySyncTriggerInternal === 'function') ? _setup2WaySyncTriggerInternal() : (globalThis._setup2WaySyncTriggerInternal ? globalThis._setup2WaySyncTriggerInternal() : null);
+}
+
+/**
+ * IDE Setup helper for ensuring the 2-Way Sync trigger is installed.
+ * Statically discovered by the Apps Script IDE dropdown.
+ */
+function ensure2WaySyncTriggerInstalled() {
+  return (typeof _ensure2WaySyncTriggerInstalledInternal === 'function') ? _ensure2WaySyncTriggerInstalledInternal() : (globalThis._ensure2WaySyncTriggerInstalledInternal ? globalThis._ensure2WaySyncTriggerInstalledInternal() : null);
+}
 

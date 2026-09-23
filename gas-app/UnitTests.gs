@@ -292,5 +292,56 @@ global.runPowerOnSelfTest = runPowerOnSelfTest;               // IDE manual-run 
 global.testDoGetInIDE = testDoGetInIDE;                       // IDE manual-run
 global.renderSelfTestDiagnosticReport = renderSelfTestDiagnosticReport; // called by Code.gs's doGet
 
-})(this);
+// Internal aliases for top-level entry point delegators
+global._runSelfTestInternal = runSelfTest;
+global._runPowerOnSelfTestInternal = runPowerOnSelfTest;
+global._testDoGetInIDEInternal = testDoGetInIDE;
+
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+// ── Top-level entry points for Google Apps Script IDE dropdown ───────────────
+// Apps Script populates the "Select function" IDE dropdown via static AST analysis
+// of top-level function declarations. Functions declared solely inside an IIFE are
+// not detected by the IDE dropdown. These top-level wrappers delegate to the internal
+// implementations to make test and setup utilities directly runnable in the IDE.
+
+/**
+ * IDE Execution helper for single-stepping or debugging doGet(e) in the Apps Script IDE.
+ * Statically discovered by the Apps Script IDE dropdown.
+ * @returns {GoogleAppsScript.HTML.HtmlOutput} Rendered HTML response from doGet.
+ */
+function testDoGetInIDE() {
+  return (typeof _testDoGetInIDEInternal === 'function') ? _testDoGetInIDEInternal() : (globalThis._testDoGetInIDEInternal ? globalThis._testDoGetInIDEInternal() : null);
+}
+
+/**
+ * Diagnostic test runner for the Apps Script IDE.
+ * Statically discovered by the Apps Script IDE dropdown.
+ * @returns {object} Diagnostic summary object.
+ */
+function runSelfTest() {
+  return (typeof _runSelfTestInternal === 'function') ? _runSelfTestInternal() : (globalThis._runSelfTestInternal ? globalThis._runSelfTestInternal() : null);
+}
+
+/**
+ * Backward-compatible alias for runSelfTest.
+ * Statically discovered by the Apps Script IDE dropdown.
+ * @returns {object} Diagnostic summary object.
+ */
+function runPowerOnSelfTest() {
+  return (typeof _runPowerOnSelfTestInternal === 'function') ? _runPowerOnSelfTestInternal() : (globalThis._runPowerOnSelfTestInternal ? globalThis._runPowerOnSelfTestInternal() : null);
+}
+
+/**
+ * Explicit scope authorization helper for the Apps Script IDE.
+ * Touches Drive, Tasks, and Calendar services outside try/catch so running this
+ * once in the IDE triggers Google's OAuth consent modal to grant newly added manifest scopes.
+ */
+function authorizeNewScopes() {
+  DriveApp.getRootFolder();
+  CalendarApp.getDefaultCalendar();
+  if (typeof Tasks !== 'undefined') {
+    Tasks.Tasks.list('@default');
+  }
+}
 
