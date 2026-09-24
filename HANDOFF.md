@@ -49,7 +49,7 @@ Roll back the Day Planner project from an installable GitHub Pages PWA to a 100%
 
 - **Repository Branch**: `pure-gas-main`.
 - **Test & Lint Status**: 0 lint errors (`npm run lint`), 88/88 unit tests passing across 11 suites (`npm test`).
-- **Live Deployment**: Version 166 (`@166`) deployed to pinned production ID `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
+- **Live Deployment**: Version 168 (`@168`) deployed to pinned production ID `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
 - **Verified in Chrome via CDP**:
   - Full 3-column binder UI (Tasks, Schedule, Notes) renders cleanly and completely.
   - Circled-D (`Ⓓ`) glyph displays properly in status buttons.
@@ -57,8 +57,8 @@ Roll back the Day Planner project from an installable GitHub Pages PWA to a 100%
   - Add task `[+]` button is vertically centered.
   - Console syntax errors: **0**.
 - **Dual-Environment Promotion Status**:
-  - `Day Planner HOME`: active mastercopy at Version 166 (`@166`).
-  - `Day-Planner-WORK`: Version 2 (`@2`) successfully promoted via `npm run push:work`. Dev endpoint (`@HEAD`) live immediately; production endpoint awaiting version selection in GSA IDE.
+  - `Day Planner HOME`: active mastercopy at Version 168 (`@168`).
+  - `Day-Planner-WORK`: Version 5 (`@5`) promoted via `npm run push:work`. Includes `Drive.Files.insert` auto-creation and enterprise GSA permissions check. Dev endpoint (`@HEAD`) live immediately; production endpoint awaiting version selection in GSA IDE.
   - Slash command `/push-work` wired across `.agents/commands/`, `.claude/commands/`, and `.kilo/workflows/`.
 - **Enforcement Pipeline**:
   - `npm run check:gas-safe-chars` tests [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html) for any literal `//` or comment apostrophes via `acorn`.
