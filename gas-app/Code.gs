@@ -646,24 +646,16 @@ function syncWorkspaceChanges() {
       try {
         var linkedEvt = null;
         for (var j = 0; j < matchingEvts.length; j++) {
-          if (matchingEvts[j].getTag('gasTaskId') === task.id || matchingEvts[j].getTitle().indexOf(task.title) !== -1) {
+          if (matchingEvts[j].getTag('gasTaskId') === task.id) {
             linkedEvt = matchingEvts[j];
             break;
           }
         }
 
-        var isDone = task.status === '✓' || task.status === 'Ⓓ' || task.status === 'D/✓';
-        var formattedTitle = isDone ? '[✓] ' + task.title : task.title;
-
         if (linkedEvt) {
+          var isDone = task.status === '✓' || task.status === 'Ⓓ' || task.status === 'D/✓';
+          var formattedTitle = isDone ? '[✓] ' + task.title : task.title;
           linkedEvt.setTitle(formattedTitle);
-        } else {
-          var now = new Date();
-          var endTime = new Date(now.getTime() + 30 * 60 * 1000);
-          var newEvt = defaultCal.createEvent(formattedTitle, now, endTime, {
-            description: 'Synced Day Planner Task: ' + task.id
-          });
-          newEvt.setTag('gasTaskId', task.id);
         }
       } catch (taskErr) {
         logError('syncWorkspaceChanges task item ' + task.id, taskErr);
