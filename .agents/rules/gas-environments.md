@@ -27,8 +27,12 @@ Day Planner has two separate Google Apps Script deployments running under differ
 
 ## 2. Strict Invariants
 
-1. **Active Focus**: Current active development target is **HOME** (`1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W`).
-2. **Never Swap clasp target implicitly**: Never change `gas-app/.clasp.json` to the WORK script ID unless explicitly requested by the user.
-3. **Never Route HOME through GSA Proxy**: NEVER use `/a/macros/gsa.gov/...` for the HOME script. Enterprise proxies reject consumer Gmail scripts with HTTP 404 before execution.
-4. **Never Request `/exec` on `@HEAD`**: The `@HEAD` deployment ID is for `/dev` only. `/exec` requires a versioned deployment ID.
-5. **Clasp Authentication Guard**: Check `~/.clasprc.json` before deploying. If authenticated as `michael.hoffman@gsa.gov`, deploying to HOME requires either sharing the HOME project as Editor with `michael.hoffman@gsa.gov` or re-authenticating clasp via `clasp login` as `mhoffman02@gmail.com`.
+1. **Active Focus & Mastercopy**: Current active development target is **HOME** (`1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W`), configured in `gas-app/.clasp.json`.
+2. **Never Swap clasp target implicitly**: Never modify `gas-app/.clasp.json` to the WORK script ID. Keep HOME permanently configured there.
+3. **Promotion Workflow (HOME -> WORK)**:
+   - HOME is the MASTERCOPY (`gas-app/.clasp.json`).
+   - Pushing vetted code to WORK is executed via `npm run push:work`.
+   - `npm run push:work` targets `gas-app/.clasp-work.json` without modifying `.clasp.json`.
+   - Google Apps Script enforces that only users in the script owner's domain (`gsa.gov`) can publish/redeploy Web App versions (`Only users in the same domain as the script owner may deploy this script`). Therefore, while code push and version creation can be done via shared editor (`mhoffman02@gmail.com`), pointing the production `/exec` deployment to the latest version must be confirmed in the Apps Script IDE under `michael.hoffman@gsa.gov` (Deploy > Manage deployments > Edit > Version > Deploy).
+4. **Never Route HOME through GSA Proxy**: NEVER use `/a/macros/gsa.gov/...` for the HOME script. Enterprise proxies reject consumer Gmail scripts with HTTP 404 before execution.
+5. **Never Request `/exec` on `@HEAD`**: The `@HEAD` deployment ID is for `/dev` only. `/exec` requires a versioned deployment ID.
