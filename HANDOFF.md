@@ -2,15 +2,15 @@
 
 ### OBJECTIVE
 
-Implement user-approved Phase 8 productivity UX enhancements on branch `feat/modern-normalize`: (1) a letterpress segmented priority selector `[ A | B | C ]` with single `[+]` button and sticky `Enter` key submission (Proposal B), and (2) 1-click Column Focus Mode (`open_in_full` / `close_fullscreen`) for Tasks, Appointments, and Daily Notes columns. Once verified, fast-forward merge `feat/modern-normalize` into `pure-gas-main` and deploy to HOME (`@171`) and WORK.
+Validate production release of Phase 8 ergonomics and CSS modern-normalize decoupling on HOME (`@171`) and WORK (`@8`), conduct live Workspace UAT, confirm Google Doc run log, and create `v1.0-pure-gas` production git tag.
 
 ---
 
 ### KEY DECISIONS
 
-- **Proposal B Segmented Priority Selector**: Rather than 3 separate submit buttons (which breaks the `Enter` key default action and causes Fitts's Law touch misclicks), decouple priority *selection* from *submission*. Replace `<select class="task-priority-select">` with compact letterpress stamp tabs `[ A | B | C ]` on the left of the input, keeping a single `[+]` submit button on the right. Active states are color-coded in authentic Franklin Covey tones (Brick Red `#dc2626` for A, Warm Ochre `#d97706` for B, Binder Teal `#2d6a5a` for C). The component remembers the last-used priority for rapid bulk task entry, and typing a title then hitting `Enter` immediately submits using the active priority.
-- **Ephemeral Column Focus Mode (Zero `localStorage` Corruption)**: Expanding a column to 100% width must NEVER overwrite `localStorage['dayPlannerColumnWidths']`. Doing so would permanently erase user drag customizations if the tab is refreshed or closed while maximized. Instead, manage `maximizedColumn: 'tasks' | 'appointments' | 'notes' | null` purely in Alpine state, applying `.has-maximized-column` to the spread wrapper and `.is-maximized` to the active column. While active, the other 2 columns and both resizers are set to `display: none;`, and pressing `Escape` collapses back to the preserved `localStorage` widths.
-- **Standard Panes Iconography**: Use standard Material Symbols `open_in_full` (expand) and `close_fullscreen` (restore) rather than horizontal double-arrows (`↔`), which conflict with the resizer's `col-resize` cursor.
+- **Proposal B Segmented Priority Selector**: Decoupled priority selection from submission with compact letterpress stamp tabs `[ A | B | C ]` bound to `newTaskPriorityGroup` on the left and a single `[+]` button on the right ([commit `de02715`](file:///home/mike/projects/day-planner)). Color-coded active states: Brick Red `#dc2626` for A, Warm Ochre `#d97706` for B, Binder Teal `#2d6a5a` for C. The component remembers the last-used priority for rapid bulk task entry, and typing a title then hitting `Enter` immediately submits using the active priority.
+- **Ephemeral Column Focus Mode (Zero `localStorage` Corruption)**: Expanding a column to 100% width must NEVER overwrite `localStorage['dayPlannerColumnWidths']`. Managed `maximizedColumn: 'tasks' | 'appointments' | 'notes' | null` purely in Alpine state, applying `.has-maximized-column` to the spread wrapper and `.is-maximized` to the active column ([commit `de02715`](file:///home/mike/projects/day-planner)). While active, the other 2 columns and both resizers are set to `display: none;`, and pressing `Escape` collapses back to the preserved `localStorage` widths.
+- **CSS Architecture Decoupling**: Replaced `@picocss/pico@2` with `modern-normalize@3.0.1` and native Franklin Covey design tokens across [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html) ([commit `544d690`](file:///home/mike/projects/day-planner)). Eliminates classless element hijacking (`button`, `<article>`) while preserving 100% light/dark theme fidelity and zero pill shapes.
 - **Google Calendar Side-by-Side Overlapping Events**: In [commit `7baf634`](file:///home/mike/projects/day-planner), `.schedule-content` was updated to `display: flex; flex-direction: row; gap: 6px; align-items: stretch;` with `flex: 1 1 0; min-width: 0;` on `button.event-pill`. 1 event takes 100% width, 2 overlapping events take 50% each side-by-side, and 3 take 33% each with clean ellipsis truncation.
 - **Active Clasp Target Invariant**: Active development target remains HOME mastercopy (`1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W`) in [`gas-app/.clasp.json`](file:///home/mike/projects/day-planner/gas-app/.clasp.json#L2). WORK (`1980roEKgkC_...`) is promoted only via `npm run push:work`.
 
@@ -18,16 +18,17 @@ Implement user-approved Phase 8 productivity UX enhancements on branch `feat/mod
 
 ### CURRENT STATE
 
-- **Repository Branch**: `feat/modern-normalize`.
-- **Latest Commit**: [`7baf634`](file:///home/mike/projects/day-planner) (`feat(calendar): implement Google Calendar style side-by-side event stacking for overlapping appointments`).
+- **Repository Branch**: `pure-gas-main`.
+- **Latest Commit**: [`de02715`](file:///home/mike/projects/day-planner) (`feat(ui): implement letterpress segmented priority selector and 1-click column focus mode`).
 - **Live Deployment State**:
-  - HOME `@HEAD`: Deployed via `clasp push` with all style fixes and side-by-side layout live at [https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev).
-  - HOME Prod (`day-planner-v01`): Version 170 (`@170`).
-  - WORK Prod (`Day-Planner-WORK`): Version 7 (`@7`).
+  - HOME `@HEAD`: Deployed via `clasp push` live at [https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev).
+  - HOME Prod (`day-planner-v01`): Version 171 (`@171`) live at [https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec).
+  - WORK Prod (`Day-Planner-WORK`): Code promoted and Version 8 (`@8`) created via `npm run push:work`. Production endpoint is [https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec](https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec).
 - **Pre-Flight Verification**: Passed cleanly before handoff generation:
   - `npm run lint`: 0 errors.
   - `npm test`: 88/88 unit tests passing across 11 suites.
   - `npm run check:gas-safe-chars`: Clean.
+  - Automated Playwright browser verification: 100% pass across all views, priority tabs, Enter submission, column focus expand/collapse, and Escape hotkeys.
 
 ---
 
@@ -45,40 +46,25 @@ Implement user-approved Phase 8 productivity UX enhancements on branch `feat/mod
 
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
-1. **Implement Segmented Priority Selector (`Proposal B`)**:
-   - In [`gas-app/Index.html#L160-L171`](file:///home/mike/projects/day-planner/gas-app/Index.html#L160-L171), replace `<select class="task-priority-select">` with a segmented control containing 3 stamp buttons `[ A | B | C ]` bound to `newTaskPriorityGroup`.
-   - In [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html), add `.priority-segmented-group` and `.priority-segment-btn` with letterpress styling and active color tokens (`#dc2626` for A, `#d97706` for B, `#2d6a5a` for C).
-   - Ensure input text field retains `flex: 1` and `min-width: 0;`, and pressing `Enter` submits with the active priority tab.
+1. **Federal WORK Environment Access & Validation**:
+   - Open [`https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec`](https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec) on locked-down WORK PC (`michael.hoffman@gsa.gov`).
+   - In the Apps Script IDE ([`https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit`](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit)), confirm Deploy > Manage deployments points production `/exec` to Version 8.
+   - Verify first-party Google Workspace authorization without enterprise proxy blocks ([`.agents/rules/gas-environments.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-environments.md)).
 
-2. **Implement Column Focus / Maximize Mode**:
-   - In [`gas-app/Index.html#L153-L157`](file:///home/mike/projects/day-planner/gas-app/Index.html#L153-L157) (Tasks), [`#L251-L260`](file:///home/mike/projects/day-planner/gas-app/Index.html#L251-L260) (Appointments), and [`#L295-L338`](file:///home/mike/projects/day-planner/gas-app/Index.html#L295-L338) (Daily Notes), add maximize action button:
-     `<button type="button" class="btn-icon-subtle" @click="toggleMaximizeColumn('tasks')" :title="maximizedColumn === 'tasks' ? 'Restore Columns (Esc)' : 'Maximize Tasks'"><span class="material-symbols-outlined" x-text="maximizedColumn === 'tasks' ? 'close_fullscreen' : 'open_in_full'"></span></button>`.
-   - In [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html) and [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js), add `maximizedColumn: null`, `toggleMaximizeColumn(name)`, and global `Escape` key event listener.
-   - In [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html), add:
-     ```css
-     .two-page-spread.has-maximized-column .page-panel:not(.is-maximized) { display: none !important; }
-     .two-page-spread.has-maximized-column .column-resizer { display: none !important; }
-     .two-page-spread.has-maximized-column .page-panel.is-maximized { width: 100% !important; flex: 1 1 100% !important; }
-     ```
+2. **Run Log Google Doc Confirmation & Drive Verification**:
+   - Open `Day Planner` Google Drive folder on HOME account.
+   - Verify [`Day Planner - Run Log`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L74-L125) Google Doc exists and logged sync executions.
+   - Confirm self-test suite passes via [`/exec?view=self-test`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec?view=self-test).
 
-3. **Verify, Merge to `pure-gas-main`, Release `@171`, and Promote to WORK**:
-   - Run `npm run lint && npm test`.
-   - Push to HOME dev endpoint with `clasp push` and verify live in Chrome.
-   - Fast-forward merge `feat/modern-normalize` to `pure-gas-main`:
+3. **Production Git Release Tagging**:
+   - Once WORK environment and Run Log are validated, tag `pure-gas-main`:
      ```bash
-     git checkout pure-gas-main && git merge --ff-only feat/modern-normalize
+     git tag v1.0-pure-gas && git push origin v1.0-pure-gas
      ```
-   - Deploy new release version on HOME (`@171`) and promote to WORK via `npm run push:work`.
+   - Verify standalone desktop shortcut ("Open as Window") from [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html).
 
 ---
 
 ### IMMEDIATE NEXT STEP
 
-Edit [`gas-app/Index.html#L160-L171`](file:///home/mike/projects/day-planner/gas-app/Index.html#L160-L171) to replace the priority `<select>` dropdown with the 3 segmented stamp buttons `[ A | B | C ]`:
-```html
-<div class="priority-segmented-group" role="radiogroup" aria-label="Task Priority">
-  <button type="button" class="priority-segment-btn" :class="{ 'active a': newTaskPriorityGroup === 'A' }" @click="newTaskPriorityGroup = 'A'">A</button>
-  <button type="button" class="priority-segment-btn" :class="{ 'active b': newTaskPriorityGroup === 'B' }" @click="newTaskPriorityGroup = 'B'">B</button>
-  <button type="button" class="priority-segment-btn" :class="{ 'active c': newTaskPriorityGroup === 'C' }" @click="newTaskPriorityGroup = 'C'">C</button>
-</div>
-```
+Open HOME Prod app [`https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec) and WORK IDE [`https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit`](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) to complete live workspace verification.

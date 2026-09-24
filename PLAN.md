@@ -123,9 +123,9 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 ### Phase 8: Advanced Productivity UX Ergonomics
 *Goal: Implement high-efficiency task input ergonomics and 1-click focus mode for deep work in the Daily Binder view.*
 
-- [ ] Segmented Priority Selector (`Proposal B`): Replace `<select>` with letterpress stamp tabs `[ A | B | C ]` with color-coded active states (Red A, Amber B, Teal C) and seamless `Enter` key submission.
-- [ ] Column Focus Mode: Add `open_in_full` / `close_fullscreen` toggle buttons to header actions of Tasks, Appointments, and Notes columns with ephemeral 100% width and `Escape` hotkey.
-- [ ] Merge `feat/modern-normalize` to `pure-gas-main`, deploy HOME release `@171`, and promote to WORK via `npm run push:work`.
+- [x] Segmented Priority Selector (`Proposal B`): Replace `<select>` with letterpress stamp tabs `[ A | B | C ]` with color-coded active states (Red A, Amber B, Teal C) and seamless `Enter` key submission (commit `de02715`).
+- [x] Column Focus Mode: Add `open_in_full` / `close_fullscreen` toggle buttons to header actions of Tasks, Appointments, and Notes columns with ephemeral 100% width and `Escape` hotkey (commit `de02715`).
+- [x] Merge `feat/modern-normalize` to `pure-gas-main`, deploy HOME release `@171`, and promote to WORK via `npm run push:work`.
 
 
 ---

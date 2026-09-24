@@ -1,5 +1,25 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-24 — Phase 8 Ergonomics: Letterpress Segmented Priority Selector (Proposal B), 1-Click Column Focus Mode, and pure-gas-main Release @171 (commits `de02715`, `7baf634`)
+
+- [x] **Proposal B Letterpress Segmented Priority Selector (commit `de02715`)**:
+  - In [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) and [`index.html`](file:///home/mike/projects/day-planner/index.html), replaced `<select class="task-priority-select">` with compact letterpress stamp tabs `[ A | B | C ]` bound to `newTaskPriorityGroup`.
+  - In [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html), added `.priority-segmented-group` and `.priority-segment-btn` with Franklin Covey design tokens (sharp 2px border radius, strictly no pills).
+  - Implemented authentic color-coded active states: Priority A Brick Red (`#dc2626`), Priority B Warm Ochre (`#d97706`), Priority C Binder Teal (`#2d6a5a`) with inset letterpress stamp shadow.
+  - Retained sticky priority memory for rapid bulk entry; typing a task title and pressing `Enter` submits immediately with the active priority tab.
+  - Supported dark theme (`[data-theme="dark"]`) with tailored borders and backgrounds.
+
+- [x] **1-Click Column Focus / Maximize Mode (commit `de02715`)**:
+  - In [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) and [`index.html`](file:///home/mike/projects/day-planner/index.html), added maximize button with Material Symbols `open_in_full` / `close_fullscreen` to Tasks, Appointments, and Daily Notes headers.
+  - In [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), added ephemeral state `maximizedColumn: 'tasks' | 'appointments' | 'notes' | null`, `toggleMaximizeColumn(name)` action, and global `Escape` key shortcut listener.
+  - In [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html), applied `.two-page-spread.has-maximized-column .page-panel:not(.is-maximized) { display: none !important; }` and `.page-panel.is-maximized { width: 100% !important; flex: 1 1 100% !important; }`. Zero `localStorage` corruption occurs, preserving user column drag widths permanently.
+
+- [x] **Pure GAS Main Fast-Forward Merge, HOME Release @171, and WORK Promotion**:
+  - Fast-forward merged `feat/modern-normalize` cleanly into `pure-gas-main`.
+  - Deployed new release version on HOME (`@171`) via `clasp version` and `clasp deploy`.
+  - Promoted full vetted codebase to WORK (`1980roEKgkC_...`) via `npm run push:work` and created Version 8 on WORK.
+  - Verified 100% browser behavior and accessibility across views, themes, and shortcuts with Playwright test suite.
+
 ## 2026-09-24 — CSS Architecture Decoupling (`modern-normalize`), Narrow Tasks Add Button Overflow & Appointment Collapse Fixes (commits `544d690` and `7f8e432`)
 
 - [x] **Decouple from Pico CSS to `modern-normalize@3.0.1` (commit `544d690`)**:
