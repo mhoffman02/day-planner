@@ -49,7 +49,7 @@ Roll back the Day Planner project from an installable GitHub Pages PWA to a 100%
 
 - **Repository Branch**: `pure-gas-main`.
 - **Test & Lint Status**: 0 lint errors (`npm run lint`), 88/88 unit tests passing across 11 suites (`npm test`).
-- **Live Deployment**: Version 168 (`@168`) deployed to pinned production ID `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
+- **Live Deployment**: Version 169 (`@169`) deployed to pinned production ID `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
 - **Verified in Chrome via CDP**:
   - Full 3-column binder UI (Tasks, Schedule, Notes) renders cleanly and completely.
   - Circled-D (`Ⓓ`) glyph displays properly in status buttons.
@@ -57,8 +57,8 @@ Roll back the Day Planner project from an installable GitHub Pages PWA to a 100%
   - Add task `[+]` button is vertically centered.
   - Console syntax errors: **0**.
 - **Dual-Environment Promotion Status**:
-  - `Day Planner HOME`: active mastercopy at Version 168 (`@168`).
-  - `Day-Planner-WORK`: Version 5 (`@5`) promoted via `npm run push:work`. Includes `Drive.Files.insert` auto-creation and enterprise GSA permissions check. Dev endpoint (`@HEAD`) live immediately; production endpoint awaiting version selection in GSA IDE.
+  - `Day Planner HOME`: active mastercopy at Version 169 (`@169`).
+  - `Day-Planner-WORK`: Version 6 (`@6`) promoted via `npm run push:work`. Web app access restricted to `MYSELF` for GSA enterprise domain compliance. Dev endpoint (`@HEAD`) live immediately; production endpoint awaiting version selection in GSA IDE.
   - Slash command `/push-work` wired across `.agents/commands/`, `.claude/commands/`, and `.kilo/workflows/`.
 - **Enforcement Pipeline**:
   - `npm run check:gas-safe-chars` tests [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html) for any literal `//` or comment apostrophes via `acorn`.
@@ -81,9 +81,9 @@ Roll back the Day Planner project from an installable GitHub Pages PWA to a 100%
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
 1. **Federal WORK Environment Access & Validation**:
-   - WORK script promoted to Version 5 via `npm run push:work` (target `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`).
+   - WORK script promoted to Version 6 via `npm run push:work` (target `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`).
    - Test WORK dev endpoint on GSA machine: [`https://script.google.com/a/macros/gsa.gov/s/AKfycbw_OpkC0kTkrhkwI8AipH7jTeZeJfUYS7Xcy9BstG8/dev`](https://script.google.com/a/macros/gsa.gov/s/AKfycbw_OpkC0kTkrhkwI8AipH7jTeZeJfUYS7Xcy9BstG8/dev).
-   - In GSA Apps Script IDE, set Web App deployment to Version 5 to update the production `/exec` endpoint: [`https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec`](https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec).
+   - In GSA Apps Script IDE, set Web App deployment to Version 6 (access restricted to `MYSELF` to satisfy GSA domain policy) to update the production `/exec` endpoint: [`https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec`](https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec).
    - Verify native Google Workspace authorization without enterprise firewall/CORS blocks ([`.agents/rules/gas-environments.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-environments.md)).
 
 2. **Run Log Google Doc Confirmation**:
@@ -101,5 +101,5 @@ Roll back the Day Planner project from an installable GitHub Pages PWA to a 100%
 Validate Federal WORK environment access:
 1. Open WORK Dev endpoint in browser logged into GSA (`michael.hoffman@gsa.gov`):
    👉 [**https://script.google.com/a/macros/gsa.gov/s/AKfycbw_OpkC0kTkrhkwI8AipH7jTeZeJfUYS7Xcy9BstG8/dev**](https://script.google.com/a/macros/gsa.gov/s/AKfycbw_OpkC0kTkrhkwI8AipH7jTeZeJfUYS7Xcy9BstG8/dev)
-2. In GSA Apps Script IDE (Deploy > Manage Deployments), point the Web app deployment to Version 5.
+2. In GSA Apps Script IDE (Deploy > Manage Deployments), point the Web app deployment to Version 6.
 3. Test production endpoint: [`https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec`](https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec).
