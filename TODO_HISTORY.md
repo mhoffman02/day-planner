@@ -1,5 +1,13 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-24 — Enterprise Drive Permissions, Auto-Creation & WORK Version 5 Promotion
+
+- [x] **Drive Auto-Creation & Enterprise Permission Fix (@168 / WORK @5)**:
+  - Fixed "Invalid Folder URL or Access Denied" occurring in GSA Google Workspace domain by refactoring [`getValidatedRootFolder`](file:///home/mike/projects/day-planner/gas-app/Code.gs) to automatically create `Day Planner` root folder using Advanced Google Drive Service (`Drive.Files.insert`) under `drive.file` scope (commit [`7d43286`](file:///home/mike/projects/day-planner)). Zero manual folder creation or URL pasting required on fresh workspace accounts.
+  - Refactored [`validateAndSaveFolderUrl`](file:///home/mike/projects/day-planner/gas-app/Code.gs) to support Google Workspace enterprise domains where `folder.getOwner()` returns `null` or hides email addresses, checking `Drive.Files.get` write capabilities (`editable` / `writer` / `owner`) instead of assuming consumer Gmail ownership structures.
+  - Deployed to HOME at Version 168 (`@168`).
+  - Pushed to WORK script (`1980roEKgkC_...`), purged stale `Basic test` stub from `@HEAD`, and created immutable **Version 5** (`@5`).
+
 ## 2026-09-24 — Dual-Environment Isolation, Promotion Pipeline & WORK Version 2 Promotion
 
 - [x] **Setup Isolated Promotion Pipeline (HOME -> WORK)**:
