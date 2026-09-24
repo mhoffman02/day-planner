@@ -213,9 +213,8 @@
                         </div>
                       </td>
                       <td class="task-title-cell" :class="{ 'task-canceled': task.status === 'X', 'task-done': task.status === '✓' || task.status === 'D/✓' }">
-                        <span class="star-toggle" :class="{ 'is-starred': task.starred }" @click.stop="toggleTaskStar(task)"
-                              role="button" tabindex="0" @keydown.enter.stop="toggleTaskStar(task)"
-                              :aria-label="task.starred ? 'Unstar task' : 'Star task'" x-text="task.starred ? '★' : '☆'"></span>
+                        <button type="button" class="star-toggle" :class="{ 'is-starred': task.starred }" @click.stop="toggleTaskStar(task)"
+                                :aria-label="task.starred ? 'Unstar task' : 'Star task'" x-text="task.starred ? '★' : '☆'"></button>
                         <span x-text="parseTask(task.title).cleanTitle"></span>
                         <span class="notes-indicator-wrap" x-show="hasNotes(task)" @mouseenter="openNotesPopover(task.id)" @mouseleave="scheduleNotesPopoverClose(task.id)">
                           <button type="button" class="notes-indicator" @click.stop="toggleNotesPopover(task.id)"

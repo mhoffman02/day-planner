@@ -105,6 +105,8 @@
   .tab-btn,
   .nav-btn,
   .status-btn,
+  .star-toggle,
+  .notes-indicator,
   .event-pill,
   .btn-primary,
   .btn-secondary,
@@ -708,17 +710,56 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 4px 0 0 !important;
+    margin-bottom: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    width: auto !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
     cursor: pointer;
-    font-size: 1.1875rem;
+    font-size: 1.15rem;
     line-height: 1;
     color: #8c9b95;
-    margin-right: 4px;
     vertical-align: middle;
-    transform: translateY(-2px);
+    transform: translateY(-1px);
+    transition: color 0.15s ease, transform 0.1s ease;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .star-toggle:hover,
+  .star-toggle:active {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: #d4a017;
+    transform: translateY(-1px) scale(1.15);
+  }
+
+  .star-toggle:focus,
+  .star-toggle:focus-visible {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: 2px dotted var(--binder-teal, #2d6a5a) !important;
+    outline-offset: 1px;
+    border-radius: 2px !important;
   }
 
   .star-toggle.is-starred {
     color: #d4a017;
+  }
+
+  .star-toggle.is-starred:hover {
+    color: #b8860b;
   }
 
   .notes-indicator-wrap {
@@ -2660,6 +2701,32 @@
     background: #183329 !important;
     border-color: #244a3b !important;
     color: #e2f2ec !important;
+  }
+
+  [data-theme="dark"] .star-toggle {
+    background: transparent !important;
+    background-color: transparent !important;
+    color: #6e8a80;
+  }
+
+  [data-theme="dark"] .star-toggle:hover,
+  [data-theme="dark"] .star-toggle:active {
+    background: transparent !important;
+    background-color: transparent !important;
+    color: #f59e0b;
+  }
+
+  [data-theme="dark"] .star-toggle.is-starred {
+    color: #f59e0b;
+  }
+
+  [data-theme="dark"] .star-toggle.is-starred:hover {
+    color: #fbbf24;
+  }
+
+  [data-theme="dark"] .star-toggle:focus,
+  [data-theme="dark"] .star-toggle:focus-visible {
+    outline-color: #52a38b !important;
   }
 
   [data-theme="dark"] section.schedule-list {
