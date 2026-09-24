@@ -588,6 +588,19 @@
     }
   }
 
+  /* Ephemeral Column Focus / Maximize Mode (Zero localStorage Corruption) */
+  .two-page-spread.has-maximized-column .page-panel:not(.is-maximized) {
+    display: none !important;
+  }
+  .two-page-spread.has-maximized-column .column-resizer {
+    display: none !important;
+  }
+  .two-page-spread.has-maximized-column .page-panel.is-maximized {
+    width: 100% !important;
+    flex: 1 1 100% !important;
+    max-width: 100% !important;
+  }
+
   article.page-panel {
     background: #ffffff;
     border: 1px solid var(--border-line);
@@ -628,7 +641,7 @@
   /* Form & Quick Add Bar (Franklin Covey Clean Design) */
   form.task-quick-add-bar {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 8px;
     margin-bottom: 0;
     align-items: center;
@@ -641,22 +654,77 @@
     border-radius: var(--border-radius);
   }
 
-  .task-priority-select {
-    padding: 6px 20px 6px 8px;
-    border-radius: 4px;
-    border: 1px solid #c8ded7 !important;
-    background-color: #ffffff !important;
-    color: #1c2826 !important;
-    margin-bottom: 0;
-    width: auto;
-    min-width: 0;
+  /* Proposal B: Segmented Letterpress Priority Selector */
+  .priority-segmented-group {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid #c8ded7;
+    border-radius: 2px;
+    overflow: hidden;
+    background: #ffffff;
     flex: 0 0 auto;
+    height: 36px;
+    box-sizing: border-box;
+  }
+
+  .priority-segment-btn {
+    border: none;
+    border-right: 1px solid #c8ded7;
+    background: #faf8f5;
+    color: var(--text-muted, #5f7a70);
+    font-family: var(--font-family-header, Georgia, serif);
     font-size: 0.85rem;
+    font-weight: 700;
+    width: 28px;
+    height: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+    border-radius: 0;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  .priority-segment-btn:last-child {
+    border-right: none;
+  }
+
+  .priority-segment-btn:hover:not(.active) {
+    background-color: rgba(45, 106, 90, 0.08);
+    color: #1c2826;
+  }
+
+  .priority-segment-btn:focus-visible {
+    outline: 2px solid var(--binder-teal, #2d6a5a);
+    outline-offset: -2px;
+    z-index: 1;
+  }
+
+  .priority-segment-btn.active.a {
+    background-color: #dc2626 !important;
+    color: #ffffff !important;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+  }
+
+  .priority-segment-btn.active.b {
+    background-color: #d97706 !important;
+    color: #ffffff !important;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+  }
+
+  .priority-segment-btn.active.c {
+    background-color: #2d6a5a !important;
+    color: #ffffff !important;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
   }
 
   .task-input-field {
-    flex: 1 1 140px;
-    min-width: 120px;
+    flex: 1 1 0;
+    min-width: 0;
+    height: 36px;
     padding: 6px 12px;
     border-radius: 4px;
     border: 1px solid #c8ded7 !important;
@@ -665,6 +733,13 @@
     margin-bottom: 0;
     font-size: 0.85rem;
     box-sizing: border-box;
+  }
+
+  .tasks-header-actions,
+  .appointments-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
   /* Universal Input Fallbacks */
@@ -2719,6 +2794,37 @@
 
   [data-theme="dark"] header.panel-header {
     border-bottom-color: #3b8773 !important;
+  }
+
+  [data-theme="dark"] .priority-segmented-group {
+    border-color: #244a3b !important;
+    background: #11241c !important;
+  }
+
+  [data-theme="dark"] .priority-segment-btn {
+    background: #193328 !important;
+    border-right-color: #244a3b !important;
+    color: #95b3a8 !important;
+  }
+
+  [data-theme="dark"] .priority-segment-btn:hover:not(.active) {
+    background: #23423a !important;
+    color: #e2f2ec !important;
+  }
+
+  [data-theme="dark"] .priority-segment-btn.active.a {
+    background-color: #dc2626 !important;
+    color: #ffffff !important;
+  }
+
+  [data-theme="dark"] .priority-segment-btn.active.b {
+    background-color: #d97706 !important;
+    color: #ffffff !important;
+  }
+
+  [data-theme="dark"] .priority-segment-btn.active.c {
+    background-color: #2d6a5a !important;
+    color: #ffffff !important;
   }
 
   [data-theme="dark"] .task-priority-select,

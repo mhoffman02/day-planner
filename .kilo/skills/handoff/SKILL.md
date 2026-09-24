@@ -48,8 +48,8 @@ Execute these steps in strict sequence:
 7. **Copy to Clipboard & Notify**:
    - Copy `HANDOFF.md` to the system clipboard and print confirmation:
      ```bash
-     clip.exe < HANDOFF.md 2>/dev/null || xclip -selection clipboard < HANDOFF.md 2>/dev/null || pbcopy < HANDOFF.md 2>/dev/null
-     echo "Handoff copied."
+     (clip.exe < HANDOFF.md 2>/dev/null || /mnt/c/Windows/system32/clip.exe < HANDOFF.md 2>/dev/null || wl-copy < HANDOFF.md 2>/dev/null || xclip -selection clipboard < HANDOFF.md 2>/dev/null || xsel --clipboard --input < HANDOFF.md 2>/dev/null || pbcopy < HANDOFF.md 2>/dev/null)
+     echo "📋 Copied to clipboard."
      ```
 
 Be specific, quote actual user preferences, use clickable `file://` markdown links, and write it so a stranger could pick up the work cold.

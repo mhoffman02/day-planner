@@ -145,24 +145,29 @@
       <template x-if="activeView === 'daily'">
         <section class="two-page-spread"
                  aria-label="Daily Planner 3-Column Workspace"
-                 :class="{ 'is-resizing': isResizing }"
+                 :class="{ 'is-resizing': isResizing, 'has-maximized-column': !!maximizedColumn }"
                  :style="{ '--col1-w': colWidths[0] + '%', '--col2-w': colWidths[1] + '%', '--col3-w': colWidths[2] + '%' }">
           
           <!-- Column 1: Daily Task List Panel -->
-          <article class="page-panel col-tasks">
+          <article class="page-panel col-tasks" :class="{ 'is-maximized': maximizedColumn === 'tasks' }">
             <header class="panel-header">
               <h3 class="panel-header-title">
                 <span class="material-symbols-outlined">format_list_numbered</span> Tasks
               </h3>
+              <div class="tasks-header-actions">
+                <button type="button" class="btn-icon-subtle" @click="toggleMaximizeColumn('tasks')" :title="maximizedColumn === 'tasks' ? 'Restore Columns (Esc)' : 'Maximize Tasks'" :aria-label="maximizedColumn === 'tasks' ? 'Restore Columns (Esc)' : 'Maximize Tasks'">
+                  <span class="material-symbols-outlined" x-text="maximizedColumn === 'tasks' ? 'close_fullscreen' : 'open_in_full'"></span>
+                </button>
+              </div>
             </header>
 
             <!-- Task Quick Add Form -->
             <form @submit.prevent="addDailyTask()" role="group" class="task-quick-add-bar">
-              <select x-model="newTaskPriorityGroup" class="task-priority-select" aria-label="Task priority group">
-                <option value="A">Priority A</option>
-                <option value="B">Priority B</option>
-                <option value="C">Priority C</option>
-              </select>
+              <div class="priority-segmented-group" role="radiogroup" aria-label="Task Priority">
+                <button type="button" class="priority-segment-btn" :class="{ 'active a': newTaskPriorityGroup === 'A' }" @click="newTaskPriorityGroup = 'A'" role="radio" :aria-checked="newTaskPriorityGroup === 'A'" aria-label="Priority A">A</button>
+                <button type="button" class="priority-segment-btn" :class="{ 'active b': newTaskPriorityGroup === 'B' }" @click="newTaskPriorityGroup = 'B'" role="radio" :aria-checked="newTaskPriorityGroup === 'B'" aria-label="Priority B">B</button>
+                <button type="button" class="priority-segment-btn" :class="{ 'active c': newTaskPriorityGroup === 'C' }" @click="newTaskPriorityGroup = 'C'" role="radio" :aria-checked="newTaskPriorityGroup === 'C'" aria-label="Priority C">C</button>
+              </div>
               <input type="text" x-model="newTaskTitle" placeholder="Add task title (e.g. Call vendor)..." class="task-input-field" aria-label="New task description">
               <button type="submit" class="btn-primary btn-add-task-round" aria-label="Add Task" title="Add Task">
                 <span class="material-symbols-outlined">add</span>
@@ -247,12 +252,15 @@
           </div>
 
           <!-- Column 2: Appointment Panel -->
-          <article class="page-panel col-appointments">
+          <article class="page-panel col-appointments" :class="{ 'is-maximized': maximizedColumn === 'appointments' }">
             <header class="panel-header appointments-header">
               <h3 class="panel-header-title">
                 <span class="material-symbols-outlined">schedule</span> Appointment
               </h3>
               <div class="appointments-header-actions">
+                <button type="button" class="btn-icon-subtle" @click="toggleMaximizeColumn('appointments')" :title="maximizedColumn === 'appointments' ? 'Restore Columns (Esc)' : 'Maximize Appointments'" :aria-label="maximizedColumn === 'appointments' ? 'Restore Columns (Esc)' : 'Maximize Appointments'">
+                  <span class="material-symbols-outlined" x-text="maximizedColumn === 'appointments' ? 'close_fullscreen' : 'open_in_full'"></span>
+                </button>
                 <button type="button" class="btn-primary btn-add-task-round" @click="openCreateEventModal()" title="Add New Appointment" aria-label="Add New Appointment">
                   <span class="material-symbols-outlined">add</span>
                 </button>
@@ -291,13 +299,16 @@
           </div>
 
           <!-- Column 3: Daily Notes Panel (Franklin Lined Paper & Modular Topic Cards) -->
-          <article class="page-panel notes-column-panel col-notes">
+          <article class="page-panel notes-column-panel col-notes" :class="{ 'is-maximized': maximizedColumn === 'notes' }">
             <header class="panel-header notes-header">
               <h3 class="panel-header-title">
                 <span class="material-symbols-outlined">description</span> Daily Notes
               </h3>
 
               <div class="notes-header-actions">
+                <button type="button" class="btn-icon-subtle" @click="toggleMaximizeColumn('notes')" :title="maximizedColumn === 'notes' ? 'Restore Columns (Esc)' : 'Maximize Notes'" :aria-label="maximizedColumn === 'notes' ? 'Restore Columns (Esc)' : 'Maximize Notes'">
+                  <span class="material-symbols-outlined" x-text="maximizedColumn === 'notes' ? 'close_fullscreen' : 'open_in_full'"></span>
+                </button>
                 <!-- Dropdown Filter Menu Toggle -->
                 <div class="dropdown-container">
                   <button type="button" class="btn-icon-subtle" @click="noteFilterMenuOpen = !noteFilterMenuOpen" title="Filter & Search Notes" aria-label="Filter & Search Notes">

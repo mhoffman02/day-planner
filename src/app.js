@@ -81,6 +81,7 @@ Alpine.data('plannerApp', () => ({
       colWidths: [33.33, 33.33, 33.34],
       isResizing: false,
       activeResizerIndex: null,
+      maximizedColumn: null, // 'tasks' | 'appointments' | 'notes' | null
 
       bridge: null,
 
@@ -145,7 +146,12 @@ Alpine.data('plannerApp', () => ({
         }
       },
 
+      toggleMaximizeColumn(name) {
+        this.maximizedColumn = this.maximizedColumn === name ? null : name;
+      },
+
       initResize(resizerIdx, event) {
+        if (this.maximizedColumn) return;
         if (event.type === 'mousedown' && event.button !== 0) return;
         event.preventDefault();
 
@@ -260,9 +266,20 @@ Alpine.data('plannerApp', () => ({
           if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
             e.preventDefault();
             this.toggleSearchModal();
-          } else if (e.key === 'Escape' && this.searchModalOpen) {
-            e.preventDefault();
-            this.closeSearchModal();
+          } else if (e.key === 'Escape') {
+            if (this.searchModalOpen) {
+              e.preventDefault();
+              this.closeSearchModal();
+            } else if (this.eventModalOpen) {
+              e.preventDefault();
+              this.closeEventModal();
+            } else if (this.createEventModalOpen) {
+              e.preventDefault();
+              this.closeCreateEventModal();
+            } else if (this.maximizedColumn) {
+              e.preventDefault();
+              this.maximizedColumn = null;
+            }
           }
         });
       },
