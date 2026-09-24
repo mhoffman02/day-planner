@@ -1,6 +1,26 @@
 # Task History (TODO_HISTORY)
 
-## 2026-09-23 — Alpine Load Order, HtmlService String Truncation Resolution & Version 162 Deployment
+## 2026-09-24 — Circled-D Status Glyph, Priority Dropdown, Vertically Centered Add Button, Plain-Text Metadata, Option A Calendar Decoupling & Manifest Cleanup (@163–@166)
+
+- [x] **Circled-D Status Glyph (`Ⓓ`) (@163)**:
+  - Replaced `D/✓` with **`Ⓓ`** (`U+24B9`, Circled Capital D) in [`src/taskEngine.js`](file:///home/mike/projects/day-planner/src/taskEngine.js), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html), [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html), and [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) (commit [`11773e5`](file:///home/mike/projects/day-planner)).
+  - Fits cleanly in 28×28px `.status-btn` with zero text overflow. Fully backward-compatible with legacy `D/✓` tasks.
+- [x] **Priority Dropdown Width & Padding (@163)**:
+  - Expanded `.task-priority-select` in [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html) and [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) to `min-width: 130px; padding: 6px 28px 6px 10px;`.
+  - Eliminates text clipping of "Priority A/B/C" ahead of dropdown chevron.
+- [x] **Add Task `[+]` Button Vertical Centering (@163)**:
+  - Added `align-items: center;` to `form.task-quick-add-bar` and `align-self: center;` to `.btn-add-task-round` in [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html) and [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css).
+- [x] **Clean Plain-Text Google Tasks Metadata (@163)**:
+  - Refactored [`encodeTaskMeta`](file:///home/mike/projects/day-planner/gas-app/Code.gs) and [`encodeTaskStatusNotes`](file:///home/mike/projects/day-planner/gas-app/Code.gs) in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs).
+  - Newly created tasks with default category `General` and no notes now write 100% blank notes (`""`), eliminating `<!--dp-meta:{"category":"General"}-->`.
+  - Non-default metadata uses human-readable bracket tags (e.g. `[Category: Work]`, `[Status: Ⓓ]`). Backwards-compatible with legacy `<!--dp-...-->`.
+- [x] **Decouple Tasks from Calendar Appointments (Option A) (@164)**:
+  - User selected Option A (separate & clean).
+  - Modified [`syncWorkspaceChanges()`](file:///home/mike/projects/day-planner/gas-app/Code.gs) and [`trigger2WaySync()`](file:///home/mike/projects/day-planner/gas-app/Script.html) so tasks never auto-create 30-minute blocks on Google Calendar (commit [`907bd9e`](file:///home/mike/projects/day-planner)).
+- [x] **PWA Manifest & Relative Icon Cleanup (@166)**:
+  - Removed dead `<link rel="manifest" href="manifest.json">` and icon tags from [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) (commit [`bc6fc9c`](file:///home/mike/projects/day-planner)).
+  - Eliminates Chrome DevTools console `Syntax error: <!doctype html>` caused by Chrome requesting `manifest.json` from Google Apps Script.
+  - Verified live in Chrome CDP: 0 console syntax errors, full 3-column binder UI rendered.
 
 - [x] **Top-Level RPC Delegator Export (@160)**:
   - Added top-level function declarations outside the IIFE in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) for all 18 `google.script.run` RPC methods (commit [`838ac23`](file:///home/mike/projects/day-planner)).

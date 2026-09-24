@@ -95,10 +95,13 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 | **HOME Prod app** (`day-planner-v01`) | [`/exec`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec) | Anyone |
 | **HOME Prod self-test** (`day-planner-v01`) | [`/exec?view=self-test`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec?view=self-test) | Anyone |
 
-- [x] Push latest code to HOME script [`1XUrbUS55yQf_...`](https://script.google.com/d/1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W/edit) (Version 162).
+- [x] Push latest code to HOME script [`1XUrbUS55yQf_...`](https://script.google.com/d/1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W/edit) (Version 166).
 - [x] Run Self-Test diagnostics ([`/exec?view=self-test`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec?view=self-test)) — 100% HEALTHY / All 5 suites Pass.
 - [x] Verify production digital binder workspace load in Chrome ([`/exec`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec)).
-- [ ] User Acceptance Testing: confirm 2-way sync, Drive folder auto-creation, and Google Doc run-log across HOME and WORK environments.
+- [x] Live Workspace 2-Way Task Sync: verified task creation in Day Planner reflected in Google Tasks with clean plain-text notes.
+- [x] Task/Appointment Decoupling (Option A): decoupled tasks from auto-creating 30-min calendar blocks.
+- [x] Circled-D (`Ⓓ`), Priority select width, and Add button vertical centering deployed and verified.
+- [ ] User Acceptance Testing: confirm WORK environment access (`michael.hoffman@gsa.gov`) and Google Doc run-log.
 - [ ] Deploy tagged production release (`git tag v1.0-pure-gas`) after live UAT sign-off.
 - [ ] Verify Chrome/Edge "Open as window" desktop shortcut workflows.
 
