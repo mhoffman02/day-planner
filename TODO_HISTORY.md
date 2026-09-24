@@ -1,6 +1,30 @@
 # Task History (TODO_HISTORY)
 
-## 2026-09-24 — Star Toggle Pill Removal & CSS Framework Evaluation (Pico vs DaisyUI vs Pure vs modern-normalize)
+## 2026-09-24 — CSS Architecture Decoupling (`modern-normalize`), Narrow Tasks Add Button Overflow & Appointment Collapse Fixes (commits `544d690` and `7f8e432`)
+
+- [x] **Decouple from Pico CSS to `modern-normalize@3.0.1` (commit `544d690`)**:
+  - Branched off `pure-gas-main` onto isolated feature branch `feat/modern-normalize`.
+  - Replaced `@picocss/pico@2` with `modern-normalize@3.0.1` in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css#L1) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html#L2), removing aggressive element hijacking (`button`, `[role="button"]`, `<article>`).
+  - Replaced all 39 occurrences of `--pico-*` CSS variables with native Franklin Covey tokens (`--binder-teal`, `--bg-parchment`, font stacks).
+  - Authored unopinionated base styles for form controls (`input`, `select`, `textarea`, `a`, `button`) with dual-theme focus states.
+  - Added desktop header flex-wrap safeguard (`min-width: max-content` on `.header-left`) preventing month header truncation at 1440px.
+  - Verified 0 console errors and 0 page errors across all 5 views + About + Search Modal in both Light and Dark themes via Playwright.
+- [x] **Fix Tasks Column `[+]` Button Overflow in Narrow Viewports (commit `7f8e432`)**:
+  - Diagnosed: when the Tasks column is narrow (<340px), `.task-priority-select` (`min-width: 130px`) plus `<input>` default sizing (`min-width: auto`, ~160px) caused the container to overflow, pushing the green `[+]` add button out of the column and floating over the column divider.
+  - Fixed in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css#L625-L665) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html#L625-L665):
+    - Changed `form.task-quick-add-bar` to `display: flex; flex-wrap: wrap; width: 100%; max-width: 100%; box-sizing: border-box;`.
+    - Set `.task-priority-select` to `min-width: 0; flex: 0 0 auto; padding: 6px 20px 6px 8px;`.
+    - Set `.task-input-field` to `flex: 1 1 140px; min-width: 120px; box-sizing: border-box;`.
+    - Added `overflow-x: clip; min-width: 0;` to `article.page-panel` so child controls never bleed outside column bounds.
+- [x] **Fix Appointment Items Row Collapse, Overlapping Pills & Readability (commit `7f8e432`)**:
+  - Diagnosed: in `section.schedule-list` (flex column with `max-height: 420px`), `.schedule-row` had default `flex-shrink: 1` and `min-height: 32px`, forcing all rows to collapse to 32px. When multiple events occurred in the same slot (or all-day events at 7:00 AM), content expanded to 150px+ and bled over lower rows. Furthermore, `.schedule-content` lacked column flex layout, causing `inline-flex` event pills to collide and cover each other.
+  - Fixed in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css#L940-L1015) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html#L940-L1015):
+    - Set `.schedule-row` to `flex: 0 0 auto; align-items: stretch; min-height: 36px;` so rows expand dynamically to fit all events without collapsing or bleeding.
+    - Set `time.schedule-time` to `align-self: stretch; min-width: 85px; flex-shrink: 0;` ensuring time labels stretch seamlessly to row height.
+    - Set `.schedule-content` to `display: flex; flex-direction: column; gap: 6px; min-width: 0;`.
+    - Set `button.event-pill, div.event-pill` to `display: flex; width: 100%; max-width: 100%; box-sizing: border-box; padding: 6px 10px;`.
+    - Set `.event-pill-text` to `overflow: hidden; text-overflow: ellipsis; word-break: break-word;` eliminating clipping while preserving multiline readability.
+  - Pushed to HOME script (`1XUrbUS55yQf_...`) at `@HEAD` via `clasp push`.
 
 - [x] **Tasks Column Star Toggle Pill Removal (commit `c957ba2`)**:
   - Diagnosed oversized 51×45px dark green button pill wrapping the star toggle in the Daily Tasks column: Pico CSS applies full button styling (`padding: 12px 16px`, solid background, border, border-radius) to any element matching `[role="button"]` or `<button>`.

@@ -113,11 +113,12 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 *Goal: Decouple Day Planner from Pico CSS v2 on a dedicated branch (`feat/modern-normalize`), replacing classless tag hijacking with modern-normalize and self-contained Franklin Covey design tokens.*
 
 - [x] Fix Tasks column star button pill issue on `pure-gas-main` (commit `c957ba2`).
-- [ ] Create and checkout dedicated branch `feat/modern-normalize` without risking `pure-gas-main`.
-- [ ] Replace `@import url('.../pico.min.css')` with `modern-normalize.min.css` in `src/styles.css` and `gas-app/Styles.html`.
-- [ ] Provide baseline form controls (`input`, `select`, `textarea`), base link styling, and clean up the 39 `--pico-*` variable references into native design tokens.
-- [ ] Verify 100% parity across light (`#fcfbfa` parchment) and dark (`[data-theme="dark"]`) themes across all 5 views without regression.
-- [ ] Verify with Playwright screenshots, Chrome CDP inspection, `npm test`, and `npm run lint`.
+- [x] Create and checkout dedicated branch `feat/modern-normalize` without risking `pure-gas-main`.
+- [x] Replace `@import url('.../pico.min.css')` with `modern-normalize.min.css` in `src/styles.css` and `gas-app/Styles.html`.
+- [x] Provide baseline form controls (`input`, `select`, `textarea`), base link styling, and clean up the 39 `--pico-*` variable references into native design tokens.
+- [x] Verify 100% parity across light (`#fcfbfa` parchment) and dark (`[data-theme="dark"]`) themes across all 5 views without regression.
+- [x] Fix narrow Tasks column `[+]` button overflow and Appointment row collapse & overlapping pills (commit `7f8e432`).
+- [x] Verify with Playwright screenshots, Chrome CDP inspection, `npm test`, and `npm run lint`.
 
 
 ---
