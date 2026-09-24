@@ -30,7 +30,7 @@ Roll back the Day Planner project from an installable GitHub Pages PWA to a 100%
 > **NEVER** use the enterprise proxy path `/a/macros/gsa.gov/...` for the HOME script.
 > The HOME script is owned by `mhoffman02@gmail.com` (consumer Gmail). GSA's enterprise proxy
 > rejects consumer-owned deployments with HTTP 404 before `doGet()` is ever reached.
-> **NEVER** request `/exec` against the `@HEAD` deployment ID; `/dev` is the correct suffix for `@HEAD`.
+> **WORK supports Production (`/exec`) only**: Multi-account browser sessions trigger Google cookie errors on GSA `/dev`. All active development, testing, and debugging is conducted in HOME.
 
 | Environment | Purpose | URL | Who Can Access |
 |---|---|---|---|
@@ -39,8 +39,7 @@ Roll back the Day Planner project from an installable GitHub Pages PWA to a 100%
 | **HOME** | **Prod app** (`day-planner-v01`) | [`/exec`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec) | Anyone |
 | **HOME** | **Prod self-test** (`day-planner-v01`) | [`/exec?view=self-test`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec?view=self-test) | Anyone |
 | **HOME** | **Script IDE** | [Edit Script](https://script.google.com/d/1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W/edit) | `mhoffman02@gmail.com` |
-| **WORK** | **Dev endpoint** (`@HEAD`) | [`/dev`](https://script.google.com/a/macros/gsa.gov/s/AKfycbw_OpkC0kTkrhkwI8AipH7jTeZeJfUYS7Xcy9BstG8/dev) | `michael.hoffman@gsa.gov` only |
-| **WORK** | **Prod app** | [`/exec`](https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec) | Anyone in GSA |
+| **WORK** | **Prod app** | [`/exec`](https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec) | `michael.hoffman@gsa.gov` |
 | **WORK** | **Script IDE** | [Edit Script](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) | `michael.hoffman@gsa.gov` |
 
 ---

@@ -95,9 +95,8 @@ try {
   });
   console.log('\n======================================================');
   console.log('🎉 Successfully promoted code to WORK (Federal GSA)!');
-  console.log(`   Script ID: ${WORK_SCRIPT_ID}`);
-  console.log('   WORK Dev Endpoint: https://script.google.com/a/macros/gsa.gov/s/AKfycbw_OpkC0kTkrhkwI8AipH7jTeZeJfUYS7Xcy9BstG8/dev');
-  console.log('   WORK IDE:          https://script.google.com/d/' + WORK_SCRIPT_ID + '/edit');
+  console.log('   WORK Prod Endpoint: https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec');
+  console.log('   WORK IDE:           https://script.google.com/d/' + WORK_SCRIPT_ID + '/edit');
   console.log('======================================================');
 } catch (pushErr) {
   console.error('❌ Failed to push code to WORK:', pushErr.message);
