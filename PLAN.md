@@ -94,6 +94,8 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 | **HOME Dev self-test** (`@HEAD`) | [`/dev?view=self-test`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test) | `mhoffman02@gmail.com` only |
 | **HOME Prod app** (`day-planner-v01`) | [`/exec`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec) | Anyone |
 | **HOME Prod self-test** (`day-planner-v01`) | [`/exec?view=self-test`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec?view=self-test) | Anyone |
+| **WORK Dev app** (`@HEAD`) | [`/dev (gsa.gov)`](https://script.google.com/a/macros/gsa.gov/s/AKfycbw_OpkC0kTkrhkwI8AipH7jTeZeJfUYS7Xcy9BstG8/dev) | `michael.hoffman@gsa.gov` |
+| **WORK Prod app** (`Day-Planner-WORK`) | [`/exec (gsa.gov)`](https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec) | Enterprise GSA users |
 
 - [x] Push latest code to HOME script [`1XUrbUS55yQf_...`](https://script.google.com/d/1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W/edit) (Version 166).
 - [x] Run Self-Test diagnostics ([`/exec?view=self-test`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec?view=self-test)) — 100% HEALTHY / All 5 suites Pass.
@@ -101,6 +103,7 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 - [x] Live Workspace 2-Way Task Sync: verified task creation in Day Planner reflected in Google Tasks with clean plain-text notes.
 - [x] Task/Appointment Decoupling (Option A): decoupled tasks from auto-creating 30-min calendar blocks.
 - [x] Circled-D (`Ⓓ`), Priority select width, and Add button vertical centering deployed and verified.
+- [x] Setup Isolated Promotion Pipeline: created [`gas-app/.clasp-work.json`](file:///home/mike/projects/day-planner/gas-app/.clasp-work.json), [`tools/promote-to-work.js`](file:///home/mike/projects/day-planner/tools/promote-to-work.js) (`npm run push:work`), and promoted Version 2 to WORK script (`1980roEKgkC_...`).
 - [ ] User Acceptance Testing: confirm WORK environment access (`michael.hoffman@gsa.gov`) and Google Doc run-log.
 - [ ] Deploy tagged production release (`git tag v1.0-pure-gas`) after live UAT sign-off.
 - [ ] Verify Chrome/Edge "Open as window" desktop shortcut workflows.

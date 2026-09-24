@@ -1,5 +1,16 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-24 — Dual-Environment Isolation, Promotion Pipeline & WORK Version 2 Promotion
+
+- [x] **Setup Isolated Promotion Pipeline (HOME -> WORK)**:
+  - Disambiguated and confirmed active projects: `Day Planner HOME` (`1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W`) and `Day-Planner-WORK` (`1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`).
+  - Created [`gas-app/.clasp-work.json`](file:///home/mike/projects/day-planner/gas-app/.clasp-work.json) targeting WORK, leaving [`gas-app/.clasp.json`](file:///home/mike/projects/day-planner/gas-app/.clasp.json) permanently locked to HOME mastercopy (commit [`255f1fe`](file:///home/mike/projects/day-planner)).
+  - Built [`tools/promote-to-work.js`](file:///home/mike/projects/day-planner/tools/promote-to-work.js) (`npm run push:work`) with pre-flight linting, character checks, and 88 unit tests.
+  - Authorized WORK access by sharing `Day-Planner-WORK` as Editor with `mhoffman02@gmail.com`.
+  - Promoted full vetted codebase (8 files) to WORK and created immutable **Version 2**.
+  - Documented strict invariants in [`.agents/rules/gas-environments.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-environments.md) and [`.claude/rules/gas-environments.md`](file:///home/mike/projects/day-planner/.claude/rules/gas-environments.md) (commit [`bf391ab`](file:///home/mike/projects/day-planner)).
+  - Wired into persistent memory ([`promote_to_work_pipeline.md`](file:///home/mike/.claude/projects/-home-mike-projects-day-planner/memory/promote_to_work_pipeline.md), [`MEMORY.md`](file:///home/mike/.claude/projects/-home-mike-projects-day-planner/memory/MEMORY.md)), and added slash command `/push-work` across `.agents/commands/`, `.claude/commands/`, and `.kilo/workflows/` (commit [`05d7102`](file:///home/mike/projects/day-planner)).
+
 ## 2026-09-24 — Circled-D Status Glyph, Priority Dropdown, Vertically Centered Add Button, Plain-Text Metadata, Option A Calendar Decoupling & Manifest Cleanup (@163–@166)
 
 - [x] **Circled-D Status Glyph (`Ⓓ`) (@163)**:

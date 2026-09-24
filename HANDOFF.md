@@ -20,6 +20,7 @@ Roll back the Day Planner project from an installable GitHub Pages PWA to a 100%
 - **Task/Appointment Separation (Option A)**: In [`gas-app/Code.gs#L644-L660`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L644-L660) and [`gas-app/Script.html#L918-L928`](file:///home/mike/projects/day-planner/gas-app/Script.html#L918-L928), tasks remain strictly checklist items in Google Tasks; [`syncWorkspaceChanges()`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L630) does NOT auto-create 30-minute blocks on Google Calendar. Middle column is preserved strictly for real calendar appointments.
 - **Clean Plain-Text Metadata in Google Tasks**: [`encodeTaskMeta`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L774-L808) suppresses all metadata on default tasks (`General` category, no notes) so new tasks have completely blank notes in Google Tasks (eliminating `<!--dp-meta:{"category":"General"}-->`). Non-default metadata uses human-readable bracket tags (e.g. `[Category: Work]`, `[Status: Ⓓ]`).
 - **Zero Dead PWA Manifest Links**: Stripped `<link rel="manifest" href="manifest.json">` and relative icon tags from [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) to eliminate the Chrome DevTools console `Syntax error: <!doctype html>` (which occurred when Chrome tried to parse GAS HTML as a JSON manifest).
+- **Dual-Environment Promotion Pipeline (`npm run push:work`)**: HOME is the MASTERCOPY (`gas-app/.clasp.json`). WORK is targeted via isolated [`gas-app/.clasp-work.json`](file:///home/mike/projects/day-planner/gas-app/.clasp-work.json) (`1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`). [`tools/promote-to-work.js`](file:///home/mike/projects/day-planner/tools/promote-to-work.js) gates every push with `npm run lint` and `npm test` before pushing to WORK. Authorized via shared Editor permissions (`michael.hoffman@gsa.gov` shared script with `mhoffman02@gmail.com`).
 - **No-Pills Design Policy**: Strictly enforce [`.agents/rules/no-pills.md`](file:///home/mike/projects/day-planner/.agents/rules/no-pills.md) — 4px button border radii, flat underline active tab indicator (`border-bottom: 3px solid #58bfa2`), zero stadiums/capsules.
 
 ---
@@ -55,6 +56,10 @@ Roll back the Day Planner project from an installable GitHub Pages PWA to a 100%
   - Priority dropdown ("Priority A/B/C") displays without text clipping.
   - Add task `[+]` button is vertically centered.
   - Console syntax errors: **0**.
+- **Dual-Environment Promotion Status**:
+  - `Day Planner HOME`: active mastercopy at Version 166 (`@166`).
+  - `Day-Planner-WORK`: Version 2 (`@2`) successfully promoted via `npm run push:work`. Dev endpoint (`@HEAD`) live immediately; production endpoint awaiting version selection in GSA IDE.
+  - Slash command `/push-work` wired across `.agents/commands/`, `.claude/commands/`, and `.kilo/workflows/`.
 - **Enforcement Pipeline**:
   - `npm run check:gas-safe-chars` tests [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html) for any literal `//` or comment apostrophes via `acorn`.
   - Wired into `npm run lint` and executable [`.githooks/pre-commit`](file:///home/mike/projects/day-planner/.githooks/pre-commit).
