@@ -1,5 +1,18 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-24 — Star Toggle Pill Removal & CSS Framework Evaluation (Pico vs DaisyUI vs Pure vs modern-normalize)
+
+- [x] **Tasks Column Star Toggle Pill Removal (commit `c957ba2`)**:
+  - Diagnosed oversized 51×45px dark green button pill wrapping the star toggle in the Daily Tasks column: Pico CSS applies full button styling (`padding: 12px 16px`, solid background, border, border-radius) to any element matching `[role="button"]` or `<button>`.
+  - Reset `.star-toggle` in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css#L709-L747) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html#L710-L748) with `background: transparent !important`, `border: none !important`, `padding: 0 !important`, `box-shadow: none !important`, and `width/height: auto !important`.
+  - Converted `<span role="button">` to semantic `<button type="button" class="star-toggle">` in [`index.html`](file:///home/mike/projects/day-planner/index.html#L216) and [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html#L216) for native keyboard accessibility (Enter and Space) and WCAG compliance.
+  - Added `.star-toggle` to shared interactive resets and configured dark mode color/hover overrides. Verified via Playwright screenshot inspection.
+- [x] **CSS Framework Architectural Evaluation**:
+  - Evaluated Pico CSS vs DaisyUI vs Water.css vs Sakura vs Pure.css vs `modern-normalize` vs MVP.css.
+  - Determined that classless libraries (Pico, Water, Sakura, MVP.css) fight Day Planner's 2,830 lines of bespoke Franklin Covey CSS.
+  - Determined that `modern-normalize` is the optimal architectural foundation because Day Planner already defines 95%+ of its own styling, and light/dark theme support requires zero extra effort since `[data-theme="dark"]` is already completely authored in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css).
+  - Selected strategy: create an isolated branch (`feat/modern-normalize`) to build and verify the `modern-normalize` implementation without risking `pure-gas-main`.
+
 ## 2026-09-24 — Enterprise Drive Permissions, Auto-Creation & WORK Version 5 Promotion
 
 - [x] **Drive Auto-Creation & Enterprise Permission Fix (@168 / WORK @5)**:

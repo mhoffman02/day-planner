@@ -1,5 +1,21 @@
 # Active Tasks (TODO)
 
+## Phase 7: CSS Architecture Decoupling (`modern-normalize` Spike)
+
+- [ ] **1. Create and Checkout Isolated Branch (`feat/modern-normalize`)**:
+  - Run `git checkout -b feat/modern-normalize` from current commit `c957ba2` on `pure-gas-main`.
+  - Keep `pure-gas-main` fully pristine and untouched.
+
+- [ ] **2. Replace Pico CSS with `modern-normalize` & Baseline Styles**:
+  - In [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css#L1) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html#L2), replace `@import url('https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css');` with `modern-normalize` CDN link (`https://cdn.jsdelivr.net/npm/modern-normalize@3.0.1/modern-normalize.min.css`).
+  - Add standard unopinionated base styles for `input`, `select`, `textarea`, and `a` (border, padding, border-radius, focus rings) so form controls remain polished.
+  - Refactor all 39 references from `--pico-*` variables to native Franklin Covey design tokens (`--binder-teal`, `--bg-parchment`, etc.).
+
+- [ ] **3. Light & Dark Mode Parity & Regression Verification**:
+  - Verify seamless light mode (`#fcfbfa` parchment) and dark mode (`[data-theme="dark"]`) rendering across all 5 views (Daily, Calendar, Master Tasks, Index, Future Matrix).
+  - Verify modal backdrop, Universal Search (`Ctrl+K`), notes popovers, and status dropdown menus.
+  - Run `npm run lint` and `npm test` to confirm zero regressions.
+
 ## Phase 6: Live Workspace UAT & Production Release
 
 - [ ] **Federal WORK Environment Access & Validation**:

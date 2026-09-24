@@ -2,103 +2,70 @@
 
 ### OBJECTIVE
 
-Roll back the Day Planner project from an installable GitHub Pages PWA to a 100% pure Google Apps Script (GAS) hosted web application using baseline commit [`d294262`](https://github.com/mhoffman02/day-planner/commit/d294262). Systematically backport working features, bugfixes, and UI refinements running under native Google Workspace services (`CalendarApp`, `Tasks`, `DriveApp`), delivering an online-only digital day planner accessible across both personal HOME (`mhoffman02@gmail.com`) and locked-down federal WORK (`michael.hoffman@gsa.gov`) Google Workspace accounts.
+Decouple Day Planner from Pico CSS v2 on a dedicated experimental branch (`feat/modern-normalize`) without risking `pure-gas-main`. Replace Pico's aggressive tag and attribute hijacking (`button`, `[role="button"]`, `<article>`) with `modern-normalize` and clean native CSS resets, ensuring 100% visual parity across both light (`#fcfbfa` parchment) and dark (`[data-theme="dark"]`) themes across all 5 binder views.
 
 ---
 
 ### KEY DECISIONS
 
-- **Baseline & Branch**: Rooted at baseline commit [`d294262`](https://github.com/mhoffman02/day-planner/commit/d294262) on branch `pure-gas-main`. Master preserved and tagged `PWA-installable-22-Sep-2026`.
-- **Zero External Hosting & Zero SW**: No GitHub Pages (`mhoffman02.github.io`), no `sw.js`, no client-side GIS OAuth tokens. The web app runs inside Google Apps Script (`script.google.com`) using first-party Workspace authentication (`Session.getActiveUser().getEmail()`).
-- **Target HOME Script**: Active `clasp` target locked in [`gas-app/.clasp.json`](file:///home/mike/projects/day-planner/gas-app/.clasp.json#L2) to HOME script ID `1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W` owned by `mhoffman02@gmail.com`. Never target WORK script ID without explicit instruction ([`.agents/rules/gas-environments.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-environments.md)).
-- **Pinned Production Deployment**: Target production deployment ID is `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q` (`day-planner-v01`). Always deploy using `clasp deploy -i AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
-- **GAS IIFE Isolation with Top-Level Delegators**: [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) and [`gas-app/UnitTests.gs`](file:///home/mike/projects/day-planner/gas-app/UnitTests.gs) are strictly wrapped in IIFEs for namespace hygiene ([`.agents/rules/gas-namespace-iife.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-namespace-iife.md)). All 18 client-callable `google.script.run` methods and IDE entry points are declared as top-level delegator functions outside the IIFE ([`gas-app/Code.gs#L1837-L1978`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L1837-L1978)) so Apps Script's AST parser discovers them.
-- **Synchronous Alpine Document Order**: In [`gas-app/Index.html#L852-L854`](file:///home/mike/projects/day-planner/gas-app/Index.html#L852-L854), `<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>` is loaded synchronously at the end of `<body>` immediately after `<?!= include('Script'); ?>` (no `defer`). This guarantees `plannerApp` registers before Alpine scans the DOM (commit [`b86e451`](file:///home/mike/projects/day-planner)).
-- **HtmlService Silent Truncation Bug Prevention**: Apps Script's `HtmlService.createHtmlOutputFromFile().getContent()` silently truncates served lines at literal `//` inside strings (e.g. `'https://...'`) and at apostrophes in comments (commit [`087b7ef`](file:///home/mike/projects/day-planner)). Protocol URLs must ALWAYS be split (`'https:' + '/' + '/...'`), and comment prose must use typographic `’`. Guarded by [`tools/check-gas-script-html-safe-chars.js`](file:///home/mike/projects/day-planner/tools/check-gas-script-html-safe-chars.js), wired into `npm run lint` and executable [`.githooks/pre-commit`](file:///home/mike/projects/day-planner/.githooks/pre-commit) ([`.agents/rules/gas-html-safe-chars.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-html-safe-chars.md)).
-- **RPC Readiness Polling**: [`gas-app/Script.html#L360-L377`](file:///home/mike/projects/day-planner/gas-app/Script.html#L360-L377) uses `_runRpc` to poll up to 3s for `window.google.script.run[method]` to finish initializing before invoking, preventing client-side `is not a function` race conditions.
-- **Circled-D Status Glyph (`Ⓓ`)**: Replaced `D/✓` with Unicode `U+24B9` (`Ⓓ`) across [`src/taskEngine.js`](file:///home/mike/projects/day-planner/src/taskEngine.js), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), and [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) for Franklin Covey paper planner fidelity, fitting the 28×28px status button with zero overflow.
-- **Task/Appointment Separation (Option A)**: In [`gas-app/Code.gs#L644-L660`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L644-L660) and [`gas-app/Script.html#L918-L928`](file:///home/mike/projects/day-planner/gas-app/Script.html#L918-L928), tasks remain strictly checklist items in Google Tasks; [`syncWorkspaceChanges()`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L630) does NOT auto-create 30-minute blocks on Google Calendar. Middle column is preserved strictly for real calendar appointments.
-- **Clean Plain-Text Metadata in Google Tasks**: [`encodeTaskMeta`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L774-L808) suppresses all metadata on default tasks (`General` category, no notes) so new tasks have completely blank notes in Google Tasks (eliminating `<!--dp-meta:{"category":"General"}-->`). Non-default metadata uses human-readable bracket tags (e.g. `[Category: Work]`, `[Status: Ⓓ]`).
-- **Zero Dead PWA Manifest Links**: Stripped `<link rel="manifest" href="manifest.json">` and relative icon tags from [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) to eliminate the Chrome DevTools console `Syntax error: <!doctype html>` (which occurred when Chrome tried to parse GAS HTML as a JSON manifest).
-- **Dual-Environment Promotion Pipeline (`npm run push:work`)**: HOME is the MASTERCOPY (`gas-app/.clasp.json`). WORK is targeted via isolated [`gas-app/.clasp-work.json`](file:///home/mike/projects/day-planner/gas-app/.clasp-work.json) (`1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`). [`tools/promote-to-work.js`](file:///home/mike/projects/day-planner/tools/promote-to-work.js) gates every push with `npm run lint` and `npm test` before pushing to WORK. Authorized via shared Editor permissions (`michael.hoffman@gsa.gov` shared script with `mhoffman02@gmail.com`).
-- **No-Pills Design Policy**: Strictly enforce [`.agents/rules/no-pills.md`](file:///home/mike/projects/day-planner/.agents/rules/no-pills.md) — 4px button border radii, flat underline active tab indicator (`border-bottom: 3px solid #58bfa2`), zero stadiums/capsules.
-
----
-
-### URL ROUTING — CANONICAL ENDPOINTS
-
-> **NEVER** use the enterprise proxy path `/a/macros/gsa.gov/...` for the HOME script.
-> The HOME script is owned by `mhoffman02@gmail.com` (consumer Gmail). GSA's enterprise proxy
-> rejects consumer-owned deployments with HTTP 404 before `doGet()` is ever reached.
-> **WORK supports Production (`/exec`) only**: Multi-account browser sessions trigger Google cookie errors on GSA `/dev`. All active development, testing, and debugging is conducted in HOME.
-
-| Environment | Purpose | URL | Who Can Access |
-|---|---|---|---|
-| **HOME** | **Dev endpoint** (`@HEAD`) | [`/dev`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev) | `mhoffman02@gmail.com` only |
-| **HOME** | **Dev self-test** (`@HEAD`) | [`/dev?view=self-test`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev?view=self-test) | `mhoffman02@gmail.com` only |
-| **HOME** | **Prod app** (`day-planner-v01`) | [`/exec`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec) | Anyone |
-| **HOME** | **Prod self-test** (`day-planner-v01`) | [`/exec?view=self-test`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec?view=self-test) | Anyone |
-| **HOME** | **Script IDE** | [Edit Script](https://script.google.com/d/1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W/edit) | `mhoffman02@gmail.com` |
-| **WORK** | **Prod app** | [`/exec`](https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec) | `michael.hoffman@gsa.gov` |
-| **WORK** | **Script IDE** | [Edit Script](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) | `michael.hoffman@gsa.gov` |
+- **Isolated Branching**: All `modern-normalize` work must happen on `feat/modern-normalize` branched off `pure-gas-main` at commit [`c957ba2`](file:///home/mike/projects/day-planner). `pure-gas-main` remains locked, verified, and untouched.
+- **Light & Dark Mode Architecture Cost**: Near zero. Day Planner already owns and defines its complete dual-theme design system in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) via `[data-theme="dark"]` overrides and custom tokens (`--bg-parchment`, `--binder-teal`, `--border-line`, `--text-primary`, `--status-complete`). Pico CSS was only supplying generic fallback colors; dropping Pico requires zero extra thematic refactoring.
+- **Zero-Opinion Baseline Over Classless Frameworks**: Classless libraries (Pico, Water.css, Sakura, MVP.css) apply opinionated padding, backgrounds, and box-shadows to raw HTML elements, causing bugs like the Tasks column star pill. `modern-normalize` (~1.5 kB) normalizes browser quirks (`box-sizing: border-box`, font inheritance, line-height 1.15) with zero visual opinions, making [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) the sole source of truth.
+- **Why Not Pure.css**: Pure.css requires opt-in classes (`.pure-button`, `.pure-table`), which would require renaming dozens of classes across 1,000+ lines of Alpine.js templates for zero net benefit since Day Planner already has custom classes.
+- **Star Toggle Semantic Button**: Commit [`c957ba2`](file:///home/mike/projects/day-planner) on `pure-gas-main` converted `.star-toggle` from a `<span>` to a semantic `<button type="button" class="star-toggle">` and stripped all button pill styling in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css#L709-L747) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html#L710-L748). This foundation carries cleanly into `feat/modern-normalize`.
+- **Target HOME Script**: Active `clasp` target remains [`gas-app/.clasp.json`](file:///home/mike/projects/day-planner/gas-app/.clasp.json#L2) targeting HOME script ID `1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W`.
+- **Dual-Environment Invariant**: HOME is the mastercopy; WORK (`1980roEKgkC_...`) is promoted only via `npm run push:work`.
 
 ---
 
 ### CURRENT STATE
 
-- **Repository Branch**: `pure-gas-main`.
-- **Test & Lint Status**: 0 lint errors (`npm run lint`), 88/88 unit tests passing across 11 suites (`npm test`).
-- **Live Deployment**: Version 170 (`@170`) deployed to pinned production ID `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
-- **Verified in Chrome via CDP**:
-  - Full 3-column binder UI (Tasks, Schedule, Notes) renders cleanly and completely.
-  - Circled-D (`Ⓓ`) glyph displays properly in status buttons.
-  - Priority dropdown ("Priority A/B/C") displays without text clipping.
-  - Add task `[+]` button is vertically centered.
-  - Console syntax errors: **0**.
-- **Dual-Environment Promotion Status**:
-  - `Day Planner HOME`: active mastercopy at Version 170 (`@170`).
-  - `Day-Planner-WORK`: Version 7 (`@7`) promoted via `npm run push:work`. Bumped version badge to v3.0 in `About.html`. Production deployment confirmed operational under GSA account.
-  - Slash command `/push-work` wired across `.agents/commands/`, `.claude/commands/`, and `.kilo/workflows/`.
-- **Enforcement Pipeline**:
-  - `npm run check:gas-safe-chars` tests [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html) for any literal `//` or comment apostrophes via `acorn`.
-  - Wired into `npm run lint` and executable [`.githooks/pre-commit`](file:///home/mike/projects/day-planner/.githooks/pre-commit).
+- **Repository Branch**: `pure-gas-main` (clean working tree).
+- **Latest Commit**: [`c957ba2`](file:///home/mike/projects/day-planner) (`fix(ui): remove bulky button pill around star toggle in tasks column`).
+- **Pre-Flight Verification**: Passed cleanly before handoff generation:
+  - `npm run lint`: 0 errors.
+  - `npm test`: 88/88 unit tests passing across 11 suites.
+- **Live Deployment State**:
+  - HOME: Version 170 (`@170`) on pinned production deployment `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
+  - WORK: Version 7 (`@7`) promoted via `npm run push:work`.
 
 ---
 
 ### CONSTRAINTS & PREFERENCES
 
-1. **Conciseness & Directness**: Default to short, direct answers. Short is much more important than grammar. Drop opening pleasantries and wrap-up summaries. Lead with the answer, provide code and detail only when needed, and stop immediately when done. Push back directly when the user's premise is flawed.
+1. **Conciseness & Directness**: Default to short, direct answers. Short is much more important than grammar. Drop opening pleasantries and wrap-up summaries. Lead with the answer, provide code and detail only when needed, and stop immediately when done.
 2. **Salutation**: Start every reply with `⚡Mike:`.
 3. **Clickable Links**: All file paths and code symbols MUST use clickable markdown links with `file://` scheme.
-4. **No PR Theater**: Direct commits on working branch (`pure-gas-main`).
+4. **No PR Theater**: Direct commits on working branch.
 5. **Design System Constraints**: Day Planner aesthetic — parchment cream `#fcfbfa`, forest teal `#2d6a5a`, serif headers, strictly **no pills** ([`.agents/rules/no-pills.md`](file:///home/mike/projects/day-planner/.agents/rules/no-pills.md)).
 6. **Date Math**: Pure local year/month/day date arithmetic (`new Date(y, m - 1, d + delta)`), never `.toISOString()` on local dates to prevent UTC day-shift bugs.
-7. **OAuth Scopes**: Minimal `drive.file` and `drive.readonly` (for link title lookup and `getFolderById`). Never request broad `drive`. Never add `spreadsheets` scope when existing `documents` scope can be used.
+7. **HtmlService Silent Truncation Bug Prevention**: Apps Script's `HtmlService.createHtmlOutputFromFile().getContent()` silently truncates served lines at literal `//` inside strings and apostrophes in comments. Protocol URLs must ALWAYS be split (`'https:' + '/' + '/...'`), and comment prose must use typographic `’` ([`.agents/rules/gas-html-safe-chars.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-html-safe-chars.md)). Guarded by `npm run check:gas-safe-chars`.
 
 ---
 
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
-1. **Federal WORK Environment Access & Validation**:
-   - WORK script promoted to Version 6 via `npm run push:work` (target `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`).
-   - Test WORK dev endpoint on GSA machine: [`https://script.google.com/a/macros/gsa.gov/s/AKfycbw_OpkC0kTkrhkwI8AipH7jTeZeJfUYS7Xcy9BstG8/dev`](https://script.google.com/a/macros/gsa.gov/s/AKfycbw_OpkC0kTkrhkwI8AipH7jTeZeJfUYS7Xcy9BstG8/dev).
-   - In GSA Apps Script IDE, set Web App deployment to Version 6 (access restricted to `MYSELF` to satisfy GSA domain policy) to update the production `/exec` endpoint: [`https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec`](https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec).
-   - Verify native Google Workspace authorization without enterprise firewall/CORS blocks ([`.agents/rules/gas-environments.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-environments.md)).
+1. **Create and Checkout Branch `feat/modern-normalize`**:
+   - Branch out from current commit [`c957ba2`](file:///home/mike/projects/day-planner) on `pure-gas-main`.
+   - Command: `git checkout -b feat/modern-normalize`.
+   - Invariant: `pure-gas-main` remains intact and unaffected.
 
-2. **Run Log Google Doc Confirmation**:
-   - Open `Day Planner` Google Drive folder on HOME account.
-   - Verify [`Day Planner - Run Log`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L74-L125) Google Doc exists and logs sync runs cleanly.
+2. **Replace Pico CSS with `modern-normalize` & Baseline Styles**:
+   - In [`src/styles.css#L1`](file:///home/mike/projects/day-planner/src/styles.css#L1) and [`gas-app/Styles.html#L2`](file:///home/mike/projects/day-planner/gas-app/Styles.html#L2), replace `@import url('https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css');` with `@import url('https://cdn.jsdelivr.net/npm/modern-normalize@3.0.1/modern-normalize.min.css');`.
+   - Add baseline unopinionated form rules (`input`, `select`, `textarea`, `a`) for default borders, padding, and focus rings.
+   - Refactor the 39 occurrences of `--pico-*` variables across [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html) to native Franklin Covey tokens (`--binder-teal`, `--bg-parchment`, font stacks).
 
-3. **Production Release Tagging (`git tag`)**:
-   - Once WORK environment access and Run Log are validated, create and push the release tag:
-     `git tag v1.0-pure-gas && git push origin v1.0-pure-gas`.
+3. **Verify Light & Dark Mode Parity Across All 5 Views**:
+   - Inspect all 5 views (Daily Binder, Monthly Calendar, Master Tasks, Monthly Index, Future Planning Matrix) in both light mode (`#fcfbfa` parchment) and dark mode (`[data-theme="dark"]`).
+   - Confirm Universal Search (`Ctrl+K`), notes popovers, and status dropdowns render with 100% fidelity.
+   - Run `npm run lint` and `npm test`.
 
 ---
 
 ### IMMEDIATE NEXT STEP
 
-Validate Federal WORK environment access:
-1. Open WORK Dev endpoint in browser logged into GSA (`michael.hoffman@gsa.gov`):
-   👉 [**https://script.google.com/a/macros/gsa.gov/s/AKfycbw_OpkC0kTkrhkwI8AipH7jTeZeJfUYS7Xcy9BstG8/dev**](https://script.google.com/a/macros/gsa.gov/s/AKfycbw_OpkC0kTkrhkwI8AipH7jTeZeJfUYS7Xcy9BstG8/dev)
-2. In GSA Apps Script IDE (Deploy > Manage Deployments), point the Web app deployment to Version 6.
-3. Test production endpoint: [`https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec`](https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec).
+Create and switch to the new feature branch:
+```bash
+git checkout -b feat/modern-normalize
+```
+*(Pre-flight verification `npm run lint && npm test` already passed cleanly with 88/88 tests passing before this handoff).*
