@@ -49,7 +49,7 @@ Roll back the Day Planner project from an installable GitHub Pages PWA to a 100%
 
 - **Repository Branch**: `pure-gas-main`.
 - **Test & Lint Status**: 0 lint errors (`npm run lint`), 88/88 unit tests passing across 11 suites (`npm test`).
-- **Live Deployment**: Version 169 (`@169`) deployed to pinned production ID `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
+- **Live Deployment**: Version 170 (`@170`) deployed to pinned production ID `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
 - **Verified in Chrome via CDP**:
   - Full 3-column binder UI (Tasks, Schedule, Notes) renders cleanly and completely.
   - Circled-D (`Ⓓ`) glyph displays properly in status buttons.
@@ -57,8 +57,8 @@ Roll back the Day Planner project from an installable GitHub Pages PWA to a 100%
   - Add task `[+]` button is vertically centered.
   - Console syntax errors: **0**.
 - **Dual-Environment Promotion Status**:
-  - `Day Planner HOME`: active mastercopy at Version 169 (`@169`).
-  - `Day-Planner-WORK`: Version 6 (`@6`) promoted via `npm run push:work`. Web app access restricted to `MYSELF` for GSA enterprise domain compliance. Dev endpoint (`@HEAD`) live immediately; production endpoint awaiting version selection in GSA IDE.
+  - `Day Planner HOME`: active mastercopy at Version 170 (`@170`).
+  - `Day-Planner-WORK`: Version 7 (`@7`) promoted via `npm run push:work`. Bumped version badge to v3.0 in `About.html`. Production deployment confirmed operational under GSA account.
   - Slash command `/push-work` wired across `.agents/commands/`, `.claude/commands/`, and `.kilo/workflows/`.
 - **Enforcement Pipeline**:
   - `npm run check:gas-safe-chars` tests [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html) for any literal `//` or comment apostrophes via `acorn`.
