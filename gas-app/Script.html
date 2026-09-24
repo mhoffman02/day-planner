@@ -1,6 +1,6 @@
 <script>
   // Helper engine definitions bundled for GAS SPA client
-  const STATUS_LIST = ['•', '○', '✓', '→', 'X', 'D/✓'];
+  const STATUS_LIST = ['•', '○', '✓', '→', 'X', 'Ⓓ'];
 
   const STATUS_OPTIONS = [
     { value: '•', label: 'Open' },
@@ -8,7 +8,7 @@
     { value: '✓', label: 'Done' },
     { value: '→', label: 'Forward' },
     { value: 'X', label: 'Canceled' },
-    { value: 'D/✓', label: 'Delegated (Done)' }
+    { value: 'Ⓓ', label: 'Delegated (Done)' }
   ];
 
   function isValidStatus(status) {

@@ -215,7 +215,7 @@
                           </div>
                         </div>
                       </td>
-                      <td class="task-title-cell" :class="{ 'task-canceled': task.status === 'X', 'task-done': task.status === '✓' || task.status === 'D/✓' }">
+                      <td class="task-title-cell" :class="{ 'task-canceled': task.status === 'X', 'task-done': task.status === '✓' || task.status === 'Ⓓ' || task.status === 'D/✓' }">
                         <span class="star-toggle" :class="{ 'is-starred': task.starred }" @click.stop="toggleTaskStar(task)"
                               role="button" tabindex="0" @keydown.enter.stop="toggleTaskStar(task)"
                               :aria-label="task.starred ? 'Unstar task' : 'Star task'" x-text="task.starred ? '★' : '☆'"></span>

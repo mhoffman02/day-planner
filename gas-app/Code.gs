@@ -652,7 +652,7 @@ function syncWorkspaceChanges() {
           }
         }
 
-        var isDone = task.status === '✓';
+        var isDone = task.status === '✓' || task.status === 'Ⓓ' || task.status === 'D/✓';
         var formattedTitle = isDone ? '[✓] ' + task.title : task.title;
 
         if (linkedEvt) {
@@ -676,10 +676,11 @@ function syncWorkspaceChanges() {
   }
 }
 
-var TASK_STATUS_MARKER_RE = /^<!--dp-status:(.+?)-->\n?/;
-var TASK_EXTRA_STATUSES = ['○', '→', 'X', 'D/✓'];
+var TASK_STATUS_MARKER_RE = /(?:^<!--dp-status:(.+?)-->\n?|\[Status:\s*([^\]]+)\]\n?)/m;
+var TASK_EXTRA_STATUSES = ['○', '→', 'X', 'Ⓓ'];
 var DP_TOKEN_LINE_RE = /^<!--dp-(?:status|meta):.*?-->\n?/gm;
 var TASK_META_MARKER_RE = /<!--dp-meta:(.*?)-->\n?/;
+var DP_HUMAN_TAGS_RE = /\[(?:Category|Starred|Master|MovedTo|SourceMaster|Status):.*?\]\n?/gi;
 
 /**
  * Strips the hidden status marker line from a Task's notes, if present.
@@ -687,16 +688,22 @@ var TASK_META_MARKER_RE = /<!--dp-meta:(.*?)-->\n?/;
  * @returns {string} Notes with any status marker line removed.
  */
 function stripTaskStatusMarker(notes) {
-  return (notes || '').replace(TASK_STATUS_MARKER_RE, '');
+  return (notes || '')
+    .replace(/^<!--dp-status:.+?-->\n?/gm, '')
+    .replace(/\[Status:\s*[^\]]+\]\n?/gi, '')
+    .trim();
 }
 
 /**
- * Strips all hidden dp-status and dp-meta markers from notes for display in UI.
+ * Strips all hidden dp-status, dp-meta markers and bracketed metadata tags from notes for display in UI.
  * @param {string} notes Raw notes field from a Google Task.
  * @returns {string} Clean user notes.
  */
 function stripDpTokens(notes) {
-  return (notes || '').replace(DP_TOKEN_LINE_RE, '').trim();
+  return (notes || '')
+    .replace(DP_TOKEN_LINE_RE, '')
+    .replace(DP_HUMAN_TAGS_RE, '')
+    .trim();
 }
 
 /**
@@ -707,52 +714,99 @@ function stripDpTokens(notes) {
  */
 function encodeTaskStatusNotes(status, existingNotes) {
   var rest = stripTaskStatusMarker(existingNotes);
-  if (TASK_EXTRA_STATUSES.indexOf(status) === -1) {
+  if (TASK_EXTRA_STATUSES.indexOf(status) === -1 && status !== 'D/✓') {
     return rest;
   }
-  var marker = '<!--dp-status:' + status + '-->';
-  return rest ? marker + '\n' + rest : marker;
+  var cleanStatus = status === 'D/✓' ? 'Ⓓ' : status;
+  var marker = '[Status: ' + cleanStatus + ']';
+  return rest ? rest + '\n\n' + marker : marker;
 }
 
 /**
  * Derives the app-facing status glyph for a Google Task.
  * @param {object} googleTask Task resource from the Tasks API.
- * @returns {string} One of '•', '○', '✓', '→', 'X', 'D/✓'.
+ * @returns {string} One of '•', '○', '✓', '→', 'X', 'Ⓓ'.
  */
 function deriveTaskStatus(googleTask) {
-  var match = (googleTask.notes || '').match(TASK_STATUS_MARKER_RE);
-  if (match && TASK_EXTRA_STATUSES.indexOf(match[1]) !== -1) {
-    return match[1];
+  var notes = googleTask.notes || '';
+  var match = notes.match(TASK_STATUS_MARKER_RE);
+  if (match) {
+    var raw = (match[1] || match[2] || '').trim();
+    if (raw === 'D/✓' || raw === 'Ⓓ') return 'Ⓓ';
+    if (TASK_EXTRA_STATUSES.indexOf(raw) !== -1) return raw;
   }
   return googleTask.status === 'completed' ? '✓' : '•';
 }
 
 /**
- * Decodes the hidden app-metadata blob from a Task's notes.
+ * Decodes the app-metadata blob from a Task's notes.
+ * Supports legacy JSON <!--dp-meta:...--> and human-readable [Category: ...] tags.
  * @param {string} notes Raw notes field from a Google Task.
  * @returns {object} Parsed metadata object, or {} if absent/unparseable.
  */
 function decodeTaskMeta(notes) {
-  var match = (notes || '').match(TASK_META_MARKER_RE);
-  if (!match) return {};
-  try {
-    return JSON.parse(match[1]);
-  } catch {
-    return {};
+  if (!notes) return {};
+  var match = notes.match(TASK_META_MARKER_RE);
+  if (match) {
+    try {
+      return JSON.parse(match[1]);
+    } catch {
+      // Fall through to human tag parsing
+    }
   }
+  var meta = {};
+  var catMatch = notes.match(/\[Category:\s*([^\]]+)\]/i);
+  if (catMatch) meta.category = catMatch[1].trim();
+  var starMatch = notes.match(/\[Starred\]/i);
+  if (starMatch) meta.starred = true;
+  var masterMatch = notes.match(/\[Master\]/i);
+  if (masterMatch) meta.master = true;
+  var movedMatch = notes.match(/\[MovedTo:\s*([^,\]]+)(?:,\s*id:\s*([^\]]+))?\]/i);
+  if (movedMatch) {
+    meta.movedTo = movedMatch[1].trim();
+    if (movedMatch[2]) meta.movedTaskId = movedMatch[2].trim();
+  }
+  var srcMatch = notes.match(/\[SourceMaster:\s*([^\]]+)\]/i);
+  if (srcMatch) meta.sourceMasterId = srcMatch[1].trim();
+  return meta;
 }
 
 /**
  * Computes the notes value to persist after merging metaPatch into existing metadata.
+ * Omits metadata tags entirely when all properties are defaults and no custom tags are needed.
  * @param {string} existingNotes Current notes field on the task before this update.
  * @param {object} metaPatch Fields to merge into the existing metadata object.
  * @returns {string} New notes value to send in the patch.
  */
 function encodeTaskMeta(existingNotes, metaPatch) {
   var merged = Object.assign({}, decodeTaskMeta(existingNotes), metaPatch);
-  var rest = (existingNotes || '').replace(TASK_META_MARKER_RE, '');
-  var marker = '<!--dp-meta:' + JSON.stringify(merged) + '-->';
-  return rest ? marker + '\n' + rest : marker;
+  var rest = (existingNotes || '')
+    .replace(TASK_META_MARKER_RE, '')
+    .replace(/\[(?:Category|Starred|Master|MovedTo|SourceMaster):.*?\]\n?/gi, '')
+    .trim();
+
+  var tags = [];
+  if (merged.category && merged.category !== 'General') {
+    tags.push('[Category: ' + merged.category + ']');
+  }
+  if (merged.starred) {
+    tags.push('[Starred]');
+  }
+  if (merged.master) {
+    tags.push('[Master]');
+  }
+  if (merged.movedTo) {
+    tags.push(merged.movedTaskId ? '[MovedTo: ' + merged.movedTo + ', id: ' + merged.movedTaskId + ']' : '[MovedTo: ' + merged.movedTo + ']');
+  }
+  if (merged.sourceMasterId) {
+    tags.push('[SourceMaster: ' + merged.sourceMasterId + ']');
+  }
+
+  if (tags.length === 0) {
+    return rest;
+  }
+  var tagStr = tags.join(' ');
+  return rest ? rest + '\n\n' + tagStr : tagStr;
 }
 
 /**
@@ -1278,7 +1332,7 @@ function updateDailyTask(dateStr, taskId, updates) {
       patch.title = updates.title;
     }
     if (updates && updates.status !== undefined) {
-      patch.status = (updates.status === '✓' || updates.status === 'D/✓') ? 'completed' : 'needsAction';
+      patch.status = (updates.status === '✓' || updates.status === 'Ⓓ' || updates.status === 'D/✓') ? 'completed' : 'needsAction';
       patch.notes = encodeTaskStatusNotes(updates.status, ensureCurrent().notes);
     }
     if (updates && updates.category !== undefined) {

@@ -54,8 +54,8 @@ describe('Task Engine Unit Tests', () => {
     assert.equal(getNextStatus('○'), '✓');
     assert.equal(getNextStatus('✓'), '→');
     assert.equal(getNextStatus('→'), 'X');
-    assert.equal(getNextStatus('X'), 'D/✓');
-    assert.equal(getNextStatus('D/✓'), '•');
+    assert.equal(getNextStatus('X'), 'Ⓓ');
+    assert.equal(getNextStatus('Ⓓ'), '•');
   });
 
   it('should validate direct status jumps against STATUS_LIST (isValidStatus)', () => {
@@ -193,7 +193,7 @@ describe('Task Engine Unit Tests', () => {
 
   it('getTaskSortValue() should rank status by STATUS_LIST order, unknown statuses last', () => {
     assert.equal(getTaskSortValue({ status: '•' }, 'status'), STATUS_LIST.indexOf('•'));
-    assert.equal(getTaskSortValue({ status: 'D/✓' }, 'status'), STATUS_LIST.indexOf('D/✓'));
+    assert.equal(getTaskSortValue({ status: 'Ⓓ' }, 'status'), STATUS_LIST.indexOf('Ⓓ'));
     assert.equal(getTaskSortValue({ status: 'bogus' }, 'status'), STATUS_LIST.length);
   });
 
