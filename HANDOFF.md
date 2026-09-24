@@ -76,8 +76,10 @@ Roll back the Day Planner project from an installable GitHub Pages PWA to a 100%
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
 1. **Federal WORK Environment Access & Validation**:
-   - Open production URL [`https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec) on locked-down WORK PC (`michael.hoffman@gsa.gov`).
-   - Verify native Google Workspace authorization without enterprise firewall/CORS blocks ([`.agents/rules/gas-environments.md#L1-L60`](file:///home/mike/projects/day-planner/.agents/rules/gas-environments.md#L1-L60)).
+   - WORK script promoted to Version 2 via `npm run push:work` (target `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`).
+   - Test WORK dev endpoint on GSA machine: [`https://script.google.com/a/macros/gsa.gov/s/AKfycbw_OpkC0kTkrhkwI8AipH7jTeZeJfUYS7Xcy9BstG8/dev`](https://script.google.com/a/macros/gsa.gov/s/AKfycbw_OpkC0kTkrhkwI8AipH7jTeZeJfUYS7Xcy9BstG8/dev).
+   - In GSA Apps Script IDE, set Web App deployment to Version 2 to update the production `/exec` endpoint: [`https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec`](https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec).
+   - Verify native Google Workspace authorization without enterprise firewall/CORS blocks ([`.agents/rules/gas-environments.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-environments.md)).
 
 2. **Run Log Google Doc Confirmation**:
    - Open `Day Planner` Google Drive folder on HOME account.
@@ -92,5 +94,7 @@ Roll back the Day Planner project from an installable GitHub Pages PWA to a 100%
 ### IMMEDIATE NEXT STEP
 
 Validate Federal WORK environment access:
-1. Open [`https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec) on your GSA machine (`michael.hoffman@gsa.gov`).
-2. Verify first-party Google Workspace authorization succeeds and the 3-column binder workspace renders.
+1. Open WORK Dev endpoint in browser logged into GSA (`michael.hoffman@gsa.gov`):
+   👉 [**https://script.google.com/a/macros/gsa.gov/s/AKfycbw_OpkC0kTkrhkwI8AipH7jTeZeJfUYS7Xcy9BstG8/dev**](https://script.google.com/a/macros/gsa.gov/s/AKfycbw_OpkC0kTkrhkwI8AipH7jTeZeJfUYS7Xcy9BstG8/dev)
+2. In GSA Apps Script IDE (Deploy > Manage Deployments), point the Web app deployment to Version 2.
+3. Test production endpoint: [`https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec`](https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec).

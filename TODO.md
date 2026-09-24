@@ -2,8 +2,16 @@
 
 ## Phase 6: Live Workspace UAT & Production Release
 
+- [x] **Setup Isolated Promotion Pipeline (HOME -> WORK)**:
+  - Created [`gas-app/.clasp-work.json`](file:///home/mike/projects/day-planner/gas-app/.clasp-work.json) and [`tools/promote-to-work.js`](file:///home/mike/projects/day-planner/tools/promote-to-work.js) (`npm run push:work`).
+  - Added pre-flight lint & test quality gates before promoting.
+  - Promoted Version 2 to WORK script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`.
+  - Wired into persistent memory (`MEMORY.md`, `promote_to_work_pipeline.md`) and `/push-work` command.
+
 - [ ] **Federal WORK Environment Access & Validation**:
-  - Open production URL [`https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec) on locked-down WORK PC (`michael.hoffman@gsa.gov`).
+  - Test WORK Dev Web App: [`https://script.google.com/a/macros/gsa.gov/s/AKfycbw_OpkC0kTkrhkwI8AipH7jTeZeJfUYS7Xcy9BstG8/dev`](https://script.google.com/a/macros/gsa.gov/s/AKfycbw_OpkC0kTkrhkwI8AipH7jTeZeJfUYS7Xcy9BstG8/dev).
+  - Point Web App deployment to Version 2 in GSA IDE.
+  - Verify production URL [`https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec`](https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec) on locked-down WORK PC (`michael.hoffman@gsa.gov`).
   - Verify first-party Google Workspace authorization without enterprise proxy blocks ([`.agents/rules/gas-environments.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-environments.md)).
 
 - [ ] **Run Log Google Doc Confirmation**:
