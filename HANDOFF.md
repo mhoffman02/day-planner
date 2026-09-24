@@ -11,7 +11,7 @@ Decouple Day Planner from Pico CSS v2 by replacing classless element hijacking w
 - **Zero-Opinion CSS Foundation**: Pico CSS v2 was stripped from [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css#L1) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html#L2) in favor of `modern-normalize@3.0.1`. Day Planner already owns and defines its complete dual-theme design system via custom CSS tokens (`--binder-teal`, `--bg-parchment`, `--border-line`). Pico CSS was only supplying element fallbacks while aggressively overriding raw `<button>`, `<article>`, and `[role="button"]` tags.
 - **Form Quick-Add Flex-Wrap Pattern**: On narrow task columns (<340px), `.task-priority-select` and `.task-input-field` previously forced `.task-quick-add-bar` past the column width because flex items default to `min-width: auto`. Setting `flex-wrap: wrap; width: 100%; box-sizing: border-box;` on `form.task-quick-add-bar`, `min-width: 0; flex: 0 0 auto;` on `.task-priority-select`, and `flex: 1 1 140px; min-width: 120px;` on `.task-input-field` allows seamless single-line display at normal widths and clean two-line wrapping in narrow viewports without button overflow.
 - **Dynamic Schedule Row Expansion**: In `section.schedule-list` (a flex column container with `max-height: 420px`), `.schedule-row` had default `flex-shrink: 1` and `min-height: 32px`, forcing rows to collapse to 32px when the 25 half-hourly slots exceeded container height. Setting `.schedule-row` to `flex: 0 0 auto; align-items: stretch; min-height: 36px;` ensures rows expand dynamically to fit all events without collapsing or bleeding into neighboring rows.
-- **Vertical Event Stacking**: In `.schedule-content`, replacing inline rendering with `display: flex; flex-direction: column; gap: 6px;` and giving `button.event-pill` full `width: 100%; max-width: 100%; box-sizing: border-box;` guarantees multiple appointments in a single slot (or all-day events at 7:00 AM) stack cleanly with distinct borders, icons, and zero text collision.
+- **Google Calendar Side-by-Side Overlapping Events**: In `.schedule-content`, configured `display: flex; flex-direction: row; gap: 6px; align-items: stretch;` with `flex: 1 1 0; min-width: 0;` on `button.event-pill`. Single events take 100% width, 2 overlapping events take 1/2 width each side-by-side, and 3 overlapping events take 1/3 width each with ellipsis truncation (`white-space: nowrap`), matching Google Calendar's multi-event layout.
 - **Active Clasp Target Invariant**: Active development target remains HOME mastercopy (`1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W`) in [`gas-app/.clasp.json`](file:///home/mike/projects/day-planner/gas-app/.clasp.json#L2). WORK (`1980roEKgkC_...`) is promoted only via `npm run push:work`.
 
 ---
@@ -19,9 +19,9 @@ Decouple Day Planner from Pico CSS v2 by replacing classless element hijacking w
 ### CURRENT STATE
 
 - **Repository Branch**: `feat/modern-normalize`.
-- **Latest Commit**: [`7f8e432`](file:///home/mike/projects/day-planner) (`fix(ui): prevent task add button overflow and fix appointment row collapse and pill overlap`).
+- **Latest Commit**: [`7baf634`](file:///home/mike/projects/day-planner) (`feat(calendar): implement Google Calendar style side-by-side event stacking for overlapping appointments`).
 - **Live Deployment State**:
-  - HOME `@HEAD`: Deployed via `clasp push` with all style fixes live at [`https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev).
+  - HOME `@HEAD`: Deployed via `clasp push` with all style fixes and side-by-side layout live at [`https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev).
   - HOME Prod (`day-planner-v01`): Version 170 (`@170`).
   - WORK Prod (`Day-Planner-WORK`): Version 7 (`@7`).
 - **Pre-Flight Verification**: Passed cleanly before handoff generation:
