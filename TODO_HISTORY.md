@@ -1,5 +1,26 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-23 — Alpine Load Order, HtmlService String Truncation Resolution & Version 162 Deployment
+
+- [x] **Top-Level RPC Delegator Export (@160)**:
+  - Added top-level function declarations outside the IIFE in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) for all 18 `google.script.run` RPC methods (commit [`838ac23`](file:///home/mike/projects/day-planner)).
+  - Deployed Version 160 (`@160`).
+- [x] **Production Self-Test Diagnostics Verification**:
+  - Tested Production diagnostic suite at [`/exec?view=self-test`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec?view=self-test). Confirmed 100% HEALTHY / All 5 suites Pass (Drive, Tasks, Calendar, Docs, Sync Trigger).
+- [x] **Alpine.js Sandboxed-Iframe Load Order Fix (@161)**:
+  - Discovered and resolved Alpine race condition (per historical commit [`b86e451`](file:///home/mike/projects/day-planner)): moved Alpine CDN script tag (`alpinejs@3.14.8/dist/cdn.min.js`) synchronously to the bottom of `<body>` in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) after `include('Script')`, removing the deferred tag from [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html) so `plannerApp` registers before Alpine scans the DOM (commit [`d1d0c73`](file:///home/mike/projects/day-planner)).
+  - Added `_runRpc` readiness polling in `GASBridge` in [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html) to wait up to 3s for `window.google.script.run[method]` stubs to be synthesized by Apps Script.
+- [x] **HtmlService String Truncation Resolution (@162)**:
+  - Diagnosed `SyntaxError: Failed to execute 'write' on 'Document': Invalid or unexpected token` at `insertLineLink` on line 1381 of [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html): Google Apps Script's `HtmlService.createHtmlOutputFromFile().getContent()` has an interpreter bug that silently truncates lines at literal `//` inside strings (e.g. `'https://...'`) and at apostrophes in comments (per historical commit [`087b7ef`](file:///home/mike/projects/day-planner)).
+  - Restored [`tools/check-gas-script-html-safe-chars.js`](file:///home/mike/projects/day-planner/tools/check-gas-script-html-safe-chars.js) using `acorn` tokenization to detect truncation triggers.
+  - Fixed all 9 triggers across [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), splitting URL literals into `'https:' + '/' + '/...'` and sanitizing comments (commit [`28286f5`](file:///home/mike/projects/day-planner)).
+  - Deployed Version 162 (`@162`) to pinned production deployment `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
+  - User tested and verified in Chrome: Daily binder workspace (tasks, schedule, notes) loads cleanly and completely.
+- [x] **Linter & Pre-Commit Hook Integration**:
+  - Added [`.agents/rules/gas-html-safe-chars.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-html-safe-chars.md) and synced to [`.claude/rules/gas-html-safe-chars.md`](file:///home/mike/projects/day-planner/.claude/rules/gas-html-safe-chars.md).
+  - Added `"check:gas-safe-chars"` to [`package.json`](file:///home/mike/projects/day-planner/package.json) and chained into `npm run lint`.
+  - Created executable [`.githooks/pre-commit`](file:///home/mike/projects/day-planner/.githooks/pre-commit) to prevent committing or pushing files with literal `//` in strings or unsanitized comments (commit [`c4a292a`](file:///home/mike/projects/day-planner)).
+
 ## 2026-09-23 — Minimal doGet Baseline Testing, Domain Diagnosis & HOME Script Migration
 
 - [x] **Minimal `doGet()` Baseline Test Endpoint**:

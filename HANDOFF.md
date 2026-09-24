@@ -2,7 +2,7 @@
 
 ### OBJECTIVE
 
-Roll back the Day Planner project from an installable GitHub Pages PWA to a 100% pure Google Apps Script (GAS) hosted web application using baseline commit [`d294262`](https://github.com/mhoffman02/day-planner/commit/d294262). Systematically backport working features, bugfixes, and UI refinements running under native Google Workspace services (`CalendarApp`, `Tasks`, `DriveApp`), delivering an online-only digital day planner accessible across both personal HOME and locked-down federal WORK PCs.
+Roll back the Day Planner project from an installable GitHub Pages PWA to a 100% pure Google Apps Script (GAS) hosted web application using baseline commit [`d294262`](https://github.com/mhoffman02/day-planner/commit/d294262). Systematically backport working features, bugfixes, and UI refinements running under native Google Workspace services (`CalendarApp`, `Tasks`, `DriveApp`), delivering an online-only digital day planner accessible across both personal HOME (`mhoffman02@gmail.com`) and locked-down federal WORK (`michael.hoffman@gsa.gov`) Google Workspace accounts.
 
 ---
 
@@ -10,18 +10,12 @@ Roll back the Day Planner project from an installable GitHub Pages PWA to a 100%
 
 - **Baseline & Branch**: Rooted at baseline commit [`d294262`](https://github.com/mhoffman02/day-planner/commit/d294262) on branch `pure-gas-main`. Master preserved and tagged `PWA-installable-22-Sep-2026`.
 - **Zero External Hosting & Zero SW**: No GitHub Pages (`mhoffman02.github.io`), no `sw.js`, no client-side GIS OAuth tokens. The web app runs inside Google Apps Script (`script.google.com`) using first-party Workspace authentication (`Session.getActiveUser().getEmail()`).
-- **Online-Only Sandbox**: No complex offline outbox syncing needed in sandboxed GAS iframe.
-- **Native Auth Over Custom Gates**: No application-level whitelist/access gates. Pure GAS deployed with `executeAs: USER_ACCESSING` isolates Drive files and Google services under `drive.file` automatically.
-- **GAS IIFE Isolation**: Both [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) and [`gas-app/UnitTests.gs`](file:///home/mike/projects/day-planner/gas-app/UnitTests.gs) are strictly wrapped in `(function(global) { ... })(this);` with explicit global export blocks ([`.agents/rules/gas-namespace-iife.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-namespace-iife.md)).
-- **Top-Level Entry Point Delegators**: Entry points (`doGet()`, `onOpen()`, `syncWorkspaceChanges()`, etc.) are declared as top-level functions outside the IIFE so Google's AST parser discovers them for web app routing and IDE dropdown menus.
-- **Temporary Minimal Baseline Test**: Implemented minimal `doGet(e)` at the top of [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L23-L25) returning `<h1>Basic test</h1><p>Pass</p>` to isolate serving issues from render logic. Original complete implementation is preserved as [`doGet_original(e)`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L309-L373) and [`doGet_original_wrapper(e)`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L1839-L1841).
-- **Target HOME Script**: Active `clasp` target configured in [`gas-app/.clasp.json`](file:///home/mike/projects/day-planner/gas-app/.clasp.json#L2) to HOME script ID `1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W` owned by `mhoffman02@gmail.com`.
-- **Target WORK Script**: WORK script ID is `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq` owned by `michael.hoffman@gsa.gov`.
-- **Domain & Deployment Rules**:
-  - `clasp deploy` and `clasp push` require the authenticated user in `~/.clasprc.json` to have Editor/Owner permissions on the target script. Currently `~/.clasprc.json` is logged in as `michael.hoffman@gsa.gov`.
-  - Google Apps Script restricts `/dev` strictly to project editors/owners; non-owner accounts receive "Page not found".
-  - Production deployments (`/exec`) require redeploying the versioned deployment ID in the Apps Script IDE or via `clasp deploy` once authenticated as the owner.
-- **Pre-Flight Verified Handoff Pipeline**: All test and lint checks (`npm run lint && npm test`) MUST pass BEFORE initiating handoff updates.
+- **Target HOME Script**: Active `clasp` target locked in [`gas-app/.clasp.json`](file:///home/mike/projects/day-planner/gas-app/.clasp.json#L2) to HOME script ID `1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W` owned by `mhoffman02@gmail.com`. Never target WORK script ID without explicit instruction ([`.agents/rules/gas-environments.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-environments.md)).
+- **Pinned Production Deployment**: Target production deployment ID is `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q` (`day-planner-v01`). Always deploy using `clasp deploy -i AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
+- **GAS IIFE Isolation with Top-Level Delegators**: [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) and [`gas-app/UnitTests.gs`](file:///home/mike/projects/day-planner/gas-app/UnitTests.gs) are strictly wrapped in IIFEs for namespace hygiene ([`.agents/rules/gas-namespace-iife.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-namespace-iife.md)). All 18 client-callable `google.script.run` methods and IDE entry points are declared as top-level delegator functions outside the IIFE ([`gas-app/Code.gs#L1837-L1978`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L1837-L1978)) so Apps Script's AST parser discovers them.
+- **Synchronous Alpine Document Order**: In [`gas-app/Index.html#L855-L857`](file:///home/mike/projects/day-planner/gas-app/Index.html#L855-L857), `<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>` is loaded synchronously at the end of `<body>` immediately after `<?!= include('Script'); ?>` (no `defer`). This guarantees `plannerApp` registers before Alpine scans the DOM (commit [`b86e451`](file:///home/mike/projects/day-planner)).
+- **HtmlService Silent Truncation Bug Prevention**: Apps Script's `HtmlService.createHtmlOutputFromFile().getContent()` silently truncates served lines at literal `//` inside strings (e.g. `'https://...'`) and at apostrophes in comments (commit [`087b7ef`](file:///home/mike/projects/day-planner)). Protocol URLs must ALWAYS be split (`'https:' + '/' + '/...'`), and comment prose must use typographic `’`. Guarded by [`tools/check-gas-script-html-safe-chars.js`](file:///home/mike/projects/day-planner/tools/check-gas-script-html-safe-chars.js), wired into `npm run lint` and executable [`.githooks/pre-commit`](file:///home/mike/projects/day-planner/.githooks/pre-commit) ([`.agents/rules/gas-html-safe-chars.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-html-safe-chars.md)).
+- **RPC Readiness Polling**: [`gas-app/Script.html#L360-L377`](file:///home/mike/projects/day-planner/gas-app/Script.html#L360-L377) uses `_runRpc` to poll up to 3s for `window.google.script.run[method]` to finish initializing before invoking, preventing client-side `is not a function` race conditions.
 - **No-Pills Design Policy**: Strictly enforce [`.agents/rules/no-pills.md`](file:///home/mike/projects/day-planner/.agents/rules/no-pills.md) — 4px button border radii, flat underline active tab indicator (`border-bottom: 3px solid #58bfa2`), zero stadiums/capsules.
 
 ---
@@ -48,15 +42,15 @@ Roll back the Day Planner project from an installable GitHub Pages PWA to a 100%
 
 ### CURRENT STATE
 
-- **Repository**: Branch `pure-gas-main`.
+- **Repository Branch**: `pure-gas-main`.
 - **Test & Lint Status**: 0 lint errors (`npm run lint`), 88/88 unit tests passing across 11 suites (`npm test`).
-- **Production Deployment**: Version 162 (`@162`) deployed to pinned production ID `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
-- **Live Verification**:
-  - Production Self-Test diagnostics: 100% HEALTHY / All 5 suites Pass.
-  - Production Web App: Verified loaded cleanly in Chrome — digital binder workspace populated without errors.
-- **Root Cause & Guard**:
-  - Fixed Apps Script `HtmlService` silent truncation bug caused by literal `//` in string literals (e.g. `https://`) and apostrophes in comments.
-  - Enforced via [`tools/check-gas-script-html-safe-chars.js`](file:///home/mike/projects/day-planner/tools/check-gas-script-html-safe-chars.js), wired into `npm run lint` and executable [`.githooks/pre-commit`](file:///home/mike/projects/day-planner/.githooks/pre-commit).
+- **Live Deployment**: Version 162 (`@162`) deployed to pinned production ID `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
+- **Verified in Chrome**:
+  - Self-Test Diagnostics: 100% HEALTHY / All 5 suites Pass (Drive, Tasks, Calendar, Docs, Sync Trigger).
+  - Production Web App: Digital binder daily workspace (tasks, schedule, notes) loads cleanly and completely.
+- **Enforcement Pipeline**:
+  - `npm run check:gas-safe-chars` tests [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html) for any literal `//` or comment apostrophes via `acorn`.
+  - Wired into `npm run lint` and executable [`.githooks/pre-commit`](file:///home/mike/projects/day-planner/.githooks/pre-commit).
 
 ---
 
@@ -74,20 +68,24 @@ Roll back the Day Planner project from an installable GitHub Pages PWA to a 100%
 
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
-1. **2-Way Sync Verification on Production Web App**:
-   - Create a task or appointment in the web app and verify it syncs to Google Tasks / Google Calendar.
-   - Verify `Day Planner - Run Log` document auto-created in Google Drive `Day Planner` folder.
-2. **Release Tagging & Work Environment Validation**:
-   - Verify access on locked-down federal WORK PC using the production URL [`/exec`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec).
-   - Tag git release: `git tag v1.0-pure-gas && git push origin v1.0-pure-gas`.
-3. **Desktop Shortcut Verification ("Open as Window")**:
-   - Follow installation guide in [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html) on Chrome and Edge.
-   - Verify standalone window title bar, icon resolution, and persistent authentication across restarts.
+1. **Live Workspace 2-Way Sync Verification**:
+   - Test adding, completing, and rescheduling tasks in the production UI: [`gas-app/Script.html#L1120-L1145`](file:///home/mike/projects/day-planner/gas-app/Script.html#L1120-L1145) (`loadDayData`), [`gas-app/Script.html#L1435-L1460`](file:///home/mike/projects/day-planner/gas-app/Script.html#L1435-L1460) (`addDailyTask`).
+   - Confirm bidirectional reconciliation with live Google Tasks and Google Calendar via backend sync engine [`gas-app/Code.gs#L400-L520`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L400-L520) (`syncWorkspaceChanges()`).
+   - Confirm `Day Planner - Run Log` Google Doc is created and appended in the Day Planner Drive folder ([`gas-app/Code.gs#L74-L125`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L74-L125)).
+
+2. **Federal WORK Environment Access & Validation**:
+   - Open production URL [`https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec) on locked-down WORK PC (`michael.hoffman@gsa.gov`).
+   - Verify native Google Workspace authorization without enterprise firewall/CORS blocks ([`.agents/rules/gas-environments.md#L1-L60`](file:///home/mike/projects/day-planner/.agents/rules/gas-environments.md#L1-L60)).
+
+3. **Production Release Tagging (`git tag`)**:
+   - Once 2-way sync and WORK environment access are verified, create and push the release tag:
+     `git tag v1.0-pure-gas && git push origin v1.0-pure-gas`.
 
 ---
 
 ### IMMEDIATE NEXT STEP
 
-Verify live 2-way sync:
-1. Add a test task in the production daily workspace: [`/exec`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec).
-2. Confirm the task reflects in Google Tasks and triggers sync cleanly.
+Verify live 2-way sync in the Production Web App:
+1. Open [`https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec) in Chrome.
+2. Add a new task (e.g. `[A1] Test Live Sync`) under Today's Task List.
+3. Check Google Tasks on mobile/web to confirm the task appears under the default task list.

@@ -2,21 +2,17 @@
 
 ## Phase 6: Live Workspace UAT & Production Release
 
-- [x] **Verify Web App on HOME Script (`@HEAD`)**:
-  - Pushed latest codebase to HOME script ID `1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W`.
-  - Tested HOME Dev Web App endpoint [`/dev`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev) in Chrome (signed into `mhoffman02@gmail.com`). Confirmed full digital binder UI loads cleanly.
+- [ ] **Live Workspace 2-Way Sync Verification**:
+  - Create a test daily task and verify bidirectional reflection in Google Tasks.
+  - Create/edit an appointment and verify reflection in Google Calendar.
+  - Verify `Day Planner - Run Log` Google Doc auto-creation and log appending in `Day Planner` Drive folder.
 
-- [x] **Production Release Deployment (`clasp deploy`)**:
-  - Updated production deployment `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q` to Version 162 (`@162`).
-  - Fixed Apps Script `HtmlService` silent truncation bug by eliminating literal `//` in URL strings (split as `'https:' + '/' + '/...'`) and sanitizing comment apostrophes per commit `087b7ef`. Restored `tools/check-gas-script-html-safe-chars.js` guard.
+- [ ] **Federal WORK Environment Access & Validation**:
+  - Open production URL [`https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec) on locked-down WORK PC (`michael.hoffman@gsa.gov`).
+  - Verify first-party Google Workspace authorization and permissions.
 
-- [ ] **Live Workspace UAT on Web App Endpoint**:
-  > ⚠️ NEVER use `/a/macros/gsa.gov/` — consumer script, enterprise proxy returns 404 before `doGet()` runs.
-  - [x] Run Self-Test diagnostics: [`/exec?view=self-test`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec?view=self-test) — **100% HEALTHY / All Pass** (Drive, Tasks, Calendar, Docs, Sync Trigger).
-  - [x] Verify daily binder workspace (tasks, appointments, notes) loads cleanly in production [`/exec`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec) — **Passed** in Chrome (Version 162).
-  - [ ] Verify 2-way sync with live Google Calendar and Google Tasks.
-  - [ ] Verify Google Doc run-log (`Day Planner - Run Log`) created inside Day Planner folder.
-  - [ ] Test on federal locked-down WORK environment.
+- [ ] **Production Release Tagging (`git tag`)**:
+  - Tag git release: `git tag v1.0-pure-gas && git push origin v1.0-pure-gas`.
 
 - [ ] **Desktop Shortcut Verification ("Open as Window")**:
   - Follow installation guide in [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html) on Chrome and Edge.
