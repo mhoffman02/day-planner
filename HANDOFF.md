@@ -2,16 +2,16 @@
 
 ### OBJECTIVE
 
-Decouple Day Planner from Pico CSS v2 by replacing classless element hijacking with `modern-normalize@3.0.1` and self-contained Franklin Covey design tokens on branch `feat/modern-normalize`. Resolve all visual regressions, including Tasks add button floating out of narrow columns and Appointment hourly rows collapsing/overlapping, before merging back into `pure-gas-main` and deploying to HOME and WORK.
+Implement user-approved Phase 8 productivity UX enhancements on branch `feat/modern-normalize`: (1) a letterpress segmented priority selector `[ A | B | C ]` with single `[+]` button and sticky `Enter` key submission (Proposal B), and (2) 1-click Column Focus Mode (`open_in_full` / `close_fullscreen`) for Tasks, Appointments, and Daily Notes columns. Once verified, fast-forward merge `feat/modern-normalize` into `pure-gas-main` and deploy to HOME (`@171`) and WORK.
 
 ---
 
 ### KEY DECISIONS
 
-- **Zero-Opinion CSS Foundation**: Pico CSS v2 was stripped from [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css#L1) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html#L2) in favor of `modern-normalize@3.0.1`. Day Planner already owns and defines its complete dual-theme design system via custom CSS tokens (`--binder-teal`, `--bg-parchment`, `--border-line`). Pico CSS was only supplying element fallbacks while aggressively overriding raw `<button>`, `<article>`, and `[role="button"]` tags.
-- **Form Quick-Add Flex-Wrap Pattern**: On narrow task columns (<340px), `.task-priority-select` and `.task-input-field` previously forced `.task-quick-add-bar` past the column width because flex items default to `min-width: auto`. Setting `flex-wrap: wrap; width: 100%; box-sizing: border-box;` on `form.task-quick-add-bar`, `min-width: 0; flex: 0 0 auto;` on `.task-priority-select`, and `flex: 1 1 140px; min-width: 120px;` on `.task-input-field` allows seamless single-line display at normal widths and clean two-line wrapping in narrow viewports without button overflow.
-- **Dynamic Schedule Row Expansion**: In `section.schedule-list` (a flex column container with `max-height: 420px`), `.schedule-row` had default `flex-shrink: 1` and `min-height: 32px`, forcing rows to collapse to 32px when the 25 half-hourly slots exceeded container height. Setting `.schedule-row` to `flex: 0 0 auto; align-items: stretch; min-height: 36px;` ensures rows expand dynamically to fit all events without collapsing or bleeding into neighboring rows.
-- **Google Calendar Side-by-Side Overlapping Events**: In `.schedule-content`, configured `display: flex; flex-direction: row; gap: 6px; align-items: stretch;` with `flex: 1 1 0; min-width: 0;` on `button.event-pill`. Single events take 100% width, 2 overlapping events take 1/2 width each side-by-side, and 3 overlapping events take 1/3 width each with ellipsis truncation (`white-space: nowrap`), matching Google Calendar's multi-event layout.
+- **Proposal B Segmented Priority Selector**: Rather than 3 separate submit buttons (which breaks the `Enter` key default action and causes Fitts's Law touch misclicks), decouple priority *selection* from *submission*. Replace `<select class="task-priority-select">` with compact letterpress stamp tabs `[ A | B | C ]` on the left of the input, keeping a single `[+]` submit button on the right. Active states are color-coded in authentic Franklin Covey tones (Brick Red `#dc2626` for A, Warm Ochre `#d97706` for B, Binder Teal `#2d6a5a` for C). The component remembers the last-used priority for rapid bulk task entry, and typing a title then hitting `Enter` immediately submits using the active priority.
+- **Ephemeral Column Focus Mode (Zero `localStorage` Corruption)**: Expanding a column to 100% width must NEVER overwrite `localStorage['dayPlannerColumnWidths']`. Doing so would permanently erase user drag customizations if the tab is refreshed or closed while maximized. Instead, manage `maximizedColumn: 'tasks' | 'appointments' | 'notes' | null` purely in Alpine state, applying `.has-maximized-column` to the spread wrapper and `.is-maximized` to the active column. While active, the other 2 columns and both resizers are set to `display: none;`, and pressing `Escape` collapses back to the preserved `localStorage` widths.
+- **Standard Panes Iconography**: Use standard Material Symbols `open_in_full` (expand) and `close_fullscreen` (restore) rather than horizontal double-arrows (`↔`), which conflict with the resizer's `col-resize` cursor.
+- **Google Calendar Side-by-Side Overlapping Events**: In [commit `7baf634`](file:///home/mike/projects/day-planner), `.schedule-content` was updated to `display: flex; flex-direction: row; gap: 6px; align-items: stretch;` with `flex: 1 1 0; min-width: 0;` on `button.event-pill`. 1 event takes 100% width, 2 overlapping events take 50% each side-by-side, and 3 take 33% each with clean ellipsis truncation.
 - **Active Clasp Target Invariant**: Active development target remains HOME mastercopy (`1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W`) in [`gas-app/.clasp.json`](file:///home/mike/projects/day-planner/gas-app/.clasp.json#L2). WORK (`1980roEKgkC_...`) is promoted only via `npm run push:work`.
 
 ---
@@ -21,7 +21,7 @@ Decouple Day Planner from Pico CSS v2 by replacing classless element hijacking w
 - **Repository Branch**: `feat/modern-normalize`.
 - **Latest Commit**: [`7baf634`](file:///home/mike/projects/day-planner) (`feat(calendar): implement Google Calendar style side-by-side event stacking for overlapping appointments`).
 - **Live Deployment State**:
-  - HOME `@HEAD`: Deployed via `clasp push` with all style fixes and side-by-side layout live at [`https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev).
+  - HOME `@HEAD`: Deployed via `clasp push` with all style fixes and side-by-side layout live at [https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev).
   - HOME Prod (`day-planner-v01`): Version 170 (`@170`).
   - WORK Prod (`Day-Planner-WORK`): Version 7 (`@7`).
 - **Pre-Flight Verification**: Passed cleanly before handoff generation:
@@ -37,7 +37,7 @@ Decouple Day Planner from Pico CSS v2 by replacing classless element hijacking w
 2. **Salutation**: Start every reply with `⚡Mike:`.
 3. **Clickable Links**: All file paths and code symbols MUST use clickable markdown links with `file://` scheme.
 4. **No PR Theater**: Direct commits on working branch.
-5. **Design System Constraints**: Day Planner aesthetic — parchment cream `#fcfbfa`, forest teal `#2d6a5a`, serif headers, strictly **no pills** ([`.agents/rules/no-pills.md`](file:///home/mike/projects/day-planner/.agents/rules/no-pills.md)).
+5. **Design System Constraints**: Day Planner aesthetic — parchment cream `#fcfbfa`, forest teal `#2d6a5a`, serif headers, strictly **no pills** ([`.agents/rules/no-pills.md`](file:///home/mike/projects/day-planner/.agents/rules/no-pills.md)). Use crisp 2px border radius for stamps and tabs.
 6. **Apps Script Safe Characters**: Protocol URLs must ALWAYS be split (`'https:' + '/' + '/...'`), and comment prose must use typographic `’` ([`.agents/rules/gas-html-safe-chars.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-html-safe-chars.md)). Guarded by `npm run check:gas-safe-chars`.
 7. **Dual-Environment Isolation**: HOME is mastercopy; WORK is strictly production `/exec` promoted via `npm run push:work` ([`.agents/rules/gas-environments.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-environments.md)).
 
@@ -45,33 +45,40 @@ Decouple Day Planner from Pico CSS v2 by replacing classless element hijacking w
 
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
-1. **User Verification & Branch Merge (`feat/modern-normalize` -> `pure-gas-main`)**:
-   - Check live dev web app at [`https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev`](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev).
-   - Confirm Tasks column `[+]` button stays inside column bounds when resized.
-   - Confirm Appointment rows expand cleanly to fit all events and stack vertically without overlapping.
-   - Once approved by Mike, fast-forward merge into `pure-gas-main`:
+1. **Implement Segmented Priority Selector (`Proposal B`)**:
+   - In [`gas-app/Index.html#L160-L171`](file:///home/mike/projects/day-planner/gas-app/Index.html#L160-L171), replace `<select class="task-priority-select">` with a segmented control containing 3 stamp buttons `[ A | B | C ]` bound to `newTaskPriorityGroup`.
+   - In [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html), add `.priority-segmented-group` and `.priority-segment-btn` with letterpress styling and active color tokens (`#dc2626` for A, `#d97706` for B, `#2d6a5a` for C).
+   - Ensure input text field retains `flex: 1` and `min-width: 0;`, and pressing `Enter` submits with the active priority tab.
+
+2. **Implement Column Focus / Maximize Mode**:
+   - In [`gas-app/Index.html#L153-L157`](file:///home/mike/projects/day-planner/gas-app/Index.html#L153-L157) (Tasks), [`#L251-L260`](file:///home/mike/projects/day-planner/gas-app/Index.html#L251-L260) (Appointments), and [`#L295-L338`](file:///home/mike/projects/day-planner/gas-app/Index.html#L295-L338) (Daily Notes), add maximize action button:
+     `<button type="button" class="btn-icon-subtle" @click="toggleMaximizeColumn('tasks')" :title="maximizedColumn === 'tasks' ? 'Restore Columns (Esc)' : 'Maximize Tasks'"><span class="material-symbols-outlined" x-text="maximizedColumn === 'tasks' ? 'close_fullscreen' : 'open_in_full'"></span></button>`.
+   - In [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html) and [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js), add `maximizedColumn: null`, `toggleMaximizeColumn(name)`, and global `Escape` key event listener.
+   - In [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html), add:
+     ```css
+     .two-page-spread.has-maximized-column .page-panel:not(.is-maximized) { display: none !important; }
+     .two-page-spread.has-maximized-column .column-resizer { display: none !important; }
+     .two-page-spread.has-maximized-column .page-panel.is-maximized { width: 100% !important; flex: 1 1 100% !important; }
+     ```
+
+3. **Verify, Merge to `pure-gas-main`, Release `@171`, and Promote to WORK**:
+   - Run `npm run lint && npm test`.
+   - Push to HOME dev endpoint with `clasp push` and verify live in Chrome.
+   - Fast-forward merge `feat/modern-normalize` to `pure-gas-main`:
      ```bash
-     git checkout pure-gas-main
-     git merge --ff-only feat/modern-normalize
+     git checkout pure-gas-main && git merge --ff-only feat/modern-normalize
      ```
    - Deploy new release version on HOME (`@171`) and promote to WORK via `npm run push:work`.
-
-2. **Federal WORK Environment Access & Validation**:
-   - Access production URL [`https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec`](https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec) on locked-down WORK PC (`michael.hoffman@gsa.gov`).
-   - Verify first-party Google Workspace authorization without enterprise proxy blocks.
-
-3. **Run Log Google Doc Confirmation & Production Tagging**:
-   - Open `Day Planner` Google Drive folder on HOME account.
-   - Verify [`Day Planner - Run Log`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L74-L125) Google Doc exists and logged sync executions.
-   - Once WORK environment and Run Log are validated:
-     `git tag v1.0-pure-gas && git push origin v1.0-pure-gas`.
-   - Verify standalone desktop shortcut ("Open as Window") from [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html).
 
 ---
 
 ### IMMEDIATE NEXT STEP
 
-Verify the live dev web app at [https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev) in both narrow Tasks and multi-appointment views, then execute the fast-forward merge onto `pure-gas-main`:
-```bash
-git checkout pure-gas-main && git merge --ff-only feat/modern-normalize
+Edit [`gas-app/Index.html#L160-L171`](file:///home/mike/projects/day-planner/gas-app/Index.html#L160-L171) to replace the priority `<select>` dropdown with the 3 segmented stamp buttons `[ A | B | C ]`:
+```html
+<div class="priority-segmented-group" role="radiogroup" aria-label="Task Priority">
+  <button type="button" class="priority-segment-btn" :class="{ 'active a': newTaskPriorityGroup === 'A' }" @click="newTaskPriorityGroup = 'A'">A</button>
+  <button type="button" class="priority-segment-btn" :class="{ 'active b': newTaskPriorityGroup === 'B' }" @click="newTaskPriorityGroup = 'B'">B</button>
+  <button type="button" class="priority-segment-btn" :class="{ 'active c': newTaskPriorityGroup === 'C' }" @click="newTaskPriorityGroup = 'C'">C</button>
+</div>
 ```
