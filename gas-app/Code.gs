@@ -462,6 +462,24 @@ function getValidatedRootFolder() {
     }
 
     // Auto-create "Day Planner" root folder if none exists
+    // Attempt 1: Advanced Drive Service (preferred under drive.file scope)
+    try {
+      if (typeof Drive !== 'undefined' && Drive.Files && Drive.Files.insert) {
+        var folderResource = {
+          title: 'Day Planner',
+          mimeType: 'application/vnd.google-apps.folder'
+        };
+        var created = Drive.Files.insert(folderResource);
+        if (created && created.id) {
+          userProps.setProperty('DAY_PLANNER_ROOT_FOLDER_ID', created.id);
+          return DriveApp.getFolderById(created.id);
+        }
+      }
+    } catch (driveInsertErr) {
+      console.warn('getValidatedRootFolder Drive.Files.insert notice: ' + driveInsertErr.toString());
+    }
+
+    // Attempt 2: DriveApp fallback
     try {
       var newFolder = DriveApp.createFolder('Day Planner');
       if (newFolder) {
@@ -514,25 +532,31 @@ function validateAndSaveFolderUrl(inputUrl) {
     var folder = DriveApp.getFolderById(extractedId);
     var folderName = folder.getName();
 
-    // Folder ownership validation: Day Planner refuses to connect a folder someone else merely shared
-    var isOwner = true;
+    // Folder ownership / capability validation: support Google Workspace enterprise domains
+    var isAuthorized = true;
     try {
       var owner = folder.getOwner();
       var currentUser = Session.getActiveUser().getEmail();
       if (owner && owner.getEmail() && currentUser) {
-        isOwner = (owner.getEmail().toLowerCase() === currentUser.toLowerCase());
+        isAuthorized = (owner.getEmail().toLowerCase() === currentUser.toLowerCase());
+      } else {
+        // In Google Workspace (e.g. GSA), folder.getOwner() often returns null or hides email.
+        // Check write capabilities via Drive API v2 if available.
+        if (typeof Drive !== 'undefined' && Drive.Files && Drive.Files.get) {
+          var meta = Drive.Files.get(extractedId, { fields: 'editable,userPermission(role)' });
+          isAuthorized = !meta || meta.editable || (meta.userPermission && (meta.userPermission.role === 'owner' || meta.userPermission.role === 'writer'));
+        }
       }
-    } catch (e) {
-      if (typeof Drive !== 'undefined' && Drive.Files && Drive.Files.get) {
-        var meta = Drive.Files.get(extractedId, { fields: 'owners(me)' });
-        isOwner = meta.owners && meta.owners.length > 0 && meta.owners.some(function(o) { return o.me; });
-      }
+    } catch (permErr) {
+      // In restricted enterprise environments, proceed if getFolderById succeeded
+      console.warn('validateAndSaveFolderUrl perm check notice: ' + permErr.toString());
+      isAuthorized = true;
     }
 
-    if (!isOwner) {
+    if (!isAuthorized) {
       return {
         success: false,
-        error: 'Folder is not owned by this account -- refusing to connect a shared folder as the notes store.'
+        error: 'Folder is not owned by or writable for this account.'
       };
     }
 
