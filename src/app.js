@@ -7,7 +7,8 @@ import {
   getNextStatus,
   isValidStatus,
   STATUS_OPTIONS,
-  sortTasksByColumn
+  sortTasksByColumn,
+  extractInlinePriority
 } from './taskEngine.js';
 import { executeUniversalSearch, flattenSearchResults } from './searchEngine.js';
 import { formatEventDescriptionHtml } from './calendarEngine.js';
@@ -265,7 +266,27 @@ Alpine.data('plannerApp', () => ({
 
       setupKeyboardShortcuts() {
         window.addEventListener('keydown', (e) => {
-          if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+          const keyLower = e.key ? e.key.toLowerCase() : '';
+          const isAlt = e.altKey && !e.ctrlKey && !e.metaKey;
+          const isCtrlShift = (e.ctrlKey || e.metaKey) && e.shiftKey;
+
+          if (isAlt || isCtrlShift) {
+            if (keyLower === 'a') {
+              e.preventDefault();
+              this.newTaskPriorityGroup = 'A';
+              this.focusTaskInput();
+            } else if (keyLower === 'b') {
+              e.preventDefault();
+              this.newTaskPriorityGroup = 'B';
+              this.focusTaskInput();
+            } else if (keyLower === 'c') {
+              e.preventDefault();
+              this.newTaskPriorityGroup = 'C';
+              this.focusTaskInput();
+            }
+          }
+
+          if ((e.ctrlKey || e.metaKey) && keyLower === 'k') {
             e.preventDefault();
             this.toggleSearchModal();
           } else if (e.key === 'Escape') {
@@ -284,6 +305,13 @@ Alpine.data('plannerApp', () => ({
             }
           }
         });
+      },
+
+      focusTaskInput() {
+        const input = document.querySelector('.task-input-field');
+        if (input) {
+          input.focus();
+        }
       },
 
       async trigger2WaySync() {
@@ -1225,11 +1253,25 @@ Alpine.data('plannerApp', () => ({
         this.monthlyGrid = days;
       },
 
+      handleTaskTitleInput() {
+        const val = this.newTaskTitle || '';
+        const match = val.match(/^#([abcABC])(?:\s*[:-]\s*|\s+|$)/);
+        if (match) {
+          this.newTaskPriorityGroup = match[1].toUpperCase();
+          if (match[0].length < val.length || /\s/.test(match[0])) {
+            this.newTaskTitle = val.replace(/^#([abcABC])(?:\s*[:-]\s*|\s+)/, '');
+          }
+        }
+      },
+
       async addDailyTask() {
-        if (!this.newTaskTitle.trim()) return;
+        const extracted = extractInlinePriority(this.newTaskTitle, this.newTaskPriorityGroup);
+        this.newTaskPriorityGroup = extracted.priorityGroup;
+        const taskTitle = extracted.cleanTitle;
+        if (!taskTitle) return;
         try {
           const existingCount = this.dailyTasks.length + 1;
-          const formattedTitle = formatTaskTitle(this.newTaskPriorityGroup, existingCount, this.newTaskTitle);
+          const formattedTitle = formatTaskTitle(this.newTaskPriorityGroup, existingCount, taskTitle);
           const newTask = await this.bridge.addDailyTask(this.selectedDate, formattedTitle);
           this.dailyTasks.push(newTask);
           this.newTaskTitle = '';

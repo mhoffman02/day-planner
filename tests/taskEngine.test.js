@@ -18,7 +18,8 @@ import {
   TASK_STATUSES,
   STATUS_LIST,
   STATUS_OPTIONS,
-  isValidStatus
+  isValidStatus,
+  extractInlinePriority
 } from '../src/taskEngine.js';
 
 describe('Task Engine Unit Tests', () => {
@@ -237,4 +238,53 @@ describe('Task Engine Unit Tests', () => {
     const sorted = sortTasksByColumn(tasks, 'title', 'asc');
     assert.equal(sorted[0].id, 't2');
   });
+
+  describe('extractInlinePriority', () => {
+    it('should extract #A, #B, #C and lower case #a, #b, #c priority prefixes', () => {
+      const resA = extractInlinePriority('#a Call vendor');
+      assert.equal(resA.priorityGroup, 'A');
+      assert.equal(resA.cleanTitle, 'Call vendor');
+
+      const resB = extractInlinePriority('#B Prepare presentation');
+      assert.equal(resB.priorityGroup, 'B');
+      assert.equal(resB.cleanTitle, 'Prepare presentation');
+
+      const resC = extractInlinePriority('#c File expense report');
+      assert.equal(resC.priorityGroup, 'C');
+      assert.equal(resC.cleanTitle, 'File expense report');
+    });
+
+    it('should support colon and dash separators (#A: / #b - )', () => {
+      const resColon = extractInlinePriority('#a: Call vendor');
+      assert.equal(resColon.priorityGroup, 'A');
+      assert.equal(resColon.cleanTitle, 'Call vendor');
+
+      const resDash = extractInlinePriority('#b - Prepare presentation');
+      assert.equal(resDash.priorityGroup, 'B');
+      assert.equal(resDash.cleanTitle, 'Prepare presentation');
+    });
+
+    it('should handle prefix only without title (#b)', () => {
+      const res = extractInlinePriority('#b');
+      assert.equal(res.priorityGroup, 'B');
+      assert.equal(res.cleanTitle, '');
+    });
+
+    it('should not extract priority from regular hashtag words (#accounting)', () => {
+      const res = extractInlinePriority('#accounting audit');
+      assert.equal(res.priorityGroup, 'A');
+      assert.equal(res.cleanTitle, '#accounting audit');
+    });
+
+    it('should retain default priority when no inline prefix exists', () => {
+      const res = extractInlinePriority('Regular task title', 'B');
+      assert.equal(res.priorityGroup, 'B');
+      assert.equal(res.cleanTitle, 'Regular task title');
+
+      const empty = extractInlinePriority('', 'C');
+      assert.equal(empty.priorityGroup, 'C');
+      assert.equal(empty.cleanTitle, '');
+    });
+  });
 });
+

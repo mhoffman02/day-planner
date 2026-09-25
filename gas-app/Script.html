@@ -35,6 +35,23 @@
     return trimmed;
   }
 
+  function extractInlinePriority(input, defaultPriority) {
+    const fallback = defaultPriority || 'A';
+    if (!input) return { priorityGroup: fallback, cleanTitle: '' };
+    const trimmed = input.trim();
+    const match = trimmed.match(/^#([abcABC])(?:\s*[:-]\s*|\s+|$)(.*)$/);
+    if (match) {
+      return {
+        priorityGroup: match[1].toUpperCase(),
+        cleanTitle: match[2].trim()
+      };
+    }
+    return {
+      priorityGroup: fallback,
+      cleanTitle: trimmed
+    };
+  }
+
   function getNextStatus(curr) {
     const idx = STATUS_LIST.indexOf(curr);
     if (idx === -1 || idx === STATUS_LIST.length - 1) return STATUS_LIST[0];
@@ -905,7 +922,27 @@
 
       setupKeyboardShortcuts() {
         window.addEventListener('keydown', (e) => {
-          if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+          const keyLower = e.key ? e.key.toLowerCase() : '';
+          const isAlt = e.altKey && !e.ctrlKey && !e.metaKey;
+          const isCtrlShift = (e.ctrlKey || e.metaKey) && e.shiftKey;
+
+          if (isAlt || isCtrlShift) {
+            if (keyLower === 'a') {
+              e.preventDefault();
+              this.newTaskPriorityGroup = 'A';
+              this.focusTaskInput();
+            } else if (keyLower === 'b') {
+              e.preventDefault();
+              this.newTaskPriorityGroup = 'B';
+              this.focusTaskInput();
+            } else if (keyLower === 'c') {
+              e.preventDefault();
+              this.newTaskPriorityGroup = 'C';
+              this.focusTaskInput();
+            }
+          }
+
+          if ((e.ctrlKey || e.metaKey) && keyLower === 'k') {
             e.preventDefault();
             this.toggleSearchModal();
           } else if (e.key === 'Escape') {
@@ -924,6 +961,13 @@
             }
           }
         });
+      },
+
+      focusTaskInput() {
+        const input = document.querySelector('.task-input-field');
+        if (input) {
+          input.focus();
+        }
       },
 
       async trigger2WaySync() {
@@ -1866,11 +1910,25 @@
         this.monthlyGrid = days;
       },
 
+      handleTaskTitleInput() {
+        const val = this.newTaskTitle || '';
+        const match = val.match(/^#([abcABC])(?:\s*[:-]\s*|\s+|$)/);
+        if (match) {
+          this.newTaskPriorityGroup = match[1].toUpperCase();
+          if (match[0].length < val.length || /\s/.test(match[0])) {
+            this.newTaskTitle = val.replace(/^#([abcABC])(?:\s*[:-]\s*|\s+)/, '');
+          }
+        }
+      },
+
       async addDailyTask() {
-        if (!this.newTaskTitle.trim()) return;
+        const extracted = extractInlinePriority(this.newTaskTitle, this.newTaskPriorityGroup);
+        this.newTaskPriorityGroup = extracted.priorityGroup;
+        const taskTitle = extracted.cleanTitle;
+        if (!taskTitle) return;
         try {
           const existingCount = this.dailyTasks.length + 1;
-          const formattedTitle = formatTaskTitle(this.newTaskPriorityGroup, existingCount, this.newTaskTitle);
+          const formattedTitle = formatTaskTitle(this.newTaskPriorityGroup, existingCount, taskTitle);
           const newTask = await this.bridge.addDailyTask(this.selectedDate, formattedTitle);
           this.dailyTasks.push(newTask);
           this.newTaskTitle = '';

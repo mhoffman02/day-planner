@@ -164,11 +164,11 @@
             <!-- Task Quick Add Form -->
             <form @submit.prevent="addDailyTask()" role="group" class="task-quick-add-bar">
               <div class="priority-segmented-group" role="radiogroup" aria-label="Task Priority">
-                <button type="button" class="priority-segment-btn" :class="{ 'active a': newTaskPriorityGroup === 'A' }" @click="newTaskPriorityGroup = 'A'" role="radio" :aria-checked="newTaskPriorityGroup === 'A'" aria-label="Priority A">A</button>
-                <button type="button" class="priority-segment-btn" :class="{ 'active b': newTaskPriorityGroup === 'B' }" @click="newTaskPriorityGroup = 'B'" role="radio" :aria-checked="newTaskPriorityGroup === 'B'" aria-label="Priority B">B</button>
-                <button type="button" class="priority-segment-btn" :class="{ 'active c': newTaskPriorityGroup === 'C' }" @click="newTaskPriorityGroup = 'C'" role="radio" :aria-checked="newTaskPriorityGroup === 'C'" aria-label="Priority C">C</button>
+                <button type="button" class="priority-segment-btn" :class="{ 'active a': newTaskPriorityGroup === 'A' }" @click="newTaskPriorityGroup = 'A'" role="radio" :aria-checked="newTaskPriorityGroup === 'A'" aria-label="Priority A" title="A: Top priority (Alt+A or #a)" accesskey="a">A</button>
+                <button type="button" class="priority-segment-btn" :class="{ 'active b': newTaskPriorityGroup === 'B' }" @click="newTaskPriorityGroup = 'B'" role="radio" :aria-checked="newTaskPriorityGroup === 'B'" aria-label="Priority B" title="B: Medium priority (Alt+B or #b)" accesskey="b">B</button>
+                <button type="button" class="priority-segment-btn" :class="{ 'active c': newTaskPriorityGroup === 'C' }" @click="newTaskPriorityGroup = 'C'" role="radio" :aria-checked="newTaskPriorityGroup === 'C'" aria-label="Priority C" title="C: Normal priority (Alt+C or #c)" accesskey="c">C</button>
               </div>
-              <input type="text" x-model="newTaskTitle" placeholder="Add task title (e.g. Call vendor)..." class="task-input-field" aria-label="New task description">
+              <input type="text" x-model="newTaskTitle" @input="handleTaskTitleInput()" placeholder="Add task title (e.g. Call vendor / #a Call vendor)..." class="task-input-field" aria-label="New task description">
               <button type="submit" class="btn-primary btn-add-task-round" aria-label="Add Task" title="Add Task">
                 <span class="material-symbols-outlined">add</span>
               </button>

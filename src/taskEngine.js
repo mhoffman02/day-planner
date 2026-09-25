@@ -82,6 +82,30 @@ export function parseTaskTitle(rawTitle = '') {
 }
 
 /**
+ * Extracts an inline priority hash prefix (e.g. "#A", "#b", "#c") from task input text.
+ * Requires the prefix to be separated by whitespace, punctuation (: or -), or end of string.
+ * Returns the detected priority group ('A', 'B', 'C') or defaultPriority, along with the cleaned title.
+ * @param {string} [input=''] Raw user task title input.
+ * @param {'A'|'B'|'C'} [defaultPriority='A'] Fallback priority group.
+ * @returns {{priorityGroup: 'A'|'B'|'C', cleanTitle: string}} Extracted priority and clean title.
+ */
+export function extractInlinePriority(input = '', defaultPriority = 'A') {
+  if (!input) return { priorityGroup: defaultPriority, cleanTitle: '' };
+  const trimmed = input.trim();
+  const match = trimmed.match(/^#([abcABC])(?:\s*[:-]\s*|\s+|$)(.*)$/);
+  if (match) {
+    return {
+      priorityGroup: match[1].toUpperCase(),
+      cleanTitle: match[2].trim()
+    };
+  }
+  return {
+    priorityGroup: defaultPriority,
+    cleanTitle: trimmed
+  };
+}
+
+/**
  * Formats task title with priority prefix.
  * @param {string|null} priorityGroup Priority group letter ('A', 'B', or 'C').
  * @param {number|null} sequence Priority sequence number (1-9).
