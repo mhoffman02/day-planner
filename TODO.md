@@ -1,55 +1,16 @@
 # Active Tasks (TODO)
 
-- [x] **Fix Tasks Status Popup Menu & Note Popover Bottom Clipping (commit `cffc7a6`)**:
-  - Implemented dynamic dropup detection for both the Status Menu (`spaceBelow < 275 && spaceAbove > spaceBelow || spaceBelow < 160`) and Note Popover (`spaceBelow < 180 && spaceAbove > spaceBelow || spaceBelow < 100`) across [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), preventing bottom clipping on rows near the end of the list without requiring user scrolling.
-  - Added `.dropup` (`bottom: calc(100% + 4px); top: auto;`) and `.dropdown-down` (`top: 100%; bottom: auto;`) classes to `.notes-popover` and `.status-menu` across [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css), [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html), [`index.html`](file:///home/mike/projects/day-planner/index.html), and [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html).
-  - Added viewport constraints (`max-height: min(240px, 40vh)` on `.notes-popover` and `max-height: min(320px, 80vh)` on `.status-menu`) with `overflow-y: auto`, `word-break: break-word`, elevated z-index (500 on popups, 200 on row), and guarded static CSS fallback (`tbody tr:nth-child(n+4):nth-last-child(-n+3)`) so short tables never push top rows into negative header space.
-- [x] **Add Runtime Environment JSDoc Headers & Golden Active Navbar Accent (commit `75cdeeb`)**:
-  - Added comprehensive JSDoc headers to [`index.html`](file:///home/mike/projects/day-planner/index.html) and [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) detailing the two runtime environments (Local Dev / Mock Server via ES modules vs Google Apps Script Production bundle via template includes).
-  - Replaced the minty accent (`#58bfa2`) with authentic Franklin gold-foil stamp color (`#d4a017`) on the active navbar tab indicator (`.segment-btn.active`) across [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html).
-  - Verified WCAG contrast compliance in [`tools/audit-wcag-responsive.js`](file:///home/mike/projects/day-planner/tools/audit-wcag-responsive.js) (6.12:1 on `#142e23`, passing WCAG AA).
-- [x] **Add Task Status Dropdown Delete Item & Update Delegated Label (commit `2d94772`)**:
-  - Added "Delete" item with trashcan icon (`<span class="material-symbols-outlined icon-14">delete</span>`) and separator to the Daily Tasks Status dropdown menu across [`index.html`](file:///home/mike/projects/day-planner/index.html) and [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html).
-  - Implemented `deleteDailyTask` in [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), [`src/gasBridge.js`](file:///home/mike/projects/day-planner/src/gasBridge.js), and [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) (`Tasks.Tasks.remove('@default', taskId)` / mock removal), removing the item entirely and triggering sync.
-  - Changed Tasks Status menu label from "Delegated (Done)" to "Delegated" across [`src/taskEngine.js`](file:///home/mike/projects/day-planner/src/taskEngine.js), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), and unit tests.
-  - Added unit test in [`tests/gasBridge.test.js`](file:///home/mike/projects/day-planner/tests/gasBridge.test.js) and [`tests/taskEngine.test.js`](file:///home/mike/projects/day-planner/tests/taskEngine.test.js) (99/99 unit tests passing).
-- [x] **Add Priority Button Hover Titles, Keyboard Shortcuts & Inline Prefix Parsing (commit `21a551d`)**:
-  - Added button hover titles (`title="A: Top priority (Alt+A or #a)"`, `title="B: Medium priority (Alt+B or #b)"`, `title="C: Normal priority (Alt+C or #c)"`) and `accesskey="a/b/c"`.
-  - Added global and field keyboard shortcuts for `Alt+A/B/C` and `Ctrl+Shift+A/B/C` that set the active priority group and auto-focus the task input field without conflicting with browser Select-All (`Ctrl+A`) or Copy (`Ctrl+C`).
-  - Added inline priority prefix detection: typing or pasting `#a`, `#b`, `#c` (with colon/dash/space separator) switches the active priority button and strips the prefix.
-  - Updated input placeholder to `Add task title (e.g. Call vendor / #a Call vendor)...`.
-  - Added unit test suite for `extractInlinePriority` in [`tests/taskEngine.test.js`](file:///home/mike/projects/day-planner/tests/taskEngine.test.js) (98/98 unit tests passing).
-- [x] **Fix Appointment Modal HTML/Plain-text Description & gCal Link 500 Error (commit `6f25dc2`)**:
-  - Implemented `formatEventDescriptionHtml`: HTML-bearing descriptions are sanitized (scripts, styles, event handlers, and unsafe protocols stripped; external links target new tab) and rendered via `x-html`; plain-text descriptions are escaped and wrapped in `<pre>` to preserve line breaks.
-  - Fixed gCal 500 error: `gas-app/Code.gs` now returns authentic event `htmlLink` via `Calendar.Events` or hand-built `base64url(bareId + ' ' + defaultCalId)`, eliminating broken `eventedit/<cleanId>` links.
-- [x] **Fix Status Popup Menu Clipping & Round Outer Priority Button Corners (commit `81d518d`)**:
-  - Set `overflow: visible` on `figure.table-container`, added dynamic dropup space detection (`spaceBelow < 220`) in `openStatusMenu` / `toggleStatusMenu`, added CSS nth-last-child dropup fallback, and elevated z-index on active task rows to prevent clipping.
-  - Rounded outer corners of Priority "A" (NW, SW: `border-top-left-radius: 5px; border-bottom-left-radius: 5px;`) and Priority "C" (NE, SE: `border-top-right-radius: 5px; border-bottom-right-radius: 5px;`), keeping inner shared borders flush.
-- [x] **Fix Task Note Popover Clipping via Cell Overflow Removal & Matching Dropup Threshold (commit `bd803ee`)**:
-  - Identified root cause of note popover bottom clipping: `td.task-title-cell` had `overflow-y: auto` and `max-height: calc(1.4em * 4)` (~80px), creating a clipping context for any absolute child regardless of positioning.
-  - Set `overflow: visible` and removed `max-height` from `.task-title-cell` in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html).
-  - Aligned note popover dropup threshold in `openNotesPopover` / `toggleNotesPopover` across [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html) to match Status Menu: `(spaceBelow < 275 && spaceAbove > spaceBelow) || spaceBelow < 160`.
-- [x] **Expand Appointment Modal by 33% & Support Google Meet Links (commit `6deca7e`)**:
-  - Expanded Appointment Detail modal dimensions by ~33%: width increased from 550px to 735px (`max-width: 735px; width: 92%;`) and height increased to `min-height: min(460px, 80vh);` (`.modal-description` increased to `max-height: min(420px, 50vh)` and `min-height: 180px`). Added subtle frame border and padding for clean reading.
-  - Added header close button (`.btn-icon-subtle`) in `.modal-header-spaced` for quick dismissal in addition to footer button and click-outside.
-  - Enhanced Google Meet link extraction across Google Calendar API v3 (`conferenceDataVersion: 1`, `fields` with `conferenceData`, `hangoutLink`, and fallback regex matching in `description` and `location`) and `CalendarApp` fallback in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs).
-  - Implemented `extractMeetLink` across [`src/calendarEngine.js`](file:///home/mike/projects/day-planner/src/calendarEngine.js), [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js), and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html).
-  - Added dedicated video meeting link row (`<p class="modal-detail-row modal-meet-row"><span class="material-symbols-outlined icon-18">videocam</span> <a class="modal-meet-link">...</a></p>`) in [`index.html`](file:///home/mike/projects/day-planner/index.html) and [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html), displaying the full meeting link while keeping the footer "Join Google Meet" action button active.
-  - Added unit test suite in [`tests/calendarEngine.test.js`](file:///home/mike/projects/day-planner/tests/calendarEngine.test.js) (106/106 unit tests passing across 13 suites).
-- [x] **Deploy to HOME Prod (`@184`)**:
-  - Created Version 184 and deployed to endpoint `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
-- [ ] **Deploy Version 25 on WORK Deployment `Version 3` (`9csO`)**:
-  - In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit), select deployment `Version 3` (`9csO`), edit, select **New version** (or Version 25), and click **Deploy**.
-- [ ] **Live Workspace UAT of Phase 9 & Ergonomic Fixes**:
-  - Verify Status popup menu opens without clipping on all tasks (including bottom rows) and drops up cleanly without scrolling.
-  - Verify Note hover popover opens upward on bottom rows without clipping and shows full note content.
-  - Verify active navbar tab shows golden (`#d4a017`) underline indicator instead of minty accent.
-  - Verify Status dropdown menu shows "Delegated" (without "(Done)") and "Delete" item with trashcan icon.
-  - Verify clicking "Delete" removes the task entirely from the list and Google Tasks backend.
-  - Verify Priority buttons show hover text and `Alt+A`, `Alt+B`, `Alt+C` hotkeys switch priority and focus task input.
-  - Verify typing `#a Call vendor` sets priority to A and creates the task with clean title `Call vendor`.
-  - Verify Priority buttons (A|B|C) show rounded outer corners on A and C.
-  - Verify appointment details modal renders HTML formatted descriptions with working new-tab links.
-  - Verify clicking [Open in gCal] opens the specific calendar event without 500 error.
+- [ ] **Deploy Version 26 on WORK Deployment `Version 3` (`9csO`)**:
+  - In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit), select deployment `Version 3` (`9csO`), edit, select **New version** (Version 26), and click **Deploy**.
+- [ ] **Live Workspace UAT of Master Tasks, Monthly Index & Month Picker**:
+  - Verify Master Tasks header displays "Master Tasks" across both local dev and production GAS web app.
+  - Verify Master Tasks quick add bar includes segmented priority buttons (`A` | `B` | `C`) with hover titles, `Alt+A/B/C` shortcuts, and inline `#a`, `#b`, `#c` title prefix detection.
+  - Verify Master Tasks table columns: `Pri` badge, `Sts` dropdown menu with Franklin glyphs and "Delete" option, Task Description with star toggle and notes popover hover/click, `Category`, and Action column with date picker, `[Move]` button, and `[Delete]` button (`.btn-delete-row`).
+  - Verify deleting a master task removes it completely from Google Tasks (`Tasks.Tasks.remove('@default', taskId)`).
+  - Verify status change on a moved master task mirrors to its linked daily task.
+  - Verify Monthly Index displays header "Monthly Index and Decisions" and renders "Summary Highlight" using rich text format (`renderCardLine`).
+  - Verify Monthly Index "DIRECT DOC LINK" opens authentic Google Docs URLs (`https://docs.google.com/document/d/...`) rather than script proxy URLs.
+  - Verify top navbar `< This Month >` opens hover-drop month picker with `< [Year] >` year stepper and 12-month grid for rapid multi-year navigation.
 - [ ] **Standalone Desktop Shortcut ("Open as Window")**:
   - Verify Chrome "Install Day Planner" / "Open as window" shortcut from [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html).
+

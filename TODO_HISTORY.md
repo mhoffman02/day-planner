@@ -1,6 +1,53 @@
 # Task History (TODO_HISTORY)
 
-## 2026-09-25 — Ergonomics & Visual Polish: Thematic Priority Colors, Local Timezone, Undated Backlog Filter, Appointment Modal, and Panel Harmony (commits `c6af794` through `ef8ffba`)
+## 2026-09-25 — Master Tasks Parity, Monthly Index Polish, Month Picker with Year Nav, and Deployment (commit `95e45b5`, HOME @185, WORK @26)
+
+- [x] **Master Tasks Feature Parity with Daily Tasks (commit `95e45b5`)**:
+  - Added letterpress segmented priority buttons (`A` | `B` | `C`) with hover titles, access keys, and rounded outer corners on A (NW/SW) and C (NE/SE) in [`index.html`](file:///home/mike/projects/day-planner/index.html) and [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html).
+  - Added inline `#a`, `#b`, `#c` prefix detection in input title to dynamically set priority.
+  - Added keyboard shortcuts: `Alt+A/B/C` and `Ctrl+Shift+A/B/C` switch priority and focus the master task input when on the `master-tasks` view.
+  - Implemented 5 sortable table columns: Priority (`Pri`), Status (`Sts`), Task Description, Category, Action.
+  - Added Franklin glyph status dropdown popup menu with Delete item on each master task row.
+  - Added dedicated `[Delete]` button (`.btn-delete-row` with trashcan icon) directly to the right of `[Move]` button on each master task row.
+  - Added sticky note indicator icon with popover hover/click displaying notes without clipping (`notesPopoverDropUp`).
+  - Added star toggle (`★`/`☆`), priority column badges (`.priority-badge`), and multi-column sorting (`sortTasksByColumn`).
+  - Implemented backend RPC and bridge methods `updateMasterTask(taskId, updates)` and `deleteMasterTask(taskId)` in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs), [`src/gasBridge.js`](file:///home/mike/projects/day-planner/src/gasBridge.js), and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html).
+  - Added status mirroring from master tasks to moved daily tasks via `meta.movedTaskId`.
+- [x] **Monthly Index Polish & Authentic Direct Doc Links (commit `95e45b5`)**:
+  - Renamed Monthly Index header to "Monthly Index and Decisions" across [`index.html`](file:///home/mike/projects/day-planner/index.html) and [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html).
+  - Formatted "Summary Highlight" column with rich text formatting using `x-html="renderCardLine(idx.summary, false)"`.
+  - Fixed "DIRECT DOC LINK": extracted authentic Google Doc URLs (`https://docs.google.com/document/d/...`) from `getDailyData` in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) and enforced valid `https://docs.google.com/document/...` via `getDirectDocUrl(url)`, eliminating broken `https://<id>.script.googleusercontent.com/...` URLs.
+- [x] **Top Navbar Month Picker Hover-Drop & Year Stepper (commit `95e45b5`)**:
+  - Added hover-drop (and click/double-tap) month picker dropdown to `< This Month >` in the top navbar across [`index.html`](file:///home/mike/projects/day-planner/index.html) and [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html).
+  - Built Year Nav header with `< [Year] >` stepper and 4x3 month grid directly in the dropdown, allowing 2-click jumps to any month in previous or future years without 12 single-month clicks.
+  - Highlighted current calendar month with gold accent border and active selected month with solid binder green fill.
+- [x] **Deployments (HOME @185, WORK @26)**:
+  - HOME prod deployed at Version 185 (`@185`) to `AKfycbx1pgqPIlEXqPwH9JvPnz0vKX5iP5zlfY4ArvUTDSVzIc0_A2wkMUp5-iouKVAp_46PRg`.
+  - WORK prod code pushed and Version 26 created targeting deployment `9csO` (`AKfycbzRwZFZH9bT5jQtqq0ncBPbokoQGKjSUyBQNVDtPpOISwtdMSXlNAns8E9WFtUM9csO`).
+
+## 2026-09-25 — Appointment Modal Expansion, Task Status Dropdown & Visual Polish (commits `cffc7a6` through `6deca7e`, HOME @184, WORK @25)
+
+- [x] **Fix Tasks Status Popup Menu & Note Popover Bottom Clipping (commit `cffc7a6` & `bd803ee`)**:
+  - Implemented dynamic dropup detection for both the Status Menu and Note Popover across [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), preventing bottom clipping on rows near the end of the list without requiring user scrolling.
+  - Set `overflow: visible` and removed `max-height` from `.task-title-cell` in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html).
+- [x] **Add Runtime Environment JSDoc Headers & Golden Active Navbar Accent (commit `75cdeeb`)**:
+  - Added comprehensive JSDoc headers to [`index.html`](file:///home/mike/projects/day-planner/index.html) and [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) detailing the two runtime environments (Local Dev vs Google Apps Script Production bundle).
+  - Replaced the minty accent (`#58bfa2`) with authentic Franklin gold-foil stamp color (`#d4a017`) on the active navbar tab indicator (`.segment-btn.active`).
+- [x] **Add Task Status Dropdown Delete Item & Update Delegated Label (commit `2d94772`)**:
+  - Added "Delete" item with trashcan icon and separator to the Daily Tasks Status dropdown menu.
+  - Implemented `deleteDailyTask` in [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), [`src/gasBridge.js`](file:///home/mike/projects/day-planner/src/gasBridge.js), and [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs).
+  - Changed Tasks Status menu label from "Delegated (Done)" to "Delegated".
+- [x] **Add Priority Button Hover Titles, Keyboard Shortcuts & Inline Prefix Parsing (commit `21a551d`)**:
+  - Added button hover titles (`title="A: Top priority (Alt+A or #a)"`, etc.) and `accesskey="a/b/c"`.
+  - Added global and field keyboard shortcuts for `Alt+A/B/C` and `Ctrl+Shift+A/B/C`.
+  - Added inline priority prefix detection: typing or pasting `#a`, `#b`, `#c` sets priority.
+- [x] **Fix Appointment Modal HTML/Plain-text Description & gCal Link (commit `6f25dc2`)**:
+  - Sanitized and rendered HTML descriptions; escaped plain-text descriptions in `<pre>`.
+  - Resolved authentic event `htmlLink` via `Calendar.Events` or hand-built `base64url`.
+- [x] **Expand Appointment Modal by 33% & Support Google Meet Links (commit `6deca7e`)**:
+  - Expanded modal dimensions by ~33%: max-width 735px, min-height 460px.
+  - Added close button in header.
+  - Enhanced Google Meet link extraction across Google Calendar API v3 and CalendarApp fallback; added dedicated video meeting link row.
 
 - [x] **Dotted Outline Removal on Star Toggle (commit `c6af794`)**:
   - Removed persistent dashed border around task star toggle on click using `:focus:not(:focus-visible) { outline: none; }` in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html).

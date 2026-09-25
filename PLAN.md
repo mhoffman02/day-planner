@@ -138,6 +138,30 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 - [x] Thematic Non-Alert Priority Colors: Replace red/orange with Archival Ink Blue (`#1d5fa8`) for A, Bookbinder Plum (`#5e3f6b`) for B, and Binder Forest Green (`#2d6a5a`) for C (commit `ef8ffba`).
 - [x] Deployments: HOME production deployed to `@176`; WORK production code promoted and Version 13 created targeting deployment `9csO`.
 
+### Phase 10: Master Tasks Parity, Monthly Index Polish & Month Picker with Year Nav
+*Goal: Bring Master Tasks to full feature parity with Daily Tasks, format Monthly Index highlights with rich text, ensure authentic Google Doc direct links, and implement high-efficiency multi-year month navigation.*
+
+- [x] Master Tasks Feature Parity:
+  - Letterpress segmented priority buttons (`[ A | B | C ]`) with hover titles, access keys, and rounded outer corners.
+  - Inline `#a`, `#b`, `#c` title prefix detection and `Alt+A/B/C` keyboard shortcuts.
+  - 5 sortable table columns: Priority (`Pri`), Status (`Sts`), Task Description, Category, Action.
+  - Franklin glyph status dropdown popup menu with Delete item on each master task row.
+  - Dedicated `[Delete]` button (`.btn-delete-row` with trashcan icon) next to `[Move]`.
+  - Sticky note indicator icon with popover hover/click displaying notes without clipping (`notesPopoverDropUp`).
+  - Star toggle (`★`/`☆`), priority column badges (`.priority-badge`), and multi-column sorting (`sortTasksByColumn`).
+  - Backend RPC endpoints `updateMasterTask(taskId, updates)` and `deleteMasterTask(taskId)` with status mirroring to linked daily tasks.
+- [x] Monthly Index Polish:
+  - Renamed Monthly Index header to "Monthly Index and Decisions".
+  - Formatted "Summary Highlight" column using rich text formatting (`renderCardLine`).
+  - Extracted authentic Google Doc URLs (`https://docs.google.com/document/d/...`) from `getDailyData` and enforced valid `https://docs.google.com/document/...` via `getDirectDocUrl(url)`, eliminating broken script proxy URLs.
+- [x] Top Navbar Month Picker Hover-Drop & Year Stepper:
+  - Hover-drop (and click/double-tap) month picker dropdown on `< This Month >` in navbar.
+  - Header year nav `< [Year] >` stepper and 4x3 month grid allowing 2-click jumps to any month across years.
+  - Current calendar month highlighted with gold accent border, selected month with solid binder green fill.
+- [x] Deployments:
+  - HOME production deployed to Version 185 (`@185`).
+  - WORK production code promoted and Version 26 created targeting deployment `9csO`.
+
 
 
 ---
