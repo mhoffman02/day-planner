@@ -29,11 +29,17 @@
   - Identified root cause of note popover bottom clipping: `td.task-title-cell` had `overflow-y: auto` and `max-height: calc(1.4em * 4)` (~80px), creating a clipping context for any absolute child regardless of positioning.
   - Set `overflow: visible` and removed `max-height` from `.task-title-cell` in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html).
   - Aligned note popover dropup threshold in `openNotesPopover` / `toggleNotesPopover` across [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html) to match Status Menu: `(spaceBelow < 275 && spaceAbove > spaceBelow) || spaceBelow < 160`.
-  - Verified across 8 and 12 task rows: popover flips cleanly upward on bottom rows with zero clipping and zero scroll needed.
-- [x] **Deploy to HOME Prod (`@183`)**:
-  - Created Version 183 and deployed to endpoint `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
-- [ ] **Deploy Version 24 on WORK Deployment `Version 3` (`9csO`)**:
-  - In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit), select deployment `Version 3` (`9csO`), edit, select **New version** (or Version 24), and click **Deploy**.
+- [x] **Expand Appointment Modal by 33% & Support Google Meet Links (commit `6deca7e`)**:
+  - Expanded Appointment Detail modal dimensions by ~33%: width increased from 550px to 735px (`max-width: 735px; width: 92%;`) and height increased to `min-height: min(460px, 80vh);` (`.modal-description` increased to `max-height: min(420px, 50vh)` and `min-height: 180px`). Added subtle frame border and padding for clean reading.
+  - Added header close button (`.btn-icon-subtle`) in `.modal-header-spaced` for quick dismissal in addition to footer button and click-outside.
+  - Enhanced Google Meet link extraction across Google Calendar API v3 (`conferenceDataVersion: 1`, `fields` with `conferenceData`, `hangoutLink`, and fallback regex matching in `description` and `location`) and `CalendarApp` fallback in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs).
+  - Implemented `extractMeetLink` across [`src/calendarEngine.js`](file:///home/mike/projects/day-planner/src/calendarEngine.js), [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js), and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html).
+  - Added dedicated video meeting link row (`<p class="modal-detail-row modal-meet-row"><span class="material-symbols-outlined icon-18">videocam</span> <a class="modal-meet-link">...</a></p>`) in [`index.html`](file:///home/mike/projects/day-planner/index.html) and [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html), displaying the full meeting link while keeping the footer "Join Google Meet" action button active.
+  - Added unit test suite in [`tests/calendarEngine.test.js`](file:///home/mike/projects/day-planner/tests/calendarEngine.test.js) (106/106 unit tests passing across 13 suites).
+- [x] **Deploy to HOME Prod (`@184`)**:
+  - Created Version 184 and deployed to endpoint `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
+- [ ] **Deploy Version 25 on WORK Deployment `Version 3` (`9csO`)**:
+  - In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit), select deployment `Version 3` (`9csO`), edit, select **New version** (or Version 25), and click **Deploy**.
 - [ ] **Live Workspace UAT of Phase 9 & Ergonomic Fixes**:
   - Verify Status popup menu opens without clipping on all tasks (including bottom rows) and drops up cleanly without scrolling.
   - Verify Note hover popover opens upward on bottom rows without clipping and shows full note content.

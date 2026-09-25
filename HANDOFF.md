@@ -2,12 +2,18 @@
 
 ### OBJECTIVE
 
-Validate production promotion of task note popover cell overflow fix, task status menu dropup positioning, runtime environment documentation, golden navbar active tab styling, and Phase 9 ergonomic polish (dynamic dropup detection for status menu and note popovers preventing bottom clipping, table cell unconstrained overflow, viewport height bounds with internal scroll, JSDoc architecture headers for index.html vs gas-app/Index.html, golden #d4a017 active navbar indicator, task status dropdown "Delete" item with trashcan icon, "Delegated" label update, priority button hover tooltips, keyboard shortcuts, inline #a/#b/#c priority prefix detection, rounded outer corners on Priority A & C buttons, sanitized HTML vs plain-text description formatting, gCal direct event links, thematic non-alert priority colors, and local Pacific time) across HOME (`@183`) and WORK (`@24` on deployment `9csO`). Confirm live Workspace UAT and maintain pure GAS release tag `v1.0-pure-gas`.
+Validate production promotion of 33% expanded appointment detail modal, comprehensive Google Meet link extraction, task note popover cell overflow fix, task status menu dropup positioning, runtime environment documentation, golden navbar active tab styling, and Phase 9 ergonomic polish across HOME (`@184`) and WORK (`@25` on deployment `9csO`). Confirm live Workspace UAT and maintain pure GAS release tag `v1.0-pure-gas`.
 
 ---
 
 ### KEY DECISIONS
 
+- **33% Expanded Appointment Modal & Google Meet Support**:
+  - Expanded Appointment Details popup dialog dimensions by ~33%: width increased from 550px to 735px (`max-width: 735px; width: 92%;`) and height increased to `min-height: min(460px, 80vh);` (`.modal-description` increased to `max-height: min(420px, 50vh)` and `min-height: 180px`). Added subtle parchment card border and padding for clean reading flow.
+  - Added header close icon button (`.btn-icon-subtle`) in `.modal-header-spaced` for quick top-right dismissal in addition to the bottom `[Close]` button and click-outside backdrop.
+  - Enhanced Google Meet link extraction across Google Calendar API v3 in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs): added `conferenceDataVersion: 1`, included `conferenceData` in `fields`, checked `conferenceData.entryPoints`, `hangoutLink`, and fallback regex matching on `description` and `location`. Fixed `CalendarApp` fallback to also check `description` and `location` when `evt.getHangoutLink()` returns null.
+  - Implemented `extractMeetLink` across [`src/calendarEngine.js`](file:///home/mike/projects/day-planner/src/calendarEngine.js), [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js), and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html).
+  - Added dedicated video meeting link row (`<p class="modal-detail-row modal-meet-row"><span class="material-symbols-outlined icon-18">videocam</span> <a class="modal-meet-link">...</a></p>`) in [`index.html`](file:///home/mike/projects/day-planner/index.html) and [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html), displaying the full meeting link while keeping the footer "Join Google Meet" action button active ([commit `6deca7e`](file:///home/mike/projects/day-planner)).
 - **Task Note Popover & Status Menu Clipping Fixes (Zero Bottom Clipping)**:
   - Identified root cause of note popover bottom clipping on rows near list end: `td.task-title-cell` had `overflow-y: auto` and `max-height: calc(1.4em * 4)` (~80.64px), creating an overflow clipping context that truncated the 170px `.notes-popover` regardless of dropup positioning.
   - Set `overflow: visible` and removed `max-height` on `.task-title-cell` across [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html).
@@ -35,16 +41,16 @@ Validate production promotion of task note popover cell overflow fix, task statu
 ### CURRENT STATE
 
 - **Repository Branch**: `pure-gas-main`.
-- **Latest Commit**: [`bd803ee`](file:///home/mike/projects/day-planner) (`fix(tasks): resolve task note popover clipping by removing cell overflow constraints and matching status dropup threshold`).
-- **Production Git Tag**: [`v1.0-pure-gas`](file:///home/mike/projects/day-planner) updated to commit [`bd803ee`](file:///home/mike/projects/day-planner) and pushed to GitHub origin.
+- **Latest Commit**: [`6deca7e`](file:///home/mike/projects/day-planner) (`feat(appointments): expand appointment modal by 33% and support Google Meet link extraction across Calendar API, descriptions, and UI`).
+- **Production Git Tag**: [`v1.0-pure-gas`](file:///home/mike/projects/day-planner) updated to commit [`6deca7e`](file:///home/mike/projects/day-planner) and pushed to GitHub origin.
 - **Live Deployment State**:
-  - HOME Prod (`day-planner-v01`): Version 183 (`@183`) live at [https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec).
-  - WORK Prod (`9csO`): Code promoted and Version 24 created on script `1980roEKgkC_...`. Target endpoint is [https://script.google.com/a/macros/gsa.gov/s/AKfycbzRwZFZH9bT5jQtqq0ncBPbokoQGKjSUyBQNVDtPpOISwtdMSXlNAns8E9WFtUM9csO/exec](https://script.google.com/a/macros/gsa.gov/s/AKfycbzRwZFZH9bT5jQtqq0ncBPbokoQGKjSUyBQNVDtPpOISwtdMSXlNAns8E9WFtUM9csO/exec).
+  - HOME Prod (`day-planner-v01`): Version 184 (`@184`) live at [https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec).
+  - WORK Prod (`9csO`): Code promoted and Version 25 created on script `1980roEKgkC_...`. Target endpoint is [https://script.google.com/a/macros/gsa.gov/s/AKfycbzRwZFZH9bT5jQtqq0ncBPbokoQGKjSUyBQNVDtPpOISwtdMSXlNAns8E9WFtUM9csO/exec](https://script.google.com/a/macros/gsa.gov/s/AKfycbzRwZFZH9bT5jQtqq0ncBPbokoQGKjSUyBQNVDtPpOISwtdMSXlNAns8E9WFtUM9csO/exec).
 - **Pre-Flight Verification**: Passed cleanly:
   - `npm run lint`: 0 errors.
-  - `npm test`: 99/99 unit tests passing across 12 suites.
+  - `npm test`: 106/106 unit tests passing across 13 suites.
   - `npm run check:gas-safe-chars`: Clean.
-  - `CHROME_PORT=9224 npm run smoke`: All 8 suites passed cleanly.
+  - `CHROME_PORT=9230 npm run smoke`: All 8 suites passed cleanly.
 
 ---
 
@@ -62,9 +68,11 @@ Validate production promotion of task note popover cell overflow fix, task statu
 
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
-1. **Activate Version 24 on WORK Deployment `Version 3` (`9csO`)**:
-   - In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit), select deployment `Version 3` (`9csO`), click **Edit** (pencil), select **New version** (or Version 24), and click **Deploy** ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md)).
+1. **Activate Version 25 on WORK Deployment `Version 3` (`9csO`)**:
+   - In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit), select deployment `Version 3` (`9csO`), click **Edit** (pencil), select **New version** (or Version 25), and click **Deploy** ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md)).
 2. **Live Workspace UAT of Phase 9 & Ergonomic Fixes**:
+   - Verify Appointment Details popup modal opens ~33% wider (735px) and taller (min 460px) with header close button and parchment card styling.
+   - Verify meetings with Google Meet (like "NCMMS - Daily Standup") display the meeting link row with video icon in the dialog body and the [Join Google Meet] action button in the footer.
    - Verify Status popup menu opens without clipping on all tasks (including bottom rows) and drops up cleanly without scrolling.
    - Verify Note hover popover opens upward on bottom rows without clipping and shows full note content.
    - Verify active navbar tab shows golden (`#d4a017`) underline indicator instead of minty accent.
@@ -73,7 +81,7 @@ Validate production promotion of task note popover cell overflow fix, task statu
    - Verify Priority buttons show hover text and `Alt+A`, `Alt+B`, `Alt+C` hotkeys switch priority and focus task input.
    - Verify typing `#a Call vendor` sets priority to A and creates the task with clean title `Call vendor`.
    - Verify Priority buttons show rounded outer corners on A (NW/SW) and C (NE/SE).
-   - Verify HTML event descriptions render with active new-tab links, plain-text descriptions format cleanly with preserved whitespace, and [Open in gCal] opens the specific event without 500 error on HOME (`@183`) and WORK (`@24`) ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md)).
+   - Verify HTML event descriptions render with active new-tab links, plain-text descriptions format cleanly with preserved whitespace, and [Open in gCal] opens the specific event without 500 error on HOME (`@184`) and WORK (`@25`) ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md)).
 3. **Standalone Desktop Shortcut ("Open as Window")**:
    - Verify Chrome "Install Day Planner" / "Open as window" desktop workflow from [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html) ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md)).
 
@@ -81,4 +89,4 @@ Validate production promotion of task note popover cell overflow fix, task statu
 
 ### IMMEDIATE NEXT STEP
 
-Open [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) under `michael.hoffman@gsa.gov`, click **Deploy** > **Manage deployments**, select deployment `Version 3` (`9csO`), click **Edit** (pencil), select **New version** (Version 24), and click **Deploy**.
+Open [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) under `michael.hoffman@gsa.gov`, click **Deploy** > **Manage deployments**, select deployment `Version 3` (`9csO`), click **Edit** (pencil), select **New version** (Version 25), and click **Deploy**.
