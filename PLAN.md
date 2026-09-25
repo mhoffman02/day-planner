@@ -206,11 +206,12 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 ### Phase 13: Master Tasks Date Horizon Filters & Unified Clearinghouse
 *Goal: Include incomplete tasks across all dates (past, today, future) on Master Tasks, provide thematic Blue Date Horizon filters (`[All Dates]`, `[Future]`, `[Overdue / Today]`, `[Undated]`), deduplicate moved tasks, and add Due Date column.*
 
-- [ ] Backend RPC enhancement (`gas-app/Code.gs:1384`, `src/gasBridge.js`): Retrieve undated tasks plus incomplete dated tasks (`!t.due || (!isComplete(t) && t.due)`).
-- [ ] Task deduplication: Merge moved master tasks (`[MovedTo: date, id]`) with their scheduled daily counterparts (`[SourceMaster: id]`).
-- [ ] Master Tasks Header Filters: Rename "Filter:" to "Status filter". Add visually distinct thematic blue Date Horizon filter button group `[All Dates]`, `[Future]`, `[Overdue / Today]`, `[Undated]`.
-- [ ] Master Tasks Table: Add `Due Date` column (sortable by date), date badge display (`Sep 28, 2026`, `Overdue`, `Undated`), and contextual Action buttons (`Jump to Day` vs `Move to Date`).
-- [ ] Automated tests in `tests/taskEngine.test.js` and `tests/gasBridge.test.js`.
+- [x] Backend RPC enhancement ([`gas-app/Code.gs:1523`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L1523), [`src/gasBridge.js`](file:///home/mike/projects/day-planner/src/gasBridge.js)): Retrieve undated tasks plus incomplete dated tasks (`!t.due || (!isComplete(t) && t.due)`).
+- [x] Task deduplication: Merge moved master tasks (`[MovedTo: date, id]`) with their scheduled daily counterparts (`[SourceMaster: id]`) via [`buildMasterTasksClearinghouse`](file:///home/mike/projects/day-planner/src/taskEngine.js#L349).
+- [x] Master Tasks Header Filters: Rename "Filter:" to "Status filter". Add visually distinct thematic blue Date Horizon filter button group `[All Dates]`, `[Future]`, `[Overdue / Today]`, `[Undated]` with crisp 2px border radius (strictly no pills).
+- [x] Master Tasks Table: Add `Due Date` column (sortable by date), date badge display (`Sep 28, 2026`, `Overdue`, `Undated`), and contextual Action buttons (`Jump to Day` vs date picker + `Move to Date`).
+- [x] Automated tests in [`tests/taskEngine.test.js`](file:///home/mike/projects/day-planner/tests/taskEngine.test.js) and [`tests/gasBridge.test.js`](file:///home/mike/projects/day-planner/tests/gasBridge.test.js) (135/135 tests passing).
+- [x] Production Deployments (commit `d685fb4`, HOME `@190`, WORK `@35`).
 
 
 

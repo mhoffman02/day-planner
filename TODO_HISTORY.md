@@ -1,5 +1,20 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-25 — Master Tasks Option A: Unified Clearinghouse & Thematic Blue Date Horizon Filters (commit `d685fb4`, HOME @190, WORK @35)
+
+- [x] **Master Tasks Option A: Unified Commitment Clearinghouse & Blue Date Horizon Filters (commit `d685fb4`)**:
+  - Renamed status filter toolbar header label from `"Filter:"` to `"Status filter"` in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html#L583) and [`index.html`](file:///home/mike/projects/day-planner/index.html#L583).
+  - Added Date Horizon filter button group directly beside the status stamps: `[All Dates]`, `[Future]`, `[Overdue / Today]`, `[Undated]` (specifically `"Future"`, NOT `"Future due"`).
+  - Styled Date Horizon filter buttons in thematic archival blue (`var(--ink-blue, #1d5fa8)`, inverted blue active fill, 2px border radius, strictly no pills) with dark-mode support in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css#L2210) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html#L2211).
+  - Updated [`getMasterTasks`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L1523) in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) and [`src/gasBridge.js`](file:///home/mike/projects/day-planner/src/gasBridge.js#L207) to retrieve all tasks with `!t.due` PLUS any dated task (`t.due`) that is not complete (`status !== '✓' && status !== 'X' && !isCompleted`).
+  - Implemented [`buildMasterTasksClearinghouse`](file:///home/mike/projects/day-planner/src/taskEngine.js#L349) to deduplicate and collapse moved master tasks (`[MovedTo: date, id]` / `[SourceMaster: id]`) into a single logical record displaying the target scheduled date and live status.
+  - Added sortable `Due Date` column in Master Tasks table with date stamps (`Sep 28, 2026`, `Overdue`, `Undated`), plus contextual Action buttons (`Jump to Day` for scheduled vs date picker + `Move to Date` for undated).
+  - Implemented [`filterTasksByDateHorizon`](file:///home/mike/projects/day-planner/src/taskEngine.js#L322) and wired it to `filteredMasterTasks` in [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js#L130) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html#L905).
+  - Added unit test suites for `filterTasksByDateHorizon`, `buildMasterTasksClearinghouse`, and `dueDate` column sorting in [`tests/taskEngine.test.js`](file:///home/mike/projects/day-planner/tests/taskEngine.test.js#L357) and clearinghouse / deduplication tests in [`tests/gasBridge.test.js`](file:///home/mike/projects/day-planner/tests/gasBridge.test.js#L20).
+- [x] **Production Deployments (HOME @190, WORK @35)**:
+  - Pushed all 8 files via clasp to HOME, created **Version 190**, and updated production deployment `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
+  - Promoted code to WORK via `npm run push:work`, pushed all 8 files, and created **Version 35** on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`.
+
 ## 2026-09-25 — Note Card Compact Category Segmented Button-Checkboxes & Meet Link Verification (commits `254b6cb` & `1de4bba`, HOME @189, WORK @34)
 
 - [x] **Note Card Compact 18px Category Segmented Button-Checkboxes (commit `254b6cb`)**:
