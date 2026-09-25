@@ -19,16 +19,16 @@ Validate production release of Phase 8 ergonomics and CSS modern-normalize decou
 ### CURRENT STATE
 
 - **Repository Branch**: `pure-gas-main`.
-- **Latest Commit**: [`de02715`](file:///home/mike/projects/day-planner) (`feat(ui): implement letterpress segmented priority selector and 1-click column focus mode`).
+- **Latest Commit**: [`e789ca8`](file:///home/mike/projects/day-planner) (`chore: ignore screen-shots and add ensure-chrome and playwright tools`).
+- **Production Git Tag**: [`v1.0-pure-gas`](file:///home/mike/projects/day-planner) pushed to GitHub origin.
 - **Live Deployment State**:
   - HOME `@HEAD`: Deployed via `clasp push` live at [https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev](https://script.google.com/macros/s/AKfycbwb0hECvMIoJG1OHYBUTRan5_kF-T3PO7bSP-NSvwil/dev).
   - HOME Prod (`day-planner-v01`): Version 171 (`@171`) live at [https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec).
-  - WORK Prod (`Day-Planner-WORK`): Code promoted and Version 8 (`@8`) created via `npm run push:work`. Production endpoint is [https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec](https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec).
-- **Pre-Flight Verification**: Passed cleanly before handoff generation:
+  - WORK Prod (`Day-Planner-WORK`): Code promoted and Version 8 (`@8`) live at [https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec](https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec).
+- **Pre-Flight Verification**: Passed cleanly:
   - `npm run lint`: 0 errors.
   - `npm test`: 88/88 unit tests passing across 11 suites.
   - `npm run check:gas-safe-chars`: Clean.
-  - Automated Playwright browser verification: 100% pass across all views, priority tabs, Enter submission, column focus expand/collapse, and Escape hotkeys.
 
 ---
 
@@ -44,27 +44,15 @@ Validate production release of Phase 8 ergonomics and CSS modern-normalize decou
 
 ---
 
-### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
+### OPEN THREADS
 
-1. **Federal WORK Environment Access & Validation**:
-   - Open [`https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec`](https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec) on locked-down WORK PC (`michael.hoffman@gsa.gov`).
-   - In the Apps Script IDE ([`https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit`](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit)), confirm Deploy > Manage deployments points production `/exec` to Version 8.
-   - Verify first-party Google Workspace authorization without enterprise proxy blocks ([`.agents/rules/gas-environments.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-environments.md)).
-
-2. **Run Log Google Doc Confirmation & Drive Verification**:
-   - Open `Day Planner` Google Drive folder on HOME account.
-   - Verify [`Day Planner - Run Log`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L74-L125) Google Doc exists and logged sync executions.
-   - Confirm self-test suite passes via [`/exec?view=self-test`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec?view=self-test).
-
-3. **Production Git Release Tagging**:
-   - Once WORK environment and Run Log are validated, tag `pure-gas-main`:
-     ```bash
-     git tag v1.0-pure-gas && git push origin v1.0-pure-gas
-     ```
-   - Verify standalone desktop shortcut ("Open as Window") from [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html).
+1. **PWA Standalone Desktop App Verification**:
+   - Verify Chrome "Install app" / "Open as Window" shortcut behavior using [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html).
+2. **Active Daily Usage & Maintenance**:
+   - Production v1.0 running live on HOME (`@171`) and WORK (`@8`). Future feature branches should branch directly off `pure-gas-main`.
 
 ---
 
 ### IMMEDIATE NEXT STEP
 
-Open HOME Prod app [`https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec`](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec) and WORK IDE [`https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit`](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) to complete live workspace verification.
+Verify Chrome desktop standalone shortcut ("Open as Window") or proceed with daily planning.

@@ -1,6 +1,17 @@
 # Task History (TODO_HISTORY)
 
-## 2026-09-24 — Phase 8 Ergonomics: Letterpress Segmented Priority Selector (Proposal B), 1-Click Column Focus Mode, and pure-gas-main Release @171 (commits `de02715`, `7baf634`)
+## 2026-09-25 — Phase 6: Production Release v1.0-pure-gas & Live Workspace UAT (tag `v1.0-pure-gas`, commit `e789ca8`)
+
+- [x] **Repository Housekeeping & CDP Tooling Tracking (commit `e789ca8`)**:
+  - Added `screen-shots/` and root `/*.png` (except [`icons/apple-touch-icon.png`](file:///home/mike/projects/day-planner/icons/apple-touch-icon.png)) to [`.gitignore`](file:///home/mike/projects/day-planner/.gitignore).
+  - Tracked canonical test tools [`tools/ensure-chrome.js`](file:///home/mike/projects/day-planner/tools/ensure-chrome.js), [`scripts/ensure-chrome.sh`](file:///home/mike/projects/day-planner/scripts/ensure-chrome.sh), and [`tools/open-dev-playwright.js`](file:///home/mike/projects/day-planner/tools/open-dev-playwright.js).
+- [x] **Production Git Release Tagging**:
+  - Tagged `pure-gas-main` at release commit as `v1.0-pure-gas` and pushed to remote origin.
+- [x] **Live Workspace UAT & Run Log Verification**:
+  - WORK Prod Web App validated at Version 8 on GSA Google Workspace.
+  - HOME Prod Web App (`@171`) and self-test suite verified.
+  - Google Drive `Day Planner - Run Log` sync execution logging confirmed.
+
 
 - [x] **Proposal B Letterpress Segmented Priority Selector (commit `de02715`)**:
   - In [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) and [`index.html`](file:///home/mike/projects/day-planner/index.html), replaced `<select class="task-priority-select">` with compact letterpress stamp tabs `[ A | B | C ]` bound to `newTaskPriorityGroup`.
