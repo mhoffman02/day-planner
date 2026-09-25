@@ -17,24 +17,35 @@ export function parseIndexEntriesFromNote(noteText = '', dateStr = '', docUrl = 
   const lines = noteText.split('\n');
   const indexEntries = [];
 
-  let noteCategories = [];
+  let globalCategories = [];
   lines.forEach(line => {
     const trimmed = line.trim();
     if (!trimmed) return;
     const catMatch = trimmed.match(/^#(?:category|categories):\s*(.+)$/i) || trimmed.match(/^categories:\s*(.+)$/i);
-    if (catMatch) {
-      noteCategories = catMatch[1].split(',').map(s => s.trim()).filter(Boolean);
+    if (catMatch && globalCategories.length === 0) {
+      globalCategories = catMatch[1].split(',').map(s => s.trim()).filter(Boolean);
     }
   });
+
+  let currentEntry = null;
 
   lines.forEach(line => {
     const trimmed = line.trim();
     if (!trimmed) return;
 
+    // Check for per-card category tag inside the current section/entry
+    const catMatch = trimmed.match(/^#(?:category|categories):\s*(.+)$/i) || trimmed.match(/^categories:\s*(.+)$/i);
+    if (catMatch && currentEntry) {
+      const cats = catMatch[1].split(',').map(s => s.trim()).filter(Boolean);
+      currentEntry.categories = cats;
+      currentEntry.category = cats.join(', ');
+      return;
+    }
+
     const hasIndexTag = /#index|\[INDEX\]/i.test(trimmed);
     if (hasIndexTag) {
       // Clean index tags from topic/summary
-      let cleanText = trimmed.replace(/#index|\[INDEX\]/gi, '').trim();
+      let cleanText = trimmed.replace(/^#{2,3}\s+/, '').replace(/#index|\[INDEX\]/gi, '').trim();
 
       // Extract topic category inside brackets e.g. [Finance] or default to General
       let topic = 'General';
@@ -50,16 +61,19 @@ export function parseIndexEntriesFromNote(noteText = '', dateStr = '', docUrl = 
         }
       }
 
-      indexEntries.push({
+      currentEntry = {
         id: `idx_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         date: dateStr || new Date().toISOString().slice(0, 10),
         topic,
-        category: noteCategories.join(', ') || '',
-        categories: [...noteCategories],
+        category: globalCategories.join(', ') || '',
+        categories: [...globalCategories],
         summary: cleanText || trimmed,
         docUrl: docUrl || `#doc-${dateStr}`,
         rawText: trimmed
-      });
+      };
+      indexEntries.push(currentEntry);
+    } else if (/^#{2,3}\s+/.test(trimmed)) {
+      currentEntry = null;
     }
   });
 

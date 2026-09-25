@@ -399,22 +399,6 @@
               </div>
             </header>
 
-            <!-- Notes Category Multi-Pick Segmented Bar -->
-            <div class="notes-category-bar" role="group" aria-label="Notes Categories">
-              <div class="category-segmented-control" role="group" aria-label="Notes Category Multi-Pick">
-                <template x-for="cat in noteCategoryOptions" :key="cat">
-                  <button type="button" class="category-segment-btn"
-                          :class="{ 'is-active': isNoteCategorySelected(cat) }"
-                          @click="toggleNoteCategory(cat)"
-                          :aria-pressed="isNoteCategorySelected(cat)"
-                          :title="'Toggle ' + cat + ' category'">
-                    <span class="category-check-icon material-symbols-outlined" x-show="isNoteCategorySelected(cat)">check</span>
-                    <span x-text="cat"></span>
-                  </button>
-                </template>
-              </div>
-            </div>
-
             <!-- Mode 1: Modular Topic Cards (Option 1) -->
             <div class="note-cards-container" x-show="noteViewMode === 'cards'">
               
@@ -456,20 +440,40 @@
                       <div class="resizer-handle"></div>
                     </div>
 
-                    <textarea rows="1" maxlength="60" x-model="card.heading" :disabled="!card.indexTopic" x-init="$nextTick(() => autoGrowNoteHeading($el))" @input="syncCardsToDailyNote(); autoGrowNoteHeading($event.target)" :placeholder="card.indexTopic ? 'Summary for the index...' : 'Set a Topic to index this card'" class="card-heading-input" aria-label="Card Summary" title="Summary: the one-line description shown in the Monthly Index (60 char max)."></textarea>
+                    <div class="card-summary-col">
+                      <div class="card-summary-main-row">
+                        <textarea rows="1" maxlength="60" x-model="card.heading" :disabled="!card.indexTopic" x-init="$nextTick(() => autoGrowNoteHeading($el))" @input="syncCardsToDailyNote(); autoGrowNoteHeading($event.target)" :placeholder="card.indexTopic ? 'Summary for the index...' : 'Set a Topic to index this card'" class="card-heading-input" aria-label="Card Summary" title="Summary: the one-line description shown in the Monthly Index (60 char max)."></textarea>
 
-                    <span class="card-heading-help" tabindex="0" role="note" aria-label="How Topic and Summary work">
-                      <span class="material-symbols-outlined">info</span>
-                      <span class="card-heading-help-tip">Set a <b>Topic</b> to add this card to the Monthly Index; leave it blank and the card stays local to this day only. <b>Summary</b> is the one-line description shown in that index.</span>
-                    </span>
+                        <span class="card-heading-help" tabindex="0" role="note" aria-label="How Topic and Summary work">
+                          <span class="material-symbols-outlined">info</span>
+                          <span class="card-heading-help-tip">Set a <b>Topic</b> to add this card to the Monthly Index; leave it blank and the card stays local to this day only. <b>Summary</b> is the one-line description shown in that index.</span>
+                        </span>
 
-                    <template x-if="taskLinkForCard(card)">
-                      <span class="task-link-tag" :title="'Linked to Task ' + taskLinkForCard(card).priority" x-text="'→ ' + taskLinkForCard(card).priority"></span>
-                    </template>
+                        <template x-if="taskLinkForCard(card)">
+                          <span class="task-link-tag" :title="'Linked to Task ' + taskLinkForCard(card).priority" x-text="'→ ' + taskLinkForCard(card).priority"></span>
+                        </template>
 
-                    <button type="button" class="card-delete-btn" @click="deleteNoteCard(card.id)" title="Delete Card" aria-label="Delete Card">
-                      <span class="material-symbols-outlined icon-16">delete</span>
-                    </button>
+                        <button type="button" class="card-delete-btn" @click="deleteNoteCard(card.id)" title="Delete Card" aria-label="Delete Card">
+                          <span class="material-symbols-outlined icon-16">delete</span>
+                        </button>
+                      </div>
+
+                      <!-- Compact Segmented Category Button-Checkboxes under Summary Textbox -->
+                      <div class="card-category-segmented-wrap" role="group" aria-label="Card Categories">
+                        <div class="category-segmented-control" role="group" aria-label="Card Category Multi-Pick">
+                          <template x-for="cat in noteCategoryOptions" :key="cat">
+                            <button type="button" class="category-segment-btn"
+                                    :class="{ 'is-active': isCardCategorySelected(card, cat) }"
+                                    @click="toggleCardCategory(card, cat)"
+                                    :aria-pressed="isCardCategorySelected(card, cat)"
+                                    :title="'Toggle ' + cat + ' category for this card'">
+                              <span class="category-check-icon material-symbols-outlined" x-show="isCardCategorySelected(card, cat)">check</span>
+                              <span x-text="cat"></span>
+                            </button>
+                          </template>
+                        </div>
+                      </div>
+                    </div>
                   </header>
 
                   <!-- Card Body & Rich Formatting Bar -->

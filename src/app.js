@@ -13,6 +13,7 @@ import {
 } from './taskEngine.js';
 import { executeUniversalSearch, flattenSearchResults } from './searchEngine.js';
 import { formatEventDescriptionHtml, extractMeetLink } from './calendarEngine.js';
+import { parseIndexEntriesFromNote } from './indexParser.js';
 window.GASBridge = GASBridge;
 window.Alpine = Alpine;
 
@@ -107,7 +108,14 @@ Alpine.data('plannerApp', () => ({
         const cat = this.noteCardCategoryFilter;
 
         return (this.noteCards || []).filter(card => {
-          const matchCat = cat === 'ALL' || card.category === cat;
+          let matchCat = (cat === 'ALL');
+          if (!matchCat) {
+            if (Array.isArray(card.categories)) {
+              matchCat = card.categories.includes(cat);
+            } else if (typeof card.category === 'string') {
+              matchCat = card.category.split(',').map(s => s.trim()).includes(cat);
+            }
+          }
           const matchText = !q ||
             (card.indexTopic || '').toLowerCase().includes(q) ||
             (card.heading || '').toLowerCase().includes(q) ||
@@ -706,6 +714,7 @@ Alpine.data('plannerApp', () => ({
           heading: '',
           content: '',
           category: 'Work',
+          categories: ['Work'],
           collapsed: false
         };
         this.noteCards.push(newCard);
@@ -1078,26 +1087,21 @@ Alpine.data('plannerApp', () => ({
       parseDailyNoteToCards(noteText = '') {
         if (!noteText.trim() || noteText.startsWith('No notes recorded for')) {
           return [
-            { id: 'nc_1', indexTopic: 'Architecture', heading: 'System Design', content: '- Finalized 3-column binder layout with Alpine.js and clean CSS.', category: 'Work', collapsed: false },
-            { id: 'nc_2', indexTopic: 'Finance', heading: 'Budget Sync', content: '- Reviewed Q3 budget and Google Workspace API sync.\n- Approved GCP allocation.', category: 'Meeting', collapsed: false }
+            { id: 'nc_1', indexTopic: 'Architecture', heading: 'System Design', content: '- Finalized 3-column binder layout with Alpine.js and clean CSS.', category: 'Work', categories: ['Work'], collapsed: false },
+            { id: 'nc_2', indexTopic: 'Finance', heading: 'Budget Sync', content: '- Reviewed Q3 budget and Google Workspace API sync.\n- Approved GCP allocation.', category: 'Meeting', categories: ['Meeting'], collapsed: false }
           ];
         }
 
-        let extractedCategories = null;
+        let fileFallbackCategories = null;
         const allLines = (noteText || '').split('\n');
         allLines.forEach(l => {
           const trimmed = l.trim();
           if (!trimmed) return;
           const catMatch = trimmed.match(/^#(?:category|categories):\s*(.+)$/i) || trimmed.match(/^categories:\s*(.+)$/i);
-          if (catMatch && !extractedCategories) {
-            extractedCategories = catMatch[1].split(',').map(s => s.trim()).filter(Boolean);
+          if (catMatch && !fileFallbackCategories) {
+            fileFallbackCategories = catMatch[1].split(',').map(s => s.trim()).filter(Boolean);
           }
         });
-        if (extractedCategories && extractedCategories.length > 0) {
-          this.selectedNoteCategories = extractedCategories;
-        } else if (!this.selectedNoteCategories || this.selectedNoteCategories.length === 0) {
-          this.selectedNoteCategories = ['Work'];
-        }
 
         const lines = noteText.split('\n');
         const cards = [];
@@ -1112,8 +1116,14 @@ Alpine.data('plannerApp', () => ({
             return;
           }
 
-          // Skip category metadata tag line
-          if (/^#(?:category|categories):\s*/i.test(trimmed) || /^categories:\s*/i.test(trimmed)) {
+          // Check for category metadata tag line
+          const catMatch = trimmed.match(/^#(?:category|categories):\s*(.+)$/i) || trimmed.match(/^categories:\s*(.+)$/i);
+          if (catMatch) {
+            const parsedCats = catMatch[1].split(',').map(s => s.trim()).filter(Boolean);
+            if (currentCard) {
+              currentCard.categories = parsedCats;
+              currentCard.category = parsedCats.join(', ');
+            }
             return;
           }
 
@@ -1128,7 +1138,13 @@ Alpine.data('plannerApp', () => ({
                 /^\d{4}-\d{2}-\d{2}$/.test(headingClean)) {
               return;
             }
-            if (currentCard) cards.push(currentCard);
+            if (currentCard) {
+              if (fileFallbackCategories && (!currentCard.categories || currentCard.categories.length === 0)) {
+                currentCard.categories = [...fileFallbackCategories];
+                currentCard.category = fileFallbackCategories.join(', ');
+              }
+              cards.push(currentCard);
+            }
             headingClean = headingClean.replace(/^Daily Log\s*[-–—]?\s*/i, '');
             const category = headingClean.toLowerCase().includes('meeting') ? 'Meeting' : headingClean.toLowerCase().includes('finance') ? 'Decision' : headingClean.toLowerCase().includes('personal') ? 'Personal' : 'Work';
             const { indexTopic, heading } = this.decomposeIndexHeading(headingClean);
@@ -1138,6 +1154,7 @@ Alpine.data('plannerApp', () => ({
               heading: heading || 'Topic',
               content: '',
               category,
+              categories: [category],
               collapsed: false
             };
           } else {
@@ -1147,24 +1164,27 @@ Alpine.data('plannerApp', () => ({
                 indexTopic: '',
                 heading: 'General Notes',
                 content: '',
-                category: 'Work',
+                category: (fileFallbackCategories && fileFallbackCategories[0]) || 'Work',
+                categories: fileFallbackCategories ? [...fileFallbackCategories] : ['Work'],
                 collapsed: false
               };
             }
             currentCard.content += (currentCard.content ? '\n' : '') + line;
           }
         });
-        if (currentCard) cards.push(currentCard);
+        if (currentCard) {
+          if (fileFallbackCategories && (!currentCard.categories || currentCard.categories.length === 0)) {
+            currentCard.categories = [...fileFallbackCategories];
+            currentCard.category = fileFallbackCategories.join(', ');
+          }
+          cards.push(currentCard);
+        }
         return cards;
       },
 
       syncCardsToDailyNote() {
-        const catLine = (this.selectedNoteCategories && this.selectedNoteCategories.length > 0)
-          ? `#category: ${this.selectedNoteCategories.join(', ')}`
-          : '';
-
         if (!this.noteCards || this.noteCards.length === 0) {
-          this.dailyNote = catLine;
+          this.dailyNote = '';
           this.buildIndexRecords();
           this.scheduleDailyNoteSave();
           return;
@@ -1174,12 +1194,44 @@ Alpine.data('plannerApp', () => ({
           const headingLine = c.indexTopic
             ? `#index [${c.indexTopic}] ${c.heading || 'Topic'}`
             : (c.heading || 'Topic');
-          return `### ${headingLine}\n${c.content || ''}`;
+          const cats = (Array.isArray(c.categories) && c.categories.length > 0)
+            ? c.categories
+            : (c.category ? c.category.split(',').map(s => s.trim()).filter(Boolean) : ['Work']);
+          const catLine = cats.length > 0 ? `#category: ${cats.join(', ')}\n` : '';
+          return `### ${headingLine}\n${catLine}${c.content || ''}`;
         }).join('\n\n');
 
-        this.dailyNote = catLine ? `${catLine}\n\n${cardsMarkdown}` : cardsMarkdown;
+        this.dailyNote = cardsMarkdown;
         this.buildIndexRecords();
         this.scheduleDailyNoteSave();
+      },
+
+      toggleCardCategory(card, cat) {
+        if (!card || !cat) return;
+        if (!Array.isArray(card.categories)) {
+          card.categories = card.category
+            ? card.category.split(',').map(s => s.trim()).filter(Boolean)
+            : ['Work'];
+        }
+        const idx = card.categories.indexOf(cat);
+        if (idx !== -1) {
+          card.categories.splice(idx, 1);
+        } else {
+          card.categories.push(cat);
+        }
+        card.category = card.categories.join(', ');
+        this.syncCardsToDailyNote();
+      },
+
+      isCardCategorySelected(card, cat) {
+        if (!card || !cat) return false;
+        if (Array.isArray(card.categories)) {
+          return card.categories.includes(cat);
+        }
+        if (typeof card.category === 'string') {
+          return card.category.split(',').map(s => s.trim()).includes(cat);
+        }
+        return false;
       },
 
       toggleNoteCategory(cat) {
@@ -1378,31 +1430,32 @@ Alpine.data('plannerApp', () => ({
       },
 
       buildIndexRecords() {
-        if (!this.dailyNote) return;
-        const lines = this.dailyNote.split('\n');
-        const entries = [];
-        const fallbackUrl = this.getDirectDocUrl('');
-        const activeCategories = this.selectedNoteCategories || [];
-        lines.forEach(l => {
-          if (/#index|\[INDEX\]/i.test(l)) {
-            let clean = l.replace(/#index|\[INDEX\]/gi, '').trim();
-            let topic = 'General';
-            const match = clean.match(/^\[([^\]]+)\]\s*(.*)$/);
-            if (match) {
-              topic = match[1];
-              clean = match[2];
+        if (this.noteCards && this.noteCards.length > 0) {
+          const entries = [];
+          const fallbackUrl = this.getDirectDocUrl('');
+          this.noteCards.forEach(c => {
+            if (c.indexTopic) {
+              const cardCats = (Array.isArray(c.categories) && c.categories.length > 0)
+                ? c.categories
+                : (c.category ? c.category.split(',').map(s => s.trim()).filter(Boolean) : ['Work']);
+              entries.push({
+                date: this.selectedDate,
+                topic: c.indexTopic,
+                category: cardCats.join(', '),
+                categories: [...cardCats],
+                summary: c.heading || '',
+                docUrl: fallbackUrl
+              });
             }
-            entries.push({
-              date: this.selectedDate,
-              topic: topic,
-              category: activeCategories.join(', '),
-              categories: [...activeCategories],
-              summary: clean,
-              docUrl: fallbackUrl
-            });
-          }
-        });
-        this.indexRecords = entries;
+          });
+          this.indexRecords = entries;
+          this.buildTaskNoteLinks();
+          return;
+        }
+
+        if (!this.dailyNote) return;
+        const fallbackUrl = this.getDirectDocUrl('');
+        this.indexRecords = parseIndexEntriesFromNote(this.dailyNote, this.selectedDate, fallbackUrl);
         this.buildTaskNoteLinks();
       },
 

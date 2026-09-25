@@ -56,4 +56,25 @@ describe('Index Parser Unit Tests', () => {
     assert.equal(entries[0].category, 'Decision, Work');
     assert.deepEqual(entries[0].categories, ['Decision', 'Work']);
   });
+
+  it('should parse per-card #category tags for individual topic sections', () => {
+    const noteText = `
+      ### #index [Architecture] System Design Spec
+      #category: Work, Decision
+      - Outlined 3-column binder layout.
+
+      ### #index [Quarterly Review] Client Sync
+      #category: Meeting
+      - Met with stakeholder.
+    `;
+    const entries = parseIndexEntriesFromNote(noteText, '2026-09-25', 'https://docs.google.com/doc-test');
+    assert.equal(entries.length, 2);
+    assert.equal(entries[0].topic, 'Architecture');
+    assert.equal(entries[0].category, 'Work, Decision');
+    assert.deepEqual(entries[0].categories, ['Work', 'Decision']);
+
+    assert.equal(entries[1].topic, 'Quarterly Review');
+    assert.equal(entries[1].category, 'Meeting');
+    assert.deepEqual(entries[1].categories, ['Meeting']);
+  });
 });
