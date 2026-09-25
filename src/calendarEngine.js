@@ -83,22 +83,8 @@ export function formatEventModalPayload(rawEvent = {}) {
     ? `${startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
     : 'All Day';
 
-  let gCalLink = rawEvent.htmlLink || rawEvent.gCalLink;
-  if (!gCalLink) {
-    if (rawEvent.id && !rawEvent.id.startsWith('evt_')) {
-      const cleanId = rawEvent.id.replace(/@google\.com$/, '');
-      try {
-        const eid = typeof globalThis.btoa === 'function' ? globalThis.btoa(cleanId).replace(/=+$/, '') : '';
-        gCalLink = eid ? `https://calendar.google.com/calendar/r/eventedit/${eid}` : `https://calendar.google.com/calendar/r/day/${(rawEvent.startTime ? rawEvent.startTime.slice(0, 10) : '').replace(/-/g, '/')}`;
-      } catch {
-        const dStr = (rawEvent.startTime ? rawEvent.startTime.slice(0, 10) : '').replace(/-/g, '/');
-        gCalLink = dStr ? `https://calendar.google.com/calendar/r/day/${dStr}` : `https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent(rawEvent.title || '')}`;
-      }
-    } else {
-      const dStr = (rawEvent.startTime ? rawEvent.startTime.slice(0, 10) : '').replace(/-/g, '/');
-      gCalLink = dStr ? `https://calendar.google.com/calendar/r/day/${dStr}` : `https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent(rawEvent.title || '')}`;
-    }
-  }
+  const dateStr = (rawEvent.startTime ? rawEvent.startTime.slice(0, 10) : '') || new Date().toISOString().slice(0, 10);
+  const gCalLink = rawEvent.htmlLink || rawEvent.gCalLink || `https://calendar.google.com/calendar/r/day/${dateStr.replace(/-/g, '/')}`;
 
   return {
     id: rawEvent.id || `evt_${Math.random().toString(36).slice(2, 8)}`,
@@ -112,6 +98,42 @@ export function formatEventModalPayload(rawEvent = {}) {
     gCalLink,
     attendees: rawEvent.attendees || []
   };
+}
+
+const HTML_TAG_PATTERN = /<[a-z][\s\S]*?>/i;
+
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function sanitizeDescriptionHtml(html) {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/(href|src)\s*=\s*("|')\s*(?:javascript|data):[^"']*\2/gi, '$1="#"')
+    .replace(/<a(?![^>]*\btarget=)([^>]*?)>/gi, '<a target="_blank" rel="noopener noreferrer"$1>');
+}
+
+/**
+ * Formats a calendar event description for display. Descriptions containing HTML markup (e.g.
+ * an invite created by another Calendar client with <a>/<br> formatting) are sanitized and
+ * returned as HTML; plain-text descriptions are escaped and wrapped in <pre> so manual line
+ * breaks survive instead of collapsing under normal HTML whitespace rules.
+ * @param {string} [description=''] Raw event description text.
+ * @returns {string} Safe HTML fragment ready to bind via x-html; '' if there's no description.
+ */
+export function formatEventDescriptionHtml(description = '') {
+  if (!description) return '';
+  if (HTML_TAG_PATTERN.test(description)) {
+    return sanitizeDescriptionHtml(description);
+  }
+  return `<pre>${escapeHtml(description)}</pre>`;
 }
 
 /**

@@ -9,7 +9,8 @@ import {
   generateScheduleGrid,
   mapEventsToGrid,
   formatEventModalPayload,
-  generateMonthlyCalendarGrid
+  generateMonthlyCalendarGrid,
+  formatEventDescriptionHtml
 } from '../src/calendarEngine.js';
 
 describe('Calendar Engine Unit Tests', () => {
@@ -79,5 +80,35 @@ describe('Calendar Engine Unit Tests', () => {
     assert.equal(aug15.dayNumber, 15);
     assert.equal(aug15.isCurrentMonth, true);
     assert.equal(aug15.events.length, 1);
+  });
+
+  it('should escape and wrap a plain-text description in <pre> so line breaks survive', () => {
+    const html = formatEventDescriptionHtml('Line one\nLine two <not-really-a-tag');
+    assert.equal(html, '<pre>Line one\nLine two &lt;not-really-a-tag</pre>');
+  });
+
+  it('should render an HTML-bearing description as HTML and ensure links open in new tab', () => {
+    const html = formatEventDescriptionHtml('Call in via <a href="https://meet.example.com">this link</a><br>Bring notes');
+    assert.ok(html.includes('href="https://meet.example.com"'));
+    assert.ok(html.includes('target="_blank"'));
+    assert.ok(html.includes('<br>'));
+  });
+
+  it('should strip script/style blocks and inline event-handler attributes from HTML descriptions', () => {
+    const html = formatEventDescriptionHtml('<img src=x onerror="alert(1)"><script>alert(2)</script><b onclick="evil()">hi</b>');
+    assert.ok(!html.includes('onerror'));
+    assert.ok(!html.includes('onclick'));
+    assert.ok(!html.includes('<script>'));
+    assert.ok(!html.includes('alert(2)'));
+  });
+
+  it('should neutralize javascript: URIs in href/src attributes of HTML descriptions', () => {
+    const html = formatEventDescriptionHtml('<a href="javascript:alert(1)">click</a>');
+    assert.ok(!html.includes('javascript:'));
+  });
+
+  it('should return an empty string for an empty/missing description', () => {
+    assert.equal(formatEventDescriptionHtml(''), '');
+    assert.equal(formatEventDescriptionHtml(), '');
   });
 });

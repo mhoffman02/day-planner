@@ -1987,20 +1987,10 @@
 
       openEventModal(evt) {
         if (!evt) return;
-        const dateStr = (evt.startTime ? evt.startTime.slice(0, 10) : this.selectedDate) || new Date().toISOString().slice(0, 10);
-        let gCalLink = evt.gCalLink || evt.htmlLink;
+        var dateStr = (evt.startTime ? evt.startTime.slice(0, 10) : this.selectedDate) || new Date().toISOString().slice(0, 10);
+        var gCalLink = evt.gCalLink || evt.htmlLink;
         if (!gCalLink) {
-          if (evt.id && !evt.id.startsWith('evt_')) {
-            const cleanId = evt.id.replace(/@google\.com$/, '');
-            try {
-              const eid = typeof globalThis.btoa === 'function' ? globalThis.btoa(cleanId).replace(/=+$/, '') : '';
-              gCalLink = eid ? `${'https:' + '/' + '/calendar.google.com/calendar/r/eventedit/'}${eid}` : `${'https:' + '/' + '/calendar.google.com/calendar/r/day/'}${dateStr.replace(/-/g, '/')}`;
-            } catch (e) {
-              gCalLink = `${'https:' + '/' + '/calendar.google.com/calendar/r/day/'}${dateStr.replace(/-/g, '/')}`;
-            }
-          } else {
-            gCalLink = `${'https:' + '/' + '/calendar.google.com/calendar/r/day/'}${dateStr.replace(/-/g, '/')}`;
-          }
+          gCalLink = 'https:' + '/' + '/calendar.google.com/calendar/r/day/' + dateStr.replace(/-/g, '/');
         }
         this.selectedEvent = {
           ...evt,
@@ -2008,6 +1998,26 @@
           formattedTime: this.formatEventTime(evt)
         };
         this.eventModalOpen = true;
+      },
+
+      formatEventDescription(description) {
+        if (!description) return '';
+        var htmlTagPattern = /<[a-z][\s\S]*?>/i;
+        if (htmlTagPattern.test(description)) {
+          return description
+            .replace(/<script[\s\S]*?<\/script>/gi, '')
+            .replace(/<style[\s\S]*?<\/style>/gi, '')
+            .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+            .replace(/(href|src)\s*=\s*("|')\s*(?:javascript|data):[^"']*\2/gi, '$1="#"')
+            .replace(/<a(?![^>]*\btarget=)([^>]*?)>/gi, '<a target="_blank" rel="noopener noreferrer"$1>');
+        }
+        var escaped = description
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+        return '<pre>' + escaped + '</pre>';
       },
 
       formatEventTime(evt) {

@@ -844,9 +844,36 @@ function getDailyData(dateStr) {
     var nextDate = new Date(targetDate.getTime() + 24 * 60 * 60 * 1000);
 
     // 1. Fetch Calendar Events
-    if (typeof CalendarApp !== 'undefined') {
+    if (typeof Calendar !== 'undefined' && Calendar.Events) {
       try {
-        var events = CalendarApp.getDefaultCalendar().getEvents(targetDate, nextDate);
+        var dayResp = Calendar.Events.list('primary', {
+          timeMin: targetDate.toISOString(),
+          timeMax: nextDate.toISOString(),
+          singleEvents: true,
+          maxResults: 250,
+          fields: 'items(id,summary,start,end,location,description,hangoutLink,htmlLink,extendedProperties)'
+        });
+        result.calendarEvents = (dayResp.items || []).map(function(evt) {
+          return {
+            id: evt.id,
+            title: evt.summary || '(untitled)',
+            startTime: evt.start && (evt.start.dateTime || evt.start.date),
+            endTime: evt.end && (evt.end.dateTime || evt.end.date),
+            location: evt.location || '',
+            description: evt.description || '',
+            meetLink: evt.hangoutLink || null,
+            htmlLink: evt.htmlLink || null,
+            syncTaskId: (evt.extendedProperties && evt.extendedProperties.shared && evt.extendedProperties.shared.gasTaskId) || null
+          };
+        });
+      } catch (calErr) {
+        result.warnings.push(logError('Calendar.Events.list', calErr).error);
+      }
+    } else if (typeof CalendarApp !== 'undefined') {
+      try {
+        var defaultCal = CalendarApp.getDefaultCalendar();
+        var defaultCalId = defaultCal.getId();
+        var events = defaultCal.getEvents(targetDate, nextDate);
         result.calendarEvents = events.map(function(evt) {
           var meetLink = null;
           if (typeof evt.getHangoutLink === 'function') {
@@ -857,14 +884,17 @@ function getDailyData(dateStr) {
             var match = (desc + ' ' + loc).match(/https:\/\/meet\.google\.com\/[a-z0-9-]+/i);
             if (match) meetLink = match[0];
           }
+          var bareId = evt.getId().replace(/@google\.com$/, '');
           return {
-            id: evt.getId(),
+            id: bareId,
             title: evt.getTitle(),
             startTime: evt.getStartTime().toISOString(),
             endTime: evt.getEndTime().toISOString(),
             location: evt.getLocation(),
             description: evt.getDescription(),
             meetLink: meetLink,
+            htmlLink: 'https:' + '/' + '/calendar.google.com/calendar/event?eid=' +
+              Utilities.base64EncodeWebSafe(bareId + ' ' + defaultCalId).replace(/=+$/, ''),
             syncTaskId: evt.getTag('gasTaskId') || null
           };
         });

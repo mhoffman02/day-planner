@@ -2381,6 +2381,22 @@
   }
   .modal-description {
     margin-top: 8px;
+    max-height: 250px;
+    overflow-y: auto;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    color: var(--text-main);
+  }
+  .modal-description pre {
+    font-family: inherit;
+    font-size: inherit;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 0;
+  }
+  .modal-description a {
+    color: var(--binder-teal);
+    text-decoration: underline;
   }
   article.modal-card-wide {
     max-width: 650px;
