@@ -25,10 +25,15 @@
 - [x] **Fix Status Popup Menu Clipping & Round Outer Priority Button Corners (commit `81d518d`)**:
   - Set `overflow: visible` on `figure.table-container`, added dynamic dropup space detection (`spaceBelow < 220`) in `openStatusMenu` / `toggleStatusMenu`, added CSS nth-last-child dropup fallback, and elevated z-index on active task rows to prevent clipping.
   - Rounded outer corners of Priority "A" (NW, SW: `border-top-left-radius: 5px; border-bottom-left-radius: 5px;`) and Priority "C" (NE, SE: `border-top-right-radius: 5px; border-bottom-right-radius: 5px;`), keeping inner shared borders flush.
-- [x] **Deploy to HOME Prod (`@182`)**:
-  - Created Version 182 and deployed to endpoint `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
-- [ ] **Deploy Version 21 on WORK Deployment `Version 3` (`9csO`)**:
-  - In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit), select deployment `Version 3` (`9csO`), edit, select **New version** (or Version 21), and click **Deploy**.
+- [x] **Fix Task Note Popover Clipping via Cell Overflow Removal & Matching Dropup Threshold (commit `bd803ee`)**:
+  - Identified root cause of note popover bottom clipping: `td.task-title-cell` had `overflow-y: auto` and `max-height: calc(1.4em * 4)` (~80px), creating a clipping context for any absolute child regardless of positioning.
+  - Set `overflow: visible` and removed `max-height` from `.task-title-cell` in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html).
+  - Aligned note popover dropup threshold in `openNotesPopover` / `toggleNotesPopover` across [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html) to match Status Menu: `(spaceBelow < 275 && spaceAbove > spaceBelow) || spaceBelow < 160`.
+  - Verified across 8 and 12 task rows: popover flips cleanly upward on bottom rows with zero clipping and zero scroll needed.
+- [x] **Deploy to HOME Prod (`@183`)**:
+  - Created Version 183 and deployed to endpoint `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
+- [ ] **Deploy Version 24 on WORK Deployment `Version 3` (`9csO`)**:
+  - In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit), select deployment `Version 3` (`9csO`), edit, select **New version** (or Version 24), and click **Deploy**.
 - [ ] **Live Workspace UAT of Phase 9 & Ergonomic Fixes**:
   - Verify Status popup menu opens without clipping on all tasks (including bottom rows) and drops up cleanly without scrolling.
   - Verify Note hover popover opens upward on bottom rows without clipping and shows full note content.
