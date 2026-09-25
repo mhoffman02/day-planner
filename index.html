@@ -846,7 +846,7 @@
         </header>
         <div class="modal-body-details">
           <p class="modal-detail-row">
-            <span class="material-symbols-outlined icon-18">schedule</span> <span x-text="selectedEvent?.startTime"></span>
+            <span class="material-symbols-outlined icon-18">schedule</span> <span x-text="formatEventTime(selectedEvent)"></span>
           </p>
           <p class="modal-detail-row">
             <span class="material-symbols-outlined icon-18">location_on</span> <span x-text="selectedEvent?.location || 'No location set'"></span>

@@ -1157,15 +1157,12 @@ Alpine.data('plannerApp', () => ({
         this.calendarEvents.forEach(evt => {
           let slotKey = null;
           if (evt.startTime) {
-            const match = evt.startTime.match(/T(\d{2}):(\d{2})/);
-            if (match) {
-              const hr = parseInt(match[1], 10);
-              const min = parseInt(match[2], 10) < 30 ? '00' : '30';
-              slotKey = `${hr.toString().padStart(2, '0')}:${min}`;
-            } else {
-              const start = new Date(evt.startTime);
-              const slotMin = start.getMinutes() < 30 ? '00' : '30';
-              slotKey = `${start.getHours().toString().padStart(2, '0')}:${slotMin}`;
+            const start = new Date(evt.startTime);
+            if (!isNaN(start.getTime())) {
+              const startHour = start.getHours();
+              const startMin = start.getMinutes();
+              const slotMin = startMin < 30 ? '00' : '30';
+              slotKey = `${startHour.toString().padStart(2, '0')}:${slotMin}`;
             }
           }
           if (slotKey) {
@@ -1209,7 +1206,14 @@ Alpine.data('plannerApp', () => ({
 
         for (let day = 1; day <= lastDay.getDate(); day++) {
           const dateStr = `${this.selectedYear}-${this.selectedMonth.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-          days.push({ dateStr, dayNum: day, isCurrentMonth: true, events: this.calendarEvents.filter(e => e.startTime?.startsWith(dateStr)) });
+          const dayEvents = this.calendarEvents.filter(e => {
+            if (!e.startTime) return false;
+            const d = new Date(e.startTime);
+            if (isNaN(d.getTime())) return e.startTime.startsWith(dateStr);
+            const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            return localDate === dateStr;
+          });
+          days.push({ dateStr, dayNum: day, isCurrentMonth: true, events: dayEvents });
         }
 
         while (days.length % 7 !== 0) {
@@ -1342,6 +1346,20 @@ Alpine.data('plannerApp', () => ({
       openEventModal(evt) {
         this.selectedEvent = evt;
         this.eventModalOpen = true;
+      },
+
+      formatEventTime(evt) {
+        if (!evt) return '';
+        if (evt.formattedTime) return evt.formattedTime;
+        if (!evt.startTime) return 'All Day';
+        const start = new Date(evt.startTime);
+        if (isNaN(start.getTime())) return evt.startTime;
+        const startStr = start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        if (!evt.endTime) return startStr;
+        const end = new Date(evt.endTime);
+        if (isNaN(end.getTime())) return startStr;
+        const endStr = end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        return `${startStr} - ${endStr}`;
       },
 
       closeEventModal() {

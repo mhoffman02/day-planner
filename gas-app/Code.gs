@@ -879,7 +879,7 @@ function getDailyData(dateStr) {
         var taskList = Tasks.Tasks.list('@default');
         if (taskList.items) {
           result.tasks = taskList.items
-            .filter(function(t) { return !t.due || t.due.substring(0, 10) === dateStr; })
+            .filter(function(t) { return Boolean(t.due) && t.due.substring(0, 10) === dateStr; })
             .map(function(t) {
               var meta = decodeTaskMeta(t.notes);
               return {
