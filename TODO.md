@@ -1,5 +1,10 @@
 # Active Tasks (TODO)
 
+- [x] **Add Task Status Dropdown Delete Item & Update Delegated Label (commit `2d94772`)**:
+  - Added "Delete" item with trashcan icon (`<span class="material-symbols-outlined icon-14">delete</span>`) and separator to the Daily Tasks Status dropdown menu across [`index.html`](file:///home/mike/projects/day-planner/index.html) and [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html).
+  - Implemented `deleteDailyTask` in [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), [`src/gasBridge.js`](file:///home/mike/projects/day-planner/src/gasBridge.js), and [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) (`Tasks.Tasks.remove('@default', taskId)` / mock removal), removing the item entirely and triggering sync.
+  - Changed Tasks Status menu label from "Delegated (Done)" to "Delegated" across [`src/taskEngine.js`](file:///home/mike/projects/day-planner/src/taskEngine.js), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), and unit tests.
+  - Added unit test in [`tests/gasBridge.test.js`](file:///home/mike/projects/day-planner/tests/gasBridge.test.js) and [`tests/taskEngine.test.js`](file:///home/mike/projects/day-planner/tests/taskEngine.test.js) (99/99 unit tests passing).
 - [x] **Add Priority Button Hover Titles, Keyboard Shortcuts & Inline Prefix Parsing (commit `21a551d`)**:
   - Added button hover titles (`title="A: Top priority (Alt+A or #a)"`, `title="B: Medium priority (Alt+B or #b)"`, `title="C: Normal priority (Alt+C or #c)"`) and `accesskey="a/b/c"`.
   - Added global and field keyboard shortcuts for `Alt+A/B/C` and `Ctrl+Shift+A/B/C` that set the active priority group and auto-focus the task input field without conflicting with browser Select-All (`Ctrl+A`) or Copy (`Ctrl+C`).
@@ -12,11 +17,13 @@
 - [x] **Fix Status Popup Menu Clipping & Round Outer Priority Button Corners (commit `81d518d`)**:
   - Set `overflow: visible` on `figure.table-container`, added dynamic dropup space detection (`spaceBelow < 220`) in `openStatusMenu` / `toggleStatusMenu`, added CSS nth-last-child dropup fallback, and elevated z-index on active task rows to prevent clipping.
   - Rounded outer corners of Priority "A" (NW, SW: `border-top-left-radius: 5px; border-bottom-left-radius: 5px;`) and Priority "C" (NE, SE: `border-top-right-radius: 5px; border-bottom-right-radius: 5px;`), keeping inner shared borders flush.
-- [x] **Deploy to HOME Prod (`@179`)**:
-  - Created Version 179 and deployed to endpoint `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
-- [ ] **Deploy Version 17 on WORK Deployment `Version 3` (`9csO`)**:
-  - In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit), select deployment `Version 3` (`9csO`), edit, select **New version** (or Version 17), and click **Deploy**.
+- [x] **Deploy to HOME Prod (`@180`)**:
+  - Created Version 180 and deployed to endpoint `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
+- [ ] **Deploy Version 18 on WORK Deployment `Version 3` (`9csO`)**:
+  - In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit), select deployment `Version 3` (`9csO`), edit, select **New version** (or Version 18), and click **Deploy**.
 - [ ] **Live Workspace UAT of Phase 9 & Ergonomic Fixes**:
+  - Verify Status dropdown menu shows "Delegated" (without "(Done)") and "Delete" item with trashcan icon.
+  - Verify clicking "Delete" removes the task entirely from the list and Google Tasks backend.
   - Verify Priority buttons show hover text and `Alt+A`, `Alt+B`, `Alt+C` hotkeys switch priority and focus task input.
   - Verify typing `#a Call vendor` sets priority to A and creates the task with clean title `Call vendor`.
   - Verify Status popup menu opens cleanly without clipping on all tasks (including bottom rows).
