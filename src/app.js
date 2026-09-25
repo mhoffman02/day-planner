@@ -34,7 +34,14 @@ Alpine.data('plannerApp', () => ({
       masterTasks: [],
       newMasterTaskTitle: '',
       newMasterTaskCategory: '',
+      newMasterTaskPriorityGroup: 'A',
       addingMasterTask: false,
+      masterTaskSort: { column: null, direction: 'asc' },
+      dailyDocUrl: '',
+      monthPickerOpen: false,
+      monthPickerYear: new Date().getFullYear(),
+      monthPickerCloseTimer: null,
+      MONTH_NAMES_SHORT: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
       futureMatrix: { year: String(new Date().getFullYear()), months: {} },
       futureMatrixYear: new Date().getFullYear(),
       newFutureItemTitle: {},
@@ -272,18 +279,16 @@ Alpine.data('plannerApp', () => ({
           const isCtrlShift = (e.ctrlKey || e.metaKey) && e.shiftKey;
 
           if (isAlt || isCtrlShift) {
-            if (keyLower === 'a') {
+            if (keyLower === 'a' || keyLower === 'b' || keyLower === 'c') {
               e.preventDefault();
-              this.newTaskPriorityGroup = 'A';
-              this.focusTaskInput();
-            } else if (keyLower === 'b') {
-              e.preventDefault();
-              this.newTaskPriorityGroup = 'B';
-              this.focusTaskInput();
-            } else if (keyLower === 'c') {
-              e.preventDefault();
-              this.newTaskPriorityGroup = 'C';
-              this.focusTaskInput();
+              const group = keyLower.toUpperCase();
+              if (this.activeView === 'master-tasks') {
+                this.newMasterTaskPriorityGroup = group;
+                this.focusMasterTaskInput();
+              } else {
+                this.newTaskPriorityGroup = group;
+                this.focusTaskInput();
+              }
             }
           }
 
@@ -310,6 +315,13 @@ Alpine.data('plannerApp', () => ({
 
       focusTaskInput() {
         const input = document.querySelector('.task-input-field');
+        if (input) {
+          input.focus();
+        }
+      },
+
+      focusMasterTaskInput() {
+        const input = document.querySelector('.master-task-title-input');
         if (input) {
           input.focus();
         }
@@ -514,6 +526,49 @@ Alpine.data('plannerApp', () => ({
         }
       },
 
+      openMonthPicker() {
+        clearTimeout(this.monthPickerCloseTimer);
+        this.monthPickerYear = this.selectedYear;
+        this.monthPickerOpen = true;
+      },
+
+      scheduleMonthPickerClose() {
+        clearTimeout(this.monthPickerCloseTimer);
+        this.monthPickerCloseTimer = setTimeout(() => {
+          this.monthPickerOpen = false;
+        }, 250);
+      },
+
+      toggleMonthPicker() {
+        this.monthPickerOpen = !this.monthPickerOpen;
+        if (this.monthPickerOpen) {
+          clearTimeout(this.monthPickerCloseTimer);
+          this.monthPickerYear = this.selectedYear;
+        }
+      },
+
+      changeMonthPickerYear(delta) {
+        this.monthPickerYear += delta;
+      },
+
+      isCurrentCalendarMonth(year, monthNum) {
+        const now = new Date();
+        return year === now.getFullYear() && monthNum === (now.getMonth() + 1);
+      },
+
+      async selectNavMonth(year, monthNum) {
+        this.monthPickerOpen = false;
+        const monthStr = monthNum.toString().padStart(2, '0');
+        this.selectedDate = `${year}-${monthStr}-01`;
+        this.selectedYear = year;
+        this.selectedMonth = monthNum;
+        await this.loadDayData();
+        await this.loadMasterTasks();
+        if (this.activeView === 'monthly-calendar') {
+          this.buildMonthlyGrid();
+        }
+      },
+
       async loadDayData() {
         try {
           const data = await this.bridge.getDailyData(this.selectedDate);
@@ -526,6 +581,7 @@ Alpine.data('plannerApp', () => ({
           this.dailyTasks = data.tasks || [];
           this.calendarEvents = data.calendarEvents || [];
           this.dailyNote = data.noteContent || '';
+          this.dailyDocUrl = data.docUrl || '';
           this.noteCards = this.parseDailyNoteToCards(this.dailyNote);
           this.buildScheduleGrid();
           this.buildIndexRecords();
@@ -1119,14 +1175,20 @@ Alpine.data('plannerApp', () => ({
       },
 
       async addMasterTask() {
-        const title = this.newMasterTaskTitle.trim();
-        if (!title || this.addingMasterTask) return;
+        const extracted = extractInlinePriority(this.newMasterTaskTitle, this.newMasterTaskPriorityGroup);
+        this.newMasterTaskPriorityGroup = extracted.priorityGroup;
+        const taskTitle = extracted.cleanTitle;
+        if (!taskTitle || this.addingMasterTask) return;
         this.addingMasterTask = true;
         try {
           const category = this.newMasterTaskCategory.trim() || 'General';
-          const created = await this.bridge.addMasterTask(title, category);
+          const existingCount = this.masterTasks.length + 1;
+          const formattedTitle = formatTaskTitle(this.newMasterTaskPriorityGroup, existingCount, taskTitle);
+          const created = await this.bridge.addMasterTask(formattedTitle, category);
           created._moveDate = getLocalDateStr();
           created._moving = false;
+          if (!created.category) created.category = category;
+          if (!created.status) created.status = '•';
           this.masterTasks.push(created);
           this.newMasterTaskTitle = '';
           this.newMasterTaskCategory = '';
@@ -1135,6 +1197,26 @@ Alpine.data('plannerApp', () => ({
           this.errorMessage = `Could not add master task: ${err.message || err.toString()}`;
         } finally {
           this.addingMasterTask = false;
+        }
+      },
+
+      async deleteMasterTask(task) {
+        if (!task || !task.id) return;
+        this.openStatusMenuTaskId = null;
+        try {
+          const idx = this.masterTasks.findIndex(t => t.id === task.id);
+          if (idx !== -1) {
+            this.masterTasks.splice(idx, 1);
+          }
+          if (this.bridge && typeof this.bridge.deleteMasterTask === 'function') {
+            await this.bridge.deleteMasterTask(task.id);
+          } else if (this.bridge && typeof this.bridge.deleteDailyTask === 'function') {
+            await this.bridge.deleteDailyTask('', task.id);
+          }
+          await this.trigger2WaySync();
+        } catch (err) {
+          console.error('🔥 deleteMasterTask error:', err);
+          this.errorMessage = `Error deleting master task: ${err.message || err.toString()}`;
         }
       },
 
@@ -1209,6 +1291,7 @@ Alpine.data('plannerApp', () => ({
         if (!this.dailyNote) return;
         const lines = this.dailyNote.split('\n');
         const entries = [];
+        const fallbackUrl = this.getDirectDocUrl('');
         lines.forEach(l => {
           if (/#index|\[INDEX\]/i.test(l)) {
             let clean = l.replace(/#index|\[INDEX\]/gi, '').trim();
@@ -1218,11 +1301,21 @@ Alpine.data('plannerApp', () => ({
               topic = match[1];
               clean = match[2];
             }
-            entries.push({ date: this.selectedDate, topic, summary: clean, docUrl: `#doc-${this.selectedDate}` });
+            entries.push({ date: this.selectedDate, topic, summary: clean, docUrl: fallbackUrl });
           }
         });
         this.indexRecords = entries;
         this.buildTaskNoteLinks();
+      },
+
+      getDirectDocUrl(url) {
+        if (url && typeof url === 'string' && url.startsWith('http') && !url.includes('script.googleusercontent.com')) {
+          return url;
+        }
+        if (this.dailyDocUrl && typeof this.dailyDocUrl === 'string' && this.dailyDocUrl.startsWith('http') && !this.dailyDocUrl.includes('script.googleusercontent.com')) {
+          return this.dailyDocUrl;
+        }
+        return 'https:' + '/' + '/docs.google.com/document/';
       },
 
       buildMonthlyGrid() {
@@ -1261,6 +1354,17 @@ Alpine.data('plannerApp', () => ({
           this.newTaskPriorityGroup = match[1].toUpperCase();
           if (match[0].length < val.length || /\s/.test(match[0])) {
             this.newTaskTitle = val.replace(/^#([abcABC])(?:\s*[:-]\s*|\s+)/, '');
+          }
+        }
+      },
+
+      handleMasterTaskTitleInput() {
+        const val = this.newMasterTaskTitle || '';
+        const match = val.match(/^#([abcABC])(?:\s*[:-]\s*|\s+|$)/);
+        if (match) {
+          this.newMasterTaskPriorityGroup = match[1].toUpperCase();
+          if (match[0].length < val.length || /\s/.test(match[0])) {
+            this.newMasterTaskTitle = val.replace(/^#([abcABC])(?:\s*[:-]\s*|\s+)/, '');
           }
         }
       },
@@ -1319,8 +1423,18 @@ Alpine.data('plannerApp', () => ({
       async toggleTaskStar(task) {
         const previous = Boolean(task.starred);
         task.starred = !previous;
+        const isMaster = this.masterTasks.some(m => m.id === task.id);
         try {
-          const updated = await this.bridge.updateDailyTask(this.selectedDate, task.id, { starred: task.starred });
+          let updated = null;
+          if (isMaster) {
+            if (this.bridge && typeof this.bridge.updateMasterTask === 'function') {
+              updated = await this.bridge.updateMasterTask(task.id, { starred: task.starred });
+            } else if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
+              updated = await this.bridge.updateDailyTask('', task.id, { starred: task.starred });
+            }
+          } else {
+            updated = await this.bridge.updateDailyTask(this.selectedDate, task.id, { starred: task.starred });
+          }
           if (!updated) {
             task.starred = previous;
           }
@@ -1416,15 +1530,35 @@ Alpine.data('plannerApp', () => ({
           return;
         }
         task.status = newStatus;
-        const linkedMaster = this.masterTasks.find(m => m.movedTaskId === task.id);
+        const isMaster = this.masterTasks.some(m => m.id === task.id);
+        const linkedMaster = !isMaster ? this.masterTasks.find(m => m.movedTaskId === task.id) : null;
         if (linkedMaster) linkedMaster.status = newStatus;
+        if (isMaster && task.movedTaskId) {
+          const linkedDaily = this.dailyTasks.find(d => d.id === task.movedTaskId);
+          if (linkedDaily) linkedDaily.status = newStatus;
+        }
         try {
-          if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
-            await this.bridge.updateDailyTask(this.selectedDate, task.id, {
-              title: task.title,
-              status: task.status,
-              dueDate: task.dueDate
-            });
+          if (isMaster) {
+            if (this.bridge && typeof this.bridge.updateMasterTask === 'function') {
+              await this.bridge.updateMasterTask(task.id, {
+                title: task.title,
+                status: task.status,
+                category: task.category
+              });
+            } else if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
+              await this.bridge.updateDailyTask('', task.id, {
+                title: task.title,
+                status: task.status
+              });
+            }
+          } else {
+            if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
+              await this.bridge.updateDailyTask(this.selectedDate, task.id, {
+                title: task.title,
+                status: task.status,
+                dueDate: task.dueDate
+              });
+            }
           }
         } catch (err) {
           console.error('🔥 setTaskStatus persist error:', err);

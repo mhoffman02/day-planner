@@ -282,6 +282,135 @@
     background: rgba(255, 255, 255, 0.32) !important;
   }
 
+  .month-picker-wrap {
+    position: relative;
+    display: inline-flex;
+  }
+
+  .month-jump-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding-right: 4px;
+  }
+
+  .month-jump-btn .dropdown-arrow {
+    font-size: 16px;
+    line-height: 1;
+    opacity: 0.85;
+    transition: transform 0.15s ease;
+  }
+
+  .month-picker-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 1000;
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+    padding: 10px;
+    width: 220px;
+  }
+
+  [data-theme="dark"] .month-picker-dropdown {
+    background: #1e2621;
+    border-color: #33443a;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  }
+
+  .month-picker-year-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    padding: 0 2px 6px 2px;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  [data-theme="dark"] .month-picker-year-nav {
+    border-bottom-color: #2b3a32;
+  }
+
+  .month-picker-year-nav .icon-nav-btn {
+    background: rgba(0, 0, 0, 0.06) !important;
+    border: 1px solid #d1d5db !important;
+    color: #1f2937 !important;
+  }
+
+  .month-picker-year-nav .icon-nav-btn:hover {
+    background: rgba(0, 0, 0, 0.12) !important;
+  }
+
+  [data-theme="dark"] .month-picker-year-nav .icon-nav-btn {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+    color: #f3f4f6 !important;
+  }
+
+  [data-theme="dark"] .month-picker-year-nav .icon-nav-btn:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+  }
+
+  .month-picker-year-text {
+    font-family: var(--font-family-header);
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #111827;
+  }
+
+  [data-theme="dark"] .month-picker-year-text {
+    color: #f3f4f6;
+  }
+
+  .month-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+
+  .month-picker-cell {
+    padding: 6px 2px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    color: #374151;
+    cursor: pointer;
+    text-align: center;
+    transition: background 0.12s ease, border-color 0.12s ease;
+  }
+
+  .month-picker-cell:hover {
+    background: rgba(0, 0, 0, 0.06);
+  }
+
+  [data-theme="dark"] .month-picker-cell {
+    color: #d1d5db;
+  }
+
+  [data-theme="dark"] .month-picker-cell:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .month-picker-cell.is-current {
+    border-color: var(--gold-accent, #c99700) !important;
+    font-weight: 700;
+  }
+
+  .month-picker-cell.is-selected {
+    background: var(--color-primary-green, #1b4d3e) !important;
+    color: #ffffff !important;
+    font-weight: 700;
+  }
+
+  [data-theme="dark"] .month-picker-cell.is-selected {
+    background: #2e7d32 !important;
+    color: #ffffff !important;
+  }
+
   .date-text-display {
     font-family: var(--font-family-header);
     font-size: 0.92rem;
@@ -2344,27 +2473,84 @@
     line-height: 1;
   }
 
+  .master-task-add-bar {
+    margin-bottom: 14px;
+  }
+
+  .master-task-add-bar .master-task-category-input {
+    flex: 0 0 140px;
+    max-width: 140px;
+  }
+
   .master-tasks-table {
     table-layout: fixed;
   }
 
   .master-tasks-table th:nth-child(1),
   .master-tasks-table td:nth-child(1) {
-    width: 100px;
+    width: 48px;
+    text-align: center;
   }
 
-  .master-tasks-table th:nth-child(3),
-  .master-tasks-table td:nth-child(3) {
-    width: 200px;
+  .master-tasks-table th:nth-child(2),
+  .master-tasks-table td:nth-child(2) {
+    width: 48px;
+    text-align: center;
   }
 
   .master-tasks-table th:nth-child(4),
   .master-tasks-table td:nth-child(4) {
-    width: 230px;
+    width: 110px;
   }
 
-  .master-tasks-table td:nth-child(2) {
+  .master-tasks-table th:nth-child(5),
+  .master-tasks-table td:nth-child(5) {
+    width: 260px;
+  }
+
+  .master-tasks-table td:nth-child(3) {
     overflow-wrap: break-word;
+  }
+
+  .master-task-action-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .btn-delete-row {
+    background: transparent;
+    color: #c93b2b;
+    border: 1px solid #f8b4b4;
+    border-radius: 4px;
+    height: 26px;
+    width: 26px;
+    padding: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    box-sizing: border-box;
+    flex-shrink: 0;
+    margin-bottom: 0 !important;
+  }
+
+  .btn-delete-row:hover {
+    background: #fee2e2;
+    border-color: #b91c1c;
+    color: #b91c1c;
+  }
+
+  [data-theme="dark"] .btn-delete-row {
+    color: #f87171;
+    border-color: #7f1d1d;
+  }
+
+  [data-theme="dark"] .btn-delete-row:hover {
+    background: #3b1818;
+    color: #fca5a5;
+    border-color: #ef4444;
   }
 
   .master-task-category-input {

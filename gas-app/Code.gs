@@ -836,6 +836,7 @@ function getDailyData(dateStr) {
     tasks: [],
     calendarEvents: [],
     noteContent: '',
+    docUrl: '',
     warnings: []
   };
 
@@ -949,6 +950,22 @@ function getDailyData(dateStr) {
 
     // 3. Fetch or Create Daily Notes Google Doc
     try {
+      if (typeof DriveApp !== 'undefined' && typeof DocumentApp !== 'undefined') {
+        var targetFolder = getValidatedRootFolder();
+        if (targetFolder) {
+          var d = new Date(dateStr + 'T00:00:00');
+          var monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+          var monthName = monthNames[d.getMonth()];
+          var year = d.getFullYear();
+          var docName = 'Day Planner Notes - ' + monthName + ' ' + year;
+          var doc = getOrCreateMonthlyNotesDoc_(targetFolder, docName, monthName, year);
+          if (doc && typeof doc.getUrl === 'function') {
+            result.docUrl = doc.getUrl();
+          }
+        }
+      } else {
+        result.docUrl = 'https:' + '/' + '/docs.google.com/document/d/mock-local-doc/edit';
+      }
       result.noteContent = getOrCreateDailyDocContent(dateStr);
     } catch (notesErr) {
       result.warnings.push(logError('getOrCreateDailyDocContent', notesErr).error);
@@ -1213,15 +1230,15 @@ function getFolderByNameOrCreate(parent, name) {
  * Retrieves master task entries for monthly planning / backlog.
  * Undated Google Tasks flagged via the hidden metadata marker or without due dates.
  * @param {string} [monthYearStr] Optional month/year string (kept for signature compatibility).
- * @returns {Array<{id: string, title: string, category: string, status: string, movedTo: (string|null), movedTaskId: (string|null)}>} Array of master task items.
+ * @returns {Array<{id: string, title: string, category: string, status: string, starred: boolean, notes: string, movedTo: (string|null), movedTaskId: (string|null)}>} Array of master task items.
  */
 function getMasterTasks(monthYearStr) {
   try {
     if (typeof Tasks === 'undefined') {
       return [
-        { id: 'm1', title: 'Prepare Q3 performance appraisals', category: 'Work', status: '•', movedTo: null, movedTaskId: null },
-        { id: 'm2', title: 'Plan annual family retreat', category: 'Personal', status: '•', movedTo: null, movedTaskId: null },
-        { id: 'm3', title: 'Rebalance investment portfolio', category: 'Financial', status: '•', movedTo: null, movedTaskId: null }
+        { id: 'm1', title: '[A1] Prepare Q3 performance appraisals', category: 'Work', status: '•', starred: false, notes: 'Draft reviews before Friday', movedTo: null, movedTaskId: null },
+        { id: 'm2', title: '[B1] Plan annual family retreat', category: 'Personal', status: '•', starred: true, notes: 'Check cabin availability in Tahoe', movedTo: null, movedTaskId: null },
+        { id: 'm3', title: '[C1] Rebalance investment portfolio', category: 'Financial', status: '•', starred: false, notes: '', movedTo: null, movedTaskId: null }
       ];
     }
     var resp = Tasks.Tasks.list('@default', { showCompleted: true, showHidden: true, maxResults: 100 });
@@ -1235,6 +1252,8 @@ function getMasterTasks(monthYearStr) {
           title: t.title,
           category: meta.category || 'General',
           status: deriveTaskStatus(t),
+          starred: Boolean(meta.starred),
+          notes: stripDpTokens(t.notes),
           movedTo: meta.movedTo || null,
           movedTaskId: meta.movedTaskId || null
         };
@@ -1249,7 +1268,7 @@ function getMasterTasks(monthYearStr) {
  * Creates a new master task — an undated Google Task flagged via metadata marker.
  * @param {string} title Task title.
  * @param {string} [category='General'] Optional category classification.
- * @returns {{id: string, title: string, category: string, status: string, movedTo: null, movedTaskId: null}} Created master task object.
+ * @returns {{id: string, title: string, category: string, status: string, starred: boolean, notes: string, movedTo: null, movedTaskId: null}} Created master task object.
  */
 function addMasterTask(title, category) {
   try {
@@ -1259,6 +1278,8 @@ function addMasterTask(title, category) {
         title: title,
         category: category || 'General',
         status: '•',
+        starred: false,
+        notes: '',
         movedTo: null,
         movedTaskId: null
       };
@@ -1267,11 +1288,14 @@ function addMasterTask(title, category) {
       title: title,
       notes: encodeTaskMeta('', { master: true, category: category || 'General' })
     }, '@default');
+    var meta = decodeTaskMeta(created.notes);
     return {
       id: created.id,
       title: created.title,
-      category: category || 'General',
+      category: meta.category || category || 'General',
       status: deriveTaskStatus(created),
+      starred: Boolean(meta.starred),
+      notes: stripDpTokens(created.notes),
       movedTo: null,
       movedTaskId: null
     };
@@ -1279,6 +1303,25 @@ function addMasterTask(title, category) {
     logError('addMasterTask', err);
     throw err;
   }
+}
+
+/**
+ * Deletes a master task entirely by ID.
+ * @param {string} taskId Google Task id.
+ * @returns {boolean} True if deleted successfully.
+ */
+function deleteMasterTask(taskId) {
+  return deleteDailyTask(taskId);
+}
+
+/**
+ * Updates an existing master task title, status, category, starred, or notes.
+ * @param {string} taskId Google Task id.
+ * @param {object} updates Fields to update: { title, status, category, starred, notes }.
+ * @returns {object|null} Updated task object, or null if the task no longer exists.
+ */
+function updateMasterTask(taskId, updates) {
+  return updateDailyTask('', taskId, updates);
 }
 
 /**
@@ -1413,18 +1456,32 @@ function updateDailyTask(dateStr, taskId, updates) {
 
     var updated = Tasks.Tasks.patch(patch, '@default', taskId);
 
-    // Mirror a status change back onto this task's source master task, if it was transferred from one
-    if (current && updates && updates.status !== undefined) {
-      var meta = decodeTaskMeta(current.notes);
-      if (meta.sourceMasterId) {
-        try {
-          var masterCurrent = Tasks.Tasks.get('@default', meta.sourceMasterId);
-          Tasks.Tasks.patch({
-            status: patch.status,
-            notes: encodeTaskStatusNotes(updates.status, masterCurrent.notes)
-          }, '@default', meta.sourceMasterId);
-        } catch (syncErr) {
-          logError('updateDailyTask->masterSync(' + meta.sourceMasterId + ')', syncErr);
+    // Mirror a status change back onto source master task or moved daily task
+    if (updates && updates.status !== undefined) {
+      var cur = ensureCurrent();
+      if (cur) {
+        var meta = decodeTaskMeta(cur.notes);
+        if (meta.sourceMasterId) {
+          try {
+            var masterCurrent = Tasks.Tasks.get('@default', meta.sourceMasterId);
+            Tasks.Tasks.patch({
+              status: patch.status,
+              notes: encodeTaskStatusNotes(updates.status, masterCurrent.notes)
+            }, '@default', meta.sourceMasterId);
+          } catch (syncErr) {
+            logError('updateDailyTask->masterSync(' + meta.sourceMasterId + ')', syncErr);
+          }
+        }
+        if (meta.movedTaskId) {
+          try {
+            var movedCurrent = Tasks.Tasks.get('@default', meta.movedTaskId);
+            Tasks.Tasks.patch({
+              status: patch.status,
+              notes: encodeTaskStatusNotes(updates.status, movedCurrent.notes)
+            }, '@default', meta.movedTaskId);
+          } catch (syncMovedErr) {
+            logError('updateDailyTask->movedTaskSync(' + meta.movedTaskId + ')', syncMovedErr);
+          }
         }
       }
     }
@@ -1915,6 +1972,8 @@ global.addDailyTask = addDailyTask;                          // google.script.ru
 global.updateDailyTask = updateDailyTask;                    // google.script.run: Script.html
 global.deleteDailyTask = deleteDailyTask;                    // google.script.run: Script.html
 global.addMasterTask = addMasterTask;                        // google.script.run: Script.html
+global.updateMasterTask = updateMasterTask;                  // google.script.run: Script.html
+global.deleteMasterTask = deleteMasterTask;                  // google.script.run: Script.html
 global.markMasterTaskMoved = markMasterTaskMoved;            // google.script.run: Script.html
 global.saveDailyDocCards = saveDailyDocCards;                // google.script.run: Script.html
 global.resolveDriveFileTitle = resolveDriveFileTitle;        // google.script.run: Script.html
@@ -1959,6 +2018,8 @@ global._addDailyTaskInternal = addDailyTask;
 global._updateDailyTaskInternal = updateDailyTask;
 global._deleteDailyTaskInternal = deleteDailyTask;
 global._addMasterTaskInternal = addMasterTask;
+global._updateMasterTaskInternal = updateMasterTask;
+global._deleteMasterTaskInternal = deleteMasterTask;
 global._markMasterTaskMovedInternal = markMasterTaskMoved;
 global._saveDailyDocCardsInternal = saveDailyDocCards;
 global._resolveDriveFileTitleInternal = resolveDriveFileTitle;
@@ -2065,6 +2126,14 @@ function deleteDailyTask(taskId) {
 
 function addMasterTask(title, category) {
   return (typeof _addMasterTaskInternal === 'function') ? _addMasterTaskInternal(title, category) : (globalThis._addMasterTaskInternal ? globalThis._addMasterTaskInternal(title, category) : null);
+}
+
+function updateMasterTask(taskId, updates) {
+  return (typeof _updateMasterTaskInternal === 'function') ? _updateMasterTaskInternal(taskId, updates) : (globalThis._updateMasterTaskInternal ? globalThis._updateMasterTaskInternal(taskId, updates) : null);
+}
+
+function deleteMasterTask(taskId) {
+  return (typeof _deleteMasterTaskInternal === 'function') ? _deleteMasterTaskInternal(taskId) : (globalThis._deleteMasterTaskInternal ? globalThis._deleteMasterTaskInternal(taskId) : null);
 }
 
 function markMasterTaskMoved(masterTaskId, targetDateStr, movedTaskId) {

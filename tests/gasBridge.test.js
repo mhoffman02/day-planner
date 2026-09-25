@@ -210,5 +210,37 @@ describe('GAS Bridge Unit Tests', () => {
     assert.ok(transferred.title.startsWith('[B'));
     assert.equal(transferred.category, 'Projects');
   });
+
+  it('should return authentic docUrl from getDailyData', async () => {
+    const bridge = new GASBridge(true);
+    const data = await bridge.getDailyData('2026-08-15');
+    assert.ok(data.docUrl);
+    assert.ok(data.docUrl.startsWith('https://docs.google.com/document/'));
+  });
+
+  it('should update master task status, category, and star via bridge', async () => {
+    const bridge = new GASBridge(true);
+    const updated = await bridge.updateMasterTask('m1', { status: '✓', starred: true, category: 'Executive' });
+    assert.ok(updated);
+    assert.equal(updated.status, '✓');
+    assert.equal(updated.starred, true);
+    assert.equal(updated.category, 'Executive');
+
+    const masterTasks = await bridge.getMasterTasks('August 2026');
+    const m1 = masterTasks.find(m => m.id === 'm1');
+    assert.equal(m1.status, '✓');
+    assert.equal(m1.starred, true);
+    assert.equal(m1.category, 'Executive');
+  });
+
+  it('should delete master task entirely via bridge', async () => {
+    const bridge = new GASBridge(true);
+    const deleted = await bridge.deleteMasterTask('m2');
+    assert.equal(deleted, true);
+
+    const masterTasks = await bridge.getMasterTasks('August 2026');
+    assert.ok(!masterTasks.some(m => m.id === 'm2'));
+  });
 });
+
 

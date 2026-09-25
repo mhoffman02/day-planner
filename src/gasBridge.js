@@ -29,10 +29,10 @@ export class GASBridge {
         ]
       },
       masterTasks: [
-        { id: 'm1', title: 'Prepare Q3 performance appraisals', category: 'Work', status: '•', movedTo: null, movedTaskId: null },
-        { id: 'm2', title: 'Plan annual family retreat', category: 'Personal', status: '•', movedTo: null, movedTaskId: null },
-        { id: 'm3', title: 'Rebalance investment portfolio', category: 'Financial', status: '•', movedTo: null, movedTaskId: null },
-        { id: 'm4', title: 'Migrate server infrastructure to GCP', category: 'Projects', status: '•', movedTo: null, movedTaskId: null }
+        { id: 'm1', title: '[A1] Prepare Q3 performance appraisals', category: 'Work', status: '•', starred: false, notes: 'Draft reviews before Friday', movedTo: null, movedTaskId: null },
+        { id: 'm2', title: '[B1] Plan annual family retreat', category: 'Personal', status: '•', starred: true, notes: 'Check cabin availability in Tahoe', movedTo: null, movedTaskId: null },
+        { id: 'm3', title: '[C1] Rebalance investment portfolio', category: 'Financial', status: '•', starred: false, notes: '', movedTo: null, movedTaskId: null },
+        { id: 'm4', title: '[B2] Migrate server infrastructure to GCP', category: 'Projects', status: '•', starred: false, notes: 'Evaluate Cloud Run vs App Engine', movedTo: null, movedTaskId: null }
       ],
       futureMatrix: {
         2026: (() => {
@@ -117,7 +117,8 @@ export class GASBridge {
         date: dateStr,
         tasks: adjustedTasks,
         calendarEvents: adjustedEvents,
-        noteContent: seedNote
+        noteContent: seedNote,
+        docUrl: 'https:' + '/' + '/docs.google.com/document/d/mock-local-doc/edit'
       };
     }
 
@@ -289,6 +290,60 @@ export class GASBridge {
         .withSuccessHandler(resolve)
         .withFailureHandler(reject)
         .deleteDailyTask(taskId);
+    });
+  }
+
+  /**
+   * Updates an existing master task.
+   * @param {string} taskId Task identifier.
+   * @param {object} updates Updated task properties.
+   * @returns {Promise<object|null>} Updated master task object or null.
+   */
+  async updateMasterTask(taskId, updates = {}) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      const taskIndex = this.mockData.masterTasks.findIndex(t => t.id === taskId);
+      if (taskIndex === -1) return null;
+
+      this.mockData.masterTasks[taskIndex] = { ...this.mockData.masterTasks[taskIndex], ...updates };
+
+      if (updates.status !== undefined && this.mockData.masterTasks[taskIndex].movedTaskId) {
+        const movedId = this.mockData.masterTasks[taskIndex].movedTaskId;
+        Object.values(this.mockData.dailyTasks).forEach(tasks => {
+          const d = tasks.find(t => t.id === movedId);
+          if (d) d.status = updates.status;
+        });
+      }
+
+      return this.mockData.masterTasks[taskIndex];
+    }
+
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .updateMasterTask(taskId, updates);
+    });
+  }
+
+  /**
+   * Deletes a master task entirely.
+   * @param {string} taskId Task identifier.
+   * @returns {Promise<boolean>} True if deleted.
+   */
+  async deleteMasterTask(taskId) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      const taskIndex = this.mockData.masterTasks.findIndex(t => t.id === taskId);
+      if (taskIndex !== -1) {
+        this.mockData.masterTasks.splice(taskIndex, 1);
+      }
+      return true;
+    }
+
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .deleteMasterTask(taskId);
     });
   }
 

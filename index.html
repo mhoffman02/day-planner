@@ -82,7 +82,33 @@
               <button type="button" class="icon-nav-btn" @click="navigateMonth(-1)" title="Previous Month" aria-label="Previous Month">
                 <span class="material-symbols-outlined icon-18">chevron_left</span>
               </button>
-              <button type="button" class="today-jump-btn" @click="jumpToCurrentMonth()" title="Jump to Current Month">This Month</button>
+              <div class="month-picker-wrap" @mouseenter="openMonthPicker()" @mouseleave="scheduleMonthPickerClose()">
+                <button type="button" class="today-jump-btn month-jump-btn" @click="jumpToCurrentMonth()" @dblclick="toggleMonthPicker()" title="Jump to Current Month (or hover to pick month)" aria-haspopup="true" :aria-expanded="monthPickerOpen">
+                  <span>This Month</span>
+                  <span class="material-symbols-outlined icon-14 dropdown-arrow" @click.stop="toggleMonthPicker()">arrow_drop_down</span>
+                </button>
+                <div class="month-picker-dropdown" x-show="monthPickerOpen" @click.outside="monthPickerOpen = false" x-cloak>
+                  <div class="month-picker-year-nav">
+                    <button type="button" class="icon-nav-btn" @click.stop="changeMonthPickerYear(-1)" aria-label="Previous Year" title="Previous Year">
+                      <span class="material-symbols-outlined icon-16">chevron_left</span>
+                    </button>
+                    <span class="month-picker-year-text" x-text="monthPickerYear"></span>
+                    <button type="button" class="icon-nav-btn" @click.stop="changeMonthPickerYear(1)" aria-label="Next Year" title="Next Year">
+                      <span class="material-symbols-outlined icon-16">chevron_right</span>
+                    </button>
+                  </div>
+                  <div class="month-picker-grid">
+                    <template x-for="(mName, mIdx) in MONTH_NAMES_SHORT" :key="mName">
+                      <button type="button" class="month-picker-cell"
+                              :class="{ 'is-selected': selectedYear === monthPickerYear && selectedMonth === (mIdx + 1), 'is-current': isCurrentCalendarMonth(monthPickerYear, mIdx + 1) }"
+                              @click.stop="selectNavMonth(monthPickerYear, mIdx + 1)"
+                              :title="mName + ' ' + monthPickerYear">
+                        <span x-text="mName"></span>
+                      </button>
+                    </template>
+                  </div>
+                </div>
+              </div>
               <button type="button" class="icon-nav-btn" @click="navigateMonth(1)" title="Next Month" aria-label="Next Month">
                 <span class="material-symbols-outlined icon-18">chevron_right</span>
               </button>
@@ -518,20 +544,24 @@
         </section>
       </template>
 
-      <!-- View 3: Monthly Master Task List Page -->
       <!-- View 3: Master Tasks / Undated Task Backlog Page -->
       <template x-if="activeView === 'master-tasks'">
-        <section class="view-container" aria-label="Master Task List">
+        <section class="view-container" aria-label="Master Tasks">
           <header>
             <h2 class="view-title">
               <span class="material-symbols-outlined">checklist</span>
-              Master Task List
+              Master Tasks
             </h2>
           </header>
-          <form @submit.prevent="addMasterTask()" role="group" class="future-item-add-bar">
-            <input type="text" x-model="newMasterTaskTitle" placeholder="Add a master task / long-term to-do..." class="future-item-input-field" aria-label="New master task title">
-            <input type="text" x-model="newMasterTaskCategory" placeholder="Category" class="future-item-input-field master-task-category-input" aria-label="New master task category">
-            <button type="submit" class="icon-nav-btn" :disabled="addingMasterTask" aria-label="Add master task" title="Add master task">
+          <form @submit.prevent="addMasterTask()" role="group" class="task-quick-add-bar master-task-add-bar">
+            <div class="priority-segmented-group" role="radiogroup" aria-label="Master Task Priority">
+              <button type="button" class="priority-segment-btn" :class="{ 'active a': newMasterTaskPriorityGroup === 'A' }" @click="newMasterTaskPriorityGroup = 'A'" role="radio" :aria-checked="newMasterTaskPriorityGroup === 'A'" aria-label="Priority A" title="A: Top priority (Alt+A or #a)" accesskey="a">A</button>
+              <button type="button" class="priority-segment-btn" :class="{ 'active b': newMasterTaskPriorityGroup === 'B' }" @click="newMasterTaskPriorityGroup = 'B'" role="radio" :aria-checked="newMasterTaskPriorityGroup === 'B'" aria-label="Priority B" title="B: Medium priority (Alt+B or #b)" accesskey="b">B</button>
+              <button type="button" class="priority-segment-btn" :class="{ 'active c': newMasterTaskPriorityGroup === 'C' }" @click="newMasterTaskPriorityGroup = 'C'" role="radio" :aria-checked="newMasterTaskPriorityGroup === 'C'" aria-label="Priority C" title="C: Normal priority (Alt+C or #c)" accesskey="c">C</button>
+            </div>
+            <input type="text" x-model="newMasterTaskTitle" @input="handleMasterTaskTitleInput()" placeholder="Add master task title (e.g. Call vendor / #a Call vendor)..." class="task-input-field master-task-title-input" aria-label="New master task description">
+            <input type="text" x-model="newMasterTaskCategory" placeholder="Category" class="task-input-field master-task-category-input" aria-label="New master task category">
+            <button type="submit" class="btn-primary btn-add-task-round" :disabled="addingMasterTask" aria-label="Add master task" title="Add master task">
               <span class="material-symbols-outlined">add</span>
             </button>
           </form>
@@ -539,29 +569,77 @@
             <table class="task-table table-card master-tasks-table">
               <thead>
                 <tr class="table-header-row">
-                  <th scope="col" class="th-w-100">Category</th>
-                  <th scope="col">Task Title</th>
-                  <th scope="col" class="th-w-200">Status</th>
-                  <th scope="col" class="th-w-230">Action</th>
+                  <th scope="col" class="th-w-48 th-sortable" @click="setTaskSort('masterTaskSort', 'priority')">
+                    Pri<span class="sort-arrow" x-show="masterTaskSort.column === 'priority'" x-text="masterTaskSort.direction === 'asc' ? '▲' : '▼'"></span>
+                  </th>
+                  <th scope="col" class="th-w-48 th-sortable" @click="setTaskSort('masterTaskSort', 'status')">
+                    Sts<span class="sort-arrow" x-show="masterTaskSort.column === 'status'" x-text="masterTaskSort.direction === 'asc' ? '▲' : '▼'"></span>
+                  </th>
+                  <th scope="col" class="th-sortable" @click="setTaskSort('masterTaskSort', 'title')">
+                    Task Description<span class="sort-arrow" x-show="masterTaskSort.column === 'title'" x-text="masterTaskSort.direction === 'asc' ? '▲' : '▼'"></span>
+                  </th>
+                  <th scope="col" class="th-w-100 th-sortable" @click="setTaskSort('masterTaskSort', 'category')">
+                    Category<span class="sort-arrow" x-show="masterTaskSort.column === 'category'" x-text="masterTaskSort.direction === 'asc' ? '▲' : '▼'"></span>
+                  </th>
+                  <th scope="col" class="th-w-260">Action</th>
                 </tr>
               </thead>
               <tbody>
-                <template x-for="mTask in masterTasks" :key="mTask.id">
+                <template x-for="mTask in sortedTasks(masterTasks, masterTaskSort)" :key="mTask.id">
                   <tr>
-                    <td><b x-text="mTask.category"></b></td>
-                    <td x-text="mTask.title"></td>
-                    <td class="master-task-status-cell">
-                      <span class="master-task-status-wrap">
-                        <span class="status-btn" x-text="mTask.status"></span>
-                        <span class="master-task-moved-note" x-show="mTask.movedTo" x-text="formatMovedDate(mTask.movedTo)"></span>
-                      </span>
+                    <td>
+                      <span class="priority-badge" :class="parseTask(mTask.title).priorityGroup || 'A'" x-text="parseTask(mTask.title).priorityCode || 'A1'"></span>
                     </td>
+                    <td>
+                      <div class="status-menu-wrap" @mouseenter="openStatusMenu(mTask.id, $event)" @mouseleave="scheduleStatusMenuClose(mTask.id)">
+                        <button type="button" class="status-btn" @click="toggleStatusMenu(mTask.id, $event)" x-text="mTask.status || '•'"
+                                aria-haspopup="menu" :aria-expanded="openStatusMenuTaskId === mTask.id"
+                                :aria-label="'Master task status: ' + (mTask.status || 'Open') + '. Click to choose a status.'"></button>
+                        <div class="status-menu" :class="{ 'dropup': statusMenuDropUp, 'dropdown-down': !statusMenuDropUp }" role="menu" x-show="openStatusMenuTaskId === mTask.id" @click.outside="openStatusMenuTaskId = null" x-cloak>
+                          <template x-for="opt in statusOptions" :key="opt.value">
+                            <button type="button" class="status-menu-item" role="menuitem"
+                                    :class="{ 'is-active': (mTask.status || '•') === opt.value }"
+                                    @click="selectTaskStatus(mTask, opt.value)"
+                                    :aria-label="'Set status: ' + opt.label">
+                              <span class="status-menu-item-glyph" x-text="opt.value"></span>
+                              <span x-text="opt.label"></span>
+                            </button>
+                          </template>
+                          <div class="status-menu-separator" role="separator"></div>
+                          <button type="button" class="status-menu-item status-menu-item-delete" role="menuitem"
+                                  @click="deleteMasterTask(mTask)"
+                                  aria-label="Delete master task">
+                            <span class="status-menu-item-glyph status-menu-item-glyph-delete">
+                              <span class="material-symbols-outlined icon-14">delete</span>
+                            </span>
+                            <span>Delete</span>
+                          </button>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="task-title-cell" :class="{ 'task-canceled': mTask.status === 'X', 'task-done': mTask.status === '✓' || mTask.status === 'D/✓' }">
+                      <button type="button" class="star-toggle" :class="{ 'is-starred': mTask.starred }" @click.stop="toggleTaskStar(mTask)"
+                              :aria-label="mTask.starred ? 'Unstar task' : 'Star task'" x-text="mTask.starred ? '★' : '☆'"></button>
+                      <span x-text="parseTask(mTask.title).cleanTitle"></span>
+                      <span class="notes-indicator-wrap" x-show="hasNotes(mTask)" @mouseenter="openNotesPopover(mTask.id, $event)" @mouseleave="scheduleNotesPopoverClose(mTask.id)">
+                        <button type="button" class="notes-indicator" @click.stop="toggleNotesPopover(mTask.id, $event)"
+                                aria-label="View notes" aria-haspopup="true" :aria-expanded="openNotesPopoverTaskId === mTask.id">
+                          <span class="material-symbols-outlined icon-14">sticky_note_2</span>
+                        </button>
+                        <div class="notes-popover" :class="{ 'dropup': notesPopoverDropUp, 'dropdown-down': !notesPopoverDropUp }" role="tooltip" x-show="openNotesPopoverTaskId === mTask.id" x-cloak x-text="mTask.notes"></div>
+                      </span>
+                      <span class="master-task-moved-note" x-show="mTask.movedTo" x-text="formatMovedDate(mTask.movedTo)"></span>
+                    </td>
+                    <td class="td-category" x-text="mTask.category || 'General'"></td>
                     <td class="master-task-action-cell">
-                      <span class="master-task-action-wrap" x-show="!mTask.movedTo">
-                        <input type="date" x-model="mTask._moveDate" class="master-task-date-input" :aria-label="'Move date for ' + mTask.title" :disabled="mTask._moving">
-                        <button type="button" class="btn-move-to" @click="moveMasterTaskToDate(mTask)" :disabled="mTask._moving">
+                      <span class="master-task-action-wrap">
+                        <input type="date" x-model="mTask._moveDate" class="master-task-date-input" :aria-label="'Move date for ' + mTask.title" :disabled="mTask._moving || !!mTask.movedTo" x-show="!mTask.movedTo">
+                        <button type="button" class="btn-move-to" @click="moveMasterTaskToDate(mTask)" :disabled="mTask._moving" x-show="!mTask.movedTo" title="Move task to scheduled date">
                           <span class="material-symbols-outlined icon-18" :class="{ spin: mTask._moving }" x-show="mTask._moving">progress_activity</span>
                           <span x-text="mTask._moving ? 'Moving' : 'Move'"></span>
+                        </button>
+                        <button type="button" class="btn-delete-row" @click="deleteMasterTask(mTask)" aria-label="Delete master task" title="Delete master task">
+                          <span class="material-symbols-outlined icon-16">delete</span>
                         </button>
                       </span>
                     </td>
@@ -579,7 +657,7 @@
           <header>
             <h2 class="view-title">
               <span class="material-symbols-outlined">topic</span>
-              Monthly Index & Tagged Decision Registry (#index) - <span x-text="selectedMonthName + ' ' + selectedYear"></span>
+              Monthly Index and Decisions
             </h2>
           </header>
           <figure class="table-container">
@@ -597,9 +675,9 @@
                   <tr>
                     <td x-text="idx.date"></td>
                     <td><b x-text="idx.topic"></b></td>
-                    <td x-text="idx.summary"></td>
+                    <td x-html="renderCardLine(idx.summary, false)"></td>
                     <td>
-                      <a :href="idx.docUrl" class="doc-link" target="_blank" rel="noopener noreferrer">
+                      <a :href="getDirectDocUrl(idx.docUrl)" class="doc-link" target="_blank" rel="noopener noreferrer">
                         <span class="material-symbols-outlined icon-16">description</span> View Google Doc
                       </a>
                     </td>
