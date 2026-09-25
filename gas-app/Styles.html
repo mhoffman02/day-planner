@@ -2120,6 +2120,13 @@
     margin-bottom: 0;
   }
 
+  .master-tasks-filters-wrap {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
   .task-filter-stamp-group {
     display: inline-flex;
     align-items: center;
@@ -2177,6 +2184,38 @@
 
   .filter-stamp-text {
     font-size: 0.72rem;
+  }
+
+  /* Master Tasks Date Horizon Filters — Thematic Archival Blue */
+  .horizon-filter-stamp {
+    border-radius: 2px;
+    border: 1px solid var(--border-line);
+    background: #ffffff;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 3px 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 26px;
+    box-sizing: border-box;
+    line-height: 1;
+    font-family: inherit;
+  }
+
+  .horizon-filter-stamp:hover {
+    border-color: var(--ink-blue, #1d5fa8);
+    color: var(--ink-blue, #1d5fa8);
+  }
+
+  .horizon-filter-stamp.is-active {
+    background: var(--ink-blue, #1d5fa8);
+    border-color: var(--ink-blue, #1d5fa8);
+    color: #ffffff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
   }
 
   .empty-tasks-cell {
@@ -2751,6 +2790,72 @@
   .btn-move-to .icon-18 {
     font-size: 16px;
     margin-right: 4px;
+  }
+
+  .td-due-date {
+    white-space: nowrap;
+    vertical-align: middle;
+  }
+
+  .due-horizon-stamp {
+    display: inline-block;
+    border-radius: 2px;
+    padding: 2px 7px;
+    font-size: 0.73rem;
+    font-weight: 600;
+    line-height: 1.2;
+    box-sizing: border-box;
+    letter-spacing: 0.02em;
+  }
+
+  .due-horizon-stamp.stamp-undated {
+    color: var(--text-muted);
+    background: rgba(0, 0, 0, 0.04);
+    border: 1px solid var(--border-line);
+    font-size: 0.70rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .due-horizon-stamp.stamp-overdue {
+    color: #b3261e;
+    background: rgba(179, 38, 30, 0.09);
+    border: 1px solid rgba(179, 38, 30, 0.28);
+    font-weight: 700;
+    font-size: 0.70rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .due-horizon-stamp.stamp-scheduled {
+    color: var(--ink-blue, #1d5fa8);
+    background: rgba(29, 95, 168, 0.07);
+    border: 1px solid rgba(29, 95, 168, 0.22);
+    font-weight: 600;
+  }
+
+  .btn-jump-to {
+    background: transparent;
+    color: var(--ink-blue, #1d5fa8);
+    border: 1px solid var(--ink-blue, #1d5fa8);
+    border-radius: 2px;
+    height: 26px;
+    padding: 2px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+    transition: background-color 0.15s ease;
+    box-sizing: border-box;
+    margin-bottom: 0 !important;
+    flex-shrink: 0;
+  }
+
+  .btn-jump-to:hover {
+    background: color-mix(in srgb, var(--ink-blue, #1d5fa8) 14%, transparent);
   }
 
   .master-task-status-cell {
@@ -3878,4 +3983,51 @@
     background: #2d6a5a !important;
     border-color: #3b8773 !important;
     color: #ffffff !important;
-  }</style>
+  }
+
+  [data-theme="dark"] .horizon-filter-stamp {
+    background: #101c2c !important;
+    border-color: #1e3a5f !important;
+    color: #9cbce0 !important;
+  }
+
+  [data-theme="dark"] .horizon-filter-stamp:hover {
+    border-color: #5c9ce6 !important;
+    color: #5c9ce6 !important;
+  }
+
+  [data-theme="dark"] .horizon-filter-stamp.is-active {
+    background: var(--ink-blue, #1d5fa8) !important;
+    border-color: #4a8cd4 !important;
+    color: #ffffff !important;
+  }
+
+  [data-theme="dark"] .due-horizon-stamp.stamp-undated {
+    color: var(--text-muted-dark, #8a8886) !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-color: var(--border-line-dark, #404040) !important;
+  }
+
+  [data-theme="dark"] .due-horizon-stamp.stamp-overdue {
+    color: #f28b82 !important;
+    background: rgba(242, 139, 130, 0.12) !important;
+    border-color: rgba(242, 139, 130, 0.3) !important;
+  }
+
+  [data-theme="dark"] .due-horizon-stamp.stamp-scheduled {
+    color: #8ab4f8 !important;
+    background: rgba(138, 180, 248, 0.1) !important;
+    border-color: rgba(138, 180, 248, 0.25) !important;
+  }
+
+  [data-theme="dark"] .btn-jump-to {
+    color: #8ab4f8 !important;
+    border-color: rgba(138, 180, 248, 0.4) !important;
+    background: transparent !important;
+  }
+
+  [data-theme="dark"] .btn-jump-to:hover {
+    background: rgba(138, 180, 248, 0.15) !important;
+    border-color: #8ab4f8 !important;
+  }
+</style>

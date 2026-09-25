@@ -9,7 +9,8 @@ import {
   STATUS_OPTIONS,
   sortTasksByColumn,
   extractInlinePriority,
-  filterTasksByStatus
+  filterTasksByStatus,
+  filterTasksByDateHorizon
 } from './taskEngine.js';
 import { executeUniversalSearch, flattenSearchResults } from './searchEngine.js';
 import { formatEventDescriptionHtml, extractMeetLink } from './calendarEngine.js';
@@ -40,6 +41,7 @@ Alpine.data('plannerApp', () => ({
       addingMasterTask: false,
       masterTaskSort: { column: null, direction: 'asc' },
       masterTaskStatusFilter: ['•', '○', '✓', '→', 'X', 'Ⓓ'],
+      masterTaskDateFilter: 'all',
       dailyDocUrl: '',
       monthPickerOpen: false,
       monthPickerYear: new Date().getFullYear(),
@@ -125,7 +127,8 @@ Alpine.data('plannerApp', () => ({
       },
 
       get filteredMasterTasks() {
-        return filterTasksByStatus(this.masterTasks || [], this.masterTaskStatusFilter);
+        const byStatus = filterTasksByStatus(this.masterTasks || [], this.masterTaskStatusFilter);
+        return filterTasksByDateHorizon(byStatus, this.masterTaskDateFilter, getLocalDateStr());
       },
 
       get isMonthlyView() {
@@ -1362,6 +1365,20 @@ Alpine.data('plannerApp', () => ({
         }
       },
 
+      setMasterTaskDateFilter(horizon) {
+        this.masterTaskDateFilter = horizon;
+      },
+
+      isMasterTaskOverdue(mTask) {
+        return Boolean(mTask && mTask.dueDate && mTask.dueDate < getLocalDateStr());
+      },
+
+      formatMasterTaskDate(dateStr) {
+        if (!dateStr) return '';
+        const [y, m, d] = dateStr.split('-').map(Number);
+        return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      },
+
       formatMovedDate(dateStr) {
         if (!dateStr) return '';
         const [y, m, d] = dateStr.split('-').map(Number);
@@ -1384,6 +1401,7 @@ Alpine.data('plannerApp', () => ({
               mTask.movedTo = updatedMaster.movedTo;
               mTask.movedTaskId = updatedMaster.movedTaskId;
               mTask.status = updatedMaster.status || '→';
+              mTask.dueDate = updatedMaster.movedTo || targetDate;
             }
             await this.trigger2WaySync();
           }

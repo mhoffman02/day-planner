@@ -70,6 +70,25 @@
     });
   }
 
+  function filterTasksByDateHorizon(tasks, horizon = 'all', todayStr = getLocalDateStr()) {
+    if (!tasks || !Array.isArray(tasks)) return [];
+    if (!horizon || horizon === 'all') return tasks;
+    const refDate = todayStr || getLocalDateStr();
+    return tasks.filter(task => {
+      const due = task.dueDate || task.movedTo || null;
+      if (horizon === 'future') {
+        return Boolean(due && due > refDate);
+      }
+      if (horizon === 'overdue-today') {
+        return Boolean(due && due <= refDate);
+      }
+      if (horizon === 'undated') {
+        return !due;
+      }
+      return true;
+    });
+  }
+
   function getTaskSortValue(task, column) {
     switch (column) {
       case 'priority': {
@@ -87,6 +106,8 @@
       }
       case 'category':
         return task.category || '';
+      case 'dueDate':
+        return task.dueDate || '\uFFFF';
       default:
         return '';
     }
@@ -774,6 +795,7 @@
       addingMasterTask: false,
       masterTaskSort: { column: null, direction: 'asc' },
       masterTaskStatusFilter: ['•', '○', '✓', '→', 'X', 'Ⓓ'],
+      masterTaskDateFilter: 'all',
       dailyDocUrl: '',
       monthPickerOpen: false,
       monthPickerYear: new Date().getFullYear(),
@@ -859,7 +881,8 @@
       },
 
       get filteredMasterTasks() {
-        return filterTasksByStatus(this.masterTasks || [], this.masterTaskStatusFilter);
+        const byStatus = filterTasksByStatus(this.masterTasks || [], this.masterTaskStatusFilter);
+        return filterTasksByDateHorizon(byStatus, this.masterTaskDateFilter, getLocalDateStr());
       },
 
       get isMonthlyView() {
@@ -2091,6 +2114,20 @@
         }
       },
 
+      setMasterTaskDateFilter(horizon) {
+        this.masterTaskDateFilter = horizon;
+      },
+
+      isMasterTaskOverdue(mTask) {
+        return Boolean(mTask && mTask.dueDate && mTask.dueDate < getLocalDateStr());
+      },
+
+      formatMasterTaskDate(dateStr) {
+        if (!dateStr) return '';
+        const [y, m, d] = dateStr.split('-').map(Number);
+        return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      },
+
       formatMovedDate(dateStr) {
         if (!dateStr) return '';
         const [y, m, d] = dateStr.split('-').map(Number);
@@ -2113,6 +2150,7 @@
               mTask.movedTo = updatedMaster.movedTo;
               mTask.movedTaskId = updatedMaster.movedTaskId;
               mTask.status = updatedMaster.status || '→';
+              mTask.dueDate = updatedMaster.movedTo || targetDate;
             }
             await this.trigger2WaySync();
           }

@@ -185,6 +185,8 @@ export function getTaskSortValue(task, column) {
     }
     case 'category':
       return task.category || '';
+    case 'dueDate':
+      return task.dueDate || '\uFFFF';
     default:
       return '';
   }
@@ -309,4 +311,168 @@ export function filterTasksByStatus(tasks, activeStatuses) {
     return activeSet.has(rawStatus);
   });
 }
+
+/**
+ * Filters tasks by Date Horizon: 'all', 'future', 'overdue-today', or 'undated'.
+ * @param {Array<object>} tasks Tasks array to filter.
+ * @param {'all'|'future'|'overdue-today'|'undated'} [horizon='all'] Horizon filter keyword.
+ * @param {string} [todayStr] Today’s reference date in YYYY-MM-DD format (defaults to local date).
+ * @returns {Array<object>} Filtered task items array.
+ */
+export function filterTasksByDateHorizon(tasks, horizon = 'all', todayStr = getLocalDateStr()) {
+  if (!tasks || !Array.isArray(tasks)) return [];
+  if (!horizon || horizon === 'all') return tasks;
+  const refDate = todayStr || getLocalDateStr();
+  return tasks.filter(task => {
+    const due = task.dueDate || task.movedTo || null;
+    if (horizon === 'future') {
+      return Boolean(due && due > refDate);
+    }
+    if (horizon === 'overdue-today') {
+      return Boolean(due && due <= refDate);
+    }
+    if (horizon === 'undated') {
+      return !due;
+    }
+    return true;
+  });
+}
+
+/**
+ * Builds the unified Master Tasks commitment clearinghouse list.
+ * Merges undated backlog tasks with incomplete dated tasks across all dates (past, today, future).
+ * Deduplicates / collapses moved master tasks and their corresponding scheduled daily tasks.
+ *
+ * @param {Array<object>} rawTasks Array of task objects (from Google Tasks API or local store/bridge).
+ * @returns {Array<object>} Deduplicated, unified clearinghouse tasks array.
+ */
+export function buildMasterTasksClearinghouse(rawTasks = []) {
+  if (!Array.isArray(rawTasks)) return [];
+
+  // Normalize each task
+  const normalized = rawTasks.map(t => {
+    const rawDue = t.due ? String(t.due).substring(0, 10) : (t.dueDate || null);
+    const movedTo = t.movedTo || null;
+    const movedTaskId = t.movedTaskId || null;
+    const sourceMasterId = t.sourceMasterId || null;
+    const status = t.status || '•';
+    const isCompleted = status === '✓' || status === 'X' || t.status === 'completed';
+
+    return {
+      id: t.id,
+      title: t.title || '',
+      category: t.category || 'General',
+      status: status,
+      starred: Boolean(t.starred),
+      notes: t.notes || '',
+      dueDate: rawDue || movedTo || null,
+      movedTo: movedTo,
+      movedTaskId: movedTaskId,
+      sourceMasterId: sourceMasterId,
+      rawDue: rawDue,
+      isCompleted: isCompleted,
+      _orig: t
+    };
+  });
+
+  const taskById = new Map();
+  const dailyBySourceMasterId = new Map();
+  const masterByMovedTaskId = new Map();
+
+  for (const item of normalized) {
+    if (item.id) taskById.set(item.id, item);
+    if (item.sourceMasterId) dailyBySourceMasterId.set(item.sourceMasterId, item);
+    if (item.movedTaskId) masterByMovedTaskId.set(item.movedTaskId, item);
+  }
+
+  const consumedIds = new Set();
+  const clearinghouse = [];
+
+  // First pass: Process moved master tasks and pair them with their daily scheduled task
+  for (const item of normalized) {
+    if (consumedIds.has(item.id)) continue;
+
+    // Check if item is a master task that was moved
+    const targetDaily = item.movedTaskId ? taskById.get(item.movedTaskId) : dailyBySourceMasterId.get(item.id);
+
+    if (targetDaily && targetDaily.id !== item.id) {
+      consumedIds.add(item.id);
+      consumedIds.add(targetDaily.id);
+
+      // Merge into a single logical record displaying the target scheduled date and live status
+      const mergedDueDate = targetDaily.dueDate || item.dueDate || item.movedTo;
+      clearinghouse.push({
+        id: item.id,
+        title: targetDaily.title || item.title,
+        category: targetDaily.category || item.category || 'General',
+        status: targetDaily.status || item.status,
+        starred: Boolean(targetDaily.starred || item.starred),
+        notes: targetDaily.notes || item.notes || '',
+        dueDate: mergedDueDate,
+        movedTo: item.movedTo || targetDaily.dueDate || null,
+        movedTaskId: targetDaily.id
+      });
+      continue;
+    }
+
+    // Check if item is a daily task pointing to a master task
+    const sourceMaster = item.sourceMasterId ? taskById.get(item.sourceMasterId) : masterByMovedTaskId.get(item.id);
+    if (sourceMaster && sourceMaster.id !== item.id) {
+      consumedIds.add(item.id);
+      consumedIds.add(sourceMaster.id);
+
+      const mergedDueDate = item.dueDate || sourceMaster.dueDate || sourceMaster.movedTo;
+      clearinghouse.push({
+        id: sourceMaster.id,
+        title: item.title || sourceMaster.title,
+        category: item.category || sourceMaster.category || 'General',
+        status: item.status || sourceMaster.status,
+        starred: Boolean(item.starred || sourceMaster.starred),
+        notes: item.notes || sourceMaster.notes || '',
+        dueDate: mergedDueDate,
+        movedTo: sourceMaster.movedTo || item.dueDate || null,
+        movedTaskId: item.id
+      });
+      continue;
+    }
+  }
+
+  // Second pass: Process remaining unlinked tasks
+  for (const item of normalized) {
+    if (consumedIds.has(item.id)) continue;
+
+    if (item.rawDue) {
+      // Dated task: only include if incomplete
+      if (!item.isCompleted) {
+        clearinghouse.push({
+          id: item.id,
+          title: item.title,
+          category: item.category,
+          status: item.status,
+          starred: item.starred,
+          notes: item.notes,
+          dueDate: item.dueDate,
+          movedTo: item.movedTo || null,
+          movedTaskId: item.movedTaskId || null
+        });
+      }
+    } else {
+      // Undated task: backlog task
+      clearinghouse.push({
+        id: item.id,
+        title: item.title,
+        category: item.category,
+        status: item.status,
+        starred: item.starred,
+        notes: item.notes,
+        dueDate: item.movedTo || null,
+        movedTo: item.movedTo || null,
+        movedTaskId: item.movedTaskId || null
+      });
+    }
+  }
+
+  return clearinghouse;
+}
+
 

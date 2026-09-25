@@ -578,24 +578,56 @@
               <span class="material-symbols-outlined">checklist</span>
               Master Tasks
             </h2>
-            <div class="task-filter-stamp-group" role="group" aria-label="Filter Master Tasks by Status">
-              <span class="task-filter-label">Filter:</span>
-              <button type="button" class="task-filter-stamp" :class="{ 'is-active': isAllMasterTaskStatusSelected() }"
-                      @click="toggleAllMasterTaskStatusFilters()"
-                      :aria-pressed="isAllMasterTaskStatusSelected()"
-                      title="Show all statuses or toggle to Open only">
-                All
-              </button>
-              <template x-for="opt in statusOptions" :key="opt.value">
-                <button type="button" class="task-filter-stamp glyph-stamp"
-                        :class="{ 'is-active': isMasterTaskStatusFilterActive(opt.value) }"
-                        @click="toggleMasterTaskStatusFilter(opt.value)"
-                        :aria-pressed="isMasterTaskStatusFilterActive(opt.value)"
-                        :title="opt.value + ' ' + opt.label + ' (Click to toggle)'">
-                  <span class="filter-stamp-glyph" x-text="opt.value"></span>
-                  <span class="filter-stamp-text" x-text="opt.label"></span>
+            <div class="master-tasks-filters-wrap">
+              <div class="task-filter-stamp-group status-filter-group" role="group" aria-label="Filter Master Tasks by Status">
+                <span class="task-filter-label">Status filter</span>
+                <button type="button" class="task-filter-stamp" :class="{ 'is-active': isAllMasterTaskStatusSelected() }"
+                        @click="toggleAllMasterTaskStatusFilters()"
+                        :aria-pressed="isAllMasterTaskStatusSelected()"
+                        title="Show all statuses or toggle to Open only">
+                  All
                 </button>
-              </template>
+                <template x-for="opt in statusOptions" :key="opt.value">
+                  <button type="button" class="task-filter-stamp glyph-stamp"
+                          :class="{ 'is-active': isMasterTaskStatusFilterActive(opt.value) }"
+                          @click="toggleMasterTaskStatusFilter(opt.value)"
+                          :aria-pressed="isMasterTaskStatusFilterActive(opt.value)"
+                          :title="opt.value + ' ' + opt.label + ' (Click to toggle)'">
+                    <span class="filter-stamp-glyph" x-text="opt.value"></span>
+                    <span class="filter-stamp-text" x-text="opt.label"></span>
+                  </button>
+                </template>
+              </div>
+              <div class="task-filter-stamp-group horizon-filter-group" role="group" aria-label="Filter Master Tasks by Date Horizon">
+                <button type="button" class="horizon-filter-stamp"
+                        :class="{ 'is-active': masterTaskDateFilter === 'all' }"
+                        @click="setMasterTaskDateFilter('all')"
+                        :aria-pressed="masterTaskDateFilter === 'all'"
+                        title="Show all dates">
+                  All Dates
+                </button>
+                <button type="button" class="horizon-filter-stamp"
+                        :class="{ 'is-active': masterTaskDateFilter === 'future' }"
+                        @click="setMasterTaskDateFilter('future')"
+                        :aria-pressed="masterTaskDateFilter === 'future'"
+                        title="Show future scheduled tasks">
+                  Future
+                </button>
+                <button type="button" class="horizon-filter-stamp"
+                        :class="{ 'is-active': masterTaskDateFilter === 'overdue-today' }"
+                        @click="setMasterTaskDateFilter('overdue-today')"
+                        :aria-pressed="masterTaskDateFilter === 'overdue-today'"
+                        title="Show overdue and today's tasks">
+                  Overdue / Today
+                </button>
+                <button type="button" class="horizon-filter-stamp"
+                        :class="{ 'is-active': masterTaskDateFilter === 'undated' }"
+                        @click="setMasterTaskDateFilter('undated')"
+                        :aria-pressed="masterTaskDateFilter === 'undated'"
+                        title="Show undated backlog tasks">
+                  Undated
+                </button>
+              </div>
             </div>
           </header>
           <form @submit.prevent="addMasterTask()" role="group" class="task-quick-add-bar master-task-add-bar">
@@ -625,6 +657,9 @@
                   </th>
                   <th scope="col" class="th-w-100 th-sortable" @click="setTaskSort('masterTaskSort', 'category')">
                     Category<span class="sort-arrow" x-show="masterTaskSort.column === 'category'" x-text="masterTaskSort.direction === 'asc' ? '▲' : '▼'"></span>
+                  </th>
+                  <th scope="col" class="th-w-120 th-sortable" @click="setTaskSort('masterTaskSort', 'dueDate')">
+                    Due Date<span class="sort-arrow" x-show="masterTaskSort.column === 'dueDate'" x-text="masterTaskSort.direction === 'asc' ? '▲' : '▼'"></span>
                   </th>
                   <th scope="col" class="th-w-260">Action</th>
                 </tr>
@@ -673,15 +708,23 @@
                         </button>
                         <div class="notes-popover" :class="{ 'dropup': notesPopoverDropUp, 'dropdown-down': !notesPopoverDropUp }" role="tooltip" x-show="openNotesPopoverTaskId === mTask.id" x-cloak x-text="mTask.notes"></div>
                       </span>
-                      <span class="master-task-moved-note" x-show="mTask.movedTo" x-text="formatMovedDate(mTask.movedTo)"></span>
                     </td>
                     <td class="td-category" x-text="mTask.category || 'General'"></td>
+                    <td class="td-due-date">
+                      <span class="due-horizon-stamp stamp-undated" x-show="!mTask.dueDate">Undated</span>
+                      <span class="due-horizon-stamp stamp-overdue" x-show="mTask.dueDate && isMasterTaskOverdue(mTask)" :title="'Scheduled ' + formatMasterTaskDate(mTask.dueDate)">Overdue</span>
+                      <span class="due-horizon-stamp stamp-scheduled" x-show="mTask.dueDate && !isMasterTaskOverdue(mTask)" x-text="formatMasterTaskDate(mTask.dueDate)"></span>
+                    </td>
                     <td class="master-task-action-cell">
                       <span class="master-task-action-wrap">
-                        <input type="date" x-model="mTask._moveDate" class="master-task-date-input" :aria-label="'Move date for ' + mTask.title" :disabled="mTask._moving || !!mTask.movedTo" x-show="!mTask.movedTo">
-                        <button type="button" class="btn-move-to" @click="moveMasterTaskToDate(mTask)" :disabled="mTask._moving" x-show="!mTask.movedTo" title="Move task to scheduled date">
+                        <button type="button" class="btn-jump-to" @click="jumpToDailyPage(mTask.dueDate || mTask.movedTo)" x-show="!!mTask.dueDate" title="Jump to scheduled day">
+                          <span class="material-symbols-outlined icon-16">arrow_forward</span>
+                          <span>Jump to Day</span>
+                        </button>
+                        <input type="date" x-model="mTask._moveDate" class="master-task-date-input" :aria-label="'Move date for ' + mTask.title" :disabled="mTask._moving" x-show="!mTask.dueDate">
+                        <button type="button" class="btn-move-to" @click="moveMasterTaskToDate(mTask)" :disabled="mTask._moving" x-show="!mTask.dueDate" title="Move task to scheduled date">
                           <span class="material-symbols-outlined icon-18" :class="{ spin: mTask._moving }" x-show="mTask._moving">progress_activity</span>
-                          <span x-text="mTask._moving ? 'Moving' : 'Move'"></span>
+                          <span x-text="mTask._moving ? 'Moving' : 'Move to Date'"></span>
                         </button>
                         <button type="button" class="btn-delete-row" @click="deleteMasterTask(mTask)" aria-label="Delete master task" title="Delete master task">
                           <span class="material-symbols-outlined icon-16">delete</span>
@@ -691,7 +734,7 @@
                   </tr>
                 </template>
                 <tr x-show="filteredMasterTasks.length === 0">
-                  <td colspan="5" class="empty-tasks-cell">
+                  <td colspan="6" class="empty-tasks-cell">
                     <span x-show="masterTasks.length === 0">No master tasks recorded for this month. Add one above!</span>
                     <span x-show="masterTasks.length > 0">No master tasks matching selected status filter. <button type="button" class="btn-link-reset-filter" @click="toggleAllMasterTaskStatusFilters()">Show all tasks</button></span>
                   </td>

@@ -1377,36 +1377,171 @@ function getFolderByNameOrCreate(parent, name) {
 
 /**
  * Retrieves master task entries for monthly planning / backlog.
- * Undated Google Tasks flagged via the hidden metadata marker or without due dates.
+/**
+ * Builds the unified Master Tasks commitment clearinghouse list.
+ * Merges undated backlog tasks with incomplete dated tasks across all dates.
+ * Deduplicates and collapses moved master tasks with their scheduled daily tasks.
+ * @param {Array<object>} rawTasks Array of task objects.
+ * @returns {Array<object>} Unified clearinghouse tasks.
+ */
+function buildMasterTasksClearinghouse(rawTasks) {
+  if (!rawTasks || !rawTasks.length) return [];
+
+  var normalized = rawTasks.map(function(t) {
+    var rawDue = t.due ? String(t.due).substring(0, 10) : (t.dueDate || null);
+    var movedTo = t.movedTo || null;
+    var movedTaskId = t.movedTaskId || null;
+    var sourceMasterId = t.sourceMasterId || null;
+    var status = t.status || '•';
+    var isCompleted = status === '✓' || status === 'X' || t.status === 'completed' || t.statusRaw === 'completed';
+
+    return {
+      id: t.id,
+      title: t.title || '',
+      category: t.category || 'General',
+      status: status,
+      starred: Boolean(t.starred),
+      notes: t.notes || '',
+      dueDate: rawDue || movedTo || null,
+      movedTo: movedTo,
+      movedTaskId: movedTaskId,
+      sourceMasterId: sourceMasterId,
+      rawDue: rawDue,
+      isCompleted: isCompleted
+    };
+  });
+
+  var taskById = {};
+  var dailyBySourceMasterId = {};
+  var masterByMovedTaskId = {};
+
+  for (var i = 0; i < normalized.length; i++) {
+    var item = normalized[i];
+    if (item.id) taskById[item.id] = item;
+    if (item.sourceMasterId) dailyBySourceMasterId[item.sourceMasterId] = item;
+    if (item.movedTaskId) masterByMovedTaskId[item.movedTaskId] = item;
+  }
+
+  var consumedIds = {};
+  var clearinghouse = [];
+
+  // Pass 1: Moved master tasks paired with daily task
+  for (var j = 0; j < normalized.length; j++) {
+    var mItem = normalized[j];
+    if (consumedIds[mItem.id]) continue;
+
+    var targetDaily = mItem.movedTaskId ? taskById[mItem.movedTaskId] : dailyBySourceMasterId[mItem.id];
+    if (targetDaily && targetDaily.id !== mItem.id) {
+      consumedIds[mItem.id] = true;
+      consumedIds[targetDaily.id] = true;
+
+      var mergedDueDate = targetDaily.dueDate || mItem.dueDate || mItem.movedTo;
+      clearinghouse.push({
+        id: mItem.id,
+        title: targetDaily.title || mItem.title,
+        category: targetDaily.category || mItem.category || 'General',
+        status: targetDaily.status || mItem.status,
+        starred: Boolean(targetDaily.starred || mItem.starred),
+        notes: targetDaily.notes || mItem.notes || '',
+        dueDate: mergedDueDate,
+        movedTo: mItem.movedTo || targetDaily.dueDate || null,
+        movedTaskId: targetDaily.id
+      });
+      continue;
+    }
+
+    var sourceMaster = mItem.sourceMasterId ? taskById[mItem.sourceMasterId] : masterByMovedTaskId[mItem.id];
+    if (sourceMaster && sourceMaster.id !== mItem.id) {
+      consumedIds[mItem.id] = true;
+      consumedIds[sourceMaster.id] = true;
+
+      var sMergedDueDate = mItem.dueDate || sourceMaster.dueDate || sourceMaster.movedTo;
+      clearinghouse.push({
+        id: sourceMaster.id,
+        title: mItem.title || sourceMaster.title,
+        category: mItem.category || sourceMaster.category || 'General',
+        status: mItem.status || sourceMaster.status,
+        starred: Boolean(mItem.starred || sourceMaster.starred),
+        notes: mItem.notes || sourceMaster.notes || '',
+        dueDate: sMergedDueDate,
+        movedTo: sourceMaster.movedTo || mItem.dueDate || null,
+        movedTaskId: mItem.id
+      });
+      continue;
+    }
+  }
+
+  // Pass 2: Unlinked tasks
+  for (var k = 0; k < normalized.length; k++) {
+    var uItem = normalized[k];
+    if (consumedIds[uItem.id]) continue;
+
+    if (uItem.rawDue) {
+      if (!uItem.isCompleted) {
+        clearinghouse.push({
+          id: uItem.id,
+          title: uItem.title,
+          category: uItem.category,
+          status: uItem.status,
+          starred: uItem.starred,
+          notes: uItem.notes,
+          dueDate: uItem.dueDate,
+          movedTo: uItem.movedTo || null,
+          movedTaskId: uItem.movedTaskId || null
+        });
+      }
+    } else {
+      clearinghouse.push({
+        id: uItem.id,
+        title: uItem.title,
+        category: uItem.category,
+        status: uItem.status,
+        starred: uItem.starred,
+        notes: uItem.notes,
+        dueDate: uItem.movedTo || null,
+        movedTo: uItem.movedTo || null,
+        movedTaskId: uItem.movedTaskId || null
+      });
+    }
+  }
+
+  return clearinghouse;
+}
+
+/**
+ * Undated Google Tasks and incomplete dated commitments across all dates.
  * @param {string} [monthYearStr] Optional month/year string (kept for signature compatibility).
- * @returns {Array<{id: string, title: string, category: string, status: string, starred: boolean, notes: string, movedTo: (string|null), movedTaskId: (string|null)}>} Array of master task items.
+ * @returns {Array<{id: string, title: string, category: string, status: string, starred: boolean, notes: string, dueDate: (string|null), movedTo: (string|null), movedTaskId: (string|null)}>} Array of master task items.
  */
 function getMasterTasks(monthYearStr) {
   try {
     if (typeof Tasks === 'undefined') {
       return [
-        { id: 'm1', title: '[A1] Prepare Q3 performance appraisals', category: 'Work', status: '•', starred: false, notes: 'Draft reviews before Friday', movedTo: null, movedTaskId: null },
-        { id: 'm2', title: '[B1] Plan annual family retreat', category: 'Personal', status: '•', starred: true, notes: 'Check cabin availability in Tahoe', movedTo: null, movedTaskId: null },
-        { id: 'm3', title: '[C1] Rebalance investment portfolio', category: 'Financial', status: '•', starred: false, notes: '', movedTo: null, movedTaskId: null }
+        { id: 'm1', title: '[A1] Prepare Q3 performance appraisals', category: 'Work', status: '•', starred: false, notes: 'Draft reviews before Friday', dueDate: null, movedTo: null, movedTaskId: null },
+        { id: 'm2', title: '[B1] Plan annual family retreat', category: 'Personal', status: '•', starred: true, notes: 'Check cabin availability in Tahoe', dueDate: null, movedTo: null, movedTaskId: null },
+        { id: 'm3', title: '[C1] Rebalance investment portfolio', category: 'Financial', status: '•', starred: false, notes: '', dueDate: null, movedTo: null, movedTaskId: null },
+        { id: 'm4', title: '[B2] Migrate server infrastructure to GCP', category: 'Projects', status: '•', starred: false, notes: 'Evaluate Cloud Run vs App Engine', dueDate: null, movedTo: null, movedTaskId: null }
       ];
     }
     var resp = Tasks.Tasks.list('@default', { showCompleted: true, showHidden: true, maxResults: 100 });
     var items = resp.items || [];
-    return items
-      .filter(function(t) { return !t.due; })
-      .map(function(t) {
-        var meta = decodeTaskMeta(t.notes);
-        return {
-          id: t.id,
-          title: t.title,
-          category: meta.category || 'General',
-          status: deriveTaskStatus(t),
-          starred: Boolean(meta.starred),
-          notes: stripDpTokens(t.notes),
-          movedTo: meta.movedTo || null,
-          movedTaskId: meta.movedTaskId || null
-        };
-      });
+    var decoded = items.map(function(t) {
+      var meta = decodeTaskMeta(t.notes);
+      return {
+        id: t.id,
+        title: t.title,
+        category: meta.category || 'General',
+        status: deriveTaskStatus(t),
+        starred: Boolean(meta.starred),
+        notes: stripDpTokens(t.notes),
+        due: t.due || null,
+        movedTo: meta.movedTo || null,
+        movedTaskId: meta.movedTaskId || null,
+        sourceMasterId: meta.sourceMasterId || null,
+        statusRaw: t.status
+      };
+    });
+    return buildMasterTasksClearinghouse(decoded);
   } catch (err) {
     logError('getMasterTasks(' + (monthYearStr || '') + ')', err);
     return [];
@@ -1429,6 +1564,7 @@ function addMasterTask(title, category) {
         status: '•',
         starred: false,
         notes: '',
+        dueDate: null,
         movedTo: null,
         movedTaskId: null
       };
@@ -1445,6 +1581,7 @@ function addMasterTask(title, category) {
       status: deriveTaskStatus(created),
       starred: Boolean(meta.starred),
       notes: stripDpTokens(created.notes),
+      dueDate: null,
       movedTo: null,
       movedTaskId: null
     };

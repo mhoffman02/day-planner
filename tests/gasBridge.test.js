@@ -17,10 +17,25 @@ describe('GAS Bridge Unit Tests', () => {
     assert.ok(data.noteContent.includes('Executive briefing'));
   });
 
-  it('should fetch master tasks list', async () => {
+  it('should fetch unified master tasks clearinghouse (undated + incomplete dated, excluding completed dated)', async () => {
     const bridge = new GASBridge(true);
     const masterTasks = await bridge.getMasterTasks('August 2026');
-    assert.equal(masterTasks.length, 4);
+    assert.equal(masterTasks.length, 7);
+    assert.ok(masterTasks.some(m => m.id === 'm1' && m.dueDate === null));
+    assert.ok(masterTasks.some(m => m.id === 't2' && m.dueDate === '2026-08-15'));
+    assert.ok(!masterTasks.some(m => m.id === 't1'));
+  });
+
+  it('should deduplicate and collapse moved master tasks in clearinghouse', async () => {
+    const bridge = new GASBridge(true);
+    const transferred = await bridge.transferMasterTask('m1', '2026-08-15', 'A');
+    await bridge.markMasterTaskMoved('m1', '2026-08-15', transferred.id);
+
+    const masterTasks = await bridge.getMasterTasks('August 2026');
+    const m1Matches = masterTasks.filter(m => m.id === 'm1' || m.id === transferred.id);
+    assert.equal(m1Matches.length, 1);
+    assert.equal(m1Matches[0].dueDate, '2026-08-15');
+    assert.equal(m1Matches[0].movedTo, '2026-08-15');
   });
 
   it('should add a new daily task via bridge handler', async () => {

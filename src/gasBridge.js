@@ -4,7 +4,7 @@
  * Bridges client requests to Google Apps Script backend `google.script.run` or local mock state.
  */
 
-import { transferMasterTaskToToday } from './taskEngine.js';
+import { transferMasterTaskToToday, buildMasterTasksClearinghouse } from './taskEngine.js';
 import { createFutureItem, nextMonthKey, emptyYearMatrix } from './futureMatrixEngine.js';
 
 /**
@@ -206,7 +206,9 @@ export class GASBridge {
    */
   async getMasterTasks(monthYearStr) {
     if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
-      return this.mockData.masterTasks;
+      const allDailyTasks = Object.values(this.mockData.dailyTasks || {}).flat();
+      const combined = [...(this.mockData.masterTasks || []), ...allDailyTasks];
+      return buildMasterTasksClearinghouse(combined);
     }
 
     return new Promise((resolve, reject) => {
@@ -265,6 +267,9 @@ export class GASBridge {
         title,
         category: category || 'General',
         status: '•',
+        starred: false,
+        notes: '',
+        dueDate: null,
         movedTo: null,
         movedTaskId: null
       };
@@ -293,6 +298,7 @@ export class GASBridge {
       if (!task) return null;
       task.movedTo = targetDateStr;
       task.movedTaskId = movedTaskId;
+      task.dueDate = targetDateStr;
       task.status = '→';
       return task;
     }

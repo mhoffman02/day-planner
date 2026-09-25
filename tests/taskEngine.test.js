@@ -20,7 +20,9 @@ import {
   STATUS_OPTIONS,
   isValidStatus,
   extractInlinePriority,
-  filterTasksByStatus
+  filterTasksByStatus,
+  filterTasksByDateHorizon,
+  buildMasterTasksClearinghouse
 } from '../src/taskEngine.js';
 
 describe('Task Engine Unit Tests', () => {
@@ -213,6 +215,11 @@ describe('Task Engine Unit Tests', () => {
     assert.equal(getTaskSortValue({}, 'category'), '');
   });
 
+  it('getTaskSortValue() should return dueDate for dueDate sort, undated last', () => {
+    assert.equal(getTaskSortValue({ dueDate: '2026-09-28' }, 'dueDate'), '2026-09-28');
+    assert.equal(getTaskSortValue({}, 'dueDate'), '\uFFFF');
+  });
+
   it('sortTasksByColumn() should sort ascending/descending by the given column and stay stable on ties', () => {
     const tasks = [
       { id: 't1', title: '[B1] Bravo', category: 'Work' },
@@ -344,6 +351,94 @@ describe('Task Engine Unit Tests', () => {
       assert.deepEqual(filterTasksByStatus(null, ['•']), []);
       assert.deepEqual(filterTasksByStatus([], ['•']), []);
       assert.deepEqual(filterTasksByStatus(sampleTasks, null), sampleTasks);
+    });
+  });
+
+  describe('filterTasksByDateHorizon', () => {
+    const horizonTasks = [
+      { id: 't_past', title: 'Overdue task', dueDate: '2026-08-10' },
+      { id: 't_today', title: 'Today task', dueDate: '2026-08-15' },
+      { id: 't_future', title: 'Future task', dueDate: '2026-08-20' },
+      { id: 't_undated', title: 'Undated task', dueDate: null }
+    ];
+    const today = '2026-08-15';
+
+    it('should return all tasks when horizon is all', () => {
+      const res = filterTasksByDateHorizon(horizonTasks, 'all', today);
+      assert.equal(res.length, 4);
+    });
+
+    it('should filter future tasks (dueDate > today)', () => {
+      const res = filterTasksByDateHorizon(horizonTasks, 'future', today);
+      assert.equal(res.length, 1);
+      assert.equal(res[0].id, 't_future');
+    });
+
+    it('should filter overdue and today tasks (dueDate <= today)', () => {
+      const res = filterTasksByDateHorizon(horizonTasks, 'overdue-today', today);
+      assert.equal(res.length, 2);
+      assert.deepEqual(res.map(t => t.id), ['t_past', 't_today']);
+    });
+
+    it('should filter undated tasks (!dueDate)', () => {
+      const res = filterTasksByDateHorizon(horizonTasks, 'undated', today);
+      assert.equal(res.length, 1);
+      assert.equal(res[0].id, 't_undated');
+    });
+
+    it('should handle empty or invalid inputs gracefully', () => {
+      assert.deepEqual(filterTasksByDateHorizon(null, 'all'), []);
+      assert.deepEqual(filterTasksByDateHorizon([], 'future'), []);
+    });
+  });
+
+  describe('buildMasterTasksClearinghouse', () => {
+    it('should combine undated backlog tasks with incomplete dated tasks across all dates', () => {
+      const raw = [
+        { id: 'm1', title: 'Undated backlog task', status: '•' },
+        { id: 't_overdue', title: 'Overdue task', status: '•', due: '2026-08-01T00:00:00.000Z' },
+        { id: 't_future', title: 'Future task', status: '○', dueDate: '2026-09-30' }
+      ];
+      const result = buildMasterTasksClearinghouse(raw, '2026-08-15');
+      assert.equal(result.length, 3);
+      assert.equal(result.find(t => t.id === 'm1').dueDate, null);
+      assert.equal(result.find(t => t.id === 't_overdue').dueDate, '2026-08-01');
+      assert.equal(result.find(t => t.id === 't_future').dueDate, '2026-09-30');
+    });
+
+    it('should exclude completed and canceled dated tasks from clearinghouse', () => {
+      const raw = [
+        { id: 't_done', title: 'Finished yesterday', status: '✓', due: '2026-08-14T00:00:00.000Z' },
+        { id: 't_canceled', title: 'Dropped', status: 'X', dueDate: '2026-08-10' },
+        { id: 't_open', title: 'Still open', status: '•', dueDate: '2026-08-14' }
+      ];
+      const result = buildMasterTasksClearinghouse(raw, '2026-08-15');
+      assert.equal(result.length, 1);
+      assert.equal(result[0].id, 't_open');
+    });
+
+    it('should deduplicate and collapse moved master tasks with their daily task', () => {
+      const raw = [
+        { id: 'm1', title: '[A1] Plan retreat', status: '→', movedTo: '2026-08-20', movedTaskId: 't100' },
+        { id: 't100', title: '[A1] Plan retreat', status: '○', dueDate: '2026-08-20', sourceMasterId: 'm1' }
+      ];
+      const result = buildMasterTasksClearinghouse(raw, '2026-08-15');
+      assert.equal(result.length, 1);
+      assert.equal(result[0].id, 'm1');
+      assert.equal(result[0].status, '○');
+      assert.equal(result[0].dueDate, '2026-08-20');
+      assert.equal(result[0].movedTo, '2026-08-20');
+      assert.equal(result[0].movedTaskId, 't100');
+    });
+
+    it('should preserve undated completed tasks for master tasks status filter viewing', () => {
+      const raw = [
+        { id: 'm_done', title: 'Archival done backlog item', status: '✓' }
+      ];
+      const result = buildMasterTasksClearinghouse(raw, '2026-08-15');
+      assert.equal(result.length, 1);
+      assert.equal(result[0].id, 'm_done');
+      assert.equal(result[0].status, '✓');
     });
   });
 });
