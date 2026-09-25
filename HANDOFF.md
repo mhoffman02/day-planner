@@ -42,16 +42,16 @@ Deliver Phase 11 enhancements — Master Tasks Franklin glyph status filter togg
 
 - **Repository Branch**: `pure-gas-main`.
 - **Latest Commits**:
+  - [`9359bd5`](file:///home/mike/projects/day-planner): `chore(deploy): target Version 187 on HOME and Version 30 on WORK`.
+  - [`90ed956`](file:///home/mike/projects/day-planner): `fix(ux): remove HTML autofocus attribute to eliminate cross-origin subframe block; defer initial focus via setTimeout`.
+  - [`36b8c95`](file:///home/mike/projects/day-planner): `docs(handoff): update handoff state with HOME @186 and WORK v28`.
   - [`a22076f`](file:///home/mike/projects/day-planner): `chore(deploy): promote Phase 11 to HOME @186 and WORK v28`.
   - [`df3b357`](file:///home/mike/projects/day-planner): `docs(handoff): session transition and task queue`.
   - [`07f528d`](file:///home/mike/projects/day-planner): `fix(notes-docs): idempotent daily section replacement & align 3-column / 2-page terminology`.
-  - [`ee3dffd`](file:///home/mike/projects/day-planner): `docs(handoff): session transition and task queue`.
-  - [`81b75c3`](file:///home/mike/projects/day-planner): `feat(monthly-index): add Daily Page jump navigation column and record UX/Doc consultation`.
-  - [`1426e7f`](file:///home/mike/projects/day-planner): `feat(tasks-calendar): status stamp filter toggles & monthly overview full-screen expansion with day y-scroll`.
-- **Production Git Tag**: [`v1.0-pure-gas`](file:///home/mike/projects/day-planner) at commit [`a22076f`](file:///home/mike/projects/day-planner).
+- **Production Git Tag**: [`v1.0-pure-gas`](file:///home/mike/projects/day-planner) at commit [`9359bd5`](file:///home/mike/projects/day-planner).
 - **Live Deployment State**:
-  - HOME Prod (`day-planner-v01`): Version 186 (`@186`) live.
-  - WORK Prod (`9csO`): Code promoted and Version 28 created on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`. Target deployment `Version 3` (`9csO`) awaits manual activation to Version 28.
+  - HOME Prod (`day-planner-v01`): Version 187 (`@187`) live.
+  - WORK Prod (`9csO`): Code promoted and Version 30 created on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`. Target deployment `Version 3` (`9csO`) awaits manual activation to Version 30.
 - **Pre-Flight Verification**: Passed cleanly:
   - `npm run lint`: 0 errors.
   - `npm test`: 118/118 unit tests passing across 15 suites.
@@ -73,8 +73,8 @@ Deliver Phase 11 enhancements — Master Tasks Franklin glyph status filter togg
 
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
-1. **Deploy Version 28 on WORK Deployment `Version 3` (`9csO`)**:
-   - In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) under `michael.hoffman@gsa.gov`, click **Deploy** > **Manage deployments**, select deployment `Version 3` (`9csO`), edit (pencil icon), select **Version 28**, and click **Deploy** ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L3-L4)).
+1. **Deploy Version 30 on WORK Deployment `Version 3` (`9csO`)**:
+   - In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) under `michael.hoffman@gsa.gov`, click **Deploy** > **Manage deployments**, select deployment `Version 3` (`9csO`), edit (pencil icon), select **Version 30**, and click **Deploy** ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L3-L4)).
 2. **Live Workspace UAT of Phase 10 & 11 Features**:
    - Verify Master Tasks status filter toggles (`[All]`, `[•]`, `[✓]`, etc.).
    - Verify Monthly Overview full vertical expansion and on-demand day card scrolling on dense days.
@@ -87,4 +87,4 @@ Deliver Phase 11 enhancements — Master Tasks Franklin glyph status filter togg
 
 ### IMMEDIATE NEXT STEP
 
-Open [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) under `michael.hoffman@gsa.gov`, click **Deploy** > **Manage deployments**, select deployment `Version 3` (`9csO`), click **Edit** (pencil icon), select **New version** (Version 28), and click **Deploy**.
+Open [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) under `michael.hoffman@gsa.gov`, click **Deploy** > **Manage deployments**, select deployment `Version 3` (`9csO`), click **Edit** (pencil icon), select **New version** (Version 30), and click **Deploy**.
