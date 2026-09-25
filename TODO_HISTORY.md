@@ -1,5 +1,24 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-25 — Master Tasks Status Filter Toggles, Monthly Overview Full Expansion & Y-Scroll, Daily Page Jump Navigation (commits `1426e7f` & `81b75c3`)
+
+- [x] **Master Tasks Status Filter Toggles (Option A: Franklin Glyph Stamp Toggles, commit `1426e7f`)**:
+  - Implemented compact, flat stamp toolbar directly in Master Tasks header: `[All] [ • Open ] [ ○ In Progress ] [ ✓ Done ] [ → Forward ] [ X Canceled ] [ Ⓓ Delegated ]`.
+  - Adhered strictly to flat 2px radius stamp aesthetic (zero pills), inverted forest teal fill (`#2d6a5a`) when active, parchment hairlines when inactive.
+  - Implemented `filterTasksByStatus` in [`src/taskEngine.js`](file:///home/mike/projects/day-planner/src/taskEngine.js) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html) with normalization between `Ⓓ` and `D/✓`.
+  - Added unit test suite with 6 tests in [`tests/taskEngine.test.js`](file:///home/mike/projects/day-planner/tests/taskEngine.test.js).
+  - Added 1-click toggle between All and Open-only (`•`), plus empty-state messaging with 1-click reset link.
+- [x] **Monthly Overview Full-Screen Expansion & Y-Scroll On-Demand (commit `1426e7f`)**:
+  - Eliminated 2 wasted screen inches at bottom by upgrading [`.monthly-calendar-container`](file:///home/mike/projects/day-planner/src/styles.css) to `flex: 1 1 0; min-height: 0;` and binding dynamic grid row sizing `:style="{ gridTemplateRows: 'repeat(' + (monthlyGrid.length / 7) + ', minmax(0, 1fr))' }"`.
+  - Added weekday column header row `[Sun | Mon | Tue | Wed | Thu | Fri | Sat]`.
+  - Wrapped day cell events in [`.calendar-day-events`](file:///home/mike/projects/day-planner/src/styles.css) with `overflow-y: auto`, slim scrollbars, and unconstrained event height (`flex: 0 0 auto !important; min-height: 20px;`) preventing squishing on dense days (e.g. Sept 25, 2026).
+  - Seeded 8 realistic mock appointments for `2026-09-25` in [`src/gasBridge.js`](file:///home/mike/projects/day-planner/src/gasBridge.js).
+- [x] **Monthly Index 5th Column "Daily Page" & "Source Doc" Alignment (commit `81b75c3`)**:
+  - Added in-app router navigation column `Daily Page` with verb-based cell button `Jump to Day` (`.btn-jump-day` with `arrow_forward` icon).
+  - Renamed neighboring column header from `Direct Doc Link` to `Source Doc` (`View Google Doc`) for clear in-app vs. external distinction.
+  - Implemented `jumpToDailyPage(date, topic)` in [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html) to navigate to the 3-column daily workspace and auto-expand matching topic cards.
+  - Added full UX & Tech Writer advisory report to [`docs/CONSULT-monthly-index-and-doc-formatting.md`](file:///home/mike/projects/day-planner/docs/CONSULT-monthly-index-and-doc-formatting.md).
+
 ## 2026-09-25 — Master Tasks Parity, Monthly Index Polish, Month Picker with Year Nav, and Deployment (commit `95e45b5`, HOME @185, WORK @26)
 
 - [x] **Master Tasks Feature Parity with Daily Tasks (commit `95e45b5`)**:

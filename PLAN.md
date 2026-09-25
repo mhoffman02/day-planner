@@ -162,6 +162,26 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
   - HOME production deployed to Version 185 (`@185`).
   - WORK production code promoted and Version 26 created targeting deployment `9csO`.
 
+### Phase 11: Task Filters, Calendar Grid Scaling, In-App Index Navigation & Doc Architecture
+*Goal: Provide instant multi-status filtering on Master Tasks, eliminate calendar vertical dead space with day y-scroll, integrate in-app router links from Monthly Index, and lock in Google Doc Option 3 architecture.*
+
+- [x] Master Tasks Status Filter (Option A: Franklin Glyph Stamp Toggles, commit `1426e7f`):
+  - Compact flat 2px radius stamp toolbar `[All | • | ○ | ✓ | → | X | Ⓓ]` with active teal ink fills.
+  - Multi-status combinations and 1-click toggle between All and Open-only (`•`).
+  - `filterTasksByStatus` engine method with normalization between `Ⓓ` and `D/✓` and 6 unit tests.
+- [x] Monthly Overview Full-Screen Expansion & Y-Scroll On-Demand (commit `1426e7f`):
+  - Vertical expansion via `flex: 1 1 0; min-height: 0;` and dynamic CSS grid row track sizing.
+  - Weekday header bar `[Sun - Sat]`.
+  - Non-compressing event pills (`flex: 0 0 auto !important; min-height: 20px;`) with day card `overflow-y: auto`.
+- [x] Monthly Index In-App Navigation (commit `81b75c3`):
+  - Added 5th column `Daily Page` with `Jump to Day` button (`.btn-jump-day`).
+  - Renamed `Direct Doc Link` to `Source Doc` (`View Google Doc`).
+  - Implemented `jumpToDailyPage(date, topic)` with auto-expansion of topic cards.
+- [ ] Google Doc Option 3 Architecture & Append Bug Fix:
+  - Fix `saveDailyDocCards` (`Code.gs:1081-1113`) unconditional append duplication bug with idempotent section replacement.
+  - Retain native H2/H3 for Google Docs native outline and printouts while keeping Day Planner SPA as primary presentation layer.
+- [ ] Promote Phase 11 Enhancements to HOME (`@186`) and WORK (`@27`).
+
 
 
 ---

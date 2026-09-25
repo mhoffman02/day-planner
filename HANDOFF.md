@@ -2,37 +2,35 @@
 
 ### OBJECTIVE
 
-Validate production promotion of Master Tasks feature parity with daily tasks, Monthly Index rich text formatting and authentic Google Doc links, top navbar hover-drop month picker with rapid year navigation, and Phase 10 enhancements across HOME (`@185`) and WORK (`@26` on deployment `9csO`). Confirm live Workspace UAT and maintain pure GAS release tag `v1.0-pure-gas`.
+Deliver Phase 11 enhancements — Master Tasks Franklin glyph status filter toggles, Monthly Overview full-screen vertical responsiveness with on-demand day card scrolling, and Monthly Index "Daily Page" in-app jump routing. Lock in Google Doc Notes Option 3 architecture (durable markdown storage with native H2/H3 headings for Docs outline/printing; SPA as primary presentation layer) and execute remaining tasks in priority order across WORK and HOME deployments.
 
 ---
 
 ### KEY DECISIONS
 
-- **Master Tasks Feature Parity with Daily Tasks ([commit `95e45b5`](file:///home/mike/projects/day-planner))**:
-  - Renamed header from `"Master Task List"` to `"Master Tasks"` across [`index.html`](file:///home/mike/projects/day-planner/index.html) and [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html).
-  - Added segmented letterpress priority buttons (`A` | `B` | `C`) with hover tooltips (`title="A: Top priority (Alt+A or #a)"`, etc.), `accesskey="a/b/c"`, and rounded outer corners on A (NW/SW: 5px) and C (NE/SE: 5px).
-  - Implemented inline `#a`, `#b`, `#c` title prefix detection (`handleMasterTaskTitleInput`) and keyboard shortcuts (`Alt+A/B/C` and `Ctrl+Shift+A/B/C`) to auto-switch priority and focus master task input.
-  - Upgraded Master Tasks table to 5 sortable columns: Priority (`Pri`), Status (`Sts`), Task Description, Category, and Action.
-  - Replaced text status display with Franklin glyph status dropdown popup menu (`•`, `✓`, `→`, `D/✓`, `X`) including the "Delete" item with trashcan icon.
-  - Added dedicated `[Delete]` button (`.btn-delete-row` with trashcan icon) directly to the right of the `[Move]` button on each master task row.
-  - Added sticky note indicator icon with popover hover/click displaying notes upward without clipping (`notesPopoverDropUp`).
-  - Added star toggle (`★`/`☆`), priority column badges (`.priority-badge`), and multi-column sorting (`sortTasksByColumn`).
-  - Implemented backend RPC and bridge methods `updateMasterTask(taskId, updates)` and `deleteMasterTask(taskId)` in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs), [`src/gasBridge.js`](file:///home/mike/projects/day-planner/src/gasBridge.js), and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html).
-  - Added bidirectional status synchronization mirroring status changes on a moved master task to its linked daily task via `meta.movedTaskId`.
-- **Monthly Index Rich Text Formatting & Authentic Google Doc Links ([commit `95e45b5`](file:///home/mike/projects/day-planner))**:
-  - Renamed Monthly Index header to `"Monthly Index and Decisions"` across [`index.html`](file:///home/mike/projects/day-planner/index.html) and [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html).
-  - Formatted "Summary Highlight" column using rich text formatting (`x-html="renderCardLine(idx.summary, false)"`) matching the Daily Notes column.
-  - Fixed "DIRECT DOC LINK" bug: extracted authentic Google Doc URLs (`https://docs.google.com/document/d/...`) from `getDailyData` in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) and enforced valid `https://docs.google.com/document/...` via `getDirectDocUrl(url)`, eliminating broken `https://<id>.script.googleusercontent.com/userCodeAppPanel#doc-...` URLs.
-- **Top Navbar Month Picker Hover-Drop & Year Stepper ([commit `95e45b5`](file:///home/mike/projects/day-planner))**:
-  - In the top navbar where `< This Month >` sits, implemented a hover-drop (and click/double-tap) month picker dropdown across [`index.html`](file:///home/mike/projects/day-planner/index.html) and [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html).
-  - Answered user inquiry on efficient multi-year navigation: integrated a Year Nav header with `< [Year] >` stepper and 4x3 month grid inside the dropdown, allowing 2-click jumps to any month in previous years (e.g., Nov 2025) or future years (e.g., Feb 2027) without clicking single-month arrows 12 times.
-  - Highlighted current calendar month with gold accent border and active selected month with solid binder green fill.
-- **33% Expanded Appointment Modal & Google Meet Support ([commit `6deca7e`](file:///home/mike/projects/day-planner))**:
-  - Expanded Appointment Details popup dialog dimensions by ~33%: max-width 735px, min-height 460px with header close button.
-  - Enhanced Google Meet link extraction across Google Calendar API v3 and CalendarApp fallback; added dedicated video meeting link row in dialog body.
-- **Task Note Popover & Status Menu Clipping Fixes ([commit `bd803ee`](file:///home/mike/projects/day-planner))**:
-  - Set `overflow: visible` and removed `max-height` on `.task-title-cell` in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html).
-  - Aligned dynamic dropup space detection for both Status Menu and Note Popover: `(spaceBelow < 275 && spaceAbove > spaceBelow) || spaceBelow < 160`.
+- **Master Tasks Status Filter Toggles ([commit `1426e7f`](file:///home/mike/projects/day-planner))**:
+  - Implemented Option A Franklin Glyph Stamp Toggles (`[All]`, `[•]`, `[○]`, `[✓]`, `[→]`, `[X]`, `[Ⓓ]`) directly above the Master Tasks table in [`index.html`](file:///home/mike/projects/day-planner/index.html) and [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html).
+  - Selected Option A per user review: preserves the tactile letterpress Franklin aesthetic with crisp 2px border radius stamps, avoids hidden dropdown controls, and supports instant 1-click filtering or multi-status toggling.
+  - Implemented `filterTasksByStatus(tasks, activeStatuses)` in [`src/taskEngine.js`](file:///home/mike/projects/day-planner/src/taskEngine.js) with 6 comprehensive unit tests in [`tests/taskEngine.test.js`](file:///home/mike/projects/day-planner/tests/taskEngine.test.js) (including normalization between `Ⓓ` and `D/✓` delegation glyphs).
+  - Added empty filter state message ("No master tasks match the selected status filter") with an inline "Reset filter" button.
+
+- **Monthly Overview Calendar Responsiveness & Scrolling ([commit `1426e7f`](file:///home/mike/projects/day-planner))**:
+  - Eliminated ~2 inches of dead bottom screen space by converting `.monthly-calendar-container` to flex column expansion (`flex: 1 1 0; min-height: 0;`) in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html).
+  - Replaced hardcoded row tracks with dynamic row-fraction sizing: `:style="{ gridTemplateRows: 'repeat(' + (monthlyGrid.length / 7) + ', minmax(0, 1fr))' }"`.
+  - Added explicit sticky weekday header row (`Sun` - `Sat`) above the calendar grid.
+  - Enabled on-demand vertical scrolling (`overflow-y: auto`) on individual day cards with slender, unobtrusive scrollbars (`.month-day-cell::-webkit-scrollbar`).
+  - Added `flex: 0 0 auto !important; min-height: 20px;` to `.month-event-item` to guarantee events on dense days (e.g. Sept 25, 2026 with 8 items) remain crisp, uncompressed, and fully readable.
+
+- **Monthly Index In-App Navigation & Doc Links ([commit `81b75c3`](file:///home/mike/projects/day-planner))**:
+  - Added 5th column `Daily Page` with `Jump to Day` (`.btn-jump-day`) letterpress button in [`index.html`](file:///home/mike/projects/day-planner/index.html) and [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html).
+  - Clicking `Jump to Day` invokes `jumpToDailyPage(date, topic)`, which updates the selected date, switches the active view to `'today'`, searches for the note/decision card matching the topic/summary, highlights the card, and smoothly scrolls it into view.
+  - Renamed `DIRECT DOC LINK` to `Source Doc` with text `View Google Doc ↗` to clarify that it opens the raw external document.
+
+- **Google Doc Notes Architecture (Option 3 Selected)**:
+  - Documented UX and technical architecture consultation in [`docs/CONSULT-monthly-index-and-doc-formatting.md`](file:///home/mike/projects/day-planner/docs/CONSULT-monthly-index-and-doc-formatting.md).
+  - **Option 3 Wins (Best ROI)**: Treat the Google Doc as durable, machine-readable storage with native H2/H3 headings for document outline navigation and clean printouts, while treating the Day Planner SPA as the rich, styled presentation layer.
+  - **Option 2 (2 Tabs) Rejected**: High regression risk. In Google Apps Script DocumentApp, `getBody()` binds to the active tab. If a user is viewing the `#view` tab, document-bound sidebar search (`gas-app/Code.gs:1875+`) searches the wrong tab.
+  - **Prerequisite Plumbing Fix Identified**: `saveDailyDocCards` in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L1081-L1113) unconditionally calls `body.appendPageBreak()` and appends headings/cards, duplicating days on every save. An idempotent day section replacement must be implemented before formatting polish.
 
 ---
 
@@ -40,15 +38,15 @@ Validate production promotion of Master Tasks feature parity with daily tasks, M
 
 - **Repository Branch**: `pure-gas-main`.
 - **Latest Commits**:
-  - [`95e45b5`](file:///home/mike/projects/day-planner): `feat(tasks-index-nav): master tasks feature parity, monthly index rich text & authentic doc links, month picker with year nav`.
-  - [`6deca7e`](file:///home/mike/projects/day-planner): `feat(appointments): expand appointment modal by 33% and support Google Meet link extraction across Calendar API, descriptions, and UI`.
-- **Production Git Tag**: [`v1.0-pure-gas`](file:///home/mike/projects/day-planner) ready to be updated to commit [`95e45b5`](file:///home/mike/projects/day-planner).
+  - [`81b75c3`](file:///home/mike/projects/day-planner): `feat(monthly-index): add Daily Page jump navigation column and record UX/Doc consultation`.
+  - [`1426e7f`](file:///home/mike/projects/day-planner): `feat(tasks-calendar): status stamp filter toggles & monthly overview full-screen expansion with day y-scroll`.
+- **Production Git Tag**: [`v1.0-pure-gas`](file:///home/mike/projects/day-planner) at commit [`81b75c3`](file:///home/mike/projects/day-planner).
 - **Live Deployment State**:
-  - HOME Prod (`day-planner-v01`): Version 185 (`@185`) live at [https://script.google.com/macros/s/AKfycbx1pgqPIlEXqPwH9JvPnz0vKX5iP5zlfY4ArvUTDSVzIc0_A2wkMUp5-iouKVAp_46PRg/exec](https://script.google.com/macros/s/AKfycbx1pgqPIlEXqPwH9JvPnz0vKX5iP5zlfY4ArvUTDSVzIc0_A2wkMUp5-iouKVAp_46PRg/exec).
-  - WORK Prod (`9csO`): Code promoted and Version 26 created on script `1980roEKgkC_...`. Target endpoint is [https://script.google.com/a/macros/gsa.gov/s/AKfycbzRwZFZH9bT5jQtqq0ncBPbokoQGKjSUyBQNVDtPpOISwtdMSXlNAns8E9WFtUM9csO/exec](https://script.google.com/a/macros/gsa.gov/s/AKfycbzRwZFZH9bT5jQtqq0ncBPbokoQGKjSUyBQNVDtPpOISwtdMSXlNAns8E9WFtUM9csO/exec).
+  - HOME Prod (`day-planner-v01`): Version 185 (`@185`) live.
+  - WORK Prod (`9csO`): Code promoted and Version 26 created on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`. Target deployment `Version 3` (`9csO`) awaits manual activation.
 - **Pre-Flight Verification**: Passed cleanly:
   - `npm run lint`: 0 errors.
-  - `npm test`: 109/109 unit tests passing across 13 suites.
+  - `npm test`: 115/115 unit tests passing across 14 suites.
   - `npm run check:gas-safe-chars`: Clean.
   - `CHROME_PORT=9230 npm run smoke`: All 8 suites passed cleanly with 0 console errors.
 
@@ -57,7 +55,7 @@ Validate production promotion of Master Tasks feature parity with daily tasks, M
 ### CONSTRAINTS & PREFERENCES
 
 1. **Conciseness & Directness**: Default to short, direct answers. Short is much more important than grammar. Drop opening pleasantries and wrap-up summaries. Lead with the answer, provide code and detail only when needed, and stop immediately when done.
-2. **Salutation**: Start every reply with `🔋Mike:`.
+2. **Salutation**: Start every reply with `⚡Mike:`.
 3. **Clickable Links**: All file paths and code symbols MUST use clickable markdown links with `file://` scheme.
 4. **No PR Theater**: Direct commits on working branch (`pure-gas-main`).
 5. **Design System Constraints**: Day Planner aesthetic — parchment cream `#fcfbfa`, forest teal `#2d6a5a`, archival ink blue `#1d5fa8`, plum `#5e3f6b`, serif headers, strictly **no pills** ([`.agents/rules/no-pills.md`](file:///home/mike/projects/day-planner/.agents/rules/no-pills.md)). Use crisp 2px border radius for stamps and tabs.
@@ -68,22 +66,22 @@ Validate production promotion of Master Tasks feature parity with daily tasks, M
 
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
-1. **Activate Version 26 on WORK Deployment `Version 3` (`9csO`)**:
-   - In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit), select deployment `Version 3` (`9csO`), click **Edit** (pencil), select **New version** (Version 26), and click **Deploy** ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md)).
-2. **Live Workspace UAT of Master Tasks, Monthly Index & Month Picker**:
-   - Verify Master Tasks header displays "Master Tasks" across both local dev and production GAS web app.
-   - Verify Master Tasks quick add bar includes segmented priority buttons (`A` | `B` | `C`) with hover titles, `Alt+A/B/C` shortcuts, and inline `#a`, `#b`, `#c` title prefix detection.
-   - Verify Master Tasks table columns: `Pri` badge, `Sts` dropdown menu with Franklin glyphs and "Delete" option, Task Description with star toggle and notes popover hover/click, `Category`, and Action column with date picker, `[Move]` button, and `[Delete]` button (`.btn-delete-row`).
-   - Verify deleting a master task removes it completely from Google Tasks (`Tasks.Tasks.remove('@default', taskId)`).
-   - Verify status change on a moved master task mirrors to its linked daily task.
-   - Verify Monthly Index displays header "Monthly Index and Decisions" and renders "Summary Highlight" using rich text format (`renderCardLine`).
-   - Verify Monthly Index "DIRECT DOC LINK" opens authentic Google Docs URLs (`https://docs.google.com/document/d/...`) rather than script proxy URLs.
-   - Verify top navbar `< This Month >` opens hover-drop month picker with `< [Year] >` year stepper and 12-month grid for rapid multi-year navigation.
-3. **Standalone Desktop Shortcut ("Open as Window")**:
-   - Verify Chrome "Install Day Planner" / "Open as window" desktop workflow from [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html) ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md)).
+1. **Deploy Version 26 on WORK Deployment `Version 3` (`9csO`)**:
+   - In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) under `michael.hoffman@gsa.gov`, select deployment `Version 3` (`9csO`), edit, select **New version** (Version 26), and click **Deploy** ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md)).
+2. **Google Doc Option 3 Architecture & Idempotent Replace Plumbing**:
+   - In [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L1081-L1113), fix `saveDailyDocCards` which currently unconditionally calls `body.appendPageBreak()` and appends headings/cards, duplicating days on every save.
+   - Implement idempotent day replacement: locate existing day HEADING2, walk forward to the next HEADING2, and delete existing day elements in reverse index order before inserting updated cards.
+   - Maintain Option 3: keep Google Doc as durable markdown-compatible storage with native H2/H3 for Google Docs outline/printouts, avoiding complex dual-tab synchronization hazards.
+3. **Reconcile Specification & UI Copy Terminology**:
+   - Reconcile [`REQUIREMENTS.md`](file:///home/mike/projects/day-planner/REQUIREMENTS.md#L88) ("2-Page Daily Spread") and app nav ("Daily 3-Column View" / "Today") so documentation and UI nomenclature are unified.
+
+*(Subsequent Tasks)*:
+- **4. Production Promotion of Phase 11 Enhancements (HOME & WORK)**: Push commits [`1426e7f`](file:///home/mike/projects/day-planner) and [`81b75c3`](file:///home/mike/projects/day-planner) to HOME (`@186`) and WORK (`@27` on `9csO`).
+- **5. Live Workspace UAT of Phase 10 & 11 Features**: Verify Master Tasks status filter, Monthly Overview vertical expansion/scroll, and Monthly Index Daily Page routing in live GAS web apps.
+- **6. Standalone Desktop Shortcut ("Open as Window")**: Verify Chrome desktop app shortcut from [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html).
 
 ---
 
 ### IMMEDIATE NEXT STEP
 
-Open [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) under `michael.hoffman@gsa.gov`, click **Deploy** > **Manage deployments**, select deployment `Version 3` (`9csO`), click **Edit** (pencil), select **New version** (Version 26), and click **Deploy**.
+Open [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) under `michael.hoffman@gsa.gov`, click **Deploy** > **Manage deployments**, select deployment `Version 3` (`9csO`), click **Edit** (pencil icon), select **New version** (Version 26), and click **Deploy**.
