@@ -700,10 +700,11 @@
             <table class="task-table table-card">
               <thead>
                 <tr class="table-header-row">
-                  <th scope="col">Date</th>
-                  <th scope="col">Topic / Category</th>
+                  <th scope="col" class="th-w-100">Date</th>
+                  <th scope="col" class="th-w-140">Topic / Category</th>
                   <th scope="col">Summary Highlight</th>
-                  <th scope="col">Direct Doc Link</th>
+                  <th scope="col" class="th-w-140">Daily Page</th>
+                  <th scope="col" class="th-w-160">Source Doc</th>
                 </tr>
               </thead>
               <tbody>
@@ -713,8 +714,15 @@
                     <td><b x-text="idx.topic"></b></td>
                     <td x-html="renderCardLine(idx.summary, false)"></td>
                     <td>
-                      <a :href="getDirectDocUrl(idx.docUrl)" class="doc-link" target="_blank" rel="noopener noreferrer">
-                        <span class="material-symbols-outlined icon-16">description</span> View Google Doc
+                      <button type="button" class="btn-jump-day" @click="jumpToDailyPage(idx.date, idx.topic)" :aria-label="'Jump to daily page for ' + idx.date">
+                        <span class="material-symbols-outlined icon-16">arrow_forward</span>
+                        <span>Jump to Day</span>
+                      </button>
+                    </td>
+                    <td>
+                      <a :href="getDirectDocUrl(idx.docUrl)" class="doc-link" target="_blank" rel="noopener noreferrer" :aria-label="'View Google Doc source for ' + idx.date">
+                        <span class="material-symbols-outlined icon-16">description</span>
+                        <span>View Google Doc</span>
                       </a>
                     </td>
                   </tr>

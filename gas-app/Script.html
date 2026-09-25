@@ -2086,6 +2086,19 @@
         return 'https:' + '/' + '/docs.google.com/document/';
       },
 
+      async jumpToDailyPage(dateStr, topic = '') {
+        if (!dateStr) return;
+        this.selectedDate = dateStr;
+        await this.setView('daily');
+        await this.loadDayData();
+        if (topic) {
+          const match = (this.noteCards || []).find(c => (c.indexTopic || '').toLowerCase() === topic.toLowerCase());
+          if (match) {
+            match.collapsed = false;
+          }
+        }
+      },
+
       buildMonthlyGrid() {
         const firstDay = new Date(this.selectedYear, this.selectedMonth - 1, 1);
         const lastDay = new Date(this.selectedYear, this.selectedMonth, 0);

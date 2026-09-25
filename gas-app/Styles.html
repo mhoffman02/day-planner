@@ -2361,9 +2361,33 @@
     align-items: center;
     gap: 4px;
     text-decoration: none;
+    font-size: 0.8rem;
   }
   .doc-link:hover {
     text-decoration: underline;
+  }
+
+  .btn-jump-day {
+    background: var(--binder-teal-light, #eef7f4);
+    color: var(--binder-teal, #2d6a5a);
+    border: 1px solid var(--border-line, #ccd8d4);
+    border-radius: 2px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 3px 8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    font-family: inherit;
+    line-height: 1.2;
+  }
+  .btn-jump-day:hover {
+    background: var(--binder-teal, #2d6a5a);
+    border-color: var(--binder-teal, #2d6a5a);
+    color: #ffffff;
   }
 
   /* Future Planning Matrix */
@@ -3719,4 +3743,16 @@
 
   [data-theme="dark"] .btn-link-reset-filter {
     color: #79d6bd !important;
+  }
+
+  [data-theme="dark"] .btn-jump-day {
+    background: #11241c !important;
+    color: #79d6bd !important;
+    border-color: #244a3b !important;
+  }
+
+  [data-theme="dark"] .btn-jump-day:hover {
+    background: #2d6a5a !important;
+    border-color: #3b8773 !important;
+    color: #ffffff !important;
   }</style>

@@ -201,14 +201,27 @@ async function runSmokeTest() {
     }
 
     // TEST 4: Monthly Index View
-    console.log('\n--- 4. Testing Monthly Index View ---');
+    console.log('\n--- 4. Testing Monthly Index View & Daily Page Jump ---');
     await setAppMethod('setView("monthly-index")');
     await wait(200);
     const indexViewActive = await getAppProp('activeView');
     const indexCount = await getAppProp('indexRecords?.length || 0');
-    console.log(`  activeView: "${indexViewActive}", Index records: ${indexCount}`);
+    const hasJumpButton = await cdp.eval('Boolean(document.querySelector(".btn-jump-day"))');
+    console.log(`  activeView: "${indexViewActive}", Index records: ${indexCount}, Has Jump to Day button: ${hasJumpButton}`);
     if (indexViewActive !== 'monthly-index') {
       throw new Error('Failed to activate monthly-index view');
+    }
+    if (!hasJumpButton) {
+      throw new Error('Monthly Index missing .btn-jump-day navigation button');
+    }
+
+    // Test in-app navigation jump to daily page
+    await cdp.eval('document.querySelector(".btn-jump-day").click()');
+    await wait(250);
+    const jumpedView = await getAppProp('activeView');
+    console.log(`  Clicked "Jump to Day" -> activeView is now: "${jumpedView}"`);
+    if (jumpedView !== 'daily') {
+      throw new Error(`Expected activeView to be daily after Jump to Day click, got "${jumpedView}"`);
     }
 
     // TEST 5: Future Planning View
