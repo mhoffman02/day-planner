@@ -137,6 +137,10 @@ Alpine.data('plannerApp', () => ({
         await this.loadDayData();
         await this.loadMasterTasks();
         this.setupKeyboardShortcuts();
+        // Defer initial focus to avoid iframe cross-origin autofocus block
+        setTimeout(() => {
+          this.focusTaskInput();
+        }, 150);
       },
 
       initColumnWidths() {
