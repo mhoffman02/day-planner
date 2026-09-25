@@ -2017,7 +2017,7 @@
           var rect = el.getBoundingClientRect();
           var spaceBelow = window.innerHeight - rect.bottom;
           var spaceAbove = rect.top;
-          this.notesPopoverDropUp = (spaceBelow < 180 && spaceAbove > spaceBelow) || spaceBelow < 100;
+          this.notesPopoverDropUp = (spaceBelow < 275 && spaceAbove > spaceBelow) || spaceBelow < 160;
         }
       },
 
@@ -2032,7 +2032,7 @@
             var rect = el.getBoundingClientRect();
             var spaceBelow = window.innerHeight - rect.bottom;
             var spaceAbove = rect.top;
-            this.notesPopoverDropUp = (spaceBelow < 180 && spaceAbove > spaceBelow) || spaceBelow < 100;
+            this.notesPopoverDropUp = (spaceBelow < 275 && spaceAbove > spaceBelow) || spaceBelow < 160;
           }
         }
       },

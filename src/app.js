@@ -1342,7 +1342,7 @@ Alpine.data('plannerApp', () => ({
           const rect = el.getBoundingClientRect();
           const spaceBelow = window.innerHeight - rect.bottom;
           const spaceAbove = rect.top;
-          this.notesPopoverDropUp = (spaceBelow < 180 && spaceAbove > spaceBelow) || spaceBelow < 100;
+          this.notesPopoverDropUp = (spaceBelow < 275 && spaceAbove > spaceBelow) || spaceBelow < 160;
         }
       },
 
@@ -1357,7 +1357,7 @@ Alpine.data('plannerApp', () => ({
             const rect = el.getBoundingClientRect();
             const spaceBelow = window.innerHeight - rect.bottom;
             const spaceAbove = rect.top;
-            this.notesPopoverDropUp = (spaceBelow < 180 && spaceAbove > spaceBelow) || spaceBelow < 100;
+            this.notesPopoverDropUp = (spaceBelow < 275 && spaceAbove > spaceBelow) || spaceBelow < 160;
           }
         }
       },
