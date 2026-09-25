@@ -1,5 +1,26 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-25 — Ergonomics & Visual Polish: Thematic Priority Colors, Local Timezone, Undated Backlog Filter, Appointment Modal, and Panel Harmony (commits `c6af794` through `ef8ffba`)
+
+- [x] **Dotted Outline Removal on Star Toggle (commit `c6af794`)**:
+  - Removed persistent dashed border around task star toggle on click using `:focus:not(:focus-visible) { outline: none; }` in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html).
+- [x] **Local Timezone Appointments & Undated Task Backlog Filtering (commit `ed3a7f7`)**:
+  - Fixed appointment times appearing in GMT by formatting events with user/session timezone in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) and [`src/calendarEngine.js`](file:///home/mike/projects/day-planner/src/calendarEngine.js).
+  - Filtered open tasks without due dates out of daily tasks view so they strictly remain in the Master Tasks backlog.
+- [x] **Panel Header Alignment, Headings, and Parchment Background Harmony (commit `3fb1ad6`)**:
+  - Harmonized Daily Notes panel background to parchment cream `#fcfbfa` matching Tasks and Appointments.
+  - Renamed headers to plural "Appointments" and "Notes".
+  - Vertically aligned horizontal divider lines across all 3 column headers.
+- [x] **Appointment Click Event Modal & Google Calendar Deep Link (commit `dcb2b31`)**:
+  - Wired appointment pills in the daily schedule to open an Event Details modal showing start/end time, summary, description, Google Meet link, and a direct link to open the event in Google Calendar in a new tab.
+- [x] **Thematic Non-Alert Priority Colors (commit `ef8ffba`)**:
+  - Replaced red and orange priority colors with authentic, non-alert thematic palette: Priority A Archival Ink Blue (`#1d5fa8`), Priority B Bookbinder Plum (`#5e3f6b`), Priority C Forest Green (`#2d6a5a`).
+  - Applied across `.priority-badge` and segmented priority selector `[ A | B | C ]` for light and dark themes in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html).
+  - Decoupled note delete buttons from priority token to avoid color collisions.
+- [x] **Deployments (HOME @176, WORK @13)**:
+  - HOME prod deployed at Version 176 (`@176`) to `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
+  - WORK prod code pushed and Version 13 created targeting deployment `9csO` (`AKfycbzRwZFZH9bT5jQtqq0ncBPbokoQGKjSUyBQNVDtPpOISwtdMSXlNAns8E9WFtUM9csO`).
+
 ## 2026-09-25 — Phase 6: Production Release v1.0-pure-gas & Live Workspace UAT (tag `v1.0-pure-gas`, commit `e789ca8`)
 
 - [x] **Repository Housekeeping & CDP Tooling Tracking (commit `e789ca8`)**:

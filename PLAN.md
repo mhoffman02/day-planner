@@ -123,9 +123,21 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 ### Phase 8: Advanced Productivity UX Ergonomics
 *Goal: Implement high-efficiency task input ergonomics and 1-click focus mode for deep work in the Daily Binder view.*
 
-- [x] Segmented Priority Selector (`Proposal B`): Replace `<select>` with letterpress stamp tabs `[ A | B | C ]` with color-coded active states (Red A, Amber B, Teal C) and seamless `Enter` key submission (commit `de02715`).
+- [x] Segmented Priority Selector (`Proposal B`): Replace `<select>` with letterpress stamp tabs `[ A | B | C ]` with color-coded active states and seamless `Enter` key submission (commit `de02715`).
 - [x] Column Focus Mode: Add `open_in_full` / `close_fullscreen` toggle buttons to header actions of Tasks, Appointments, and Notes columns with ephemeral 100% width and `Escape` hotkey (commit `de02715`).
 - [x] Merge `feat/modern-normalize` to `pure-gas-main`, deploy HOME release `@171`, and promote to WORK via `npm run push:work`.
+
+### Phase 9: Ergonomics Polish & Thematic Color Harmonization
+*Goal: Remove interaction artifacts, restore appointment click modals, localize timezones, filter undated tasks, and apply non-alert priority colors.*
+
+- [x] Dotted Outline Removal on Star Toggle: Suppress persistent focus ring on mouse click via `:focus:not(:focus-visible) { outline: none; }` (commit `c6af794`).
+- [x] Local Timezone Appointments: Format schedule slot times and event start/end using user calendar/session timezone (commit `ed3a7f7`).
+- [x] Undated Task Backlog Filtering: Filter undated open tasks out of daily tasks view so they strictly remain in the Master Tasks backlog (commit `ed3a7f7`).
+- [x] Panel Header Alignment, Headings, and Parchment Background Harmony: Harmonize Notes panel background to parchment cream `#fcfbfa`, pluralize headings to "Appointments" and "Notes", and vertically align dividing lines across headers (commit `3fb1ad6`).
+- [x] Appointment Details Modal: Reconnect event pill click handler to open details modal with start/end time, description, Meet link, and gCal deep link (commit `dcb2b31`).
+- [x] Thematic Non-Alert Priority Colors: Replace red/orange with Archival Ink Blue (`#1d5fa8`) for A, Bookbinder Plum (`#5e3f6b`) for B, and Binder Forest Green (`#2d6a5a`) for C (commit `ef8ffba`).
+- [x] Deployments: HOME production deployed to `@176`; WORK production code promoted and Version 13 created targeting deployment `9csO`.
+
 
 
 ---
