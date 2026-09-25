@@ -6,7 +6,7 @@
 
 import { spawn } from 'node:child_process';
 
-const CHROME_PORT = 9222;
+const CHROME_PORT = process.env.CHROME_PORT ? parseInt(process.env.CHROME_PORT, 10) : 9222;
 const TARGET_URL = 'http://localhost:3000';
 
 function wait(ms) {

@@ -944,11 +944,31 @@
     color: var(--binder-teal, #2d6a5a);
   }
 
+  .notes-indicator-wrap {
+    position: relative;
+    display: inline-flex;
+    vertical-align: middle;
+    margin-left: 4px;
+  }
+
+  .notes-indicator-wrap:has(.notes-popover:not([style*="display: none"])),
+  .notes-indicator-wrap:focus-within,
+  .notes-indicator-wrap:hover {
+    z-index: 500;
+  }
+
+  tr:has(.notes-indicator-wrap:hover),
+  tr:has(.notes-indicator-wrap:focus-within),
+  tr:has(.notes-popover:not([style*="display: none"])) {
+    position: relative;
+    z-index: 200;
+  }
+
   .notes-popover {
     position: absolute;
     top: 100%;
     left: 0;
-    z-index: 300;
+    z-index: 500;
     background: #ffffff;
     color: #1c2826;
     border: 1px solid #c8ded7;
@@ -956,9 +976,31 @@
     padding: 10px 14px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
     min-width: 180px;
-    max-width: 280px;
+    max-width: min(280px, 80vw);
+    max-height: min(240px, 40vh);
+    overflow-y: auto;
     font-size: 0.8rem;
     white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .notes-popover.dropup {
+    top: auto;
+    bottom: calc(100% + 4px);
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.2);
+  }
+
+  .notes-popover.dropdown-down {
+    top: 100%;
+    bottom: auto;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  }
+
+  /* Default CSS upward alignment for the last 3 rows in task tables when at least 4 rows exist */
+  tbody tr:nth-child(n+4):nth-last-child(-n+3) .notes-popover:not(.dropdown-down) {
+    top: auto;
+    bottom: calc(100% + 4px);
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.2);
   }
 
   .status-menu-wrap {
@@ -973,7 +1015,8 @@
   }
 
   tr:has(.status-menu-wrap:hover),
-  tr:has(.status-menu-wrap:focus-within) {
+  tr:has(.status-menu-wrap:focus-within),
+  tr:has(.status-menu:not([style*="display: none"])) {
     position: relative;
     z-index: 200;
   }
@@ -993,6 +1036,8 @@
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
     z-index: 500;
     min-width: 160px;
+    max-height: min(320px, 80vh);
+    overflow-y: auto;
     color: #1c2826;
   }
 
@@ -1002,8 +1047,14 @@
     box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.2);
   }
 
-  /* Default CSS upward alignment for the last 3 rows in task tables */
-  tbody tr:nth-last-child(-n+3) .status-menu {
+  .status-menu.dropdown-down {
+    top: calc(100% + 2px);
+    bottom: auto;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  }
+
+  /* Default CSS upward alignment for the last 3 rows in task tables when at least 4 rows exist */
+  tbody tr:nth-child(n+4):nth-last-child(-n+3) .status-menu:not(.dropdown-down) {
     top: auto;
     bottom: calc(100% + 2px);
     box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.2);

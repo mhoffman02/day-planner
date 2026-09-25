@@ -30,6 +30,7 @@ Alpine.data('plannerApp', () => ({
       dailyTaskSort: { column: null, direction: 'asc' },
       openNotesPopoverTaskId: null,
       notesPopoverCloseTimer: null,
+      notesPopoverDropUp: false,
       masterTasks: [],
       newMasterTaskTitle: '',
       newMasterTaskCategory: '',
@@ -1333,14 +1334,32 @@ Alpine.data('plannerApp', () => ({
         return Boolean(task.notes && task.notes.trim());
       },
 
-      openNotesPopover(taskId) {
+      openNotesPopover(taskId, event) {
         clearTimeout(this.notesPopoverCloseTimer);
         this.openNotesPopoverTaskId = taskId;
+        if (event && (event.currentTarget || event.target)) {
+          const el = event.currentTarget || event.target;
+          const rect = el.getBoundingClientRect();
+          const spaceBelow = window.innerHeight - rect.bottom;
+          const spaceAbove = rect.top;
+          this.notesPopoverDropUp = (spaceBelow < 180 && spaceAbove > spaceBelow) || spaceBelow < 100;
+        }
       },
 
-      toggleNotesPopover(taskId) {
+      toggleNotesPopover(taskId, event) {
         clearTimeout(this.notesPopoverCloseTimer);
-        this.openNotesPopoverTaskId = (this.openNotesPopoverTaskId === taskId ? null : taskId);
+        if (this.openNotesPopoverTaskId === taskId) {
+          this.openNotesPopoverTaskId = null;
+        } else {
+          this.openNotesPopoverTaskId = taskId;
+          if (event && (event.currentTarget || event.target)) {
+            const el = event.currentTarget || event.target;
+            const rect = el.getBoundingClientRect();
+            const spaceBelow = window.innerHeight - rect.bottom;
+            const spaceAbove = rect.top;
+            this.notesPopoverDropUp = (spaceBelow < 180 && spaceAbove > spaceBelow) || spaceBelow < 100;
+          }
+        }
       },
 
       scheduleNotesPopoverClose(taskId) {
@@ -1357,7 +1376,8 @@ Alpine.data('plannerApp', () => ({
           const el = event.currentTarget || event.target;
           const rect = el.getBoundingClientRect();
           const spaceBelow = window.innerHeight - rect.bottom;
-          this.statusMenuDropUp = spaceBelow < 220;
+          const spaceAbove = rect.top;
+          this.statusMenuDropUp = (spaceBelow < 275 && spaceAbove > spaceBelow) || spaceBelow < 160;
         }
       },
 
@@ -1371,7 +1391,8 @@ Alpine.data('plannerApp', () => ({
             const el = event.currentTarget || event.target;
             const rect = el.getBoundingClientRect();
             const spaceBelow = window.innerHeight - rect.bottom;
-            this.statusMenuDropUp = spaceBelow < 220;
+            const spaceAbove = rect.top;
+            this.statusMenuDropUp = (spaceBelow < 275 && spaceAbove > spaceBelow) || spaceBelow < 160;
           }
         }
       },
