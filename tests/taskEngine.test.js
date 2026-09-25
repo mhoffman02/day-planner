@@ -19,7 +19,8 @@ import {
   STATUS_LIST,
   STATUS_OPTIONS,
   isValidStatus,
-  extractInlinePriority
+  extractInlinePriority,
+  filterTasksByStatus
 } from '../src/taskEngine.js';
 
 describe('Task Engine Unit Tests', () => {
@@ -290,5 +291,61 @@ describe('Task Engine Unit Tests', () => {
       assert.equal(empty.cleanTitle, '');
     });
   });
+
+  describe('filterTasksByStatus', () => {
+    const sampleTasks = [
+      { id: 't1', title: '[A1] Open task', status: '•' },
+      { id: 't2', title: '[A2] In progress task', status: '○' },
+      { id: 't3', title: '[B1] Completed task', status: '✓' },
+      { id: 't4', title: '[B2] Forwarded task', status: '→' },
+      { id: 't5', title: '[C1] Cancelled task', status: 'X' },
+      { id: 't6', title: '[C2] Delegated task unicode', status: 'Ⓓ' },
+      { id: 't7', title: '[C3] Delegated task legacy text', status: 'D/✓' },
+      { id: 't8', title: '[A3] Untagged status task' }
+    ];
+
+    it('should return all tasks when all statuses are active', () => {
+      const active = ['•', '○', '✓', '→', 'X', 'Ⓓ'];
+      const filtered = filterTasksByStatus(sampleTasks, active);
+      assert.equal(filtered.length, 8);
+    });
+
+    it('should filter to only open tasks when only • is active', () => {
+      const filtered = filterTasksByStatus(sampleTasks, ['•']);
+      assert.equal(filtered.length, 2); // t1 and t8 (defaults to •)
+      assert.deepEqual(filtered.map(t => t.id), ['t1', 't8']);
+    });
+
+    it('should filter to completed and forwarded tasks', () => {
+      const filtered = filterTasksByStatus(sampleTasks, ['✓', '→']);
+      assert.equal(filtered.length, 2);
+      assert.deepEqual(filtered.map(t => t.id), ['t3', 't4']);
+    });
+
+    it('should handle normalization between Ⓓ and D/✓ for delegated tasks', () => {
+      const filteredWithUnicode = filterTasksByStatus(sampleTasks, ['Ⓓ']);
+      assert.equal(filteredWithUnicode.length, 2);
+      assert.deepEqual(filteredWithUnicode.map(t => t.id), ['t6', 't7']);
+
+      const filteredWithLegacy = filterTasksByStatus(sampleTasks, ['D/✓']);
+      assert.equal(filteredWithLegacy.length, 2);
+      assert.deepEqual(filteredWithLegacy.map(t => t.id), ['t6', 't7']);
+    });
+
+    it('should return empty array when no statuses match or filter is empty', () => {
+      const emptyFilter = filterTasksByStatus(sampleTasks, []);
+      assert.equal(emptyFilter.length, 0);
+
+      const noMatch = filterTasksByStatus(sampleTasks, ['NONEXISTENT']);
+      assert.equal(noMatch.length, 0);
+    });
+
+    it('should handle invalid or empty inputs gracefully', () => {
+      assert.deepEqual(filterTasksByStatus(null, ['•']), []);
+      assert.deepEqual(filterTasksByStatus([], ['•']), []);
+      assert.deepEqual(filterTasksByStatus(sampleTasks, null), sampleTasks);
+    });
+  });
 });
+
 

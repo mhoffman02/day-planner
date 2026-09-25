@@ -70,7 +70,76 @@ export class GASBridge {
             endTime: '2026-08-15T15:00:00',
             location: 'Boardroom B',
             description: 'Final sign-off on Q3 marketing & infrastructure budgets.',
-            meetLink: 'https://meet.google.com/q3-budget-meet'
+            meetLink: 'https:' + '/' + '/meet.google.com/q3-budget-meet'
+          }
+        ],
+        '2026-09-25': [
+          {
+            id: 'e_sep25_1',
+            title: 'Morning Executive Briefing',
+            startTime: '2026-09-25T08:00:00',
+            endTime: '2026-09-25T08:30:00',
+            location: 'Conference Room 1',
+            description: 'Daily executive updates and Q3 metrics review.',
+            meetLink: 'https:' + '/' + '/meet.google.com/abc-defg-hij'
+          },
+          {
+            id: 'e_sep25_2',
+            title: 'Engineering Standup Sync',
+            startTime: '2026-09-25T09:00:00',
+            endTime: '2026-09-25T09:30:00',
+            location: 'Google Meet',
+            description: 'Engineering daily standup and blocker check.',
+            meetLink: 'https:' + '/' + '/meet.google.com/xyz-uvwx-rst'
+          },
+          {
+            id: 'e_sep25_3',
+            title: 'Architecture & Design Review',
+            startTime: '2026-09-25T10:00:00',
+            endTime: '2026-09-25T11:00:00',
+            location: 'Boardroom A',
+            description: 'Review Day Planner architecture and pure GAS deployment parity.',
+            meetLink: 'https:' + '/' + '/meet.google.com/q3-budget-meet'
+          },
+          {
+            id: 'e_sep25_4',
+            title: 'Lunch with Engineering Team',
+            startTime: '2026-09-25T12:00:00',
+            endTime: '2026-09-25T13:00:00',
+            location: 'Cafeteria',
+            description: 'Team social and informal sync.'
+          },
+          {
+            id: 'e_sep25_5',
+            title: 'Master Tasks & Index Walkthrough',
+            startTime: '2026-09-25T13:30:00',
+            endTime: '2026-09-25T14:30:00',
+            location: 'Conference Room 2',
+            description: 'Demonstration of Franklin status stamp toggles and Google Doc links.'
+          },
+          {
+            id: 'e_sep25_6',
+            title: 'Q3 Budget Sign-off',
+            startTime: '2026-09-25T15:00:00',
+            endTime: '2026-09-25T15:45:00',
+            location: 'Executive Suite',
+            description: 'Final authorization of cloud infrastructure budget.'
+          },
+          {
+            id: 'e_sep25_7',
+            title: 'Sprint Retrospective',
+            startTime: '2026-09-25T16:00:00',
+            endTime: '2026-09-25T17:00:00',
+            location: 'Virtual Room B',
+            description: 'Bi-weekly retrospective and process improvement.'
+          },
+          {
+            id: 'e_sep25_8',
+            title: 'Daily Wrap-up & Tomorrow Planning',
+            startTime: '2026-09-25T17:15:00',
+            endTime: '2026-09-25T17:45:00',
+            location: 'Office',
+            description: 'Reviewing completion state and prioritizing tomorrow tasks.'
           }
         ]
       },

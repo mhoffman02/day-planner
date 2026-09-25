@@ -290,3 +290,23 @@ export function transferMasterTaskToToday(masterTask, existingDailyTasks = [], t
     sourceMasterId: masterTask.id || null
   };
 }
+
+/**
+ * Filters a list of tasks based on an array of active status glyphs.
+ * Supports normalization between 'D/✓' and 'Ⓓ' for delegated tasks.
+ * @param {Array<object>} tasks Array of task objects.
+ * @param {Array<string>} activeStatuses Array of active status codes.
+ * @returns {Array<object>} Filtered task array.
+ */
+export function filterTasksByStatus(tasks, activeStatuses) {
+  if (!tasks || !Array.isArray(tasks)) return [];
+  if (!activeStatuses || !Array.isArray(activeStatuses)) return tasks;
+  const activeSet = new Set(
+    activeStatuses.flatMap(s => (s === 'D/✓' || s === 'Ⓓ') ? ['D/✓', 'Ⓓ'] : [s])
+  );
+  return tasks.filter(task => {
+    const rawStatus = task.status || '•';
+    return activeSet.has(rawStatus);
+  });
+}
+

@@ -8,7 +8,8 @@ import {
   isValidStatus,
   STATUS_OPTIONS,
   sortTasksByColumn,
-  extractInlinePriority
+  extractInlinePriority,
+  filterTasksByStatus
 } from './taskEngine.js';
 import { executeUniversalSearch, flattenSearchResults } from './searchEngine.js';
 import { formatEventDescriptionHtml, extractMeetLink } from './calendarEngine.js';
@@ -37,6 +38,7 @@ Alpine.data('plannerApp', () => ({
       newMasterTaskPriorityGroup: 'A',
       addingMasterTask: false,
       masterTaskSort: { column: null, direction: 'asc' },
+      masterTaskStatusFilter: ['•', '○', '✓', '→', 'X', 'Ⓓ'],
       dailyDocUrl: '',
       monthPickerOpen: false,
       monthPickerYear: new Date().getFullYear(),
@@ -110,6 +112,10 @@ Alpine.data('plannerApp', () => ({
             (card.content || '').toLowerCase().includes(q);
           return matchCat && matchText;
         });
+      },
+
+      get filteredMasterTasks() {
+        return filterTasksByStatus(this.masterTasks || [], this.masterTaskStatusFilter);
       },
 
       get isMonthlyView() {
@@ -1220,6 +1226,38 @@ Alpine.data('plannerApp', () => ({
         }
       },
 
+      isMasterTaskStatusFilterActive(statusVal) {
+        if (!this.masterTaskStatusFilter || !Array.isArray(this.masterTaskStatusFilter)) return true;
+        const norm = (statusVal === 'D/✓') ? 'Ⓓ' : statusVal;
+        return this.masterTaskStatusFilter.includes(statusVal) || this.masterTaskStatusFilter.includes(norm);
+      },
+
+      toggleMasterTaskStatusFilter(statusVal) {
+        if (!this.masterTaskStatusFilter || !Array.isArray(this.masterTaskStatusFilter)) {
+          this.masterTaskStatusFilter = this.statusOptions.map(o => o.value);
+        }
+        const norm = (statusVal === 'D/✓') ? 'Ⓓ' : statusVal;
+        const idx = this.masterTaskStatusFilter.findIndex(s => s === statusVal || s === norm);
+        if (idx !== -1) {
+          this.masterTaskStatusFilter.splice(idx, 1);
+        } else {
+          this.masterTaskStatusFilter.push(statusVal);
+        }
+      },
+
+      isAllMasterTaskStatusSelected() {
+        if (!this.masterTaskStatusFilter || !this.statusOptions) return true;
+        return this.statusOptions.every(opt => this.isMasterTaskStatusFilterActive(opt.value));
+      },
+
+      toggleAllMasterTaskStatusFilters() {
+        if (this.isAllMasterTaskStatusSelected()) {
+          this.masterTaskStatusFilter = ['•'];
+        } else {
+          this.masterTaskStatusFilter = this.statusOptions.map(opt => opt.value);
+        }
+      },
+
       formatMovedDate(dateStr) {
         if (!dateStr) return '';
         const [y, m, d] = dateStr.split('-').map(Number);
@@ -1328,9 +1366,13 @@ Alpine.data('plannerApp', () => ({
           days.push({ dayNum: '', isCurrentMonth: false, events: [] });
         }
 
+        const eventsSource = (this.bridge?.useMock && this.bridge?.mockData?.calendarEvents)
+          ? Object.values(this.bridge.mockData.calendarEvents).flat()
+          : (this.calendarEvents || []);
+
         for (let day = 1; day <= lastDay.getDate(); day++) {
           const dateStr = `${this.selectedYear}-${this.selectedMonth.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-          const dayEvents = this.calendarEvents.filter(e => {
+          const dayEvents = eventsSource.filter(e => {
             if (!e.startTime) return false;
             const d = new Date(e.startTime);
             if (isNaN(d.getTime())) return e.startTime.startsWith(dateStr);

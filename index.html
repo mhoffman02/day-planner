@@ -524,20 +524,31 @@
 
       <!-- View 2: Full-Screen Monthly Overview Calendar -->
       <template x-if="activeView === 'monthly-calendar'">
-        <section class="view-container" aria-label="Monthly Overview Calendar">
-          <header class="view-header-bar">
+        <section class="view-container monthly-calendar-container" aria-label="Monthly Overview Calendar">
+          <header class="view-header-bar monthly-header-bar">
             <h2 class="view-title">
               <span class="material-symbols-outlined">calendar_month</span>
               Monthly Overview - <span x-text="selectedMonthName + ' ' + selectedYear"></span>
             </h2>
           </header>
-          <section class="monthly-grid" aria-label="Calendar Grid Matrix">
+          <div class="monthly-weekday-header-row" aria-hidden="true">
+            <div class="monthly-weekday-label">Sun</div>
+            <div class="monthly-weekday-label">Mon</div>
+            <div class="monthly-weekday-label">Tue</div>
+            <div class="monthly-weekday-label">Wed</div>
+            <div class="monthly-weekday-label">Thu</div>
+            <div class="monthly-weekday-label">Fri</div>
+            <div class="monthly-weekday-label">Sat</div>
+          </div>
+          <section class="monthly-grid" :style="{ gridTemplateRows: 'repeat(' + (monthlyGrid.length ? monthlyGrid.length / 7 : 5) + ', minmax(0, 1fr))' }" aria-label="Calendar Grid Matrix">
             <template x-for="day in monthlyGrid">
               <article class="calendar-day-cell" :class="{ 'other-month': !day.isCurrentMonth }" @click="if (day.dateStr) { selectedDate = day.dateStr; setView('daily'); loadDayData(); }">
                 <header class="day-num" x-text="day.dayNum"></header>
-                <template x-for="(evt, evtIdx) in day.events" :key="evt.id || ('mevt_' + evtIdx)">
-                  <div class="event-pill event-pill-sm" x-text="evt.title" @click.stop="openEventModal(evt)" role="button" tabindex="0" @keydown.enter.stop="openEventModal(evt)" title="View appointment details"></div>
-                </template>
+                <div class="calendar-day-events">
+                  <template x-for="(evt, evtIdx) in day.events" :key="evt.id || ('mevt_' + evtIdx)">
+                    <div class="event-pill event-pill-sm" x-text="evt.title" @click.stop="openEventModal(evt)" role="button" tabindex="0" @keydown.enter.stop="openEventModal(evt)" title="View appointment details"></div>
+                  </template>
+                </div>
               </article>
             </template>
           </section>
@@ -547,11 +558,30 @@
       <!-- View 3: Master Tasks / Undated Task Backlog Page -->
       <template x-if="activeView === 'master-tasks'">
         <section class="view-container" aria-label="Master Tasks">
-          <header>
+          <header class="master-tasks-header">
             <h2 class="view-title">
               <span class="material-symbols-outlined">checklist</span>
               Master Tasks
             </h2>
+            <div class="task-filter-stamp-group" role="group" aria-label="Filter Master Tasks by Status">
+              <span class="task-filter-label">Filter:</span>
+              <button type="button" class="task-filter-stamp" :class="{ 'is-active': isAllMasterTaskStatusSelected() }"
+                      @click="toggleAllMasterTaskStatusFilters()"
+                      :aria-pressed="isAllMasterTaskStatusSelected()"
+                      title="Show all statuses or toggle to Open only">
+                All
+              </button>
+              <template x-for="opt in statusOptions" :key="opt.value">
+                <button type="button" class="task-filter-stamp glyph-stamp"
+                        :class="{ 'is-active': isMasterTaskStatusFilterActive(opt.value) }"
+                        @click="toggleMasterTaskStatusFilter(opt.value)"
+                        :aria-pressed="isMasterTaskStatusFilterActive(opt.value)"
+                        :title="opt.value + ' ' + opt.label + ' (Click to toggle)'">
+                  <span class="filter-stamp-glyph" x-text="opt.value"></span>
+                  <span class="filter-stamp-text" x-text="opt.label"></span>
+                </button>
+              </template>
+            </div>
           </header>
           <form @submit.prevent="addMasterTask()" role="group" class="task-quick-add-bar master-task-add-bar">
             <div class="priority-segmented-group" role="radiogroup" aria-label="Master Task Priority">
@@ -585,7 +615,7 @@
                 </tr>
               </thead>
               <tbody>
-                <template x-for="mTask in sortedTasks(masterTasks, masterTaskSort)" :key="mTask.id">
+                <template x-for="mTask in sortedTasks(filteredMasterTasks, masterTaskSort)" :key="mTask.id">
                   <tr>
                     <td>
                       <span class="priority-badge" :class="parseTask(mTask.title).priorityGroup || 'A'" x-text="parseTask(mTask.title).priorityCode || 'A1'"></span>
@@ -645,6 +675,12 @@
                     </td>
                   </tr>
                 </template>
+                <tr x-show="filteredMasterTasks.length === 0">
+                  <td colspan="5" class="empty-tasks-cell">
+                    <span x-show="masterTasks.length === 0">No master tasks recorded for this month. Add one above!</span>
+                    <span x-show="masterTasks.length > 0">No master tasks matching selected status filter. <button type="button" class="btn-link-reset-filter" @click="toggleAllMasterTaskStatusFilters()">Show all tasks</button></span>
+                  </td>
+                </tr>
               </tbody>
             </table>
           </figure>

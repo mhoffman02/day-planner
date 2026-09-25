@@ -160,20 +160,44 @@ async function runSmokeTest() {
     await wait(200);
     const monthViewActive = await getAppProp('activeView');
     const monthlyGridRows = await getAppProp('monthlyGrid?.length || 0');
-    console.log(`  activeView: "${monthViewActive}", Monthly grid weeks: ${monthlyGridRows}`);
+    const hasWeekdayHeader = await cdp.eval('Boolean(document.querySelector(".monthly-weekday-header-row"))');
+    const hasEventsScrollContainer = await cdp.eval('Boolean(document.querySelector(".calendar-day-events"))');
+    console.log(`  activeView: "${monthViewActive}", Monthly grid cells: ${monthlyGridRows}, Weekday header: ${hasWeekdayHeader}, Day scroll container: ${hasEventsScrollContainer}`);
     if (monthViewActive !== 'monthly-calendar' || monthlyGridRows === 0) {
-      throw new Error(`Failed to activate monthly-calendar view properly (grid rows: ${monthlyGridRows})`);
+      throw new Error(`Failed to activate monthly-calendar view properly (grid cells: ${monthlyGridRows})`);
+    }
+    if (!hasWeekdayHeader || !hasEventsScrollContainer) {
+      throw new Error('Monthly calendar missing weekday header or day scroll container');
     }
 
     // TEST 3: Master Tasks View
-    console.log('\n--- 3. Testing Master Tasks View ---');
+    console.log('\n--- 3. Testing Master Tasks View & Status Filters ---');
     await setAppMethod('setView("master-tasks")');
     await wait(200);
     const masterViewActive = await getAppProp('activeView');
     const masterTasksCount = await getAppProp('masterTasks?.length || 0');
-    console.log(`  activeView: "${masterViewActive}", Master tasks loaded: ${masterTasksCount}`);
+    const hasFilterGroup = await cdp.eval('Boolean(document.querySelector(".task-filter-stamp-group"))');
+    console.log(`  activeView: "${masterViewActive}", Master tasks: ${masterTasksCount}, Filter group: ${hasFilterGroup}`);
     if (masterViewActive !== 'master-tasks') {
       throw new Error('Failed to activate master-tasks view');
+    }
+    if (!hasFilterGroup) {
+      throw new Error('Master Tasks missing status filter stamp group');
+    }
+
+    // Test toggle filter to '•' only
+    await setAppMethod('masterTaskStatusFilter = ["•"]');
+    await wait(100);
+    const filteredCount = await getAppProp('filteredMasterTasks?.length');
+    console.log(`  Filtered master tasks with [•] only: ${filteredCount}`);
+
+    // Reset filter to All
+    await setAppMethod('toggleAllMasterTaskStatusFilters()');
+    await wait(100);
+    const resetCount = await getAppProp('filteredMasterTasks?.length');
+    console.log(`  Reset master tasks with [All]: ${resetCount}`);
+    if (resetCount !== masterTasksCount) {
+      throw new Error(`Expected all master tasks (${masterTasksCount}) after reset, got ${resetCount}`);
     }
 
     // TEST 4: Monthly Index View
