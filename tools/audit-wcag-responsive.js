@@ -71,7 +71,7 @@ function auditContrastPairings() {
         { label: 'Brand Title (#ffffff on #142e23)', fg: '#ffffff', bg: '#142e23', min: 4.5 },
         { label: 'Date Text (#ffffff on #142e23)', fg: '#ffffff', bg: '#142e23', min: 4.5 },
         { label: 'Nav Tab Active (#ffffff on #142e23)', fg: '#ffffff', bg: '#142e23', min: 4.5 },
-        { label: 'Nav Tab Active Indicator (#58bfa2 on #142e23)', fg: '#58bfa2', bg: '#142e23', min: 3.0 },
+        { label: 'Nav Tab Active Indicator (#d4a017 on #142e23)', fg: '#d4a017', bg: '#142e23', min: 3.0 },
         { label: 'Nav Tab Inactive (rgba(255,255,255,0.75) on #142e23)', fg: 'rgba(255, 255, 255, 0.75)', bg: '#142e23', min: 4.5 },
         { label: 'Nav Tab Inactive Icon (rgba(255,255,255,0.65) on #142e23)', fg: 'rgba(255, 255, 255, 0.65)', bg: '#142e23', min: 3.0 },
         { label: 'Jump Today Button Text (#ffffff on rgba(255,255,255,0.18) over #142e23)', fg: '#ffffff', bg: 'rgba(255, 255, 255, 0.18)', bgBase: '#142e23', min: 4.5 },
@@ -85,7 +85,7 @@ function auditContrastPairings() {
         { label: 'Brand Title (#ffffff on #0e2119)', fg: '#ffffff', bg: '#0e2119', min: 4.5 },
         { label: 'Date Text (#ffffff on #0e2119)', fg: '#ffffff', bg: '#0e2119', min: 4.5 },
         { label: 'Nav Tab Active (#ffffff on #0e2119)', fg: '#ffffff', bg: '#0e2119', min: 4.5 },
-        { label: 'Nav Tab Active Indicator (#58bfa2 on #0e2119)', fg: '#58bfa2', bg: '#0e2119', min: 3.0 },
+        { label: 'Nav Tab Active Indicator (#d4a017 on #0e2119)', fg: '#d4a017', bg: '#0e2119', min: 3.0 },
         { label: 'Nav Tab Inactive (rgba(255,255,255,0.75) on #0e2119)', fg: 'rgba(255, 255, 255, 0.75)', bg: '#0e2119', min: 4.5 },
         { label: 'Nav Tab Inactive Icon (rgba(255,255,255,0.65) on #0e2119)', fg: 'rgba(255, 255, 255, 0.65)', bg: '#0e2119', min: 3.0 }
       ]

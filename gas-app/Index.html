@@ -1,3 +1,18 @@
+<!--
+/**
+ * @file gas-app/Index.html
+ * @description Google Apps Script Production runtime entry point for Day Planner SPA.
+ *
+ * Runtime Environment:
+ * 2. gas-app/Index.html (Google Apps Script Production):
+ *    • Apps Script web app template deployed to Google Workspace via clasp.
+ *    • Google Apps Script does not support local relative file loading or external ES module paths in HtmlService.
+ *      Instead, it uses GAS template includes (<?!= include("Styles"); ?> and <?!= include("Script"); ?>)
+ *      to bundle gas-app/Styles.html and gas-app/Script.html into a single pure-GAS payload served at /exec.
+ *
+ * Note: See root index.html for the local development / mock server entry point.
+ */
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
