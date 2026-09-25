@@ -2124,12 +2124,35 @@
         if (!gCalLink) {
           gCalLink = 'https:' + '/' + '/calendar.google.com/calendar/r/day/' + dateStr.replace(/-/g, '/');
         }
+        var meetLink = this.extractMeetLink(evt);
         this.selectedEvent = {
           ...evt,
+          meetLink: meetLink,
           gCalLink: gCalLink,
           formattedTime: this.formatEventTime(evt)
         };
         this.eventModalOpen = true;
+      },
+
+      extractMeetLink(evt) {
+        if (!evt) return null;
+        if (evt.meetLink && typeof evt.meetLink === 'string' && evt.meetLink.trim()) {
+          return evt.meetLink.trim();
+        }
+        if (evt.hangoutLink && typeof evt.hangoutLink === 'string' && evt.hangoutLink.trim()) {
+          return evt.hangoutLink.trim();
+        }
+        if (evt.conferenceData && Array.isArray(evt.conferenceData.entryPoints)) {
+          for (var c = 0; c < evt.conferenceData.entryPoints.length; c++) {
+            var ep = evt.conferenceData.entryPoints[c];
+            if (ep && (ep.entryPointType === 'video' || (ep.uri && ep.uri.indexOf('meet.google.com') !== -1))) {
+              return ep.uri;
+            }
+          }
+        }
+        var text = (evt.location || '') + ' ' + (evt.description || '');
+        var match = text.match(new RegExp('https:' + '/' + '/meet\\.google\\.com/[a-z0-9-]+', 'i'));
+        return match ? match[0] : null;
       },
 
       formatEventDescription(description) {

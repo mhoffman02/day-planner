@@ -2507,6 +2507,47 @@
     color: var(--binder-teal);
     text-decoration: underline;
   }
+  /* Appointment Event Details Modal (33% wider and taller) */
+  article.modal-card-event {
+    max-width: 735px;
+    width: 92%;
+    min-height: min(460px, 80vh);
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .modal-card-event .modal-body-details {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1;
+    min-height: 0;
+  }
+  .modal-card-event .modal-meet-row {
+    word-break: break-all;
+  }
+  .modal-card-event .modal-meet-link {
+    color: var(--priority-a);
+    text-decoration: underline;
+    font-weight: 500;
+  }
+  .modal-card-event .modal-meet-link:hover {
+    color: var(--binder-teal-hover);
+  }
+  .modal-card-event .modal-description {
+    flex: 1;
+    min-height: 180px;
+    max-height: min(420px, 50vh);
+    overflow-y: auto;
+    background: var(--bg-surface, rgba(0, 0, 0, 0.02));
+    border: 1px solid var(--border-line);
+    border-radius: 4px;
+    padding: 12px 14px;
+  }
+  [data-theme="dark"] .modal-card-event .modal-description {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.12);
+  }
   article.modal-card-wide {
     max-width: 650px;
   }

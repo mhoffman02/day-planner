@@ -71,6 +71,31 @@ export function mapEventsToGrid(gridSlots = [], events = []) {
 }
 
 /**
+ * Extracts Google Meet conference or join link from an event object or its text fields.
+ * @param {object} [rawEvent={}] Raw calendar event data object.
+ * @returns {string|null} Google Meet URL or null.
+ */
+export function extractMeetLink(rawEvent = {}) {
+  if (!rawEvent) return null;
+  if (rawEvent.meetLink && typeof rawEvent.meetLink === 'string' && rawEvent.meetLink.trim()) {
+    return rawEvent.meetLink.trim();
+  }
+  if (rawEvent.hangoutLink && typeof rawEvent.hangoutLink === 'string' && rawEvent.hangoutLink.trim()) {
+    return rawEvent.hangoutLink.trim();
+  }
+  if (rawEvent.conferenceData && Array.isArray(rawEvent.conferenceData.entryPoints)) {
+    for (const ep of rawEvent.conferenceData.entryPoints) {
+      if (ep && (ep.entryPointType === 'video' || (ep.uri && ep.uri.indexOf('meet.google.com') !== -1))) {
+        return ep.uri;
+      }
+    }
+  }
+  const text = `${rawEvent.location || ''} ${rawEvent.description || ''}`;
+  const match = text.match(/https?:\/\/meet\.google\.com\/[a-z0-9-]+/i);
+  return match ? match[0] : null;
+}
+
+/**
  * Formats event object for the interactive Google Meet & Google Calendar popup modal.
  * @param {object} [rawEvent={}] Raw calendar event data object.
  * @returns {{id: string, title: string, formattedTime: string, startTime: string|null, endTime: string|null, location: string, description: string, meetLink: string|null, gCalLink: string, attendees: Array<string>}} Formatted event modal payload.
@@ -94,7 +119,7 @@ export function formatEventModalPayload(rawEvent = {}) {
     endTime: rawEvent.endTime,
     location: rawEvent.location || '',
     description: rawEvent.description || '',
-    meetLink: rawEvent.meetLink || rawEvent.hangoutLink || null,
+    meetLink: extractMeetLink(rawEvent),
     gCalLink,
     attendees: rawEvent.attendees || []
   };

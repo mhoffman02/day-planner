@@ -10,7 +10,8 @@ import {
   mapEventsToGrid,
   formatEventModalPayload,
   generateMonthlyCalendarGrid,
-  formatEventDescriptionHtml
+  formatEventDescriptionHtml,
+  extractMeetLink
 } from '../src/calendarEngine.js';
 
 describe('Calendar Engine Unit Tests', () => {
@@ -110,5 +111,65 @@ describe('Calendar Engine Unit Tests', () => {
   it('should return an empty string for an empty/missing description', () => {
     assert.equal(formatEventDescriptionHtml(''), '');
     assert.equal(formatEventDescriptionHtml(), '');
+  });
+
+  describe('extractMeetLink & Conference Data Detection', () => {
+    it('should extract meetLink when explicitly provided', () => {
+      const link = extractMeetLink({ meetLink: 'https://meet.google.com/abc-defg-hij' });
+      assert.equal(link, 'https://meet.google.com/abc-defg-hij');
+    });
+
+    it('should extract meetLink from hangoutLink', () => {
+      const link = extractMeetLink({ hangoutLink: 'https://meet.google.com/hgt-link-test' });
+      assert.equal(link, 'https://meet.google.com/hgt-link-test');
+    });
+
+    it('should extract meetLink from conferenceData entryPoints', () => {
+      const evt = {
+        conferenceData: {
+          entryPoints: [
+            { entryPointType: 'phone', uri: 'tel:+1234567890' },
+            { entryPointType: 'video', uri: 'https://meet.google.com/ncm-msds-mtg' }
+          ]
+        }
+      };
+      const link = extractMeetLink(evt);
+      assert.equal(link, 'https://meet.google.com/ncm-msds-mtg');
+    });
+
+    it('should extract meetLink from description text', () => {
+      const evt = {
+        title: 'NCMMS - Daily Standup',
+        description: 'Join with Google Meet: https://meet.google.com/xyz-standup-gsa\nOr phone: +1-555-0100'
+      };
+      const link = extractMeetLink(evt);
+      assert.equal(link, 'https://meet.google.com/xyz-standup-gsa');
+    });
+
+    it('should extract meetLink from location field', () => {
+      const evt = {
+        title: 'Team Sync',
+        location: 'https://meet.google.com/loc-sync-link'
+      };
+      const link = extractMeetLink(evt);
+      assert.equal(link, 'https://meet.google.com/loc-sync-link');
+    });
+
+    it('formatEventModalPayload should automatically populate meetLink from description if not on root', () => {
+      const rawEvt = {
+        id: 'evt_ncmms',
+        title: 'NCMMS - Daily Standup',
+        startTime: '2026-08-15T09:00:00Z',
+        endTime: '2026-08-15T09:30:00Z',
+        description: 'Daily Scrum meeting.\nGoogle Meet: https://meet.google.com/ncm-ms-standup'
+      };
+      const payload = formatEventModalPayload(rawEvt);
+      assert.equal(payload.meetLink, 'https://meet.google.com/ncm-ms-standup');
+    });
+
+    it('should return null when no meeting link exists anywhere', () => {
+      assert.equal(extractMeetLink({ description: 'In-person meeting in Room 4B', location: 'HQ' }), null);
+      assert.equal(extractMeetLink(null), null);
+    });
   });
 });

@@ -851,9 +851,26 @@ function getDailyData(dateStr) {
           timeMax: nextDate.toISOString(),
           singleEvents: true,
           maxResults: 250,
-          fields: 'items(id,summary,start,end,location,description,hangoutLink,htmlLink,extendedProperties)'
+          conferenceDataVersion: 1,
+          fields: 'items(id,summary,start,end,location,description,hangoutLink,conferenceData,htmlLink,extendedProperties)'
         });
         result.calendarEvents = (dayResp.items || []).map(function(evt) {
+          var meetLink = evt.hangoutLink || null;
+          if (!meetLink && evt.conferenceData && evt.conferenceData.entryPoints) {
+            for (var c = 0; c < evt.conferenceData.entryPoints.length; c++) {
+              var ep = evt.conferenceData.entryPoints[c];
+              if (ep && (ep.entryPointType === 'video' || (ep.uri && ep.uri.indexOf('meet.google.com') !== -1))) {
+                meetLink = ep.uri;
+                break;
+              }
+            }
+          }
+          if (!meetLink) {
+            var desc = evt.description || '';
+            var loc = evt.location || '';
+            var match = (desc + ' ' + loc).match(/https:\/\/meet\.google\.com\/[a-z0-9-]+/i);
+            if (match) meetLink = match[0];
+          }
           return {
             id: evt.id,
             title: evt.summary || '(untitled)',
@@ -861,7 +878,7 @@ function getDailyData(dateStr) {
             endTime: evt.end && (evt.end.dateTime || evt.end.date),
             location: evt.location || '',
             description: evt.description || '',
-            meetLink: evt.hangoutLink || null,
+            meetLink: meetLink,
             htmlLink: evt.htmlLink || null,
             syncTaskId: (evt.extendedProperties && evt.extendedProperties.shared && evt.extendedProperties.shared.gasTaskId) || null
           };
@@ -878,7 +895,8 @@ function getDailyData(dateStr) {
           var meetLink = null;
           if (typeof evt.getHangoutLink === 'function') {
             meetLink = evt.getHangoutLink();
-          } else {
+          }
+          if (!meetLink) {
             var desc = evt.getDescription() || '';
             var loc = evt.getLocation() || '';
             var match = (desc + ' ' + loc).match(/https:\/\/meet\.google\.com\/[a-z0-9-]+/i);
