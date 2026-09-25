@@ -1344,7 +1344,27 @@ Alpine.data('plannerApp', () => ({
       },
 
       openEventModal(evt) {
-        this.selectedEvent = evt;
+        if (!evt) return;
+        const dateStr = (evt.startTime ? evt.startTime.slice(0, 10) : this.selectedDate) || new Date().toISOString().slice(0, 10);
+        let gCalLink = evt.gCalLink || evt.htmlLink;
+        if (!gCalLink) {
+          if (evt.id && !evt.id.startsWith('evt_')) {
+            const cleanId = evt.id.replace(/@google\.com$/, '');
+            try {
+              const eid = typeof globalThis.btoa === 'function' ? globalThis.btoa(cleanId).replace(/=+$/, '') : '';
+              gCalLink = eid ? `https://calendar.google.com/calendar/r/eventedit/${eid}` : `https://calendar.google.com/calendar/r/day/${dateStr.replace(/-/g, '/')}`;
+            } catch {
+              gCalLink = `https://calendar.google.com/calendar/r/day/${dateStr.replace(/-/g, '/')}`;
+            }
+          } else {
+            gCalLink = `https://calendar.google.com/calendar/r/day/${dateStr.replace(/-/g, '/')}`;
+          }
+        }
+        this.selectedEvent = {
+          ...evt,
+          gCalLink,
+          formattedTime: this.formatEventTime(evt)
+        };
         this.eventModalOpen = true;
       },
 

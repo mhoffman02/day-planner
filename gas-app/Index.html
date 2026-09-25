@@ -109,7 +109,7 @@
 
       <!-- Right: Global Action Utilities -->
       <div class="header-actions-compact">
-        <button type="button" class="search-trigger-compact" @click="toggleSearchModal()" title="Search Across All Items (Ctrl+K)">
+        <button type="button" class="search-trigger-compact" @click.stop="toggleSearchModal()" title="Search Across All Items (Ctrl+K)">
           <span class="material-symbols-outlined icon-18">search</span>
           <span class="search-label">Search</span>
           <kbd class="kbd-shortcut-sm">⌘K</kbd>
@@ -261,7 +261,7 @@
                 <button type="button" class="btn-icon-subtle" @click="toggleMaximizeColumn('appointments')" :title="maximizedColumn === 'appointments' ? 'Restore Columns (Esc)' : 'Maximize Appointments'" :aria-label="maximizedColumn === 'appointments' ? 'Restore Columns (Esc)' : 'Maximize Appointments'">
                   <span class="material-symbols-outlined" x-text="maximizedColumn === 'appointments' ? 'close_fullscreen' : 'open_in_full'"></span>
                 </button>
-                <button type="button" class="btn-primary btn-add-task-round" @click="openCreateEventModal()" title="Add New Appointment" aria-label="Add New Appointment">
+                <button type="button" class="btn-primary btn-add-task-round" @click.stop="openCreateEventModal()" title="Add New Appointment" aria-label="Add New Appointment">
                   <span class="material-symbols-outlined">add</span>
                 </button>
               </div>
@@ -273,8 +273,8 @@
                 <div class="schedule-row" :class="{ 'half-hour': slot.timeKey.endsWith(':30') }">
                   <time class="schedule-time" x-text="slot.displayTime"></time>
                   <div class="schedule-content">
-                    <template x-for="evt in slot.events" :key="evt.id">
-                      <button type="button" class="event-pill" @click="openEventModal(evt)">
+                    <template x-for="(evt, evtIdx) in slot.events" :key="evt.id || ('evt_' + evtIdx)">
+                      <button type="button" class="event-pill" @click.stop="openEventModal(evt)" title="View appointment details">
                         <span class="material-symbols-outlined icon-14">event</span>
                         <span class="event-pill-text" x-text="evt.title"></span>
                       </button>
@@ -487,8 +487,8 @@
             <template x-for="day in monthlyGrid">
               <article class="calendar-day-cell" :class="{ 'other-month': !day.isCurrentMonth }" @click="if (day.dateStr) { selectedDate = day.dateStr; setView('daily'); loadDayData(); }">
                 <header class="day-num" x-text="day.dayNum"></header>
-                <template x-for="evt in day.events" :key="evt.id">
-                  <div class="event-pill event-pill-sm" x-text="evt.title"></div>
+                <template x-for="(evt, evtIdx) in day.events" :key="evt.id || ('mevt_' + evtIdx)">
+                  <div class="event-pill event-pill-sm" x-text="evt.title" @click.stop="openEventModal(evt)" role="button" tabindex="0" @keydown.enter.stop="openEventModal(evt)" title="View appointment details"></div>
                 </template>
               </article>
             </template>
@@ -674,7 +674,7 @@
     </section>
 
     <!-- Event Detail Modal -->
-    <dialog class="modal-backdrop" :open="eventModalOpen" x-show="eventModalOpen" x-cloak aria-labelledby="eventModalTitle">
+    <dialog class="modal-backdrop" :open="eventModalOpen" x-show="eventModalOpen" x-cloak aria-labelledby="eventModalTitle" @click.self="closeEventModal()">
       <article class="modal-card" @click.away="closeEventModal()">
         <header>
           <h3 id="eventModalTitle" class="modal-title" x-text="selectedEvent?.title || 'Event Details'"></h3>
@@ -690,11 +690,11 @@
         </div>
         <footer class="modal-actions">
           <template x-if="selectedEvent?.meetLink">
-            <a :href="selectedEvent.meetLink" target="_blank" class="btn-primary btn-meet" role="button">
+            <a :href="selectedEvent.meetLink" target="_blank" rel="noopener noreferrer" class="btn-primary btn-meet" role="button">
               <span class="material-symbols-outlined">videocam</span> Join Google Meet
             </a>
           </template>
-          <a :href="selectedEvent?.gCalLink" target="_blank" class="btn-primary" role="button">
+          <a :href="selectedEvent?.gCalLink" target="_blank" rel="noopener noreferrer" class="btn-primary" role="button">
             <span class="material-symbols-outlined">calendar_today</span> Open in gCal
           </a>
           <button type="button" class="btn-secondary" @click="closeEventModal()">Close</button>
@@ -703,7 +703,7 @@
     </dialog>
 
     <!-- Create New Event / Appointment Modal -->
-    <dialog class="modal-backdrop" :open="createEventModalOpen" x-show="createEventModalOpen" x-cloak aria-labelledby="createEventModalTitle">
+    <dialog class="modal-backdrop" :open="createEventModalOpen" x-show="createEventModalOpen" x-cloak aria-labelledby="createEventModalTitle" @click.self="closeCreateEventModal()">
       <article class="modal-card modal-card-form" @click.away="closeCreateEventModal()">
         <header class="modal-header-spaced">
           <h3 id="createEventModalTitle" class="modal-title-with-icon">
@@ -798,7 +798,7 @@
     </dialog>
 
     <!-- Universal Search Modal -->
-    <dialog class="modal-backdrop" :open="searchModalOpen" x-show="searchModalOpen" x-cloak aria-labelledby="searchModalTitle" @keydown.escape.window="if (searchModalOpen) closeSearchModal()">
+    <dialog class="modal-backdrop" :open="searchModalOpen" x-show="searchModalOpen" x-cloak aria-labelledby="searchModalTitle" @click.self="closeSearchModal()" @keydown.escape.window="if (searchModalOpen) closeSearchModal()">
       <article class="modal-card modal-card-wide" @click.away="closeSearchModal()">
         <header>
           <h3 id="searchModalTitle" class="modal-title-with-icon">

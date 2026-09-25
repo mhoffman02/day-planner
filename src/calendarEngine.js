@@ -83,6 +83,23 @@ export function formatEventModalPayload(rawEvent = {}) {
     ? `${startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
     : 'All Day';
 
+  let gCalLink = rawEvent.htmlLink || rawEvent.gCalLink;
+  if (!gCalLink) {
+    if (rawEvent.id && !rawEvent.id.startsWith('evt_')) {
+      const cleanId = rawEvent.id.replace(/@google\.com$/, '');
+      try {
+        const eid = typeof globalThis.btoa === 'function' ? globalThis.btoa(cleanId).replace(/=+$/, '') : '';
+        gCalLink = eid ? `https://calendar.google.com/calendar/r/eventedit/${eid}` : `https://calendar.google.com/calendar/r/day/${(rawEvent.startTime ? rawEvent.startTime.slice(0, 10) : '').replace(/-/g, '/')}`;
+      } catch {
+        const dStr = (rawEvent.startTime ? rawEvent.startTime.slice(0, 10) : '').replace(/-/g, '/');
+        gCalLink = dStr ? `https://calendar.google.com/calendar/r/day/${dStr}` : `https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent(rawEvent.title || '')}`;
+      }
+    } else {
+      const dStr = (rawEvent.startTime ? rawEvent.startTime.slice(0, 10) : '').replace(/-/g, '/');
+      gCalLink = dStr ? `https://calendar.google.com/calendar/r/day/${dStr}` : `https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent(rawEvent.title || '')}`;
+    }
+  }
+
   return {
     id: rawEvent.id || `evt_${Math.random().toString(36).slice(2, 8)}`,
     title: rawEvent.title || 'Untitled Event',
@@ -92,7 +109,7 @@ export function formatEventModalPayload(rawEvent = {}) {
     location: rawEvent.location || '',
     description: rawEvent.description || '',
     meetLink: rawEvent.meetLink || rawEvent.hangoutLink || null,
-    gCalLink: rawEvent.htmlLink || `https://calendar.google.com/calendar/r/eventedit?text=${encodeURIComponent(rawEvent.title || '')}`,
+    gCalLink,
     attendees: rawEvent.attendees || []
   };
 }
