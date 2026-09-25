@@ -24,6 +24,7 @@ Alpine.data('plannerApp', () => ({
       dailyTasks: [],
       openStatusMenuTaskId: null,
       statusMenuCloseTimer: null,
+      statusMenuDropUp: false,
       statusOptions: STATUS_OPTIONS,
       dailyTaskSort: { column: null, direction: 'asc' },
       openNotesPopoverTaskId: null,
@@ -1289,14 +1290,30 @@ Alpine.data('plannerApp', () => ({
         }, 250);
       },
 
-      openStatusMenu(taskId) {
+      openStatusMenu(taskId, event) {
         clearTimeout(this.statusMenuCloseTimer);
         this.openStatusMenuTaskId = taskId;
+        if (event && (event.currentTarget || event.target)) {
+          const el = event.currentTarget || event.target;
+          const rect = el.getBoundingClientRect();
+          const spaceBelow = window.innerHeight - rect.bottom;
+          this.statusMenuDropUp = spaceBelow < 220;
+        }
       },
 
-      toggleStatusMenu(taskId) {
+      toggleStatusMenu(taskId, event) {
         clearTimeout(this.statusMenuCloseTimer);
-        this.openStatusMenuTaskId = (this.openStatusMenuTaskId === taskId ? null : taskId);
+        if (this.openStatusMenuTaskId === taskId) {
+          this.openStatusMenuTaskId = null;
+        } else {
+          this.openStatusMenuTaskId = taskId;
+          if (event && (event.currentTarget || event.target)) {
+            const el = event.currentTarget || event.target;
+            const rect = el.getBoundingClientRect();
+            const spaceBelow = window.innerHeight - rect.bottom;
+            this.statusMenuDropUp = spaceBelow < 220;
+          }
+        }
       },
 
       scheduleStatusMenuClose(taskId) {

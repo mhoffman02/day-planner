@@ -673,7 +673,7 @@
     display: inline-flex;
     align-items: center;
     border: 1px solid #c8ded7;
-    border-radius: 2px;
+    border-radius: 6px;
     overflow: hidden;
     background: #ffffff;
     flex: 0 0 auto;
@@ -702,8 +702,15 @@
     box-sizing: border-box;
   }
 
+  .priority-segment-btn:first-child {
+    border-top-left-radius: 5px;
+    border-bottom-left-radius: 5px;
+  }
+
   .priority-segment-btn:last-child {
     border-right: none;
+    border-top-right-radius: 5px;
+    border-bottom-right-radius: 5px;
   }
 
   .priority-segment-btn:hover:not(.active) {
@@ -770,7 +777,7 @@
   figure.table-container {
     margin: 0;
     padding: 0;
-    overflow-x: auto;
+    overflow: visible;
   }
 
   table.task-table {
@@ -960,9 +967,21 @@
     display: inline-flex;
   }
 
+  .status-menu-wrap:has(.status-menu:not([style*="display: none"])),
+  .status-menu-wrap:focus-within,
+  .status-menu-wrap:hover {
+    z-index: 500;
+  }
+
+  tr:has(.status-menu-wrap:hover),
+  tr:has(.status-menu-wrap:focus-within) {
+    position: relative;
+    z-index: 200;
+  }
+
   .status-menu {
     position: absolute;
-    top: 100%;
+    top: calc(100% + 2px);
     left: 0;
     display: flex;
     flex-direction: column;
@@ -973,9 +992,22 @@
     padding: 4px;
     padding-top: 8px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-    z-index: 300;
+    z-index: 500;
     min-width: 160px;
     color: #1c2826;
+  }
+
+  .status-menu.dropup {
+    top: auto;
+    bottom: calc(100% + 2px);
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.2);
+  }
+
+  /* Default CSS upward alignment for the last 3 rows in task tables */
+  tbody tr:nth-last-child(-n+3) .status-menu {
+    top: auto;
+    bottom: calc(100% + 2px);
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.2);
   }
 
   .status-menu-item {
