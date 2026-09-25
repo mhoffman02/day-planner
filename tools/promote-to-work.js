@@ -93,9 +93,20 @@ try {
     cwd: GAS_APP_DIR,
     stdio: 'inherit',
   });
+  console.log('\n  -> Creating version on WORK...');
+  try {
+    const versionOutput = execSync(`npx clasp ${authFlag} --project "${WORK_CONFIG}" version "v1.0-pure-gas update"`, {
+      cwd: GAS_APP_DIR,
+      stdio: 'pipe'
+    }).toString().trim();
+    console.log(`  ✓ ${versionOutput}`);
+  } catch (vErr) {
+    console.log('  ℹ️ Note: version creation skipped:', vErr.message);
+  }
   console.log('\n======================================================');
-  console.log('🎉 Successfully promoted code to WORK (Federal GSA)!');
-  console.log('   WORK Prod Endpoint: https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec');
+  console.log('🎉 Successfully pushed code to WORK (Federal GSA)!');
+  console.log('   Target Deployment:  Version 3 (deployId ending in 9csO)');
+  console.log('   WORK 9csO Endpoint: https://script.google.com/a/macros/gsa.gov/s/AKfycbzRwZFZH9bT5jQtqq0ncBPbokoQGKjSUyBQNVDtPpOISwtdMSXlNAns8E9WFtUM9csO/exec');
   console.log('   WORK IDE:           https://script.google.com/d/' + WORK_SCRIPT_ID + '/edit');
   console.log('======================================================');
 } catch (pushErr) {

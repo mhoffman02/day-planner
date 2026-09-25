@@ -28,9 +28,9 @@
     --binder-teal-focus: rgba(45, 106, 90, 0.25);
     --binder-teal-light: #e9f5f2;
     --border-line: #c8ded7;
-    --priority-a: #d9534f;
-    --priority-b: #f0ad4e;
-    --priority-c: #3d7a68;
+    --priority-a: #1d5fa8;
+    --priority-b: #5e3f6b;
+    --priority-c: #2d6a5a;
     --status-complete: #2b8a3e;
     --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.08);
 
@@ -717,19 +717,19 @@
   }
 
   .priority-segment-btn.active.a {
-    background-color: #dc2626 !important;
+    background-color: var(--priority-a) !important;
     color: #ffffff !important;
     box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
   }
 
   .priority-segment-btn.active.b {
-    background-color: #d97706 !important;
+    background-color: var(--priority-b) !important;
     color: #ffffff !important;
     box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
   }
 
   .priority-segment-btn.active.c {
-    background-color: #2d6a5a !important;
+    background-color: var(--priority-c) !important;
     color: #ffffff !important;
     box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
   }
@@ -816,9 +816,9 @@
     font-size: 0.75rem;
     color: #ffffff !important;
   }
-  .priority-badge.A { background-color: #d9534f !important; }
-  .priority-badge.B { background-color: #f0ad4e !important; }
-  .priority-badge.C { background-color: #3d7a68 !important; }
+  .priority-badge.A { background-color: var(--priority-a) !important; }
+  .priority-badge.B { background-color: var(--priority-b) !important; }
+  .priority-badge.C { background-color: var(--priority-c) !important; }
 
   .status-btn {
     cursor: pointer;
@@ -1230,7 +1230,7 @@
   .btn-link-sm {
     background: transparent;
     border: none;
-    color: var(--priority-a);
+    color: var(--note-color-red);
     cursor: pointer;
     font-weight: 600;
     font-size: 0.75rem;
@@ -1449,7 +1449,7 @@
     align-items: center;
   }
   .card-delete-btn:hover {
-    color: var(--priority-a);
+    color: var(--note-color-red);
   }
 
   /* Google Chat Style Formatting Toolbar */
@@ -2715,6 +2715,10 @@
     --note-color-red: #f87171 !important;
     --note-color-green: #4ade80 !important;
     --note-color-blue: #60a5fa !important;
+
+    --priority-a: #2b72c4 !important;
+    --priority-b: #7c4d8a !important;
+    --priority-c: #2d6a5a !important;
   }
 
   [data-theme="dark"] body {
@@ -2826,17 +2830,17 @@
   }
 
   [data-theme="dark"] .priority-segment-btn.active.a {
-    background-color: #dc2626 !important;
+    background-color: var(--priority-a) !important;
     color: #ffffff !important;
   }
 
   [data-theme="dark"] .priority-segment-btn.active.b {
-    background-color: #d97706 !important;
+    background-color: var(--priority-b) !important;
     color: #ffffff !important;
   }
 
   [data-theme="dark"] .priority-segment-btn.active.c {
-    background-color: #2d6a5a !important;
+    background-color: var(--priority-c) !important;
     color: #ffffff !important;
   }
 
