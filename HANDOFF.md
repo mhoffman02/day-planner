@@ -42,14 +42,16 @@ Deliver Phase 11 enhancements — Master Tasks Franklin glyph status filter togg
 
 - **Repository Branch**: `pure-gas-main`.
 - **Latest Commits**:
+  - [`a22076f`](file:///home/mike/projects/day-planner): `chore(deploy): promote Phase 11 to HOME @186 and WORK v28`.
+  - [`df3b357`](file:///home/mike/projects/day-planner): `docs(handoff): session transition and task queue`.
   - [`07f528d`](file:///home/mike/projects/day-planner): `fix(notes-docs): idempotent daily section replacement & align 3-column / 2-page terminology`.
   - [`ee3dffd`](file:///home/mike/projects/day-planner): `docs(handoff): session transition and task queue`.
   - [`81b75c3`](file:///home/mike/projects/day-planner): `feat(monthly-index): add Daily Page jump navigation column and record UX/Doc consultation`.
   - [`1426e7f`](file:///home/mike/projects/day-planner): `feat(tasks-calendar): status stamp filter toggles & monthly overview full-screen expansion with day y-scroll`.
-- **Production Git Tag**: [`v1.0-pure-gas`](file:///home/mike/projects/day-planner) at commit [`81b75c3`](file:///home/mike/projects/day-planner).
+- **Production Git Tag**: [`v1.0-pure-gas`](file:///home/mike/projects/day-planner) at commit [`a22076f`](file:///home/mike/projects/day-planner).
 - **Live Deployment State**:
-  - HOME Prod (`day-planner-v01`): Version 185 (`@185`) live.
-  - WORK Prod (`9csO`): Code promoted and Version 26 created on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`. Target deployment `Version 3` (`9csO`) awaits manual activation.
+  - HOME Prod (`day-planner-v01`): Version 186 (`@186`) live.
+  - WORK Prod (`9csO`): Code promoted and Version 28 created on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`. Target deployment `Version 3` (`9csO`) awaits manual activation to Version 28.
 - **Pre-Flight Verification**: Passed cleanly:
   - `npm run lint`: 0 errors.
   - `npm test`: 118/118 unit tests passing across 15 suites.
@@ -71,22 +73,18 @@ Deliver Phase 11 enhancements — Master Tasks Franklin glyph status filter togg
 
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
-1. **Deploy Version 26 on WORK Deployment `Version 3` (`9csO`)**:
-   - In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) under `michael.hoffman@gsa.gov`, select deployment `Version 3` (`9csO`), edit, select **New version** (Version 26), and click **Deploy** ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L3-L4)).
-2. **Production Promotion of Phase 11 Enhancements (HOME & WORK)**:
-   - Push Phase 11 commits ([`1426e7f`](file:///home/mike/projects/day-planner), [`81b75c3`](file:///home/mike/projects/day-planner), and [`07f528d`](file:///home/mike/projects/day-planner)) to HOME (`day-planner-v01` -> `@186`).
-   - Promote to WORK via `npm run push:work` and cut Version 27 targeting `9csO` ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L5-L7)).
-3. **Live Workspace UAT of Phase 10 & 11 Features**:
+1. **Deploy Version 28 on WORK Deployment `Version 3` (`9csO`)**:
+   - In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) under `michael.hoffman@gsa.gov`, click **Deploy** > **Manage deployments**, select deployment `Version 3` (`9csO`), edit (pencil icon), select **Version 28**, and click **Deploy** ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L3-L4)).
+2. **Live Workspace UAT of Phase 10 & 11 Features**:
    - Verify Master Tasks status filter toggles (`[All]`, `[•]`, `[✓]`, etc.).
    - Verify Monthly Overview full vertical expansion and on-demand day card scrolling on dense days.
    - Verify Monthly Index `Daily Page` (`Jump to Day`) in-app routing and `Source Doc` (`View Google Doc`) links.
-   - Verify Google Doc notes idempotent saving without duplicate day sections ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L8-L13)).
-
-*(Subsequent Task)*:
-- **4. Standalone Desktop Shortcut ("Open as Window")**: Verify Chrome desktop app shortcut from [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html) ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L14-L15)).
+   - Verify Google Doc notes idempotent saving without duplicate day sections ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L7-L12)).
+3. **Standalone Desktop Shortcut ("Open as Window")**:
+   - Verify Chrome "Install Day Planner" / "Open as window" shortcut from [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html) ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L13-L14)).
 
 ---
 
 ### IMMEDIATE NEXT STEP
 
-Open [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) under `michael.hoffman@gsa.gov`, click **Deploy** > **Manage deployments**, select deployment `Version 3` (`9csO`), click **Edit** (pencil icon), select **New version** (Version 26), and click **Deploy**.
+Open [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) under `michael.hoffman@gsa.gov`, click **Deploy** > **Manage deployments**, select deployment `Version 3` (`9csO`), click **Edit** (pencil icon), select **New version** (Version 28), and click **Deploy**.
