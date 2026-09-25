@@ -167,6 +167,42 @@ describe('Calendar Engine Unit Tests', () => {
       assert.equal(payload.meetLink, 'https://meet.google.com/ncm-ms-standup');
     });
 
+    it('should extract meetLink without https prefix and prepend https', () => {
+      const evt = {
+        title: 'NCMMS Daily Standup',
+        description: 'Meeting info:\nmeet.google.com/ncm-msds-mtg\nDial in: +1 555-0199'
+      };
+      const link = extractMeetLink(evt);
+      assert.equal(link, 'https://meet.google.com/ncm-msds-mtg');
+    });
+
+    it('should extract meetLink with query parameters and preserve or clean them', () => {
+      const evt = {
+        title: 'Project Review',
+        location: 'https://meet.google.com/abc-defg-hij?authuser=0&hs=179'
+      };
+      const link = extractMeetLink(evt);
+      assert.equal(link, 'https://meet.google.com/abc-defg-hij?authuser=0&hs=179');
+    });
+
+    it('should extract meetLink from event title if present in parentheses or plain', () => {
+      const evt = {
+        title: 'Sync (meet.google.com/xyz-uvwx-rst)',
+        description: ''
+      };
+      const link = extractMeetLink(evt);
+      assert.equal(link, 'https://meet.google.com/xyz-uvwx-rst');
+    });
+
+    it('should extract meetLink using getHangoutLink method if provided', () => {
+      const evt = {
+        title: 'CalendarApp Event',
+        getHangoutLink: () => 'https://meet.google.com/cal-app-meet'
+      };
+      const link = extractMeetLink(evt);
+      assert.equal(link, 'https://meet.google.com/cal-app-meet');
+    });
+
     it('should return null when no meeting link exists anywhere', () => {
       assert.equal(extractMeetLink({ description: 'In-person meeting in Room 4B', location: 'HQ' }), null);
       assert.equal(extractMeetLink(null), null);

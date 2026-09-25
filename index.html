@@ -350,7 +350,8 @@
           <article class="page-panel notes-column-panel col-notes" :class="{ 'is-maximized': maximizedColumn === 'notes' }">
             <header class="panel-header notes-header">
               <h3 class="panel-header-title">
-                <span class="material-symbols-outlined">description</span> Notes
+                <span class="material-symbols-outlined">description</span>
+                <span>Daily Notes for <span x-text="new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })"></span></span>
               </h3>
 
               <div class="notes-header-actions">
@@ -395,6 +396,22 @@
                 </button>
               </div>
             </header>
+
+            <!-- Notes Category Multi-Pick Segmented Bar -->
+            <div class="notes-category-bar" role="group" aria-label="Notes Categories">
+              <div class="category-segmented-control" role="group" aria-label="Notes Category Multi-Pick">
+                <template x-for="cat in noteCategoryOptions" :key="cat">
+                  <button type="button" class="category-segment-btn"
+                          :class="{ 'is-active': isNoteCategorySelected(cat) }"
+                          @click="toggleNoteCategory(cat)"
+                          :aria-pressed="isNoteCategorySelected(cat)"
+                          :title="'Toggle ' + cat + ' category'">
+                    <span class="category-check-icon material-symbols-outlined" x-show="isNoteCategorySelected(cat)">check</span>
+                    <span x-text="cat"></span>
+                  </button>
+                </template>
+              </div>
+            </div>
 
             <!-- Mode 1: Modular Topic Cards (Option 1) -->
             <div class="note-cards-container" x-show="noteViewMode === 'cards'">
@@ -447,14 +464,6 @@
                     <template x-if="taskLinkForCard(card)">
                       <span class="task-link-tag" :title="'Linked to Task ' + taskLinkForCard(card).priority" x-text="'→ ' + taskLinkForCard(card).priority"></span>
                     </template>
-
-                    <select x-model="card.category" @change="syncCardsToDailyNote()" class="card-category-select" aria-label="Card Category">
-                      <option value="Work">Work</option>
-                      <option value="Personal">Personal</option>
-                      <option value="Meeting">Meeting</option>
-                      <option value="Decision">Decision</option>
-                      <option value="Project">Project</option>
-                    </select>
 
                     <button type="button" class="card-delete-btn" @click="deleteNoteCard(card.id)" title="Delete Card" aria-label="Delete Card">
                       <span class="material-symbols-outlined icon-16">delete</span>
@@ -711,7 +720,14 @@
                 <template x-for="idx in indexRecords" :key="idx.summary">
                   <tr>
                     <td x-text="idx.date"></td>
-                    <td><b x-text="idx.topic"></b></td>
+                    <td>
+                      <div class="index-topic-cell">
+                        <b x-text="idx.topic"></b>
+                        <template x-if="idx.category">
+                          <span class="index-category-stamp" x-text="idx.category"></span>
+                        </template>
+                      </div>
+                    </td>
                     <td x-html="renderCardLine(idx.summary, false)"></td>
                     <td>
                       <button type="button" class="btn-jump-day" @click="jumpToDailyPage(idx.date, idx.topic)" :aria-label="'Jump to daily page for ' + idx.date">

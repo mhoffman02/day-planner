@@ -826,6 +826,49 @@ function encodeTaskMeta(existingNotes, metaPatch) {
 }
 
 /**
+ * Extracts a Google Meet video conference link from calendar event objects or text fields.
+ * @param {object} evt Raw calendar event or CalendarEvent instance.
+ * @returns {string|null} Full Google Meet URL or null.
+ */
+function extractMeetLinkFromEvent_(evt) {
+  if (!evt) return null;
+  var link = evt.hangoutLink || null;
+  if (!link && typeof evt.getHangoutLink === 'function') {
+    try {
+      var hl = evt.getHangoutLink();
+      if (hl && typeof hl === 'string') link = hl.trim();
+    } catch (_ignored) {
+      // getHangoutLink may throw if unsupported on specific event type
+    }
+  }
+  if (!link && evt.conferenceData && evt.conferenceData.entryPoints) {
+    for (var c = 0; c < evt.conferenceData.entryPoints.length; c++) {
+      var ep = evt.conferenceData.entryPoints[c];
+      if (ep && (ep.entryPointType === 'video' || (ep.uri && ep.uri.indexOf('meet.google.com') !== -1))) {
+        if (ep.uri && typeof ep.uri === 'string') {
+          link = ep.uri.trim();
+          break;
+        }
+      }
+    }
+  }
+  if (!link) {
+    var title = (typeof evt.getTitle === 'function' ? evt.getTitle() : '') || evt.title || evt.summary || '';
+    var desc = (typeof evt.getDescription === 'function' ? evt.getDescription() : '') || evt.description || '';
+    var loc = (typeof evt.getLocation === 'function' ? evt.getLocation() : '') || evt.location || '';
+    var combined = title + ' ' + loc + ' ' + desc;
+    var match = combined.match(/(?:https?:\/\/)?meet\.google\.com\/[a-z0-9_-]+(?:\?[^\s"'<>]*)?/i);
+    if (match) {
+      link = match[0];
+      if (!/^https?:\/\//i.test(link)) {
+        link = 'https:' + '/' + '/' + link;
+      }
+    }
+  }
+  return link || null;
+}
+
+/**
  * Retrieves daily data: Calendar events, Google Tasks, and Google Doc daily notes for a given date.
  * @param {string} dateStr Target date string in YYYY-MM-DD format.
  * @returns {{date: string, tasks: Array<object>, calendarEvents: Array<object>, noteContent: string, warnings: Array<string>}|object} Daily planner dataset or error payload.
@@ -856,22 +899,7 @@ function getDailyData(dateStr) {
           fields: 'items(id,summary,start,end,location,description,hangoutLink,conferenceData,htmlLink,extendedProperties)'
         });
         result.calendarEvents = (dayResp.items || []).map(function(evt) {
-          var meetLink = evt.hangoutLink || null;
-          if (!meetLink && evt.conferenceData && evt.conferenceData.entryPoints) {
-            for (var c = 0; c < evt.conferenceData.entryPoints.length; c++) {
-              var ep = evt.conferenceData.entryPoints[c];
-              if (ep && (ep.entryPointType === 'video' || (ep.uri && ep.uri.indexOf('meet.google.com') !== -1))) {
-                meetLink = ep.uri;
-                break;
-              }
-            }
-          }
-          if (!meetLink) {
-            var desc = evt.description || '';
-            var loc = evt.location || '';
-            var match = (desc + ' ' + loc).match(/https:\/\/meet\.google\.com\/[a-z0-9-]+/i);
-            if (match) meetLink = match[0];
-          }
+          var meetLink = extractMeetLinkFromEvent_(evt);
           return {
             id: evt.id,
             title: evt.summary || '(untitled)',
@@ -893,16 +921,7 @@ function getDailyData(dateStr) {
         var defaultCalId = defaultCal.getId();
         var events = defaultCal.getEvents(targetDate, nextDate);
         result.calendarEvents = events.map(function(evt) {
-          var meetLink = null;
-          if (typeof evt.getHangoutLink === 'function') {
-            meetLink = evt.getHangoutLink();
-          }
-          if (!meetLink) {
-            var desc = evt.getDescription() || '';
-            var loc = evt.getLocation() || '';
-            var match = (desc + ' ' + loc).match(/https:\/\/meet\.google\.com\/[a-z0-9-]+/i);
-            if (match) meetLink = match[0];
-          }
+          var meetLink = extractMeetLinkFromEvent_(evt);
           var bareId = evt.getId().replace(/@google\.com$/, '');
           return {
             id: bareId,

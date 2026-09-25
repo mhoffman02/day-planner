@@ -44,4 +44,16 @@ describe('Index Parser Unit Tests', () => {
     assert.equal(sortedDesc[1].date, '2026-08-12');
     assert.equal(sortedDesc[2].date, '2026-08-10');
   });
+
+  it('should parse #category tags and propagate to index entries', () => {
+    const noteText = `
+      #category: Decision, Work
+      #index [Budget] Approved server migration funding
+    `;
+    const entries = parseIndexEntriesFromNote(noteText, '2026-09-25', 'https://docs.google.com/doc-test');
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0].topic, 'Budget');
+    assert.equal(entries[0].category, 'Decision, Work');
+    assert.deepEqual(entries[0].categories, ['Decision', 'Work']);
+  });
 });

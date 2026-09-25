@@ -791,6 +791,8 @@
       noteFilterMenuOpen: false,
       noteCardSearchQuery: '',
       noteCardCategoryFilter: 'ALL',
+      noteCategoryOptions: ['Work', 'Personal', 'Meeting', 'Decision', 'Project'],
+      selectedNoteCategories: ['Work'],
       topicColWidth: 112,
       isHeaderResizing: false,
       docPreviewEditing: false,
@@ -1811,6 +1813,22 @@
           ];
         }
 
+        let extractedCategories = null;
+        const allLines = (noteText || '').split('\n');
+        allLines.forEach(l => {
+          const trimmed = l.trim();
+          if (!trimmed) return;
+          const catMatch = trimmed.match(/^#(?:category|categories):\s*(.+)$/i) || trimmed.match(/^categories:\s*(.+)$/i);
+          if (catMatch && !extractedCategories) {
+            extractedCategories = catMatch[1].split(',').map(s => s.trim()).filter(Boolean);
+          }
+        });
+        if (extractedCategories && extractedCategories.length > 0) {
+          this.selectedNoteCategories = extractedCategories;
+        } else if (!this.selectedNoteCategories || this.selectedNoteCategories.length === 0) {
+          this.selectedNoteCategories = ['Work'];
+        }
+
         const lines = noteText.split('\n');
         const cards = [];
         let currentCard = null;
@@ -1821,6 +1839,11 @@
             if (currentCard && currentCard.content) {
               currentCard.content += '\n';
             }
+            return;
+          }
+
+          // Skip category metadata tag line
+          if (/^#(?:category|categories):\s*/i.test(trimmed) || /^categories:\s*/i.test(trimmed)) {
             return;
           }
 
@@ -1866,20 +1889,45 @@
       },
 
       syncCardsToDailyNote() {
+        const catLine = (this.selectedNoteCategories && this.selectedNoteCategories.length > 0)
+          ? `#category: ${this.selectedNoteCategories.join(', ')}`
+          : '';
+
         if (!this.noteCards || this.noteCards.length === 0) {
-          this.dailyNote = '';
+          this.dailyNote = catLine;
           this.buildIndexRecords();
           this.scheduleDailyNoteSave();
           return;
         }
-        this.dailyNote = this.noteCards.map(c => {
+
+        const cardsMarkdown = this.noteCards.map(c => {
           const headingLine = c.indexTopic
             ? `#index [${c.indexTopic}] ${c.heading || 'Topic'}`
             : (c.heading || 'Topic');
           return `### ${headingLine}\n${c.content || ''}`;
         }).join('\n\n');
+
+        this.dailyNote = catLine ? `${catLine}\n\n${cardsMarkdown}` : cardsMarkdown;
         this.buildIndexRecords();
         this.scheduleDailyNoteSave();
+      },
+
+      toggleNoteCategory(cat) {
+        if (!cat) return;
+        if (!Array.isArray(this.selectedNoteCategories)) {
+          this.selectedNoteCategories = [];
+        }
+        const idx = this.selectedNoteCategories.indexOf(cat);
+        if (idx !== -1) {
+          this.selectedNoteCategories.splice(idx, 1);
+        } else {
+          this.selectedNoteCategories.push(cat);
+        }
+        this.syncCardsToDailyNote();
+      },
+
+      isNoteCategorySelected(cat) {
+        return Array.isArray(this.selectedNoteCategories) && this.selectedNoteCategories.includes(cat);
       },
 
       syncDailyNoteToCards() {
@@ -2064,6 +2112,7 @@
         const lines = this.dailyNote.split('\n');
         const entries = [];
         const fallbackUrl = this.getDirectDocUrl('');
+        const activeCategories = this.selectedNoteCategories || [];
         lines.forEach(l => {
           if (/#index|\[INDEX\]/i.test(l)) {
             let clean = l.replace(/#index|\[INDEX\]/gi, '').trim();
@@ -2073,7 +2122,14 @@
               topic = match[1];
               clean = match[2];
             }
-            entries.push({ date: this.selectedDate, topic, summary: clean, docUrl: fallbackUrl });
+            entries.push({
+              date: this.selectedDate,
+              topic: topic,
+              category: activeCategories.join(', '),
+              categories: [...activeCategories],
+              summary: clean,
+              docUrl: fallbackUrl
+            });
           }
         });
         this.indexRecords = entries;
@@ -2390,17 +2446,33 @@
         if (evt.hangoutLink && typeof evt.hangoutLink === 'string' && evt.hangoutLink.trim()) {
           return evt.hangoutLink.trim();
         }
+        if (typeof evt.getHangoutLink === 'function') {
+          try {
+            var hl = evt.getHangoutLink();
+            if (hl && typeof hl === 'string' && hl.trim()) return hl.trim();
+          } catch (_) {}
+        }
         if (evt.conferenceData && Array.isArray(evt.conferenceData.entryPoints)) {
           for (var c = 0; c < evt.conferenceData.entryPoints.length; c++) {
             var ep = evt.conferenceData.entryPoints[c];
             if (ep && (ep.entryPointType === 'video' || (ep.uri && ep.uri.indexOf('meet.google.com') !== -1))) {
-              return ep.uri;
+              if (ep.uri && typeof ep.uri === 'string' && ep.uri.trim()) return ep.uri.trim();
             }
           }
         }
-        var text = (evt.location || '') + ' ' + (evt.description || '');
-        var match = text.match(new RegExp('https:' + '/' + '/meet\\.google\\.com/[a-z0-9-]+', 'i'));
-        return match ? match[0] : null;
+        var title = (typeof evt.getTitle === 'function' ? evt.getTitle() : '') || evt.title || evt.summary || '';
+        var loc = (typeof evt.getLocation === 'function' ? evt.getLocation() : '') || evt.location || '';
+        var desc = (typeof evt.getDescription === 'function' ? evt.getDescription() : '') || evt.description || '';
+        var text = title + ' ' + loc + ' ' + desc;
+        var match = text.match(/(?:https?:[\/]{2})?meet\.google\.com\/[a-z0-9_-]+(?:\?[^\s"'<>]*)?/i);
+        if (match) {
+          var link = match[0];
+          if (!/^https?:[\/]{2}/i.test(link)) {
+            link = 'https:' + '/' + '/' + link;
+          }
+          return link;
+        }
+        return null;
       },
 
       formatEventDescription(description) {

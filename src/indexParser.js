@@ -17,6 +17,16 @@ export function parseIndexEntriesFromNote(noteText = '', dateStr = '', docUrl = 
   const lines = noteText.split('\n');
   const indexEntries = [];
 
+  let noteCategories = [];
+  lines.forEach(line => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+    const catMatch = trimmed.match(/^#(?:category|categories):\s*(.+)$/i) || trimmed.match(/^categories:\s*(.+)$/i);
+    if (catMatch) {
+      noteCategories = catMatch[1].split(',').map(s => s.trim()).filter(Boolean);
+    }
+  });
+
   lines.forEach(line => {
     const trimmed = line.trim();
     if (!trimmed) return;
@@ -44,6 +54,8 @@ export function parseIndexEntriesFromNote(noteText = '', dateStr = '', docUrl = 
         id: `idx_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         date: dateStr || new Date().toISOString().slice(0, 10),
         topic,
+        category: noteCategories.join(', ') || '',
+        categories: [...noteCategories],
         summary: cleanText || trimmed,
         docUrl: docUrl || `#doc-${dateStr}`,
         rawText: trimmed

@@ -83,16 +83,34 @@ export function extractMeetLink(rawEvent = {}) {
   if (rawEvent.hangoutLink && typeof rawEvent.hangoutLink === 'string' && rawEvent.hangoutLink.trim()) {
     return rawEvent.hangoutLink.trim();
   }
+  if (typeof rawEvent.getHangoutLink === 'function') {
+    try {
+      const hl = rawEvent.getHangoutLink();
+      if (hl && typeof hl === 'string' && hl.trim()) return hl.trim();
+    } catch (_ignored) {
+      // getHangoutLink may throw if unsupported on specific event type
+    }
+  }
   if (rawEvent.conferenceData && Array.isArray(rawEvent.conferenceData.entryPoints)) {
     for (const ep of rawEvent.conferenceData.entryPoints) {
       if (ep && (ep.entryPointType === 'video' || (ep.uri && ep.uri.indexOf('meet.google.com') !== -1))) {
-        return ep.uri;
+        if (ep.uri && typeof ep.uri === 'string' && ep.uri.trim()) return ep.uri.trim();
       }
     }
   }
-  const text = `${rawEvent.location || ''} ${rawEvent.description || ''}`;
-  const match = text.match(/https?:\/\/meet\.google\.com\/[a-z0-9-]+/i);
-  return match ? match[0] : null;
+  const title = (typeof rawEvent.getTitle === 'function' ? rawEvent.getTitle() : '') || rawEvent.title || rawEvent.summary || '';
+  const loc = (typeof rawEvent.getLocation === 'function' ? rawEvent.getLocation() : '') || rawEvent.location || '';
+  const desc = (typeof rawEvent.getDescription === 'function' ? rawEvent.getDescription() : '') || rawEvent.description || '';
+  const text = `${title} ${loc} ${desc}`;
+  const match = text.match(/(?:https?:\/\/)?meet\.google\.com\/[a-z0-9_-]+(?:\?[^\s"'<>]*)?/i);
+  if (match) {
+    let link = match[0];
+    if (!/^https?:\/\//i.test(link)) {
+      link = `https://${link}`;
+    }
+    return link;
+  }
+  return null;
 }
 
 /**
