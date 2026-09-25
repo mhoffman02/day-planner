@@ -881,7 +881,10 @@
     transform: translateY(-1px) scale(1.15);
   }
 
-  .star-toggle:focus,
+  .star-toggle:focus {
+    outline: none !important;
+  }
+
   .star-toggle:focus-visible {
     background: transparent !important;
     background-color: transparent !important;
@@ -2935,7 +2938,10 @@
     color: #fbbf24;
   }
 
-  [data-theme="dark"] .star-toggle:focus,
+  [data-theme="dark"] .star-toggle:focus {
+    outline: none !important;
+  }
+
   [data-theme="dark"] .star-toggle:focus-visible {
     outline-color: #52a38b !important;
   }
