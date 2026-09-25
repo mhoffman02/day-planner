@@ -1,5 +1,9 @@
 # Active Tasks (TODO)
 
+- [x] **Fix Tasks Status Popup Menu & Note Popover Bottom Clipping (commit `cffc7a6`)**:
+  - Implemented dynamic dropup detection for both the Status Menu (`spaceBelow < 275 && spaceAbove > spaceBelow || spaceBelow < 160`) and Note Popover (`spaceBelow < 180 && spaceAbove > spaceBelow || spaceBelow < 100`) across [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), preventing bottom clipping on rows near the end of the list without requiring user scrolling.
+  - Added `.dropup` (`bottom: calc(100% + 4px); top: auto;`) and `.dropdown-down` (`top: 100%; bottom: auto;`) classes to `.notes-popover` and `.status-menu` across [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css), [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html), [`index.html`](file:///home/mike/projects/day-planner/index.html), and [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html).
+  - Added viewport constraints (`max-height: min(240px, 40vh)` on `.notes-popover` and `max-height: min(320px, 80vh)` on `.status-menu`) with `overflow-y: auto`, `word-break: break-word`, elevated z-index (500 on popups, 200 on row), and guarded static CSS fallback (`tbody tr:nth-child(n+4):nth-last-child(-n+3)`) so short tables never push top rows into negative header space.
 - [x] **Add Runtime Environment JSDoc Headers & Golden Active Navbar Accent (commit `75cdeeb`)**:
   - Added comprehensive JSDoc headers to [`index.html`](file:///home/mike/projects/day-planner/index.html) and [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) detailing the two runtime environments (Local Dev / Mock Server via ES modules vs Google Apps Script Production bundle via template includes).
   - Replaced the minty accent (`#58bfa2`) with authentic Franklin gold-foil stamp color (`#d4a017`) on the active navbar tab indicator (`.segment-btn.active`) across [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html).
@@ -21,17 +25,18 @@
 - [x] **Fix Status Popup Menu Clipping & Round Outer Priority Button Corners (commit `81d518d`)**:
   - Set `overflow: visible` on `figure.table-container`, added dynamic dropup space detection (`spaceBelow < 220`) in `openStatusMenu` / `toggleStatusMenu`, added CSS nth-last-child dropup fallback, and elevated z-index on active task rows to prevent clipping.
   - Rounded outer corners of Priority "A" (NW, SW: `border-top-left-radius: 5px; border-bottom-left-radius: 5px;`) and Priority "C" (NE, SE: `border-top-right-radius: 5px; border-bottom-right-radius: 5px;`), keeping inner shared borders flush.
-- [x] **Deploy to HOME Prod (`@181`)**:
-  - Created Version 181 and deployed to endpoint `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
-- [ ] **Deploy Version 20 on WORK Deployment `Version 3` (`9csO`)**:
-  - In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit), select deployment `Version 3` (`9csO`), edit, select **New version** (or Version 20), and click **Deploy**.
+- [x] **Deploy to HOME Prod (`@182`)**:
+  - Created Version 182 and deployed to endpoint `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
+- [ ] **Deploy Version 21 on WORK Deployment `Version 3` (`9csO`)**:
+  - In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit), select deployment `Version 3` (`9csO`), edit, select **New version** (or Version 21), and click **Deploy**.
 - [ ] **Live Workspace UAT of Phase 9 & Ergonomic Fixes**:
+  - Verify Status popup menu opens without clipping on all tasks (including bottom rows) and drops up cleanly without scrolling.
+  - Verify Note hover popover opens upward on bottom rows without clipping and shows full note content.
   - Verify active navbar tab shows golden (`#d4a017`) underline indicator instead of minty accent.
   - Verify Status dropdown menu shows "Delegated" (without "(Done)") and "Delete" item with trashcan icon.
   - Verify clicking "Delete" removes the task entirely from the list and Google Tasks backend.
   - Verify Priority buttons show hover text and `Alt+A`, `Alt+B`, `Alt+C` hotkeys switch priority and focus task input.
   - Verify typing `#a Call vendor` sets priority to A and creates the task with clean title `Call vendor`.
-  - Verify Status popup menu opens cleanly without clipping on all tasks (including bottom rows).
   - Verify Priority buttons (A|B|C) show rounded outer corners on A and C.
   - Verify appointment details modal renders HTML formatted descriptions with working new-tab links.
   - Verify clicking [Open in gCal] opens the specific calendar event without 500 error.
