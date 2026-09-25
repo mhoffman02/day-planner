@@ -1,5 +1,25 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-25 — Google Meet Link Extraction & Notes Category Segmented Multi-Pick Toggles (commit `a4eb7b0`, HOME @188, WORK @32)
+
+- [x] **Google Meet Link Extraction in Appointment Modals (commit `a4eb7b0`)**:
+  - Enabled `Calendar` v3 advanced service in [`gas-app/appsscript.json`](file:///home/mike/projects/day-planner/gas-app/appsscript.json) so `conferenceData` is fetched directly from Google Calendar API.
+  - Implemented `extractMeetLinkFromEvent_` helper in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) and enhanced `extractMeetLink` in [`src/calendarEngine.js`](file:///home/mike/projects/day-planner/src/calendarEngine.js), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), and [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js).
+  - Robustly extracts Meet URLs from `hangoutLink`, `getHangoutLink()`, `conferenceData.entryPoints`, and regex matching across `summary`, `title`, `description`, and `location` with or without `https://` prefix, query parameters, or formatting.
+  - Added 4 automated unit tests in [`tests/calendarEngine.test.js`](file:///home/mike/projects/day-planner/tests/calendarEngine.test.js).
+- [x] **Notes Category Segmented Multi-Pick Toggles (commit `a4eb7b0`)**:
+  - Replaced per-card `<select>` dropdown with a tactile segmented button bar `[ Work | Personal | Meeting | Decision | Project ]` located directly below "Daily Notes for [Date]" heading in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) and [`index.html`](file:///home/mike/projects/day-planner/index.html).
+  - Implemented multi-select checkbox toggle behavior (`.category-segment-btn`) with 2px border radius, forest teal active state, checkmark icon, and strictly no pills.
+  - Eliminated horizontal header crowding on note cards.
+- [x] **Category Persistence & Monthly Index Propagation (commit `a4eb7b0`)**:
+  - Serialized active categories as `#category: <values>` at top of daily notes in [`syncCardsToDailyNote`](file:///home/mike/projects/day-planner/gas-app/Script.html), persisting reliably and idempotently to Google Docs without duplicating.
+  - Parsed `#category:` in [`parseDailyNoteToCards`](file:///home/mike/projects/day-planner/gas-app/Script.html) and [`src/indexParser.js`](file:///home/mike/projects/day-planner/src/indexParser.js).
+  - Propagated categories to Monthly Index table `Topic / Category` column, rendering bold topic titles alongside archival teal letterpress stamps (`.index-category-stamp`).
+  - Added unit test in [`tests/indexParser.test.js`](file:///home/mike/projects/day-planner/tests/indexParser.test.js).
+- [x] **Production Deployments (HOME @188, WORK @32)**:
+  - Deployed HOME version 188 (`@188`) to `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
+  - Promoted to WORK via `npm run push:work` and cut Version 32 on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`.
+
 ## 2026-09-25 — Google Doc Option 3 Idempotent Replace Plumbing & Nomenclature Reconciliation (commit `07f528d`)
 
 - [x] **Google Doc Option 3 Architecture & Idempotent Replace Plumbing (commit `07f528d`)**:

@@ -181,7 +181,25 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
   - Fixed `saveDailyDocCards` (`Code.gs:1081-1150`) unconditional append duplication bug with idempotent section replacement in reverse index order.
   - Reconciled specification and UI copy terminology across `REQUIREMENTS.md` and `PRD.md`.
   - Retained native H2/H3 for Google Docs native outline and printouts while keeping Day Planner SPA as primary presentation layer.
-- [ ] Promote Phase 11 Enhancements to HOME (`@186`) and WORK (`@27`).
+- [x] Promote Phase 11 Enhancements to HOME (`@187`) and WORK (`@30`).
+
+### Phase 12: Calendar Meet Links & Notes Category Multi-Pick Toggles
+*Goal: Robust Google Meet video join links across Calendar API and text fields, tactile multi-select category toggles under Daily Notes header, persistent category doc storage, and Monthly Index badge propagation.*
+
+- [x] Calendar Google Meet Link Extraction (commit `a4eb7b0`):
+  - Enabled `Calendar` v3 advanced service in `appsscript.json`.
+  - Multi-field search across `hangoutLink`, `getHangoutLink()`, `conferenceData.entryPoints`, and regex matching across `title`, `description`, `location`.
+  - 4 automated unit tests added to `tests/calendarEngine.test.js`.
+- [x] Notes Category Segmented Multi-Pick Toggles (commit `a4eb7b0`):
+  - Segmented button bar `[ Work | Personal | Meeting | Decision | Project ]` with multi-select checkbox toggle behavior under `Daily Notes for [Date]` header.
+  - Cleaned note card headers by eliminating the per-card `<select>` dropdown.
+- [x] Category Doc Persistence & Monthly Index Propagation (commit `a4eb7b0`):
+  - Serialized active categories as `#category: <values>` at top of daily notes, persisting idempotently to Google Docs.
+  - Propagated categories to Monthly Index table `Topic / Category` column via `.index-category-stamp`.
+  - Unit tests added to `tests/indexParser.test.js`.
+- [x] Production Deployments (HOME @188, WORK @32):
+  - HOME live at `@188` (`AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`).
+  - WORK promoted and Version 32 created targeting deployment `Version 3` (`9csO`).
 
 
 
