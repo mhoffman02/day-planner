@@ -177,9 +177,10 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
   - Added 5th column `Daily Page` with `Jump to Day` button (`.btn-jump-day`).
   - Renamed `Direct Doc Link` to `Source Doc` (`View Google Doc`).
   - Implemented `jumpToDailyPage(date, topic)` with auto-expansion of topic cards.
-- [ ] Google Doc Option 3 Architecture & Append Bug Fix:
-  - Fix `saveDailyDocCards` (`Code.gs:1081-1113`) unconditional append duplication bug with idempotent section replacement.
-  - Retain native H2/H3 for Google Docs native outline and printouts while keeping Day Planner SPA as primary presentation layer.
+- [x] Google Doc Option 3 Architecture & Append Bug Fix (commit `07f528d`):
+  - Fixed `saveDailyDocCards` (`Code.gs:1081-1150`) unconditional append duplication bug with idempotent section replacement in reverse index order.
+  - Reconciled specification and UI copy terminology across `REQUIREMENTS.md` and `PRD.md`.
+  - Retained native H2/H3 for Google Docs native outline and printouts while keeping Day Planner SPA as primary presentation layer.
 - [ ] Promote Phase 11 Enhancements to HOME (`@186`) and WORK (`@27`).
 
 

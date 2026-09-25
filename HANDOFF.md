@@ -2,7 +2,7 @@
 
 ### OBJECTIVE
 
-Deliver Phase 11 enhancements — Master Tasks Franklin glyph status filter toggles, Monthly Overview full-screen vertical responsiveness with on-demand day card scrolling, and Monthly Index "Daily Page" in-app jump routing. Lock in Google Doc Notes Option 3 architecture (durable markdown storage with native H2/H3 headings for Docs outline/printing; SPA as primary presentation layer) and execute remaining tasks in priority order across WORK and HOME deployments.
+Deliver Phase 11 enhancements — Master Tasks Franklin glyph status filter toggles, Monthly Overview full-screen vertical responsiveness with on-demand day card scrolling, and Monthly Index "Daily Page" in-app jump routing. Lock in Google Doc Notes Option 3 architecture (durable markdown storage with native H2/H3 headings for Docs outline/printing; SPA as primary presentation layer) with idempotent section replacement, and execute remaining tasks in priority order across WORK and HOME deployments.
 
 ---
 
@@ -10,7 +10,7 @@ Deliver Phase 11 enhancements — Master Tasks Franklin glyph status filter togg
 
 - **Master Tasks Status Filter Toggles ([commit `1426e7f`](file:///home/mike/projects/day-planner))**:
   - Implemented Option A Franklin Glyph Stamp Toggles (`[All]`, `[•]`, `[○]`, `[✓]`, `[→]`, `[X]`, `[Ⓓ]`) directly above the Master Tasks table in [`index.html`](file:///home/mike/projects/day-planner/index.html) and [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html).
-  - Selected Option A per user review: preserves the tactile letterpress Franklin aesthetic with crisp 2px border radius stamps, avoids hidden dropdown controls, and supports instant 1-click filtering or multi-status toggling.
+  - Selected Option A per user review: preserves tactile letterpress Franklin aesthetic with crisp 2px border radius stamps, avoids hidden dropdown controls, and supports instant 1-click filtering or multi-status toggling.
   - Implemented `filterTasksByStatus(tasks, activeStatuses)` in [`src/taskEngine.js`](file:///home/mike/projects/day-planner/src/taskEngine.js) with 6 comprehensive unit tests in [`tests/taskEngine.test.js`](file:///home/mike/projects/day-planner/tests/taskEngine.test.js) (including normalization between `Ⓓ` and `D/✓` delegation glyphs).
   - Added empty filter state message ("No master tasks match the selected status filter") with an inline "Reset filter" button.
 
@@ -26,11 +26,15 @@ Deliver Phase 11 enhancements — Master Tasks Franklin glyph status filter togg
   - Clicking `Jump to Day` invokes `jumpToDailyPage(date, topic)`, which updates the selected date, switches the active view to `'today'`, searches for the note/decision card matching the topic/summary, highlights the card, and smoothly scrolls it into view.
   - Renamed `DIRECT DOC LINK` to `Source Doc` with text `View Google Doc ↗` to clarify that it opens the raw external document.
 
-- **Google Doc Notes Architecture (Option 3 Selected)**:
+- **Google Doc Notes Option 3 Architecture & Idempotent Replace Plumbing ([commit `07f528d`](file:///home/mike/projects/day-planner))**:
   - Documented UX and technical architecture consultation in [`docs/CONSULT-monthly-index-and-doc-formatting.md`](file:///home/mike/projects/day-planner/docs/CONSULT-monthly-index-and-doc-formatting.md).
   - **Option 3 Wins (Best ROI)**: Treat the Google Doc as durable, machine-readable storage with native H2/H3 headings for document outline navigation and clean printouts, while treating the Day Planner SPA as the rich, styled presentation layer.
   - **Option 2 (2 Tabs) Rejected**: High regression risk. In Google Apps Script DocumentApp, `getBody()` binds to the active tab. If a user is viewing the `#view` tab, document-bound sidebar search (`gas-app/Code.gs:1875+`) searches the wrong tab.
-  - **Prerequisite Plumbing Fix Identified**: `saveDailyDocCards` in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L1081-L1113) unconditionally calls `body.appendPageBreak()` and appends headings/cards, duplicating days on every save. An idempotent day section replacement must be implemented before formatting polish.
+  - **Idempotent Day Section Replacement**: Fixed [`saveDailyDocCards`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L1150) and [`getOrCreateDailyDocContent`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L1075) in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs). Existing day elements are located via `HEADING2` / date strings and removed in reverse index order prior to inserting updated cards, eliminating duplicate day appends on repeated saves.
+  - **Automated Idempotency Tests**: Added [`tests/gasDocIdempotency.test.js`](file:///home/mike/projects/day-planner/tests/gasDocIdempotency.test.js) with 3 new automated unit tests validating initial save, middle-of-doc re-save, and end-of-doc re-save without duplication.
+
+- **Reconciled Specification & UI Copy Terminology ([commit `07f528d`](file:///home/mike/projects/day-planner))**:
+  - Reconciled [`REQUIREMENTS.md`](file:///home/mike/projects/day-planner/REQUIREMENTS.md#L59) and [`PRD.md`](file:///home/mike/projects/day-planner/PRD.md#L36) so "2-Page Daily Spread", "Daily 3-Column View", and "Today" / "Daily Page" nomenclature are explicitly aligned.
 
 ---
 
@@ -38,6 +42,8 @@ Deliver Phase 11 enhancements — Master Tasks Franklin glyph status filter togg
 
 - **Repository Branch**: `pure-gas-main`.
 - **Latest Commits**:
+  - [`07f528d`](file:///home/mike/projects/day-planner): `fix(notes-docs): idempotent daily section replacement & align 3-column / 2-page terminology`.
+  - [`ee3dffd`](file:///home/mike/projects/day-planner): `docs(handoff): session transition and task queue`.
   - [`81b75c3`](file:///home/mike/projects/day-planner): `feat(monthly-index): add Daily Page jump navigation column and record UX/Doc consultation`.
   - [`1426e7f`](file:///home/mike/projects/day-planner): `feat(tasks-calendar): status stamp filter toggles & monthly overview full-screen expansion with day y-scroll`.
 - **Production Git Tag**: [`v1.0-pure-gas`](file:///home/mike/projects/day-planner) at commit [`81b75c3`](file:///home/mike/projects/day-planner).
@@ -46,9 +52,8 @@ Deliver Phase 11 enhancements — Master Tasks Franklin glyph status filter togg
   - WORK Prod (`9csO`): Code promoted and Version 26 created on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`. Target deployment `Version 3` (`9csO`) awaits manual activation.
 - **Pre-Flight Verification**: Passed cleanly:
   - `npm run lint`: 0 errors.
-  - `npm test`: 115/115 unit tests passing across 14 suites.
+  - `npm test`: 118/118 unit tests passing across 15 suites.
   - `npm run check:gas-safe-chars`: Clean.
-  - `CHROME_PORT=9230 npm run smoke`: All 8 suites passed cleanly with 0 console errors.
 
 ---
 
@@ -67,18 +72,18 @@ Deliver Phase 11 enhancements — Master Tasks Franklin glyph status filter togg
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
 1. **Deploy Version 26 on WORK Deployment `Version 3` (`9csO`)**:
-   - In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) under `michael.hoffman@gsa.gov`, select deployment `Version 3` (`9csO`), edit, select **New version** (Version 26), and click **Deploy** ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md)).
-2. **Google Doc Option 3 Architecture & Idempotent Replace Plumbing**:
-   - In [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L1081-L1113), fix `saveDailyDocCards` which currently unconditionally calls `body.appendPageBreak()` and appends headings/cards, duplicating days on every save.
-   - Implement idempotent day replacement: locate existing day HEADING2, walk forward to the next HEADING2, and delete existing day elements in reverse index order before inserting updated cards.
-   - Maintain Option 3: keep Google Doc as durable markdown-compatible storage with native H2/H3 for Google Docs outline/printouts, avoiding complex dual-tab synchronization hazards.
-3. **Reconcile Specification & UI Copy Terminology**:
-   - Reconcile [`REQUIREMENTS.md`](file:///home/mike/projects/day-planner/REQUIREMENTS.md#L88) ("2-Page Daily Spread") and app nav ("Daily 3-Column View" / "Today") so documentation and UI nomenclature are unified.
+   - In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) under `michael.hoffman@gsa.gov`, select deployment `Version 3` (`9csO`), edit, select **New version** (Version 26), and click **Deploy** ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L3-L4)).
+2. **Production Promotion of Phase 11 Enhancements (HOME & WORK)**:
+   - Push Phase 11 commits ([`1426e7f`](file:///home/mike/projects/day-planner), [`81b75c3`](file:///home/mike/projects/day-planner), and [`07f528d`](file:///home/mike/projects/day-planner)) to HOME (`day-planner-v01` -> `@186`).
+   - Promote to WORK via `npm run push:work` and cut Version 27 targeting `9csO` ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L5-L7)).
+3. **Live Workspace UAT of Phase 10 & 11 Features**:
+   - Verify Master Tasks status filter toggles (`[All]`, `[•]`, `[✓]`, etc.).
+   - Verify Monthly Overview full vertical expansion and on-demand day card scrolling on dense days.
+   - Verify Monthly Index `Daily Page` (`Jump to Day`) in-app routing and `Source Doc` (`View Google Doc`) links.
+   - Verify Google Doc notes idempotent saving without duplicate day sections ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L8-L13)).
 
-*(Subsequent Tasks)*:
-- **4. Production Promotion of Phase 11 Enhancements (HOME & WORK)**: Push commits [`1426e7f`](file:///home/mike/projects/day-planner) and [`81b75c3`](file:///home/mike/projects/day-planner) to HOME (`@186`) and WORK (`@27` on `9csO`).
-- **5. Live Workspace UAT of Phase 10 & 11 Features**: Verify Master Tasks status filter, Monthly Overview vertical expansion/scroll, and Monthly Index Daily Page routing in live GAS web apps.
-- **6. Standalone Desktop Shortcut ("Open as Window")**: Verify Chrome desktop app shortcut from [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html).
+*(Subsequent Task)*:
+- **4. Standalone Desktop Shortcut ("Open as Window")**: Verify Chrome desktop app shortcut from [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html) ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L14-L15)).
 
 ---
 

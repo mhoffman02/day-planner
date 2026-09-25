@@ -1,5 +1,14 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-25 — Google Doc Option 3 Idempotent Replace Plumbing & Nomenclature Reconciliation (commit `07f528d`)
+
+- [x] **Google Doc Option 3 Architecture & Idempotent Replace Plumbing (commit `07f528d`)**:
+  - Fixed `saveDailyDocCards` and `getOrCreateDailyDocContent` in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L1030-L1150) to implement idempotent day section replacement in reverse index order, eliminating duplicate day appends on repeated saves.
+  - Implemented `isDayHeadingElement_` and `isAnyDayHeadingElement_` helpers supporting native HEADING2 and day formatted string detection with safe multi-element extraction.
+  - Added unit test suite with 3 comprehensive tests in [`tests/gasDocIdempotency.test.js`](file:///home/mike/projects/day-planner/tests/gasDocIdempotency.test.js).
+- [x] **Reconcile Specification & UI Copy Terminology (commit `07f528d`)**:
+  - Reconciled [`REQUIREMENTS.md`](file:///home/mike/projects/day-planner/REQUIREMENTS.md#L59) and [`PRD.md`](file:///home/mike/projects/day-planner/PRD.md#L36) so "2-Page Daily Spread", "Daily 3-Column View", and "Today" / "Daily Page" nomenclature are explicitly aligned.
+
 ## 2026-09-25 — Master Tasks Status Filter Toggles, Monthly Overview Full Expansion & Y-Scroll, Daily Page Jump Navigation (commits `1426e7f` & `81b75c3`)
 
 - [x] **Master Tasks Status Filter Toggles (Option A: Franklin Glyph Stamp Toggles, commit `1426e7f`)**:
