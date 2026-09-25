@@ -56,7 +56,11 @@ To achieve the closest possible PWA-like experience without a service worker:
 
 ## 4. Functional Requirements & Feature Matrix
 
-### 4.1 Daily View (2-Page Spread)
+### 4.1 Daily View (Daily 3-Column View / "Today" / Franklin 2-Page Spread)
+- Digital implementation of the classic Franklin Covey 2-page daily spread structured as an interactive 3-column binder:
+  1. Column 1: Prioritized Daily Task List (A1-C9).
+  2. Column 2: Appointment Schedule (07:00 AM – 07:00 PM).
+  3. Column 3: Modular Daily Notes Panel.
 - **Prioritized Daily Task List (A1-C9)**:
   - Task priority groups (`A`, `B`, `C`) and sequences (`1` through `9`).
   - Status cycling and direct dropdown: Open (` `), In-Progress (`•`), Completed (`✓`), Forwarded (`→`), Delegated (`D/✓`), Canceled (`X`).
@@ -85,11 +89,11 @@ To achieve the closest possible PWA-like experience without a service worker:
 ### 4.3 Full-Screen Monthly Overview Calendar
 - 7x5 interactive calendar grid displaying all days in the selected month.
 - Event pills fetched from Google Calendar.
-- One-click navigation from any day cell to that day's 2-Page Daily Spread.
+- One-click navigation from any day cell to that day's Daily Page ("Today" 3-column view).
 
 ### 4.4 Monthly Index Page
 - Automated extraction of `#index [Topic] Summary` entries from all daily notes in the active month.
-- Searchable, sortable table linking directly to the corresponding daily note.
+- Searchable, sortable table linking directly to the corresponding daily page via "Jump to Day" (`.btn-jump-day`) and external Google Doc via "Source Doc" (`View Google Doc ↗`).
 
 ### 4.5 Future Planning Matrix
 - 12-month forward-look overview.

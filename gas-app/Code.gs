@@ -1030,6 +1030,44 @@ function getOrCreateMonthlyNotesDoc_(targetFolder, docName, monthName, year) {
 }
 
 /**
+ * Helper to identify if a DocumentApp element is the heading for a specific target day.
+ * Matches HEADING2 paragraphs or lines containing dayFormatted or dateStr.
+ * @param {GoogleAppsScript.Document.Element} element Candidate body child element.
+ * @param {string} dateStr Target date in YYYY-MM-DD format.
+ * @param {string} [dayFormatted] Formatted date string (e.g. "Friday, September 25, 2026").
+ * @returns {boolean} True if element matches the day’s heading.
+ */
+function isDayHeadingElement_(element, dateStr, dayFormatted) {
+  if (!element || typeof DocumentApp === 'undefined') return false;
+  if (element.getType() !== DocumentApp.ElementType.PARAGRAPH) return false;
+  var p = element.asParagraph();
+  var heading = p.getHeading();
+  var text = p.getText().trim();
+  if (heading === DocumentApp.ParagraphHeading.HEADING2 || text.indexOf('Day Planner - ') === 0 || text.indexOf('## ') === 0) {
+    if (text.indexOf(dateStr) !== -1 || (dayFormatted && text.indexOf(dayFormatted) !== -1)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Helper to identify if a DocumentApp element marks any day’s section boundary.
+ * @param {GoogleAppsScript.Document.Element} element Candidate body child element.
+ * @returns {boolean} True if element is a day heading.
+ */
+function isAnyDayHeadingElement_(element) {
+  if (!element || typeof DocumentApp === 'undefined') return false;
+  if (element.getType() !== DocumentApp.ElementType.PARAGRAPH) return false;
+  var p = element.asParagraph();
+  var heading = p.getHeading();
+  var text = p.getText().trim();
+  if (heading === DocumentApp.ParagraphHeading.HEADING2) return true;
+  if (text.indexOf('Day Planner - ') === 0 || text.indexOf('## ') === 0) return true;
+  return false;
+}
+
+/**
  * Gets or creates the Monthly Note Google Doc (12 per year) and extracts/appends daily note content.
  * Script-efficient and formatted for human readability & printing.
  * @param {string} dateStr Target date string in YYYY-MM-DD format.
@@ -1046,25 +1084,55 @@ function getOrCreateDailyDocContent(dateStr) {
       return '### #index [Architecture] System Design\nFinalized 3-column binder layout with Alpine.js and clean CSS.';
     }
 
-    var d = new Date(dateStr + 'T00:00:00');
+    var parts = dateStr.split('-');
+    var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 12, 0, 0);
     var monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     var monthName = monthNames[d.getMonth()];
     var year = d.getFullYear();
     var docName = 'Day Planner Notes - ' + monthName + ' ' + year;
 
     var doc = getOrCreateMonthlyNotesDoc_(targetFolder, docName, monthName, year);
+    var body = doc.getBody();
+    var dayFormatted = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 
-    var fullText = doc.getBody().getText();
-    var dateHeader = '## ' + dateStr;
-    var dateIdx = fullText.indexOf(dateHeader);
+    var numChildren = body.getNumChildren();
+    var dayHeadingIndex = -1;
 
-    if (dateIdx !== -1) {
-      var nextDateIdx = fullText.indexOf('\n## ', dateIdx + dateHeader.length);
-      var sectionText = nextDateIdx !== -1 ? fullText.substring(dateIdx, nextDateIdx) : fullText.substring(dateIdx);
-      return sectionText.replace(dateHeader, '').trim();
-    } else {
-      return '### #index [General] Daily Notes for ' + dateStr + '\n- Initialized daily topic card.';
+    for (var i = 0; i < numChildren; i++) {
+      var child = body.getChild(i);
+      if (isDayHeadingElement_(child, dateStr, dayFormatted)) {
+        dayHeadingIndex = i;
+        break;
+      }
     }
+
+    if (dayHeadingIndex !== -1) {
+      var contentLines = [];
+      for (var j = dayHeadingIndex + 1; j < numChildren; j++) {
+        var el = body.getChild(j);
+        if (isAnyDayHeadingElement_(el)) {
+          break;
+        }
+        var type = el.getType();
+        if (type === DocumentApp.ElementType.PARAGRAPH) {
+          var p = el.asParagraph();
+          var heading = p.getHeading();
+          var text = p.getText();
+          if (heading === DocumentApp.ParagraphHeading.HEADING3) {
+            contentLines.push('### ' + text);
+          } else if (text.trim()) {
+            contentLines.push(text);
+          }
+        } else if (type === DocumentApp.ElementType.LIST_ITEM) {
+          contentLines.push('- ' + el.asListItem().getText());
+        }
+      }
+      if (contentLines.length > 0) {
+        return contentLines.join('\n');
+      }
+    }
+
+    return '### #index [General] Daily Notes for ' + dateStr + '\n- Initialized daily topic card.';
   } catch (err) {
     logError('getOrCreateDailyDocContent(' + dateStr + ')', err);
     return '### #index [General] Daily Notes for ' + dateStr;
@@ -1074,6 +1142,7 @@ function getOrCreateDailyDocContent(dateStr) {
 /**
  * Saves/updates daily topic cards content in the Monthly Google Doc (12 per year).
  * Efficient batch append/update with human-readable page spacing and print-friendly styles.
+ * Idempotently replaces existing day section in-place to prevent duplication.
  * @param {string} dateStr Target date in YYYY-MM-DD format.
  * @param {string} noteContent Markdown/card note content to persist.
  * @returns {{success: boolean, docName: string}} Result status.
@@ -1087,30 +1156,91 @@ function saveDailyDocCards(dateStr, noteContent) {
     var targetFolder = getValidatedRootFolder();
     if (!targetFolder) throw new Error('Root folder not configured.');
 
-    var d = new Date(dateStr + 'T00:00:00');
+    var parts = dateStr.split('-');
+    var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 12, 0, 0);
     var monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     var monthName = monthNames[d.getMonth()];
     var year = d.getFullYear();
     var docName = 'Day Planner Notes - ' + monthName + ' ' + year;
 
     var doc = getOrCreateMonthlyNotesDoc_(targetFolder, docName, monthName, year);
-
     var body = doc.getBody();
     var dayFormatted = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    var dayHeadingText = 'Day Planner - ' + dayFormatted;
 
-    body.appendPageBreak();
-    body.appendParagraph('Day Planner - ' + dayFormatted).setHeading(DocumentApp.ParagraphHeading.HEADING2);
-    
-    var lines = (noteContent || '').split('\n');
-    lines.forEach(function(line) {
-      if (line.startsWith('### ')) {
-        body.appendParagraph(line.replace('### ', '')).setHeading(DocumentApp.ParagraphHeading.HEADING3);
-      } else if (line.startsWith('- ')) {
-        body.appendListItem(line.replace('- ', ''));
-      } else if (line.trim()) {
-        body.appendParagraph(line);
+    var numChildren = body.getNumChildren();
+    var dayHeadingIndex = -1;
+
+    for (var i = 0; i < numChildren; i++) {
+      var child = body.getChild(i);
+      if (isDayHeadingElement_(child, dateStr, dayFormatted)) {
+        dayHeadingIndex = i;
+        break;
       }
-    });
+    }
+
+    var lines = (noteContent || '').split('\n');
+
+    if (dayHeadingIndex !== -1) {
+      // Idempotent replacement: determine range of existing day section [dayHeadingIndex, endIndex)
+      var endIndex = numChildren;
+      for (var j = dayHeadingIndex + 1; j < numChildren; j++) {
+        var nextChild = body.getChild(j);
+        if (isAnyDayHeadingElement_(nextChild)) {
+          // If the element immediately preceding next day heading is a PAGE_BREAK, keep it for next section
+          if (j > 0 && body.getChild(j - 1).getType() === DocumentApp.ElementType.PAGE_BREAK) {
+            endIndex = j - 1;
+          } else {
+            endIndex = j;
+          }
+          break;
+        }
+      }
+
+      // Safeguard: Ensure body has at least one permanent element before removing children
+      if (body.getNumChildren() <= (endIndex - dayHeadingIndex)) {
+        body.insertParagraph(0, 'Day Planner Notes - ' + monthName + ' ' + year).setHeading(DocumentApp.ParagraphHeading.HEADING1);
+        dayHeadingIndex++;
+        endIndex++;
+      }
+
+      // Delete existing day section elements in reverse index order
+      for (var k = endIndex - 1; k >= dayHeadingIndex; k--) {
+        body.removeChild(body.getChild(k));
+      }
+
+      // Insert updated day heading and cards in place
+      var insertIndex = dayHeadingIndex;
+      var h2 = body.insertParagraph(insertIndex++, dayHeadingText);
+      h2.setHeading(DocumentApp.ParagraphHeading.HEADING2);
+
+      lines.forEach(function(line) {
+        if (line.indexOf('### ') === 0) {
+          var h3 = body.insertParagraph(insertIndex++, line.replace('### ', ''));
+          h3.setHeading(DocumentApp.ParagraphHeading.HEADING3);
+        } else if (line.indexOf('- ') === 0) {
+          body.insertListItem(insertIndex++, line.replace('- ', ''));
+        } else if (line.trim()) {
+          body.insertParagraph(insertIndex++, line);
+        }
+      });
+    } else {
+      // New day: append page break if previous element is not already a page break, then append heading and cards
+      if (numChildren > 0 && body.getChild(numChildren - 1).getType() !== DocumentApp.ElementType.PAGE_BREAK) {
+        body.appendPageBreak();
+      }
+      body.appendParagraph(dayHeadingText).setHeading(DocumentApp.ParagraphHeading.HEADING2);
+
+      lines.forEach(function(line) {
+        if (line.indexOf('### ') === 0) {
+          body.appendParagraph(line.replace('### ', '')).setHeading(DocumentApp.ParagraphHeading.HEADING3);
+        } else if (line.indexOf('- ') === 0) {
+          body.appendListItem(line.replace('- ', ''));
+        } else if (line.trim()) {
+          body.appendParagraph(line);
+        }
+      });
+    }
 
     doc.saveAndClose();
     return { success: true, docName: docName };

@@ -33,29 +33,29 @@ The application implements a complete suite of Franklin Planner page views acces
 
 | Page Type | Layout & View Description | Google Workspace Integration |
 | :--- | :--- | :--- |
-| **1. Prioritized Daily Planner (2-Page Spread)** | Left page: Prioritized Daily Task List (A1-C9) & Daily Tracker. Right page: 7:00 AM - 7:00 PM Appointment Schedule & Scrollable Daily Notes view. | Google Calendar, Google Tasks, Google Docs |
+| **1. Prioritized Daily Planner (Daily 3-Column View / "Today" / Franklin 2-Page Spread)** | Digital implementation of the classic Franklin Covey 2-page spread across 3 columns: Column 1 Prioritized Task List (A1-C9), Column 2 Appointment Schedule (07:00 AM - 07:00 PM), Column 3 Modular Daily Notes. | Google Calendar, Google Tasks, Google Docs |
 | **2. Full-Screen Monthly Overview Calendar** | Interactive 7x5 monthly calendar grid displaying events, holidays, and high-level markers. | Google Calendar (`CalendarApp`) |
 | **3. Monthly Master Task List Page** | Categorized high-level task list (Personal, Business, Projects) with one-click transfer to daily task lists. | Dedicated Google Task Lists (`[Month] [Year] Master Tasks`) |
-| **4. Monthly Index Page** | Aggregated, searchable registry of key daily decisions, meeting summaries, and `#index` tagged notes. | Scanned Google Docs & Google Sheets |
+| **4. Monthly Index Page** | Aggregated, searchable registry of key daily decisions, meeting summaries, and `#index` tagged notes with in-app "Jump to Day" navigation and external "Source Doc" links. | Scanned Google Docs & Google Sheets |
 | **5. Future Planning Matrix** | 12-month forward-look overview for scheduling milestone events in upcoming months. | Google Calendar & Google Sheets |
 
 ---
 
 ## 4. Detailed Feature Specifications & Workflows
 
-### 4.1 Daily View (2-Page Spread)
-* **Left Page: Prioritized Daily Task List**:
-  * Prioritized task grid: Priority (A, B, C), Sequence (1..9), Title, Franklin status code (`✓` complete, `→` forwarded, `X` canceled, `G/✓` delegated, `•` in-process).
+### 4.1 Daily View (Daily 3-Column View / "Today" / Franklin 2-Page Spread)
+* **Left Column: Prioritized Daily Task List**:
+  * Prioritized task grid: Priority (A, B, C), Sequence (1..9), Title, Franklin status code (`✓` complete, `→` forwarded, `X` canceled, `D/✓` delegated, `•` in-process).
   * Auto-syncs with Google Tasks using `[A1]` title prefixes.
   * Drag-and-drop or button re-ordering.
-* **Right Page: Appointment Schedule (07:00 AM – 07:00 PM)**:
+* **Center Column: Appointment Schedule (07:00 AM – 07:00 PM)**:
   * Hourly grid with 30-minute subdivisions synced live with Google Calendar.
   * **Interactive Event Modal**: Clicking an event opens an interactive popup showing event details, attendees, description, and direct action buttons:
     * **Join Google Meet** (if video conference attached).
     * **Open in gCal** (opens event in a new Google Calendar browser tab).
-* **Right Page: Daily Notes View**:
-  * **Embedded Scrollable Google Doc**: The right-hand lower pane renders a scrollable view of the backing Google Doc for that day.
-  * Instantiated automatically using a custom **Franklin-Covey styled Google Docs Template** in `/Franklin Planner/YYYY/MM/`.
+* **Right Column: Modular Daily Notes View**:
+  * Topic cards with rich text, external links, and smart Drive title resolution.
+  * Persisted idempotently to backing monthly Google Docs (`Day Planner Notes - [Month] [Year]`).
 
 ### 4.2 Monthly Master Task List & Task Transfer Workflow
 * **Separate Monthly Task Lists**: Managed via dedicated Google Task Lists (e.g., `August 2026 Master Tasks`).
@@ -65,12 +65,12 @@ The application implements a complete suite of Franklin Planner page views acces
 
 ### 4.3 Full-Screen Monthly Calendar Page
 * Full-width grid showing all days of the selected month.
-* Clicking any day cell navigates directly to that day's Daily 2-Page Spread.
+* Clicking any day cell navigates directly to that day's Daily Page ("Today" 3-column view).
 * Displays calendar event pills fetched live from `CalendarApp`.
 
 ### 4.4 Monthly Index Page & Automated Scanning
-* **Automated Scan**: GAS backend periodically scans daily Google Docs for lines tagged with `#index` or `[INDEX]`.
-* **Index View**: Displays a table sorted by date showing `Date | Topic / Category | Summary Highlight | Direct Doc Link`.
+* **Automated Scan**: Backend aggregates `#index [Topic] Summary` entries from monthly notes.
+* **Index View**: Displays a table sorted by date showing `Date | Topic / Category | Summary Highlight | Daily Page | Source Doc`.
 
 ### 4.5 Universal Search Feature
 * **Search Header**: Top navigation bar includes a **Universal Search input bar** (`Ctrl + K` shortcut).
