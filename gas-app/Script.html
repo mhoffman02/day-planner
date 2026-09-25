@@ -8,7 +8,7 @@
     { value: '✓', label: 'Done' },
     { value: '→', label: 'Forward' },
     { value: 'X', label: 'Canceled' },
-    { value: 'Ⓓ', label: 'Delegated (Done)' }
+    { value: 'Ⓓ', label: 'Delegated' }
   ];
 
   function isValidStatus(status) {
@@ -513,6 +513,24 @@
           .withSuccessHandler(resolve)
           .withFailureHandler(reject)
           .updateDailyTask(dateStr, taskId, updates);
+      });
+    }
+
+    async deleteDailyTask(dateStr, taskId) {
+      if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+        const tasks = this.mockData.dailyTasks[dateStr] || this.mockData.dailyTasks['2026-08-15'] || [];
+        const taskIndex = tasks.findIndex(t => t.id === taskId);
+        if (taskIndex !== -1) {
+          tasks.splice(taskIndex, 1);
+        }
+        return true;
+      }
+
+      return new Promise((resolve, reject) => {
+        window.google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .deleteDailyTask(taskId);
       });
     }
 
@@ -1936,6 +1954,24 @@
         } catch (err) {
           console.error('🔥 addDailyTask error:', err);
           this.errorMessage = `Error adding task: ${err.message || err.toString()}`;
+        }
+      },
+
+      async deleteDailyTask(task) {
+        if (!task || !task.id) return;
+        this.openStatusMenuTaskId = null;
+        try {
+          const idx = this.dailyTasks.findIndex(t => t.id === task.id);
+          if (idx !== -1) {
+            this.dailyTasks.splice(idx, 1);
+          }
+          if (this.bridge && typeof this.bridge.deleteDailyTask === 'function') {
+            await this.bridge.deleteDailyTask(this.selectedDate, task.id);
+          }
+          await this.trigger2WaySync();
+        } catch (err) {
+          console.error('🔥 deleteDailyTask error:', err);
+          this.errorMessage = `Error deleting task: ${err.message || err.toString()}`;
         }
       },
 

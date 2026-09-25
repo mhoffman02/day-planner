@@ -1051,6 +1051,33 @@
     white-space: nowrap;
   }
 
+  .status-menu-separator {
+    height: 1px;
+    background: #e2ede8;
+    margin: 4px 0;
+  }
+
+  .status-menu-item-delete {
+    color: #c93b2b;
+  }
+
+  .status-menu-item-delete:hover {
+    background: #fdf2f2 !important;
+    color: #b91c1c !important;
+  }
+
+  .status-menu-item-glyph-delete {
+    color: #c93b2b;
+    border-color: #f8b4b4;
+    background: #fff5f5;
+  }
+
+  .status-menu-item-delete:hover .status-menu-item-glyph-delete {
+    background: #fee2e2;
+    border-color: #b91c1c;
+    color: #b91c1c;
+  }
+
   .task-done {
     text-decoration: line-through;
     opacity: 0.55;
@@ -2970,6 +2997,25 @@
     background: #11241c !important;
     color: #e2f2ec !important;
     border-color: #244a3b !important;
+  }
+
+  [data-theme="dark"] .status-menu-separator {
+    background: #244a3b;
+  }
+
+  [data-theme="dark"] .status-menu-item-delete {
+    color: #f87171 !important;
+  }
+
+  [data-theme="dark"] .status-menu-item-delete:hover {
+    background: #3b1818 !important;
+    color: #fca5a5 !important;
+  }
+
+  [data-theme="dark"] .status-menu-item-glyph-delete {
+    background: #2d1515 !important;
+    color: #f87171 !important;
+    border-color: #7f1d1d !important;
   }
 
   [data-theme="dark"] .notes-popover {

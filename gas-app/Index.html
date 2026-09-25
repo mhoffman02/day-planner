@@ -214,6 +214,15 @@
                                 <span x-text="opt.label"></span>
                               </button>
                             </template>
+                            <div class="status-menu-separator" role="separator"></div>
+                            <button type="button" class="status-menu-item status-menu-item-delete" role="menuitem"
+                                    @click="deleteDailyTask(task)"
+                                    aria-label="Delete task">
+                              <span class="status-menu-item-glyph status-menu-item-glyph-delete">
+                                <span class="material-symbols-outlined icon-14">delete</span>
+                              </span>
+                              <span>Delete</span>
+                            </button>
                           </div>
                         </div>
                       </td>

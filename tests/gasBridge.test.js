@@ -57,6 +57,20 @@ describe('GAS Bridge Unit Tests', () => {
     assert.equal(nonExistent, null);
   });
 
+  it('should delete daily task entirely via bridge', async () => {
+    const bridge = new GASBridge(true);
+    const initialData = await bridge.getDailyData('2026-08-15');
+    const initialCount = initialData.tasks.length;
+    const taskToDelete = initialData.tasks[0];
+
+    const result = await bridge.deleteDailyTask('2026-08-15', taskToDelete.id);
+    assert.equal(result, true);
+
+    const afterData = await bridge.getDailyData('2026-08-15');
+    assert.equal(afterData.tasks.length, initialCount - 1);
+    assert.equal(afterData.tasks.some(t => t.id === taskToDelete.id), false);
+  });
+
   it('should mirror daily task status change to source master task via bridge', async () => {
     const bridge = new GASBridge(true);
     const transferred = await bridge.transferMasterTask('m2', '2026-08-15', 'A');

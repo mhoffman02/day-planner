@@ -269,6 +269,30 @@ export class GASBridge {
   }
 
   /**
+   * Deletes a daily task entirely.
+   * @param {string} dateStr Target date in YYYY-MM-DD format.
+   * @param {string} taskId Task identifier.
+   * @returns {Promise<boolean>} True if deleted.
+   */
+  async deleteDailyTask(dateStr, taskId) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      const tasks = this.mockData.dailyTasks[dateStr] || this.mockData.dailyTasks['2026-08-15'] || [];
+      const taskIndex = tasks.findIndex(t => t.id === taskId);
+      if (taskIndex !== -1) {
+        tasks.splice(taskIndex, 1);
+      }
+      return true;
+    }
+
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .deleteDailyTask(taskId);
+    });
+  }
+
+  /**
    * Transfers a master task into the daily task list with priority prefix.
    * @param {string|object} masterTaskOrId Unique identifier or master task object.
    * @param {string} dateStr Target date in YYYY-MM-DD format.

@@ -1282,6 +1282,24 @@ Alpine.data('plannerApp', () => ({
         }
       },
 
+      async deleteDailyTask(task) {
+        if (!task || !task.id) return;
+        this.openStatusMenuTaskId = null;
+        try {
+          const idx = this.dailyTasks.findIndex(t => t.id === task.id);
+          if (idx !== -1) {
+            this.dailyTasks.splice(idx, 1);
+          }
+          if (this.bridge && typeof this.bridge.deleteDailyTask === 'function') {
+            await this.bridge.deleteDailyTask(this.selectedDate, task.id);
+          }
+          await this.trigger2WaySync();
+        } catch (err) {
+          console.error('🔥 deleteDailyTask error:', err);
+          this.errorMessage = `Error deleting task: ${err.message || err.toString()}`;
+        }
+      },
+
       setTaskSort(sortStateKey, column) {
         const state = this[sortStateKey];
         if (state.column === column) {

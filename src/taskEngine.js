@@ -37,7 +37,7 @@ export const STATUS_OPTIONS = [
   { value: '✓', label: 'Done' },
   { value: '→', label: 'Forward' },
   { value: 'X', label: 'Canceled' },
-  { value: 'Ⓓ', label: 'Delegated (Done)' }
+  { value: 'Ⓓ', label: 'Delegated' }
 ];
 
 /**

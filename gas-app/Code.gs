@@ -1431,6 +1431,27 @@ function updateDailyTask(dateStr, taskId, updates) {
 }
 
 /**
+ * Deletes a Google Task entirely by ID.
+ * @param {string} taskId Google Task id.
+ * @returns {boolean} True if deleted successfully.
+ */
+function deleteDailyTask(taskId) {
+  try {
+    if (typeof Tasks === 'undefined') {
+      return true;
+    }
+    Tasks.Tasks.remove('@default', taskId);
+    return true;
+  } catch (err) {
+    if (err.message && (err.message.indexOf('404') !== -1 || err.message.indexOf('Not Found') !== -1)) {
+      return true;
+    }
+    logError('deleteDailyTask(' + taskId + ')', err);
+    throw err;
+  }
+}
+
+/**
  * Computes the month key immediately following the given one, rolling into the next
  * calendar year after December. Mirrors src/futureMatrixEngine.js's nextMonthKey().
  * @param {string} monthKey Source month key in YYYY-MM format.
@@ -1874,6 +1895,7 @@ global.getDailyData = getDailyData;                          // google.script.ru
 global.getMasterTasks = getMasterTasks;                      // google.script.run: Script.html
 global.addDailyTask = addDailyTask;                          // google.script.run: Script.html
 global.updateDailyTask = updateDailyTask;                    // google.script.run: Script.html
+global.deleteDailyTask = deleteDailyTask;                    // google.script.run: Script.html
 global.addMasterTask = addMasterTask;                        // google.script.run: Script.html
 global.markMasterTaskMoved = markMasterTaskMoved;            // google.script.run: Script.html
 global.saveDailyDocCards = saveDailyDocCards;                // google.script.run: Script.html
@@ -1917,6 +1939,7 @@ global._getDailyDataInternal = getDailyData;
 global._getMasterTasksInternal = getMasterTasks;
 global._addDailyTaskInternal = addDailyTask;
 global._updateDailyTaskInternal = updateDailyTask;
+global._deleteDailyTaskInternal = deleteDailyTask;
 global._addMasterTaskInternal = addMasterTask;
 global._markMasterTaskMovedInternal = markMasterTaskMoved;
 global._saveDailyDocCardsInternal = saveDailyDocCards;
@@ -2016,6 +2039,10 @@ function addDailyTask(dateStr, title, category, sourceMasterId) {
 
 function updateDailyTask(dateStr, taskId, updates) {
   return (typeof _updateDailyTaskInternal === 'function') ? _updateDailyTaskInternal(dateStr, taskId, updates) : (globalThis._updateDailyTaskInternal ? globalThis._updateDailyTaskInternal(dateStr, taskId, updates) : null);
+}
+
+function deleteDailyTask(taskId) {
+  return (typeof _deleteDailyTaskInternal === 'function') ? _deleteDailyTaskInternal(taskId) : (globalThis._deleteDailyTaskInternal ? globalThis._deleteDailyTaskInternal(taskId) : null);
 }
 
 function addMasterTask(title, category) {

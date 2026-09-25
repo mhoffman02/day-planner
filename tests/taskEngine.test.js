@@ -76,6 +76,10 @@ describe('Task Engine Unit Tests', () => {
       assert.equal(typeof opt.label, 'string');
       assert.ok(opt.label.length > 0);
     });
+
+    const delegatedOpt = STATUS_OPTIONS.find(opt => opt.value === 'Ⓓ');
+    assert.ok(delegatedOpt);
+    assert.equal(delegatedOpt.label, 'Delegated');
   });
 
   it('should sort tasks correctly by priority group (A-C) and sequence (1-9)', () => {
