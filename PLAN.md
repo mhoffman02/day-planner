@@ -183,23 +183,34 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
   - Retained native H2/H3 for Google Docs native outline and printouts while keeping Day Planner SPA as primary presentation layer.
 - [x] Promote Phase 11 Enhancements to HOME (`@187`) and WORK (`@30`).
 
-### Phase 12: Calendar Meet Links & Notes Category Multi-Pick Toggles
-*Goal: Robust Google Meet video join links across Calendar API and text fields, tactile multi-select category toggles under Daily Notes header, persistent category doc storage, and Monthly Index badge propagation.*
+### Phase 12: Calendar Meet Links & Per-Card Category Segmented Checkboxes
+*Goal: Robust Google Meet video join links across Calendar API and text fields, compact 18px category segmented button-checkboxes under the summary textbox on each note card, persistent category doc storage, and Monthly Index badge propagation.*
 
 - [x] Calendar Google Meet Link Extraction (commit `a4eb7b0`):
   - Enabled `Calendar` v3 advanced service in `appsscript.json`.
   - Multi-field search across `hangoutLink`, `getHangoutLink()`, `conferenceData.entryPoints`, and regex matching across `title`, `description`, `location`.
   - 4 automated unit tests added to `tests/calendarEngine.test.js`.
-- [x] Notes Category Segmented Multi-Pick Toggles (commit `a4eb7b0`):
-  - Segmented button bar `[ Work | Personal | Meeting | Decision | Project ]` with multi-select checkbox toggle behavior under `Daily Notes for [Date]` header.
-  - Cleaned note card headers by eliminating the per-card `<select>` dropdown.
-- [x] Category Doc Persistence & Monthly Index Propagation (commit `a4eb7b0`):
-  - Serialized active categories as `#category: <values>` at top of daily notes, persisting idempotently to Google Docs.
-  - Propagated categories to Monthly Index table `Topic / Category` column via `.index-category-stamp`.
+  - Verified live in UAT by user.
+- [x] Note Card Compact Category Segmented Button-Checkboxes (commits `254b6cb` & `1de4bba`):
+  - Relocated category control from top of column into `.card-summary-col` directly underneath `"Set a Topic to index this card"` summary textbox (`.card-heading-input`) on each note card in `Index.html` and `gas-app/Index.html`.
+  - Reduced height from 26px to **18px** (~33% reduction), font to `0.68rem`, padding to `0 6px`, checkmark to `11px` in `src/styles.css` and `gas-app/Styles.html`.
+  - Added `toggleCardCategory(card, cat)` and `isCardCategorySelected(card, cat)` for per-card multi-select toggle behavior.
+  - Serialized categories per card under `###` heading in markdown as `#category: <cats>`, parsed losslessly in `parseDailyNoteToCards()` and `src/indexParser.js`.
+  - Wired `buildIndexRecords()` to pull each card's categories directly for Monthly Index rendering under `Topic / Category`.
   - Unit tests added to `tests/indexParser.test.js`.
-- [x] Production Deployments (HOME @188, WORK @32):
-  - HOME live at `@188` (`AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`).
-  - WORK promoted and Version 32 created targeting deployment `Version 3` (`9csO`).
+- [x] Production Deployments (HOME @189, WORK @34):
+  - HOME live at `@189` (`AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`).
+  - WORK promoted and Version 34 created targeting deployment `Version 3` (`9csO`).
+  - Tagged `v1.0-pure-gas` at commit `1de4bba`.
+
+### Phase 13: Master Tasks Date Horizon Filters & Unified Clearinghouse
+*Goal: Include incomplete tasks across all dates (past, today, future) on Master Tasks, provide thematic Blue Date Horizon filters (`[All Dates]`, `[Future]`, `[Overdue / Today]`, `[Undated]`), deduplicate moved tasks, and add Due Date column.*
+
+- [ ] Backend RPC enhancement (`gas-app/Code.gs:1384`, `src/gasBridge.js`): Retrieve undated tasks plus incomplete dated tasks (`!t.due || (!isComplete(t) && t.due)`).
+- [ ] Task deduplication: Merge moved master tasks (`[MovedTo: date, id]`) with their scheduled daily counterparts (`[SourceMaster: id]`).
+- [ ] Master Tasks Header Filters: Rename "Filter:" to "Status filter". Add visually distinct thematic blue Date Horizon filter button group `[All Dates]`, `[Future]`, `[Overdue / Today]`, `[Undated]`.
+- [ ] Master Tasks Table: Add `Due Date` column (sortable by date), date badge display (`Sep 28, 2026`, `Overdue`, `Undated`), and contextual Action buttons (`Jump to Day` vs `Move to Date`).
+- [ ] Automated tests in `tests/taskEngine.test.js` and `tests/gasBridge.test.js`.
 
 
 

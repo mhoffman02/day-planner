@@ -1,5 +1,22 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-25 — Note Card Compact Category Segmented Button-Checkboxes & Meet Link Verification (commits `254b6cb` & `1de4bba`, HOME @189, WORK @34)
+
+- [x] **Note Card Compact 18px Category Segmented Button-Checkboxes (commit `254b6cb`)**:
+  - Relocated category control from a single bar at the top of the column into `.card-summary-col` directly underneath the `"Set a Topic to index this card"` summary textbox (`.card-heading-input`) inside each note card in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) and [`index.html`](file:///home/mike/projects/day-planner/index.html).
+  - Reduced control height from 26px to **18px** (~33% reduction), font size to `0.68rem`, padding to `0 6px`, checkmark icon to `11px`, and preserved crisp 2px border radius (strictly no pills) in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html).
+  - Added `toggleCardCategory(card, cat)` and `isCardCategorySelected(card, cat)` for per-card multi-select toggle behavior in [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html).
+  - Serialized categories per card under `###` heading in markdown as `#category: <cats>`, parsed losslessly in `parseDailyNoteToCards()` and [`src/indexParser.js`](file:///home/mike/projects/day-planner/src/indexParser.js).
+  - Wired `buildIndexRecords()` to pull each card's categories directly for Monthly Index rendering under `Topic / Category`.
+  - Added unit test in [`tests/indexParser.test.js`](file:///home/mike/projects/day-planner/tests/indexParser.test.js).
+- [x] **Live Workspace UAT Verification**:
+  - Google Meet link in Appointments popup verified by user.
+  - Monthly Index Topic indexing verified by user.
+- [x] **Production Deployments (HOME @189, WORK @34)**:
+  - Deployed HOME Version 189 (`@189`) to deployment `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
+  - Promoted to WORK via `npm run push:work` and cut **Version 34** on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`.
+  - Tagged `v1.0-pure-gas` at commit `1de4bba`.
+
 ## 2026-09-25 — Google Meet Link Extraction & Notes Category Segmented Multi-Pick Toggles (commit `a4eb7b0`, HOME @188, WORK @32)
 
 - [x] **Google Meet Link Extraction in Appointment Modals (commit `a4eb7b0`)**:
