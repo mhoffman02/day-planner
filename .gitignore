@@ -8,4 +8,6 @@ scratch/
 .vscode/
 output/
 *.tmp
-/smoke-test.png
+screen-shots/
+/*.png
+!icons/apple-touch-icon.png
