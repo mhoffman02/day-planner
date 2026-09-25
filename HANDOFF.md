@@ -2,12 +2,14 @@
 
 ### OBJECTIVE
 
-Validate production promotion of Phase 9 polish, calendar modal fixes, and ergonomics improvements (status popup menu dynamic dropup without clipping, rounded outer corners on Priority A & C buttons, sanitized HTML vs plain-text description formatting, gCal direct event links, thematic non-alert priority colors, and local Pacific time) across HOME (`@178`) and WORK (`@16` on deployment `9csO`). Confirm live Workspace UAT and maintain pure GAS release tag `v1.0-pure-gas`.
+Validate production promotion of Phase 9 polish, calendar modal fixes, and ergonomics improvements (priority button hover tooltips, keyboard shortcuts, inline #a/#b/#c priority prefix detection, status popup menu dynamic dropup without clipping, rounded outer corners on Priority A & C buttons, sanitized HTML vs plain-text description formatting, gCal direct event links, thematic non-alert priority colors, and local Pacific time) across HOME (`@179`) and WORK (`@17` on deployment `9csO`). Confirm live Workspace UAT and maintain pure GAS release tag `v1.0-pure-gas`.
 
 ---
 
 ### KEY DECISIONS
 
+- **Task Priority Button Hover Titles & Keyboard Shortcuts**: Added hover tooltips (`title="A: Top priority (Alt+A or #a)"`, `title="B: Medium priority (Alt+B or #b)"`, `title="C: Normal priority (Alt+C or #c)"`) and `accesskey="a/b/c"`. Wired global and field keyboard shortcuts for `Alt+A/B/C` and `Ctrl+Shift+A/B/C` in [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html) that switch active priority and focus the task input field without conflicting with browser standard Select-All (`Ctrl+A`) or Copy (`Ctrl+C`) ([commit `21a551d`](file:///home/mike/projects/day-planner)).
+- **Inline `#a`, `#b`, `#c` Task Priority Parsing**: Implemented `extractInlinePriority` in [`src/taskEngine.js`](file:///home/mike/projects/day-planner/src/taskEngine.js) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html). Typing or pasting `#a`, `#b`, or `#c` (with colon, dash, or whitespace separator) activates the corresponding priority button and strips the prefix, while preserving regular hashtag words (e.g., `#accounting`). Updated placeholder to `Add task title (e.g. Call vendor / #a Call vendor)...` across [`index.html`](file:///home/mike/projects/day-planner/index.html) and [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html).
 - **Status Popup Menu Clipping & Dropup**: Fixed bottom clipping by setting `overflow: visible` on `figure.table-container` in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html). Added dynamic dropup space detection (`spaceBelow < 220`) in `openStatusMenu` / `toggleStatusMenu` in [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), added CSS nth-last-child dropup fallback, and elevated z-index on active task rows to prevent any overlap or clipping ([commit `81d518d`](file:///home/mike/projects/day-planner)).
 - **Rounded Outer Priority Buttons Corners**: Styled `.priority-segmented-group` with `border-radius: 6px` and added explicit outer corner radii to Priority "A" (NW, SW: `border-top-left-radius: 5px; border-bottom-left-radius: 5px;`) and Priority "C" (NE, SE: `border-top-right-radius: 5px; border-bottom-right-radius: 5px;`) in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html), keeping inner shared borders flush and rectilinear.
 - **Appointment Modal HTML vs Plain-Text Rendering**: Descriptions matching `/<[a-z][\s\S]*?>/i` are sanitized (stripping scripts, styles, on-event handlers, and unsafe protocols; setting `target="_blank" rel="noopener noreferrer"` on links) and rendered via `x-html`. Plain-text descriptions are escaped and wrapped in `<pre>` to preserve line breaks ([commit `6f25dc2`](file:///home/mike/projects/day-planner)). Bound via `formatEventDescriptionHtml` in [`src/calendarEngine.js`](file:///home/mike/projects/day-planner/src/calendarEngine.js) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html).
@@ -19,14 +21,14 @@ Validate production promotion of Phase 9 polish, calendar modal fixes, and ergon
 ### CURRENT STATE
 
 - **Repository Branch**: `pure-gas-main`.
-- **Latest Commit**: [`81d518d`](file:///home/mike/projects/day-planner) (`fix(tasks): prevent status popup clipping with dynamic dropup and round outer priority button corners`).
-- **Production Git Tag**: [`v1.0-pure-gas`](file:///home/mike/projects/day-planner) updated to commit [`81d518d`](file:///home/mike/projects/day-planner) and pushed to GitHub origin.
+- **Latest Commit**: [`21a551d`](file:///home/mike/projects/day-planner) (`feat(tasks): add priority button hover titles, keyboard shortcuts, and inline #a/#b/#c prefix parsing`).
+- **Production Git Tag**: [`v1.0-pure-gas`](file:///home/mike/projects/day-planner) updated to commit [`21a551d`](file:///home/mike/projects/day-planner) and pushed to GitHub origin.
 - **Live Deployment State**:
-  - HOME Prod (`day-planner-v01`): Version 178 (`@178`) live at [https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec).
-  - WORK Prod (`9csO`): Code promoted and Version 16 created on script `1980roEKgkC_...`. Target endpoint is [https://script.google.com/a/macros/gsa.gov/s/AKfycbzRwZFZH9bT5jQtqq0ncBPbokoQGKjSUyBQNVDtPpOISwtdMSXlNAns8E9WFtUM9csO/exec](https://script.google.com/a/macros/gsa.gov/s/AKfycbzRwZFZH9bT5jQtqq0ncBPbokoQGKjSUyBQNVDtPpOISwtdMSXlNAns8E9WFtUM9csO/exec).
+  - HOME Prod (`day-planner-v01`): Version 179 (`@179`) live at [https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec](https://script.google.com/macros/s/AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q/exec).
+  - WORK Prod (`9csO`): Code promoted and Version 17 created on script `1980roEKgkC_...`. Target endpoint is [https://script.google.com/a/macros/gsa.gov/s/AKfycbzRwZFZH9bT5jQtqq0ncBPbokoQGKjSUyBQNVDtPpOISwtdMSXlNAns8E9WFtUM9csO/exec](https://script.google.com/a/macros/gsa.gov/s/AKfycbzRwZFZH9bT5jQtqq0ncBPbokoQGKjSUyBQNVDtPpOISwtdMSXlNAns8E9WFtUM9csO/exec).
 - **Pre-Flight Verification**: Passed cleanly:
   - `npm run lint`: 0 errors.
-  - `npm test`: 93/93 unit tests passing across 11 suites.
+  - `npm test`: 98/98 unit tests passing across 12 suites.
   - `npm run check:gas-safe-chars`: Clean.
 
 ---
@@ -45,12 +47,14 @@ Validate production promotion of Phase 9 polish, calendar modal fixes, and ergon
 
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
-1. **Activate Version 16 on WORK Deployment `Version 3` (`9csO`)**:
-   - In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit), select deployment `Version 3` (`9csO`), click **Edit** (pencil), select **New version** (or Version 16), and click **Deploy** ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md)).
+1. **Activate Version 17 on WORK Deployment `Version 3` (`9csO`)**:
+   - In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit), select deployment `Version 3` (`9csO`), click **Edit** (pencil), select **New version** (or Version 17), and click **Deploy** ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md)).
 2. **Live Workspace UAT of Phase 9 & Ergonomic Fixes**:
+   - Verify Priority buttons show hover text and `Alt+A`, `Alt+B`, `Alt+C` hotkeys switch priority and focus task input.
+   - Verify typing `#a Call vendor` sets priority to A and creates the task with clean title `Call vendor`.
    - Verify Status popup menu opens without clipping on all tasks (including bottom rows).
    - Verify Priority buttons show rounded outer corners on A (NW/SW) and C (NE/SE).
-   - Verify HTML event descriptions render with active new-tab links, plain-text descriptions format cleanly with preserved whitespace, and [Open in gCal] opens the specific event without 500 error on HOME (`@178`) and WORK (`@16`) ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md)).
+   - Verify HTML event descriptions render with active new-tab links, plain-text descriptions format cleanly with preserved whitespace, and [Open in gCal] opens the specific event without 500 error on HOME (`@179`) and WORK (`@17`) ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md)).
 3. **Standalone Desktop Shortcut ("Open as Window")**:
    - Verify Chrome "Install Day Planner" / "Open as window" desktop workflow from [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html) ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md)).
 
@@ -58,4 +62,4 @@ Validate production promotion of Phase 9 polish, calendar modal fixes, and ergon
 
 ### IMMEDIATE NEXT STEP
 
-Open [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) under `michael.hoffman@gsa.gov`, click **Deploy** > **Manage deployments**, select deployment `Version 3` (`9csO`), click **Edit** (pencil), select **New version** (or Version 16), and click **Deploy**.
+Open [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) under `michael.hoffman@gsa.gov`, click **Deploy** > **Manage deployments**, select deployment `Version 3` (`9csO`), click **Edit** (pencil), select **New version** (Version 17), and click **Deploy**.
