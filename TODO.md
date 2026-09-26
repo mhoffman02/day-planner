@@ -1,27 +1,17 @@
 # Active Tasks (TODO)
 
-- [ ] **1. Live Workspace UAT of Phase 13 Polish & Install Affordances**:
-  - [ ] **Master Tasks Scroll & Thematic Scrollbars**:
-    - Verify scrollbar renders cleanly when tasks exceed container space (`.master-tasks-table-container`).
-    - Verify sticky table header (`th`) remains pinned at the top during scrolling.
-    - Verify subtle thematic scrollbars in both Light (slate-teal thumb) and Dark (forest jade thumb) modes.
-  - [ ] **Master Tasks Quick-Add Due Date & Visibility**:
-    - Verify optional due date input between Task Title and Category in quick-add bar.
-    - Add a task with a due date and confirm it saves to Google Tasks and appears in the table with date badge.
-    - Verify adding an undated task while filtered to Future/Overdue automatically resets horizon filter to `All Dates`.
-  - [ ] **Themed Date Pickers**:
-    - Verify `.master-task-date-input`, `.master-task-due-date-input`, and `.future-item-date-input` date pickers in Light and Dark modes.
-    - Verify calendar picker indicator glyph matches theme (teal in Light, mint in Dark).
-  - [ ] **Category Autocomplete `<datalist>`**:
-    - Focus Category input on Master Tasks and Daily Tasks quick-add bars.
-    - Verify dropdown suggestions populate dynamically from existing tasks and categories (`#category-suggestions`).
-  - [ ] **Note Card Category Buttons**:
-    - Verify 20px button height and bottom padding cleanly accommodate font descenders (`g`, `y`, `p`).
-  - [ ] **Desktop Install Affordance & Modal Guide**:
-    - In About tab, verify header button reads `Install Day Planner` with tooltip `Version 3.0 — Click to install Day Planner as a desktop app`.
-    - Click header Install button or Section 5 `Install Day Planner` button and verify Install Guide modal opens.
-    - Verify Section 5 `Copy Direct App Link` button copies URL to clipboard with "Copied!" feedback.
-    - In Dark mode, verify secondary outline button styling (transparent background, mint `#79d6bd` text, `#3b8773` border).
+- [ ] **1. Live Workspace UAT of Phase 13 UX Polish & App Affordances**:
+  - [ ] **Fixed Top App Bar**: Verify `header.single-top-bar` remains pinned to the viewport without bouncing or scrolling out of view when scrolling long views.
+  - [ ] **Dark Mode Datepicker Contrast**: Verify calendar picker icon is inverted and cleanly visible against dark mode backgrounds.
+  - [ ] **Themed Open Folio Favicon**: Verify the new green-themed folio favicon (`#163b2f` fill, `#6ee7b7` mint outline) renders with high contrast across light, dark, and teal browser tabs.
+  - [ ] **Notion-Style LRU Topic Popover**:
+    - Focus the `"Local only"` topic field on a daily note card and verify recent topics popover opens.
+    - Test typing filter, arrow-key navigation (`↑`/`↓`), `Enter` to select, and `Esc` to close.
+    - Click the `"×"` button on an item and verify it is removed from the persistent 10-item LRU cache (`dayPlannerTopicLRU` in `localStorage`).
+  - [ ] **Direct App Link Copier**: Click `[Copy direct app link]` in About tab Section 5 and verify the copied link is the real published `/exec` URL and opens cleanly in a new window/tab without sandboxed OAuth redirection.
+  - [ ] **Install Modal Trigger**: Click `[Install Day Planner]` (in header and Section 5) and verify Dialog 4 (`.modal-card-install`) opens cleanly without self-closing.
+  - [ ] **Master Tasks Scroll & Due Date**: Verify sticky header, custom 8px scrollbar, and due date quick-add persist to Google Tasks.
+  - [ ] **Category Suggestions**: Verify dynamic `<datalist id="category-suggestions">` on task quick-add bars.
 
 - [ ] **2. Phase 14 Roadmap: Advanced Productivity Enhancements**:
   - Evaluate recurring tasks / daily template checklist support.

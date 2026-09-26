@@ -216,8 +216,9 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 - [x] Scroll-on-Demand Containers & Sticky Headers Across All Tabs (commit `a556ac6`): Applied scroll-on-demand containers and sticky headers across Index, Future, About, Daily, and Master Tasks tabs.
 - [x] Master Tasks Quick-Add Due Date & Container Fix (commit `d71ad36`): Fixed `figure.table-container` CSS override with `overflow-y: auto !important`, added due date picker to quick-add bar, and enlarged note card category buttons to 20px.
 - [x] Desktop Install Affordances & Themed Controls (commits `6bb391f` & `9123699`): Themed date pickers in light/dark modes, dynamic category autocomplete datalist, dark mode secondary outline buttons, interactive About install button, and Install Guide modal.
-- [x] Automated tests in [`tests/taskEngine.test.js`](file:///home/mike/projects/day-planner/tests/taskEngine.test.js) and [`tests/gasBridge.test.js`](file:///home/mike/projects/day-planner/tests/gasBridge.test.js) (136/136 tests passing across 17 suites).
-- [x] Production Deployments (commits `d71ad36`, `6bb391f`, `9123699`, HOME `@197`, WORK `@46`).
+- [x] Top Bar Pinning, Notion-Style Topic Autocomplete, Link Copier & Theme Favicon (commits `4009193`, `0e61981`, `afee716`, `eb69e81`): Pinned top app bar to eliminate bouncing, inverted dark datepicker indicator, implemented 10-item persistent LRU topic popover with keyboard navigation and "×" deletion, fixed direct app link retrieval via `ScriptApp.getService().getUrl()`, resolved install modal trigger self-close bug, and generated high-contrast theme-green open folio favicon with mint outline.
+- [x] Automated tests in [`tests/taskEngine.test.js`](file:///home/mike/projects/day-planner/tests/taskEngine.test.js) and [`tests/gasBridge.test.js`](file:///home/mike/projects/day-planner/tests/gasBridge.test.js) (137/137 tests passing across 17 suites).
+- [x] Production Deployments (commits `4009193`, `0e61981`, `afee716`, `eb69e81`, HOME `@203`, WORK `@49`).
 
 ### Phase 14: Advanced Productivity & Usability Enhancements
 *Goal: Ongoing workspace polish, recurring tasks / daily template checklists, rich text / markdown checklist support in topic cards, and offline cached read-only fallback mode.*

@@ -1,5 +1,29 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-25 — Top Bar Pinning, High-Contrast Dark Datepickers, Notion-Style LRU Topic Popover, Direct App Link Copier, Install Trigger Fix, & Green/Mint Folio Favicon (commits `4009193`, `0e61981`, `afee716`, `eb69e81`, HOME @203, WORK @49)
+
+- [x] **Fixed Top App Bar (commit `4009193`)**:
+  - Pinned `header.single-top-bar` with `position: fixed; top: 0; left: 0; right: 0; height: 48px; z-index: 1000;` in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css#L228) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html).
+  - Added `padding-top: 56px` to `body` and raised modal `z-index: 10000;` so dialogs render above the fixed top bar without bouncing or scrolling away.
+- [x] **High-Contrast Dark Mode Calendar Picker Icon (commit `4009193`)**:
+  - Inverted calendar indicator icon in dark mode using `filter: brightness(0) invert(1) !important; opacity: 1 !important;` in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css#L2877) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html#L3012), ensuring sharp visibility against dark backgrounds.
+- [x] **Notion-Style LRU Topic Autocomplete Dropdown (commit `4009193`)**:
+  - Implemented persistent 10-item LRU cache stored in `localStorage` (`dayPlannerTopicLRU`) in [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js#L688) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html#L1458).
+  - Rendered popover dropdown on focus/typing with keyboard navigation (`↑`, `↓`, `Enter`, `Esc`) in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html#L439) and [`index.html`](file:///home/mike/projects/day-planner/index.html#L433).
+  - Added dedicated "×" delete action on each row to remove items from the LRU cache.
+- [x] **Direct App Link Copier RPC Fix (commit `4009193`)**:
+  - Replaced sandboxed iframe OAuth URL (`...userCodeAppPanel?createOAuthDialog=true`) by pre-injecting `window.__DAY_PLANNER_WEB_APP_URL__` using `ScriptApp.getService().getUrl()` in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html#L30), and adding `getWebAppUrl()` RPC in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L2248) and [`src/gasBridge.js`](file:///home/mike/projects/day-planner/src/gasBridge.js#L669).
+- [x] **Install Modal Trigger Self-Close Bugfix (commit `4009193`)**:
+  - Added `@click.stop` to trigger buttons in [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html#L11) and removed `@click.away` from [`modal-card-install`](file:///home/mike/projects/day-planner/gas-app/Index.html#L1139) to prevent immediate self-closing on document bubble phase.
+- [x] **Theme-Green Open Folio Favicon with Minty Outline & Crash Fix (commits `afee716` & `eb69e81`)**:
+  - Resolved Google Apps Script `HtmlOutput.setFaviconUrl()` runtime exception (`The favicon icon image type is not supported`) caused by SVG/data URIs by strictly using PNG format.
+  - Wrapped every `.setFaviconUrl()` call in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L292) and [`gas-app/UnitTests.gs`](file:///home/mike/projects/day-planner/gas-app/UnitTests.gs#L301) in `try / catch` blocks to safeguard against favicon loading errors.
+  - Designed theme-green open folio icon: deep forest green fill (`#163b2f`), binder teal turning leaf (`#2d6a5a`), and bright minty outline (`#6ee7b7`) for high contrast on light tabs (~10:1 ratio) and dark/teal tabs (~9:1 ratio).
+  - Generated production PNGs at [`icons/favicon.png`](file:///home/mike/projects/day-planner/icons/favicon.png) (96×96 Retina), [`icons/favicon-32x32.png`](file:///home/mike/projects/day-planner/icons/favicon-32x32.png), and [`icons/favicon-16x16.png`](file:///home/mike/projects/day-planner/icons/favicon-16x16.png), pushed to GitHub `origin/pure-gas-main`, and verified live HTTP 200 via `raw.githubusercontent.com`.
+- [x] **Production Deployments (HOME @203, WORK @49)**:
+  - HOME live at `@203` (`AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`).
+  - WORK promoted via `npm run push:work` and Version 49 created on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`.
+
 ## 2026-09-25 — Master Tasks UX Fixes, Quick-Add Due Date, Themed Date Pickers, Category Autocomplete, Install Affordance & Modal Guide (commits `d71ad36`, `6bb391f`, `9123699`, HOME @197, WORK @46)
 
 - [x] **Master Tasks Scroll Container & Thematic Scrollbar Bugfix (commit `d71ad36`)**:
