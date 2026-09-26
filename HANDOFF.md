@@ -2,11 +2,17 @@
 
 ### OBJECTIVE
 
-Deliver a pure Google Apps Script digital binder productivity app bridging Franklin Covey Day Planner methodology with Google Workspace APIs (Calendar, Tasks, Drive). The immediate focus is activating Version 35 on WORK deployment `Version 3` (`9csO`) and completing live workspace UAT across Phase 12 (note card compact category segmented buttons & Meet link join) and Phase 13 (Master Tasks Option A clearinghouse with thematic blue Date Horizon filters).
+Deliver a pure Google Apps Script digital binder productivity app bridging Franklin Covey Day Planner methodology with Google Workspace APIs (Calendar, Tasks, Drive). The immediate focus is activating Version 37 on WORK deployment `Version 3` (`9csO`) and completing live workspace UAT across Phase 12 (note card compact category segmented buttons & Meet link join), Phase 13 (Master Tasks Option A clearinghouse with thematic blue Date Horizon filters), and the Master Tasks Quick-Add UX clarification.
 
 ---
 
 ### KEY DECISIONS
+
+- **Master Tasks Option A: Quick-Add UX Clarification & Visibility Guarantees ([commit `79bc761`](file:///home/mike/projects/day-planner))**:
+  - **Framing & Affordance**: Added explicit `New Task:` section label with `add_task` icon in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html#L633) and [`index.html`](file:///home/mike/projects/day-planner/index.html#L633) inside a framed container (`.master-task-add-bar`), cleanly separating the quick-add entry row from the filter toolbars above it.
+  - **Tooltips & Spinner**: Priority selector buttons explicitly titled `Assign Priority A/B/C`, and submit button displays a spinning `progress_activity` icon while Apps Script persists the task.
+  - **Visibility Guarantee**: When adding an undated master task while the Date Horizon filter is set to `[Future]` or `[Overdue / Today]`, `masterTaskDateFilter` automatically switches to `all` (and includes `•` in status filters) so the newly created task is never silently hidden from view.
+  - **Row Highlight**: Applied `.row-just-added` CSS animation (`task-flash-highlight`) to subtly flash the newly added row in teal for 2 seconds.
 
 - **Master Tasks Option A: Unified Clearinghouse & Thematic Blue Date Horizon Filters ([commit `d685fb4`](file:///home/mike/projects/day-planner))**:
   - **Philosophy**: Incomplete tasks scheduled for past or future dates previously vanished from Master Tasks because [`gas-app/Code.gs:1396`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L1396) strictly filtered out all tasks with `t.due`. Master Tasks is now the unified clearinghouse: undated backlog tasks plus any incomplete dated task (`status !== '✓' && status !== 'X'`).
@@ -17,16 +23,9 @@ Deliver a pure Google Apps Script digital binder productivity app bridging Frank
   - **Table Due Date Column**: Sortable `Due Date` column added to Master Tasks table displaying date stamps (`Sep 28, 2026`, `Overdue`, `Undated`), plus contextual Action buttons (`Jump to Day` for scheduled vs date picker + `Move to Date` for undated).
   - **Automated Test Coverage**: 135/135 tests passing cleanly across 17 suites, including unit tests in [`tests/taskEngine.test.js`](file:///home/mike/projects/day-planner/tests/taskEngine.test.js#L357) and [`tests/gasBridge.test.js`](file:///home/mike/projects/day-planner/tests/gasBridge.test.js#L20).
 
-- **Note Card Compact 18px Category Segmented Button-Checkboxes ([commits `254b6cb` & `1de4bba`](file:///home/mike/projects/day-planner))**:
-  - Relocated category control into `.card-summary-col` directly underneath the `"Set a Topic to index this card"` summary textbox (`.card-heading-input`) inside each note card in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) and [`index.html`](file:///home/mike/projects/day-planner/index.html).
-  - Reduced control height from 26px to **18px** (~33% reduction), font size to `0.68rem`, padding to `0 6px`, checkmark icon to `11px`, and preserved crisp 2px border radius (strictly no pills) in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html).
-  - Implemented `toggleCardCategory(card, cat)` and `isCardCategorySelected(card, cat)` for per-card multi-select toggle behavior in [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html).
-  - Serialized categories per card under `###` heading in markdown as `#category: <cats>`, parsed losslessly in `parseDailyNoteToCards()` and [`src/indexParser.js`](file:///home/mike/projects/day-planner/src/indexParser.js).
-  - Wired `buildIndexRecords()` to pull each card's categories directly for Monthly Index rendering under `Topic / Category`.
-
-- **Live Deployments & Clasp Sync**:
-  - HOME Prod (`day-planner-v01`): Version 190 (`@190`) deployed live on `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
-  - WORK Prod (`9csO`): Code promoted via `npm run push:work` and Version 35 created on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`. Target deployment `Version 3` (`9csO`) awaits manual activation to Version 35 in WORK Apps Script IDE.
+- **Deployment Hygiene & Clasp Sync**:
+  - HOME Prod (`day-planner-v01`): Pruned old test deployments with `clasp undeploy` down to the 3 most recent (@184, @185, @191). Version 191 (`@191`) is live on `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
+  - WORK Prod (`9csO`): Code promoted via `npm run push:work` and Version 37 created on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`. Target deployment `Version 3` (`9csO`) awaits manual activation to Version 37 in WORK Apps Script IDE.
 
 ---
 
@@ -34,12 +33,12 @@ Deliver a pure Google Apps Script digital binder productivity app bridging Frank
 
 - **Repository Branch**: `pure-gas-main`.
 - **Latest Commits**:
+  - [`79bc761`](file:///home/mike/projects/day-planner): `fix(master-tasks): clarify quick-add bar UX with New Task framing, spinner feedback, visibility auto-switch and row highlight`.
+  - [`33fa089`](file:///home/mike/projects/day-planner): `docs(handoff): session transition and task queue`.
   - [`d685fb4`](file:///home/mike/projects/day-planner): `feat(master-tasks): option A unified clearinghouse, archival blue horizon filters, due date column & deduplication`.
-  - [`1de4bba`](file:///home/mike/projects/day-planner): `docs(todo): record Version 34 on WORK and UAT status for per-card categories`.
-  - [`254b6cb`](file:///home/mike/projects/day-planner): `fix(notes): compact 18px category segmented button-checkboxes placed under summary textbox in note cards`.
 - **Live Deployment State**:
-  - HOME Prod (`day-planner-v01`): Version 190 (`@190`) deployed on `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
-  - WORK Prod (`9csO`): Pushed code and created Version 35 on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`.
+  - HOME Prod (`day-planner-v01`): Version 191 (`@191`) deployed on `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
+  - WORK Prod (`9csO`): Pushed code and created Version 37 on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`.
 - **Pre-Flight Verification**:
   - `npm run lint`: 0 errors (3 existing warnings).
   - `npm test`: 135/135 unit tests passing across 17 suites.
@@ -61,9 +60,11 @@ Deliver a pure Google Apps Script digital binder productivity app bridging Frank
 
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
-1. **Deploy Version 35 on WORK Deployment `Version 3` (`9csO`) ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L3-L4))**:
-   - In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) under `michael.hoffman@gsa.gov`, click **Deploy** > **Manage deployments**, select deployment `Version 3` (`9csO`), edit (pencil icon), select **New version** (Version 35), and click **Deploy**.
-2. **Live Workspace UAT of Phase 12 & 13 Features ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L5-L10))**:
+1. **Deploy Version 37 on WORK Deployment `Version 3` (`9csO`) ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L3-L4))**:
+   - In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) under `michael.hoffman@gsa.gov`, click **Deploy** > **Manage deployments**, select deployment `Version 3` (`9csO`), edit (pencil icon), select **New version** (Version 37), and click **Deploy**.
+   - Optional cleanup: in "Manage deployments", select each older intermediate deployment and click the Archive/Delete (trash can) icon in the top right.
+2. **Live Workspace UAT of Phase 12 & 13 Features ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L5-L11))**:
+   - Verify Master Tasks Quick-Add bar (`New Task:` framing, priority tooltip, spinner on add, auto-switch to `All Dates` on submit, row flash highlight).
    - Verify compact 18px category segmented buttons on note cards.
    - Verify Master Tasks Date Horizon filter (`[All Dates]`, `[Future]`, `[Overdue / Today]`, `[Undated]`).
    - Verify Master Tasks status filter title `"Status filter"`.
@@ -76,4 +77,4 @@ Deliver a pure Google Apps Script digital binder productivity app bridging Frank
 
 ### IMMEDIATE NEXT STEP
 
-In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) under `michael.hoffman@gsa.gov`, click **Deploy** > **Manage deployments**, select deployment `Version 3` (`9csO`), click the pencil icon, choose **New version** (Version 35), and click **Deploy**.
+In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) under `michael.hoffman@gsa.gov`, click **Deploy** > **Manage deployments**, select deployment `Version 3` (`9csO`), click the pencil icon, choose **New version** (Version 37), and click **Deploy**.
