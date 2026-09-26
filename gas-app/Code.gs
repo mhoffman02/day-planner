@@ -1297,25 +1297,30 @@ function resolveDriveFileTitle(url) {
   if (!url || typeof url !== 'string') {
     return { success: false, error: 'No URL provided.' };
   }
-  var idMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  var idMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/) || url.match(/\/folders\/([a-zA-Z0-9_-]+)/);
   if (!idMatch) {
     return { success: false, error: 'Not a recognized Google Docs/Sheets/Slides/Forms/Drive URL.' };
   }
   try {
     var fileId = idMatch[1];
+    var isFolder = /\/folders\//.test(url);
+    if (typeof DriveApp !== 'undefined') {
+      if (isFolder) {
+        var folder = DriveApp.getFolderById(fileId);
+        return { success: true, title: folder.getName(), fileId: fileId };
+      }
+      var file = DriveApp.getFileById(fileId);
+      if (file.isTrashed()) {
+        return { success: false, error: 'File is trashed.' };
+      }
+      return { success: true, title: file.getName(), fileId: fileId };
+    }
     if (typeof Drive !== 'undefined' && Drive.Files && Drive.Files.get) {
       var meta = Drive.Files.get(fileId, { fields: 'id,name,trashed' });
       if (meta.trashed) {
         return { success: false, error: 'File is trashed.' };
       }
       return { success: true, title: meta.name, fileId: fileId };
-    }
-    if (typeof DriveApp !== 'undefined') {
-      var file = DriveApp.getFileById(fileId);
-      if (file.isTrashed()) {
-        return { success: false, error: 'File is trashed.' };
-      }
-      return { success: true, title: file.getName(), fileId: fileId };
     }
     return { success: true, title: 'Document (' + fileId.slice(0, 6) + ')', fileId: fileId };
   } catch (err) {

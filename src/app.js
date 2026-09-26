@@ -92,6 +92,18 @@ Alpine.data('plannerApp', () => ({
       searchResults: { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [] },
       selectedSearchIndex: -1,
 
+      // Insert Hyperlink Modal state
+      linkModalOpen: false,
+      linkModalCard: null,
+      linkModalLineIdx: null,
+      linkModalSelStart: null,
+      linkModalSelEnd: null,
+      linkModalUrl: '',
+      linkModalText: '',
+      linkModalResolving: false,
+      linkModalDetectedDrive: false,
+      linkModalLastResolvedUrl: '',
+
       // Task inputs
       newTaskTitle: '',
       newTaskCategory: '',
@@ -375,7 +387,10 @@ Alpine.data('plannerApp', () => ({
             e.preventDefault();
             this.toggleSearchModal();
           } else if (e.key === 'Escape') {
-            if (this.searchModalOpen) {
+            if (this.linkModalOpen) {
+              e.preventDefault();
+              this.closeLinkModal();
+            } else if (this.searchModalOpen) {
               e.preventDefault();
               this.closeSearchModal();
             } else if (this.eventModalOpen) {
@@ -384,6 +399,9 @@ Alpine.data('plannerApp', () => ({
             } else if (this.createEventModalOpen) {
               e.preventDefault();
               this.closeCreateEventModal();
+            } else if (this.installModalOpen) {
+              e.preventDefault();
+              this.closeInstallModal();
             } else if (this.maximizedColumn) {
               e.preventDefault();
               this.maximizedColumn = null;
@@ -1021,24 +1039,193 @@ Alpine.data('plannerApp', () => ({
         return '';
       },
 
-      insertLineLink(card, idx) {
-        if (!card) return;
-        const lines = this.cardLines(card);
-        const text = lines[idx] || '';
-        const rawUrl = window.prompt('Enter web link URL (https://...):', 'https://');
-        if (!rawUrl) return;
-        const url = this.normalizeLinkUrl(rawUrl);
-        if (!url) return;
-        const linkText = window.prompt('Enter link text (leave empty to use URL):', '') || url;
-        const wrapped = `[[link:${url}]]${linkText}[[/link]]`;
-        lines[idx] = text ? `${text} ${wrapped}` : wrapped;
-        card.content = lines.join('\n');
-        this.syncCardsToDailyNote();
+      isGoogleDriveDocUrl(url) {
+        if (!url || typeof url !== 'string') return false;
+        const trimmed = url.trim();
+        const isGoogle = /^https:\/\/(?:docs|drive)\.google\.com\//i.test(trimmed);
+        if (!isGoogle) return false;
+        return /\/d\/[a-zA-Z0-9_-]+/i.test(trimmed)
+          || /[?&]id=[a-zA-Z0-9_-]+/i.test(trimmed)
+          || /\/folders\/[a-zA-Z0-9_-]+/i.test(trimmed);
       },
 
-      isGoogleDriveDocUrl(url) {
-        return /^https:\/\/docs\.google\.com\/(?:document|spreadsheets|presentation|forms)\/d\/[a-zA-Z0-9_-]+/.test(url)
-          || /^https:\/\/drive\.google\.com\/(?:file\/d\/[a-zA-Z0-9_-]+|open\?id=[a-zA-Z0-9_-]+)/.test(url);
+      openLinkModal(card, idx) {
+        if (!card) return;
+        const lineIdx = idx ?? card._activeLineIndex ?? 0;
+        const lines = this.cardLines(card);
+        const lineText = lines[lineIdx] || '';
+
+        const el = document.getElementById(`card-line-${card.id}-${lineIdx}`);
+        let selStart = null;
+        let selEnd = null;
+        let selectedText = '';
+        if (el && typeof el.selectionStart === 'number' && typeof el.selectionEnd === 'number') {
+          selStart = el.selectionStart;
+          selEnd = el.selectionEnd;
+          if (selStart !== selEnd) {
+            const start = Math.min(selStart, selEnd);
+            const end = Math.max(selStart, selEnd);
+            selectedText = lineText.slice(start, end);
+          }
+        }
+
+        this.linkModalCard = card;
+        this.linkModalLineIdx = lineIdx;
+        this.linkModalSelStart = selStart;
+        this.linkModalSelEnd = selEnd;
+        this.linkModalUrl = '';
+        this.linkModalText = selectedText;
+        this.linkModalResolving = false;
+        this.linkModalDetectedDrive = false;
+        this.linkModalLastResolvedUrl = '';
+        this.linkModalOpen = true;
+
+        this.$nextTick(() => {
+          const input = this.$refs.linkModalUrlInput || document.getElementById('linkModalUrlInput');
+          if (input) {
+            input.focus();
+            input.select();
+          }
+        });
+      },
+
+      closeLinkModal() {
+        const card = this.linkModalCard;
+        const idx = this.linkModalLineIdx;
+        this.linkModalOpen = false;
+        this.linkModalCard = null;
+        this.linkModalLineIdx = null;
+        this.linkModalSelStart = null;
+        this.linkModalSelEnd = null;
+        this.linkModalUrl = '';
+        this.linkModalText = '';
+        this.linkModalResolving = false;
+        this.linkModalDetectedDrive = false;
+        this.linkModalLastResolvedUrl = '';
+
+        if (card && idx != null) {
+          this.$nextTick(() => {
+            const el = document.getElementById(`card-line-${card.id}-${idx}`);
+            if (el) el.focus();
+          });
+        }
+      },
+
+      async handleLinkUrlInput() {
+        const rawUrl = (this.linkModalUrl || '').trim();
+        const normUrl = this.normalizeLinkUrl(rawUrl);
+        const candidate = normUrl || rawUrl;
+        const isDrive = this.isGoogleDriveDocUrl(candidate);
+        this.linkModalDetectedDrive = isDrive;
+
+        if (!isDrive) return;
+        if (this.linkModalLastResolvedUrl === candidate) return;
+
+        this.linkModalResolving = true;
+        try {
+          const res = this.bridge && typeof this.bridge.resolveLinkTitle === 'function'
+            ? await this.bridge.resolveLinkTitle(candidate)
+            : { success: false };
+
+          if (res && res.success && res.title) {
+            this.linkModalLastResolvedUrl = candidate;
+            this.linkModalText = res.title;
+          }
+        } catch (err) {
+          console.warn('Google Drive title lookup failed:', err);
+        } finally {
+          this.linkModalResolving = false;
+        }
+      },
+
+      handleLinkUrlPaste(e) {
+        const clipboard = e.clipboardData || window.clipboardData;
+        const pasted = clipboard ? clipboard.getData('text/plain') : '';
+        if (pasted) {
+          setTimeout(() => {
+            this.handleLinkUrlInput();
+          }, 30);
+        }
+      },
+
+      async submitLinkModal() {
+        const rawUrl = (this.linkModalUrl || '').trim();
+        const url = this.normalizeLinkUrl(rawUrl);
+        if (!url) return;
+
+        const card = this.linkModalCard;
+        const idx = this.linkModalLineIdx;
+        if (!card || idx == null) {
+          this.closeLinkModal();
+          return;
+        }
+
+        if (this.isGoogleDriveDocUrl(url) && !this.linkModalText && !this.linkModalResolving) {
+          this.linkModalResolving = true;
+          try {
+            const res = this.bridge && typeof this.bridge.resolveLinkTitle === 'function'
+              ? await this.bridge.resolveLinkTitle(url)
+              : null;
+            if (res && res.success && res.title) {
+              this.linkModalText = res.title;
+            }
+          } catch (err) {
+            console.warn('Google Drive title lookup failed on submit:', err);
+          } finally {
+            this.linkModalResolving = false;
+          }
+        }
+
+        const displayText = (this.linkModalText || '').trim() || url;
+        const wrapped = `[[link:${url}]]${displayText}[[/link]]`;
+
+        const lines = this.cardLines(card);
+        const lineText = lines[idx] || '';
+
+        const selStart = this.linkModalSelStart;
+        const selEnd = this.linkModalSelEnd;
+        let newCaretPos = lineText.length + wrapped.length;
+
+        if (selStart !== null && selEnd !== null && selStart >= 0 && selEnd >= selStart) {
+          const before = lineText.slice(0, selStart);
+          const after = lineText.slice(selEnd);
+          lines[idx] = before + wrapped + after;
+          newCaretPos = before.length + wrapped.length;
+        } else {
+          lines[idx] = lineText ? `${lineText} ${wrapped}` : wrapped;
+          newCaretPos = lines[idx].length;
+        }
+
+        card.content = lines.join('\n');
+        this.syncCardsToDailyNote();
+
+        this.linkModalOpen = false;
+        this.linkModalCard = null;
+        this.linkModalLineIdx = null;
+        this.linkModalSelStart = null;
+        this.linkModalSelEnd = null;
+        this.linkModalUrl = '';
+        this.linkModalText = '';
+        this.linkModalResolving = false;
+        this.linkModalDetectedDrive = false;
+        this.linkModalLastResolvedUrl = '';
+
+        this.$nextTick(() => {
+          this.startEditingLine(card, idx);
+          const el = document.getElementById(`card-line-${card.id}-${idx}`);
+          if (el) {
+            el.focus();
+            try {
+              el.setSelectionRange(newCaretPos, newCaretPos);
+            } catch (_err) {
+              // Ignore selection error on non-selectable inputs
+            }
+          }
+        });
+      },
+
+      insertLineLink(card, idx) {
+        this.openLinkModal(card, idx);
       },
 
       async handleLinePaste(e, card, idx) {

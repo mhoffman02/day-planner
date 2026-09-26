@@ -84,7 +84,8 @@ class CDPClient {
       awaitPromise: true
     });
     if (res.exceptionDetails) {
-      throw new Error(`Eval error: ${res.exceptionDetails.text} (${expression})`);
+      const desc = res.exceptionDetails.exception?.description || res.exceptionDetails.text;
+      throw new Error(`Eval error: ${desc} (${expression})`);
     }
     return res.result?.value;
   }
@@ -254,11 +255,11 @@ async function runSmokeTest() {
     console.log(`  Search modal open: ${searchModalOpen}`);
     if (!searchModalOpen) throw new Error('Search modal failed to open');
 
-    await cdp.eval(`
+    await cdp.eval(`(() => {
       const app = document.querySelector("[x-data]")._x_dataStack[0];
       app.searchQuery = "Meeting";
       app.runSearch();
-    `);
+    })()`);
     await wait(300);
     const searchResultsCount = await getAppProp('searchResults?.totalMatches || 0');
     console.log(`  Search results for "Meeting": ${searchResultsCount} items found`);
@@ -269,8 +270,41 @@ async function runSmokeTest() {
     console.log(`  Search modal closed: ${!searchModalOpenAfter}`);
     if (searchModalOpenAfter) throw new Error('Search modal failed to close');
 
-    // TEST 7: Theme Toggle
-    console.log('\n--- 7. Testing Theme Toggle ---');
+    // TEST 7: Daily Notes Hyperlink Modal & Drive Lookup
+    console.log('\n--- 7. Testing Daily Notes Hyperlink Modal & Drive Lookup ---');
+    await cdp.eval(`(() => {
+      const app = document.querySelector("[x-data]")._x_dataStack[0];
+      const card = app.noteCards?.[0];
+      if (card) {
+        app.openLinkModal(card, 0);
+      }
+    })()`);
+    await wait(150);
+    const linkModalOpen = await getAppProp('linkModalOpen');
+    console.log(`  Link modal open: ${linkModalOpen}`);
+    if (!linkModalOpen) throw new Error('Link modal failed to open');
+
+    await cdp.eval(`(() => {
+      const app = document.querySelector("[x-data]")._x_dataStack[0];
+      app.linkModalUrl = 'https://docs.google.com/document/d/mock123/edit';
+      app.handleLinkUrlInput();
+    })()`);
+    await wait(250);
+    const detectedDrive = await getAppProp('linkModalDetectedDrive');
+    const resolvedTitle = await getAppProp('linkModalText');
+    console.log(`  Drive detected: ${detectedDrive}, Resolved Link Text: "${resolvedTitle}"`);
+    if (!detectedDrive || resolvedTitle !== 'Executive Briefing Doc') {
+      throw new Error(`Drive lookup failed to set link text (got "${resolvedTitle}")`);
+    }
+
+    await setAppMethod('closeLinkModal()');
+    await wait(100);
+    const linkModalOpenAfter = await getAppProp('linkModalOpen');
+    console.log(`  Link modal closed: ${!linkModalOpenAfter}`);
+    if (linkModalOpenAfter) throw new Error('Link modal failed to close');
+
+    // TEST 8: Theme Toggle
+    console.log('\n--- 8. Testing Theme Toggle ---');
     const initialTheme = await cdp.eval('document.documentElement.getAttribute("data-theme")');
     await setAppMethod('toggleTheme()');
     await wait(100);
@@ -287,7 +321,7 @@ async function runSmokeTest() {
     await wait(200);
 
     // Verify error log
-    console.log('\n--- 8. Checking Console & Runtime Errors ---');
+    console.log('\n--- 9. Checking Console & Runtime Errors ---');
     if (cdp.errors.length > 0) {
       console.error('❌ Errors detected during smoke test:');
       cdp.errors.forEach(e => console.error('  ', e));

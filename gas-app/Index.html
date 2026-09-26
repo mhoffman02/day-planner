@@ -1105,6 +1105,69 @@
       </article>
     </dialog>
 
+    <!-- Insert Hyperlink Modal -->
+    <dialog class="modal-backdrop" :open="linkModalOpen" x-show="linkModalOpen" x-cloak aria-labelledby="linkModalTitle" @click.self="closeLinkModal()" @keydown.escape.window="if (linkModalOpen) closeLinkModal()">
+      <article class="modal-card modal-card-link" @click.away="closeLinkModal()">
+        <header class="modal-header-spaced">
+          <h3 id="linkModalTitle" class="modal-title-with-icon">
+            <span class="material-symbols-outlined">link</span> Insert Hyperlink
+          </h3>
+          <button type="button" class="btn-icon-subtle" @click="closeLinkModal()" aria-label="Close dialog" title="Close">
+            <span class="material-symbols-outlined icon-18">close</span>
+          </button>
+        </header>
+
+        <form @submit.prevent="submitLinkModal()" class="link-modal-form">
+          <div class="form-group">
+            <div class="link-label-row">
+              <label for="linkModalUrlInput" class="form-label">Link URL <span class="required-star">*</span></label>
+              <span x-show="linkModalResolving" class="link-modal-status">
+                <span class="material-symbols-outlined icon-14 spin">sync</span> Looking up Drive title…
+              </span>
+              <span x-show="!linkModalResolving && linkModalDetectedDrive" class="drive-detected-badge" title="Recognized Google Drive document">
+                <span class="material-symbols-outlined icon-14">description</span> Google Drive
+              </span>
+            </div>
+            <input
+              type="text"
+              inputmode="url"
+              id="linkModalUrlInput"
+              x-ref="linkModalUrlInput"
+              x-model="linkModalUrl"
+              @input="handleLinkUrlInput()"
+              @paste="handleLinkUrlPaste($event)"
+              placeholder="https://docs.google.com/... or web address"
+              required
+              class="form-input"
+              autocomplete="off"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="linkModalTextInput" class="form-label">Link Text (Display Label)</label>
+            <input
+              type="text"
+              id="linkModalTextInput"
+              x-model="linkModalText"
+              placeholder="Display text (defaults to file name or URL)"
+              class="form-input"
+              autocomplete="off"
+            >
+          </div>
+
+          <footer class="modal-form-actions">
+            <div></div>
+            <div class="action-right-group">
+              <button type="button" class="btn-link" @click="closeLinkModal()">Cancel</button>
+              <button type="submit" class="btn-primary" :disabled="!linkModalUrl.trim() || linkModalResolving">
+                <span class="material-symbols-outlined icon-16">add_link</span> Insert Link
+              </button>
+            </div>
+          </footer>
+        </form>
+      </article>
+    </dialog>
+
     <!-- Universal Search Modal -->
     <dialog class="modal-backdrop" :open="searchModalOpen" x-show="searchModalOpen" x-cloak aria-labelledby="searchModalTitle" @click.self="closeSearchModal()" @keydown.escape.window="if (searchModalOpen) closeSearchModal()">
       <article class="modal-card modal-card-wide" @click.away="closeSearchModal()">

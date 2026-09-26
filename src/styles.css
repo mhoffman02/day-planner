@@ -2999,6 +2999,55 @@
     width: 90%;
   }
 
+  /* Insert Hyperlink Modal Styling */
+  .modal-card-link {
+    max-width: 480px;
+    width: 90%;
+  }
+
+  .link-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+
+  .link-label-row .form-label {
+    margin-bottom: 0;
+  }
+
+  .link-modal-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.76rem;
+    color: var(--binder-teal, #2d6a5a);
+    font-weight: 500;
+  }
+
+  [data-theme="dark"] .link-modal-status {
+    color: #79d6bd;
+  }
+
+  .drive-detected-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--binder-teal, #2d6a5a);
+    background: rgba(45, 106, 90, 0.1);
+    padding: 1px 6px;
+    border-radius: 2px;
+    border: 1px solid rgba(45, 106, 90, 0.25);
+  }
+
+  [data-theme="dark"] .drive-detected-badge {
+    color: #79d6bd;
+    background: rgba(45, 106, 90, 0.25);
+    border-color: rgba(121, 214, 189, 0.3);
+  }
+
   /* Master Tasks Backlog Table & Action Styles */
   .master-task-action-cell {
     white-space: nowrap;

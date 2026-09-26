@@ -115,6 +115,14 @@ describe('GAS Bridge Unit Tests', () => {
     assert.ok(resSheet.success);
     assert.equal(resSheet.title, 'Financial Planning Spreadsheet');
 
+    const resSlide = await bridge.resolveLinkTitle('https://docs.google.com/presentation/d/deck123/edit');
+    assert.ok(resSlide.success);
+    assert.equal(resSlide.title, 'Architecture Slide Deck');
+
+    const resFolder = await bridge.resolveLinkTitle('https://drive.google.com/drive/folders/folder999');
+    assert.ok(resFolder.success);
+    assert.equal(resFolder.title, 'Shared Drive Folder');
+
     const resInvalid = await bridge.resolveLinkTitle('https://example.com/not-drive');
     assert.equal(resInvalid.success, false);
 
