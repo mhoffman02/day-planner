@@ -219,8 +219,8 @@
             </form>
 
             <!-- Task Table Grid -->
-            <figure class="table-container">
-              <table class="task-table">
+            <figure class="table-container daily-tasks-table-container">
+              <table class="task-table daily-tasks-table">
                 <thead>
                   <tr>
                     <th scope="col" class="th-w-40 th-sortable" @click="setTaskSort('dailyTaskSort', 'priority')">
@@ -761,8 +761,8 @@
               Monthly Index and Decisions
             </h2>
           </header>
-          <figure class="table-container">
-            <table class="task-table table-card">
+          <figure class="table-container monthly-index-table-container">
+            <table class="task-table table-card monthly-index-table">
               <thead>
                 <tr class="table-header-row">
                   <th scope="col" class="th-w-100">Date</th>
@@ -823,67 +823,69 @@
               </button>
             </div>
           </header>
-          <section class="future-matrix-grid">
-            <template x-for="(label, idx) in FUTURE_MONTH_LABELS" :key="label">
-              <article class="future-month-card">
-                <h3 class="future-month-title" x-text="label + ' ' + futureMatrixYear"></h3>
+          <div class="future-matrix-container">
+            <section class="future-matrix-grid">
+              <template x-for="(label, idx) in FUTURE_MONTH_LABELS" :key="label">
+                <article class="future-month-card">
+                  <h3 class="future-month-title" x-text="label + ' ' + futureMatrixYear"></h3>
 
-                <form @submit.prevent="addFutureItemToMonth(String(idx + 1).padStart(2, '0'))" role="group" class="future-item-add-bar">
-                  <input type="text" x-model="newFutureItemTitle[futureMonthKey(String(idx + 1).padStart(2, '0'))]" placeholder="Add big item..." class="future-item-input-field" :aria-label="'Add future item for ' + label">
-                  <button type="submit" class="icon-nav-btn" aria-label="Add item" title="Add item">
-                    <span class="material-symbols-outlined">add</span>
-                  </button>
-                </form>
+                  <form @submit.prevent="addFutureItemToMonth(String(idx + 1).padStart(2, '0'))" role="group" class="future-item-add-bar">
+                    <input type="text" x-model="newFutureItemTitle[futureMonthKey(String(idx + 1).padStart(2, '0'))]" placeholder="Add big item..." class="future-item-input-field" :aria-label="'Add future item for ' + label">
+                    <button type="submit" class="icon-nav-btn" aria-label="Add item" title="Add item">
+                      <span class="material-symbols-outlined">add</span>
+                    </button>
+                  </form>
 
-                <p class="future-month-empty" x-show="futureMonthItems(String(idx + 1).padStart(2, '0')).length === 0">No future milestones scheduled.</p>
+                  <p class="future-month-empty" x-show="futureMonthItems(String(idx + 1).padStart(2, '0')).length === 0">No future milestones scheduled.</p>
 
-                <ul class="future-item-list" x-show="futureMonthItems(String(idx + 1).padStart(2, '0')).length > 0">
-                  <template x-for="item in futureMonthItems(String(idx + 1).padStart(2, '0'))" :key="item.id">
-                    <li class="future-item-row">
-                      <div class="future-item-main">
-                        <div class="status-menu-wrap" @mouseenter="openStatusMenu(item.id, $event)" @mouseleave="scheduleStatusMenuClose(item.id)">
-                          <button type="button" class="status-btn" @click="toggleStatusMenu(item.id, $event)" x-text="item.status || '•'"
-                                  aria-haspopup="menu" :aria-expanded="openStatusMenuTaskId === item.id"
-                                  :aria-label="'Item status: ' + (item.status || 'Open') + '. Click to choose a status.'"></button>
-                          <div class="status-menu" :class="{ 'dropup': statusMenuDropUp, 'dropdown-down': !statusMenuDropUp }" role="menu" x-show="openStatusMenuTaskId === item.id" @click.outside="openStatusMenuTaskId = null" x-cloak>
-                            <template x-for="opt in statusOptions" :key="opt.value">
-                              <button type="button" class="status-menu-item" role="menuitem"
-                                      :class="{ 'is-active': (item.status || '•') === opt.value }"
-                                      @click="selectFutureItemStatus(String(idx + 1).padStart(2, '0'), item, opt.value)"
-                                      :aria-label="'Set status: ' + opt.label">
-                                <span class="status-menu-item-glyph" x-text="opt.value"></span>
-                                <span x-text="opt.label"></span>
-                              </button>
-                            </template>
+                  <ul class="future-item-list" x-show="futureMonthItems(String(idx + 1).padStart(2, '0')).length > 0">
+                    <template x-for="item in futureMonthItems(String(idx + 1).padStart(2, '0'))" :key="item.id">
+                      <li class="future-item-row">
+                        <div class="future-item-main">
+                          <div class="status-menu-wrap" @mouseenter="openStatusMenu(item.id, $event)" @mouseleave="scheduleStatusMenuClose(item.id)">
+                            <button type="button" class="status-btn" @click="toggleStatusMenu(item.id, $event)" x-text="item.status || '•'"
+                                    aria-haspopup="menu" :aria-expanded="openStatusMenuTaskId === item.id"
+                                    :aria-label="'Item status: ' + (item.status || 'Open') + '. Click to choose a status.'"></button>
+                            <div class="status-menu" :class="{ 'dropup': statusMenuDropUp, 'dropdown-down': !statusMenuDropUp }" role="menu" x-show="openStatusMenuTaskId === item.id" @click.outside="openStatusMenuTaskId = null" x-cloak>
+                              <template x-for="opt in statusOptions" :key="opt.value">
+                                <button type="button" class="status-menu-item" role="menuitem"
+                                        :class="{ 'is-active': (item.status || '•') === opt.value }"
+                                        @click="selectFutureItemStatus(String(idx + 1).padStart(2, '0'), item, opt.value)"
+                                        :aria-label="'Set status: ' + opt.label">
+                                  <span class="status-menu-item-glyph" x-text="opt.value"></span>
+                                  <span x-text="opt.label"></span>
+                                </button>
+                              </template>
+                            </div>
                           </div>
+                          <span class="future-item-title" :class="{ 'task-done': item.status === '✓' || item.status === 'X' }" x-text="item.title"></span>
+                          <button type="button" class="icon-nav-btn icon-nav-btn-subtle" @click="deleteFutureItemFromMonth(String(idx + 1).padStart(2, '0'), item)" title="Delete item" aria-label="Delete item">
+                            <span class="material-symbols-outlined icon-14">close</span>
+                          </button>
                         </div>
-                        <span class="future-item-title" :class="{ 'task-done': item.status === '✓' || item.status === 'X' }" x-text="item.title"></span>
-                        <button type="button" class="icon-nav-btn icon-nav-btn-subtle" @click="deleteFutureItemFromMonth(String(idx + 1).padStart(2, '0'), item)" title="Delete item" aria-label="Delete item">
-                          <span class="material-symbols-outlined icon-14">close</span>
-                        </button>
-                      </div>
-                      <div class="future-item-actions">
-                        <input type="date" x-model="item._transferDate" class="future-item-date-input" :aria-label="'Transfer date for ' + item.title">
-                        <button type="button" class="btn-move-to" @click="transferFutureItemToDay(String(idx + 1).padStart(2, '0'), item)" title="Transfer to this day's task list" aria-label="Transfer to day">
-                          <span class="material-symbols-outlined icon-14">arrow_forward</span>
-                          <span>Move</span>
-                        </button>
-                        <button type="button" class="icon-nav-btn" @click="pushFutureItemForward(String(idx + 1).padStart(2, '0'), item)" title="Push to next month" aria-label="Push to next month">
-                          <span class="material-symbols-outlined icon-16">redo</span>
-                        </button>
-                      </div>
-                    </li>
-                  </template>
-                </ul>
-              </article>
-            </template>
-          </section>
+                        <div class="future-item-actions">
+                          <input type="date" x-model="item._transferDate" class="future-item-date-input" :aria-label="'Transfer date for ' + item.title">
+                          <button type="button" class="btn-move-to" @click="transferFutureItemToDay(String(idx + 1).padStart(2, '0'), item)" title="Transfer to this day's task list" aria-label="Transfer to day">
+                            <span class="material-symbols-outlined icon-14">arrow_forward</span>
+                            <span>Move</span>
+                          </button>
+                          <button type="button" class="icon-nav-btn" @click="pushFutureItemForward(String(idx + 1).padStart(2, '0'), item)" title="Push to next month" aria-label="Push to next month">
+                            <span class="material-symbols-outlined icon-16">redo</span>
+                          </button>
+                        </div>
+                      </li>
+                    </template>
+                  </ul>
+                </article>
+              </template>
+            </section>
+          </div>
         </section>
       </template>
 
       <!-- View 6: Static About Page -->
       <template x-if="activeView === 'about'">
-        <section class="view-container-compact" aria-label="About Day Planner">
+        <section class="view-container-compact about-view-container" aria-label="About Day Planner">
           <article class="about-container">
   
   <header class="about-header">
