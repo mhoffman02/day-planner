@@ -116,6 +116,7 @@ Alpine.data('plannerApp', () => ({
       linkModalResolving: false,
       linkModalDetectedDrive: false,
       linkModalLastResolvedUrl: '',
+      linkModalError: null,
 
       // Task inputs
       newTaskTitle: '',
@@ -1415,6 +1416,7 @@ Alpine.data('plannerApp', () => ({
         this.linkModalResolving = false;
         this.linkModalDetectedDrive = false;
         this.linkModalLastResolvedUrl = '';
+        this.linkModalError = null;
         this.linkModalOpen = true;
 
         this.$nextTick(() => {
@@ -1439,6 +1441,7 @@ Alpine.data('plannerApp', () => ({
         this.linkModalResolving = false;
         this.linkModalDetectedDrive = false;
         this.linkModalLastResolvedUrl = '';
+        this.linkModalError = null;
 
         if (card && idx != null) {
           this.$nextTick(() => {
@@ -1454,6 +1457,7 @@ Alpine.data('plannerApp', () => ({
         const candidate = normUrl || rawUrl;
         const isDrive = this.isGoogleDriveDocUrl(candidate);
         this.linkModalDetectedDrive = isDrive;
+        this.linkModalError = null;
 
         if (!isDrive) {
           if (!this.linkModalText || ['Google Doc', 'Drive Folder', 'Google Sheet', 'Google Slide Deck', 'Google Drive File', 'Link'].includes(this.linkModalText)) {
@@ -1468,16 +1472,24 @@ Alpine.data('plannerApp', () => ({
         try {
           const res = this.bridge && typeof this.bridge.resolveLinkTitle === 'function'
             ? await this.bridge.resolveLinkTitle(candidate)
-            : { success: false };
+            : { success: false, error: 'Bridge not available' };
 
           if (res && res.success && res.title) {
             this.linkModalLastResolvedUrl = candidate;
             this.linkModalText = res.title;
-          } else if (!this.linkModalText || ['Google Doc', 'Drive Folder', 'Google Sheet', 'Google Slide Deck', 'Google Drive File', 'Link'].includes(this.linkModalText)) {
-            this.linkModalText = this.getDefaultLinkText(candidate);
+            this.linkModalError = null;
+          } else {
+            const detail = (res && res.error) ? res.error : 'Title lookup failed';
+            this.linkModalError = detail;
+            console.warn('Google Drive title lookup failed:', detail);
+            if (!this.linkModalText || ['Google Doc', 'Drive Folder', 'Google Sheet', 'Google Slide Deck', 'Google Drive File', 'Link'].includes(this.linkModalText)) {
+              this.linkModalText = this.getDefaultLinkText(candidate);
+            }
           }
         } catch (err) {
-          console.warn('Google Drive title lookup failed:', err);
+          const errMsg = err?.message || String(err);
+          this.linkModalError = errMsg;
+          console.warn('Google Drive title lookup error:', err);
           if (!this.linkModalText) {
             this.linkModalText = this.getDefaultLinkText(candidate);
           }

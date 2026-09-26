@@ -1304,6 +1304,8 @@ function resolveDriveFileTitle(url) {
   var fileId = idMatch[1];
   var isFolder = /\/folders\//.test(url);
 
+  var errors = [];
+
   // Try 1: Drive Advanced Service v2 (Handles files, folders, shortcuts, and shared drives)
   try {
     if (typeof Drive !== 'undefined' && Drive.Files && Drive.Files.get) {
@@ -1318,7 +1320,9 @@ function resolveDriveFileTitle(url) {
       }
     }
   } catch (v2Err) {
-    logWarn('resolveDriveFileTitle: Drive v2 failed for ' + fileId + ': ' + (v2Err.message || v2Err));
+    var m1 = 'Drive v2: ' + (v2Err.message || v2Err.toString());
+    errors.push(m1);
+    logWarn('resolveDriveFileTitle: ' + m1);
   }
 
   // Try 2: DriveApp (Folders and Files)
@@ -1333,7 +1337,9 @@ function resolveDriveFileTitle(url) {
       }
     }
   } catch (driveErr) {
-    logWarn('resolveDriveFileTitle: DriveApp failed for ' + fileId + ': ' + (driveErr.message || driveErr));
+    var m2 = 'DriveApp: ' + (driveErr.message || driveErr.toString());
+    errors.push(m2);
+    logWarn('resolveDriveFileTitle: ' + m2);
   }
 
   // Try 3: Specialized Workspace App services
@@ -1343,7 +1349,9 @@ function resolveDriveFileTitle(url) {
       if (doc) return { success: true, title: doc.getName(), fileId: fileId };
     }
   } catch (docErr) {
-    logWarn('resolveDriveFileTitle: DocumentApp failed for ' + fileId + ': ' + (docErr.message || docErr));
+    var m3 = 'DocumentApp: ' + (docErr.message || docErr.toString());
+    errors.push(m3);
+    logWarn('resolveDriveFileTitle: ' + m3);
   }
 
   try {
@@ -1352,7 +1360,9 @@ function resolveDriveFileTitle(url) {
       if (ss) return { success: true, title: ss.getName(), fileId: fileId };
     }
   } catch (ssErr) {
-    logWarn('resolveDriveFileTitle: SpreadsheetApp failed for ' + fileId + ': ' + (ssErr.message || ssErr));
+    var m4 = 'SpreadsheetApp: ' + (ssErr.message || ssErr.toString());
+    errors.push(m4);
+    logWarn('resolveDriveFileTitle: ' + m4);
   }
 
   try {
@@ -1361,10 +1371,12 @@ function resolveDriveFileTitle(url) {
       if (pres) return { success: true, title: pres.getName(), fileId: fileId };
     }
   } catch (presErr) {
-    logWarn('resolveDriveFileTitle: SlidesApp failed for ' + fileId + ': ' + (presErr.message || presErr));
+    var m5 = 'SlidesApp: ' + (presErr.message || presErr.toString());
+    errors.push(m5);
+    logWarn('resolveDriveFileTitle: ' + m5);
   }
 
-  return { success: false, error: 'Unable to resolve title for this Drive link.' };
+  return { success: false, error: errors.join('; ') || 'Unable to resolve title for this Drive link.' };
 }
 
 /**
