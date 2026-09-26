@@ -41,14 +41,14 @@ Deliver a pure Google Apps Script digital binder productivity app bridging Frank
 
 - **Repository Branch**: `pure-gas-main`.
 - **Latest Commits**:
+  - [`373f29c`](file:///home/mike/projects/day-planner): `feat(pwa): add inline web app manifest, maskable & high-res icons, and install prompt handlers`.
   - [`33566a2`](file:///home/mike/projects/day-planner): `fix(install): remove copy app link button and update chrome desktop shortcut guide`.
   - [`eb69e81`](file:///home/mike/projects/day-planner): `feat(branding): update favicon to green theme with minty outline for multi-tab contrast`.
   - [`afee716`](file:///home/mike/projects/day-planner): `fix(gas): use png for favicon url and guard setFaviconUrl in try-catch`.
   - [`0e61981`](file:///home/mike/projects/day-planner): `fix(app): sync category and due date state vars with script html and verify clean smoke tests`.
-  - [`4009193`](file:///home/mike/projects/day-planner): `feat(ux): fixed top bar, high-contrast dark datepicker, open folio favicon, topic LRU dropdown, and install modal fixes`.
 - **Live Deployment State**:
-  - HOME Prod (`day-planner-v01`): Version 205 (`@205`) deployed on `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
-  - WORK Prod (`9csO`): Version 52 (`@52`) created on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`.
+  - HOME Prod (`day-planner-v01`): Version 206 (`@206`) deployed on `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
+  - WORK Prod (`9csO`): Version 53 (`@53`) created on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`.
 - **Pre-Flight Verification**:
   - `npm run lint`: 0 errors (4 existing warnings).
   - `npm test`: 137/137 unit tests passing across 17 suites.
