@@ -1301,32 +1301,68 @@ function resolveDriveFileTitle(url) {
   if (!idMatch) {
     return { success: false, error: 'Not a recognized Google Docs/Sheets/Slides/Forms/Drive URL.' };
   }
+  var fileId = idMatch[1];
+  var isFolder = /\/folders\//.test(url);
+
+  // Try 1: DriveApp
   try {
-    var fileId = idMatch[1];
-    var isFolder = /\/folders\//.test(url);
     if (typeof DriveApp !== 'undefined') {
       if (isFolder) {
         var folder = DriveApp.getFolderById(fileId);
-        return { success: true, title: folder.getName(), fileId: fileId };
+        if (folder) return { success: true, title: folder.getName(), fileId: fileId };
+      } else {
+        var file = DriveApp.getFileById(fileId);
+        if (file && !file.isTrashed()) {
+          return { success: true, title: file.getName(), fileId: fileId };
+        }
       }
-      var file = DriveApp.getFileById(fileId);
-      if (file.isTrashed()) {
-        return { success: false, error: 'File is trashed.' };
-      }
-      return { success: true, title: file.getName(), fileId: fileId };
     }
-    if (typeof Drive !== 'undefined' && Drive.Files && Drive.Files.get) {
-      var meta = Drive.Files.get(fileId, { fields: 'id,name,trashed' });
-      if (meta.trashed) {
-        return { success: false, error: 'File is trashed.' };
-      }
-      return { success: true, title: meta.name, fileId: fileId };
-    }
-    return { success: true, title: 'Document (' + fileId.slice(0, 6) + ')', fileId: fileId };
-  } catch (err) {
-    logError('resolveDriveFileTitle(' + url + ')', err);
-    return { success: false, error: err.message || err.toString() };
+  } catch (_driveErr) {
+    // Continue to next fallback
   }
+
+  // Try 2: Drive Advanced Service (v2 uses 'title')
+  try {
+    if (typeof Drive !== 'undefined' && Drive.Files && Drive.Files.get) {
+      var meta = Drive.Files.get(fileId, { fields: 'id,title,trashed' });
+      if (meta && !meta.trashed) {
+        var titleName = meta.title || meta.name;
+        if (titleName) return { success: true, title: titleName, fileId: fileId };
+      }
+    }
+  } catch (_v2Err) {
+    // Continue to app-specific services
+  }
+
+  // Try 3: Specialized Workspace App services
+  try {
+    if (/document/i.test(url) && typeof DocumentApp !== 'undefined') {
+      var doc = DocumentApp.openById(fileId);
+      if (doc) return { success: true, title: doc.getName(), fileId: fileId };
+    }
+  } catch (_docErr) {
+    /* Continue to SpreadsheetApp */
+  }
+
+  try {
+    if (/spreadsheets/i.test(url) && typeof SpreadsheetApp !== 'undefined') {
+      var ss = SpreadsheetApp.openById(fileId);
+      if (ss) return { success: true, title: ss.getName(), fileId: fileId };
+    }
+  } catch (_ssErr) {
+    /* Continue to SlidesApp */
+  }
+
+  try {
+    if (/presentation/i.test(url) && typeof SlidesApp !== 'undefined') {
+      var pres = SlidesApp.openById(fileId);
+      if (pres) return { success: true, title: pres.getName(), fileId: fileId };
+    }
+  } catch (_presErr) {
+    /* Fall through */
+  }
+
+  return { success: false, error: 'Unable to resolve title for this Drive link.' };
 }
 
 /**

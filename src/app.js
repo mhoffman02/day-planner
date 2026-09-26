@@ -383,7 +383,13 @@ Alpine.data('plannerApp', () => ({
             }
           }
 
+          const isInputFocused = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable);
           if ((e.ctrlKey || e.metaKey) && keyLower === 'k') {
+            if (!isInputFocused) {
+              e.preventDefault();
+              this.toggleSearchModal();
+            }
+          } else if ((e.key === '/' || ((e.ctrlKey || e.metaKey) && e.key === '/')) && !isInputFocused) {
             e.preventDefault();
             this.toggleSearchModal();
           } else if (e.key === 'Escape') {
@@ -1043,6 +1049,7 @@ Alpine.data('plannerApp', () => ({
           }
           if (e.key === 'k' || e.key === 'K') {
             e.preventDefault();
+            e.stopPropagation();
             this.insertLineLink(card, idx);
             return;
           }
@@ -1069,6 +1076,14 @@ Alpine.data('plannerApp', () => ({
           this.$nextTick(() => {
             this.startEditingLine(card, idx + 1);
           });
+          setTimeout(() => {
+            this.startEditingLine(card, idx + 1);
+            const el = document.getElementById(`card-line-${card.id}-${idx + 1}`);
+            if (el) {
+              el.focus();
+              try { el.setSelectionRange(el.value.length, el.value.length); } catch { /* ignore */ }
+            }
+          }, 40);
           return;
         } else if (e.key === 'Backspace') {
           if (currentLine === '☐ ' || currentLine === '☒ ' || currentLine === '☑ ') {

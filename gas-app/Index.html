@@ -568,7 +568,7 @@
                       <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'italic')" title="Italic (Ctrl+I)"><span class="material-symbols-outlined icon-16">format_italic</span></button>
                       <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'underline')" title="Underline (Ctrl+U)"><span class="material-symbols-outlined icon-16">format_underlined</span></button>
                       <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'strike')" title="Strikethrough"><span class="material-symbols-outlined icon-16">strikethrough_s</span></button>
-                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'link')" title="Insert Link (Ctrl+K)" aria-label="Insert Link"><span class="material-symbols-outlined icon-16">link</span></button>
+                      <button type="button" class="format-btn" @mousedown.prevent @click.stop="applyCardFormat(card, 'link')" title="Insert Link (Ctrl+K)" aria-label="Insert Link"><span class="material-symbols-outlined icon-16">link</span></button>
                       <span class="toolbar-divider"></span>
                       <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'bullet')" title="Bullet List"><span class="material-symbols-outlined icon-16">format_list_bulleted</span></button>
                       <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'ordered')" title="Numbered List"><span class="material-symbols-outlined icon-16">format_list_numbered</span></button>
@@ -1115,7 +1115,7 @@
 
     <!-- Insert Hyperlink Modal -->
     <dialog class="modal-backdrop" :open="linkModalOpen" x-show="linkModalOpen" x-cloak aria-labelledby="linkModalTitle" @click.self="closeLinkModal()" @keydown.escape.window="if (linkModalOpen) closeLinkModal()">
-      <article class="modal-card modal-card-link" @click.away="closeLinkModal()">
+      <article class="modal-card modal-card-link">
         <header class="modal-header-spaced">
           <h3 id="linkModalTitle" class="modal-title-with-icon">
             <span class="material-symbols-outlined">link</span> Insert Hyperlink
@@ -1143,6 +1143,8 @@
               x-ref="linkModalUrlInput"
               x-model="linkModalUrl"
               @input="handleLinkUrlInput()"
+              @change="handleLinkUrlInput()"
+              @blur="handleLinkUrlInput()"
               @paste="handleLinkUrlPaste($event)"
               placeholder="https://docs.google.com/... or web address"
               required
