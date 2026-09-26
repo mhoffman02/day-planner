@@ -2,18 +2,22 @@
 
 ### OBJECTIVE
 
-Deliver a pure Google Apps Script digital binder productivity app bridging Franklin Covey Day Planner methodology with Google Workspace APIs (Calendar, Tasks, Drive). The immediate focus is activating Version 39 on WORK deployment `Version 3` (`9csO`) and completing live workspace UAT across Phase 12 (note card compact category segmented buttons & Meet link join), Phase 13 (Master Tasks Option A clearinghouse with thematic blue Date Horizon filters & Quick-Add UX clarification), and the subtle thematic scrollbars in both Dark and Light modes.
+Deliver a pure Google Apps Script digital binder productivity app bridging Franklin Covey Day Planner methodology with Google Workspace APIs (Calendar, Tasks, Drive). The immediate focus is activating Version 40 on WORK deployment `Version 3` (`9csO`) and completing live workspace UAT across Phase 12 (note card compact category segmented buttons & Meet link join), Phase 13 (Master Tasks Option A clearinghouse with thematic blue Date Horizon filters, Quick-Add UX clarification, scrollable container with sticky header, and Move to Date bugfix), and subtle thematic scrollbars in both Dark and Light modes.
 
 ---
 
 ### KEY DECISIONS
+
+- **Master Tasks Sticky Header & Move-to-Date Bugfix ([commit `dbadf81`](file:///home/mike/projects/day-planner))**:
+  - **Move-to-Date Fix**: Fixed typo calling nonexistent `encodeTaskStatus(notes, '→')` instead of `encodeTaskStatusNotes('→', notes)` in [`gas-app/Code.gs:1634`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L1634), which resolved `ReferenceError: encodeTaskStatus is not defined` when moving master tasks to a scheduled date.
+  - **Sticky Header & Scrollable Container**: Wrapped table in `.master-tasks-table-container` with `max-height: calc(100vh - 280px); min-height: 280px; overflow-y: auto; overflow-x: auto;` in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html). Made `.master-tasks-table thead th` `position: sticky; top: 0; z-index: 5;` with a crisp `box-shadow: 0 1px 0 var(--border-line)` so column headers (`Pri | Sts | Task Description | Category | Due Date | Action`) remain fixed while tasks scroll smoothly underneath.
 
 - **Thematic Scrollbars in Dark & Light Modes ([commit `89a5002`](file:///home/mike/projects/day-planner))**:
   - **Philosophy & Aesthetics**: Native desktop scrollbars in dark mode previously broke immersion with bright white/grey OS tracks and thumbs. Implemented subtle, tasteful, thematic scrollbars across `html`, `body`, and all scrollable containers (`.table-container`, `.notes-column`, textareas, modals, schedule grid).
   - **Tokens & Theming**:
     - Light Mode: Subtle slate-teal thumb `rgba(45, 106, 90, 0.28)`, hover `rgba(45, 106, 90, 0.50)`, parchment track `rgba(0, 0, 0, 0.04)`.
     - Dark Mode: Subtle forest jade thumb `rgba(78, 163, 140, 0.35)`, hover `rgba(78, 163, 140, 0.60)`, deep forest track `rgba(12, 24, 19, 0.65)`.
-  - **Specification**: Slim 8px scrollbar, standard `scrollbar-color` and `scrollbar-width: thin`, WebKit fallbacks with crisp 2px border radius (strictly no pills, `.agents/rules/no-pills.md`), and native browser adaptation via `color-scheme: light / dark` synced to `document.documentElement.style.colorScheme` and `<meta name="color-scheme" content="light dark">`.
+  - **Specification**: Slim 8px scrollbar, standard `scrollbar-color` and `scrollbar-width: thin`, WebKit fallbacks with crisp 2px border radius (strictly no pills, [`.agents/rules/no-pills.md`](file:///home/mike/projects/day-planner/.agents/rules/no-pills.md)), and native browser adaptation via `color-scheme: light / dark` synced to `document.documentElement.style.colorScheme` and `<meta name="color-scheme" content="light dark">`.
 
 - **Master Tasks Option A: Quick-Add UX Clarification & Visibility Guarantees ([commit `79bc761`](file:///home/mike/projects/day-planner))**:
   - **Framing & Affordance**: Added explicit `New Task:` section label with `add_task` icon in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html#L633) and [`index.html`](file:///home/mike/projects/day-planner/index.html#L633) inside a framed container (`.master-task-add-bar`), cleanly separating the quick-add entry row from the filter toolbars above it.
@@ -31,8 +35,8 @@ Deliver a pure Google Apps Script digital binder productivity app bridging Frank
   - **Automated Test Coverage**: 135/135 tests passing cleanly across 17 suites, including unit tests in [`tests/taskEngine.test.js`](file:///home/mike/projects/day-planner/tests/taskEngine.test.js#L357) and [`tests/gasBridge.test.js`](file:///home/mike/projects/day-planner/tests/gasBridge.test.js#L20).
 
 - **Deployment Hygiene & Clasp Sync**:
-  - HOME Prod (`day-planner-v01`): Pruned old test deployments down to the 3 most recent (@184, @185, @192). Version 192 (`@192`) is live on `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
-  - WORK Prod (`9csO`): Code promoted via `npm run push:work` and Version 39 created on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`. Target deployment `Version 3` (`9csO`) awaits manual activation to Version 39 in WORK Apps Script IDE.
+  - HOME Prod (`day-planner-v01`): Version 193 (`@193`) is live on `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
+  - WORK Prod (`9csO`): Code promoted via `npm run push:work` and Version 40 created on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`. Target deployment `Version 3` (`9csO`) awaits manual activation to Version 40 in WORK Apps Script IDE.
 
 ---
 
@@ -40,13 +44,14 @@ Deliver a pure Google Apps Script digital binder productivity app bridging Frank
 
 - **Repository Branch**: `pure-gas-main`.
 - **Latest Commits**:
+  - [`dbadf81`](file:///home/mike/projects/day-planner): `fix(tasks): fix encodeTaskStatusNotes typo in markMasterTaskMoved & add scrollable container with sticky header for Master Tasks table`.
+  - [`8afe1b3`](file:///home/mike/projects/day-planner): `docs(handoff): record Version 39 on WORK, Version 192 on HOME, and scrollbar theming`.
   - [`89a5002`](file:///home/mike/projects/day-planner): `feat(theme): subtle, tasteful, thematic scrollbars in light and dark modes`.
+  - [`288ab30`](file:///home/mike/projects/day-planner): `docs(handoff): record Version 37 on WORK, Version 191 on HOME, and quick-add UX fix`.
   - [`79bc761`](file:///home/mike/projects/day-planner): `fix(master-tasks): clarify quick-add bar UX with New Task framing, spinner feedback, visibility auto-switch and row highlight`.
-  - [`33fa089`](file:///home/mike/projects/day-planner): `docs(handoff): session transition and task queue`.
-  - [`d685fb4`](file:///home/mike/projects/day-planner): `feat(master-tasks): option A unified clearinghouse, archival blue horizon filters, due date column & deduplication`.
 - **Live Deployment State**:
-  - HOME Prod (`day-planner-v01`): Version 192 (`@192`) deployed on `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
-  - WORK Prod (`9csO`): Pushed code and created Version 39 on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`.
+  - HOME Prod (`day-planner-v01`): Version 193 (`@193`) deployed on `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
+  - WORK Prod (`9csO`): Pushed code and created Version 40 on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`.
 - **Pre-Flight Verification**:
   - `npm run lint`: 0 errors (3 existing warnings).
   - `npm test`: 135/135 unit tests passing across 17 suites.
@@ -68,9 +73,11 @@ Deliver a pure Google Apps Script digital binder productivity app bridging Frank
 
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
-1. **Deploy Version 39 on WORK Deployment `Version 3` (`9csO`) ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L3-L4))**:
-   - In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) under `michael.hoffman@gsa.gov`, click **Deploy** > **Manage deployments**, select deployment `Version 3` (`9csO`), edit (pencil icon), select **New version** (Version 39), and click **Deploy**.
+1. **Deploy Version 40 on WORK Deployment `Version 3` (`9csO`) ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L3-L4))**:
+   - In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) under `michael.hoffman@gsa.gov`, click **Deploy** > **Manage deployments**, select deployment `Version 3` (`9csO`), edit (pencil icon), select **New version** (Version 40), and click **Deploy**.
 2. **Live Workspace UAT of Phase 12 & 13 Features ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L5-L12))**:
+   - Verify Master Tasks sticky header (`Pri | Sts | Task Description | Category | Due Date | Action`) and scrollable container.
+   - Verify Master Tasks Move to Date action (`markMasterTaskMoved` bugfix: `encodeTaskStatusNotes`).
    - Verify subtle, tasteful thematic scrollbars in both Dark and Light modes (8px slim, 2px border radius, themed tracks and thumbs).
    - Verify Master Tasks Quick-Add bar (`New Task:` framing, priority tooltip, spinner on add, auto-switch to `All Dates` on submit, row flash highlight).
    - Verify compact 18px category segmented buttons on note cards.
@@ -85,4 +92,4 @@ Deliver a pure Google Apps Script digital binder productivity app bridging Frank
 
 ### IMMEDIATE NEXT STEP
 
-In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) under `michael.hoffman@gsa.gov`, click **Deploy** > **Manage deployments**, select deployment `Version 3` (`9csO`), click the pencil icon, choose **New version** (Version 39), and click **Deploy**.
+In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) under `michael.hoffman@gsa.gov`, click **Deploy** > **Manage deployments**, select deployment `Version 3` (`9csO`), click the pencil icon, choose **New version** (Version 40), and click **Deploy**.
