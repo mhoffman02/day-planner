@@ -8,6 +8,7 @@
     "lint": "eslint src gas-app/*.gs tools server.js && node tools/check-gas-script-html-safe-chars.js",
     "check:gas-safe-chars": "node tools/check-gas-script-html-safe-chars.js",
     "start": "node server.js",
+    "probe": "node tools/probe-live.js",
     "smoke": "node tools/smoke-test.js",
     "audit:a11y": "node tools/audit-wcag-responsive.js",
     "sync:agents": "node tools/sync-agent-config.js",
