@@ -1,5 +1,16 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-25 — Remove Copy App Link Button & Accurate Chrome Desktop Shortcut Guide (commit `33566a2`, HOME @205, WORK @52)
+
+- [x] **Copy App Link Button Removal (commit `33566a2`)**:
+  - Removed "Copy app link" button and its dead state/methods (`copiedAppUrl`, `copyAppUrl()`) from [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html), [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html), [`index.html`](file:///home/mike/projects/day-planner/index.html), [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js), and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html).
+  - Removed trailing quote issue and dead injected `window.__DAY_PLANNER_WEB_APP_URL__` script block.
+- [x] **Accurate Chrome Desktop Shortcut Instructions (commit `33566a2`)**:
+  - Updated both About tab guide and Install modal dialog to specify exact Chrome steps: `Chrome Menu (⋮) → Save and share (or More tools) → Create shortcut... → Check "Open as window" → Click Create`.
+- [x] **Production Deployments (HOME @205, WORK @52)**:
+  - HOME live at `@205`.
+  - WORK promoted and Version 52 created on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`.
+
 ## 2026-09-25 — Top Bar Pinning, High-Contrast Dark Datepickers, Notion-Style LRU Topic Popover, Direct App Link Copier, Install Trigger Fix, & Green/Mint Folio Favicon (commits `4009193`, `0e61981`, `afee716`, `eb69e81`, HOME @203, WORK @49)
 
 - [x] **Fixed Top App Bar (commit `4009193`)**:

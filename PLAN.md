@@ -216,14 +216,20 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 - [x] Scroll-on-Demand Containers & Sticky Headers Across All Tabs (commit `a556ac6`): Applied scroll-on-demand containers and sticky headers across Index, Future, About, Daily, and Master Tasks tabs.
 - [x] Master Tasks Quick-Add Due Date & Container Fix (commit `d71ad36`): Fixed `figure.table-container` CSS override with `overflow-y: auto !important`, added due date picker to quick-add bar, and enlarged note card category buttons to 20px.
 - [x] Desktop Install Affordances & Themed Controls (commits `6bb391f` & `9123699`): Themed date pickers in light/dark modes, dynamic category autocomplete datalist, dark mode secondary outline buttons, interactive About install button, and Install Guide modal.
-- [x] Top Bar Pinning, Notion-Style Topic Autocomplete, Link Copier & Theme Favicon (commits `4009193`, `0e61981`, `afee716`, `eb69e81`): Pinned top app bar to eliminate bouncing, inverted dark datepicker indicator, implemented 10-item persistent LRU topic popover with keyboard navigation and "×" deletion, fixed direct app link retrieval via `ScriptApp.getService().getUrl()`, resolved install modal trigger self-close bug, and generated high-contrast theme-green open folio favicon with mint outline.
+- [x] Top Bar Pinning, Notion-Style Topic Autocomplete, Link Copier Removal & Theme Favicon (commits `4009193`, `0e61981`, `afee716`, `eb69e81`, `33566a2`): Pinned top app bar to eliminate bouncing, inverted dark datepicker indicator, implemented 10-item persistent LRU topic popover with keyboard navigation and "×" deletion, removed broken "Copy app link" button and dead state, updated Chrome desktop shortcut instructions, and generated high-contrast theme-green open folio favicon with mint outline.
 - [x] Automated tests in [`tests/taskEngine.test.js`](file:///home/mike/projects/day-planner/tests/taskEngine.test.js) and [`tests/gasBridge.test.js`](file:///home/mike/projects/day-planner/tests/gasBridge.test.js) (137/137 tests passing across 17 suites).
-- [x] Production Deployments (commits `4009193`, `0e61981`, `afee716`, `eb69e81`, HOME `@203`, WORK `@49`).
+- [x] Production Deployments (commits `4009193`, `0e61981`, `afee716`, `eb69e81`, `33566a2`, HOME `@205`, WORK `@52`).
 
-### Phase 14: Advanced Productivity & Usability Enhancements
-*Goal: Ongoing workspace polish, recurring tasks / daily template checklists, rich text / markdown checklist support in topic cards, and offline cached read-only fallback mode.*
+### Phase 14: PWA Installability & Advanced Productivity Enhancements
+*Goal: Complete PWA installability (without service worker) using inline manifest and SVG/PNG data icons, workspace UAT, recurring tasks / daily template checklists, rich text / markdown checklist support in topic cards, and offline cached read-only fallback mode.*
 
-- [ ] Workspace UAT verification of Phase 13 fixes across desktop and mobile browsers.
+- [ ] PWA Installability (without service worker):
+  - [ ] Inline web app manifest via `data:application/manifest+json,...` `<link rel="manifest">`.
+  - [ ] Standalone display mode, orientation, theme color, background color, name, and short_name.
+  - [ ] SVG and PNG icons (192×192, 512×512, maskable and any) using base64 data URIs.
+  - [ ] Full Apple touch icon and mobile-web-app meta tags.
+  - [ ] `beforeinstallprompt` event listener and native trigger handling.
+- [ ] Workspace UAT verification of Phase 13 & 14 fixes across desktop and mobile browsers.
 - [ ] Daily recurring checklist / template items support.
 - [ ] Rich text / markdown checkbox rendering in note card bodies.
 - [ ] Read-only offline cache / emergency fallback mode.
