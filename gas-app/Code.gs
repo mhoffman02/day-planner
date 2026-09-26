@@ -276,7 +276,7 @@ function onOpen() {
   }
 }
 
-var DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/google/material-design-icons/master/png/image/auto_stories/materialicons/48dp/2x/baseline_auto_stories_black_48dp.png';
+var DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day-planner/pure-gas-main/icons/favicon.png';
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.

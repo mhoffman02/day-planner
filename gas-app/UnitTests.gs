@@ -300,7 +300,7 @@ function renderSelfTestDiagnosticReport() {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 
   try {
-    diagOutput.setFaviconUrl(typeof DAY_PLANNER_FAVICON_URL !== 'undefined' ? DAY_PLANNER_FAVICON_URL : 'https:' + '/' + '/ssl.gstatic.com/calendar/images/dynamiclogo_2020q4/calendar_31_2x.png');
+    diagOutput.setFaviconUrl(typeof DAY_PLANNER_FAVICON_URL !== 'undefined' ? DAY_PLANNER_FAVICON_URL : 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day-planner/pure-gas-main/icons/favicon.png');
   } catch (_favErr) {
     console.warn('setFaviconUrl notice: ' + _favErr.toString());
   }
