@@ -2,38 +2,40 @@
 
 ### OBJECTIVE
 
-Deliver a pure Google Apps Script digital binder productivity app bridging Franklin Covey Day Planner methodology with Google Workspace APIs (Calendar, Tasks, Drive). The immediate focus is implementing full Progressive Web App (PWA) installability features (excluding service worker) using an inline web app manifest and SVG / data PNG icons, followed by live workspace UAT and Phase 14 productivity enhancements.
+Deliver a pure Google Apps Script digital binder productivity app bridging Franklin Covey Day Planner methodology with Google Workspace APIs (Calendar, Tasks, Drive). The immediate focus is synchronizing the active production deployment ID and OAuth consent state following today's UX enhancements (themed calendar popovers, note ballot boxes, universal search shortcuts, and note hyperlinks).
 
 ---
 
 ### KEY DECISIONS
 
-- **Removal of "Copy App Link" Button ([commit `33566a2`](file:///home/mike/projects/day-planner))**:
-  - **Philosophy & Fix**: The "Copy app link" button in About tab and Install modal was redundant with the browser address bar and suffered from a trailing quote formatting bug. Removed the button, cleaned up associated Alpine state (`copiedAppUrl`, `copyAppUrl()`), and removed the injected `window.__DAY_PLANNER_WEB_APP_URL__` script block.
-  - **Result**: Cleaner UI in both About and Install views without broken URL artifacts.
+- **Custom Themed Calendar Popovers & Hit Targets ([commits `609788b`](file:///home/mike/projects/day-planner/commit/609788b), [`7c485fe`](file:///home/mike/projects/day-planner/commit/7c485fe), [`957fdb7`](file:///home/mike/projects/day-planner/commit/957fdb7))**:
+  - Replaced native date pickers with custom themed popover dropdowns for Today, Month, Index, and Master Tasks Due Date.
+  - Attached both `mouseup` and `click` listeners to the full widget container so clicking anywhere on the date button (not just the tiny chevron icon) triggers the popover cleanly.
+  - Set `.header-left { overflow: visible; }` and `.day-picker-dropdown { z-index: 2000; }` in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css#L256) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html#L256), resolving top bar overflow clipping that previously hid the calendar popovers.
 
-- **Accurate Chrome Desktop Shortcut Instructions ([commit `33566a2`](file:///home/mike/projects/day-planner))**:
-  - Apps Script web apps run sandboxed inside iframes without standard PWA manifests on `script.google.com`, meaning Chrome will not show an address-bar install icon.
-  - Updated both [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html#L140) and [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html#L1153) to clearly document the actual Chrome method:
-    `Chrome Menu (⋮) → Save and share (or More tools) → Create shortcut... → Check "Open as window" → Click Create`.
+- **Note Cards Unicode Ballot Boxes (`☐` / `☒`) ([commits `609788b`](file:///home/mike/projects/day-planner/commit/609788b), [`3cbd33f`](file:///home/mike/projects/day-planner/commit/3cbd33f))**:
+  - Implemented lightweight unicode ballot box checklist support: `[ ]` auto-expands to `☐` (U+2610), `[x]` / `[X]` expands to `☒` (U+2612).
+  - Toggling between states swaps glyphs inline without injecting newline or `<br>` tags.
+  - Pressing `Enter` on a checklist line auto-continues a new `☐ ` line and immediately autofocuses the new line.
+  - Supported format clearing with `format_clear` and bolding text without wrapping the checkbox glyph.
 
-- **Fixed Top App Bar ([commit `4009193`](file:///home/mike/projects/day-planner))**:
-  - Pinned [`header.single-top-bar`](file:///home/mike/projects/day-planner/src/styles.css#L228) using `position: fixed; top: 0; left: 0; right: 0; height: 48px; z-index: 1000;`, set `body { padding: 56px 12px 8px 12px; }`, and set modal `z-index: 10000;` in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html).
-  - Keeps top navigation permanently pinned without bouncing during scroll.
+- **Universal Search Hotkeys & Note Hyperlink Disambiguation ([commits `3cbd33f`](file:///home/mike/projects/day-planner/commit/3cbd33f), [`7c485fe`](file:///home/mike/projects/day-planner/commit/7c485fe))**:
+  - Added `Ctrl+Shift+F` as an alternative universal search shortcut alongside `Ctrl+Shift+K`.
+  - Reserved standard `Ctrl+K` for note card hyperlink creation dialog, preventing search modal collision.
 
-- **High-Contrast Dark Mode Calendar Picker Icon ([commit `4009193`](file:///home/mike/projects/day-planner))**:
-  - Inverted calendar indicator icon in dark mode using `filter: brightness(0) invert(1) !important; opacity: 1 !important;` in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css#L2877) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html#L3012).
+- **Drive URL Link Modal & Universal Link Rendering ([commit `957fdb7`](file:///home/mike/projects/day-planner/commit/957fdb7))**:
+  - Fixed Drive v2 `Drive.Files.get` call (`supportsAllDrives: true`) in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L1307) and added fallback placeholder titles on tab-off.
+  - Upgraded `renderInline()` in [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js#L1710) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html#L2454) to render standard markdown `[text](url)`, autolinks `<url>`, bracket links `[[link:url]]text[[/link]]`, and raw URLs into clickable `<a>` links. Exits line edit mode upon link insertion to display links immediately.
 
-- **Notion-Style LRU Topic Autocomplete Popover ([commit `4009193`](file:///home/mike/projects/day-planner))**:
-  - Implemented persistent 10-item LRU cache stored in `localStorage` (`dayPlannerTopicLRU`) in [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js#L688) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html#L1458).
-  - Provided dropdown on focus/typing with full keyboard navigation (`↑`, `↓`, `Enter`, `Esc`) in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html#L439) and dedicated "×" delete action on each row.
+- **Least-Privilege OAuth Scopes ([commit `6c762b4`](file:///home/mike/projects/day-planner/commit/6c762b4))**:
+  - Reverted unintended broad `"https://www.googleapis.com/auth/drive"` scope from [`gas-app/appsscript.json`](file:///home/mike/projects/day-planner/gas-app/appsscript.json#L22-L29), restoring the exact authorized set (`documents`, `drive.file`, `drive.readonly`, `calendar`, `tasks`, `script.scriptapp`).
+  - Dispatched Claude Sonnet 5 to review the `DocumentApp.openById` permission error and deployment mismatch. Confirmed that modifying scopes invalidates existing Web App OAuth consent until re-authorized by the executing user.
 
-- **Theme-Green Open Folio Favicon with Minty Outline ([commit `eb69e81`](file:///home/mike/projects/day-planner))**:
-  - Replaced Material icon with custom brand open folio icon matching Day Planner green theme:
-    - Main pages/body: Deep forest green (`#163b2f`).
-    - Turning leaf accent: Binder teal (`#2d6a5a`).
-    - Outline & seams: Bright mint (`#6ee7b7`), delivering high contrast across light and dark tabs.
-  - Production PNGs generated at [`icons/favicon.png`](file:///home/mike/projects/day-planner/icons/favicon.png) (96×96 Retina), [`icons/favicon-32x32.png`](file:///home/mike/projects/day-planner/icons/favicon-32x32.png), and [`icons/favicon-16x16.png`](file:///home/mike/projects/day-planner/icons/favicon-16x16.png).
+- **Dual Concurrent Deployments on HOME Script**:
+  - `npx clasp deployments` contains two versioned deployments on HOME script `1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W`:
+    1. `AKfycbxvzuB7h8AqY6UPf_vP2updhVaZYbjW74yl1sf-LcfdzK_gluGRzRYMqazjTtH1edlOdA` ("Day Planner Release Version 218") — the user's active browser bookmark.
+    2. `AKfycbyTg2tIMYfZIcmyF2p54iLkhx5DIH9T7u2j0kBLkCKVvQHP2q59dvDAPxxZpvExUbKRxQ` — the deployment ID targeted in clasp deploy commands.
+  - The user elected to manually update the active deployment `AKfycbxvzu...` in Apps Script to point to the latest version and re-authorize permissions.
 
 ---
 
@@ -41,18 +43,20 @@ Deliver a pure Google Apps Script digital binder productivity app bridging Frank
 
 - **Repository Branch**: `pure-gas-main`.
 - **Latest Commits**:
-  - [`373f29c`](file:///home/mike/projects/day-planner): `feat(pwa): add inline web app manifest, maskable & high-res icons, and install prompt handlers`.
-  - [`33566a2`](file:///home/mike/projects/day-planner): `fix(install): remove copy app link button and update chrome desktop shortcut guide`.
-  - [`eb69e81`](file:///home/mike/projects/day-planner): `feat(branding): update favicon to green theme with minty outline for multi-tab contrast`.
-  - [`afee716`](file:///home/mike/projects/day-planner): `fix(gas): use png for favicon url and guard setFaviconUrl in try-catch`.
-  - [`0e61981`](file:///home/mike/projects/day-planner): `fix(app): sync category and due date state vars with script html and verify clean smoke tests`.
+  - [`6c762b4`](file:///home/mike/projects/day-planner/commit/6c762b4): `fix(auth): revert broad drive oauth scope to restore valid token`.
+  - [`0e3201e`](file:///home/mike/projects/day-planner/commit/0e3201e): `chore(config): record AKfycbyTg2tIMYfZIcmyF2p54iLkhx5DIH9T7u2j0kBLkCKVvQHP2q59dvDAPxxZpvExUbKRxQ as active deployment ID`.
+  - [`957fdb7`](file:///home/mike/projects/day-planner/commit/957fdb7): `fix(ux): resolve top bar dropdown overflow clipping, restore Drive title lookup, and render all note card link formats`.
+  - [`7c485fe`](file:///home/mike/projects/day-planner/commit/7c485fe): `feat(ux): implement custom themed day calendar popover, master tasks due date picker, and universal search shortcuts`.
+  - [`3cbd33f`](file:///home/mike/projects/day-planner/commit/3cbd33f): `fix(notes): autofocus checklist on Enter, prevent search Ctrl+K clash, and fix drive link modal`.
+  - [`609788b`](file:///home/mike/projects/day-planner/commit/609788b): `fix(ux): theme date picker button, enable full-widget click/mouseup, and fix note checkbox newline alignment`.
 - **Live Deployment State**:
-  - HOME Prod (`day-planner-v01`): Version 206 (`@206`) deployed on `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
-  - WORK Prod (`9csO`): Version 53 (`@53`) created on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`.
-- **Pre-Flight Verification**:
-  - `npm run lint`: 0 errors (4 existing warnings).
-  - `npm test`: 137/137 unit tests passing across 17 suites.
-  - `npm run check:gas-safe-chars`: Clean.
+  - HOME Prod Active Bookmark: `AKfycbxvzuB7h8AqY6UPf_vP2updhVaZYbjW74yl1sf-LcfdzK_gluGRzRYMqazjTtH1edlOdA` ("Day Planner Release Version 218").
+  - HOME Clasp Target: `AKfycbyTg2tIMYfZIcmyF2p54iLkhx5DIH9T7u2j0kBLkCKVvQHP2q59dvDAPxxZpvExUbKRxQ` (`@219`).
+  - WORK Prod (`9csO`): Version 53 (`@53`) on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`.
+- **Pre-Flight Verification Status**:
+  - `npm run lint`: 0 errors (7 existing unused-var warnings).
+  - `npm test`: 152/152 unit tests passing across 19 suites.
+  - `npm run check:gas-safe-chars`: Clean (0 unsafe patterns).
 
 ---
 
@@ -66,20 +70,21 @@ Deliver a pure Google Apps Script digital binder productivity app bridging Frank
 6. **Design System Constraints**: Day Planner aesthetic — parchment cream `#fcfbfa`, forest teal `#2d6a5a`, archival ink blue `#1d5fa8`, plum `#5e3f6b`, serif headers, strictly **no pills** ([`.agents/rules/no-pills.md`](file:///home/mike/projects/day-planner/.agents/rules/no-pills.md)). Use crisp 2px border radius for stamps and buttons.
 7. **Apps Script Safe Characters**: Protocol URLs must ALWAYS be split (`'https:' + '/' + '/...'`), and comment prose must use typographic `’` ([`.agents/rules/gas-html-safe-chars.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-html-safe-chars.md)). Guarded by `npm run check:gas-safe-chars`.
 8. **Dual-Environment Isolation**: HOME is mastercopy; WORK is strictly production `/exec` promoted via `npm run push:work` ([`.agents/rules/gas-environments.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-environments.md)).
+9. **OAuth Storage Scoping**: Maintain `drive.file` and `drive.readonly` restriction; do NOT widen to full `drive` ([`.agents/skills/review/SKILL.md`](file:///home/mike/projects/day-planner/.agents/skills/review/SKILL.md)).
 
 ---
 
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
-1. **Recurring Tasks & Daily Templates ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L3-L5))**:
-   - Evaluate schema and automation for recurring routine checklist items or daily templates into daily task lists.
-2. **Interactive Markdown Checkboxes ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L6))**:
-   - Explore rendering interactive checkboxes (`[ ]` / `[x]`) in daily note card bodies without disrupting Google Docs sync.
-3. **Read-Only Offline Snapshot Cache ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L7))**:
-   - Evaluate `localStorage` snapshot cache to allow read-only offline viewing during intermittent connectivity.
+1. **Deployment & Permissions Verification ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L3-L5))**:
+   - Confirm user's manual update of `AKfycbxvzuB7h8AqY6UPf_vP2updhVaZYbjW74yl1sf-LcfdzK_gluGRzRYMqazjTtH1edlOdA` ("Day Planner Release Version 218") to latest code version and successful consent/authorization flow.
+2. **Lock Target Deployment ID in Rules ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L5), [`.agents/rules/gas-environments.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-environments.md#L15))**:
+   - Synchronize [`.agents/rules/gas-environments.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-environments.md) with confirmed production deployment ID (`AKfycbxvzu...` or preferred) for clasp deploy targeting.
+3. **Pure-GAS Production Feature Verification ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L7-L9))**:
+   - Verify live behavior on the refreshed deployment: Drive filename lookup on tab-off, note card hyperlink clickability, and themed date picker navigation on Today, Month, Index, and Master Tasks tabs.
 
 ---
 
 ### IMMEDIATE NEXT STEP
 
-Review future candidate enhancements with the user to prioritize the next feature set (recurring task templates, markdown checkboxes, or offline snapshot viewing).
+Ask Mike if the manual deployment update to `AKfycbxvzu...` and OAuth authorization succeeded in the browser, and confirm whether `AKfycbxvzu...` should be locked as the permanent production deployment ID in [`.agents/rules/gas-environments.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-environments.md).

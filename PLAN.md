@@ -237,7 +237,10 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 ### Future Backlog (Post-Phase 14 Candidates)
 *Candidate enhancements and architectural decisions:*
 - [x] ~~Daily recurring checklist / template items support~~ (Descoped per user directive).
-- [ ] Special Character Checkboxes (`☐` / `☒`): KISS unicode ballot box toggling with Open-box (`☐` U+2610) and Box-with-X (`☒` U+2612, also supporting `☑` U+2611) with themeable styling in Note Cards without breaking Google Docs sync.
+- [x] Special Character Checkboxes (`☐` / `☒`): KISS unicode ballot box toggling with Open-box (`☐` U+2610) and Box-with-X (`☒` U+2612, also supporting `☑` U+2611) with themeable styling in Note Cards without breaking Google Docs sync (commits `609788b`, `3cbd33f`).
+- [x] Themed Calendar Date Pickers: Custom themed calendar popovers for Today, Month, Index, and Master Tasks Due Date picker, full button hit target (click and mouseup), unclipping `.header-left` overflow, month/year navigation (commits `609788b`, `7c485fe`, `957fdb7`).
+- [x] Universal Search Hotkey: Added `Ctrl+Shift+F` alongside `Ctrl+Shift+K`, disambiguated note card `Ctrl+K` hyperlink hotkey (commits `3cbd33f`, `7c485fe`).
+- [x] Note Link Modal Drive Title Resolution & Inline Hyperlink Rendering: Tab title lookup with fallback title generation, robust Drive v2 metadata handling, and note card inline rendering of all link formats (commit `957fdb7`).
 - [x] ~~Read-only offline cache / emergency fallback mode~~ (Descoped per user directive).
 
 

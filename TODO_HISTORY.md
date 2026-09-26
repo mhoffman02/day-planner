@@ -1,5 +1,30 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-26 — Themed Calendar Pickers, Unicode Note Checklists, Universal Search Hotkeys, Drive Link Modal, & OAuth Scope Audit (commits `609788b`, `3cbd33f`, `7c485fe`, `957fdb7`, `0e3201e`, `6c762b4`)
+
+- [x] **Note Cards Unicode Ballot Boxes (`☐` / `☒`, commits `609788b`, `3cbd33f`)**:
+  - Auto-expanded typed `[ ]` into open ballot box `☐` (U+2610) and `[x]` / `[X]` into box with X `☒` (U+2612).
+  - Wired mouseup/click toggle between `☐` and `☒` without inserting accidental newlines.
+  - Supported `Enter` key auto-continuation with autofocus on newly generated checkbox lines.
+  - Formatted bold without wrapping checkbox glyph and supported format clearing with `format_clear`.
+  - Added unit test suite in [`tests/noteCardChecklist.test.js`](file:///home/mike/projects/day-planner/tests/noteCardChecklist.test.js).
+- [x] **Themed Calendar Date Pickers & Popovers (commits `609788b`, `7c485fe`, `957fdb7`)**:
+  - Implemented custom themed calendar popovers for Today, Month, Index tabs and Master Tasks quick-add Due Date.
+  - Expanded interactive hit target to entire button widget (mouseup and click listeners).
+  - Fixed top bar overflow clipping (`.header-left { overflow: visible; }`, `z-index: 2000`) so dropdowns render over content.
+  - Themed dark/light mode parchment styling with gold accent on today and solid green fill on selected dates.
+- [x] **Universal Search Hotkeys & Hyperlink Shortcut Disambiguation (commits `3cbd33f`, `7c485fe`)**:
+  - Added `Ctrl+Shift+F` as an alternative universal search shortcut alongside `Ctrl+Shift+K`.
+  - Preserved standard `Ctrl+K` for note card hyperlink creation dialog without search modal collision.
+- [x] **Note Card Drive Link Modal & Universal Hyperlink Rendering (commits `957fdb7`, `6c762b4`)**:
+  - Added tab-off Drive file title auto-lookup with fallback placeholder titles.
+  - Fixed Drive v2 `Drive.Files.get` call (`supportsAllDrives: true`).
+  - Upgraded `renderInline()` to render markdown links `[text](url)`, autolinks `<url>`, bracket links `[[link:url]]text[[/link]]`, and raw URLs into clickable `<a>` tags with autofocus exit.
+  - Added unit test suite in [`tests/noteCardLink.test.js`](file:///home/mike/projects/day-planner/tests/noteCardLink.test.js).
+- [x] **OAuth Scope Audit & Deployment Target Diagnosis (commits `957fdb7`, `6c762b4`)**:
+  - Reverted unintended broad `https://www.googleapis.com/auth/drive` scope from [`gas-app/appsscript.json`](file:///home/mike/projects/day-planner/gas-app/appsscript.json), enforcing least-privilege `drive.file` and `drive.readonly`.
+  - Dispatched Claude Sonnet 5 to review the `DocumentApp.openById` permission invalidation and deployment target discrepancy (`AKfycbxvzu...` vs `AKfycbyTg...`).
+
 ## 2026-09-26 — PWA Installability, Maskable Icons & Standalone Window Verification (commits `373f29c`, `34bdfde`, HOME @206, WORK @53)
 
 - [x] **Inline Web App Manifest & Dynamic Blob Fallback (commit `373f29c`)**:

@@ -1,8 +1,8 @@
 # Active Tasks (TODO)
 
-- [x] **1. Active Enhancements**:
-  - [x] **Special Character Checkboxes (`☐` / `☒`)**: Implement KISS unicode ballot box toggling with Open-box (`☐` U+2610) and Box-with-X (`☒` U+2612, also supporting `☑` U+2611) with themeable styling in Note Cards without breaking Google Docs sync.
+- [ ] **1. Active Deployment & Permissions Synchronization**:
+  - [ ] **Deployment Verification**: Confirm user's manual update of `AKfycbxvzuB7h8AqY6UPf_vP2updhVaZYbjW74yl1sf-LcfdzK_gluGRzRYMqazjTtH1edlOdA` ("Day Planner Release Version 218") to latest code version and successful consent/authorization flow.
+  - [ ] **Lock Target Deployment ID in Rules**: Synchronize [`.agents/rules/gas-environments.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-environments.md) with confirmed production deployment ID for clasp deploy targeting.
 
-- [x] **2. Descoped Items**:
-  - [x] ~~**Recurring Tasks & Daily Templates**~~: Descoped per user directive.
-  - [x] ~~**Read-Only Offline Fallback Cache**~~: Descoped per user directive.
+- [ ] **2. Pure-GAS Production Verification**:
+  - [ ] **Live Feature Verification**: Test Drive filename lookup, note link rendering, and themed date picker interactions on the refreshed deployment.
