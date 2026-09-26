@@ -86,4 +86,84 @@ describe('Note Card Hyperlink & Drive Title Resolution', () => {
 
     assert.equal(resultLine, `- Discuss Q3 budget items: [[link:${sheetUrl}]]Financial Planning Spreadsheet[[/link]]`);
   });
+
+  it('correctly provides fallback link text when title is not available', () => {
+    const getDefaultLinkText = (url) => {
+      if (!url || typeof url !== 'string') return 'Link';
+      const trimmed = url.trim();
+      if (/document/i.test(trimmed)) return 'Google Doc';
+      if (/spreadsheets/i.test(trimmed)) return 'Google Sheet';
+      if (/presentation/i.test(trimmed)) return 'Google Slide Deck';
+      if (/forms/i.test(trimmed)) return 'Google Form';
+      if (/folders/i.test(trimmed)) return 'Drive Folder';
+      if (/drive\.google\.com/i.test(trimmed)) return 'Google Drive File';
+      try {
+        const parsed = new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`);
+        return parsed.hostname.replace(/^www\./, '');
+      } catch (_err) {
+        return trimmed;
+      }
+    };
+
+    assert.equal(getDefaultLinkText('https://docs.google.com/document/d/123/edit'), 'Google Doc');
+    assert.equal(getDefaultLinkText('https://docs.google.com/spreadsheets/d/456/edit'), 'Google Sheet');
+    assert.equal(getDefaultLinkText('https://docs.google.com/presentation/d/789/edit'), 'Google Slide Deck');
+    assert.equal(getDefaultLinkText('https://drive.google.com/drive/folders/folder999'), 'Drive Folder');
+    assert.equal(getDefaultLinkText('https://github.com/mhoffman02/day-planner'), 'github.com');
+  });
+
+  it('renders standard markdown links, autolinks, custom bracket links, and raw URLs', () => {
+    const escapeHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const renderInline = (line) => {
+      let html = escapeHtml(line);
+      html = html.replace(/\[\[link:((?:https?|mailto):[^\]\s]+)\]\](.*?)\[\[\/link\]\]/g, (_m, url, linkText) => {
+        const safeHrefUrl = url.replace(/"/g, '&quot;');
+        const label = (linkText || '').trim() || url;
+        return `<a href="${safeHrefUrl}" target="_blank" rel="noopener noreferrer" class="note-render-link">${label}</a>`;
+      });
+      html = html.replace(/\[([^\]]+)\]\(((?:https?|mailto):[^)\s]+)\)/g, (_m, linkText, url) => {
+        const safeHrefUrl = url.replace(/"/g, '&quot;');
+        return `<a href="${safeHrefUrl}" target="_blank" rel="noopener noreferrer" class="note-render-link">${linkText}</a>`;
+      });
+      html = html.replace(/&lt;((?:https?|mailto):[^&>\s]+)&gt;/g, (_m, url) => {
+        const safeHrefUrl = url.replace(/"/g, '&quot;');
+        return `<a href="${safeHrefUrl}" target="_blank" rel="noopener noreferrer" class="note-render-link">${url}</a>`;
+      });
+      html = html.replace(/(^|[\s(])((?:https?):\/\/[^\s<)]+)/g, (_m, prefix, url) => {
+        const safeHrefUrl = url.replace(/"/g, '&quot;');
+        return `${prefix}<a href="${safeHrefUrl}" target="_blank" rel="noopener noreferrer" class="note-render-link">${url}</a>`;
+      });
+      return html;
+    };
+
+    // Standard markdown
+    assert.equal(
+      renderInline('Review [Architecture Doc](https://docs.google.com/doc1) before Friday.'),
+      'Review <a href="https://docs.google.com/doc1" target="_blank" rel="noopener noreferrer" class="note-render-link">Architecture Doc</a> before Friday.'
+    );
+
+    // Markdown link with same url as text
+    assert.equal(
+      renderInline('Review [https://docs.google.com/doc1](https://docs.google.com/doc1) now.'),
+      'Review <a href="https://docs.google.com/doc1" target="_blank" rel="noopener noreferrer" class="note-render-link">https://docs.google.com/doc1</a> now.'
+    );
+
+    // Custom bracket link
+    assert.equal(
+      renderInline('Open [[link:https://drive.google.com/file1]]Google Doc[[/link]] in browser.'),
+      'Open <a href="https://drive.google.com/file1" target="_blank" rel="noopener noreferrer" class="note-render-link">Google Doc</a> in browser.'
+    );
+
+    // Custom bracket link with empty text
+    assert.equal(
+      renderInline('Open [[link:https://drive.google.com/file1]][[/link]] in browser.'),
+      'Open <a href="https://drive.google.com/file1" target="_blank" rel="noopener noreferrer" class="note-render-link">https://drive.google.com/file1</a> in browser.'
+    );
+
+    // Autolink <url>
+    assert.equal(
+      renderInline('Source: <https://github.com/project>'),
+      'Source: <a href="https://github.com/project" target="_blank" rel="noopener noreferrer" class="note-render-link">https://github.com/project</a>'
+    );
+  });
 });

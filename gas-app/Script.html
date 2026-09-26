@@ -2113,6 +2113,23 @@
           || /\/folders\/[a-zA-Z0-9_-]+/i.test(trimmed);
       },
 
+      getDefaultLinkText(url) {
+        if (!url || typeof url !== 'string') return 'Link';
+        const trimmed = url.trim();
+        if (/document/i.test(trimmed)) return 'Google Doc';
+        if (/spreadsheets/i.test(trimmed)) return 'Google Sheet';
+        if (/presentation/i.test(trimmed)) return 'Google Slide Deck';
+        if (/forms/i.test(trimmed)) return 'Google Form';
+        if (/folders/i.test(trimmed)) return 'Drive Folder';
+        if (/drive\.google\.com/i.test(trimmed)) return 'Google Drive File';
+        try {
+          const parsed = new URL(trimmed.startsWith('http') ? trimmed : ('https:' + '/' + '/' + trimmed));
+          return parsed.hostname.replace(/^www\./, '');
+        } catch (_err) {
+          return trimmed;
+        }
+      },
+
       openLinkModal(card, idx) {
         if (!card) return;
         const lineIdx = idx ?? card._activeLineIndex ?? 0;
@@ -2182,6 +2199,10 @@
         const isDrive = this.isGoogleDriveDocUrl(candidate);
         this.linkModalDetectedDrive = isDrive;
 
+        if (!this.linkModalText || ['Google Doc', 'Drive Folder', 'Google Sheet', 'Google Slide Deck', 'Google Drive File', 'Link'].includes(this.linkModalText)) {
+          this.linkModalText = this.getDefaultLinkText(candidate);
+        }
+
         if (!isDrive) return;
         if (this.linkModalLastResolvedUrl === candidate) return;
 
@@ -2240,52 +2261,28 @@
           }
         }
 
-        const displayText = (this.linkModalText || '').trim() || url;
-        const wrapped = `[[link:${url}]]${displayText}[[/link]]`;
+        const displayText = (this.linkModalText || '').trim() || this.getDefaultLinkText(url);
+        const wrapped = '[[link:' + url + ']]' + displayText + '[[/link]]';
 
         const lines = this.cardLines(card);
         const lineText = lines[idx] || '';
 
         const selStart = this.linkModalSelStart;
         const selEnd = this.linkModalSelEnd;
-        let newCaretPos = lineText.length + wrapped.length;
 
         if (selStart !== null && selEnd !== null && selStart >= 0 && selEnd >= selStart) {
           const before = lineText.slice(0, selStart);
           const after = lineText.slice(selEnd);
           lines[idx] = before + wrapped + after;
-          newCaretPos = before.length + wrapped.length;
         } else {
-          lines[idx] = lineText ? `${lineText} ${wrapped}` : wrapped;
-          newCaretPos = lines[idx].length;
+          lines[idx] = lineText ? (lineText + ' ' + wrapped) : wrapped;
         }
 
         card.content = lines.join('\n');
         this.syncCardsToDailyNote();
 
-        this.linkModalOpen = false;
-        this.linkModalCard = null;
-        this.linkModalLineIdx = null;
-        this.linkModalSelStart = null;
-        this.linkModalSelEnd = null;
-        this.linkModalUrl = '';
-        this.linkModalText = '';
-        this.linkModalResolving = false;
-        this.linkModalDetectedDrive = false;
-        this.linkModalLastResolvedUrl = '';
-
-        this.$nextTick(() => {
-          this.startEditingLine(card, idx);
-          const el = document.getElementById(`card-line-${card.id}-${idx}`);
-          if (el) {
-            el.focus();
-            try {
-              el.setSelectionRange(newCaretPos, newCaretPos);
-            } catch (_err) {
-              /* Ignore selection error on non-selectable inputs */
-            }
-          }
-        });
+        this.closeLinkModal();
+        card._activeLineIndex = null;
       },
 
       insertLineLink(card, idx) {
@@ -2457,10 +2454,32 @@
           html = html.replace(/#index\s+\[([^\]]+)\]/gi, '<span class="doc-preview-topic-badge">$1</span>');
           html = html.replace(/#task\s+\[([A-C]\d)\]/gi, '<span class="priority-badge">[$1]</span>');
           html = html.replace(/\[\[color:(teal|red|green|blue)\]\](.+?)\[\[\/color\]\]/g, '<span class="note-render-color-$1">$2</span>');
-          html = html.replace(/\[\[link:((?:https?|mailto):[^\]\s]+)\]\](.+?)\[\[\/link\]\]/g, (_m, url, linkText) => {
+
+          /* 1. Bracket syntax: [[link:url]]linkText[[/link]] */
+          html = html.replace(/\[\[link:((?:https?|mailto):[^\]\s]+)\]\](.*?)\[\[\/link\]\]/g, (_m, url, linkText) => {
             const safeHrefUrl = url.replace(/"/g, '&quot;');
-            return `<a href="${safeHrefUrl}" target="_blank" rel="noopener noreferrer" class="note-render-link">${linkText}</a>`;
+            const label = (linkText || '').trim() || url;
+            return '<a href="' + safeHrefUrl + '" target="_blank" rel="noopener noreferrer" class="note-render-link">' + label + '</a>';
           });
+
+          /* 2. Standard markdown links: [link text](url) */
+          html = html.replace(/\[([^\]]+)\]\(((?:https?|mailto):[^)\s]+)\)/g, (_m, linkText, url) => {
+            const safeHrefUrl = url.replace(/"/g, '&quot;');
+            return '<a href="' + safeHrefUrl + '" target="_blank" rel="noopener noreferrer" class="note-render-link">' + linkText + '</a>';
+          });
+
+          /* 3. Autolinks: <https:...> */
+          html = html.replace(/&lt;((?:https?|mailto):[^&>\s]+)&gt;/g, (_m, url) => {
+            const safeHrefUrl = url.replace(/"/g, '&quot;');
+            return '<a href="' + safeHrefUrl + '" target="_blank" rel="noopener noreferrer" class="note-render-link">' + url + '</a>';
+          });
+
+          /* 4. Raw standalone URLs */
+          html = html.replace(/(^|[\s(])((?:https?):\/\/[^\s<)]+)/g, (_m, prefix, url) => {
+            const safeHrefUrl = url.replace(/"/g, '&quot;');
+            return prefix + '<a href="' + safeHrefUrl + '" target="_blank" rel="noopener noreferrer" class="note-render-link">' + url + '</a>';
+          });
+
           html = html.replace(/\*\*(.+?)\*\*/g, '<span class="note-render-bold">$1</span>');
           html = html.replace(/~~(.+?)~~/g, '<span class="note-render-strike">$1</span>');
           html = html.replace(/__(.+?)__/g, '<span class="note-render-underline">$1</span>');
