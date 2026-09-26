@@ -237,7 +237,7 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 ### Future Backlog (Post-Phase 14 Candidates)
 *Candidate enhancements and architectural decisions:*
 - [x] ~~Daily recurring checklist / template items support~~ (Descoped per user directive).
-- [ ] Special Character Checkboxes (`☐` / `☑`): KISS unicode ballot box toggling (`☐` U+2610 / `☑` U+2611) with themeable styling in Note Cards without breaking Google Docs sync.
+- [ ] Special Character Checkboxes (`☐` / `☒`): KISS unicode ballot box toggling with Open-box (`☐` U+2610) and Box-with-X (`☒` U+2612, also supporting `☑` U+2611) with themeable styling in Note Cards without breaking Google Docs sync.
 - [x] ~~Read-only offline cache / emergency fallback mode~~ (Descoped per user directive).
 
 
