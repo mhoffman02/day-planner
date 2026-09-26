@@ -572,6 +572,7 @@
                       <span class="toolbar-divider"></span>
                       <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'bullet')" title="Bullet List"><span class="material-symbols-outlined icon-16">format_list_bulleted</span></button>
                       <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'ordered')" title="Numbered List"><span class="material-symbols-outlined icon-16">format_list_numbered</span></button>
+                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'checklist')" title="Checklist (Ctrl+Shift+C)" aria-label="Checklist"><span class="material-symbols-outlined icon-16">check_box</span></button>
                       <span class="toolbar-divider"></span>
                       <button type="button" class="format-btn color-swatch-btn color-swatch-default" @mousedown.prevent @click="applyCardFormat(card, 'color-default')" title="Remove Text Color Only"><span class="material-symbols-outlined icon-16">format_color_reset</span></button>
                       <button type="button" class="format-btn color-swatch-btn color-swatch-teal" :class="{ active: cardNoteColor(card) === 'teal' }" @mousedown.prevent @click="applyCardFormat(card, 'color-teal')" title="Color: Teal" aria-label="Color: Teal"></button>
@@ -581,7 +582,7 @@
                       <span class="toolbar-divider"></span>
                       <span class="card-heading-help" tabindex="0" role="note" aria-label="Typing shortcuts for formatting">
                         <span class="material-symbols-outlined icon-16">keyboard</span>
-                        <span class="card-heading-help-tip">Start a line with <code>- </code> for bullets, <code>1. </code> for numbers. Inline: <code>**bold**</code>, <code>*italic*</code>, <code>__underline__</code>, <code>~~strike~~</code>.</span>
+                        <span class="card-heading-help-tip">Start a line with <code>- </code> for bullets, <code>1. </code> for numbers, <code>[] </code> for checklist (☐/☒). Inline: <code>**bold**</code>, <code>*italic*</code>, <code>__underline__</code>, <code>~~strike~~</code>.</span>
                       </span>
                     </div>
 
@@ -589,7 +590,14 @@
                     <div class="note-card-lines">
                       <template x-for="(line, idx) in cardLines(card)" :key="idx">
                         <div class="note-card-line-row" :class="{ 'note-line-selected': isLineInSelectedRange(card, idx) }">
-                          <div class="note-render-line-item" x-show="card._activeLineIndex !== idx" @click="$event.shiftKey ? extendLineSelection(card, idx) : startEditingLine(card, idx)" x-html="renderCardLine(line, cardLines(card).length === 1 && !line)" aria-label="Note line, click to edit, shift+click to extend selection"></div>
+                          <div class="note-render-line-item" x-show="card._activeLineIndex !== idx" @click="$event.shiftKey ? extendLineSelection(card, idx) : startEditingLine(card, idx)" aria-label="Note line, click to edit, shift+click to extend selection">
+                            <template x-if="isLineCheckbox(line)">
+                              <button type="button" class="note-checkbox-btn" :class="{ 'checked': isLineChecked(line) }" @click.stop="toggleCardCheckbox(card, idx, $event)" :title="isLineChecked(line) ? 'Mark open (☐)' : 'Mark completed (☒)'" :aria-label="isLineChecked(line) ? 'Completed item' : 'Open checklist item'">
+                                <span class="note-checkbox-glyph" x-text="isLineChecked(line) ? '☒' : '☐'"></span>
+                              </button>
+                            </template>
+                            <span class="note-line-body" :class="{ 'note-line-checked': isLineChecked(line) }" x-html="renderCardLine(getLineTextWithoutCheckbox(line), cardLines(card).length === 1 && !line)"></span>
+                          </div>
                           <input type="text" x-show="card._activeLineIndex === idx" :id="'card-line-' + card.id + '-' + idx" :value="line" @input="updateCardLine(card, idx, $event.target.value)" @keydown="handleLineKeydown($event, card, idx)" @paste="handleLinePaste($event, card, idx)" @blur="stopEditingLine(card, idx)" :placeholder="cardLines(card).length === 1 && idx === 0 ? 'Type notes for this topic (e.g. - #index [Topic] key decisions...)' : ''" class="note-card-line-input" aria-label="Note line">
                         </div>
                       </template>

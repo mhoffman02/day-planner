@@ -945,10 +945,65 @@ Alpine.data('plannerApp', () => ({
         }
       },
 
+      isLineCheckbox(line) {
+        if (!line || typeof line !== 'string') return false;
+        return /^[☐☒☑]\s/.test(line) || /^-\s\[[ xX]?\]\s/.test(line) || /^\[[ xX]?\]\s/.test(line);
+      },
+
+      isLineChecked(line) {
+        if (!line || typeof line !== 'string') return false;
+        return /^[☒☑]\s/.test(line) || /^-\s\[[xX]\]\s/.test(line) || /^\[[xX]\]\s/.test(line);
+      },
+
+      getLineTextWithoutCheckbox(line) {
+        if (!line || typeof line !== 'string') return '';
+        return line.replace(/^[☐☒☑]\s/, '').replace(/^-\s\[[ xX]?\]\s/, '').replace(/^\[[ xX]?\]\s/, '');
+      },
+
+      toggleCardCheckbox(card, idx, event) {
+        if (event) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        if (!card) return;
+        const lines = this.cardLines(card);
+        if (idx == null || idx < 0 || idx >= lines.length) return;
+        const line = lines[idx] || '';
+
+        if (/^☐\s/.test(line)) {
+          lines[idx] = '☒ ' + line.slice(2);
+        } else if (/^[☒☑]\s/.test(line)) {
+          lines[idx] = '☐ ' + line.slice(2);
+        } else if (/^-\s\[\s?\]\s/.test(line)) {
+          lines[idx] = '☒ ' + line.replace(/^-\s\[\s?\]\s/, '');
+        } else if (/^-\s\[[xX]\]\s/.test(line)) {
+          lines[idx] = '☐ ' + line.replace(/^-\s\[[xX]\]\s/, '');
+        } else if (/^\[\s?\]\s/.test(line)) {
+          lines[idx] = '☒ ' + line.replace(/^\[\s?\]\s/, '');
+        } else if (/^\[[xX]\]\s/.test(line)) {
+          lines[idx] = '☐ ' + line.replace(/^\[[xX]\]\s/, '');
+        } else {
+          return;
+        }
+
+        card.content = lines.join('\n');
+        this.syncCardsToDailyNote();
+      },
+
       updateCardLine(card, idx, val) {
         if (!card) return;
         const lines = this.cardLines(card);
-        lines[idx] = val;
+        let updatedVal = val;
+        if (updatedVal.startsWith('[] ') || updatedVal.startsWith('[ ] ')) {
+          updatedVal = '☐ ' + updatedVal.replace(/^\[\s?\]\s/, '');
+        } else if (updatedVal.startsWith('- [ ] ') || updatedVal.startsWith('- [] ')) {
+          updatedVal = '☐ ' + updatedVal.replace(/^-\s\[\s?\]\s/, '');
+        } else if (updatedVal.startsWith('[x] ') || updatedVal.startsWith('[X] ')) {
+          updatedVal = '☒ ' + updatedVal.replace(/^\[[xX]\]\s/, '');
+        } else if (updatedVal.startsWith('- [x] ') || updatedVal.startsWith('- [X] ')) {
+          updatedVal = '☒ ' + updatedVal.replace(/^-\s\[[xX]\]\s/, '');
+        }
+        lines[idx] = updatedVal;
         card.content = lines.join('\n');
         this.syncCardsToDailyNote();
       },
@@ -957,6 +1012,14 @@ Alpine.data('plannerApp', () => ({
         if (!card) return;
         const lines = this.cardLines(card);
         const currentLine = lines[idx] || '';
+
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
+          if (e.key === 'c' || e.key === 'C') {
+            e.preventDefault();
+            this.applyCardFormat(card, 'checklist');
+            return;
+          }
+        }
 
         if ((e.ctrlKey || e.metaKey) && !e.shiftKey) {
           if (e.key === 'b' || e.key === 'B') {
@@ -983,8 +1046,15 @@ Alpine.data('plannerApp', () => ({
 
         if (e.key === 'Enter') {
           e.preventDefault();
+          if (currentLine === '☐ ' || currentLine === '☒ ' || currentLine === '☑ ' || currentLine === '- ') {
+            lines[idx] = '';
+            card.content = lines.join('\n');
+            this.syncCardsToDailyNote();
+            return;
+          }
           let prefix = '';
           if (currentLine.startsWith('- ')) prefix = '- ';
+          else if (/^[☐☒☑]\s/.test(currentLine)) prefix = '☐ ';
           else {
             const numMatch = /^(\d+)\.\s/.exec(currentLine);
             if (numMatch) prefix = `${parseInt(numMatch[1], 10) + 1}. `;
@@ -995,14 +1065,25 @@ Alpine.data('plannerApp', () => ({
           this.$nextTick(() => {
             this.startEditingLine(card, idx + 1);
           });
-        } else if (e.key === 'Backspace' && !currentLine && lines.length > 1) {
-          e.preventDefault();
-          lines.splice(idx, 1);
-          card.content = lines.join('\n');
-          this.syncCardsToDailyNote();
-          this.$nextTick(() => {
-            this.startEditingLine(card, Math.max(0, idx - 1));
-          });
+          return;
+        } else if (e.key === 'Backspace') {
+          if (currentLine === '☐ ' || currentLine === '☒ ' || currentLine === '☑ ') {
+            e.preventDefault();
+            lines[idx] = '';
+            card.content = lines.join('\n');
+            this.syncCardsToDailyNote();
+            return;
+          }
+          if (!currentLine && lines.length > 1) {
+            e.preventDefault();
+            lines.splice(idx, 1);
+            card.content = lines.join('\n');
+            this.syncCardsToDailyNote();
+            this.$nextTick(() => {
+              this.startEditingLine(card, Math.max(0, idx - 1));
+            });
+            return;
+          }
         } else if (e.key === 'ArrowUp' && idx > 0) {
           e.preventDefault();
           this.startEditingLine(card, idx - 1);
@@ -1303,9 +1384,20 @@ Alpine.data('plannerApp', () => ({
           line = line.replace(/\*\*|~~|__|\*/g, '')
                      .replace(/\[\[color:[a-z]+\]\]/g, '')
                      .replace(/\[\[\/color\]\]/g, '')
-                     .replace(/^(-\s|\d+\.\s)/, '');
+                     .replace(/^(-\s|\d+\.\s|[☐☒☑]\s)/, '');
+        } else if (formatType === 'checklist') {
+          if (/^☐\s/.test(line)) {
+            line = '☒ ' + line.slice(2);
+          } else if (/^[☒☑]\s/.test(line)) {
+            line = line.slice(2);
+          } else {
+            if (line.startsWith('- ')) line = line.slice(2);
+            else if (/^\d+\.\s/.test(line)) line = line.replace(/^\d+\.\s/, '');
+            line = `☐ ${line}`;
+          }
         } else if (formatType === 'bullet') {
           if (line.startsWith('- ')) line = line.slice(2);
+          else if (/^[☐☒☑]\s/.test(line)) line = `- ${line.slice(2)}`;
           else if (/^\d+\.\s/.test(line)) line = `- ${line.replace(/^\d+\.\s/, '')}`;
           else line = `- ${line}`;
         } else if (formatType === 'ordered') {
@@ -1319,6 +1411,7 @@ Alpine.data('plannerApp', () => ({
               if (prevMatch) prevNum = parseInt(prevMatch[1], 10);
             }
             if (line.startsWith('- ')) line = line.slice(2);
+            else if (/^[☐☒☑]\s/.test(line)) line = line.slice(2);
             line = `${prevNum + 1}. ${line}`;
           }
         } else if (formatType === 'color-default') {
@@ -1326,7 +1419,7 @@ Alpine.data('plannerApp', () => ({
         } else if (formatType.startsWith('color-')) {
           const color = formatType.replace('color-', '');
           line = line.replace(/\[\[color:[a-z]+\]\]/g, '').replace(/\[\[\/color\]\]/g, '');
-          const listMatch = /^(-\s|\d+\.\s)/.exec(line);
+          const listMatch = /^(-\s|\d+\.\s|[☐☒☑]\s)/.exec(line);
           if (listMatch) {
             const marker = listMatch[0];
             const rest = line.slice(marker.length);
@@ -1336,7 +1429,7 @@ Alpine.data('plannerApp', () => ({
           }
         } else if (prefixMap[formatType]) {
           const m = prefixMap[formatType];
-          const listMatch = /^(-\s|\d+\.\s)/.exec(line);
+          const listMatch = /^(-\s|\d+\.\s|[☐☒☑]\s)/.exec(line);
           const markerLen = listMatch ? listMatch[0].length : 0;
           const prefix = listMatch ? listMatch[0] : '';
           const body = line.slice(markerLen);
@@ -1361,7 +1454,7 @@ Alpine.data('plannerApp', () => ({
         const wrapperMatch = wrapperOpenRe.exec(text);
         if (!wrapperMatch) return text;
         const rest = text.slice(wrapperMatch[0].length);
-        const listMatch = /^(-\s|\d+\.\s)/.exec(rest);
+        const listMatch = /^(-\s|\d+\.\s|[☐☒☑]\s)/.exec(rest);
         if (!listMatch) return text;
         return listMatch[0] + wrapperMatch[0] + rest.slice(listMatch[0].length);
       },
@@ -1393,6 +1486,14 @@ Alpine.data('plannerApp', () => ({
         };
 
         const orderedRe = /^\d+\.\s/;
+        if (/^[☐☒☑]\s/.test(text) || /^-\s\[[ xX]?\]\s/.test(text) || /^\[[ xX]?\]\s/.test(text)) {
+          const isChecked = /^[☒☑]\s/.test(text) || /^-\s\[[xX]\]\s/.test(text) || /^\[[xX]\]\s/.test(text);
+          const glyph = isChecked ? '☒' : '☐';
+          const checkedClass = isChecked ? ' note-checkbox-glyph-checked' : ' note-checkbox-glyph-open';
+          const lineClass = isChecked ? ' note-line-checked' : '';
+          const bodyText = text.replace(/^[☐☒☑]\s/, '').replace(/^-\s\[[ xX]?\]\s/, '').replace(/^\[[ xX]?\]\s/, '');
+          return `<div class="note-render-line${lineClass}"><span class="note-checkbox-glyph${checkedClass}">${glyph}</span> ${renderInline(bodyText) || '&nbsp;'}</div>`;
+        }
         if (text.startsWith('- ')) {
           return `<ul class="note-render-list"><li>${renderInline(text.slice(2))}</li></ul>`;
         }

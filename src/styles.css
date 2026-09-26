@@ -2168,6 +2168,98 @@
   .note-render-color-green { color: var(--note-color-green); }
   .note-render-color-blue { color: var(--note-color-blue); }
 
+  /* Note Cards Checklist Styling (☐ / ☒) */
+  .note-checkbox-btn {
+    background: transparent;
+    border: none;
+    padding: 0 4px 0 0;
+    margin: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    vertical-align: middle;
+    color: var(--binder-teal, #2d6a5a);
+    font-size: 1.15rem;
+    font-family: inherit;
+    user-select: none;
+    transition: transform 0.12s ease, color 0.12s ease;
+  }
+
+  .note-checkbox-btn:hover {
+    transform: scale(1.15);
+    color: var(--binder-teal-hover, #1d463b);
+  }
+
+  .note-checkbox-btn:focus-visible {
+    outline: 2px solid var(--binder-teal, #2d6a5a);
+    outline-offset: 1px;
+    border-radius: 2px;
+  }
+
+  .note-checkbox-btn.checked {
+    color: var(--binder-teal, #2d6a5a);
+  }
+
+  .note-checkbox-glyph {
+    display: inline-block;
+    line-height: 1;
+    font-weight: 600;
+  }
+
+  .note-checkbox-glyph-open {
+    color: var(--binder-teal, #2d6a5a);
+  }
+
+  .note-checkbox-glyph-checked {
+    color: var(--binder-teal, #2d6a5a);
+  }
+
+  .note-line-body {
+    display: inline;
+    word-break: break-word;
+  }
+
+  .note-line-body.note-line-checked,
+  .note-line-checked {
+    color: var(--text-muted, #767676);
+    text-decoration: line-through;
+    text-decoration-color: var(--binder-teal, #2d6a5a);
+    opacity: 0.8;
+  }
+
+  [data-theme="dark"] .note-checkbox-btn {
+    color: #79d6bd;
+  }
+
+  [data-theme="dark"] .note-checkbox-btn:hover {
+    color: #a7f3d0;
+  }
+
+  [data-theme="dark"] .note-checkbox-btn:focus-visible {
+    outline-color: #79d6bd;
+  }
+
+  [data-theme="dark"] .note-checkbox-btn.checked {
+    color: #6ee7b7;
+  }
+
+  [data-theme="dark"] .note-checkbox-glyph-open {
+    color: #79d6bd;
+  }
+
+  [data-theme="dark"] .note-checkbox-glyph-checked {
+    color: #6ee7b7;
+  }
+
+  [data-theme="dark"] .note-line-body.note-line-checked,
+  [data-theme="dark"] .note-line-checked {
+    color: #8da49a !important;
+    text-decoration-color: #79d6bd;
+    opacity: 0.75;
+  }
+
   .doc-preview-heading {
     font-family: var(--font-family-header);
     color: var(--binder-teal);
