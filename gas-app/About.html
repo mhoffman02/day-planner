@@ -8,9 +8,10 @@
       </h1>
       <p class="about-subtitle">User Guide & Features Overview</p>
     </div>
-    <span class="about-version">
-      <span class="material-symbols-outlined icon-16">verified</span> v3.0
-    </span>
+    <button type="button" class="btn-install-app-header" @click="triggerInstallApp()" title="Version 3.0 (v1.0-pure-gas) — Click to install Day Planner as a desktop app">
+      <span class="material-symbols-outlined icon-18">install_desktop</span>
+      <span class="install-btn-text">Install Day Planner</span>
+    </button>
   </header>
 
   <section aria-labelledby="heading-purpose">
@@ -125,6 +126,17 @@
     <p class="about-paragraph">
       Day Planner is designed as a standalone, 100% cloud-hosted web application with zero external dependencies. While it runs securely inside Google Apps Script, you can run it borderless and distraction-free as a dedicated desktop or mobile app window:
     </p>
+
+    <div class="install-actions-bar">
+      <button type="button" class="btn-primary install-action-btn" @click="triggerInstallApp()">
+        <span class="material-symbols-outlined icon-18">install_desktop</span>
+        <span>Install Day Planner</span>
+      </button>
+      <button type="button" class="btn-secondary install-action-btn" @click="copyAppUrl()">
+        <span class="material-symbols-outlined icon-18" x-text="copiedAppUrl ? 'check' : 'content_copy'">content_copy</span>
+        <span x-text="copiedAppUrl ? 'Link Copied!' : 'Copy Direct App Link'">Copy Direct App Link</span>
+      </button>
+    </div>
 
     <section class="cards-stack">
       <article class="guide-card">

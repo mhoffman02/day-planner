@@ -202,6 +202,19 @@ describe('GAS Bridge Unit Tests', () => {
     assert.ok(masterTasks.some(m => m.id === added.id));
   });
 
+  it('should add a new master task with an optional due date via bridge', async () => {
+    const bridge = new GASBridge(true);
+    const added = await bridge.addMasterTask('Q4 Strategy Review', 'Strategy', '2026-10-15');
+    assert.ok(added.id);
+    assert.equal(added.title, 'Q4 Strategy Review');
+    assert.equal(added.category, 'Strategy');
+    assert.equal(added.dueDate, '2026-10-15');
+    assert.equal(added.status, '•');
+
+    const masterTasks = await bridge.getMasterTasks('October 2026');
+    assert.ok(masterTasks.some(m => m.id === added.id && m.dueDate === '2026-10-15'));
+  });
+
   it('should mark a master task as moved with date and linked task ID', async () => {
     const bridge = new GASBridge(true);
     const updated = await bridge.markMasterTaskMoved('m3', '2026-08-20', 't_new_123');

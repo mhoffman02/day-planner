@@ -585,7 +585,7 @@
             </h2>
             <div class="master-tasks-filters-wrap">
               <div class="task-filter-stamp-group status-filter-group" role="group" aria-label="Filter Master Tasks by Status">
-                <span class="task-filter-label">Status filter</span>
+                <span class="task-filter-label">Filter:</span>
                 <button type="button" class="task-filter-stamp" :class="{ 'is-active': isAllMasterTaskStatusSelected() }"
                         @click="toggleAllMasterTaskStatusFilters()"
                         :aria-pressed="isAllMasterTaskStatusSelected()"
@@ -646,6 +646,7 @@
               <button type="button" class="priority-segment-btn" :class="{ 'active c': newMasterTaskPriorityGroup === 'C' }" @click="newMasterTaskPriorityGroup = 'C'" role="radio" :aria-checked="newMasterTaskPriorityGroup === 'C'" aria-label="Priority C" title="Assign Priority C (Alt+C or #c)" accesskey="c">C</button>
             </div>
             <input type="text" x-model="newMasterTaskTitle" @input="handleMasterTaskTitleInput()" placeholder="Add master task title (e.g. Call vendor / #a Call vendor)..." class="task-input-field master-task-title-input" aria-label="New master task description">
+            <input type="date" x-model="newMasterTaskDueDate" class="task-input-field master-task-due-date-input" aria-label="New master task due date" title="Optional due date (leave empty for undated backlog)">
             <input type="text" x-model="newMasterTaskCategory" placeholder="Category" class="task-input-field master-task-category-input" aria-label="New master task category">
             <button type="submit" class="btn-primary btn-add-task-round" :disabled="addingMasterTask" aria-label="Add master task" title="Add master task">
               <span class="material-symbols-outlined icon-18" :class="{ spin: addingMasterTask }" x-text="addingMasterTask ? 'progress_activity' : 'add'">add</span>
@@ -1082,6 +1083,54 @@
         </section>
         <footer class="modal-actions">
           <button type="button" class="btn-secondary" @click="closeSearchModal()">Close</button>
+        </footer>
+      </article>
+    </dialog>
+
+    <!-- Dialog 4: Install Day Planner Guide Modal -->
+    <dialog class="modal-backdrop" :open="installModalOpen" x-show="installModalOpen" x-cloak aria-labelledby="installModalTitle" @click.self="closeInstallModal()" @keydown.escape.window="if (installModalOpen) closeInstallModal()">
+      <article class="modal-card modal-card-install" @click.away="closeInstallModal()">
+        <header class="modal-header-spaced">
+          <h3 id="installModalTitle" class="modal-title-with-icon">
+            <span class="material-symbols-outlined icon-24">install_desktop</span>
+            Install Day Planner as Desktop App
+          </h3>
+          <button type="button" class="btn-icon" @click="closeInstallModal()" aria-label="Close install guide" title="Close">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </header>
+        <div class="modal-body-details">
+          <p class="modal-detail-intro">
+            Day Planner can be installed as a distraction-free, borderless desktop app with its own taskbar/dock icon:
+          </p>
+          <div class="install-platform-guide">
+            <h4 class="install-platform-title">
+              <span class="material-symbols-outlined icon-16">desktop_windows</span> Google Chrome (Recommended)
+            </h4>
+            <ol class="styled-ordered-list">
+              <li>Look at the right side of the address bar for the <b>Install</b> icon (<span class="material-symbols-outlined icon-14">install_desktop</span>) and click it.</li>
+              <li>Or click the Chrome Menu (<b>⋮</b>) &rarr; <b>Save and share</b> (or <b>More tools</b>) &rarr; <b>Install Day Planner...</b> (or <b>Create shortcut...</b>).</li>
+              <li>Check <b>"Open as window"</b> and click <b>Install</b> (or <b>Create</b>).</li>
+            </ol>
+          </div>
+          <div class="install-platform-guide">
+            <h4 class="install-platform-title">
+              <span class="material-symbols-outlined icon-16">laptop_mac</span> Microsoft Edge
+            </h4>
+            <ol class="styled-ordered-list">
+              <li>Click Edge Menu (<b>…</b>) &rarr; <b>Apps</b> &rarr; <b>Install this site as an app</b>.</li>
+              <li>Click <b>Install</b> to launch in a standalone window.</li>
+            </ol>
+          </div>
+        </div>
+        <footer class="modal-actions">
+          <button type="button" class="btn-secondary" @click="copyAppUrl()">
+            <span class="material-symbols-outlined icon-16" x-text="copiedAppUrl ? 'check' : 'content_copy'">content_copy</span>
+            <span x-text="copiedAppUrl ? 'Link Copied!' : 'Copy Direct App Link'">Copy Direct App Link</span>
+          </button>
+          <button type="button" class="btn-primary" @click="closeInstallModal()">
+            Done
+          </button>
         </footer>
       </article>
     </dialog>

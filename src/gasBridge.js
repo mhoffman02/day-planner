@@ -258,9 +258,10 @@ export class GASBridge {
    * Adds a new master task to the undated backlog.
    * @param {string} title Task title description.
    * @param {string} [category='General'] Optional category classification.
+   * @param {string} [dueDate=null] Optional due date in YYYY-MM-DD format.
    * @returns {Promise<object>} Created master task item promise.
    */
-  async addMasterTask(title, category = 'General') {
+  async addMasterTask(title, category = 'General', dueDate = null) {
     if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
       const newTask = {
         id: `m_${Date.now()}`,
@@ -269,7 +270,7 @@ export class GASBridge {
         status: '•',
         starred: false,
         notes: '',
-        dueDate: null,
+        dueDate: dueDate || null,
         movedTo: null,
         movedTaskId: null
       };
@@ -281,7 +282,7 @@ export class GASBridge {
       window.google.script.run
         .withSuccessHandler(resolve)
         .withFailureHandler(reject)
-        .addMasterTask(title, category);
+        .addMasterTask(title, category, dueDate);
     });
   }
 

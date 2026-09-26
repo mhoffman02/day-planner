@@ -1549,12 +1549,13 @@ function getMasterTasks(monthYearStr) {
 }
 
 /**
- * Creates a new master task — an undated Google Task flagged via metadata marker.
+ * Creates a new master task — an undated or dated Google Task flagged via metadata marker.
  * @param {string} title Task title.
  * @param {string} [category='General'] Optional category classification.
- * @returns {{id: string, title: string, category: string, status: string, starred: boolean, notes: string, movedTo: null, movedTaskId: null}} Created master task object.
+ * @param {string} [dueDate=null] Optional due date in YYYY-MM-DD format.
+ * @returns {{id: string, title: string, category: string, status: string, starred: boolean, notes: string, dueDate: string|null, movedTo: null, movedTaskId: null}} Created master task object.
  */
-function addMasterTask(title, category) {
+function addMasterTask(title, category, dueDate) {
   try {
     if (typeof Tasks === 'undefined') {
       return {
@@ -1564,15 +1565,19 @@ function addMasterTask(title, category) {
         status: '•',
         starred: false,
         notes: '',
-        dueDate: null,
+        dueDate: dueDate || null,
         movedTo: null,
         movedTaskId: null
       };
     }
-    var created = Tasks.Tasks.insert({
+    var taskResource = {
       title: title,
       notes: encodeTaskMeta('', { master: true, category: category || 'General' })
-    }, '@default');
+    };
+    if (dueDate) {
+      taskResource.due = dueDate + 'T00:00:00.000Z';
+    }
+    var created = Tasks.Tasks.insert(taskResource, '@default');
     var meta = decodeTaskMeta(created.notes);
     return {
       id: created.id,
@@ -1581,7 +1586,7 @@ function addMasterTask(title, category) {
       status: deriveTaskStatus(created),
       starred: Boolean(meta.starred),
       notes: stripDpTokens(created.notes),
-      dueDate: null,
+      dueDate: created.due ? created.due.substring(0, 10) : (dueDate || null),
       movedTo: null,
       movedTaskId: null
     };
@@ -2410,8 +2415,8 @@ function deleteDailyTask(taskId) {
   return (typeof _deleteDailyTaskInternal === 'function') ? _deleteDailyTaskInternal(taskId) : (globalThis._deleteDailyTaskInternal ? globalThis._deleteDailyTaskInternal(taskId) : null);
 }
 
-function addMasterTask(title, category) {
-  return (typeof _addMasterTaskInternal === 'function') ? _addMasterTaskInternal(title, category) : (globalThis._addMasterTaskInternal ? globalThis._addMasterTaskInternal(title, category) : null);
+function addMasterTask(title, category, dueDate) {
+  return (typeof _addMasterTaskInternal === 'function') ? _addMasterTaskInternal(title, category, dueDate) : (globalThis._addMasterTaskInternal ? globalThis._addMasterTaskInternal(title, category, dueDate) : null);
 }
 
 function updateMasterTask(taskId, updates) {

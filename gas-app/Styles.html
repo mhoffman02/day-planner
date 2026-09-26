@@ -946,14 +946,14 @@
   figure.table-container {
     margin: 0;
     padding: 0;
-    overflow: visible;
   }
 
+  figure.table-container.daily-tasks-table-container,
   .daily-tasks-table-container {
     max-height: calc(100vh - 240px);
     min-height: 200px;
-    overflow-y: auto;
-    overflow-x: auto;
+    overflow-y: auto !important;
+    overflow-x: auto !important;
     border: 1px solid var(--border-line);
     border-radius: 2px;
   }
@@ -1765,7 +1765,7 @@
     background: #ffffff;
     box-sizing: border-box;
     flex-wrap: nowrap;
-    height: 18px;
+    height: 20px;
   }
 
   .category-segment-btn {
@@ -1776,8 +1776,8 @@
     font-family: var(--font-family-header, Georgia, serif);
     font-size: 0.68rem;
     font-weight: 600;
-    padding: 0 6px;
-    height: 18px;
+    padding: 0 6px 2px 6px;
+    height: 20px;
     line-height: 18px;
     display: inline-flex;
     align-items: center;
@@ -2990,9 +2990,20 @@
     color: var(--binder-teal);
   }
 
+  .master-task-add-bar .master-task-due-date-input {
+    flex: 0 0 130px;
+    max-width: 130px;
+    font-size: 11px;
+    padding: 3px 6px;
+    color: var(--text-primary);
+    background: var(--bg-card, #ffffff);
+    border: 1px solid var(--border-line);
+    border-radius: 2px;
+  }
+
   .master-task-add-bar .master-task-category-input {
-    flex: 0 0 140px;
-    max-width: 140px;
+    flex: 0 0 120px;
+    max-width: 120px;
   }
 
   .row-just-added {
@@ -3004,11 +3015,12 @@
     100% { background-color: transparent; }
   }
 
+  figure.table-container.monthly-index-table-container,
   .monthly-index-table-container {
     max-height: calc(100vh - 220px);
     min-height: 280px;
-    overflow-y: auto;
-    overflow-x: auto;
+    overflow-y: auto !important;
+    overflow-x: auto !important;
     border: 1px solid var(--border-line);
     border-radius: 2px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
@@ -3027,11 +3039,12 @@
     box-shadow: 0 1px 0 var(--border-line);
   }
 
+  figure.table-container.master-tasks-table-container,
   .master-tasks-table-container {
     max-height: calc(100vh - 280px);
-    min-height: 280px;
-    overflow-y: auto;
-    overflow-x: auto;
+    min-height: 200px;
+    overflow-y: auto !important;
+    overflow-x: auto !important;
     border: 1px solid var(--border-line);
     border-radius: 2px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
@@ -3450,6 +3463,68 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
+  }
+  .btn-install-app-header {
+    background: var(--binder-teal, #2d6a5a);
+    color: #ffffff;
+    border: 1px solid var(--binder-teal, #2d6a5a);
+    border-radius: 2px;
+    font-family: var(--font-family-header, Georgia, serif);
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: background 0.15s ease, box-shadow 0.15s ease;
+  }
+  .btn-install-app-header:hover {
+    background: #245548;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  }
+  .install-actions-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 14px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .install-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    padding: 6px 14px;
+    border-radius: 2px;
+  }
+  .modal-card-install {
+    max-width: 520px;
+    width: 90%;
+  }
+  .install-platform-guide {
+    background: var(--bg-hover, rgba(45, 106, 90, 0.05));
+    border: 1px solid var(--border-line);
+    border-radius: 2px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+  }
+  .install-platform-title {
+    margin: 0 0 6px 0;
+    font-size: 0.88rem;
+    font-family: var(--font-family-header);
+    color: var(--binder-teal);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .modal-detail-intro {
+    margin-top: 0;
+    margin-bottom: 14px;
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+    line-height: 1.45;
   }
   .about-section-heading {
     font-family: var(--font-family-header);
@@ -4203,4 +4278,31 @@
   [data-theme="dark"] .btn-jump-to:hover {
     background: rgba(138, 180, 248, 0.15) !important;
     border-color: #8ab4f8 !important;
-  }</style>
+  }
+
+  [data-theme="dark"] .master-task-add-bar .master-task-due-date-input {
+    background: #11241c !important;
+    border-color: #244a3b !important;
+    color: #e2f2ec !important;
+    color-scheme: dark;
+  }
+
+  [data-theme="dark"] .btn-install-app-header {
+    background: #1c453a !important;
+    border-color: #2d6a5a !important;
+    color: #e2f2ec !important;
+  }
+
+  [data-theme="dark"] .btn-install-app-header:hover {
+    background: #235447 !important;
+  }
+
+  [data-theme="dark"] .install-platform-guide {
+    background: #13271f !important;
+    border-color: #244a3b !important;
+  }
+
+  [data-theme="dark"] .install-platform-title {
+    color: #79d6bd !important;
+  }
+</style>

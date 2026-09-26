@@ -486,13 +486,14 @@
       });
     }
 
-    async addMasterTask(title, category = 'General') {
+    async addMasterTask(title, category = 'General', dueDate = null) {
       if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
         const newTask = {
           id: `m_${Date.now()}`,
           title,
           category: category || 'General',
           status: '•',
+          dueDate: dueDate || null,
           movedTo: null,
           movedTaskId: null
         };
@@ -504,7 +505,7 @@
         window.google.script.run
           .withSuccessHandler(resolve)
           .withFailureHandler(reject)
-          .addMasterTask(title, category);
+          .addMasterTask(title, category, dueDate);
       });
     }
 
@@ -791,8 +792,11 @@
       masterTasks: [],
       newMasterTaskTitle: '',
       newMasterTaskCategory: '',
+      newMasterTaskDueDate: '',
       newMasterTaskPriorityGroup: 'A',
       addingMasterTask: false,
+      installModalOpen: false,
+      copiedAppUrl: false,
       masterTaskSort: { column: null, direction: 'asc' },
       masterTaskStatusFilter: ['•', '○', '✓', '→', 'X', 'Ⓓ'],
       masterTaskDateFilter: 'all',
@@ -904,6 +908,10 @@
         await this.loadDayData();
         await this.loadMasterTasks();
         this.setupKeyboardShortcuts();
+        window.addEventListener('beforeinstallprompt', (e) => {
+          e.preventDefault();
+          window.deferredInstallPrompt = e;
+        });
         // Defer initial focus to avoid iframe cross-origin autofocus block
         setTimeout(() => {
           this.focusTaskInput();
@@ -2045,22 +2053,30 @@
         this.addingMasterTask = true;
         try {
           const category = this.newMasterTaskCategory.trim() || 'General';
+          const dueDate = this.newMasterTaskDueDate ? this.newMasterTaskDueDate.trim() : null;
           const existingCount = this.masterTasks.length + 1;
           const formattedTitle = formatTaskTitle(this.newMasterTaskPriorityGroup, existingCount, taskTitle);
-          const created = await this.bridge.addMasterTask(formattedTitle, category);
+          const created = await this.bridge.addMasterTask(formattedTitle, category, dueDate);
           created._moveDate = getLocalDateStr();
           created._moving = false;
           created._isNew = true;
           if (!created.category) created.category = category;
           if (!created.status) created.status = '•';
+          if (!created.dueDate && dueDate) created.dueDate = dueDate;
           this.masterTasks.push(created);
           this.newMasterTaskTitle = '';
           this.newMasterTaskCategory = '';
+          this.newMasterTaskDueDate = '';
 
-          // Guarantee visibility: if user was filtering by future or overdue/today,
-          // undated master tasks wouldn’t show. Switch horizon to all.
-          if (this.masterTaskDateFilter === 'future' || this.masterTaskDateFilter === 'overdue-today') {
-            this.masterTaskDateFilter = 'all';
+          // Guarantee visibility: if user was filtering by a horizon that would hide the new task, switch to all
+          if (dueDate) {
+            if (this.masterTaskDateFilter === 'undated') {
+              this.masterTaskDateFilter = 'all';
+            }
+          } else {
+            if (this.masterTaskDateFilter === 'future' || this.masterTaskDateFilter === 'overdue-today') {
+              this.masterTaskDateFilter = 'all';
+            }
           }
           // Also ensure status filter includes open tasks so new task is visible
           if (Array.isArray(this.masterTaskStatusFilter) && !this.masterTaskStatusFilter.includes('•')) {
@@ -2075,6 +2091,42 @@
           this.errorMessage = `Could not add master task: ${err.message || err.toString()}`;
         } finally {
           this.addingMasterTask = false;
+        }
+      },
+
+      openInstallModal() {
+        this.installModalOpen = true;
+      },
+
+      closeInstallModal() {
+        this.installModalOpen = false;
+      },
+
+      async copyAppUrl() {
+        try {
+          var url = window.location.href;
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(url);
+          } else {
+            var tempInput = document.createElement('textarea');
+            tempInput.value = url;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+          }
+          this.copiedAppUrl = true;
+          setTimeout(() => { this.copiedAppUrl = false; }, 2500);
+        } catch (err) {
+          console.error('Failed to copy app URL', err);
+        }
+      },
+
+      triggerInstallApp() {
+        if (window.deferredInstallPrompt) {
+          window.deferredInstallPrompt.prompt();
+        } else {
+          this.openInstallModal();
         }
       },
 
