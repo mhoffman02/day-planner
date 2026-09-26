@@ -1,5 +1,27 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-25 — Scroll-on-Demand Containers Across All Tabs, Master Tasks Sticky Header & Move Fix, Thematic Scrollbars & Quick-Add UX (commits `a556ac6`, `dbadf81`, `89a5002`, `79bc761`, HOME @194, WORK @41)
+
+- [x] **Scroll-on-Demand Containers & Sticky Headers Across All Tabs (commit `a556ac6`)**:
+  - **Index Tab (`monthly-index`)**: Added `.monthly-index-table-container` with `max-height: calc(100vh - 220px); min-height: 280px; overflow-y: auto; overflow-x: auto;` and sticky `thead th` (`position: sticky; top: 0; z-index: 5`) with `min-width: 680px`. The page header stays pinned while decisions scroll.
+  - **Future Tab (`future-matrix`)**: Wrapped month cards in `.future-matrix-container` with `max-height: calc(100vh - 200px); min-height: 280px; overflow-y: auto;`. The year navigation `< 2026 >` header stays pinned at the top while the 12 month cards scroll underneath.
+  - **About Tab (`about`)**: Added `.about-view-container` with `max-height: calc(100vh - 80px); min-height: 280px; overflow-y: auto; padding: 10px 16px 24px;` providing smooth document scrolling within the app frame.
+  - **Daily Tab (`daily`)**: Added `.daily-tasks-table-container` with `max-height: calc(100vh - 240px); min-height: 200px; overflow-y: auto; overflow-x: auto;` and sticky `thead th`. Aligned `section.schedule-list` to `max-height: calc(100vh - 240px); min-height: 280px;` so Tasks, Schedule, and Note Cards all share the exact same responsive viewport height.
+  - **Master Tasks (`master-tasks`)**: Retained `.master-tasks-table-container` with `max-height: calc(100vh - 280px); min-height: 280px; overflow-y: auto;` and sticky `thead th`.
+- [x] **Master Tasks Sticky Header & Move-to-Date Bugfix (commit `dbadf81`)**:
+  - Fixed typo calling nonexistent `encodeTaskStatus(notes, '→')` instead of `encodeTaskStatusNotes('→', notes)` in [`gas-app/Code.gs:1634`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L1634), resolving `ReferenceError: encodeTaskStatus is not defined`.
+  - Wrapped table in `.master-tasks-table-container` with sticky `thead th` (`position: sticky; top: 0; z-index: 5`) and bottom shadow line separator.
+- [x] **Thematic Scrollbars in Dark & Light Modes (commit `89a5002`)**:
+  - Slim 8px scrollbar, standard `scrollbar-color` and `scrollbar-width: thin`, WebKit fallbacks with crisp 2px border radius (strictly no pills).
+  - Browser `color-scheme: light / dark` synced to theme attribute and `<meta name="color-scheme" content="light dark">`.
+  - Light mode: slate-teal thumb `rgba(45, 106, 90, 0.28)`. Dark mode: forest jade thumb `rgba(78, 163, 140, 0.35)`.
+- [x] **Master Tasks Quick-Add UX Clarification (commit `79bc761`)**:
+  - Explicit `New Task:` section label with `add_task` icon.
+  - Tooltips for priority buttons, submit spinner during save, auto-switch to `All Dates` visibility guarantee, and 2s row teal flash highlight.
+- [x] **Production Deployments (HOME @194, WORK @41)**:
+  - HOME live at `@194` (`AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`).
+  - WORK promoted via `npm run push:work` and Version 41 created on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`.
+
 ## 2026-09-25 — Master Tasks Option A: Unified Clearinghouse & Thematic Blue Date Horizon Filters (commit `d685fb4`, HOME @190, WORK @35)
 
 - [x] **Master Tasks Option A: Unified Commitment Clearinghouse & Blue Date Horizon Filters (commit `d685fb4`)**:
