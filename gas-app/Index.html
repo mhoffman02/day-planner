@@ -104,7 +104,13 @@
               <button type="button" class="icon-nav-btn" @click="navigateDay(1)" title="Next Day" aria-label="Next Day">
                 <span class="material-symbols-outlined icon-18">chevron_right</span>
               </button>
-              <span class="date-text-display" x-text="new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })"></span>
+              <div class="date-picker-wrap" title="Click to pick date from calendar">
+                <button type="button" class="date-picker-btn" @click="openDatePicker()" title="Click to jump to date" aria-label="Pick date">
+                  <span class="date-text-display" x-text="new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })"></span>
+                  <span class="material-symbols-outlined icon-14 dropdown-arrow">arrow_drop_down</span>
+                </button>
+                <input type="date" x-ref="navDatePicker" :value="selectedDate" @change="jumpToDate($event.target.value)" class="nav-date-input" aria-label="Choose date from calendar">
+              </div>
             </div>
           </template>
 
@@ -144,7 +150,10 @@
               <button type="button" class="icon-nav-btn" @click="navigateMonth(1)" title="Next Month" aria-label="Next Month">
                 <span class="material-symbols-outlined icon-18">chevron_right</span>
               </button>
-              <span class="date-text-display" x-text="selectedMonthName + ' ' + selectedYear"></span>
+              <button type="button" class="month-display-btn" @click="toggleMonthPicker()" title="Click to pick month" aria-label="Pick month">
+                <span class="date-text-display" x-text="selectedMonthName + ' ' + selectedYear"></span>
+                <span class="material-symbols-outlined icon-14 dropdown-arrow">arrow_drop_down</span>
+              </button>
             </div>
           </template>
         </div>

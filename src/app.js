@@ -578,6 +578,31 @@ Alpine.data('plannerApp', () => ({
         await this.loadDayData();
       },
 
+      openDatePicker() {
+        const el = this.$refs.navDatePicker;
+        if (!el) return;
+        if (typeof el.showPicker === 'function') {
+          try {
+            el.showPicker();
+            return;
+          } catch {
+            /* Fallback to click */
+          }
+        }
+        el.focus();
+        el.click();
+      },
+
+      async jumpToDate(targetDateStr) {
+        if (!targetDateStr) return;
+        const d = new Date(`${targetDateStr}T00:00:00`);
+        if (isNaN(d.getTime())) return;
+        this.selectedDate = targetDateStr;
+        this.selectedYear = d.getFullYear();
+        this.selectedMonth = d.getMonth() + 1;
+        await this.loadDayData();
+      },
+
       async navigateMonth(delta) {
         const [y, m] = this.selectedDate.split('-').map(Number);
         const d = new Date(y, m - 1 + delta, 1);

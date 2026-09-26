@@ -5,8 +5,11 @@
  */
 
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
-const CHROME_PORT = process.env.CHROME_PORT ? parseInt(process.env.CHROME_PORT, 10) : 9222;
+const CHROME_PORT = process.env.CHROME_PORT ? parseInt(process.env.CHROME_PORT, 10) : 9225;
 const TARGET_URL = 'http://localhost:3000';
 
 function wait(ms) {
@@ -19,7 +22,7 @@ async function getDebuggerUrl() {
       const res = await fetch(`http://127.0.0.1:${CHROME_PORT}/json`);
       if (res.ok) {
         const data = await res.json();
-        const page = data.find(p => p.type === 'page' && p.url.includes('localhost:3000')) || data[0];
+        const page = data.find(p => p.type === 'page' && p.url.includes('localhost:3000'));
         if (page && page.webSocketDebuggerUrl) {
           return page.webSocketDebuggerUrl;
         }
@@ -93,9 +96,11 @@ class CDPClient {
 
 async function runSmokeTest() {
   console.log('🚀 Starting headless Chrome for smoke testing...');
+  const tmpProfileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'day-planner-smoke-'));
   const chromeProcess = spawn('google-chrome', [
     '--headless=new',
     `--remote-debugging-port=${CHROME_PORT}`,
+    `--user-data-dir=${tmpProfileDir}`,
     '--no-first-run',
     '--no-default-browser-check',
     '--disable-extensions',
@@ -108,6 +113,11 @@ async function runSmokeTest() {
       chromeProcess.kill();
     } catch {
       // Process already terminated
+    }
+    try {
+      fs.rmSync(tmpProfileDir, { recursive: true, force: true });
+    } catch {
+      // Temp dir cleanup
     }
   };
 
