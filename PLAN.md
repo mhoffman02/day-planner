@@ -220,16 +220,22 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 - [x] Automated tests in [`tests/taskEngine.test.js`](file:///home/mike/projects/day-planner/tests/taskEngine.test.js) and [`tests/gasBridge.test.js`](file:///home/mike/projects/day-planner/tests/gasBridge.test.js) (137/137 tests passing across 17 suites).
 - [x] Production Deployments (commits `4009193`, `0e61981`, `afee716`, `eb69e81`, `33566a2`, HOME `@205`, WORK `@52`).
 
-### Phase 14: PWA Installability & Advanced Productivity Enhancements
-*Goal: Complete PWA installability (without service worker) using inline manifest and SVG/PNG data icons, workspace UAT, recurring tasks / daily template checklists, rich text / markdown checklist support in topic cards, and offline cached read-only fallback mode.*
+### Phase 14: PWA Installability & Standalone Window Experience
+*Goal: Complete PWA installability (without service worker) using inline manifest and SVG/PNG data icons, workspace UAT, and standalone window verification.*
 
-- [ ] PWA Installability (without service worker):
-  - [ ] Inline web app manifest via `data:application/manifest+json,...` `<link rel="manifest">`.
-  - [ ] Standalone display mode, orientation, theme color, background color, name, and short_name.
-  - [ ] SVG and PNG icons (192×192, 512×512, maskable and any) using base64 data URIs.
-  - [ ] Full Apple touch icon and mobile-web-app meta tags.
-  - [ ] `beforeinstallprompt` event listener and native trigger handling.
-- [ ] Workspace UAT verification of Phase 13 & 14 fixes across desktop and mobile browsers.
+- [x] PWA Installability (without service worker) (commits `373f29c`, `34bdfde`):
+  - [x] Inline web app manifest via `data:application/manifest+json,...` `<link rel="manifest">` in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) and [`index.html`](file:///home/mike/projects/day-planner/index.html) with dynamic `Blob` URL fallback.
+  - [x] Standalone display mode, orientation, theme color, background color, name, short_name, and navigation shortcuts.
+  - [x] SVG and PNG icons (192×192, 512×512, maskable and standard) generated, embedded via data URIs, and hosted on GitHub raw URLs in [`icons/`](file:///home/mike/projects/day-planner/icons/).
+  - [x] Full Apple touch icon and mobile-web-app meta tags (`mobile-web-app-capable`, `apple-mobile-web-app-capable`, `theme-color` light/dark).
+  - [x] `beforeinstallprompt` and `appinstalled` event listeners with native trigger handling in [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html).
+- [x] Standalone physical [`manifest.json`](file:///home/mike/projects/day-planner/manifest.json) committed at root for repository completeness and raw GitHub linking.
+- [x] Workspace UAT verification of Phase 13 & 14 fixes across desktop and mobile browsers (verified live by user in Chrome desktop standalone window with system frame and menu install).
+- [x] Automated tests in [`tests/taskEngine.test.js`](file:///home/mike/projects/day-planner/tests/taskEngine.test.js) and [`tests/gasBridge.test.js`](file:///home/mike/projects/day-planner/tests/gasBridge.test.js) (137/137 tests passing across 17 suites).
+- [x] Production Deployments (HOME `@206`, WORK `@53`).
+
+### Future Backlog (Post-Phase 14 Candidates)
+*Candidate enhancements for future exploration:*
 - [ ] Daily recurring checklist / template items support.
 - [ ] Rich text / markdown checkbox rendering in note card bodies.
 - [ ] Read-only offline cache / emergency fallback mode.

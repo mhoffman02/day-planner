@@ -71,24 +71,15 @@ Deliver a pure Google Apps Script digital binder productivity app bridging Frank
 
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
-1. **PWA Installability Enhancements (No Service Worker) ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L3-L9))**:
-   - Inline web app manifest via `data:application/manifest+json,...` `<link rel="manifest">` in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) and [`index.html`](file:///home/mike/projects/day-planner/index.html).
-   - Configure metadata: `name`, `short_name`, `start_url`, `display: "standalone"`, `background_color: "#fcfbfa"`, `theme_color: "#2d6a5a"`, `description`, `categories: ["productivity"]`.
-   - Configure icons: SVG icon and base64 PNG icons (192×192, 512×512, maskable and any).
-   - Ensure Apple touch icon and mobile-web-app meta tags are fully in place.
-   - Wire `beforeinstallprompt` event listener to launch native prompt on install button click.
-2. **Live Workspace UAT of Phase 13 UX Polish & App Affordances ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L11-L19))**:
-   - Fixed Top Bar: Verify [`header.single-top-bar`](file:///home/mike/projects/day-planner/src/styles.css#L228) remains pinned.
-   - Dark Datepicker: Verify high-contrast calendar picker icon.
-   - Favicon: Verify green open folio icon with mint outline.
-   - Notion-Style Topic Popover: Verify 10-item LRU autocomplete, keyboard nav, and "×" item deletion on note cards.
-   - Install Modal: Verify `[Install Day Planner]` opens modal dialog 4 cleanly.
-   - Master Tasks: Verify sticky header, custom 8px scrollbar, due date input, and dynamic category autocomplete datalist.
-3. **Phase 14 Planning & Architecture ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L21-L25))**:
-   - Evaluate recurring tasks / daily template checklist architecture and markdown checkbox rendering in note card bodies ([`PLAN.md:222`](file:///home/mike/projects/day-planner/PLAN.md#L222)).
+1. **Recurring Tasks & Daily Templates ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L3-L5))**:
+   - Evaluate schema and automation for recurring routine checklist items or daily templates into daily task lists.
+2. **Interactive Markdown Checkboxes ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L6))**:
+   - Explore rendering interactive checkboxes (`[ ]` / `[x]`) in daily note card bodies without disrupting Google Docs sync.
+3. **Read-Only Offline Snapshot Cache ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L7))**:
+   - Evaluate `localStorage` snapshot cache to allow read-only offline viewing during intermittent connectivity.
 
 ---
 
 ### IMMEDIATE NEXT STEP
 
-Construct the inline JSON Web App Manifest (`data:application/manifest+json,...`) containing complete metadata and base64/SVG icons, and embed it into [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) and [`index.html`](file:///home/mike/projects/day-planner/index.html).
+Review future candidate enhancements with the user to prioritize the next feature set (recurring task templates, markdown checkboxes, or offline snapshot viewing).

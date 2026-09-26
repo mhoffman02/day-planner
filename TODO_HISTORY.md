@@ -1,5 +1,26 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-26 — PWA Installability, Maskable Icons & Standalone Window Verification (commits `373f29c`, `34bdfde`, HOME @206, WORK @53)
+
+- [x] **Inline Web App Manifest & Dynamic Blob Fallback (commit `373f29c`)**:
+  - Embedded inline JSON manifest via `data:application/manifest+json,...` `<link rel="manifest" id="manifest-link">` in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) and [`index.html`](file:///home/mike/projects/day-planner/index.html).
+  - Encoded with 0 literal `//` to avoid Apps Script lexer truncation hazards.
+  - Dynamically updates at runtime via a `Blob` URL so `start_url` matches the active execution URL.
+  - Standalone physical [`manifest.json`](file:///home/mike/projects/day-planner/manifest.json) committed at root.
+- [x] **Maskable & High-Resolution Icons (commit `373f29c`)**:
+  - Embedded vector SVG icon via data URI.
+  - Generated pixel-perfect standard and maskable 192×192 and 512×512 PNG icons in [`icons/`](file:///home/mike/projects/day-planner/icons/) ([`icon-192.png`](file:///home/mike/projects/day-planner/icons/icon-192.png), [`icon-512.png`](file:///home/mike/projects/day-planner/icons/icon-512.png), [`icon-maskable-192.png`](file:///home/mike/projects/day-planner/icons/icon-maskable-192.png), [`icon-maskable-512.png`](file:///home/mike/projects/day-planner/icons/icon-maskable-512.png)).
+  - Provided both embedded data URIs and reliable GitHub raw fallback URLs.
+- [x] **PWA Meta Tags & Install Handlers (commit `373f29c`)**:
+  - Configured `application-name`, `mobile-web-app-capable`, `apple-mobile-web-app-capable`, `theme-color` (light `#2d6a5a`, dark `#1b4339`), `apple-touch-icon`, and `mask-icon`.
+  - Wired `beforeinstallprompt` and `appinstalled` listeners in [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html).
+- [x] **Live Workspace UAT Verified**:
+  - Verified menu install into standalone borderless window with OS frame.
+  - Fixed top bar, dark mode datepicker contrast, theme-green folio favicon, and Notion-style topic LRU autocomplete verified live.
+- [x] **Production Deployments (HOME @206, WORK @53)**:
+  - HOME live at `@206` (`AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`).
+  - WORK promoted and Version 53 created on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`.
+
 ## 2026-09-25 — Remove Copy App Link Button & Accurate Chrome Desktop Shortcut Guide (commit `33566a2`, HOME @205, WORK @52)
 
 - [x] **Copy App Link Button Removal (commit `33566a2`)**:
