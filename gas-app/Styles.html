@@ -2406,7 +2406,7 @@
     color: var(--text-primary);
     border: 1px solid var(--border-line);
     padding: 8px 16px;
-    border-radius: 4px;
+    border-radius: 2px;
     font-weight: 600;
     cursor: pointer;
     font-size: 0.85rem;
@@ -2817,33 +2817,76 @@
     white-space: nowrap;
   }
 
+  /* Themed Date Pickers (Master Tasks & Planner) */
   input.master-task-date-input {
-    font-size: 0.75rem;
+    font-family: inherit;
+    font-size: 0.76rem;
+    font-weight: 500;
     padding: 2px 6px;
     height: 26px;
-    background-color: #ffffff;
+    background-color: var(--bg-card, #ffffff);
     color: var(--text-primary);
-    border: 1px solid var(--binder-teal);
-    border-radius: 4px;
+    border: 1px solid var(--border-line);
+    border-radius: 2px;
     outline: none;
     width: 130px !important;
     max-width: 130px !important;
     margin-bottom: 0 !important;
     flex: 0 0 130px !important;
     box-sizing: border-box;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  input.master-task-date-input:focus {
+    border-color: var(--binder-teal);
+    box-shadow: 0 0 0 1px var(--binder-teal);
+  }
+
+  input.master-task-date-input::-webkit-calendar-picker-indicator,
+  .master-task-add-bar .master-task-due-date-input::-webkit-calendar-picker-indicator,
+  .future-item-date-input::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.65;
+    filter: invert(34%) sepia(26%) saturate(830%) hue-rotate(118deg) brightness(92%) contrast(88%);
+    transition: opacity 0.15s ease;
+  }
+
+  input.master-task-date-input:hover::-webkit-calendar-picker-indicator,
+  .master-task-add-bar .master-task-due-date-input:hover::-webkit-calendar-picker-indicator,
+  .future-item-date-input:hover::-webkit-calendar-picker-indicator {
+    opacity: 1;
   }
 
   [data-theme="dark"] .master-task-date-input {
-    background-color: var(--card-bg-dark, #262626);
-    color: var(--text-dark, #fcfbfa);
-    border-color: var(--border-line-dark, #404040);
+    background-color: #11241c !important;
+    color: #e2f2ec !important;
+    border-color: #244a3b !important;
+    color-scheme: dark;
+  }
+
+  [data-theme="dark"] .master-task-date-input:focus {
+    border-color: #79d6bd !important;
+    box-shadow: 0 0 0 1px #79d6bd !important;
+  }
+
+  [data-theme="dark"] input.master-task-date-input::-webkit-calendar-picker-indicator,
+  [data-theme="dark"] .master-task-add-bar .master-task-due-date-input::-webkit-calendar-picker-indicator,
+  [data-theme="dark"] .future-item-date-input::-webkit-calendar-picker-indicator {
+    filter: invert(80%) sepia(20%) saturate(600%) hue-rotate(110deg) brightness(100%) !important;
+    opacity: 0.85;
+  }
+
+  [data-theme="dark"] input.master-task-date-input:hover::-webkit-calendar-picker-indicator,
+  [data-theme="dark"] .master-task-add-bar .master-task-due-date-input:hover::-webkit-calendar-picker-indicator,
+  [data-theme="dark"] .future-item-date-input:hover::-webkit-calendar-picker-indicator {
+    opacity: 1;
   }
 
   .btn-move-to {
     background: transparent;
     color: var(--binder-teal);
     border: 1px solid var(--binder-teal);
-    border-radius: 4px;
+    border-radius: 2px;
     height: 26px;
     padding: 2px 10px;
     font-size: 0.75rem;
@@ -2991,10 +3034,11 @@
   }
 
   .master-task-add-bar .master-task-due-date-input {
-    flex: 0 0 130px;
-    max-width: 130px;
-    font-size: 11px;
-    padding: 3px 6px;
+    flex: 0 0 135px;
+    max-width: 135px;
+    font-size: 0.78rem;
+    height: 36px;
+    padding: 4px 8px;
     color: var(--text-primary);
     background: var(--bg-card, #ffffff);
     border: 1px solid var(--border-line);
@@ -3004,6 +3048,18 @@
   .master-task-add-bar .master-task-category-input {
     flex: 0 0 120px;
     max-width: 120px;
+    height: 36px;
+    font-size: 0.8rem;
+  }
+
+  .task-quick-add-bar .daily-task-category-input {
+    flex: 0 1 110px;
+    max-width: 120px;
+    min-width: 70px;
+    height: 36px;
+    font-size: 0.8rem;
+    padding: 6px 10px;
+    border-radius: 2px;
   }
 
   .row-just-added {
@@ -3498,6 +3554,19 @@
     font-size: 0.85rem;
     padding: 6px 14px;
     border-radius: 2px;
+  }
+  .install-actions-bar .btn-secondary,
+  .modal-card-install .btn-secondary {
+    background: transparent;
+    color: var(--binder-teal, #2d6a5a);
+    border: 1px solid var(--binder-teal, #2d6a5a);
+    border-radius: 2px;
+    font-weight: 600;
+  }
+  .install-actions-bar .btn-secondary:hover,
+  .modal-card-install .btn-secondary:hover {
+    background: rgba(45, 106, 90, 0.08);
+    color: #1e4a3e;
   }
   .modal-card-install {
     max-width: 520px;
@@ -4304,5 +4373,37 @@
 
   [data-theme="dark"] .install-platform-title {
     color: #79d6bd !important;
+  }
+
+  [data-theme="dark"] .btn-secondary {
+    background: transparent !important;
+    border-color: #3b8773 !important;
+    color: #79d6bd !important;
+  }
+
+  [data-theme="dark"] .btn-secondary:hover {
+    background: rgba(45, 106, 90, 0.25) !important;
+    border-color: #79d6bd !important;
+    color: #ffffff !important;
+  }
+
+  [data-theme="dark"] .install-actions-bar .btn-secondary,
+  [data-theme="dark"] .modal-card-install .btn-secondary {
+    background: transparent !important;
+    border-color: #3b8773 !important;
+    color: #79d6bd !important;
+  }
+
+  [data-theme="dark"] .install-actions-bar .btn-secondary:hover,
+  [data-theme="dark"] .modal-card-install .btn-secondary:hover {
+    background: rgba(45, 106, 90, 0.28) !important;
+    border-color: #79d6bd !important;
+    color: #ffffff !important;
+  }
+
+  [data-theme="dark"] .task-quick-add-bar .daily-task-category-input {
+    background: #11241c !important;
+    border-color: #244a3b !important;
+    color: #e2f2ec !important;
   }
 </style>

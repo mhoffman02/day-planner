@@ -851,6 +851,7 @@
 
       // Task inputs
       newTaskTitle: '',
+      newTaskCategory: '',
       newTaskPriorityGroup: 'A',
 
       // Resizable 3-Column Layout state
@@ -862,6 +863,25 @@
       bridge: null,
 
       theme: 'light',
+
+      get availableCategories() {
+        const set = new Set(['General', 'Work', 'Personal', 'Financial', 'Projects', 'Health', 'Meeting', 'Decision']);
+        if (Array.isArray(this.masterTasks)) {
+          this.masterTasks.forEach(t => {
+            if (t.category && typeof t.category === 'string') {
+              set.add(t.category.trim());
+            }
+          });
+        }
+        if (Array.isArray(this.dailyTasks)) {
+          this.dailyTasks.forEach(t => {
+            if (t.category && typeof t.category === 'string') {
+              set.add(t.category.trim());
+            }
+          });
+        }
+        return Array.from(set).filter(Boolean).sort();
+      },
 
       get filteredNoteCards() {
         const q = (this.noteCardSearchQuery || '').trim().toLowerCase();
@@ -2413,11 +2433,13 @@
         const taskTitle = extracted.cleanTitle;
         if (!taskTitle) return;
         try {
+          const category = (this.newTaskCategory && this.newTaskCategory.trim()) || 'Work';
           const existingCount = this.dailyTasks.length + 1;
           const formattedTitle = formatTaskTitle(this.newTaskPriorityGroup, existingCount, taskTitle);
-          const newTask = await this.bridge.addDailyTask(this.selectedDate, formattedTitle);
+          const newTask = await this.bridge.addDailyTask(this.selectedDate, formattedTitle, category);
           this.dailyTasks.push(newTask);
           this.newTaskTitle = '';
+          this.newTaskCategory = '';
           await this.trigger2WaySync();
         } catch (err) {
           console.error('🔥 addDailyTask error:', err);

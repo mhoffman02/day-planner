@@ -213,6 +213,7 @@
                 <button type="button" class="priority-segment-btn" :class="{ 'active c': newTaskPriorityGroup === 'C' }" @click="newTaskPriorityGroup = 'C'" role="radio" :aria-checked="newTaskPriorityGroup === 'C'" aria-label="Priority C" title="C: Normal priority (Alt+C or #c)" accesskey="c">C</button>
               </div>
               <input type="text" x-model="newTaskTitle" @input="handleTaskTitleInput()" placeholder="Add task title (e.g. Call vendor / #a Call vendor)..." class="task-input-field" aria-label="New task description">
+              <input type="text" x-model="newTaskCategory" placeholder="Category" class="task-input-field daily-task-category-input" list="category-suggestions" aria-label="Task category">
               <button type="submit" class="btn-primary btn-add-task-round" aria-label="Add Task" title="Add Task">
                 <span class="material-symbols-outlined">add</span>
               </button>
@@ -645,7 +646,7 @@
             </div>
             <input type="text" x-model="newMasterTaskTitle" @input="handleMasterTaskTitleInput()" placeholder="Add master task title (e.g. Call vendor / #a Call vendor)..." class="task-input-field master-task-title-input" aria-label="New master task description">
             <input type="date" x-model="newMasterTaskDueDate" class="task-input-field master-task-due-date-input" aria-label="New master task due date" title="Optional due date (leave empty for undated backlog)">
-            <input type="text" x-model="newMasterTaskCategory" placeholder="Category" class="task-input-field master-task-category-input" aria-label="New master task category">
+            <input type="text" x-model="newMasterTaskCategory" placeholder="Category" class="task-input-field master-task-category-input" list="category-suggestions" aria-label="New master task category">
             <button type="submit" class="btn-primary btn-add-task-round" :disabled="addingMasterTask" aria-label="Add master task" title="Add master task">
               <span class="material-symbols-outlined icon-18" :class="{ spin: addingMasterTask }" x-text="addingMasterTask ? 'progress_activity' : 'add'">add</span>
             </button>
@@ -1296,6 +1297,13 @@
         </footer>
       </article>
     </dialog>
+
+    <!-- Global Autocomplete Category Suggestions Datalist -->
+    <datalist id="category-suggestions">
+      <template x-for="cat in availableCategories" :key="cat">
+        <option :value="cat"></option>
+      </template>
+    </datalist>
 
   </main>
 
