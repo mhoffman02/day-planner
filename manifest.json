@@ -1,45 +1,72 @@
 {
   "name": "Day Planner",
   "short_name": "Day Planner",
-  "description": "Standalone digital binder application styled in classic Day Planner aesthetic with 2-Way Google Workspace Sync.",
+  "description": "Franklin Covey methodology digital binder backed by Google Workspace",
+  "id": "/day-planner",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",
+  "display_override": ["standalone", "window-controls-overlay", "minimal-ui"],
   "orientation": "any",
   "background_color": "#fcfbfa",
   "theme_color": "#2d6a5a",
+  "categories": ["productivity", "utilities"],
   "icons": [
     {
-      "src": "icons/icon.svg",
+      "src": "https://raw.githubusercontent.com/mhoffman02/day-planner/pure-gas-main/icons/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "icons/apple-touch-icon.png",
+      "src": "https://raw.githubusercontent.com/mhoffman02/day-planner/pure-gas-main/icons/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    },
+    {
+      "src": "https://raw.githubusercontent.com/mhoffman02/day-planner/pure-gas-main/icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://raw.githubusercontent.com/mhoffman02/day-planner/pure-gas-main/icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "https://raw.githubusercontent.com/mhoffman02/day-planner/pure-gas-main/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "https://raw.githubusercontent.com/mhoffman02/day-planner/pure-gas-main/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
-  "categories": ["productivity", "utilities"],
   "shortcuts": [
     {
       "name": "Daily Planner Spread",
-      "short_name": "Daily View",
+      "short_name": "Daily",
       "description": "Open Daily Planner Spread view",
       "url": "?view=daily"
+    },
+    {
+      "name": "Monthly Master Tasks",
+      "short_name": "Tasks",
+      "description": "Open Master Task list view",
+      "url": "?view=tasks"
     },
     {
       "name": "Monthly Calendar",
       "short_name": "Monthly",
       "description": "Open Monthly Calendar grid view",
       "url": "?view=monthly"
-    },
-    {
-      "name": "Master Tasks",
-      "short_name": "Tasks",
-      "description": "Open Master Task list view",
-      "url": "?view=tasks"
     }
   ]
 }

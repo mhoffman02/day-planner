@@ -935,6 +935,9 @@
           e.preventDefault();
           window.deferredInstallPrompt = e;
         });
+        window.addEventListener('appinstalled', () => {
+          window.deferredInstallPrompt = null;
+        });
         // Defer initial focus to avoid iframe cross-origin autofocus block
         setTimeout(() => {
           this.focusTaskInput();
@@ -2231,6 +2234,13 @@
       triggerInstallApp() {
         if (window.deferredInstallPrompt) {
           window.deferredInstallPrompt.prompt();
+          if (window.deferredInstallPrompt.userChoice) {
+            window.deferredInstallPrompt.userChoice.then((choiceResult) => {
+              if (choiceResult && choiceResult.outcome === 'accepted') {
+                window.deferredInstallPrompt = null;
+              }
+            });
+          }
         } else {
           this.openInstallModal();
         }

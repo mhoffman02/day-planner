@@ -180,6 +180,15 @@ Alpine.data('plannerApp', () => ({
         await this.loadDayData();
         await this.loadMasterTasks();
         this.setupKeyboardShortcuts();
+        if (typeof window !== 'undefined') {
+          window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            window.deferredInstallPrompt = e;
+          });
+          window.addEventListener('appinstalled', () => {
+            window.deferredInstallPrompt = null;
+          });
+        }
         // Defer initial focus to avoid iframe cross-origin autofocus block
         setTimeout(() => {
           this.focusTaskInput();
@@ -2138,6 +2147,13 @@ Alpine.data('plannerApp', () => ({
       triggerInstallApp() {
         if (typeof window !== 'undefined' && window.deferredInstallPrompt) {
           window.deferredInstallPrompt.prompt();
+          if (window.deferredInstallPrompt.userChoice) {
+            window.deferredInstallPrompt.userChoice.then((choiceResult) => {
+              if (choiceResult && choiceResult.outcome === 'accepted') {
+                window.deferredInstallPrompt = null;
+              }
+            });
+          }
         } else {
           this.openInstallModal();
         }
