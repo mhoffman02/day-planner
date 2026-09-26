@@ -276,19 +276,25 @@ function onOpen() {
   }
 }
 
-var DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/google/material-design-icons/master/src/image/auto_stories/materialicons/24px.svg';
+var DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/google/material-design-icons/master/png/image/auto_stories/materialicons/48dp/2x/baseline_auto_stories_black_48dp.png';
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
  * @returns {GoogleAppsScript.HTML.HtmlOutput} Evaluated HTML setup page output.
  */
 function renderSetupFolderPage() {
-  return HtmlService.createTemplateFromFile('SetupFolder')
+  var output = HtmlService.createTemplateFromFile('SetupFolder')
     .evaluate()
     .setTitle('Day Planner - Setup Google Drive Folder')
-    .setFaviconUrl(DAY_PLANNER_FAVICON_URL)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+
+  try {
+    output.setFaviconUrl(DAY_PLANNER_FAVICON_URL);
+  } catch (_favErr) {
+    console.warn('setFaviconUrl notice: ' + _favErr.toString());
+  }
+  return output;
 }
 
 /**
@@ -343,11 +349,17 @@ function doGet_original(e) {
     }
 
     var template = HtmlService.createTemplateFromFile('Index');
-    return template.evaluate()
+    var output = template.evaluate()
       .setTitle('Day Planner')
-      .setFaviconUrl(DAY_PLANNER_FAVICON_URL)
       .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+
+    try {
+      output.setFaviconUrl(DAY_PLANNER_FAVICON_URL);
+    } catch (_favErr) {
+      console.warn('setFaviconUrl notice: ' + _favErr.toString());
+    }
+    return output;
 
   } catch (err) {
     var fail = logError('doGet exception', err);
@@ -356,10 +368,16 @@ function doGet_original(e) {
     if (isFolderError) {
       return renderSetupFolderPage();
     }
-    return HtmlService.createHtmlOutput('<h3>🔥 Day Planner Render Failure</h3><p><b>' + escapeHtml_(fail.error) + '</b></p><pre>' + escapeHtml_(fail.stack || '') + '</pre>')
+    var errOutput = HtmlService.createHtmlOutput('<h3>🔥 Day Planner Render Failure</h3><p><b>' + escapeHtml_(fail.error) + '</b></p><pre>' + escapeHtml_(fail.stack || '') + '</pre>')
       .setTitle('Day Planner - Render Failure')
-      .setFaviconUrl(DAY_PLANNER_FAVICON_URL)
       .addMetaTag('viewport', 'width=device-width, initial-scale=1.0');
+
+    try {
+      errOutput.setFaviconUrl(DAY_PLANNER_FAVICON_URL);
+    } catch (_favErr) {
+      console.warn('setFaviconUrl notice: ' + _favErr.toString());
+    }
+    return errOutput;
   }
 }
 
