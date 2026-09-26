@@ -2,11 +2,20 @@
 
 ### OBJECTIVE
 
-Deliver a pure Google Apps Script digital binder productivity app bridging Franklin Covey Day Planner methodology with Google Workspace APIs (Calendar, Tasks, Drive). The immediate focus is activating Version 40 on WORK deployment `Version 3` (`9csO`) and completing live workspace UAT across Phase 12 (note card compact category segmented buttons & Meet link join), Phase 13 (Master Tasks Option A clearinghouse with thematic blue Date Horizon filters, Quick-Add UX clarification, scrollable container with sticky header, and Move to Date bugfix), and subtle thematic scrollbars in both Dark and Light modes.
+Deliver a pure Google Apps Script digital binder productivity app bridging Franklin Covey Day Planner methodology with Google Workspace APIs (Calendar, Tasks, Drive). The immediate focus is activating Version 41 on WORK deployment `Version 3` (`9csO`) and completing live workspace UAT across Phase 12 (note card compact category segmented buttons & Meet link join), Phase 13 (Master Tasks Option A clearinghouse with thematic blue Date Horizon filters, Quick-Add UX clarification, scroll-on-demand containers and sticky headers across all tabs), and subtle thematic scrollbars in both Dark and Light modes.
 
 ---
 
 ### KEY DECISIONS
+
+- **Scroll-on-Demand Containers & Sticky Headers Across All Tabs ([commit `a556ac6`](file:///home/mike/projects/day-planner))**:
+  - **Philosophy**: Extended the successful Master Tasks scrollable container pattern to every tab in the application. Toolbars, section headers, year navigation, and column titles remain fixed at the top, while long content scrolls smoothly on demand inside dedicated scroll containers using the custom thematic scrollbars.
+  - **Tab Implementations**:
+    - **Index Tab (`monthly-index`)**: Added `.monthly-index-table-container` with `max-height: calc(100vh - 220px); min-height: 280px; overflow-y: auto; overflow-x: auto;` and sticky `thead th` (`position: sticky; top: 0; z-index: 5`) with `min-width: 680px`. The "Monthly Index and Decisions" header stays pinned while decisions scroll.
+    - **Future Tab (`future-matrix`)**: Wrapped month cards in `.future-matrix-container` with `max-height: calc(100vh - 200px); min-height: 280px; overflow-y: auto;`. The year navigation `< 2026 >` header stays pinned at the top while the 12 month cards scroll underneath.
+    - **About Tab (`about`)**: Wrapped guide in `.about-view-container` with `max-height: calc(100vh - 80px); min-height: 280px; overflow-y: auto; padding: 10px 16px 24px;` providing smooth document scrolling within the app frame.
+    - **Daily Tab (`daily`)**: Added `.daily-tasks-table-container` with `max-height: calc(100vh - 240px); min-height: 200px; overflow-y: auto; overflow-x: auto;` and sticky `thead th`. Aligned `section.schedule-list` to `max-height: calc(100vh - 240px); min-height: 280px;` so all three columns (Tasks, Schedule, Note Cards) share the exact same responsive viewport height.
+    - **Master Tasks (`master-tasks`)**: `.master-tasks-table-container` with `max-height: calc(100vh - 280px); min-height: 280px; overflow-y: auto;` and sticky `thead th`.
 
 - **Master Tasks Sticky Header & Move-to-Date Bugfix ([commit `dbadf81`](file:///home/mike/projects/day-planner))**:
   - **Move-to-Date Fix**: Fixed typo calling nonexistent `encodeTaskStatus(notes, '→')` instead of `encodeTaskStatusNotes('→', notes)` in [`gas-app/Code.gs:1634`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L1634), which resolved `ReferenceError: encodeTaskStatus is not defined` when moving master tasks to a scheduled date.
@@ -35,8 +44,8 @@ Deliver a pure Google Apps Script digital binder productivity app bridging Frank
   - **Automated Test Coverage**: 135/135 tests passing cleanly across 17 suites, including unit tests in [`tests/taskEngine.test.js`](file:///home/mike/projects/day-planner/tests/taskEngine.test.js#L357) and [`tests/gasBridge.test.js`](file:///home/mike/projects/day-planner/tests/gasBridge.test.js#L20).
 
 - **Deployment Hygiene & Clasp Sync**:
-  - HOME Prod (`day-planner-v01`): Version 193 (`@193`) is live on `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
-  - WORK Prod (`9csO`): Code promoted via `npm run push:work` and Version 40 created on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`. Target deployment `Version 3` (`9csO`) awaits manual activation to Version 40 in WORK Apps Script IDE.
+  - HOME Prod (`day-planner-v01`): Version 194 (`@194`) is live on `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
+  - WORK Prod (`9csO`): Code promoted via `npm run push:work` and Version 41 created on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`. Target deployment `Version 3` (`9csO`) awaits manual activation to Version 41 in WORK Apps Script IDE.
 
 ---
 
@@ -44,14 +53,14 @@ Deliver a pure Google Apps Script digital binder productivity app bridging Frank
 
 - **Repository Branch**: `pure-gas-main`.
 - **Latest Commits**:
+  - [`a556ac6`](file:///home/mike/projects/day-planner): `feat(views): scroll-on-demand containers and sticky headers across Index, Future, About, and Daily tabs`.
+  - [`48188e9`](file:///home/mike/projects/day-planner): `docs(handoff): record Version 40 on WORK, Version 193 on HOME, and sticky header`.
   - [`dbadf81`](file:///home/mike/projects/day-planner): `fix(tasks): fix encodeTaskStatusNotes typo in markMasterTaskMoved & add scrollable container with sticky header for Master Tasks table`.
   - [`8afe1b3`](file:///home/mike/projects/day-planner): `docs(handoff): record Version 39 on WORK, Version 192 on HOME, and scrollbar theming`.
   - [`89a5002`](file:///home/mike/projects/day-planner): `feat(theme): subtle, tasteful, thematic scrollbars in light and dark modes`.
-  - [`288ab30`](file:///home/mike/projects/day-planner): `docs(handoff): record Version 37 on WORK, Version 191 on HOME, and quick-add UX fix`.
-  - [`79bc761`](file:///home/mike/projects/day-planner): `fix(master-tasks): clarify quick-add bar UX with New Task framing, spinner feedback, visibility auto-switch and row highlight`.
 - **Live Deployment State**:
-  - HOME Prod (`day-planner-v01`): Version 193 (`@193`) deployed on `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
-  - WORK Prod (`9csO`): Pushed code and created Version 40 on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`.
+  - HOME Prod (`day-planner-v01`): Version 194 (`@194`) deployed on `AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`.
+  - WORK Prod (`9csO`): Pushed code and created Version 41 on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`.
 - **Pre-Flight Verification**:
   - `npm run lint`: 0 errors (3 existing warnings).
   - `npm test`: 135/135 unit tests passing across 17 suites.
@@ -73,10 +82,15 @@ Deliver a pure Google Apps Script digital binder productivity app bridging Frank
 
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
-1. **Deploy Version 40 on WORK Deployment `Version 3` (`9csO`) ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L3-L4))**:
-   - In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) under `michael.hoffman@gsa.gov`, click **Deploy** > **Manage deployments**, select deployment `Version 3` (`9csO`), edit (pencil icon), select **New version** (Version 40), and click **Deploy**.
+1. **Deploy Version 41 on WORK Deployment `Version 3` (`9csO`) ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L3-L4))**:
+   - In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) under `michael.hoffman@gsa.gov`, click **Deploy** > **Manage deployments**, select deployment `Version 3` (`9csO`), edit (pencil icon), select **New version** (Version 41), and click **Deploy**.
 2. **Live Workspace UAT of Phase 12 & 13 Features ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L5-L12))**:
-   - Verify Master Tasks sticky header (`Pri | Sts | Task Description | Category | Due Date | Action`) and scrollable container.
+   - Verify scroll-on-demand containers and sticky headers across all tabs:
+     - **Index Tab**: `.monthly-index-table-container` with sticky column headers and scroll-on-demand rows.
+     - **Future Tab**: `.future-matrix-container` with fixed year navigation header and scrollable 12-month card grid.
+     - **About Tab**: `.about-view-container` with contained vertical document scrolling.
+     - **Daily Tab**: `.daily-tasks-table-container` with sticky column headers and scroll-on-demand tasks, matching the schedule and note card container heights.
+     - **Master Tasks**: `.master-tasks-table-container` with sticky header and scrollable tasks.
    - Verify Master Tasks Move to Date action (`markMasterTaskMoved` bugfix: `encodeTaskStatusNotes`).
    - Verify subtle, tasteful thematic scrollbars in both Dark and Light modes (8px slim, 2px border radius, themed tracks and thumbs).
    - Verify Master Tasks Quick-Add bar (`New Task:` framing, priority tooltip, spinner on add, auto-switch to `All Dates` on submit, row flash highlight).
@@ -92,4 +106,4 @@ Deliver a pure Google Apps Script digital binder productivity app bridging Frank
 
 ### IMMEDIATE NEXT STEP
 
-In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) under `michael.hoffman@gsa.gov`, click **Deploy** > **Manage deployments**, select deployment `Version 3` (`9csO`), click the pencil icon, choose **New version** (Version 40), and click **Deploy**.
+In [WORK Apps Script IDE](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) under `michael.hoffman@gsa.gov`, click **Deploy** > **Manage deployments**, select deployment `Version 3` (`9csO`), click the pencil icon, choose **New version** (Version 41), and click **Deploy**.
