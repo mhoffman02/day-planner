@@ -71,6 +71,7 @@ Deliver a pure Google Apps Script digital binder productivity app bridging Frank
 7. **Apps Script Safe Characters**: Protocol URLs must ALWAYS be split (`'https:' + '/' + '/...'`), and comment prose must use typographic `’` ([`.agents/rules/gas-html-safe-chars.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-html-safe-chars.md)). Guarded by `npm run check:gas-safe-chars`.
 8. **Dual-Environment Isolation**: HOME is mastercopy; WORK is strictly production `/exec` promoted via `npm run push:work` ([`.agents/rules/gas-environments.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-environments.md)).
 9. **OAuth Storage Scoping**: Maintain `drive.file` and `drive.readonly` restriction; do NOT widen to full `drive` ([`.agents/skills/review/SKILL.md`](file:///home/mike/projects/day-planner/.agents/skills/review/SKILL.md)).
+10. **Debug Logging — Console Only, No Temporary UI Elements**: Use browser console (`console.log`, `console.warn`, `console.error`, `console.info`) for temporary debug/diagnostic output; do NOT inject temporary diagnostic UI elements or helper text into the application interface ([`.agents/rules/debug-logging-no-temp-ui.md`](file:///home/mike/projects/day-planner/.agents/rules/debug-logging-no-temp-ui.md)).
 
 ---
 
