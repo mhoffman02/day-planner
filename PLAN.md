@@ -208,14 +208,24 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 
 - [x] Backend RPC enhancement ([`gas-app/Code.gs:1523`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L1523), [`src/gasBridge.js`](file:///home/mike/projects/day-planner/src/gasBridge.js)): Retrieve undated tasks plus incomplete dated tasks (`!t.due || (!isComplete(t) && t.due)`).
 - [x] Task deduplication: Merge moved master tasks (`[MovedTo: date, id]`) with their scheduled daily counterparts (`[SourceMaster: id]`) via [`buildMasterTasksClearinghouse`](file:///home/mike/projects/day-planner/src/taskEngine.js#L349).
-- [x] Master Tasks Header Filters: Rename "Filter:" to "Status filter". Add visually distinct thematic blue Date Horizon filter button group `[All Dates]`, `[Future]`, `[Overdue / Today]`, `[Undated]` with crisp 2px border radius (strictly no pills).
+- [x] Master Tasks Header Filters: Revert "Status filter" back to "Filter:". Add visually distinct thematic blue Date Horizon filter button group `[All Dates]`, `[Future]`, `[Overdue / Today]`, `[Undated]` with crisp 2px border radius (strictly no pills).
 - [x] Master Tasks Table: Add `Due Date` column (sortable by date), date badge display (`Sep 28, 2026`, `Overdue`, `Undated`), and contextual Action buttons (`Jump to Day` vs date picker + `Move to Date`).
 - [x] Quick-Add UX Clarification (commit `79bc761`): Explicit `New Task:` framing, priority tooltip, submit spinner, auto-switch to `All Dates` visibility guarantee, and 2s row teal flash highlight.
 - [x] Thematic Scrollbars in Dark & Light Modes (commit `89a5002`): Slim 8px scrollbar, 2px border radius, themed tracks and thumbs, and browser `color-scheme` synchronization.
 - [x] Master Tasks Move-to-Date Bugfix & Sticky Header (commit `dbadf81`): Fixed `encodeTaskStatusNotes` typo in `markMasterTaskMoved` and added `.master-tasks-table-container` with sticky `thead th`.
 - [x] Scroll-on-Demand Containers & Sticky Headers Across All Tabs (commit `a556ac6`): Applied scroll-on-demand containers and sticky headers across Index, Future, About, Daily, and Master Tasks tabs.
-- [x] Automated tests in [`tests/taskEngine.test.js`](file:///home/mike/projects/day-planner/tests/taskEngine.test.js) and [`tests/gasBridge.test.js`](file:///home/mike/projects/day-planner/tests/gasBridge.test.js) (135/135 tests passing).
-- [x] Production Deployments (commit `a556ac6`, HOME `@194`, WORK `@41`).
+- [x] Master Tasks Quick-Add Due Date & Container Fix (commit `d71ad36`): Fixed `figure.table-container` CSS override with `overflow-y: auto !important`, added due date picker to quick-add bar, and enlarged note card category buttons to 20px.
+- [x] Desktop Install Affordances & Themed Controls (commits `6bb391f` & `9123699`): Themed date pickers in light/dark modes, dynamic category autocomplete datalist, dark mode secondary outline buttons, interactive About install button, and Install Guide modal.
+- [x] Automated tests in [`tests/taskEngine.test.js`](file:///home/mike/projects/day-planner/tests/taskEngine.test.js) and [`tests/gasBridge.test.js`](file:///home/mike/projects/day-planner/tests/gasBridge.test.js) (136/136 tests passing across 17 suites).
+- [x] Production Deployments (commits `d71ad36`, `6bb391f`, `9123699`, HOME `@197`, WORK `@46`).
+
+### Phase 14: Advanced Productivity & Usability Enhancements
+*Goal: Ongoing workspace polish, recurring tasks / daily template checklists, rich text / markdown checklist support in topic cards, and offline cached read-only fallback mode.*
+
+- [ ] Workspace UAT verification of Phase 13 fixes across desktop and mobile browsers.
+- [ ] Daily recurring checklist / template items support.
+- [ ] Rich text / markdown checkbox rendering in note card bodies.
+- [ ] Read-only offline cache / emergency fallback mode.
 
 
 

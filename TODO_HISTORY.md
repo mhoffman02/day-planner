@@ -1,5 +1,36 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-25 — Master Tasks UX Fixes, Quick-Add Due Date, Themed Date Pickers, Category Autocomplete, Install Affordance & Modal Guide (commits `d71ad36`, `6bb391f`, `9123699`, HOME @197, WORK @46)
+
+- [x] **Master Tasks Scroll Container & Thematic Scrollbar Bugfix (commit `d71ad36`)**:
+  - Removed `overflow: visible` override from [`figure.table-container`](file:///home/mike/projects/day-planner/src/styles.css#L945) in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html).
+  - Strengthened `.master-tasks-table-container` with `overflow-y: auto !important` so custom thematic scrollbars reliably render whenever rows exceed viewport space.
+- [x] **Status Filter Label Restoration (commit `d71ad36`)**:
+  - Reverted toolbar label back from `"Status filter"` to `"Filter:"` in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html#L585) and [`index.html`](file:///home/mike/projects/day-planner/index.html#L583).
+- [x] **Master Tasks Quick-Add Due Date (commit `d71ad36`)**:
+  - Added `<input type="date" x-model="newMasterTaskDueDate">` between Task Title and Category in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html#L649) and [`index.html`](file:///home/mike/projects/day-planner/index.html#L647).
+  - Updated [`addMasterTask`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L1557) in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs), [`src/gasBridge.js`](file:///home/mike/projects/day-planner/src/gasBridge.js), and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html) to persist the due date to Google Tasks.
+- [x] **Note Card Category Button Geometry Polish (commit `d71ad36`)**:
+  - Increased button height from 18px to 20px and updated padding to `0 6px 2px 6px` in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css#L1764) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html#L1764) to provide +2px bottom spacing for font descenders.
+- [x] **About Tab Desktop Install Affordance & Modal Guide (commits `d71ad36` & `9123699`)**:
+  - Replaced static `v3.0` text with an interactive Install button (`<button class="btn-install-header">`) with tooltip `Version 3.0 — Click to install Day Planner as a desktop app` in [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html).
+  - Added Section 5 action buttons (`Install Day Planner` and `Copy Direct App Link` with instant feedback) in [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html).
+  - Added Dialog 4 `<dialog class="modal-card-install">` step-by-step install guide modal in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html#L1090) and [`index.html`](file:///home/mike/projects/day-planner/index.html#L1252).
+  - Removed unrequested `(v1.0-pure-gas)` label from install button tooltip (commit `9123699`).
+- [x] **Themed Date Pickers in Light & Dark Modes (commit `6bb391f`)**:
+  - Added CSS theming for `.master-task-date-input`, `.master-task-due-date-input`, and `.future-item-date-input` in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html).
+  - Set `color-scheme: light / dark` and styled `::-webkit-calendar-picker-indicator` with teal fill in light mode and mint fill in dark mode.
+- [x] **Dynamic Category Autocomplete `<datalist>` (commit `6bb391f`)**:
+  - Implemented dynamic `<datalist id="category-suggestions">` fed by `availableCategories` computed property in [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html#L865) and [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js).
+  - Connected `list="category-suggestions"` to category inputs on Master Tasks and Daily Tasks quick-add bars.
+- [x] **Dark Mode Outline Secondary Buttons (commit `6bb391f`)**:
+  - Restyled `.btn-secondary`, `.install-actions-bar .btn-secondary`, and `.modal-card-install .btn-secondary` in dark mode to clean outline buttons (`background: transparent`, `border-color: #3b8773`, text `#79d6bd`).
+- [x] **Master Tasks Move to Date Verification**:
+  - Verified working by user in live workspace (`markMasterTaskMoved` calling `encodeTaskStatusNotes`).
+- [x] **Production Deployments (HOME @197, WORK @46)**:
+  - HOME live at `@197` (`AKfycbzsxNOjkAa3WPA8nzlF28AJ8s4hDaTMWjPHnsfM4ZyRARME1e1sducanqZdrf6DJzKa0Q`).
+  - WORK promoted via `npm run push:work` and Version 46 created on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`.
+
 ## 2026-09-25 — Scroll-on-Demand Containers Across All Tabs, Master Tasks Sticky Header & Move Fix, Thematic Scrollbars & Quick-Add UX (commits `a556ac6`, `dbadf81`, `89a5002`, `79bc761`, HOME @194, WORK @41)
 
 - [x] **Scroll-on-Demand Containers & Sticky Headers Across All Tabs (commit `a556ac6`)**:
