@@ -1307,7 +1307,12 @@ function resolveDriveFileTitle(url) {
   // Try 1: Drive Advanced Service v2 (Handles files, folders, shortcuts, and shared drives)
   try {
     if (typeof Drive !== 'undefined' && Drive.Files && Drive.Files.get) {
-      var item = Drive.Files.get(fileId, { supportsAllDrives: true });
+      var item = null;
+      try {
+        item = Drive.Files.get(fileId, { supportsAllDrives: true });
+      } catch (_optErr) {
+        item = Drive.Files.get(fileId);
+      }
       if (item && (item.title || item.name)) {
         return { success: true, title: item.title || item.name, fileId: fileId };
       }

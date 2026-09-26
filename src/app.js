@@ -1455,11 +1455,13 @@ Alpine.data('plannerApp', () => ({
         const isDrive = this.isGoogleDriveDocUrl(candidate);
         this.linkModalDetectedDrive = isDrive;
 
-        if (!this.linkModalText || ['Google Doc', 'Drive Folder', 'Google Sheet', 'Google Slide Deck', 'Google Drive File', 'Link'].includes(this.linkModalText)) {
-          this.linkModalText = this.getDefaultLinkText(candidate);
+        if (!isDrive) {
+          if (!this.linkModalText || ['Google Doc', 'Drive Folder', 'Google Sheet', 'Google Slide Deck', 'Google Drive File', 'Link'].includes(this.linkModalText)) {
+            this.linkModalText = this.getDefaultLinkText(candidate);
+          }
+          return;
         }
 
-        if (!isDrive) return;
         if (this.linkModalLastResolvedUrl === candidate) return;
 
         this.linkModalResolving = true;
@@ -1471,9 +1473,14 @@ Alpine.data('plannerApp', () => ({
           if (res && res.success && res.title) {
             this.linkModalLastResolvedUrl = candidate;
             this.linkModalText = res.title;
+          } else if (!this.linkModalText || ['Google Doc', 'Drive Folder', 'Google Sheet', 'Google Slide Deck', 'Google Drive File', 'Link'].includes(this.linkModalText)) {
+            this.linkModalText = this.getDefaultLinkText(candidate);
           }
         } catch (err) {
           console.warn('Google Drive title lookup failed:', err);
+          if (!this.linkModalText) {
+            this.linkModalText = this.getDefaultLinkText(candidate);
+          }
         } finally {
           this.linkModalResolving = false;
         }

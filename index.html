@@ -1399,7 +1399,7 @@
               type="text"
               id="linkModalTextInput"
               x-model="linkModalText"
-              placeholder="Display text (defaults to file name or URL)"
+              :placeholder="linkModalResolving ? 'Looking up file title from Google Drive...' : 'Display text (defaults to file title)'"
               class="form-input"
               autocomplete="off"
             >
