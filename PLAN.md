@@ -105,9 +105,9 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 - [x] Circled-D (`Ⓓ`), Priority select width, and Add button vertical centering deployed and verified.
 - [x] Setup Isolated Promotion Pipeline: created [`gas-app/.clasp-work.json`](file:///home/mike/projects/day-planner/gas-app/.clasp-work.json), [`tools/promote-to-work.js`](file:///home/mike/projects/day-planner/tools/promote-to-work.js) (`npm run push:work`), and promoted Version 6 to WORK script (`1980roEKgkC_...`).
 - [x] Enterprise Drive Permissions & Auto-Creation: `Drive.Files.insert` auto-creates root folder on fresh accounts; `validateAndSaveFolderUrl` supports GSA Google Workspace domain permissions; webapp access set to `MYSELF`.
-- [ ] User Acceptance Testing: confirm WORK environment access (`michael.hoffman@gsa.gov`) and Google Doc run-log.
-- [ ] Deploy tagged production release (`git tag v1.0-pure-gas`) after live UAT sign-off.
-- [ ] Verify Chrome/Edge "Open as window" desktop shortcut workflows.
+- [x] User Acceptance Testing: confirm WORK environment access (`michael.hoffman@gsa.gov`) and Google Doc run-log.
+- [x] Deploy tagged production release (`git tag v1.0-pure-gas`) after live UAT sign-off.
+- [x] Verify Chrome/Edge "Open as window" desktop shortcut workflows.
 
 ### Phase 7: CSS Architecture Decoupling (`modern-normalize` Spike)
 *Goal: Decouple Day Planner from Pico CSS v2 on a dedicated branch (`feat/modern-normalize`), replacing classless tag hijacking with modern-normalize and self-contained Franklin Covey design tokens.*
