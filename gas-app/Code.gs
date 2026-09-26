@@ -276,7 +276,7 @@ function onOpen() {
   }
 }
 
-var DAY_PLANNER_FAVICON_URL = 'https://ssl.gstatic.com/calendar/images/dynamiclogo_2020q4/calendar_31_2x.png';
+var DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/google/material-design-icons/master/src/image/auto_stories/materialicons/24px.svg';
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -2245,6 +2245,14 @@ function openPlannerWebAppDialog() {
   DocumentApp.getUi().showModalDialog(html, 'Open Day Planner SPA');
 }
 
+/**
+ * Retrieves the published Google Apps Script web app URL.
+ * @returns {string} Web app /exec URL.
+ */
+function getWebAppUrl() {
+  return (typeof ScriptApp !== 'undefined' && ScriptApp.getService) ? ScriptApp.getService().getUrl() : '';
+}
+
 // ── Explicit export surface ──────────────────────────────────────────────────
 // Everything above is private to this IIFE. Only names assigned here are visible to: the Apps
 // Script runtime (doGet, onOpen), google.script.run / Script.html, HtmlService template
@@ -2254,6 +2262,7 @@ function openPlannerWebAppDialog() {
 // actually called from one of those places. See .agents/rules/gas-namespace-iife.md.
 global.doGet = doGet;                                        // Apps Script web app entry point
 global.onOpen = onOpen;                                      // Google Docs runtime onOpen trigger
+global.getWebAppUrl = getWebAppUrl;                          // google.script.run: Script.html / About.html
 global.syncWorkspaceChanges = syncWorkspaceChanges;          // time-driven trigger handler (by name)
 global.include = include;                                    // template: Index.html, SetupFolder.html
 global.validateAndSaveFolderUrl = validateAndSaveFolderUrl;  // google.script.run: SetupFolder.html
@@ -2324,6 +2333,7 @@ global._searchAcrossAllMonthlyDocsInternal = searchAcrossAllMonthlyDocs;
 global._showCrossMonthSearchSidebarInternal = showCrossMonthSearchSidebar;
 global._showIndexRegistrySidebarInternal = showIndexRegistrySidebar;
 global._openPlannerWebAppDialogInternal = openPlannerWebAppDialog;
+global._getWebAppUrlInternal = getWebAppUrl;
 
 })(typeof globalThis !== 'undefined' ? globalThis : this);
 
@@ -2477,6 +2487,10 @@ function showIndexRegistrySidebar() {
 
 function openPlannerWebAppDialog() {
   return (typeof _openPlannerWebAppDialogInternal === 'function') ? _openPlannerWebAppDialogInternal() : (globalThis._openPlannerWebAppDialogInternal ? globalThis._openPlannerWebAppDialogInternal() : null);
+}
+
+function getWebAppUrl() {
+  return (typeof _getWebAppUrlInternal === 'function') ? _getWebAppUrlInternal() : (globalThis._getWebAppUrlInternal ? globalThis._getWebAppUrlInternal() : '');
 }
 
 

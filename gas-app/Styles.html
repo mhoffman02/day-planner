@@ -102,12 +102,13 @@
     background-color: var(--bg-page);
     color: var(--text-primary);
     min-height: 100vh;
-    padding: 8px 12px;
+    padding: 56px 12px 8px 12px;
     margin: 0;
     display: flex;
     justify-content: center;
     align-items: flex-start;
     line-height: var(--line-height-base);
+    box-sizing: border-box;
   }
 
   /* Baseline Unopinionated Form Controls */
@@ -225,8 +226,13 @@
     padding: 0;
   }
 
-  /* Single Consolidated Top Bar */
+  /* Single Consolidated Top Bar (Fixed) */
   header.single-top-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 48px;
     background: #142e23 !important;
     color: #ffffff !important;
     padding: 0 16px;
@@ -235,11 +241,11 @@
     align-items: center;
     gap: 16px;
     margin-bottom: 0;
-    min-height: 48px;
     border-bottom: 2px solid #0b1c15;
     box-shadow: 0 2px 8px rgba(0,0,0,0.12);
     flex-wrap: nowrap;
-    z-index: 100;
+    z-index: 1000;
+    box-sizing: border-box;
   }
 
   .header-left {
@@ -1649,6 +1655,140 @@
     background: transparent !important;
   }
 
+  /* Notion-style LRU Topic Dropdown */
+  .card-topic-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .topic-lru-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    min-width: 210px;
+    max-width: 280px;
+    background: #ffffff;
+    border: 1px solid var(--border-line);
+    border-radius: 4px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    z-index: 150;
+    overflow: hidden;
+  }
+
+  [data-theme="dark"] .topic-lru-dropdown {
+    background: #142e23;
+    border-color: #244a3b;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  }
+
+  .topic-dropdown-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 8px;
+    background: #f4f8f6;
+    border-bottom: 1px solid var(--border-line);
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  [data-theme="dark"] .topic-dropdown-header {
+    background: #11241c;
+    border-bottom-color: #244a3b;
+    color: #8da49a;
+  }
+
+  .topic-dropdown-hint {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    font-weight: normal;
+  }
+
+  .topic-lru-list {
+    list-style: none;
+    margin: 0;
+    padding: 2px 0;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+
+  .topic-lru-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 8px;
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background 0.1s ease;
+  }
+
+  .topic-lru-item:hover,
+  .topic-lru-item.highlighted {
+    background: #eef6f3;
+    color: var(--binder-teal);
+  }
+
+  [data-theme="dark"] .topic-lru-item:hover,
+  [data-theme="dark"] .topic-lru-item.highlighted {
+    background: #19382b;
+    color: #79d6bd;
+  }
+
+  .topic-item-main {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .topic-tag-icon {
+    font-size: 14px;
+    opacity: 0.6;
+    flex-shrink: 0;
+  }
+
+  .topic-item-name {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .topic-item-remove-btn {
+    opacity: 0;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    padding: 2px;
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-left: 4px;
+    transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+  }
+
+  .topic-lru-item:hover .topic-item-remove-btn,
+  .topic-lru-item.highlighted .topic-item-remove-btn {
+    opacity: 0.85;
+  }
+
+  .topic-item-remove-btn:hover {
+    opacity: 1 !important;
+    color: #b33939 !important;
+    background: rgba(179, 57, 57, 0.1);
+  }
+
   .card-heading-input {
     flex: 1;
     min-width: 80px;
@@ -2316,7 +2456,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1000;
+    z-index: 10000;
     border: none;
     padding: 0;
     margin: 0;
@@ -2872,8 +3012,8 @@
   [data-theme="dark"] input.master-task-date-input::-webkit-calendar-picker-indicator,
   [data-theme="dark"] .master-task-add-bar .master-task-due-date-input::-webkit-calendar-picker-indicator,
   [data-theme="dark"] .future-item-date-input::-webkit-calendar-picker-indicator {
-    filter: invert(80%) sepia(20%) saturate(600%) hue-rotate(110deg) brightness(100%) !important;
-    opacity: 0.85;
+    filter: brightness(0) invert(1) !important;
+    opacity: 1 !important;
   }
 
   [data-theme="dark"] input.master-task-date-input:hover::-webkit-calendar-picker-indicator,

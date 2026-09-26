@@ -105,6 +105,15 @@ Alpine.data('plannerApp', () => ({
 
       theme: 'light',
 
+      // Topic LRU state (10 items max, persistent)
+      recentTopics: [],
+      activeTopicCardId: null,
+      topicSelectedIndex: -1,
+
+      // Desktop install modal state
+      installModalOpen: false,
+      copiedAppUrl: false,
+
       get filteredNoteCards() {
         const q = (this.noteCardSearchQuery || '').trim().toLowerCase();
         const cat = this.noteCardCategoryFilter;
@@ -147,6 +156,7 @@ Alpine.data('plannerApp', () => ({
         this.bridge = new GASBridge(false);
         this.initTheme();
         this.initColumnWidths();
+        this.initRecentTopics();
         await this.loadDayData();
         await this.loadMasterTasks();
         this.setupKeyboardShortcuts();
@@ -154,6 +164,22 @@ Alpine.data('plannerApp', () => ({
         setTimeout(() => {
           this.focusTaskInput();
         }, 150);
+      },
+
+      initRecentTopics() {
+        try {
+          const saved = localStorage.getItem('dayPlannerRecentTopics');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              this.recentTopics = parsed.slice(0, 10);
+              return;
+            }
+          }
+        } catch (_err) {
+          // ignore localStorage error
+        }
+        this.recentTopics = ['Sprint', '1:1', 'Standup', 'Planning', 'Admin', 'Architecture', 'Bug Triage', 'Personal', 'Review', 'General'];
       },
 
       initColumnWidths() {
@@ -651,6 +677,9 @@ Alpine.data('plannerApp', () => ({
 
       indexTopicOptions() {
         const topics = new Set();
+        (this.recentTopics || []).forEach(t => {
+          if (t && t.trim()) topics.add(t.trim());
+        });
         (this.noteCards || []).forEach(c => {
           if (c.indexTopic && c.indexTopic.trim()) topics.add(c.indexTopic.trim());
         });
@@ -658,6 +687,90 @@ Alpine.data('plannerApp', () => ({
           if (r.topic && r.topic.trim()) topics.add(r.topic.trim());
         });
         return Array.from(topics).sort();
+      },
+
+      openTopicDropdown(card) {
+        if (!card) return;
+        this.activeTopicCardId = card.id;
+        this.topicSelectedIndex = -1;
+      },
+
+      closeTopicDropdown() {
+        this.activeTopicCardId = null;
+        this.topicSelectedIndex = -1;
+      },
+
+      filteredRecentTopics(card) {
+        if (!card) return this.recentTopics || [];
+        const q = (card.indexTopic || '').trim().toLowerCase();
+        if (!q) return this.recentTopics || [];
+        return (this.recentTopics || []).filter(t => t.toLowerCase().includes(q));
+      },
+
+      recordRecentTopic(topic) {
+        if (!topic || typeof topic !== 'string') return;
+        const clean = topic.trim();
+        if (!clean) return;
+        const list = (this.recentTopics || []).filter(t => t.toLowerCase() !== clean.toLowerCase());
+        list.unshift(clean);
+        this.recentTopics = list.slice(0, 10);
+        try {
+          localStorage.setItem('dayPlannerRecentTopics', JSON.stringify(this.recentTopics));
+        } catch (_err) {
+          // ignore
+        }
+      },
+
+      removeRecentTopic(topicToRemove, event) {
+        if (event) {
+          event.stopPropagation();
+          event.preventDefault();
+        }
+        if (!topicToRemove) return;
+        this.recentTopics = (this.recentTopics || []).filter(t => t.toLowerCase() !== topicToRemove.toLowerCase());
+        try {
+          localStorage.setItem('dayPlannerRecentTopics', JSON.stringify(this.recentTopics));
+        } catch (_err) {
+          // ignore
+        }
+      },
+
+      selectTopic(card, topic) {
+        if (!card) return;
+        card.indexTopic = topic;
+        this.recordRecentTopic(topic);
+        this.syncCardsToDailyNote();
+        this.closeTopicDropdown();
+      },
+
+      handleTopicKeydown(event, card) {
+        if (!event || !card) return;
+        const matches = this.filteredRecentTopics(card);
+        if (event.key === 'ArrowDown') {
+          if (this.activeTopicCardId !== card.id) {
+            this.openTopicDropdown(card);
+          }
+          event.preventDefault();
+          if (matches.length > 0) {
+            this.topicSelectedIndex = (this.topicSelectedIndex + 1) % matches.length;
+          }
+        } else if (event.key === 'ArrowUp') {
+          event.preventDefault();
+          if (matches.length > 0) {
+            this.topicSelectedIndex = (this.topicSelectedIndex - 1 + matches.length) % matches.length;
+          }
+        } else if (event.key === 'Enter') {
+          if (this.activeTopicCardId === card.id && this.topicSelectedIndex >= 0 && this.topicSelectedIndex < matches.length) {
+            event.preventDefault();
+            this.selectTopic(card, matches[this.topicSelectedIndex]);
+          } else {
+            this.recordRecentTopic(card.indexTopic);
+            this.closeTopicDropdown();
+          }
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          this.closeTopicDropdown();
+        }
       },
 
       buildTaskNoteLinks() {
@@ -1986,6 +2099,48 @@ Alpine.data('plannerApp', () => ({
 
         if (targetView === 'daily' || targetDate) {
           await this.loadDayData();
+        }
+      },
+
+      openInstallModal() {
+        this.installModalOpen = true;
+      },
+
+      closeInstallModal() {
+        this.installModalOpen = false;
+      },
+
+      triggerInstallApp() {
+        if (typeof window !== 'undefined' && window.deferredInstallPrompt) {
+          window.deferredInstallPrompt.prompt();
+        } else {
+          this.openInstallModal();
+        }
+      },
+
+      async copyAppUrl() {
+        try {
+          let url = (typeof window !== 'undefined' && window.__DAY_PLANNER_WEB_APP_URL__) ? window.__DAY_PLANNER_WEB_APP_URL__ : (typeof window !== 'undefined' ? window.location.href : '');
+          if (url.includes('userCodeAppPanel') || url.includes('script.googleusercontent.com')) {
+            if (this.bridge && this.bridge.getWebAppUrl) {
+              const fetched = await this.bridge.getWebAppUrl();
+              if (fetched) url = fetched;
+            }
+          }
+          if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(url);
+          } else if (typeof document !== 'undefined') {
+            const tempInput = document.createElement('textarea');
+            tempInput.value = url;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+          }
+          this.copiedAppUrl = true;
+          setTimeout(() => { this.copiedAppUrl = false; }, 2500);
+        } catch (err) {
+          console.error('Failed to copy app URL', err);
         }
       },
 

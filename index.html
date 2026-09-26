@@ -430,7 +430,49 @@
                       <span class="material-symbols-outlined icon-18" x-text="card.collapsed ? 'arrow_right' : 'arrow_drop_down'"></span>
                     </button>
 
-                    <input type="text" x-model="card.indexTopic" @input="syncCardsToDailyNote()" list="index-topics-datalist" placeholder="Local-only" class="card-topic-input" :style="'flex: 0 0 ' + topicColWidth + 'px; width: ' + topicColWidth + 'px'" aria-label="Monthly Index Topic (optional)" title="Topic: set this to add the card to the Monthly Index. Leave blank to keep it private to today.">
+                    <div class="card-topic-wrapper" :style="'flex: 0 0 ' + topicColWidth + 'px; width: ' + topicColWidth + 'px;'" @click.away="if (activeTopicCardId === card.id) closeTopicDropdown()">
+                      <input type="text"
+                             x-model="card.indexTopic"
+                             @focus="openTopicDropdown(card)"
+                             @input="syncCardsToDailyNote(); activeTopicCardId = card.id;"
+                             @change="recordRecentTopic(card.indexTopic)"
+                             @keydown="handleTopicKeydown($event, card)"
+                             placeholder="Local-only"
+                             class="card-topic-input"
+                             style="width: 100%;"
+                             aria-label="Monthly Index Topic (optional)"
+                             title="Topic: set this to add the card to the Monthly Index. Leave blank to keep it private to today.">
+
+                      <!-- Notion-style floating LRU dropdown -->
+                      <div class="topic-lru-dropdown"
+                           x-show="activeTopicCardId === card.id && filteredRecentTopics(card).length > 0"
+                           x-cloak>
+                        <div class="topic-dropdown-header">
+                          <span class="topic-dropdown-label">Recent Topics</span>
+                          <span class="topic-dropdown-hint">↑↓ Enter</span>
+                        </div>
+                        <ul class="topic-lru-list" role="listbox">
+                          <template x-for="(t, idx) in filteredRecentTopics(card)" :key="t">
+                            <li class="topic-lru-item"
+                                :class="{ 'highlighted': topicSelectedIndex === idx }"
+                                @mousedown.prevent="selectTopic(card, t)"
+                                role="option">
+                              <div class="topic-item-main">
+                                <span class="material-symbols-outlined icon-14 topic-tag-icon">tag</span>
+                                <span class="topic-item-name" x-text="t"></span>
+                              </div>
+                              <button type="button"
+                                      class="topic-item-remove-btn"
+                                      @mousedown.stop.prevent="removeRecentTopic(t, $event)"
+                                      title="Remove from recent topics"
+                                      aria-label="Remove topic">
+                                <span class="material-symbols-outlined icon-14">close</span>
+                              </button>
+                            </li>
+                          </template>
+                        </ul>
+                      </div>
+                    </div>
 
                     <div class="card-header-resizer"
                          :class="{ 'is-resizing': isHeaderResizing }"
@@ -898,9 +940,10 @@
       </h1>
       <p class="about-subtitle">User Guide & Features Overview</p>
     </div>
-    <span class="about-version">
-      <span class="material-symbols-outlined icon-16">verified</span> v2.9
-    </span>
+    <button type="button" class="btn-install-app-header" @click.stop="triggerInstallApp()" title="Version 3.0 — Click to install Day Planner as a desktop app">
+      <span class="material-symbols-outlined icon-18">install_desktop</span>
+      <span class="install-btn-text">Install Day Planner</span>
+    </button>
   </header>
 
   <section aria-labelledby="heading-purpose">
@@ -1015,6 +1058,17 @@
     <p class="about-paragraph">
       Day Planner is designed as a standalone, 100% cloud-hosted web application with zero external dependencies. While it runs securely inside Google Apps Script, you can run it borderless and distraction-free as a dedicated desktop or mobile app window:
     </p>
+
+    <div class="install-actions-bar">
+      <button type="button" class="btn-primary install-action-btn" @click.stop="triggerInstallApp()">
+        <span class="material-symbols-outlined icon-18">install_desktop</span>
+        <span>Install Day Planner</span>
+      </button>
+      <button type="button" class="btn-secondary install-action-btn" @click="copyAppUrl()">
+        <span class="material-symbols-outlined icon-18" x-text="copiedAppUrl ? 'check' : 'content_copy'">content_copy</span>
+        <span x-text="copiedAppUrl ? 'Link Copied!' : 'Copy Direct App Link'">Copy Direct App Link</span>
+      </button>
+    </div>
 
     <section class="cards-stack">
       <article class="guide-card">
@@ -1252,7 +1306,7 @@
 
     <!-- Dialog 4: Install Day Planner Guide Modal -->
     <dialog class="modal-backdrop" :open="installModalOpen" x-show="installModalOpen" x-cloak aria-labelledby="installModalTitle" @click.self="closeInstallModal()" @keydown.escape.window="if (installModalOpen) closeInstallModal()">
-      <article class="modal-card modal-card-install" @click.away="closeInstallModal()">
+      <article class="modal-card modal-card-install">
         <header class="modal-header-spaced">
           <h3 id="installModalTitle" class="modal-title-with-icon">
             <span class="material-symbols-outlined icon-24">install_desktop</span>

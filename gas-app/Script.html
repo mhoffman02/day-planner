@@ -821,6 +821,9 @@
       selectedNoteCategories: ['Work'],
       topicColWidth: 112,
       isHeaderResizing: false,
+      recentTopics: [],
+      activeTopicCardId: null,
+      topicSelectedIndex: -1,
       docPreviewEditing: false,
       noteSaveTimer: null,
       taskNoteLinks: [],
@@ -925,6 +928,7 @@
         this.bridge = new GASBridge(false);
         this.initTheme();
         this.initColumnWidths();
+        this.initRecentTopics();
         await this.loadDayData();
         await this.loadMasterTasks();
         this.setupKeyboardShortcuts();
@@ -936,6 +940,22 @@
         setTimeout(() => {
           this.focusTaskInput();
         }, 150);
+      },
+
+      initRecentTopics() {
+        try {
+          var saved = localStorage.getItem('dayPlannerRecentTopics');
+          if (saved) {
+            var parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              this.recentTopics = parsed.slice(0, 10);
+              return;
+            }
+          }
+        } catch (e) {
+          // ignore localStorage error
+        }
+        this.recentTopics = ['Sprint', '1:1', 'Standup', 'Planning', 'Admin', 'Architecture', 'Bug Triage', 'Personal', 'Review', 'General'];
       },
 
       initColumnWidths() {
@@ -1427,6 +1447,9 @@
 
       indexTopicOptions() {
         const topics = new Set();
+        (this.recentTopics || []).forEach(t => {
+          if (t && t.trim()) topics.add(t.trim());
+        });
         (this.noteCards || []).forEach(c => {
           if (c.indexTopic && c.indexTopic.trim()) topics.add(c.indexTopic.trim());
         });
@@ -1434,6 +1457,90 @@
           if (r.topic && r.topic.trim()) topics.add(r.topic.trim());
         });
         return Array.from(topics).sort();
+      },
+
+      openTopicDropdown(card) {
+        if (!card) return;
+        this.activeTopicCardId = card.id;
+        this.topicSelectedIndex = -1;
+      },
+
+      closeTopicDropdown() {
+        this.activeTopicCardId = null;
+        this.topicSelectedIndex = -1;
+      },
+
+      filteredRecentTopics(card) {
+        if (!card) return this.recentTopics || [];
+        const q = (card.indexTopic || '').trim().toLowerCase();
+        if (!q) return this.recentTopics || [];
+        return (this.recentTopics || []).filter(t => t.toLowerCase().includes(q));
+      },
+
+      recordRecentTopic(topic) {
+        if (!topic || typeof topic !== 'string') return;
+        const clean = topic.trim();
+        if (!clean) return;
+        const list = (this.recentTopics || []).filter(t => t.toLowerCase() !== clean.toLowerCase());
+        list.unshift(clean);
+        this.recentTopics = list.slice(0, 10);
+        try {
+          localStorage.setItem('dayPlannerRecentTopics', JSON.stringify(this.recentTopics));
+        } catch (e) {
+          // ignore
+        }
+      },
+
+      removeRecentTopic(topicToRemove, event) {
+        if (event) {
+          event.stopPropagation();
+          event.preventDefault();
+        }
+        if (!topicToRemove) return;
+        this.recentTopics = (this.recentTopics || []).filter(t => t.toLowerCase() !== topicToRemove.toLowerCase());
+        try {
+          localStorage.setItem('dayPlannerRecentTopics', JSON.stringify(this.recentTopics));
+        } catch (e) {
+          // ignore
+        }
+      },
+
+      selectTopic(card, topic) {
+        if (!card) return;
+        card.indexTopic = topic;
+        this.recordRecentTopic(topic);
+        this.syncCardsToDailyNote();
+        this.closeTopicDropdown();
+      },
+
+      handleTopicKeydown(event, card) {
+        if (!event || !card) return;
+        const matches = this.filteredRecentTopics(card);
+        if (event.key === 'ArrowDown') {
+          if (this.activeTopicCardId !== card.id) {
+            this.openTopicDropdown(card);
+          }
+          event.preventDefault();
+          if (matches.length > 0) {
+            this.topicSelectedIndex = (this.topicSelectedIndex + 1) % matches.length;
+          }
+        } else if (event.key === 'ArrowUp') {
+          event.preventDefault();
+          if (matches.length > 0) {
+            this.topicSelectedIndex = (this.topicSelectedIndex - 1 + matches.length) % matches.length;
+          }
+        } else if (event.key === 'Enter') {
+          if (this.activeTopicCardId === card.id && this.topicSelectedIndex >= 0 && this.topicSelectedIndex < matches.length) {
+            event.preventDefault();
+            this.selectTopic(card, matches[this.topicSelectedIndex]);
+          } else {
+            this.recordRecentTopic(card.indexTopic);
+            this.closeTopicDropdown();
+          }
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          this.closeTopicDropdown();
+        }
       },
 
       buildTaskNoteLinks() {
@@ -2124,7 +2231,13 @@
 
       async copyAppUrl() {
         try {
-          var url = window.location.href;
+          var url = (typeof window !== 'undefined' && window.__DAY_PLANNER_WEB_APP_URL__) ? window.__DAY_PLANNER_WEB_APP_URL__ : window.location.href;
+          if (url.indexOf('userCodeAppPanel') !== -1 || url.indexOf('script.googleusercontent.com') !== -1) {
+            if (this.bridge && this.bridge.getWebAppUrl) {
+              var fetched = await this.bridge.getWebAppUrl();
+              if (fetched) url = fetched;
+            }
+          }
           if (navigator.clipboard && navigator.clipboard.writeText) {
             await navigator.clipboard.writeText(url);
           } else {

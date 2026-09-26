@@ -269,6 +269,13 @@ describe('GAS Bridge Unit Tests', () => {
     const masterTasks = await bridge.getMasterTasks('August 2026');
     assert.ok(!masterTasks.some(m => m.id === 'm2'));
   });
+
+  it('should retrieve web app URL via bridge', async () => {
+    const bridge = new GASBridge(true);
+    const url = await bridge.getWebAppUrl();
+    assert.ok(url);
+    assert.ok(url.includes('/exec'));
+  });
 });
 
 

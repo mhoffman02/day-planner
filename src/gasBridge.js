@@ -661,4 +661,20 @@ export class GASBridge {
         .resolveDriveFileTitle(url);
     });
   }
+
+  /**
+   * Retrieves the published Google Apps Script web app URL.
+   * @returns {Promise<string>} Web app /exec URL.
+   */
+  async getWebAppUrl() {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      return 'https:' + '/' + '/script.google.com/macros/s/mock-deployment-id/exec';
+    }
+    return new Promise((resolve) => {
+      window.google.script.run
+        .withSuccessHandler(url => resolve(url || ''))
+        .withFailureHandler(() => resolve(''))
+        .getWebAppUrl();
+    });
+  }
 }
