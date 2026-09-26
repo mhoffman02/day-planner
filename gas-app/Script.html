@@ -796,7 +796,6 @@
       newMasterTaskPriorityGroup: 'A',
       addingMasterTask: false,
       installModalOpen: false,
-      copiedAppUrl: false,
       masterTaskSort: { column: null, direction: 'asc' },
       masterTaskStatusFilter: ['•', '○', '✓', '→', 'X', 'Ⓓ'],
       masterTaskDateFilter: 'all',
@@ -2227,32 +2226,6 @@
 
       closeInstallModal() {
         this.installModalOpen = false;
-      },
-
-      async copyAppUrl() {
-        try {
-          var url = (typeof window !== 'undefined' && window.__DAY_PLANNER_WEB_APP_URL__) ? window.__DAY_PLANNER_WEB_APP_URL__ : window.location.href;
-          if (url.indexOf('userCodeAppPanel') !== -1 || url.indexOf('script.googleusercontent.com') !== -1) {
-            if (this.bridge && this.bridge.getWebAppUrl) {
-              var fetched = await this.bridge.getWebAppUrl();
-              if (fetched) url = fetched;
-            }
-          }
-          if (navigator.clipboard && navigator.clipboard.writeText) {
-            await navigator.clipboard.writeText(url);
-          } else {
-            var tempInput = document.createElement('textarea');
-            tempInput.value = url;
-            document.body.appendChild(tempInput);
-            tempInput.select();
-            document.execCommand('copy');
-            document.body.removeChild(tempInput);
-          }
-          this.copiedAppUrl = true;
-          setTimeout(() => { this.copiedAppUrl = false; }, 2500);
-        } catch (err) {
-          console.error('Failed to copy app URL', err);
-        }
       },
 
       triggerInstallApp() {

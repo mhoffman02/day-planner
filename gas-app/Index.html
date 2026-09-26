@@ -28,9 +28,6 @@
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9Jy0wLjUgLTAuNSAyNSAyNScgd2lkdGg9Jzk2JyBoZWlnaHQ9Jzk2Jz4KICA8cGF0aCBkPSdNMTkgMWwtNSA1djExbDUtNC41VjF6JyBmaWxsPScjMmQ2YTVhJyBzdHJva2U9JyM2ZWU3YjcnIHN0cm9rZS13aWR0aD0nMS4zJyBzdHJva2UtbGluZWpvaW49J3JvdW5kJyBzdHJva2UtbGluZWNhcD0ncm91bmQnLz4KICA8cGF0aCBkPSdNMSA2djE0LjY1YzAgLjI1LjI1LjUuNS41LjEgMCAuMTUtLjA1LjI1LS4wNUMzLjEgMjAuNDUgNS4wNSAyMCA2LjUgMjBjMS45NSAwIDQuMDUuNCA1LjUgMS41VjZjLTEuNDUtMS4xLTMuNTUtMS41LTUuNS0xLjVTMi40NSA0LjkgMSA2em0yMiAxMy41VjZjLS42LS40NS0xLjI1LS43NS0yLTF2MTMuNWMtMS4xLS4zNS0yLjMtLjUtMy41LS41LTEuNyAwLTQuMTUuNjUtNS41IDEuNXYyYzEuMzUtLjg1IDMuOC0xLjUgNS41LTEuNSAxLjY1IDAgMy4zNS4zIDQuNzUgMS4wNS4xLjA1LjE1LjA1LjI1LjA1LjI1IDAgLjUtLjI1LjUtLjV2LTEuMXonIGZpbGw9JyMxNjNiMmYnIHN0cm9rZT0nIzZlZTdiNycgc3Ryb2tlLXdpZHRoPScxLjMnIHN0cm9rZS1saW5lam9pbj0ncm91bmQnIHN0cm9rZS1saW5lY2FwPSdyb3VuZCcvPgo8L3N2Zz4=">
   <link rel="icon" type="image/png" sizes="32x32" href="https://raw.githubusercontent.com/mhoffman02/day-planner/pure-gas-main/icons/favicon-32x32.png">
   <script>
-    window.__DAY_PLANNER_WEB_APP_URL__ = <?= JSON.stringify(typeof ScriptApp !== 'undefined' && ScriptApp.getService ? ScriptApp.getService().getUrl() : '') ?>;
-  </script>
-  <script>
     (function() {
       try {
         var saved = localStorage.getItem('dayPlannerTheme');
@@ -1156,9 +1153,9 @@
               <span class="material-symbols-outlined icon-16">desktop_windows</span> Google Chrome (Recommended)
             </h4>
             <ol class="styled-ordered-list">
-              <li>Look at the right side of the address bar for the <b>Install</b> icon (<span class="material-symbols-outlined icon-14">install_desktop</span>) and click it.</li>
-              <li>Or click the Chrome Menu (<b>⋮</b>) &rarr; <b>Save and share</b> (or <b>More tools</b>) &rarr; <b>Install Day Planner...</b> (or <b>Create shortcut...</b>).</li>
-              <li>Check <b>"Open as window"</b> and click <b>Install</b> (or <b>Create</b>).</li>
+              <li>Click the Chrome Menu (<b>⋮</b>) in the top-right corner.</li>
+              <li>Select <b>Save and share</b> (or <b>More tools</b>) &rarr; <b>Create shortcut...</b></li>
+              <li>Check <b>"Open as window"</b> and click <b>Create</b>.</li>
             </ol>
           </div>
           <div class="install-platform-guide">
@@ -1172,10 +1169,6 @@
           </div>
         </div>
         <footer class="modal-actions">
-          <button type="button" class="btn-secondary" @click="copyAppUrl()">
-            <span class="material-symbols-outlined icon-16" x-text="copiedAppUrl ? 'check' : 'content_copy'">content_copy</span>
-            <span x-text="copiedAppUrl ? 'Link Copied!' : 'Copy Direct App Link'">Copy Direct App Link</span>
-          </button>
           <button type="button" class="btn-primary" @click="closeInstallModal()">
             Done
           </button>

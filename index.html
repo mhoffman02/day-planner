@@ -1065,10 +1065,6 @@
         <span class="material-symbols-outlined icon-18">install_desktop</span>
         <span>Install Day Planner</span>
       </button>
-      <button type="button" class="btn-secondary install-action-btn" @click="copyAppUrl()">
-        <span class="material-symbols-outlined icon-18" x-text="copiedAppUrl ? 'check' : 'content_copy'">content_copy</span>
-        <span x-text="copiedAppUrl ? 'Link Copied!' : 'Copy Direct App Link'">Copy Direct App Link</span>
-      </button>
     </div>
 
     <section class="cards-stack">
@@ -1077,7 +1073,7 @@
           <span class="material-symbols-outlined">desktop_windows</span> Google Chrome (Desktop)
         </h3>
         <p class="guide-card-text">
-          Open the Day Planner web app in Chrome. Click the menu icon (<b>⋮</b>) in the top-right corner &rarr; <b>Cast, save, and share</b> (or <b>More tools</b>) &rarr; <b>Install Day Planner</b> (or <b>Create shortcut...</b>). Ensure <b>"Open as window"</b> is checked, then click <b>Create</b>. You can pin the shortcut to your Windows Taskbar or macOS Dock for instant access.
+          Open the Day Planner web app in Chrome. Click the menu icon (<b>⋮</b>) in the top-right corner &rarr; <b>Save and share</b> (or <b>More tools</b>) &rarr; <b>Create shortcut...</b>. Ensure <b>"Open as window"</b> is checked, then click <b>Create</b>. You can pin the shortcut to your Windows Taskbar or macOS Dock for instant access.
         </p>
       </article>
 
@@ -1326,9 +1322,9 @@
               <span class="material-symbols-outlined icon-16">desktop_windows</span> Google Chrome (Recommended)
             </h4>
             <ol class="styled-ordered-list">
-              <li>Look at the right side of the address bar for the <b>Install</b> icon (<span class="material-symbols-outlined icon-14">install_desktop</span>) and click it.</li>
-              <li>Or click the Chrome Menu (<b>⋮</b>) &rarr; <b>Save and share</b> (or <b>More tools</b>) &rarr; <b>Install Day Planner...</b> (or <b>Create shortcut...</b>).</li>
-              <li>Check <b>"Open as window"</b> and click <b>Install</b> (or <b>Create</b>).</li>
+              <li>Click the Chrome Menu (<b>⋮</b>) in the top-right corner.</li>
+              <li>Select <b>Save and share</b> (or <b>More tools</b>) &rarr; <b>Create shortcut...</b></li>
+              <li>Check <b>"Open as window"</b> and click <b>Create</b>.</li>
             </ol>
           </div>
           <div class="install-platform-guide">
@@ -1342,10 +1338,6 @@
           </div>
         </div>
         <footer class="modal-actions">
-          <button type="button" class="btn-secondary" @click="copyAppUrl()">
-            <span class="material-symbols-outlined icon-16" x-text="copiedAppUrl ? 'check' : 'content_copy'">content_copy</span>
-            <span x-text="copiedAppUrl ? 'Link Copied!' : 'Copy Direct App Link'">Copy Direct App Link</span>
-          </button>
           <button type="button" class="btn-primary" @click="closeInstallModal()">
             Done
           </button>

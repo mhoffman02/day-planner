@@ -114,7 +114,6 @@ Alpine.data('plannerApp', () => ({
 
       // Desktop install modal state
       installModalOpen: false,
-      copiedAppUrl: false,
 
       get availableCategories() {
         const set = new Set(['General', 'Work', 'Personal', 'Financial', 'Projects', 'Health', 'Meeting', 'Decision']);
@@ -2141,32 +2140,6 @@ Alpine.data('plannerApp', () => ({
           window.deferredInstallPrompt.prompt();
         } else {
           this.openInstallModal();
-        }
-      },
-
-      async copyAppUrl() {
-        try {
-          let url = (typeof window !== 'undefined' && window.__DAY_PLANNER_WEB_APP_URL__) ? window.__DAY_PLANNER_WEB_APP_URL__ : (typeof window !== 'undefined' ? window.location.href : '');
-          if (url.includes('userCodeAppPanel') || url.includes('script.googleusercontent.com')) {
-            if (this.bridge && this.bridge.getWebAppUrl) {
-              const fetched = await this.bridge.getWebAppUrl();
-              if (fetched) url = fetched;
-            }
-          }
-          if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
-            await navigator.clipboard.writeText(url);
-          } else if (typeof document !== 'undefined') {
-            const tempInput = document.createElement('textarea');
-            tempInput.value = url;
-            document.body.appendChild(tempInput);
-            tempInput.select();
-            document.execCommand('copy');
-            document.body.removeChild(tempInput);
-          }
-          this.copiedAppUrl = true;
-          setTimeout(() => { this.copiedAppUrl = false; }, 2500);
-        } catch (err) {
-          console.error('Failed to copy app URL', err);
         }
       },
 
