@@ -37,6 +37,7 @@ Alpine.data('plannerApp', () => ({
       masterTasks: [],
       newMasterTaskTitle: '',
       newMasterTaskCategory: '',
+      newMasterTaskDueDate: '',
       newMasterTaskPriorityGroup: 'A',
       addingMasterTask: false,
       masterTaskSort: { column: null, direction: 'asc' },
@@ -93,6 +94,7 @@ Alpine.data('plannerApp', () => ({
 
       // Task inputs
       newTaskTitle: '',
+      newTaskCategory: '',
       newTaskPriorityGroup: 'A',
 
       // Resizable 3-Column Layout state
@@ -113,6 +115,25 @@ Alpine.data('plannerApp', () => ({
       // Desktop install modal state
       installModalOpen: false,
       copiedAppUrl: false,
+
+      get availableCategories() {
+        const set = new Set(['General', 'Work', 'Personal', 'Financial', 'Projects', 'Health', 'Meeting', 'Decision']);
+        if (Array.isArray(this.masterTasks)) {
+          this.masterTasks.forEach(t => {
+            if (t.category && typeof t.category === 'string') {
+              set.add(t.category.trim());
+            }
+          });
+        }
+        if (Array.isArray(this.dailyTasks)) {
+          this.dailyTasks.forEach(t => {
+            if (t.category && typeof t.category === 'string') {
+              set.add(t.category.trim());
+            }
+          });
+        }
+        return Array.from(set).sort();
+      },
 
       get filteredNoteCards() {
         const q = (this.noteCardSearchQuery || '').trim().toLowerCase();
@@ -1409,9 +1430,10 @@ Alpine.data('plannerApp', () => ({
         this.addingMasterTask = true;
         try {
           const category = this.newMasterTaskCategory.trim() || 'General';
+          const dueDate = this.newMasterTaskDueDate ? this.newMasterTaskDueDate.trim() : null;
           const existingCount = this.masterTasks.length + 1;
           const formattedTitle = formatTaskTitle(this.newMasterTaskPriorityGroup, existingCount, taskTitle);
-          const created = await this.bridge.addMasterTask(formattedTitle, category);
+          const created = await this.bridge.addMasterTask(formattedTitle, category, dueDate);
           created._moveDate = getLocalDateStr();
           created._moving = false;
           created._isNew = true;
@@ -1420,6 +1442,7 @@ Alpine.data('plannerApp', () => ({
           this.masterTasks.push(created);
           this.newMasterTaskTitle = '';
           this.newMasterTaskCategory = '';
+          this.newMasterTaskDueDate = '';
 
           // Guarantee visibility: if user was filtering by future or overdue/today,
           // undated master tasks wouldn't show. Switch horizon to 'all'.
@@ -1690,11 +1713,14 @@ Alpine.data('plannerApp', () => ({
         const taskTitle = extracted.cleanTitle;
         if (!taskTitle) return;
         try {
+          const category = (this.newTaskCategory && this.newTaskCategory.trim()) || 'Work';
           const existingCount = this.dailyTasks.length + 1;
           const formattedTitle = formatTaskTitle(this.newTaskPriorityGroup, existingCount, taskTitle);
-          const newTask = await this.bridge.addDailyTask(this.selectedDate, formattedTitle);
+          const newTask = await this.bridge.addDailyTask(this.selectedDate, formattedTitle, category);
+          newTask._isNew = true;
           this.dailyTasks.push(newTask);
           this.newTaskTitle = '';
+          this.newTaskCategory = '';
           await this.trigger2WaySync();
         } catch (err) {
           console.error('🔥 addDailyTask error:', err);

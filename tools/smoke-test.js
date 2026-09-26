@@ -50,7 +50,7 @@ class CDPClient {
       } else if (msg.method) {
         if (msg.method === 'Runtime.exceptionThrown') {
           const exc = msg.params.exceptionDetails;
-          this.errors.push(`Uncaught Exception: ${exc.text} at ${exc.url || 'eval'}:${exc.lineNumber}`);
+          this.errors.push(`Uncaught Exception: ${exc.exception?.description || exc.text} at ${exc.url || 'eval'}:${exc.lineNumber}`);
         } else if (msg.method === 'Log.entryAdded' && msg.params.entry.level === 'error') {
           this.errors.push(`Console Error: ${msg.params.entry.text}`);
         }
