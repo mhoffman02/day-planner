@@ -2049,11 +2049,26 @@
           const created = await this.bridge.addMasterTask(formattedTitle, category);
           created._moveDate = getLocalDateStr();
           created._moving = false;
+          created._isNew = true;
           if (!created.category) created.category = category;
           if (!created.status) created.status = '•';
           this.masterTasks.push(created);
           this.newMasterTaskTitle = '';
           this.newMasterTaskCategory = '';
+
+          // Guarantee visibility: if user was filtering by future or overdue/today,
+          // undated master tasks wouldn’t show. Switch horizon to all.
+          if (this.masterTaskDateFilter === 'future' || this.masterTaskDateFilter === 'overdue-today') {
+            this.masterTaskDateFilter = 'all';
+          }
+          // Also ensure status filter includes open tasks so new task is visible
+          if (Array.isArray(this.masterTaskStatusFilter) && !this.masterTaskStatusFilter.includes('•')) {
+            this.masterTaskStatusFilter.push('•');
+          }
+
+          setTimeout(() => {
+            created._isNew = false;
+          }, 2000);
         } catch (err) {
           console.error('🔥 addMasterTask error:', err);
           this.errorMessage = `Could not add master task: ${err.message || err.toString()}`;

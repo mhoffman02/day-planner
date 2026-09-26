@@ -628,16 +628,20 @@
               </div>
             </div>
           </header>
-          <form @submit.prevent="addMasterTask()" role="group" class="task-quick-add-bar master-task-add-bar">
-            <div class="priority-segmented-group" role="radiogroup" aria-label="Master Task Priority">
-              <button type="button" class="priority-segment-btn" :class="{ 'active a': newMasterTaskPriorityGroup === 'A' }" @click="newMasterTaskPriorityGroup = 'A'" role="radio" :aria-checked="newMasterTaskPriorityGroup === 'A'" aria-label="Priority A" title="A: Top priority (Alt+A or #a)" accesskey="a">A</button>
-              <button type="button" class="priority-segment-btn" :class="{ 'active b': newMasterTaskPriorityGroup === 'B' }" @click="newMasterTaskPriorityGroup = 'B'" role="radio" :aria-checked="newMasterTaskPriorityGroup === 'B'" aria-label="Priority B" title="B: Medium priority (Alt+B or #b)" accesskey="b">B</button>
-              <button type="button" class="priority-segment-btn" :class="{ 'active c': newMasterTaskPriorityGroup === 'C' }" @click="newMasterTaskPriorityGroup = 'C'" role="radio" :aria-checked="newMasterTaskPriorityGroup === 'C'" aria-label="Priority C" title="C: Normal priority (Alt+C or #c)" accesskey="c">C</button>
+          <form @submit.prevent="addMasterTask()" role="group" class="task-quick-add-bar master-task-add-bar" aria-label="Add Master Task to Backlog">
+            <span class="quick-add-section-label" title="Add Master Task to Backlog">
+              <span class="material-symbols-outlined icon-16">add_task</span>
+              <span class="quick-add-label-text">New Task:</span>
+            </span>
+            <div class="priority-segmented-group" role="radiogroup" aria-label="Assign Master Task Priority">
+              <button type="button" class="priority-segment-btn" :class="{ 'active a': newMasterTaskPriorityGroup === 'A' }" @click="newMasterTaskPriorityGroup = 'A'" role="radio" :aria-checked="newMasterTaskPriorityGroup === 'A'" aria-label="Priority A" title="Assign Priority A (Alt+A or #a)" accesskey="a">A</button>
+              <button type="button" class="priority-segment-btn" :class="{ 'active b': newMasterTaskPriorityGroup === 'B' }" @click="newMasterTaskPriorityGroup = 'B'" role="radio" :aria-checked="newMasterTaskPriorityGroup === 'B'" aria-label="Priority B" title="Assign Priority B (Alt+B or #b)" accesskey="b">B</button>
+              <button type="button" class="priority-segment-btn" :class="{ 'active c': newMasterTaskPriorityGroup === 'C' }" @click="newMasterTaskPriorityGroup = 'C'" role="radio" :aria-checked="newMasterTaskPriorityGroup === 'C'" aria-label="Priority C" title="Assign Priority C (Alt+C or #c)" accesskey="c">C</button>
             </div>
             <input type="text" x-model="newMasterTaskTitle" @input="handleMasterTaskTitleInput()" placeholder="Add master task title (e.g. Call vendor / #a Call vendor)..." class="task-input-field master-task-title-input" aria-label="New master task description">
             <input type="text" x-model="newMasterTaskCategory" placeholder="Category" class="task-input-field master-task-category-input" aria-label="New master task category">
             <button type="submit" class="btn-primary btn-add-task-round" :disabled="addingMasterTask" aria-label="Add master task" title="Add master task">
-              <span class="material-symbols-outlined">add</span>
+              <span class="material-symbols-outlined icon-18" :class="{ spin: addingMasterTask }" x-text="addingMasterTask ? 'progress_activity' : 'add'">add</span>
             </button>
           </form>
           <figure class="table-container">
@@ -664,7 +668,7 @@
               </thead>
               <tbody>
                 <template x-for="mTask in sortedTasks(filteredMasterTasks, masterTaskSort)" :key="mTask.id">
-                  <tr>
+                  <tr :class="{ 'row-just-added': mTask._isNew }">
                     <td>
                       <span class="priority-badge" :class="parseTask(mTask.title).priorityGroup || 'A'" x-text="parseTask(mTask.title).priorityCode || 'A1'"></span>
                     </td>
