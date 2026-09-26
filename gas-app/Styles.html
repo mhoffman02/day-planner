@@ -39,6 +39,46 @@
     --note-color-red: #b91c1c;
     --note-color-green: #2b8a3e;
     --note-color-blue: #1d5fa8;
+
+    /* Subtle, Thematic Scrollbar Tokens (Light Mode - Parchment Cream & Slate Teal) */
+    color-scheme: light;
+    --scrollbar-thumb: rgba(45, 106, 90, 0.28);
+    --scrollbar-thumb-hover: rgba(45, 106, 90, 0.50);
+    --scrollbar-track: rgba(0, 0, 0, 0.04);
+  }
+
+  /* ==========================================
+     Thematic Scrollbars (Standard & WebKit)
+     ========================================== */
+  html,
+  body,
+  * {
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+    scrollbar-width: thin;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+    border-radius: 2px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover);
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: transparent;
   }
 
   /* Force Headings to Dark Forest Green */
@@ -3513,6 +3553,12 @@
     --priority-a: #2b72c4 !important;
     --priority-b: #7c4d8a !important;
     --priority-c: #2d6a5a !important;
+
+    /* Subtle, Thematic Scrollbar Tokens (Dark Mode - Forest Jade & Deep Track) */
+    color-scheme: dark !important;
+    --scrollbar-thumb: rgba(78, 163, 140, 0.35) !important;
+    --scrollbar-thumb-hover: rgba(78, 163, 140, 0.60) !important;
+    --scrollbar-track: rgba(12, 24, 19, 0.65) !important;
   }
 
   [data-theme="dark"] body {

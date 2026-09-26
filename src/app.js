@@ -293,6 +293,7 @@ Alpine.data('plannerApp', () => ({
 
       applyTheme() {
         document.documentElement.setAttribute('data-theme', this.theme);
+        document.documentElement.style.colorScheme = this.theme;
       },
 
       setupKeyboardShortcuts() {
