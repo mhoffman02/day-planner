@@ -596,7 +596,11 @@ Alpine.data('plannerApp', () => ({
         await this.loadDayData();
       },
 
+      _lastDatePickerOpen: 0,
       openDatePicker() {
+        const now = Date.now();
+        if (now - this._lastDatePickerOpen < 300) return;
+        this._lastDatePickerOpen = now;
         const el = this.$refs.navDatePicker;
         if (!el) return;
         if (typeof el.showPicker === 'function') {

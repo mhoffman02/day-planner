@@ -474,6 +474,7 @@
     position: relative;
     display: inline-flex;
     align-items: center;
+    cursor: pointer;
   }
 
   .date-picker-btn,
@@ -481,34 +482,38 @@
     display: inline-flex;
     align-items: center;
     gap: 3px;
-    background: rgba(255, 255, 255, 0.12) !important;
-    border: 1px solid rgba(255, 255, 255, 0.22) !important;
-    border-radius: 4px;
-    padding: 2px 7px;
+    background: rgba(255, 255, 255, 0.18) !important;
+    border: 1px solid rgba(255, 255, 255, 0.28) !important;
+    border-radius: 2px;
+    padding: 2px 9px;
     cursor: pointer;
     transition: background 0.15s ease, border-color 0.15s ease;
     color: #ffffff !important;
+    font-weight: 600;
+    font-size: 0.78rem;
     margin-left: 4px;
+    user-select: none;
   }
 
   .date-picker-btn:hover,
   .month-display-btn:hover,
   .date-picker-wrap:hover .date-picker-btn {
-    background: rgba(255, 255, 255, 0.25) !important;
-    border-color: rgba(255, 255, 255, 0.4) !important;
+    background: rgba(255, 255, 255, 0.32) !important;
+    border-color: rgba(255, 255, 255, 0.45) !important;
   }
 
   .date-picker-btn .date-text-display,
   .month-display-btn .date-text-display {
     margin-left: 0;
     min-width: auto;
+    font-weight: 600;
   }
 
   .date-picker-btn .dropdown-arrow,
   .month-display-btn .dropdown-arrow {
     font-size: 16px;
     line-height: 1;
-    opacity: 0.85;
+    opacity: 0.9;
     transition: transform 0.15s ease;
     color: #ffffff !important;
   }
@@ -520,6 +525,7 @@
     width: 100%;
     height: 100%;
     opacity: 0;
+    pointer-events: none;
     cursor: pointer;
     z-index: 2;
     margin: 0;
@@ -2120,6 +2126,9 @@
     cursor: text;
     min-height: 1.4em;
     word-break: break-word;
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
   }
   .note-render-line-item .note-render-list {
     margin: 0;
@@ -2173,14 +2182,15 @@
   .note-checkbox-btn {
     background: transparent;
     border: none;
-    padding: 0 4px 0 0;
+    padding: 0;
     margin: 0;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    line-height: 1;
-    vertical-align: middle;
+    line-height: 1.4;
+    height: 1.4em;
+    flex-shrink: 0;
     color: var(--binder-teal, #2d6a5a);
     font-size: 1.15rem;
     font-family: inherit;
@@ -2218,8 +2228,16 @@
   }
 
   .note-line-body {
+    flex: 1;
+    min-width: 0;
     display: inline;
     word-break: break-word;
+  }
+
+  .note-line-body .note-render-line {
+    display: inline;
+    margin: 0;
+    padding: 0;
   }
 
   .note-line-body.note-line-checked,
@@ -4772,5 +4790,24 @@
   [data-theme="dark"] a.btn-meet:hover {
     background: #124235 !important;
     color: #ffffff !important;
+  }
+
+  [data-theme="dark"] .date-picker-btn,
+  [data-theme="dark"] .month-display-btn {
+    background: rgba(45, 106, 90, 0.28) !important;
+    border-color: #244a3b !important;
+    color: #e2f2ec !important;
+  }
+
+  [data-theme="dark"] .date-picker-btn:hover,
+  [data-theme="dark"] .month-display-btn:hover,
+  [data-theme="dark"] .date-picker-wrap:hover .date-picker-btn {
+    background: rgba(45, 106, 90, 0.45) !important;
+    border-color: #79d6bd !important;
+    color: #ffffff !important;
+  }
+
+  [data-theme="dark"] .nav-date-input {
+    color-scheme: dark;
   }
 </style>
