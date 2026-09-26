@@ -2,6 +2,11 @@
   // Helper engine definitions bundled for GAS SPA client
   const STATUS_LIST = ['•', '○', '✓', '→', 'X', 'Ⓓ'];
 
+  const MONTH_NAMES = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
   const STATUS_OPTIONS = [
     { value: '•', label: 'Open' },
     { value: '○', label: 'In Progress' },
@@ -852,6 +857,14 @@
       searchResults: { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [] },
       selectedSearchIndex: -1,
 
+      // Themed Day Calendar Picker state
+      dayPickerOpen: false,
+      dayPickerYear: null,
+      dayPickerMonth: null,
+      masterTaskDuePickerOpen: false,
+      masterTaskDuePickerYear: null,
+      masterTaskDuePickerMonth: null,
+
       // Insert Hyperlink Modal state
       linkModalOpen: false,
       linkModalCard: null,
@@ -1133,11 +1146,23 @@
               e.preventDefault();
               this.toggleSearchModal();
             }
+          } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && keyLower === 'f') {
+            e.preventDefault();
+            this.toggleSearchModal();
           } else if ((e.key === '/' || ((e.ctrlKey || e.metaKey) && e.key === '/')) && !isInputFocused) {
             e.preventDefault();
             this.toggleSearchModal();
           } else if (e.key === 'Escape') {
-            if (this.linkModalOpen) {
+            if (this.dayPickerOpen) {
+              e.preventDefault();
+              this.closeDayPicker();
+            } else if (this.masterTaskDuePickerOpen) {
+              e.preventDefault();
+              this.closeMasterTaskDuePicker();
+            } else if (this.monthPickerOpen) {
+              e.preventDefault();
+              this.closeMonthPicker();
+            } else if (this.linkModalOpen) {
               e.preventDefault();
               this.closeLinkModal();
             } else if (this.searchModalOpen) {
@@ -1346,23 +1371,218 @@
         await this.loadDayData();
       },
 
+      formatSelectedDateDisplay(dateStr) {
+        if (!dateStr) return '';
+        const d = new Date(dateStr + 'T00:00:00');
+        if (isNaN(d.getTime())) return dateStr;
+        return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+      },
+
+      openDayPicker() {
+        const [y, m] = (this.selectedDate || getLocalDateStr()).split('-').map(Number);
+        this.dayPickerYear = y || new Date().getFullYear();
+        this.dayPickerMonth = m || (new Date().getMonth() + 1);
+        this.dayPickerOpen = true;
+      },
+
+      toggleDayPicker() {
+        if (this.dayPickerOpen) {
+          this.closeDayPicker();
+        } else {
+          this.openDayPicker();
+        }
+      },
+
+      closeDayPicker() {
+        this.dayPickerOpen = false;
+      },
+
+      navigateDayPickerMonth(delta) {
+        let m = (this.dayPickerMonth || (new Date().getMonth() + 1)) + delta;
+        let y = this.dayPickerYear || new Date().getFullYear();
+        if (m > 12) {
+          m = 1;
+          y += 1;
+        } else if (m < 1) {
+          m = 12;
+          y -= 1;
+        }
+        this.dayPickerMonth = m;
+        this.dayPickerYear = y;
+      },
+
+      dayPickerMonthLabel() {
+        const m = this.dayPickerMonth || (new Date().getMonth() + 1);
+        const y = this.dayPickerYear || new Date().getFullYear();
+        const name = MONTH_NAMES[m - 1] || '';
+        return name + ' ' + y;
+      },
+
+      dayPickerCells() {
+        const y = this.dayPickerYear || new Date().getFullYear();
+        const m = this.dayPickerMonth || (new Date().getMonth() + 1);
+        const firstDay = new Date(y, m - 1, 1);
+        const lastDay = new Date(y, m, 0);
+        const totalDays = lastDay.getDate();
+        const startDayOfWeek = firstDay.getDay();
+        const prevMonthLastDay = new Date(y, m - 1, 0).getDate();
+        const todayStr = getLocalDateStr();
+        const cells = [];
+
+        for (let i = startDayOfWeek - 1; i >= 0; i--) {
+          const day = prevMonthLastDay - i;
+          const prevM = m === 1 ? 12 : m - 1;
+          const prevY = m === 1 ? y - 1 : y;
+          const dateStr = prevY + '-' + String(prevM).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+          cells.push({
+            dayNum: day,
+            dateStr: dateStr,
+            isCurrentMonth: false,
+            isToday: dateStr === todayStr,
+            isSelected: dateStr === this.selectedDate
+          });
+        }
+
+        for (let day = 1; day <= totalDays; day++) {
+          const dateStr = y + '-' + String(m).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+          cells.push({
+            dayNum: day,
+            dateStr: dateStr,
+            isCurrentMonth: true,
+            isToday: dateStr === todayStr,
+            isSelected: dateStr === this.selectedDate
+          });
+        }
+
+        let nextDay = 1;
+        const nextM = m === 12 ? 1 : m + 1;
+        const nextY = m === 12 ? y + 1 : y;
+        while (cells.length % 7 !== 0 || cells.length < 35) {
+          const dateStr = nextY + '-' + String(nextM).padStart(2, '0') + '-' + String(nextDay).padStart(2, '0');
+          cells.push({
+            dayNum: nextDay,
+            dateStr: dateStr,
+            isCurrentMonth: false,
+            isToday: dateStr === todayStr,
+            isSelected: dateStr === this.selectedDate
+          });
+          nextDay++;
+        }
+
+        return cells;
+      },
+
+      async selectDayPickerDate(dateStr) {
+        if (!dateStr) return;
+        this.closeDayPicker();
+        await this.jumpToDate(dateStr);
+        if (this.activeView !== 'daily') {
+          this.setView('daily');
+        }
+      },
+
+      openMasterTaskDuePicker() {
+        const [y, m] = (this.newMasterTaskDueDate || getLocalDateStr()).split('-').map(Number);
+        this.masterTaskDuePickerYear = y || new Date().getFullYear();
+        this.masterTaskDuePickerMonth = m || (new Date().getMonth() + 1);
+        this.masterTaskDuePickerOpen = true;
+      },
+
+      toggleMasterTaskDuePicker() {
+        if (this.masterTaskDuePickerOpen) {
+          this.closeMasterTaskDuePicker();
+        } else {
+          this.openMasterTaskDuePicker();
+        }
+      },
+
+      closeMasterTaskDuePicker() {
+        this.masterTaskDuePickerOpen = false;
+      },
+
+      navigateMasterTaskDuePickerMonth(delta) {
+        let m = (this.masterTaskDuePickerMonth || (new Date().getMonth() + 1)) + delta;
+        let y = this.masterTaskDuePickerYear || new Date().getFullYear();
+        if (m > 12) { m = 1; y += 1; }
+        else if (m < 1) { m = 12; y -= 1; }
+        this.masterTaskDuePickerMonth = m;
+        this.masterTaskDuePickerYear = y;
+      },
+
+      masterTaskDuePickerMonthLabel() {
+        const m = this.masterTaskDuePickerMonth || (new Date().getMonth() + 1);
+        const y = this.masterTaskDuePickerYear || new Date().getFullYear();
+        return (MONTH_NAMES[m - 1] || '') + ' ' + y;
+      },
+
+      masterTaskDuePickerCells() {
+        const y = this.masterTaskDuePickerYear || new Date().getFullYear();
+        const m = this.masterTaskDuePickerMonth || (new Date().getMonth() + 1);
+        const firstDay = new Date(y, m - 1, 1);
+        const lastDay = new Date(y, m, 0);
+        const totalDays = lastDay.getDate();
+        const startDayOfWeek = firstDay.getDay();
+        const prevMonthLastDay = new Date(y, m - 1, 0).getDate();
+        const todayStr = getLocalDateStr();
+        const cells = [];
+
+        for (let i = startDayOfWeek - 1; i >= 0; i--) {
+          const day = prevMonthLastDay - i;
+          const prevM = m === 1 ? 12 : m - 1;
+          const prevY = m === 1 ? y - 1 : y;
+          const dateStr = prevY + '-' + String(prevM).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+          cells.push({
+            dayNum: day,
+            dateStr: dateStr,
+            isCurrentMonth: false,
+            isToday: dateStr === todayStr,
+            isSelected: dateStr === this.newMasterTaskDueDate
+          });
+        }
+
+        for (let day = 1; day <= totalDays; day++) {
+          const dateStr = y + '-' + String(m).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+          cells.push({
+            dayNum: day,
+            dateStr: dateStr,
+            isCurrentMonth: true,
+            isToday: dateStr === todayStr,
+            isSelected: dateStr === this.newMasterTaskDueDate
+          });
+        }
+
+        let nextDay = 1;
+        const nextM = m === 12 ? 1 : m + 1;
+        const nextY = m === 12 ? y + 1 : y;
+        while (cells.length % 7 !== 0 || cells.length < 35) {
+          const dateStr = nextY + '-' + String(nextM).padStart(2, '0') + '-' + String(nextDay).padStart(2, '0');
+          cells.push({
+            dayNum: nextDay,
+            dateStr: dateStr,
+            isCurrentMonth: false,
+            isToday: dateStr === todayStr,
+            isSelected: dateStr === this.newMasterTaskDueDate
+          });
+          nextDay++;
+        }
+
+        return cells;
+      },
+
+      selectMasterTaskDueDate(dateStr) {
+        if (dateStr === 'today') dateStr = getLocalDateStr();
+        this.newMasterTaskDueDate = dateStr;
+        this.closeMasterTaskDuePicker();
+      },
+
+      clearMasterTaskDueDate() {
+        this.newMasterTaskDueDate = '';
+        this.closeMasterTaskDuePicker();
+      },
+
       _lastDatePickerOpen: 0,
       openDatePicker() {
-        const now = Date.now();
-        if (now - this._lastDatePickerOpen < 300) return;
-        this._lastDatePickerOpen = now;
-        const el = this.$refs.navDatePicker;
-        if (!el) return;
-        if (typeof el.showPicker === 'function') {
-          try {
-            el.showPicker();
-            return;
-          } catch (_e) {
-            /* Fallback to click */
-          }
-        }
-        el.focus();
-        el.click();
+        this.toggleDayPicker();
       },
 
       async jumpToDate(targetDateStr) {

@@ -104,12 +104,45 @@
               <button type="button" class="icon-nav-btn" @click="navigateDay(1)" title="Next Day" aria-label="Next Day">
                 <span class="material-symbols-outlined icon-18">chevron_right</span>
               </button>
-              <div class="date-picker-wrap" title="Click to pick date from calendar" @click="openDatePicker()" @mouseup="openDatePicker()">
-                <button type="button" class="today-jump-btn date-picker-btn" @click="openDatePicker()" @mouseup="openDatePicker()" title="Click to jump to date" aria-label="Pick date">
-                  <span class="date-text-display" x-text="new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })"></span>
-                  <span class="material-symbols-outlined icon-14 dropdown-arrow">arrow_drop_down</span>
+              <div class="date-picker-wrap" @click.outside="closeDayPicker()">
+                <button type="button" class="today-jump-btn date-picker-btn" @click="toggleDayPicker()" title="Click to pick date from calendar" aria-haspopup="dialog" :aria-expanded="dayPickerOpen">
+                  <span class="date-text-display" x-text="formatSelectedDateDisplay(selectedDate)"></span>
+                  <span class="material-symbols-outlined icon-14 dropdown-arrow" :class="{ 'arrow-up': dayPickerOpen }">arrow_drop_down</span>
                 </button>
-                <input type="date" x-ref="navDatePicker" :value="selectedDate" @change="jumpToDate($event.target.value)" class="nav-date-input" aria-label="Choose date from calendar">
+
+                <!-- Themed Day Calendar Popover -->
+                <div class="day-picker-dropdown" x-show="dayPickerOpen" x-cloak>
+                  <div class="day-picker-header">
+                    <button type="button" class="icon-nav-btn day-picker-nav-btn" @click.stop="navigateDayPickerMonth(-1)" title="Previous Month" aria-label="Previous Month">
+                      <span class="material-symbols-outlined icon-16">chevron_left</span>
+                    </button>
+                    <span class="day-picker-month-label" x-text="dayPickerMonthLabel()"></span>
+                    <button type="button" class="icon-nav-btn day-picker-nav-btn" @click.stop="navigateDayPickerMonth(1)" title="Next Month" aria-label="Next Month">
+                      <span class="material-symbols-outlined icon-16">chevron_right</span>
+                    </button>
+                  </div>
+                  <div class="day-picker-weekdays">
+                    <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+                  </div>
+                  <div class="day-picker-grid">
+                    <template x-for="cell in dayPickerCells()" :key="cell.dateStr">
+                      <button type="button" class="day-picker-cell"
+                              :class="{
+                                'is-current-month': cell.isCurrentMonth,
+                                'is-other-month': !cell.isCurrentMonth,
+                                'is-today': cell.isToday,
+                                'is-selected': cell.isSelected
+                              }"
+                              @click.stop="selectDayPickerDate(cell.dateStr)"
+                              :title="cell.dateStr">
+                        <span x-text="cell.dayNum"></span>
+                      </button>
+                    </template>
+                  </div>
+                  <div class="day-picker-footer">
+                    <button type="button" class="day-picker-today-btn" @click.stop="jumpToToday(); closeDayPicker();">Today</button>
+                  </div>
+                </div>
               </div>
             </div>
           </template>
@@ -120,12 +153,18 @@
               <button type="button" class="icon-nav-btn" @click="navigateMonth(-1)" title="Previous Month" aria-label="Previous Month">
                 <span class="material-symbols-outlined icon-18">chevron_left</span>
               </button>
-              <div class="month-picker-wrap" @mouseenter="openMonthPicker()" @mouseleave="scheduleMonthPickerClose()">
-                <button type="button" class="today-jump-btn month-jump-btn" @click="jumpToCurrentMonth()" @dblclick="toggleMonthPicker()" title="Jump to Current Month (or hover to pick month)" aria-haspopup="true" :aria-expanded="monthPickerOpen">
-                  <span>This Month</span>
-                  <span class="material-symbols-outlined icon-14 dropdown-arrow" @click.stop="toggleMonthPicker()">arrow_drop_down</span>
+              <button type="button" class="today-jump-btn month-jump-btn" @click="jumpToCurrentMonth()" title="Jump to Current Month">
+                <span>This Month</span>
+              </button>
+              <button type="button" class="icon-nav-btn" @click="navigateMonth(1)" title="Next Month" aria-label="Next Month">
+                <span class="material-symbols-outlined icon-18">chevron_right</span>
+              </button>
+              <div class="month-picker-wrap" @click.outside="monthPickerOpen = false">
+                <button type="button" class="today-jump-btn month-display-btn" @click="toggleMonthPicker()" title="Click to pick month" aria-label="Pick month">
+                  <span class="date-text-display" x-text="selectedMonthName + ' ' + selectedYear"></span>
+                  <span class="material-symbols-outlined icon-14 dropdown-arrow" :class="{ 'arrow-up': monthPickerOpen }">arrow_drop_down</span>
                 </button>
-                <div class="month-picker-dropdown" x-show="monthPickerOpen" @click.outside="monthPickerOpen = false" x-cloak>
+                <div class="month-picker-dropdown" x-show="monthPickerOpen" x-cloak>
                   <div class="month-picker-year-nav">
                     <button type="button" class="icon-nav-btn" @click.stop="changeMonthPickerYear(-1)" aria-label="Previous Year" title="Previous Year">
                       <span class="material-symbols-outlined icon-16">chevron_left</span>
@@ -147,13 +186,6 @@
                   </div>
                 </div>
               </div>
-              <button type="button" class="icon-nav-btn" @click="navigateMonth(1)" title="Next Month" aria-label="Next Month">
-                <span class="material-symbols-outlined icon-18">chevron_right</span>
-              </button>
-              <button type="button" class="today-jump-btn month-display-btn" @click="toggleMonthPicker()" @mouseup="toggleMonthPicker()" title="Click to pick month" aria-label="Pick month">
-                <span class="date-text-display" x-text="selectedMonthName + ' ' + selectedYear"></span>
-                <span class="material-symbols-outlined icon-14 dropdown-arrow">arrow_drop_down</span>
-              </button>
             </div>
           </template>
         </div>
@@ -189,10 +221,10 @@
 
       <!-- Right: Global Action Utilities -->
       <div class="header-actions-compact">
-        <button type="button" class="search-trigger-compact" @click.stop="toggleSearchModal()" title="Search Across All Items (Ctrl+K)">
+        <button type="button" class="search-trigger-compact" @click.stop="toggleSearchModal()" title="Search Across All Items (/ or Ctrl+Shift+F or Ctrl+K)">
           <span class="material-symbols-outlined icon-18">search</span>
           <span class="search-label">Search</span>
-          <kbd class="kbd-shortcut-sm">⌘K</kbd>
+          <kbd class="kbd-shortcut-sm">/ ⌘F</kbd>
         </button>
         <button type="button" class="sync-btn-compact" @click="trigger2WaySync()" :disabled="isSyncing" title="Sync with Google Calendar & Tasks">
           <span class="material-symbols-outlined icon-18" :class="{ 'spin': isSyncing }">sync</span>
@@ -731,7 +763,48 @@
               <button type="button" class="priority-segment-btn" :class="{ 'active c': newMasterTaskPriorityGroup === 'C' }" @click="newMasterTaskPriorityGroup = 'C'" role="radio" :aria-checked="newMasterTaskPriorityGroup === 'C'" aria-label="Priority C" title="Assign Priority C (Alt+C or #c)" accesskey="c">C</button>
             </div>
             <input type="text" x-model="newMasterTaskTitle" @input="handleMasterTaskTitleInput()" placeholder="Add master task title (e.g. Call vendor / #a Call vendor)..." class="task-input-field master-task-title-input" aria-label="New master task description">
-            <input type="date" x-model="newMasterTaskDueDate" class="task-input-field master-task-due-date-input" aria-label="New master task due date" title="Optional due date (leave empty for undated backlog)">
+            <div class="master-task-due-wrap" @click.outside="closeMasterTaskDuePicker()">
+              <button type="button" class="task-input-field master-task-due-btn" @click="toggleMasterTaskDuePicker()" title="Optional due date (click to pick)" aria-haspopup="dialog" :aria-expanded="masterTaskDuePickerOpen">
+                <span class="material-symbols-outlined icon-16" style="opacity:0.7;">calendar_today</span>
+                <span class="due-btn-text" x-text="newMasterTaskDueDate ? formatSelectedDateDisplay(newMasterTaskDueDate) : 'Due date...'"></span>
+                <template x-if="newMasterTaskDueDate">
+                  <span class="material-symbols-outlined icon-14 due-clear-icon" @click.stop="clearMasterTaskDueDate()" title="Clear due date">close</span>
+                </template>
+                <span class="material-symbols-outlined icon-14 dropdown-arrow" :class="{ 'arrow-up': masterTaskDuePickerOpen }" x-show="!newMasterTaskDueDate">arrow_drop_down</span>
+              </button>
+              <div class="day-picker-dropdown day-picker-dropdown-due" x-show="masterTaskDuePickerOpen" x-cloak>
+                <div class="day-picker-header">
+                  <button type="button" class="icon-nav-btn day-picker-nav-btn" @click.stop="navigateMasterTaskDuePickerMonth(-1)" title="Previous Month" aria-label="Previous Month">
+                    <span class="material-symbols-outlined icon-16">chevron_left</span>
+                  </button>
+                  <span class="day-picker-month-label" x-text="masterTaskDuePickerMonthLabel()"></span>
+                  <button type="button" class="icon-nav-btn day-picker-nav-btn" @click.stop="navigateMasterTaskDuePickerMonth(1)" title="Next Month" aria-label="Next Month">
+                    <span class="material-symbols-outlined icon-16">chevron_right</span>
+                  </button>
+                </div>
+                <div class="day-picker-weekdays">
+                  <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+                </div>
+                <div class="day-picker-grid">
+                  <template x-for="cell in masterTaskDuePickerCells()" :key="cell.dateStr">
+                    <button type="button" class="day-picker-cell"
+                            :class="{
+                              'is-current-month': cell.isCurrentMonth,
+                              'is-other-month': !cell.isCurrentMonth,
+                              'is-today': cell.isToday,
+                              'is-selected': cell.isSelected
+                            }"
+                            @click.stop="selectMasterTaskDueDate(cell.dateStr)"
+                            :title="cell.dateStr">
+                      <span x-text="cell.dayNum"></span>
+                    </button>
+                  </template>
+                </div>
+                <div class="day-picker-footer">
+                  <button type="button" class="day-picker-today-btn" @click.stop="selectMasterTaskDueDate('today')">Today</button>
+                </div>
+              </div>
+            </div>
             <input type="text" x-model="newMasterTaskCategory" placeholder="Category" class="task-input-field master-task-category-input" list="category-suggestions" aria-label="New master task category">
             <button type="submit" class="btn-primary btn-add-task-round" :disabled="addingMasterTask" aria-label="Add master task" title="Add master task">
               <span class="material-symbols-outlined icon-18" :class="{ spin: addingMasterTask }" x-text="addingMasterTask ? 'progress_activity' : 'add'">add</span>
