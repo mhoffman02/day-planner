@@ -43,6 +43,10 @@ Deliver a pure Google Apps Script digital binder productivity app bridging Frank
 
 - **Repository Branch**: `pure-gas-main`.
 - **Latest Commits**:
+  - [`148dccb`](file:///home/mike/projects/day-planner/commit/148dccb): `feat(probe): add lightweight probe-live tool, skill, and npm run probe command`.
+  - [`dbbfb41`](file:///home/mike/projects/day-planner/commit/dbbfb41): `feat(skills): add chrome-console skill for CDP read/write and live evaluation`.
+  - [`5520785`](file:///home/mike/projects/day-planner/commit/5520785): `feat(tools): add live CDP script evaluator and console reader`.
+  - [`aafbe2c`](file:///home/mike/projects/day-planner/commit/aafbe2c): `docs(rules): enforce console logging over temp UI for debug and record in handoff`.
   - [`6c762b4`](file:///home/mike/projects/day-planner/commit/6c762b4): `fix(auth): revert broad drive oauth scope to restore valid token`.
   - [`0e3201e`](file:///home/mike/projects/day-planner/commit/0e3201e): `chore(config): record AKfycbyTg2tIMYfZIcmyF2p54iLkhx5DIH9T7u2j0kBLkCKVvQHP2q59dvDAPxxZpvExUbKRxQ as active deployment ID`.
   - [`957fdb7`](file:///home/mike/projects/day-planner/commit/957fdb7): `fix(ux): resolve top bar dropdown overflow clipping, restore Drive title lookup, and render all note card link formats`.
