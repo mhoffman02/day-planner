@@ -637,6 +637,42 @@ export class GASBridge {
   }
 
   /**
+   * STT fallback: creates a fresh single-purpose Google Doc for dictation via Docs' own
+   * Voice Typing. See createDictationScratchDoc() in Code.gs for the concurrency rationale.
+   * @returns {Promise<{success: boolean, docId?: string, docUrl?: string, error?: string}>}
+   */
+  async createDictationScratchDoc() {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      return { success: true, docId: 'mock-scratch-doc', docUrl: 'https:' + '/' + '/docs.google.com/document/d/mock-scratch-doc/edit' };
+    }
+
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .createDictationScratchDoc();
+    });
+  }
+
+  /**
+   * Reads and trashes the scratch doc created by createDictationScratchDoc().
+   * @param {string} docId The scratch doc's id.
+   * @returns {Promise<{success: boolean, text?: string, error?: string}>}
+   */
+  async pullDictationScratchText(docId) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      return { success: true, text: 'Mock dictated text from local dev scratch doc.' };
+    }
+
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .pullDictationScratchText(docId);
+    });
+  }
+
+  /**
    * Resolves the display title for a Google Drive / Docs / Sheets URL.
    * @param {string} url Target URL.
    * @returns {Promise<{success: boolean, title?: string, fileId?: string, error?: string}>}

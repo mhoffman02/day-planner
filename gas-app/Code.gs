@@ -1288,6 +1288,76 @@ function saveDailyDocCards(dateStr, noteContent) {
 }
 
 /**
+ * STT fallback: creates a fresh, single-purpose Google Doc for the user to dictate into via
+ * Docs' own Voice Typing (works on locked-down networks where this app's own mic access is
+ * blocked by enterprise policy, since docs.google.com is commonly allowlisted separately).
+ * Identified by its own docId so concurrent dictation sessions (multiple tabs/fields) never
+ * collide on a shared scratch file. Caller is responsible for calling
+ * pullDictationScratchText(docId) to retrieve the text; the doc is trashed (not hard-deleted)
+ * once successfully pulled.
+ * @returns {{success: boolean, docId?: string, docUrl?: string, error?: string}} Creation result.
+ */
+function createDictationScratchDoc() {
+  if (typeof DriveApp === 'undefined' || typeof DocumentApp === 'undefined') {
+    return { success: true, docId: 'mock-scratch-doc', docUrl: 'https:' + '/' + '/docs.google.com/document/d/mock-scratch-doc/edit' };
+  }
+  try {
+    var doc = DocumentApp.create('Day Planner - Dictation Scratchpad ' + new Date().toISOString());
+    var body = doc.getBody();
+    body.clear();
+    body.appendParagraph('Click below, then use Tools > Voice typing (Ctrl+Shift+S) to dictate. Switch back to Day Planner and click "Pull from Doc" when done.');
+    body.appendParagraph('');
+    doc.saveAndClose();
+
+    var targetFolder = getValidatedRootFolder();
+    if (targetFolder) {
+      try {
+        DriveApp.getFileById(doc.getId()).moveTo(targetFolder);
+      } catch (moveErr) {
+        console.warn('createDictationScratchDoc moveTo skipped: ' + moveErr.toString());
+      }
+    }
+
+    return { success: true, docId: doc.getId(), docUrl: doc.getUrl() };
+  } catch (err) {
+    logError('createDictationScratchDoc()', err);
+    return { success: false, error: err.message || err.toString() };
+  }
+}
+
+/**
+ * Reads back the dictated text from a scratch doc created by createDictationScratchDoc(),
+ * strips the instructional placeholder line, and trashes the doc (recoverable for 30 days,
+ * unlike a hard delete) so a re-pull of the same docId can't silently return duplicate text.
+ * @param {string} docId The scratch doc's id, as returned by createDictationScratchDoc().
+ * @returns {{success: boolean, text?: string, error?: string}} Pull result.
+ */
+function pullDictationScratchText(docId) {
+  if (typeof DriveApp === 'undefined' || typeof DocumentApp === 'undefined') {
+    return { success: true, text: 'Mock dictated text from local dev scratch doc.' };
+  }
+  if (!docId) {
+    return { success: false, error: 'No scratch doc id provided.' };
+  }
+  try {
+    var doc = DocumentApp.openById(docId);
+    var body = doc.getBody();
+    var lines = body.getText().split('\n');
+    var placeholder = 'Click below, then use Tools > Voice typing';
+    var text = lines.filter(function (line) {
+      return line.indexOf(placeholder) !== 0;
+    }).join('\n').trim();
+
+    DriveApp.getFileById(docId).setTrashed(true);
+
+    return { success: true, text: text };
+  } catch (err) {
+    logError('pullDictationScratchText(' + docId + ')', err);
+    return { success: false, error: err.message || err.toString() };
+  }
+}
+
+/**
  * Resolves the display title for a Google Drive / Docs / Sheets / Slides / Forms URL.
  * Used for smart-paste in note cards.
  * @param {string} url Target Google Drive file URL.
@@ -2349,6 +2419,8 @@ global.updateMasterTask = updateMasterTask;                  // google.script.ru
 global.deleteMasterTask = deleteMasterTask;                  // google.script.run: Script.html
 global.markMasterTaskMoved = markMasterTaskMoved;            // google.script.run: Script.html
 global.saveDailyDocCards = saveDailyDocCards;                // google.script.run: Script.html
+global.createDictationScratchDoc = createDictationScratchDoc; // google.script.run: Script.html
+global.pullDictationScratchText = pullDictationScratchText;  // google.script.run: Script.html
 global.resolveDriveFileTitle = resolveDriveFileTitle;        // google.script.run: Script.html
 global.getFutureMatrix = getFutureMatrix;                    // google.script.run: Script.html
 global.addFutureItem = addFutureItem;                        // google.script.run: Script.html
@@ -2395,6 +2467,8 @@ global._updateMasterTaskInternal = updateMasterTask;
 global._deleteMasterTaskInternal = deleteMasterTask;
 global._markMasterTaskMovedInternal = markMasterTaskMoved;
 global._saveDailyDocCardsInternal = saveDailyDocCards;
+global._createDictationScratchDocInternal = createDictationScratchDoc;
+global._pullDictationScratchTextInternal = pullDictationScratchText;
 global._resolveDriveFileTitleInternal = resolveDriveFileTitle;
 global._getFutureMatrixInternal = getFutureMatrix;
 global._addFutureItemInternal = addFutureItem;

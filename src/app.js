@@ -27,6 +27,12 @@ const MONTH_NAMES = [
 // the live SpeechRecognition instance or its internal event-handler state.
 let activeRecognition = null;
 
+// Dictation-scratchpad (Google Doc STT fallback) tracking, also kept outside Alpine's reactive
+// data since these hold a live window reference and a DOM element, not plain state.
+let sttScratchDocId = null;
+let sttScratchTargetEl = null;
+let sttScratchPopup = null;
+
 Alpine.data('plannerApp', () => ({
       activeView: 'daily',
       selectedDate: getLocalDateStr(),
@@ -68,6 +74,9 @@ Alpine.data('plannerApp', () => ({
       sttSupported: false,
       sttListening: false,
       sttError: null,
+      sttBlocked: false,
+      sttRefreshing: false,
+      sttRefreshedFlash: false,
       noteViewMode: 'cards', // 'cards' (Option 1) or 'doc' (Option 2)
       noteFilterMenuOpen: false,
       noteCardSearchQuery: '',
@@ -208,6 +217,7 @@ Alpine.data('plannerApp', () => ({
       async init() {
         this.bridge = new GASBridge(false);
         this.sttSupported = typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+        this.sttBlocked = !this.sttSupported;
         this.initTheme();
         this.initColumnWidths();
         this.initRecentTopics();
@@ -1623,6 +1633,9 @@ Alpine.data('plannerApp', () => ({
 
       sttMicTitle() {
         if (this.sttError) return this.sttError;
+        if (this.sttBlocked) {
+          return 'Mic blocked here — use “Dictate in Google Doc” below instead.';
+        }
         if (!this.sttSupported) {
           return 'Dictation isn’t available in this browser. On iPhone/iPad, tap the microphone key on the keyboard.';
         }
@@ -1686,8 +1699,10 @@ Alpine.data('plannerApp', () => ({
           const reason = event.error || 'unknown';
           if (reason === 'network') {
             this.sttError = 'Dictation blocked: network request to the speech service failed (likely firewalled on this network).';
+            this.sttBlocked = true;
           } else if (reason === 'not-allowed' || reason === 'permission-denied') {
             this.sttError = 'Dictation blocked: microphone permission denied.';
+            this.sttBlocked = true;
           } else if (reason === 'no-speech') {
             this.sttError = null;
           } else {
@@ -1711,6 +1726,100 @@ Alpine.data('plannerApp', () => ({
           activeRecognition = null;
           this.sttError = 'Dictation failed to start: ' + err.message;
           console.error('[STT] recognition.start() threw', err);
+        }
+      },
+
+      // Inserts text at the current cursor/selection of a text input or textarea and fires a
+      // native 'input' event so existing x-model/@input bindings pick up the change unchanged.
+      insertTextIntoField(el, text) {
+        const baseValue = el.value;
+        const selStart = el.selectionStart ?? baseValue.length;
+        const selEnd = el.selectionEnd ?? baseValue.length;
+        el.value = baseValue.slice(0, selStart) + text + baseValue.slice(selEnd);
+        el.dispatchEvent(new window.Event('input', { bubbles: true }));
+        el.focus();
+        const newPos = selStart + text.length;
+        el.setSelectionRange(newPos, newPos);
+      },
+
+      openCardDictationScratchpad(card) {
+        const idx = card && card._activeLineIndex;
+        if (idx === null || idx === undefined || idx < 0) {
+          this.sttError = 'Click into a note line first, then open the dictation doc.';
+          return;
+        }
+        const el = document.getElementById('card-line-' + card.id + '-' + idx);
+        this.openDictationScratchpad(el);
+      },
+
+      openDictationScratchpad(el) {
+        if (!el) return;
+        sttScratchTargetEl = el;
+        this.sttError = null;
+        // Opened synchronously (blank, then navigated once the doc exists) so Chrome/Edge don't
+        // treat it as a blocked popup — window.open only escapes popup-blockers when called
+        // directly from the click handler, not after an awaited async call resolves.
+        sttScratchPopup = window.open('about:blank', 'dpDictationScratch', 'width=520,height=680,popup=1');
+        this.bridge.createDictationScratchDoc().then((result) => {
+          if (!result || !result.success) {
+            this.sttError = 'Could not create a dictation doc: ' + ((result && result.error) || 'unknown error');
+            console.error('[STT] createDictationScratchDoc failed', result);
+            if (sttScratchPopup && !sttScratchPopup.closed) sttScratchPopup.close();
+            return;
+          }
+          sttScratchDocId = result.docId;
+          if (sttScratchPopup && !sttScratchPopup.closed) {
+            sttScratchPopup.location.href = result.docUrl;
+          } else {
+            // Popup was blocked or the user closed it before the doc was ready; fall back to a
+            // normal tab. This one carries noopener/noreferrer since we don't need to retain
+            // control of it (unlike the popup path above).
+            window.open(result.docUrl, '_blank', 'noopener,noreferrer');
+          }
+        }).catch((err) => {
+          this.sttError = 'Could not create a dictation doc: ' + (err.message || err);
+          console.error('[STT] createDictationScratchDoc threw', err);
+          if (sttScratchPopup && !sttScratchPopup.closed) sttScratchPopup.close();
+        });
+      },
+
+      async pullFromDictationScratchpad() {
+        if (!sttScratchDocId) {
+          this.sttError = 'Open the dictation doc first, then pull once you’re done.';
+          return;
+        }
+        this.sttRefreshing = true;
+        try {
+          const result = await this.bridge.pullDictationScratchText(sttScratchDocId);
+          if (!result || !result.success) {
+            this.sttError = 'Could not pull dictated text: ' + ((result && result.error) || 'unknown error');
+            console.error('[STT] pullDictationScratchText failed', result);
+            return;
+          }
+          sttScratchDocId = null;
+          if (sttScratchPopup && !sttScratchPopup.closed) sttScratchPopup.close();
+          sttScratchPopup = null;
+          const text = (result.text || '').trim();
+          if (!text) {
+            this.sttError = 'No dictated text found — did you dictate before pulling? (Docs can take a couple seconds to save.)';
+            return;
+          }
+          if (sttScratchTargetEl && document.body.contains(sttScratchTargetEl)) {
+            this.insertTextIntoField(sttScratchTargetEl, text);
+          } else {
+            this.sttError = 'Pulled the text, but lost track of where to insert it — target field is gone.';
+            console.error('[STT] scratch target element missing on pull');
+            return;
+          }
+          this.sttError = null;
+          this.sttBlocked = false;
+          this.sttRefreshedFlash = true;
+          setTimeout(() => { this.sttRefreshedFlash = false; }, 1800);
+        } catch (err) {
+          this.sttError = 'Could not pull dictated text: ' + (err.message || err);
+          console.error('[STT] pullFromDictationScratchpad threw', err);
+        } finally {
+          this.sttRefreshing = false;
         }
       },
 

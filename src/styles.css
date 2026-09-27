@@ -2331,6 +2331,10 @@
     border-color: var(--binder-teal);
   }
 
+  .stt-mic-btn.stt-blocked {
+    color: #8a3b2f;
+  }
+
   .stt-mic-btn-inline {
     display: inline-flex;
     vertical-align: middle;
@@ -2345,7 +2349,40 @@
     background: #fbecea;
     border: 1px solid #e6b8ae;
     border-radius: 4px;
+  }
+
+  .stt-error-text {
     cursor: pointer;
+  }
+
+  .stt-fallback-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+  }
+
+  .stt-fallback-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    font-size: 0.76rem;
+    font-family: var(--font-family-base);
+    color: var(--binder-teal);
+    background: #fff;
+    border: 1px solid var(--binder-teal);
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  .stt-fallback-btn:hover:not(:disabled) {
+    background: var(--binder-teal-light);
+  }
+
+  .stt-fallback-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
   }
 
   .color-swatch-btn {
@@ -4811,6 +4848,20 @@
     color: #f2b6a8 !important;
     background: #3a1f1a !important;
     border-color: #6b3a2e !important;
+  }
+
+  [data-theme="dark"] .stt-mic-btn.stt-blocked {
+    color: #f2b6a8 !important;
+  }
+
+  [data-theme="dark"] .stt-fallback-btn {
+    color: #95b3a8 !important;
+    background: #142820 !important;
+    border-color: #244a3b !important;
+  }
+
+  [data-theme="dark"] .stt-fallback-btn:hover:not(:disabled) {
+    background: #19362b !important;
   }
 
   [data-theme="dark"] .note-card-line-row.note-line-selected {
