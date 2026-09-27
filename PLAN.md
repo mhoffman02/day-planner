@@ -30,11 +30,11 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 
 ## 3. Active & Upcoming Phases
 
-### Phase 17: Startup Performance Sizing (In Progress)
+### Phase 17: Startup Performance Sizing (Done)
 *Goal: Decide whether a client-asset caching effort is worth it, before building anything.*
 
-- [ ] Size how much of the ~5s total load is cacheable client-asset load vs. the ~2-3s uncacheable GAS spinup floor (see [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) item 3 for the session-level breakdown).
-- [ ] Decide go/no-go on a caching effort based on that split.
+- [x] Sized live via CDP against production `/exec`: GAS server spinup (`responseStart`) = 3.2-3.7s of a 4.6-5.8s total load — see [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) item 3 for the full breakdown.
+- [x] Decision: **NO-GO** on a caching effort. Spinup + Google's sandbox overhead is ~65-75% of load and uncacheable; the remainder isn't separately cacheable under the current inlined-`HtmlService` architecture without a nontrivial restructure for a capped ~1.8s ceiling.
 
 **Also open, user-blocked (not agent-startable):** WORK PC re-test of the gDoc dictation link fallback — see [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) item 4.
 
