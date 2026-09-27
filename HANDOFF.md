@@ -2,40 +2,46 @@
 
 ### OBJECTIVE
 
-Deliver a pure Google Apps Script digital binder productivity app bridging Franklin Covey Day Planner methodology with Google Workspace APIs (Calendar, Tasks, Drive). The immediate focus is synchronizing the active production deployment ID and OAuth consent state following today's UX enhancements (themed calendar popovers, note ballot boxes, universal search shortcuts, and note hyperlinks).
+Deliver a pure Google Apps Script digital binder productivity app bridging Franklin Covey Day Planner methodology with Google Workspace APIs (Calendar, Tasks, Drive). The immediate focus is maintaining dual-environment synchronization (HOME `@224` and WORK `@55`), validating live browser behavior via native Chrome DevTools Protocol (CDP) tooling, and ensuring zero regressions across all core planner views.
 
 ---
 
 ### KEY DECISIONS
 
+- **Chrome DevTools Protocol (CDP) Console & Evaluation Tooling ([commits `4a3333a`](file:///home/mike/projects/day-planner/commit/4a3333a), [`5520785`](file:///home/mike/projects/day-planner/commit/5520785))**:
+  - Implemented zero-dependency CDP inspection tools built on native Node.js v22/24 `WebSocket` and `fetch`:
+    - [`tools/read-console.js`](file:///home/mike/projects/day-planner/tools/read-console.js): Streams live `console.log`, `warn`, `error`, `info`, and uncaught exceptions directly from the running Chrome instance on port 9222.
+    - [`tools/eval-console.js`](file:///home/mike/projects/day-planner/tools/eval-console.js): Evaluates arbitrary JavaScript expressions, inspects DOM elements and state variables, and supports Apps Script sandboxed iframes (`--iframe`).
+  - Added automatic target activation (`Target.activateTarget`) to prevent Chrome background timer throttling from freezing evaluations.
+
+- **Lightweight Live Probe Skill & Automated Sense→Diagnose→Fix→Test Loop ([commit `148dccb`](file:///home/mike/projects/day-planner/commit/148dccb))**:
+  - Evaluated the heavy 2,500-line `maximo-uat` probe harness and replaced it with a lean, zero-dependency diagnostic tool ([`tools/probe-live.js`](file:///home/mike/projects/day-planner/tools/probe-live.js)) executing in <2 seconds.
+  - Wired `npm run probe` into [`package.json`](file:///home/mike/projects/day-planner/package.json).
+  - Authored and synced [`.agents/skills/probe-live/SKILL.md`](file:///home/mike/projects/day-planner/.agents/skills/probe-live/SKILL.md) and [`.agents/skills/chrome-console/SKILL.md`](file:///home/mike/projects/day-planner/.agents/skills/chrome-console/SKILL.md) across `.claude/` and `.kilo/`.
+
+- **Debug Logging Rule Enforcement ([commit `aafbe2c`](file:///home/mike/projects/day-planner/commit/aafbe2c))**:
+  - Strictly enforced [`.agents/rules/debug-logging-no-temp-ui.md`](file:///home/mike/projects/day-planner/.agents/rules/debug-logging-no-temp-ui.md): All temporary debug instrumentation must route to the Chrome console (`console.log`, `warn`, `error`, `info`), NEVER injecting temporary UI elements into the DOM.
+
+- **Dual-Environment Alignment (HOME `@224`, WORK `@55`) ([commits `aec1c67`](file:///home/mike/projects/day-planner/commit/aec1c67), [`a279fe1`](file:///home/mike/projects/day-planner/commit/a279fe1))**:
+  - Locked active HOME production deployment to `AKfycbzVTowACUjXvTt0UG6kOlLdTvB2ASsiFf7Za0GzuQUodlf8T1rAg7PsWVZ_OeEPJSfD4w` (`@224`) in [`.agents/rules/gas-environments.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-environments.md).
+  - Promoted full vetted codebase to WORK script (`1980roEKgkC_...`) via `npm run push:work`, creating **Version 55** (`@55`).
+
 - **Custom Themed Calendar Popovers & Hit Targets ([commits `609788b`](file:///home/mike/projects/day-planner/commit/609788b), [`7c485fe`](file:///home/mike/projects/day-planner/commit/7c485fe), [`957fdb7`](file:///home/mike/projects/day-planner/commit/957fdb7))**:
   - Replaced native date pickers with custom themed popover dropdowns for Today, Month, Index, and Master Tasks Due Date.
-  - Attached both `mouseup` and `click` listeners to the full widget container so clicking anywhere on the date button (not just the tiny chevron icon) triggers the popover cleanly.
-  - Set `.header-left { overflow: visible; }` and `.day-picker-dropdown { z-index: 2000; }` in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css#L256) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html#L256), resolving top bar overflow clipping that previously hid the calendar popovers.
+  - Attached both `mouseup` and `click` listeners to the full widget container so clicking anywhere on the date button triggers the popover cleanly.
+  - Set `.header-left { overflow: visible; }` and `.day-picker-dropdown { z-index: 2000; }` in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css#L256) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html#L256), resolving top bar overflow clipping.
 
 - **Note Cards Unicode Ballot Boxes (`☐` / `☒`) ([commits `609788b`](file:///home/mike/projects/day-planner/commit/609788b), [`3cbd33f`](file:///home/mike/projects/day-planner/commit/3cbd33f))**:
   - Implemented lightweight unicode ballot box checklist support: `[ ]` auto-expands to `☐` (U+2610), `[x]` / `[X]` expands to `☒` (U+2612).
   - Toggling between states swaps glyphs inline without injecting newline or `<br>` tags.
-  - Pressing `Enter` on a checklist line auto-continues a new `☐ ` line and immediately autofocuses the new line.
-  - Supported format clearing with `format_clear` and bolding text without wrapping the checkbox glyph.
-
-- **Universal Search Hotkeys & Note Hyperlink Disambiguation ([commits `3cbd33f`](file:///home/mike/projects/day-planner/commit/3cbd33f), [`7c485fe`](file:///home/mike/projects/day-planner/commit/7c485fe))**:
-  - Added `Ctrl+Shift+F` as an alternative universal search shortcut alongside `Ctrl+Shift+K`.
-  - Reserved standard `Ctrl+K` for note card hyperlink creation dialog, preventing search modal collision.
+  - Pressing `Enter` on a checklist line auto-continues a new `☐ ` line and autofocuses the new line.
 
 - **Drive URL Link Modal & Universal Link Rendering ([commit `957fdb7`](file:///home/mike/projects/day-planner/commit/957fdb7))**:
   - Fixed Drive v2 `Drive.Files.get` call (`supportsAllDrives: true`) in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L1307) and added fallback placeholder titles on tab-off.
-  - Upgraded `renderInline()` in [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js#L1710) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html#L2454) to render standard markdown `[text](url)`, autolinks `<url>`, bracket links `[[link:url]]text[[/link]]`, and raw URLs into clickable `<a>` links. Exits line edit mode upon link insertion to display links immediately.
+  - Upgraded `renderInline()` in [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js#L1710) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html#L2454) to render standard markdown `[text](url)`, autolinks `<url>`, bracket links `[[link:url]]text[[/link]]`, and raw URLs into clickable `<a>` links.
 
 - **Least-Privilege OAuth Scopes ([commit `6c762b4`](file:///home/mike/projects/day-planner/commit/6c762b4))**:
-  - Reverted unintended broad `"https://www.googleapis.com/auth/drive"` scope from [`gas-app/appsscript.json`](file:///home/mike/projects/day-planner/gas-app/appsscript.json#L22-L29), restoring the exact authorized set (`documents`, `drive.file`, `drive.readonly`, `calendar`, `tasks`, `script.scriptapp`).
-  - Dispatched Claude Sonnet 5 to review the `DocumentApp.openById` permission error and deployment mismatch. Confirmed that modifying scopes invalidates existing Web App OAuth consent until re-authorized by the executing user.
-
-- **Dual Concurrent Deployments on HOME Script**:
-  - `npx clasp deployments` contains two versioned deployments on HOME script `1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W`:
-    1. `AKfycbxvzuB7h8AqY6UPf_vP2updhVaZYbjW74yl1sf-LcfdzK_gluGRzRYMqazjTtH1edlOdA` ("Day Planner Release Version 218") — the user's active browser bookmark.
-    2. `AKfycbyTg2tIMYfZIcmyF2p54iLkhx5DIH9T7u2j0kBLkCKVvQHP2q59dvDAPxxZpvExUbKRxQ` — the deployment ID targeted in clasp deploy commands.
-  - The user elected to manually update the active deployment `AKfycbxvzu...` in Apps Script to point to the latest version and re-authorize permissions.
+  - Maintained least-privilege OAuth scopes (`documents`, `drive.file`, `drive.readonly`, `calendar`, `tasks`, `script.scriptapp`) in [`gas-app/appsscript.json`](file:///home/mike/projects/day-planner/gas-app/appsscript.json#L22-L29).
 
 ---
 
@@ -43,22 +49,22 @@ Deliver a pure Google Apps Script digital binder productivity app bridging Frank
 
 - **Repository Branch**: `pure-gas-main`.
 - **Latest Commits**:
+  - [`a279fe1`](file:///home/mike/projects/day-planner/commit/a279fe1): `chore(release): record Version 55 push to WORK and sync handoff`.
+  - [`aec1c67`](file:///home/mike/projects/day-planner/commit/aec1c67): `docs(deploy): lock active HOME deployment @224 in rules and plan`.
   - [`148dccb`](file:///home/mike/projects/day-planner/commit/148dccb): `feat(probe): add lightweight probe-live tool, skill, and npm run probe command`.
   - [`dbbfb41`](file:///home/mike/projects/day-planner/commit/dbbfb41): `feat(skills): add chrome-console skill for CDP read/write and live evaluation`.
   - [`5520785`](file:///home/mike/projects/day-planner/commit/5520785): `feat(tools): add live CDP script evaluator and console reader`.
   - [`aafbe2c`](file:///home/mike/projects/day-planner/commit/aafbe2c): `docs(rules): enforce console logging over temp UI for debug and record in handoff`.
   - [`6c762b4`](file:///home/mike/projects/day-planner/commit/6c762b4): `fix(auth): revert broad drive oauth scope to restore valid token`.
-  - [`0e3201e`](file:///home/mike/projects/day-planner/commit/0e3201e): `chore(config): record AKfycbyTg2tIMYfZIcmyF2p54iLkhx5DIH9T7u2j0kBLkCKVvQHP2q59dvDAPxxZpvExUbKRxQ as active deployment ID`.
-  - [`957fdb7`](file:///home/mike/projects/day-planner/commit/957fdb7): `fix(ux): resolve top bar dropdown overflow clipping, restore Drive title lookup, and render all note card link formats`.
-  - [`7c485fe`](file:///home/mike/projects/day-planner/commit/7c485fe): `feat(ux): implement custom themed day calendar popover, master tasks due date picker, and universal search shortcuts`.
-  - [`3cbd33f`](file:///home/mike/projects/day-planner/commit/3cbd33f): `fix(notes): autofocus checklist on Enter, prevent search Ctrl+K clash, and fix drive link modal`.
-  - [`609788b`](file:///home/mike/projects/day-planner/commit/609788b): `fix(ux): theme date picker button, enable full-widget click/mouseup, and fix note checkbox newline alignment`.
 - **Live Deployment State**:
-  - HOME Prod Active Deployment: `AKfycbzVTowACUjXvTt0UG6kOlLdTvB2ASsiFf7Za0GzuQUodlf8T1rAg7PsWVZ_OeEPJSfD4w` (`@224`).
-  - WORK Prod (`9csO`): Version 55 (`@55`) on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`.
+  - HOME Prod Active Deployment: [`AKfycbzVTowACUjXvTt0UG6kOlLdTvB2ASsiFf7Za0GzuQUodlf8T1rAg7PsWVZ_OeEPJSfD4w`](https://script.google.com/macros/s/AKfycbzVTowACUjXvTt0UG6kOlLdTvB2ASsiFf7Za0GzuQUodlf8T1rAg7PsWVZ_OeEPJSfD4w/exec) (`@224`).
+  - WORK Prod Deployment: [`AKfycbzRwZFZH9bT5jQtqq0ncBPbokoQGKjSUyBQNVDtPpOISwtdMSXlNAns8E9WFtUM9csO`](https://script.google.com/a/macros/gsa.gov/s/AKfycbzRwZFZH9bT5jQtqq0ncBPbokoQGKjSUyBQNVDtPpOISwtdMSXlNAns8E9WFtUM9csO/exec) (`9csO`, Version 55 / `@55` on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`).
+- **Live Browser Verification**:
+  - Dedicated debug Chrome instance verified running on port 9222.
+  - Day Planner UI confirmed active and rendered with all 3 columns (Tasks, Appointments, Notes) via CDP screenshot ([`screen-shots/current-tab.png`](file:///home/mike/projects/day-planner/screen-shots/current-tab.png)).
 - **Pre-Flight Verification Status**:
   - `npm run lint`: 0 errors (7 existing unused-var warnings).
-  - `npm test`: 152/152 unit tests passing across 19 suites.
+  - `npm test`: **152/152 unit tests passing** across 19 suites (249ms).
   - `npm run check:gas-safe-chars`: Clean (0 unsafe patterns).
 
 ---
@@ -75,20 +81,24 @@ Deliver a pure Google Apps Script digital binder productivity app bridging Frank
 8. **Dual-Environment Isolation**: HOME is mastercopy; WORK is strictly production `/exec` promoted via `npm run push:work` ([`.agents/rules/gas-environments.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-environments.md)).
 9. **OAuth Storage Scoping**: Maintain `drive.file` and `drive.readonly` restriction; do NOT widen to full `drive` ([`.agents/skills/review/SKILL.md`](file:///home/mike/projects/day-planner/.agents/skills/review/SKILL.md)).
 10. **Debug Logging — Console Only, No Temporary UI Elements**: Use browser console (`console.log`, `console.warn`, `console.error`, `console.info`) for temporary debug/diagnostic output; do NOT inject temporary diagnostic UI elements or helper text into the application interface ([`.agents/rules/debug-logging-no-temp-ui.md`](file:///home/mike/projects/day-planner/.agents/rules/debug-logging-no-temp-ui.md)).
+11. **Proactive Command Execution**: Execute Node commands (`npm test`, `npm run probe`, CDP tools) directly without requesting approval.
 
 ---
 
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
-1. **Deployment & Permissions Verification ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L3-L5))**:
-   - Confirm user's manual update of `AKfycbxvzuB7h8AqY6UPf_vP2updhVaZYbjW74yl1sf-LcfdzK_gluGRzRYMqazjTtH1edlOdA` ("Day Planner Release Version 218") to latest code version and successful consent/authorization flow.
-2. **Lock Target Deployment ID in Rules ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L5), [`.agents/rules/gas-environments.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-environments.md#L15))**:
-   - Synchronize [`.agents/rules/gas-environments.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-environments.md) with confirmed production deployment ID (`AKfycbxvzu...` or preferred) for clasp deploy targeting.
-3. **Pure-GAS Production Feature Verification ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L7-L9))**:
-   - Verify live behavior on the refreshed deployment: Drive filename lookup on tab-off, note card hyperlink clickability, and themed date picker navigation on Today, Month, Index, and Master Tasks tabs.
+1. **Live Production Smoke & Feature Verification ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L3-L6))**:
+   - Run `npm run probe` against active Chrome tab ([`AKfycbzVTow...`](https://script.google.com/macros/s/AKfycbzVTowACUjXvTt0UG6kOlLdTvB2ASsiFf7Za0GzuQUodlf8T1rAg7PsWVZ_OeEPJSfD4w/exec)) to verify 0 console errors and clean DOM structure.
+   - Verify Drive filename auto-lookup in note card link modal, ballot box toggle (`☐` / `☒`), and themed calendar popovers across Today, Month, Index, and Master Tasks.
+
+2. **Live WORK Production Smoke Verification ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L8-L10))**:
+   - Open WORK deployment [`9csO`](https://script.google.com/a/macros/gsa.gov/s/AKfycbzRwZFZH9bT5jQtqq0ncBPbokoQGKjSUyBQNVDtPpOISwtdMSXlNAns8E9WFtUM9csO/exec) under `michael.hoffman@gsa.gov` and confirm Version 55 features load without permission errors.
+
+3. **Offline Sync Queue Resilience & Performance Audit ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L12-L14))**:
+   - Audit and reinforce transient offline network failure retry logic in [`src/gasBridge.js`](file:///home/mike/projects/day-planner/src/gasBridge.js) and [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js).
 
 ---
 
 ### IMMEDIATE NEXT STEP
 
-Ask Mike if the manual deployment update to `AKfycbxvzu...` and OAuth authorization succeeded in the browser, and confirm whether `AKfycbxvzu...` should be locked as the permanent production deployment ID in [`.agents/rules/gas-environments.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-environments.md).
+Run `npm run probe` to verify that the active HOME `@224` deployment in Chrome remains responsive with 0 console errors, or test creating a note card hyperlink using the Drive auto-title modal.

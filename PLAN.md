@@ -245,6 +245,16 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 
 
 
+### Phase 15: CDP Diagnostic Tooling, Live Probe Skill, & Dual-Environment Alignment
+*Goal: Enable robust browser-level introspection via Chrome DevTools Protocol, automated live smoke health checks, and dual deployment alignment.*
+
+- [x] Debug Logging Rule: Enforce console logging over temporary UI elements ([`.agents/rules/debug-logging-no-temp-ui.md`](file:///home/mike/projects/day-planner/.agents/rules/debug-logging-no-temp-ui.md), commit `aafbe2c`).
+- [x] Live CDP Tooling: Native Node.js WebSocket inspector and evaluator scripts ([`tools/read-console.js`](file:///home/mike/projects/day-planner/tools/read-console.js), [`tools/eval-console.js`](file:///home/mike/projects/day-planner/tools/eval-console.js), commits `4a3333a`, `5520785`).
+- [x] Chrome Console Skill: Created and mirrored [`.agents/skills/chrome-console/SKILL.md`](file:///home/mike/projects/day-planner/.agents/skills/chrome-console/SKILL.md) (commit `dbbfb41`).
+- [x] Live Probe Skill: Created [`tools/probe-live.js`](file:///home/mike/projects/day-planner/tools/probe-live.js), `npm run probe`, and [`.agents/skills/probe-live/SKILL.md`](file:///home/mike/projects/day-planner/.agents/skills/probe-live/SKILL.md) establishing an automated sense→diagnose→fix→test cycle (commit `148dccb`).
+- [x] HOME Production Alignment: Locked `@224` (`AKfycbzVTowACUjXvTt0UG6kOlLdTvB2ASsiFf7Za0GzuQUodlf8T1rAg7PsWVZ_OeEPJSfD4w`) in rules and plan (commit `aec1c67`).
+- [x] WORK Promotion: Promoted vetted code via `npm run push:work` to Version 55 (@55) on WORK script `1980roEKgkC_...` (commit `a279fe1`).
+
 ---
 
 ## 4. Standing Verification Criteria

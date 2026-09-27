@@ -1,11 +1,11 @@
 # Active Tasks (TODO)
 
-- [x] **1. Active Deployment & Permissions Synchronization**:
-  - [x] **Deployment Verification**: Confirmed manual update of HOME production deployment to `@224` (`AKfycbzVTowACUjXvTt0UG6kOlLdTvB2ASsiFf7Za0GzuQUodlf8T1rAg7PsWVZ_OeEPJSfD4w`) with active OAuth consent verified.
-  - [x] **Lock Target Deployment ID in Rules**: Synchronized [`.agents/rules/gas-environments.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-environments.md) with confirmed `@224` deployment ID.
+- [ ] **1. Live Production Smoke & Feature Verification (HOME @224)**:
+  - [ ] **CDP Live Health Probe**: Run `npm run probe` against active Chrome tab ([`AKfycbzVTow...`](https://script.google.com/macros/s/AKfycbzVTowACUjXvTt0UG6kOlLdTvB2ASsiFf7Za0GzuQUodlf8T1rAg7PsWVZ_OeEPJSfD4w/exec)) to verify 0 console errors and clean DOM structure.
+  - [ ] **Live Interactive Checks**: Verify Drive filename auto-lookup in note card link modal, ballot box toggle (`☐` / `☒`), and themed calendar popovers across Today, Month, Index, and Master Tasks.
 
-- [ ] **2. Pure-GAS Production Verification**:
-  - [ ] **Live Feature Verification**: Test Drive filename lookup, note link rendering, and themed date picker interactions on the refreshed deployment.
+- [ ] **2. Live WORK Production Smoke Verification (WORK @55)**:
+  - [ ] **GSA Workspace Access**: Open WORK deployment [`9csO`](https://script.google.com/a/macros/gsa.gov/s/AKfycbzRwZFZH9bT5jQtqq0ncBPbokoQGKjSUyBQNVDtPpOISwtdMSXlNAns8E9WFtUM9csO/exec) under `michael.hoffman@gsa.gov` and confirm Version 55 features load without permission errors.
 
-- [x] **3. Code Promotion to WORK (Federal GSA)**:
-  - [x] **Push & Version**: Ran `npm run push:work`, pushed all 8 files to WORK script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`, and created **Version 55** (@55).
+- [ ] **3. Offline Sync Queue Resilience & Performance Audit**:
+  - [ ] **Sync Error Handling**: Audit and reinforce transient offline network failure retry logic in [`src/gasBridge.js`](file:///home/mike/projects/day-planner/src/gasBridge.js) and [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js).

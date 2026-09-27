@@ -1,5 +1,25 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-26 — CDP Live Debug Tooling, Probe-Live Health Skill, & Production Synchronization (commits `aafbe2c`, `4a3333a`, `5520785`, `dbbfb41`, `148dccb`, `aec1c67`, `a279fe1`, HOME @224, WORK @55)
+
+- [x] **Debug Logging Rule Enforcement (commit `aafbe2c`)**:
+  - Enforced browser console (`console.log`, `console.warn`, `console.error`, `console.info`) for temporary debug logging, strictly forbidding temporary UI helper elements.
+  - Added and synced [`.agents/rules/debug-logging-no-temp-ui.md`](file:///home/mike/projects/day-planner/.agents/rules/debug-logging-no-temp-ui.md).
+- [x] **Chrome DevTools Protocol (CDP) Inspection Tools (commits `4a3333a`, `5520785`)**:
+  - Built [`tools/read-console.js`](file:///home/mike/projects/day-planner/tools/read-console.js) using native Node.js WebSocket to stream console errors, warnings, and uncaught exceptions live.
+  - Built [`tools/eval-console.js`](file:///home/mike/projects/day-planner/tools/eval-console.js) to evaluate arbitrary JavaScript expressions, check variables, and inspect inside Apps Script iframes (`--iframe`) with automatic tab activation (`Target.activateTarget`).
+- [x] **Chrome Console Skill (commit `dbbfb41`)**:
+  - Created [`.agents/skills/chrome-console/SKILL.md`](file:///home/mike/projects/day-planner/.agents/skills/chrome-console/SKILL.md) and synced across `.claude/skills/` and `.kilo/skills/`.
+- [x] **Lightweight Live Probe Tool & Skill (commit `148dccb`)**:
+  - Evaluated `maximo-uat` heavy 2,500-line probe harness; replaced with lean, zero-dependency [`tools/probe-live.js`](file:///home/mike/projects/day-planner/tools/probe-live.js) running in <2s.
+  - Wired `npm run probe` into [`package.json`](file:///home/mike/projects/day-planner/package.json).
+  - Created [`.agents/skills/probe-live/SKILL.md`](file:///home/mike/projects/day-planner/.agents/skills/probe-live/SKILL.md) establishing an automated sense→diagnose→fix→test cycle.
+- [x] **HOME Production Deployment Locked at `@224` (commit `aec1c67`)**:
+  - Confirmed and locked active deployment ID `AKfycbzVTowACUjXvTt0UG6kOlLdTvB2ASsiFf7Za0GzuQUodlf8T1rAg7PsWVZ_OeEPJSfD4w` (`@224`).
+  - Synced [`.agents/rules/gas-environments.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-environments.md) and [`PLAN.md`](file:///home/mike/projects/day-planner/PLAN.md).
+- [x] **Code Promotion to WORK (commit `a279fe1`)**:
+  - Executed `npm run push:work`, pushed all 8 files, and created **Version 55** on WORK script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`.
+
 ## 2026-09-26 — Themed Calendar Pickers, Unicode Note Checklists, Universal Search Hotkeys, Drive Link Modal, & OAuth Scope Audit (commits `609788b`, `3cbd33f`, `7c485fe`, `957fdb7`, `0e3201e`, `6c762b4`)
 
 - [x] **Note Cards Unicode Ballot Boxes (`☐` / `☒`, commits `609788b`, `3cbd33f`)**:
