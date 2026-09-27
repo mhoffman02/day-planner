@@ -35,6 +35,29 @@ file, but no longer leaks *across* files unless explicitly exported.
   an "IDE Setup Helper"/"IDE manual-run" JSDoc note), or another `.gs` file (GAS has no `import` —
   the shared global object is the only cross-file channel, so a function or literal-only constant
   used by another file must be exported even if no client ever touches it directly).
+- **`global.name = name;` alone is NOT enough for `google.script.run`, `doGet`, `onOpen`, or the
+  IDE manual-run dropdown.** Those four surfaces are populated by Apps Script's own static AST
+  scan of the project source for top-level `function name(...) { ... }` declarations — a name
+  that exists only as a runtime property assignment inside the IIFE is invisible to that scan.
+  `Code.gs` therefore has a **second block after `})(this);`** ("Top-level entry points for
+  Google Apps Script runtime & IDE") containing a thin top-level delegator per such name, e.g.:
+  ```javascript
+  function saveDailyDocCards(dateStr, noteContent) {
+    return (typeof _saveDailyDocCardsInternal === 'function')
+      ? _saveDailyDocCardsInternal(dateStr, noteContent)
+      : (globalThis._saveDailyDocCardsInternal ? globalThis._saveDailyDocCardsInternal(dateStr, noteContent) : null);
+  }
+  ```
+  which calls the `global._xInternal = x` alias set inside the IIFE. **Any new function reachable
+  from `google.script.run`/`doGet`/`onOpen`/a trigger name string/the IDE dropdown needs BOTH**:
+  the `global._xInternal = x` alias inside the IIFE, AND a matching top-level delegator in that
+  second block — adding only the alias (as this codebase's own STT-fallback feature initially did)
+  produces a function that calls cleanly from other `.gs` files but returns `undefined` from
+  `typeof google.script.run.x` client-side, with no error and no obvious signal beyond that. Symptoms:
+  a real Apps Script propagation/caching delay looks IDENTICAL from the outside (both present as
+  "the new function silently isn't callable via google.script.run yet") — rule out the missing
+  delegator FIRST via `grep -c "^function <name>" gas-app/Code.gs` (should be 2: one inside the
+  IIFE, one in the top-level block) before assuming it's a timing issue and waiting it out.
 - MUST NOT export a helper only ever called from within its own file — that defeats the point of
   the wrap. Before adding an export, check every call site; before removing one, grep every
   `.html` file's `google.script.run`/`_runGasCall` calls, every `<?= ?>`/`<?!= ?>` template

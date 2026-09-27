@@ -614,7 +614,7 @@
                         <span class="card-heading-help-tip">Start a line with <code>- </code> for bullets, <code>1. </code> for numbers, <code>[] </code> for checklist (☐/☒). Inline: <code>**bold**</code>, <code>*italic*</code>, <code>__underline__</code>, <code>~~strike~~</code>.</span>
                       </span>
                     </div>
-                    <div class="stt-error-hint" x-show="sttError || sttBlocked" x-cloak>
+                    <div class="stt-error-hint" x-show="(sttError || sttBlocked) && card._activeLineIndex !== null && card._activeLineIndex !== undefined" x-cloak>
                       <div class="stt-error-text" x-show="sttError" @click="sttError = null" x-text="sttError" title="Tap to dismiss"></div>
                       <div class="stt-fallback-actions" x-show="sttBlocked" x-cloak>
                         <button type="button" class="stt-fallback-btn" @click="openCardDictationScratchpad(card)" title="Opens a small Google Doc window where Docs’ own Voice Typing can dictate (works even when this app’s own mic access is blocked)."><span class="material-symbols-outlined icon-16">open_in_new</span> Dictate in Google Doc</button>

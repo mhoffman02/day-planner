@@ -1302,7 +1302,8 @@ function createDictationScratchDoc() {
     return { success: true, docId: 'mock-scratch-doc', docUrl: 'https:' + '/' + '/docs.google.com/document/d/mock-scratch-doc/edit' };
   }
   try {
-    var doc = DocumentApp.create('Day Planner - Dictation Scratchpad ' + new Date().toISOString());
+    var scratchTimestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+    var doc = DocumentApp.create('Day Planner - Dictation Scratchpad ' + scratchTimestamp);
     var body = doc.getBody();
     body.clear();
     body.appendParagraph('Click below, then use Tools > Voice typing (Ctrl+Shift+S) to dictate. Switch back to Day Planner and click "Pull from Doc" when done.');
@@ -2590,6 +2591,14 @@ function markMasterTaskMoved(masterTaskId, targetDateStr, movedTaskId) {
 
 function saveDailyDocCards(dateStr, noteContent) {
   return (typeof _saveDailyDocCardsInternal === 'function') ? _saveDailyDocCardsInternal(dateStr, noteContent) : (globalThis._saveDailyDocCardsInternal ? globalThis._saveDailyDocCardsInternal(dateStr, noteContent) : null);
+}
+
+function createDictationScratchDoc() {
+  return (typeof _createDictationScratchDocInternal === 'function') ? _createDictationScratchDocInternal() : (globalThis._createDictationScratchDocInternal ? globalThis._createDictationScratchDocInternal() : null);
+}
+
+function pullDictationScratchText(docId) {
+  return (typeof _pullDictationScratchTextInternal === 'function') ? _pullDictationScratchTextInternal(docId) : (globalThis._pullDictationScratchTextInternal ? globalThis._pullDictationScratchTextInternal(docId) : null);
 }
 
 function resolveDriveFileTitle(url) {

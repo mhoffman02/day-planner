@@ -16,6 +16,7 @@
   let sttScratchDocId = null;
   let sttScratchTargetEl = null;
   let sttScratchPopup = null;
+  let sttScratchWatcher = null;
 
   const STATUS_OPTIONS = [
     { value: '•', label: 'Open' },
@@ -2543,6 +2544,16 @@
           } else {
             window.open(result.docUrl, '_blank', 'noopener,noreferrer');
           }
+          // Auto-pull once the user closes the scratch window, so they don’t have to remember
+          // to click "Pull from Doc" separately after dictating.
+          if (sttScratchWatcher) clearInterval(sttScratchWatcher);
+          sttScratchWatcher = setInterval(() => {
+            if (!sttScratchPopup || sttScratchPopup.closed) {
+              clearInterval(sttScratchWatcher);
+              sttScratchWatcher = null;
+              if (sttScratchDocId) this.pullFromDictationScratchpad();
+            }
+          }, 800);
         }).catch((err) => {
           this.sttError = 'Could not create a dictation doc: ' + (err.message || err);
           console.error('[STT] createDictationScratchDoc threw', err);
@@ -2551,6 +2562,10 @@
       },
 
       async pullFromDictationScratchpad() {
+        if (sttScratchWatcher) {
+          clearInterval(sttScratchWatcher);
+          sttScratchWatcher = null;
+        }
         if (!sttScratchDocId) {
           this.sttError = 'Open the dictation doc first, then pull once you’re done.';
           return;
