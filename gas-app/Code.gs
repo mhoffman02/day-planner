@@ -1349,7 +1349,23 @@ function pullDictationScratchText(docId) {
       return line.indexOf(placeholder) !== 0;
     }).join('\n').trim();
 
-    DriveApp.getFileById(docId).setTrashed(true);
+    try {
+      DriveApp.getFileById(docId).setTrashed(true);
+    } catch (trashErr) {
+      // Some DriveApp file-management calls require the broad `drive` scope even for
+      // files this app created itself (same known limitation as moveTo in
+      // getOrCreateMonthlyNotesDoc_ above) -- never widen past drive.file for this, so a
+      // scratch doc can be left behind un-trashed. Non-fatal: the text was already read.
+      // Clear the body (DocumentApp content edits don't need the broader Drive scope) so
+      // a leftover file is at least empty, not a copy of the dictated text sitting in Drive.
+      console.warn('pullDictationScratchText setTrashed skipped (requires broad drive scope): ' + trashErr.toString());
+      try {
+        body.clear();
+        doc.saveAndClose();
+      } catch (clearErr) {
+        console.warn('pullDictationScratchText body clear skipped: ' + clearErr.toString());
+      }
+    }
 
     return { success: true, text: text };
   } catch (err) {
