@@ -1,11 +1,14 @@
 # Active Tasks (TODO)
 
-- [ ] **1. Live Feature Smoke Verification (HOME @224)**:
-  - [ ] **Note Cards Drive Link Modal**: Test inserting a Google Doc/Sheet link into a note card and verify title auto-lookup with tab-off and fallback title generation.
-  - [ ] **Ballot Box & Calendar Popovers**: Test checklist toggle (`☐` / `☒`) in note cards and verify themed popovers open cleanly across Today, Month, Index, and Master Tasks Due Date.
+- [x] **1. Live Feature Smoke Verification (HOME @224)**: Done.
+- [x] **2. Live WORK Production Smoke Verification (WORK @55)**: Done.
 
-- [ ] **2. Live WORK Production Smoke Verification (WORK @55)**:
-  - [ ] **GSA Workspace Access**: Open WORK deployment [`9csO`](https://script.google.com/a/macros/gsa.gov/s/AKfycbzRwZFZH9bT5jQtqq0ncBPbokoQGKjSUyBQNVDtPpOISwtdMSXlNAns8E9WFtUM9csO/exec) under `michael.hoffman@gsa.gov` and confirm Version 55 features load without permission errors.
+- [ ] **3. Startup Perf: Cache More Heavy Assets (ROI TBD)**:
+  - GAS server spinup alone costs ~2-3s; rough total load is ~5s. Offline resilience is explicitly not wanted for this app.
+  - [ ] Size how much of the ~5s is client-asset load (cacheable) vs. the ~2-3s GAS spinup floor (not cacheable) before committing to a caching effort.
 
-- [ ] **3. Offline Sync Queue Resilience & Performance Audit**:
-  - [ ] **Sync Error Handling**: Audit and reinforce transient offline network failure retry logic in [`src/gasBridge.js`](file:///home/mike/projects/day-planner/src/gasBridge.js) and [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js).
+- [x] **4. In-App STT Mic Affordance**: Built and deployed to HOME `@225` ([`AKfycbzVTowACUjXvTt0UG6kOlLdTvB2ASsiFf7Za0GzuQUodlf8T1rAg7PsWVZ_OeEPJSfD4w`](https://script.google.com/macros/s/AKfycbzVTowACUjXvTt0UG6kOlLdTvB2ASsiFf7Za0GzuQUodlf8T1rAg7PsWVZ_OeEPJSfD4w/exec)). Feature-detected `webkitSpeechRecognition`/`SpeechRecognition`, wired into note card lines and the event description field. No Win+H fallback claim anywhere — no browser API can verify OS dictation availability/policy, so the UI only asserts what it can directly test.
+  - [ ] **User test on WORK PC**: confirm whether the browser's speech API network call reaches Google's speech service through the gsa.gov firewall, or surfaces the "network blocked" error hint.
+  - [ ] Promote to WORK (`npm run push:work`) once WORK-network behavior is confirmed.
+
+- [x] **5. Lint Clean**: 0 errors, 0 warnings (was 8 no-unused-vars). Delegated to AGY, verified locally.
