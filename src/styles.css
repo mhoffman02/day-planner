@@ -4150,6 +4150,20 @@
     margin-top: 4px;
     margin-bottom: 0;
   }
+  .build-badge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 7px;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-family: var(--font-family-base);
+    color: var(--binder-teal);
+    background: var(--binder-teal-light);
+    border: 1px solid var(--border-line);
+    vertical-align: middle;
+    cursor: default;
+  }
   .security-badge {
     background: var(--binder-teal-light);
     color: var(--binder-teal);

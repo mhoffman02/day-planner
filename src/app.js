@@ -37,7 +37,8 @@ Alpine.data('plannerApp', () => ({
       selectedDate: getLocalDateStr(),
       selectedYear: new Date().getFullYear(),
       selectedMonth: new Date().getMonth() + 1,
-      
+      appBuildNumber: null,
+
       // Data collections
       dailyTasks: [],
       openStatusMenuTaskId: null,
@@ -217,6 +218,7 @@ Alpine.data('plannerApp', () => ({
 
       async init() {
         this.bridge = new GASBridge(false);
+        this.appBuildNumber = typeof window !== 'undefined' ? (window.DAY_PLANNER_BUILD_NUMBER ?? null) : null;
         this.sttSupported = typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
         this.sttBlocked = !this.sttSupported;
         this.initTheme();

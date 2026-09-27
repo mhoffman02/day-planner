@@ -13,6 +13,7 @@
     "audit:a11y": "node tools/audit-wcag-responsive.js",
     "sync:agents": "node tools/sync-agent-config.js",
     "sync:agents:check": "node tools/sync-agent-config.js --check",
+    "stamp-build": "node tools/stamp-build-number.js",
     "push:work": "node tools/promote-to-work.js",
     "login:work": "npx clasp --auth ~/.clasprc.work.json login",
     "login:home": "npx clasp --auth ~/.clasprc.home.json login"

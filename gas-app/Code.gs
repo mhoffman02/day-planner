@@ -278,6 +278,11 @@ function onOpen() {
 
 var DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day-planner/pure-gas-main/icons/favicon.png';
 
+// Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
+// `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
+// an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
+var DAY_PLANNER_BUILD_NUMBER = 247;
+
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
  * @returns {GoogleAppsScript.HTML.HtmlOutput} Evaluated HTML setup page output.
@@ -2458,6 +2463,7 @@ global.escapeHtml_ = escapeHtml_;                            // used by UnitTest
 global.getFolderByNameOrCreate = getFolderByNameOrCreate;    // used by UnitTests.gs
 global.getOrCreateDailyDocContent = getOrCreateDailyDocContent; // used by UnitTests.gs
 global.DAY_PLANNER_FAVICON_URL = DAY_PLANNER_FAVICON_URL;    // used by UnitTests.gs
+global.DAY_PLANNER_BUILD_NUMBER = DAY_PLANNER_BUILD_NUMBER;  // HtmlService template scriptlet: Index.html
 
 // Internal aliases for top-level entry point delegators
 global._doGetInternal = doGet_original;

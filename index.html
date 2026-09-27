@@ -68,6 +68,10 @@
       }
     })();
   </script>
+  <script>
+    // Local dev mock — GAS deployment injects the real DAY_PLANNER_BUILD_NUMBER server-side.
+    window.DAY_PLANNER_BUILD_NUMBER = 'dev';
+  </script>
   <link rel="stylesheet" href="/src/styles.css">
   
 </head>
@@ -208,7 +212,7 @@
           <span class="material-symbols-outlined icon-16">explore</span>
           <span>Future</span>
         </button>
-        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'about' }" @click="setView('about')" title="About & Specs">
+        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'about' }" @click="setView('about')" :title="'Help & About' + (appBuildNumber ? ' — Build ' + appBuildNumber : '')">
           <span class="material-symbols-outlined icon-16">info</span>
           <span>About</span>
         </button>
@@ -1072,7 +1076,10 @@
         <span class="material-symbols-outlined icon-32">menu_book</span>
         About Day Planner
       </h1>
-      <p class="about-subtitle">User Guide & Features Overview</p>
+      <p class="about-subtitle">
+        User Guide & Features Overview
+        <span class="build-badge" x-show="appBuildNumber" x-cloak x-text="'Build ' + appBuildNumber" title="The exact build you’re currently running — include this when reporting an issue."></span>
+      </p>
     </div>
     <button type="button" class="btn-install-app-header" @click.stop="triggerInstallApp()" title="Version 3.0 — Click to install Day Planner as a desktop app">
       <span class="material-symbols-outlined icon-18">install_desktop</span>

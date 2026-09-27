@@ -6,7 +6,10 @@
         <span class="material-symbols-outlined icon-32">menu_book</span>
         About Day Planner
       </h1>
-      <p class="about-subtitle">User Guide & Features Overview</p>
+      <p class="about-subtitle">
+        User Guide & Features Overview
+        <span class="build-badge" x-show="appBuildNumber" x-cloak x-text="'Build ' + appBuildNumber" title="The exact build you’re currently running — include this when reporting an issue."></span>
+      </p>
     </div>
     <button type="button" class="btn-install-app-header" @click.stop="triggerInstallApp()" title="Version 3.0 — Click to install Day Planner as a desktop app">
       <span class="material-symbols-outlined icon-18">install_desktop</span>
