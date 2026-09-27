@@ -8,6 +8,12 @@ Deliver a pure Google Apps Script digital binder productivity app bridging Frank
 
 ### KEY DECISIONS
 
+- **Sandboxed GAS Iframe CDP Introspection & Health Probe ([commit `ee20a0e`](file:///home/mike/projects/day-planner/commit/ee20a0e))**:
+  - Enhanced [`tools/probe-live.js`](file:///home/mike/projects/day-planner/tools/probe-live.js), [`tools/eval-console.js`](file:///home/mike/projects/day-planner/tools/eval-console.js), and [`tools/read-console.js`](file:///home/mike/projects/day-planner/tools/read-console.js) to attach directly to `script.googleusercontent.com` child iframe targets.
+  - Resolved tab-matching ambiguity by prioritizing exact web app title (`Day Planner`) and execution URLs (`/macros/s/`, `/exec`) over GAS project editor tabs (`/home/projects/`).
+  - Enabled multi-target event streaming (`Log.enable`, `Runtime.enable`) across both outer page and inner app frames.
+  - Verified live HOME `@224` health via `npm run probe`: Status `PASS`, activeView `daily`, 0 console errors.
+
 - **Chrome DevTools Protocol (CDP) Console & Evaluation Tooling ([commits `4a3333a`](file:///home/mike/projects/day-planner/commit/4a3333a), [`5520785`](file:///home/mike/projects/day-planner/commit/5520785))**:
   - Implemented zero-dependency CDP inspection tools built on native Node.js v22/24 `WebSocket` and `fetch`:
     - [`tools/read-console.js`](file:///home/mike/projects/day-planner/tools/read-console.js): Streams live `console.log`, `warn`, `error`, `info`, and uncaught exceptions directly from the running Chrome instance on port 9222.
@@ -49,6 +55,7 @@ Deliver a pure Google Apps Script digital binder productivity app bridging Frank
 
 - **Repository Branch**: `pure-gas-main`.
 - **Latest Commits**:
+  - [`ee20a0e`](file:///home/mike/projects/day-planner/commit/ee20a0e): `fix(cdp): support sandboxed Apps Script iframe evaluation and improve tab targeting`.
   - [`a279fe1`](file:///home/mike/projects/day-planner/commit/a279fe1): `chore(release): record Version 55 push to WORK and sync handoff`.
   - [`aec1c67`](file:///home/mike/projects/day-planner/commit/aec1c67): `docs(deploy): lock active HOME deployment @224 in rules and plan`.
   - [`148dccb`](file:///home/mike/projects/day-planner/commit/148dccb): `feat(probe): add lightweight probe-live tool, skill, and npm run probe command`.
@@ -61,10 +68,10 @@ Deliver a pure Google Apps Script digital binder productivity app bridging Frank
   - WORK Prod Deployment: [`AKfycbzRwZFZH9bT5jQtqq0ncBPbokoQGKjSUyBQNVDtPpOISwtdMSXlNAns8E9WFtUM9csO`](https://script.google.com/a/macros/gsa.gov/s/AKfycbzRwZFZH9bT5jQtqq0ncBPbokoQGKjSUyBQNVDtPpOISwtdMSXlNAns8E9WFtUM9csO/exec) (`9csO`, Version 55 / `@55` on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`).
 - **Live Browser Verification**:
   - Dedicated debug Chrome instance verified running on port 9222.
-  - Day Planner UI confirmed active and rendered with all 3 columns (Tasks, Appointments, Notes) via CDP screenshot ([`screen-shots/current-tab.png`](file:///home/mike/projects/day-planner/screen-shots/current-tab.png)).
+  - Live probe status verified healthy (`PASS`, activeView: `daily`, 0 errors) via `npm run probe`.
 - **Pre-Flight Verification Status**:
-  - `npm run lint`: 0 errors (7 existing unused-var warnings).
-  - `npm test`: **152/152 unit tests passing** across 19 suites (249ms).
+  - `npm run lint`: 0 errors (8 unused-var warnings).
+  - `npm test`: **152/152 unit tests passing** across 19 suites (263ms).
   - `npm run check:gas-safe-chars`: Clean (0 unsafe patterns).
 
 ---
@@ -87,11 +94,11 @@ Deliver a pure Google Apps Script digital binder productivity app bridging Frank
 
 ### OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
-1. **Live Production Smoke & Feature Verification ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L3-L6))**:
-   - Run `npm run probe` against active Chrome tab ([`AKfycbzVTow...`](https://script.google.com/macros/s/AKfycbzVTowACUjXvTt0UG6kOlLdTvB2ASsiFf7Za0GzuQUodlf8T1rAg7PsWVZ_OeEPJSfD4w/exec)) to verify 0 console errors and clean DOM structure.
-   - Verify Drive filename auto-lookup in note card link modal, ballot box toggle (`☐` / `☒`), and themed calendar popovers across Today, Month, Index, and Master Tasks.
+1. **Live Feature Smoke Verification (HOME @224) ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L3-L6))**:
+   - Verify Note Cards Drive Link Modal: Test inserting a Google Doc/Sheet link into a note card and verify title auto-lookup with tab-off and fallback title generation.
+   - Verify Ballot Box & Calendar Popovers: Test checklist toggle (`☐` / `☒`) in note cards and verify themed popovers open cleanly across Today, Month, Index, and Master Tasks Due Date.
 
-2. **Live WORK Production Smoke Verification ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L8-L10))**:
+2. **Live WORK Production Smoke Verification (WORK @55) ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L8-L10))**:
    - Open WORK deployment [`9csO`](https://script.google.com/a/macros/gsa.gov/s/AKfycbzRwZFZH9bT5jQtqq0ncBPbokoQGKjSUyBQNVDtPpOISwtdMSXlNAns8E9WFtUM9csO/exec) under `michael.hoffman@gsa.gov` and confirm Version 55 features load without permission errors.
 
 3. **Offline Sync Queue Resilience & Performance Audit ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md#L12-L14))**:
@@ -101,4 +108,4 @@ Deliver a pure Google Apps Script digital binder productivity app bridging Frank
 
 ### IMMEDIATE NEXT STEP
 
-Run `npm run probe` to verify that the active HOME `@224` deployment in Chrome remains responsive with 0 console errors, or test creating a note card hyperlink using the Drive auto-title modal.
+Verify Drive URL auto-lookup in note card link modal or ballot box toggle (`☐` / `☒`) in the active HOME `@224` tab via `node tools/eval-console.js --iframe "<expression>"`.

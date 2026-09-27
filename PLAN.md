@@ -254,6 +254,8 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 - [x] Live Probe Skill: Created [`tools/probe-live.js`](file:///home/mike/projects/day-planner/tools/probe-live.js), `npm run probe`, and [`.agents/skills/probe-live/SKILL.md`](file:///home/mike/projects/day-planner/.agents/skills/probe-live/SKILL.md) establishing an automated sense→diagnose→fix→test cycle (commit `148dccb`).
 - [x] HOME Production Alignment: Locked `@224` (`AKfycbzVTowACUjXvTt0UG6kOlLdTvB2ASsiFf7Za0GzuQUodlf8T1rAg7PsWVZ_OeEPJSfD4w`) in rules and plan (commit `aec1c67`).
 - [x] WORK Promotion: Promoted vetted code via `npm run push:work` to Version 55 (@55) on WORK script `1980roEKgkC_...` (commit `a279fe1`).
+- [x] Sandboxed Apps Script Iframe CDP Support: Enhanced [`tools/probe-live.js`](file:///home/mike/projects/day-planner/tools/probe-live.js), [`tools/eval-console.js`](file:///home/mike/projects/day-planner/tools/eval-console.js), and [`tools/read-console.js`](file:///home/mike/projects/day-planner/tools/read-console.js) to attach directly to `script.googleusercontent.com` child iframe targets and prioritize web app tabs over editor tabs (commit `ee20a0e`).
+- [x] Live HOME Health Probe Verified: Executed `npm run probe` against live HOME deployment (`@224`) confirming `PASS` status, 0 console errors, and live DOM structure.
 
 ---
 

@@ -1,5 +1,15 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-26 — Sandboxed GAS Iframe CDP Introspection & Live Health Verification (commit `ee20a0e`, HOME @224)
+
+- [x] **Sandboxed Apps Script Iframe CDP Support (commit `ee20a0e`)**:
+  - Enhanced [`tools/probe-live.js`](file:///home/mike/projects/day-planner/tools/probe-live.js), [`tools/eval-console.js`](file:///home/mike/projects/day-planner/tools/eval-console.js), and [`tools/read-console.js`](file:///home/mike/projects/day-planner/tools/read-console.js) to attach directly to `script.googleusercontent.com` child iframe targets.
+  - Prioritized exact web app title (`Day Planner`) and execution URLs (`/macros/s/`, `/exec`) over GAS project editor tabs (`/home/projects/`).
+  - Enabled multi-target event streaming (`Log.enable`, `Runtime.enable`) across both outer page and inner app frames.
+- [x] **HOME Production Live Health Probe (`@224`)**:
+  - Ran `npm run probe` against live HOME deployment ([`AKfycbzVTow...`](https://script.google.com/macros/s/AKfycbzVTowACUjXvTt0UG6kOlLdTvB2ASsiFf7Za0GzuQUodlf8T1rAg7PsWVZ_OeEPJSfD4w/exec)).
+  - Confirmed 100% healthy status (`PASS`), 0 console errors, active view `daily`, and live DOM structure.
+
 ## 2026-09-26 — CDP Live Debug Tooling, Probe-Live Health Skill, & Production Synchronization (commits `aafbe2c`, `4a3333a`, `5520785`, `dbbfb41`, `148dccb`, `aec1c67`, `a279fe1`, HOME @224, WORK @55)
 
 - [x] **Debug Logging Rule Enforcement (commit `aafbe2c`)**:
