@@ -1293,8 +1293,8 @@ function saveDailyDocCards(dateStr, noteContent) {
  * blocked by enterprise policy, since docs.google.com is commonly allowlisted separately).
  * Identified by its own docId so concurrent dictation sessions (multiple tabs/fields) never
  * collide on a shared scratch file. Caller is responsible for calling
- * pullDictationScratchText(docId) to retrieve the text; the doc is trashed (not hard-deleted)
- * once successfully pulled.
+ * pullDictationScratchText(docId) to retrieve the text; the doc's body is cleared (not
+ * trashed/deleted) once successfully pulled, so the doc stays in place but reads as empty.
  * @returns {{success: boolean, docId?: string, docUrl?: string, error?: string}} Creation result.
  */
 function createDictationScratchDoc() {
@@ -1328,8 +1328,8 @@ function createDictationScratchDoc() {
 
 /**
  * Reads back the dictated text from a scratch doc created by createDictationScratchDoc(),
- * strips the instructional placeholder line, and trashes the doc (recoverable for 30 days,
- * unlike a hard delete) so a re-pull of the same docId can't silently return duplicate text.
+ * strips the instructional placeholder line, and clears the doc body so a re-pull of the same
+ * docId can't silently return duplicate text.
  * @param {string} docId The scratch doc's id, as returned by createDictationScratchDoc().
  * @returns {{success: boolean, text?: string, error?: string}} Pull result.
  */
@@ -1349,22 +1349,15 @@ function pullDictationScratchText(docId) {
       return line.indexOf(placeholder) !== 0;
     }).join('\n').trim();
 
+    // DriveApp.setTrashed requires the broad `drive` scope even for files this app created
+    // itself (same known limitation as moveTo in getOrCreateMonthlyNotesDoc_ above) -- never
+    // widening past drive.file for this. Clearing the body is a DocumentApp content edit, not
+    // a Drive file-management call, so it needs no extra scope and leaves the doc reusable.
     try {
-      DriveApp.getFileById(docId).setTrashed(true);
-    } catch (trashErr) {
-      // Some DriveApp file-management calls require the broad `drive` scope even for
-      // files this app created itself (same known limitation as moveTo in
-      // getOrCreateMonthlyNotesDoc_ above) -- never widen past drive.file for this, so a
-      // scratch doc can be left behind un-trashed. Non-fatal: the text was already read.
-      // Clear the body (DocumentApp content edits don't need the broader Drive scope) so
-      // a leftover file is at least empty, not a copy of the dictated text sitting in Drive.
-      console.warn('pullDictationScratchText setTrashed skipped (requires broad drive scope): ' + trashErr.toString());
-      try {
-        body.clear();
-        doc.saveAndClose();
-      } catch (clearErr) {
-        console.warn('pullDictationScratchText body clear skipped: ' + clearErr.toString());
-      }
+      body.clear();
+      doc.saveAndClose();
+    } catch (clearErr) {
+      console.warn('pullDictationScratchText body clear skipped: ' + clearErr.toString());
     }
 
     return { success: true, text: text };
