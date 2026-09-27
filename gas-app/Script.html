@@ -7,14 +7,132 @@
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
-  // Kept outside Alpine’s reactive data so Alpine’s Proxy wrapping never touches
-  // the live SpeechRecognition instance or its internal event-handler state.
-  let activeRecognition = null;
-
-  // Dictation-scratchpad (Google Doc STT fallback) tracking, also kept outside Alpine’s reactive
+  // Dictation-scratchpad (Google Doc STT fallback) tracking, kept outside Alpine’s reactive
   // data since these hold a live window reference and a DOM element, not plain state.
   let sttScratchDocId = null;
   let sttScratchTargetEl = null;
+
+  // Dictation popup tracking. SpeechRecognition/getUserMedia is blocked inside this app’s own
+  // iframe by Google’s userCodeAppPanel Permissions Policy (confirmed live: its allow attribute
+  // omits microphone/camera — HtmlService renders that wrapper, not our code, so nothing here can
+  // change it). A same-origin popup window escapes that restriction, since a new top-level
+  // browsing context gets its own default Permissions Policy instead of inheriting the iframe’s,
+  // so dictation actually runs there; the popup streams recognized text back via postMessage.
+  // Kept outside Alpine’s reactive data for the same reason as sttScratchTargetEl above.
+  let dictationPopupWin = null;
+  let dictationPopupTargetEl = null;
+  let dictationPopupBaseValue = '';
+  let dictationPopupSelStart = 0;
+  let dictationPopupSelEnd = 0;
+
+  // Self-contained popup document (no external CSS/JS) matching the Day Planner binder aesthetic.
+  // Mic control uses a rounded square, not a circle, per the repo’s no-pills rule.
+  const DICTATION_POPUP_HTML = `<!doctype html>
+<html><head><meta charset="utf-8"><title>Voice Typing</title><style>
+  body { margin:0; font-family: Georgia, 'Times New Roman', serif; background:#fcfbfa; color:#2d2a26;
+    display:flex; flex-direction:column; align-items:center; padding:20px; box-sizing:border-box; }
+  h1 { font-size:15px; margin:0 0 4px; color:#2d6a5a; font-weight:600; }
+  .status { font-size:12px; color:#6b645c; margin-bottom:14px; min-height:16px; text-align:center; }
+  .mic-btn { width:88px; height:88px; border-radius:14px; border:2px solid #2d6a5a; background:#eaf3f0;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; margin-bottom:14px;
+    transition: background 0.15s ease; }
+  .mic-btn:hover { background:#dcebe6; }
+  .mic-btn.listening { background:#2d6a5a; }
+  .mic-btn svg { width:36px; height:36px; }
+  .mic-btn path { fill:#2d6a5a; }
+  .mic-btn.listening path { fill:#fcfbfa; }
+  textarea { width:100%; min-height:110px; border:1px solid #d8d2c8; border-radius:6px; padding:8px;
+    font-family: Georgia, 'Times New Roman', serif; font-size:13px; resize:vertical; background:#ffffff;
+    box-sizing:border-box; color:#2d2a26; }
+  .footer { margin-top:10px; font-size:11px; color:#8a8378; text-align:center; }
+</style></head>
+<body>
+  <h1>Voice Typing</h1>
+  <div class="status" id="status">Click the mic to start</div>
+  <button class="mic-btn" id="micBtn" type="button" aria-label="Start voice typing">
+    <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+  </button>
+  <textarea id="transcript" placeholder="Recognized text will appear here..."></textarea>
+  <div class="footer">Speak, then close this window when done.</div>
+<script>(function(){
+  var micBtn = document.getElementById('micBtn');
+  var statusEl = document.getElementById('status');
+  var ta = document.getElementById('transcript');
+  var recognition = null;
+  var listening = false;
+  var Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  function post(type, extra) {
+    var payload = Object.assign({ source: 'day-planner-dictation', type: type }, extra || {});
+    try { if (window.opener) window.opener.postMessage(payload, window.location.origin); } catch (e) { /* opener gone */ }
+  }
+
+  if (!Ctor) {
+    statusEl.textContent = 'Speech recognition not supported in this window.';
+    micBtn.disabled = true;
+    post('dictation-unsupported');
+  } else {
+    micBtn.addEventListener('click', function () {
+      if (listening) { recognition.stop(); return; }
+      try { recognition = new Ctor(); } catch (e) {
+        statusEl.textContent = 'Failed to start: ' + e.message;
+        return;
+      }
+      recognition.lang = navigator.language || 'en-US';
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.onresult = function (event) {
+        var finalT = '', interimT = '';
+        for (var i = 0; i < event.results.length; i++) {
+          var t = event.results[i][0].transcript;
+          if (event.results[i].isFinal) finalT += t; else interimT += t;
+        }
+        ta.value = (ta.dataset.committed || '') + finalT + interimT;
+        if (finalT) ta.dataset.committed = (ta.dataset.committed || '') + finalT;
+        post('dictation-interim', { text: ta.value });
+      };
+      recognition.onerror = function (event) {
+        listening = false;
+        micBtn.classList.remove('listening');
+        var reason = event.error || 'unknown';
+        if (reason === 'not-allowed' || reason === 'permission-denied') {
+          statusEl.textContent = 'Microphone permission denied.';
+          post('dictation-error', { reason: reason });
+        } else if (reason === 'no-speech') {
+          statusEl.textContent = 'No speech detected -- click mic to try again.';
+        } else if (reason === 'network') {
+          statusEl.textContent = 'Network error reaching speech service.';
+          post('dictation-error', { reason: reason });
+        } else {
+          statusEl.textContent = 'Error: ' + reason;
+        }
+      };
+      recognition.onend = function () {
+        listening = false;
+        micBtn.classList.remove('listening');
+        statusEl.textContent = 'Stopped. Click mic to resume, or close this window when done.';
+      };
+      try {
+        recognition.start();
+        listening = true;
+        micBtn.classList.add('listening');
+        statusEl.textContent = 'Listening...';
+      } catch (e) {
+        statusEl.textContent = 'Failed to start: ' + e.message;
+      }
+    });
+  }
+
+  ta.addEventListener('input', function () {
+    ta.dataset.committed = ta.value;
+    post('dictation-interim', { text: ta.value });
+  });
+
+  window.addEventListener('beforeunload', function () {
+    post('dictation-final', { text: ta.value, closed: true });
+  });
+})();` + '<' + '/script>' + `
+</body></html>`;
 
   const STATUS_OPTIONS = [
     { value: '•', label: 'Open' },
@@ -1011,6 +1129,12 @@
         });
         window.addEventListener('appinstalled', () => {
           window.deferredInstallPrompt = null;
+        });
+        window.addEventListener('message', (event) => {
+          if (event.origin !== window.location.origin) return;
+          const data = event.data;
+          if (!data || data.source !== 'day-planner-dictation') return;
+          this.handleDictationPopupMessage(data);
         });
         // Defer initial focus to avoid iframe cross-origin autofocus block
         setTimeout(() => {
@@ -2413,8 +2537,8 @@
           return 'Dictation isn’t available in this browser. On iPhone/iPad, tap the microphone key on the keyboard.';
         }
         return this.sttListening
-          ? 'Listening… click to stop dictation.'
-          : 'Click to dictate into this line (uses this browser’s built-in speech recognition; may require network access).';
+          ? 'Listening in the Voice Typing popup… click to close it.'
+          : 'Click to dictate into this line (opens a small Voice Typing popup; may require network access).';
       },
 
       toggleCardDictation(card) {
@@ -2427,10 +2551,18 @@
         this.toggleDictation(el);
       },
 
+      // Dictation runs in a popup window, not in this page, because SpeechRecognition/
+      // getUserMedia is blocked inside this app’s own iframe (Google’s userCodeAppPanel wrapper
+      // omits microphone from its Permissions Policy allow attribute — confirmed live, not
+      // fixable from Code.gs/Index.html). A same-origin popup is a fresh top-level browsing
+      // context, so it gets its own default Permissions Policy instead of inheriting the
+      // iframe’s, and the mic works there. This is a platform ceiling, not a bug in our markup.
       toggleDictation(el) {
         if (!el) return;
-        if (activeRecognition && this.sttListening) {
-          activeRecognition.stop();
+        if (dictationPopupWin && !dictationPopupWin.closed) {
+          dictationPopupWin.close();
+          dictationPopupWin = null;
+          this.sttListening = false;
           return;
         }
         if (!this.sttSupported) {
@@ -2439,69 +2571,48 @@
           this.ensureDictationScratchDoc(el);
           return;
         }
-        const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
-        let recognition;
-        try {
-          recognition = new SpeechRecognitionCtor();
-        } catch (err) {
-          this.sttError = 'Dictation failed to start: ' + err.message;
-          console.error('[STT] Failed to construct SpeechRecognition', err);
+        dictationPopupTargetEl = el;
+        dictationPopupBaseValue = el.value;
+        dictationPopupSelStart = el.selectionStart ?? dictationPopupBaseValue.length;
+        dictationPopupSelEnd = el.selectionEnd ?? dictationPopupBaseValue.length;
+
+        const popup = window.open('', 'dayPlannerDictation', 'width=340,height=440');
+        if (!popup) {
+          this.sttError = 'Dictation popup was blocked by the browser — using the dictation doc instead.';
+          this.sttBlocked = true;
+          this.ensureDictationScratchDoc(el);
           return;
         }
-        recognition.lang = navigator.language || 'en-US';
-        recognition.continuous = true;
-        recognition.interimResults = true;
+        popup.document.write(DICTATION_POPUP_HTML);
+        popup.document.close();
+        dictationPopupWin = popup;
+        this.sttError = null;
+        this.sttListening = true;
+      },
 
-        const baseValue = el.value;
-        const selStart = el.selectionStart ?? baseValue.length;
-        const selEnd = el.selectionEnd ?? baseValue.length;
-
-        recognition.onresult = (event) => {
-          let finalTranscript = '';
-          let interimTranscript = '';
-          for (let i = 0; i < event.results.length; i++) {
-            const transcript = event.results[i][0].transcript;
-            if (event.results[i].isFinal) finalTranscript += transcript;
-            else interimTranscript += transcript;
-          }
-          el.value = baseValue.slice(0, selStart) + finalTranscript + interimTranscript + baseValue.slice(selEnd);
+      // Routes postMessage results from the dictation popup (see toggleDictation above) back
+      // into whichever field opened it, and falls back to the Google Doc scratchpad if the
+      // popup itself cannot get mic access either.
+      handleDictationPopupMessage(data) {
+        const el = dictationPopupTargetEl;
+        if (!el || !document.body.contains(el)) return;
+        if (data.type === 'dictation-interim' || data.type === 'dictation-final') {
+          el.value = dictationPopupBaseValue.slice(0, dictationPopupSelStart)
+            + (data.text || '')
+            + dictationPopupBaseValue.slice(dictationPopupSelEnd);
           el.dispatchEvent(new Event('input', { bubbles: true }));
-        };
-
-        recognition.onerror = (event) => {
-          this.sttListening = false;
-          const reason = event.error || 'unknown';
-          if (reason === 'network') {
-            this.sttError = 'Dictation blocked: network request to the speech service failed (likely firewalled on this network).';
-            this.sttBlocked = true;
-            this.ensureDictationScratchDoc(el);
-          } else if (reason === 'not-allowed' || reason === 'permission-denied') {
-            this.sttError = 'Dictation blocked: microphone permission denied.';
-            this.sttBlocked = true;
-            this.ensureDictationScratchDoc(el);
-          } else if (reason === 'no-speech') {
-            this.sttError = null;
-          } else {
-            this.sttError = 'Dictation error: ' + reason;
+          if (data.closed) {
+            this.sttListening = false;
+            dictationPopupWin = null;
           }
-          console.error('[STT] SpeechRecognition error', reason, event);
-        };
-
-        recognition.onend = () => {
+        } else if (data.type === 'dictation-error' || data.type === 'dictation-unsupported') {
           this.sttListening = false;
-          activeRecognition = null;
-        };
-
-        try {
-          recognition.start();
-          activeRecognition = recognition;
-          this.sttListening = true;
-          this.sttError = null;
-        } catch (err) {
-          this.sttListening = false;
-          activeRecognition = null;
-          this.sttError = 'Dictation failed to start: ' + err.message;
-          console.error('[STT] recognition.start() threw', err);
+          this.sttBlocked = true;
+          this.sttError = data.type === 'dictation-unsupported'
+            ? 'Dictation not supported in the popup window.'
+            : 'Dictation blocked: microphone permission denied.';
+          console.error('[STT] dictation popup reported', data.type, data.reason || '');
+          this.ensureDictationScratchDoc(el);
         }
       },
 
