@@ -21,7 +21,8 @@ Day Planner has two separate Google Apps Script deployments running under differ
 - **Script ID**: `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`
 - **Owner Account**: `michael.hoffman@gsa.gov` (Enterprise GSA Workspace)
 - **Dev Endpoint (`@HEAD`)**: `https://script.google.com/a/macros/gsa.gov/s/AKfycbw_OpkC0kTkrhkwI8AipH7jTeZeJfUYS7Xcy9BstG8/dev`
-- **Production Endpoint**: `https://script.google.com/a/macros/gsa.gov/s/AKfycbynxBS2OW5FFwx-UU4Y1D_BkjkA4JaAfQZFVvXmsb_-iuFatr1-wNDJ5VGYtsKq2T3r/exec`
+- **Production Endpoint**: `https://script.google.com/a/macros/gsa.gov/s/AKfycbyLuAiuboGfbMg98PqUt7YQMNyB4Mk4rAUPXT_5FPbbHM2s4B1LP2GzeqOdJu_BhslA/exec`
+- **Active Deployment ID**: `AKfycbyLuAiuboGfbMg98PqUt7YQMNyB4Mk4rAUPXT_5FPbbHM2s4B1LP2GzeqOdJu_BhslA` (@59, deployment named "Day Planner"; the old `9csO`-ending deployment was archived 2026-09-27 as "Untitled")
 - **Script IDE**: `https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit`
 
 ---
