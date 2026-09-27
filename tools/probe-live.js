@@ -53,11 +53,13 @@ async function probe() {
     result.checks.cdpConnected = true;
 
     // 2. Identify Day Planner page tab
-    const page = tabs.find(t => t.type === 'page' && (
-      t.title === 'Day Planner' ||
-      (t.url && t.url.includes('script.google.com')) ||
-      (t.url && t.url.includes('localhost:3000'))
-    )) || tabs.find(t => t.type === 'page');
+    const page = tabs.find(t => t.type === 'page' && t.title === 'Day Planner') ||
+      tabs.find(t => t.type === 'page' && (
+        t.url && (t.url.includes('/macros/s/') || t.url.includes('/exec') || t.url.includes('localhost:3000'))
+      )) ||
+      tabs.find(t => t.type === 'page' && (
+        t.url && t.url.includes('script.google.com') && !t.url.includes('/home/projects/')
+      )) || tabs.find(t => t.type === 'page');
 
     if (!page) {
       result.status = 'FAIL';
@@ -84,7 +86,6 @@ async function probe() {
     });
 
     let msgId = 1;
-    let sessionId = null;
     const callbacks = new Map();
 
     ws.onmessage = (event) => {
@@ -121,42 +122,60 @@ async function probe() {
       ws.send(JSON.stringify({ id, method, params }));
     });
 
-    const sendToTarget = (method, params = {}) => new Promise((resolve) => {
+    // 4. Check for Apps Script child iframe target
+    const childIframe = tabs.find(t => t.type === 'iframe' && (
+      t.parentId === page.id || (t.url && t.url.includes('script.googleusercontent.com'))
+    ));
+
+    // 5. Activate target tab to prevent background timer freeze
+    await send('Target.activateTarget', { targetId: page.id });
+
+    // 6. Attach to page target and optional child iframe target
+    const attachPageRes = await send('Target.attachToTarget', { targetId: page.id, flatten: false });
+    const pageSessionId = attachPageRes.result?.sessionId;
+
+    if (!pageSessionId) {
+      throw new Error('Failed to attach to page target via CDP');
+    }
+
+    let childSessionId = null;
+    if (childIframe) {
+      const attachChildRes = await send('Target.attachToTarget', { targetId: childIframe.id, flatten: false });
+      childSessionId = attachChildRes.result?.sessionId;
+    }
+
+    const sendToSession = (sId, method, params = {}) => new Promise((resolve) => {
       const id = msgId++;
       callbacks.set(id, resolve);
       ws.send(JSON.stringify({
         id: msgId++,
         method: 'Target.sendMessageToTarget',
         params: {
-          sessionId,
+          sessionId: sId,
           message: JSON.stringify({ id, method, params })
         }
       }));
     });
 
-    // 4. Activate target tab to prevent background timer freeze
-    await send('Target.activateTarget', { targetId: page.id });
+    // Enable console and runtime events on page
+    await sendToSession(pageSessionId, 'Log.enable');
+    await sendToSession(pageSessionId, 'Runtime.enable');
+    await sendToSession(pageSessionId, 'Page.enable');
 
-    // 5. Attach to page target
-    const attachRes = await send('Target.attachToTarget', { targetId: page.id, flatten: false });
-    sessionId = attachRes.result?.sessionId;
-
-    if (!sessionId) {
-      throw new Error('Failed to attach to page target via CDP');
+    // Also enable on child iframe if present
+    if (childSessionId) {
+      await sendToSession(childSessionId, 'Log.enable');
+      await sendToSession(childSessionId, 'Runtime.enable');
+      await sendToSession(childSessionId, 'Page.enable');
     }
 
-    // Enable console and runtime events
-    await sendToTarget('Log.enable');
-    await sendToTarget('Runtime.enable');
-    await sendToTarget('Page.enable');
-
-    // 6. Outer document probe
-    const outerEval = await sendToTarget('Runtime.evaluate', {
+    // 7. Outer document probe
+    const outerEval = await sendToSession(pageSessionId, 'Runtime.evaluate', {
       expression: `({
         title: document.title,
         url: window.location.href,
-        hasIframe: Boolean(document.getElementById("userHtmlFrame")),
-        iframeSrc: document.getElementById("userHtmlFrame")?.src || null,
+        hasIframe: Boolean(document.getElementById("userHtmlFrame") || document.getElementById("sandboxFrame")),
+        iframeSrc: document.getElementById("userHtmlFrame")?.src || document.getElementById("sandboxFrame")?.src || null,
         bodySnippet: document.body?.innerText?.substring(0, 300) || ""
       })`,
       returnByValue: true
@@ -175,8 +194,9 @@ async function probe() {
         'Navigate the tab to the active @HEAD /dev URL or re-deploy'
       );
     } else {
-      // 7. Inner Iframe / App probe
-      const innerEval = await sendToTarget('Runtime.evaluate', {
+      // 8. Inner Iframe / App probe (evaluate in child target if Apps Script iframe exists, else in page)
+      const targetSessionId = childSessionId || pageSessionId;
+      const innerEval = await sendToSession(targetSessionId, 'Runtime.evaluate', {
         expression: `(() => {
           const iframe = document.getElementById("userHtmlFrame");
           const targetWindow = iframe ? iframe.contentWindow : window;
@@ -201,7 +221,7 @@ async function probe() {
               domSummary: {
                 hasHeader: Boolean(targetDoc.querySelector('header, .app-header, .top-header')),
                 hasNav: Boolean(targetDoc.querySelector('nav, .view-navigation, .nav-tabs')),
-                hasCards: Boolean(targetDoc.querySelector('.note-card, .notes-container, .schedule-column'))
+                hasCards: Boolean(targetDoc.querySelector('.note-card-item, .note-cards-container, .schedule-list, .notes-column-panel'))
               }
             };
           } catch (e) {

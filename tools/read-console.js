@@ -32,11 +32,13 @@ async function run() {
     if (tabFilter) {
       page = tabs.find(t => t.type === 'page' && (t.title.includes(tabFilter) || t.url.includes(tabFilter)));
     } else {
-      page = tabs.find(t => t.type === 'page' && (
-        t.title === 'Day Planner' ||
-        t.url.includes('script.google.com') ||
-        t.url.includes('localhost:3000')
-      )) || tabs.find(t => t.type === 'page');
+      page = tabs.find(t => t.type === 'page' && t.title === 'Day Planner') ||
+        tabs.find(t => t.type === 'page' && (
+          t.url && (t.url.includes('/macros/s/') || t.url.includes('/exec') || t.url.includes('localhost:3000'))
+        )) ||
+        tabs.find(t => t.type === 'page' && (
+          t.url && t.url.includes('script.google.com') && !t.url.includes('/home/projects/')
+        )) || tabs.find(t => t.type === 'page');
     }
 
     if (!page) {
@@ -58,7 +60,6 @@ async function run() {
     });
 
     let msgId = 1;
-    let sessionId = null;
     let logCount = 0;
 
     const handleTargetEvent = (method, params) => {
@@ -106,13 +107,13 @@ async function run() {
     };
 
     const send = (method, params = {}) => ws.send(JSON.stringify({ id: msgId++, method, params }));
-    const sendToTarget = (method, params = {}) => {
+    const sendToSession = (sId, method, params = {}) => {
       const id = msgId++;
       ws.send(JSON.stringify({
         id: msgId++,
         method: 'Target.sendMessageToTarget',
         params: {
-          sessionId,
+          sessionId: sId,
           message: JSON.stringify({ id, method, params })
         }
       }));
@@ -121,25 +122,39 @@ async function run() {
     // Activate tab so it isn't frozen/suspended
     send('Target.activateTarget', { targetId: page.id });
 
-    // Attach to tab target
-    const attachRes = await new Promise((resolve) => {
+    const attachTo = async (targetId) => {
       const curId = msgId;
-      const handler = (e) => {
-        const m = JSON.parse(e.data);
-        if (m.id === curId) {
-          ws.removeEventListener('message', handler);
-          resolve(m);
-        }
-      };
-      ws.addEventListener('message', handler);
-      send('Target.attachToTarget', { targetId: page.id, flatten: false });
-    });
+      return new Promise((resolve) => {
+        const handler = (e) => {
+          const m = JSON.parse(e.data);
+          if (m.id === curId) {
+            ws.removeEventListener('message', handler);
+            resolve(m.result?.sessionId);
+          }
+        };
+        ws.addEventListener('message', handler);
+        send('Target.attachToTarget', { targetId, flatten: false });
+      });
+    };
 
-    sessionId = attachRes.result?.sessionId;
+    const pageSessionId = await attachTo(page.id);
+    if (pageSessionId) {
+      sendToSession(pageSessionId, 'Log.enable');
+      sendToSession(pageSessionId, 'Runtime.enable');
+      sendToSession(pageSessionId, 'Page.enable');
+    }
 
-    sendToTarget('Log.enable');
-    sendToTarget('Runtime.enable');
-    sendToTarget('Page.enable');
+    const childIframe = tabs.find(t => t.type === 'iframe' && (
+      t.parentId === page.id || (t.url && t.url.includes('script.googleusercontent.com'))
+    ));
+    if (childIframe) {
+      const childSessionId = await attachTo(childIframe.id);
+      if (childSessionId) {
+        sendToSession(childSessionId, 'Log.enable');
+        sendToSession(childSessionId, 'Runtime.enable');
+        sendToSession(childSessionId, 'Page.enable');
+      }
+    }
 
     setTimeout(() => {
       console.log(`\n✔ Completed ${durationSec}s capture (${logCount} events recorded).`);

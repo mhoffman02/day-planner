@@ -41,11 +41,13 @@ async function run() {
     if (tabFilter) {
       page = tabs.find(t => t.type === 'page' && (t.title.includes(tabFilter) || t.url.includes(tabFilter)));
     } else {
-      page = tabs.find(t => t.type === 'page' && (
-        t.title === 'Day Planner' ||
-        t.url.includes('script.google.com') ||
-        t.url.includes('localhost:3000')
-      )) || tabs.find(t => t.type === 'page');
+      page = tabs.find(t => t.type === 'page' && t.title === 'Day Planner') ||
+        tabs.find(t => t.type === 'page' && (
+          t.url && (t.url.includes('/macros/s/') || t.url.includes('/exec') || t.url.includes('localhost:3000'))
+        )) ||
+        tabs.find(t => t.type === 'page' && (
+          t.url && t.url.includes('script.google.com') && !t.url.includes('/home/projects/')
+        )) || tabs.find(t => t.type === 'page');
     }
 
     if (!page) {
@@ -108,8 +110,13 @@ async function run() {
     // 1. Activate target so Chrome wakes it from background suspension
     await send('Target.activateTarget', { targetId: page.id });
 
-    // 2. Attach to the page target
-    const attachRes = await send('Target.attachToTarget', { targetId: page.id, flatten: false });
+    // 2. Attach to target (child iframe if targetIframe and available, else page)
+    const childIframe = tabs.find(t => t.type === 'iframe' && (
+      t.parentId === page.id || (t.url && t.url.includes('script.googleusercontent.com'))
+    ));
+    const targetIdToAttach = (targetIframe && childIframe) ? childIframe.id : page.id;
+
+    const attachRes = await send('Target.attachToTarget', { targetId: targetIdToAttach, flatten: false });
     sessionId = attachRes.result?.sessionId;
 
     if (!sessionId) {
@@ -123,9 +130,9 @@ async function run() {
     if (targetIframe) {
       targetExpr = `(() => {
         const iframe = document.getElementById('userHtmlFrame') || document.querySelector('iframe');
-        if (!iframe || !iframe.contentWindow) return 'Iframe not found';
+        const targetWindow = iframe ? iframe.contentWindow : window;
         try {
-          return iframe.contentWindow.eval(${JSON.stringify(expression)});
+          return targetWindow.eval(${JSON.stringify(expression)});
         } catch (e) {
           return 'Iframe eval error: ' + e.message;
         }
