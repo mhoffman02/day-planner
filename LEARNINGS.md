@@ -41,3 +41,13 @@
 - Run linter and fix code as immediate next step before Phase 3
 
 ---
+
+## 2026-09-27 — STT Dictation Fallback, Build Number, PLAN/TODO Tracker Split
+
+**Worked well:**
+- Live-tested assumptions before building: confirmed Google Docs' CSP `frame-ancestors` blocks iframing and that `window.open()` opens a background tab, not a new window — caught before shipping a second broken popup-based dictation flow, not after.
+- Split `PLAN.md` into a lean roadmap + `PLAN-HISTORY.md` archive (mirroring the existing `TODO.md`/`TODO_HISTORY.md` pattern), and wired the archiving into both the handoff skill (session end) and CLAUDE.md's session-startup rule (self-heal if a prior session skipped `/handoff`).
+- Caught 24 unpushed commits sitting on `pure-gas-main` from a prior session that never pushed; reviewed the diffstat for anything sensitive before pushing.
+
+**Needs improvement:**
+- A session ended (commit `75411ab`) without running `/handoff`, which is exactly the staleness this skill exists to prevent — the new self-heal rule in CLAUDE.md should catch this going forward, but confirm it actually fires next time a session starts cold.

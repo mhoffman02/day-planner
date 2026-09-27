@@ -30,9 +30,15 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 
 ## 3. Active & Upcoming Phases
 
-No open phase right now — Phase 16 (STT dictation + build number) closed out and archived to [`PLAN-HISTORY.md`](file:///home/mike/projects/day-planner/PLAN-HISTORY.md). Near-term work is tracked at the task level in [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) (startup perf sizing, WORK PC dictation re-test) rather than as a phase here.
+### Phase 17: Startup Performance Sizing (In Progress)
+*Goal: Decide whether a client-asset caching effort is worth it, before building anything.*
 
-When the next phase-sized initiative starts, add it here as `### Phase 17: <name>` with a goal line and checklist; move it to `PLAN-HISTORY.md` once every item is checked off.
+- [ ] Size how much of the ~5s total load is cacheable client-asset load vs. the ~2-3s uncacheable GAS spinup floor (see [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) item 3 for the session-level breakdown).
+- [ ] Decide go/no-go on a caching effort based on that split.
+
+**Also open, user-blocked (not agent-startable):** WORK PC re-test of the gDoc dictation link fallback — see [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) item 4.
+
+Move this phase to [`PLAN-HISTORY.md`](file:///home/mike/projects/day-planner/PLAN-HISTORY.md) once every item is checked off.
 
 ---
 
