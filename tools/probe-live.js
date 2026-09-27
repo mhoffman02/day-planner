@@ -39,7 +39,7 @@ async function probe() {
       const tabsRes = await fetch(`http://127.0.0.1:${port}/json`);
       if (!tabsRes.ok) throw new Error(`HTTP ${tabsRes.status}`);
       tabs = await tabsRes.json();
-    } catch (err) {
+    } catch {
       result.status = 'FAIL';
       result.diagnosis = `Chrome CDP unreachable on port ${port}`;
       result.recommendations.push(

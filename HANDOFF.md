@@ -54,9 +54,8 @@ Deliver a pure Google Apps Script digital binder productivity app bridging Frank
   - [`3cbd33f`](file:///home/mike/projects/day-planner/commit/3cbd33f): `fix(notes): autofocus checklist on Enter, prevent search Ctrl+K clash, and fix drive link modal`.
   - [`609788b`](file:///home/mike/projects/day-planner/commit/609788b): `fix(ux): theme date picker button, enable full-widget click/mouseup, and fix note checkbox newline alignment`.
 - **Live Deployment State**:
-  - HOME Prod Active Bookmark: `AKfycbxvzuB7h8AqY6UPf_vP2updhVaZYbjW74yl1sf-LcfdzK_gluGRzRYMqazjTtH1edlOdA` ("Day Planner Release Version 218").
-  - HOME Clasp Target: `AKfycbyTg2tIMYfZIcmyF2p54iLkhx5DIH9T7u2j0kBLkCKVvQHP2q59dvDAPxxZpvExUbKRxQ` (`@219`).
-  - WORK Prod (`9csO`): Version 53 (`@53`) on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`.
+  - HOME Prod Active Deployment: `AKfycbzVTowACUjXvTt0UG6kOlLdTvB2ASsiFf7Za0GzuQUodlf8T1rAg7PsWVZ_OeEPJSfD4w` (`@224`).
+  - WORK Prod (`9csO`): Version 55 (`@55`) on script `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`.
 - **Pre-Flight Verification Status**:
   - `npm run lint`: 0 errors (7 existing unused-var warnings).
   - `npm test`: 152/152 unit tests passing across 19 suites.
