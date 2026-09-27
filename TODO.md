@@ -1,8 +1,8 @@
 # Active Tasks (TODO)
 
-- [ ] **1. Active Deployment & Permissions Synchronization**:
-  - [ ] **Deployment Verification**: Confirm user's manual update of `AKfycbxvzuB7h8AqY6UPf_vP2updhVaZYbjW74yl1sf-LcfdzK_gluGRzRYMqazjTtH1edlOdA` ("Day Planner Release Version 218") to latest code version and successful consent/authorization flow.
-  - [ ] **Lock Target Deployment ID in Rules**: Synchronize [`.agents/rules/gas-environments.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-environments.md) with confirmed production deployment ID for clasp deploy targeting.
+- [x] **1. Active Deployment & Permissions Synchronization**:
+  - [x] **Deployment Verification**: Confirmed manual update of HOME production deployment to `@224` (`AKfycbzVTowACUjXvTt0UG6kOlLdTvB2ASsiFf7Za0GzuQUodlf8T1rAg7PsWVZ_OeEPJSfD4w`) with active OAuth consent verified.
+  - [x] **Lock Target Deployment ID in Rules**: Synchronized [`.agents/rules/gas-environments.md`](file:///home/mike/projects/day-planner/.agents/rules/gas-environments.md) with confirmed `@224` deployment ID.
 
 - [ ] **2. Pure-GAS Production Verification**:
   - [ ] **Live Feature Verification**: Test Drive filename lookup, note link rendering, and themed date picker interactions on the refreshed deployment.
