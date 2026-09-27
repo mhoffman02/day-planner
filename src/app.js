@@ -23,6 +23,10 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
+// Kept outside Alpine's reactive data so Alpine's Proxy wrapping never touches
+// the live SpeechRecognition instance or its internal event-handler state.
+let activeRecognition = null;
+
 Alpine.data('plannerApp', () => ({
       activeView: 'daily',
       selectedDate: getLocalDateStr(),
@@ -61,6 +65,9 @@ Alpine.data('plannerApp', () => ({
       scheduleGrid: [],
       dailyNote: '',
       noteCards: [],
+      sttSupported: false,
+      sttListening: false,
+      sttError: null,
       noteViewMode: 'cards', // 'cards' (Option 1) or 'doc' (Option 2)
       noteFilterMenuOpen: false,
       noteCardSearchQuery: '',
@@ -200,6 +207,7 @@ Alpine.data('plannerApp', () => ({
 
       async init() {
         this.bridge = new GASBridge(false);
+        this.sttSupported = typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
         this.initTheme();
         this.initColumnWidths();
         this.initRecentTopics();
@@ -231,7 +239,7 @@ Alpine.data('plannerApp', () => ({
               return;
             }
           }
-        } catch (_err) {
+        } catch {
           // ignore localStorage error
         }
         this.recentTopics = ['Sprint', '1:1', 'Standup', 'Planning', 'Admin', 'Architecture', 'Bug Triage', 'Personal', 'Review', 'General'];
@@ -1019,7 +1027,7 @@ Alpine.data('plannerApp', () => ({
         this.recentTopics = list.slice(0, 10);
         try {
           localStorage.setItem('dayPlannerRecentTopics', JSON.stringify(this.recentTopics));
-        } catch (_err) {
+        } catch {
           // ignore
         }
       },
@@ -1033,7 +1041,7 @@ Alpine.data('plannerApp', () => ({
         this.recentTopics = (this.recentTopics || []).filter(t => t.toLowerCase() !== topicToRemove.toLowerCase());
         try {
           localStorage.setItem('dayPlannerRecentTopics', JSON.stringify(this.recentTopics));
-        } catch (_err) {
+        } catch {
           // ignore
         }
       },
@@ -1382,7 +1390,7 @@ Alpine.data('plannerApp', () => ({
         try {
           const parsed = new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`);
           return parsed.hostname.replace(/^www\./, '');
-        } catch (_err) {
+        } catch {
           return trimmed;
         }
       },
@@ -1610,6 +1618,99 @@ Alpine.data('plannerApp', () => ({
         if (lo > hi) return;
         for (let i = lo; i <= hi; i++) {
           this.applyLineFormat(card, i, formatType);
+        }
+      },
+
+      sttMicTitle() {
+        if (this.sttError) return this.sttError;
+        if (!this.sttSupported) {
+          return 'Dictation isn’t available in this browser. On iPhone/iPad, tap the microphone key on the keyboard.';
+        }
+        return this.sttListening
+          ? 'Listening… click to stop dictation.'
+          : 'Click to dictate into this line (uses this browser’s built-in speech recognition; may require network access).';
+      },
+
+      toggleCardDictation(card) {
+        const idx = card && card._activeLineIndex;
+        if (idx === null || idx === undefined || idx < 0) {
+          this.sttError = 'Click into a note line first, then start dictation.';
+          return;
+        }
+        const el = document.getElementById('card-line-' + card.id + '-' + idx);
+        this.toggleDictation(el);
+      },
+
+      toggleDictation(el) {
+        if (!el) return;
+        if (activeRecognition && this.sttListening) {
+          activeRecognition.stop();
+          return;
+        }
+        if (!this.sttSupported) {
+          this.sttError = 'Dictation not supported in this browser.';
+          console.error('[STT] SpeechRecognition is not available on this browser/engine.');
+          return;
+        }
+        const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition;
+        try {
+          recognition = new SpeechRecognitionCtor();
+        } catch (err) {
+          this.sttError = 'Dictation failed to start: ' + err.message;
+          console.error('[STT] Failed to construct SpeechRecognition', err);
+          return;
+        }
+        recognition.lang = navigator.language || 'en-US';
+        recognition.continuous = true;
+        recognition.interimResults = true;
+
+        const baseValue = el.value;
+        const selStart = el.selectionStart ?? baseValue.length;
+        const selEnd = el.selectionEnd ?? baseValue.length;
+
+        recognition.onresult = (event) => {
+          let finalTranscript = '';
+          let interimTranscript = '';
+          for (let i = 0; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) finalTranscript += transcript;
+            else interimTranscript += transcript;
+          }
+          el.value = baseValue.slice(0, selStart) + finalTranscript + interimTranscript + baseValue.slice(selEnd);
+          el.dispatchEvent(new window.Event('input', { bubbles: true }));
+        };
+
+        recognition.onerror = (event) => {
+          this.sttListening = false;
+          const reason = event.error || 'unknown';
+          if (reason === 'network') {
+            this.sttError = 'Dictation blocked: network request to the speech service failed (likely firewalled on this network).';
+          } else if (reason === 'not-allowed' || reason === 'permission-denied') {
+            this.sttError = 'Dictation blocked: microphone permission denied.';
+          } else if (reason === 'no-speech') {
+            this.sttError = null;
+          } else {
+            this.sttError = 'Dictation error: ' + reason;
+          }
+          console.error('[STT] SpeechRecognition error', reason, event);
+        };
+
+        recognition.onend = () => {
+          this.sttListening = false;
+          activeRecognition = null;
+        };
+
+        try {
+          recognition.start();
+          activeRecognition = recognition;
+          this.sttListening = true;
+          this.sttError = null;
+        } catch (err) {
+          this.sttListening = false;
+          activeRecognition = null;
+          this.sttError = 'Dictation failed to start: ' + err.message;
+          console.error('[STT] recognition.start() threw', err);
         }
       },
 

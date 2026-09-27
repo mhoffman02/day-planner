@@ -456,7 +456,7 @@ function getValidatedRootFolder() {
           if (owner && owner.getEmail() && userEmail) {
             isOwner = (owner.getEmail().toLowerCase() === userEmail.toLowerCase());
           }
-        } catch (ownerErr) {
+        } catch {
           // In some restricted environments getOwner() may throw; proceed safely
         }
         if (isOwner) {
@@ -855,7 +855,7 @@ function extractMeetLinkFromEvent_(evt) {
     try {
       var hl = evt.getHangoutLink();
       if (hl && typeof hl === 'string') link = hl.trim();
-    } catch (_ignored) {
+    } catch {
       // getHangoutLink may throw if unsupported on specific event type
     }
   }
@@ -1312,7 +1312,7 @@ function resolveDriveFileTitle(url) {
       var item = null;
       try {
         item = Drive.Files.get(fileId, { supportsAllDrives: true });
-      } catch (_optErr) {
+      } catch {
         item = Drive.Files.get(fileId);
       }
       if (item && (item.title || item.name)) {

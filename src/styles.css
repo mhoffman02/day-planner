@@ -2325,6 +2325,29 @@
     flex-shrink: 0;
   }
 
+  .stt-mic-btn.stt-listening {
+    background: var(--binder-teal);
+    color: #fff;
+    border-color: var(--binder-teal);
+  }
+
+  .stt-mic-btn-inline {
+    display: inline-flex;
+    vertical-align: middle;
+    margin-left: 6px;
+  }
+
+  .stt-error-hint {
+    margin-top: 4px;
+    padding: 4px 8px;
+    font-size: 0.78rem;
+    color: #8a3b2f;
+    background: #fbecea;
+    border: 1px solid #e6b8ae;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
   .color-swatch-btn {
     width: 18px;
     height: 18px;
@@ -4782,6 +4805,12 @@
 
   [data-theme="dark"] .toolbar-divider {
     background: #244a3b !important;
+  }
+
+  [data-theme="dark"] .stt-error-hint {
+    color: #f2b6a8 !important;
+    background: #3a1f1a !important;
+    border-color: #6b3a2e !important;
   }
 
   [data-theme="dark"] .note-card-line-row.note-line-selected {

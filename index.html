@@ -601,6 +601,8 @@
                       <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'ordered')" title="Numbered List"><span class="material-symbols-outlined icon-16">format_list_numbered</span></button>
                       <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'checklist')" title="Checklist (Ctrl+Shift+C)" aria-label="Checklist"><span class="material-symbols-outlined icon-16">check_box</span></button>
                       <span class="toolbar-divider"></span>
+                      <button type="button" class="format-btn stt-mic-btn" :class="{ 'stt-listening': sttListening }" @mousedown.prevent @click="toggleCardDictation(card)" :title="sttMicTitle()" :aria-label="sttListening ? 'Stop dictation' : 'Start dictation'"><span class="material-symbols-outlined icon-16" x-text="sttListening ? 'mic' : 'mic_none'"></span></button>
+                      <span class="toolbar-divider"></span>
                       <button type="button" class="format-btn color-swatch-btn color-swatch-default" @mousedown.prevent @click="applyCardFormat(card, 'color-default')" title="Remove Text Color Only"><span class="material-symbols-outlined icon-16">format_color_reset</span></button>
                       <button type="button" class="format-btn color-swatch-btn color-swatch-teal" :class="{ active: cardNoteColor(card) === 'teal' }" @mousedown.prevent @click="applyCardFormat(card, 'color-teal')" title="Color: Teal" aria-label="Color: Teal"></button>
                       <button type="button" class="format-btn color-swatch-btn color-swatch-red" :class="{ active: cardNoteColor(card) === 'red' }" @mousedown.prevent @click="applyCardFormat(card, 'color-red')" title="Color: Red" aria-label="Color: Red"></button>
@@ -612,6 +614,7 @@
                         <span class="card-heading-help-tip">Start a line with <code>- </code> for bullets, <code>1. </code> for numbers, <code>[] </code> for checklist (☐/☒). Inline: <code>**bold**</code>, <code>*italic*</code>, <code>__underline__</code>, <code>~~strike~~</code>.</span>
                       </span>
                     </div>
+                    <div class="stt-error-hint" x-show="sttError" @click="sttError = null" x-text="sttError" x-cloak title="Tap to dismiss"></div>
 
                     <!-- Note Card Content: per-line live preview -->
                     <div class="note-card-lines">
@@ -1334,8 +1337,11 @@
           </div>
 
           <div class="form-group">
-            <label for="evtDescInput" class="form-label">Notes / Agenda</label>
+            <label for="evtDescInput" class="form-label">Notes / Agenda
+              <button type="button" class="format-btn stt-mic-btn stt-mic-btn-inline" :class="{ 'stt-listening': sttListening }" @mousedown.prevent @click="toggleDictation(document.getElementById('evtDescInput'))" :title="sttMicTitle()" :aria-label="sttListening ? 'Stop dictation' : 'Start dictation'"><span class="material-symbols-outlined icon-16" x-text="sttListening ? 'mic' : 'mic_none'"></span></button>
+            </label>
             <textarea id="evtDescInput" x-model="newEventData.description" placeholder="Appointment agenda..." class="form-textarea" rows="2"></textarea>
+            <div class="stt-error-hint" x-show="sttError" @click="sttError = null" x-text="sttError" x-cloak title="Tap to dismiss"></div>
           </div>
 
           <footer class="modal-form-actions">

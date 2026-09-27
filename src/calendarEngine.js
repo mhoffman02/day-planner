@@ -87,7 +87,7 @@ export function extractMeetLink(rawEvent = {}) {
     try {
       const hl = rawEvent.getHangoutLink();
       if (hl && typeof hl === 'string' && hl.trim()) return hl.trim();
-    } catch (_ignored) {
+    } catch {
       // getHangoutLink may throw if unsupported on specific event type
     }
   }
