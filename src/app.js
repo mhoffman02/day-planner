@@ -28,11 +28,9 @@ const MONTH_NAMES = [
 let activeRecognition = null;
 
 // Dictation-scratchpad (Google Doc STT fallback) tracking, also kept outside Alpine's reactive
-// data since these hold a live window reference and a DOM element, not plain state.
+// data since sttScratchTargetEl holds a live DOM element reference, not plain state.
 let sttScratchDocId = null;
 let sttScratchTargetEl = null;
-let sttScratchPopup = null;
-let sttScratchWatcher = null;
 
 Alpine.data('plannerApp', () => ({
       activeView: 'daily',
@@ -78,6 +76,8 @@ Alpine.data('plannerApp', () => ({
       sttBlocked: false,
       sttRefreshing: false,
       sttRefreshedFlash: false,
+      sttScratchDocUrl: '',
+      sttScratchCreating: false,
       noteViewMode: 'cards', // 'cards' (Option 1) or 'doc' (Option 2)
       noteFilterMenuOpen: false,
       noteCardSearchQuery: '',
@@ -1664,6 +1664,7 @@ Alpine.data('plannerApp', () => ({
         if (!this.sttSupported) {
           this.sttError = 'Dictation not supported in this browser.';
           console.error('[STT] SpeechRecognition is not available on this browser/engine.');
+          this.ensureDictationScratchDoc(el);
           return;
         }
         const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1701,9 +1702,11 @@ Alpine.data('plannerApp', () => ({
           if (reason === 'network') {
             this.sttError = 'Dictation blocked: network request to the speech service failed (likely firewalled on this network).';
             this.sttBlocked = true;
+            this.ensureDictationScratchDoc(el);
           } else if (reason === 'not-allowed' || reason === 'permission-denied') {
             this.sttError = 'Dictation blocked: microphone permission denied.';
             this.sttBlocked = true;
+            this.ensureDictationScratchDoc(el);
           } else if (reason === 'no-speech') {
             this.sttError = null;
           } else {
@@ -1750,64 +1753,37 @@ Alpine.data('plannerApp', () => ({
           return;
         }
         const el = document.getElementById('card-line-' + card.id + '-' + idx);
-        this.openDictationScratchpad(el);
+        this.ensureDictationScratchDoc(el);
       },
 
-      openDictationScratchpad(el) {
-        if (!el) return;
-        sttScratchTargetEl = el;
-        this.sttError = null;
-        // Opened synchronously (blank, then navigated once the doc exists) so Chrome/Edge don't
-        // treat it as a blocked popup — window.open only escapes popup-blockers when called
-        // directly from the click handler, not after an awaited async call resolves.
-        sttScratchPopup = window.open('about:blank', 'dpDictationScratch', 'width=520,height=680,popup=1');
-        this.bridge.createDictationScratchDoc().then((result) => {
+      // Creates the scratch doc (if one isn't already ready) and exposes its URL as a real
+      // link in the template — a genuine <a target="_blank"> click is what the user acts on,
+      // not a programmatic window.open(), since that can silently open as a background tab a
+      // window-switcher never surfaces, or get blocked outright with no visible signal. Google
+      // Docs also can't be iframed (it sends `Content-Security-Policy: frame-ancestors
+      // https://docs.google.com`, confirmed live), so a clickable link is the reliable option.
+      async ensureDictationScratchDoc(el) {
+        if (el) sttScratchTargetEl = el;
+        if (sttScratchDocId && this.sttScratchDocUrl) return;
+        this.sttScratchCreating = true;
+        try {
+          const result = await this.bridge.createDictationScratchDoc();
           if (!result || !result.success) {
             this.sttError = 'Could not create a dictation doc: ' + ((result && result.error) || 'unknown error');
             console.error('[STT] createDictationScratchDoc failed', result);
-            if (sttScratchPopup && !sttScratchPopup.closed) sttScratchPopup.close();
             return;
           }
           sttScratchDocId = result.docId;
-          if (sttScratchPopup && !sttScratchPopup.closed) {
-            sttScratchPopup.location.href = result.docUrl;
-          } else {
-            // Popup was blocked (or closed) before the doc was ready; retry opening it as a
-            // normal tab, right after the original click, since some browsers still count that
-            // as user-gesture-triggered. No noopener here so we keep a real reference to poll
-            // for close-detection below — same trust level as the popup path (docs.google.com
-            // is a first-party Google origin, not arbitrary content).
-            sttScratchPopup = window.open(result.docUrl, '_blank');
-          }
-          if (sttScratchWatcher) clearInterval(sttScratchWatcher);
-          if (sttScratchPopup) {
-            // Auto-pull once the user closes the scratch window, so they don't have to remember
-            // to click "Pull from Doc" separately after dictating. Only armed when we actually
-            // have a window reference — a null reference means "blocked", not "closed", and
-            // polling that would fire immediately, pulling an empty doc before dictation happens.
-            sttScratchWatcher = setInterval(() => {
-              if (!sttScratchPopup || sttScratchPopup.closed) {
-                clearInterval(sttScratchWatcher);
-                sttScratchWatcher = null;
-                if (sttScratchDocId) this.pullFromDictationScratchpad();
-              }
-            }, 800);
-          } else {
-            this.sttError = 'Could not open the dictation doc automatically — popups may be blocked here. Open it manually, then click “Pull from Doc” when done: ' + result.docUrl;
-            console.error('[STT] Both window.open attempts returned null (likely blocked by policy).', result.docUrl);
-          }
-        }).catch((err) => {
+          this.sttScratchDocUrl = result.docUrl;
+        } catch (err) {
           this.sttError = 'Could not create a dictation doc: ' + (err.message || err);
           console.error('[STT] createDictationScratchDoc threw', err);
-          if (sttScratchPopup && !sttScratchPopup.closed) sttScratchPopup.close();
-        });
+        } finally {
+          this.sttScratchCreating = false;
+        }
       },
 
       async pullFromDictationScratchpad() {
-        if (sttScratchWatcher) {
-          clearInterval(sttScratchWatcher);
-          sttScratchWatcher = null;
-        }
         if (!sttScratchDocId) {
           this.sttError = 'Open the dictation doc first, then pull once you’re done.';
           return;
@@ -1820,9 +1796,6 @@ Alpine.data('plannerApp', () => ({
             console.error('[STT] pullDictationScratchText failed', result);
             return;
           }
-          sttScratchDocId = null;
-          if (sttScratchPopup && !sttScratchPopup.closed) sttScratchPopup.close();
-          sttScratchPopup = null;
           const text = (result.text || '').trim();
           if (!text) {
             this.sttError = 'No dictated text found — did you dictate before pulling? (Docs can take a couple seconds to save.)';
@@ -1835,8 +1808,11 @@ Alpine.data('plannerApp', () => ({
             console.error('[STT] scratch target element missing on pull');
             return;
           }
+          // Doc read successfully and emptied server-side (Code.gs clears the body on pull) --
+          // clear the local pointer so the next dictation starts a fresh doc.
+          sttScratchDocId = null;
+          this.sttScratchDocUrl = '';
           this.sttError = null;
-          this.sttBlocked = false;
           this.sttRefreshedFlash = true;
           setTimeout(() => { this.sttRefreshedFlash = false; }, 1800);
         } catch (err) {

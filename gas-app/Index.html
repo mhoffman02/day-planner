@@ -622,7 +622,17 @@
                     <div class="stt-error-hint" x-show="(sttError || sttBlocked) && card._activeLineIndex !== null && card._activeLineIndex !== undefined" x-cloak>
                       <div class="stt-error-text" x-show="sttError" @click="sttError = null" x-text="sttError" title="Tap to dismiss"></div>
                       <div class="stt-fallback-actions" x-show="sttBlocked" x-cloak>
-                        <button type="button" class="stt-fallback-btn" @click="openCardDictationScratchpad(card)" title="Opens a small Google Doc window where Docs’ own Voice Typing can dictate (works even when this app’s own mic access is blocked)."><span class="material-symbols-outlined icon-16">open_in_new</span> Dictate in Google Doc</button>
+                        <template x-if="!sttScratchDocUrl">
+                          <button type="button" class="stt-fallback-btn" :disabled="sttScratchCreating" @click="openCardDictationScratchpad(card)" title="Google Docs can’t be embedded in this app (it blocks framing), so this opens as a link you click yourself — more reliable than a popup window on locked-down networks.">
+                            <span class="material-symbols-outlined icon-16" x-text="sttScratchCreating ? 'hourglass_top' : 'description'"></span>
+                            <span x-text="sttScratchCreating ? 'Creating…' : 'Dictate in Google Doc'"></span>
+                          </button>
+                        </template>
+                        <template x-if="sttScratchDocUrl">
+                          <a class="stt-fallback-btn" :href="sttScratchDocUrl" target="_blank" rel="noopener noreferrer" title="Opens in a new tab. In the Doc: Tools › Voice typing (Ctrl+Shift+V), dictate, then come back and click Pull from Doc.">
+                            <span class="material-symbols-outlined icon-16">open_in_new</span> Open Dictation Doc
+                          </a>
+                        </template>
                         <button type="button" class="stt-fallback-btn" :disabled="sttRefreshing" @click="pullFromDictationScratchpad()" title="Pulls whatever you dictated in the Google Doc into the line you started from.">
                           <span class="material-symbols-outlined icon-16" x-text="sttRefreshing ? 'hourglass_top' : (sttRefreshedFlash ? 'check' : 'sync')"></span>
                           <span x-text="sttRefreshing ? 'Pulling…' : (sttRefreshedFlash ? 'Pulled!' : 'Pull from Doc')"></span>
@@ -1186,7 +1196,17 @@
             <div class="stt-error-hint" x-show="sttError || sttBlocked" x-cloak>
               <div class="stt-error-text" x-show="sttError" @click="sttError = null" x-text="sttError" title="Tap to dismiss"></div>
               <div class="stt-fallback-actions" x-show="sttBlocked" x-cloak>
-                <button type="button" class="stt-fallback-btn" @click="openDictationScratchpad(document.getElementById('evtDescInput'))" title="Opens a small Google Doc window where Docs’ own Voice Typing can dictate (works even when this app’s own mic access is blocked)."><span class="material-symbols-outlined icon-16">open_in_new</span> Dictate in Google Doc</button>
+                <template x-if="!sttScratchDocUrl">
+                  <button type="button" class="stt-fallback-btn" :disabled="sttScratchCreating" @click="ensureDictationScratchDoc(document.getElementById('evtDescInput'))" title="Google Docs can’t be embedded in this app (it blocks framing), so this opens as a link you click yourself — more reliable than a popup window on locked-down networks.">
+                    <span class="material-symbols-outlined icon-16" x-text="sttScratchCreating ? 'hourglass_top' : 'description'"></span>
+                    <span x-text="sttScratchCreating ? 'Creating…' : 'Dictate in Google Doc'"></span>
+                  </button>
+                </template>
+                <template x-if="sttScratchDocUrl">
+                  <a class="stt-fallback-btn" :href="sttScratchDocUrl" target="_blank" rel="noopener noreferrer" title="Opens in a new tab. In the Doc: Tools › Voice typing (Ctrl+Shift+V), dictate, then come back and click Pull from Doc.">
+                    <span class="material-symbols-outlined icon-16">open_in_new</span> Open Dictation Doc
+                  </a>
+                </template>
                 <button type="button" class="stt-fallback-btn" :disabled="sttRefreshing" @click="pullFromDictationScratchpad()" title="Pulls whatever you dictated in the Google Doc into this field.">
                   <span class="material-symbols-outlined icon-16" x-text="sttRefreshing ? 'hourglass_top' : (sttRefreshedFlash ? 'check' : 'sync')"></span>
                   <span x-text="sttRefreshing ? 'Pulling…' : (sttRefreshedFlash ? 'Pulled!' : 'Pull from Doc')"></span>
