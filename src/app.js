@@ -32,6 +32,7 @@ let activeRecognition = null;
 let sttScratchDocId = null;
 let sttScratchTargetEl = null;
 let sttScratchPopup = null;
+let sttScratchWatcher = null;
 
 Alpine.data('plannerApp', () => ({
       activeView: 'daily',
@@ -1771,10 +1772,29 @@ Alpine.data('plannerApp', () => ({
           if (sttScratchPopup && !sttScratchPopup.closed) {
             sttScratchPopup.location.href = result.docUrl;
           } else {
-            // Popup was blocked or the user closed it before the doc was ready; fall back to a
-            // normal tab. This one carries noopener/noreferrer since we don't need to retain
-            // control of it (unlike the popup path above).
-            window.open(result.docUrl, '_blank', 'noopener,noreferrer');
+            // Popup was blocked (or closed) before the doc was ready; retry opening it as a
+            // normal tab, right after the original click, since some browsers still count that
+            // as user-gesture-triggered. No noopener here so we keep a real reference to poll
+            // for close-detection below — same trust level as the popup path (docs.google.com
+            // is a first-party Google origin, not arbitrary content).
+            sttScratchPopup = window.open(result.docUrl, '_blank');
+          }
+          if (sttScratchWatcher) clearInterval(sttScratchWatcher);
+          if (sttScratchPopup) {
+            // Auto-pull once the user closes the scratch window, so they don't have to remember
+            // to click "Pull from Doc" separately after dictating. Only armed when we actually
+            // have a window reference — a null reference means "blocked", not "closed", and
+            // polling that would fire immediately, pulling an empty doc before dictation happens.
+            sttScratchWatcher = setInterval(() => {
+              if (!sttScratchPopup || sttScratchPopup.closed) {
+                clearInterval(sttScratchWatcher);
+                sttScratchWatcher = null;
+                if (sttScratchDocId) this.pullFromDictationScratchpad();
+              }
+            }, 800);
+          } else {
+            this.sttError = 'Could not open the dictation doc automatically — popups may be blocked here. Open it manually, then click “Pull from Doc” when done: ' + result.docUrl;
+            console.error('[STT] Both window.open attempts returned null (likely blocked by policy).', result.docUrl);
           }
         }).catch((err) => {
           this.sttError = 'Could not create a dictation doc: ' + (err.message || err);
@@ -1784,6 +1804,10 @@ Alpine.data('plannerApp', () => ({
       },
 
       async pullFromDictationScratchpad() {
+        if (sttScratchWatcher) {
+          clearInterval(sttScratchWatcher);
+          sttScratchWatcher = null;
+        }
         if (!sttScratchDocId) {
           this.sttError = 'Open the dictation doc first, then pull once you’re done.';
           return;
