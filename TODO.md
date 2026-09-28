@@ -10,4 +10,4 @@ No active phase — `PLAN.md` has no macro-task queued. Next session should ask 
 
 ## Loose end (unrelated scope, user-blocked)
 
-- [ ] **WORK deployment repoint needed**: WORK version 107 is pushed (`npm run push:work`, this session), carrying every fix now live on HOME through @270 — the daily-data cache/prefetch, the CSS token retrofit, the Docs test-mock fold, Quote of the Day, the tag-leak fix, and the Tasks-API pagination fix. Still needs `michael.hoffman@gsa.gov` to repoint via [Deploy > Manage deployments](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) — not agent-doable.
+- [ ] **WORK deployment repoint needed**: WORK version 108 is pushed (`npm run push:work`, this session), carrying every fix now live on HOME through @271 — the daily-data cache/prefetch, the CSS token retrofit, the Docs test-mock fold, Quote of the Day, the tag-leak fix, and the Tasks-API pagination fix. Still needs `michael.hoffman@gsa.gov` to repoint via [Deploy > Manage deployments](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) — not agent-doable.
