@@ -30,7 +30,16 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 
 ## 3. Active & Upcoming Phases
 
-No active phase — Phase 19 closed 2026-09-28 (kept `drive.readonly` as-is, no narrowing). See [`PLAN-HISTORY.md`](file:///home/mike/projects/day-planner/PLAN-HISTORY.md).
+### Phase 20: Future Planning Items as Real Tasks
+*Goal: replace the custom `future-matrix-YYYY.json` Drive-file bucket storage with real Google Tasks (dueDate = last day of the target month when no specific day is given), matching how Master/Daily Tasks are already stored. Triggered by a 2026-09-28 live bug where `DriveApp.Folder.createFile()`/`File.setContent()` demanded the broad `drive` scope even for the app's own folder — patched for now via the Advanced Drive Service (`Drive.Files.insert`/`update`), but moving off Drive-file storage entirely removes the whole class of bug and reuses proven-working Tasks-API infrastructure.*
+
+- [ ] Rework `addFutureItem`/`updateFutureItemStatus`/`transferFutureItemToDay`/`rollForwardPendingItems`/`deleteFutureItem` in `gas-app/Code.gs` to operate on Tasks (dueDate-keyed) instead of the JSON bucket.
+- [ ] Rework `getFutureMatrixData_`/`getFutureMatrix` to query Tasks and group by `dueDate`'s month, replacing the Drive JSON read.
+- [ ] When a new item has no specific day, default `dueDate` to the last day of the target month.
+- [ ] Update `src/futureMatrixEngine.js` and its 20+ tests in `tests/futureMatrixEngine.test.js` for the new data shape (grid grouping becomes a view-layer computation over tasks, not the source of truth).
+- [ ] Update `src/app.js`/`gas-app/Script.html` bindings and the Future Planning view in `Index.html`/root `index.html` as needed.
+- [ ] Decide and implement a migration path for any existing `future-matrix-*.json` files already in users' Drive folders — a one-time import, or the items silently vanish from the UI.
+- [ ] Verify live (HOME, then WORK) that creating an item with no day-of-month lands on the last day of that month, and that existing Franklin status cycling / transfer-to-day / roll-forward still work.
 
 ---
 
