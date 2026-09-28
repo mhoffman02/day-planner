@@ -11,7 +11,8 @@ See `PLAN.md`'s Phase 20 for full rationale (born from a 2026-09-28 live bug: `D
 - [x] When a new item has no specific day, default `dueDate` to the last day of the target month.
 - [x] Client side (`src/futureMatrixEngine.js`, `src/app.js`, `gas-app/Script.html`, `Index.html`) needed no changes — RPC contract unchanged. `npm test` (155/155) and `npm run lint` confirmed clean.
 - [x] Migration: user chose "start fresh" — no import, old `future-matrix-*.json` files left orphaned in Drive.
-- [ ] Verify live (HOME, then WORK): no-day items land on the last day of the month; Franklin status cycling / transfer-to-day / roll-forward still work.
+- [x] Verify live (HOME @262): no-day item landed on 2026-09-30 (last day of the month); status cycling (•→○) and delete confirmed round-trip against real Google Tasks (probed live via CDP, test item cleaned up after).
+- [ ] Verify live on WORK once repointed (see loose end below) — HOME parity check only so far.
 
 ## Loose end (unrelated to Phase 20)
 
