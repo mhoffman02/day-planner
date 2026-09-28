@@ -87,10 +87,12 @@ The project is architected to run in two environments:
 --------------------------------------------------------------------------------
 [!] Security & OAuth Scope Restriction:
     DO NOT use the broad `https://www.googleapis.com/auth/drive` scope.
-    The manifest (`gas-app/appsscript.json`) uses `https://www.googleapis.com/auth/drive.file`.
-    This restricts Google Drive access STRICTLY to files and folders created by
-    or opened with this app (`/Day Planner/`). It prevents the app from accessing
-    any of the user's other private Drive files.
+    The manifest (`gas-app/appsscript.json`) uses `https://www.googleapis.com/auth/drive.file`
+    (write access, restricted to files/folders created by or opened with this app,
+    i.e. `/Day Planner/`) plus `https://www.googleapis.com/auth/drive.readonly`
+    (read-only, used solely by `resolveDriveFileTitle()` in `Code.gs` to look up the
+    title of an arbitrary Docs/Sheets/Slides/Drive link pasted into a note). Phase 19
+    is auditing whether `drive.readonly` can be narrowed further; see PLAN.md.
 
 [!] 2-Way Sync Tagging (`gasTaskId`):
     Tasks and Calendar Events are linked using custom tags. `Code.gs` uses

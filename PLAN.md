@@ -30,13 +30,7 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 
 ## 3. Active & Upcoming Phases
 
-### Phase 19: `drive.readonly` Scope Narrowing (In Progress)
-*Goal: Phase 18 (WORK parity) is complete — see `PLAN-HISTORY.md`. Next: the `drive.readonly` scope ("See and download all your Google Drive files") still remains in `gas-app/appsscript.json`, used only for resolving pasted Drive link titles. Decide whether it's worth narrowing further (likely to `drive.file`-compatible metadata calls, or dropping title-resolution entirely) and, if so, apply the same audit → port → verify → promote pipeline used for the `documents` scope in Phase 18.*
-
-- [ ] Confirm exactly which RPC call sites use `drive.readonly` (`resolveDriveFileTitle` and any others) and whether a narrower scope covers them.
-- [ ] Get user go-ahead on the approach before touching `appsscript.json` — this is a deliberate, lower-urgency cleanup, not a bug fix.
-
-Move this phase to [`PLAN-HISTORY.md`](file:///home/mike/projects/day-planner/PLAN-HISTORY.md) once every item is checked off.
+No active phase — Phase 19 closed 2026-09-28 (kept `drive.readonly` as-is, no narrowing). See [`PLAN-HISTORY.md`](file:///home/mike/projects/day-planner/PLAN-HISTORY.md).
 
 ---
 

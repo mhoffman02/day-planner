@@ -4,6 +4,12 @@ Archived completed phases from [`PLAN.md`](file:///home/mike/projects/day-planne
 
 ---
 
+### Phase 19: `drive.readonly` Scope Narrowing
+*Goal: decide whether `drive.readonly` in `gas-app/appsscript.json` is worth narrowing further.*
+- [x] Audited every `DriveApp`/`Drive` call site in `Code.gs`. Two call sites genuinely need read access beyond `drive.file`: `validateAndSaveFolderUrl` (user-typed folder ID at setup) and `resolveDriveFileTitle` (smart-paste title lookup on arbitrary pasted Docs/Sheets/Slides/Drive links). Everything else operates on the app's own "Day Planner" folder and is already `drive.file`-covered.
+- [x] Decision: **keep `drive.readonly` as-is.** Narrowing to a Google Picker-based consent flow would genuinely shrink the OAuth surface, but costs a real UX regression (no more free-paste-a-link-and-get-the-title for smart-paste) and nontrivial new code (Picker JS + a new `ScriptApp.getOAuthToken()` RPC endpoint) for a scope that's already read-only/title-only in actual usage. Not worth it.
+- [x] Fixed two docs found stale during the audit (true regardless of the decision): `gas-app/About.html` claimed Day Planner "cannot see... anything else" in Drive (false — smart-paste reads arbitrary file titles); `README.txt` only documented `drive.file`, omitting `drive.readonly`.
+
 ### Phase 18: WORK Environment Parity
 *Goal: bring WORK up to the same state as HOME — themed-popup voice typing and the narrowed `drive.file`-only OAuth scope.*
 - [x] WORK voice typing popup confirmed working directly (same-origin popup escape, org allowlist covers it).
