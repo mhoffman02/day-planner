@@ -162,7 +162,22 @@ function buildDaySectionRequests_(baseIndex, dayHeadingText, lines) {
     styleReqs.push({ createParagraphBullets: { range: r, bulletPreset: 'BULLET_DISC_CIRCLE_SQUARE' } });
   });
 
-  return { text: text, styleRequests: styleReqs };
+  // A single insertText call makes every new paragraph inherit whatever style sat at the
+  // insertion point (often a leftover HEADING_2 from a just-deleted day heading, since deleting
+  // a paragraph merges its content into the paragraph whose trailing newline survives, carrying
+  // that paragraph's style backward across the merge point). Reset the WHOLE inserted range to
+  // NORMAL_TEXT first, then apply the specific H2/H3 overrides above on top -- request order
+  // matters here since later requests win on overlapping ranges. Without this, a bullet/plain
+  // line silently inherits HEADING_2 and gets misread as a day-section boundary on the next read.
+  var resetReq = {
+    updateParagraphStyle: {
+      range: { startIndex: baseIndex, endIndex: baseIndex + text.length - 1 },
+      paragraphStyle: { namedStyleType: 'NORMAL_TEXT' },
+      fields: 'namedStyleType'
+    }
+  };
+
+  return { text: text, styleRequests: [resetReq].concat(styleReqs) };
 }
 
 /**
