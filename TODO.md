@@ -1,6 +1,6 @@
 # Active Tasks (TODO)
 
-- [ ] **1. WORK: repoint live deployment to latest version and re-test everything below.** `michael.hoffman@gsa.gov` repoints the live deployment (ends `...BhslA`) to **Version 82** in the IDE (Deploy → Manage deployments → Edit → Version → Deploy). Close/reload any open IDE editor tab first — a stale tab's autosave has silently overwritten pushed changes before. HOME pinned prod is at `@250` with the same code, already verified live there.
+- [ ] **1. WORK: repoint live deployment to latest version and re-test everything below.** `michael.hoffman@gsa.gov` repoints the live deployment (ends `...BhslA`) to **Version 83** in the IDE (Deploy → Manage deployments → Edit → Version → Deploy). Close/reload any open IDE editor tab first — a stale tab's autosave has silently overwritten pushed changes before. HOME pinned prod is at `@251` with the same code, already verified live there.
 
 - [ ] **2. Re-test checklist once WORK is repointed** (all fixed this session, verified on HOME, awaiting WORK repoint + confirmation):
   - **Scope narrowing**: broad `documents` OAuth scope dropped, ported to Docs Advanced Service under `drive.file`. "Google Docs API" Service added via IDE Services (+) ✓, OAuth re-consent done ✓ (confirmed narrowed scope, no `documents`). Re-run a save/reload check to confirm notes persist with no duplicate monthly doc.
