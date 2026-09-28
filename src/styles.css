@@ -2627,9 +2627,29 @@
     text-align: center;
     color: var(--text-muted);
     font-size: 0.88rem;
-    background: rgba(255, 255, 255, 0.7);
+    background: var(--bg-card);
     border: 1px dashed var(--border-line);
     border-radius: 6px;
+  }
+
+  .note-card-skeleton,
+  .note-card-empty-state {
+    padding: 28px 16px;
+    text-align: center;
+  }
+
+  .note-card-skeleton {
+    color: var(--binder-teal);
+  }
+
+  .note-card-skeleton .material-symbols-outlined {
+    font-size: 22px;
+  }
+
+  .note-card-empty-state p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.88rem;
   }
 
   /* Monthly Calendar View - Full Screen Vertical Expansion & Y-Scroll */

@@ -290,6 +290,7 @@ Alpine.data('plannerApp', () => ({
       scheduleGrid: [],
       dailyNote: '',
       noteCards: [],
+      dailyLoading: true,
       sttSupported: false,
       sttListening: false,
       sttError: null,
@@ -1185,6 +1186,7 @@ Alpine.data('plannerApp', () => ({
       },
 
       async loadDayData() {
+        this.dailyLoading = true;
         try {
           const data = await this.bridge.getDailyData(this.selectedDate);
           if (data.error) {
@@ -1203,6 +1205,8 @@ Alpine.data('plannerApp', () => ({
         } catch (err) {
           console.error('🔥 loadDayData error:', err);
           this.errorMessage = `Error loading daily workspace: ${err.message || err.toString()}`;
+        } finally {
+          this.dailyLoading = false;
         }
       },
 

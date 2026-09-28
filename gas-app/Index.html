@@ -663,9 +663,21 @@
                 </article>
               </template>
 
-              <template x-if="filteredNoteCards.length === 0">
+              <template x-if="dailyLoading">
+                <div class="note-card-item note-card-skeleton" aria-label="Loading notes">
+                  <span class="material-symbols-outlined spin">progress_activity</span>
+                </div>
+              </template>
+
+              <template x-if="!dailyLoading && filteredNoteCards.length === 0 && noteCards.length === 0">
+                <div class="note-card-item note-card-empty-state">
+                  <p>No notes yet for this day. Click <strong>+ Add Card</strong> above, or just start typing.</p>
+                </div>
+              </template>
+
+              <template x-if="!dailyLoading && filteredNoteCards.length === 0 && noteCards.length > 0">
                 <div class="empty-cards-notice">
-                  <p>No note cards found. Click <strong>+ Add Card</strong> above to create a new topic section.</p>
+                  <p>No cards match this filter.</p>
                 </div>
               </template>
             </div>
