@@ -70,7 +70,7 @@ The **Google Digital Day Planner** is a single-page digital binder application b
 - [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html): Built-in user guide, privacy setup, and desktop window installation instructions.
 - [`gas-app/SetupFolder.html`](file:///home/mike/projects/day-planner/gas-app/SetupFolder.html): First-run onboarding to bind the user's dedicated `Day Planner` Drive folder.
 - [`gas-app/UnitTests.gs`](file:///home/mike/projects/day-planner/gas-app/UnitTests.gs): Server-side self-test diagnostics executable via `POST /self-test`.
-- [`gas-app/appsscript.json`](file:///home/mike/projects/day-planner/gas-app/appsscript.json): Manifest declaring minimal OAuth scopes (`drive.file`, `calendar`, `tasks`, `documents`, `script.scriptapp`).
+- [`gas-app/appsscript.json`](file:///home/mike/projects/day-planner/gas-app/appsscript.json): Manifest declaring minimal OAuth scopes (`drive.file`, `drive.readonly`, `calendar`, `tasks`, `script.scriptapp`). The broad `documents` scope was dropped 2026-09-27 — all Google Docs read/write now goes through the Docs Advanced Service (`Docs.Documents.get/batchUpdate/create`), which accepts `drive.file`, instead of the `DocumentApp` built-in service, which only accepts `documents`.
 
 ---
 
