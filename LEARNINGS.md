@@ -136,3 +136,13 @@
 **Needs improvement:**
 - The Apps Script IDE editor tab silently clobbered `clasp push`ed changes via its own autosave, twice in one session (once restoring the broad scope the manifest had just dropped, once wiping a just-pushed self-test probe) — cost real back-and-forth diagnosing what looked like a scope problem before realizing it was a stale-tab problem. Always confirm the IDE tab is closed before pushing scope/manifest changes via clasp, not just after something looks wrong.
 - Initially framed the WORK mic block as fully superseded by the iframe-Permissions-Policy finding, when the advisor caught that WORK's separate org mic allowlist was still a real, independent constraint — worth re-reading own conclusions for overcorrection before writing them into TODO.md.
+
+## 2026-09-28 — Quote of the Day: Review-Before-Building Caught Three Real Issues
+
+**Worked well:**
+- Asked to act as UX/tech-writer reviewer before implementing, so pushback happened before code existed rather than as a rework: caught that the obvious placement (doc-backed notes card) would have reused the exact corruption-prone code path the tag-leak bug above had just fixed; caught that a `google.script.run` RPC for static bundled content was pure added latency for no benefit; caught that "365 quotes from a book that cites ~40" would have meant fabricating attributions.
+- User's own follow-up asks ("delegate the easing fix", "eval: delegate easing fix across all") were a good fit for the existing AGY-delegation pattern — recognizing that and queuing it rather than doing the 38-declaration retrofit inline kept the diff scoped to what was asked.
+- Live user confirmation ("worked, looked good") after deploy closed the loop same-session — no guessing whether the day-of-year determinism or the collapse toggle actually worked in the real UI.
+
+**Needs improvement:**
+- None significant this session — scope stayed contained once the four rounds of clarifying questions landed.

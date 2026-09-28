@@ -1,5 +1,13 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-28 — Quote of the Day Strip Added to Today Tab (HOME @267, user-confirmed live)
+
+- [x] User asked for a "Quote of the Day" card on the Today tab's Daily Notes panel, styled on Covey's 7 Habits. Reviewed as UX/tech-writer before building: pushed back on three points the user then decided on — (1) don't store it in the doc-backed notes-card system (same corruption-prone code path as the tag-leak bug above), build it as a static client-side element instead; (2) don't route it through a new `google.script.run` RPC for static content — pure client-side day-of-year lookup, no round trip; (3) 7 Habits only cites ~40-50 quotes, not 365 — cycle a smaller honestly-sourced set rather than fabricate 365 unique attributions.
+- [x] Built `src/quotesEngine.js` (`ALL_QUOTE_ENTRIES`, `getQuoteForDateStr`) — 79 accurately-attributed leadership/effectiveness quotes (Covey-cited figures + verifiable business/leadership canon) + 30 original Covey-themed one-liners, 109 total, deterministic by day-of-year (`dayOfYearFromParts`, pure UTC-ms arithmetic, no `toISOString` timezone hazard). Mirrored into `gas-app/Script.html` (no ES modules there) — wording double-checked for drift between the two copies.
+- [x] New collapsible `.quote-card` strip above the notes cards in `index.html`/`gas-app/Index.html`, reusing the existing `card-twistie-btn` chevron-toggle pattern rather than an "X" (which reads as dismiss/delete in this app's convention, not collapse). New scoped `--ease-standard` CSS token added for just this card's transition — user asked to also retrofit the repo's other 38 existing `transition` declarations onto it, but redirected mid-session to defer that as a separate `consult-agy` task instead of bundling it here (tracked in Open below).
+- [x] New test `tests/quotesEngine.test.js` (day-of-year math incl. leap years, determinism, cycle wraparound). `npm test` (163/163) and `npm run lint` clean.
+- [x] Deployed: HOME `/dev`+`/exec` @267 (build 312), user-confirmed "worked, looked good." Not yet pushed to WORK (`npm run push:work` not run this session) — folded into the existing WORK repoint blocker below.
+
 ## 2026-09-28 — Daily Notes `#category` Tag Leak Fixed (HOME @266, WORK v104 pushed)
 
 - [x] User-reported bug: navigating to a future date's Daily Notes panel showed `#category: Work` tags leaking into the visible note body, multiplying with each repeat visit.
