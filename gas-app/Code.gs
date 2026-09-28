@@ -391,7 +391,7 @@ var DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mhoff
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-var DAY_PLANNER_BUILD_NUMBER = 306;
+var DAY_PLANNER_BUILD_NUMBER = 307;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -2062,6 +2062,22 @@ function lastDayOfMonthStr_(monthKey) {
 }
 
 /**
+ * Resolves a Future Planning item's due date: the given day-of-month if valid for that
+ * month, clamped to the month's last day if out of range, or the last day of the month if
+ * no day was given.
+ * @param {string} monthKey Target month key in YYYY-MM format.
+ * @param {number} [day] Optional day-of-month (1-31).
+ * @returns {string} Due date in YYYY-MM-DD format.
+ */
+function resolveFutureItemDueDate_(monthKey, day) {
+  if (!day) return lastDayOfMonthStr_(monthKey);
+  var parts = monthKey.split('-');
+  var lastDay = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10), 0).getDate();
+  var clampedDay = Math.min(Math.max(1, parseInt(day, 10) || 1), lastDay);
+  return monthKey + '-' + String(clampedDay).padStart(2, '0');
+}
+
+/**
  * Reads all Future Planning items (Google Tasks flagged `[Future]`) whose due date falls
  * within a given calendar year, grouped into a 12-month skeleton.
  * @param {number|string} year Target calendar year.
@@ -2074,29 +2090,38 @@ function getFutureMatrixData_(year) {
     matrixData.months[yearStr + '-' + String(m).padStart(2, '0')] = [];
   }
 
-  var resp = Tasks.Tasks.list('@default', {
-    showCompleted: true,
-    showHidden: true,
-    maxResults: 200,
-    dueMin: yearStr + '-01-01T00:00:00.000Z',
-    dueMax: yearStr + '-12-31T23:59:59.999Z'
-  });
-  var items = resp.items || [];
-  for (var i = 0; i < items.length; i++) {
-    var t = items[i];
-    if (!t.due) continue;
-    var meta = decodeTaskMeta(t.notes);
-    if (!meta.future) continue;
-    var monthKey = t.due.substring(0, 7);
-    if (!matrixData.months[monthKey]) matrixData.months[monthKey] = [];
-    matrixData.months[monthKey].push({
-      id: t.id,
-      title: t.title,
-      category: meta.category || 'General',
-      status: deriveTaskStatus(t),
-      dueDate: t.due.substring(0, 10)
-    });
-  }
+  // Tasks API caps maxResults at 100 per page (matches getMasterTasks' own list call), so a
+  // year with more than 100 due-dated tasks (daily + future combined) needs pagination -- a
+  // single unpaginated call would silently truncate and could drop Future items entirely.
+  var pageToken = null;
+  do {
+    var listParams = {
+      showCompleted: true,
+      showHidden: true,
+      maxResults: 100,
+      dueMin: yearStr + '-01-01T00:00:00.000Z',
+      dueMax: yearStr + '-12-31T23:59:59.999Z'
+    };
+    if (pageToken) listParams.pageToken = pageToken;
+    var resp = Tasks.Tasks.list('@default', listParams);
+    var items = resp.items || [];
+    for (var i = 0; i < items.length; i++) {
+      var t = items[i];
+      if (!t.due) continue;
+      var meta = decodeTaskMeta(t.notes);
+      if (!meta.future) continue;
+      var monthKey = t.due.substring(0, 7);
+      if (!matrixData.months[monthKey]) matrixData.months[monthKey] = [];
+      matrixData.months[monthKey].push({
+        id: t.id,
+        title: t.title,
+        category: meta.category || 'General',
+        status: deriveTaskStatus(t),
+        dueDate: t.due.substring(0, 10)
+      });
+    }
+    pageToken = resp.nextPageToken || null;
+  } while (pageToken);
 
   return matrixData;
 }
@@ -2143,10 +2168,10 @@ function addFutureItem(year, monthKey, title, category, day) {
         title: title,
         category: category || 'General',
         status: '•',
-        dueDate: day ? (monthKey + '-' + String(day).padStart(2, '0')) : lastDayOfMonthStr_(monthKey)
+        dueDate: resolveFutureItemDueDate_(monthKey, day)
       };
     }
-    var dueDate = day ? (monthKey + '-' + String(day).padStart(2, '0')) : lastDayOfMonthStr_(monthKey);
+    var dueDate = resolveFutureItemDueDate_(monthKey, day);
     var taskResource = {
       title: title,
       due: dueDate + 'T00:00:00.000Z',
