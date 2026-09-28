@@ -1927,7 +1927,9 @@
       async navigateDay(delta) {
         const d = new Date(`${this.selectedDate}T00:00:00`);
         d.setDate(d.getDate() + delta);
-        this.selectedDate = d.toISOString().slice(0, 10);
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        this.selectedDate = `${d.getFullYear()}-${mm}-${dd}`;
         this.selectedYear = d.getFullYear();
         this.selectedMonth = d.getMonth() + 1;
         await this.loadDayData();
