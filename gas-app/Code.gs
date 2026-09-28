@@ -391,7 +391,7 @@ var DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mhoff
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-var DAY_PLANNER_BUILD_NUMBER = 299;
+var DAY_PLANNER_BUILD_NUMBER = 300;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -2114,11 +2114,35 @@ function saveFutureMatrixData_(year, matrixData) {
   var fileName = 'future-matrix-' + yearStr + '.json';
   var files = targetFolder.getFilesByName(fileName);
   var serialized = JSON.stringify(matrixData, null, 2);
+  var existingFile = files.hasNext() ? files.next() : null;
 
-  if (files.hasNext()) {
-    files.next().setContent(serialized);
-  } else {
-    targetFolder.createFile(fileName, serialized, MimeType.PLAIN_TEXT);
+  // DriveApp's built-in Folder.createFile()/File.setContent() require the broad `drive` OAuth
+  // scope even for a file the app owns -- unlike the Advanced Drive Service (Drive.Files.*),
+  // which honors `drive.file` for files/folders the app created. Prefer the Advanced Service
+  // (same pattern as getValidatedRootFolder's folder creation) and only fall back to DriveApp
+  // if it's unavailable, so this never needs a scope broadening to `drive`.
+  var wroteViaAdvancedService = false;
+  try {
+    if (typeof Drive !== 'undefined' && Drive.Files) {
+      var blob = Utilities.newBlob(serialized, 'text/plain', fileName);
+      if (existingFile && Drive.Files.update) {
+        Drive.Files.update({ title: fileName }, existingFile.getId(), blob);
+        wroteViaAdvancedService = true;
+      } else if (!existingFile && Drive.Files.insert) {
+        Drive.Files.insert({ title: fileName, mimeType: 'text/plain', parents: [{ id: targetFolder.getId() }] }, blob);
+        wroteViaAdvancedService = true;
+      }
+    }
+  } catch (advErr) {
+    logWarn('saveFutureMatrixData_(' + yearStr + ') Advanced Drive Service write failed: ' + advErr.toString());
+  }
+
+  if (!wroteViaAdvancedService) {
+    if (existingFile) {
+      existingFile.setContent(serialized);
+    } else {
+      targetFolder.createFile(fileName, serialized, MimeType.PLAIN_TEXT);
+    }
   }
 
   var cache = CacheService.getUserCache();
