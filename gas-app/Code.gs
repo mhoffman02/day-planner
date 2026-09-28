@@ -85,7 +85,9 @@ function recordServerLog(level, context, message, stack) {
  * @returns {Array<Object>} Paragraph structural elements, each with startIndex/endIndex/paragraph.
  */
 function docsGetBodyElements_(documentId) {
-  var doc = Docs.Documents.get(documentId);
+  var doc = Docs.Documents.get(documentId, {
+    fields: 'body.content(startIndex,endIndex,paragraph(paragraphStyle.namedStyleType,bullet,elements(textRun.content,pageBreak)))'
+  });
   var content = (doc.body && doc.body.content) || [];
   return content.filter(function (el) { return !!el.paragraph; });
 }
@@ -403,7 +405,7 @@ var DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mhoff
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-var DAY_PLANNER_BUILD_NUMBER = 313;
+var DAY_PLANNER_BUILD_NUMBER = 314;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -1091,33 +1093,57 @@ function getDailyData(dateStr) {
       }
     }
 
-    // 2. Fetch Google Tasks
+    // 2. Fetch Google Tasks. Pad the window by a day on each side and re-filter by the exact
+    // date client-side, since Google Tasks stores `due` as UTC midnight -- a narrower UTC
+    // window can silently drop/shift tasks near the local-day boundary. Paginate: the default
+    // page size (~20-100) can be smaller than a user's due-window task count, and an unpaginated
+    // call would silently drop tasks past the first page.
     if (typeof Tasks !== 'undefined') {
       try {
-        var taskList = Tasks.Tasks.list('@default');
-        if (taskList.items) {
-          result.tasks = taskList.items
-            .filter(function(t) { return Boolean(t.due) && t.due.substring(0, 10) === dateStr; })
-            .map(function(t) {
-              var meta = decodeTaskMeta(t.notes);
-              return {
-                id: t.id,
-                title: t.title,
-                status: deriveTaskStatus(t),
-                category: meta.category || 'General',
-                dueDate: t.due ? t.due.substring(0, 10) : dateStr,
-                sourceMasterId: meta.sourceMasterId || null,
-                starred: Boolean(meta.starred),
-                notes: stripDpTokens(t.notes)
-              };
-            });
-        }
+        var dueMinUtc = new Date(dateStr + 'T00:00:00.000Z');
+        dueMinUtc.setUTCDate(dueMinUtc.getUTCDate() - 1);
+        var dueMaxUtc = new Date(dateStr + 'T00:00:00.000Z');
+        dueMaxUtc.setUTCDate(dueMaxUtc.getUTCDate() + 2);
+
+        var dayTaskItems = [];
+        var dayPageToken = null;
+        do {
+          var dayTaskParams = {
+            dueMin: dueMinUtc.toISOString(),
+            dueMax: dueMaxUtc.toISOString(),
+            showCompleted: true,
+            showHidden: true,
+            maxResults: 100
+          };
+          if (dayPageToken) dayTaskParams.pageToken = dayPageToken;
+          var dayTaskResp = Tasks.Tasks.list('@default', dayTaskParams);
+          dayTaskItems = dayTaskItems.concat(dayTaskResp.items || []);
+          dayPageToken = dayTaskResp.nextPageToken || null;
+        } while (dayPageToken);
+
+        result.tasks = dayTaskItems
+          .filter(function(t) { return Boolean(t.due) && t.due.substring(0, 10) === dateStr; })
+          .map(function(t) {
+            var meta = decodeTaskMeta(t.notes);
+            return {
+              id: t.id,
+              title: t.title,
+              status: deriveTaskStatus(t),
+              category: meta.category || 'General',
+              dueDate: t.due ? t.due.substring(0, 10) : dateStr,
+              sourceMasterId: meta.sourceMasterId || null,
+              starred: Boolean(meta.starred),
+              notes: stripDpTokens(t.notes)
+            };
+          });
       } catch (tasksErr) {
         result.warnings.push(logError('Tasks.Tasks.list', tasksErr).error);
       }
     }
 
-    // 3. Fetch or Create Daily Notes Google Doc
+    // 3. Fetch or Create Daily Notes Google Doc. Look up the folder/doc once and reuse the
+    // docId for both the docUrl and the content extraction below, instead of each doing its
+    // own getValidatedRootFolder()+getOrCreateMonthlyNotesDoc_() Drive round trip.
     try {
       if (typeof DriveApp !== 'undefined' && typeof Docs !== 'undefined') {
         var targetFolder = getValidatedRootFolder();
@@ -1131,11 +1157,14 @@ function getDailyData(dateStr) {
           if (docId) {
             result.docUrl = 'https:' + '/' + '/docs.google.com/document/d/' + docId + '/edit';
           }
+          result.noteContent = getOrCreateDailyDocContent(dateStr, docId);
+        } else {
+          result.noteContent = getOrCreateDailyDocContent(dateStr);
         }
       } else {
         result.docUrl = 'https:' + '/' + '/docs.google.com/document/d/mock-local-doc/edit';
+        result.noteContent = getOrCreateDailyDocContent(dateStr);
       }
-      result.noteContent = getOrCreateDailyDocContent(dateStr);
     } catch (notesErr) {
       result.warnings.push(logError('getOrCreateDailyDocContent', notesErr).error);
       result.noteContent = '⚠️ Error loading daily doc notes.';
@@ -1146,6 +1175,207 @@ function getDailyData(dateStr) {
   }
 
   return result;
+}
+
+/** @returns {string} Local YYYY-MM-DD key for a Date, using the script's own local fields (no UTC shift). */
+function localDateKey_(d) {
+  var m = String(d.getMonth() + 1).padStart(2, '0');
+  var day = String(d.getDate()).padStart(2, '0');
+  return d.getFullYear() + '-' + m + '-' + day;
+}
+
+/** @returns {Array<string>} Every YYYY-MM-DD date key from startDateStr to endDateStr, inclusive. */
+function enumerateDateRange_(startDateStr, endDateStr) {
+  var keys = [];
+  var cur = new Date(startDateStr + 'T00:00:00');
+  var end = new Date(endDateStr + 'T00:00:00');
+  while (cur <= end) {
+    keys.push(localDateKey_(cur));
+    cur.setDate(cur.getDate() + 1);
+  }
+  return keys;
+}
+
+/**
+ * Determines which of the requested date keys a Calendar event overlaps, by actual start/end
+ * span rather than just its start date -- otherwise day 2+ of a multi-day event silently
+ * disappears from the range payload.
+ * @param {Object} evt Raw Calendar.Events.list item.
+ * @param {Array<string>} dateKeys Sorted candidate date keys for the requested range.
+ * @returns {Array<string>} The subset of dateKeys this event spans.
+ */
+function eventOverlapDateKeys_(evt, dateKeys) {
+  var startRaw = evt.start && (evt.start.dateTime || evt.start.date);
+  var endRaw = evt.end && (evt.end.dateTime || evt.end.date);
+  if (!startRaw) return [];
+  var isAllDay = !!(evt.start && evt.start.date && !evt.start.dateTime);
+
+  var startDate = new Date(startRaw);
+  var endDate = endRaw ? new Date(endRaw) : startDate;
+  if (isAllDay) {
+    // Google Calendar's all-day end.date is exclusive -- step back a day so the range covers
+    // the last real day the event occupies, not the day after it ends.
+    endDate = new Date(endDate.getTime() - 24 * 60 * 60 * 1000);
+  } else {
+    // A timed event ending exactly at local midnight shouldn't also claim the next calendar day.
+    endDate = new Date(endDate.getTime() - 1);
+  }
+
+  var startKey = localDateKey_(startDate);
+  var endKey = localDateKey_(endDate < startDate ? startDate : endDate);
+  return dateKeys.filter(function(k) { return k >= startKey && k <= endKey; });
+}
+
+/**
+ * Batched, READ-ONLY fetch of Calendar/Tasks/Notes data for every date in
+ * [startDateStr, endDateStr] (inclusive), for client-side prefetch/caching so day-by-day
+ * navigation doesn't cost one getDailyData() round trip (Calendar list + Tasks list + a full
+ * monthly-doc read) per day. Unlike getDailyData, this never creates a monthly notes doc as a
+ * side effect of being called -- a background prefetch scanning past/future months must not
+ * conjure new empty Google Docs. A day whose monthly doc doesn't exist yet, or has no section
+ * for that day, comes back with noteContent === null; the client falls back to the existing
+ * single-day getDailyData(dateStr) (which does create-if-missing) once that day is opened.
+ * @param {string} startDateStr Range start (inclusive), YYYY-MM-DD.
+ * @param {string} endDateStr Range end (inclusive), YYYY-MM-DD.
+ * @returns {{days: Object<string, Object>, warnings: Array<string>}} Per-date payloads keyed by date.
+ */
+function getDailyDataRange(startDateStr, endDateStr) {
+  var warnings = [];
+  var dateKeys = enumerateDateRange_(startDateStr, endDateStr);
+  var days = {};
+  dateKeys.forEach(function(k) {
+    days[k] = { date: k, tasks: [], calendarEvents: [], noteContent: null, docUrl: '' };
+  });
+
+  if (typeof Calendar === 'undefined' || !Calendar.Events || typeof Tasks === 'undefined') {
+    // Local-dev mock mode: no Workspace services available. Return empty-but-shaped buckets so
+    // the client-side mock bridge can seed them from its own mock dataset per date, same as
+    // getDailyData's mock branch does.
+    return { days: days, warnings: warnings };
+  }
+
+  var rangeStart = new Date(startDateStr + 'T00:00:00');
+  var rangeEndExclusive = new Date(endDateStr + 'T00:00:00');
+  rangeEndExclusive.setDate(rangeEndExclusive.getDate() + 1);
+
+  // 1. Calendar events, paginated, bucketed by day overlap.
+  try {
+    var calItems = [];
+    var calPageToken = null;
+    do {
+      var calParams = {
+        timeMin: rangeStart.toISOString(),
+        timeMax: rangeEndExclusive.toISOString(),
+        singleEvents: true,
+        maxResults: 250,
+        conferenceDataVersion: 1,
+        fields: 'items(id,summary,start,end,location,description,hangoutLink,conferenceData,htmlLink,extendedProperties),nextPageToken'
+      };
+      if (calPageToken) calParams.pageToken = calPageToken;
+      var calResp = Calendar.Events.list('primary', calParams);
+      calItems = calItems.concat(calResp.items || []);
+      calPageToken = calResp.nextPageToken || null;
+    } while (calPageToken);
+
+    calItems.forEach(function(evt) {
+      var mapped = {
+        id: evt.id,
+        title: evt.summary || '(untitled)',
+        startTime: evt.start && (evt.start.dateTime || evt.start.date),
+        endTime: evt.end && (evt.end.dateTime || evt.end.date),
+        location: evt.location || '',
+        description: evt.description || '',
+        meetLink: extractMeetLinkFromEvent_(evt),
+        htmlLink: evt.htmlLink || null,
+        syncTaskId: (evt.extendedProperties && evt.extendedProperties.shared && evt.extendedProperties.shared.gasTaskId) || null
+      };
+      eventOverlapDateKeys_(evt, dateKeys).forEach(function(k) {
+        if (days[k]) days[k].calendarEvents.push(mapped);
+      });
+    });
+  } catch (calErr) {
+    warnings.push(logError('getDailyDataRange Calendar.Events.list', calErr).error);
+  }
+
+  // 2. Tasks, paginated, padded UTC window, bucketed by exact due date.
+  try {
+    var dueMinUtc = new Date(startDateStr + 'T00:00:00.000Z');
+    dueMinUtc.setUTCDate(dueMinUtc.getUTCDate() - 1);
+    var dueMaxUtc = new Date(endDateStr + 'T00:00:00.000Z');
+    dueMaxUtc.setUTCDate(dueMaxUtc.getUTCDate() + 2);
+
+    var taskItems = [];
+    var taskPageToken = null;
+    do {
+      var taskParams = {
+        dueMin: dueMinUtc.toISOString(),
+        dueMax: dueMaxUtc.toISOString(),
+        showCompleted: true,
+        showHidden: true,
+        maxResults: 100
+      };
+      if (taskPageToken) taskParams.pageToken = taskPageToken;
+      var taskResp = Tasks.Tasks.list('@default', taskParams);
+      taskItems = taskItems.concat(taskResp.items || []);
+      taskPageToken = taskResp.nextPageToken || null;
+    } while (taskPageToken);
+
+    taskItems.forEach(function(t) {
+      if (!t.due) return;
+      var dueDateKey = t.due.substring(0, 10);
+      if (!days[dueDateKey]) return;
+      var meta = decodeTaskMeta(t.notes);
+      days[dueDateKey].tasks.push({
+        id: t.id,
+        title: t.title,
+        status: deriveTaskStatus(t),
+        category: meta.category || 'General',
+        dueDate: dueDateKey,
+        sourceMasterId: meta.sourceMasterId || null,
+        starred: Boolean(meta.starred),
+        notes: stripDpTokens(t.notes)
+      });
+    });
+  } catch (tasksErr) {
+    warnings.push(logError('getDailyDataRange Tasks.Tasks.list', tasksErr).error);
+  }
+
+  // 3. Notes: read-only per-month doc lookup (never create), one Docs.Documents.get per month
+  // spanned by the range, split into per-day sections in memory.
+  if (typeof DriveApp !== 'undefined' && typeof Docs !== 'undefined') {
+    try {
+      var targetFolder = getValidatedRootFolder();
+      if (targetFolder) {
+        var monthKeys = {};
+        dateKeys.forEach(function(k) { monthKeys[k.substring(0, 7)] = true; });
+        var monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+        Object.keys(monthKeys).forEach(function(monthKey) {
+          var monthParts = monthKey.split('-');
+          var monthName = monthNames[parseInt(monthParts[1], 10) - 1];
+          var year = parseInt(monthParts[0], 10);
+          var docName = 'Day Planner Notes - ' + monthName + ' ' + year;
+
+          var files = targetFolder.getFilesByName(docName);
+          if (!files.hasNext()) return; // read-only: never create a month's doc during a prefetch
+          var docId = files.next().getId();
+          var docUrl = 'https:' + '/' + '/docs.google.com/document/d/' + docId + '/edit';
+          var elements = docsGetBodyElements_(docId);
+
+          dateKeys.forEach(function(k) {
+            if (k.substring(0, 7) !== monthKey) return;
+            days[k].docUrl = docUrl;
+            var extracted = extractDaySectionText_(elements, k);
+            if (extracted !== null) days[k].noteContent = extracted;
+          });
+        });
+      }
+    } catch (notesErr) {
+      warnings.push(logError('getDailyDataRange notes', notesErr).error);
+    }
+  }
+
+  return { days: days, warnings: warnings };
 }
 
 /**
@@ -1221,65 +1451,78 @@ function isAnyDayHeadingElement_(element) {
 }
 
 /**
+ * Locates and extracts a single day's section text from an already-fetched array of doc body
+ * elements (see docsGetBodyElements_). Shared by getOrCreateDailyDocContent (single day) and
+ * getDailyDataRange (many days against one already-read monthly doc, so this never re-reads
+ * the doc per day).
+ * @param {Array<Object>} elements Doc body paragraph elements for one monthly doc.
+ * @param {string} dateStr Target date in YYYY-MM-DD format.
+ * @returns {string|null} Card content text, or null if this date has no section in the doc.
+ */
+function extractDaySectionText_(elements, dateStr) {
+  var parts = dateStr.split('-');
+  var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 12, 0, 0);
+  var dayFormatted = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+
+  var dayHeadingIndex = -1;
+  for (var i = 0; i < elements.length; i++) {
+    if (isDayHeadingElement_(elements[i], dateStr, dayFormatted)) {
+      dayHeadingIndex = i;
+      break;
+    }
+  }
+  if (dayHeadingIndex === -1) return null;
+
+  var contentLines = [];
+  for (var j = dayHeadingIndex + 1; j < elements.length; j++) {
+    var el = elements[j];
+    if (isAnyDayHeadingElement_(el)) break;
+    if (docsElementIsPageBreak_(el)) continue;
+    var heading = docsElementHeading_(el);
+    var text = docsElementText_(el);
+    if (heading === 'HEADING_3') {
+      contentLines.push('### ' + text);
+    } else if (docsElementIsListItem_(el)) {
+      contentLines.push('- ' + text);
+    } else if (text.trim()) {
+      contentLines.push(text);
+    }
+  }
+  return contentLines.length > 0 ? contentLines.join('\n') : null;
+}
+
+/**
  * Gets or creates the Monthly Note Google Doc (12 per year) and extracts/appends daily note content.
  * Script-efficient and formatted for human readability & printing.
  * @param {string} dateStr Target date string in YYYY-MM-DD format.
+ * @param {string} [knownDocId] Pre-resolved doc id (e.g. from a caller that already looked up
+ *   the monthly doc for this date), skipping the redundant folder/file Drive lookup below.
  * @returns {string} Text content of daily note section.
  */
-function getOrCreateDailyDocContent(dateStr) {
+function getOrCreateDailyDocContent(dateStr, knownDocId) {
   if (typeof DriveApp === 'undefined' || typeof Docs === 'undefined') {
     return '### #index [Architecture] System Design\nFinalized 3-column binder layout with Alpine.js and clean CSS.\n\n### #index [Finance] Budget Sync\n- Reviewed Q3 budget and Google Workspace API sync.\n- Approved GCP allocation.';
   }
 
   try {
-    var targetFolder = getValidatedRootFolder();
-    if (!targetFolder) {
-      return '### #index [Architecture] System Design\nFinalized 3-column binder layout with Alpine.js and clean CSS.';
+    var docId = knownDocId;
+    if (!docId) {
+      var targetFolder = getValidatedRootFolder();
+      if (!targetFolder) {
+        return '### #index [Architecture] System Design\nFinalized 3-column binder layout with Alpine.js and clean CSS.';
+      }
+
+      var parts = dateStr.split('-');
+      var docDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 12, 0, 0);
+      var monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      var monthName = monthNames[docDate.getMonth()];
+      var year = docDate.getFullYear();
+      var docName = 'Day Planner Notes - ' + monthName + ' ' + year;
+      docId = getOrCreateMonthlyNotesDoc_(targetFolder, docName, monthName, year);
     }
-
-    var parts = dateStr.split('-');
-    var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 12, 0, 0);
-    var monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    var monthName = monthNames[d.getMonth()];
-    var year = d.getFullYear();
-    var docName = 'Day Planner Notes - ' + monthName + ' ' + year;
-
-    var docId = getOrCreateMonthlyNotesDoc_(targetFolder, docName, monthName, year);
     var elements = docsGetBodyElements_(docId);
-    var dayFormatted = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-
-    var dayHeadingIndex = -1;
-    for (var i = 0; i < elements.length; i++) {
-      if (isDayHeadingElement_(elements[i], dateStr, dayFormatted)) {
-        dayHeadingIndex = i;
-        break;
-      }
-    }
-
-    if (dayHeadingIndex !== -1) {
-      var contentLines = [];
-      for (var j = dayHeadingIndex + 1; j < elements.length; j++) {
-        var el = elements[j];
-        if (isAnyDayHeadingElement_(el)) {
-          break;
-        }
-        if (docsElementIsPageBreak_(el)) continue;
-        var heading = docsElementHeading_(el);
-        var text = docsElementText_(el);
-        if (heading === 'HEADING_3') {
-          contentLines.push('### ' + text);
-        } else if (docsElementIsListItem_(el)) {
-          contentLines.push('- ' + text);
-        } else if (text.trim()) {
-          contentLines.push(text);
-        }
-      }
-      if (contentLines.length > 0) {
-        return contentLines.join('\n');
-      }
-    }
-
-    return '### #index [General] Daily Notes for ' + dateStr + '\n- Initialized daily topic card.';
+    var extracted = extractDaySectionText_(elements, dateStr);
+    return extracted !== null ? extracted : ('### #index [General] Daily Notes for ' + dateStr + '\n- Initialized daily topic card.');
   } catch (err) {
     logError('getOrCreateDailyDocContent(' + dateStr + ')', err);
     return '### #index [General] Daily Notes for ' + dateStr;
@@ -2491,6 +2734,7 @@ global.syncWorkspaceChanges = syncWorkspaceChanges;          // time-driven trig
 global.include = include;                                    // template: Index.html, SetupFolder.html
 global.validateAndSaveFolderUrl = validateAndSaveFolderUrl;  // google.script.run: SetupFolder.html
 global.getDailyData = getDailyData;                          // google.script.run: Script.html
+global.getDailyDataRange = getDailyDataRange;                // google.script.run: Script.html
 global.getMasterTasks = getMasterTasks;                      // google.script.run: Script.html
 global.addDailyTask = addDailyTask;                          // google.script.run: Script.html
 global.updateDailyTask = updateDailyTask;                    // google.script.run: Script.html
@@ -2544,6 +2788,7 @@ global._ensure2WaySyncTriggerInstalledInternal = ensure2WaySyncTriggerInstalled;
 global._includeInternal = include;
 global._validateAndSaveFolderUrlInternal = validateAndSaveFolderUrl;
 global._getDailyDataInternal = getDailyData;
+global._getDailyDataRangeInternal = getDailyDataRange;
 global._getMasterTasksInternal = getMasterTasks;
 global._addDailyTaskInternal = addDailyTask;
 global._updateDailyTaskInternal = updateDailyTask;
@@ -2640,6 +2885,10 @@ function validateAndSaveFolderUrl(url) {
 
 function getDailyData(dateStr) {
   return (typeof _getDailyDataInternal === 'function') ? _getDailyDataInternal(dateStr) : (globalThis._getDailyDataInternal ? globalThis._getDailyDataInternal(dateStr) : null);
+}
+
+function getDailyDataRange(startDateStr, endDateStr) {
+  return (typeof _getDailyDataRangeInternal === 'function') ? _getDailyDataRangeInternal(startDateStr, endDateStr) : (globalThis._getDailyDataRangeInternal ? globalThis._getDailyDataRangeInternal(startDateStr, endDateStr) : null);
 }
 
 function getMasterTasks(monthYearStr) {
