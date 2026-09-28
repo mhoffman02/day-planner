@@ -88,7 +88,7 @@ const DICTATION_POPUP_HTML = `<!doctype html>
   <div class="titlebar">
     <span class="titlebar-label">Voice typing</span>
     <button class="titlebar-icon-btn" id="helpBtn" type="button" aria-label="Voice typing help" title="Voice typing help">
-      <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>
     </button>
     <button class="titlebar-icon-btn" id="closeBtn" type="button" aria-label="Close">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
@@ -156,7 +156,9 @@ const DICTATION_POPUP_HTML = `<!doctype html>
 
   helpBtn.addEventListener('click', function () {
     helpOpen = !helpOpen;
-    helpPanel.style.maxHeight = helpOpen ? (helpPanelInner.scrollHeight + 'px') : '0px';
+    // 25% taller than the panel own natural content height -- otherwise the max-height
+    // transition and the resize below can settle a beat apart and clip a scrollbar in briefly.
+    helpPanel.style.maxHeight = helpOpen ? Math.round(helpPanelInner.scrollHeight * 1.25) + 'px' : '0px';
     // Wait a frame so layout reflects the new max-height before measuring the page total.
     requestAnimationFrame(function () {
       var targetOuterH = document.body.scrollHeight + chromeH;
