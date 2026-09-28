@@ -820,6 +820,25 @@
       return this._runRpc('getDailyData', dateStr);
     }
 
+    async getDailyDataRange(startDateStr, endDateStr) {
+      if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+        const days = {};
+        let cursor = new Date(startDateStr + 'T00:00:00');
+        const end = new Date(endDateStr + 'T00:00:00');
+        while (cursor <= end) {
+          const y = cursor.getFullYear();
+          const mm = String(cursor.getMonth() + 1).padStart(2, '0');
+          const dd = String(cursor.getDate()).padStart(2, '0');
+          const dateStr = y + '-' + mm + '-' + dd;
+          days[dateStr] = await this.getDailyData(dateStr);
+          cursor.setDate(cursor.getDate() + 1);
+        }
+        return { days: days, warnings: [] };
+      }
+
+      return this._runRpc('getDailyDataRange', startDateStr, endDateStr);
+    }
+
     async getMasterTasks(monthYearStr) {
       if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
         return this.mockData.masterTasks;

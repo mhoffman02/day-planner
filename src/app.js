@@ -16,6 +16,7 @@ import { executeUniversalSearch, flattenSearchResults } from './searchEngine.js'
 import { formatEventDescriptionHtml, extractMeetLink } from './calendarEngine.js';
 import { parseIndexEntriesFromNote } from './indexParser.js';
 import { getQuoteForDateStr } from './quotesEngine.js';
+import { getCached, setCached, invalidateCached, primeFromRange } from './dailyDataCache.js';
 window.GASBridge = GASBridge;
 window.Alpine = Alpine;
 
@@ -23,6 +24,21 @@ const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
+
+// Pure local year/month/day date arithmetic (never .toISOString() on a local date), per this
+// repo's timezone-safety rule. Returns YYYY-MM-DD keys from centerDateStr - radiusDays through
+// centerDateStr + radiusDays, inclusive, in ascending order.
+function buildDateWindow(centerDateStr, radiusDays) {
+  const [y, m, d] = centerDateStr.split('-').map(Number);
+  const dates = [];
+  for (let delta = -radiusDays; delta <= radiusDays; delta++) {
+    const dt = new Date(y, m - 1, d + delta);
+    const mm = String(dt.getMonth() + 1).padStart(2, '0');
+    const dd = String(dt.getDate()).padStart(2, '0');
+    dates.push(`${dt.getFullYear()}-${mm}-${dd}`);
+  }
+  return dates;
+}
 
 // Dictation-scratchpad (Google Doc STT fallback) tracking, kept outside Alpine's reactive
 // data since sttScratchTargetEl holds a live DOM element reference, not plain state.
@@ -1196,28 +1212,84 @@ Alpine.data('plannerApp', () => ({
         }
       },
 
+      applyDailyData(data) {
+        this.dailyTasks = data.tasks || [];
+        this.calendarEvents = data.calendarEvents || [];
+        this.dailyNote = data.noteContent || '';
+        this.dailyDocUrl = data.docUrl || '';
+        this.noteCards = this.parseDailyNoteToCards(this.dailyNote);
+        this.buildScheduleGrid();
+        this.buildIndexRecords();
+      },
+
+      // Snapshots the currently-open day's live task/event state into the cache. Called after any
+      // in-place mutation of this.dailyTasks/this.calendarEvents so a subsequent revisit of this
+      // date (or a background prefetch elsewhere) doesn't read back stale pre-edit data.
+      syncDailyCacheFromLiveState(dateStr = this.selectedDate) {
+        if (dateStr !== this.selectedDate) return;
+        const existing = getCached(dateStr) || { noteContent: this.dailyNote, docUrl: this.dailyDocUrl };
+        setCached(dateStr, {
+          ...existing,
+          tasks: this.dailyTasks,
+          calendarEvents: this.calendarEvents,
+          docUrl: this.dailyDocUrl
+        });
+      },
+
+      // Stale-while-revalidate: render instantly from cache if present, then always fetch fresh
+      // data in the background to both update the view (if still on this date) and refill the
+      // cache. Guards every apply against the user having navigated to a different date while
+      // this fetch was in flight, since google.script.run responses can arrive out of order.
       async loadDayData() {
-        this.dailyLoading = true;
+        const dateStr = this.selectedDate;
+        const cached = getCached(dateStr);
+        if (cached) {
+          this.applyDailyData(cached);
+        }
+        this.dailyLoading = !cached;
         try {
-          const data = await this.bridge.getDailyData(this.selectedDate);
+          const data = await this.bridge.getDailyData(dateStr);
+          setCached(dateStr, data);
+          if (dateStr !== this.selectedDate) return; // user navigated away; cached for next visit
           if (data.error) {
             this.errorMessage = data.error;
           }
           if (data.warnings && data.warnings.length > 0) {
             this.errorMessage = data.warnings.join(' | ');
           }
-          this.dailyTasks = data.tasks || [];
-          this.calendarEvents = data.calendarEvents || [];
-          this.dailyNote = data.noteContent || '';
-          this.dailyDocUrl = data.docUrl || '';
-          this.noteCards = this.parseDailyNoteToCards(this.dailyNote);
-          this.buildScheduleGrid();
-          this.buildIndexRecords();
+          this.applyDailyData(data);
         } catch (err) {
           console.error('🔥 loadDayData error:', err);
-          this.errorMessage = `Error loading daily workspace: ${err.message || err.toString()}`;
+          if (dateStr === this.selectedDate && !cached) {
+            this.errorMessage = `Error loading daily workspace: ${err.message || err.toString()}`;
+          }
         } finally {
-          this.dailyLoading = false;
+          if (dateStr === this.selectedDate) this.dailyLoading = false;
+        }
+        this.scheduleDailyRangePrefetch();
+      },
+
+      // Debounced background prefetch of the +/-14-day window around the current day, so
+      // repeated day-by-day navigation hits the cache instead of a fresh round trip each time.
+      // Debounced so rapid arrow-key/click navigation doesn't fire one range call per day.
+      scheduleDailyRangePrefetch() {
+        if (this.rangePrefetchTimer) clearTimeout(this.rangePrefetchTimer);
+        const centerDate = this.selectedDate;
+        this.rangePrefetchTimer = setTimeout(() => {
+          this.runDailyRangePrefetch(centerDate);
+        }, 500);
+      },
+
+      async runDailyRangePrefetch(centerDateStr) {
+        if (!this.bridge || typeof this.bridge.getDailyDataRange !== 'function') return;
+        const windowDates = buildDateWindow(centerDateStr, 14);
+        const missing = windowDates.filter(d => !getCached(d));
+        if (missing.length === 0) return;
+        try {
+          const result = await this.bridge.getDailyDataRange(windowDates[0], windowDates[windowDates.length - 1]);
+          if (result && result.days) primeFromRange(result.days);
+        } catch (err) {
+          console.error('🔥 background range prefetch failed:', err);
         }
       },
 
@@ -2511,6 +2583,11 @@ Alpine.data('plannerApp', () => ({
         // of the day the user was actually typing on.
         const dateStr = this.selectedDate;
         const noteContent = this.dailyNote;
+        // Write through into the cache at edit time (optimistic), not on save success -- so
+        // navigating back to this date inside the 1200ms debounce window shows the just-typed
+        // content instead of the stale pre-edit cache entry.
+        const existingCacheEntry = getCached(dateStr) || { tasks: this.dailyTasks, calendarEvents: this.calendarEvents, docUrl: this.dailyDocUrl };
+        setCached(dateStr, { ...existingCacheEntry, noteContent });
         this.noteSaveTimer = setTimeout(async () => {
           if (!this.bridge || typeof this.bridge.saveDailyDocCards !== 'function') return;
           try {
@@ -2661,6 +2738,12 @@ Alpine.data('plannerApp', () => ({
           if (transferred) {
             if (targetDate === this.selectedDate) {
               this.dailyTasks.push(transferred);
+              this.syncDailyCacheFromLiveState();
+            } else {
+              // Forwarding onto a date that isn't currently open touches that day's task list
+              // without us having its full live state here -- invalidate rather than guess, so
+              // the next visit (or a background prefetch) re-fetches instead of reading stale data.
+              invalidateCached(targetDate);
             }
             const updatedMaster = await this.bridge.markMasterTaskMoved(mTask.id, targetDate, transferred.id);
             if (updatedMaster) {
@@ -2837,6 +2920,7 @@ Alpine.data('plannerApp', () => ({
           this.dailyTasks.push(newTask);
           this.newTaskTitle = '';
           this.newTaskCategory = '';
+          this.syncDailyCacheFromLiveState();
           await this.trigger2WaySync();
         } catch (err) {
           console.error('🔥 addDailyTask error:', err);
@@ -2852,6 +2936,7 @@ Alpine.data('plannerApp', () => ({
           if (idx !== -1) {
             this.dailyTasks.splice(idx, 1);
           }
+          this.syncDailyCacheFromLiveState();
           if (this.bridge && typeof this.bridge.deleteDailyTask === 'function') {
             await this.bridge.deleteDailyTask(this.selectedDate, task.id);
           }
@@ -2894,6 +2979,8 @@ Alpine.data('plannerApp', () => ({
           }
           if (!updated) {
             task.starred = previous;
+          } else if (!isMaster) {
+            this.syncDailyCacheFromLiveState();
           }
         } catch (err) {
           task.starred = previous;
@@ -3021,6 +3108,7 @@ Alpine.data('plannerApp', () => ({
           console.error('🔥 setTaskStatus persist error:', err);
           this.errorMessage = `Could not save task status: ${err.message || err.toString()}`;
         }
+        this.syncDailyCacheFromLiveState();
         await this.trigger2WaySync();
       },
 

@@ -200,6 +200,38 @@ export class GASBridge {
   }
 
   /**
+   * Batched, read-only fetch of tasks/calendar/notes for every date in [startDateStr, endDateStr]
+   * (inclusive), used for background prefetch/caching so day-by-day navigation doesn't cost one
+   * getDailyData() round trip per day. Never creates a monthly notes doc as a side effect.
+   * @param {string} startDateStr Range start (inclusive), YYYY-MM-DD.
+   * @param {string} endDateStr Range end (inclusive), YYYY-MM-DD.
+   * @returns {Promise<{days: Object<string, object>, warnings: Array<string>}>} Per-date payloads.
+   */
+  async getDailyDataRange(startDateStr, endDateStr) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      const days = {};
+      let cursor = new Date(`${startDateStr}T00:00:00`);
+      const end = new Date(`${endDateStr}T00:00:00`);
+      while (cursor <= end) {
+        const y = cursor.getFullYear();
+        const mm = String(cursor.getMonth() + 1).padStart(2, '0');
+        const dd = String(cursor.getDate()).padStart(2, '0');
+        const dateStr = `${y}-${mm}-${dd}`;
+        days[dateStr] = await this.getDailyData(dateStr);
+        cursor.setDate(cursor.getDate() + 1);
+      }
+      return { days, warnings: [] };
+    }
+
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .getDailyDataRange(startDateStr, endDateStr);
+    });
+  }
+
+  /**
    * Fetches monthly master task list.
    * @param {string} monthYearStr Target month/year identifier string.
    * @returns {Promise<Array<object>>} List of master task items promise.
