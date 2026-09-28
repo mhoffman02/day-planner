@@ -584,8 +584,11 @@ Alpine.data('plannerApp', () => ({
               this.toggleDictation(e.target);
             } else if (e.target && e.target.id && e.target.id.indexOf('card-line-') === 0) {
               this.toggleDictation(e.target);
+            } else if (this.eventModalOpen) {
+              const el = document.getElementById('evtDescInput');
+              if (el) this.toggleDictation(el);
             } else {
-              this.sttError = 'Click into a note line or the appointment Notes field first, then press Ctrl+Alt+S.';
+              this.startDictationOnDefaultLine();
             }
             return;
           }
@@ -1807,15 +1810,45 @@ Alpine.data('plannerApp', () => ({
 
       sttMicTitle() {
         if (this.sttError) return this.sttError;
-        if (this.sttBlocked) {
-          return 'Mic blocked here — use “Dictate in Google Doc” below instead.';
+        if (this.sttBlocked) return 'Mic blocked — use doc link below (Ctrl+Alt+S)';
+        if (!this.sttSupported) return 'Dictation not supported here (Ctrl+Alt+S)';
+        return this.sttListening ? 'Stop dictation (Ctrl+Alt+S)' : 'Dictate (Ctrl+Alt+S)';
+      },
+
+      // Ctrl+Alt+S default target when nothing is focused: rather than block with an error,
+      // behave like pressing Enter on the last line of the most recent note card -- carry
+      // forward its bullet/checkbox/numbered-list prefix (same convention as handleLineKeydown's
+      // Enter handling) onto a fresh line, then dictate into that line. Reuses an existing
+      // blank trailing line instead of adding another one.
+      startDictationOnDefaultLine() {
+        if (!Array.isArray(this.noteCards) || this.noteCards.length === 0) {
+          this.sttError = 'Add a note card first, then Ctrl+Alt+S.';
+          return;
         }
-        if (!this.sttSupported) {
-          return 'Dictation isn’t available in this browser. On iPhone/iPad, tap the microphone key on the keyboard.';
+        const card = this.noteCards[this.noteCards.length - 1];
+        const lines = this.cardLines(card);
+        const lastLine = lines[lines.length - 1] || '';
+
+        let targetIdx = lines.length - 1;
+        if (lastLine !== '') {
+          let prefix = '';
+          if (lastLine.startsWith('- ')) prefix = '- ';
+          else if (/^[☐☒☑]\s/.test(lastLine)) prefix = '☐ ';
+          else {
+            const numMatch = /^(\d+)\.\s/.exec(lastLine);
+            if (numMatch) prefix = `${parseInt(numMatch[1], 10) + 1}. `;
+          }
+          lines.push(prefix);
+          card.content = lines.join('\n');
+          targetIdx = lines.length - 1;
+          this.syncCardsToDailyNote();
         }
-        return this.sttListening
-          ? 'Listening in the Voice Typing popup… click to close it. (Ctrl+Alt+S)'
-          : 'Click to dictate into this line (opens a small Voice Typing popup; may require network access). (Ctrl+Alt+S)';
+
+        this.startEditingLine(card, targetIdx);
+        setTimeout(() => {
+          const el = document.getElementById(`card-line-${card.id}-${targetIdx}`);
+          if (el) this.toggleDictation(el);
+        }, 60);
       },
 
       toggleCardDictation(card) {
