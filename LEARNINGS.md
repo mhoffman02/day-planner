@@ -1,5 +1,15 @@
 # Learnings
 
+## 2026-09-28 (afternoon) — Daily-Nav Cache, Architect Review, Branch-Divergence Question
+
+**Worked well:**
+- Calling `advisor()` right after shipping the new cache, unprompted by any failure — it caught two real correctness bugs (a data-loss race between background revalidation and an in-progress local edit; a prefetch short-circuit check that never actually fired) that had already passed `npm test`, lint, and a live CDP smoke test. Green checks confirmed the happy path, not the race conditions the advisor's transcript review caught by reasoning about timing.
+- Verifying the advisor's more surprising claims against primary sources before repeating them: `git merge-base`/`git log -S` settled definitively that `pure-gas-main` and `master` are two never-reconciled branches (not "a feature was removed"), and re-reading my own test sequence caught that the advisor's specific "IDB never hangs" claim conflated two different incidents — one genuine unexplained 120s hang, one self-inflicted artifact from an ad-hoc test probe. Neither the advisor's first framing nor my own first claim survived a primary-source check unedited.
+- `gas-app/Script.html` hand-duplicates the entire Alpine controller separately from `src/app.js` (like `Styles.html` does for `styles.css`) — easy to forget mid-feature since most of the session's edits target `src/`. Caught only by testing live against the actual deployed HOME app, not mock mode, after the first deploy showed old behavior despite `src/app.js` being correct.
+
+**Needs improvement:**
+- A live-testing script for the edit-race fix intentionally wrote placeholder text into a real day's Google Doc note and triggered a real save, to prove the fix worked. It did (confirmed the edit survived), but the test had a real side effect on production data that needed disclosure and cleanup. Future live-data race tests should target a scratch date that's provably never held real content, or use a save-intercepting flag instead of a real `saveDailyDocCards` round trip.
+
 ## 2026-09-28 — Daily Notes `#category` Tag Leak Fixed
 
 **Worked well:**
