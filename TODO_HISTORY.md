@@ -6,6 +6,7 @@
 - [x] **2. User go-ahead**: user chose to keep `drive.readonly` — a Picker-based narrowing would cost real UX (no more paste-a-link-and-get-the-title) and new client code for a scope that's already read-only/title-only in practice.
 - [x] **3. N/A**: no scope change approved, so no port/promote pipeline needed. Full rationale in `PLAN-HISTORY.md`'s Phase 19 entry.
 - [x] Fixed stale docs found during the audit: `gas-app/About.html` overclaimed zero Drive visibility outside its own folder; `README.txt` omitted `drive.readonly` from the scope list.
+- [x] **WORK deployment repointed to version 92** by `michael.hoffman@gsa.gov` and confirmed live — carries the Phase 19 doc fixes.
 
 ## 2026-09-28 — WORK Parity Verified, Voice Typing Popup Polish, Notes Empty-State, Monthly Calendar Today-Highlight, About.html Rewrite (HOME @258, WORK @91)
 
