@@ -697,6 +697,130 @@
     return results;
   }
 
+  // Daily data cache, mirrored from src/dailyDataCache.js. Keep both copies in sync. Memory-first
+  // Map cache keyed by date, with IndexedDB persistence behind it, probed lazily and falling back
+  // to memory-only (with a loud console warning) if IndexedDB is blocked or hangs -- confirmed
+  // live inside this app’s own sandboxed userCodeAppPanel iframe, IndexedDB.open can silently
+  // never fire onsuccess or onerror, so a bounded timeout is required, not just an error handler.
+  const DP_CACHE_DB_NAME = 'day-planner-cache';
+  const DP_CACHE_DB_VERSION = 1;
+  const DP_CACHE_STORE_NAME = 'dailyData';
+  const DP_CACHE_IDB_OPEN_TIMEOUT_MS = 2000;
+
+  let dpCacheMemory = new Map();
+  let dpCacheDbPromise = null;
+
+  function dpCacheCloneForStorage(value) {
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  function dpCacheOpenDb() {
+    if (dpCacheDbPromise) return dpCacheDbPromise;
+    dpCacheDbPromise = new Promise((resolve) => {
+      if (typeof indexedDB === 'undefined') {
+        resolve(null);
+        return;
+      }
+
+      let settled = false;
+      const timeoutId = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        console.warn('[dailyDataCache] IndexedDB open timed out after ' + DP_CACHE_IDB_OPEN_TIMEOUT_MS + 'ms (likely blocked in this iframe/context); falling back to memory-only cache for this session.');
+        resolve(null);
+      }, DP_CACHE_IDB_OPEN_TIMEOUT_MS);
+
+      try {
+        const req = indexedDB.open(DP_CACHE_DB_NAME, DP_CACHE_DB_VERSION);
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          if (!db.objectStoreNames.contains(DP_CACHE_STORE_NAME)) {
+            db.createObjectStore(DP_CACHE_STORE_NAME, { keyPath: 'date' });
+          }
+        };
+        req.onsuccess = () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeoutId);
+          const db = req.result;
+          db.onversionchange = () => { db.close(); };
+          resolve(db);
+        };
+        req.onerror = () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeoutId);
+          console.warn('[dailyDataCache] IndexedDB open failed, falling back to memory-only cache for this session:', req.error);
+          resolve(null);
+        };
+      } catch (err) {
+        if (!settled) {
+          settled = true;
+          clearTimeout(timeoutId);
+          console.warn('[dailyDataCache] IndexedDB open threw, falling back to memory-only cache for this session:', err);
+          resolve(null);
+        }
+      }
+    });
+    return dpCacheDbPromise;
+  }
+
+  function dpGetCached(dateStr) {
+    return dpCacheMemory.get(dateStr) || null;
+  }
+
+  function dpSetCached(dateStr, data) {
+    const entry = dpCacheCloneForStorage(Object.assign({}, data, { date: dateStr }));
+    dpCacheMemory.set(dateStr, entry);
+    dpCacheOpenDb().then((db) => {
+      if (!db) return;
+      try {
+        const tx = db.transaction(DP_CACHE_STORE_NAME, 'readwrite');
+        tx.objectStore(DP_CACHE_STORE_NAME).put(entry);
+      } catch (err) {
+        console.warn('[dailyDataCache] IDB put failed for', dateStr, err);
+      }
+    });
+  }
+
+  function dpInvalidateCached(dateStr) {
+    dpCacheMemory.delete(dateStr);
+    dpCacheOpenDb().then((db) => {
+      if (!db) return;
+      try {
+        const tx = db.transaction(DP_CACHE_STORE_NAME, 'readwrite');
+        tx.objectStore(DP_CACHE_STORE_NAME).delete(dateStr);
+      } catch (err) {
+        console.warn('[dailyDataCache] IDB delete failed for', dateStr, err);
+      }
+    });
+  }
+
+  function dpPrimeFromRange(days) {
+    Object.keys(days || {}).forEach((dateStr) => {
+      if (dpCacheMemory.has(dateStr)) return;
+      const entry = days[dateStr];
+      if (!entry || entry.noteContent === null) return;
+      dpSetCached(dateStr, entry);
+    });
+  }
+
+  // Pure local year/month/day date arithmetic (never toISOString on a local date), per this
+  // repo’s timezone-safety rule. Returns YYYY-MM-DD keys from centerDateStr - radiusDays through
+  // centerDateStr + radiusDays, inclusive, in ascending order.
+  function dpBuildDateWindow(centerDateStr, radiusDays) {
+    const parts = centerDateStr.split('-').map(Number);
+    const y = parts[0], m = parts[1], d = parts[2];
+    const dates = [];
+    for (let delta = -radiusDays; delta <= radiusDays; delta++) {
+      const dt = new Date(y, m - 1, d + delta);
+      const mm = String(dt.getMonth() + 1).padStart(2, '0');
+      const dd = String(dt.getDate()).padStart(2, '0');
+      dates.push(dt.getFullYear() + '-' + mm + '-' + dd);
+    }
+    return dates;
+  }
+
   class GASBridge {
     constructor(useMock = false) {
       this.useMock = useMock;
@@ -2118,28 +2242,84 @@
         }
       },
 
+      applyDailyData(data) {
+        this.dailyTasks = data.tasks || [];
+        this.calendarEvents = data.calendarEvents || [];
+        this.dailyNote = data.noteContent || '';
+        this.dailyDocUrl = data.docUrl || '';
+        this.noteCards = this.parseDailyNoteToCards(this.dailyNote);
+        this.buildScheduleGrid();
+        this.buildIndexRecords();
+      },
+
+      // Snapshots the currently-open day’s live task/event state into the cache. Called after any
+      // in-place mutation of this.dailyTasks/this.calendarEvents so a subsequent revisit of this
+      // date (or a background prefetch elsewhere) does not read back stale pre-edit data.
+      syncDailyCacheFromLiveState(dateStr) {
+        const targetDate = dateStr || this.selectedDate;
+        if (targetDate !== this.selectedDate) return;
+        const existing = dpGetCached(targetDate) || { noteContent: this.dailyNote, docUrl: this.dailyDocUrl };
+        dpSetCached(targetDate, Object.assign({}, existing, {
+          tasks: this.dailyTasks,
+          calendarEvents: this.calendarEvents,
+          docUrl: this.dailyDocUrl
+        }));
+      },
+
+      // Stale-while-revalidate: render instantly from cache if present, then always fetch fresh
+      // data in the background to both update the view (if still on this date) and refill the
+      // cache. Guards every apply against the user having navigated to a different date while
+      // this fetch was in flight, since google.script.run responses can arrive out of order.
       async loadDayData() {
-        this.dailyLoading = true;
+        const dateStr = this.selectedDate;
+        const cached = dpGetCached(dateStr);
+        if (cached) {
+          this.applyDailyData(cached);
+        }
+        this.dailyLoading = !cached;
         try {
-          const data = await this.bridge.getDailyData(this.selectedDate);
+          const data = await this.bridge.getDailyData(dateStr);
+          dpSetCached(dateStr, data);
+          if (dateStr !== this.selectedDate) return;
           if (data.error) {
             this.errorMessage = data.error;
           }
           if (data.warnings && data.warnings.length > 0) {
             this.errorMessage = data.warnings.join(' | ');
           }
-          this.dailyTasks = data.tasks || [];
-          this.calendarEvents = data.calendarEvents || [];
-          this.dailyNote = data.noteContent || '';
-          this.dailyDocUrl = data.docUrl || '';
-          this.noteCards = this.parseDailyNoteToCards(this.dailyNote);
-          this.buildScheduleGrid();
-          this.buildIndexRecords();
+          this.applyDailyData(data);
         } catch (err) {
           console.error('🔥 loadDayData error:', err);
-          this.errorMessage = `Error loading daily workspace: ${err.message || err.toString()}`;
+          if (dateStr === this.selectedDate && !cached) {
+            this.errorMessage = `Error loading daily workspace: ${err.message || err.toString()}`;
+          }
         } finally {
-          this.dailyLoading = false;
+          if (dateStr === this.selectedDate) this.dailyLoading = false;
+        }
+        this.scheduleDailyRangePrefetch();
+      },
+
+      // Debounced background prefetch of the +/-14-day window around the current day, so
+      // repeated day-by-day navigation hits the cache instead of a fresh round trip each time.
+      // Debounced so rapid arrow-key/click navigation does not fire one range call per day.
+      scheduleDailyRangePrefetch() {
+        if (this.rangePrefetchTimer) clearTimeout(this.rangePrefetchTimer);
+        const centerDate = this.selectedDate;
+        this.rangePrefetchTimer = setTimeout(() => {
+          this.runDailyRangePrefetch(centerDate);
+        }, 500);
+      },
+
+      async runDailyRangePrefetch(centerDateStr) {
+        if (!this.bridge || typeof this.bridge.getDailyDataRange !== 'function') return;
+        const windowDates = dpBuildDateWindow(centerDateStr, 14);
+        const missing = windowDates.filter(d => !dpGetCached(d));
+        if (missing.length === 0) return;
+        try {
+          const result = await this.bridge.getDailyDataRange(windowDates[0], windowDates[windowDates.length - 1]);
+          if (result && result.days) dpPrimeFromRange(result.days);
+        } catch (err) {
+          console.error('🔥 background range prefetch failed:', err);
         }
       },
 
@@ -3428,6 +3608,11 @@
         // of the day the user was actually typing on.
         const dateStr = this.selectedDate;
         const noteContent = this.dailyNote;
+        // Write through into the cache at edit time (optimistic), not on save success -- so
+        // navigating back to this date inside the 1200ms debounce window shows the just-typed
+        // content instead of the stale pre-edit cache entry.
+        const existingCacheEntry = dpGetCached(dateStr) || { tasks: this.dailyTasks, calendarEvents: this.calendarEvents, docUrl: this.dailyDocUrl };
+        dpSetCached(dateStr, Object.assign({}, existingCacheEntry, { noteContent: noteContent }));
         this.noteSaveTimer = setTimeout(async () => {
           if (!this.bridge || typeof this.bridge.saveDailyDocCards !== 'function') return;
           try {
@@ -3607,6 +3792,12 @@
           if (transferred) {
             if (targetDate === this.selectedDate) {
               this.dailyTasks.push(transferred);
+              this.syncDailyCacheFromLiveState();
+            } else {
+              // Forwarding onto a date that is not currently open touches that day’s task list
+              // without us having its full live state here -- invalidate rather than guess, so
+              // the next visit (or a background prefetch) re-fetches instead of reading stale data.
+              dpInvalidateCached(targetDate);
             }
             const updatedMaster = await this.bridge.markMasterTaskMoved(mTask.id, targetDate, transferred.id);
             if (updatedMaster) {
@@ -3817,6 +4008,7 @@
           this.dailyTasks.push(newTask);
           this.newTaskTitle = '';
           this.newTaskCategory = '';
+          this.syncDailyCacheFromLiveState();
           await this.trigger2WaySync();
         } catch (err) {
           console.error('🔥 addDailyTask error:', err);
@@ -3832,6 +4024,7 @@
           if (idx !== -1) {
             this.dailyTasks.splice(idx, 1);
           }
+          this.syncDailyCacheFromLiveState();
           if (this.bridge && typeof this.bridge.deleteDailyTask === 'function') {
             await this.bridge.deleteDailyTask(this.selectedDate, task.id);
           }
@@ -3874,6 +4067,8 @@
           }
           if (!updated) {
             task.starred = previous;
+          } else if (!isMaster) {
+            this.syncDailyCacheFromLiveState();
           }
         } catch (err) {
           task.starred = previous;
@@ -4001,6 +4196,7 @@
           console.error('🔥 setTaskStatus persist error:', err);
           this.errorMessage = `Could not save task status: ${err.message || err.toString()}`;
         }
+        this.syncDailyCacheFromLiveState();
         await this.trigger2WaySync();
       },
 

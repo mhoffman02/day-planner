@@ -11,6 +11,7 @@
 const DB_NAME = 'day-planner-cache';
 const DB_VERSION = 1;
 const STORE_NAME = 'dailyData';
+const IDB_OPEN_TIMEOUT_MS = 2000;
 
 let memoryCache = new Map();
 let dbPromise = null;
@@ -28,6 +29,19 @@ function openDb() {
       resolve(null);
       return;
     }
+
+    // A sandboxed third-party context (e.g. this app's own Apps Script googleusercontent
+    // iframe on a locked-down network) can silently never fire either onsuccess or onerror on
+    // indexedDB.open -- confirmed live: the request just hangs. Without a bound, every future
+    // openDb() caller would await a promise that never settles. Fail open loudly instead.
+    let settled = false;
+    const timeoutId = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      console.warn('[dailyDataCache] IndexedDB open timed out after ' + IDB_OPEN_TIMEOUT_MS + 'ms (likely blocked in this iframe/context); falling back to memory-only cache for this session.');
+      resolve(null);
+    }, IDB_OPEN_TIMEOUT_MS);
+
     try {
       const req = indexedDB.open(DB_NAME, DB_VERSION);
       req.onupgradeneeded = () => {
@@ -37,6 +51,9 @@ function openDb() {
         }
       };
       req.onsuccess = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutId);
         const db = req.result;
         // Another tab/version upgraded the schema out from under this open connection -- close
         // it so that upgrade isn't blocked, rather than hanging cross-tab (see commit a1a85f1).
@@ -44,12 +61,19 @@ function openDb() {
         resolve(db);
       };
       req.onerror = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutId);
         console.warn('[dailyDataCache] IndexedDB open failed, falling back to memory-only cache for this session:', req.error);
         resolve(null);
       };
     } catch (err) {
-      console.warn('[dailyDataCache] IndexedDB open threw, falling back to memory-only cache for this session:', err);
-      resolve(null);
+      if (!settled) {
+        settled = true;
+        clearTimeout(timeoutId);
+        console.warn('[dailyDataCache] IndexedDB open threw, falling back to memory-only cache for this session:', err);
+        resolve(null);
+      }
     }
   });
   return dbPromise;
