@@ -2497,6 +2497,10 @@ global.getRunLogDocUrl = getRunLogDocUrl;                    // used by UnitTest
 global.escapeHtml_ = escapeHtml_;                            // used by UnitTests.gs
 global.getFolderByNameOrCreate = getFolderByNameOrCreate;    // used by UnitTests.gs
 global.getOrCreateDailyDocContent = getOrCreateDailyDocContent; // used by UnitTests.gs
+global.getOrCreateMonthlyNotesDoc_ = getOrCreateMonthlyNotesDoc_; // used by UnitTests.gs
+global.docsGetBodyElements_ = docsGetBodyElements_;          // used by UnitTests.gs
+global.docsElementHeading_ = docsElementHeading_;            // used by UnitTests.gs
+global.docsElementText_ = docsElementText_;                  // used by UnitTests.gs
 global.DAY_PLANNER_FAVICON_URL = DAY_PLANNER_FAVICON_URL;    // used by UnitTests.gs
 global.DAY_PLANNER_BUILD_NUMBER = DAY_PLANNER_BUILD_NUMBER;  // HtmlService template scriptlet: Index.html
 
