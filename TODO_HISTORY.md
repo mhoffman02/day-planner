@@ -1,5 +1,15 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-28 — Phase 20 Code-Review Follow-Up (HOME @263, WORK v101 pushed)
+
+- [x] User asked for a review of the Phase 20 rewrite before signing off (`/code-review high` on commit `212b744`). Caught a real bug: `getFutureMatrixData_` requested `maxResults: 200` from `Tasks.Tasks.list`, but the Tasks API caps `maxResults` at 100/page (matching `getMasterTasks`' own call), with no `pageToken` pagination loop — a year with 100+ due-dated tasks (daily + future combined) could have silently truncated the scan and dropped Future items from the matrix entirely, with no error surfaced.
+- [x] Fixed with a `nextPageToken` do/while loop, capped at 100 per page.
+- [x] Also flagged: `addFutureItem`'s new optional `day` param built the due-date string with no bounds check (e.g. `day=31` in April). Added `resolveFutureItemDueDate_()` to clamp to the month's actual last day. (Currently unreachable in practice — no client passes `day` yet — but now safe if one ever does.)
+- [x] Two lower-priority findings (dropped Drive-JSON cache, no type/ownership check before delete/transfer) reviewed and consciously not acted on: the cache drop matches `getMasterTasks`' own no-cache precedent for Tasks-backed data, and the "no ownership check" is how every other single-item Tasks RPC in `Code.gs` already works (trusts the client-supplied id) — not a new regression pattern.
+- [x] `npm test` (155/155) and `npm run lint` clean; re-verified live via CDP probe on HOME @263 (add → 2026-09-30 default, delete round-trips) after the fix.
+- [x] Deployed: HOME `/dev`+`/exec` @263 (build 307), WORK version 101 pushed (pending repoint).
+- [x] User separately confirmed the *original* Phase 20 rewrite live on WORK (post its own repoint) before this review: Future Planning items correctly surface in Today and Master Tasks views on their proper date.
+
 ## 2026-09-28 — Phase 20 Complete: Future Planning Items as Real Tasks (HOME @262, WORK v99 pushed)
 
 - [x] Replaced the `future-matrix-YYYY.json` Drive-file bucket with real Google Tasks (flagged `[Future]` in notes, dueDate-keyed). `saveFutureMatrixData_`/Drive read-write removed entirely from `gas-app/Code.gs`.

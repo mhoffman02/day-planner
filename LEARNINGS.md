@@ -1,5 +1,14 @@
 # Learnings
 
+## 2026-09-28 — Phase 20 Code-Review Follow-Up
+
+**Worked well:**
+- User asked "should you get a review before we sign off?" on a rewrite that touched 5+ RPC functions and a live production data path — running `/code-review high` on the commit found a genuine bug (`Tasks.Tasks.list` `maxResults: 200` vs. the API's real 100/page cap, no pagination) that unit tests and the earlier live CDP probe both missed, since the probe's test account had well under 100 tasks. A size/blast-radius threshold like this is worth a review pass even when tests are green and a live smoke test already passed.
+- Triaging the review's 4 findings instead of fixing all of them reflexively: the pagination bug and the unbounded `day` param were real and fixed; the "dropped cache" and "no ownership check before delete" findings were checked against the rest of `Code.gs`'s own conventions (`getMasterTasks` also has no cache; every other single-item Tasks RPC already trusts the client-supplied id) and correctly left alone as consistent-with-precedent rather than new regressions.
+
+**Needs improvement:**
+- The original live CDP probe (before the review) only exercised the happy path with a handful of tasks — it couldn't have caught the pagination cap since the test account was nowhere near 100 due-dated tasks. Worth remembering that a live smoke test proves the happy path works, not that a numeric limit/cap is respected; that needs either a targeted test or a code review, not just "try it and see."
+
 ## 2026-09-28 — Phase 20: Future Planning Items as Real Tasks
 
 **Worked well:**
