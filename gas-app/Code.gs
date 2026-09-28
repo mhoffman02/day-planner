@@ -391,7 +391,7 @@ var DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mhoff
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-var DAY_PLANNER_BUILD_NUMBER = 282;
+var DAY_PLANNER_BUILD_NUMBER = 283;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -1376,11 +1376,11 @@ function createDictationScratchDoc() {
     var scratchTimestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
     var targetFolder = getValidatedRootFolder();
     var created = Drive.Files.insert({
-      title: 'Day Planner - Dictation Scratchpad ' + scratchTimestamp,
+      title: 'Day Planner - Voice Typing Scratchpad ' + scratchTimestamp,
       mimeType: 'application/vnd.google-apps.document',
       parents: targetFolder ? [{ id: targetFolder.getId() }] : undefined
     });
-    var instructions = 'Click below, then use Tools > Voice typing (Ctrl+Shift+S) to dictate. Switch back to Day Planner and click "Pull from Doc" when done.';
+    var instructions = 'Click below, then use Tools > Voice typing (Ctrl+Shift+S). Switch back to Day Planner and click "Pull from Doc" when done.';
     Docs.Documents.batchUpdate({
       requests: [{ insertText: { location: { index: 1 }, text: instructions } }]
     }, created.id);
@@ -1401,7 +1401,7 @@ function createDictationScratchDoc() {
  */
 function pullDictationScratchText(docId) {
   if (typeof Docs === 'undefined') {
-    return { success: true, text: 'Mock dictated text from local dev scratch doc.' };
+    return { success: true, text: 'Mock voice-typed text from local dev scratch doc.' };
   }
   if (!docId) {
     return { success: false, error: 'No scratch doc id provided.' };

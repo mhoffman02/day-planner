@@ -661,7 +661,7 @@ export class GASBridge {
    */
   async pullDictationScratchText(docId) {
     if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
-      return { success: true, text: 'Mock dictated text from local dev scratch doc.' };
+      return { success: true, text: 'Mock voice-typed text from local dev scratch doc.' };
     }
 
     return new Promise((resolve, reject) => {

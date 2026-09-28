@@ -25,66 +25,86 @@
   let dictationPopupSelStart = 0;
   let dictationPopupSelEnd = 0;
 
-  // Self-contained popup document (no external CSS/JS) matching the Day Planner binder aesthetic.
-  // Mic control and the recording pulse both use rounded squares, not circles, per the repos
-  // no-pills rule. Text flows live into the destination field (see handleDictationPopupMessage
-  // below), so this popup shows only a status readout and a short trailing caption, not a full
-  // transcript box.
+  // Self-contained popup document (no external CSS/JS) matching the Day Planner binder aesthetic,
+  // intentionally minimal like the Voice typing popup in Google Docs: a titlebar (label + help +
+  // close), a big mic button, and an error-only caption -- no separate status readout, no
+  // transcript box (text already flows live into the destination field via
+  // handleDictationPopupMessage below). The mic button stays a rounded square, not a circle, per
+  // this repo no-pills rule.
   const DICTATION_POPUP_HTML = `<!doctype html>
-<html><head><meta charset="utf-8"><title>Voice Typing</title><style>
+<html><head><meta charset="utf-8"><title>Voice typing</title><style>
+  * { box-sizing:border-box; }
   body { margin:0; font-family: Georgia, 'Times New Roman', serif; background:#fcfbfa; color:#2d2a26;
-    display:flex; flex-direction:column; align-items:center; padding:20px; box-sizing:border-box; }
-  .status { font-size:16px; font-weight:700; color:#2d6a5a; margin:0 0 16px; min-height:22px;
-    text-align:center; padding:8px 10px; border:1px solid #cfe3dc; border-radius:6px; background:#eaf3f0;
-    width:100%; box-sizing:border-box; }
-  .status.listening { background:#2d6a5a; color:#fcfbfa; border-color:#2d6a5a; }
-  .rec-dot { display:none; width:8px; height:8px; border-radius:2px; background:#fcfbfa;
-    margin-right:7px; vertical-align:middle; animation: recPulse 1s ease-in-out infinite; }
-  .status.listening .rec-dot { display:inline-block; }
-  @keyframes recPulse { 0%, 100% { opacity:1; } 50% { opacity:0.3; } }
-  .mic-btn { width:92px; height:92px; border-radius:14px; border:2px solid #2d6a5a; background:#eaf3f0;
-    display:flex; align-items:center; justify-content:center; cursor:pointer; margin-bottom:12px;
+    display:flex; flex-direction:column; align-items:center; }
+  .titlebar { width:100%; display:flex; align-items:center; gap:2px; padding:10px 10px 10px 14px;
+    border-bottom:1px solid #e4ddd0; }
+  .titlebar-label { flex:1; font-size:13px; font-weight:600; color:#2d6a5a; }
+  .titlebar-icon-btn { width:24px; height:24px; border:none; border-radius:4px; background:transparent;
+    color:#6b645c; display:flex; align-items:center; justify-content:center; cursor:pointer;
+    transition: background 0.15s ease; padding:0; }
+  .titlebar-icon-btn:hover { background:#eaf3f0; color:#2d6a5a; }
+  .titlebar-icon-btn svg { width:16px; height:16px; }
+  .help-panel { width:100%; max-height:0; overflow:hidden; background:#f8fcfa; font-size:12px;
+    line-height:1.5; color:#4a453e; transition: max-height 0.2s ease; }
+  .help-panel.open { max-height:220px; }
+  .help-panel-inner { padding:12px 16px; border-bottom:1px solid #e4ddd0; }
+  .help-panel-inner p { margin:0 0 8px; }
+  .help-panel-inner p:last-child { margin-bottom:0; }
+  .help-panel-inner kbd { font-family: -apple-system, 'Segoe UI', sans-serif; font-size:10px; font-weight:600;
+    color:#5a544c; background:#ffffff; border:1px solid #d8d2c8; border-radius:4px; padding:2px 6px; }
+  .mic-wrap { flex:1; width:100%; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; padding:22px 20px 10px; }
+  .mic-btn { width:104px; height:104px; border-radius:16px; border:2px solid #2d6a5a; background:#eaf3f0;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
     transition: background 0.15s ease; }
   .mic-btn:hover { background:#dcebe6; }
   .mic-btn.listening { background:#2d6a5a; animation: micGlow 1.6s ease-out infinite; }
   @keyframes micGlow {
     0% { box-shadow:0 0 0 0 rgba(45,106,90,0.45); }
-    70% { box-shadow:0 0 0 16px rgba(45,106,90,0); }
+    70% { box-shadow:0 0 0 18px rgba(45,106,90,0); }
     100% { box-shadow:0 0 0 0 rgba(45,106,90,0); }
   }
-  .mic-btn svg { width:30px; height:30px; }
+  .mic-btn svg { width:44px; height:44px; }
   .mic-btn path { fill:#2d6a5a; }
   .mic-btn.listening path { fill:#fcfbfa; }
-  .caption { width:100%; min-height:32px; font-size:12px; color:#6b645c; text-align:center;
-    padding:2px 2px 4px; box-sizing:border-box; overflow-wrap:break-word; }
-  .done-btn { margin-top:6px; padding:9px 26px; font-family: Georgia, 'Times New Roman', serif;
-    font-size:13px; font-weight:600; color:#fcfbfa; background:#2d6a5a; border:none; border-radius:6px;
-    cursor:pointer; }
-  .done-btn:hover { background:#245648; }
-  .footer { margin-top:10px; display:flex; gap:14px; justify-content:center; }
-  .key-hint { display:flex; align-items:center; gap:5px; font-size:11px; color:#8a8378; }
-  .key-hint kbd { font-family: -apple-system, 'Segoe UI', sans-serif; font-size:10px; font-weight:600;
-    color:#5a544c; background:#f3f1ec; border:1px solid #d8d2c8; border-radius:4px;
-    padding:2px 6px; box-shadow: 0 1px 0 #d8d2c8; }
+  .caption { width:100%; min-height:18px; font-size:12px; color:#b0473f; text-align:center;
+    padding:8px 16px 16px; overflow-wrap:break-word; }
 </style></head>
 <body>
-  <div class="status" id="status"><span class="rec-dot" id="recDot"></span><span id="statusText">Click the mic to start</span></div>
-  <button class="mic-btn" id="micBtn" type="button" aria-label="Start voice typing">
-    <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
-  </button>
+  <div class="titlebar">
+    <span class="titlebar-label">Voice typing</span>
+    <button class="titlebar-icon-btn" id="helpBtn" type="button" aria-label="Voice typing help" title="Voice typing help">
+      <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>
+    </button>
+    <button class="titlebar-icon-btn" id="closeBtn" type="button" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
+    </button>
+  </div>
+  <div class="help-panel" id="helpPanel">
+    <div class="help-panel-inner">
+      <p>Speaks directly into the Day Planner field you started this from.</p>
+      <p><kbd>Space</kbd> start/stop the mic &nbsp; <kbd>Esc</kbd> close this window</p>
+      <p>If the mic does not work here, Day Planner falls back to a linked Google Doc that has Voice typing built in.</p>
+    </div>
+  </div>
+  <div class="mic-wrap">
+    <button class="mic-btn" id="micBtn" type="button" aria-label="Start voice typing" title="Start voice typing (Space)">
+      <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+    </button>
+  </div>
   <div class="caption" id="caption"></div>
-  <button class="done-btn" id="doneBtn" type="button">Done</button>
-  <div class="footer"><span class="key-hint"><kbd>Space</kbd>start/stop</span><span class="key-hint"><kbd>Esc</kbd>done</span></div>
 <script>(function(){
   var micBtn = document.getElementById('micBtn');
-  var statusEl = document.getElementById('status');
-  var statusTextEl = document.getElementById('statusText');
+  var closeBtn = document.getElementById('closeBtn');
+  var helpBtn = document.getElementById('helpBtn');
+  var helpPanel = document.getElementById('helpPanel');
   var captionEl = document.getElementById('caption');
-  var doneBtn = document.getElementById('doneBtn');
   var recognition = null;
   var listening = false;
+  var helpOpen = false;
   var baseline = '';
   var sessionFinal = '';
+  var COLLAPSED_H = 230, EXPANDED_H = 400;
   var Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
 
   function post(type, extra) {
@@ -94,15 +114,26 @@
 
   function currentText() { return baseline + sessionFinal; }
 
+  function setMicTitle(text) {
+    micBtn.title = text;
+    micBtn.setAttribute('aria-label', text);
+  }
+
+  helpBtn.addEventListener('click', function () {
+    helpOpen = !helpOpen;
+    helpPanel.classList.toggle('open', helpOpen);
+    try { window.resizeTo(300, helpOpen ? EXPANDED_H : COLLAPSED_H); } catch (e) { /* ignore */ }
+  });
+
   if (!Ctor) {
-    statusTextEl.textContent = 'Speech recognition not supported in this window.';
+    captionEl.textContent = 'Speech recognition not supported in this window.';
     micBtn.disabled = true;
     post('dictation-unsupported');
   } else {
     micBtn.addEventListener('click', function () {
       if (listening) { recognition.stop(); return; }
       try { recognition = new Ctor(); } catch (e) {
-        statusTextEl.textContent = 'Failed to start: ' + e.message;
+        captionEl.textContent = 'Failed to start: ' + e.message;
         return;
       }
       sessionFinal = '';
@@ -116,49 +147,45 @@
           if (event.results[i].isFinal) finalT += t; else interimT += t;
         }
         sessionFinal = finalT;
-        captionEl.textContent = interimT || finalT.slice(-90) || '';
         post('dictation-interim', { text: currentText() + interimT });
       };
       recognition.onerror = function (event) {
         listening = false;
         micBtn.classList.remove('listening');
-        statusEl.classList.remove('listening');
+        setMicTitle('Start voice typing (Space)');
         var reason = event.error || 'unknown';
         if (reason === 'not-allowed' || reason === 'permission-denied') {
-          statusTextEl.textContent = 'Microphone permission denied.';
+          captionEl.textContent = 'Microphone permission denied.';
           post('dictation-error', { reason: reason });
         } else if (reason === 'no-speech') {
-          statusTextEl.textContent = 'No speech detected -- click mic to try again.';
+          captionEl.textContent = 'No speech detected -- click mic to try again.';
         } else if (reason === 'network') {
-          statusTextEl.textContent = 'Network error reaching speech service.';
+          captionEl.textContent = 'Network error reaching speech service.';
           post('dictation-error', { reason: reason });
         } else {
-          statusTextEl.textContent = 'Error: ' + reason;
+          captionEl.textContent = 'Error: ' + reason;
         }
       };
       recognition.onend = function () {
         listening = false;
         micBtn.classList.remove('listening');
-        statusEl.classList.remove('listening');
+        setMicTitle('Start voice typing (Space)');
         baseline = currentText();
         sessionFinal = '';
-        captionEl.textContent = '';
-        statusTextEl.textContent = 'Paused';
       };
       try {
         recognition.start();
         listening = true;
         micBtn.classList.add('listening');
-        statusEl.classList.add('listening');
-        statusTextEl.textContent = 'Listening...';
+        setMicTitle('Stop voice typing (Space)');
         captionEl.textContent = '';
       } catch (e) {
-        statusTextEl.textContent = 'Failed to start: ' + e.message;
+        captionEl.textContent = 'Failed to start: ' + e.message;
       }
     });
   }
 
-  doneBtn.addEventListener('click', function () {
+  closeBtn.addEventListener('click', function () {
     if (listening && recognition) { try { recognition.stop(); } catch (e) { /* already stopped */ } }
     window.close();
   });
@@ -172,7 +199,7 @@
       micBtn.click();
     } else if (e.key === 'Escape' || e.key === 'Esc') {
       e.preventDefault();
-      doneBtn.click();
+      closeBtn.click();
     }
   });
 
@@ -2594,9 +2621,9 @@
 
       sttMicTitle() {
         if (this.sttError) return this.sttError;
-        if (this.sttBlocked) return 'Mic blocked — use doc link below (Ctrl+Alt+S)';
-        if (!this.sttSupported) return 'Dictation not supported here (Ctrl+Alt+S)';
-        return this.sttListening ? 'Stop dictation (Ctrl+Alt+S)' : 'Dictate (Ctrl+Alt+S)';
+        if (this.sttBlocked) return 'Mic blocked — use voice typing doc below (Ctrl+Alt+S)';
+        if (!this.sttSupported) return 'Voice typing not supported here (Ctrl+Alt+S)';
+        return this.sttListening ? 'Stop voice typing (Ctrl+Alt+S)' : 'Start voice typing (Ctrl+Alt+S)';
       },
 
       // Default dictation target when nothing/no line is focused: rather than block with an
@@ -2665,7 +2692,7 @@
           return;
         }
         if (!this.sttSupported) {
-          this.sttError = 'Dictation not supported in this browser.';
+          this.sttError = 'Voice typing not supported in this browser.';
           console.error('[STT] SpeechRecognition is not available on this browser/engine.');
           this.ensureDictationScratchDoc(el);
           return;
@@ -2681,10 +2708,10 @@
         // since that chrome is captured at navigation time. Same-origin, so window.opener,
         // postMessage, and the mic-permissions-escape trick all still work identically.
         const blobUrl = URL.createObjectURL(new Blob([DICTATION_POPUP_HTML], { type: 'text/html' }));
-        const popup = window.open(blobUrl, 'dayPlannerDictation', 'width=300,height=290');
+        const popup = window.open(blobUrl, 'dayPlannerDictation', 'width=300,height=230');
         setTimeout(() => URL.revokeObjectURL(blobUrl), 4000);
         if (!popup) {
-          this.sttError = 'Dictation popup was blocked by the browser — using the dictation doc instead.';
+          this.sttError = 'Voice typing popup was blocked by the browser — using the voice typing doc instead.';
           this.sttBlocked = true;
           this.ensureDictationScratchDoc(el);
           return;
@@ -2713,8 +2740,8 @@
           this.sttListening = false;
           this.sttBlocked = true;
           this.sttError = data.type === 'dictation-unsupported'
-            ? 'Dictation not supported in the popup window.'
-            : 'Dictation blocked: microphone permission denied.';
+            ? 'Voice typing not supported in the popup window.'
+            : 'Voice typing blocked: microphone permission denied.';
           console.error('[STT] dictation popup reported', data.type, data.reason || '');
           this.ensureDictationScratchDoc(el);
         }
@@ -2736,7 +2763,7 @@
       openCardDictationScratchpad(card) {
         const idx = card && card._activeLineIndex;
         if (idx === null || idx === undefined || idx < 0) {
-          this.sttError = 'Click into a note line first, then open the dictation doc.';
+          this.sttError = 'Click into a note line first, then open the voice typing doc.';
           return;
         }
         const el = document.getElementById('card-line-' + card.id + '-' + idx);
@@ -2756,14 +2783,14 @@
         try {
           const result = await this.bridge.createDictationScratchDoc();
           if (!result || !result.success) {
-            this.sttError = 'Could not create a dictation doc: ' + ((result && result.error) || 'unknown error');
+            this.sttError = 'Could not create a voice typing doc: ' + ((result && result.error) || 'unknown error');
             console.error('[STT] createDictationScratchDoc failed', result);
             return;
           }
           sttScratchDocId = result.docId;
           this.sttScratchDocUrl = result.docUrl;
         } catch (err) {
-          this.sttError = 'Could not create a dictation doc: ' + (err.message || err);
+          this.sttError = 'Could not create a voice typing doc: ' + (err.message || err);
           console.error('[STT] createDictationScratchDoc threw', err);
         } finally {
           this.sttScratchCreating = false;
@@ -2772,20 +2799,20 @@
 
       async pullFromDictationScratchpad() {
         if (!sttScratchDocId) {
-          this.sttError = 'Open the dictation doc first, then pull once you’re done.';
+          this.sttError = 'Open the voice typing doc first, then pull once you’re done.';
           return;
         }
         this.sttRefreshing = true;
         try {
           const result = await this.bridge.pullDictationScratchText(sttScratchDocId);
           if (!result || !result.success) {
-            this.sttError = 'Could not pull dictated text: ' + ((result && result.error) || 'unknown error');
+            this.sttError = 'Could not pull voice-typed text: ' + ((result && result.error) || 'unknown error');
             console.error('[STT] pullDictationScratchText failed', result);
             return;
           }
           const text = (result.text || '').trim();
           if (!text) {
-            this.sttError = 'No dictated text found — did you dictate before pulling? (Docs can take a couple seconds to save.)';
+            this.sttError = 'No voice-typed text found — did you voice type before pulling? (Docs can take a couple seconds to save.)';
             return;
           }
           if (sttScratchTargetEl && document.body.contains(sttScratchTargetEl)) {
@@ -2803,7 +2830,7 @@
           this.sttRefreshedFlash = true;
           setTimeout(() => { this.sttRefreshedFlash = false; }, 1800);
         } catch (err) {
-          this.sttError = 'Could not pull dictated text: ' + (err.message || err);
+          this.sttError = 'Could not pull voice-typed text: ' + (err.message || err);
           console.error('[STT] pullFromDictationScratchpad threw', err);
         } finally {
           this.sttRefreshing = false;

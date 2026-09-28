@@ -609,7 +609,7 @@
                       <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'ordered')" title="Numbered List"><span class="material-symbols-outlined icon-16">format_list_numbered</span></button>
                       <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'checklist')" title="Checklist (Ctrl+Shift+C)" aria-label="Checklist"><span class="material-symbols-outlined icon-16">check_box</span></button>
                       <span class="toolbar-divider"></span>
-                      <button type="button" class="format-btn stt-mic-btn" :class="{ 'stt-listening': sttListening, 'stt-blocked': sttBlocked }" @mousedown.prevent @click="toggleCardDictation(card)" :title="sttMicTitle()" :aria-label="sttListening ? 'Stop dictation' : 'Start dictation'"><span class="material-symbols-outlined icon-16" x-text="sttListening ? 'mic' : (sttBlocked ? 'mic_off' : 'mic_none')"></span></button>
+                      <button type="button" class="format-btn stt-mic-btn" :class="{ 'stt-listening': sttListening, 'stt-blocked': sttBlocked }" @mousedown.prevent @click="toggleCardDictation(card)" :title="sttMicTitle()" :aria-label="sttListening ? 'Stop voice typing' : 'Start voice typing'"><span class="material-symbols-outlined icon-16" x-text="sttListening ? 'mic' : (sttBlocked ? 'mic_off' : 'mic_none')"></span></button>
                       <span class="toolbar-divider"></span>
                       <button type="button" class="format-btn color-swatch-btn color-swatch-default" @mousedown.prevent @click="applyCardFormat(card, 'color-default')" title="Remove Text Color Only"><span class="material-symbols-outlined icon-16">format_color_reset</span></button>
                       <button type="button" class="format-btn color-swatch-btn color-swatch-teal" :class="{ active: cardNoteColor(card) === 'teal' }" @mousedown.prevent @click="applyCardFormat(card, 'color-teal')" title="Color: Teal" aria-label="Color: Teal"></button>
@@ -628,15 +628,15 @@
                         <template x-if="!sttScratchDocUrl">
                           <button type="button" class="stt-fallback-btn" :disabled="sttScratchCreating" @click="openCardDictationScratchpad(card)" title="Google Docs can’t be embedded in this app (it blocks framing), so this opens as a link you click yourself — more reliable than a popup window on locked-down networks.">
                             <span class="material-symbols-outlined icon-16" x-text="sttScratchCreating ? 'hourglass_top' : 'description'"></span>
-                            <span x-text="sttScratchCreating ? 'Creating…' : 'Dictate in Google Doc'"></span>
+                            <span x-text="sttScratchCreating ? 'Creating…' : 'Voice Typing in Google Doc'"></span>
                           </button>
                         </template>
                         <template x-if="sttScratchDocUrl">
-                          <a class="stt-fallback-btn" :href="sttScratchDocUrl" target="_blank" rel="noopener noreferrer" title="Opens in a new tab. In the Doc: Tools › Voice typing (Ctrl+Shift+V), dictate, then come back and click Pull from Doc.">
-                            <span class="material-symbols-outlined icon-16">open_in_new</span> Open Dictation Doc
+                          <a class="stt-fallback-btn" :href="sttScratchDocUrl" target="_blank" rel="noopener noreferrer" title="Opens in a new tab. In the Doc: Tools › Voice typing (Ctrl+Shift+V), then come back and click Pull from Doc.">
+                            <span class="material-symbols-outlined icon-16">open_in_new</span> Open Voice Typing Doc
                           </a>
                         </template>
-                        <button type="button" class="stt-fallback-btn" :disabled="sttRefreshing" @click="pullFromDictationScratchpad()" title="Pulls whatever you dictated in the Google Doc into the line you started from.">
+                        <button type="button" class="stt-fallback-btn" :disabled="sttRefreshing" @click="pullFromDictationScratchpad()" title="Pulls whatever you voice-typed in the Google Doc into the line you started from.">
                           <span class="material-symbols-outlined icon-16" x-text="sttRefreshing ? 'hourglass_top' : (sttRefreshedFlash ? 'check' : 'sync')"></span>
                           <span x-text="sttRefreshing ? 'Pulling…' : (sttRefreshedFlash ? 'Pulled!' : 'Pull from Doc')"></span>
                         </button>
@@ -1193,7 +1193,7 @@
 
           <div class="form-group">
             <label for="evtDescInput" class="form-label">Notes / Agenda
-              <button type="button" class="format-btn stt-mic-btn stt-mic-btn-inline" :class="{ 'stt-listening': sttListening, 'stt-blocked': sttBlocked }" @mousedown.prevent @click="toggleDictation(document.getElementById('evtDescInput'))" :title="sttMicTitle()" :aria-label="sttListening ? 'Stop dictation' : 'Start dictation'"><span class="material-symbols-outlined icon-16" x-text="sttListening ? 'mic' : (sttBlocked ? 'mic_off' : 'mic_none')"></span></button>
+              <button type="button" class="format-btn stt-mic-btn stt-mic-btn-inline" :class="{ 'stt-listening': sttListening, 'stt-blocked': sttBlocked }" @mousedown.prevent @click="toggleDictation(document.getElementById('evtDescInput'))" :title="sttMicTitle()" :aria-label="sttListening ? 'Stop voice typing' : 'Start voice typing'"><span class="material-symbols-outlined icon-16" x-text="sttListening ? 'mic' : (sttBlocked ? 'mic_off' : 'mic_none')"></span></button>
             </label>
             <textarea id="evtDescInput" x-model="newEventData.description" placeholder="Appointment agenda..." class="form-textarea" rows="2"></textarea>
             <div class="stt-error-hint" x-show="sttError || sttBlocked" x-cloak>
@@ -1202,15 +1202,15 @@
                 <template x-if="!sttScratchDocUrl">
                   <button type="button" class="stt-fallback-btn" :disabled="sttScratchCreating" @click="ensureDictationScratchDoc(document.getElementById('evtDescInput'))" title="Google Docs can’t be embedded in this app (it blocks framing), so this opens as a link you click yourself — more reliable than a popup window on locked-down networks.">
                     <span class="material-symbols-outlined icon-16" x-text="sttScratchCreating ? 'hourglass_top' : 'description'"></span>
-                    <span x-text="sttScratchCreating ? 'Creating…' : 'Dictate in Google Doc'"></span>
+                    <span x-text="sttScratchCreating ? 'Creating…' : 'Voice Typing in Google Doc'"></span>
                   </button>
                 </template>
                 <template x-if="sttScratchDocUrl">
-                  <a class="stt-fallback-btn" :href="sttScratchDocUrl" target="_blank" rel="noopener noreferrer" title="Opens in a new tab. In the Doc: Tools › Voice typing (Ctrl+Shift+V), dictate, then come back and click Pull from Doc.">
-                    <span class="material-symbols-outlined icon-16">open_in_new</span> Open Dictation Doc
+                  <a class="stt-fallback-btn" :href="sttScratchDocUrl" target="_blank" rel="noopener noreferrer" title="Opens in a new tab. In the Doc: Tools › Voice typing (Ctrl+Shift+V), then come back and click Pull from Doc.">
+                    <span class="material-symbols-outlined icon-16">open_in_new</span> Open Voice Typing Doc
                   </a>
                 </template>
-                <button type="button" class="stt-fallback-btn" :disabled="sttRefreshing" @click="pullFromDictationScratchpad()" title="Pulls whatever you dictated in the Google Doc into this field.">
+                <button type="button" class="stt-fallback-btn" :disabled="sttRefreshing" @click="pullFromDictationScratchpad()" title="Pulls whatever you voice-typed in the Google Doc into this field.">
                   <span class="material-symbols-outlined icon-16" x-text="sttRefreshing ? 'hourglass_top' : (sttRefreshedFlash ? 'check' : 'sync')"></span>
                   <span x-text="sttRefreshing ? 'Pulling…' : (sttRefreshedFlash ? 'Pulled!' : 'Pull from Doc')"></span>
                 </button>
