@@ -963,7 +963,7 @@
             <table class="task-table table-card monthly-index-table">
               <thead>
                 <tr class="table-header-row">
-                  <th scope="col" class="th-w-100">Date</th>
+                  <th scope="col" class="th-w-150">Date</th>
                   <th scope="col" class="th-w-140">Topic / Category</th>
                   <th scope="col">Summary Highlight</th>
                   <th scope="col" class="th-w-140">Daily Page</th>
@@ -973,7 +973,7 @@
               <tbody>
                 <template x-for="idx in indexRecords" :key="idx.summary">
                   <tr>
-                    <td x-text="idx.date"></td>
+                    <td x-text="formatIndexDate(idx.date)"></td>
                     <td>
                       <div class="index-topic-cell">
                         <b x-text="idx.topic"></b>
