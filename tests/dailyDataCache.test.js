@@ -73,10 +73,18 @@ describe('Daily Data Cache Unit Tests', () => {
     assert.equal(getCached('2026-09-26').noteContent, 'new');
   });
 
-  it('primeFromRange should skip a range day with no real data (noteContent === null, e.g. an unwritten doc)', () => {
+  it('primeFromRange should still cache a day whose noteContent is null (no note section yet, not "nothing fetched")', () => {
     primeFromRange({
-      '2026-09-27': { tasks: [], calendarEvents: [], noteContent: null, docUrl: '' }
+      '2026-09-27': { tasks: [{ id: 't9' }], calendarEvents: [], noteContent: null, docUrl: '' }
     });
-    assert.equal(getCached('2026-09-27'), null);
+    const cached = getCached('2026-09-27');
+    assert.notEqual(cached, null, 'a null noteContent must not be treated as an uncached/missing day');
+    assert.deepEqual(cached.tasks, [{ id: 't9' }]);
+    assert.equal(cached.noteContent, null);
+  });
+
+  it('primeFromRange should skip a day with no entry at all', () => {
+    primeFromRange({ '2026-09-28': null });
+    assert.equal(getCached('2026-09-28'), null);
   });
 });

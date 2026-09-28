@@ -30,10 +30,12 @@ function openDb() {
       return;
     }
 
-    // A sandboxed third-party context (e.g. this app's own Apps Script googleusercontent
-    // iframe on a locked-down network) can silently never fire either onsuccess or onerror on
-    // indexedDB.open -- confirmed live: the request just hangs. Without a bound, every future
-    // openDb() caller would await a promise that never settles. Fail open loudly instead.
+    // A single open() call inside this app's own Apps Script googleusercontent iframe was
+    // observed once to never fire either onsuccess or onerror (root cause unconfirmed -- could
+    // be iframe storage partitioning, could be something else entirely). Not reproduced since,
+    // but the failure mode -- neither callback ever firing -- is cheap to guard against
+    // regardless of cause: without a bound, every future openDb() caller would await a promise
+    // that never settles. Fail open loudly instead.
     let settled = false;
     const timeoutId = setTimeout(() => {
       if (settled) return;
@@ -149,6 +151,12 @@ export async function hydrateFromIdb(dateStr) {
  * prefetch. Only fills dates NOT already in the memory cache -- a prefetch must never clobber a
  * fresher foreground load or a just-written local edit for the same date (both write through
  * via setCached before any prefetch could land).
+ *
+ * `entry.noteContent === null` only means "no note section exists for this date yet" (a common,
+ * legitimate case for most future/blank days) -- it does NOT mean nothing was fetched. tasks and
+ * calendarEvents are always real for every date in the response. Caching only the entries with a
+ * note previously meant every note-less day in the window was never marked cached, so the range
+ * RPC re-fired on every navigation instead of being skipped once the window was already primed.
  * @param {Object<string, object>} days Map of dateStr -> daily payload, as returned by
  *   getDailyDataRange's `days` field.
  */
@@ -156,7 +164,7 @@ export function primeFromRange(days) {
   Object.keys(days || {}).forEach((dateStr) => {
     if (memoryCache.has(dateStr)) return;
     const entry = days[dateStr];
-    if (!entry || entry.noteContent === null) return; // no real data fetched for this date yet
+    if (!entry) return;
     setCached(dateStr, entry);
   });
 }

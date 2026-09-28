@@ -16,7 +16,7 @@ import { executeUniversalSearch, flattenSearchResults } from './searchEngine.js'
 import { formatEventDescriptionHtml, extractMeetLink } from './calendarEngine.js';
 import { parseIndexEntriesFromNote } from './indexParser.js';
 import { getQuoteForDateStr } from './quotesEngine.js';
-import { getCached, setCached, invalidateCached, primeFromRange } from './dailyDataCache.js';
+import { getCached, setCached, invalidateCached, primeFromRange, hydrateFromIdb } from './dailyDataCache.js';
 window.GASBridge = GASBridge;
 window.Alpine = Alpine;
 
@@ -327,6 +327,11 @@ Alpine.data('plannerApp', () => ({
       isHeaderResizing: false,
       docPreviewEditing: false,
       noteSaveTimer: null,
+      // Per-date edit counter, bumped on every local write-through (note edit, task mutation).
+      // loadDayData snapshots this before a background revalidation fetch and skips applying the
+      // response if it changed while the fetch was in flight, so a slow round trip can never
+      // stomp an edit the user made in the meantime.
+      dailyEditSeq: {},
       taskNoteLinks: [],
       indexRecords: [],
       monthlyGrid: [],
@@ -1232,11 +1237,16 @@ Alpine.data('plannerApp', () => ({
         this.buildIndexRecords();
       },
 
+      bumpDailyEditSeq(dateStr) {
+        this.dailyEditSeq[dateStr] = (this.dailyEditSeq[dateStr] || 0) + 1;
+      },
+
       // Snapshots the currently-open day's live task/event state into the cache. Called after any
       // in-place mutation of this.dailyTasks/this.calendarEvents so a subsequent revisit of this
       // date (or a background prefetch elsewhere) doesn't read back stale pre-edit data.
       syncDailyCacheFromLiveState(dateStr = this.selectedDate) {
         if (dateStr !== this.selectedDate) return;
+        this.bumpDailyEditSeq(dateStr);
         const existing = getCached(dateStr) || { noteContent: this.dailyNote, docUrl: this.dailyDocUrl };
         setCached(dateStr, {
           ...existing,
@@ -1246,19 +1256,33 @@ Alpine.data('plannerApp', () => ({
         });
       },
 
-      // Stale-while-revalidate: render instantly from cache if present, then always fetch fresh
-      // data in the background to both update the view (if still on this date) and refill the
-      // cache. Guards every apply against the user having navigated to a different date while
-      // this fetch was in flight, since google.script.run responses can arrive out of order.
+      // Stale-while-revalidate: render instantly from cache (memory, then IndexedDB) if present,
+      // then always fetch fresh data in the background to both update the view (if still on this
+      // date) and refill the cache. Guards every apply against the user having navigated to a
+      // different date while this fetch was in flight (google.script.run responses can arrive out
+      // of order), AND against a local edit (note typing, task mutation) landing while the fetch
+      // was in flight -- otherwise a slow revalidation response overwrites newer local state with
+      // stale server data, and the user's in-progress edit is silently reverted mid-keystroke.
       async loadDayData() {
         const dateStr = this.selectedDate;
-        const cached = getCached(dateStr);
+        let cached = getCached(dateStr);
+        if (!cached) {
+          cached = await hydrateFromIdb(dateStr);
+        }
         if (cached) {
           this.applyDailyData(cached);
         }
         this.dailyLoading = !cached;
+        const seqAtFetchStart = this.dailyEditSeq[dateStr] || 0;
         try {
           const data = await this.bridge.getDailyData(dateStr);
+          const editedWhileFetching = (this.dailyEditSeq[dateStr] || 0) !== seqAtFetchStart;
+          if (editedWhileFetching) {
+            // A local edit already wrote a newer version into the cache; this response is now
+            // stale relative to it -- drop it instead of caching/applying over the newer edit.
+            // The next navigation away and back will revalidate again.
+            return;
+          }
           setCached(dateStr, data);
           if (dateStr !== this.selectedDate) return; // user navigated away; cached for next visit
           if (data.error) {
@@ -2598,6 +2622,7 @@ Alpine.data('plannerApp', () => ({
         // content instead of the stale pre-edit cache entry.
         const existingCacheEntry = getCached(dateStr) || { tasks: this.dailyTasks, calendarEvents: this.calendarEvents, docUrl: this.dailyDocUrl };
         setCached(dateStr, { ...existingCacheEntry, noteContent });
+        this.bumpDailyEditSeq(dateStr);
         this.noteSaveTimer = setTimeout(async () => {
           if (!this.bridge || typeof this.bridge.saveDailyDocCards !== 'function') return;
           try {
