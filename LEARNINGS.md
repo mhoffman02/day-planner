@@ -1,5 +1,15 @@
 # Learnings
 
+## 2026-09-28 — Index Date Fix; Future Planning Drive-Scope Bug Fixed
+
+**Worked well:**
+- Verifying the Index date-column fix live via raw CDP (`Range.getClientRects().length === 1` on the cell's text) instead of trusting the pixel width alone — a `td`'s bounding-box height is shared across the whole table row, so measuring that would have been misleading if another column's content was the one forcing row height.
+- On the Future Planning permission bug, matching the fix to a pattern the codebase already established (`getValidatedRootFolder()`'s "Advanced Drive Service preferred under drive.file, DriveApp as fallback" comment) rather than inventing a new approach — kept the diff small and consistent with how the rest of `Code.gs` already works around the same DriveApp/`drive.file` limitation.
+- When the user proposed a deeper redesign (Future Planning items as real Tasks) mid-fix, pushing back with a concrete list of exactly what touches (5+ RPC functions, the engine, 20+ tests, the view, a data-migration question) rather than just agreeing or just refusing — landed on "queue as its own phase," which is what actually happened.
+
+**Needs improvement:**
+- The Future Planning feature's Drive-JSON persistence path had apparently never been exercised live before this bug report — it's worth being more suspicious of any RPC path that isn't covered by the existing GAS Bridge Unit Tests (`tests/gasBridge.test.js` mocks `DriveApp`/`Drive`, so a real permission-scope mismatch can't surface there; only a live hit does).
+
 ## 2026-09-28 — Phase 19 Closed: `drive.readonly` Kept As-Is
 
 **Worked well:**

@@ -1,5 +1,12 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-28 — Index Date Fix; Future Planning Drive-Scope Bug Fixed (HOME @261)
+
+- [x] **Monthly Index date column**: was raw ISO `YYYY-MM-DD` wrapping onto two lines in a 100px column. Added `formatIndexDate()` (mirrors the existing `formatSelectedDateDisplay` pattern minus the weekday) in `src/app.js` and `gas-app/Script.html`; widened the column to `th-w-150`. Confirmed live via CDP against `localhost:3000` that `"Sep 28, 2026"` now renders on one line.
+- [x] **Future Planning "insufficient permissions" bug**: user hit a live error creating a Future Planning item — `DriveApp.Folder.createFile()`/`File.setContent()` demanded the broad `drive` OAuth scope even for a file inside the app's own folder. Fixed in `saveFutureMatrixData_()` (`gas-app/Code.gs`) by routing through the Advanced Drive Service (`Drive.Files.insert`/`update`), the same pattern `getValidatedRootFolder()`'s folder creation already uses, which honors `drive.file` — no scope broadening needed. DriveApp kept only as a fallback if the Advanced Service is unavailable.
+- [x] Both fixes deployed live: HOME `/dev`+`/exec` @261 (build 301), WORK version 98 pushed (pending `michael.hoffman@gsa.gov` repoint).
+- [x] User proposed a deeper fix — store Future Planning items as real Google Tasks (dueDate = last day of month when unspecified) instead of the Drive JSON bucket, which would prevent this whole class of bug. Pushed back on scope (real architecture change, not a quick add-on) and queued it as **Phase 20** in `PLAN.md` rather than starting it inline.
+
 ## 2026-09-28 — Phase 19 Closed: `drive.readonly` Kept As-Is
 
 - [x] **1. Audit call sites**: every `DriveApp`/`Drive` call site in `Code.gs` reviewed. Two genuinely need broader-than-`drive.file` read access: `validateAndSaveFolderUrl` (user-typed folder ID at setup) and `resolveDriveFileTitle` (smart-paste title lookup on arbitrary pasted links). Rest already `drive.file`-covered.

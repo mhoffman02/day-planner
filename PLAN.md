@@ -30,7 +30,7 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 
 ## 3. Active & Upcoming Phases
 
-### Phase 20: Future Planning Items as Real Tasks
+### Phase 20: Future Planning Items as Real Tasks (In Progress)
 *Goal: replace the custom `future-matrix-YYYY.json` Drive-file bucket storage with real Google Tasks (dueDate = last day of the target month when no specific day is given), matching how Master/Daily Tasks are already stored. Triggered by a 2026-09-28 live bug where `DriveApp.Folder.createFile()`/`File.setContent()` demanded the broad `drive` scope even for the app's own folder — patched for now via the Advanced Drive Service (`Drive.Files.insert`/`update`), but moving off Drive-file storage entirely removes the whole class of bug and reuses proven-working Tasks-API infrastructure.*
 
 - [ ] Rework `addFutureItem`/`updateFutureItemStatus`/`transferFutureItemToDay`/`rollForwardPendingItems`/`deleteFutureItem` in `gas-app/Code.gs` to operate on Tasks (dueDate-keyed) instead of the JSON bucket.
