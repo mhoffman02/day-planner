@@ -34,8 +34,8 @@
   const DICTATION_POPUP_HTML = `<!doctype html>
 <html><head><meta charset="utf-8"><title>Voice typing</title><style>
   * { box-sizing:border-box; }
-  body { margin:0; font-family: Georgia, 'Times New Roman', serif; background:#fcfbfa; color:#2d2a26;
-    display:flex; flex-direction:column; align-items:center; }
+  body { margin:0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background:#fcfbfa; color:#2d2a26; display:flex; flex-direction:column; align-items:center; }
   .titlebar { width:100%; display:flex; align-items:center; gap:2px; padding:11px 10px 11px 16px;
     background:#2d6a5a; }
   .titlebar-label { flex:1; font-size:14px; font-weight:700; color:#fcfbfa; letter-spacing:0.02em; }
@@ -43,7 +43,7 @@
     color:#dcebe6; display:flex; align-items:center; justify-content:center; cursor:pointer;
     transition: background 0.15s ease; padding:0; }
   .titlebar-icon-btn:hover { background:rgba(255,255,255,0.18); color:#ffffff; }
-  .titlebar-icon-btn svg { width:17px; height:17px; }
+  .titlebar-icon-btn svg { width:17px; height:17px; fill:currentColor; }
   .help-panel { width:100%; max-height:0; overflow:hidden; background:#f8fcfa; font-size:12px;
     line-height:1.55; color:#4a453e; transition: max-height 0.22s ease; }
   .help-panel-inner { padding:12px 16px; border-bottom:1px solid #e4ddd0; }
@@ -53,7 +53,7 @@
     color:#5a544c; background:#ffffff; border:1px solid #d8d2c8; border-radius:4px; padding:2px 6px; }
   .mic-wrap { flex:1; width:100%; display:flex; flex-direction:column; align-items:center;
     justify-content:center; padding:22px 20px 10px; }
-  .mic-btn { width:104px; height:104px; border-radius:16px; border:2px solid #2d6a5a; background:#eaf3f0;
+  .mic-btn { width:69px; height:69px; border-radius:12px; border:2px solid #2d6a5a; background:#eaf3f0;
     display:flex; align-items:center; justify-content:center; cursor:pointer;
     transition: background 0.15s ease; }
   .mic-btn:hover { background:#dcebe6; }
@@ -63,7 +63,7 @@
     70% { box-shadow:0 0 0 18px rgba(45,106,90,0); }
     100% { box-shadow:0 0 0 0 rgba(45,106,90,0); }
   }
-  .mic-btn svg { width:44px; height:44px; }
+  .mic-btn svg { width:29px; height:29px; }
   .mic-btn path { fill:#2d6a5a; }
   .mic-btn.listening path { fill:#fcfbfa; }
   .caption { width:100%; min-height:18px; font-size:12px; color:#b0473f; text-align:center;
@@ -82,7 +82,7 @@
   <div class="help-panel" id="helpPanel">
     <div class="help-panel-inner">
       <p>Speaks directly into the Day Planner field you started this from.</p>
-      <p><kbd>Space</kbd> start/stop the mic &nbsp; <kbd>Esc</kbd> close this window</p>
+      <p><kbd>Space</kbd> start/stop the mic<br><kbd>Esc</kbd> close this window</p>
     </div>
   </div>
   <div class="mic-wrap">
@@ -98,6 +98,8 @@
   var helpPanel = document.getElementById('helpPanel');
   var captionEl = document.getElementById('caption');
   var helpPanelInner = helpPanel.querySelector('.help-panel-inner');
+  var titlebarEl = document.querySelector('.titlebar');
+  var micWrapEl = document.querySelector('.mic-wrap');
   var recognition = null;
   var listening = false;
   var helpOpen = false;
@@ -143,11 +145,15 @@
     helpOpen = !helpOpen;
     /* 25% taller than the panel own natural content height -- otherwise the max-height
        transition and the resize below can settle a beat apart and clip a scrollbar in briefly. */
-    helpPanel.style.maxHeight = helpOpen ? Math.round(helpPanelInner.scrollHeight * 1.25) + 'px' : '0px';
-    requestAnimationFrame(function () {
-      var targetOuterH = document.body.scrollHeight + chromeH;
-      easedResizeHeightTo(targetOuterH, 220);
-    });
+    var panelTargetH = Math.round(helpPanelInner.scrollHeight * 1.25);
+    helpPanel.style.maxHeight = helpOpen ? panelTargetH + 'px' : '0px';
+    /* Compute the target content height directly from the static sections (titlebar/mic-wrap/
+       caption never change size) plus the help panel own known target height, instead of reading
+       document.body.scrollHeight -- that read raced the max-height CSS transition and could
+       sample it mid-flight, which is what made the popup appear to shrink instead of grow. */
+    var contentH = titlebarEl.offsetHeight + (helpOpen ? panelTargetH : 0) +
+      micWrapEl.offsetHeight + captionEl.offsetHeight;
+    easedResizeHeightTo(contentH + chromeH, 220);
   });
 
   if (!Ctor) {
@@ -2733,7 +2739,7 @@
         // document.write()-ing the content in; this does mean the browser own popup info-chrome
         // shows about:blank instead of a real title, but a working mic matters more than that
         // cosmetic. The in-page titlebar below is deliberately prominent to compensate.
-        const popup = window.open('', 'dayPlannerDictation', 'width=450,height=230');
+        const popup = window.open('', 'dayPlannerDictation', 'width=208,height=195');
         if (!popup) {
           this.sttError = 'Voice typing popup was blocked by the browser — using the voice typing doc instead.';
           this.sttBlocked = true;
