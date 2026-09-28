@@ -2670,16 +2670,20 @@
         dictationPopupSelStart = el.selectionStart ?? dictationPopupBaseValue.length;
         dictationPopupSelEnd = el.selectionEnd ?? dictationPopupBaseValue.length;
 
-        const popup = window.open('', 'dayPlannerDictation', 'width=300,height=290');
+        // Navigate to a real blob: URL instead of opening a blank popup and document.write()-ing
+        // into it -- an empty-URL popup starts (and often visually stays, per the browser own
+        // popup info-chrome) at literal about:blank even after later setting document.title,
+        // since that chrome is captured at navigation time. Same-origin, so window.opener,
+        // postMessage, and the mic-permissions-escape trick all still work identically.
+        const blobUrl = URL.createObjectURL(new Blob([DICTATION_POPUP_HTML], { type: 'text/html' }));
+        const popup = window.open(blobUrl, 'dayPlannerDictation', 'width=300,height=290');
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 4000);
         if (!popup) {
           this.sttError = 'Dictation popup was blocked by the browser — using the dictation doc instead.';
           this.sttBlocked = true;
           this.ensureDictationScratchDoc(el);
           return;
         }
-        popup.document.write(DICTATION_POPUP_HTML);
-        popup.document.close();
-        popup.document.title = 'Voice Typing';
         dictationPopupWin = popup;
         this.sttError = null;
         this.sttListening = true;
