@@ -477,29 +477,16 @@
     align-items: center;
   }
 
+  /* .date-picker-btn/.month-display-btn are combined with .today-jump-btn on the same button
+     (see gas-app/Index.html), so fg/bg/border/radius/hover come from that shared class -- only
+     the additive layout for the trailing dropdown arrow lives here. */
   .date-picker-btn,
   .month-display-btn {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    background: rgba(255, 255, 255, 0.18) !important;
-    border: 1px solid rgba(255, 255, 255, 0.28) !important;
-    border-radius: 2px;
-    padding: 2px 9px;
-    cursor: pointer;
-    transition: background 0.15s ease, border-color 0.15s ease;
-    color: #ffffff !important;
-    font-weight: 600;
-    font-size: 0.78rem;
     margin-left: 4px;
     user-select: none;
-  }
-
-  .date-picker-btn:hover,
-  .month-display-btn:hover,
-  .date-picker-wrap:hover .date-picker-btn {
-    background: rgba(255, 255, 255, 0.32) !important;
-    border-color: rgba(255, 255, 255, 0.45) !important;
   }
 
   .date-picker-btn .date-text-display,
@@ -5118,21 +5105,6 @@
   [data-theme="dark"] .btn-meet:hover,
   [data-theme="dark"] a.btn-meet:hover {
     background: #124235 !important;
-    color: #ffffff !important;
-  }
-
-  [data-theme="dark"] .date-picker-btn,
-  [data-theme="dark"] .month-display-btn {
-    background: rgba(45, 106, 90, 0.28) !important;
-    border-color: #244a3b !important;
-    color: #e2f2ec !important;
-  }
-
-  [data-theme="dark"] .date-picker-btn:hover,
-  [data-theme="dark"] .month-display-btn:hover,
-  [data-theme="dark"] .date-picker-wrap:hover .date-picker-btn {
-    background: rgba(45, 106, 90, 0.45) !important;
-    border-color: #79d6bd !important;
     color: #ffffff !important;
   }
 
