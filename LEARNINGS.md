@@ -1,5 +1,15 @@
 # Learnings
 
+## 2026-09-28 — Phase 19 Closed: `drive.readonly` Kept As-Is
+
+**Worked well:**
+- Auditing `Code.gs`'s `DriveApp`/`Drive` call sites before proposing an approach, rather than reasoning abstractly about "narrow the scope" — the audit surfaced that only two call sites (`validateAndSaveFolderUrl`'s user-typed folder ID, `resolveDriveFileTitle`'s smart-paste lookup) genuinely need read access beyond `drive.file`; everything else was already covered. That grounded the go/no-go decision in real usage instead of guesswork.
+- Breaking the Picker-vs-keep tradeoff into concrete numbered steps (what changes in setup, what breaks in smart-paste UX, what new client code Picker needs) when the user asked for smaller steps — made the actual cost of narrowing visible instead of a vague "it's more secure" pitch, which led directly to the informed decision to keep `drive.readonly`.
+- The audit surfaced two now-stale docs (`About.html` overclaiming zero Drive visibility, `README.txt` omitting `drive.readonly`) that were wrong regardless of which option got picked — fixed those independent of the narrowing decision itself.
+
+**Needs improvement:**
+- The WORK deployment repoint (version 92) still needs a manual IDE step from `michael.hoffman@gsa.gov` — this GSA-domain-only deploy restriction is a known standing gap (see `gas-environments.md`), not new, but it's worth flagging that this session's WORK push landed code without landing live confirmation, so it's easy to lose track of that loose end. Left in `TODO.md`.
+
 ## 2026-09-28 — Voice Typing Popup UI Polish, WORK Parity Verified, About.html Rewrite
 
 **Worked well:**
