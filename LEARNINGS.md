@@ -1,5 +1,18 @@
 # Learnings
 
+## 2026-09-28 — Voice Typing Popup: Live WORK Iteration, GAS HtmlService Quirks, Reverted Regression
+
+**Worked well:**
+- Tight live-test loop on the actual WORK (federal, network-restricted) machine surfaced real bugs a HOME-only test pass wouldn't have caught: silent misattribution on same-line no-focus click, phrase duplication in the ASR handler, and a mic-access regression from a `blob:` URL popup-navigation experiment.
+- Diagnosing dark-mode contrast and navbar-button drift down to a single shared root cause each time (one CSS variable, one set of duplicate overrides) rather than patching every affected component individually kept the fixes small and durable.
+- Renaming the feature to "Voice typing" and mirroring Google Docs' own minimal popup chrome (per the new [[feedback_google_material_design_alignment]] memory) landed cleanly once the no-pills/circular-button tension was resolved by asking instead of guessing.
+
+**Needs improvement:**
+- The `blob:` URL popup-navigation change was pushed to WORK without first confirming mic access still worked there — it broke `SpeechRecognition`/`getUserMedia` entirely and had to be reverted. A same-origin-context change touching Permissions Policy behavior should get a live WORK mic check before promotion, not just a lint/test pass.
+- Forgot to re-run `npm run stamp-build` across an entire session of deploys (stale "Build 253" for ~30+ commits) before the pre-commit auto-stamp hook was added — the hook removes this failure mode going forward.
+
+---
+
 ## 2026-08-16 — 3-Column Workspace Layout & Modular Franklin Note Cards with Google Docs Menu
 
 **Worked well:**
