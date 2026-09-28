@@ -1,5 +1,13 @@
 # Learnings
 
+## 2026-09-28 — Phase 20: Future Planning Items as Real Tasks
+
+**Worked well:**
+- Asking the user the migration-strategy question up front (via `AskUserQuestion`) instead of picking a default and building around it — the handoff note had explicitly flagged this as a real open decision, and "start fresh" turned out to simplify the implementation considerably (no import/rename logic needed at all).
+- Reading the actual client call sites (`app.js`, `Index.html`) before assuming the RPC contract needed to change — the handoff's own checklist assumed `src/futureMatrixEngine.js`/tests/UI bindings would need updates, but tracing every caller showed the UI only ever touches `{id, title, status}` on future items, so the entire client layer needed zero changes. Would have been wasted work to "update" 20+ tests that were already correct.
+- Live-verifying via the actual running Alpine app instance in the browser (`document.querySelector('[x-data]')._x_dataStack[0]`) rather than raw `google.script.run` calls — exercised the real user-facing code path (`addFutureItemToMonth`, `toggleFutureItemStatus`, `deleteFutureItemFromMonth`) end-to-end against production, then cleaned up the test item afterward so no clutter was left in the real task list.
+- Fixing the `encodeTaskMeta`/`DP_HUMAN_TAGS_RE` bracket-tag regex bug (it required a trailing `:...` so `[Master]`/`[Starred]`/new `[Future]` were never actually stripped) as part of this change rather than filing it separately — it would have silently broken the new `[Future]` unset-on-transfer logic if left alone, so fixing it was required for correctness, not scope creep.
+
 ## 2026-09-28 — Index Date Fix; Future Planning Drive-Scope Bug Fixed
 
 **Worked well:**

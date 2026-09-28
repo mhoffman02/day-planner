@@ -1,5 +1,18 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-28 — Phase 20 Complete: Future Planning Items as Real Tasks (HOME @262, WORK v99 pushed)
+
+- [x] Replaced the `future-matrix-YYYY.json` Drive-file bucket with real Google Tasks (flagged `[Future]` in notes, dueDate-keyed). `saveFutureMatrixData_`/Drive read-write removed entirely from `gas-app/Code.gs`.
+- [x] `addFutureItem`/`updateFutureItemStatus`/`transferFutureItem`/`pushFutureItemToNextMonth`/`deleteFutureItem` reworked to patch/insert/remove real Tasks via the Tasks API, reusing `updateDailyTask`/`deleteDailyTask` where the semantics matched exactly.
+- [x] `getFutureMatrixData_`/`getFutureMatrix` now query Tasks (`dueMin`/`dueMax` scoped to the year) and group by `due`'s month.
+- [x] No-day items default `dueDate` to the last day of the target month (`lastDayOfMonthStr_`); `addFutureItem` gained an optional trailing `day` param for day-specific items (unused by the current UI, but the RPC now supports it per the original ask).
+- [x] Zero client-side changes needed (`src/futureMatrixEngine.js`, `src/app.js`, `gas-app/Script.html`, `Index.html`/`index.html`) — the RPC contract and item shape (`{id, title, category, status}`) were preserved exactly, and the local-dev mock in `gasBridge.js` was already an independent in-memory store unrelated to Drive JSON.
+- [x] Migration decision (user, asked mid-session): start fresh, no import — existing `future-matrix-*.json` files are simply orphaned/ignored in Drive going forward.
+- [x] Fixed a latent bug found while touching `encodeTaskMeta`/`DP_HUMAN_TAGS_RE`: bracket-only tags (`[Master]`, `[Starred]`, new `[Future]`) weren't stripped by the tag-removal regex (it required a trailing `:...`), so repeated edits would have silently accumulated duplicate tags in a task's notes over time. Regex now optionally matches `:content`.
+- [x] `npm test` (155/155) and `npm run lint` both clean after the rewrite.
+- [x] Live-verified on HOME @262 via a CDP-driven probe (no generic browser tool): drove the real Alpine app instance in the running tab to add a future item with no day, confirmed it landed on `2026-09-30`, cycled its status, deleted it, and re-fetched to confirm the delete hit the real backend — not just client state. Test item cleaned up after.
+- [x] WORK version 99 pushed (`npm run push:work`), carrying Phase 20 on top of the prior session's Index-date and Drive-scope fixes. Repoint still needs `michael.hoffman@gsa.gov` (tracked as a loose end in `TODO.md`).
+
 ## 2026-09-28 — Index Date Fix; Future Planning Drive-Scope Bug Fixed (HOME @261)
 
 - [x] **Monthly Index date column**: was raw ISO `YYYY-MM-DD` wrapping onto two lines in a 100px column. Added `formatIndexDate()` (mirrors the existing `formatSelectedDateDisplay` pattern minus the weekday) in `src/app.js` and `gas-app/Script.html`; widened the column to `th-w-150`. Confirmed live via CDP against `localhost:3000` that `"Sep 28, 2026"` now renders on one line.

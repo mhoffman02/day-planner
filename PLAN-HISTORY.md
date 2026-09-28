@@ -4,6 +4,16 @@ Archived completed phases from [`PLAN.md`](file:///home/mike/projects/day-planne
 
 ---
 
+### Phase 20: Future Planning Items as Real Tasks
+*Goal: replace the custom `future-matrix-YYYY.json` Drive-file bucket storage with real Google Tasks (dueDate = last day of the target month when no specific day is given), matching how Master/Daily Tasks are already stored. Triggered by a 2026-09-28 live bug where `DriveApp.Folder.createFile()`/`File.setContent()` demanded the broad `drive` scope even for the app's own folder.*
+- [x] Reworked `addFutureItem`/`updateFutureItemStatus`/`transferFutureItem`/`pushFutureItemToNextMonth`/`deleteFutureItem` in `gas-app/Code.gs` to operate on Tasks (dueDate-keyed, flagged `[Future]` in notes) instead of the JSON bucket; `saveFutureMatrixData_`/Drive read-write removed entirely.
+- [x] `getFutureMatrixData_`/`getFutureMatrix` now query Tasks (`dueMin`/`dueMax` scoped to the year) and group by `due`'s month.
+- [x] No-day items default `dueDate` to the last day of the target month (`lastDayOfMonthStr_`); an optional `day` param on `addFutureItem` allows day-specific items too.
+- [x] Client side (`src/futureMatrixEngine.js`, `src/app.js`, `gas-app/Script.html`, `Index.html`) needed zero changes — the RPC contract and item shape were preserved, and the local-dev mock in `gasBridge.js` was already an independent in-memory store.
+- [x] Migration decision (user, 2026-09-28): start fresh, no migration — existing `future-matrix-*.json` files are simply orphaned/ignored in Drive.
+- [x] Fixed a latent bug found while touching `encodeTaskMeta`/`DP_HUMAN_TAGS_RE`: bracket-only tags (`[Master]`, `[Starred]`, new `[Future]`) weren't stripped by the tag-removal regex (it required a trailing `:...`), so repeated edits would have accumulated duplicate tags in a task's notes.
+- [x] Live-verified on HOME @262 via CDP probe: no-day item landed on 2026-09-30, status cycling and delete round-tripped against real Google Tasks. WORK verification carried forward as a loose end in `TODO.md` (WORK version 99 pushed, pending `michael.hoffman@gsa.gov`'s manual deployment repoint).
+
 ### Phase 19: `drive.readonly` Scope Narrowing
 *Goal: decide whether `drive.readonly` in `gas-app/appsscript.json` is worth narrowing further.*
 - [x] Audited every `DriveApp`/`Drive` call site in `Code.gs`. Two call sites genuinely need read access beyond `drive.file`: `validateAndSaveFolderUrl` (user-typed folder ID at setup) and `resolveDriveFileTitle` (smart-paste title lookup on arbitrary pasted Docs/Sheets/Slides/Drive links). Everything else operates on the app's own "Day Planner" folder and is already `drive.file`-covered.
