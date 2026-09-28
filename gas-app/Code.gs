@@ -67,104 +67,199 @@ function recordServerLog(level, context, message, stack) {
 }
 
 /**
+ * Shared Docs Advanced Service helpers. Used instead of the DocumentApp built-in service so
+ * this app can run under the narrower drive.file OAuth scope -- DocumentApp only accepts the
+ * broad `documents` scope ("See, edit, create, and delete all your Google Docs documents"),
+ * while the underlying Docs REST API (Docs.Documents.get/batchUpdate/create, exposed here as
+ * the Docs Advanced Service) also accepts drive.file, per Google's own API reference. Requires
+ * "Docs" (serviceId "docs") enabled in the manifest's enabledAdvancedServices AND added via the
+ * Apps Script IDE's Services (+) button -- a manifest entry alone (e.g. via clasp push) does not
+ * enable the underlying API in the linked Cloud project.
+ */
+
+/**
+ * Returns a document's top-level body elements as plain objects (Docs API StructuralElement
+ * shape), filtered to paragraph elements only. The first content element is always a
+ * sectionBreak with no paragraph/startIndex and is dropped by this filter.
+ * @param {string} documentId Google Doc id.
+ * @returns {Array<Object>} Paragraph structural elements, each with startIndex/endIndex/paragraph.
+ */
+function docsGetBodyElements_(documentId) {
+  var doc = Docs.Documents.get(documentId);
+  var content = (doc.body && doc.body.content) || [];
+  return content.filter(function (el) { return !!el.paragraph; });
+}
+
+/** @returns {string} Plain text of a paragraph structural element, trailing newline stripped. */
+function docsElementText_(el) {
+  if (!el.paragraph || !el.paragraph.elements) return '';
+  return el.paragraph.elements.map(function (pe) {
+    return (pe.textRun && pe.textRun.content) || '';
+  }).join('').replace(/\n$/, '');
+}
+
+/** @returns {string} namedStyleType (e.g. 'HEADING_2') or 'NORMAL_TEXT' if unset. */
+function docsElementHeading_(el) {
+  return (el.paragraph && el.paragraph.paragraphStyle && el.paragraph.paragraphStyle.namedStyleType) || 'NORMAL_TEXT';
+}
+
+/** @returns {boolean} True if this paragraph element is (or contains) a page break. */
+function docsElementIsPageBreak_(el) {
+  if (!el.paragraph || !el.paragraph.elements) return false;
+  return el.paragraph.elements.some(function (pe) { return !!pe.pageBreak; });
+}
+
+/** @returns {boolean} True if this paragraph is a bulleted list item. */
+function docsElementIsListItem_(el) {
+  return !!(el.paragraph && el.paragraph.bullet);
+}
+
+/**
+ * Builds the insertText string plus paragraph-style/bullet requests for a "day section": an
+ * H2 day heading followed by markdown-ish lines (### -> H3, - -> bullet, else plain text).
+ * Ranges are computed relative to baseIndex, the character index the text will be inserted at,
+ * so the caller can insert this text via one insertText request and apply these style requests
+ * immediately after in the same batchUpdate.
+ * @param {number} baseIndex Document character index where `text` will be inserted.
+ * @param {string} dayHeadingText Day heading line, e.g. "Day Planner - Friday, ...".
+ * @param {Array<string>} lines Card content lines (markdown-ish, as produced by the client).
+ * @returns {{text: string, styleRequests: Array<Object>}} Insertable text and follow-up requests.
+ */
+function buildDaySectionRequests_(baseIndex, dayHeadingText, lines) {
+  var text = '';
+  var styleReqs = [];
+  var bulletRanges = [];
+
+  function appendLine(str, kind) {
+    var start = baseIndex + text.length;
+    text += str + '\n';
+    var end = baseIndex + text.length - 1;
+    if (kind === 'H2' || kind === 'H3') {
+      styleReqs.push({
+        updateParagraphStyle: {
+          range: { startIndex: start, endIndex: end },
+          paragraphStyle: { namedStyleType: kind === 'H2' ? 'HEADING_2' : 'HEADING_3' },
+          fields: 'namedStyleType'
+        }
+      });
+    } else if (kind === 'BULLET') {
+      bulletRanges.push({ startIndex: start, endIndex: end });
+    }
+  }
+
+  appendLine(dayHeadingText, 'H2');
+  lines.forEach(function (line) {
+    if (line.indexOf('### ') === 0) {
+      appendLine(line.replace('### ', ''), 'H3');
+    } else if (line.indexOf('- ') === 0) {
+      appendLine(line.replace('- ', ''), 'BULLET');
+    } else if (line.trim()) {
+      appendLine(line, 'NORMAL');
+    }
+  });
+
+  bulletRanges.forEach(function (r) {
+    styleReqs.push({ createParagraphBullets: { range: r, bulletPreset: 'BULLET_DISC_CIRCLE_SQUARE' } });
+  });
+
+  return { text: text, styleRequests: styleReqs };
+}
+
+/**
+ * Appends a single plain-text paragraph to the end of a doc via the Docs Advanced Service.
+ * Docs API documents always end with a mandatory trailing newline that cannot be deleted, so
+ * new content is inserted just before it (endIndex - 1), prefixed with its own newline.
+ * @param {string} documentId Google Doc id.
+ * @param {string} text Paragraph text (no trailing newline).
+ * @returns {{startIndex: number, endIndex: number}} Character range of the inserted text.
+ */
+function docsAppendParagraph_(documentId, text) {
+  var doc = Docs.Documents.get(documentId);
+  var content = doc.body.content;
+  var lastEndIndex = content[content.length - 1].endIndex;
+  var insertAt = lastEndIndex - 1;
+  Docs.Documents.batchUpdate({
+    requests: [{ insertText: { location: { index: insertAt }, text: '\n' + text } }]
+  }, documentId);
+  return { startIndex: insertAt + 1, endIndex: insertAt + 1 + text.length };
+}
+
+/**
  * Appends a log entry to the permanent 'Day Planner - Run Log' Google Doc located
- * in the user's Day Planner Drive folder.
+ * in the user's Day Planner Drive folder. Plain text only (no per-line styling) -- this is a
+ * diagnostics-only doc, not user-facing, so the Docs-API port intentionally drops the previous
+ * DocumentApp-based font/color/bold formatting to keep this port small and low-risk; the level
+ * is still visible via the "[ERROR]"/"[WARN]"/"[INFO]" bracket in the text itself.
  * @param {'ERROR'|'WARN'|'INFO'} level Log severity.
  * @param {string} context Operation context.
  * @param {string} message Log message.
  * @param {string|null} [stack] Stack trace if available.
  */
 function appendRunLogToDoc_(level, context, message, stack) {
-  if (typeof DocumentApp === 'undefined') return;
+  if (typeof Docs === 'undefined' || typeof Drive === 'undefined') return;
 
   try {
     var userProps = PropertiesService.getUserProperties();
     var cachedDocId = userProps.getProperty('DAY_PLANNER_RUN_LOG_DOC_ID');
-    var doc = null;
+    var docId = null;
 
     if (cachedDocId) {
       try {
-        doc = DocumentApp.openById(cachedDocId);
+        Docs.Documents.get(cachedDocId);
+        docId = cachedDocId;
       } catch (openErr) {
         console.warn('cachedDocId open exception: ' + openErr.toString());
         userProps.deleteProperty('DAY_PLANNER_RUN_LOG_DOC_ID');
-        doc = null;
+        docId = null;
       }
     }
 
-    if (!doc) {
+    if (!docId) {
       var targetFolder = getValidatedRootFolder();
       if (!targetFolder) return;
 
       var docName = 'Day Planner - Run Log';
       var files = targetFolder.getFilesByName(docName);
       if (files.hasNext()) {
-        doc = DocumentApp.openById(files.next().getId());
+        docId = files.next().getId();
       } else {
-        if (typeof Drive !== 'undefined' && Drive.Files && Drive.Files.insert) {
-          try {
-            var newFile = Drive.Files.insert({
-              title: docName,
-              mimeType: 'application/vnd.google-apps.document',
-              parents: [{ id: targetFolder.getId() }]
-            });
-            doc = DocumentApp.openById(newFile.id);
-          } catch (driveErr) {
-            console.warn('Drive.Files.insert run log fallback: ' + driveErr.toString());
-          }
-        }
+        var newFile = Drive.Files.insert({
+          title: docName,
+          mimeType: 'application/vnd.google-apps.document',
+          parents: [{ id: targetFolder.getId() }]
+        });
+        docId = newFile.id;
 
-        if (!doc) {
-          doc = DocumentApp.create(docName);
-          try {
-            var docFile = DriveApp.getFileById(doc.getId());
-            docFile.moveTo(targetFolder);
-          } catch (moveErr) {
-            console.warn('fallback moveTo skipped: ' + moveErr.toString());
-          }
-        }
-
-        var headerBody = doc.getBody();
-        headerBody.appendParagraph('Day Planner - System Diagnostics & Run Log')
-          .setHeading(DocumentApp.ParagraphHeading.HEADING1);
-        headerBody.appendParagraph('Permanent audit log of server-side events, warnings, and error diagnostics.')
-          .setFontSize(10).setForegroundColor('#5c6b66');
-        headerBody.appendHorizontalRule();
-        doc.saveAndClose();
-        doc = DocumentApp.openById(doc.getId());
+        var headerText = 'Day Planner - System Diagnostics & Run Log';
+        var subText = 'Permanent audit log of server-side events, warnings, and error diagnostics.';
+        Docs.Documents.batchUpdate({
+          requests: [
+            { insertText: { location: { index: 1 }, text: headerText + '\n' + subText + '\n' } },
+            {
+              updateParagraphStyle: {
+                range: { startIndex: 1, endIndex: 1 + headerText.length },
+                paragraphStyle: { namedStyleType: 'HEADING_1' },
+                fields: 'namedStyleType'
+              }
+            }
+          ]
+        }, docId);
       }
 
-      if (doc) {
-        userProps.setProperty('DAY_PLANNER_RUN_LOG_DOC_ID', doc.getId());
+      if (docId) {
+        userProps.setProperty('DAY_PLANNER_RUN_LOG_DOC_ID', docId);
       }
     }
 
-    if (!doc) return;
+    if (!docId) return;
 
-    var body = doc.getBody();
     var timeStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'America/Los_Angeles', 'yyyy-MM-dd HH:mm:ss');
     var logLine = '[' + timeStr + '] [' + (level || 'INFO') + '] [' + (context || 'general') + '] ' + (message || '');
-    var p = body.appendParagraph(logLine);
-    p.setFontFamily('Consolas');
-    p.setFontSize(9);
-
-    if (level === 'ERROR') {
-      p.setForegroundColor('#c62828').setBold(true);
-    } else if (level === 'WARN') {
-      p.setForegroundColor('#e65100').setBold(true);
-    } else {
-      p.setForegroundColor('#1c2826');
-    }
+    docsAppendParagraph_(docId, logLine);
 
     if (stack) {
-      var pStack = body.appendParagraph(stack);
-      pStack.setFontFamily('Consolas');
-      pStack.setFontSize(8);
-      pStack.setForegroundColor('#5c6b66');
-      pStack.setIndentStart(24);
+      docsAppendParagraph_(docId, stack);
     }
-
-    doc.saveAndClose();
   } catch (err) {
     console.warn('appendRunLogToDoc_ exception: ' + err.toString());
   }
@@ -992,7 +1087,7 @@ function getDailyData(dateStr) {
 
     // 3. Fetch or Create Daily Notes Google Doc
     try {
-      if (typeof DriveApp !== 'undefined' && typeof DocumentApp !== 'undefined') {
+      if (typeof DriveApp !== 'undefined' && typeof Docs !== 'undefined') {
         var targetFolder = getValidatedRootFolder();
         if (targetFolder) {
           var d = new Date(dateStr + 'T00:00:00');
@@ -1000,9 +1095,9 @@ function getDailyData(dateStr) {
           var monthName = monthNames[d.getMonth()];
           var year = d.getFullYear();
           var docName = 'Day Planner Notes - ' + monthName + ' ' + year;
-          var doc = getOrCreateMonthlyNotesDoc_(targetFolder, docName, monthName, year);
-          if (doc && typeof doc.getUrl === 'function') {
-            result.docUrl = doc.getUrl();
+          var docId = getOrCreateMonthlyNotesDoc_(targetFolder, docName, monthName, year);
+          if (docId) {
+            result.docUrl = 'https:' + '/' + '/docs.google.com/document/d/' + docId + '/edit';
           }
         }
       } else {
@@ -1034,58 +1129,44 @@ function getDailyData(dateStr) {
 function getOrCreateMonthlyNotesDoc_(targetFolder, docName, monthName, year) {
   var files = targetFolder.getFilesByName(docName);
   if (files.hasNext()) {
-    return DocumentApp.openById(files.next().getId());
+    return files.next().getId();
   }
 
-  var doc = null;
-  // 1. Preferred: create directly inside targetFolder via Drive API without touching root or calling moveTo
-  if (typeof Drive !== 'undefined' && Drive.Files && Drive.Files.insert) {
-    try {
-      var resource = {
-        title: docName,
-        mimeType: 'application/vnd.google-apps.document',
-        parents: [{ id: targetFolder.getId() }]
-      };
-      var created = Drive.Files.insert(resource);
-      doc = DocumentApp.openById(created.id);
-    } catch (driveApiErr) {
-      console.warn('Drive.Files.insert doc creation fallback: ' + driveApiErr.toString());
-    }
-  }
-
-  // 2. Fallback if Drive Advanced Service unavailable: DocumentApp.create with safe moveTo
-  if (!doc) {
-    doc = DocumentApp.create(docName);
-    try {
-      var docFile = DriveApp.getFileById(doc.getId());
-      docFile.moveTo(targetFolder);
-    } catch (moveErr) {
-      console.warn('docFile.moveTo skipped (requires broad drive scope, using existing parent): ' + moveErr.toString());
-    }
-  }
-
-  var body = doc.getBody();
-  body.appendParagraph('Day Planner Notes - ' + monthName + ' ' + year)
-      .setHeading(DocumentApp.ParagraphHeading.HEADING1);
-  doc.saveAndClose();
-  return DocumentApp.openById(doc.getId());
+  var resource = {
+    title: docName,
+    mimeType: 'application/vnd.google-apps.document',
+    parents: [{ id: targetFolder.getId() }]
+  };
+  var created = Drive.Files.insert(resource);
+  var titleText = 'Day Planner Notes - ' + monthName + ' ' + year;
+  Docs.Documents.batchUpdate({
+    requests: [
+      { insertText: { location: { index: 1 }, text: titleText } },
+      {
+        updateParagraphStyle: {
+          range: { startIndex: 1, endIndex: 1 + titleText.length },
+          paragraphStyle: { namedStyleType: 'HEADING_1' },
+          fields: 'namedStyleType'
+        }
+      }
+    ]
+  }, created.id);
+  return created.id;
 }
 
 /**
- * Helper to identify if a DocumentApp element is the heading for a specific target day.
- * Matches HEADING2 paragraphs or lines containing dayFormatted or dateStr.
- * @param {GoogleAppsScript.Document.Element} element Candidate body child element.
+ * Helper to identify if a Docs API structural element is the heading for a specific target day.
+ * Matches HEADING_2 paragraphs or lines containing dayFormatted or dateStr.
+ * @param {Object} element Candidate body structural element (see docsGetBodyElements_).
  * @param {string} dateStr Target date in YYYY-MM-DD format.
  * @param {string} [dayFormatted] Formatted date string (e.g. "Friday, September 25, 2026").
  * @returns {boolean} True if element matches the day’s heading.
  */
 function isDayHeadingElement_(element, dateStr, dayFormatted) {
-  if (!element || typeof DocumentApp === 'undefined') return false;
-  if (element.getType() !== DocumentApp.ElementType.PARAGRAPH) return false;
-  var p = element.asParagraph();
-  var heading = p.getHeading();
-  var text = p.getText().trim();
-  if (heading === DocumentApp.ParagraphHeading.HEADING2 || text.indexOf('Day Planner - ') === 0 || text.indexOf('## ') === 0) {
+  if (!element) return false;
+  var heading = docsElementHeading_(element);
+  var text = docsElementText_(element).trim();
+  if (heading === 'HEADING_2' || text.indexOf('Day Planner - ') === 0 || text.indexOf('## ') === 0) {
     if (text.indexOf(dateStr) !== -1 || (dayFormatted && text.indexOf(dayFormatted) !== -1)) {
       return true;
     }
@@ -1094,17 +1175,15 @@ function isDayHeadingElement_(element, dateStr, dayFormatted) {
 }
 
 /**
- * Helper to identify if a DocumentApp element marks any day’s section boundary.
- * @param {GoogleAppsScript.Document.Element} element Candidate body child element.
+ * Helper to identify if a Docs API structural element marks any day’s section boundary.
+ * @param {Object} element Candidate body structural element (see docsGetBodyElements_).
  * @returns {boolean} True if element is a day heading.
  */
 function isAnyDayHeadingElement_(element) {
-  if (!element || typeof DocumentApp === 'undefined') return false;
-  if (element.getType() !== DocumentApp.ElementType.PARAGRAPH) return false;
-  var p = element.asParagraph();
-  var heading = p.getHeading();
-  var text = p.getText().trim();
-  if (heading === DocumentApp.ParagraphHeading.HEADING2) return true;
+  if (!element) return false;
+  var heading = docsElementHeading_(element);
+  var text = docsElementText_(element).trim();
+  if (heading === 'HEADING_2') return true;
   if (text.indexOf('Day Planner - ') === 0 || text.indexOf('## ') === 0) return true;
   return false;
 }
@@ -1116,7 +1195,7 @@ function isAnyDayHeadingElement_(element) {
  * @returns {string} Text content of daily note section.
  */
 function getOrCreateDailyDocContent(dateStr) {
-  if (typeof DriveApp === 'undefined' || typeof DocumentApp === 'undefined') {
+  if (typeof DriveApp === 'undefined' || typeof Docs === 'undefined') {
     return '### #index [Architecture] System Design\nFinalized 3-column binder layout with Alpine.js and clean CSS.\n\n### #index [Finance] Budget Sync\n- Reviewed Q3 budget and Google Workspace API sync.\n- Approved GCP allocation.';
   }
 
@@ -1133,16 +1212,13 @@ function getOrCreateDailyDocContent(dateStr) {
     var year = d.getFullYear();
     var docName = 'Day Planner Notes - ' + monthName + ' ' + year;
 
-    var doc = getOrCreateMonthlyNotesDoc_(targetFolder, docName, monthName, year);
-    var body = doc.getBody();
+    var docId = getOrCreateMonthlyNotesDoc_(targetFolder, docName, monthName, year);
+    var elements = docsGetBodyElements_(docId);
     var dayFormatted = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 
-    var numChildren = body.getNumChildren();
     var dayHeadingIndex = -1;
-
-    for (var i = 0; i < numChildren; i++) {
-      var child = body.getChild(i);
-      if (isDayHeadingElement_(child, dateStr, dayFormatted)) {
+    for (var i = 0; i < elements.length; i++) {
+      if (isDayHeadingElement_(elements[i], dateStr, dayFormatted)) {
         dayHeadingIndex = i;
         break;
       }
@@ -1150,23 +1226,20 @@ function getOrCreateDailyDocContent(dateStr) {
 
     if (dayHeadingIndex !== -1) {
       var contentLines = [];
-      for (var j = dayHeadingIndex + 1; j < numChildren; j++) {
-        var el = body.getChild(j);
+      for (var j = dayHeadingIndex + 1; j < elements.length; j++) {
+        var el = elements[j];
         if (isAnyDayHeadingElement_(el)) {
           break;
         }
-        var type = el.getType();
-        if (type === DocumentApp.ElementType.PARAGRAPH) {
-          var p = el.asParagraph();
-          var heading = p.getHeading();
-          var text = p.getText();
-          if (heading === DocumentApp.ParagraphHeading.HEADING3) {
-            contentLines.push('### ' + text);
-          } else if (text.trim()) {
-            contentLines.push(text);
-          }
-        } else if (type === DocumentApp.ElementType.LIST_ITEM) {
-          contentLines.push('- ' + el.asListItem().getText());
+        if (docsElementIsPageBreak_(el)) continue;
+        var heading = docsElementHeading_(el);
+        var text = docsElementText_(el);
+        if (heading === 'HEADING_3') {
+          contentLines.push('### ' + text);
+        } else if (docsElementIsListItem_(el)) {
+          contentLines.push('- ' + text);
+        } else if (text.trim()) {
+          contentLines.push(text);
         }
       }
       if (contentLines.length > 0) {
@@ -1183,14 +1256,15 @@ function getOrCreateDailyDocContent(dateStr) {
 
 /**
  * Saves/updates daily topic cards content in the Monthly Google Doc (12 per year).
- * Efficient batch append/update with human-readable page spacing and print-friendly styles.
- * Idempotently replaces existing day section in-place to prevent duplication.
+ * Idempotently replaces existing day section in-place to prevent duplication, via a single
+ * Docs Advanced Service batchUpdate (delete the old section's character range, insert the new
+ * one, then apply heading/bullet style requests) rather than DocumentApp's per-element tree API.
  * @param {string} dateStr Target date in YYYY-MM-DD format.
  * @param {string} noteContent Markdown/card note content to persist.
  * @returns {{success: boolean, docName: string}} Result status.
  */
 function saveDailyDocCards(dateStr, noteContent) {
-  if (typeof DriveApp === 'undefined' || typeof DocumentApp === 'undefined') {
+  if (typeof DriveApp === 'undefined' || typeof Docs === 'undefined') {
     return { success: true, docName: 'Local Dev Mock Doc' };
   }
 
@@ -1205,86 +1279,63 @@ function saveDailyDocCards(dateStr, noteContent) {
     var year = d.getFullYear();
     var docName = 'Day Planner Notes - ' + monthName + ' ' + year;
 
-    var doc = getOrCreateMonthlyNotesDoc_(targetFolder, docName, monthName, year);
-    var body = doc.getBody();
+    var docId = getOrCreateMonthlyNotesDoc_(targetFolder, docName, monthName, year);
     var dayFormatted = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
     var dayHeadingText = 'Day Planner - ' + dayFormatted;
+    var lines = (noteContent || '').split('\n');
 
-    var numChildren = body.getNumChildren();
+    var elements = docsGetBodyElements_(docId);
     var dayHeadingIndex = -1;
-
-    for (var i = 0; i < numChildren; i++) {
-      var child = body.getChild(i);
-      if (isDayHeadingElement_(child, dateStr, dayFormatted)) {
+    for (var i = 0; i < elements.length; i++) {
+      if (isDayHeadingElement_(elements[i], dateStr, dayFormatted)) {
         dayHeadingIndex = i;
         break;
       }
     }
 
-    var lines = (noteContent || '').split('\n');
+    var requests = [];
 
     if (dayHeadingIndex !== -1) {
-      // Idempotent replacement: determine range of existing day section [dayHeadingIndex, endIndex)
-      var endIndex = numChildren;
-      for (var j = dayHeadingIndex + 1; j < numChildren; j++) {
-        var nextChild = body.getChild(j);
-        if (isAnyDayHeadingElement_(nextChild)) {
-          // If the element immediately preceding next day heading is a PAGE_BREAK, keep it for next section
-          if (j > 0 && body.getChild(j - 1).getType() === DocumentApp.ElementType.PAGE_BREAK) {
-            endIndex = j - 1;
+      // Idempotent replacement: determine range of existing day section [dayHeadingIndex, endElIndex)
+      var endElIndex = elements.length;
+      for (var j = dayHeadingIndex + 1; j < elements.length; j++) {
+        if (isAnyDayHeadingElement_(elements[j])) {
+          // If the element immediately preceding the next day heading is a page break, keep it
+          // in place for the next section rather than deleting it as part of this one.
+          if (j > 0 && docsElementIsPageBreak_(elements[j - 1])) {
+            endElIndex = j - 1;
           } else {
-            endIndex = j;
+            endElIndex = j;
           }
           break;
         }
       }
 
-      // Safeguard: Ensure body has at least one permanent element before removing children
-      if (body.getNumChildren() <= (endIndex - dayHeadingIndex)) {
-        body.insertParagraph(0, 'Day Planner Notes - ' + monthName + ' ' + year).setHeading(DocumentApp.ParagraphHeading.HEADING1);
-        dayHeadingIndex++;
-        endIndex++;
-      }
+      var deleteStart = elements[dayHeadingIndex].startIndex;
+      var deleteEnd = elements[endElIndex - 1].endIndex;
+      var docEndIndex = elements[elements.length - 1].endIndex;
+      // A doc's final newline can never be deleted -- clamp if this range would reach doc end.
+      if (deleteEnd >= docEndIndex) deleteEnd = docEndIndex - 1;
 
-      // Delete existing day section elements in reverse index order
-      for (var k = endIndex - 1; k >= dayHeadingIndex; k--) {
-        body.removeChild(body.getChild(k));
-      }
-
-      // Insert updated day heading and cards in place
-      var insertIndex = dayHeadingIndex;
-      var h2 = body.insertParagraph(insertIndex++, dayHeadingText);
-      h2.setHeading(DocumentApp.ParagraphHeading.HEADING2);
-
-      lines.forEach(function(line) {
-        if (line.indexOf('### ') === 0) {
-          var h3 = body.insertParagraph(insertIndex++, line.replace('### ', ''));
-          h3.setHeading(DocumentApp.ParagraphHeading.HEADING3);
-        } else if (line.indexOf('- ') === 0) {
-          body.insertListItem(insertIndex++, line.replace('- ', ''));
-        } else if (line.trim()) {
-          body.insertParagraph(insertIndex++, line);
-        }
-      });
+      requests.push({ deleteContentRange: { range: { startIndex: deleteStart, endIndex: deleteEnd } } });
+      var plan = buildDaySectionRequests_(deleteStart, dayHeadingText, lines);
+      requests.push({ insertText: { location: { index: deleteStart }, text: plan.text } });
+      requests = requests.concat(plan.styleRequests);
     } else {
-      // New day: append page break if previous element is not already a page break, then append heading and cards
-      if (numChildren > 0 && body.getChild(numChildren - 1).getType() !== DocumentApp.ElementType.PAGE_BREAK) {
-        body.appendPageBreak();
+      // New day: insert a page break first if the doc doesn't already end with one, then the
+      // heading and cards after it.
+      var lastElement = elements[elements.length - 1];
+      var insertAt = lastElement ? lastElement.endIndex - 1 : 1;
+      if (lastElement && !docsElementIsPageBreak_(lastElement)) {
+        requests.push({ insertPageBreak: { location: { index: insertAt } } });
+        insertAt += 1;
       }
-      body.appendParagraph(dayHeadingText).setHeading(DocumentApp.ParagraphHeading.HEADING2);
-
-      lines.forEach(function(line) {
-        if (line.indexOf('### ') === 0) {
-          body.appendParagraph(line.replace('### ', '')).setHeading(DocumentApp.ParagraphHeading.HEADING3);
-        } else if (line.indexOf('- ') === 0) {
-          body.appendListItem(line.replace('- ', ''));
-        } else if (line.trim()) {
-          body.appendParagraph(line);
-        }
-      });
+      var newPlan = buildDaySectionRequests_(insertAt, dayHeadingText, lines);
+      requests.push({ insertText: { location: { index: insertAt }, text: newPlan.text } });
+      requests = requests.concat(newPlan.styleRequests);
     }
 
-    doc.saveAndClose();
+    Docs.Documents.batchUpdate({ requests: requests }, docId);
     return { success: true, docName: docName };
   } catch (err) {
     logError('saveDailyDocCards(' + dateStr + ')', err);
@@ -1303,28 +1354,23 @@ function saveDailyDocCards(dateStr, noteContent) {
  * @returns {{success: boolean, docId?: string, docUrl?: string, error?: string}} Creation result.
  */
 function createDictationScratchDoc() {
-  if (typeof DriveApp === 'undefined' || typeof DocumentApp === 'undefined') {
+  if (typeof Drive === 'undefined' || typeof Docs === 'undefined') {
     return { success: true, docId: 'mock-scratch-doc', docUrl: 'https:' + '/' + '/docs.google.com/document/d/mock-scratch-doc/edit' };
   }
   try {
     var scratchTimestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
-    var doc = DocumentApp.create('Day Planner - Dictation Scratchpad ' + scratchTimestamp);
-    var body = doc.getBody();
-    body.clear();
-    body.appendParagraph('Click below, then use Tools > Voice typing (Ctrl+Shift+S) to dictate. Switch back to Day Planner and click "Pull from Doc" when done.');
-    body.appendParagraph('');
-    doc.saveAndClose();
-
     var targetFolder = getValidatedRootFolder();
-    if (targetFolder) {
-      try {
-        DriveApp.getFileById(doc.getId()).moveTo(targetFolder);
-      } catch (moveErr) {
-        console.warn('createDictationScratchDoc moveTo skipped: ' + moveErr.toString());
-      }
-    }
+    var created = Drive.Files.insert({
+      title: 'Day Planner - Dictation Scratchpad ' + scratchTimestamp,
+      mimeType: 'application/vnd.google-apps.document',
+      parents: targetFolder ? [{ id: targetFolder.getId() }] : undefined
+    });
+    var instructions = 'Click below, then use Tools > Voice typing (Ctrl+Shift+S) to dictate. Switch back to Day Planner and click "Pull from Doc" when done.';
+    Docs.Documents.batchUpdate({
+      requests: [{ insertText: { location: { index: 1 }, text: instructions } }]
+    }, created.id);
 
-    return { success: true, docId: doc.getId(), docUrl: doc.getUrl() };
+    return { success: true, docId: created.id, docUrl: 'https:' + '/' + '/docs.google.com/document/d/' + created.id + '/edit' };
   } catch (err) {
     logError('createDictationScratchDoc()', err);
     return { success: false, error: err.message || err.toString() };
@@ -1339,28 +1385,27 @@ function createDictationScratchDoc() {
  * @returns {{success: boolean, text?: string, error?: string}} Pull result.
  */
 function pullDictationScratchText(docId) {
-  if (typeof DriveApp === 'undefined' || typeof DocumentApp === 'undefined') {
+  if (typeof Docs === 'undefined') {
     return { success: true, text: 'Mock dictated text from local dev scratch doc.' };
   }
   if (!docId) {
     return { success: false, error: 'No scratch doc id provided.' };
   }
   try {
-    var doc = DocumentApp.openById(docId);
-    var body = doc.getBody();
-    var lines = body.getText().split('\n');
+    var elements = docsGetBodyElements_(docId);
+    var lines = elements.map(docsElementText_);
     var placeholder = 'Click below, then use Tools > Voice typing';
     var text = lines.filter(function (line) {
       return line.indexOf(placeholder) !== 0;
     }).join('\n').trim();
 
-    // DriveApp.setTrashed requires the broad `drive` scope even for files this app created
-    // itself (same known limitation as moveTo in getOrCreateMonthlyNotesDoc_ above) -- never
-    // widening past drive.file for this. Clearing the body is a DocumentApp content edit, not
-    // a Drive file-management call, so it needs no extra scope and leaves the doc reusable.
     try {
-      body.clear();
-      doc.saveAndClose();
+      var docEndIndex = elements.length ? elements[elements.length - 1].endIndex : 2;
+      if (docEndIndex > 2) {
+        Docs.Documents.batchUpdate({
+          requests: [{ deleteContentRange: { range: { startIndex: 1, endIndex: docEndIndex - 1 } } }]
+        }, docId);
+      }
     } catch (clearErr) {
       console.warn('pullDictationScratchText body clear skipped: ' + clearErr.toString());
     }
@@ -1427,18 +1472,9 @@ function resolveDriveFileTitle(url) {
     logWarn('resolveDriveFileTitle: ' + m2);
   }
 
-  // Try 3: Specialized Workspace App services
-  try {
-    if (/document/i.test(url) && typeof DocumentApp !== 'undefined') {
-      var doc = DocumentApp.openById(fileId);
-      if (doc) return { success: true, title: doc.getName(), fileId: fileId };
-    }
-  } catch (docErr) {
-    var m3 = 'DocumentApp: ' + (docErr.message || docErr.toString());
-    errors.push(m3);
-    logWarn('resolveDriveFileTitle: ' + m3);
-  }
-
+  // Try 3: Specialized Workspace App services (Docs handled by Try 1/2 via Drive metadata
+  // already -- DocumentApp.openById() was dropped here since it duplicated that coverage while
+  // requiring the broad `documents` OAuth scope for no additional benefit)
   try {
     if (/spreadsheets/i.test(url) && typeof SpreadsheetApp !== 'undefined') {
       var ss = SpreadsheetApp.openById(fileId);
@@ -2256,7 +2292,7 @@ function searchAcrossAllMonthlyDocs(query) {
   var cleanQuery = (query || '').trim().toLowerCase();
   if (!cleanQuery) return [];
 
-  if (typeof DriveApp === 'undefined' || typeof DocumentApp === 'undefined') {
+  if (typeof DriveApp === 'undefined' || typeof Docs === 'undefined') {
     return [
       {
         docName: 'Day Planner Notes - August 2026',
@@ -2280,8 +2316,7 @@ function searchAcrossAllMonthlyDocs(query) {
       var file = files.next();
       var name = file.getName();
       if (name.indexOf('Day Planner Notes') !== -1) {
-        var doc = DocumentApp.openById(file.getId());
-        var text = doc.getBody().getText();
+        var text = docsGetBodyElements_(file.getId()).map(docsElementText_).join('\n');
 
         if (text.toLowerCase().indexOf(cleanQuery) !== -1) {
           var lines = text.split('\n');

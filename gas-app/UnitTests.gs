@@ -22,7 +22,7 @@
 function runSelfTest() {
   var results = [];
   var passedCount = 0;
-  var totalTests = 6;
+  var totalTests = 7;
 
   Logger.log('====================================================');
   Logger.log('  DAY PLANNER AUTOMATED SELF-TEST DIAGNOSTICS ');
@@ -217,6 +217,64 @@ function runSelfTest() {
       test: '6. Docs API Write (drive.file scope)',
       status: 'FAIL',
       details: err6.toString() + ' | Stack: ' + (err6.stack || 'N/A')
+    });
+  }
+
+  // Test 7: Day Section Idempotency against the REAL saveDailyDocCards/getOrCreateDailyDocContent
+  // (not a reimplementation -- the tests in tests/gasDocIdempotency.test.js are a parallel pure-JS
+  // mock of the old DocumentApp-based logic and do not exercise Code.gs at all, so this is the
+  // only regression net for the Docs-API port). Uses a safely-far-past date (1901) so the
+  // throwaway "Day Planner Notes - March 1901" doc it creates can never collide with real notes,
+  // and deletes that doc via Drive (drive.file covers it, since this test created it) when done.
+  try {
+    var dateX = '1901-03-15';
+    var dateY = '1901-03-16';
+    saveDailyDocCards(dateX, '### #index [Test] First Topic\nplain line\n- bullet one\n- bullet two');
+    saveDailyDocCards(dateY, '### #index [Test] Second Topic\nY content, should stay untouched');
+    saveDailyDocCards(dateX, '### #index [Test] Replaced Topic\n- replaced bullet');
+
+    var xContent = getOrCreateDailyDocContent(dateX);
+    var yContent = getOrCreateDailyDocContent(dateY);
+
+    var probeFolder7 = getFolderByNameOrCreate(null, 'Day Planner');
+    var testDocId = getOrCreateMonthlyNotesDoc_(probeFolder7, 'Day Planner Notes - March 1901', 'March', 1901);
+    var testElements = docsGetBodyElements_(testDocId);
+    var xHeadingCount = testElements.filter(function (el) {
+      return docsElementHeading_(el) === 'HEADING_2' && docsElementText_(el).indexOf('March 15, 1901') !== -1;
+    }).length;
+
+    var xReplaced = xContent.indexOf('Replaced Topic') !== -1 && xContent.indexOf('First Topic') === -1;
+    var yIntact = yContent.indexOf('Second Topic') !== -1;
+    var bulletOk = xContent.indexOf('- replaced bullet') !== -1;
+    var singleHeading = xHeadingCount === 1;
+
+    // Clean up: this doc only ever holds throwaway 1901 test data, safe to permanently delete.
+    try {
+      Drive.Files.remove(testDocId);
+    } catch (cleanupErr) {
+      console.warn('Test 7 cleanup skipped: ' + cleanupErr.toString());
+    }
+
+    if (xReplaced && yIntact && bulletOk && singleHeading) {
+      results.push({
+        test: '7. Day Section Idempotency (Docs API)',
+        status: 'PASS',
+        details: 'Replaced day X in place (single H2, old content gone, bullet preserved) without disturbing day Y.'
+      });
+      passedCount++;
+    } else {
+      results.push({
+        test: '7. Day Section Idempotency (Docs API)',
+        status: 'FAIL',
+        details: 'xReplaced=' + xReplaced + ' yIntact=' + yIntact + ' bulletOk=' + bulletOk + ' singleHeading=' + singleHeading + ' (xHeadingCount=' + xHeadingCount + ')'
+      });
+    }
+  } catch (err7) {
+    console.error('🔥 [Self-Test 7 Day Section Idempotency]: ' + err7.toString() + '\nStack: ' + (err7.stack || 'N/A'));
+    results.push({
+      test: '7. Day Section Idempotency (Docs API)',
+      status: 'FAIL',
+      details: err7.toString() + ' | Stack: ' + (err7.stack || 'N/A')
     });
   }
 
