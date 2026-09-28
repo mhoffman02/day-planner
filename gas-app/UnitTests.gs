@@ -22,7 +22,7 @@
 function runSelfTest() {
   var results = [];
   var passedCount = 0;
-  var totalTests = 5;
+  var totalTests = 6;
 
   Logger.log('====================================================');
   Logger.log('  DAY PLANNER AUTOMATED SELF-TEST DIAGNOSTICS ');
@@ -158,6 +158,65 @@ function runSelfTest() {
       test: '5. 2-Way Sync Engine & Trigger Health',
       status: 'FAIL',
       details: err5.toString() + ' | Stack: ' + (err5.stack || 'N/A')
+    });
+  }
+
+  // Test 6: Docs Advanced Service write under drive.file scope only (no `documents` OAuth scope
+  // granted -- see .agents/rules/gas-environments.md-adjacent scope-narrowing work). Creates a
+  // throwaway doc via Drive.Files.insert (drive.file covers app-created files), writes to it via
+  // Docs.Documents.batchUpdate, reads it back via Docs.Documents.get, then deletes the throwaway
+  // file via Drive (also drive.file, since this app created it). A 403 here means drive.file does
+  // NOT cover Docs API writes for this account/grant -- stop and re-add the `documents` scope
+  // rather than shipping a broken notes-save path.
+  try {
+    if (typeof Docs === 'undefined' || typeof Drive === 'undefined') {
+      results.push({
+        test: '6. Docs API Write (drive.file scope)',
+        status: 'FAIL',
+        details: 'Docs or Drive Advanced Service is not defined in manifest dependencies.'
+      });
+    } else {
+      var probeFolder = getFolderByNameOrCreate(null, 'Day Planner');
+      var probeResource = {
+        title: 'Day Planner - Scope Probe (safe to delete)',
+        mimeType: 'application/vnd.google-apps.document',
+        parents: probeFolder ? [{ id: probeFolder.getId() }] : undefined
+      };
+      var probeFile = Drive.Files.insert(probeResource);
+      var probeMarker = 'scope-probe-' + new Date().getTime();
+      Docs.Documents.batchUpdate({
+        requests: [{ insertText: { location: { index: 1 }, text: probeMarker } }]
+      }, probeFile.id);
+      var probeDoc = Docs.Documents.get(probeFile.id);
+      var probeText = (probeDoc.body.content || []).map(function (el) {
+        if (!el.paragraph) return '';
+        return el.paragraph.elements.map(function (pe) {
+          return (pe.textRun && pe.textRun.content) || '';
+        }).join('');
+      }).join('');
+      var roundTripOk = probeText.indexOf(probeMarker) !== -1;
+      Drive.Files.remove(probeFile.id);
+      if (roundTripOk) {
+        results.push({
+          test: '6. Docs API Write (drive.file scope)',
+          status: 'PASS',
+          details: 'Created, wrote, read back, and deleted a throwaway doc using only drive.file (no documents OAuth scope granted).'
+        });
+        passedCount++;
+      } else {
+        results.push({
+          test: '6. Docs API Write (drive.file scope)',
+          status: 'FAIL',
+          details: 'Wrote to the probe doc but read-back did not contain the marker text.'
+        });
+      }
+    }
+  } catch (err6) {
+    console.error('🔥 [Self-Test 6 Docs API Write]: ' + err6.toString() + '\nStack: ' + (err6.stack || 'N/A'));
+    results.push({
+      test: '6. Docs API Write (drive.file scope)',
+      status: 'FAIL',
+      details: err6.toString() + ' | Stack: ' + (err6.stack || 'N/A')
     });
   }
 
