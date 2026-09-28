@@ -30,11 +30,11 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 
 ## 3. Active & Upcoming Phases
 
-### Phase 18: WORK Environment Parity (In Progress)
-*Goal: bring WORK up to the same state as HOME — themed-popup dictation and the narrowed `drive.file`-only OAuth scope — after both were built and verified live on HOME this session.*
+### Phase 19: `drive.readonly` Scope Narrowing (In Progress)
+*Goal: Phase 18 (WORK parity) is complete — see `PLAN-HISTORY.md`. Next: the `drive.readonly` scope ("See and download all your Google Drive files") still remains in `gas-app/appsscript.json`, used only for resolving pasted Drive link titles. Decide whether it's worth narrowing further (likely to `drive.file`-compatible metadata calls, or dropping title-resolution entirely) and, if so, apply the same audit → port → verify → promote pipeline used for the `documents` scope in Phase 18.*
 
-- [ ] **WORK dictation popup test** (see [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) item 1): confirm on WORK (Chrome) whether the same-origin popup mic path works directly there, or gracefully falls back to the "Open Dictation Doc" link as designed.
-- [ ] **WORK scope-narrowing promotion** (see [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) item 2): code is pushed to WORK as Version 66 but not live yet. Needs, in order: (1) add "Google Docs API" via the WORK Apps Script IDE's Services (+) button, (2) revoke/re-consent under `michael.hoffman@gsa.gov`, (3) `michael.hoffman@gsa.gov` repoints the live `...BhslA` deployment to Version 66, (4) live save/reload check on WORK.
+- [ ] Confirm exactly which RPC call sites use `drive.readonly` (`resolveDriveFileTitle` and any others) and whether a narrower scope covers them.
+- [ ] Get user go-ahead on the approach before touching `appsscript.json` — this is a deliberate, lower-urgency cleanup, not a bug fix.
 
 Move this phase to [`PLAN-HISTORY.md`](file:///home/mike/projects/day-planner/PLAN-HISTORY.md) once every item is checked off.
 

@@ -4,6 +4,12 @@ Archived completed phases from [`PLAN.md`](file:///home/mike/projects/day-planne
 
 ---
 
+### Phase 18: WORK Environment Parity
+*Goal: bring WORK up to the same state as HOME — themed-popup voice typing and the narrowed `drive.file`-only OAuth scope.*
+- [x] WORK voice typing popup confirmed working directly (same-origin popup escape, org allowlist covers it).
+- [x] WORK scope-narrowing promoted and verified: `documents` OAuth scope dropped, Docs Advanced Service live, no duplicate monthly doc on save/reload.
+- [x] WORK repointed to Version 91 (HOME pinned `@258`) and user-verified live, 2026-09-28. See `TODO_HISTORY.md`'s 2026-09-28 entries for the full session detail (voice typing popup redesign/polish, daily-note save race fix, dark-mode contrast, navbar styling, notes empty-state/skeleton, Monthly Calendar today-highlight, About.html rewrite).
+
 ### Phase 17: Startup Performance Sizing
 *Goal: Decide whether a client-asset caching effort is worth it, before building anything.*
 - [x] Sized live via CDP against production `/exec`: GAS server spinup (`responseStart`) = 3.2-3.7s of a 4.6-5.8s total load.

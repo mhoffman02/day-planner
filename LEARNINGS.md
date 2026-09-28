@@ -1,5 +1,18 @@
 # Learnings
 
+## 2026-09-28 — Voice Typing Popup UI Polish, WORK Parity Verified, About.html Rewrite
+
+**Worked well:**
+- Diagnosing the help-panel "shrinks instead of grows" bug by tracing the actual race (reading `document.body.scrollHeight` mid-CSS-transition) instead of re-guessing a bigger fudge factor — the prior session's "25% taller" fix was a band-aid on the same race and didn't hold up under live re-test.
+- Checking `.empty-cards-notice`'s dark-mode rendering by grepping for a `[data-theme="dark"]` override before assuming the "looks like an error" report was about copy/wording — found a genuinely hardcoded `rgba(255,255,255,0.7)` background that had never been themed, which was the real cause.
+- Verifying the Monthly Calendar today-highlight live via CDP (`document.querySelectorAll('.calendar-day-cell.is-today').length` + reading computed style) rather than trusting the code read alone — confirmed exactly one cell flagged with the right date before reporting done.
+- Writing About.html for the stated audience (non-technical office worker, cares what/how not why) surfaced that several shipped features — Monthly Calendar, Decision Registry, Future Planning, Ctrl+K search, voice typing, dark mode — had never been documented anywhere user-facing at all.
+
+**Needs improvement:**
+- Mid-session micro-requests (icon sizing, popup width, help-panel copy) came in rapid small increments across several messages rather than as one batched spec — each required a full lint→test→push→deploy→verify round trip. Fine for this session's pace, but worth batching next time a UI-polish pass is requested up front.
+
+---
+
 ## 2026-09-28 — Voice Typing Popup: Live WORK Iteration, GAS HtmlService Quirks, Reverted Regression
 
 **Worked well:**
