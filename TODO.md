@@ -14,6 +14,6 @@ See `PLAN.md`'s Phase 20 for full rationale (born from a 2026-09-28 live bug: `D
 - [x] Verify live (HOME @262): no-day item landed on 2026-09-30 (last day of the month); status cycling (•→○) and delete confirmed round-trip against real Google Tasks (probed live via CDP, test item cleaned up after).
 - [ ] Verify live on WORK once repointed (see loose end below) — HOME parity check only so far.
 
-## Loose end (unrelated to Phase 20)
+## Loose end (unrelated scope, user-blocked)
 
-- [ ] **WORK deployment repoint**: version 98 pushed (carries the Index date fix + Future Planning Drive-scope fix). Only `michael.hoffman@gsa.gov` can repoint the WORK `/exec` deployment, via [Deploy > Manage deployments](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) — user action, not agent-doable.
+- [ ] **WORK deployment repoint**: version 99 pushed (carries Phase 20's Future Planning Tasks-API rewrite, on top of the earlier Index date fix + Drive-scope fix). Only `michael.hoffman@gsa.gov` can repoint the WORK `/exec` deployment, via [Deploy > Manage deployments](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) — user action, not agent-doable.
