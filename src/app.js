@@ -89,7 +89,7 @@ const DICTATION_POPUP_HTML = `<!doctype html>
   </button>
   <div class="caption" id="caption"></div>
   <button class="done-btn" id="doneBtn" type="button">Done</button>
-  <div class="footer">Speaks directly into place -- click Done when finished.</div>
+  <div class="footer">Speaks directly into place. Space: start/stop. Esc: done.</div>
 <script>(function(){
   var micBtn = document.getElementById('micBtn');
   var statusEl = document.getElementById('status');
@@ -176,6 +176,20 @@ const DICTATION_POPUP_HTML = `<!doctype html>
   doneBtn.addEventListener('click', function () {
     if (listening && recognition) { try { recognition.stop(); } catch (e) { /* already stopped */ } }
     window.close();
+  });
+
+  // Grab keyboard focus so Space/Escape work immediately without an extra click.
+  try { window.focus(); } catch (e) { /* ignore */ }
+  micBtn.focus();
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === ' ' || e.code === 'Space' || e.key === 'Spacebar') {
+      e.preventDefault();
+      micBtn.click();
+    } else if (e.key === 'Escape' || e.key === 'Esc') {
+      e.preventDefault();
+      doneBtn.click();
+    }
   });
 
   window.addEventListener('beforeunload', function () {
