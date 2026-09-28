@@ -1347,6 +1347,19 @@
           }
 
           const isInputFocused = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable);
+
+          if ((e.ctrlKey || e.metaKey) && e.altKey && keyLower === 's') {
+            e.preventDefault();
+            if (e.target && e.target.id === 'evtDescInput') {
+              this.toggleDictation(e.target);
+            } else if (e.target && e.target.id && e.target.id.indexOf('card-line-') === 0) {
+              this.toggleDictation(e.target);
+            } else {
+              this.sttError = 'Click into a note line or the appointment Notes field first, then press Ctrl+Alt+S.';
+            }
+            return;
+          }
+
           if ((e.ctrlKey || e.metaKey) && keyLower === 'k') {
             if (!isInputFocused) {
               e.preventDefault();
@@ -2571,8 +2584,8 @@
           return 'Dictation isn’t available in this browser. On iPhone/iPad, tap the microphone key on the keyboard.';
         }
         return this.sttListening
-          ? 'Listening in the Voice Typing popup… click to close it.'
-          : 'Click to dictate into this line (opens a small Voice Typing popup; may require network access).';
+          ? 'Listening in the Voice Typing popup… click to close it. (Ctrl+Alt+S)'
+          : 'Click to dictate into this line (opens a small Voice Typing popup; may require network access). (Ctrl+Alt+S)';
       },
 
       toggleCardDictation(card) {
