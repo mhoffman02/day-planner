@@ -266,7 +266,7 @@ function runSelfTest() {
       results.push({
         test: '7. Day Section Idempotency (Docs API)',
         status: 'FAIL',
-        details: 'xReplaced=' + xReplaced + ' yIntact=' + yIntact + ' bulletOk=' + bulletOk + ' singleHeading=' + singleHeading + ' (xHeadingCount=' + xHeadingCount + ')'
+        details: 'xReplaced=' + xReplaced + ' yIntact=' + yIntact + ' bulletOk=' + bulletOk + ' singleHeading=' + singleHeading + ' (xHeadingCount=' + xHeadingCount + ') | xContent=' + JSON.stringify(xContent)
       });
     }
   } catch (err7) {
