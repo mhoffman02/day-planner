@@ -51,17 +51,16 @@ const DICTATION_POPUP_HTML = `<!doctype html>
   * { box-sizing:border-box; }
   body { margin:0; font-family: Georgia, 'Times New Roman', serif; background:#fcfbfa; color:#2d2a26;
     display:flex; flex-direction:column; align-items:center; }
-  .titlebar { width:100%; display:flex; align-items:center; gap:2px; padding:10px 10px 10px 14px;
-    border-bottom:1px solid #e4ddd0; }
-  .titlebar-label { flex:1; font-size:13px; font-weight:600; color:#2d6a5a; }
-  .titlebar-icon-btn { width:24px; height:24px; border:none; border-radius:4px; background:transparent;
-    color:#6b645c; display:flex; align-items:center; justify-content:center; cursor:pointer;
+  .titlebar { width:100%; display:flex; align-items:center; gap:2px; padding:11px 10px 11px 16px;
+    background:#2d6a5a; }
+  .titlebar-label { flex:1; font-size:14px; font-weight:700; color:#fcfbfa; letter-spacing:0.02em; }
+  .titlebar-icon-btn { width:26px; height:26px; border:none; border-radius:4px; background:transparent;
+    color:#dcebe6; display:flex; align-items:center; justify-content:center; cursor:pointer;
     transition: background 0.15s ease; padding:0; }
-  .titlebar-icon-btn:hover { background:#eaf3f0; color:#2d6a5a; }
-  .titlebar-icon-btn svg { width:16px; height:16px; }
+  .titlebar-icon-btn:hover { background:rgba(255,255,255,0.18); color:#ffffff; }
+  .titlebar-icon-btn svg { width:17px; height:17px; }
   .help-panel { width:100%; max-height:0; overflow:hidden; background:#f8fcfa; font-size:12px;
-    line-height:1.5; color:#4a453e; transition: max-height 0.2s ease; }
-  .help-panel.open { max-height:220px; }
+    line-height:1.55; color:#4a453e; transition: max-height 0.22s ease; }
   .help-panel-inner { padding:12px 16px; border-bottom:1px solid #e4ddd0; }
   .help-panel-inner p { margin:0 0 8px; }
   .help-panel-inner p:last-child { margin-bottom:0; }
@@ -99,7 +98,6 @@ const DICTATION_POPUP_HTML = `<!doctype html>
     <div class="help-panel-inner">
       <p>Speaks directly into the Day Planner field you started this from.</p>
       <p><kbd>Space</kbd> start/stop the mic &nbsp; <kbd>Esc</kbd> close this window</p>
-      <p>If the mic does not work here, Day Planner falls back to a linked Google Doc that has Voice typing built in.</p>
     </div>
   </div>
   <div class="mic-wrap">
@@ -114,12 +112,18 @@ const DICTATION_POPUP_HTML = `<!doctype html>
   var helpBtn = document.getElementById('helpBtn');
   var helpPanel = document.getElementById('helpPanel');
   var captionEl = document.getElementById('caption');
+  var helpPanelInner = helpPanel.querySelector('.help-panel-inner');
   var recognition = null;
   var listening = false;
   var helpOpen = false;
   var baseline = '';
   var sessionFinal = '';
-  var COLLAPSED_H = 230, EXPANDED_H = 400;
+  // Difference between the window own outer size (what resizeTo sets) and its inner content
+  // viewport -- i.e. the native browser chrome (title bar/toolbar) height/width this popup does
+  // not control. Measured once so the eased resize below can request an outer size that leaves
+  // exactly enough inner room for the actual content, instead of guessing a fixed pixel count
+  // and either clipping content (a scrollbar) or leaving dead space.
+  var chromeH = window.outerHeight - window.innerHeight;
   var Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
 
   function post(type, extra) {
@@ -134,10 +138,30 @@ const DICTATION_POPUP_HTML = `<!doctype html>
     micBtn.setAttribute('aria-label', text);
   }
 
+  function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+
+  function easedResizeHeightTo(targetOuterH, duration) {
+    var startH = window.outerHeight;
+    var outerW = window.outerWidth;
+    var startTime = null;
+    function step(ts) {
+      if (startTime === null) startTime = ts;
+      var t = Math.min(1, (ts - startTime) / duration);
+      var h = Math.round(startH + (targetOuterH - startH) * easeOutCubic(t));
+      try { window.resizeTo(outerW, h); } catch (e) { /* ignore */ }
+      if (t < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
   helpBtn.addEventListener('click', function () {
     helpOpen = !helpOpen;
-    helpPanel.classList.toggle('open', helpOpen);
-    try { window.resizeTo(300, helpOpen ? EXPANDED_H : COLLAPSED_H); } catch (e) { /* ignore */ }
+    helpPanel.style.maxHeight = helpOpen ? (helpPanelInner.scrollHeight + 'px') : '0px';
+    // Wait a frame so layout reflects the new max-height before measuring the page total.
+    requestAnimationFrame(function () {
+      var targetOuterH = document.body.scrollHeight + chromeH;
+      easedResizeHeightTo(targetOuterH, 220);
+    });
   });
 
   if (!Ctor) {
@@ -1933,20 +1957,22 @@ Alpine.data('plannerApp', () => ({
         dictationPopupSelStart = el.selectionStart ?? dictationPopupBaseValue.length;
         dictationPopupSelEnd = el.selectionEnd ?? dictationPopupBaseValue.length;
 
-        // Navigate to a real blob: URL instead of opening '' and document.write()-ing into it --
-        // a window.open('', ...) popup starts (and often visually stays, per Chrome's own popup
-        // info-chrome) at literal about:blank even after later setting document.title, since
-        // that chrome is captured at navigation time. Same-origin, so window.opener/postMessage
-        // and the mic-permissions-escape trick both still work identically.
-        const blobUrl = URL.createObjectURL(new Blob([DICTATION_POPUP_HTML], { type: 'text/html' }));
-        const popup = window.open(blobUrl, 'dayPlannerDictation', 'width=300,height=230');
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 4000);
+        // Reverted the blob: URL navigation tried earlier this session -- it broke mic access
+        // (SpeechRecognition/getUserMedia), likely because a blob:-origin popup does not get the
+        // same default Permissions Policy as an about:blank one. Back to opening blank and
+        // document.write()-ing the content in; this does mean the browser own popup info-chrome
+        // shows about:blank instead of a real title, but a working mic matters more than that
+        // cosmetic. The in-page titlebar below is deliberately prominent to compensate.
+        const popup = window.open('', 'dayPlannerDictation', 'width=450,height=230');
         if (!popup) {
           this.sttError = 'Voice typing popup was blocked by the browser — using the voice typing doc instead.';
           this.sttBlocked = true;
           this.ensureDictationScratchDoc(el);
           return;
         }
+        popup.document.write(DICTATION_POPUP_HTML);
+        popup.document.close();
+        popup.document.title = 'Voice typing';
         dictationPopupWin = popup;
         this.sttError = null;
         this.sttListening = true;
