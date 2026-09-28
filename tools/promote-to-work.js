@@ -105,8 +105,8 @@ try {
   }
   console.log('\n======================================================');
   console.log('🎉 Successfully pushed code to WORK (Federal GSA)!');
-  console.log('   Target Deployment:  Version 3 (deployId ending in 9csO)');
-  console.log('   WORK 9csO Endpoint: https://script.google.com/a/macros/gsa.gov/s/AKfycbzRwZFZH9bT5jQtqq0ncBPbokoQGKjSUyBQNVDtPpOISwtdMSXlNAns8E9WFtUM9csO/exec');
+  console.log('   Live WORK Endpoint: https://script.google.com/a/macros/gsa.gov/s/AKfycbyLuAiuboGfbMg98PqUt7YQMNyB4Mk4rAUPXT_5FPbbHM2s4B1LP2GzeqOdJu_BhslA/exec');
+  console.log('   (repoint this deployment to the new version in the IDE -- only michael.hoffman@gsa.gov can do that)');
   console.log('   WORK IDE:           https://script.google.com/d/' + WORK_SCRIPT_ID + '/edit');
   console.log('======================================================');
 } catch (pushErr) {
