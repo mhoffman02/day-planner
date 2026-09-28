@@ -42,40 +42,64 @@ let dictationPopupSelStart = 0;
 let dictationPopupSelEnd = 0;
 
 // Self-contained popup document (no external CSS/JS) matching the Day Planner binder aesthetic.
-// Mic control uses a rounded square, not a circle, per the repo's no-pills rule.
+// Mic control and the recording pulse both use rounded squares, not circles, per the repo's
+// no-pills rule. Text flows live into the destination field (see handleDictationPopupMessage
+// below), so this popup shows only a status readout and a short trailing caption, not a full
+// transcript box.
 const DICTATION_POPUP_HTML = `<!doctype html>
 <html><head><meta charset="utf-8"><title>Voice Typing</title><style>
   body { margin:0; font-family: Georgia, 'Times New Roman', serif; background:#fcfbfa; color:#2d2a26;
     display:flex; flex-direction:column; align-items:center; padding:20px; box-sizing:border-box; }
-  h1 { font-size:15px; margin:0 0 4px; color:#2d6a5a; font-weight:600; }
-  .status { font-size:12px; color:#6b645c; margin-bottom:14px; min-height:16px; text-align:center; }
-  .mic-btn { width:88px; height:88px; border-radius:14px; border:2px solid #2d6a5a; background:#eaf3f0;
-    display:flex; align-items:center; justify-content:center; cursor:pointer; margin-bottom:14px;
+  h1 { font-size:12px; margin:0 0 10px; color:#8a8378; font-weight:600; text-transform:uppercase;
+    letter-spacing:0.05em; }
+  .status { font-size:16px; font-weight:700; color:#2d6a5a; margin-bottom:16px; min-height:22px;
+    text-align:center; padding:8px 10px; border:1px solid #cfe3dc; border-radius:6px; background:#eaf3f0;
+    width:100%; box-sizing:border-box; }
+  .status.listening { background:#2d6a5a; color:#fcfbfa; border-color:#2d6a5a; }
+  .rec-dot { display:none; width:8px; height:8px; border-radius:2px; background:#fcfbfa;
+    margin-right:7px; vertical-align:middle; animation: recPulse 1s ease-in-out infinite; }
+  .status.listening .rec-dot { display:inline-block; }
+  @keyframes recPulse { 0%, 100% { opacity:1; } 50% { opacity:0.3; } }
+  .mic-btn { width:92px; height:92px; border-radius:14px; border:2px solid #2d6a5a; background:#eaf3f0;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; margin-bottom:12px;
     transition: background 0.15s ease; }
   .mic-btn:hover { background:#dcebe6; }
-  .mic-btn.listening { background:#2d6a5a; }
-  .mic-btn svg { width:36px; height:36px; }
+  .mic-btn.listening { background:#2d6a5a; animation: micGlow 1.6s ease-out infinite; }
+  @keyframes micGlow {
+    0% { box-shadow:0 0 0 0 rgba(45,106,90,0.45); }
+    70% { box-shadow:0 0 0 16px rgba(45,106,90,0); }
+    100% { box-shadow:0 0 0 0 rgba(45,106,90,0); }
+  }
+  .mic-btn svg { width:38px; height:38px; }
   .mic-btn path { fill:#2d6a5a; }
   .mic-btn.listening path { fill:#fcfbfa; }
-  textarea { width:100%; min-height:110px; border:1px solid #d8d2c8; border-radius:6px; padding:8px;
-    font-family: Georgia, 'Times New Roman', serif; font-size:13px; resize:vertical; background:#ffffff;
-    box-sizing:border-box; color:#2d2a26; }
-  .footer { margin-top:10px; font-size:11px; color:#8a8378; text-align:center; }
+  .caption { width:100%; min-height:32px; font-size:12px; color:#6b645c; text-align:center;
+    padding:2px 2px 4px; box-sizing:border-box; overflow-wrap:break-word; }
+  .done-btn { margin-top:6px; padding:9px 26px; font-family: Georgia, 'Times New Roman', serif;
+    font-size:13px; font-weight:600; color:#fcfbfa; background:#2d6a5a; border:none; border-radius:6px;
+    cursor:pointer; }
+  .done-btn:hover { background:#245648; }
+  .footer { margin-top:8px; font-size:11px; color:#8a8378; text-align:center; }
 </style></head>
 <body>
   <h1>Voice Typing</h1>
-  <div class="status" id="status">Click the mic to start</div>
+  <div class="status" id="status"><span class="rec-dot" id="recDot"></span><span id="statusText">Click the mic to start</span></div>
   <button class="mic-btn" id="micBtn" type="button" aria-label="Start voice typing">
     <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
   </button>
-  <textarea id="transcript" placeholder="Recognized text will appear here..."></textarea>
-  <div class="footer">Speak, then close this window when done.</div>
+  <div class="caption" id="caption"></div>
+  <button class="done-btn" id="doneBtn" type="button">Done</button>
+  <div class="footer">Speaks directly into place -- click Done when finished.</div>
 <script>(function(){
   var micBtn = document.getElementById('micBtn');
   var statusEl = document.getElementById('status');
-  var ta = document.getElementById('transcript');
+  var statusTextEl = document.getElementById('statusText');
+  var captionEl = document.getElementById('caption');
+  var doneBtn = document.getElementById('doneBtn');
   var recognition = null;
   var listening = false;
+  var baseline = '';
+  var sessionFinal = '';
   var Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
 
   function post(type, extra) {
@@ -83,17 +107,20 @@ const DICTATION_POPUP_HTML = `<!doctype html>
     try { if (window.opener) window.opener.postMessage(payload, window.location.origin); } catch (e) { /* opener gone */ }
   }
 
+  function currentText() { return baseline + sessionFinal; }
+
   if (!Ctor) {
-    statusEl.textContent = 'Speech recognition not supported in this window.';
+    statusTextEl.textContent = 'Speech recognition not supported in this window.';
     micBtn.disabled = true;
     post('dictation-unsupported');
   } else {
     micBtn.addEventListener('click', function () {
       if (listening) { recognition.stop(); return; }
       try { recognition = new Ctor(); } catch (e) {
-        statusEl.textContent = 'Failed to start: ' + e.message;
+        statusTextEl.textContent = 'Failed to start: ' + e.message;
         return;
       }
+      sessionFinal = '';
       recognition.lang = navigator.language || 'en-US';
       recognition.continuous = true;
       recognition.interimResults = true;
@@ -103,49 +130,56 @@ const DICTATION_POPUP_HTML = `<!doctype html>
           var t = event.results[i][0].transcript;
           if (event.results[i].isFinal) finalT += t; else interimT += t;
         }
-        ta.value = (ta.dataset.committed || '') + finalT + interimT;
-        if (finalT) ta.dataset.committed = (ta.dataset.committed || '') + finalT;
-        post('dictation-interim', { text: ta.value });
+        sessionFinal = finalT;
+        captionEl.textContent = interimT || finalT.slice(-90) || '';
+        post('dictation-interim', { text: currentText() + interimT });
       };
       recognition.onerror = function (event) {
         listening = false;
         micBtn.classList.remove('listening');
+        statusEl.classList.remove('listening');
         var reason = event.error || 'unknown';
         if (reason === 'not-allowed' || reason === 'permission-denied') {
-          statusEl.textContent = 'Microphone permission denied.';
+          statusTextEl.textContent = 'Microphone permission denied.';
           post('dictation-error', { reason: reason });
         } else if (reason === 'no-speech') {
-          statusEl.textContent = 'No speech detected -- click mic to try again.';
+          statusTextEl.textContent = 'No speech detected -- click mic to try again.';
         } else if (reason === 'network') {
-          statusEl.textContent = 'Network error reaching speech service.';
+          statusTextEl.textContent = 'Network error reaching speech service.';
           post('dictation-error', { reason: reason });
         } else {
-          statusEl.textContent = 'Error: ' + reason;
+          statusTextEl.textContent = 'Error: ' + reason;
         }
       };
       recognition.onend = function () {
         listening = false;
         micBtn.classList.remove('listening');
-        statusEl.textContent = 'Stopped. Click mic to resume, or close this window when done.';
+        statusEl.classList.remove('listening');
+        baseline = currentText();
+        sessionFinal = '';
+        captionEl.textContent = '';
+        statusTextEl.textContent = 'Stopped -- click mic to resume, or Done when finished.';
       };
       try {
         recognition.start();
         listening = true;
         micBtn.classList.add('listening');
-        statusEl.textContent = 'Listening...';
+        statusEl.classList.add('listening');
+        statusTextEl.textContent = 'Listening...';
+        captionEl.textContent = '';
       } catch (e) {
-        statusEl.textContent = 'Failed to start: ' + e.message;
+        statusTextEl.textContent = 'Failed to start: ' + e.message;
       }
     });
   }
 
-  ta.addEventListener('input', function () {
-    ta.dataset.committed = ta.value;
-    post('dictation-interim', { text: ta.value });
+  doneBtn.addEventListener('click', function () {
+    if (listening && recognition) { try { recognition.stop(); } catch (e) { /* already stopped */ } }
+    window.close();
   });
 
   window.addEventListener('beforeunload', function () {
-    post('dictation-final', { text: ta.value, closed: true });
+    post('dictation-final', { text: currentText(), closed: true });
   });
 })();` + '<' + '/script>' + `
 </body></html>`;
@@ -1807,7 +1841,7 @@ Alpine.data('plannerApp', () => ({
         dictationPopupSelStart = el.selectionStart ?? dictationPopupBaseValue.length;
         dictationPopupSelEnd = el.selectionEnd ?? dictationPopupBaseValue.length;
 
-        const popup = window.open('', 'dayPlannerDictation', 'width=340,height=440');
+        const popup = window.open('', 'dayPlannerDictation', 'width=300,height=290');
         if (!popup) {
           this.sttError = 'Dictation popup was blocked by the browser — using the dictation doc instead.';
           this.sttBlocked = true;
@@ -2319,10 +2353,16 @@ Alpine.data('plannerApp', () => ({
 
       scheduleDailyNoteSave() {
         if (this.noteSaveTimer) clearTimeout(this.noteSaveTimer);
+        // Capture the date/content now, not when the timer fires -- navigating to a different
+        // day within the debounce window changes this.selectedDate/this.dailyNote out from under
+        // a fire-time read, which silently saved the note onto the wrong day (or lost it) instead
+        // of the day the user was actually typing on.
+        const dateStr = this.selectedDate;
+        const noteContent = this.dailyNote;
         this.noteSaveTimer = setTimeout(async () => {
           if (!this.bridge || typeof this.bridge.saveDailyDocCards !== 'function') return;
           try {
-            await this.bridge.saveDailyDocCards(this.selectedDate, this.dailyNote);
+            await this.bridge.saveDailyDocCards(dateStr, noteContent);
           } catch (err) {
             console.error('🔥 saveDailyDocCards error:', err);
             this.errorMessage = `Could not save daily note: ${err.message || err.toString()}`;
