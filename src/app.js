@@ -803,6 +803,16 @@ Alpine.data('plannerApp', () => ({
         await this.loadFutureMatrix();
       },
 
+      async jumpToCurrentFutureYear() {
+        this.futureMatrixYear = new Date().getFullYear();
+        await this.loadFutureMatrix();
+      },
+
+      isCurrentFutureMonth(monthIdx) {
+        const now = new Date();
+        return this.futureMatrixYear === now.getFullYear() && monthIdx === now.getMonth();
+      },
+
       async addFutureItemToMonth(mm) {
         const monthKey = this.futureMonthKey(mm);
         const title = (this.newFutureItemTitle[monthKey] || '').trim();

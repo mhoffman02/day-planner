@@ -3301,6 +3301,11 @@
     z-index: 40;
     position: relative;
   }
+  article.future-month-card.is-current-month {
+    border: 2px solid var(--priority-a);
+    background: var(--binder-teal-light);
+    padding: 11px;
+  }
   .future-month-title {
     font-family: var(--font-family-header);
     color: var(--binder-teal);
@@ -3309,6 +3314,9 @@
     margin-top: 0;
     margin-bottom: 8px;
     font-size: 1.1rem;
+  }
+  article.future-month-card.is-current-month .future-month-title {
+    color: var(--priority-a);
   }
   .future-month-empty {
     font-size: 0.8rem;
@@ -4848,6 +4856,15 @@
   }
 
   [data-theme="dark"] article.calendar-day-cell.is-today header.day-num {
+    color: #4a9eea !important;
+  }
+
+  [data-theme="dark"] article.future-month-card.is-current-month {
+    border-color: #4a9eea !important;
+    background: #19362b !important;
+  }
+
+  [data-theme="dark"] article.future-month-card.is-current-month .future-month-title {
     color: #4a9eea !important;
   }
 

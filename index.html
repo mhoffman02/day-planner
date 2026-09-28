@@ -1025,6 +1025,9 @@
               <button type="button" class="icon-nav-btn" @click="changeFutureMatrixYear(-1)" aria-label="Previous year">
                 <span class="material-symbols-outlined">chevron_left</span>
               </button>
+              <button type="button" class="today-jump-btn month-jump-btn" @click="jumpToCurrentFutureYear()" title="Jump to Current Year">
+                <span>This Year</span>
+              </button>
               <span class="future-matrix-year-label" x-text="futureMatrixYear"></span>
               <button type="button" class="icon-nav-btn" @click="changeFutureMatrixYear(1)" aria-label="Next year">
                 <span class="material-symbols-outlined">chevron_right</span>
@@ -1034,7 +1037,7 @@
           <div class="future-matrix-container">
             <section class="future-matrix-grid">
               <template x-for="(label, idx) in FUTURE_MONTH_LABELS" :key="label">
-                <article class="future-month-card">
+                <article class="future-month-card" :class="{ 'is-current-month': isCurrentFutureMonth(idx) }">
                   <h3 class="future-month-title" x-text="label + ' ' + futureMatrixYear"></h3>
 
                   <form @submit.prevent="addFutureItemToMonth(String(idx + 1).padStart(2, '0'))" role="group" class="future-item-add-bar">
