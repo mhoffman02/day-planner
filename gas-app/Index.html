@@ -474,6 +474,20 @@
               </div>
             </header>
 
+            <!-- Quote of the Day strip -->
+            <article class="quote-card" :class="{ 'collapsed': quoteCardCollapsed }">
+              <header class="quote-card-header" @click="toggleQuoteCard()">
+                <button type="button" class="card-twistie-btn" :title="quoteCardCollapsed ? 'Expand Quote' : 'Collapse Quote'" :aria-label="quoteCardCollapsed ? 'Expand Quote' : 'Collapse Quote'">
+                  <span class="material-symbols-outlined icon-18" x-text="quoteCardCollapsed ? 'arrow_right' : 'arrow_drop_down'"></span>
+                </button>
+                <span class="quote-card-title">Quote for <span x-text="new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })"></span></span>
+              </header>
+              <div class="quote-card-body" x-show="!quoteCardCollapsed">
+                <p class="quote-card-text">&ldquo;<span x-text="todaysQuote().quote"></span>&rdquo;</p>
+                <p class="quote-card-author" x-show="todaysQuote().author" x-text="'— ' + todaysQuote().author"></p>
+              </div>
+            </article>
+
             <!-- Mode 1: Modular Topic Cards (Option 1) -->
             <div class="note-cards-container" x-show="noteViewMode === 'cards'">
               

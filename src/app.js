@@ -15,6 +15,7 @@ import {
 import { executeUniversalSearch, flattenSearchResults } from './searchEngine.js';
 import { formatEventDescriptionHtml, extractMeetLink } from './calendarEngine.js';
 import { parseIndexEntriesFromNote } from './indexParser.js';
+import { getQuoteForDateStr } from './quotesEngine.js';
 window.GASBridge = GASBridge;
 window.Alpine = Alpine;
 
@@ -300,6 +301,7 @@ Alpine.data('plannerApp', () => ({
       sttScratchDocUrl: '',
       sttScratchCreating: false,
       noteViewMode: 'cards', // 'cards' (Option 1) or 'doc' (Option 2)
+      quoteCardCollapsed: false,
       noteFilterMenuOpen: false,
       noteCardSearchQuery: '',
       noteCardCategoryFilter: 'ALL',
@@ -1423,6 +1425,14 @@ Alpine.data('plannerApp', () => ({
 
       toggleCardExpand(card) {
         if (card) card.collapsed = !card.collapsed;
+      },
+
+      toggleQuoteCard() {
+        this.quoteCardCollapsed = !this.quoteCardCollapsed;
+      },
+
+      todaysQuote() {
+        return getQuoteForDateStr(this.selectedDate);
       },
 
       cardLines(card) {

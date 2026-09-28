@@ -14,6 +14,7 @@
     --line-height-base: 1.5;
     --spacing: 0.75rem;
     --border-radius: 6px;
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
 
     /* Franklin Covey Aesthetic Tokens */
     --bg-page: #12241d;
@@ -1847,6 +1848,56 @@
 
   .note-card-item.collapsed {
     background: #f7faf9;
+  }
+
+  .quote-card {
+    background: #ffffff;
+    border: 1px solid var(--border-line);
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+
+  .quote-card-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: var(--binder-teal-light);
+    border-bottom: 1px solid var(--border-line);
+    cursor: pointer;
+  }
+
+  .quote-card.collapsed .quote-card-header {
+    border-bottom: none;
+  }
+
+  .quote-card-title {
+    font-family: var(--font-family-header);
+    font-weight: 600;
+    color: var(--heading-color);
+    font-size: 0.9rem;
+  }
+
+  .quote-card-body {
+    padding: 12px 14px 14px;
+    transition: opacity 0.2s var(--ease-standard);
+  }
+
+  .quote-card-text {
+    font-family: var(--font-family-header);
+    font-style: italic;
+    color: var(--text-primary);
+    line-height: 1.5;
+    margin: 0 0 6px;
+  }
+
+  .quote-card-author {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    text-align: right;
+    margin: 0;
   }
 
   .note-card-header {
@@ -4866,6 +4917,20 @@
   [data-theme="dark"] .note-card-header {
     background: #11241c !important;
     border-bottom: 1px solid #244a3b !important;
+  }
+
+  [data-theme="dark"] .quote-card {
+    background: #152b22 !important;
+    border-color: #244a3b !important;
+  }
+
+  [data-theme="dark"] .quote-card-header {
+    background: #11241c !important;
+    border-bottom: 1px solid #244a3b !important;
+  }
+
+  [data-theme="dark"] .quote-card-text {
+    color: #e2f2ec !important;
   }
 
   [data-theme="dark"] .gchat-toolbar {
