@@ -30,13 +30,11 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 
 ## 3. Active & Upcoming Phases
 
-### Phase 17: Startup Performance Sizing (Done)
-*Goal: Decide whether a client-asset caching effort is worth it, before building anything.*
+### Phase 18: WORK Environment Parity (In Progress)
+*Goal: bring WORK up to the same state as HOME — themed-popup dictation and the narrowed `drive.file`-only OAuth scope — after both were built and verified live on HOME this session.*
 
-- [x] Sized live via CDP against production `/exec`: GAS server spinup (`responseStart`) = 3.2-3.7s of a 4.6-5.8s total load — see [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) item 3 for the full breakdown.
-- [x] Decision: **NO-GO** on a caching effort. Spinup + Google's sandbox overhead is ~65-75% of load and uncacheable; the remainder isn't separately cacheable under the current inlined-`HtmlService` architecture without a nontrivial restructure for a capped ~1.8s ceiling.
-
-**Also open, user-blocked (not agent-startable):** WORK PC re-test of the gDoc dictation link fallback — see [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) item 4.
+- [ ] **WORK dictation popup test** (see [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) item 1): confirm on WORK (Chrome) whether the same-origin popup mic path works directly there, or gracefully falls back to the "Open Dictation Doc" link as designed.
+- [ ] **WORK scope-narrowing promotion** (see [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) item 2): code is pushed to WORK as Version 66 but not live yet. Needs, in order: (1) add "Google Docs API" via the WORK Apps Script IDE's Services (+) button, (2) revoke/re-consent under `michael.hoffman@gsa.gov`, (3) `michael.hoffman@gsa.gov` repoints the live `...BhslA` deployment to Version 66, (4) live save/reload check on WORK.
 
 Move this phase to [`PLAN-HISTORY.md`](file:///home/mike/projects/day-planner/PLAN-HISTORY.md) once every item is checked off.
 

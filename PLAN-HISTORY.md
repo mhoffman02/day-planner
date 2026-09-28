@@ -4,6 +4,11 @@ Archived completed phases from [`PLAN.md`](file:///home/mike/projects/day-planne
 
 ---
 
+### Phase 17: Startup Performance Sizing
+*Goal: Decide whether a client-asset caching effort is worth it, before building anything.*
+- [x] Sized live via CDP against production `/exec`: GAS server spinup (`responseStart`) = 3.2-3.7s of a 4.6-5.8s total load.
+- [x] Decision: **NO-GO** on a caching effort. Spinup + Google's sandbox overhead is ~65-75% of load and uncacheable; the remainder isn't separately cacheable under the current inlined-`HtmlService` architecture without a nontrivial restructure for a capped ~1.8s ceiling.
+
 ### Phase 1: Baseline Establishment & Branch Management
 - [x] User alignment on baseline commit selection (`d294262` vs alternative) and branch naming.
 - [x] Create dedicated rollback branch (e.g., `pure-gas-main`) rooted at baseline or preserve `master` tag `PWA-installable-22-Sep-2026`.

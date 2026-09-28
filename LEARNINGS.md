@@ -51,3 +51,15 @@
 
 **Needs improvement:**
 - A session ended (commit `75411ab`) without running `/handoff`, which is exactly the staleness this skill exists to prevent — the new self-heal rule in CLAUDE.md should catch this going forward, but confirm it actually fires next time a session starts cold.
+
+## 2026-09-28 — Dictation Popup Workaround & `documents` OAuth Scope Removal
+
+**Worked well:**
+- Live CDP probing settled two architecture questions with real evidence instead of guesses: confirmed the app's own iframe blocks mic access via Permissions Policy (not fixable), then confirmed a same-origin popup escapes that restriction before writing any UI code.
+- User's own suggestion ("follow Google Docs' Voice Typing popup UI") turned out to be the right fix once probed — worth taking a user's UX instinct seriously and testing it rather than defaulting to the existing fallback design.
+- For the `documents` OAuth scope removal, added a real regression test (self-test Test 7) against the actual `saveDailyDocCards`/`getOrCreateDailyDocContent` before trusting the refactor — this caught a genuine paragraph-style-inheritance bug live that would have silently corrupted saved notes (a bulleted line dropped on read after a day-section replace). The existing `tests/gasDocIdempotency.test.js` node suite never touches `Code.gs` at all, so it gave zero coverage for this change.
+- Spiked the risky, uncertain part first (a reversible write-probe proving `drive.file` covers Docs API writes) before committing to porting ten functions off `DocumentApp`.
+
+**Needs improvement:**
+- The Apps Script IDE editor tab silently clobbered `clasp push`ed changes via its own autosave, twice in one session (once restoring the broad scope the manifest had just dropped, once wiping a just-pushed self-test probe) — cost real back-and-forth diagnosing what looked like a scope problem before realizing it was a stale-tab problem. Always confirm the IDE tab is closed before pushing scope/manifest changes via clasp, not just after something looks wrong.
+- Initially framed the WORK mic block as fully superseded by the iframe-Permissions-Policy finding, when the advisor caught that WORK's separate org mic allowlist was still a real, independent constraint — worth re-reading own conclusions for overcorrection before writing them into TODO.md.
