@@ -16,6 +16,9 @@
     --spacing: 0.75rem;
     --border-radius: 6px;
     --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+    --duration-fast: 0.1s;
+    --duration-standard: 0.15s;
+    --duration-slow: 0.2s;
 
     /* Franklin Covey Aesthetic Tokens */
     --bg-page: #12241d;
@@ -125,7 +128,7 @@
     color: var(--text-primary);
     padding: 6px 10px;
     box-sizing: border-box;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition: border-color var(--duration-standard) var(--ease-standard), box-shadow var(--duration-standard) var(--ease-standard);
   }
 
   input:focus,
@@ -153,7 +156,7 @@
   a {
     color: var(--binder-teal);
     text-decoration: underline;
-    transition: color 0.15s ease;
+    transition: color var(--duration-standard) var(--ease-standard);
   }
 
   a:hover {
@@ -304,7 +307,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background 0.15s ease;
+    transition: background var(--duration-standard) var(--ease-standard);
   }
 
   .icon-nav-btn:hover {
@@ -320,7 +323,7 @@
     font-weight: 600;
     font-size: 0.78rem;
     cursor: pointer;
-    transition: background 0.15s ease;
+    transition: background var(--duration-standard) var(--ease-standard);
     width: auto;
     min-width: calc(10ch + 12px);
     justify-content: center;
@@ -347,7 +350,7 @@
     font-size: 16px;
     line-height: 1;
     opacity: 0.85;
-    transition: transform 0.15s ease;
+    transition: transform var(--duration-standard) var(--ease-standard);
   }
 
   .month-picker-dropdown {
@@ -429,7 +432,7 @@
     color: #374151;
     cursor: pointer;
     text-align: center;
-    transition: background 0.12s ease, border-color 0.12s ease;
+    transition: background var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard);
   }
 
   .month-picker-cell:hover {
@@ -502,7 +505,7 @@
     font-size: 16px;
     line-height: 1;
     opacity: 0.9;
-    transition: transform 0.15s ease;
+    transition: transform var(--duration-standard) var(--ease-standard);
     color: #ffffff !important;
   }
 
@@ -614,7 +617,7 @@
     color: #1f2937;
     cursor: pointer;
     line-height: 1.2;
-    transition: background 0.1s ease, border-color 0.1s ease;
+    transition: background var(--duration-fast) var(--ease-standard), border-color var(--duration-fast) var(--ease-standard);
   }
 
   .day-picker-cell:hover {
@@ -783,7 +786,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+    transition: color var(--duration-standard) var(--ease-standard), border-color var(--duration-standard) var(--ease-standard), background-color var(--duration-standard) var(--ease-standard);
     white-space: nowrap;
     width: auto;
     box-shadow: none !important;
@@ -792,7 +795,7 @@
   .segment-btn .material-symbols-outlined {
     font-size: 18px;
     color: rgba(255, 255, 255, 0.65);
-    transition: color 0.15s ease;
+    transition: color var(--duration-standard) var(--ease-standard);
   }
 
   .segment-btn:hover {
@@ -838,7 +841,7 @@
     align-items: center;
     gap: 5px;
     cursor: pointer;
-    transition: background 0.15s ease;
+    transition: background var(--duration-standard) var(--ease-standard);
     width: auto;
   }
 
@@ -867,7 +870,7 @@
     align-items: center;
     gap: 4px;
     cursor: pointer;
-    transition: background 0.15s ease;
+    transition: background var(--duration-standard) var(--ease-standard);
     width: auto;
   }
 
@@ -887,7 +890,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background 0.15s ease;
+    transition: background var(--duration-standard) var(--ease-standard);
   }
 
   .theme-toggle-compact:hover {
@@ -974,7 +977,7 @@
     flex-shrink: 0;
     position: relative;
     border-radius: 4px;
-    transition: background-color 0.15s ease;
+    transition: background-color var(--duration-standard) var(--ease-standard);
   }
 
   .column-resizer:hover,
@@ -987,7 +990,7 @@
     height: 48px;
     background-color: var(--border-line, #c8ded7);
     border-radius: 2px;
-    transition: background-color 0.2s ease, height 0.2s ease, width 0.2s ease;
+    transition: background-color var(--duration-slow) var(--ease-standard), height var(--duration-slow) var(--ease-standard), width var(--duration-slow) var(--ease-standard);
   }
 
   .column-resizer:hover .resizer-handle,
@@ -1156,7 +1159,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background-color 0.15s ease, color 0.15s ease;
+    transition: background-color var(--duration-standard) var(--ease-standard), color var(--duration-standard) var(--ease-standard);
     border-radius: 0;
     margin: 0;
     padding: 0;
@@ -1368,7 +1371,7 @@
     color: #8c9b95;
     vertical-align: middle;
     transform: translateY(-1px);
-    transition: color 0.15s ease, transform 0.1s ease;
+    transition: color var(--duration-standard) var(--ease-standard), transform var(--duration-fast) var(--ease-standard);
     user-select: none;
     -webkit-user-select: none;
   }
@@ -1556,7 +1559,7 @@
     padding: 6px 8px;
     cursor: pointer;
     text-align: left;
-    transition: background 0.15s ease;
+    transition: background var(--duration-standard) var(--ease-standard);
   }
 
   .status-menu-item:hover {
@@ -1844,7 +1847,7 @@
     border: 1px solid var(--border-line);
     border-radius: 6px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-    transition: all 0.2s ease;
+    transition: all var(--duration-slow) var(--ease-standard);
   }
 
   .note-card-item.collapsed {
@@ -1883,7 +1886,7 @@
 
   .quote-card-body {
     padding: 12px 14px 14px;
-    transition: opacity 0.2s var(--ease-standard);
+    transition: opacity var(--duration-slow) var(--ease-standard);
   }
 
   .quote-card-text {
@@ -1944,7 +1947,7 @@
     height: 70%;
     background: var(--border-line);
     border-radius: 1px;
-    transition: all 0.2s ease;
+    transition: all var(--duration-slow) var(--ease-standard);
   }
   .card-header-resizer:hover::after,
   .card-header-resizer.is-resizing::after {
@@ -1971,7 +1974,7 @@
     white-space: nowrap;
     text-overflow: ellipsis;
     margin-bottom: 0 !important;
-    transition: border-color 0.15s ease, background 0.15s ease;
+    transition: border-color var(--duration-standard) var(--ease-standard), background var(--duration-standard) var(--ease-standard);
   }
   .card-topic-input::-webkit-calendar-picker-indicator {
     display: none;
@@ -2060,7 +2063,7 @@
     font-size: 0.8rem;
     color: var(--text-primary);
     cursor: pointer;
-    transition: background 0.1s ease;
+    transition: background var(--duration-fast) var(--ease-standard);
   }
 
   .topic-lru-item:hover,
@@ -2111,7 +2114,7 @@
     cursor: pointer;
     flex-shrink: 0;
     margin-left: 4px;
-    transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+    transition: opacity var(--duration-standard) var(--ease-standard), color var(--duration-standard) var(--ease-standard), background var(--duration-standard) var(--ease-standard);
   }
 
   .topic-lru-item:hover .topic-item-remove-btn,
@@ -2260,7 +2263,7 @@
     justify-content: center;
     gap: 2px;
     cursor: pointer;
-    transition: background-color 0.15s ease, color 0.15s ease;
+    transition: background-color var(--duration-standard) var(--ease-standard), color var(--duration-standard) var(--ease-standard);
     border-radius: 0;
     margin: 0;
     box-sizing: border-box;
@@ -2528,7 +2531,7 @@
     font-size: 1.15rem;
     font-family: inherit;
     user-select: none;
-    transition: transform 0.12s ease, color 0.12s ease;
+    transition: transform var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard);
   }
 
   .note-checkbox-btn:hover {
@@ -2762,7 +2765,7 @@
     display: flex;
     flex-direction: column;
     cursor: pointer;
-    transition: transform 0.1s ease, border-color 0.15s ease;
+    transition: transform var(--duration-fast) var(--ease-standard), border-color var(--duration-standard) var(--ease-standard);
     margin: 0;
     box-sizing: border-box;
     overflow: hidden;
@@ -2891,7 +2894,7 @@
     font-weight: 600;
     padding: 3px 7px;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all var(--duration-standard) var(--ease-standard);
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -2932,7 +2935,7 @@
     font-weight: 600;
     padding: 3px 8px;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all var(--duration-standard) var(--ease-standard);
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -3257,7 +3260,7 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    transition: all 0.15s ease;
+    transition: all var(--duration-standard) var(--ease-standard);
     white-space: nowrap;
     font-family: inherit;
     line-height: 1.2;
@@ -3451,7 +3454,7 @@
   }
   .icon-nav-btn-subtle {
     opacity: 0.5;
-    transition: opacity 0.15s ease;
+    transition: opacity var(--duration-standard) var(--ease-standard);
   }
   .icon-nav-btn-subtle:hover {
     opacity: 1;
@@ -3556,7 +3559,7 @@
     margin-bottom: 0 !important;
     flex: 0 0 130px !important;
     box-sizing: border-box;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition: border-color var(--duration-standard) var(--ease-standard), box-shadow var(--duration-standard) var(--ease-standard);
   }
 
   input.master-task-date-input:focus {
@@ -3570,7 +3573,7 @@
     cursor: pointer;
     opacity: 0.65;
     filter: invert(34%) sepia(26%) saturate(830%) hue-rotate(118deg) brightness(92%) contrast(88%);
-    transition: opacity 0.15s ease;
+    transition: opacity var(--duration-standard) var(--ease-standard);
   }
 
   input.master-task-date-input:hover::-webkit-calendar-picker-indicator,
@@ -3617,7 +3620,7 @@
     display: inline-flex;
     align-items: center;
     white-space: nowrap;
-    transition: background-color 0.15s ease;
+    transition: background-color var(--duration-standard) var(--ease-standard);
     box-sizing: border-box;
     margin-bottom: 0 !important;
     flex-shrink: 0;
@@ -3693,7 +3696,7 @@
     align-items: center;
     gap: 4px;
     white-space: nowrap;
-    transition: background-color 0.15s ease;
+    transition: background-color var(--duration-standard) var(--ease-standard);
     box-sizing: border-box;
     margin-bottom: 0 !important;
     flex-shrink: 0;
@@ -3884,7 +3887,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    transition: background-color var(--duration-standard) var(--ease-standard), border-color var(--duration-standard) var(--ease-standard), color var(--duration-standard) var(--ease-standard);
     box-sizing: border-box;
     flex-shrink: 0;
     margin-bottom: 0 !important;
@@ -4116,7 +4119,7 @@
     margin: 0;
     cursor: pointer;
     border: 1px solid transparent;
-    transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    transition: background-color var(--duration-standard) var(--ease-standard), border-color var(--duration-standard) var(--ease-standard), box-shadow var(--duration-standard) var(--ease-standard);
   }
   article.search-result-item:hover,
   article.search-result-item.selected {
@@ -4269,7 +4272,7 @@
     align-items: center;
     gap: 6px;
     cursor: pointer;
-    transition: background 0.15s ease, box-shadow 0.15s ease;
+    transition: background var(--duration-standard) var(--ease-standard), box-shadow var(--duration-standard) var(--ease-standard);
   }
   .btn-install-app-header:hover {
     background: #245548;
@@ -4489,7 +4492,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.2s ease, transform 0.2s ease;
+    transition: background var(--duration-slow) var(--ease-standard), transform var(--duration-slow) var(--ease-standard);
     margin-bottom: 0;
     padding: 0;
   }
