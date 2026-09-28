@@ -33,13 +33,13 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 ### Phase 20: Future Planning Items as Real Tasks (In Progress)
 *Goal: replace the custom `future-matrix-YYYY.json` Drive-file bucket storage with real Google Tasks (dueDate = last day of the target month when no specific day is given), matching how Master/Daily Tasks are already stored. Triggered by a 2026-09-28 live bug where `DriveApp.Folder.createFile()`/`File.setContent()` demanded the broad `drive` scope even for the app's own folder — patched for now via the Advanced Drive Service (`Drive.Files.insert`/`update`), but moving off Drive-file storage entirely removes the whole class of bug and reuses proven-working Tasks-API infrastructure.*
 
-- [ ] Rework `addFutureItem`/`updateFutureItemStatus`/`transferFutureItemToDay`/`rollForwardPendingItems`/`deleteFutureItem` in `gas-app/Code.gs` to operate on Tasks (dueDate-keyed) instead of the JSON bucket.
-- [ ] Rework `getFutureMatrixData_`/`getFutureMatrix` to query Tasks and group by `dueDate`'s month, replacing the Drive JSON read.
-- [ ] When a new item has no specific day, default `dueDate` to the last day of the target month.
-- [ ] Update `src/futureMatrixEngine.js` and its 20+ tests in `tests/futureMatrixEngine.test.js` for the new data shape (grid grouping becomes a view-layer computation over tasks, not the source of truth).
-- [ ] Update `src/app.js`/`gas-app/Script.html` bindings and the Future Planning view in `Index.html`/root `index.html` as needed.
-- [ ] Decide and implement a migration path for any existing `future-matrix-*.json` files already in users' Drive folders — a one-time import, or the items silently vanish from the UI.
+- [x] Rework `addFutureItem`/`updateFutureItemStatus`/`transferFutureItem`/`pushFutureItemToNextMonth`/`deleteFutureItem` in `gas-app/Code.gs` to operate on Tasks (dueDate-keyed, flagged `[Future]` in notes) instead of the JSON bucket. `saveFutureMatrixData_`/Drive read-write removed entirely.
+- [x] Rework `getFutureMatrixData_`/`getFutureMatrix` to query Tasks (`dueMin`/`dueMax` scoped to the year) and group by `due`'s month, replacing the Drive JSON read.
+- [x] When a new item has no specific day, default `dueDate` to the last day of the target month (`lastDayOfMonthStr_`); an optional `day` param on `addFutureItem` allows day-specific items too.
+- [x] `src/futureMatrixEngine.js` / `src/app.js` / `gas-app/Script.html` / `Index.html` need no changes — the RPC contract (`year, monthKey, title, category[, day]` in, `{id, title, category, status}`-shaped items out) is unchanged, and the client-side mock in `gasBridge.js` was already an independent in-memory store. Confirmed via full `npm test` (155/155 green) and `npm run lint` (clean) after the backend rewrite.
+- [x] Migration decision (user, 2026-09-28): start fresh, no migration. Existing `future-matrix-*.json` files are simply orphaned/ignored in Drive.
 - [ ] Verify live (HOME, then WORK) that creating an item with no day-of-month lands on the last day of that month, and that existing Franklin status cycling / transfer-to-day / roll-forward still work.
+- [ ] Fixed a latent bug while touching `encodeTaskMeta`/`DP_HUMAN_TAGS_RE`: bracket-only tags (`[Master]`, `[Starred]`, new `[Future]`) weren't being stripped by the tag-removal regex (it required a trailing `:...`), so repeated edits would have accumulated duplicate tags in notes. Regex now optionally matches `:content`.
 
 ---
 

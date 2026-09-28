@@ -391,7 +391,7 @@ var DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mhoff
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-var DAY_PLANNER_BUILD_NUMBER = 302;
+var DAY_PLANNER_BUILD_NUMBER = 303;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -829,7 +829,7 @@ var TASK_STATUS_MARKER_RE = /(?:^<!--dp-status:(.+?)-->\n?|\[Status:\s*([^\]]+)\
 var TASK_EXTRA_STATUSES = ['○', '→', 'X', 'Ⓓ'];
 var DP_TOKEN_LINE_RE = /^<!--dp-(?:status|meta):.*?-->\n?/gm;
 var TASK_META_MARKER_RE = /<!--dp-meta:(.*?)-->\n?/;
-var DP_HUMAN_TAGS_RE = /\[(?:Category|Starred|Master|MovedTo|SourceMaster|Status):.*?\]\n?/gi;
+var DP_HUMAN_TAGS_RE = /\[(?:Category|Starred|Master|Future|MovedTo|SourceMaster|Status)(?::[^\]]*)?\]\n?/gi;
 
 /**
  * Strips the hidden status marker line from a Task's notes, if present.
@@ -910,6 +910,8 @@ function decodeTaskMeta(notes) {
   if (starMatch) meta.starred = true;
   var masterMatch = notes.match(/\[Master\]/i);
   if (masterMatch) meta.master = true;
+  var futureMatch = notes.match(/\[Future\]/i);
+  if (futureMatch) meta.future = true;
   var movedMatch = notes.match(/\[MovedTo:\s*([^,\]]+)(?:,\s*id:\s*([^\]]+))?\]/i);
   if (movedMatch) {
     meta.movedTo = movedMatch[1].trim();
@@ -931,7 +933,7 @@ function encodeTaskMeta(existingNotes, metaPatch) {
   var merged = Object.assign({}, decodeTaskMeta(existingNotes), metaPatch);
   var rest = (existingNotes || '')
     .replace(TASK_META_MARKER_RE, '')
-    .replace(/\[(?:Category|Starred|Master|MovedTo|SourceMaster):.*?\]\n?/gi, '')
+    .replace(/\[(?:Category|Starred|Master|Future|MovedTo|SourceMaster)(?::[^\]]*)?\]\n?/gi, '')
     .trim();
 
   var tags = [];
@@ -943,6 +945,9 @@ function encodeTaskMeta(existingNotes, metaPatch) {
   }
   if (merged.master) {
     tags.push('[Master]');
+  }
+  if (merged.future) {
+    tags.push('[Future]');
   }
   if (merged.movedTo) {
     tags.push(merged.movedTaskId ? '[MovedTo: ' + merged.movedTo + ', id: ' + merged.movedTaskId + ']' : '[MovedTo: ' + merged.movedTo + ']');
@@ -2044,9 +2049,21 @@ function nextMonthKeyStr_(monthKey) {
 }
 
 /**
- * Reads the Future Planning Matrix JSON file for a given year from Drive, falling back to
- * an empty 12-month skeleton if the file does not yet exist.
- * Cached in UserCache for 5 minutes (300 seconds).
+ * Computes the last day of a given month as a YYYY-MM-DD string.
+ * @param {string} monthKey Month key in YYYY-MM format.
+ * @returns {string} Last calendar day of that month, YYYY-MM-DD.
+ */
+function lastDayOfMonthStr_(monthKey) {
+  var parts = monthKey.split('-');
+  var year = parseInt(parts[0], 10);
+  var month = parseInt(parts[1], 10);
+  var lastDay = new Date(year, month, 0).getDate();
+  return monthKey + '-' + String(lastDay).padStart(2, '0');
+}
+
+/**
+ * Reads all Future Planning items (Google Tasks flagged `[Future]`) whose due date falls
+ * within a given calendar year, grouped into a 12-month skeleton.
  * @param {number|string} year Target calendar year.
  * @returns {{year: string, months: Object<string, Array<object>>}} Full year matrix.
  */
@@ -2057,108 +2074,51 @@ function getFutureMatrixData_(year) {
     matrixData.months[yearStr + '-' + String(m).padStart(2, '0')] = [];
   }
 
-  var cache = CacheService.getUserCache();
-  var cacheKey = 'future_matrix_' + yearStr;
-  var cached = cache ? cache.get(cacheKey) : null;
-  if (cached) {
-    try {
-      return JSON.parse(cached);
-    } catch (e) {
-      console.warn('getFutureMatrixData_: bad cached JSON: ' + e.toString());
-    }
-  }
-
-  var targetFolder = getValidatedRootFolder();
-  if (!targetFolder) {
-    matrixData.folderMissing = true;
-    return matrixData;
-  }
-
-  var fileName = 'future-matrix-' + yearStr + '.json';
-  var files = targetFolder.getFilesByName(fileName);
-  var parseFailed = false;
-  if (files.hasNext()) {
-    var file = files.next();
-    var content = file.getBlob().getDataAsString();
-    if (content && content.trim()) {
-      try {
-        var parsed = JSON.parse(content);
-        if (parsed.months) {
-          Object.keys(parsed.months).forEach(function(key) {
-            matrixData.months[key] = parsed.months[key];
-          });
-        }
-      } catch (jsonErr) {
-        parseFailed = true;
-        console.warn('JSON parse warning in ' + fileName + ': ' + jsonErr.toString());
-      }
-    }
-    if (cache && !parseFailed) cache.put(cacheKey, JSON.stringify(matrixData), 300);
+  var resp = Tasks.Tasks.list('@default', {
+    showCompleted: true,
+    showHidden: true,
+    maxResults: 200,
+    dueMin: yearStr + '-01-01T00:00:00.000Z',
+    dueMax: yearStr + '-12-31T23:59:59.999Z'
+  });
+  var items = resp.items || [];
+  for (var i = 0; i < items.length; i++) {
+    var t = items[i];
+    if (!t.due) continue;
+    var meta = decodeTaskMeta(t.notes);
+    if (!meta.future) continue;
+    var monthKey = t.due.substring(0, 7);
+    if (!matrixData.months[monthKey]) matrixData.months[monthKey] = [];
+    matrixData.months[monthKey].push({
+      id: t.id,
+      title: t.title,
+      category: meta.category || 'General',
+      status: deriveTaskStatus(t),
+      dueDate: t.due.substring(0, 10)
+    });
   }
 
   return matrixData;
 }
 
 /**
- * Writes the Future Planning Matrix JSON file for a given year back to Drive and refreshes
- * the read-side cache so the next fetch reflects this save immediately.
- * @param {number|string} year Target calendar year.
- * @param {{year: string, months: Object<string, Array<object>>}} matrixData Full year matrix to persist.
- * @returns {void}
- */
-function saveFutureMatrixData_(year, matrixData) {
-  var targetFolder = getValidatedRootFolder();
-  if (!targetFolder) throw new Error('Root folder not configured.');
-
-  var yearStr = String(year);
-  var fileName = 'future-matrix-' + yearStr + '.json';
-  var files = targetFolder.getFilesByName(fileName);
-  var serialized = JSON.stringify(matrixData, null, 2);
-  var existingFile = files.hasNext() ? files.next() : null;
-
-  // DriveApp's built-in Folder.createFile()/File.setContent() require the broad `drive` OAuth
-  // scope even for a file the app owns -- unlike the Advanced Drive Service (Drive.Files.*),
-  // which honors `drive.file` for files/folders the app created. Prefer the Advanced Service
-  // (same pattern as getValidatedRootFolder's folder creation) and only fall back to DriveApp
-  // if it's unavailable, so this never needs a scope broadening to `drive`.
-  var wroteViaAdvancedService = false;
-  try {
-    if (typeof Drive !== 'undefined' && Drive.Files) {
-      var blob = Utilities.newBlob(serialized, 'text/plain', fileName);
-      if (existingFile && Drive.Files.update) {
-        Drive.Files.update({ title: fileName }, existingFile.getId(), blob);
-        wroteViaAdvancedService = true;
-      } else if (!existingFile && Drive.Files.insert) {
-        Drive.Files.insert({ title: fileName, mimeType: 'text/plain', parents: [{ id: targetFolder.getId() }] }, blob);
-        wroteViaAdvancedService = true;
-      }
-    }
-  } catch (advErr) {
-    logWarn('saveFutureMatrixData_(' + yearStr + ') Advanced Drive Service write failed: ' + advErr.toString());
-  }
-
-  if (!wroteViaAdvancedService) {
-    if (existingFile) {
-      existingFile.setContent(serialized);
-    } else {
-      targetFolder.createFile(fileName, serialized, MimeType.PLAIN_TEXT);
-    }
-  }
-
-  var cache = CacheService.getUserCache();
-  if (cache) cache.put('future_matrix_' + yearStr, serialized, 300);
-}
-
-/**
  * Fetches the Future Planning Matrix (12-month overview) for a given year — month-scoped
  * "big rock" items not yet tied to a specific day, per the Franklin Covey Master Task List
- * model applied across the whole year.
+ * model applied across the whole year. Backed by real Google Tasks (flagged `[Future]` in
+ * their notes) rather than a per-year Drive JSON file.
  * @param {number|string} year Target calendar year.
  * @returns {{year: string, months: Object<string, Array<object>>}}
  */
 function getFutureMatrix(year) {
   try {
-    if (typeof DriveApp === 'undefined') return { year: String(year), months: {} };
+    if (typeof Tasks === 'undefined') {
+      var mockYear = String(year);
+      var mock = { year: mockYear, months: {} };
+      for (var m = 1; m <= 12; m++) {
+        mock.months[mockYear + '-' + String(m).padStart(2, '0')] = [];
+      }
+      return mock;
+    }
     return getFutureMatrixData_(year);
   } catch (err) {
     return logError('getFutureMatrix(' + year + ')', err);
@@ -2166,28 +2126,41 @@ function getFutureMatrix(year) {
 }
 
 /**
- * Adds a new future planning item to a month's bucket and persists the year file.
+ * Creates a new Future Planning item as a Google Task flagged `[Future]`, due on the given
+ * day, or the last day of the target month if no day is specified.
  * @param {number|string} year Target calendar year.
  * @param {string} monthKey Target month key in YYYY-MM format.
  * @param {string} title Item title/description.
  * @param {string} [category] Optional category label.
- * @returns {{id: string, title: string, category: string, status: string, createdAt: string}} Created future item.
+ * @param {number} [day] Optional day-of-month (1-31). Defaults to the month's last day.
+ * @returns {{id: string, title: string, category: string, status: string, dueDate: string}} Created future item.
  */
-function addFutureItem(year, monthKey, title, category) {
+function addFutureItem(year, monthKey, title, category, day) {
   try {
-    var matrixData = getFutureMatrixData_(year);
-    if (!matrixData.months[monthKey]) matrixData.months[monthKey] = [];
-
-    var newItem = {
-      id: 'fm_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+    if (typeof Tasks === 'undefined') {
+      return {
+        id: 'fm_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+        title: title,
+        category: category || 'General',
+        status: '•',
+        dueDate: day ? (monthKey + '-' + String(day).padStart(2, '0')) : lastDayOfMonthStr_(monthKey)
+      };
+    }
+    var dueDate = day ? (monthKey + '-' + String(day).padStart(2, '0')) : lastDayOfMonthStr_(monthKey);
+    var taskResource = {
       title: title,
-      category: category || 'General',
-      status: '•',
-      createdAt: new Date().toISOString()
+      due: dueDate + 'T00:00:00.000Z',
+      notes: encodeTaskMeta('', { future: true, category: category || 'General' })
     };
-    matrixData.months[monthKey].push(newItem);
-    saveFutureMatrixData_(year, matrixData);
-    return newItem;
+    var created = Tasks.Tasks.insert(taskResource, '@default');
+    var meta = decodeTaskMeta(created.notes);
+    return {
+      id: created.id,
+      title: created.title,
+      category: meta.category || category || 'General',
+      status: deriveTaskStatus(created),
+      dueDate: created.due ? created.due.substring(0, 10) : dueDate
+    };
   } catch (err) {
     logError('addFutureItem(' + year + ',' + monthKey + ')', err);
     throw err;
@@ -2195,26 +2168,21 @@ function addFutureItem(year, monthKey, title, category) {
 }
 
 /**
- * Cycles a future item's Franklin-style status marker and persists the year file.
- * @param {number|string} year Target calendar year.
- * @param {string} monthKey Target month key in YYYY-MM format.
- * @param {string} itemId Future item identifier.
+ * Cycles a future item's Franklin-style status marker.
+ * @param {number|string} year Target calendar year (unused, kept for call-site compatibility).
+ * @param {string} monthKey Target month key (unused, kept for call-site compatibility).
+ * @param {string} itemId Future item's Google Task id.
  * @param {string} status New status symbol.
  * @returns {object|null} Updated future item, or null if not found.
  */
 function updateFutureItemStatus(year, monthKey, itemId, status) {
   try {
-    var matrixData = getFutureMatrixData_(year);
-    var items = matrixData.months[monthKey] || [];
-    var item = null;
-    for (var i = 0; i < items.length; i++) {
-      if (items[i].id === itemId) { item = items[i]; break; }
+    if (typeof Tasks === 'undefined') {
+      return { id: itemId, title: '', category: 'General', status: status };
     }
-    if (!item) return null;
-
-    item.status = status;
-    saveFutureMatrixData_(year, matrixData);
-    return item;
+    var updated = updateDailyTask('', itemId, { status: status });
+    if (!updated) return null;
+    return { id: updated.id, title: updated.title, category: updated.category, status: updated.status };
   } catch (err) {
     logError('updateFutureItemStatus(' + year + ',' + monthKey + ')', err);
     throw err;
@@ -2222,104 +2190,91 @@ function updateFutureItemStatus(year, monthKey, itemId, status) {
 }
 
 /**
- * Transfers a future planning item onto a specific day's task list, removing it from its
- * month bucket — Franklin Covey's "forwarded" semantics: the item now lives on that day.
- * Reuses addDailyTask() so the transferred item is a real Google Task like any other.
- * @param {number|string} year Source calendar year.
- * @param {string} monthKey Source month key in YYYY-MM format.
- * @param {string} itemId Future item identifier.
+ * Transfers a future planning item onto a specific day's task list — Franklin Covey's
+ * "forwarded" semantics: the item now lives on that day instead of its month bucket.
+ * Patches the same underlying Google Task in place (clearing its `[Future]` flag) rather
+ * than deleting and recreating it, so the task id is preserved across the transfer.
+ * @param {number|string} year Source calendar year (unused, kept for call-site compatibility).
+ * @param {string} monthKey Source month key (unused, kept for call-site compatibility).
+ * @param {string} itemId Future item's Google Task id.
  * @param {string} dateStr Target date in YYYY-MM-DD format.
  * @param {string} [priorityGroup] Priority group code ('A', 'B', or 'C').
- * @returns {object|null} Created daily task object, or null if item not found.
+ * @returns {object|null} Updated daily task object, or null if item not found.
  */
 function transferFutureItem(year, monthKey, itemId, dateStr, priorityGroup) {
   try {
-    var matrixData = getFutureMatrixData_(year);
-    var items = matrixData.months[monthKey] || [];
-    var idx = -1;
-    for (var i = 0; i < items.length; i++) {
-      if (items[i].id === itemId) { idx = i; break; }
+    if (typeof Tasks === 'undefined') {
+      return { id: itemId, title: '', status: '•', category: 'General', dueDate: dateStr };
     }
-    if (idx === -1) return null;
-
-    var item = items[idx];
-    items.splice(idx, 1);
-    saveFutureMatrixData_(year, matrixData);
-
-    var formattedTitle = '[' + (priorityGroup || 'A').toUpperCase() + '1] ' + item.title;
-    return addDailyTask(dateStr, formattedTitle, item.category);
+    var current = Tasks.Tasks.get('@default', itemId);
+    var formattedTitle = '[' + (priorityGroup || 'A').toUpperCase() + '1] ' + current.title;
+    var patch = {
+      title: formattedTitle,
+      due: dateStr + 'T00:00:00.000Z',
+      notes: encodeTaskMeta(current.notes, { future: false })
+    };
+    var updated = Tasks.Tasks.patch(patch, '@default', itemId);
+    var meta = decodeTaskMeta(updated.notes);
+    return {
+      id: updated.id,
+      title: updated.title,
+      status: deriveTaskStatus(updated),
+      category: meta.category || 'General',
+      dueDate: updated.due ? updated.due.substring(0, 10) : dateStr,
+      starred: Boolean(meta.starred),
+      notes: stripDpTokens(updated.notes)
+    };
   } catch (err) {
+    if (err.message && (err.message.indexOf('404') !== -1 || err.message.indexOf('Not Found') !== -1)) {
+      return null;
+    }
     logError('transferFutureItem(' + year + ',' + monthKey + ')', err);
     throw err;
   }
 }
 
 /**
- * Carries a still-open future item forward into next month's bucket, rolling into next
- * calendar year's matrix file when pushed from December.
- * @param {number|string} year Source calendar year.
+ * Carries a still-open future item forward into next month's bucket by moving its due date
+ * to the last day of the following month (rolling into the next calendar year after December).
+ * @param {number|string} year Source calendar year (unused, kept for call-site compatibility).
  * @param {string} monthKey Source month key in YYYY-MM format.
- * @param {string} itemId Future item identifier.
+ * @param {string} itemId Future item's Google Task id.
  * @returns {object|null} The carried-forward item, or null if not found.
  */
 function pushFutureItemToNextMonth(year, monthKey, itemId) {
   try {
-    var matrixData = getFutureMatrixData_(year);
-    var items = matrixData.months[monthKey] || [];
-    var idx = -1;
-    for (var i = 0; i < items.length; i++) {
-      if (items[i].id === itemId) { idx = i; break; }
-    }
-    if (idx === -1) return null;
-
-    var item = items[idx];
-    items.splice(idx, 1);
-
     var nextKey = nextMonthKeyStr_(monthKey);
-    var nextYear = nextKey.substring(0, 4);
-
-    if (nextYear === String(year)) {
-      if (!matrixData.months[nextKey]) matrixData.months[nextKey] = [];
-      matrixData.months[nextKey].push(item);
-      saveFutureMatrixData_(year, matrixData);
-    } else {
-      saveFutureMatrixData_(year, matrixData); // persist removal from current year
-      var nextYearData = getFutureMatrixData_(nextYear);
-      if (!nextYearData.months[nextKey]) nextYearData.months[nextKey] = [];
-      nextYearData.months[nextKey].push(item);
-      saveFutureMatrixData_(nextYear, nextYearData);
+    if (typeof Tasks === 'undefined') {
+      return { id: itemId, title: '', category: 'General', status: '•', dueDate: lastDayOfMonthStr_(nextKey) };
     }
-    return item;
+    var nextDue = lastDayOfMonthStr_(nextKey);
+    var updated = Tasks.Tasks.patch({ due: nextDue + 'T00:00:00.000Z' }, '@default', itemId);
+    var meta = decodeTaskMeta(updated.notes);
+    return {
+      id: updated.id,
+      title: updated.title,
+      category: meta.category || 'General',
+      status: deriveTaskStatus(updated),
+      dueDate: updated.due ? updated.due.substring(0, 10) : nextDue
+    };
   } catch (err) {
+    if (err.message && (err.message.indexOf('404') !== -1 || err.message.indexOf('Not Found') !== -1)) {
+      return null;
+    }
     logError('pushFutureItemToNextMonth(' + year + ',' + monthKey + ')', err);
     throw err;
   }
 }
 
 /**
- * Deletes a future planning item from a month's bucket and persists the year file.
- * @param {number|string} year Target calendar year.
- * @param {string} monthKey Target month key in YYYY-MM format.
- * @param {string} itemId Future item identifier.
+ * Deletes a future planning item (its underlying Google Task) entirely.
+ * @param {number|string} year Target calendar year (unused, kept for call-site compatibility).
+ * @param {string} monthKey Target month key (unused, kept for call-site compatibility).
+ * @param {string} itemId Future item's Google Task id.
  * @returns {boolean} True if deleted, false if not found.
  */
 function deleteFutureItem(year, monthKey, itemId) {
-  try {
-    var matrixData = getFutureMatrixData_(year);
-    var items = matrixData.months[monthKey] || [];
-    var idx = -1;
-    for (var i = 0; i < items.length; i++) {
-      if (items[i].id === itemId) { idx = i; break; }
-    }
-    if (idx === -1) return false;
-
-    items.splice(idx, 1);
-    saveFutureMatrixData_(year, matrixData);
-    return true;
-  } catch (err) {
-    logError('deleteFutureItem(' + year + ',' + monthKey + ')', err);
-    throw err;
-  }
+  return deleteDailyTask(itemId);
 }
 
 /**
@@ -2702,8 +2657,8 @@ function getFutureMatrix(year) {
   return (typeof _getFutureMatrixInternal === 'function') ? _getFutureMatrixInternal(year) : (globalThis._getFutureMatrixInternal ? globalThis._getFutureMatrixInternal(year) : null);
 }
 
-function addFutureItem(year, monthKey, title, category) {
-  return (typeof _addFutureItemInternal === 'function') ? _addFutureItemInternal(year, monthKey, title, category) : (globalThis._addFutureItemInternal ? globalThis._addFutureItemInternal(year, monthKey, title, category) : null);
+function addFutureItem(year, monthKey, title, category, day) {
+  return (typeof _addFutureItemInternal === 'function') ? _addFutureItemInternal(year, monthKey, title, category, day) : (globalThis._addFutureItemInternal ? globalThis._addFutureItemInternal(year, monthKey, title, category, day) : null);
 }
 
 function updateFutureItemStatus(year, monthKey, itemId, status) {

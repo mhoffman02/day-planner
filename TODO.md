@@ -6,12 +6,11 @@ Session completed 2026-09-28: see [`TODO_HISTORY.md`](file:///home/mike/projects
 
 See `PLAN.md`'s Phase 20 for full rationale (born from a 2026-09-28 live bug: `DriveApp.Folder.createFile()` demanded broad `drive` scope even for the app's own folder — patched for now, but the real fix is moving Future Planning off Drive-file storage onto the Tasks API).
 
-- [ ] Rework `addFutureItem`/`updateFutureItemStatus`/`transferFutureItemToDay`/`rollForwardPendingItems`/`deleteFutureItem` in `gas-app/Code.gs` to operate on Tasks (dueDate-keyed) instead of the JSON bucket.
-- [ ] Rework `getFutureMatrixData_`/`getFutureMatrix` to query Tasks and group by `dueDate`'s month.
-- [ ] When a new item has no specific day, default `dueDate` to the last day of the target month.
-- [ ] Update `src/futureMatrixEngine.js` and its 20+ tests in `tests/futureMatrixEngine.test.js` for the new data shape.
-- [ ] Update `src/app.js`/`gas-app/Script.html` bindings and the Future Planning view in `Index.html`/root `index.html`.
-- [ ] Decide a migration path for existing `future-matrix-*.json` files already in users' Drive folders.
+- [x] Rework `addFutureItem`/`updateFutureItemStatus`/`transferFutureItem`/`pushFutureItemToNextMonth`/`deleteFutureItem` in `gas-app/Code.gs` to operate on Tasks (dueDate-keyed, flagged `[Future]`) instead of the JSON bucket.
+- [x] Rework `getFutureMatrixData_`/`getFutureMatrix` to query Tasks and group by `dueDate`'s month.
+- [x] When a new item has no specific day, default `dueDate` to the last day of the target month.
+- [x] Client side (`src/futureMatrixEngine.js`, `src/app.js`, `gas-app/Script.html`, `Index.html`) needed no changes — RPC contract unchanged. `npm test` (155/155) and `npm run lint` confirmed clean.
+- [x] Migration: user chose "start fresh" — no import, old `future-matrix-*.json` files left orphaned in Drive.
 - [ ] Verify live (HOME, then WORK): no-day items land on the last day of the month; Franklin status cycling / transfer-to-day / roll-forward still work.
 
 ## Loose end (unrelated to Phase 20)
