@@ -50,9 +50,7 @@ const DICTATION_POPUP_HTML = `<!doctype html>
 <html><head><meta charset="utf-8"><title>Voice Typing</title><style>
   body { margin:0; font-family: Georgia, 'Times New Roman', serif; background:#fcfbfa; color:#2d2a26;
     display:flex; flex-direction:column; align-items:center; padding:20px; box-sizing:border-box; }
-  h1 { font-size:12px; margin:0 0 10px; color:#8a8378; font-weight:600; text-transform:uppercase;
-    letter-spacing:0.05em; }
-  .status { font-size:16px; font-weight:700; color:#2d6a5a; margin-bottom:16px; min-height:22px;
+  .status { font-size:16px; font-weight:700; color:#2d6a5a; margin:0 0 16px; min-height:22px;
     text-align:center; padding:8px 10px; border:1px solid #cfe3dc; border-radius:6px; background:#eaf3f0;
     width:100%; box-sizing:border-box; }
   .status.listening { background:#2d6a5a; color:#fcfbfa; border-color:#2d6a5a; }
@@ -70,7 +68,7 @@ const DICTATION_POPUP_HTML = `<!doctype html>
     70% { box-shadow:0 0 0 16px rgba(45,106,90,0); }
     100% { box-shadow:0 0 0 0 rgba(45,106,90,0); }
   }
-  .mic-btn svg { width:38px; height:38px; }
+  .mic-btn svg { width:30px; height:30px; }
   .mic-btn path { fill:#2d6a5a; }
   .mic-btn.listening path { fill:#fcfbfa; }
   .caption { width:100%; min-height:32px; font-size:12px; color:#6b645c; text-align:center;
@@ -79,17 +77,20 @@ const DICTATION_POPUP_HTML = `<!doctype html>
     font-size:13px; font-weight:600; color:#fcfbfa; background:#2d6a5a; border:none; border-radius:6px;
     cursor:pointer; }
   .done-btn:hover { background:#245648; }
-  .footer { margin-top:8px; font-size:11px; color:#8a8378; text-align:center; }
+  .footer { margin-top:10px; display:flex; gap:14px; justify-content:center; }
+  .key-hint { display:flex; align-items:center; gap:5px; font-size:11px; color:#8a8378; }
+  .key-hint kbd { font-family: -apple-system, 'Segoe UI', sans-serif; font-size:10px; font-weight:600;
+    color:#5a544c; background:#f3f1ec; border:1px solid #d8d2c8; border-radius:4px;
+    padding:2px 6px; box-shadow: 0 1px 0 #d8d2c8; }
 </style></head>
 <body>
-  <h1>Voice Typing</h1>
   <div class="status" id="status"><span class="rec-dot" id="recDot"></span><span id="statusText">Click the mic to start</span></div>
   <button class="mic-btn" id="micBtn" type="button" aria-label="Start voice typing">
     <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
   </button>
   <div class="caption" id="caption"></div>
   <button class="done-btn" id="doneBtn" type="button">Done</button>
-  <div class="footer">Speaks directly into place. Space: start/stop. Esc: done.</div>
+  <div class="footer"><span class="key-hint"><kbd>Space</kbd>start/stop</span><span class="key-hint"><kbd>Esc</kbd>done</span></div>
 <script>(function(){
   var micBtn = document.getElementById('micBtn');
   var statusEl = document.getElementById('status');
@@ -1910,6 +1911,7 @@ Alpine.data('plannerApp', () => ({
         }
         popup.document.write(DICTATION_POPUP_HTML);
         popup.document.close();
+        popup.document.title = 'Voice Typing';
         dictationPopupWin = popup;
         this.sttError = null;
         this.sttListening = true;
