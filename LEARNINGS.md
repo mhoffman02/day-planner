@@ -1,5 +1,14 @@
 # Learnings
 
+## 2026-09-28 — Daily Notes `#category` Tag Leak Fixed
+
+**Worked well:**
+- Calling `advisor()` after forming an initial hypothesis (client-side parsing bug) but before writing any fix. It redirected off a plausible-but-wrong lead (`navigateDay`'s `toISOString()` timezone shift — real bug, but not this one) onto the actual mechanism (Docs API bullet-style inheritance in `buildDaySectionRequests_`), and named the exact confirming check to run before editing.
+- Writing a new pure-JS test (`gasDocsBulletLeak.test.js`) that reimplements the Docs Advanced Service structural-element model well enough to reproduce the bug mechanically, following the existing `gasDocIdempotency.test.js` pattern — `gas-app/Code.gs` isn't `require`-able from node (IIFE, no `module.exports`), so this reimplementation-mock approach is this project's only way to unit-test GAS Docs-API logic at all.
+
+**Needs improvement:**
+- `gasDocIdempotency.test.js` mocks the *old* `DocumentApp` API (`getType`/`getHeading`/`insertParagraph`), which the project migrated off of on 2026-09-27 in favor of the Docs Advanced Service (`Docs.Documents.get`/`batchUpdate`). That test suite currently can't catch regressions in the real `buildDaySectionRequests_`/`docsGetBodyElements_` implementation — this bug shipped straight through it. Worth a follow-up session to either delete the stale `DocumentApp` mock tests or fold them into the new structural-element mock style.
+
 ## 2026-09-28 — Phase 20 Code-Review Follow-Up
 
 **Worked well:**

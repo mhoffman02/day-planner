@@ -1,5 +1,14 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-28 — Daily Notes `#category` Tag Leak Fixed (HOME @266, WORK v104 pushed)
+
+- [x] User-reported bug: navigating to a future date's Daily Notes panel showed `#category: Work` tags leaking into the visible note body, multiplying with each repeat visit.
+- [x] Root cause: `buildDaySectionRequests_` (`gas-app/Code.gs`) reset paragraph *style* to `NORMAL_TEXT` on save but never cleared bullet membership. A new day section inserted right after a bulleted line (e.g. the app's own default "`- Initialized daily topic card.`") silently inherited that bullet via Docs API paragraph-merge behavior, so `#category: Work` round-tripped as `- #category: Work` — which the client's tag regex (`src/app.js`) didn't match. The line fell into card content instead of being parsed out, and a fresh tag got appended on every subsequent save to that date.
+- [x] Fixed: added a `deleteParagraphBullets` reset alongside the existing style reset in `buildDaySectionRequests_`. Widened the client tag regex to also absorb the already-leaked `- #category:` form so already-corrupted docs self-heal on their next save.
+- [x] Also fixed, spotted en route (unrelated to this bug): `navigateDay()` used `d.toISOString().slice(0, 10)` to compute the target date, violating the project's local-date-arithmetic rule (`.agents/rules`/CLAUDE.md §6.1). Replaced with local `getFullYear()`/`getMonth()`/`getDate()` construction.
+- [x] New regression test `tests/gasDocsBulletLeak.test.js` reimplements the Docs Advanced Service structural-element model (same pattern as the existing `gasDocIdempotency.test.js`, since `Code.gs` isn't directly requireable from node) to reproduce the leak and confirm the bullet-clear fix eliminates it. `npm test` (157/157) and `npm run lint` clean.
+- [x] Deployed: HOME `/dev`+`/exec` @266 (build 310), user-confirmed live. WORK version 104 pushed (carries this fix plus the prior session's pagination fix); still needs `michael.hoffman@gsa.gov` to repoint via [Deploy > Manage deployments](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit).
+
 ## 2026-09-28 — Phase 20 Code-Review Follow-Up (HOME @263, WORK v101 pushed)
 
 - [x] User asked for a review of the Phase 20 rewrite before signing off (`/code-review high` on commit `212b744`). Caught a real bug: `getFutureMatrixData_` requested `maxResults: 200` from `Tasks.Tasks.list`, but the Tasks API caps `maxResults` at 100/page (matching `getMasterTasks`' own call), with no `pageToken` pagination loop — a year with 100+ due-dated tasks (daily + future combined) could have silently truncated the scan and dropped Future items from the matrix entirely, with no error surfaced.
