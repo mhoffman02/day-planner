@@ -877,7 +877,9 @@ Alpine.data('plannerApp', () => ({
       async navigateDay(delta) {
         const d = new Date(`${this.selectedDate}T00:00:00`);
         d.setDate(d.getDate() + delta);
-        this.selectedDate = d.toISOString().slice(0, 10);
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        this.selectedDate = `${d.getFullYear()}-${mm}-${dd}`;
         this.selectedYear = d.getFullYear();
         this.selectedMonth = d.getMonth() + 1;
         await this.loadDayData();
@@ -2327,7 +2329,7 @@ Alpine.data('plannerApp', () => ({
         allLines.forEach(l => {
           const trimmed = l.trim();
           if (!trimmed) return;
-          const catMatch = trimmed.match(/^#(?:category|categories):\s*(.+)$/i) || trimmed.match(/^categories:\s*(.+)$/i);
+          const catMatch = trimmed.match(/^(?:-\s+)?#(?:category|categories):\s*(.+)$/i) || trimmed.match(/^categories:\s*(.+)$/i);
           if (catMatch && !fileFallbackCategories) {
             fileFallbackCategories = catMatch[1].split(',').map(s => s.trim()).filter(Boolean);
           }
@@ -2347,7 +2349,11 @@ Alpine.data('plannerApp', () => ({
           }
 
           // Check for category metadata tag line
-          const catMatch = trimmed.match(/^#(?:category|categories):\s*(.+)$/i) || trimmed.match(/^categories:\s*(.+)$/i);
+          // The leading "- " tolerance absorbs already-saved docs corrupted by the Docs API
+          // bullet-inheritance bug (see buildDaySectionRequests_ in Code.gs) that turned this
+          // line into "- #category: Work" -- without it, that line fell into card content and a
+          // fresh tag got appended on every subsequent save, growing without bound.
+          const catMatch = trimmed.match(/^(?:-\s+)?#(?:category|categories):\s*(.+)$/i) || trimmed.match(/^categories:\s*(.+)$/i);
           if (catMatch) {
             const parsedCats = catMatch[1].split(',').map(s => s.trim()).filter(Boolean);
             if (currentCard) {

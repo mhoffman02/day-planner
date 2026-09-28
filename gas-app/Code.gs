@@ -177,7 +177,19 @@ function buildDaySectionRequests_(baseIndex, dayHeadingText, lines) {
     }
   };
 
-  return { text: text, styleRequests: [resetReq].concat(styleReqs) };
+  // Same inheritance hazard applies to bullets, not just heading style: a bulleted line merged
+  // out from under a deleted section (e.g. the default "- Initialized daily topic card." bullet)
+  // leaves its list membership on the paragraph that survives the merge point, so every new plain
+  // line silently comes out bulleted too. That turned "#category: Work" into "- #category: Work"
+  // on round-trip, which the client's tag regex doesn't match, so it fell into card content and a
+  // fresh tag got written on top of it on every subsequent save (accumulating leaked tags).
+  var bulletResetReq = {
+    deleteParagraphBullets: {
+      range: { startIndex: baseIndex, endIndex: baseIndex + text.length - 1 }
+    }
+  };
+
+  return { text: text, styleRequests: [resetReq, bulletResetReq].concat(styleReqs) };
 }
 
 /**
@@ -391,7 +403,7 @@ var DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mhoff
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-var DAY_PLANNER_BUILD_NUMBER = 309;
+var DAY_PLANNER_BUILD_NUMBER = 310;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
