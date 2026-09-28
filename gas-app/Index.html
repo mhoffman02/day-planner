@@ -716,7 +716,7 @@
           </div>
           <section class="monthly-grid" :style="{ gridTemplateRows: 'repeat(' + (monthlyGrid.length ? monthlyGrid.length / 7 : 5) + ', minmax(0, 1fr))' }" aria-label="Calendar Grid Matrix">
             <template x-for="day in monthlyGrid">
-              <article class="calendar-day-cell" :class="{ 'other-month': !day.isCurrentMonth }" @click="if (day.dateStr) { selectedDate = day.dateStr; setView('daily'); loadDayData(); }">
+              <article class="calendar-day-cell" :class="{ 'other-month': !day.isCurrentMonth, 'is-today': day.isToday }" @click="if (day.dateStr) { selectedDate = day.dateStr; setView('daily'); loadDayData(); }">
                 <header class="day-num" x-text="day.dayNum"></header>
                 <div class="calendar-day-events">
                   <template x-for="(evt, evtIdx) in day.events" :key="evt.id || ('mevt_' + evtIdx)">

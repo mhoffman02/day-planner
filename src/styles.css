@@ -2726,6 +2726,15 @@
     opacity: 0.5;
   }
 
+  article.calendar-day-cell.is-today {
+    border: 2px solid var(--priority-a);
+    background: var(--binder-teal-light);
+  }
+
+  article.calendar-day-cell.is-today:hover {
+    border-color: var(--priority-a);
+  }
+
   header.day-num {
     font-weight: 700;
     font-size: 0.82rem;
@@ -2735,6 +2744,10 @@
     background: transparent;
     border: none;
     flex-shrink: 0;
+  }
+
+  article.calendar-day-cell.is-today header.day-num {
+    color: var(--priority-a);
   }
 
   .calendar-day-events {
@@ -4773,6 +4786,15 @@
 
   [data-theme="dark"] article.calendar-day-cell header.day-num {
     color: #79d6bd !important;
+  }
+
+  [data-theme="dark"] article.calendar-day-cell.is-today {
+    border-color: #4a9eea !important;
+    background: #19362b !important;
+  }
+
+  [data-theme="dark"] article.calendar-day-cell.is-today header.day-num {
+    color: #4a9eea !important;
   }
 
   [data-theme="dark"] article.modal-card {

@@ -2748,6 +2748,8 @@ Alpine.data('plannerApp', () => ({
         const lastDay = new Date(this.selectedYear, this.selectedMonth, 0);
         const days = [];
         const startDayOfWeek = firstDay.getDay();
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
         for (let i = startDayOfWeek - 1; i >= 0; i--) {
           days.push({ dayNum: '', isCurrentMonth: false, events: [] });
@@ -2766,7 +2768,7 @@ Alpine.data('plannerApp', () => ({
             const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             return localDate === dateStr;
           });
-          days.push({ dateStr, dayNum: day, isCurrentMonth: true, events: dayEvents });
+          days.push({ dateStr, dayNum: day, isCurrentMonth: true, events: dayEvents, isToday: dateStr === todayStr });
         }
 
         while (days.length % 7 !== 0) {

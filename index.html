@@ -712,7 +712,7 @@
           </div>
           <section class="monthly-grid" :style="{ gridTemplateRows: 'repeat(' + (monthlyGrid.length ? monthlyGrid.length / 7 : 5) + ', minmax(0, 1fr))' }" aria-label="Calendar Grid Matrix">
             <template x-for="day in monthlyGrid">
-              <article class="calendar-day-cell" :class="{ 'other-month': !day.isCurrentMonth }" @click="if (day.dateStr) { selectedDate = day.dateStr; setView('daily'); loadDayData(); }">
+              <article class="calendar-day-cell" :class="{ 'other-month': !day.isCurrentMonth, 'is-today': day.isToday }" @click="if (day.dateStr) { selectedDate = day.dateStr; setView('daily'); loadDayData(); }">
                 <header class="day-num" x-text="day.dayNum"></header>
                 <div class="calendar-day-events">
                   <template x-for="(evt, evtIdx) in day.events" :key="evt.id || ('mevt_' + evtIdx)">
@@ -1081,7 +1081,7 @@
       <template x-if="activeView === 'about'">
         <section class="view-container-compact about-view-container" aria-label="About Day Planner">
           <article class="about-container">
-  
+
   <header class="about-header">
     <div>
       <h1 class="about-title">
@@ -1089,74 +1089,73 @@
         About Day Planner
       </h1>
       <p class="about-subtitle">
-        User Guide & Features Overview
+        What it does, and how to use it
         <span class="build-badge" x-show="appBuildNumber" x-cloak x-text="'Build ' + appBuildNumber" title="The exact build you’re currently running — include this when reporting an issue."></span>
       </p>
     </div>
-    <button type="button" class="btn-install-app-header" @click.stop="triggerInstallApp()" title="Version 3.0 — Click to install Day Planner as a desktop app">
+    <button type="button" class="btn-install-app-header" @click.stop="triggerInstallApp()" title="Click to install Day Planner as a desktop app">
       <span class="material-symbols-outlined icon-18">install_desktop</span>
       <span class="install-btn-text">Install Day Planner</span>
     </button>
   </header>
 
   <section aria-labelledby="heading-purpose">
-    <h2 id="heading-purpose" class="about-section-heading">1. Purpose & Product Vision</h2>
+    <h2 id="heading-purpose" class="about-section-heading">1. What Day Planner Does For You</h2>
     <p class="about-paragraph">
-      The <b>Day Planner</b> bridges timeless paper day planner productivity methodology with real-time Google Workspace cloud capabilities.
+      Day Planner brings your to-do list, today's schedule, and your notes together on one page, in the classic day-planner layout — so you're not juggling separate apps to see what's due, what's next, and what was decided. Everything you enter is saved straight to your own Google account, so it's there the next time you open it, on any device.
     </p>
   </section>
 
   <section aria-labelledby="heading-setup">
-    <h2 id="heading-setup" class="about-section-heading">2. Google Drive Folder Setup</h2>
+    <h2 id="heading-setup" class="about-section-heading">2. One-Time Setup: Your Day Planner Folder</h2>
     <aside class="security-callout">
       <h3 class="security-callout-title">
-        <span class="material-symbols-outlined">lock</span> Privacy & Security
+        <span class="material-symbols-outlined">lock</span> Your Privacy
       </h3>
       <p class="callout-text">
-        To protect your privacy, Day Planner <b>CANNOT read or write any existing files</b> across your Google Drive.
+        Day Planner only ever reads or writes inside one folder — the one you create for it below. It <b>cannot see, open, or change anything else in your Google Drive.</b>
       </p>
       <div class="folder-instructions-box">
-        <b>Google Drive Folder Link Instructions:</b>
+        <b>How to set it up:</b>
         <ol class="styled-ordered-list">
-          <li>Create a dedicated folder named <b><code>Day Planner</code></b> in your Google Drive (e.g. <code>https://drive.google.com/drive/u/0/folders/1N2WRrFmtsAWKgqeaFIj9HtiQ2wupFEk0</code>).</li>
-          <li>The application securely links your folder ID to store your planner notes and documents.</li>
-          <li>All daily notes documents and monthly subfolders are created under <code>/Day Planner/</code>.</li>
+          <li>In Google Drive, create a folder named <b><code>Day Planner</code></b>.</li>
+          <li>Link that folder to the app when prompted (a one-time step).</li>
+          <li>From then on, your daily notes and monthly records are kept there automatically — nothing to save manually.</li>
         </ol>
       </div>
     </aside>
   </section>
 
-  <section aria-labelledby="heading-workspace">
-    <h2 id="heading-workspace" class="about-section-heading">3. Google Workspace Integrations</h2>
+  <section aria-labelledby="heading-features">
+    <h2 id="heading-features" class="about-section-heading">3. What You Can Do</h2>
     <figure class="table-container">
       <table class="task-table matrix-table">
         <thead>
           <tr class="table-header-row">
-            <th scope="col">Google Service</th>
-            <th scope="col">Feature</th>
-            <th scope="col">Capabilities & Benefits</th>
+            <th scope="col">Tab</th>
+            <th scope="col">What it's for</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td><b>Google Calendar</b></td>
-            <td>Schedule & Appointments</td>
-            <td>Renders 07:00 AM – 07:00 PM appointment schedule grid, event details modal, Google Meet launcher, and 2-way workspace sync.</td>
+            <td><b>Daily</b></td>
+            <td>Your main workspace: today's tasks, today's schedule, and today's notes, side by side.</td>
           </tr>
           <tr>
-            <td><b>Google Tasks</b></td>
-            <td>Task Management</td>
-            <td>Manages daily <code>[A1-C9]</code> prioritized tasks and Monthly Master Task Lists with 1-click transfer.</td>
+            <td><b>Monthly Calendar</b></td>
+            <td>A full-month view of your appointments, so you can see what's coming up at a glance.</td>
           </tr>
           <tr>
-            <td><b>Google Docs</b></td>
-            <td>Daily Notes & Indexing</td>
-            <td>Backs the daily notes pane with Google Docs stored in <code>/Day Planner/</code>; scans <code>#index</code> decision tags.</td>
+            <td><b>Master Tasks</b></td>
+            <td>Your longer-running to-do list, grouped by category (Work, Personal, Financial, Projects, and more) — for things that aren't tied to one specific day yet.</td>
           </tr>
           <tr>
-            <td><b>Google Drive</b></td>
-            <td>Cloud Storage</td>
-            <td>Organizes your daily notes and monthly binder archives inside your dedicated <code>Day Planner</code> folder.</td>
+            <td><b>Decision Registry</b></td>
+            <td>A running, searchable log of the key decisions and outcomes you've tagged in your notes, so you can find "what did we decide about X" without digging back through old notes.</td>
+          </tr>
+          <tr>
+            <td><b>Future Planning</b></td>
+            <td>A 12-month look-ahead for goals and milestones that are more than a month out.</td>
           </tr>
         </tbody>
       </table>
@@ -1164,52 +1163,78 @@
   </section>
 
   <section aria-labelledby="heading-guide">
-    <h2 id="heading-guide" class="about-section-heading">4. User Instructions & Workflow Guide</h2>
+    <h2 id="heading-guide" class="about-section-heading">4. How To Use It</h2>
 
     <section class="cards-stack">
       <article class="guide-card">
         <h3 class="guide-card-title">
-          <span class="material-symbols-outlined">format_list_bulleted</span> A1–C9 Task Prioritization & Status Codes
+          <span class="material-symbols-outlined">format_list_bulleted</span> Prioritizing Your Tasks
         </h3>
         <p class="guide-card-text">
-          Tasks are categorized into Priority Groups (A = Urgent, B = Important, C = Low) with sequence numbers (1–9). Click the status box to cycle: 
-          <span class="material-symbols-outlined icon-16">fiber_manual_record</span> (Open) <span class="material-symbols-outlined icon-16">arrow_forward</span> <span class="material-symbols-outlined icon-16">check</span> (Completed) <span class="material-symbols-outlined icon-16">arrow_forward</span> <span class="material-symbols-outlined icon-16">east</span> (Forwarded) <span class="material-symbols-outlined icon-16">arrow_forward</span> <span class="material-symbols-outlined icon-16">close</span> (Canceled) <span class="material-symbols-outlined icon-16">arrow_forward</span> <b>G/✓</b> (Delegated).
+          Every task gets a priority letter and number: <b>A</b> for urgent, <b>B</b> for important, <b>C</b> for everything else, then a number for order within that group. Click a task's status box to mark it, in order: Open <span class="material-symbols-outlined icon-16">arrow_forward</span> Completed <span class="material-symbols-outlined icon-16">arrow_forward</span> Forwarded to another day <span class="material-symbols-outlined icon-16">arrow_forward</span> Canceled <span class="material-symbols-outlined icon-16">arrow_forward</span> Delegated to someone else.
         </p>
       </article>
 
       <article class="guide-card">
         <h3 class="guide-card-title">
-          <span class="material-symbols-outlined">move_item</span> Monthly Master Task Transfer
+          <span class="material-symbols-outlined">move_item</span> Moving a Task to Today
         </h3>
         <p class="guide-card-text">
-          Open the <b>Master Task List</b> tab to view categorized monthly objectives (Work, Personal, Financial, Projects). Click <b>Move to Today</b> to assign an active <code>[A1]</code> priority tag and transfer it directly to today's task list.
+          Open <b>Master Tasks</b> to see everything on your longer-term list. When you're ready to work on one, click <b>Move to Today</b> — it's added to today's task list with a priority already assigned, no retyping.
         </p>
       </article>
 
       <article class="guide-card">
         <h3 class="guide-card-title">
-          <span class="material-symbols-outlined">tag</span> Automated Monthly Indexing (#index)
+          <span class="material-symbols-outlined">tag</span> Logging a Decision So You Can Find It Later
         </h3>
         <p class="guide-card-text">
-          Tag key meeting outcomes or decisions in your daily notes using <code>#index [Topic] Summary</code>. The Monthly Index automatically aggregates and links these entries chronologically.
+          While typing a note, add a tag like <code>#index [Meeting] Approved the Q3 budget</code>. It automatically shows up in the <b>Decision Registry</b> tab, in date order — a running record of the calls you've made, without any extra filing.
         </p>
       </article>
 
       <article class="guide-card">
         <h3 class="guide-card-title">
-          <span class="material-symbols-outlined">sync</span> 2-Way Workspace Sync
+          <span class="material-symbols-outlined">mic</span> Talk Instead of Type
         </h3>
         <p class="guide-card-text">
-          Click <b>2-Way Sync</b> in the top header bar to reconcile tasks and calendar appointments. Background triggers automatically run every 5 minutes.
+          Click the microphone icon on any note to dictate it instead of typing — handy for quick notes on the go. Use <code>Space</code> to start and stop, <code>Esc</code> to close.
+        </p>
+      </article>
+
+      <article class="guide-card">
+        <h3 class="guide-card-title">
+          <span class="material-symbols-outlined">search</span> Finding Anything Fast
+        </h3>
+        <p class="guide-card-text">
+          Press <code>Ctrl+K</code> (or click the search icon in the top bar) to search across all your tasks, appointments, and notes at once — no need to know which tab something is in.
+        </p>
+      </article>
+
+      <article class="guide-card">
+        <h3 class="guide-card-title">
+          <span class="material-symbols-outlined">sync</span> Keeping Calendar & Tasks in Sync
+        </h3>
+        <p class="guide-card-text">
+          Click the sync icon in the top bar any time to reconcile your tasks and Google Calendar appointments. This also happens automatically in the background every few minutes, so the two rarely drift apart.
+        </p>
+      </article>
+
+      <article class="guide-card">
+        <h3 class="guide-card-title">
+          <span class="material-symbols-outlined">dark_mode</span> Light or Dark
+        </h3>
+        <p class="guide-card-text">
+          Click the sun/moon icon in the top bar to switch between light and dark themes. Your choice is remembered on that device.
         </p>
       </article>
     </section>
   </section>
 
   <section aria-labelledby="heading-install">
-    <h2 id="heading-install" class="about-section-heading">5. Desktop & Mobile Setup ("Open as Window")</h2>
+    <h2 id="heading-install" class="about-section-heading">5. Put It on Your Desktop or Phone</h2>
     <p class="about-paragraph">
-      Day Planner is designed as a standalone, 100% cloud-hosted web application with zero external dependencies. While it runs securely inside Google Apps Script, you can run it borderless and distraction-free as a dedicated desktop or mobile app window:
+      Day Planner works in any browser, but you can also install it as its own app window — no browser tabs or address bar, just your planner, one click away from your taskbar, dock, or home screen.
     </p>
 
     <div class="install-actions-bar">
@@ -1225,7 +1250,7 @@
           <span class="material-symbols-outlined">desktop_windows</span> Google Chrome (Desktop)
         </h3>
         <p class="guide-card-text">
-          Open the Day Planner web app in Chrome. Click the menu icon (<b>⋮</b>) in the top-right corner &rarr; <b>Save and share</b> (or <b>More tools</b>) &rarr; <b>Create shortcut...</b>. Ensure <b>"Open as window"</b> is checked, then click <b>Create</b>. You can pin the shortcut to your Windows Taskbar or macOS Dock for instant access.
+          Click the menu icon (<b>⋮</b>) in the top-right corner &rarr; <b>Save and share</b> (or <b>More tools</b>) &rarr; <b>Create shortcut...</b>. Check <b>"Open as window"</b>, then click <b>Create</b>. Pin the shortcut to your Taskbar or Dock for one-click access.
         </p>
       </article>
 
@@ -1234,17 +1259,17 @@
           <span class="material-symbols-outlined">laptop_mac</span> Microsoft Edge (Desktop)
         </h3>
         <p class="guide-card-text">
-          Open the Day Planner web app in Edge. Click the menu icon (<b>…</b>) in the top-right corner &rarr; <b>Apps</b> &rarr; <b>Install this site as an app</b>. Keep the name as <b>Day Planner</b> and click <b>Install</b>. Edge will launch the planner in its own native app frame.
+          Click the menu icon (<b>…</b>) in the top-right corner &rarr; <b>Apps</b> &rarr; <b>Install this site as an app</b>. Keep the name as <b>Day Planner</b> and click <b>Install</b>. Edge opens it in its own app window from then on.
         </p>
       </article>
 
       <article class="guide-card">
         <h3 class="guide-card-title">
-          <span class="material-symbols-outlined">smartphone</span> Mobile Devices (iOS Safari & Android Chrome)
+          <span class="material-symbols-outlined">smartphone</span> Phone or Tablet (iOS & Android)
         </h3>
         <p class="guide-card-text">
-          <b>iOS (Safari):</b> Tap the <b>Share</b> button at the bottom of the screen, scroll down, and select <b>Add to Home Screen</b>.<br>
-          <b>Android (Chrome):</b> Tap the menu icon (<b>⋮</b>) at the top-right and select <b>Add to Home screen</b> or <b>Install app</b>.
+          <b>iPhone/iPad (Safari):</b> Tap the <b>Share</b> button, scroll down, and tap <b>Add to Home Screen</b>.<br>
+          <b>Android (Chrome):</b> Tap the menu icon (<b>⋮</b>) and choose <b>Add to Home screen</b> or <b>Install app</b>.
         </p>
       </article>
     </section>
