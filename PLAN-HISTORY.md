@@ -4,6 +4,13 @@ Archived completed phases from [`PLAN.md`](file:///home/mike/projects/day-planne
 
 ---
 
+### Phase 22: Advanced Notes & Research Suite
+*Goal: deliver note version history, in-binder dictionary/thesaurus lookup, multi-year deep archive search across Drive monthly docs, and architectural integration with Sheets AI microservice.*
+- [x] Note Version History Time Machine: IndexedDB `v3` rolling snapshots (`noteRevisions` store, max 30) with 2-pane preview and 1-click restore syncing back to Google Docs ([`7ae84ef`](file:///home/mike/projects/day-planner/.git/commit/7ae84ef)).
+- [x] In-Binder Dictionary / Synonym / Antonym Popover: Free Dictionary & Datamuse integration with GAS backend fallback proxy (`fetchLexicon`), caret-aware `Alt+D` trigger, and 1-click text replacement directly into active note card line ([`4fd2a54`](file:///home/mike/projects/day-planner/.git/commit/4fd2a54)).
+- [x] Deep Archive Search via Drive fullText index: Background Drive search RPC querying multi-year `Day Planner Notes - YYYY-MM` Google Docs integrated into `Ctrl + K` ([`src/searchEngine.js`](file:///home/mike/projects/day-planner/src/searchEngine.js), [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L2730), commit [`984d1e1`](file:///home/mike/projects/day-planner/.git/commit/984d1e1)).
+- [x] AI Microservice Integration (WIP): Google Sheets `=AI(...)` formula processing via `ai-microservice` repo, Day Planner client module & GAS proxy connector ([`src/aiService.js`](file:///home/mike/projects/day-planner/src/aiService.js), [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L2930), commit [`c01d470`](file:///home/mike/projects/day-planner/.git/commit/c01d470)), and least-privilege `currentonly` manifest pushed to HOME bound script.
+
 ### Phase 21: Full-tab IndexedDB cache port
 *Goal: extend the Daily-tab-only cache (`src/dailyDataCache.js`, shipped earlier the same session) to Master Tasks, Monthly Calendar, and Future Planning — hydrate-then-revalidate + write-through-on-edit on every tab, per a user request to match a fuller multi-store design they remembered from a never-merged `master`-branch lineage (see `TODO_HISTORY.md`'s 2026-09-28 architect-review entry for the branch-divergence root cause).*
 - [x] Master Tasks tab: `applyMasterTasks`/`syncMasterTasksCacheFromLiveState`/`loadMasterTasks` (hydrate from IDB, revalidate, edit-seq guard); write-through wired into `addMasterTask`/`deleteMasterTask`/`toggleTaskStar`(isMaster branch)/`setTaskStatus`(unconditional, both caches)/`moveMasterTaskToDate`.

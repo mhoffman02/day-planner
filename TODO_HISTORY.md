@@ -1,5 +1,19 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-29 (night, cont.) — Deep Archive Search Shipped & AI Microservice Integrated
+
+- [x] **Step 3: Deep Archive Search via Drive fullText index into `Ctrl + K`**: Commit [`984d1e1`](file:///home/mike/projects/day-planner/.git/commit/984d1e1).
+  - Background Drive search RPC `searchArchiveNotes(query)` in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) executing Drive API `fullText contains '...' and title contains 'Day Planner Notes - '` across all historical monthly notes Google Docs.
+  - Returns note excerpts parsed with date extraction via `parseArchiveNoteHeading_`.
+  - Integrated into [`src/searchEngine.js`](file:///home/mike/projects/day-planner/src/searchEngine.js) and `searchModal` in [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html) with 350ms debouncing, animated gold search indicator, and direct date jump / external doc open affordances.
+  - 4 new unit tests added in [`tests/searchEngine.test.js`](file:///home/mike/projects/day-planner/tests/searchEngine.test.js).
+- [x] **Step 4: AI Microservice Client, Connector & Least-Privilege Manifest**: Commit [`c01d470`](file:///home/mike/projects/day-planner/.git/commit/c01d470) (Day Planner) & commits [`0b8d287`](file:///home/mike/projects/ai-microservice/unit-tests.gs#L190) (AI Microservice).
+  - Cloned and analyzed user's `ai-microservice` repository (`https://github.com/mhoffman02/ai-microservice`) backed by Google Sheets `=AI(...)` formula processing via hidden `_scratch` sheet.
+  - Implemented Day Planner client module [`src/aiService.js`](file:///home/mike/projects/day-planner/src/aiService.js) and unit tests [`tests/aiService.test.js`](file:///home/mike/projects/day-planner/tests/aiService.test.js) (13 tests) handling ContentService HTTP 200 error envelope parsing (`SERVICE_BUSY`, `AI_FORMULA_ERROR`, `AI_TIMEOUT`, `UNAUTHORIZED`, etc.).
+  - Added GAS backend proxy methods `testAiMicroservice`, `callAiMicroservice`, and `getAiMicroserviceConfig` in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) with bridge methods in [`src/gasBridge.js`](file:///home/mike/projects/day-planner/src/gasBridge.js) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html).
+  - Configured HOME account bound script (`1kW7_HpM7aoPInpcgDO7i8Rv6hNvFU8rtL1CaJIO5BXK9685TyZ3gtWUN`) with `.clasp-home.json` / `.clasp-work.json`.
+  - Generated least-privilege `currentonly` manifest in `ai-microservice/appsscript.json` (`spreadsheets.currentonly`, `script.container.ui`, `@OnlyCurrentDoc` annotations) and pushed all files to the HOME bound script via clasp. AI service UI wiring marked WIP pending user testing completion.
+
 ## 2026-09-29 (night) — Note Time Machine & In-Binder Lexicon / Thesaurus Shipped
 
 - [x] **Note Version History / Accidental Deletion Time-Machine**: Commit [`7ae84ef`](file:///home/mike/projects/day-planner/.git/commit/7ae84ef).

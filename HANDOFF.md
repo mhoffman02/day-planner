@@ -1,32 +1,30 @@
 # CONTEXT HANDOFF DOCUMENT
 
 ## OBJECTIVE
-Deliver a high-productivity, aesthetically authentic Franklin-style Google Digital Day Planner operating 100% within Google Apps Script on both personal (HOME) and locked-down federal (WORK) Google accounts. We are currently implementing Phase 22 (Advanced Notes & Research Suite) — adding note recovery, native in-binder dictionary/thesaurus lookup, multi-year deep archive search, and architecting zero-cost AI endpoints through Google Workspace containers.
+Deliver a high-productivity, aesthetically authentic Franklin-style Google Digital Day Planner operating 100% within Google Apps Script on both personal (HOME) and locked-down federal (WORK) Google accounts. We are transitioning from Phase 22 (Advanced Notes & Research Suite) to Phase 23 (Task Inline Editing & AI Microservice UI Integration), adding inline task editing and bridging Day Planner to the Sheets AI microservice.
 
 ---
 
 ## KEY DECISIONS
-- **Time Machine Architecture**: Implemented as pure in-binder snapshot recovery using IndexedDB `v3` (`noteRevisions` store, max 30 per date) and 2-pane preview/restore ([`7ae84ef`](file:///home/mike/projects/day-planner/.git/commit/7ae84ef)). Native Google Docs API does not return document content for past revisions via API, making local snapshots the superior zero-latency UX.
-- **Lexicon Zero-Key Public APIs & Resilient Proxy**: Used Free Dictionary API and Datamuse API clientside for definitions, phonetics, audio, and synonyms/antonyms. To guarantee 100% functionality on federal networks (WORK) where clientside requests may hit proxy filters, a server-side Apps Script fallback proxy (`fetchLexicon`) via `UrlFetchApp` was built in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs).
-- **1-Click Lexicon In-Place Replacement**: Clicking any synonym or antonym chip replaces the active word in the note card line in place, automatically saving the updated note and confirming via toast. If opened standalone, it copies to the clipboard.
-- **Caret Detection (`getWordAtCaret`)**: Triggering `Alt+D` while editing a note line automatically resolves the word surrounding the cursor without requiring manual highlighting.
-- **AI Assist Button Scope**: Remains Gemini-only (`gemini.google.com/app`). Federal network proxy blocks it on WORK; Docs-popup fallback was tested and permanently rejected because cross-origin constraints prevent hiding Google Docs' own toolbar/tabs chrome. Any future WORK AI assist must be discussed and agreed upon with the user *before* building.
+- **Deep Archive Search (Drive fullText index)**: Implemented background search RPC `searchArchiveNotes(query)` in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L2730) using Drive API `fullText contains '...' and title contains 'Day Planner Notes - '` across monthly notes docs. Wired into `Ctrl + K` search modal with 350ms debouncing, animated gold indicator, and 1-click date jump ([`984d1e1`](file:///home/mike/projects/day-planner/.git/commit/984d1e1)).
+- **AI Microservice Architecture (`ai-microservice`)**: REST service backed by Google Sheets `=AI(...)` formula processing via a hidden `_scratch` sheet serialized by `LockService.getDocumentLock()` and audited in `prompt_response`. Since ContentService always returns HTTP 200, errors are detected via response envelope (`SERVICE_BUSY`, `AI_FORMULA_ERROR`, `AI_TIMEOUT`, `UNAUTHORIZED`).
+- **Least-Privilege Manifest**: Manifest in `ai-microservice/appsscript.json` declares restricted `oauthScopes` (`https://www.googleapis.com/auth/spreadsheets.currentonly` and `https://www.googleapis.com/auth/script.container.ui`) and `@OnlyCurrentDoc` annotations, ensuring the microservice cannot read or modify any other files in Google Drive.
+- **Microservice Dual-Environment Support**: Script IDs are preserved in `.clasp-home.json` (`1kW7_HpM7aoPInpcgDO7i8Rv6hNvFU8rtL1CaJIO5BXK9685TyZ3gtWUN`) and `.clasp-work.json` (`1bUSnfyFpFYnlQV5WO7nwB0LXnVamXHee_0JCi-p0TRuecDJJ8bhvfyor`).
+- **AI Service UI Integration is WIP**: Client module [`src/aiService.js`](file:///home/mike/projects/day-planner/src/aiService.js) and GAS backend proxy in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L2930) are built and unit-tested (13 tests). Live UI wiring is paused as WIP until the user completes testing and deploys the microservice.
 - **Code Mirroring Rule**: Any frontend change must be kept in lockstep across `src/` (`app.js`, `styles.css`) and `gas-app/` (`Index.html`, `Script.html`, `Styles.html`). `tools/check-gas-script-html-safe-chars.js` must always pass (no unescaped `//` in strings/comments, no raw backticks in scriptlet files).
 
 ---
 
 ## CURRENT STATE
 - **Git Branch**: `pure-gas-main` (clean working tree).
-- **Latest Commit**: [`4fd2a54`](file:///home/mike/projects/day-planner/.git/commit/4fd2a54) — `feat(lexicon): add In-Binder Dictionary and Thesaurus popover with 1-click text replacement`.
-- **Pre-flight Status**: 100% clean. 197/197 tests passing across 29 test suites. Zero ESLint warnings/errors. Character AST checks passed.
-- **Recent Progress**:
-  - Step 1 (Note Time Machine) complete ([`7ae84ef`](file:///home/mike/projects/day-planner/.git/commit/7ae84ef)).
-  - Step 2 (In-Binder Dictionary / Synonym / Antonym Popover) complete ([`4fd2a54`](file:///home/mike/projects/day-planner/.git/commit/4fd2a54)).
+- **Latest Day-Planner Commit**: [`c01d470`](file:///home/mike/projects/day-planner/.git/commit/c01d470) — `feat(ai): integrate Sheets AI microservice client and backend proxy connector`.
+- **Pre-flight Status**: 100% clean. 214/214 tests passing across 35 test suites. Zero ESLint warnings/errors. Character AST checks passed.
+- **AI Microservice Status**: Cloned in `~/projects/ai-microservice`, latest commit [`0b8d287`](file:///home/mike/projects/ai-microservice/unit-tests.gs#L190) pulled and passing 20/20 unit tests, least-privilege `currentonly` manifest pushed via `clasp push -f` to HOME bound script `1kW7_HpM7aoPInpcgDO7i8Rv6hNvFU8rtL1CaJIO5BXK9685TyZ3gtWUN`.
 
 ---
 
 ## CONSTRAINTS & PREFERENCES
-- **Ask Before Building Architectural Fixes**: Do NOT implement unilateral UX or network fallbacks without user approval (user explicitly corrected an unauthorized Docs-popup attempt earlier in the session).
+- **Ask Before Building Architectural Fixes**: Do NOT implement unilateral UX or network fallbacks without user approval (especially regarding WORK vs HOME accounts).
 - **Franklin Planner Aesthetic**: Parchment cream (`#fcfbfa`), binder teal (`#2d6a5a`), serif headings (`Playfair Display`), clean borders, no pill tags.
 - **Safe Characters in GAS HTML**: When writing string literals in `gas-app/Script.html`, split double slashes (e.g. `'https:' + '/' + '/...'`) so Google's `HtmlService.createHtmlOutputFromFile().getContent()` parser does not truncate scripts.
 - **GAS IIFE Architecture**: Any new backend function in `gas-app/Code.gs` reachable via `google.script.run` MUST have an internal function inside the IIFE, an alias (`global._fnInternal = fn;`), and a matching top-level delegator declaration outside the IIFE.
@@ -35,21 +33,19 @@ Deliver a high-productivity, aesthetically authentic Franklin-style Google Digit
 
 ## OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
-1. **Step 3 (Feature #2): Deep Archive Search via Drive fullText index integrated into `Ctrl + K`**
-   - **Files**: [`src/searchEngine.js`](file:///home/mike/projects/day-planner/src/searchEngine.js#L1-L150), [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L2730-L2800), [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js#L370-L390), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html#L1890-L1920).
-   - **Task**: Implement Drive full-text search across historical `Day Planner Notes - YYYY-MM` Google Docs using Drive API `q: "fullText contains '...' and title contains 'Day Planner Notes - '"`. Wire into `Ctrl + K` search modal with matching excerpts and 1-click date jump.
-   - **Tests**: [`tests/searchEngine.test.js`](file:///home/mike/projects/day-planner/tests/searchEngine.test.js).
-
-2. **Step 4: GAS Architect Design: Container-Bound Script REST API Endpoint for Gemini in Docs/Sheets**
-   - **Files**: Design document / plan artifact to be generated in `<appDataDir>/brain/`.
-   - **Task**: Plan and architect a GAS script container-bound in a Google Doc or Sheet that exposes a REST API endpoint (or `doPost`), relaying user prompts to `=AI(...)` in Google Sheets or Gemini in Docs and returning responses back to the caller.
-
-3. **Today page, Tasks panel: Click-to-Edit Task Description**
+1. **Today page, Tasks panel: Click-to-Edit Task Description**
    - **Files**: [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js#L1600-L1750), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html#L3100-L3250), [`index.html`](file:///home/mike/projects/day-planner/index.html#L450-L550), [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html#L450-L550).
-   - **Task**: Enable inline click-to-edit for task descriptions matching the Daily Notes panel inline editing pattern.
+   - **Task**: Allow users to click a task's title/description to edit it inline, matching the Daily Notes panel note-card UX (click a line to edit it in place, Enter/blur to save).
+
+2. **AI Microservice End-to-End Verification & Settings UI Wiring (WIP)**
+   - **Files**: [`src/aiService.js`](file:///home/mike/projects/day-planner/src/aiService.js), [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L2930-L2985), [`src/gasBridge.js`](file:///home/mike/projects/day-planner/src/gasBridge.js), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html).
+   - **Task**: Once user completes testing in HOME sheet (`1kW7_HpM7aoPInpcgDO7i8Rv6hNvFU8rtL1CaJIO5BXK9685TyZ3gtWUN`) and provides Web App URL + API Key, add settings entry to persist URL/key in `UserProperties` and test live prompt/response round-trip.
+
+3. **WORK deployment repoint needed (user-blocked)**
+   - **Task**: WORK version 116 is pushed (`npm run push:work`), awaiting repoint by `michael.hoffman@gsa.gov` via [Deploy > Manage deployments](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit).
 
 ---
 
 ## IMMEDIATE NEXT STEP
-Begin **Step 3: Deep Archive Search via Drive fullText index**:
-Inspect [`src/searchEngine.js`](file:///home/mike/projects/day-planner/src/searchEngine.js) and [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) to define `searchArchiveNotes(query)` using `DriveApp.searchFiles` / `Drive.Files.list`, and wire the backend RPC to return matching dates and note snippets.
+Begin **Today page, Tasks panel: Click-to-Edit Task Description**:
+Inspect task row markup in [`index.html`](file:///home/mike/projects/day-planner/index.html#L480-L520) and [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html#L480-L520) and Alpine task methods in [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js#L1620-L1680) to wire `editingTaskId` and inline title edit/save on click.

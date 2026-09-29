@@ -31,11 +31,9 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 
 ## 3. Active & Upcoming Phases
 
-### Phase 22: Advanced Notes & Research Suite (In Progress)
-- [x] **Note Version History Time Machine**: IndexedDB `v3` rolling snapshots (`noteRevisions` store, max 30) with 2-pane preview and 1-click restore syncing back to Google Docs ([`7ae84ef`](file:///home/mike/projects/day-planner/.git/commit/7ae84ef)).
-- [x] **In-Binder Dictionary / Synonym / Antonym Popover**: Free Dictionary & Datamuse integration with GAS backend fallback proxy (`fetchLexicon`), caret-aware `Alt+D` trigger, and 1-click text replacement directly into active note card line ([`4fd2a54`](file:///home/mike/projects/day-planner/.git/commit/4fd2a54)).
-- [ ] **Deep Archive Search via Drive fullText index**: Background Drive search RPC querying multi-year `Day Planner Notes - YYYY-MM` Google Docs integrated into `Ctrl + K` ([`src/searchEngine.js`](file:///home/mike/projects/day-planner/src/searchEngine.js)).
-- [ ] **GAS Architect REST Endpoint Design**: Container-bound REST API endpoint script in Docs/Sheets routing to Gemini via `=AI(...)`.
+### Phase 23: Task Inline Editing & AI Microservice UI Integration (In Progress)
+- [ ] **Today page Tasks panel: click-to-edit task Description**: Enable inline editing on task titles/descriptions matching Daily Notes note-card line editing pattern.
+- [ ] **AI Microservice End-to-End Verification & Settings Wiring (WIP)**: Complete live testing of container-bound microservice on HOME/WORK; add Settings modal entry to configure URL/API Key and wire AI assist actions into note cards.
 
 ---
 

@@ -1,25 +1,27 @@
 # Active Tasks (TODO)
 
-## Phase 22: Advanced Notes & Research Suite (In Progress)
+## Phase 23: Task Inline Editing & AI Microservice Verification
 
-- [ ] **Step 3 (Feature #2): Deep Archive Search via Drive fullText index integrated into `Ctrl + K`**
-  - **Goal**: Enable cross-month / multi-year searching of note cards without loading every monthly Google Doc upfront into memory.
-  - **Mechanism**: Google Drive maintains an automatic full-text search index of all `Day Planner Notes - YYYY-MM` Google Docs.
+- [ ] **Today page, Tasks panel: click-to-edit task Description**
+  - **Goal**: Allow users to click a task's title/description to edit it inline, matching the Daily Notes panel note-card UX (click a line to edit it in place, Enter/blur to save).
+  - **Files**: [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js#L1600-L1750), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html#L3100-L3250), [`index.html`](file:///home/mike/projects/day-planner/index.html#L450-L550), [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html#L450-L550).
   - **Implementation**:
-    1. In [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs), wire Drive search RPC (`DriveApp.searchFiles` or `Drive.Files.list` with `q: "fullText contains '...' and title contains 'Day Planner Notes - '"`) returning matching dates and card excerpts.
-    2. Integrate into [`src/searchEngine.js`](file:///home/mike/projects/day-planner/src/searchEngine.js) and `searchModal` in [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html).
-    3. Display deep archive matches under an "Archive Notes" section with 1-click jump to that date in Daily view.
-    4. Unit tests in [`tests/searchEngine.test.js`](file:///home/mike/projects/day-planner/tests/searchEngine.test.js).
+    1. Define inline editing state (`editingTaskId`, `editingTaskTitle`) in Alpine data model.
+    2. When clicking description text, swap text span with an input styled seamlessly in Franklin aesthetic (no jarring box, matching font/size).
+    3. On Enter or blur, call `updateTaskTitle(task.id, newTitle)` and trigger save/sync. On Escape, cancel.
+    4. Ensure lockstep across `src/` and `gas-app/`.
 
-- [ ] **Step 4: GAS Architect Design: Container-Bound Script REST API Endpoint for Gemini in Docs/Sheets**
-  - **Goal**: Design and plan a container-bound Apps Script in Google Docs or Google Sheets presenting a REST API endpoint for prompts and responses.
-  - **Mechanism**: Exploit Google Sheets' `=AI(...)` function or Docs Gemini integration via background script relay, returning responses back to caller.
-  - **Deliverable**: Comprehensive Architecture & Plan artifact evaluating quotas, container binding, execution auth, and relay latency.
+- [ ] **AI Microservice Verification & UI Wiring (WIP)**
+  - **Goal**: Complete testing of `ai-microservice` on HOME/WORK and connect live Web App endpoint to Day Planner.
+  - **Status**: Backend proxy connector and client library are in place ([`src/aiService.js`](file:///home/mike/projects/day-planner/src/aiService.js), [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L2930)). Microservice deployed to HOME sheet (`1kW7_HpM7aoPInpcgDO7i8Rv6hNvFU8rtL1CaJIO5BXK9685TyZ3gtWUN`).
+  - **Next Steps**:
+    1. Await user confirmation of in-sheet tests and Web App deployment URL + API Key.
+    2. Add Settings modal or folder setup entry to test connection and save URL/key to `UserProperties`.
+    3. Agree with user on UI touchpoints (e.g. Note Card AI Assist action menu: summarize, extract tasks, refine tone).
 
 ## Open
 
 - [ ] **AI Assist doesn't work on WORK** — `gemini.google.com` is blocked by the federal network's proxy ("you don't have permission to visit this site"). A Docs-popup fallback was tried and rejected (can't isolate just the AI sidebar from Google's own document chrome — cross-origin, confirmed impossible). No approach identified yet that meets the UX bar; needs user direction before attempting anything else here. Do not attempt a fix without asking first.
-- [ ] **Today page, Tasks panel: click-to-edit task Description** — user wants to click a task's Description to edit it inline, matching the Daily Notes panel's note-card body UX (click a line to edit it in place). Evaluate click-to-edit UX patterns before building (not yet scoped/designed).
 
 ## Loose end (user-blocked)
 
