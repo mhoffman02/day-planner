@@ -53,15 +53,16 @@ export function flattenSearchResults(results = {}) {
     ...(results.calendar || []),
     ...(results.tasks || []),
     ...(results.notes || []),
-    ...(results.index || [])
+    ...(results.index || []),
+    ...(results.archive || [])
   ];
 }
 
 /**
  * Executes cross-service universal search query across calendar, tasks, notes, and index entries.
  * @param {string} [query=''] Search query string.
- * @param {{calendarEvents?: (Array<object>|object), dailyTasks?: (Array<object>|object), masterTasks?: Array<object>, dailyNotes?: (Array<object>|object), indexEntries?: Array<object>}} [store={}] Data store containing entities to search.
- * @returns {{totalMatches: number, calendar: Array<object>, tasks: Array<object>, notes: Array<object>, index: Array<object>}} Grouped search result object.
+ * @param {{calendarEvents?: (Array<object>|object), dailyTasks?: (Array<object>|object), masterTasks?: Array<object>, dailyNotes?: (Array<object>|object), indexEntries?: Array<object>, archiveNotes?: Array<object>}} [store={}] Data store containing entities to search.
+ * @returns {{totalMatches: number, calendar: Array<object>, tasks: Array<object>, notes: Array<object>, index: Array<object>, archive: Array<object>}} Grouped search result object.
  */
 export function executeUniversalSearch(query = '', store = {}) {
   const cleanQuery = query.trim().toLowerCase();
@@ -70,7 +71,8 @@ export function executeUniversalSearch(query = '', store = {}) {
     calendar: [],
     tasks: [],
     notes: [],
-    index: []
+    index: [],
+    archive: []
   };
 
   if (!cleanQuery) return results;
@@ -80,7 +82,8 @@ export function executeUniversalSearch(query = '', store = {}) {
     dailyTasks,
     masterTasks = [],
     dailyNotes,
-    indexEntries = []
+    indexEntries = [],
+    archiveNotes = []
   } = store;
 
   // 1. Search Calendar Events
@@ -179,5 +182,162 @@ export function executeUniversalSearch(query = '', store = {}) {
     }
   });
 
+  // 5. Search Historical Archive Notes (if passed in store)
+  normalizeCollection(archiveNotes).forEach(arch => {
+    const rawContent = arch.content || arch.snippet || '';
+    const text = rawContent.replace(/\[\[link:[^\]]+\]\]([\s\S]*?)\[\[\/link\]\]/g, '$1');
+    const title = arch.title || '';
+    const heading = arch.heading || '';
+
+    if (text.toLowerCase().includes(cleanQuery) || title.toLowerCase().includes(cleanQuery) || heading.toLowerCase().includes(cleanQuery)) {
+      const dateStr = arch.date || parseArchiveNoteHeading(heading || title, arch.docName || '');
+      const snippet = arch.snippet || extractSearchSnippet(text, cleanQuery);
+
+      results.archive.push({
+        type: 'archive',
+        title: arch.title || `Archive: Daily Note (${dateStr || 'Undated'})`,
+        snippet,
+        date: dateStr || '',
+        targetView: 'daily',
+        docName: arch.docName || '',
+        docUrl: arch.docUrl || '',
+        item: arch
+      });
+      results.totalMatches++;
+    }
+  });
+
   return results;
 }
+
+/**
+ * Parses date string (YYYY-MM-DD) from a monthly note day heading or document title.
+ * Handles ISO dates (YYYY-MM-DD), English month names ("Sunday, August 16, 2026"),
+ * and document titles ("Day Planner Notes - August 2026").
+ * @param {string} [heading=''] Section heading text or paragraph text.
+ * @param {string} [docTitle=''] Parent document title.
+ * @returns {string} Formatted date string (YYYY-MM-DD), or empty string if undetermined.
+ */
+export function parseArchiveNoteHeading(heading = '', docTitle = '') {
+  const monthMap = {
+    january: '01', february: '02', march: '03', april: '04',
+    may: '05', june: '06', july: '07', august: '08',
+    september: '09', october: '10', november: '11', december: '12'
+  };
+
+  const text = (heading || '').trim();
+
+  // 1. Look for ISO date: YYYY-MM-DD
+  const isoMatch = text.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
+  if (isoMatch) {
+    return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+  }
+
+  // 2. Look for Month Day, Year (e.g. "Sunday, August 16, 2026" or "August 16, 2026")
+  const monthDayYearMatch = text.match(/([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})/);
+  if (monthDayYearMatch) {
+    const mName = monthDayYearMatch[1].toLowerCase();
+    if (monthMap[mName]) {
+      const y = monthDayYearMatch[3];
+      const m = monthMap[mName];
+      const d = String(monthDayYearMatch[2]).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+  }
+
+  // 3. Fall back to docTitle if it contains Year and Month
+  const titleText = (docTitle || '').trim();
+  const titleIsoMatch = titleText.match(/\b(\d{4})-(\d{2})\b/);
+  if (titleIsoMatch) {
+    return `${titleIsoMatch[1]}-${titleIsoMatch[2]}-01`;
+  }
+  const titleMonthMatch = titleText.match(/([A-Za-z]+)\s+(\d{4})/);
+  if (titleMonthMatch) {
+    const tmName = titleMonthMatch[1].toLowerCase();
+    if (monthMap[tmName]) {
+      return `${titleMonthMatch[2]}-${monthMap[tmName]}-01`;
+    }
+  }
+
+  return '';
+}
+
+/**
+ * Extracts a contextual snippet highlighting the search term within text.
+ * Strips bracketed link markup down to plain text before slicing.
+ * @param {string} [content=''] Text content to excerpt.
+ * @param {string} [query=''] Search query term.
+ * @param {number} [maxLength=80] Maximum length of excerpt.
+ * @returns {string} Clean excerpt snippet with ellipsis.
+ */
+export function extractSearchSnippet(content = '', query = '', maxLength = 80) {
+  if (!content) return '';
+  const cleanContent = content.replace(/\[\[link:[^\]]+\]\]([\s\S]*?)\[\[\/link\]\]/g, '$1');
+  if (!query) {
+    return cleanContent.length > maxLength
+      ? cleanContent.substring(0, maxLength).replace(/\n/g, ' ') + '...'
+      : cleanContent.replace(/\n/g, ' ');
+  }
+
+  const lowerContent = cleanContent.toLowerCase();
+  const lowerQuery = query.toLowerCase();
+  const idx = lowerContent.indexOf(lowerQuery);
+
+  if (idx === -1) {
+    return cleanContent.length > maxLength
+      ? cleanContent.substring(0, maxLength).replace(/\n/g, ' ') + '...'
+      : cleanContent.replace(/\n/g, ' ');
+  }
+
+  const start = Math.max(0, idx - 25);
+  const end = Math.min(cleanContent.length, idx + query.length + 45);
+  const prefix = start > 0 ? '...' : '';
+  const suffix = end < cleanContent.length ? '...' : '';
+  return (prefix + cleanContent.substring(start, end).replace(/\n/g, ' ') + suffix).trim();
+}
+
+/**
+ * Merges asynchronous archive search matches into an existing search results object,
+ * deduplicating entries if a note for that date is already present in local notes.
+ * @param {{totalMatches: number, calendar?: Array<object>, tasks?: Array<object>, notes?: Array<object>, index?: Array<object>, archive?: Array<object>}} searchResults
+ * @param {Array<object>} [archiveItems=[]] Deep archive search results from backend.
+ * @returns {{totalMatches: number, calendar: Array<object>, tasks: Array<object>, notes: Array<object>, index: Array<object>, archive: Array<object>}}
+ */
+export function mergeArchiveSearchResults(searchResults = {}, archiveItems = []) {
+  const merged = {
+    calendar: searchResults.calendar || [],
+    tasks: searchResults.tasks || [],
+    notes: searchResults.notes || [],
+    index: searchResults.index || [],
+    archive: []
+  };
+
+  const localNoteDates = new Set(merged.notes.map(n => n.date).filter(Boolean));
+  const seenArchiveKeys = new Set();
+
+  (archiveItems || []).forEach(item => {
+    if (!item) return;
+    // Deduplicate against local notes on the exact same date
+    if (item.date && localNoteDates.has(item.date)) {
+      return;
+    }
+    const key = `${item.date || ''}_${item.snippet || ''}`;
+    if (!seenArchiveKeys.has(key)) {
+      seenArchiveKeys.add(key);
+      merged.archive.push({
+        type: 'archive',
+        title: item.title || `Archive: Daily Note (${item.date || 'Undated'})`,
+        snippet: item.snippet || '',
+        date: item.date || '',
+        targetView: item.targetView || 'daily',
+        docName: item.docName || '',
+        docUrl: item.docUrl || '',
+        item
+      });
+    }
+  });
+
+  merged.totalMatches = merged.calendar.length + merged.tasks.length + merged.notes.length + merged.index.length + merged.archive.length;
+  return merged;
+}
+

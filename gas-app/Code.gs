@@ -405,7 +405,7 @@ var DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mhoff
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-var DAY_PLANNER_BUILD_NUMBER = 344;
+var DAY_PLANNER_BUILD_NUMBER = 345;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -2861,6 +2861,190 @@ function fetchLexicon(word) {
   }
 }
 
+/**
+ * Helper to parse a date string (YYYY-MM-DD) from a section heading or monthly doc title.
+ * @param {string} heading Heading text.
+ * @param {string} docTitle Document title.
+ * @returns {string} Formatted date (YYYY-MM-DD) or empty string.
+ */
+function parseArchiveNoteHeading_(heading, docTitle) {
+  var monthMap = {
+    january: '01', february: '02', march: '03', april: '04',
+    may: '05', june: '06', july: '07', august: '08',
+    september: '09', october: '10', november: '11', december: '12'
+  };
+
+  var text = (heading || '').trim();
+
+  // 1. Look for ISO date: YYYY-MM-DD
+  var isoMatch = text.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
+  if (isoMatch) {
+    return isoMatch[1] + '-' + isoMatch[2] + '-' + isoMatch[3];
+  }
+
+  // 2. Look for Month Day, Year (e.g. "Sunday, August 16, 2026")
+  var monthDayYearMatch = text.match(/([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})/);
+  if (monthDayYearMatch) {
+    var mName = monthDayYearMatch[1].toLowerCase();
+    if (monthMap[mName]) {
+      var y = monthDayYearMatch[3];
+      var m = monthMap[mName];
+      var d = String(monthDayYearMatch[2]);
+      if (d.length === 1) d = '0' + d;
+      return y + '-' + m + '-' + d;
+    }
+  }
+
+  // 3. Fall back to docTitle if it contains Year and Month
+  var titleText = (docTitle || '').trim();
+  var titleIsoMatch = titleText.match(/\b(\d{4})-(\d{2})\b/);
+  if (titleIsoMatch) {
+    return titleIsoMatch[1] + '-' + titleIsoMatch[2] + '-01';
+  }
+  var titleMonthMatch = titleText.match(/([A-Za-z]+)\s+(\d{4})/);
+  if (titleMonthMatch) {
+    var tmName = titleMonthMatch[1].toLowerCase();
+    if (monthMap[tmName]) {
+      return titleMonthMatch[2] + '-' + monthMap[tmName] + '-01';
+    }
+  }
+
+  return '';
+}
+
+/**
+ * Deep archive search across historical Day Planner Notes monthly Google Docs
+ * using Google Drive fullText search index.
+ * @param {string} query Search keyword.
+ * @returns {Array<{type: string, title: string, snippet: string, date: string, targetView: string, docName: string, docUrl: string}>}
+ */
+function searchArchiveNotes(query) {
+  var cleanQuery = (query || '').trim();
+  if (!cleanQuery || cleanQuery.length < 2) return [];
+
+  if (typeof DriveApp === 'undefined' && typeof Drive === 'undefined') {
+    return [
+      {
+        type: 'archive',
+        title: 'Archive: Daily Note (2026-08-16)',
+        snippet: '...Finalized 3-column binder layout with Alpine.js and clean CSS...',
+        date: '2026-08-16',
+        targetView: 'daily',
+        docName: 'Day Planner Notes - August 2026',
+        docUrl: '#'
+      }
+    ];
+  }
+
+  try {
+    var escapedQuery = cleanQuery.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    var driveQuery = "fullText contains '" + escapedQuery + "' and title contains 'Day Planner Notes - ' and trashed = false";
+
+    var matchingFiles = [];
+    if (typeof Drive !== 'undefined' && Drive.Files && Drive.Files.list) {
+      try {
+        var listRes = Drive.Files.list({
+          q: driveQuery,
+          maxResults: 12,
+          fields: 'items(id,title,alternateLink)'
+        });
+        if (listRes && Array.isArray(listRes.items)) {
+          matchingFiles = listRes.items;
+        }
+      } catch (listErr) {
+        console.warn('Drive.Files.list archive search warning: ' + listErr.toString());
+      }
+    }
+
+    if (matchingFiles.length === 0 && typeof DriveApp !== 'undefined') {
+      try {
+        var fileIter = DriveApp.searchFiles(driveQuery);
+        var count = 0;
+        while (fileIter.hasNext() && count < 12) {
+          var f = fileIter.next();
+          matchingFiles.push({
+            id: f.getId(),
+            title: f.getName(),
+            alternateLink: f.getUrl()
+          });
+          count++;
+        }
+      } catch (iterErr) {
+        console.warn('DriveApp.searchFiles archive warning: ' + iterErr.toString());
+      }
+    }
+
+    var results = [];
+    var cleanLower = cleanQuery.toLowerCase();
+
+    for (var i = 0; i < matchingFiles.length; i++) {
+      var file = matchingFiles[i];
+      var fileId = file.id;
+      var fileTitle = file.title || ('Day Planner Notes - ' + (i + 1));
+      var fileUrl = file.alternateLink || ('https:' + '/' + '/docs.google.com/document/d/' + fileId + '/edit');
+
+      var elements = [];
+      try {
+        if (typeof docsGetBodyElements_ === 'function') {
+          elements = docsGetBodyElements_(fileId);
+        }
+      } catch (docsErr) {
+        console.warn('docsGetBodyElements_ error on ' + fileId + ': ' + docsErr.toString());
+        continue;
+      }
+
+      var currentHeading = fileTitle;
+      var currentDate = '';
+      var docMatches = 0;
+
+      for (var j = 0; j < elements.length; j++) {
+        var el = elements[j];
+        var text = (typeof docsElementText_ === 'function') ? docsElementText_(el) : '';
+        if (!text) continue;
+
+        var heading = (typeof docsElementHeading_ === 'function') ? docsElementHeading_(el) : '';
+        var isHeading = heading === 'HEADING_2' || text.indexOf('Day Planner - ') === 0 || text.indexOf('## ') === 0;
+
+        if (isHeading) {
+          currentHeading = text;
+          currentDate = parseArchiveNoteHeading_(currentHeading, fileTitle);
+        }
+
+        if (text.toLowerCase().indexOf(cleanLower) !== -1) {
+          var dateForMatch = currentDate || parseArchiveNoteHeading_(text, fileTitle);
+
+          var idx = text.toLowerCase().indexOf(cleanLower);
+          var start = Math.max(0, idx - 25);
+          var end = Math.min(text.length, idx + cleanLower.length + 45);
+          var prefix = start > 0 ? '...' : '';
+          var suffix = end < text.length ? '...' : '';
+          var snippet = prefix + text.substring(start, end).replace(/\n/g, ' ') + suffix;
+
+          results.push({
+            type: 'archive',
+            title: 'Archive: ' + (dateForMatch ? 'Daily Note (' + dateForMatch + ')' : fileTitle),
+            snippet: snippet.trim(),
+            date: dateForMatch || '',
+            targetView: 'daily',
+            docName: fileTitle,
+            docUrl: fileUrl
+          });
+
+          docMatches++;
+          if (docMatches >= 5) break;
+        }
+      }
+
+      if (results.length >= 25) break;
+    }
+
+    return results;
+  } catch (err) {
+    recordServerLog('ERROR', 'searchArchiveNotes', err.message, err.stack);
+    return [];
+  }
+}
+
 // ── Explicit export surface ──────────────────────────────────────────────────
 // Everything above is private to this IIFE. Only names assigned here are visible to: the Apps
 // Script runtime (doGet, onOpen), google.script.run / Script.html, HtmlService template
@@ -2901,6 +3085,7 @@ global.openPlannerWebAppDialog = openPlannerWebAppDialog;    // Google Docs menu
 global.ensure2WaySyncTriggerInstalled = ensure2WaySyncTriggerInstalled; // IDE manual-run
 global.setup2WaySyncTrigger = setup2WaySyncTrigger;          // IDE manual-run
 global.fetchLexicon = fetchLexicon;                            // google.script.run: Script.html
+global.searchArchiveNotes = searchArchiveNotes;              // google.script.run: Script.html
 
 // Cross-file only (not reachable from any client/template/trigger/IDE surface above, but needed
 // by other .gs files' own IIFEs since GAS has no import statement -- this global object is the
@@ -2955,6 +3140,7 @@ global._showIndexRegistrySidebarInternal = showIndexRegistrySidebar;
 global._openPlannerWebAppDialogInternal = openPlannerWebAppDialog;
 global._getWebAppUrlInternal = getWebAppUrl;
 global._fetchLexiconInternal = fetchLexicon;
+global._searchArchiveNotesInternal = searchArchiveNotes;
 
 })(typeof globalThis !== 'undefined' ? globalThis : this);
 
@@ -3130,5 +3316,6 @@ function fetchLexicon(word) {
   return (typeof _fetchLexiconInternal === 'function') ? _fetchLexiconInternal(word) : (globalThis._fetchLexiconInternal ? globalThis._fetchLexiconInternal(word) : null);
 }
 
-
-
+function searchArchiveNotes(query) {
+  return (typeof _searchArchiveNotesInternal === 'function') ? _searchArchiveNotesInternal(query) : (globalThis._searchArchiveNotesInternal ? globalThis._searchArchiveNotesInternal(query) : []);
+}

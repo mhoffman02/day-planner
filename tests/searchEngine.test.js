@@ -5,7 +5,13 @@
 
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { executeUniversalSearch, flattenSearchResults } from '../src/searchEngine.js';
+import {
+  executeUniversalSearch,
+  flattenSearchResults,
+  parseArchiveNoteHeading,
+  extractSearchSnippet,
+  mergeArchiveSearchResults
+} from '../src/searchEngine.js';
 
 describe('Universal Search Engine Unit Tests', () => {
   const sampleStore = {
@@ -33,6 +39,7 @@ describe('Universal Search Engine Unit Tests', () => {
     assert.equal(searchRes.tasks.length, 2);
     assert.equal(searchRes.notes.length, 1);
     assert.equal(searchRes.index.length, 1);
+    assert.equal(searchRes.archive.length, 0);
   });
 
   it('should filter correctly for specific terms like "budget"', () => {
@@ -108,4 +115,111 @@ describe('Universal Search Engine Unit Tests', () => {
     assert.equal(res.notes.length, 1);
     assert.equal(res.notes[0].date, '2026-08-15');
   });
+
+  describe('Deep Archive Search Helpers', () => {
+    it('parseArchiveNoteHeading should extract dates from various heading formats', () => {
+      // 1. Long formatted date with weekday
+      assert.equal(
+        parseArchiveNoteHeading('Day Planner - Sunday, August 16, 2026'),
+        '2026-08-16'
+      );
+      assert.equal(
+        parseArchiveNoteHeading('Day Planner - Friday, September 25, 2026'),
+        '2026-09-25'
+      );
+
+      // 2. ISO dates in headings
+      assert.equal(
+        parseArchiveNoteHeading('## 2026-08-16'),
+        '2026-08-16'
+      );
+      assert.equal(
+        parseArchiveNoteHeading('Day Planner - 2026-10-31'),
+        '2026-10-31'
+      );
+
+      // 3. Fallback to docTitle containing Month and Year
+      assert.equal(
+        parseArchiveNoteHeading('General Topics', 'Day Planner Notes - August 2026'),
+        '2026-08-01'
+      );
+      assert.equal(
+        parseArchiveNoteHeading('', 'Day Planner Notes - 2026-12'),
+        '2026-12-01'
+      );
+
+      // 4. Undetermined returns empty string
+      assert.equal(parseArchiveNoteHeading('Notes', 'Misc Document'), '');
+    });
+
+    it('extractSearchSnippet should generate clean contextual excerpts and strip link markup', () => {
+      const text = 'Before [[link:https://google.com]]Google Workspace[[/link]] integration was completed, we evaluated requirements.';
+      const snippet = extractSearchSnippet(text, 'Workspace');
+      assert.ok(snippet.includes('Google Workspace'));
+      assert.ok(!snippet.includes('[[link:'));
+      assert.ok(!snippet.includes('[[/link]]'));
+
+      const plainText = 'The quarterly roadmap defines our key objectives for Q3 and Q4 milestones.';
+      const plainSnippet = extractSearchSnippet(plainText, 'objectives');
+      assert.ok(plainSnippet.includes('objectives'));
+    });
+
+    it('mergeArchiveSearchResults should merge archive items and deduplicate with local notes', () => {
+      const localResults = {
+        totalMatches: 2,
+        calendar: [],
+        tasks: [{ title: 'Task 1' }],
+        notes: [{ date: '2026-08-15', snippet: 'Local note snippet' }],
+        index: []
+      };
+
+      const archiveItems = [
+        {
+          date: '2026-08-15', // Same date as local note: should be skipped to prevent duplicate
+          snippet: 'Archive snippet for 2026-08-15',
+          docName: 'Day Planner Notes - August 2026'
+        },
+        {
+          date: '2026-07-20',
+          snippet: 'Historical snippet for July 20',
+          docName: 'Day Planner Notes - July 2026'
+        },
+        {
+          date: '2026-06-10',
+          snippet: 'Historical snippet for June 10',
+          docName: 'Day Planner Notes - June 2026'
+        }
+      ];
+
+      const merged = mergeArchiveSearchResults(localResults, archiveItems);
+      assert.equal(merged.archive.length, 2);
+      assert.equal(merged.archive[0].date, '2026-07-20');
+      assert.equal(merged.archive[1].date, '2026-06-10');
+      assert.equal(merged.totalMatches, 4); // 1 task + 1 local note + 2 archive notes
+    });
+
+    it('executeUniversalSearch should process archiveNotes if passed in store and flattenSearchResults should include them', () => {
+      const storeWithArchive = {
+        ...sampleStore,
+        archiveNotes: [
+          {
+            date: '2026-07-15',
+            heading: 'Day Planner - Wednesday, July 15, 2026',
+            content: 'Discussed Q3 strategy kickoff and budget allocation.',
+            docName: 'Day Planner Notes - July 2026'
+          }
+        ]
+      };
+
+      const res = executeUniversalSearch('strategy', storeWithArchive);
+      assert.equal(res.archive.length, 1);
+      assert.equal(res.archive[0].date, '2026-07-15');
+      assert.equal(res.archive[0].type, 'archive');
+
+      const flat = flattenSearchResults(res);
+      assert.equal(flat.length, 1);
+      assert.equal(flat[0].type, 'archive');
+    });
+  });
 });
+

@@ -1550,9 +1550,14 @@
     <dialog class="modal-backdrop" :open="searchModalOpen" x-show="searchModalOpen" x-cloak aria-labelledby="searchModalTitle" @click.self="closeSearchModal()" @keydown.escape.window="if (searchModalOpen) closeSearchModal()">
       <article class="modal-card modal-card-wide" @click.away="closeSearchModal()">
         <header>
-          <h3 id="searchModalTitle" class="modal-title-with-icon">
-            <span class="material-symbols-outlined">search</span> Universal Search (Ctrl + K)
-          </h3>
+          <div class="search-modal-header-row">
+            <h3 id="searchModalTitle" class="modal-title-with-icon">
+              <span class="material-symbols-outlined">search</span> Universal Search (Ctrl + K)
+            </h3>
+            <div x-show="archiveSearching" class="search-archive-indicator" style="display: none;">
+              <span class="spinner-inline"></span> Searching archive...
+            </div>
+          </div>
         </header>
         <section>
           <input
@@ -1582,6 +1587,7 @@
                   'result-task': item.type === 'task',
                   'result-note': item.type === 'note',
                   'result-index': item.type === 'index',
+                  'result-archive': item.type === 'archive',
                   'selected': selectedSearchIndex === idx
                 }"
                 role="option"
@@ -1593,6 +1599,9 @@
                   <span class="search-result-badge" x-text="item.type.toUpperCase()"></span>
                   <strong class="search-result-title" x-text="item.title"></strong>
                   <span class="search-result-date" x-show="item.date" x-text="item.date"></span>
+                  <a x-show="item.docUrl && item.docUrl !== '#'" :href="item.docUrl" target="_blank" rel="noopener noreferrer" class="search-result-doc-link" @click.stop title="Open Google Doc in new tab" aria-label="Open Google Doc">
+                    <span class="material-symbols-outlined icon-14">open_in_new</span>
+                  </a>
                 </div>
                 <div class="search-result-snippet" x-show="item.snippet" x-text="item.snippet"></div>
               </article>

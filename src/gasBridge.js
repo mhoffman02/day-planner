@@ -834,4 +834,77 @@ export class GASBridge {
         .fetchLexicon(word);
     });
   }
+
+  /**
+   * Performs deep archive search across historical monthly notes Google Docs.
+   * @param {string} query Search query string.
+   * @returns {Promise<Array<object>>} Archive search results.
+   */
+  async searchArchiveNotes(query) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      const clean = (query || '').trim().toLowerCase();
+      if (!clean || clean.length < 2) return [];
+
+      const mockDocs = [
+        {
+          docName: 'Day Planner Notes - July 2026',
+          docUrl: 'https:' + '/' + '/docs.google.com/document/d/mock_july_2026/edit',
+          entries: [
+            {
+              heading: 'Day Planner - Monday, July 20, 2026',
+              date: '2026-07-20',
+              text: 'Discussed Q3 budget allocation and roadmap milestones with executive team.'
+            }
+          ]
+        },
+        {
+          docName: 'Day Planner Notes - August 2026',
+          docUrl: 'https:' + '/' + '/docs.google.com/document/d/mock_aug_2026/edit',
+          entries: [
+            {
+              heading: 'Day Planner - Sunday, August 16, 2026',
+              date: '2026-08-16',
+              text: 'Finalized 3-column binder layout with Alpine.js and clean CSS.'
+            },
+            {
+              heading: 'Day Planner - Friday, August 28, 2026',
+              date: '2026-08-28',
+              text: 'Architected offline IndexedDB sync and recovery snapshot mechanism.'
+            }
+          ]
+        }
+      ];
+
+      const matches = [];
+      mockDocs.forEach(doc => {
+        doc.entries.forEach(entry => {
+          if (entry.text.toLowerCase().includes(clean) || entry.heading.toLowerCase().includes(clean)) {
+            const idx = entry.text.toLowerCase().indexOf(clean);
+            const start = Math.max(0, idx - 20);
+            const end = Math.min(entry.text.length, idx + clean.length + 40);
+            const snippet = '...' + entry.text.substring(start, end) + '...';
+
+            matches.push({
+              type: 'archive',
+              title: `Archive: Daily Note (${entry.date})`,
+              snippet,
+              date: entry.date,
+              targetView: 'daily',
+              docName: doc.docName,
+              docUrl: doc.docUrl
+            });
+          }
+        });
+      });
+      return matches;
+    }
+
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .searchArchiveNotes(query);
+    });
+  }
 }
+

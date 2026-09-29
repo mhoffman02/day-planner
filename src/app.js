@@ -12,7 +12,7 @@ import {
   filterTasksByStatus,
   filterTasksByDateHorizon
 } from './taskEngine.js';
-import { executeUniversalSearch, flattenSearchResults } from './searchEngine.js';
+import { executeUniversalSearch, flattenSearchResults, mergeArchiveSearchResults } from './searchEngine.js';
 import { formatEventDescriptionHtml, extractMeetLink } from './calendarEngine.js';
 import { parseIndexEntriesFromNote } from './indexParser.js';
 import { getQuoteForDateStr } from './quotesEngine.js';
@@ -368,8 +368,11 @@ Alpine.data('plannerApp', () => ({
 
       searchModalOpen: false,
       searchQuery: '',
-      searchResults: { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [] },
+      searchResults: { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [], archive: [] },
       selectedSearchIndex: -1,
+      archiveSearching: false,
+      archiveSearchQuery: '',
+      searchDebounceTimer: null,
 
       // Note Time Machine / Version History Modal state
       timeMachineOpen: false,
@@ -3511,9 +3514,15 @@ Alpine.data('plannerApp', () => ({
       },
 
       closeSearchModal() {
+        if (this.searchDebounceTimer) {
+          clearTimeout(this.searchDebounceTimer);
+          this.searchDebounceTimer = null;
+        }
+        this.archiveSearching = false;
+        this.archiveSearchQuery = '';
         this.searchModalOpen = false;
         this.searchQuery = '';
-        this.searchResults = { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [] };
+        this.searchResults = { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [], archive: [] };
         this.selectedSearchIndex = -1;
       },
 
@@ -3535,7 +3544,13 @@ Alpine.data('plannerApp', () => ({
       runSearch() {
         const q = this.searchQuery.trim();
         if (!q) {
-          this.searchResults = { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [] };
+          if (this.searchDebounceTimer) {
+            clearTimeout(this.searchDebounceTimer);
+            this.searchDebounceTimer = null;
+          }
+          this.archiveSearching = false;
+          this.archiveSearchQuery = '';
+          this.searchResults = { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [], archive: [] };
           this.selectedSearchIndex = -1;
           return;
         }
@@ -3556,9 +3571,51 @@ Alpine.data('plannerApp', () => ({
             : this.indexRecords) || []
         };
 
-        this.searchResults = executeUniversalSearch(q, store);
+        const localResults = executeUniversalSearch(q, store);
+        if (this.searchResults?.archive && this.archiveSearchQuery === q) {
+          localResults.archive = this.searchResults.archive;
+          localResults.totalMatches += localResults.archive.length;
+        }
+        this.searchResults = localResults;
+
         const flat = this.getFlattenedSearchResults();
-        this.selectedSearchIndex = flat.length > 0 ? 0 : -1;
+        if (this.selectedSearchIndex < 0 || this.selectedSearchIndex >= flat.length) {
+          this.selectedSearchIndex = flat.length > 0 ? 0 : -1;
+        }
+
+        if (this.searchDebounceTimer) {
+          clearTimeout(this.searchDebounceTimer);
+          this.searchDebounceTimer = null;
+        }
+
+        if (q.length >= 2 && this.bridge && typeof this.bridge.searchArchiveNotes === 'function') {
+          this.searchDebounceTimer = setTimeout(async () => {
+            await this.runArchiveSearch(q);
+          }, 350);
+        }
+      },
+
+      async runArchiveSearch(query) {
+        if (!query || query !== this.searchQuery.trim()) return;
+        this.archiveSearching = true;
+        try {
+          const archiveResults = await this.bridge.searchArchiveNotes(query);
+          if (query !== this.searchQuery.trim()) return;
+
+          this.archiveSearchQuery = query;
+          this.searchResults = mergeArchiveSearchResults(this.searchResults, archiveResults);
+
+          const flat = this.getFlattenedSearchResults();
+          if (this.selectedSearchIndex < 0 && flat.length > 0) {
+            this.selectedSearchIndex = 0;
+          }
+        } catch (err) {
+          console.warn('[search] Deep archive search error:', err);
+        } finally {
+          if (query === this.searchQuery.trim()) {
+            this.archiveSearching = false;
+          }
+        }
       },
 
       navigateSearchResults(delta) {

@@ -577,7 +577,8 @@
       ...(results.calendar || []),
       ...(results.tasks || []),
       ...(results.notes || []),
-      ...(results.index || [])
+      ...(results.index || []),
+      ...(results.archive || [])
     ];
   }
 
@@ -588,7 +589,8 @@
       calendar: [],
       tasks: [],
       notes: [],
-      index: []
+      index: [],
+      archive: []
     };
 
     if (!cleanQuery) return results;
@@ -598,7 +600,8 @@
       dailyTasks,
       masterTasks = [],
       dailyNotes,
-      indexEntries = []
+      indexEntries = [],
+      archiveNotes = []
     } = store;
 
     // 1. Search Calendar Events
@@ -657,7 +660,7 @@
     }
 
     normalizedNotes.forEach(note => {
-      const text = note.content || '';
+      const text = (note.content || '').replace(/\[\[link:[^\]]+\]\]([\s\S]*?)\[\[\/link\]\]/g, '$1');
       if (text.toLowerCase().includes(cleanQuery)) {
         const idx = text.toLowerCase().indexOf(cleanQuery);
         const start = Math.max(0, idx - 20);
@@ -694,7 +697,139 @@
       }
     });
 
+    // 5. Search Historical Archive Notes (if passed in store)
+    normalizeCollection(archiveNotes).forEach(arch => {
+      const rawContent = arch.content || arch.snippet || '';
+      const text = rawContent.replace(/\[\[link:[^\]]+\]\]([\s\S]*?)\[\[\/link\]\]/g, '$1');
+      const title = arch.title || '';
+      const heading = arch.heading || '';
+
+      if (text.toLowerCase().includes(cleanQuery) || title.toLowerCase().includes(cleanQuery) || heading.toLowerCase().includes(cleanQuery)) {
+        const dateStr = arch.date || parseArchiveNoteHeading(heading || title, arch.docName || '');
+        const snippet = arch.snippet || extractSearchSnippet(text, cleanQuery);
+
+        results.archive.push({
+          type: 'archive',
+          title: arch.title || `Archive: Daily Note (${dateStr || 'Undated'})`,
+          snippet,
+          date: dateStr || '',
+          targetView: 'daily',
+          docName: arch.docName || '',
+          docUrl: arch.docUrl || '',
+          item: arch
+        });
+        results.totalMatches++;
+      }
+    });
+
     return results;
+  }
+
+  function parseArchiveNoteHeading(heading = '', docTitle = '') {
+    const monthMap = {
+      january: '01', february: '02', march: '03', april: '04',
+      may: '05', june: '06', july: '07', august: '08',
+      september: '09', october: '10', november: '11', december: '12'
+    };
+
+    const text = (heading || '').trim();
+
+    // 1. Look for ISO date: YYYY-MM-DD
+    const isoMatch = text.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
+    if (isoMatch) {
+      return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`;
+    }
+
+    // 2. Look for Month Day, Year
+    const monthDayYearMatch = text.match(/([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})/);
+    if (monthDayYearMatch) {
+      const mName = monthDayYearMatch[1].toLowerCase();
+      if (monthMap[mName]) {
+        const y = monthDayYearMatch[3];
+        const m = monthMap[mName];
+        const d = String(monthDayYearMatch[2]).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+    }
+
+    // 3. Fall back to docTitle if it contains Year and Month
+    const titleText = (docTitle || '').trim();
+    const titleIsoMatch = titleText.match(/\b(\d{4})-(\d{2})\b/);
+    if (titleIsoMatch) {
+      return `${titleIsoMatch[1]}-${titleIsoMatch[2]}-01`;
+    }
+    const titleMonthMatch = titleText.match(/([A-Za-z]+)\s+(\d{4})/);
+    if (titleMonthMatch) {
+      const tmName = titleMonthMatch[1].toLowerCase();
+      if (monthMap[tmName]) {
+        return `${titleMonthMatch[2]}-${monthMap[tmName]}-01`;
+      }
+    }
+
+    return '';
+  }
+
+  function extractSearchSnippet(content = '', query = '', maxLength = 80) {
+    if (!content) return '';
+    const cleanContent = content.replace(/\[\[link:[^\]]+\]\]([\s\S]*?)\[\[\/link\]\]/g, '$1');
+    if (!query) {
+      return cleanContent.length > maxLength
+        ? cleanContent.substring(0, maxLength).replace(/\n/g, ' ') + '...'
+        : cleanContent.replace(/\n/g, ' ');
+    }
+
+    const lowerContent = cleanContent.toLowerCase();
+    const lowerQuery = query.toLowerCase();
+    const idx = lowerContent.indexOf(lowerQuery);
+
+    if (idx === -1) {
+      return cleanContent.length > maxLength
+        ? cleanContent.substring(0, maxLength).replace(/\n/g, ' ') + '...'
+        : cleanContent.replace(/\n/g, ' ');
+    }
+
+    const start = Math.max(0, idx - 25);
+    const end = Math.min(cleanContent.length, idx + query.length + 45);
+    const prefix = start > 0 ? '...' : '';
+    const suffix = end < cleanContent.length ? '...' : '';
+    return (prefix + cleanContent.substring(start, end).replace(/\n/g, ' ') + suffix).trim();
+  }
+
+  function mergeArchiveSearchResults(searchResults = {}, archiveItems = []) {
+    const merged = {
+      calendar: searchResults.calendar || [],
+      tasks: searchResults.tasks || [],
+      notes: searchResults.notes || [],
+      index: searchResults.index || [],
+      archive: []
+    };
+
+    const localNoteDates = new Set(merged.notes.map(n => n.date).filter(Boolean));
+    const seenArchiveKeys = new Set();
+
+    (archiveItems || []).forEach(item => {
+      if (!item) return;
+      if (item.date && localNoteDates.has(item.date)) {
+        return;
+      }
+      const key = `${item.date || ''}_${item.snippet || ''}`;
+      if (!seenArchiveKeys.has(key)) {
+        seenArchiveKeys.add(key);
+        merged.archive.push({
+          type: 'archive',
+          title: item.title || `Archive: Daily Note (${item.date || 'Undated'})`,
+          snippet: item.snippet || '',
+          date: item.date || '',
+          targetView: item.targetView || 'daily',
+          docName: item.docName || '',
+          docUrl: item.docUrl || '',
+          item
+        });
+      }
+    });
+
+    merged.totalMatches = merged.calendar.length + merged.tasks.length + merged.notes.length + merged.index.length + merged.archive.length;
+    return merged;
   }
 
   // Daily data cache, mirrored from src/dailyDataCache.js. Keep both copies in sync. Memory-first
@@ -1526,6 +1661,19 @@
           .fetchLexicon(word);
       });
     }
+
+    async searchArchiveNotes(query) {
+      if (this.useMock || typeof window === 'undefined' || !window.google || !window.google.script || !window.google.script.run) {
+        return [];
+      }
+
+      return new Promise((resolve, reject) => {
+        window.google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .searchArchiveNotes(query);
+      });
+    }
   }
 
   function dpCleanLookupWord(raw) {
@@ -1889,8 +2037,11 @@
 
       searchModalOpen: false,
       searchQuery: '',
-      searchResults: { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [] },
+      searchResults: { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [], archive: [] },
       selectedSearchIndex: -1,
+      archiveSearching: false,
+      archiveSearchQuery: '',
+      searchDebounceTimer: null,
 
       // Note Time Machine and Version History Modal state
       timeMachineOpen: false,
@@ -5124,9 +5275,15 @@
       },
 
       closeSearchModal() {
+        if (this.searchDebounceTimer) {
+          clearTimeout(this.searchDebounceTimer);
+          this.searchDebounceTimer = null;
+        }
+        this.archiveSearching = false;
+        this.archiveSearchQuery = '';
         this.searchModalOpen = false;
         this.searchQuery = '';
-        this.searchResults = { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [] };
+        this.searchResults = { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [], archive: [] };
         this.selectedSearchIndex = -1;
       },
 
@@ -5148,7 +5305,13 @@
       runSearch() {
         const q = this.searchQuery.trim();
         if (!q) {
-          this.searchResults = { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [] };
+          if (this.searchDebounceTimer) {
+            clearTimeout(this.searchDebounceTimer);
+            this.searchDebounceTimer = null;
+          }
+          this.archiveSearching = false;
+          this.archiveSearchQuery = '';
+          this.searchResults = { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [], archive: [] };
           this.selectedSearchIndex = -1;
           return;
         }
@@ -5169,9 +5332,51 @@
             : this.indexRecords) || []
         };
 
-        this.searchResults = executeUniversalSearch(q, store);
+        const localResults = executeUniversalSearch(q, store);
+        if (this.searchResults?.archive && this.archiveSearchQuery === q) {
+          localResults.archive = this.searchResults.archive;
+          localResults.totalMatches += localResults.archive.length;
+        }
+        this.searchResults = localResults;
+
         const flat = this.getFlattenedSearchResults();
-        this.selectedSearchIndex = flat.length > 0 ? 0 : -1;
+        if (this.selectedSearchIndex < 0 || this.selectedSearchIndex >= flat.length) {
+          this.selectedSearchIndex = flat.length > 0 ? 0 : -1;
+        }
+
+        if (this.searchDebounceTimer) {
+          clearTimeout(this.searchDebounceTimer);
+          this.searchDebounceTimer = null;
+        }
+
+        if (q.length >= 2 && this.bridge && typeof this.bridge.searchArchiveNotes === 'function') {
+          this.searchDebounceTimer = setTimeout(async () => {
+            await this.runArchiveSearch(q);
+          }, 350);
+        }
+      },
+
+      async runArchiveSearch(query) {
+        if (!query || query !== this.searchQuery.trim()) return;
+        this.archiveSearching = true;
+        try {
+          const archiveResults = await this.bridge.searchArchiveNotes(query);
+          if (query !== this.searchQuery.trim()) return;
+
+          this.archiveSearchQuery = query;
+          this.searchResults = mergeArchiveSearchResults(this.searchResults, archiveResults);
+
+          const flat = this.getFlattenedSearchResults();
+          if (this.selectedSearchIndex < 0 && flat.length > 0) {
+            this.selectedSearchIndex = 0;
+          }
+        } catch (err) {
+          console.warn('[search] Deep archive search error:', err);
+        } finally {
+          if (query === this.searchQuery.trim()) {
+            this.archiveSearching = false;
+          }
+        }
       },
 
       navigateSearchResults(delta) {
