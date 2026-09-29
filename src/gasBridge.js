@@ -906,5 +906,75 @@ export class GASBridge {
         .searchArchiveNotes(query);
     });
   }
+
+  /**
+   * Tests connection to the Sheets AI microservice.
+   * @param {string} [serviceUrl] Service Web App URL.
+   * @param {string} [apiKey] Optional API key.
+   * @returns {Promise<object>} Connection test result.
+   */
+  async testAiMicroservice(serviceUrl, apiKey) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      return {
+        success: true,
+        service: 'ai-lite',
+        version: 'v1',
+        latencyMs: 95
+      };
+    }
+
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .testAiMicroservice(serviceUrl, apiKey);
+    });
+  }
+
+  /**
+   * Calls the Sheets AI microservice to process a prompt.
+   * @param {string} prompt Prompt text.
+   * @param {string} [apiKeyOverride] Optional key override.
+   * @param {string} [serviceUrlOverride] Optional URL override.
+   * @returns {Promise<object>} AI response result.
+   */
+  async callAiMicroservice(prompt, apiKeyOverride, serviceUrlOverride) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      return {
+        success: true,
+        text: `[Mock AI Microservice]: Processed prompt "${(prompt || '').substring(0, 30)}..."`,
+        elapsedMs: 320
+      };
+    }
+
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .callAiMicroservice(prompt, apiKeyOverride, serviceUrlOverride);
+    });
+  }
+
+  /**
+   * Retrieves current AI microservice configuration status.
+   * @returns {Promise<object>} Configuration status.
+   */
+  async getAiMicroserviceConfig() {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      return {
+        configured: true,
+        serviceUrl: 'https:' + '/' + '/script.google.com/macros/s/mock-deployment/exec',
+        hasKey: true
+      };
+    }
+
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .getAiMicroserviceConfig();
+    });
+  }
 }
+
 

@@ -405,7 +405,7 @@ var DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mhoff
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-var DAY_PLANNER_BUILD_NUMBER = 345;
+var DAY_PLANNER_BUILD_NUMBER = 346;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -3045,6 +3045,183 @@ function searchArchiveNotes(query) {
   }
 }
 
+/**
+ * Tests connection to the AI microservice via server-side UrlFetchApp.
+ * Validates the GET /v1 self-describing manifest. Saves validated endpoint
+ * and optional API key to UserProperties.
+ * @param {string} [serviceUrl] Microservice Web App URL.
+ * @param {string} [apiKey] Optional shared secret API key.
+ * @returns {{success: boolean, service?: string, version?: string, latencyMs?: number, error?: string}}
+ */
+function testAiMicroservice(serviceUrl, apiKey) {
+  try {
+    var userProps = PropertiesService.getUserProperties();
+    var targetUrl = (serviceUrl || userProps.getProperty('AI_MICROSERVICE_URL') || '').trim();
+    var key = (apiKey !== undefined ? apiKey : (userProps.getProperty('AI_MICROSERVICE_API_KEY') || '')).trim();
+
+    if (!targetUrl) {
+      return { success: false, error: 'No service URL provided or saved.' };
+    }
+
+    if (serviceUrl) {
+      userProps.setProperty('AI_MICROSERVICE_URL', targetUrl);
+    }
+    if (apiKey !== undefined) {
+      userProps.setProperty('AI_MICROSERVICE_API_KEY', key);
+    }
+
+    if (typeof UrlFetchApp === 'undefined') {
+      return { success: true, service: 'ai-lite', version: 'v1', latencyMs: 80 };
+    }
+
+    var cleanUrl = targetUrl.replace(/\/+$/, '') + '/v1';
+    var start = Date.now();
+    var resp = UrlFetchApp.fetch(cleanUrl, {
+      method: 'get',
+      headers: { 'Accept': 'application/json' },
+      muteHttpExceptions: true,
+      followRedirects: true
+    });
+
+    var elapsed = Date.now() - start;
+    var content = resp.getContentText();
+    var json = null;
+    try {
+      json = JSON.parse(content);
+    } catch (e) {
+      return { success: false, error: 'Service returned non-JSON response from ' + cleanUrl + ' (' + e.message + '): ' + content.substring(0, 100) };
+    }
+
+    if (json && (json.service === 'ai-lite' || (json.endpoints && json.endpoints['POST /v1']))) {
+      return {
+        success: true,
+        service: json.service || 'ai-lite',
+        version: json.version || 'v1',
+        latencyMs: elapsed
+      };
+    }
+
+    return {
+      success: false,
+      error: 'Service at ' + cleanUrl + ' did not return expected ai-lite manifest: ' + content.substring(0, 100)
+    };
+  } catch (err) {
+    recordServerLog('ERROR', 'testAiMicroservice', err.message, err.stack);
+    return { success: false, error: 'Connection test failed: ' + err.message };
+  }
+}
+
+/**
+ * Sends a prompt to the AI microservice via server-side UrlFetchApp.
+ * @param {string} prompt Prompt text.
+ * @param {string} [apiKeyOverride] Optional key override.
+ * @param {string} [serviceUrlOverride] Optional URL override.
+ * @returns {{success: boolean, text?: string, elapsedMs?: number, code?: string, message?: string, error?: string}}
+ */
+function callAiMicroservice(prompt, apiKeyOverride, serviceUrlOverride) {
+  try {
+    var cleanPrompt = (prompt || '').trim();
+    if (!cleanPrompt) {
+      return { success: false, code: 'EMPTY_PROMPT', message: 'Prompt cannot be empty.' };
+    }
+
+    var userProps = PropertiesService.getUserProperties();
+    var targetUrl = (serviceUrlOverride || userProps.getProperty('AI_MICROSERVICE_URL') || '').trim();
+    var key = (apiKeyOverride !== undefined ? apiKeyOverride : (userProps.getProperty('AI_MICROSERVICE_API_KEY') || '')).trim();
+
+    if (!targetUrl) {
+      return {
+        success: false,
+        code: 'NOT_CONFIGURED',
+        message: 'AI microservice URL is not configured. Run testAiMicroservice with your Web App URL.'
+      };
+    }
+
+    if (typeof UrlFetchApp === 'undefined') {
+      return {
+        success: true,
+        text: '[Mock AI]: Processed prompt: "' + cleanPrompt.substring(0, 40) + '..."',
+        elapsedMs: 250
+      };
+    }
+
+    var endpointUrl = targetUrl.replace(/\/+$/, '') + '/v1';
+    var payload = JSON.stringify({
+      apiKey: key,
+      prompt: cleanPrompt
+    });
+
+    var resp = UrlFetchApp.fetch(endpointUrl, {
+      method: 'post',
+      contentType: 'application/json',
+      payload: payload,
+      muteHttpExceptions: true,
+      followRedirects: true
+    });
+
+    var content = resp.getContentText();
+    var json = null;
+    try {
+      json = JSON.parse(content);
+    } catch (parseErr) {
+      return {
+        success: false,
+        code: 'PARSE_ERROR',
+        message: 'Invalid JSON response from AI microservice (' + parseErr.message + '): ' + content.substring(0, 100)
+      };
+    }
+
+    if (json && json.response !== undefined) {
+      return {
+        success: true,
+        text: String(json.response),
+        elapsedMs: typeof json.elapsedMs === 'number' ? json.elapsedMs : 0
+      };
+    }
+
+    if (json && json.error) {
+      return {
+        success: false,
+        code: json.error.code || 'UNKNOWN_ERROR',
+        message: json.error.message || 'AI microservice returned an error.'
+      };
+    }
+
+    return {
+      success: false,
+      code: 'UNEXPECTED_RESPONSE',
+      message: 'Unexpected payload structure from AI microservice.'
+    };
+  } catch (err) {
+    recordServerLog('ERROR', 'callAiMicroservice', err.message, err.stack);
+    return {
+      success: false,
+      code: 'NETWORK_ERROR',
+      message: 'Failed to call AI microservice: ' + err.message
+    };
+  }
+}
+
+/**
+ * Retrieves the currently saved AI microservice configuration status.
+ * @returns {{configured: boolean, serviceUrl: string, hasKey: boolean}}
+ */
+function getAiMicroserviceConfig() {
+  try {
+    var userProps = PropertiesService.getUserProperties();
+    var url = userProps.getProperty('AI_MICROSERVICE_URL') || '';
+    var key = userProps.getProperty('AI_MICROSERVICE_API_KEY') || '';
+    return {
+      configured: !!url,
+      serviceUrl: url,
+      hasKey: !!key
+    };
+  } catch (err) {
+    recordServerLog('WARN', 'getAiMicroserviceConfig', err.message);
+    return { configured: false, serviceUrl: '', hasKey: false };
+  }
+}
+
 // ── Explicit export surface ──────────────────────────────────────────────────
 // Everything above is private to this IIFE. Only names assigned here are visible to: the Apps
 // Script runtime (doGet, onOpen), google.script.run / Script.html, HtmlService template
@@ -3086,6 +3263,9 @@ global.ensure2WaySyncTriggerInstalled = ensure2WaySyncTriggerInstalled; // IDE m
 global.setup2WaySyncTrigger = setup2WaySyncTrigger;          // IDE manual-run
 global.fetchLexicon = fetchLexicon;                            // google.script.run: Script.html
 global.searchArchiveNotes = searchArchiveNotes;              // google.script.run: Script.html
+global.testAiMicroservice = testAiMicroservice;              // google.script.run: Script.html
+global.callAiMicroservice = callAiMicroservice;              // google.script.run: Script.html
+global.getAiMicroserviceConfig = getAiMicroserviceConfig;    // google.script.run: Script.html
 
 // Cross-file only (not reachable from any client/template/trigger/IDE surface above, but needed
 // by other .gs files' own IIFEs since GAS has no import statement -- this global object is the
@@ -3141,6 +3321,9 @@ global._openPlannerWebAppDialogInternal = openPlannerWebAppDialog;
 global._getWebAppUrlInternal = getWebAppUrl;
 global._fetchLexiconInternal = fetchLexicon;
 global._searchArchiveNotesInternal = searchArchiveNotes;
+global._testAiMicroserviceInternal = testAiMicroservice;
+global._callAiMicroserviceInternal = callAiMicroservice;
+global._getAiMicroserviceConfigInternal = getAiMicroserviceConfig;
 
 })(typeof globalThis !== 'undefined' ? globalThis : this);
 
@@ -3319,3 +3502,16 @@ function fetchLexicon(word) {
 function searchArchiveNotes(query) {
   return (typeof _searchArchiveNotesInternal === 'function') ? _searchArchiveNotesInternal(query) : (globalThis._searchArchiveNotesInternal ? globalThis._searchArchiveNotesInternal(query) : []);
 }
+
+function testAiMicroservice(serviceUrl, apiKey) {
+  return (typeof _testAiMicroserviceInternal === 'function') ? _testAiMicroserviceInternal(serviceUrl, apiKey) : (globalThis._testAiMicroserviceInternal ? globalThis._testAiMicroserviceInternal(serviceUrl, apiKey) : { success: false, error: 'Internal error' });
+}
+
+function callAiMicroservice(prompt, apiKeyOverride, serviceUrlOverride) {
+  return (typeof _callAiMicroserviceInternal === 'function') ? _callAiMicroserviceInternal(prompt, apiKeyOverride, serviceUrlOverride) : (globalThis._callAiMicroserviceInternal ? globalThis._callAiMicroserviceInternal(prompt, apiKeyOverride, serviceUrlOverride) : { success: false, error: 'Internal error' });
+}
+
+function getAiMicroserviceConfig() {
+  return (typeof _getAiMicroserviceConfigInternal === 'function') ? _getAiMicroserviceConfigInternal() : (globalThis._getAiMicroserviceConfigInternal ? globalThis._getAiMicroserviceConfigInternal() : { configured: false, serviceUrl: '', hasKey: false });
+}
+

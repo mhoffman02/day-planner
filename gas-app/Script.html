@@ -1674,6 +1674,45 @@
           .searchArchiveNotes(query);
       });
     }
+
+    async testAiMicroservice(serviceUrl, apiKey) {
+      if (this.useMock || typeof window === 'undefined' || !window.google || !window.google.script || !window.google.script.run) {
+        return { success: false, error: 'Bridge unavailable.' };
+      }
+
+      return new Promise((resolve, reject) => {
+        window.google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .testAiMicroservice(serviceUrl, apiKey);
+      });
+    }
+
+    async callAiMicroservice(prompt, apiKeyOverride, serviceUrlOverride) {
+      if (this.useMock || typeof window === 'undefined' || !window.google || !window.google.script || !window.google.script.run) {
+        return { success: false, error: 'Bridge unavailable.' };
+      }
+
+      return new Promise((resolve, reject) => {
+        window.google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .callAiMicroservice(prompt, apiKeyOverride, serviceUrlOverride);
+      });
+    }
+
+    async getAiMicroserviceConfig() {
+      if (this.useMock || typeof window === 'undefined' || !window.google || !window.google.script || !window.google.script.run) {
+        return { configured: false, serviceUrl: '', hasKey: false };
+      }
+
+      return new Promise((resolve, reject) => {
+        window.google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .getAiMicroserviceConfig();
+      });
+    }
   }
 
   function dpCleanLookupWord(raw) {
