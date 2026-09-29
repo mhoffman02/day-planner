@@ -322,7 +322,6 @@ Alpine.data('plannerApp', () => ({
       sttScratchCreating: false,
       geminiEnabled: true,
       aiAssistError: null,
-      aiAssistTarget: 'gemini', // 'gemini' (gemini.google.com) or 'docs' (the day's Google Doc)
       noteViewMode: 'cards', // 'cards' (Option 1) or 'doc' (Option 2)
       quoteCardCollapsed: false,
       noteFilterMenuOpen: false,
@@ -667,26 +666,6 @@ Alpine.data('plannerApp', () => ({
         } catch {
           this.geminiEnabled = true;
         }
-        try {
-          const target = localStorage.getItem('dayPlannerAiAssistTarget');
-          this.aiAssistTarget = (target === 'docs') ? 'docs' : 'gemini';
-        } catch {
-          this.aiAssistTarget = 'gemini';
-        }
-      },
-
-      // gemini.google.com is blocked outright by some organizations' network/web filters
-      // (confirmed live on the WORK network: a proxy block page, not a popup-blocker or a
-      // window.open bug) -- there's no way to detect that from script before trying, since the
-      // popup itself opens fine and only the cross-origin navigation inside it is blocked, which
-      // this app can't inspect. So the target is a per-device choice, not an auto-detected one.
-      setAiAssistTarget(target) {
-        this.aiAssistTarget = (target === 'docs') ? 'docs' : 'gemini';
-        try {
-          localStorage.setItem('dayPlannerAiAssistTarget', this.aiAssistTarget);
-        } catch {
-          // ignore localStorage quota/disabled errors
-        }
       },
 
       toggleGeminiEnabled() {
@@ -709,39 +688,15 @@ Alpine.data('plannerApp', () => ({
         }
       },
 
-      // Opens a sized popup and navigates it to `url` -- never puts 'noopener' in the features
-      // string (window.open() returns null per spec whenever 'noopener' is anywhere in THAT
-      // call's features, regardless of whether the popup actually opened, which twice caused
-      // this button to auto-disable itself on every real click). Sever win.opener manually
-      // instead, which gives the same isolation without breaking the return value this code
-      // depends on to detect a real block.
-      openAiAssistPopup(url) {
-        const win = window.open('about:blank', 'dayPlannerAiAssist', 'width=480,height=760');
-        if (!win) throw new Error('Popup blocked by the browser.');
-        win.opener = null;
-        win.location.href = url;
-      },
-
-      // Two targets, picked per-device via the About page (aiAssistTarget/setAiAssistTarget),
-      // not auto-detected: gemini.google.com renders clean at popup size but is blocked outright
-      // by some organizations' network filters (confirmed live: a proxy block page on the WORK
-      // network, not a popup-blocker), while the day's Google Doc works everywhere but its own
-      // chrome doesn't collapse at popup size and overlaps the Gemini panel. Any failure
-      // auto-disables the button rather than erroring again on every subsequent click.
+      // Opens a clean gemini.google.com popup (not the day's Google Doc) -- tested live at
+      // 480x760, Docs' own chrome (document-tabs list, toolbar) doesn't collapse at that width
+      // and overlaps the Gemini panel, but the standalone Gemini app renders as just the chat
+      // UI. Gemini has no idea what note you were on, so the card's text is copied to the
+      // clipboard first -- paste it in yourself once the popup opens. Any failure auto-disables
+      // the button rather than erroring again on every subsequent click.
       async openAiAssist(card) {
         if (!this.geminiEnabled) return;
         try {
-          if (this.aiAssistTarget === 'docs') {
-            let url = this.dailyDocUrl;
-            if (!url) {
-              const data = await this.bridge.getDailyData(this.selectedDate);
-              url = (data && data.docUrl) || '';
-              if (url) this.dailyDocUrl = url;
-            }
-            if (!url) throw new Error('No document URL returned for this day.');
-            this.openAiAssistPopup(url);
-            return;
-          }
           const text = (card && typeof card.content === 'string') ? card.content : '';
           if (text && navigator.clipboard && navigator.clipboard.writeText) {
             try {
@@ -750,10 +705,19 @@ Alpine.data('plannerApp', () => ({
               console.error('[AI Assist] clipboard copy failed, opening Gemini without it', clipErr);
             }
           }
-          this.openAiAssistPopup('https:' + '/' + '/gemini.google.com/app');
+          // window.open() always returns null per spec once 'noopener' is anywhere in the
+          // features string of THAT call -- an earlier fix moved 'noopener' from the url-open
+          // call to this about:blank call but left it in the features string here, so it kept
+          // returning null and auto-disabling on every real click. Don't put 'noopener' in the
+          // features string at all; sever win.opener manually below instead, which achieves the
+          // same isolation without breaking the return value this code depends on.
+          const win = window.open('about:blank', 'dayPlannerAiAssist', 'width=480,height=760');
+          if (!win) throw new Error('Popup blocked by the browser.');
+          win.opener = null;
+          win.location.href = 'https:' + '/' + '/gemini.google.com/app';
         } catch (err) {
-          console.error('[AI Assist] failed to open', this.aiAssistTarget, err);
-          this.disableAiAssist('Couldn’t open AI Assist, so the button has been turned off. Re-enable it from the About page.');
+          console.error('[AI Assist] failed to open Gemini', err);
+          this.disableAiAssist('Couldn’t open Gemini, so the AI Assist button has been turned off. Re-enable it from the About page.');
         }
       },
 
