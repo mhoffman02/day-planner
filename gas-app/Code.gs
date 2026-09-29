@@ -405,7 +405,7 @@ var DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mhoff
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-var DAY_PLANNER_BUILD_NUMBER = 342;
+var DAY_PLANNER_BUILD_NUMBER = 343;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -2727,6 +2727,140 @@ function getWebAppUrl() {
   return (typeof ScriptApp !== 'undefined' && ScriptApp.getService) ? ScriptApp.getService().getUrl() : '';
 }
 
+/**
+ * Fetches dictionary definition and synonyms/antonyms for a word via server-side UrlFetchApp.
+ * Provides fallback proxy when clientside direct fetch is blocked by strict enterprise/proxy network rules.
+ * @param {string} word The word to look up.
+ * @returns {object} Lexicon result with word, phonetic, audioUrl, meanings, synonyms, antonyms.
+ */
+function fetchLexicon(word) {
+  try {
+    if (!word || typeof word !== 'string') {
+      return { success: false, word: '', error: 'No word provided.' };
+    }
+    var cleanWord = word.trim().toLowerCase().replace(/^[^a-z0-9]+/i, '').replace(/[^a-z0-9]+$/i, '');
+    if (!cleanWord) {
+      return { success: false, word: '', error: 'Invalid word.' };
+    }
+
+    var dictUrl = 'https://api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(cleanWord);
+    var synUrl = 'https://api.datamuse.com/words?rel_syn=' + encodeURIComponent(cleanWord) + '&max=12';
+    var antUrl = 'https://api.datamuse.com/words?rel_ant=' + encodeURIComponent(cleanWord) + '&max=12';
+
+    var dictRes = null;
+    try {
+      var resp = UrlFetchApp.fetch(dictUrl, { muteHttpExceptions: true });
+      if (resp.getResponseCode() === 200) {
+        dictRes = JSON.parse(resp.getContentText());
+      }
+    } catch (e) {
+      console.warn('fetchLexicon dict error: ' + e);
+    }
+
+    var synRes = [];
+    try {
+      var sResp = UrlFetchApp.fetch(synUrl, { muteHttpExceptions: true });
+      if (sResp.getResponseCode() === 200) {
+        synRes = JSON.parse(sResp.getContentText());
+      }
+    } catch (e) {
+      console.warn('fetchLexicon syn error: ' + e);
+    }
+
+    var antRes = [];
+    try {
+      var aResp = UrlFetchApp.fetch(antUrl, { muteHttpExceptions: true });
+      if (aResp.getResponseCode() === 200) {
+        antRes = JSON.parse(aResp.getContentText());
+      }
+    } catch (e) {
+      console.warn('fetchLexicon ant error: ' + e);
+    }
+
+    var phonetic = '';
+    var audioUrl = '';
+    var meanings = [];
+    var synSet = {};
+    var antSet = {};
+
+    if (Array.isArray(dictRes)) {
+      dictRes.forEach(function(entry) {
+        if (!phonetic && entry.phonetic) phonetic = entry.phonetic;
+        if (Array.isArray(entry.phonetics)) {
+          entry.phonetics.forEach(function(p) {
+            if (!phonetic && p.text) phonetic = p.text;
+            if (!audioUrl && p.audio && typeof p.audio === 'string' && p.audio.trim()) {
+              var a = p.audio.trim();
+              if (a.indexOf('//') === 0) a = 'https:' + a;
+              audioUrl = a;
+            }
+          });
+        }
+        if (Array.isArray(entry.meanings)) {
+          entry.meanings.forEach(function(m) {
+            var pos = m.partOfSpeech || 'general';
+            var defs = [];
+            if (Array.isArray(m.definitions)) {
+              m.definitions.slice(0, 3).forEach(function(d) {
+                defs.push({ definition: d.definition || '', example: d.example || '' });
+                if (Array.isArray(d.synonyms)) {
+                  d.synonyms.forEach(function(s) { if (s) synSet[s.toLowerCase()] = true; });
+                }
+                if (Array.isArray(d.antonyms)) {
+                  d.antonyms.forEach(function(a) { if (a) antSet[a.toLowerCase()] = true; });
+                }
+              });
+            }
+            if (Array.isArray(m.synonyms)) {
+              m.synonyms.forEach(function(s) { if (s) synSet[s.toLowerCase()] = true; });
+            }
+            if (Array.isArray(m.antonyms)) {
+              m.antonyms.forEach(function(a) { if (a) antSet[a.toLowerCase()] = true; });
+            }
+            if (defs.length > 0) {
+              meanings.push({ partOfSpeech: pos, definitions: defs });
+            }
+          });
+        }
+      });
+    }
+
+    if (Array.isArray(synRes)) {
+      synRes.forEach(function(item) {
+        if (item && item.word) synSet[item.word.toLowerCase()] = true;
+      });
+    }
+    if (Array.isArray(antRes)) {
+      antRes.forEach(function(item) {
+        if (item && item.word) antSet[item.word.toLowerCase()] = true;
+      });
+    }
+
+    delete synSet[cleanWord];
+    delete antSet[cleanWord];
+
+    var synList = Object.keys(synSet).slice(0, 16);
+    var antList = Object.keys(antSet).slice(0, 16);
+
+    if (meanings.length === 0 && synList.length === 0 && antList.length === 0) {
+      return { success: false, word: cleanWord, error: 'No definitions found for "' + cleanWord + '".' };
+    }
+
+    return {
+      success: true,
+      word: cleanWord,
+      phonetic: phonetic,
+      audioUrl: audioUrl,
+      meanings: meanings.slice(0, 3),
+      synonyms: synList,
+      antonyms: antList
+    };
+  } catch (err) {
+    recordServerLog('ERROR', 'fetchLexicon', err.message, err.stack);
+    return { success: false, word: word, error: 'Lexicon service unavailable: ' + err.message };
+  }
+}
+
 // ── Explicit export surface ──────────────────────────────────────────────────
 // Everything above is private to this IIFE. Only names assigned here are visible to: the Apps
 // Script runtime (doGet, onOpen), google.script.run / Script.html, HtmlService template
@@ -2766,6 +2900,7 @@ global.showIndexRegistrySidebar = showIndexRegistrySidebar;  // Google Docs menu
 global.openPlannerWebAppDialog = openPlannerWebAppDialog;    // Google Docs menu action
 global.ensure2WaySyncTriggerInstalled = ensure2WaySyncTriggerInstalled; // IDE manual-run
 global.setup2WaySyncTrigger = setup2WaySyncTrigger;          // IDE manual-run
+global.fetchLexicon = fetchLexicon;                            // google.script.run: Script.html
 
 // Cross-file only (not reachable from any client/template/trigger/IDE surface above, but needed
 // by other .gs files' own IIFEs since GAS has no import statement -- this global object is the
@@ -2819,6 +2954,7 @@ global._showCrossMonthSearchSidebarInternal = showCrossMonthSearchSidebar;
 global._showIndexRegistrySidebarInternal = showIndexRegistrySidebar;
 global._openPlannerWebAppDialogInternal = openPlannerWebAppDialog;
 global._getWebAppUrlInternal = getWebAppUrl;
+global._fetchLexiconInternal = fetchLexicon;
 
 })(typeof globalThis !== 'undefined' ? globalThis : this);
 
@@ -2989,5 +3125,10 @@ function openPlannerWebAppDialog() {
 function getWebAppUrl() {
   return (typeof _getWebAppUrlInternal === 'function') ? _getWebAppUrlInternal() : (globalThis._getWebAppUrlInternal ? globalThis._getWebAppUrlInternal() : '');
 }
+
+function fetchLexicon(word) {
+  return (typeof _fetchLexiconInternal === 'function') ? _fetchLexiconInternal(word) : (globalThis._fetchLexiconInternal ? globalThis._fetchLexiconInternal(word) : null);
+}
+
 
 

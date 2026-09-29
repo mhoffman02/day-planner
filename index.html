@@ -624,6 +624,7 @@
                       <span class="toolbar-divider"></span>
                       <button type="button" class="format-btn stt-mic-btn" :class="{ 'stt-listening': sttListening, 'stt-blocked': sttBlocked }" @mousedown.prevent @click="toggleCardDictation(card)" :title="sttMicTitle()" :aria-label="sttListening ? 'Stop dictation' : 'Start dictation'"><span class="material-symbols-outlined icon-16" x-text="sttListening ? 'mic' : (sttBlocked ? 'mic_off' : 'mic_none')"></span></button>
                       <button type="button" class="format-btn" :disabled="!geminiEnabled" @mousedown.prevent @click="openAiAssist(card)" :title="geminiEnabled ? 'Copy this note to the clipboard and open Gemini in a popup — paste with Ctrl+V (turn off in About)' : 'AI Assist is turned off — re-enable it from the About page'" :aria-label="geminiEnabled ? 'Copy note and open Gemini AI Assist' : 'AI Assist is turned off'"><span class="material-symbols-outlined icon-16">auto_awesome</span></button>
+                      <button type="button" class="format-btn" @mousedown.prevent @click="openLexiconFromCard(card)" title="Dictionary &amp; Thesaurus (Alt+D)" aria-label="Dictionary and Thesaurus"><span class="material-symbols-outlined icon-16">menu_book</span></button>
                       <span class="toolbar-divider"></span>
                       <button type="button" class="format-btn color-swatch-btn color-swatch-default" @mousedown.prevent @click="applyCardFormat(card, 'color-default')" title="Remove Text Color Only"><span class="material-symbols-outlined icon-16">format_color_reset</span></button>
                       <button type="button" class="format-btn color-swatch-btn color-swatch-teal" :class="{ active: cardNoteColor(card) === 'teal' }" @mousedown.prevent @click="applyCardFormat(card, 'color-teal')" title="Color: Teal" aria-label="Color: Teal"></button>
@@ -1711,6 +1712,144 @@
     <div class="time-machine-toast" x-show="timeMachineToast" x-cloak>
       <span class="material-symbols-outlined icon-18">check_circle</span>
       <span x-text="timeMachineToast"></span>
+    </div>
+
+    <!-- In-Binder Lexicon & Thesaurus Popover Modal -->
+    <dialog class="modal-backdrop" :open="lexiconOpen" x-show="lexiconOpen" x-cloak aria-labelledby="lexiconTitle" @click.self="closeLexicon()" @keydown.escape.window="if (lexiconOpen) closeLexicon()">
+      <article class="modal-card modal-card-lexicon" @click.away="closeLexicon()">
+        <header class="lexicon-header">
+          <div class="lexicon-search-row">
+            <div class="lexicon-search-input-wrap">
+              <span class="material-symbols-outlined icon-18" style="color: var(--binder-teal);">menu_book</span>
+              <input
+                type="text"
+                id="lexiconSearchInput"
+                x-ref="lexiconSearchInput"
+                x-model="lexiconQuery"
+                @keydown.enter.prevent="searchLexicon(lexiconQuery)"
+                placeholder="Search word or phrase in dictionary…"
+                class="lexicon-search-input"
+                aria-label="Search dictionary"
+              >
+            </div>
+            <button type="button" class="btn-primary" style="padding: 6px 14px; font-size: 0.86rem;" @click="searchLexicon(lexiconQuery)">
+              <span class="material-symbols-outlined icon-16" x-show="!lexiconLoading">search</span>
+              <span class="material-symbols-outlined icon-16 spin" x-show="lexiconLoading" x-cloak>sync</span>
+              <span>Define</span>
+            </button>
+            <button type="button" class="btn-icon-subtle" @click="closeLexicon()" aria-label="Close Lexicon">
+              <span class="material-symbols-outlined icon-18">close</span>
+            </button>
+          </div>
+
+          <div class="lexicon-title-row" x-show="lexiconData">
+            <h3 id="lexiconTitle" class="lexicon-word-heading" x-text="lexiconData?.word"></h3>
+            <span class="lexicon-phonetic" x-show="lexiconData?.phonetic" x-text="lexiconData?.phonetic"></span>
+            <button
+              type="button"
+              class="lexicon-audio-btn"
+              @click="playPronunciation(lexiconData?.word, lexiconData?.audioUrl)"
+              title="Pronounce word"
+              aria-label="Pronounce word"
+            >
+              <span class="material-symbols-outlined icon-18">volume_up</span>
+            </button>
+          </div>
+        </header>
+
+        <div class="lexicon-body">
+          <!-- Loading skeleton -->
+          <template x-if="lexiconLoading">
+            <div class="lexicon-empty-state">
+              <span class="material-symbols-outlined spin icon-24" style="color: var(--binder-teal);">sync</span>
+              <p style="margin-top: 8px;">Consulting dictionary &amp; thesaurus…</p>
+            </div>
+          </template>
+
+          <!-- Error / Not found message -->
+          <template x-if="!lexiconLoading && lexiconError">
+            <div class="lexicon-empty-state">
+              <span class="material-symbols-outlined icon-24" style="color: #b0544c;">info</span>
+              <p style="margin-top: 8px;" x-text="lexiconError"></p>
+            </div>
+          </template>
+
+          <!-- Empty search prompt -->
+          <template x-if="!lexiconLoading && !lexiconError && !lexiconData">
+            <div class="lexicon-empty-state">
+              <span class="material-symbols-outlined icon-24" style="color: var(--binder-teal);">auto_stories</span>
+              <p style="margin-top: 8px;">Type a word above or highlight any word in your notes and press <code>Alt+D</code>.</p>
+            </div>
+          </template>
+
+          <!-- Loaded Lexicon Content -->
+          <template x-if="!lexiconLoading && !lexiconError && lexiconData">
+            <div style="display: flex; flex-direction: column; gap: 14px;">
+              <!-- Definitions list -->
+              <div class="lexicon-definitions-section" x-show="lexiconData?.meanings && lexiconData.meanings.length > 0">
+                <template x-for="(meaning, mIdx) in lexiconData?.meanings || []" :key="mIdx">
+                  <div class="lexicon-pos-group">
+                    <span class="lexicon-pos-tag" x-text="meaning.partOfSpeech"></span>
+                    <template x-for="(def, dIdx) in meaning.definitions" :key="dIdx">
+                      <div class="lexicon-definition-item">
+                        <span x-text="def.definition"></span>
+                        <span class="lexicon-example" x-show="def.example" x-text="`“${def.example}”`"></span>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+              </div>
+
+              <!-- Thesaurus Grid -->
+              <div class="lexicon-thesaurus-grid" x-show="(lexiconData?.synonyms && lexiconData.synonyms.length > 0) || (lexiconData?.antonyms && lexiconData.antonyms.length > 0)">
+                <!-- Synonyms Column -->
+                <div class="lexicon-thesaurus-col">
+                  <div class="lexicon-thesaurus-title">
+                    <span>Synonyms</span>
+                    <span class="lexicon-thesaurus-hint" x-show="lexiconTarget?.selStart != null">Click to swap into note</span>
+                  </div>
+                  <div class="lexicon-chips-wrap">
+                    <template x-for="syn in lexiconData?.synonyms || []" :key="syn">
+                      <span class="lexicon-chip" @click="replaceWithLexiconWord(syn)" :title="lexiconTarget?.selStart != null ? `Replace '${lexiconTarget.targetWord}' with '${syn}' in note` : `Copy '${syn}' to clipboard`">
+                        <span x-text="syn"></span>
+                        <span class="lexicon-chip-action-search" @click.stop="searchLexicon(syn)" title="Look up synonym">
+                          <span class="material-symbols-outlined icon-12">search</span>
+                        </span>
+                      </span>
+                    </template>
+                    <span x-show="!lexiconData?.synonyms || lexiconData.synonyms.length === 0" style="font-size: 0.82rem; color: var(--text-muted); font-style: italic;">None found</span>
+                  </div>
+                </div>
+
+                <!-- Antonyms Column -->
+                <div class="lexicon-thesaurus-col">
+                  <div class="lexicon-thesaurus-title">
+                    <span>Antonyms</span>
+                    <span class="lexicon-thesaurus-hint" x-show="lexiconTarget?.selStart != null">Click to swap into note</span>
+                  </div>
+                  <div class="lexicon-chips-wrap">
+                    <template x-for="ant in lexiconData?.antonyms || []" :key="ant">
+                      <span class="lexicon-chip" @click="replaceWithLexiconWord(ant)" :title="lexiconTarget?.selStart != null ? `Replace '${lexiconTarget.targetWord}' with '${ant}' in note` : `Copy '${ant}' to clipboard`">
+                        <span x-text="ant"></span>
+                        <span class="lexicon-chip-action-search" @click.stop="searchLexicon(ant)" title="Look up antonym">
+                          <span class="material-symbols-outlined icon-12">search</span>
+                        </span>
+                      </span>
+                    </template>
+                    <span x-show="!lexiconData?.antonyms || lexiconData.antonyms.length === 0" style="font-size: 0.82rem; color: var(--text-muted); font-style: italic;">None found</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </article>
+    </dialog>
+
+    <!-- Toast Notification for Lexicon replacement / copy -->
+    <div class="lexicon-toast" x-show="lexiconToast" x-cloak>
+      <span class="material-symbols-outlined icon-18">auto_stories</span>
+      <span x-text="lexiconToast"></span>
     </div>
 
     <!-- Global Autocomplete Category Suggestions Datalist -->

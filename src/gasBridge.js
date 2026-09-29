@@ -746,4 +746,92 @@ export class GASBridge {
         .getWebAppUrl();
     });
   }
+
+  /**
+   * Looks up dictionary definition and thesaurus entries for a word.
+   * @param {string} word Word to look up.
+   * @returns {Promise<object>} Lexicon result.
+   */
+  async fetchLexicon(word) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      const clean = (word || '').trim().toLowerCase().replace(/^[^a-z0-9]+/i, '').replace(/[^a-z0-9]+$/i, '');
+      if (!clean) return { success: false, word: '', error: 'No word provided.' };
+
+      const mockDictionary = {
+        pragmatic: {
+          phonetic: '/præɡˈmætɪk/',
+          meanings: [
+            {
+              partOfSpeech: 'adjective',
+              definitions: [
+                { definition: 'Dealing with things sensibly and realistically in a way that is based on practical rather than theoretical considerations.', example: 'a pragmatic approach to business and politics' }
+              ]
+            }
+          ],
+          synonyms: ['practical', 'sensible', 'realistic', 'matter-of-fact', 'rational', 'down-to-earth'],
+          antonyms: ['idealistic', 'impractical', 'unrealistic', 'theoretical']
+        },
+        innovative: {
+          phonetic: '/ˈɪnəveɪtɪv/',
+          meanings: [
+            {
+              partOfSpeech: 'adjective',
+              definitions: [
+                { definition: 'Featuring new methods; advanced and original.', example: 'innovative designs for modern living' }
+              ]
+            }
+          ],
+          synonyms: ['inventive', 'creative', 'groundbreaking', 'original', 'pioneering', 'novel'],
+          antonyms: ['traditional', 'conventional', 'outdated', 'hackneyed']
+        },
+        resilience: {
+          phonetic: '/rɪˈzɪliəns/',
+          meanings: [
+            {
+              partOfSpeech: 'noun',
+              definitions: [
+                { definition: 'The capacity to withstand or to recover quickly from difficulties; toughness.', example: 'remarkable resilience in the face of setbacks' }
+              ]
+            }
+          ],
+          synonyms: ['toughness', 'flexibility', 'tenacity', 'durability', 'hardiness', 'strength'],
+          antonyms: ['fragility', 'vulnerability', 'weakness']
+        }
+      };
+
+      if (mockDictionary[clean]) {
+        return {
+          success: true,
+          word: clean,
+          phonetic: mockDictionary[clean].phonetic,
+          audioUrl: '',
+          meanings: mockDictionary[clean].meanings,
+          synonyms: mockDictionary[clean].synonyms,
+          antonyms: mockDictionary[clean].antonyms
+        };
+      }
+
+      return {
+        success: true,
+        word: clean,
+        phonetic: `/${clean}/`,
+        audioUrl: '',
+        meanings: [
+          {
+            partOfSpeech: 'general',
+            definitions: [{ definition: `Definition for ${clean} (mock mode)`, example: `Using ${clean} effectively.` }]
+          }
+        ],
+        synonyms: [`${clean}-synonym-1`, `${clean}-synonym-2`],
+        antonyms: [`${clean}-antonym-1`]
+      };
+    }
+
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .fetchLexicon(word);
+    });
+  }
 }

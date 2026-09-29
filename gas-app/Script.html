@@ -1513,6 +1513,281 @@
           .resolveDriveFileTitle(url);
       });
     }
+
+    async fetchLexicon(word) {
+      if (this.useMock || typeof window === 'undefined' || !window.google || !window.google.script || !window.google.script.run) {
+        return { success: false, word: word, error: 'Bridge unavailable.' };
+      }
+
+      return new Promise((resolve, reject) => {
+        window.google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .fetchLexicon(word);
+      });
+    }
+  }
+
+  function dpCleanLookupWord(raw) {
+    if (!raw || typeof raw !== 'string') return '';
+    return raw
+      .trim()
+      .toLowerCase()
+      .replace(/^[^a-z0-9]+/i, '')
+      .replace(/[^a-z0-9]+$/i, '');
+  }
+
+  function dpGetWordAtCaret(text, caretPos) {
+    if (!text || typeof text !== 'string' || caretPos < 0) return null;
+    var len = text.length;
+    if (caretPos > len) caretPos = len;
+
+    function isWordChar(ch) {
+      return /[a-zA-Z0-9'-]/.test(ch);
+    }
+
+    var pos = caretPos;
+    if (pos > 0 && !isWordChar(text[pos]) && isWordChar(text[pos - 1])) {
+      pos = pos - 1;
+    }
+
+    if (pos >= len || !isWordChar(text[pos])) return null;
+
+    var start = pos;
+    while (start > 0 && isWordChar(text[start - 1])) {
+      start--;
+    }
+
+    var end = pos;
+    while (end < len && isWordChar(text[end])) {
+      end++;
+    }
+
+    var rawWord = text.slice(start, end);
+    var clean = dpCleanLookupWord(rawWord);
+    if (!clean) return null;
+
+    return { word: clean, start: start, end: end };
+  }
+
+  function dpParseDictionaryResponse(data) {
+    var result = {
+      phonetic: '',
+      audioUrl: '',
+      meanings: [],
+      synonyms: [],
+      antonyms: []
+    };
+
+    if (!Array.isArray(data) || data.length === 0) return result;
+
+    var synSet = {};
+    var antSet = {};
+
+    for (var i = 0; i < data.length; i++) {
+      var entry = data[i];
+      if (!result.phonetic && entry.phonetic) {
+        result.phonetic = entry.phonetic;
+      }
+
+      if (Array.isArray(entry.phonetics)) {
+        for (var j = 0; j < entry.phonetics.length; j++) {
+          var p = entry.phonetics[j];
+          if (!result.phonetic && p.text) {
+            result.phonetic = p.text;
+          }
+          if (!result.audioUrl && p.audio && typeof p.audio === 'string' && p.audio.trim()) {
+            var audio = p.audio.trim();
+            if (audio.indexOf('/' + '/') === 0) audio = 'https:' + audio;
+            result.audioUrl = audio;
+          }
+        }
+      }
+
+      if (Array.isArray(entry.meanings)) {
+        for (var k = 0; k < entry.meanings.length; k++) {
+          var m = entry.meanings[k];
+          var pos = m.partOfSpeech || 'general';
+          var defs = [];
+          if (Array.isArray(m.definitions)) {
+            var dList = m.definitions.slice(0, 3);
+            for (var d = 0; d < dList.length; d++) {
+              var defItem = dList[d];
+              defs.push({
+                definition: defItem.definition || '',
+                example: defItem.example || ''
+              });
+              if (Array.isArray(defItem.synonyms)) {
+                defItem.synonyms.forEach(function(s) {
+                  var c = dpCleanLookupWord(s);
+                  if (c) synSet[c] = true;
+                });
+              }
+              if (Array.isArray(defItem.antonyms)) {
+                defItem.antonyms.forEach(function(a) {
+                  var c = dpCleanLookupWord(a);
+                  if (c) antSet[c] = true;
+                });
+              }
+            }
+          }
+
+          if (Array.isArray(m.synonyms)) {
+            m.synonyms.forEach(function(s) {
+              var c = dpCleanLookupWord(s);
+              if (c) synSet[c] = true;
+            });
+          }
+          if (Array.isArray(m.antonyms)) {
+            m.antonyms.forEach(function(a) {
+              var c = dpCleanLookupWord(a);
+              if (c) antSet[c] = true;
+            });
+          }
+
+          if (defs.length > 0) {
+            result.meanings.push({
+              partOfSpeech: pos,
+              definitions: defs
+            });
+          }
+        }
+      }
+    }
+
+    result.meanings = result.meanings.slice(0, 3);
+    result.synonyms = Object.keys(synSet);
+    result.antonyms = Object.keys(antSet);
+    return result;
+  }
+
+  function dpParseDatamuseWords(data, max) {
+    if (!Array.isArray(data)) return [];
+    var limit = max || 12;
+    var words = [];
+    var seen = {};
+    for (var i = 0; i < data.length; i++) {
+      var item = data[i];
+      if (item && item.word) {
+        var clean = dpCleanLookupWord(item.word);
+        if (clean && !seen[clean]) {
+          seen[clean] = true;
+          words.push(clean);
+          if (words.length >= limit) break;
+        }
+      }
+    }
+    return words;
+  }
+
+  async function dpFetchLexiconDirect(word, options) {
+    var cleanWord = dpCleanLookupWord(word);
+    if (!cleanWord) {
+      return { success: false, word: '', error: 'No word provided.' };
+    }
+
+    var timeoutMs = (options && options.timeoutMs) || 3500;
+    var dictUrl = 'https:' + '/' + '/api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(cleanWord);
+    var synUrl = 'https:' + '/' + '/api.datamuse.com/words?rel_syn=' + encodeURIComponent(cleanWord) + '&max=12';
+    var antUrl = 'https:' + '/' + '/api.datamuse.com/words?rel_ant=' + encodeURIComponent(cleanWord) + '&max=12';
+
+    var fetchWithTimeout = async function(url) {
+      var controller = null;
+      var signal = null;
+      var AbortCtrl = (typeof globalThis !== 'undefined' && globalThis.AbortController) ? globalThis.AbortController : null;
+      if (AbortCtrl) {
+        controller = new AbortCtrl();
+        signal = controller.signal;
+        setTimeout(function() { controller.abort(); }, timeoutMs);
+      }
+      var res = await fetch(url, { signal: signal });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    };
+
+    var results = await Promise.allSettled([
+      fetchWithTimeout(dictUrl),
+      fetchWithTimeout(synUrl),
+      fetchWithTimeout(antUrl)
+    ]);
+
+    var dictRes = results[0];
+    var synRes = results[1];
+    var antRes = results[2];
+
+    var parsedDict = { phonetic: '', audioUrl: '', meanings: [], synonyms: [], antonyms: [] };
+    var foundAny = false;
+
+    if (dictRes.status === 'fulfilled' && Array.isArray(dictRes.value)) {
+      parsedDict = dpParseDictionaryResponse(dictRes.value);
+      foundAny = true;
+    }
+
+    var datamuseSyns = (synRes.status === 'fulfilled') ? dpParseDatamuseWords(synRes.value, 12) : [];
+    var datamuseAnts = (antRes.status === 'fulfilled') ? dpParseDatamuseWords(antRes.value, 12) : [];
+
+    if (datamuseSyns.length > 0 || datamuseAnts.length > 0) {
+      foundAny = true;
+    }
+
+    if (!foundAny) {
+      return {
+        success: false,
+        word: cleanWord,
+        error: 'No definitions found for "' + cleanWord + '".'
+      };
+    }
+
+    var synSet = {};
+    parsedDict.synonyms.concat(datamuseSyns).forEach(function(s) { synSet[s] = true; });
+    delete synSet[cleanWord];
+
+    var antSet = {};
+    parsedDict.antonyms.concat(datamuseAnts).forEach(function(a) { antSet[a] = true; });
+    delete antSet[cleanWord];
+
+    return {
+      success: true,
+      word: cleanWord,
+      phonetic: parsedDict.phonetic,
+      audioUrl: parsedDict.audioUrl,
+      meanings: parsedDict.meanings,
+      synonyms: Object.keys(synSet).slice(0, 16),
+      antonyms: Object.keys(antSet).slice(0, 16)
+    };
+  }
+
+  async function dpFetchLexicon(word, bridge) {
+    var cleanWord = dpCleanLookupWord(word);
+    if (!cleanWord) {
+      return { success: false, word: '', error: 'Please enter a word to look up.' };
+    }
+
+    try {
+      var directResult = await dpFetchLexiconDirect(cleanWord);
+      if (directResult.success) {
+        return directResult;
+      }
+    } catch (err) {
+      console.warn('[lexicon] Direct fetch failed, checking GAS bridge fallback:', err);
+    }
+
+    if (bridge && typeof bridge.fetchLexicon === 'function') {
+      try {
+        var bridgeResult = await bridge.fetchLexicon(cleanWord);
+        if (bridgeResult && bridgeResult.success) {
+          return bridgeResult;
+        }
+      } catch (bridgeErr) {
+        console.warn('[lexicon] GAS bridge fallback failed:', bridgeErr);
+      }
+    }
+
+    return {
+      success: false,
+      word: cleanWord,
+      error: 'No definitions found for "' + cleanWord + '".'
+    };
   }
 
   function initPlannerApp() {
@@ -1623,6 +1898,15 @@
       timeMachineRevisions: [],
       selectedRevisionIndex: 0,
       timeMachineToast: null,
+
+      // In-Binder Lexicon & Thesaurus Popover state
+      lexiconOpen: false,
+      lexiconLoading: false,
+      lexiconQuery: '',
+      lexiconData: null,
+      lexiconError: null,
+      lexiconTarget: null,
+      lexiconToast: null,
 
       // Themed Day Calendar Picker state
       dayPickerOpen: false,
@@ -2008,6 +2292,9 @@
           } else if ((e.key === '/' || ((e.ctrlKey || e.metaKey) && e.key === '/')) && !isInputFocused) {
             e.preventDefault();
             this.toggleSearchModal();
+          } else if (e.altKey && (keyLower === 'd')) {
+            e.preventDefault();
+            this.openLexiconFromActiveOrGlobal();
           } else if (e.key === 'Escape') {
             if (this.dayPickerOpen) {
               e.preventDefault();
@@ -2021,6 +2308,9 @@
             } else if (this.linkModalOpen) {
               e.preventDefault();
               this.closeLinkModal();
+            } else if (this.lexiconOpen) {
+              e.preventDefault();
+              this.closeLexicon();
             } else if (this.timeMachineOpen) {
               e.preventDefault();
               this.closeTimeMachine();
@@ -2991,6 +3281,12 @@
         if (!card) return;
         const lines = this.cardLines(card);
         const currentLine = lines[idx] || '';
+
+        if (e.altKey && (e.key === 'd' || e.key === 'D')) {
+          e.preventDefault();
+          this.openLexiconFromCardLine(card, idx);
+          return;
+        }
 
         if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
           if (e.key === 'c' || e.key === 'C') {
@@ -4984,6 +5280,219 @@
         if (!ts) return '';
         const d = new Date(ts);
         return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      },
+
+      // In-Binder Lexicon & Thesaurus
+      openLexiconFromCard(card) {
+        if (!card) return;
+        const lineIdx = card._activeLineIndex !== null && card._activeLineIndex !== undefined
+          ? card._activeLineIndex
+          : 0;
+        this.openLexiconFromCardLine(card, lineIdx);
+      },
+
+      openLexiconFromCardLine(card, lineIdx) {
+        let selStart = null;
+        let selEnd = null;
+        let targetWord = '';
+
+        const lines = this.cardLines(card);
+        const lineText = lines[lineIdx] || '';
+
+        const el = document.getElementById('card-line-' + card.id + '-' + lineIdx);
+        if (el && typeof el.selectionStart === 'number' && typeof el.selectionEnd === 'number') {
+          if (el.selectionStart !== el.selectionEnd) {
+            selStart = Math.min(el.selectionStart, el.selectionEnd);
+            selEnd = Math.max(el.selectionStart, el.selectionEnd);
+            targetWord = lineText.slice(selStart, selEnd);
+          } else {
+            const wordInfo = dpGetWordAtCaret(lineText, el.selectionStart);
+            if (wordInfo) {
+              selStart = wordInfo.start;
+              selEnd = wordInfo.end;
+              targetWord = wordInfo.word;
+            }
+          }
+        }
+
+        if (!targetWord) {
+          const winSel = typeof window !== 'undefined' && window.getSelection ? window.getSelection().toString().trim() : '';
+          if (winSel) targetWord = winSel;
+        }
+
+        const clean = dpCleanLookupWord(targetWord);
+        this.lexiconTarget = {
+          card: card,
+          lineIdx: lineIdx,
+          selStart: selStart,
+          selEnd: selEnd,
+          targetWord: clean || targetWord
+        };
+
+        this.lexiconQuery = clean || targetWord || '';
+        this.lexiconOpen = true;
+
+        if (clean) {
+          this.searchLexicon(clean);
+        } else {
+          this.lexiconData = null;
+          this.lexiconError = null;
+          this.$nextTick(() => {
+            const input = this.$refs.lexiconSearchInput || document.getElementById('lexiconSearchInput');
+            if (input) {
+              input.focus();
+              input.select();
+            }
+          });
+        }
+      },
+
+      openLexiconFromActiveOrGlobal() {
+        const activeCard = (this.noteCards || []).find(c => c._activeLineIndex !== null && c._activeLineIndex !== undefined);
+        if (activeCard) {
+          this.openLexiconFromCardLine(activeCard, activeCard._activeLineIndex);
+          return;
+        }
+
+        const winSel = typeof window !== 'undefined' && window.getSelection ? window.getSelection().toString().trim() : '';
+        const clean = dpCleanLookupWord(winSel);
+
+        this.lexiconTarget = null;
+        this.lexiconQuery = clean || winSel || '';
+        this.lexiconOpen = true;
+
+        if (clean) {
+          this.searchLexicon(clean);
+        } else {
+          this.lexiconData = null;
+          this.lexiconError = null;
+          this.$nextTick(() => {
+            const input = this.$refs.lexiconSearchInput || document.getElementById('lexiconSearchInput');
+            if (input) {
+              input.focus();
+              input.select();
+            }
+          });
+        }
+      },
+
+      async searchLexicon(word) {
+        const clean = dpCleanLookupWord(word || this.lexiconQuery);
+        if (!clean) {
+          this.lexiconError = 'Please enter a word to search.';
+          return;
+        }
+
+        this.lexiconQuery = clean;
+        this.lexiconLoading = true;
+        this.lexiconError = null;
+
+        try {
+          const res = await dpFetchLexicon(clean, this.bridge);
+          if (res && res.success) {
+            this.lexiconData = res;
+            this.lexiconError = null;
+          } else {
+            this.lexiconData = null;
+            this.lexiconError = (res && res.error) ? res.error : ('No definitions found for "' + clean + '".');
+          }
+        } catch (err) {
+          this.lexiconData = null;
+          this.lexiconError = 'Lookup failed: ' + (err.message || err);
+        } finally {
+          this.lexiconLoading = false;
+        }
+      },
+
+      playPronunciation(word, audioUrl) {
+        if (audioUrl && typeof window !== 'undefined' && window.Audio) {
+          try {
+            const audio = new window.Audio(audioUrl);
+            audio.play().catch(() => {
+              this.playSpeechSynthesis(word);
+            });
+            return;
+          } catch (e) {
+            // fall through
+          }
+        }
+        this.playSpeechSynthesis(word);
+      },
+
+      playSpeechSynthesis(word) {
+        if (typeof window !== 'undefined' && window.speechSynthesis && window.SpeechSynthesisUtterance) {
+          try {
+            window.speechSynthesis.cancel();
+            const utterance = new window.SpeechSynthesisUtterance(word);
+            utterance.rate = 0.9;
+            window.speechSynthesis.speak(utterance);
+          } catch (e) {
+            console.warn('Speech synthesis failed:', e);
+          }
+        }
+      },
+
+      replaceWithLexiconWord(newWord) {
+        if (!newWord) return;
+        const target = this.lexiconTarget;
+
+        if (target && target.card && target.lineIdx != null && target.selStart != null && target.selEnd != null) {
+          const card = target.card;
+          const lineIdx = target.lineIdx;
+          const lines = this.cardLines(card);
+          const lineText = lines[lineIdx] || '';
+
+          const start = Math.min(target.selStart, target.selEnd);
+          const end = Math.max(target.selStart, target.selEnd);
+
+          const before = lineText.slice(0, start);
+          const after = lineText.slice(end);
+
+          let replacement = newWord;
+          if (target.targetWord && /^[A-Z]/.test(target.targetWord)) {
+            replacement = newWord.charAt(0).toUpperCase() + newWord.slice(1);
+          }
+
+          lines[lineIdx] = before + replacement + after;
+          card.content = lines.join('\n');
+          this.syncCardsToDailyNote();
+          this.scheduleDailyNoteSave();
+
+          const oldWordDisplay = target.targetWord || 'selection';
+          this.showLexiconToast('Replaced "' + oldWordDisplay + '" with "' + replacement + '"');
+          this.closeLexicon();
+          return;
+        }
+
+        if (typeof navigator !== 'undefined' && navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(newWord).then(() => {
+            this.showLexiconToast('Copied "' + newWord + '" to clipboard');
+          }).catch(() => {
+            this.showLexiconToast('"' + newWord + '"');
+          });
+        } else {
+          this.showLexiconToast('"' + newWord + '"');
+        }
+      },
+
+      showLexiconToast(msg) {
+        this.lexiconToast = msg;
+        setTimeout(() => {
+          if (this.lexiconToast === msg) {
+            this.lexiconToast = null;
+          }
+        }, 3500);
+      },
+
+      closeLexicon() {
+        this.lexiconOpen = false;
+        const target = this.lexiconTarget;
+        if (target && target.card && target.lineIdx != null) {
+          this.$nextTick(() => {
+            const el = document.getElementById('card-line-' + target.card.id + '-' + target.lineIdx);
+            if (el) el.focus();
+          });
+        }
       },
 
       parseTask(title) {
