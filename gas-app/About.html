@@ -149,15 +149,23 @@
 
       <article class="guide-card">
         <h3 class="guide-card-title">
-          <span class="material-symbols-outlined">auto_awesome</span> AI Assist (Google Docs)
+          <span class="material-symbols-outlined">auto_awesome</span> AI Assist
         </h3>
         <p class="guide-card-text">
-          The <span class="material-symbols-outlined icon-16">auto_awesome</span> button on a note card copies that card's text to your clipboard, then opens Google's Gemini in a small popup window &mdash; paste with Ctrl+V once it opens. A full Google Doc was tried first, but Google's own document chrome doesn't fit cleanly in a small window, so this opens just the clean Gemini chat instead. If opening it ever fails, this button turns itself off automatically. Toggle it here; your choice is remembered on this device.
+          The <span class="material-symbols-outlined icon-16">auto_awesome</span> button on a note card opens Gemini in a small popup window. It has two targets, picked per device below &mdash; <b>Gemini app</b> copies the card's text to your clipboard (paste with Ctrl+V) and opens a clean, standalone Gemini chat, but some organizations block <code>gemini.google.com</code> outright on their network (confirmed on at least one federal network &mdash; a "you don't have permission" page, not a Day Planner bug). <b>Google Doc</b> opens that day's real Doc instead, which works on locked-down networks since Docs itself is already reachable there, but Google's own document chrome doesn't fit cleanly in a small window. If opening either ever fails outright, the button turns itself off automatically; re-enable it below.
         </p>
         <div class="install-actions-bar">
           <button type="button" class="btn-primary install-action-btn" @click="toggleGeminiEnabled()">
             <span class="material-symbols-outlined icon-18" x-text="geminiEnabled ? 'toggle_on' : 'toggle_off'"></span>
             <span x-text="geminiEnabled ? 'Turn Off AI Assist Button' : 'Turn On AI Assist Button'"></span>
+          </button>
+          <button type="button" class="btn-secondary install-action-btn" :class="{ 'btn-primary': aiAssistTarget === 'gemini' }" @click="setAiAssistTarget('gemini')">
+            <span class="material-symbols-outlined icon-18">auto_awesome</span>
+            <span>Gemini App</span>
+          </button>
+          <button type="button" class="btn-secondary install-action-btn" :class="{ 'btn-primary': aiAssistTarget === 'docs' }" @click="setAiAssistTarget('docs')">
+            <span class="material-symbols-outlined icon-18">description</span>
+            <span>Google Doc</span>
           </button>
         </div>
       </article>
