@@ -30,7 +30,7 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 
 ## 3. Active & Upcoming Phases
 
-**Phase 21 (in progress): full-tab IndexedDB cache port.** This session shipped a narrower Daily-tab-only cache (`src/dailyDataCache.js` / `day-planner-cache` DB, `+/-14`-day background prefetch); the user then asked why it diverged from a fuller multi-store design (`day-planner-db`) they remembered from an old, never-merged `master`-branch lineage (see `TODO_HISTORY.md`'s 2026-09-28 architect-review entry for the branch-divergence root cause) and approved porting that fuller design. Scope: extend the existing cache with `masterTasks`/`monthOverview`/`futureMatrix` IndexedDB stores so every tab — not just Daily — hydrates from disk on load before revalidating; keep the `+/-14`-day Daily-tab window; explicitly skip the old design's offline mutation outbox (WORK network access still beats offline as a priority, per the 2026-09-09 gas-removal-migration reversal — unchanged). Session-level breakdown in `TODO.md`'s Open section.
+Phase 21 (full-tab IndexedDB cache port) shipped and archived to `PLAN-HISTORY.md`. No active phase queued — next macro-task not yet identified; see `TODO.md` for the immediate follow-up (WORK repoint) and open scope.
 
 ---
 

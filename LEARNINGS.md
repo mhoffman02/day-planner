@@ -1,5 +1,15 @@
 # Learnings
 
+## 2026-09-29 — Phase 21 Full-Tab Cache Port
+
+**Worked well:**
+- Porting the same hydrate-then-revalidate + write-through + edit-seq-guard pattern to three more tabs (Master Tasks, Future Planning, Monthly Calendar) went smoothly because the Daily tab's implementation was already the reference design — each new tab was a mechanical adaptation, not a redesign.
+- Reading `buildMonthlyGrid()` closely before touching it (rather than assuming "add caching" was the whole task) surfaced a real, previously-undiscovered bug: it read `this.calendarEvents` (the single currently-open day) instead of the whole visible month, so the grid only ever showed one day's events. Live-verified the fix directly (12 days with real events post-fix vs. 1 before) rather than trusting the code read alone.
+- Live-verifying via CDP against the actual deployed HOME app (not just `npm test`/mock mode) caught nothing broken this time, but confirmed the pattern from last session's retro held: checking `gas-app/Script.html`'s mirror against the live app is the only way to be sure the hand-duplication didn't drift.
+
+**Needs improvement:**
+- Two implementation decisions (keeping the `day-planner-cache` DB name instead of renaming to `day-planner-db`; no separate `monthOverview` store) deviated from `TODO.md`'s literal prior wording. Both were reasonable engineering calls, but should have been surfaced to the user as explicit decisions before proceeding, not just documented after the fact in `PLAN-HISTORY.md`. Flag deviations from a user-approved plan's literal wording *before* building on them, not only when reporting back.
+
 ## 2026-09-28 (afternoon) — Daily-Nav Cache, Architect Review, Branch-Divergence Question
 
 **Worked well:**
