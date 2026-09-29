@@ -1,5 +1,9 @@
 # Learnings
 
+## 2026-09-29 — HOME Deployment Verification (no code work)
+
+**Worked well:** Verified HOME's `/dev` (@HEAD) and production (@274) deployment IDs via `clasp deployments` against `gas-app/.clasp.json` rather than trusting the prior handoff's claim at face value — cheap confirmation that the mastercopy target hasn't drifted. Correctly declined to curl the authenticated `/dev?view=self-test` URL for content verification (no session cookies = meaningless 404) and pointed to `tools/ensure-chrome.js` instead, per [[live-google-auth-browser-tool]].
+
 ## 2026-09-29 — Phase 21 Full-Tab Cache Port
 
 **Worked well:**
