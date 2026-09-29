@@ -25,12 +25,17 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 | **Search Engine** | `src/searchEngine.js` | Cross-entity search (Ctrl + K) | `tests/searchEngine.test.js` |
 | **Binder Store** | `src/binderStore.js` | View router, local date math navigation | `tests/binderStore.test.js` |
 | **Future Matrix Engine** | `src/futureMatrixEngine.js` | 12-month forward-look month keys & item helpers | `tests/futureMatrixEngine.test.js` |
+| **Lexicon Service** | `src/lexiconService.js` | In-binder dictionary & thesaurus engine with GAS fallback proxy | `tests/lexiconService.test.js` |
 
 ---
 
 ## 3. Active & Upcoming Phases
 
-Phase 21 (full-tab IndexedDB cache port) shipped and archived to `PLAN-HISTORY.md`. No active phase queued — next macro-task not yet identified; see `TODO.md` for the immediate follow-up (WORK repoint) and open scope.
+### Phase 22: Advanced Notes & Research Suite (In Progress)
+- [x] **Note Version History Time Machine**: IndexedDB `v3` rolling snapshots (`noteRevisions` store, max 30) with 2-pane preview and 1-click restore syncing back to Google Docs ([`7ae84ef`](file:///home/mike/projects/day-planner/.git/commit/7ae84ef)).
+- [x] **In-Binder Dictionary / Synonym / Antonym Popover**: Free Dictionary & Datamuse integration with GAS backend fallback proxy (`fetchLexicon`), caret-aware `Alt+D` trigger, and 1-click text replacement directly into active note card line ([`4fd2a54`](file:///home/mike/projects/day-planner/.git/commit/4fd2a54)).
+- [ ] **Deep Archive Search via Drive fullText index**: Background Drive search RPC querying multi-year `Day Planner Notes - YYYY-MM` Google Docs integrated into `Ctrl + K` ([`src/searchEngine.js`](file:///home/mike/projects/day-planner/src/searchEngine.js)).
+- [ ] **GAS Architect REST Endpoint Design**: Container-bound REST API endpoint script in Docs/Sheets routing to Gemini via `=AI(...)`.
 
 ---
 

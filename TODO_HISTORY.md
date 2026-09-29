@@ -1,5 +1,21 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-29 (night) — Note Time Machine & In-Binder Lexicon / Thesaurus Shipped
+
+- [x] **Note Version History / Accidental Deletion Time-Machine**: Commit [`7ae84ef`](file:///home/mike/projects/day-planner/.git/commit/7ae84ef).
+  - Upgraded cache database to IndexedDB `v3` adding `noteRevisions` store in [`src/dailyDataCache.js`](file:///home/mike/projects/day-planner/src/dailyDataCache.js) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html).
+  - Automatically records timestamped snapshots whenever notes are loaded, typed, or auto-saved to Google Docs (rolling cap of 30 revisions per date, deduplicated).
+  - Added `history` icon button to Daily Notes header and full two-pane slide-out/modal with formatted markdown preview.
+  - 1-click **"Restore This Version"** loads the snapshot directly into note cards and schedules an immediate sync to the monthly Google Doc with toast feedback.
+  - 5 new unit tests added in [`tests/dailyDataCache.test.js`](file:///home/mike/projects/day-planner/tests/dailyDataCache.test.js).
+- [x] **In-Binder Dictionary / Synonym / Antonym Popover**: Commit [`4fd2a54`](file:///home/mike/projects/day-planner/.git/commit/4fd2a54).
+  - Pure zero-key clientside engine in [`src/lexiconService.js`](file:///home/mike/projects/day-planner/src/lexiconService.js) querying Free Dictionary API and Datamuse API concurrently.
+  - Built-in GAS backend fallback proxy (`fetchLexicon`) in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) using `UrlFetchApp` so lookup remains 100% operational in locked-down federal/enterprise networks (WORK) where direct clientside API endpoints may be proxy-blocked.
+  - Added `menu_book` icon button to note card toolbar and intelligent `Alt+D` caret detection (`getWordAtCaret`) that extracts the word surrounding the cursor without requiring manual highlighting.
+  - In-binder parchment popover ([`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css), [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html)) featuring word phonetics, audio pronunciation button (native audio URL with `SpeechSynthesis` fallback), definition list categorized by part of speech, and two-column thesaurus grid.
+  - **1-click text replacement**: Clicking any synonym or antonym chip replaces the word in the active note card line in place, autosaves, and presents toast confirmation. Standalone click copies to clipboard.
+  - 10 new unit tests in [`tests/lexiconService.test.js`](file:///home/mike/projects/day-planner/tests/lexiconService.test.js) (test suite expanded to 197 passing tests).
+
 ## 2026-09-29 (evening, cont.) — AI Assist: noopener Bug (Twice), WORK Network Block, Unauthorized Fix Reverted
 
 - [x] **First real-world bug**: user hit the "turned off" auto-disable message on WORK after the redesign shipped. Root cause: `window.open(url, '_blank', 'noopener,...')` always returns `null` per spec once `'noopener'` is anywhere in that call's features string, regardless of whether the popup actually opened — so every real click looked identical to a blocked popup. First fix attempt moved the URL-opening `window.open` to a separate `about:blank` call, but left `'noopener'` in *that* call's features string — same bug, one line later. Confirmed via a genuinely trusted click dispatched through CDP (`Input.dispatchMouseEvent`, not `.click()`, computed across the GAS iframe/sandboxFrame/userHtmlFrame nesting) that a scripted non-trusted call still correctly shows blocked (expected — Chrome's popup blocker legitimately blocks non-gesture opens) while the real fix (no `'noopener'` anywhere, `win.opener = null` instead) let a trusted click open a real Gemini tab with no auto-disable.
