@@ -702,8 +702,14 @@ Alpine.data('plannerApp', () => ({
             if (url) this.dailyDocUrl = url;
           }
           if (!url) throw new Error('No document URL returned for this day.');
-          const win = window.open(url, '_blank', 'noopener,noreferrer');
+          // window.open(url, '_blank', 'noopener,...') always returns null per spec once
+          // 'noopener' is in the features string -- that made every successful open look
+          // identical to a blocked popup and auto-disable the button on every real click.
+          // Open blank first (a real return value), sever opener, then navigate it.
+          const win = window.open('about:blank', 'dayPlannerAiAssist', 'width=480,height=760,noopener,noreferrer');
           if (!win) throw new Error('Popup blocked by the browser.');
+          win.opener = null;
+          win.location.href = url;
         } catch (err) {
           console.error('[AI Assist] failed to open Google Doc', err);
           this.disableAiAssist('Couldn’t open the Google Doc, so the AI Assist button has been turned off. Re-enable it from the About page.');
