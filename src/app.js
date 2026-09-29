@@ -688,20 +688,23 @@ Alpine.data('plannerApp', () => ({
         }
       },
 
-      // Opens the day's real Google Doc so the user can use Docs' own Gemini/dictionary/spelling
-      // tools -- Day Planner can't detect whether Gemini is actually available on this account
-      // (docs.google.com is cross-origin from this app), so support is a manual toggle instead
-      // of a feature probe; any failure here auto-disables the button rather than erroring again.
-      async openAiAssist() {
+      // Opens a clean gemini.google.com popup (not the day's Google Doc) -- tested live at
+      // 480x760, Docs' own chrome (document-tabs list, toolbar) doesn't collapse at that width
+      // and overlaps the Gemini panel, but the standalone Gemini app renders as just the chat
+      // UI. Gemini has no idea what note you were on, so the card's text is copied to the
+      // clipboard first -- paste it in yourself once the popup opens. Any failure auto-disables
+      // the button rather than erroring again on every subsequent click.
+      async openAiAssist(card) {
         if (!this.geminiEnabled) return;
         try {
-          let url = this.dailyDocUrl;
-          if (!url) {
-            const data = await this.bridge.getDailyData(this.selectedDate);
-            url = (data && data.docUrl) || '';
-            if (url) this.dailyDocUrl = url;
+          const text = (card && typeof card.content === 'string') ? card.content : '';
+          if (text && navigator.clipboard && navigator.clipboard.writeText) {
+            try {
+              await navigator.clipboard.writeText(text);
+            } catch (clipErr) {
+              console.error('[AI Assist] clipboard copy failed, opening Gemini without it', clipErr);
+            }
           }
-          if (!url) throw new Error('No document URL returned for this day.');
           // window.open(url, '_blank', 'noopener,...') always returns null per spec once
           // 'noopener' is in the features string -- that made every successful open look
           // identical to a blocked popup and auto-disable the button on every real click.
@@ -709,10 +712,10 @@ Alpine.data('plannerApp', () => ({
           const win = window.open('about:blank', 'dayPlannerAiAssist', 'width=480,height=760,noopener,noreferrer');
           if (!win) throw new Error('Popup blocked by the browser.');
           win.opener = null;
-          win.location.href = url;
+          win.location.href = 'https:' + '/' + '/gemini.google.com/app';
         } catch (err) {
-          console.error('[AI Assist] failed to open Google Doc', err);
-          this.disableAiAssist('Couldn’t open the Google Doc, so the AI Assist button has been turned off. Re-enable it from the About page.');
+          console.error('[AI Assist] failed to open Gemini', err);
+          this.disableAiAssist('Couldn’t open Gemini, so the AI Assist button has been turned off. Re-enable it from the About page.');
         }
       },
 

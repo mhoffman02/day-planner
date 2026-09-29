@@ -620,7 +620,7 @@
                       <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'checklist')" title="Checklist (Ctrl+Shift+C)" aria-label="Checklist"><span class="material-symbols-outlined icon-16">check_box</span></button>
                       <span class="toolbar-divider"></span>
                       <button type="button" class="format-btn stt-mic-btn" :class="{ 'stt-listening': sttListening, 'stt-blocked': sttBlocked }" @mousedown.prevent @click="toggleCardDictation(card)" :title="sttMicTitle()" :aria-label="sttListening ? 'Stop dictation' : 'Start dictation'"><span class="material-symbols-outlined icon-16" x-text="sttListening ? 'mic' : (sttBlocked ? 'mic_off' : 'mic_none')"></span></button>
-                      <button type="button" class="format-btn" x-show="geminiEnabled" x-cloak @mousedown.prevent @click="openAiAssist()" title="Open this day's Google Doc for Gemini, dictionary, and spell check (turn off in About)" aria-label="Open in Google Docs for AI Assist"><span class="material-symbols-outlined icon-16">auto_awesome</span></button>
+                      <button type="button" class="format-btn" x-show="geminiEnabled" x-cloak @mousedown.prevent @click="openAiAssist(card)" title="Copy this note to the clipboard and open Gemini in a popup — paste with Ctrl+V (turn off in About)" aria-label="Copy note and open Gemini AI Assist"><span class="material-symbols-outlined icon-16">auto_awesome</span></button>
                       <span class="toolbar-divider"></span>
                       <button type="button" class="format-btn color-swatch-btn color-swatch-default" @mousedown.prevent @click="applyCardFormat(card, 'color-default')" title="Remove Text Color Only"><span class="material-symbols-outlined icon-16">format_color_reset</span></button>
                       <button type="button" class="format-btn color-swatch-btn color-swatch-teal" :class="{ active: cardNoteColor(card) === 'teal' }" @mousedown.prevent @click="applyCardFormat(card, 'color-teal')" title="Color: Teal" aria-label="Color: Teal"></button>
@@ -1255,7 +1255,7 @@
           <span class="material-symbols-outlined">auto_awesome</span> AI Assist (Google Docs)
         </h3>
         <p class="guide-card-text">
-          The <span class="material-symbols-outlined icon-16">auto_awesome</span> button on a note card opens that day's real Google Doc in a new tab, where you can use Google's own Gemini, dictionary, and spell-check tools directly &mdash; Day Planner can't embed those, only link to them. If opening the doc ever fails, this button turns itself off automatically. Toggle it here; your choice is remembered on this device.
+          The <span class="material-symbols-outlined icon-16">auto_awesome</span> button on a note card copies that card's text to your clipboard, then opens Google's Gemini in a small popup window &mdash; paste with Ctrl+V once it opens. A full Google Doc was tried first, but Google's own document chrome doesn't fit cleanly in a small window, so this opens just the clean Gemini chat instead. If opening it ever fails, this button turns itself off automatically. Toggle it here; your choice is remembered on this device.
         </p>
         <div class="install-actions-bar">
           <button type="button" class="btn-primary install-action-btn" @click="toggleGeminiEnabled()">
