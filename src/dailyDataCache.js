@@ -15,16 +15,18 @@
  */
 
 const DB_NAME = 'day-planner-cache';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE_DAILY = 'dailyData';
 const STORE_MASTER_TASKS = 'masterTasks';
 const STORE_FUTURE_MATRIX = 'futureMatrix';
+const STORE_NOTE_REVISIONS = 'noteRevisions';
 const MASTER_TASKS_KEY = 'all';
 const IDB_OPEN_TIMEOUT_MS = 2000;
 
 let dailyMemory = new Map();
 let masterTasksMemory = null;
 let futureMatrixMemory = new Map();
+let noteRevisionsMemory = new Map();
 let dbPromise = null;
 
 function cloneForStorage(value) {
@@ -67,6 +69,9 @@ function openDb() {
         }
         if (!db.objectStoreNames.contains(STORE_FUTURE_MATRIX)) {
           db.createObjectStore(STORE_FUTURE_MATRIX, { keyPath: 'year' });
+        }
+        if (!db.objectStoreNames.contains(STORE_NOTE_REVISIONS)) {
+          db.createObjectStore(STORE_NOTE_REVISIONS, { keyPath: 'date' });
         }
       };
       req.onsuccess = () => {
@@ -314,9 +319,88 @@ export async function hydrateFutureMatrixFromIdb(year) {
   });
 }
 
+/**
+ * Saves a timestamped snapshot of a day's note content into memory and IndexedDB.
+ * Deduplicates consecutive identical saves and caps rolling history at 30 revisions.
+ * @param {string} dateStr Target date (YYYY-MM-DD).
+ * @param {string} noteContent Note content text.
+ * @returns {Array<object>} The updated list of revisions for this date.
+ */
+export function saveNoteRevision(dateStr, noteContent) {
+  if (!dateStr || noteContent === undefined || noteContent === null) return [];
+  const text = String(noteContent);
+  if (!text.trim()) return noteRevisionsMemory.get(dateStr) || [];
+
+  const existing = noteRevisionsMemory.get(dateStr) || [];
+  if (existing.length > 0 && existing[0].noteContent === text) {
+    return existing;
+  }
+
+  const topicCount = Math.max(1, (text.match(/^##\s+/gm) || []).length);
+  const revision = {
+    timestamp: Date.now(),
+    noteContent: text,
+    cardCount: topicCount,
+    charCount: text.length
+  };
+
+  const updated = [revision, ...existing];
+  if (updated.length > 30) updated.length = 30;
+  noteRevisionsMemory.set(dateStr, updated);
+
+  const entry = cloneForStorage({ date: dateStr, revisions: updated });
+  openDb().then((db) => {
+    if (!db) return;
+    try {
+      const tx = db.transaction(STORE_NOTE_REVISIONS, 'readwrite');
+      tx.objectStore(STORE_NOTE_REVISIONS).put(entry);
+    } catch (err) {
+      console.warn('[dailyDataCache] IDB put failed for noteRevisions', dateStr, err);
+    }
+  });
+
+  return updated;
+}
+
+/**
+ * Returns in-memory revisions for dateStr, newest first.
+ * @param {string} dateStr Target date (YYYY-MM-DD).
+ * @returns {Array<object>} List of revision objects.
+ */
+export function getNoteRevisions(dateStr) {
+  return noteRevisionsMemory.get(dateStr) || [];
+}
+
+/**
+ * Hydrates revisions for dateStr from IndexedDB into memory if not already cached.
+ * @param {string} dateStr Target date (YYYY-MM-DD).
+ * @returns {Promise<Array<object>>} List of revision objects.
+ */
+export async function hydrateNoteRevisionsFromIdb(dateStr) {
+  if (noteRevisionsMemory.has(dateStr)) return noteRevisionsMemory.get(dateStr);
+  const db = await openDb();
+  if (!db) return [];
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(STORE_NOTE_REVISIONS, 'readonly');
+      const req = tx.objectStore(STORE_NOTE_REVISIONS).get(dateStr);
+      req.onsuccess = () => {
+        const entry = req.result || null;
+        const revs = (entry && Array.isArray(entry.revisions)) ? entry.revisions : [];
+        if (revs.length > 0) noteRevisionsMemory.set(dateStr, revs);
+        resolve(revs);
+      };
+      req.onerror = () => resolve([]);
+    } catch {
+      resolve([]);
+    }
+  });
+}
+
 /** Clears every in-memory cache (does not touch IndexedDB). Test/reset use only. */
 export function clearMemoryCache() {
   dailyMemory = new Map();
   masterTasksMemory = null;
   futureMatrixMemory = new Map();
+  noteRevisionsMemory = new Map();
 }

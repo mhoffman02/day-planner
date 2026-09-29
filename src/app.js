@@ -19,7 +19,8 @@ import { getQuoteForDateStr } from './quotesEngine.js';
 import {
   getCached, setCached, invalidateCached, primeFromRange, hydrateFromIdb, getCachedRange,
   getCachedMasterTasks, setCachedMasterTasks, hydrateMasterTasksFromIdb,
-  getCachedFutureMatrix, setCachedFutureMatrix, hydrateFutureMatrixFromIdb
+  getCachedFutureMatrix, setCachedFutureMatrix, hydrateFutureMatrixFromIdb,
+  saveNoteRevision, getNoteRevisions, hydrateNoteRevisionsFromIdb
 } from './dailyDataCache.js';
 window.GASBridge = GASBridge;
 window.Alpine = Alpine;
@@ -368,6 +369,13 @@ Alpine.data('plannerApp', () => ({
       searchQuery: '',
       searchResults: { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [] },
       selectedSearchIndex: -1,
+
+      // Note Time Machine / Version History Modal state
+      timeMachineOpen: false,
+      timeMachineLoading: false,
+      timeMachineRevisions: [],
+      selectedRevisionIndex: 0,
+      timeMachineToast: null,
 
       // Themed Day Calendar Picker state
       dayPickerOpen: false,
@@ -782,6 +790,9 @@ Alpine.data('plannerApp', () => ({
             } else if (this.linkModalOpen) {
               e.preventDefault();
               this.closeLinkModal();
+            } else if (this.timeMachineOpen) {
+              e.preventDefault();
+              this.closeTimeMachine();
             } else if (this.searchModalOpen) {
               e.preventDefault();
               this.closeSearchModal();
@@ -1341,6 +1352,9 @@ Alpine.data('plannerApp', () => ({
         this.noteCards = this.parseDailyNoteToCards(this.dailyNote);
         this.buildScheduleGrid();
         this.buildIndexRecords();
+        if (this.dailyNote && this.dailyNote.trim()) {
+          saveNoteRevision(data.date || this.selectedDate, this.dailyNote);
+        }
       },
 
       bumpDailyEditSeq(dateStr) {
@@ -2764,6 +2778,7 @@ Alpine.data('plannerApp', () => ({
           if (!this.bridge || typeof this.bridge.saveDailyDocCards !== 'function') return;
           try {
             await this.bridge.saveDailyDocCards(dateStr, noteContent);
+            saveNoteRevision(dateStr, noteContent);
           } catch (err) {
             console.error('🔥 saveDailyDocCards error:', err);
             this.errorMessage = `Could not save daily note: ${err.message || err.toString()}`;
@@ -3592,6 +3607,67 @@ Alpine.data('plannerApp', () => ({
         } else {
           this.openInstallModal();
         }
+      },
+
+      // Note Time Machine / Version History
+      async openTimeMachine() {
+        this.timeMachineLoading = true;
+        this.timeMachineOpen = true;
+        this.selectedRevisionIndex = 0;
+        try {
+          let revs = getNoteRevisions(this.selectedDate);
+          if (!revs || revs.length === 0) {
+            revs = await hydrateNoteRevisionsFromIdb(this.selectedDate);
+          }
+          if ((!revs || revs.length === 0) && this.dailyNote && this.dailyNote.trim()) {
+            saveNoteRevision(this.selectedDate, this.dailyNote);
+            revs = getNoteRevisions(this.selectedDate);
+          }
+          this.timeMachineRevisions = revs || [];
+        } catch (err) {
+          console.warn('[TimeMachine] Failed to load revisions', err);
+        } finally {
+          this.timeMachineLoading = false;
+        }
+      },
+
+      closeTimeMachine() {
+        this.timeMachineOpen = false;
+      },
+
+      selectRevision(idx) {
+        this.selectedRevisionIndex = idx;
+      },
+
+      selectedRevision() {
+        return this.timeMachineRevisions[this.selectedRevisionIndex] || null;
+      },
+
+      async restoreRevision(rev) {
+        if (!rev || rev.noteContent === undefined) return;
+        this.dailyNote = rev.noteContent;
+        this.syncDailyNoteToCards();
+        this.scheduleDailyNoteSave();
+        this.closeTimeMachine();
+        const timeStr = this.formatRevisionTime(rev.timestamp);
+        this.timeMachineToast = `Restored note snapshot from ${timeStr}`;
+        setTimeout(() => {
+          if (this.timeMachineToast && this.timeMachineToast.includes(timeStr)) {
+            this.timeMachineToast = null;
+          }
+        }, 4000);
+      },
+
+      formatRevisionTime(ts) {
+        if (!ts) return '';
+        const d = new Date(ts);
+        return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+      },
+
+      formatRevisionDate(ts) {
+        if (!ts) return '';
+        const d = new Date(ts);
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       },
 
       parseTask(title) {

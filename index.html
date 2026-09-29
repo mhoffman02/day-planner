@@ -431,6 +431,9 @@
                 <button type="button" class="btn-icon-subtle" @click="toggleMaximizeColumn('notes')" :title="maximizedColumn === 'notes' ? 'Restore Columns (Esc)' : 'Maximize Notes'" :aria-label="maximizedColumn === 'notes' ? 'Restore Columns (Esc)' : 'Maximize Notes'">
                   <span class="material-symbols-outlined" x-text="maximizedColumn === 'notes' ? 'close_fullscreen' : 'open_in_full'"></span>
                 </button>
+                <button type="button" class="btn-icon-subtle" @click="openTimeMachine()" title="Note Version History (Time Machine)" aria-label="Note Version History (Time Machine)">
+                  <span class="material-symbols-outlined">history</span>
+                </button>
                 <!-- Dropdown Filter Menu Toggle -->
                 <div class="dropdown-container">
                   <button type="button" class="btn-icon-subtle" @click="noteFilterMenuOpen = !noteFilterMenuOpen" title="Filter & Search Notes" aria-label="Filter & Search Notes">
@@ -1644,6 +1647,71 @@
         </footer>
       </article>
     </dialog>
+
+    <!-- Note Time Machine / Version History Modal -->
+    <dialog class="modal-backdrop" :open="timeMachineOpen" x-show="timeMachineOpen" x-cloak aria-labelledby="timeMachineTitle" @click.self="closeTimeMachine()" @keydown.escape.window="if (timeMachineOpen) closeTimeMachine()">
+      <article class="modal-card modal-card-time-machine" @click.away="closeTimeMachine()">
+        <header class="modal-header-spaced">
+          <h3 id="timeMachineTitle" class="modal-title-with-icon">
+            <span class="material-symbols-outlined">history</span>
+            <span>Note Version History (Time Machine) &mdash; <span x-text="formatSelectedDateDisplay(selectedDate)"></span></span>
+          </h3>
+          <button type="button" class="btn-icon-subtle" @click="closeTimeMachine()" aria-label="Close Version History">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </header>
+
+        <div class="time-machine-container">
+          <div class="time-machine-sidebar">
+            <template x-if="timeMachineLoading">
+              <div class="time-machine-empty-list">Loading saved snapshots...</div>
+            </template>
+            <template x-if="!timeMachineLoading && timeMachineRevisions.length === 0">
+              <div class="time-machine-empty-list">No earlier snapshots recorded yet for this date. Snapshots are created automatically when notes are edited and saved.</div>
+            </template>
+            <template x-for="(rev, idx) in timeMachineRevisions" :key="rev.timestamp">
+              <div class="time-machine-item" :class="{ 'is-selected': selectedRevisionIndex === idx }" @click="selectRevision(idx)">
+                <div class="time-machine-item-time">
+                  <span class="material-symbols-outlined icon-16">schedule</span>
+                  <span x-text="formatRevisionTime(rev.timestamp)"></span>
+                  <span x-show="idx === 0" class="time-machine-badge-latest">(Current)</span>
+                </div>
+                <div class="time-machine-item-meta" x-text="`${rev.cardCount || 1} card${rev.cardCount === 1 ? '' : 's'} • ${rev.charCount || 0} chars`"></div>
+              </div>
+            </template>
+          </div>
+
+          <div class="time-machine-preview-pane">
+            <template x-if="selectedRevision()">
+              <div style="display: flex; flex-direction: column; height: 100%;">
+                <div class="time-machine-preview-header">
+                  <div class="time-machine-preview-title" x-text="`Snapshot from ${formatRevisionTime(selectedRevision()?.timestamp)}`"></div>
+                  <div class="time-machine-preview-stats" x-text="`${selectedRevision()?.cardCount || 1} cards • ${selectedRevision()?.charCount || 0} characters`"></div>
+                </div>
+                <div class="time-machine-preview-content" x-text="selectedRevision()?.noteContent || '(Empty Note)'"></div>
+              </div>
+            </template>
+            <template x-if="!selectedRevision()">
+              <div class="time-machine-empty-list" style="margin: auto;">Select a revision from the left to preview it.</div>
+            </template>
+          </div>
+        </div>
+
+        <footer class="modal-actions" style="margin-top: 16px;">
+          <button type="button" class="btn-secondary" @click="closeTimeMachine()">Close</button>
+          <button type="button" class="btn-primary" :disabled="!selectedRevision()" @click="restoreRevision(selectedRevision())">
+            <span class="material-symbols-outlined icon-18">restore</span>
+            <span>Restore This Version</span>
+          </button>
+        </footer>
+      </article>
+    </dialog>
+
+    <!-- Toast Notification for Time Machine Restoration -->
+    <div class="time-machine-toast" x-show="timeMachineToast" x-cloak>
+      <span class="material-symbols-outlined icon-18">check_circle</span>
+      <span x-text="timeMachineToast"></span>
+    </div>
 
     <!-- Global Autocomplete Category Suggestions Datalist -->
     <datalist id="category-suggestions">

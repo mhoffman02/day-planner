@@ -20,6 +20,9 @@ import {
   getCachedFutureMatrix,
   setCachedFutureMatrix,
   hydrateFutureMatrixFromIdb,
+  saveNoteRevision,
+  getNoteRevisions,
+  hydrateNoteRevisionsFromIdb,
   clearMemoryCache
 } from '../src/dailyDataCache.js';
 
@@ -145,5 +148,47 @@ describe('Daily Data Cache Unit Tests', () => {
 
   it('should resolve null from hydrateFutureMatrixFromIdb for an uncached year when IndexedDB is unavailable', async () => {
     assert.equal(await hydrateFutureMatrixFromIdb(2030), null);
+  });
+
+  it('should save and retrieve note revisions, newest first', () => {
+    assert.deepEqual(getNoteRevisions('2026-09-29'), []);
+    saveNoteRevision('2026-09-29', '## Topic 1\nFirst draft');
+    saveNoteRevision('2026-09-29', '## Topic 1\nSecond draft\n## Topic 2\nAnother card');
+
+    const revs = getNoteRevisions('2026-09-29');
+    assert.equal(revs.length, 2);
+    assert.equal(revs[0].noteContent, '## Topic 1\nSecond draft\n## Topic 2\nAnother card');
+    assert.equal(revs[0].cardCount, 2);
+    assert.equal(revs[1].noteContent, '## Topic 1\nFirst draft');
+    assert.equal(revs[1].cardCount, 1);
+  });
+
+  it('should deduplicate sequential identical note revision saves', () => {
+    saveNoteRevision('2026-09-29', 'Identical note');
+    saveNoteRevision('2026-09-29', 'Identical note');
+    const revs = getNoteRevisions('2026-09-29');
+    assert.equal(revs.length, 1);
+  });
+
+  it('should cap rolling note revisions at 30', () => {
+    for (let i = 1; i <= 35; i++) {
+      saveNoteRevision('2026-09-29', `Revision ${i}`);
+    }
+    const revs = getNoteRevisions('2026-09-29');
+    assert.equal(revs.length, 30);
+    assert.equal(revs[0].noteContent, 'Revision 35');
+    assert.equal(revs[29].noteContent, 'Revision 6');
+  });
+
+  it('should resolve already-cached note revisions from hydrateNoteRevisionsFromIdb without touching IndexedDB', async () => {
+    saveNoteRevision('2026-09-29', 'Snapshot 1');
+    const hydrated = await hydrateNoteRevisionsFromIdb('2026-09-29');
+    assert.equal(hydrated.length, 1);
+    assert.equal(hydrated[0].noteContent, 'Snapshot 1');
+  });
+
+  it('should resolve empty array from hydrateNoteRevisionsFromIdb when nothing cached and IndexedDB unavailable', async () => {
+    const hydrated = await hydrateNoteRevisionsFromIdb('2026-10-15');
+    assert.deepEqual(hydrated, []);
   });
 });

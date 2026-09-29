@@ -4347,9 +4347,137 @@
     margin-top: 0;
     margin-bottom: 14px;
     color: var(--text-secondary);
-    font-size: 0.88rem;
-    line-height: 1.45;
+  /* Time Machine (Note Version History) */
+  article.modal-card-time-machine {
+    max-width: 820px;
+    width: 92vw;
   }
+  .time-machine-container {
+    display: flex;
+    min-height: 380px;
+    max-height: 520px;
+    border: 1px solid var(--border-line);
+    background: var(--bg-paper);
+    margin-top: 10px;
+  }
+  .time-machine-sidebar {
+    width: 280px;
+    min-width: 240px;
+    border-right: 1px solid var(--border-line);
+    overflow-y: auto;
+    background: var(--bg-surface, rgba(0, 0, 0, 0.02));
+    display: flex;
+    flex-direction: column;
+  }
+  .time-machine-empty-list {
+    padding: 24px 16px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.88rem;
+    line-height: 1.5;
+  }
+  .time-machine-item {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border-line);
+    cursor: pointer;
+    transition: background 0.15s ease;
+    text-align: left;
+    border-left: 3px solid transparent;
+  }
+  .time-machine-item:hover {
+    background: var(--bg-hover, rgba(0, 0, 0, 0.04));
+  }
+  .time-machine-item.is-selected {
+    background: rgba(45, 106, 90, 0.08);
+    border-left: 3px solid var(--binder-teal, #2d6a5a);
+  }
+  .time-machine-item-time {
+    font-weight: 600;
+    font-size: 0.92rem;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .time-machine-badge-latest {
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--binder-teal, #2d6a5a);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-left: 4px;
+  }
+  .time-machine-item-meta {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 3px;
+  }
+  .time-machine-preview-pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 16px 20px;
+    overflow: hidden;
+    background: var(--bg-paper);
+  }
+  .time-machine-preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-line);
+    margin-bottom: 12px;
+  }
+  .time-machine-preview-title {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 1.05rem;
+    color: var(--binder-teal, #2d6a5a);
+    margin: 0;
+  }
+  .time-machine-preview-stats {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+  .time-machine-preview-content {
+    flex: 1;
+    overflow-y: auto;
+    font-family: inherit;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+    padding: 12px;
+    background: var(--bg-surface, rgba(0, 0, 0, 0.02));
+    border: 1px solid var(--border-line);
+    border-radius: 2px;
+  }
+  .time-machine-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--binder-teal, #2d6a5a);
+    color: #ffffff;
+    padding: 10px 18px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    pointer-events: none;
+  }
+  [data-theme="dark"] .time-machine-item.is-selected {
+    background: rgba(45, 106, 90, 0.25);
+    border-left-color: #79d6bd;
+  }
+  [data-theme="dark"] .time-machine-badge-latest {
+    color: #79d6bd;
+  }
+  [data-theme="dark"] .time-machine-preview-title {
+    color: #79d6bd;
+  }
+
   .about-section-heading {
     font-family: var(--font-family-header);
     color: var(--binder-teal);

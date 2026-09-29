@@ -1617,6 +1617,13 @@
       searchResults: { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [] },
       selectedSearchIndex: -1,
 
+      // Note Time Machine and Version History Modal state
+      timeMachineOpen: false,
+      timeMachineLoading: false,
+      timeMachineRevisions: [],
+      selectedRevisionIndex: 0,
+      timeMachineToast: null,
+
       // Themed Day Calendar Picker state
       dayPickerOpen: false,
       dayPickerYear: null,
@@ -2014,6 +2021,9 @@
             } else if (this.linkModalOpen) {
               e.preventDefault();
               this.closeLinkModal();
+            } else if (this.timeMachineOpen) {
+              e.preventDefault();
+              this.closeTimeMachine();
             } else if (this.searchModalOpen) {
               e.preventDefault();
               this.closeSearchModal();
@@ -2573,6 +2583,9 @@
         this.noteCards = this.parseDailyNoteToCards(this.dailyNote);
         this.buildScheduleGrid();
         this.buildIndexRecords();
+        if (this.dailyNote && this.dailyNote.trim()) {
+          dpSaveNoteRevision(data.date || this.selectedDate, this.dailyNote);
+        }
       },
 
       bumpDailyEditSeq(dateStr) {
@@ -3988,6 +4001,7 @@
           if (!this.bridge || typeof this.bridge.saveDailyDocCards !== 'function') return;
           try {
             await this.bridge.saveDailyDocCards(dateStr, noteContent);
+            dpSaveNoteRevision(dateStr, noteContent);
           } catch (err) {
             console.error('🔥 saveDailyDocCards error:', err);
             this.errorMessage = `Could not save daily note: ${err.message || err.toString()}`;
@@ -4909,6 +4923,67 @@
         if (targetView === 'daily' || targetDate) {
           await this.loadDayData();
         }
+      },
+
+      // Note Time Machine and Version History methods
+      async openTimeMachine() {
+        this.timeMachineLoading = true;
+        this.timeMachineOpen = true;
+        this.selectedRevisionIndex = 0;
+        try {
+          let revs = dpGetNoteRevisions(this.selectedDate);
+          if (!revs || revs.length === 0) {
+            revs = await dpHydrateNoteRevisionsFromIdb(this.selectedDate);
+          }
+          if ((!revs || revs.length === 0) && this.dailyNote && this.dailyNote.trim()) {
+            dpSaveNoteRevision(this.selectedDate, this.dailyNote);
+            revs = dpGetNoteRevisions(this.selectedDate);
+          }
+          this.timeMachineRevisions = revs || [];
+        } catch (err) {
+          console.warn('[TimeMachine] Failed to load revisions', err);
+        } finally {
+          this.timeMachineLoading = false;
+        }
+      },
+
+      closeTimeMachine() {
+        this.timeMachineOpen = false;
+      },
+
+      selectRevision(idx) {
+        this.selectedRevisionIndex = idx;
+      },
+
+      selectedRevision() {
+        return this.timeMachineRevisions[this.selectedRevisionIndex] || null;
+      },
+
+      async restoreRevision(rev) {
+        if (!rev || rev.noteContent === undefined) return;
+        this.dailyNote = rev.noteContent;
+        this.syncDailyNoteToCards();
+        this.scheduleDailyNoteSave();
+        this.closeTimeMachine();
+        const timeStr = this.formatRevisionTime(rev.timestamp);
+        this.timeMachineToast = `Restored note snapshot from ${timeStr}`;
+        setTimeout(() => {
+          if (this.timeMachineToast && this.timeMachineToast.includes(timeStr)) {
+            this.timeMachineToast = null;
+          }
+        }, 4000);
+      },
+
+      formatRevisionTime(ts) {
+        if (!ts) return '';
+        const d = new Date(ts);
+        return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+      },
+
+      formatRevisionDate(ts) {
+        if (!ts) return '';
+        const d = new Date(ts);
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       },
 
       parseTask(title) {
