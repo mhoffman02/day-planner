@@ -1499,6 +1499,8 @@
       sttRefreshedFlash: false,
       sttScratchDocUrl: '',
       sttScratchCreating: false,
+      geminiEnabled: true,
+      aiAssistError: null,
       noteViewMode: 'cards', // cards (Option 1) or doc (Option 2)
       quoteCardCollapsed: false,
       noteFilterMenuOpen: false,
@@ -1647,6 +1649,7 @@
         this.sttSupported = typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
         this.sttBlocked = !this.sttSupported;
         this.initTheme();
+        this.initAiAssist();
         this.initColumnWidths();
         this.initRecentTopics();
         await this.loadDayData();
@@ -1819,6 +1822,57 @@
       applyTheme() {
         document.documentElement.setAttribute('data-theme', this.theme);
         document.documentElement.style.colorScheme = this.theme;
+      },
+
+      initAiAssist() {
+        try {
+          const saved = localStorage.getItem('dayPlannerGeminiEnabled');
+          this.geminiEnabled = saved === null ? true : saved === 'true';
+        } catch {
+          this.geminiEnabled = true;
+        }
+      },
+
+      toggleGeminiEnabled() {
+        this.geminiEnabled = !this.geminiEnabled;
+        this.aiAssistError = null;
+        try {
+          localStorage.setItem('dayPlannerGeminiEnabled', String(this.geminiEnabled));
+        } catch {
+          // ignore localStorage quota/disabled errors
+        }
+      },
+
+      disableAiAssist(message) {
+        this.geminiEnabled = false;
+        this.aiAssistError = message;
+        try {
+          localStorage.setItem('dayPlannerGeminiEnabled', 'false');
+        } catch {
+          // ignore localStorage quota/disabled errors
+        }
+      },
+
+      // Opens the day’s real Google Doc so the user can use Docs’ own Gemini/dictionary/spelling
+      // tools; Day Planner can’t detect whether Gemini is actually available on this account
+      // (docs.google.com is cross-origin from this app), so support is a manual toggle instead
+      // of a feature probe; any failure here auto-disables the button rather than erroring again.
+      async openAiAssist() {
+        if (!this.geminiEnabled) return;
+        try {
+          let url = this.dailyDocUrl;
+          if (!url) {
+            const data = await this.bridge.getDailyData(this.selectedDate);
+            url = (data && data.docUrl) || '';
+            if (url) this.dailyDocUrl = url;
+          }
+          if (!url) throw new Error('No document URL returned for this day.');
+          const win = window.open(url, '_blank', 'noopener,noreferrer');
+          if (!win) throw new Error('Popup blocked by the browser.');
+        } catch (err) {
+          console.error('[AI Assist] failed to open Google Doc', err);
+          this.disableAiAssist('Couldn’t open the Google Doc, so the AI Assist button has been turned off. Re-enable it from the About page.');
+        }
       },
 
       setupKeyboardShortcuts() {

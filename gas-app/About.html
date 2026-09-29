@@ -146,6 +146,21 @@
           Click the sun/moon icon in the top bar to switch between light and dark themes. Your choice is remembered on that device.
         </p>
       </article>
+
+      <article class="guide-card">
+        <h3 class="guide-card-title">
+          <span class="material-symbols-outlined">auto_awesome</span> AI Assist (Google Docs)
+        </h3>
+        <p class="guide-card-text">
+          The <span class="material-symbols-outlined icon-16">auto_awesome</span> button on a note card opens that day's real Google Doc in a new tab, where you can use Google's own Gemini, dictionary, and spell-check tools directly &mdash; Day Planner can't embed those, only link to them. If opening the doc ever fails, this button turns itself off automatically. Toggle it here; your choice is remembered on this device.
+        </p>
+        <div class="install-actions-bar">
+          <button type="button" class="btn-primary install-action-btn" @click="toggleGeminiEnabled()">
+            <span class="material-symbols-outlined icon-18" x-text="geminiEnabled ? 'toggle_on' : 'toggle_off'"></span>
+            <span x-text="geminiEnabled ? 'Turn Off AI Assist Button' : 'Turn On AI Assist Button'"></span>
+          </button>
+        </div>
+      </article>
     </section>
   </section>
 
