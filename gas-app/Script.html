@@ -704,16 +704,18 @@
   // either onsuccess or onerror (root cause unconfirmed); not reproduced since, but a bounded
   // timeout is cheap insurance against that failure mode regardless of cause.
   const DP_CACHE_DB_NAME = 'day-planner-cache';
-  const DP_CACHE_DB_VERSION = 2;
+  const DP_CACHE_DB_VERSION = 3;
   const DP_CACHE_STORE_NAME = 'dailyData';
   const DP_CACHE_STORE_MASTER_TASKS = 'masterTasks';
   const DP_CACHE_STORE_FUTURE_MATRIX = 'futureMatrix';
+  const DP_CACHE_STORE_NOTE_REVISIONS = 'noteRevisions';
   const DP_CACHE_MASTER_TASKS_KEY = 'all';
   const DP_CACHE_IDB_OPEN_TIMEOUT_MS = 2000;
 
   let dpCacheMemory = new Map();
   let dpMasterTasksMemory = null;
   let dpFutureMatrixMemory = new Map();
+  let dpNoteRevisionsMemory = new Map();
   let dpCacheDbPromise = null;
 
   function dpCacheCloneForStorage(value) {
@@ -748,6 +750,9 @@
           }
           if (!db.objectStoreNames.contains(DP_CACHE_STORE_FUTURE_MATRIX)) {
             db.createObjectStore(DP_CACHE_STORE_FUTURE_MATRIX, { keyPath: 'year' });
+          }
+          if (!db.objectStoreNames.contains(DP_CACHE_STORE_NOTE_REVISIONS)) {
+            db.createObjectStore(DP_CACHE_STORE_NOTE_REVISIONS, { keyPath: 'date' });
           }
         };
         req.onsuccess = () => {
@@ -938,6 +943,68 @@
           req.onerror = () => resolve(null);
         } catch (err) {
           resolve(null);
+        }
+      });
+    });
+  }
+
+  function dpSaveNoteRevision(dateStr, noteContent) {
+    if (!dateStr || noteContent === undefined || noteContent === null) return [];
+    const text = String(noteContent);
+    if (!text.trim()) return dpNoteRevisionsMemory.get(dateStr) || [];
+
+    const existing = dpNoteRevisionsMemory.get(dateStr) || [];
+    if (existing.length > 0 && existing[0].noteContent === text) {
+      return existing;
+    }
+
+    const topicCount = Math.max(1, (text.match(/^##\s+/gm) || []).length);
+    const revision = {
+      timestamp: Date.now(),
+      noteContent: text,
+      cardCount: topicCount,
+      charCount: text.length
+    };
+
+    const updated = [revision, ...existing];
+    if (updated.length > 30) updated.length = 30;
+    dpNoteRevisionsMemory.set(dateStr, updated);
+
+    const entry = dpCacheCloneForStorage({ date: dateStr, revisions: updated });
+    dpCacheOpenDb().then((db) => {
+      if (!db) return;
+      try {
+        const tx = db.transaction(DP_CACHE_STORE_NOTE_REVISIONS, 'readwrite');
+        tx.objectStore(DP_CACHE_STORE_NOTE_REVISIONS).put(entry);
+      } catch (err) {
+        console.warn('[dailyDataCache] IDB put failed for noteRevisions', dateStr, err);
+      }
+    });
+
+    return updated;
+  }
+
+  function dpGetNoteRevisions(dateStr) {
+    return dpNoteRevisionsMemory.get(dateStr) || [];
+  }
+
+  function dpHydrateNoteRevisionsFromIdb(dateStr) {
+    if (dpNoteRevisionsMemory.has(dateStr)) return Promise.resolve(dpNoteRevisionsMemory.get(dateStr));
+    return dpCacheOpenDb().then((db) => {
+      if (!db) return [];
+      return new Promise((resolve) => {
+        try {
+          const tx = db.transaction(DP_CACHE_STORE_NOTE_REVISIONS, 'readonly');
+          const req = tx.objectStore(DP_CACHE_STORE_NOTE_REVISIONS).get(dateStr);
+          req.onsuccess = () => {
+            const entry = req.result || null;
+            const revs = (entry && Array.isArray(entry.revisions)) ? entry.revisions : [];
+            if (revs.length > 0) dpNoteRevisionsMemory.set(dateStr, revs);
+            resolve(revs);
+          };
+          req.onerror = () => resolve([]);
+        } catch (err) {
+          resolve([]);
         }
       });
     });
@@ -2850,6 +2917,15 @@
         return line.replace(/^[☐☒☑]\s/, '').replace(/^-\s\[[ xX]?\]\s/, '').replace(/^\[[ xX]?\]\s/, '');
       },
 
+      getContinuationPrefix(line) {
+        if (!line || typeof line !== 'string') return '';
+        if (line.startsWith('- ')) return '- ';
+        if (/^[☐☒☑]\s/.test(line)) return '☐ ';
+        const numMatch = /^(\d+)\.\s/.exec(line);
+        if (numMatch) return `${parseInt(numMatch[1], 10) + 1}. `;
+        return '';
+      },
+
       toggleCardCheckbox(card, idx, event) {
         if (event) {
           event.preventDefault();
@@ -2943,13 +3019,35 @@
             this.syncCardsToDailyNote();
             return;
           }
-          let prefix = '';
-          if (currentLine.startsWith('- ')) prefix = '- ';
-          else if (/^[☐☒☑]\s/.test(currentLine)) prefix = '☐ ';
-          else {
-            const numMatch = /^(\d+)\.\s/.exec(currentLine);
-            if (numMatch) prefix = `${parseInt(numMatch[1], 10) + 1}. `;
+
+          const cursorPos = typeof e.target?.selectionStart === 'number' ? e.target.selectionStart : null;
+          const isMidLine = cursorPos != null && cursorPos > 0 && cursorPos < currentLine.length;
+
+          if (isMidLine) {
+            const before = currentLine.slice(0, cursorPos).trimEnd();
+            const afterText = currentLine.slice(cursorPos).trimStart();
+            const prefix = this.getContinuationPrefix(currentLine);
+            const after = prefix && !afterText.startsWith(prefix.trim()) ? prefix + afterText : afterText;
+            lines[idx] = before;
+            lines.splice(idx + 1, 0, after);
+            card.content = lines.join('\n');
+            this.syncCardsToDailyNote();
+            const caretPos = prefix ? prefix.length : 0;
+            this.$nextTick(() => {
+              this.startEditingLine(card, idx + 1);
+            });
+            setTimeout(() => {
+              this.startEditingLine(card, idx + 1);
+              const el = document.getElementById(`card-line-${card.id}-${idx + 1}`);
+              if (el) {
+                el.focus();
+                try { el.setSelectionRange(caretPos, caretPos); } catch (_err) { /* ignore */ }
+              }
+            }, 40);
+            return;
           }
+
+          const prefix = this.getContinuationPrefix(currentLine);
           lines.splice(idx + 1, 0, prefix);
           card.content = lines.join('\n');
           this.syncCardsToDailyNote();
