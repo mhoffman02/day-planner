@@ -13,6 +13,13 @@ import {
   invalidateCached,
   hydrateFromIdb,
   primeFromRange,
+  getCachedRange,
+  getCachedMasterTasks,
+  setCachedMasterTasks,
+  hydrateMasterTasksFromIdb,
+  getCachedFutureMatrix,
+  setCachedFutureMatrix,
+  hydrateFutureMatrixFromIdb,
   clearMemoryCache
 } from '../src/dailyDataCache.js';
 
@@ -86,5 +93,57 @@ describe('Daily Data Cache Unit Tests', () => {
   it('primeFromRange should skip a day with no entry at all', () => {
     primeFromRange({ '2026-09-28': null });
     assert.equal(getCached('2026-09-28'), null);
+  });
+
+  it('getCachedRange should return only the already-cached dates within an inclusive range', () => {
+    setCached('2026-09-24', { tasks: [], calendarEvents: [], noteContent: 'a', docUrl: '#' });
+    setCached('2026-09-26', { tasks: [], calendarEvents: [], noteContent: 'b', docUrl: '#' });
+    setCached('2026-10-01', { tasks: [], calendarEvents: [], noteContent: 'out of range', docUrl: '#' });
+    const range = getCachedRange('2026-09-25', '2026-09-30');
+    assert.deepEqual(Object.keys(range).sort(), ['2026-09-26']);
+    assert.equal(range['2026-09-26'].noteContent, 'b');
+  });
+
+  it('should store and retrieve master tasks', () => {
+    assert.equal(getCachedMasterTasks(), null);
+    setCachedMasterTasks([{ id: 'm1', title: 'Task 1' }]);
+    const cached = getCachedMasterTasks();
+    assert.deepEqual(cached.tasks, [{ id: 'm1', title: 'Task 1' }]);
+    assert.equal(typeof cached.cachedAt, 'string');
+  });
+
+  it('should overwrite the master tasks cache on re-set', () => {
+    setCachedMasterTasks([{ id: 'm1' }]);
+    setCachedMasterTasks([{ id: 'm2' }]);
+    assert.deepEqual(getCachedMasterTasks().tasks, [{ id: 'm2' }]);
+  });
+
+  it('should resolve the already-cached master tasks entry from hydrateMasterTasksFromIdb without touching IndexedDB', async () => {
+    setCachedMasterTasks([{ id: 'm1' }]);
+    const hydrated = await hydrateMasterTasksFromIdb();
+    assert.deepEqual(hydrated.tasks, [{ id: 'm1' }]);
+  });
+
+  it('should resolve null from hydrateMasterTasksFromIdb when nothing is cached and IndexedDB is unavailable', async () => {
+    assert.equal(await hydrateMasterTasksFromIdb(), null);
+  });
+
+  it('should store and retrieve the future matrix by year, keyed independently per year', () => {
+    assert.equal(getCachedFutureMatrix(2026), null);
+    setCachedFutureMatrix(2026, { months: { '2026-01': [] } });
+    setCachedFutureMatrix(2027, { months: { '2027-01': [{ id: 'f1' }] } });
+    assert.deepEqual(getCachedFutureMatrix(2026).months, { '2026-01': [] });
+    assert.deepEqual(getCachedFutureMatrix(2027).months, { '2027-01': [{ id: 'f1' }] });
+    assert.equal(getCachedFutureMatrix(2026).year, '2026', 'year key should be normalized to a string');
+  });
+
+  it('should resolve the already-cached future matrix entry from hydrateFutureMatrixFromIdb without touching IndexedDB', async () => {
+    setCachedFutureMatrix(2026, { months: {} });
+    const hydrated = await hydrateFutureMatrixFromIdb(2026);
+    assert.equal(hydrated.year, '2026');
+  });
+
+  it('should resolve null from hydrateFutureMatrixFromIdb for an uncached year when IndexedDB is unavailable', async () => {
+    assert.equal(await hydrateFutureMatrixFromIdb(2030), null);
   });
 });

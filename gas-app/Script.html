@@ -704,11 +704,16 @@
   // either onsuccess or onerror (root cause unconfirmed); not reproduced since, but a bounded
   // timeout is cheap insurance against that failure mode regardless of cause.
   const DP_CACHE_DB_NAME = 'day-planner-cache';
-  const DP_CACHE_DB_VERSION = 1;
+  const DP_CACHE_DB_VERSION = 2;
   const DP_CACHE_STORE_NAME = 'dailyData';
+  const DP_CACHE_STORE_MASTER_TASKS = 'masterTasks';
+  const DP_CACHE_STORE_FUTURE_MATRIX = 'futureMatrix';
+  const DP_CACHE_MASTER_TASKS_KEY = 'all';
   const DP_CACHE_IDB_OPEN_TIMEOUT_MS = 2000;
 
   let dpCacheMemory = new Map();
+  let dpMasterTasksMemory = null;
+  let dpFutureMatrixMemory = new Map();
   let dpCacheDbPromise = null;
 
   function dpCacheCloneForStorage(value) {
@@ -738,6 +743,12 @@
           if (!db.objectStoreNames.contains(DP_CACHE_STORE_NAME)) {
             db.createObjectStore(DP_CACHE_STORE_NAME, { keyPath: 'date' });
           }
+          if (!db.objectStoreNames.contains(DP_CACHE_STORE_MASTER_TASKS)) {
+            db.createObjectStore(DP_CACHE_STORE_MASTER_TASKS, { keyPath: 'key' });
+          }
+          if (!db.objectStoreNames.contains(DP_CACHE_STORE_FUTURE_MATRIX)) {
+            db.createObjectStore(DP_CACHE_STORE_FUTURE_MATRIX, { keyPath: 'year' });
+          }
         };
         req.onsuccess = () => {
           if (settled) return;
@@ -752,6 +763,15 @@
           settled = true;
           clearTimeout(timeoutId);
           console.warn('[dailyDataCache] IndexedDB open failed, falling back to memory-only cache for this session:', req.error);
+          dpCacheDbPromise = null;
+          resolve(null);
+        };
+        req.onblocked = () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeoutId);
+          console.warn('[dailyDataCache] IndexedDB open blocked by another open tab/connection at an older version; falling back to memory-only cache for this session.');
+          dpCacheDbPromise = null;
           resolve(null);
         };
       } catch (err) {
@@ -759,6 +779,7 @@
           settled = true;
           clearTimeout(timeoutId);
           console.warn('[dailyDataCache] IndexedDB open threw, falling back to memory-only cache for this session:', err);
+          dpCacheDbPromise = null;
           resolve(null);
         }
       }
@@ -821,6 +842,97 @@
           req.onsuccess = () => {
             const entry = req.result || null;
             if (entry) dpCacheMemory.set(dateStr, entry);
+            resolve(entry);
+          };
+          req.onerror = () => resolve(null);
+        } catch (err) {
+          resolve(null);
+        }
+      });
+    });
+  }
+
+  // Memory-only (no IDB round trip): every already-cached day within [startDateStr, endDateStr]
+  // inclusive. Used by the Monthly Calendar grid to render instantly from whatever of the visible
+  // month is already primed.
+  function dpGetCachedRange(startDateStr, endDateStr) {
+    const out = {};
+    dpCacheMemory.forEach((entry, dateStr) => {
+      if (dateStr >= startDateStr && dateStr <= endDateStr) out[dateStr] = entry;
+    });
+    return out;
+  }
+
+  function dpGetCachedMasterTasks() {
+    return dpMasterTasksMemory;
+  }
+
+  function dpSetCachedMasterTasks(tasks) {
+    const entry = dpCacheCloneForStorage({ key: DP_CACHE_MASTER_TASKS_KEY, tasks: tasks, cachedAt: new Date().toISOString() });
+    dpMasterTasksMemory = entry;
+    dpCacheOpenDb().then((db) => {
+      if (!db) return;
+      try {
+        const tx = db.transaction(DP_CACHE_STORE_MASTER_TASKS, 'readwrite');
+        tx.objectStore(DP_CACHE_STORE_MASTER_TASKS).put(entry);
+      } catch (err) {
+        console.warn('[dailyDataCache] IDB put failed for masterTasks', err);
+      }
+    });
+  }
+
+  function dpHydrateMasterTasksFromIdb() {
+    if (dpMasterTasksMemory) return Promise.resolve(dpMasterTasksMemory);
+    return dpCacheOpenDb().then((db) => {
+      if (!db) return null;
+      return new Promise((resolve) => {
+        try {
+          const tx = db.transaction(DP_CACHE_STORE_MASTER_TASKS, 'readonly');
+          const req = tx.objectStore(DP_CACHE_STORE_MASTER_TASKS).get(DP_CACHE_MASTER_TASKS_KEY);
+          req.onsuccess = () => {
+            const entry = req.result || null;
+            if (entry) dpMasterTasksMemory = entry;
+            resolve(entry);
+          };
+          req.onerror = () => resolve(null);
+        } catch (err) {
+          resolve(null);
+        }
+      });
+    });
+  }
+
+  function dpGetCachedFutureMatrix(year) {
+    return dpFutureMatrixMemory.get(String(year)) || null;
+  }
+
+  function dpSetCachedFutureMatrix(year, matrix) {
+    const yearKey = String(year);
+    const entry = dpCacheCloneForStorage(Object.assign({}, matrix, { year: yearKey, cachedAt: new Date().toISOString() }));
+    dpFutureMatrixMemory.set(yearKey, entry);
+    dpCacheOpenDb().then((db) => {
+      if (!db) return;
+      try {
+        const tx = db.transaction(DP_CACHE_STORE_FUTURE_MATRIX, 'readwrite');
+        tx.objectStore(DP_CACHE_STORE_FUTURE_MATRIX).put(entry);
+      } catch (err) {
+        console.warn('[dailyDataCache] IDB put failed for futureMatrix', yearKey, err);
+      }
+    });
+  }
+
+  function dpHydrateFutureMatrixFromIdb(year) {
+    const yearKey = String(year);
+    if (dpFutureMatrixMemory.has(yearKey)) return Promise.resolve(dpFutureMatrixMemory.get(yearKey));
+    return dpCacheOpenDb().then((db) => {
+      if (!db) return null;
+      return new Promise((resolve) => {
+        try {
+          const tx = db.transaction(DP_CACHE_STORE_FUTURE_MATRIX, 'readonly');
+          const req = tx.objectStore(DP_CACHE_STORE_FUTURE_MATRIX).get(yearKey);
+          req.onsuccess = () => {
+            const entry = req.result || null;
+            if (entry) dpFutureMatrixMemory.set(yearKey, entry);
             resolve(entry);
           };
           req.onerror = () => resolve(null);
@@ -1406,6 +1518,10 @@
       // response if it changed while the fetch was in flight, so a slow round trip can never
       // stomp an edit the user made in the meantime.
       dailyEditSeq: {},
+      // Same edit-guard pattern as dailyEditSeq, but for the single global Master Tasks list and
+      // the per-year Future Planning matrix.
+      masterTasksEditSeq: 0,
+      futureMatrixEditSeq: {},
       taskNoteLinks: [],
       indexRecords: [],
       monthlyGrid: [],
@@ -1828,7 +1944,7 @@
       async setView(viewName) {
         this.activeView = viewName;
         if (viewName === 'monthly-calendar') {
-          this.buildMonthlyGrid();
+          await this.loadMonthlyCalendarData();
         }
         if (viewName === 'future-matrix') {
           await this.loadFutureMatrix();
@@ -1846,18 +1962,41 @@
         return this.futureMatrix.months?.[this.futureMonthKey(mm)] || [];
       },
 
-      async loadFutureMatrix() {
-        try {
-          const matrix = await this.bridge.getFutureMatrix(this.futureMatrixYear);
-          Object.keys(matrix.months || {}).forEach(monthKey => {
-            (matrix.months[monthKey] || []).forEach(item => {
-              if (!item._transferDate) item._transferDate = `${monthKey}-01`;
-            });
+      applyFutureMatrix(matrix) {
+        Object.keys(matrix.months || {}).forEach(monthKey => {
+          (matrix.months[monthKey] || []).forEach(item => {
+            if (!item._transferDate) item._transferDate = `${monthKey}-01`;
           });
-          this.futureMatrix = matrix;
+        });
+        this.futureMatrix = matrix;
+      },
+
+      // Bumps the year’s edit guard and writes the current live futureMatrix through to the
+      // cache. Called after any in-place mutation so a subsequent visit (or a background
+      // revalidation already in flight) never reads back stale data.
+      syncFutureMatrixCacheFromLiveState() {
+        const year = this.futureMatrixYear;
+        this.futureMatrixEditSeq[year] = (this.futureMatrixEditSeq[year] || 0) + 1;
+        dpSetCachedFutureMatrix(year, this.futureMatrix);
+      },
+
+      // Stale-while-revalidate + IndexedDB hydration, same pattern as loadDayData/loadMasterTasks.
+      async loadFutureMatrix() {
+        const year = this.futureMatrixYear;
+        const cached = dpGetCachedFutureMatrix(year) || await dpHydrateFutureMatrixFromIdb(year);
+        if (cached) this.applyFutureMatrix(cached);
+        const seqAtFetchStart = this.futureMatrixEditSeq[year] || 0;
+        try {
+          const matrix = await this.bridge.getFutureMatrix(year);
+          if (year !== this.futureMatrixYear) return; // user navigated to a different year
+          if ((this.futureMatrixEditSeq[year] || 0) !== seqAtFetchStart) return; // superseded by a local edit
+          dpSetCachedFutureMatrix(year, matrix);
+          this.applyFutureMatrix(matrix);
         } catch (err) {
           console.error('loadFutureMatrix error:', err);
-          this.errorMessage = `Could not load Future Planning Matrix: ${err.message || err.toString()}`;
+          if (!cached) {
+            this.errorMessage = `Could not load Future Planning Matrix: ${err.message || err.toString()}`;
+          }
         }
       },
 
@@ -1886,6 +2025,7 @@
           if (!this.futureMatrix.months[monthKey]) this.futureMatrix.months[monthKey] = [];
           this.futureMatrix.months[monthKey].push(newItem);
           this.newFutureItemTitle[monthKey] = '';
+          this.syncFutureMatrixCacheFromLiveState();
         } catch (err) {
           console.error('addFutureItemToMonth error:', err);
           this.errorMessage = `Error adding item: ${err.message || err.toString()}`;
@@ -1897,6 +2037,7 @@
         item.status = getNextStatus(item.status);
         try {
           await this.bridge.updateFutureItemStatus(this.futureMatrixYear, monthKey, item.id, item.status);
+          this.syncFutureMatrixCacheFromLiveState();
         } catch (err) {
           console.error('toggleFutureItemStatus error:', err);
           this.errorMessage = `Could not save item status: ${err.message || err.toString()}`;
@@ -1914,6 +2055,7 @@
         const monthKey = this.futureMonthKey(mm);
         try {
           await this.bridge.updateFutureItemStatus(this.futureMatrixYear, monthKey, item.id, item.status);
+          this.syncFutureMatrixCacheFromLiveState();
         } catch (err) {
           console.error('selectFutureItemStatus error:', err);
           this.errorMessage = `Could not save item status: ${err.message || err.toString()}`;
@@ -1930,6 +2072,10 @@
             const items = this.futureMatrix.months[monthKey] || [];
             const idx = items.findIndex(i => i.id === item.id);
             if (idx !== -1) items.splice(idx, 1);
+            this.syncFutureMatrixCacheFromLiveState();
+            // The transfer created a new daily task on targetDate without us holding its full
+            // live state here -- invalidate rather than guess, same as moveMasterTaskToDate.
+            dpInvalidateCached(targetDate);
           }
         } catch (err) {
           console.error('transferFutureItemToDay error:', err);
@@ -1945,6 +2091,7 @@
             const items = this.futureMatrix.months[monthKey] || [];
             const idx = items.findIndex(i => i.id === item.id);
             if (idx !== -1) items.splice(idx, 1);
+            this.syncFutureMatrixCacheFromLiveState();
           }
         } catch (err) {
           console.error('pushFutureItemForward error:', err);
@@ -1959,6 +2106,7 @@
           const items = this.futureMatrix.months[monthKey] || [];
           const idx = items.findIndex(i => i.id === item.id);
           if (idx !== -1) items.splice(idx, 1);
+          this.syncFutureMatrixCacheFromLiveState();
         } catch (err) {
           console.error('deleteFutureItemFromMonth error:', err);
           this.errorMessage = `Error deleting item: ${err.message || err.toString()}`;
@@ -2225,7 +2373,7 @@
         await this.loadDayData();
         await this.loadMasterTasks();
         if (this.activeView === 'monthly-calendar') {
-          this.buildMonthlyGrid();
+          await this.loadMonthlyCalendarData();
         }
       },
 
@@ -2238,7 +2386,7 @@
         await this.loadDayData();
         await this.loadMasterTasks();
         if (this.activeView === 'monthly-calendar') {
-          this.buildMonthlyGrid();
+          await this.loadMonthlyCalendarData();
         }
       },
 
@@ -2281,7 +2429,7 @@
         await this.loadDayData();
         await this.loadMasterTasks();
         if (this.activeView === 'monthly-calendar') {
-          this.buildMonthlyGrid();
+          await this.loadMonthlyCalendarData();
         }
       },
 
@@ -3684,17 +3832,41 @@
         }, 1200);
       },
 
+      applyMasterTasks(tasks) {
+        this.masterTasks = tasks || [];
+        const today = getLocalDateStr();
+        this.masterTasks.forEach(t => {
+          if (!t._moveDate) t._moveDate = today;
+          t._moving = false;
+        });
+      },
+
+      // Bumps the edit guard and writes the current live masterTasks array through to the cache.
+      // Called after any in-place mutation (add/delete/star/status/move) so a subsequent tab
+      // switch (or a background revalidation already in flight) never reads back stale data.
+      syncMasterTasksCacheFromLiveState() {
+        this.masterTasksEditSeq += 1;
+        dpSetCachedMasterTasks(this.masterTasks);
+      },
+
+      // Stale-while-revalidate + IndexedDB hydration, same pattern as loadDayData: render
+      // instantly from whatever’s cached (memory, then IndexedDB), then always revalidate in the
+      // background, dropping the response instead of applying/caching it if a local mutation
+      // (add/delete/star/status/move) landed while the fetch was in flight.
       async loadMasterTasks() {
+        const cached = dpGetCachedMasterTasks() || await dpHydrateMasterTasksFromIdb();
+        if (cached) this.applyMasterTasks(cached.tasks);
+        const seqAtFetchStart = this.masterTasksEditSeq;
         try {
-          this.masterTasks = await this.bridge.getMasterTasks(`${this.selectedMonthName} ${this.selectedYear}`);
-          const today = getLocalDateStr();
-          this.masterTasks.forEach(t => {
-            if (!t._moveDate) t._moveDate = today;
-            t._moving = false;
-          });
+          const tasks = await this.bridge.getMasterTasks(`${this.selectedMonthName} ${this.selectedYear}`);
+          if (this.masterTasksEditSeq !== seqAtFetchStart) return; // a local edit already superseded this
+          dpSetCachedMasterTasks(tasks);
+          this.applyMasterTasks(tasks);
         } catch (err) {
           console.error('🔥 loadMasterTasks error:', err);
-          this.errorMessage = `Error loading master tasks: ${err.message || err.toString()}`;
+          if (!cached) {
+            this.errorMessage = `Error loading master tasks: ${err.message || err.toString()}`;
+          }
         }
       },
 
@@ -3720,6 +3892,7 @@
           this.newMasterTaskTitle = '';
           this.newMasterTaskCategory = '';
           this.newMasterTaskDueDate = '';
+          this.syncMasterTasksCacheFromLiveState();
 
           // Guarantee visibility: if user was filtering by a horizon that would hide the new task, switch to all
           if (dueDate) {
@@ -3778,6 +3951,7 @@
           if (idx !== -1) {
             this.masterTasks.splice(idx, 1);
           }
+          this.syncMasterTasksCacheFromLiveState();
           if (this.bridge && typeof this.bridge.deleteMasterTask === 'function') {
             await this.bridge.deleteMasterTask(task.id);
           } else if (this.bridge && typeof this.bridge.deleteDailyTask === 'function') {
@@ -3866,6 +4040,7 @@
               mTask.status = updatedMaster.status || '→';
               mTask.dueDate = updatedMaster.movedTo || targetDate;
             }
+            this.syncMasterTasksCacheFromLiveState();
             await this.trigger2WaySync();
           }
         } catch (err) {
@@ -3998,6 +4173,9 @@
         }
       },
 
+      // Builds the grid from whatever of the visible month is already cached (dpGetCachedRange,
+      // memory only -- see loadMonthlyCalendarData for the hydrate/revalidate that fills it).
+      // Mock mode keeps its own full-dataset events source since there’s no RPC/cache to drive.
       buildMonthlyGrid() {
         const firstDay = new Date(this.selectedYear, this.selectedMonth - 1, 1);
         const lastDay = new Date(this.selectedYear, this.selectedMonth, 0);
@@ -4005,24 +4183,32 @@
         const startDayOfWeek = firstDay.getDay();
         const now = new Date();
         const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const mm = this.selectedMonth.toString().padStart(2, '0');
+        const monthStartStr = `${this.selectedYear}-${mm}-01`;
+        const monthEndStr = `${this.selectedYear}-${mm}-${lastDay.getDate().toString().padStart(2, '0')}`;
 
         for (let i = startDayOfWeek - 1; i >= 0; i--) {
           days.push({ dayNum: '', isCurrentMonth: false, events: [] });
         }
 
-        const eventsSource = (this.bridge?.useMock && this.bridge?.mockData?.calendarEvents)
-          ? Object.values(this.bridge.mockData.calendarEvents).flat()
-          : (this.calendarEvents || []);
+        const isMock = this.bridge?.useMock && this.bridge?.mockData?.calendarEvents;
+        const eventsSource = isMock ? Object.values(this.bridge.mockData.calendarEvents).flat() : null;
+        const cachedDays = isMock ? null : dpGetCachedRange(monthStartStr, monthEndStr);
 
         for (let day = 1; day <= lastDay.getDate(); day++) {
-          const dateStr = `${this.selectedYear}-${this.selectedMonth.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-          const dayEvents = eventsSource.filter(e => {
-            if (!e.startTime) return false;
-            const d = new Date(e.startTime);
-            if (isNaN(d.getTime())) return e.startTime.startsWith(dateStr);
-            const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-            return localDate === dateStr;
-          });
+          const dateStr = `${this.selectedYear}-${mm}-${day.toString().padStart(2, '0')}`;
+          let dayEvents;
+          if (isMock) {
+            dayEvents = eventsSource.filter(e => {
+              if (!e.startTime) return false;
+              const d = new Date(e.startTime);
+              if (isNaN(d.getTime())) return e.startTime.startsWith(dateStr);
+              const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+              return localDate === dateStr;
+            });
+          } else {
+            dayEvents = (cachedDays[dateStr] && cachedDays[dateStr].calendarEvents) || [];
+          }
           days.push({ dateStr, dayNum: day, isCurrentMonth: true, events: dayEvents, isToday: dateStr === todayStr });
         }
 
@@ -4031,6 +4217,30 @@
         }
 
         this.monthlyGrid = days;
+      },
+
+      // Stale-while-revalidate for the Monthly Calendar tab: paint instantly from whatever of the
+      // visible month is already cached, then always fetch the full month range live in the
+      // background to both fill in missing days and refresh stale ones. No separate monthOverview
+      // IndexedDB store -- reuses the per-date dailyData store getDailyDataRange already batches
+      // for this exact case.
+      async loadMonthlyCalendarData() {
+        this.buildMonthlyGrid();
+        if (this.bridge?.useMock || typeof this.bridge.getDailyDataRange !== 'function') return;
+        const mm = this.selectedMonth.toString().padStart(2, '0');
+        const lastDay = new Date(this.selectedYear, this.selectedMonth, 0).getDate();
+        const monthStartStr = `${this.selectedYear}-${mm}-01`;
+        const monthEndStr = `${this.selectedYear}-${mm}-${lastDay.toString().padStart(2, '0')}`;
+        const requestedYear = this.selectedYear;
+        const requestedMonth = this.selectedMonth;
+        try {
+          const result = await this.bridge.getDailyDataRange(monthStartStr, monthEndStr);
+          if (result && result.days) dpPrimeFromRange(result.days);
+          if (requestedYear !== this.selectedYear || requestedMonth !== this.selectedMonth) return;
+          if (this.activeView === 'monthly-calendar') this.buildMonthlyGrid();
+        } catch (err) {
+          console.error('🔥 loadMonthlyCalendarData error:', err);
+        }
       },
 
       handleTaskTitleInput() {
@@ -4127,7 +4337,9 @@
           }
           if (!updated) {
             task.starred = previous;
-          } else if (!isMaster) {
+          } else if (isMaster) {
+            this.syncMasterTasksCacheFromLiveState();
+          } else {
             this.syncDailyCacheFromLiveState();
           }
         } catch (err) {
@@ -4256,7 +4468,10 @@
           console.error('🔥 setTaskStatus persist error:', err);
           this.errorMessage = `Could not save task status: ${err.message || err.toString()}`;
         }
+        // A status change can touch both lists at once (a linked master<->daily pair mirrors the
+        // status either direction), so sync both caches regardless of which side was edited.
         this.syncDailyCacheFromLiveState();
+        this.syncMasterTasksCacheFromLiveState();
         await this.trigger2WaySync();
       },
 

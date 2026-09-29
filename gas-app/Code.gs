@@ -405,7 +405,7 @@ var DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mhoff
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-var DAY_PLANNER_BUILD_NUMBER = 324;
+var DAY_PLANNER_BUILD_NUMBER = 325;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -1992,8 +1992,15 @@ function getMasterTasks(monthYearStr) {
         { id: 'm4', title: '[B2] Migrate server infrastructure to GCP', category: 'Projects', status: '•', starred: false, notes: 'Evaluate Cloud Run vs App Engine', dueDate: null, movedTo: null, movedTaskId: null }
       ];
     }
-    var resp = Tasks.Tasks.list('@default', { showCompleted: true, showHidden: true, maxResults: 100 });
-    var items = resp.items || [];
+    var items = [];
+    var pageToken = null;
+    do {
+      var listParams = { showCompleted: true, showHidden: true, maxResults: 100 };
+      if (pageToken) listParams.pageToken = pageToken;
+      var resp = Tasks.Tasks.list('@default', listParams);
+      items = items.concat(resp.items || []);
+      pageToken = resp.nextPageToken || null;
+    } while (pageToken);
     var decoded = items.map(function(t) {
       var meta = decodeTaskMeta(t.notes);
       return {

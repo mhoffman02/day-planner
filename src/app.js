@@ -16,7 +16,11 @@ import { executeUniversalSearch, flattenSearchResults } from './searchEngine.js'
 import { formatEventDescriptionHtml, extractMeetLink } from './calendarEngine.js';
 import { parseIndexEntriesFromNote } from './indexParser.js';
 import { getQuoteForDateStr } from './quotesEngine.js';
-import { getCached, setCached, invalidateCached, primeFromRange, hydrateFromIdb } from './dailyDataCache.js';
+import {
+  getCached, setCached, invalidateCached, primeFromRange, hydrateFromIdb, getCachedRange,
+  getCachedMasterTasks, setCachedMasterTasks, hydrateMasterTasksFromIdb,
+  getCachedFutureMatrix, setCachedFutureMatrix, hydrateFutureMatrixFromIdb
+} from './dailyDataCache.js';
 window.GASBridge = GASBridge;
 window.Alpine = Alpine;
 
@@ -332,6 +336,11 @@ Alpine.data('plannerApp', () => ({
       // response if it changed while the fetch was in flight, so a slow round trip can never
       // stomp an edit the user made in the meantime.
       dailyEditSeq: {},
+      // Same edit-guard pattern as dailyEditSeq, but for the single global Master Tasks list and
+      // the Future Planning matrix (keyed by year) -- bumped on every local mutation so a
+      // background revalidation started before the mutation can't overwrite it afterward.
+      masterTasksEditSeq: 0,
+      futureMatrixEditSeq: {},
       taskNoteLinks: [],
       indexRecords: [],
       monthlyGrid: [],
@@ -770,7 +779,7 @@ Alpine.data('plannerApp', () => ({
       async setView(viewName) {
         this.activeView = viewName;
         if (viewName === 'monthly-calendar') {
-          this.buildMonthlyGrid();
+          await this.loadMonthlyCalendarData();
         }
         if (viewName === 'future-matrix') {
           await this.loadFutureMatrix();
@@ -788,18 +797,41 @@ Alpine.data('plannerApp', () => ({
         return this.futureMatrix.months?.[this.futureMonthKey(mm)] || [];
       },
 
-      async loadFutureMatrix() {
-        try {
-          const matrix = await this.bridge.getFutureMatrix(this.futureMatrixYear);
-          Object.keys(matrix.months || {}).forEach(monthKey => {
-            (matrix.months[monthKey] || []).forEach(item => {
-              if (!item._transferDate) item._transferDate = `${monthKey}-01`;
-            });
+      applyFutureMatrix(matrix) {
+        Object.keys(matrix.months || {}).forEach(monthKey => {
+          (matrix.months[monthKey] || []).forEach(item => {
+            if (!item._transferDate) item._transferDate = `${monthKey}-01`;
           });
-          this.futureMatrix = matrix;
+        });
+        this.futureMatrix = matrix;
+      },
+
+      // Bumps the year's edit guard and writes the current live futureMatrix through to the
+      // cache. Called after any in-place mutation so a subsequent visit (or a background
+      // revalidation already in flight) never reads back stale data.
+      syncFutureMatrixCacheFromLiveState() {
+        const year = this.futureMatrixYear;
+        this.futureMatrixEditSeq[year] = (this.futureMatrixEditSeq[year] || 0) + 1;
+        setCachedFutureMatrix(year, this.futureMatrix);
+      },
+
+      // Stale-while-revalidate + IndexedDB hydration, same pattern as loadDayData/loadMasterTasks.
+      async loadFutureMatrix() {
+        const year = this.futureMatrixYear;
+        const cached = getCachedFutureMatrix(year) || await hydrateFutureMatrixFromIdb(year);
+        if (cached) this.applyFutureMatrix(cached);
+        const seqAtFetchStart = this.futureMatrixEditSeq[year] || 0;
+        try {
+          const matrix = await this.bridge.getFutureMatrix(year);
+          if (year !== this.futureMatrixYear) return; // user navigated to a different year
+          if ((this.futureMatrixEditSeq[year] || 0) !== seqAtFetchStart) return; // superseded by a local edit
+          setCachedFutureMatrix(year, matrix);
+          this.applyFutureMatrix(matrix);
         } catch (err) {
           console.error('loadFutureMatrix error:', err);
-          this.errorMessage = `Could not load Future Planning Matrix: ${err.message || err.toString()}`;
+          if (!cached) {
+            this.errorMessage = `Could not load Future Planning Matrix: ${err.message || err.toString()}`;
+          }
         }
       },
 
@@ -828,6 +860,7 @@ Alpine.data('plannerApp', () => ({
           if (!this.futureMatrix.months[monthKey]) this.futureMatrix.months[monthKey] = [];
           this.futureMatrix.months[monthKey].push(newItem);
           this.newFutureItemTitle[monthKey] = '';
+          this.syncFutureMatrixCacheFromLiveState();
         } catch (err) {
           console.error('addFutureItemToMonth error:', err);
           this.errorMessage = `Error adding item: ${err.message || err.toString()}`;
@@ -839,6 +872,7 @@ Alpine.data('plannerApp', () => ({
         item.status = getNextStatus(item.status);
         try {
           await this.bridge.updateFutureItemStatus(this.futureMatrixYear, monthKey, item.id, item.status);
+          this.syncFutureMatrixCacheFromLiveState();
         } catch (err) {
           console.error('toggleFutureItemStatus error:', err);
           this.errorMessage = `Could not save item status: ${err.message || err.toString()}`;
@@ -856,6 +890,7 @@ Alpine.data('plannerApp', () => ({
         const monthKey = this.futureMonthKey(mm);
         try {
           await this.bridge.updateFutureItemStatus(this.futureMatrixYear, monthKey, item.id, item.status);
+          this.syncFutureMatrixCacheFromLiveState();
         } catch (err) {
           console.error('selectFutureItemStatus error:', err);
           this.errorMessage = `Could not save item status: ${err.message || err.toString()}`;
@@ -872,6 +907,10 @@ Alpine.data('plannerApp', () => ({
             const items = this.futureMatrix.months[monthKey] || [];
             const idx = items.findIndex(i => i.id === item.id);
             if (idx !== -1) items.splice(idx, 1);
+            this.syncFutureMatrixCacheFromLiveState();
+            // The transfer created a new daily task on targetDate without us holding its full
+            // live state here -- invalidate rather than guess, same as moveMasterTaskToDate.
+            invalidateCached(targetDate);
           }
         } catch (err) {
           console.error('transferFutureItemToDay error:', err);
@@ -887,6 +926,7 @@ Alpine.data('plannerApp', () => ({
             const items = this.futureMatrix.months[monthKey] || [];
             const idx = items.findIndex(i => i.id === item.id);
             if (idx !== -1) items.splice(idx, 1);
+            this.syncFutureMatrixCacheFromLiveState();
           }
         } catch (err) {
           console.error('pushFutureItemForward error:', err);
@@ -901,6 +941,7 @@ Alpine.data('plannerApp', () => ({
           const items = this.futureMatrix.months[monthKey] || [];
           const idx = items.findIndex(i => i.id === item.id);
           if (idx !== -1) items.splice(idx, 1);
+          this.syncFutureMatrixCacheFromLiveState();
         } catch (err) {
           console.error('deleteFutureItemFromMonth error:', err);
           this.errorMessage = `Error deleting item: ${err.message || err.toString()}`;
@@ -1167,7 +1208,7 @@ Alpine.data('plannerApp', () => ({
         await this.loadDayData();
         await this.loadMasterTasks();
         if (this.activeView === 'monthly-calendar') {
-          this.buildMonthlyGrid();
+          await this.loadMonthlyCalendarData();
         }
       },
 
@@ -1180,7 +1221,7 @@ Alpine.data('plannerApp', () => ({
         await this.loadDayData();
         await this.loadMasterTasks();
         if (this.activeView === 'monthly-calendar') {
-          this.buildMonthlyGrid();
+          await this.loadMonthlyCalendarData();
         }
       },
 
@@ -1223,7 +1264,7 @@ Alpine.data('plannerApp', () => ({
         await this.loadDayData();
         await this.loadMasterTasks();
         if (this.activeView === 'monthly-calendar') {
-          this.buildMonthlyGrid();
+          await this.loadMonthlyCalendarData();
         }
       },
 
@@ -2634,17 +2675,41 @@ Alpine.data('plannerApp', () => ({
         }, 1200);
       },
 
+      applyMasterTasks(tasks) {
+        this.masterTasks = tasks || [];
+        const today = getLocalDateStr();
+        this.masterTasks.forEach(t => {
+          if (!t._moveDate) t._moveDate = today;
+          t._moving = false;
+        });
+      },
+
+      // Bumps the edit guard and writes the current live masterTasks array through to the cache.
+      // Called after any in-place mutation (add/delete/star/status/move) so a subsequent tab
+      // switch (or a background revalidation already in flight) never reads back stale data.
+      syncMasterTasksCacheFromLiveState() {
+        this.masterTasksEditSeq += 1;
+        setCachedMasterTasks(this.masterTasks);
+      },
+
+      // Stale-while-revalidate + IndexedDB hydration, same pattern as loadDayData: render
+      // instantly from whatever's cached (memory, then IndexedDB), then always revalidate in the
+      // background, dropping the response instead of applying/caching it if a local mutation
+      // (add/delete/star/status/move) landed while the fetch was in flight.
       async loadMasterTasks() {
+        const cached = getCachedMasterTasks() || await hydrateMasterTasksFromIdb();
+        if (cached) this.applyMasterTasks(cached.tasks);
+        const seqAtFetchStart = this.masterTasksEditSeq;
         try {
-          this.masterTasks = await this.bridge.getMasterTasks(`${this.selectedMonthName} ${this.selectedYear}`);
-          const today = getLocalDateStr();
-          this.masterTasks.forEach(t => {
-            if (!t._moveDate) t._moveDate = today;
-            t._moving = false;
-          });
+          const tasks = await this.bridge.getMasterTasks(`${this.selectedMonthName} ${this.selectedYear}`);
+          if (this.masterTasksEditSeq !== seqAtFetchStart) return; // a local edit already superseded this
+          setCachedMasterTasks(tasks);
+          this.applyMasterTasks(tasks);
         } catch (err) {
           console.error('🔥 loadMasterTasks error:', err);
-          this.errorMessage = `Error loading master tasks: ${err.message || err.toString()}`;
+          if (!cached) {
+            this.errorMessage = `Error loading master tasks: ${err.message || err.toString()}`;
+          }
         }
       },
 
@@ -2669,6 +2734,7 @@ Alpine.data('plannerApp', () => ({
           this.newMasterTaskTitle = '';
           this.newMasterTaskCategory = '';
           this.newMasterTaskDueDate = '';
+          this.syncMasterTasksCacheFromLiveState();
 
           // Guarantee visibility: if user was filtering by future or overdue/today,
           // undated master tasks wouldn't show. Switch horizon to 'all'.
@@ -2699,6 +2765,7 @@ Alpine.data('plannerApp', () => ({
           if (idx !== -1) {
             this.masterTasks.splice(idx, 1);
           }
+          this.syncMasterTasksCacheFromLiveState();
           if (this.bridge && typeof this.bridge.deleteMasterTask === 'function') {
             await this.bridge.deleteMasterTask(task.id);
           } else if (this.bridge && typeof this.bridge.deleteDailyTask === 'function') {
@@ -2787,6 +2854,7 @@ Alpine.data('plannerApp', () => ({
               mTask.status = updatedMaster.status || '→';
               mTask.dueDate = updatedMaster.movedTo || targetDate;
             }
+            this.syncMasterTasksCacheFromLiveState();
             await this.trigger2WaySync();
           }
         } catch (err) {
@@ -2884,6 +2952,9 @@ Alpine.data('plannerApp', () => ({
         }
       },
 
+      // Builds the grid from whatever of the visible month is already cached (getCachedRange,
+      // memory only -- see loadMonthlyCalendarData for the hydrate/revalidate that fills it).
+      // Mock mode keeps its own full-dataset events source since there's no RPC/cache to drive.
       buildMonthlyGrid() {
         const firstDay = new Date(this.selectedYear, this.selectedMonth - 1, 1);
         const lastDay = new Date(this.selectedYear, this.selectedMonth, 0);
@@ -2891,24 +2962,32 @@ Alpine.data('plannerApp', () => ({
         const startDayOfWeek = firstDay.getDay();
         const now = new Date();
         const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const mm = this.selectedMonth.toString().padStart(2, '0');
+        const monthStartStr = `${this.selectedYear}-${mm}-01`;
+        const monthEndStr = `${this.selectedYear}-${mm}-${lastDay.getDate().toString().padStart(2, '0')}`;
 
         for (let i = startDayOfWeek - 1; i >= 0; i--) {
           days.push({ dayNum: '', isCurrentMonth: false, events: [] });
         }
 
-        const eventsSource = (this.bridge?.useMock && this.bridge?.mockData?.calendarEvents)
-          ? Object.values(this.bridge.mockData.calendarEvents).flat()
-          : (this.calendarEvents || []);
+        const isMock = this.bridge?.useMock && this.bridge?.mockData?.calendarEvents;
+        const eventsSource = isMock ? Object.values(this.bridge.mockData.calendarEvents).flat() : null;
+        const cachedDays = isMock ? null : getCachedRange(monthStartStr, monthEndStr);
 
         for (let day = 1; day <= lastDay.getDate(); day++) {
-          const dateStr = `${this.selectedYear}-${this.selectedMonth.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-          const dayEvents = eventsSource.filter(e => {
-            if (!e.startTime) return false;
-            const d = new Date(e.startTime);
-            if (isNaN(d.getTime())) return e.startTime.startsWith(dateStr);
-            const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-            return localDate === dateStr;
-          });
+          const dateStr = `${this.selectedYear}-${mm}-${day.toString().padStart(2, '0')}`;
+          let dayEvents;
+          if (isMock) {
+            dayEvents = eventsSource.filter(e => {
+              if (!e.startTime) return false;
+              const d = new Date(e.startTime);
+              if (isNaN(d.getTime())) return e.startTime.startsWith(dateStr);
+              const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+              return localDate === dateStr;
+            });
+          } else {
+            dayEvents = (cachedDays[dateStr] && cachedDays[dateStr].calendarEvents) || [];
+          }
           days.push({ dateStr, dayNum: day, isCurrentMonth: true, events: dayEvents, isToday: dateStr === todayStr });
         }
 
@@ -2917,6 +2996,30 @@ Alpine.data('plannerApp', () => ({
         }
 
         this.monthlyGrid = days;
+      },
+
+      // Stale-while-revalidate for the Monthly Calendar tab: paint instantly from whatever of the
+      // visible month is already cached, then always fetch the full month range live in the
+      // background to both fill in missing days and refresh stale ones. No separate monthOverview
+      // IndexedDB store -- see the header comment in dailyDataCache.js for why (reuses the
+      // per-date dailyData store getDailyDataRange already batches for this exact case).
+      async loadMonthlyCalendarData() {
+        this.buildMonthlyGrid();
+        if (this.bridge?.useMock || typeof this.bridge.getDailyDataRange !== 'function') return;
+        const mm = this.selectedMonth.toString().padStart(2, '0');
+        const lastDay = new Date(this.selectedYear, this.selectedMonth, 0).getDate();
+        const monthStartStr = `${this.selectedYear}-${mm}-01`;
+        const monthEndStr = `${this.selectedYear}-${mm}-${lastDay.toString().padStart(2, '0')}`;
+        const requestedYear = this.selectedYear;
+        const requestedMonth = this.selectedMonth;
+        try {
+          const result = await this.bridge.getDailyDataRange(monthStartStr, monthEndStr);
+          if (result && result.days) primeFromRange(result.days);
+          if (requestedYear !== this.selectedYear || requestedMonth !== this.selectedMonth) return;
+          if (this.activeView === 'monthly-calendar') this.buildMonthlyGrid();
+        } catch (err) {
+          console.error('🔥 loadMonthlyCalendarData error:', err);
+        }
       },
 
       handleTaskTitleInput() {
@@ -3014,7 +3117,9 @@ Alpine.data('plannerApp', () => ({
           }
           if (!updated) {
             task.starred = previous;
-          } else if (!isMaster) {
+          } else if (isMaster) {
+            this.syncMasterTasksCacheFromLiveState();
+          } else {
             this.syncDailyCacheFromLiveState();
           }
         } catch (err) {
@@ -3143,7 +3248,10 @@ Alpine.data('plannerApp', () => ({
           console.error('🔥 setTaskStatus persist error:', err);
           this.errorMessage = `Could not save task status: ${err.message || err.toString()}`;
         }
+        // A status change can touch both lists at once (a linked master<->daily pair mirrors the
+        // status either direction), so sync both caches regardless of which side was edited.
         this.syncDailyCacheFromLiveState();
+        this.syncMasterTasksCacheFromLiveState();
         await this.trigger2WaySync();
       },
 
