@@ -1870,11 +1870,13 @@
               console.error('[AI Assist] clipboard copy failed, opening Gemini without it', clipErr);
             }
           }
-          // window.open(url, blank, noopener,...) always returns null per spec once
-          // noopener is in the features string; that made every successful open look
-          // identical to a blocked popup and auto-disable the button on every real click.
-          // Open blank first (a real return value), sever opener, then navigate it.
-          const win = window.open('about:blank', 'dayPlannerAiAssist', 'width=480,height=760,noopener,noreferrer');
+          // window.open() always returns null per spec once noopener is anywhere in the
+          // features string of that call; an earlier fix moved noopener from the url-open
+          // call to this about:blank call but left it in the features string here, so it kept
+          // returning null and auto-disabling on every real click. Do not put noopener in the
+          // features string at all; sever win.opener manually below instead, which achieves
+          // the same isolation without breaking the return value this code depends on.
+          const win = window.open('about:blank', 'dayPlannerAiAssist', 'width=480,height=760');
           if (!win) throw new Error('Popup blocked by the browser.');
           win.opener = null;
           win.location.href = 'https:' + '/' + '/gemini.google.com/app';
