@@ -1688,6 +1688,15 @@ Alpine.data('plannerApp', () => ({
         return line.replace(/^[☐☒☑]\s/, '').replace(/^-\s\[[ xX]?\]\s/, '').replace(/^\[[ xX]?\]\s/, '');
       },
 
+      getContinuationPrefix(line) {
+        if (!line || typeof line !== 'string') return '';
+        if (line.startsWith('- ')) return '- ';
+        if (/^[☐☒☑]\s/.test(line)) return '☐ ';
+        const numMatch = /^(\d+)\.\s/.exec(line);
+        if (numMatch) return `${parseInt(numMatch[1], 10) + 1}. `;
+        return '';
+      },
+
       toggleCardCheckbox(card, idx, event) {
         if (event) {
           event.preventDefault();
@@ -1781,13 +1790,35 @@ Alpine.data('plannerApp', () => ({
             this.syncCardsToDailyNote();
             return;
           }
-          let prefix = '';
-          if (currentLine.startsWith('- ')) prefix = '- ';
-          else if (/^[☐☒☑]\s/.test(currentLine)) prefix = '☐ ';
-          else {
-            const numMatch = /^(\d+)\.\s/.exec(currentLine);
-            if (numMatch) prefix = `${parseInt(numMatch[1], 10) + 1}. `;
+
+          const cursorPos = typeof e.target?.selectionStart === 'number' ? e.target.selectionStart : null;
+          const isMidLine = cursorPos != null && cursorPos > 0 && cursorPos < currentLine.length;
+
+          if (isMidLine) {
+            const before = currentLine.slice(0, cursorPos).trimEnd();
+            const afterText = currentLine.slice(cursorPos).trimStart();
+            const prefix = this.getContinuationPrefix(currentLine);
+            const after = prefix && !afterText.startsWith(prefix.trim()) ? prefix + afterText : afterText;
+            lines[idx] = before;
+            lines.splice(idx + 1, 0, after);
+            card.content = lines.join('\n');
+            this.syncCardsToDailyNote();
+            const caretPos = prefix ? prefix.length : 0;
+            this.$nextTick(() => {
+              this.startEditingLine(card, idx + 1);
+            });
+            setTimeout(() => {
+              this.startEditingLine(card, idx + 1);
+              const el = document.getElementById(`card-line-${card.id}-${idx + 1}`);
+              if (el) {
+                el.focus();
+                try { el.setSelectionRange(caretPos, caretPos); } catch { /* ignore */ }
+              }
+            }, 40);
+            return;
           }
+
+          const prefix = this.getContinuationPrefix(currentLine);
           lines.splice(idx + 1, 0, prefix);
           card.content = lines.join('\n');
           this.syncCardsToDailyNote();
