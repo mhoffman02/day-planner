@@ -1,5 +1,11 @@
 # Learnings
 
+## 2026-09-29 (evening) — AI Assist Button (Gemini/Dictionary/Spellcheck)
+
+**Worked well:** Called `advisor` right after the first substantive claim ("the popup opens the real Docs editor") and before building anything on it — caught a wrong mechanism read against the actual code within one turn, instead of after designing a feature around it. Live-verified Gemini availability in a real Doc via CDP (clicked "Ask Gemini," checked for an upgrade/trial iframe) rather than trusting the presence of a labeled button, which would have been a false positive on a gated account. Recognized a real client-side constraint (cross-origin DOM inspection is impossible) and said so plainly instead of quietly building a probe that could never work at runtime.
+
+**Needs improvement:** The first reply to the user stated the popup mechanism confidently without having read the code first — should have grepped the STT implementation before characterizing how it works, not after. Also spent real effort debugging a CDP frame-targeting issue (`--iframe` flag resolves to the wrong nested frame on this GAS deployment shape) that's a recurring tooling gap, not a one-off — worth fixing `tools/eval-console.js` itself to walk into `#userHtmlFrame` when it's nested inside another iframe, instead of re-solving this by hand each session.
+
 ## 2026-09-29 — HOME Deployment Verification (no code work)
 
 **Worked well:** Verified HOME's `/dev` (@HEAD) and production (@274) deployment IDs via `clasp deployments` against `gas-app/.clasp.json` rather than trusting the prior handoff's claim at face value — cheap confirmation that the mastercopy target hasn't drifted. Correctly declined to curl the authenticated `/dev?view=self-test` URL for content verification (no session cookies = meaningless 404) and pointed to `tools/ensure-chrome.js` instead, per [[live-google-auth-browser-tool]].
