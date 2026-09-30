@@ -4,9 +4,7 @@
 
   :root,
   :root[data-theme="light"],
-  :root[data-theme="dark"],
-  [data-theme="light"],
-  [data-theme="dark"] {
+  [data-theme="light"] {
     /* Franklin Covey & Base Design Tokens */
     --font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-family-header: 'Playfair Display', Georgia, serif;
@@ -927,7 +925,7 @@
     }
   }
 
-  @media (max-width: 1200px) {
+  @media (max-width: 1300px) {
     .kbd-shortcut-sm {
       display: none;
     }
@@ -942,7 +940,7 @@
     }
   }
 
-  @media (max-width: 992px) {
+  @media (max-width: 1050px) {
     .brand-title-compact span:last-child {
       display: none;
     }
@@ -953,7 +951,17 @@
       display: none;
     }
     .segment-btn {
-      padding: 0 10px;
+      padding: 0 8px;
+    }
+    .header-vdivider {
+      display: none;
+    }
+    .date-nav-compact {
+      min-width: 0;
+    }
+    header.binder-header {
+      gap: 8px;
+      padding: 0 8px;
     }
   }
 
@@ -4435,6 +4443,8 @@
     margin-top: 0;
     margin-bottom: 14px;
     color: var(--text-secondary);
+  }
+
   /* Time Machine (Note Version History) */
   article.modal-card-time-machine {
     max-width: 820px;
@@ -4979,6 +4989,7 @@
   /* ==========================================
      Dark Forest Theme - Dark Mode Palette
      ========================================== */
+  :root[data-theme="dark"],
   [data-theme="dark"] {
     --bg-page: #0c1813 !important;
     --bg-parchment: #142820 !important;
