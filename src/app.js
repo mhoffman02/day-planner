@@ -296,6 +296,7 @@ Alpine.data('plannerApp', () => ({
       openNotesPopoverTaskId: null,
       notesPopoverCloseTimer: null,
       notesPopoverDropUp: false,
+      notesPopoverPos: { top: null, bottom: null, left: null },
       masterTasks: [],
       newMasterTaskTitle: '',
       newMasterTaskCategory: '',
@@ -415,7 +416,40 @@ Alpine.data('plannerApp', () => ({
       linkModalResolving: false,
       linkModalDetectedDrive: false,
       linkModalLastResolvedUrl: '',
-      linkModalError: null,
+      // AI Gateway Configuration Modal state
+      aiConfigModalOpen: false,
+      aiConfig: {
+        configured: false,
+        serviceUrl: '',
+        hasKey: false,
+        defaultModel: 'gemini-2.5-flash',
+        activeModel: 'gemini-2.5-flash',
+        isScriptLevel: false
+      },
+      aiTesting: false,
+      aiTestResult: null,
+      aiSavingModel: false,
+      aiSaveModelStatus: null,
+      supportedAiModels: [
+        { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google', speed: 'Fast (Recommended)' },
+        { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite', provider: 'Google', speed: 'Fastest' },
+        { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google', speed: 'Deep Reasoning' },
+        { id: 'gemini-3.7-flash', name: 'Gemini 3.7 Flash', provider: 'Google', speed: 'Latest Flash' },
+        { id: 'luna', name: 'Luna', provider: 'USAi (Work)', speed: 'Federal General' },
+        { id: 'terra', name: 'Terra', provider: 'USAi (Work)', speed: 'Federal General' },
+        { id: 'claude-3-5-haiku', name: 'Claude 3.5 Haiku', provider: 'Anthropic', speed: 'Fast' },
+        { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'Anthropic', speed: 'Balanced / Writing' },
+        { id: 'claude-3-opus', name: 'Claude 3 Opus', provider: 'Anthropic', speed: 'Complex Analysis' }
+      ],
+
+      // In-Binder AI Assist Modal state (for Note Cards & Tasks)
+      aiAssistModalOpen: false,
+      aiAssistCard: null,
+      aiAssistAction: 'summarize', // 'summarize' | 'tasks' | 'polish' | 'custom'
+      aiAssistCustomPrompt: '',
+      aiAssistLoading: false,
+      aiAssistResult: '',
+      aiAssistModalError: null,
 
       // Task inputs
       newTaskTitle: '',
@@ -722,37 +756,10 @@ Alpine.data('plannerApp', () => ({
         }
       },
 
-      // Opens a clean gemini.google.com popup (not the day's Google Doc) -- tested live at
-      // 480x760, Docs' own chrome (document-tabs list, toolbar) doesn't collapse at that width
-      // and overlaps the Gemini panel, but the standalone Gemini app renders as just the chat
-      // UI. Gemini has no idea what note you were on, so the card's text is copied to the
-      // clipboard first -- paste it in yourself once the popup opens. Any failure auto-disables
-      // the button rather than erroring again on every subsequent click.
-      async openAiAssist(card) {
+      // In-binder AI Assist launcher for note cards
+      openAiAssist(card) {
         if (!this.geminiEnabled) return;
-        try {
-          const text = (card && typeof card.content === 'string') ? card.content : '';
-          if (text && navigator.clipboard && navigator.clipboard.writeText) {
-            try {
-              await navigator.clipboard.writeText(text);
-            } catch (clipErr) {
-              console.error('[AI Assist] clipboard copy failed, opening Gemini without it', clipErr);
-            }
-          }
-          // window.open() always returns null per spec once 'noopener' is anywhere in the
-          // features string of THAT call -- an earlier fix moved 'noopener' from the url-open
-          // call to this about:blank call but left it in the features string here, so it kept
-          // returning null and auto-disabling on every real click. Don't put 'noopener' in the
-          // features string at all; sever win.opener manually below instead, which achieves the
-          // same isolation without breaking the return value this code depends on.
-          const win = window.open('about:blank', 'dayPlannerAiAssist', 'width=480,height=760');
-          if (!win) throw new Error('Popup blocked by the browser.');
-          win.opener = null;
-          win.location.href = 'https:' + '/' + '/gemini.google.com/app';
-        } catch (err) {
-          console.error('[AI Assist] failed to open Gemini', err);
-          this.disableAiAssist('Couldn’t open Gemini, so the AI Assist button has been turned off. Re-enable it from the About page.');
-        }
+        this.openAiAssistModal(card);
       },
 
       setupKeyboardShortcuts() {
@@ -3410,10 +3417,23 @@ Alpine.data('plannerApp', () => ({
         this.openNotesPopoverTaskId = taskId;
         if (event && (event.currentTarget || event.target)) {
           const el = event.currentTarget || event.target;
-          const rect = el.getBoundingClientRect();
+          const btn = el.closest ? (el.closest('.notes-indicator') || el) : el;
+          const rect = btn.getBoundingClientRect();
           const spaceBelow = window.innerHeight - rect.bottom;
           const spaceAbove = rect.top;
-          this.notesPopoverDropUp = (spaceBelow < 275 && spaceAbove > spaceBelow) || spaceBelow < 160;
+          const dropUp = (spaceBelow < 275 && spaceAbove > spaceBelow) || spaceBelow < 160;
+          this.notesPopoverDropUp = dropUp;
+
+          let left = Math.round(rect.left);
+          const popoverWidth = 280;
+          if (left + popoverWidth > window.innerWidth - 16) {
+            left = Math.max(16, window.innerWidth - popoverWidth - 16);
+          }
+          this.notesPopoverPos = {
+            top: dropUp ? null : `${Math.round(rect.bottom + 4)}px`,
+            bottom: dropUp ? `${Math.round(window.innerHeight - rect.top + 4)}px` : null,
+            left: `${left}px`
+          };
         }
       },
 
@@ -3422,14 +3442,7 @@ Alpine.data('plannerApp', () => ({
         if (this.openNotesPopoverTaskId === taskId) {
           this.openNotesPopoverTaskId = null;
         } else {
-          this.openNotesPopoverTaskId = taskId;
-          if (event && (event.currentTarget || event.target)) {
-            const el = event.currentTarget || event.target;
-            const rect = el.getBoundingClientRect();
-            const spaceBelow = window.innerHeight - rect.bottom;
-            const spaceAbove = rect.top;
-            this.notesPopoverDropUp = (spaceBelow < 275 && spaceAbove > spaceBelow) || spaceBelow < 160;
-          }
+          this.openNotesPopover(taskId, event);
         }
       },
 
@@ -3937,10 +3950,31 @@ Alpine.data('plannerApp', () => ({
       // In-Binder Lexicon & Thesaurus
       openLexiconFromCard(card) {
         if (!card) return;
-        const lineIdx = card._activeLineIndex !== null && card._activeLineIndex !== undefined
+        const lineIdx = (card._activeLineIndex !== null && card._activeLineIndex !== undefined)
           ? card._activeLineIndex
-          : 0;
-        this.openLexiconFromCardLine(card, lineIdx);
+          : null;
+        if (lineIdx !== null) {
+          this.openLexiconFromCardLine(card, lineIdx);
+        } else {
+          const winSel = typeof window !== 'undefined' && window.getSelection ? window.getSelection().toString().trim() : '';
+          const clean = cleanLookupWord(winSel);
+          this.lexiconTarget = { card, lineIdx: null, selStart: null, selEnd: null, targetWord: clean || winSel || '' };
+          this.lexiconQuery = clean || winSel || '';
+          this.lexiconOpen = true;
+          if (clean) {
+            this.searchLexicon(clean);
+          } else {
+            this.lexiconData = null;
+            this.lexiconError = null;
+            this.$nextTick(() => {
+              const input = this.$refs.lexiconSearchInput || document.getElementById('lexiconSearchInput');
+              if (input) {
+                input.focus();
+                input.select();
+              }
+            });
+          }
+        }
       },
 
       openLexiconFromCardLine(card, lineIdx) {
@@ -4145,6 +4179,166 @@ Alpine.data('plannerApp', () => ({
             if (el) el.focus();
           });
         }
+      },
+
+      // AI Gateway Configuration Methods
+      async openAiConfigModal() {
+        this.aiConfigModalOpen = true;
+        this.aiTestResult = null;
+        this.aiSaveModelStatus = null;
+        try {
+          if (this.bridge && typeof this.bridge.getAiMicroserviceConfig === 'function') {
+            const cfg = await this.bridge.getAiMicroserviceConfig();
+            if (cfg) {
+              this.aiConfig = cfg;
+            }
+          }
+        } catch (err) {
+          console.warn('[AI Config] failed to load config:', err);
+        }
+      },
+
+      closeAiConfigModal() {
+        this.aiConfigModalOpen = false;
+        this.aiTestResult = null;
+        this.aiSaveModelStatus = null;
+      },
+
+      async testAiGateway() {
+        this.aiTesting = true;
+        this.aiTestResult = null;
+        try {
+          if (this.bridge && typeof this.bridge.testAiMicroservice === 'function') {
+            const res = await this.bridge.testAiMicroservice(null, null, this.aiConfig.activeModel);
+            this.aiTestResult = res;
+          } else {
+            this.aiTestResult = { success: false, error: 'Bridge not available.' };
+          }
+        } catch (err) {
+          this.aiTestResult = { success: false, error: err.message || err.toString() };
+        } finally {
+          this.aiTesting = false;
+        }
+      },
+
+      async saveAiModel(newModel) {
+        if (!newModel) return;
+        this.aiSavingModel = true;
+        this.aiSaveModelStatus = null;
+        try {
+          if (this.bridge && typeof this.bridge.setAiUserSelectedModel === 'function') {
+            const res = await this.bridge.setAiUserSelectedModel(newModel);
+            if (res && res.success) {
+              this.aiConfig.activeModel = newModel;
+              this.aiSaveModelStatus = 'Active model updated to ' + newModel;
+            } else {
+              this.aiSaveModelStatus = 'Failed: ' + ((res && res.error) || 'Unknown error');
+            }
+          }
+        } catch (err) {
+          this.aiSaveModelStatus = 'Error: ' + (err.message || err.toString());
+        } finally {
+          this.aiSavingModel = false;
+          setTimeout(() => { this.aiSaveModelStatus = null; }, 4000);
+        }
+      },
+
+      // In-Binder AI Assist Methods (for Note Cards & Tasks)
+      openAiAssistModal(card) {
+        this.aiAssistCard = card;
+        this.aiAssistModalOpen = true;
+        this.aiAssistResult = '';
+        this.aiAssistModalError = null;
+        this.aiAssistLoading = false;
+        this.aiAssistAction = 'summarize';
+        this.aiAssistCustomPrompt = '';
+      },
+
+      closeAiAssistModal() {
+        this.aiAssistModalOpen = false;
+        this.aiAssistLoading = false;
+        this.aiAssistModalError = null;
+      },
+
+      async runAiAssist() {
+        if (!this.aiAssistCard) return;
+        const noteText = this.aiAssistCard.content || '';
+        if (!noteText.trim()) {
+          this.aiAssistModalError = 'This note card is empty. Type some notes first!';
+          return;
+        }
+
+        let prompt;
+        if (this.aiAssistAction === 'summarize') {
+          prompt = 'Please provide a clear, concise bulleted executive summary of the following notes:\n\n' + noteText;
+        } else if (this.aiAssistAction === 'tasks') {
+          prompt = 'Extract all distinct actionable tasks and to-dos from the following notes. Output each task on its own line prefixed with "- [ ] " or "#a " / "#b " based on priority:\n\n' + noteText;
+        } else if (this.aiAssistAction === 'polish') {
+          prompt = 'Polish and refine the following notes for professional clarity, correct grammar, and crisp organization, while preserving all key facts, tags, and decisions:\n\n' + noteText;
+        } else {
+          prompt = (this.aiAssistCustomPrompt || '').trim() + '\n\nContext notes:\n' + noteText;
+        }
+
+        this.aiAssistLoading = true;
+        this.aiAssistModalError = null;
+        this.aiAssistResult = '';
+
+        try {
+          if (this.bridge && typeof this.bridge.callAiMicroservice === 'function') {
+            const res = await this.bridge.callAiMicroservice(prompt);
+            if (res && res.success) {
+              this.aiAssistResult = res.content || res.result || '';
+            } else {
+              this.aiAssistModalError = (res && res.error) ? res.error : 'AI service call failed.';
+            }
+          } else {
+            this.aiAssistModalError = 'AI bridge connector unavailable.';
+          }
+        } catch (err) {
+          this.aiAssistModalError = 'Error: ' + (err.message || err.toString());
+        } finally {
+          this.aiAssistLoading = false;
+        }
+      },
+
+      applyAiAssistResult(mode) {
+        if (!this.aiAssistCard || !this.aiAssistResult) return;
+        if (mode === 'append') {
+          this.aiAssistCard.content = (this.aiAssistCard.content ? this.aiAssistCard.content + '\n\n' : '') + this.aiAssistResult;
+          this.syncCardsToDailyNote();
+          this.scheduleDailyNoteSave();
+        } else if (mode === 'replace') {
+          this.aiAssistCard.content = this.aiAssistResult;
+          this.syncCardsToDailyNote();
+          this.scheduleDailyNoteSave();
+        } else if (mode === 'copy') {
+          if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+            navigator.clipboard.writeText(this.aiAssistResult).catch(() => {});
+          }
+          this.showLexiconToast('Copied AI result to clipboard');
+        }
+        this.closeAiAssistModal();
+      },
+
+      async addExtractedTasksToToday() {
+        if (!this.aiAssistResult) return;
+        const lines = this.aiAssistResult.split('\n');
+        let count = 0;
+        for (const rawLine of lines) {
+          let line = rawLine.trim();
+          if (!line) continue;
+          line = line.replace(/^[-*•]\s*(\[[ xX]?\]\s*)?/, '').trim();
+          if (!line) continue;
+          try {
+            await this.bridge.addDailyTask(this.selectedDate, line, 'General', null, '');
+            count++;
+          } catch (err) {
+            console.error('Failed to add extracted task:', line, err);
+          }
+        }
+        await this.loadDayData();
+        this.showLexiconToast(`Added ${count} task${count === 1 ? '' : 's'} to Today!`);
+        this.closeAiAssistModal();
       },
 
       parseTask(title) {
