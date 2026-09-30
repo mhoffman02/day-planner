@@ -1,14 +1,16 @@
 # Active Tasks (TODO)
 
-## Phase 23: Task Inline Editing & AI Microservice Verification
+## Phase 23: Task Inline Editing & Unified AI Gateway Architecture
 
-- [ ] **AI Microservice Verification & UI Wiring (WIP)**
-  - **Goal**: Complete testing of `ai-microservice` on HOME/WORK and connect live Web App endpoint to Day Planner.
-  - **Status**: Backend proxy connector and client library are in place ([`src/aiService.js`](file:///home/mike/projects/day-planner/src/aiService.js), [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L2930)). Microservice deployed to HOME sheet (`1kW7_HpM7aoPInpcgDO7i8Rv6hNvFU8rtL1CaJIO5BXK9685TyZ3gtWUN`).
-  - **Next Steps**:
-    1. Await user confirmation of in-sheet tests and Web App deployment URL + API Key.
-    2. Add Settings modal or folder setup entry to test connection and save URL/key to `UserProperties`.
-    3. Agree with user on UI touchpoints (e.g. Note Card AI Assist action menu: summarize, extract tasks, refine tone).
+- [x] **Inline Task Description Editing** — Completed in commit [`abdf26a`](file:///home/mike/projects/day-planner/.git/commit/abdf26a).
+- [x] **Unified AI Multi-Model REST Gateway Architecture** — Completed in commit [`83aecbf`](file:///home/mike/projects/day-planner/.git/commit/83aecbf).
+  - Unified configuration: `ScriptProperties` stores `AI_ENDPOINT_URL`, `AI_API_KEY`, and `AI_MODEL` per Apps Script project deployment (HOME vs. WORK).
+  - User customization: `UserProperties.AI_MODEL_OVERRIDE` allows personal selection without overriding shared script props.
+  - Multi-model format support: OpenAI / USAi chat completions format, Google Gemini native format, and `ai-lite` format.
+  - Models supported: Gemini 2.5 Flash Lite/Flash/Pro, Gemini 3.7 Flash, Luna, Terra, Haiku, Sonnet, Opus.
+- [ ] **AI Gateway UI Wiring (WIP)**
+  - Add Settings / AI Config panel: test connection, inspect configured endpoint & key status, and pick active model from dropdown.
+  - Agree on UI touchpoints (e.g. Note Card AI Assist action menu: summarize, extract tasks, refine tone).
 
 ## Open
 
