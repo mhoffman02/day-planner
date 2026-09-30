@@ -1,6 +1,6 @@
 /**
  * @file searchEngine.js
- * @description Franklin Planner Universal Search Engine.
+ * @description Day Planner Universal Search Engine.
  * Multi-entity cross-service indexing & searching for Google Calendar, Google Tasks, Daily Notes, and Monthly Index.
  */
 

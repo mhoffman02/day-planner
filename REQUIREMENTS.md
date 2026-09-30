@@ -56,8 +56,8 @@ To achieve the closest possible PWA-like experience without a service worker:
 
 ## 4. Functional Requirements & Feature Matrix
 
-### 4.1 Daily View (Daily 3-Column View / "Today" / Franklin 2-Page Spread)
-- Digital implementation of the classic Franklin Covey 2-page daily spread structured as an interactive 3-column binder:
+### 4.1 Daily View (Daily 3-Column View / "Today" / 2-Page Spread)
+- Digital implementation of the classic Day Planner 2-page daily spread structured as an interactive 3-column binder:
   1. Column 1: Prioritized Daily Task List (A1-C9).
   2. Column 2: Appointment Schedule (07:00 AM – 07:00 PM).
   3. Column 3: Modular Daily Notes Panel.

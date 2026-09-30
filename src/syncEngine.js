@@ -1,7 +1,7 @@
 /**
  * @file syncEngine.js
- * @description Franklin Planner 2-Way Sync Engine.
- * Handles bi-directional synchronization between Google Tasks, Google Calendar Events, and the Franklin Binder.
+ * @description Day Planner 2-Way Sync Engine.
+ * Handles bi-directional synchronization between Google Tasks, Google Calendar Events, and the Day Planner Binder.
  */
 
 import { parseTaskTitle, formatTaskTitle, TASK_STATUSES } from './taskEngine.js';
@@ -66,8 +66,8 @@ export function syncTaskToCalendar(task, calendarEvents = []) {
       title: eventTitle,
       startTime,
       endTime,
-      location: task.category || 'Franklin Task',
-      description: `Synced from Franklin Task [${parsed.priorityCode || 'Open'}]`,
+      location: task.category || 'Day Planner Task',
+      description: `Synced from Day Planner Task [${parsed.priorityCode || 'Open'}]`,
       syncTaskId: task.id,
       isCompleted,
       extendedProperties: { private: { gasTaskId: task.id } },

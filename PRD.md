@@ -1,14 +1,14 @@
-# Product Requirements Document (PRD): Franklin-Google Digital Day Planner (GAS MVP)
+# Product Requirements Document (PRD): Google Digital Day Planner (GAS MVP)
 
 ## 1. Executive Summary & Product Vision
 
 ### 1.1 Vision
-The **Franklin-Google Digital Day Planner** bridges the timeless, battle-tested productivity methodology of the classic paper Franklin Dayplanner with the modern, real-time cloud capabilities of Google Workspace (Google Suite). 
+The **Google Digital Day Planner** bridges the timeless, battle-tested productivity methodology of the classic paper day planner with the modern, real-time cloud capabilities of Google Workspace (Google Suite). 
 
-It provides a high-efficiency single-page digital binder interface—styled in classic Franklin Covey aesthetic (forest/teal ruling, cream background, serif headers) using Alpine.js and clean CSS—powered by Google Apps Script (GAS) running natively within the user's Google account.
+It provides a high-efficiency single-page digital binder interface—styled in classic Day Planner aesthetic (forest/teal ruling, cream background, serif headers) using Alpine.js and clean CSS—powered by Google Apps Script (GAS) running natively within the user's Google account.
 
 ### 1.2 Purpose & Scope
-* **Target Audience**: Solo power user (developer/executive) who relies heavily on Google Workspace (Calendar, Tasks, Docs, Sheets, Meet, Chat) and values the structured discipline of Franklin Planner (Prioritized A1-C9 task lists, hourly appointment blocks, daily notes/trackers, monthly overview calendars, master task lists, and monthly index).
+* **Target Audience**: Solo power user (developer/executive) who relies heavily on Google Workspace (Calendar, Tasks, Docs, Sheets, Meet, Chat) and values the structured discipline of a Day Planner (Prioritized A1-C9 task lists, hourly appointment blocks, daily notes/trackers, monthly overview calendars, master task lists, and monthly index).
 * **Scope**: Solo-developer MVP deployed as a Standalone Google Apps Script Web App (`doGet()`).
 
 ---
@@ -27,13 +27,13 @@ All 7 original product reference images have been retrieved and stored in `image
 
 ---
 
-## 3. Supported Franklin Planner Page Types
+## 3. Supported Day Planner Page Types
 
-The application implements a complete suite of Franklin Planner page views accessible via tab navigation:
+The application implements a complete suite of Day Planner page views accessible via tab navigation:
 
 | Page Type | Layout & View Description | Google Workspace Integration |
 | :--- | :--- | :--- |
-| **1. Prioritized Daily Planner (Daily 3-Column View / "Today" / Franklin 2-Page Spread)** | Digital implementation of the classic Franklin Covey 2-page spread across 3 columns: Column 1 Prioritized Task List (A1-C9), Column 2 Appointment Schedule (07:00 AM - 07:00 PM), Column 3 Modular Daily Notes. | Google Calendar, Google Tasks, Google Docs |
+| **1. Prioritized Daily Planner (Daily 3-Column View / "Today" / 2-Page Spread)** | Digital implementation of the classic Day Planner 2-page spread across 3 columns: Column 1 Prioritized Task List (A1-C9), Column 2 Appointment Schedule (07:00 AM - 07:00 PM), Column 3 Modular Daily Notes. | Google Calendar, Google Tasks, Google Docs |
 | **2. Full-Screen Monthly Overview Calendar** | Interactive 7x5 monthly calendar grid displaying events, holidays, and high-level markers. | Google Calendar (`CalendarApp`) |
 | **3. Monthly Master Task List Page** | Categorized high-level task list (Personal, Business, Projects) with one-click transfer to daily task lists. | Dedicated Google Task Lists (`[Month] [Year] Master Tasks`) |
 | **4. Monthly Index Page** | Aggregated, searchable registry of key daily decisions, meeting summaries, and `#index` tagged notes with in-app "Jump to Day" navigation and external "Source Doc" links. | Scanned Google Docs & Google Sheets |
@@ -43,9 +43,9 @@ The application implements a complete suite of Franklin Planner page views acces
 
 ## 4. Detailed Feature Specifications & Workflows
 
-### 4.1 Daily View (Daily 3-Column View / "Today" / Franklin 2-Page Spread)
+### 4.1 Daily View (Daily 3-Column View / "Today" / 2-Page Spread)
 * **Left Column: Prioritized Daily Task List**:
-  * Prioritized task grid: Priority (A, B, C), Sequence (1..9), Title, Franklin status code (`✓` complete, `→` forwarded, `X` canceled, `D/✓` delegated, `•` in-process).
+  * Prioritized task grid: Priority (A, B, C), Sequence (1..9), Title, status code (`✓` complete, `→` forwarded, `X` canceled, `D/✓` delegated, `•` in-process).
   * Auto-syncs with Google Tasks using `[A1]` title prefixes.
   * Drag-and-drop or button re-ordering.
 * **Center Column: Appointment Schedule (07:00 AM – 07:00 PM)**:
@@ -87,12 +87,12 @@ The application implements a complete suite of Franklin Planner page views acces
 
 * **Color System**:
   * Background: `#fcfbfa` (Warm Cream / Parchment)
-  * Ruling Lines: `#2d6a5a` (Classic Franklin Teal/Forest Green)
+  * Ruling Lines: `#2d6a5a` (Classic Teal/Forest Green)
   * Header Text: `#1b4332` (Deep Forest)
   * Active Tabs: `#e9f5f2` (Light Teal Tint)
   * Priority Badges: `A` (Coral Red), `B` (Amber Gold), `C` (Slate Blue)
 * **Typography**:
-  * Headers & Titles: *Playfair Display* / *Georgia* (Classic Franklin look)
+  * Headers & Titles: *Playfair Display* / *Georgia* (Classic Day Planner look)
   * Grid Content & Inputs: *Inter* / *Roboto* (High legibility)
 * **Frontend Tech Stack**:
   * **Alpine.js**: Reactive state management for binder tabs, modal popups, task status updates, and universal search filter.
@@ -106,9 +106,9 @@ The application implements a complete suite of Franklin Planner page views acces
 | :--- | :--- | :--- |
 | **Google Calendar** | `CalendarApp` | Sync events into 07:00-19:00 grid, event popup details modal, Meet launcher. |
 | **Google Tasks** | `Tasks` / `TasksApp` | Manage daily `[A1]` tasks and monthly master task lists (`[Month] [Year] Master Tasks`), execute task transfer. |
-| **Google Docs** | `DocumentApp` | Render scrollable daily notes view from Franklin-Covey template, scan `#index` tags. |
+| **Google Docs** | `DocumentApp` | Render scrollable daily notes view from the Day Planner template, scan `#index` tags. |
 | **Google Sheets** | `SpreadsheetApp` | Backup relational store for index records and expense tracking metrics. |
-| **Google Drive** | `DriveApp` | Manage `/Franklin Planner/YYYY/MM/` directory structure and template files. |
+| **Google Drive** | `DriveApp` | Manage `/Day Planner/YYYY/MM/` directory structure and template files. |
 
 ---
 
@@ -128,7 +128,7 @@ The application implements a complete suite of Franklin Planner page views acces
 └── gas-app/                       # Google Apps Script Project Files
     ├── Code.gs                    # Backend GAS server logic & API integrations
     ├── Index.html                 # Main Single Page App (SPA) Binder Shell
-    ├── Styles.html                # Franklin Covey + UWSDS CSS design system
+    ├── Styles.html                # Day Planner + UWSDS CSS design system
     └── Script.html                # Alpine.js reactive components & API bridge
 ```
 
@@ -138,7 +138,7 @@ The application implements a complete suite of Franklin Planner page views acces
 
 1. **Phase 1: GAS Backend & Template Architecture**
    * Build `Code.gs` handlers for `CalendarApp`, `TasksApp`, `DocumentApp`, `DriveApp`.
-   * Create Franklin-Covey Google Docs Template generator script.
+   * Create a Day Planner Google Docs template generator script.
 2. **Phase 2: Alpine.js Binder Frontend & Universal Search**
    * Implement 2-page Daily Binder layout, Full-Screen Monthly Overview Calendar, Monthly Master Task List, and Monthly Index view.
    * Build Universal Search component (`Ctrl + K`) querying Calendar, Tasks, Docs, and Index.

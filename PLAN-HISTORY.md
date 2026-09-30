@@ -134,7 +134,7 @@ Archived completed phases from [`PLAN.md`](file:///home/mike/projects/day-planne
 - [x] Verify Chrome/Edge "Open as window" desktop shortcut workflows.
 
 ### Phase 7: CSS Architecture Decoupling (`modern-normalize` Spike)
-*Goal: Decouple Day Planner from Pico CSS v2 on a dedicated branch (`feat/modern-normalize`), replacing classless tag hijacking with modern-normalize and self-contained Franklin Covey design tokens.*
+*Goal: Decouple Day Planner from Pico CSS v2 on a dedicated branch (`feat/modern-normalize`), replacing classless tag hijacking with modern-normalize and self-contained Day Planner design tokens.*
 
 - [x] Fix Tasks column star button pill issue on `pure-gas-main` (commit `c957ba2`).
 - [x] Create and checkout dedicated branch `feat/modern-normalize` without risking `pure-gas-main`.
@@ -165,7 +165,7 @@ Archived completed phases from [`PLAN.md`](file:///home/mike/projects/day-planne
 ### Phase 10: Master Tasks Parity, Monthly Index Polish & Month Picker with Year Nav
 *Goal: Bring Master Tasks to full feature parity with Daily Tasks, format Monthly Index highlights with rich text, ensure authentic Google Doc direct links, and implement high-efficiency multi-year month navigation.*
 
-- [x] Master Tasks Feature Parity: letterpress segmented priority buttons, inline `#a`/`#b`/`#c` prefix detection + `Alt+A/B/C`, 5 sortable columns, Franklin glyph status dropdown with Delete, dedicated `[Delete]` button, sticky note popover, star toggle, priority badges, multi-column sorting, `updateMasterTask`/`deleteMasterTask` RPCs.
+- [x] Master Tasks Feature Parity: letterpress segmented priority buttons, inline `#a`/`#b`/`#c` prefix detection + `Alt+A/B/C`, 5 sortable columns, status glyph dropdown with Delete, dedicated `[Delete]` button, sticky note popover, star toggle, priority badges, multi-column sorting, `updateMasterTask`/`deleteMasterTask` RPCs.
 - [x] Monthly Index Polish: renamed header, rich-text Summary Highlight column, authentic `docs.google.com` direct links via `getDirectDocUrl`.
 - [x] Top Navbar Month Picker Hover-Drop & Year Stepper: hover/click/double-tap dropdown, `< [Year] >` stepper, 4x3 month grid, gold/teal highlight states.
 - [x] Deployments: HOME `@185`, WORK Version 26 (`9csO`).
@@ -173,7 +173,7 @@ Archived completed phases from [`PLAN.md`](file:///home/mike/projects/day-planne
 ### Phase 11: Task Filters, Calendar Grid Scaling, In-App Index Navigation & Doc Architecture
 *Goal: Provide instant multi-status filtering on Master Tasks, eliminate calendar vertical dead space with day y-scroll, integrate in-app router links from Monthly Index, and lock in Google Doc Option 3 architecture.*
 
-- [x] Master Tasks Status Filter (Option A: Franklin Glyph Stamp Toggles, commit `1426e7f`): `[All | • | ○ | ✓ | → | X | Ⓓ]` toolbar, `filterTasksByStatus` engine method, 6 unit tests.
+- [x] Master Tasks Status Filter (Option A: Status Glyph Stamp Toggles, commit `1426e7f`): `[All | • | ○ | ✓ | → | X | Ⓓ]` toolbar, `filterTasksByStatus` engine method, 6 unit tests.
 - [x] Monthly Overview Full-Screen Expansion & Y-Scroll On-Demand (commit `1426e7f`).
 - [x] Monthly Index In-App Navigation (commit `81b75c3`): `Jump to Day` column, `jumpToDailyPage(date, topic)`.
 - [x] Google Doc Option 3 Architecture & Append Bug Fix (commit `07f528d`): fixed `saveDailyDocCards` unconditional append duplication.

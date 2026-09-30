@@ -274,7 +274,7 @@ describe('Future Matrix Engine Unit Tests', () => {
       assert.equal(regressQuarterKey('invalid'), 'invalid');
     });
 
-    it('cycleMilestoneStatus cycles through Franklin states in order', () => {
+    it('cycleMilestoneStatus cycles through planner states in order', () => {
       assert.equal(cycleMilestoneStatus('•'), '→');
       assert.equal(cycleMilestoneStatus('→'), '✓');
       assert.equal(cycleMilestoneStatus('✓'), 'X');

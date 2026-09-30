@@ -1,7 +1,7 @@
 {
   "name": "Day Planner",
   "short_name": "Day Planner",
-  "description": "Franklin Covey methodology digital binder backed by Google Workspace",
+  "description": "Day Planner methodology digital binder backed by Google Workspace",
   "id": "/day-planner",
   "start_url": ".",
   "scope": ".",

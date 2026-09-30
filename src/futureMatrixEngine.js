@@ -1,7 +1,7 @@
 /**
  * @file futureMatrixEngine.js
- * @description Future Planning Matrix (12-month overview) — Franklin Covey's "flip ahead
- * and jot down the big rocks" workflow applied to a full year. Items live in a month's
+ * @description Future Planning Matrix (12-month overview) — the classic day planner "flip
+ * ahead and jot down the big rocks" workflow applied to a full year. Items live in a month's
  * bucket until they're transferred onto a specific day's task list (src/taskEngine.js
  * handles that transfer) or carried forward to the next month if still open.
  *
@@ -238,7 +238,7 @@ export function updateMilestone(milestone, updates = {}) {
 }
 
 /**
- * Cycles a milestone or future item status marker across Franklin Covey states:
+ * Cycles a milestone or future item status marker across these states:
  * '•' (open) -> '→' (in progress) -> '✓' (completed) -> 'X' (cancelled) -> '•'.
  * @param {string} currentStatus
  * @returns {'•'|'→'|'✓'|'X'}

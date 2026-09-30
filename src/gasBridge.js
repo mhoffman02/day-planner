@@ -115,7 +115,7 @@ export class GASBridge {
             startTime: '2026-09-25T13:30:00',
             endTime: '2026-09-25T14:30:00',
             location: 'Conference Room 2',
-            description: 'Demonstration of Franklin status stamp toggles and Google Doc links.'
+            description: 'Demonstration of status stamp toggles and Google Doc links.'
           },
           {
             id: 'e_sep25_6',
@@ -573,7 +573,7 @@ export class GASBridge {
   }
 
   /**
-   * Cycles a future item's Franklin-style status marker.
+   * Cycles a future item's status marker.
    * @param {number|string} year Target calendar year.
    * @param {string} monthKey Target month key in YYYY-MM format.
    * @param {string} itemId Future item identifier.

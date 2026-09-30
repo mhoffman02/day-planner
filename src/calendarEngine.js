@@ -1,6 +1,6 @@
 /**
  * @file calendarEngine.js
- * @description Franklin Planner Calendar & Schedule Engine.
+ * @description Day Planner Calendar & Schedule Engine.
  * Handles 07:00 AM - 07:00 PM schedule grid, event slot mapping, modal popups, and 7x5 monthly calendar calculations.
  */
 

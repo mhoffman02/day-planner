@@ -276,7 +276,7 @@ export { getNextSequence as findNextAvailableSequence };
 
 /**
  * Forwards a daily task to a new date, creating a new task entry on the target day —
- * Franklin Covey's "➜ forwarded to a new date" semantics: the original task keeps its
+ * the classic day planner "➜ forwarded to a new date" semantics: the original task keeps its
  * FORWARDED status marker in place (so today's page still shows it was handled), while a
  * fresh open task carrying the same priority group/category is created on the target date.
  * @param {object} sourceTask Source daily task object being forwarded.

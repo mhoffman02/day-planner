@@ -106,7 +106,7 @@
 - [x] **Today page, Tasks panel: click-to-edit task Description**: Commit [`abdf26a`](file:///home/mike/projects/day-planner/.git/commit/abdf26a).
   - Defined inline editing state (`editingTaskId`, `editingTaskTitle`) in Alpine data model.
   - Enabled click-to-edit on task clean titles in both Daily Tasks and Master Tasks panels.
-  - Swaps clean title span with seamless, in-place Franklin aesthetic input on click (`.task-title-text`, `.task-title-inline-input`).
+  - Swaps clean title span with seamless, in-place inline input on click (`.task-title-text`, `.task-title-inline-input`).
   - Added `updateTaskTitleText` helper in [`src/taskEngine.js`](file:///home/mike/projects/day-planner/src/taskEngine.js) preserving priority prefixes (e.g. `[A1]`) when description text is modified.
   - Saves on Enter or blur with double-save guard and Escape cancellation, updating local cache and Google Tasks backend via `updateDailyTask`.
   - Added unit test suite in [`tests/taskInlineEdit.test.js`](file:///home/mike/projects/day-planner/tests/taskInlineEdit.test.js) (6 tests) and updated [`tests/gasBridge.test.js`](file:///home/mike/projects/day-planner/tests/gasBridge.test.js).
@@ -492,7 +492,7 @@
 
 ## 2026-09-25 — Master Tasks Status Filter Toggles, Monthly Overview Full Expansion & Y-Scroll, Daily Page Jump Navigation (commits `1426e7f` & `81b75c3`)
 
-- [x] **Master Tasks Status Filter Toggles (Option A: Franklin Glyph Stamp Toggles, commit `1426e7f`)**:
+- [x] **Master Tasks Status Filter Toggles (Option A: Status Glyph Stamp Toggles, commit `1426e7f`)**:
   - Implemented compact, flat stamp toolbar directly in Master Tasks header: `[All] [ • Open ] [ ○ In Progress ] [ ✓ Done ] [ → Forward ] [ X Canceled ] [ Ⓓ Delegated ]`.
   - Adhered strictly to flat 2px radius stamp aesthetic (zero pills), inverted forest teal fill (`#2d6a5a`) when active, parchment hairlines when inactive.
   - Implemented `filterTasksByStatus` in [`src/taskEngine.js`](file:///home/mike/projects/day-planner/src/taskEngine.js) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html) with normalization between `Ⓓ` and `D/✓`.
@@ -516,7 +516,7 @@
   - Added inline `#a`, `#b`, `#c` prefix detection in input title to dynamically set priority.
   - Added keyboard shortcuts: `Alt+A/B/C` and `Ctrl+Shift+A/B/C` switch priority and focus the master task input when on the `master-tasks` view.
   - Implemented 5 sortable table columns: Priority (`Pri`), Status (`Sts`), Task Description, Category, Action.
-  - Added Franklin glyph status dropdown popup menu with Delete item on each master task row.
+  - Added status glyph dropdown popup menu with Delete item on each master task row.
   - Added dedicated `[Delete]` button (`.btn-delete-row` with trashcan icon) directly to the right of `[Move]` button on each master task row.
   - Added sticky note indicator icon with popover hover/click displaying notes without clipping (`notesPopoverDropUp`).
   - Added star toggle (`★`/`☆`), priority column badges (`.priority-badge`), and multi-column sorting (`sortTasksByColumn`).
@@ -541,7 +541,7 @@
   - Set `overflow: visible` and removed `max-height` from `.task-title-cell` in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html).
 - [x] **Add Runtime Environment JSDoc Headers & Golden Active Navbar Accent (commit `75cdeeb`)**:
   - Added comprehensive JSDoc headers to [`index.html`](file:///home/mike/projects/day-planner/index.html) and [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) detailing the two runtime environments (Local Dev vs Google Apps Script Production bundle).
-  - Replaced the minty accent (`#58bfa2`) with authentic Franklin gold-foil stamp color (`#d4a017`) on the active navbar tab indicator (`.segment-btn.active`).
+  - Replaced the minty accent (`#58bfa2`) with authentic gold-foil stamp color (`#d4a017`) on the active navbar tab indicator (`.segment-btn.active`).
 - [x] **Add Task Status Dropdown Delete Item & Update Delegated Label (commit `2d94772`)**:
   - Added "Delete" item with trashcan icon and separator to the Daily Tasks Status dropdown menu.
   - Implemented `deleteDailyTask` in [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), [`src/gasBridge.js`](file:///home/mike/projects/day-planner/src/gasBridge.js), and [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs).
@@ -592,7 +592,7 @@
 
 - [x] **Proposal B Letterpress Segmented Priority Selector (commit `de02715`)**:
   - In [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) and [`index.html`](file:///home/mike/projects/day-planner/index.html), replaced `<select class="task-priority-select">` with compact letterpress stamp tabs `[ A | B | C ]` bound to `newTaskPriorityGroup`.
-  - In [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html), added `.priority-segmented-group` and `.priority-segment-btn` with Franklin Covey design tokens (sharp 2px border radius, strictly no pills).
+  - In [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html), added `.priority-segmented-group` and `.priority-segment-btn` with Day Planner design tokens (sharp 2px border radius, strictly no pills).
   - Implemented authentic color-coded active states: Priority A Brick Red (`#dc2626`), Priority B Warm Ochre (`#d97706`), Priority C Binder Teal (`#2d6a5a`) with inset letterpress stamp shadow.
   - Retained sticky priority memory for rapid bulk entry; typing a task title and pressing `Enter` submits immediately with the active priority tab.
   - Supported dark theme (`[data-theme="dark"]`) with tailored borders and backgrounds.
@@ -613,7 +613,7 @@
 - [x] **Decouple from Pico CSS to `modern-normalize@3.0.1` (commit `544d690`)**:
   - Branched off `pure-gas-main` onto isolated feature branch `feat/modern-normalize`.
   - Replaced `@picocss/pico@2` with `modern-normalize@3.0.1` in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css#L1) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html#L2), removing aggressive element hijacking (`button`, `[role="button"]`, `<article>`).
-  - Replaced all 39 occurrences of `--pico-*` CSS variables with native Franklin Covey tokens (`--binder-teal`, `--bg-parchment`, font stacks).
+  - Replaced all 39 occurrences of `--pico-*` CSS variables with native Day Planner tokens (`--binder-teal`, `--bg-parchment`, font stacks).
   - Authored unopinionated base styles for form controls (`input`, `select`, `textarea`, `a`, `button`) with dual-theme focus states.
   - Added desktop header flex-wrap safeguard (`min-width: max-content` on `.header-left`) preventing month header truncation at 1440px.
   - Verified 0 console errors and 0 page errors across all 5 views + About + Search Modal in both Light and Dark themes via Playwright.
@@ -641,7 +641,7 @@
   - Added `.star-toggle` to shared interactive resets and configured dark mode color/hover overrides. Verified via Playwright screenshot inspection.
 - [x] **CSS Framework Architectural Evaluation**:
   - Evaluated Pico CSS vs DaisyUI vs Water.css vs Sakura vs Pure.css vs `modern-normalize` vs MVP.css.
-  - Determined that classless libraries (Pico, Water, Sakura, MVP.css) fight Day Planner's 2,830 lines of bespoke Franklin Covey CSS.
+  - Determined that classless libraries (Pico, Water, Sakura, MVP.css) fight Day Planner's 2,830 lines of bespoke CSS.
   - Determined that `modern-normalize` is the optimal architectural foundation because Day Planner already defines 95%+ of its own styling, and light/dark theme support requires zero extra effort since `[data-theme="dark"]` is already completely authored in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css).
   - Selected strategy: create an isolated branch (`feat/modern-normalize`) to build and verify the `modern-normalize` implementation without risking `pure-gas-main`.
 
@@ -804,7 +804,7 @@
   - Backported [`src/futureMatrixEngine.js`](file:///home/mike/projects/day-planner/src/futureMatrixEngine.js) and [`tests/futureMatrixEngine.test.js`](file:///home/mike/projects/day-planner/tests/futureMatrixEngine.test.js) (25 unit tests).
   - Added Drive-backed persistence in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs) (`getFutureMatrix`, `addFutureItem`, `updateFutureItemStatus`, `transferFutureItem`, `pushFutureItemToNextMonth`, `deleteFutureItem`) persisting to `future-matrix-<YYYY>.json` with 5-min caching.
   - Added Future Matrix mock dataset and RPC methods to [`src/gasBridge.js`](file:///home/mike/projects/day-planner/src/gasBridge.js) and [`tests/gasBridge.test.js`](file:///home/mike/projects/day-planner/tests/gasBridge.test.js) (6 new bridge tests).
-  - Backported interactive 12-month cards with add-bar, Franklin status cycling (`•` → `✓` → `→` → `X` → `G/✓`), transfer-to-date picker, push-forward, and delete to [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html), mirrored in [`index.html`](file:///home/mike/projects/day-planner/index.html), [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js), and [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css).
+  - Backported interactive 12-month cards with add-bar, status cycling (`•` → `✓` → `→` → `X` → `G/✓`), transfer-to-date picker, push-forward, and delete to [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html), mirrored in [`index.html`](file:///home/mike/projects/day-planner/index.html), [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js), and [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css).
   - Verified 0 lint errors, 61/61 unit tests passing (commit [`82cf35f`](https://github.com/mhoffman02/day-planner/commit/82cf35f)).
 - [x] **Daily Tasks Enhancements**:
   - Backported status dropdown menu with In-Progress (`•`), Forwarded (`→`), Delegated (`D/✓`), Canceled (`X`) in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), [`index.html`](file:///home/mike/projects/day-planner/index.html), and [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js).
@@ -847,7 +847,7 @@
   - Fixed Pico CSS `input:not(...)` specificity bug where the date picker expanded to 100% width and pushed the `[ Move ]` button off-screen (commits [`95c891a`](https://github.com/mhoffman02/day-planner/commit/95c891a), [`049f6d2`](https://github.com/mhoffman02/day-planner/commit/049f6d2)).
 - [x] **Future Planning Matrix Enhancements**:
   - Renamed view title to "Future Planning" in [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) and [`index.html`](file:///home/mike/projects/day-planner/index.html).
-  - Replaced single-click cycling status button with Franklin status popup menu matching Today view task controls, listing all 6 Franklin states (`•`, `○`, `✓`, `→`, `X`, `D/✓`).
+  - Replaced single-click cycling status button with status popup menu matching Today view task controls, listing all 6 states (`•`, `○`, `✓`, `→`, `X`, `D/✓`).
   - Implemented responsive two-tier layout for future month cards, giving tasks horizontal breathing room.
 - [x] **Centered Navbar & Flat Underline Navigation Tabs**:
   - Centered navigation items via balanced flex geometry: `.header-left` (`flex: 1 1 0; min-width: 0;`), `.header-actions-compact` (`flex: 1 1 0; min-width: 0; justify-content: flex-end;`), and `nav.view-segmented-control` (`flex: 0 0 auto; margin: 0 auto;`).

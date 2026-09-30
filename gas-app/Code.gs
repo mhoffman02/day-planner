@@ -405,7 +405,7 @@ var DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mhoff
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-var DAY_PLANNER_BUILD_NUMBER = 367;
+var DAY_PLANNER_BUILD_NUMBER = 368;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -2429,7 +2429,7 @@ function getFutureMatrixData_(year) {
 
 /**
  * Fetches the Future Planning Matrix (12-month overview) for a given year — month-scoped
- * "big rock" items not yet tied to a specific day, per the Franklin Covey Master Task List
+ * "big rock" items not yet tied to a specific day, per the Master Task List
  * model applied across the whole year. Backed by real Google Tasks (flagged `[Future]` in
  * their notes) rather than a per-year Drive JSON file.
  * @param {number|string} year Target calendar year.
@@ -2494,7 +2494,7 @@ function addFutureItem(year, monthKey, title, category, day) {
 }
 
 /**
- * Cycles a future item's Franklin-style status marker.
+ * Cycles a future item's status marker.
  * @param {number|string} year Target calendar year (unused, kept for call-site compatibility).
  * @param {string} monthKey Target month key (unused, kept for call-site compatibility).
  * @param {string} itemId Future item's Google Task id.
@@ -2516,7 +2516,7 @@ function updateFutureItemStatus(year, monthKey, itemId, status) {
 }
 
 /**
- * Transfers a future planning item onto a specific day's task list — Franklin Covey's
+ * Transfers a future planning item onto a specific day's task list — the classic day planner
  * "forwarded" semantics: the item now lives on that day instead of its month bucket.
  * Patches the same underlying Google Task in place (clearing its `[Future]` flag) rather
  * than deleting and recreating it, so the task id is preserved across the transfer.

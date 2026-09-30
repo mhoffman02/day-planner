@@ -1,6 +1,6 @@
 /**
  * @file binderStore.js
- * @description Franklin Planner Binder Navigation & State Store.
+ * @description Day Planner Binder Navigation & State Store.
  * Manages active page view tabs, active date selection, modal state, and universal search filter.
  */
 

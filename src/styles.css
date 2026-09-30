@@ -5,7 +5,7 @@
   :root,
   :root[data-theme="light"],
   [data-theme="light"] {
-    /* Franklin Covey & Base Design Tokens */
+    /* Day Planner & Base Design Tokens */
     --font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-family-header: 'Playfair Display', Georgia, serif;
     --font-size-base: 100%;
@@ -17,7 +17,7 @@
     --duration-standard: 0.15s;
     --duration-slow: 0.2s;
 
-    /* Franklin Covey Aesthetic Tokens */
+    /* Day Planner Aesthetic Tokens */
     --bg-page: #12241d;
     --bg-parchment: #fcfbfa;
     --bg-binder: #142e23;
@@ -1123,7 +1123,7 @@
     gap: 6px;
   }
 
-  /* Form & Quick Add Bar (Franklin Covey Clean Design) */
+  /* Form & Quick Add Bar (Clean Design) */
   form.task-quick-add-bar {
     display: flex;
     flex-wrap: nowrap;
