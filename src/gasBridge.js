@@ -4,7 +4,7 @@
  * Bridges client requests to Google Apps Script backend `google.script.run` or local mock state.
  */
 
-import { transferMasterTaskToToday, buildMasterTasksClearinghouse } from './taskEngine.js';
+import { transferMasterTaskToToday, buildMasterTasksClearinghouse, forwardTaskToDate } from './taskEngine.js';
 import { createFutureItem, nextMonthKey, emptyYearMatrix } from './futureMatrixEngine.js';
 
 /**
@@ -398,6 +398,42 @@ export class GASBridge {
         .withSuccessHandler(resolve)
         .withFailureHandler(reject)
         .deleteDailyTask(taskId);
+    });
+  }
+
+  /**
+   * Forwards an existing daily task to a new target date.
+   * @param {string} sourceDateStr Source date in YYYY-MM-DD format.
+   * @param {string} taskId Task identifier.
+   * @param {string} targetDateStr Target date in YYYY-MM-DD format.
+   * @returns {Promise<{originalTask: object, forwardedTask: object}|null>}
+   */
+  async forwardDailyTask(sourceDateStr, taskId, targetDateStr) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      const sourceTasks = this.mockData.dailyTasks[sourceDateStr] || this.mockData.dailyTasks['2026-08-15'] || [];
+      const task = sourceTasks.find(t => t.id === taskId);
+      if (!task) return null;
+
+      task.status = '→';
+
+      if (!this.mockData.dailyTasks[targetDateStr]) {
+        this.mockData.dailyTasks[targetDateStr] = [];
+      }
+      const existingTarget = this.mockData.dailyTasks[targetDateStr];
+      const forwarded = forwardTaskToDate(task, existingTarget, targetDateStr);
+      this.mockData.dailyTasks[targetDateStr].push(forwarded);
+
+      return {
+        originalTask: task,
+        forwardedTask: forwarded
+      };
+    }
+
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .forwardDailyTask(sourceDateStr, taskId, targetDateStr);
     });
   }
 

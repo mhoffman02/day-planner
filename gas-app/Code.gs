@@ -405,7 +405,7 @@ var DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mhoff
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-var DAY_PLANNER_BUILD_NUMBER = 355;
+var DAY_PLANNER_BUILD_NUMBER = 356;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -1522,10 +1522,10 @@ function getOrCreateDailyDocContent(dateStr, knownDocId) {
     }
     var elements = docsGetBodyElements_(docId);
     var extracted = extractDaySectionText_(elements, dateStr);
-    return extracted !== null ? extracted : ('### #index [General] Daily Notes for ' + dateStr + '\n- Initialized daily topic card.');
+    return extracted !== null ? extracted : ('### #index [General] Daily Notes\n- Initialized daily topic card.');
   } catch (err) {
     logError('getOrCreateDailyDocContent(' + dateStr + ')', err);
-    return '### #index [General] Daily Notes for ' + dateStr;
+    return '### #index [General] Daily Notes';
   }
 }
 
@@ -2289,6 +2289,45 @@ function deleteDailyTask(taskId) {
       return true;
     }
     logError('deleteDailyTask(' + taskId + ')', err);
+    throw err;
+  }
+}
+
+/**
+ * Forwards an existing daily task to a new target date in Google Tasks.
+ * Sets the original task's status to '→' and creates an open task on targetDate.
+ * @param {string} sourceDateStr Source date in YYYY-MM-DD format.
+ * @param {string} taskId Google Task ID.
+ * @param {string} targetDateStr Target date in YYYY-MM-DD format.
+ * @returns {{originalTask: object, forwardedTask: object}} Resulting task objects.
+ */
+function forwardDailyTask(sourceDateStr, taskId, targetDateStr) {
+  try {
+    var cur = (typeof Tasks !== 'undefined') ? Tasks.Tasks.get('@default', taskId) : null;
+    var title = cur ? cur.title : '';
+    var meta = cur ? decodeTaskMeta(cur.notes) : {};
+    var category = meta.category || 'General';
+
+    // 1. Mark original task as forwarded
+    var originalTask = updateDailyTask(sourceDateStr, taskId, { status: '→' });
+
+    // 2. Parse priority group and clean title
+    var match = (title || '').match(/^\[([A-C])[1-9]\]\s*(.*)$/i);
+    var priorityGroup = match ? match[1].toUpperCase() : 'A';
+    var cleanTitle = match ? match[2].trim() : (title || 'Untitled Task').trim();
+
+    // 3. Format title for target date
+    var formattedTitle = '[' + priorityGroup + '1] ' + cleanTitle;
+
+    // 4. Create task on target date
+    var forwardedTask = addDailyTask(targetDateStr, formattedTitle, category);
+
+    return {
+      originalTask: originalTask,
+      forwardedTask: forwardedTask
+    };
+  } catch (err) {
+    logError('forwardDailyTask(' + taskId + ')', err);
     throw err;
   }
 }
@@ -3468,6 +3507,7 @@ global.testAiMicroservice = testAiMicroservice;              // google.script.ru
 global.callAiMicroservice = callAiMicroservice;              // google.script.run: Script.html
 global.getAiMicroserviceConfig = getAiMicroserviceConfig;    // google.script.run: Script.html
 global.setAiUserSelectedModel = setAiUserSelectedModel;      // google.script.run: Script.html
+global.forwardDailyTask = forwardDailyTask;                  // google.script.run: Script.html
 
 // Cross-file only (not reachable from any client/template/trigger/IDE surface above, but needed
 // by other .gs files' own IIFEs since GAS has no import statement -- this global object is the
@@ -3502,6 +3542,7 @@ global._getMasterTasksInternal = getMasterTasks;
 global._addDailyTaskInternal = addDailyTask;
 global._updateDailyTaskInternal = updateDailyTask;
 global._deleteDailyTaskInternal = deleteDailyTask;
+global._forwardDailyTaskInternal = forwardDailyTask;
 global._addMasterTaskInternal = addMasterTask;
 global._updateMasterTaskInternal = updateMasterTask;
 global._deleteMasterTaskInternal = deleteMasterTask;
@@ -3620,6 +3661,10 @@ function updateDailyTask(dateStr, taskId, updates) {
 
 function deleteDailyTask(taskId) {
   return (typeof _deleteDailyTaskInternal === 'function') ? _deleteDailyTaskInternal(taskId) : (globalThis._deleteDailyTaskInternal ? globalThis._deleteDailyTaskInternal(taskId) : null);
+}
+
+function forwardDailyTask(sourceDateStr, taskId, targetDateStr) {
+  return (typeof _forwardDailyTaskInternal === 'function') ? _forwardDailyTaskInternal(sourceDateStr, taskId, targetDateStr) : (globalThis._forwardDailyTaskInternal ? globalThis._forwardDailyTaskInternal(sourceDateStr, taskId, targetDateStr) : null);
 }
 
 function addMasterTask(title, category, dueDate) {

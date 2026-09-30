@@ -4518,7 +4518,8 @@
     border: 1px solid var(--border-line);
     border-radius: 2px;
   }
-  .time-machine-toast {
+  .time-machine-toast,
+  .task-toast {
     position: fixed;
     bottom: 24px;
     right: 24px;

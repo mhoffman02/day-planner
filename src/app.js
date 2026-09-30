@@ -383,6 +383,7 @@ Alpine.data('plannerApp', () => ({
       timeMachineRevisions: [],
       selectedRevisionIndex: 0,
       timeMachineToast: null,
+      taskToast: null,
 
       // In-Binder Lexicon & Thesaurus Popover state
       lexiconOpen: false,
@@ -429,8 +430,9 @@ Alpine.data('plannerApp', () => ({
 
       theme: 'light',
 
-      // Topic LRU state (10 items max, persistent)
+      // Topic & Category LRU state (20 items max, persistent)
       recentTopics: [],
+      recentCategories: ['General', 'Work', 'Personal', 'Financial', 'Projects', 'Health', 'Meeting', 'Decision'],
       activeTopicCardId: null,
       topicSelectedIndex: -1,
 
@@ -438,22 +440,10 @@ Alpine.data('plannerApp', () => ({
       installModalOpen: false,
 
       get availableCategories() {
-        const set = new Set(['General', 'Work', 'Personal', 'Financial', 'Projects', 'Health', 'Meeting', 'Decision']);
-        if (Array.isArray(this.masterTasks)) {
-          this.masterTasks.forEach(t => {
-            if (t.category && typeof t.category === 'string') {
-              set.add(t.category.trim());
-            }
-          });
-        }
-        if (Array.isArray(this.dailyTasks)) {
-          this.dailyTasks.forEach(t => {
-            if (t.category && typeof t.category === 'string') {
-              set.add(t.category.trim());
-            }
-          });
-        }
-        return Array.from(set).sort();
+        const cats = Array.isArray(this.recentCategories) && this.recentCategories.length > 0
+          ? this.recentCategories
+          : ['General', 'Work', 'Personal', 'Financial', 'Projects', 'Health', 'Meeting', 'Decision'];
+        return [...cats].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
       },
 
       get filteredNoteCards() {
@@ -503,6 +493,7 @@ Alpine.data('plannerApp', () => ({
         this.initAiAssist();
         this.initColumnWidths();
         this.initRecentTopics();
+        this.initCategories();
         await this.loadDayData();
         await this.loadMasterTasks();
         this.setupKeyboardShortcuts();
@@ -533,7 +524,7 @@ Alpine.data('plannerApp', () => ({
           if (saved) {
             const parsed = JSON.parse(saved);
             if (Array.isArray(parsed) && parsed.length > 0) {
-              this.recentTopics = parsed.slice(0, 10);
+              this.recentTopics = parsed.slice(0, 20);
               return;
             }
           }
@@ -541,6 +532,23 @@ Alpine.data('plannerApp', () => ({
           // ignore localStorage error
         }
         this.recentTopics = ['Sprint', '1:1', 'Standup', 'Planning', 'Admin', 'Architecture', 'Bug Triage', 'Personal', 'Review', 'General'];
+      },
+
+      initCategories() {
+        const defaultCategories = ['General', 'Work', 'Personal', 'Financial', 'Projects', 'Health', 'Meeting', 'Decision'];
+        try {
+          const saved = localStorage.getItem('dayPlannerCategories');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              this.recentCategories = parsed.filter(c => typeof c === 'string' && c.trim()).slice(0, 20);
+              return;
+            }
+          }
+        } catch {
+          // ignore localStorage error
+        }
+        this.recentCategories = defaultCategories;
       },
 
       initColumnWidths() {
@@ -1535,13 +1543,28 @@ Alpine.data('plannerApp', () => ({
         return (this.recentTopics || []).filter(t => t.toLowerCase().includes(q));
       },
 
+      recordCategory(category) {
+        if (!category || typeof category !== 'string') return;
+        const clean = category.trim();
+        if (!clean) return;
+        const list = (this.recentCategories || []).filter(c => c.toLowerCase() !== clean.toLowerCase());
+        list.unshift(clean);
+        this.recentCategories = list.slice(0, 20);
+        try {
+          localStorage.setItem('dayPlannerCategories', JSON.stringify(this.recentCategories));
+        } catch {
+          // ignore
+        }
+        this.recordRecentTopic(clean);
+      },
+
       recordRecentTopic(topic) {
         if (!topic || typeof topic !== 'string') return;
         const clean = topic.trim();
         if (!clean) return;
         const list = (this.recentTopics || []).filter(t => t.toLowerCase() !== clean.toLowerCase());
         list.unshift(clean);
-        this.recentTopics = list.slice(0, 10);
+        this.recentTopics = list.slice(0, 20);
         try {
           localStorage.setItem('dayPlannerRecentTopics', JSON.stringify(this.recentTopics));
         } catch {
@@ -2608,14 +2631,16 @@ Alpine.data('plannerApp', () => ({
           indexTopic = parts[0].trim();
           clean = parts.slice(1).join(':').trim();
         }
+        if (/^Daily Notes for \d{4}-\d{2}-\d{2}$/i.test(clean)) {
+          clean = 'Daily Notes';
+        }
         return { indexTopic, heading: clean };
       },
 
       parseDailyNoteToCards(noteText = '') {
         if (!noteText.trim() || noteText.startsWith('No notes recorded for')) {
           return [
-            { id: 'nc_1', indexTopic: 'Architecture', heading: 'System Design', content: '- Finalized 3-column binder layout with Alpine.js and clean CSS.', category: 'Work', categories: ['Work'], collapsed: false },
-            { id: 'nc_2', indexTopic: 'Finance', heading: 'Budget Sync', content: '- Reviewed Q3 budget and Google Workspace API sync.\n- Approved GCP allocation.', category: 'Meeting', categories: ['Meeting'], collapsed: false }
+            { id: 'nc_1', indexTopic: 'General', heading: 'Daily Notes', content: '- Initialized daily topic card.', category: 'General', categories: ['General'], collapsed: false }
           ];
         }
 
@@ -2860,6 +2885,7 @@ Alpine.data('plannerApp', () => ({
         this.addingMasterTask = true;
         try {
           const category = this.newMasterTaskCategory.trim() || 'General';
+          this.recordCategory(category);
           const dueDate = this.newMasterTaskDueDate ? this.newMasterTaskDueDate.trim() : null;
           const existingCount = this.masterTasks.length + 1;
           const formattedTitle = formatTaskTitle(this.newMasterTaskPriorityGroup, existingCount, taskTitle);
@@ -3190,6 +3216,7 @@ Alpine.data('plannerApp', () => ({
         if (!taskTitle) return;
         try {
           const category = (this.newTaskCategory && this.newTaskCategory.trim()) || 'Work';
+          this.recordCategory(category);
           const existingCount = this.dailyTasks.length + 1;
           const formattedTitle = formatTaskTitle(this.newTaskPriorityGroup, existingCount, taskTitle);
           const newTask = await this.bridge.addDailyTask(this.selectedDate, formattedTitle, category);
@@ -3456,7 +3483,9 @@ Alpine.data('plannerApp', () => ({
               });
             }
           } else {
-            if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
+            if (newStatus === '→') {
+              await this.forwardDailyTask(task);
+            } else if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
               await this.bridge.updateDailyTask(this.selectedDate, task.id, {
                 title: task.title,
                 status: task.status,
@@ -3473,6 +3502,52 @@ Alpine.data('plannerApp', () => ({
         this.syncDailyCacheFromLiveState();
         this.syncMasterTasksCacheFromLiveState();
         await this.trigger2WaySync();
+      },
+
+      showTaskToast(msg) {
+        this.taskToast = msg;
+        setTimeout(() => {
+          if (this.taskToast === msg) {
+            this.taskToast = null;
+          }
+        }, 4000);
+      },
+
+      async forwardDailyTask(task, explicitTargetDate = null) {
+        if (!task || !task.id) return;
+        const sourceDate = this.selectedDate;
+        const todayStr = getLocalDateStr();
+        let targetDate = explicitTargetDate;
+        if (!targetDate) {
+          if (sourceDate < todayStr) {
+            targetDate = todayStr;
+          } else {
+            const d = new Date(`${sourceDate}T00:00:00`);
+            d.setDate(d.getDate() + 1);
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            targetDate = `${d.getFullYear()}-${mm}-${dd}`;
+          }
+        }
+
+        try {
+          const res = await this.bridge.forwardDailyTask(sourceDate, task.id, targetDate);
+          if (res && res.forwardedTask) {
+            if (targetDate === this.selectedDate) {
+              this.dailyTasks.push(res.forwardedTask);
+              this.syncDailyCacheFromLiveState();
+            } else {
+              invalidateCached(targetDate);
+            }
+          }
+          const parsed = this.parseTask(task.title);
+          const cleanTitle = parsed.cleanTitle || task.title;
+          const displayDest = targetDate === todayStr ? 'Today' : targetDate;
+          this.showTaskToast(`Forwarded "${cleanTitle}" to ${displayDest}`);
+        } catch (err) {
+          console.error('🔥 forwardDailyTask error:', err);
+          this.errorMessage = `Could not forward task: ${err.message || err.toString()}`;
+        }
       },
 
       async toggleTaskStatus(task) {

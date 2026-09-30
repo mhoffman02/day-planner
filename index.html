@@ -438,7 +438,7 @@
             <header class="panel-header notes-header">
               <h3 class="panel-header-title">
                 <span class="material-symbols-outlined">description</span>
-                <span>Daily Notes for <span x-text="new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })"></span></span>
+                <span>Notes</span>
               </h3>
 
               <div class="notes-header-actions">
@@ -531,9 +531,10 @@
                     <div class="card-topic-wrapper" :style="'flex: 0 0 ' + topicColWidth + 'px; width: ' + topicColWidth + 'px;'" @click.away="if (activeTopicCardId === card.id) closeTopicDropdown()">
                       <input type="text"
                              x-model="card.indexTopic"
+                             list="category-suggestions"
                              @focus="openTopicDropdown(card)"
                              @input="syncCardsToDailyNote(); activeTopicCardId = card.id;"
-                             @change="recordRecentTopic(card.indexTopic)"
+                             @change="recordCategory(card.indexTopic)"
                              @keydown="handleTopicKeydown($event, card)"
                              placeholder="Local-only"
                              class="card-topic-input"
@@ -1749,6 +1750,12 @@
     <div class="time-machine-toast" x-show="timeMachineToast" x-cloak>
       <span class="material-symbols-outlined icon-18">check_circle</span>
       <span x-text="timeMachineToast"></span>
+    </div>
+
+    <!-- Toast Notification for Task Actions (Forwarding, etc.) -->
+    <div class="task-toast" x-show="taskToast" x-cloak>
+      <span class="material-symbols-outlined icon-18">arrow_forward</span>
+      <span x-text="taskToast"></span>
     </div>
 
     <!-- In-Binder Lexicon & Thesaurus Popover Modal -->
