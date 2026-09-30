@@ -30,10 +30,17 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 
 ## 3. Active & Upcoming Phases
 
-### Phase 24: AI Assist & Thesaurus Removed — Low ROI (Closed 2026-09-30)
-AI Assist (in-binder modal + AI Gateway settings) and the Thesaurus/Dictionary lookup were removed
-entirely (not disabled) — user judgment call that the ROI didn't justify the OAuth/config surface
-and WORK-network complexity. Superseded the prior WORK AI verification work.
+### Phase 25: WORK Repoint & Post-Removal Verification (In Progress)
+Phase 24 (AI Assist/Thesaurus removal — see `PLAN-HISTORY.md`) is code-complete and live on HOME
+(`@288`, Build 365, user-confirmed passing). WORK Version 123 was pushed and created via
+`npm run push:work`; only the manual repoint step remains.
+- [ ] **Repoint WORK `/exec` to Version 123**: `michael.hoffman@gsa.gov` must repoint the live
+  WORK deployment in the WORK Apps Script IDE (`https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit`
+  → Deploy → Manage deployments → Edit → select Version 123 → Deploy). Cross-domain restriction —
+  cannot be done from HOME's `mhoffman02@gmail.com` session.
+- [ ] **Confirm Notes Version History fix holds after hard refresh**: user reported the button
+  doing nothing; live CDP testing against HOME `@288` couldn't reproduce (works correctly). Likely
+  a stale-cache tab — needs user confirmation after a hard refresh (Ctrl+Shift+R).
 
 ---
 

@@ -1,5 +1,40 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-30 (evening) — AI Assist & Thesaurus Removed, Task-Edit Notes Bug Fixed, Promoted HOME → WORK (Build 365)
+
+- [x] **AI Assist & Thesaurus/Dictionary Removed (Low ROI)**: Commits `b02f3cf` & `1ee31b5`.
+  - User judgment call: removed the in-binder AI Assist modal, AI Gateway settings modal, and
+    Thesaurus/Dictionary lookup (Alt+D, synonym/antonym chips) entirely rather than disabling
+    them — the OAuth/config surface and WORK-network complexity weren't worth it.
+  - Removed across [`index.html`](file:///home/mike/projects/day-planner/index.html) /
+    [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html) (modals,
+    buttons, About page docs), [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js) /
+    [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html) (Alpine
+    state/methods), [`src/gasBridge.js`](file:///home/mike/projects/day-planner/src/gasBridge.js)
+    (RPC wrappers), [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs)
+    (`fetchLexicon`/`callAiMicroservice`/`testAiMicroservice`/`getEffectiveAiConfig_`/
+    `setAiUserSelectedModel` + IIFE export aliases + top-level delegators),
+    [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) /
+    [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html), and
+    deleted `src/lexiconService.js` / `src/aiService.js` + their test files outright.
+  - First pass missed mirroring the removal into `gas-app/Script.html` — caught via live CDP
+    verification against HOME `/dev` before deploying to production, fixed in a follow-up commit.
+- [x] **Fixed: editing an existing task hid its notes**: Commits `b02f3cf`.
+  - `startEditingTask` only seeded the edit field with the clean title, dropping any notes
+    attached via the `title | notes` pipe syntax — editing silently hid them from view.
+  - Now seeds `title | notes` when notes exist; `updateTaskTitle` tracks whether a pipe was
+    present in the edited text explicitly, so a note can be intentionally cleared (previously
+    impossible — an empty parsed notes string was treated as "no change").
+- [x] **Investigated "Notes Version History does nothing" report**: live CDP-tested directly
+  against HOME `@288` — `openTimeMachine()`, the dialog, and revision loading all worked
+  correctly. Couldn't reproduce; likely a stale-cache tab. Flagged for user confirmation after a
+  hard refresh in `PLAN.md`/`TODO.md` Phase 25.
+- [x] **Deployed to HOME and promoted to WORK**: pushed + deployed to HOME `/dev` then the pinned
+  production deployment (`@288`, Build 365); user confirmed HOME tested and passed. Ran
+  `npm run push:work` — pushed code and created WORK Version 123. Repointing the live WORK `/exec`
+  deployment to Version 123 needs `michael.hoffman@gsa.gov` in the WORK IDE (cross-domain
+  restriction) — tracked as open in `TODO.md` Phase 25.
+
 ## 2026-09-30 (afternoon) — Task Notes Boundary Escape, Lexicon Notes Header Button, In-Binder AI Gateway & Assist Modals, and Dark Mode CSS Fix (Builds 360 & 361)
 
 - [x] **Tasks Notes Popover Boundary Escape**: Commits [`8db7af5`](file:///home/mike/projects/day-planner/.git/commit/8db7af5) & [`a78356f`](file:///home/mike/projects/day-planner/.git/commit/a78356f).

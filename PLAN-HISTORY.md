@@ -242,6 +242,38 @@ Archived completed phases from [`PLAN.md`](file:///home/mike/projects/day-planne
 - [x] Build number display: `DAY_PLANNER_BUILD_NUMBER` (git commit count) shown in nav hover and About page (commits `0b4eb4d`, `ed54056`).
 - [x] Lint clean: 0 errors, 0 warnings (delegated to AGY).
 
+### Phase 24: AI Assist & Thesaurus Removed — Low ROI
+*Goal: none — a reversal. User judgment call that the in-binder AI Assist (Summarize/Extract
+Tasks/Polish/Custom Prompt) and the Thesaurus/Dictionary lookup (Alt+D, synonym/antonym chips)
+weren't worth the OAuth/config surface and WORK-network complexity they added, and asked for them
+removed entirely rather than disabled.*
+
+- [x] Removed AI Assist (in-binder modal + AI Gateway settings modal) and Thesaurus/Dictionary
+  end to end: UI (modals, buttons, About page docs), Alpine controller state/methods in
+  `src/app.js` and its `gas-app/Script.html` mirror, `src/gasBridge.js` RPC wrappers, GAS backend
+  (`Code.gs` `fetchLexicon`/`callAiMicroservice`/`testAiMicroservice`/`getEffectiveAiConfig_`/
+  `setAiUserSelectedModel` plus their IIFE export aliases and top-level delegators), CSS, and the
+  dead `src/lexiconService.js` / `src/aiService.js` source+test files (commit `b02f3cf`).
+- [x] Caught via live CDP verification that the first pass missed mirroring the removal into
+  `gas-app/Script.html` (still had a ~400-line duplicate calling now-deleted backend endpoints) —
+  fixed and verified live (no console errors, UI confirmed absent) before it reached production
+  (commit `1ee31b5`).
+- [x] Fixed a real regression found while investigating: editing an existing task only showed the
+  title in the edit field, silently hiding any notes attached via the `title | notes` pipe syntax.
+  `startEditingTask` now seeds `title | notes` when notes exist; `updateTaskTitle` tracks pipe
+  presence explicitly so a note can be intentionally cleared (previously impossible) (commit
+  `b02f3cf`).
+- [x] Investigated a "Notes Version History button does nothing" report — live-tested directly
+  against the current production deployment and couldn't reproduce; button, click handler, and
+  `openTimeMachine()` all worked correctly. Likely a stale-cache tab; asked user to hard-refresh
+  and confirm.
+- [x] Deployed to HOME (`/dev` verified first, then pinned production deployment, now `@288`,
+  Build 365). User confirmed HOME tested and passed.
+- [x] Promoted to WORK via `npm run push:work`: pushed code, created WORK Version 123. Final step
+  (repointing the live WORK `/exec` deployment to Version 123) requires
+  `michael.hoffman@gsa.gov` in the WORK Apps Script IDE — cross-domain deploy restriction, not
+  completable by this session. **Pending as of this handoff.**
+
 ---
 
 ## Standing Verification Criteria (carried forward, still true)

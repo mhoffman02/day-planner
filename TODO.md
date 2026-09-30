@@ -1,4 +1,11 @@
 # Active Tasks (TODO)
 
-No active items — AI Assist and Thesaurus/Dictionary work was closed out by removing both
-features (low ROI). See `PLAN-HISTORY.md` / `PLAN.md` Phase 24.
+## Phase 25: WORK Repoint & Post-Removal Verification (Active)
+
+- [ ] **Repoint WORK `/exec` to Version 123**: only `michael.hoffman@gsa.gov` can do this, in the
+  WORK Apps Script IDE (Deploy → Manage deployments → Edit → Version 123 → Deploy). Blocked on
+  the user.
+- [ ] **Confirm Notes Version History works after a hard refresh**: user reported the button
+  doing nothing; live-tested against HOME `@288` and it worked correctly (opened modal, loaded
+  revisions). Ask the user to hard-refresh and confirm resolved, or report exact repro steps if
+  still broken.

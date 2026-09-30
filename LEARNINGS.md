@@ -1,5 +1,26 @@
 # Learnings
 
+## 2026-09-30 (evening) — AI Assist/Thesaurus Removal Almost Shipped a Half-Mirrored Codebase
+
+**Worked well:** When the user said ROI wasn't there for AI Assist/Thesaurus, asked a clarifying
+question on scope (shelve vs. fully remove) rather than guessing, then executed the full removal
+directly rather than re-delegating to a fresh subagent — an earlier fork attempt for the same task
+returned in 2.3s with zero tool calls and a report that just echoed the prompt back; caught that
+by checking `git log`/`git status` in the worktree instead of trusting the "completed" notification,
+and did the work inline instead. Before touching gas-app files, also caught a wrong worktree base
+(EnterWorktree branched from `master`, not `pure-gas-main` — this repo's known branch divergence)
+and reset it before any edits landed.
+
+**Needs improvement:** The first removal commit only updated `src/app.js`, leaving `gas-app/Script.html`
+with a ~400-line duplicate of the deleted AI/lexicon logic still calling now-deleted backend
+endpoints (`fetchLexicon`, `callAiMicroservice`, etc.). This is exactly the "Code Mirroring Rule"
+CLAUDE.md states explicitly — checking `grep` in the file I just edited isn't the same as checking
+the file I forgot to edit. Caught it only because live CDP verification against HOME `/dev` is a
+standing habit before touching the pinned production deployment, not because I checked for the
+mirror gap up front. Next time: after any src/app.js structural removal, grep the identical
+symbol list in gas-app/Script.html *before* considering the change done, not after deploying and
+live-testing catches it by luck.
+
 ## 2026-09-29 (evening, cont.) — noopener Bug Recurred, Built a Fix Without Asking
 
 **Worked well:** Debugged the second "turned off" report rigorously instead of guessing — reproduced the exact root cause (`noopener` anywhere in `window.open()`'s features string forces a `null` return, independent of user gesture) and verified the fix with a genuinely trusted CDP click rather than a scripted one, which would have given a false negative either way (scripted calls are blocked regardless of the fix). When the user then reported WORK's own block, asked a multiple-choice question to pin down the exact symptom before touching code, instead of guessing between "popup blocked," "auto-disabled," or "org access denied" — those needed different fixes.
