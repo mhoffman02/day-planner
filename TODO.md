@@ -3,10 +3,12 @@
 ## Phase 23: Task Inline Editing & Unified AI Gateway Architecture
 
 - [x] **Inline Task Description Editing** — Completed in commit [`abdf26a`](file:///home/mike/projects/day-planner/.git/commit/abdf26a).
-- [x] **Unified AI Multi-Model REST Gateway Architecture** — Completed in commit [`83aecbf`](file:///home/mike/projects/day-planner/.git/commit/83aecbf).
+- [x] **Unified AI Multi-Model REST Gateway Architecture** — Completed in commit [`83aecbf`](file:///home/mike/projects/day-planner/.git/commit/83aecbf), [`486cd8a`](file:///home/mike/projects/day-planner/.git/commit/486cd8a).
+  - Target endpoints: `aiService.js` directly calls **Google Gemini Free API** (`https://generativelanguage.googleapis.com/...`) at HOME, and **USAi API** at WORK.
+  - Sheets `=AI(...)` microservice officially deprecated as a dead end (requires interactive user UI focus in sheet to evaluate).
   - Unified configuration: `ScriptProperties` stores `AI_ENDPOINT_URL`, `AI_API_KEY`, and `AI_MODEL` per Apps Script project deployment (HOME vs. WORK).
   - User customization: `UserProperties.AI_MODEL_OVERRIDE` allows personal selection without overriding shared script props.
-  - Multi-model format support: OpenAI / USAi chat completions format, Google Gemini native format, and `ai-lite` format.
+  - Multi-model format support: OpenAI / USAi chat completions format, Google Gemini native format, and `x-goog-api-key` header support.
   - Models supported: Gemini 2.5 Flash Lite/Flash/Pro, Gemini 3.7 Flash, Luna, Terra, Haiku, Sonnet, Opus.
 - [ ] **AI Gateway UI Wiring (WIP)**
   - Add Settings / AI Config panel: test connection, inspect configured endpoint & key status, and pick active model from dropdown.
@@ -14,7 +16,7 @@
 
 ## Open
 
-- [ ] **AI Assist doesn't work on WORK** — `gemini.google.com` is blocked by the federal network's proxy ("you don't have permission to visit this site"). A Docs-popup fallback was tried and rejected (can't isolate just the AI sidebar from Google's own document chrome — cross-origin, confirmed impossible). No approach identified yet that meets the UX bar; needs user direction before attempting anything else here. Do not attempt a fix without asking first.
+- [ ] **AI Assist on WORK via Server Proxy** — Browser direct access to `gemini.google.com` is blocked by the federal network's proxy. The new unified server-side proxy (`callAiMicroservice` via `UrlFetchApp`) executes directly from Google's data centers to USAi's endpoint, bypassing the client browser proxy block! Pending deployment verification.
 
 ## Loose end (user-blocked)
 

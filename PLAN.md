@@ -31,9 +31,10 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 
 ## 3. Active & Upcoming Phases
 
-### Phase 23: Task Inline Editing & AI Microservice UI Integration (In Progress)
+### Phase 23: Task Inline Editing & Direct AI Gateway Integration (In Progress)
 - [x] **Today page Tasks panel: click-to-edit task Description**: Enable inline editing on task titles/descriptions matching Daily Notes note-card line editing pattern ([`abdf26a`](file:///home/mike/projects/day-planner/.git/commit/abdf26a)).
-- [ ] **AI Microservice End-to-End Verification & Settings Wiring (WIP)**: Complete live testing of container-bound microservice on HOME/WORK; add Settings modal entry to configure URL/API Key and wire AI assist actions into note cards.
+- [x] **Unified Multi-Model Gateway Architecture**: Single REST gateway in [`src/aiService.js`](file:///home/mike/projects/day-planner/src/aiService.js) and [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L3130). Direct Gemini-free API at HOME (`https://generativelanguage.googleapis.com/...`), and USAi API at WORK. Sheets `=AI(...)` microservice deprecated as dead end (requires interactive user UI focus in sheet). Configuration isolated in environment `ScriptProperties` (`AI_ENDPOINT_URL`, `AI_API_KEY`, `AI_MODEL`) with per-user override in `UserProperties.AI_MODEL_OVERRIDE` ([`83aecbf`](file:///home/mike/projects/day-planner/.git/commit/83aecbf), [`486cd8a`](file:///home/mike/projects/day-planner/.git/commit/486cd8a)).
+- [ ] **AI Gateway UI Wiring (WIP)**: Add Settings modal UI / AI Config panel to display endpoint connection status, show active model, and provide model picker dropdown. Wire AI assist actions into note cards and task refinement.
 
 ---
 
