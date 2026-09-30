@@ -4,6 +4,16 @@ Archived completed phases from [`PLAN.md`](file:///home/mike/projects/day-planne
 
 ---
 
+### Phase 23: Task Inline Editing & Direct AI Gateway Integration
+*Goal: deliver click-to-edit task descriptions, multi-model REST AI gateway, settings modal with connection testing and active model selection, and in-binder AI Assist on note cards with 1-click task extraction to Today.*
+- [x] Today page Tasks panel: click-to-edit task Description ([`abdf26a`](file:///home/mike/projects/day-planner/.git/commit/abdf26a)).
+- [x] Unified Multi-Model Gateway Architecture: Single REST gateway in [`src/aiService.js`](file:///home/mike/projects/day-planner/src/aiService.js) and [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L3130). Direct Gemini API at HOME, USAi API at WORK. `ScriptProperties` and `UserProperties` isolation ([`83aecbf`](file:///home/mike/projects/day-planner/.git/commit/83aecbf), [`486cd8a`](file:///home/mike/projects/day-planner/.git/commit/486cd8a)).
+- [x] AI Gateway Settings Modal & Model Selection: Header compact trigger, settings dialog modal with endpoint status, active model selection dropdown, and live connection testing with latency feedback ([`8db7af5`](file:///home/mike/projects/day-planner/.git/commit/8db7af5)).
+- [x] In-Binder AI Assist Modal: 4 instant touchpoints (Summarize, Extract Tasks to Today, Polish Tone, Custom Prompt) with 1-click batch task insertion into Today ([`8db7af5`](file:///home/mike/projects/day-planner/.git/commit/8db7af5)). Server-side proxying bypasses federal client proxy blocks.
+- [x] Task Notes Boundary Escape: Fixed viewport coordinates (`notesPopoverPos`) ensuring popover escapes table clipping without right-edge truncation ([`8db7af5`](file:///home/mike/projects/day-planner/.git/commit/8db7af5)).
+- [x] Notes Header Lexicon Button: Added `auto_stories` button in notes header and unified icon vocabulary ([`8db7af5`](file:///home/mike/projects/day-planner/.git/commit/8db7af5)).
+- [x] Dark Mode CSS Syntax Repair: Closed unclosed brace in `.modal-detail-intro` restoring 700 lines of Dark Forest theme overrides ([`a78356f`](file:///home/mike/projects/day-planner/.git/commit/a78356f)).
+
 ### Phase 22: Advanced Notes & Research Suite
 *Goal: deliver note version history, in-binder dictionary/thesaurus lookup, multi-year deep archive search across Drive monthly docs, and architectural integration with Sheets AI microservice.*
 - [x] Note Version History Time Machine: IndexedDB `v3` rolling snapshots (`noteRevisions` store, max 30) with 2-pane preview and 1-click restore syncing back to Google Docs ([`7ae84ef`](file:///home/mike/projects/day-planner/.git/commit/7ae84ef)).

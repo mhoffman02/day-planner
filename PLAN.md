@@ -31,10 +31,10 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 
 ## 3. Active & Upcoming Phases
 
-### Phase 23: Task Inline Editing & Direct AI Gateway Integration (In Progress)
-- [x] **Today page Tasks panel: click-to-edit task Description**: Enable inline editing on task titles/descriptions matching Daily Notes note-card line editing pattern ([`abdf26a`](file:///home/mike/projects/day-planner/.git/commit/abdf26a)).
-- [x] **Unified Multi-Model Gateway Architecture**: Single REST gateway in [`src/aiService.js`](file:///home/mike/projects/day-planner/src/aiService.js) and [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L3130). Direct Gemini-free API at HOME (`https://generativelanguage.googleapis.com/...`), and USAi API at WORK. Sheets `=AI(...)` microservice deprecated as dead end (requires interactive user UI focus in sheet). Configuration isolated in environment `ScriptProperties` (`AI_ENDPOINT_URL`, `AI_API_KEY`, `AI_MODEL`) with per-user override in `UserProperties.AI_MODEL_OVERRIDE` ([`83aecbf`](file:///home/mike/projects/day-planner/.git/commit/83aecbf), [`486cd8a`](file:///home/mike/projects/day-planner/.git/commit/486cd8a)).
-- [ ] **AI Gateway UI Wiring (WIP)**: Add Settings modal UI / AI Config panel to display endpoint connection status, show active model, and provide model picker dropdown. Wire AI assist actions into note cards and task refinement.
+### Phase 24: WORK Enterprise Verification & AI Assist Refinements (Active)
+- [ ] **WORK Deployment Repoint to Version 122**: `michael.hoffman@gsa.gov` repoints deployment via Manage Deployments in WORK Apps Script IDE (`https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit`) to activate build 361.
+- [ ] **AI Assist Live Verification on WORK**: Verify that the server-side proxy (`callAiMicroservice` via `UrlFetchApp`) executes cleanly from Google data centers to USAi's endpoint, bypassing the federal network's client browser proxy blocks on `gemini.google.com`.
+- [ ] **AI Assist Context Expansion & Formatting Polish**: Support selecting specific lines or multi-card synthesis in AI Assist, and add inline markdown rendering preview for AI summaries.
 
 ---
 

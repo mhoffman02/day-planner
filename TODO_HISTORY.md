@@ -1,5 +1,32 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-30 (afternoon) — Task Notes Boundary Escape, Lexicon Notes Header Button, In-Binder AI Gateway & Assist Modals, and Dark Mode CSS Fix (Builds 360 & 361)
+
+- [x] **Tasks Notes Popover Boundary Escape**: Commits [`8db7af5`](file:///home/mike/projects/day-planner/.git/commit/8db7af5) & [`a78356f`](file:///home/mike/projects/day-planner/.git/commit/a78356f).
+  - Attached dynamic viewport coordinates (`notesPopoverPos`) to `.notes-popover` via `:style="position: fixed; left: ...; top/bottom: ..."` in Daily Tasks and Master Tasks tables across [`index.html`](file:///home/mike/projects/day-planner/index.html) and [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html).
+  - Added boundary clamping against `window.innerWidth - 16px` in `openNotesPopover()` in [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html).
+  - Popover now completely escapes table `overflow-y: auto` clipping boundaries without right-clipping.
+- [x] **Dictionary, Thesaurus & Synonym Button in Notes Header**: Commits [`8db7af5`](file:///home/mike/projects/day-planner/.git/commit/8db7af5) & [`a78356f`](file:///home/mike/projects/day-planner/.git/commit/a78356f).
+  - Added a dedicated Dictionary & Thesaurus button (`auto_stories`) right in the Notes column header (`.notes-header-actions`), triggering `openLexiconFromActiveOrGlobal()`.
+  - Unified note card toolbar icon from `menu_book` to `auto_stories` to avoid confusion with the About tab icon.
+  - Fixed `openLexiconFromCard()` so clicking the icon without an active line cursor cleanly checks text selection or autofocuses the search box instead of locking onto line 0.
+- [x] **AI Gateway Settings & Model Selection Modal**: Commits [`8db7af5`](file:///home/mike/projects/day-planner/.git/commit/8db7af5) & [`a78356f`](file:///home/mike/projects/day-planner/.git/commit/a78356f).
+  - Added compact AI settings trigger (`.ai-config-btn-compact`) to the main header bar.
+  - Implemented `<dialog class="modal-card-ai-config">` showing connection status, endpoint mode, active model dropdown (Gemini 2.5 Flash/Lite/Pro, USAi Luna/Terra, Claude 3.5 Haiku/Sonnet/Opus), and test connection button with live latency/message feedback.
+  - Auto-saves user model preference via `setAiUserSelectedModel()`.
+- [x] **In-Binder AI Assist Modal (Note Cards & Task Extraction)**: Commits [`8db7af5`](file:///home/mike/projects/day-planner/.git/commit/8db7af5) & [`a78356f`](file:///home/mike/projects/day-planner/.git/commit/a78356f).
+  - Replaced external browser popup with in-binder modal (`aiAssistModalOpen`) accessible from any note card toolbar.
+  - Features 4 instant actions: Summarize, Extract Tasks to Today, Polish Tone, and Custom Prompt.
+  - Added 1-click **Add Tasks to Today** button (`addExtractedTasksToToday()`) that batch-inserts parsed tasks directly into the day's task list via the bridge.
+  - All AI requests execute server-to-server via Apps Script `callAiMicroservice(prompt)`, bypassing federal network client browser proxy blocks.
+- [x] **Light/Dark Mode Regression RCA & Fix**: Commit [`a78356f`](file:///home/mike/projects/day-planner/.git/commit/a78356f).
+  - Diagnosed unclosed CSS rule in `.modal-detail-intro` at line 4437 in [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css) and [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html) that caused the browser to swallow all ~700 lines of Dark Forest theme overrides.
+  - Closed the brace, removed dark theme selector collisions in base tokens, and added responsive header layout guards at 1300px and 1050px.
+  - Verified live via CDP: `main` background shifts cleanly between parchment `#fcfbfa` (light) and deep forest `#142820` (dark).
+- [x] **Deployments**:
+  - HOME: Deployed Version 286 (`AKfycbzZW7LNOkWUhz_SQd4Ka2LCKvT9zwajFGGAHmDXtpG_W0YR28mPFEKwbtDLWyX13xn7YA`).
+  - WORK: Created Version 122 via `npm run push:work`.
+
 ## 2026-09-30 (evening) — Tasks Inline Notes Delimiter, Status Menu Clipping Fix, Time Machine Fix, and About Overhaul (Build 358)
 
 - [x] **Tasks Inline Notes / Details Delimiter (`|`)**: Commit [`d2aa4a6`](file:///home/mike/projects/day-planner/.git/commit/d2aa4a6).
