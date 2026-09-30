@@ -229,10 +229,6 @@
           <span class="material-symbols-outlined icon-18" :class="{ 'spin': isSyncing }">sync</span>
           <span class="sync-label" x-text="isSyncing ? 'Syncing' : 'Sync'"></span>
         </button>
-        <button type="button" class="ai-config-btn-compact" @click="openAiConfigModal()" title="AI Gateway &amp; Model Selection">
-          <span class="material-symbols-outlined icon-18">psychology</span>
-          <span class="ai-config-label">AI</span>
-        </button>
         <button type="button" class="theme-toggle-compact" @click="toggleTheme()" :aria-label="'Switch to ' + (theme === 'dark' ? 'Light' : 'Dark') + ' Mode'" :title="'Switch to ' + (theme === 'dark' ? 'Light' : 'Dark') + ' Mode'">
           <span class="material-symbols-outlined icon-18" x-text="theme === 'dark' ? 'light_mode' : 'dark_mode'"></span>
         </button>
@@ -453,9 +449,6 @@
                 <button type="button" class="btn-icon-subtle" @click="openTimeMachine()" title="Note Version History (Time Machine)" aria-label="Note Version History (Time Machine)">
                   <span class="material-symbols-outlined">history</span>
                 </button>
-                <button type="button" class="btn-icon-subtle" @click="openLexiconFromActiveOrGlobal()" title="Dictionary &amp; Thesaurus (Alt+D)" aria-label="Dictionary and Thesaurus">
-                  <span class="material-symbols-outlined">auto_stories</span>
-                </button>
                 <!-- Dropdown Filter Menu Toggle -->
                 <div class="dropdown-container">
                   <button type="button" class="btn-icon-subtle" @click="noteFilterMenuOpen = !noteFilterMenuOpen" title="Filter & Search Notes" aria-label="Filter & Search Notes">
@@ -646,8 +639,6 @@
                       <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'checklist')" title="Checklist (Ctrl+Shift+C)" aria-label="Checklist"><span class="material-symbols-outlined icon-16">check_box</span></button>
                       <span class="toolbar-divider"></span>
                       <button type="button" class="format-btn stt-mic-btn" :class="{ 'stt-listening': sttListening, 'stt-blocked': sttBlocked }" @mousedown.prevent @click="toggleCardDictation(card)" :title="sttMicTitle()" :aria-label="sttListening ? 'Stop dictation' : 'Start dictation'"><span class="material-symbols-outlined icon-16" x-text="sttListening ? 'mic' : (sttBlocked ? 'mic_off' : 'mic_none')"></span></button>
-                      <button type="button" class="format-btn" :disabled="!geminiEnabled" @mousedown.prevent @click="openAiAssist(card)" title="In-Binder AI Assist: Summarize, Extract Tasks to Today, Polish Tone" aria-label="In-Binder AI Assist"><span class="material-symbols-outlined icon-16">auto_awesome</span></button>
-                      <button type="button" class="format-btn" @mousedown.prevent @click="openLexiconFromCard(card)" title="Dictionary &amp; Thesaurus (Alt+D)" aria-label="Dictionary and Thesaurus"><span class="material-symbols-outlined icon-16">auto_stories</span></button>
                       <span class="toolbar-divider"></span>
                       <button type="button" class="format-btn color-swatch-btn color-swatch-default" @mousedown.prevent @click="applyCardFormat(card, 'color-default')" title="Remove Text Color Only"><span class="material-symbols-outlined icon-16">format_color_reset</span></button>
                       <button type="button" class="format-btn color-swatch-btn color-swatch-teal" :class="{ active: cardNoteColor(card) === 'teal' }" @mousedown.prevent @click="applyCardFormat(card, 'color-teal')" title="Color: Teal" aria-label="Color: Teal"></button>
@@ -659,9 +650,6 @@
                         <span class="material-symbols-outlined icon-16">keyboard</span>
                         <span class="card-heading-help-tip">Start a line with <code>- </code> for bullets, <code>1. </code> for numbers, <code>[] </code> for checklist (☐/☒). Inline: <code>**bold**</code>, <code>*italic*</code>, <code>__underline__</code>, <code>~~strike~~</code>.</span>
                       </span>
-                    </div>
-                    <div class="stt-error-hint" x-show="aiAssistError" x-cloak>
-                      <div class="stt-error-text" @click="aiAssistError = null" x-text="aiAssistError" title="Tap to dismiss"></div>
                     </div>
                     <div class="stt-error-hint" x-show="(sttError || sttBlocked) && card._activeLineIndex !== null && card._activeLineIndex !== undefined" x-cloak>
                       <div class="stt-error-text" x-show="sttError" @click="sttError = null" x-text="sttError" title="Tap to dismiss"></div>
@@ -1218,10 +1206,6 @@
             <td>A running, searchable log of the key decisions and outcomes you've tagged with <code>#index</code> in your notes, so you can find "what did we decide about X" without digging back through old notes.</td>
           </tr>
           <tr>
-            <td><b>Lexicon</b></td>
-            <td>A quick-reference dictionary of abbreviations, acronyms, and project shorthand used throughout your notes and tasks.</td>
-          </tr>
-          <tr>
             <td><b>Future Planning</b></td>
             <td>A 12-month look-ahead for goals and milestones that are more than a month out.</td>
           </tr>
@@ -1309,20 +1293,6 @@
         </p>
       </article>
 
-      <article class="guide-card">
-        <h3 class="guide-card-title">
-          <span class="material-symbols-outlined">auto_awesome</span> AI Assist (Google Docs)
-        </h3>
-        <p class="guide-card-text">
-          The <span class="material-symbols-outlined icon-16">auto_awesome</span> button on a note card copies that card's text to your clipboard, then opens Google's Gemini in a small popup window &mdash; paste with Ctrl+V once it opens. A full Google Doc was tried first, but Google's own document chrome doesn't fit cleanly in a small window, so this opens just the clean Gemini chat instead. If opening it ever fails, this button turns itself off automatically. Toggle it here; your choice is remembered on this device.
-        </p>
-        <div class="install-actions-bar">
-          <button type="button" class="btn-primary install-action-btn" @click="toggleGeminiEnabled()">
-            <span class="material-symbols-outlined icon-18" x-text="geminiEnabled ? 'toggle_on' : 'toggle_off'"></span>
-            <span x-text="geminiEnabled ? 'Turn Off AI Assist Button' : 'Turn On AI Assist Button'"></span>
-          </button>
-        </div>
-      </article>
     </section>
   </section>
 
@@ -1782,308 +1752,6 @@
     <div class="task-toast" x-show="taskToast" x-cloak>
       <span class="material-symbols-outlined icon-18">arrow_forward</span>
       <span x-text="taskToast"></span>
-    </div>
-
-    <!-- In-Binder Lexicon & Thesaurus Popover Modal -->
-    <dialog class="modal-backdrop" :open="lexiconOpen" x-show="lexiconOpen" x-cloak aria-labelledby="lexiconTitle" @click.self="closeLexicon()" @keydown.escape.window="if (lexiconOpen) closeLexicon()">
-      <article class="modal-card modal-card-lexicon" @click.away="closeLexicon()">
-        <header class="lexicon-header">
-          <div class="lexicon-search-row">
-            <div class="lexicon-search-input-wrap">
-              <span class="material-symbols-outlined icon-18" style="color: var(--binder-teal);">menu_book</span>
-              <input
-                type="text"
-                id="lexiconSearchInput"
-                x-ref="lexiconSearchInput"
-                x-model="lexiconQuery"
-                @keydown.enter.prevent="searchLexicon(lexiconQuery)"
-                placeholder="Search word or phrase in dictionary…"
-                class="lexicon-search-input"
-                aria-label="Search dictionary"
-              >
-            </div>
-            <button type="button" class="btn-primary" style="padding: 6px 14px; font-size: 0.86rem;" @click="searchLexicon(lexiconQuery)">
-              <span class="material-symbols-outlined icon-16" x-show="!lexiconLoading">search</span>
-              <span class="material-symbols-outlined icon-16 spin" x-show="lexiconLoading" x-cloak>sync</span>
-              <span>Define</span>
-            </button>
-            <button type="button" class="btn-icon-subtle" @click="closeLexicon()" aria-label="Close Lexicon">
-              <span class="material-symbols-outlined icon-18">close</span>
-            </button>
-          </div>
-
-          <div class="lexicon-title-row" x-show="lexiconData">
-            <h3 id="lexiconTitle" class="lexicon-word-heading" x-text="lexiconData?.word"></h3>
-            <span class="lexicon-phonetic" x-show="lexiconData?.phonetic" x-text="lexiconData?.phonetic"></span>
-            <button
-              type="button"
-              class="lexicon-audio-btn"
-              @click="playPronunciation(lexiconData?.word, lexiconData?.audioUrl)"
-              title="Pronounce word"
-              aria-label="Pronounce word"
-            >
-              <span class="material-symbols-outlined icon-18">volume_up</span>
-            </button>
-          </div>
-        </header>
-
-        <div class="lexicon-body">
-          <!-- Loading skeleton -->
-          <template x-if="lexiconLoading">
-            <div class="lexicon-empty-state">
-              <span class="material-symbols-outlined spin icon-24" style="color: var(--binder-teal);">sync</span>
-              <p style="margin-top: 8px;">Consulting dictionary &amp; thesaurus…</p>
-            </div>
-          </template>
-
-          <!-- Error / Not found message -->
-          <template x-if="!lexiconLoading && lexiconError">
-            <div class="lexicon-empty-state">
-              <span class="material-symbols-outlined icon-24" style="color: #b0544c;">info</span>
-              <p style="margin-top: 8px;" x-text="lexiconError"></p>
-            </div>
-          </template>
-
-          <!-- Empty search prompt -->
-          <template x-if="!lexiconLoading && !lexiconError && !lexiconData">
-            <div class="lexicon-empty-state">
-              <span class="material-symbols-outlined icon-24" style="color: var(--binder-teal);">auto_stories</span>
-              <p style="margin-top: 8px;">Type a word above or highlight any word in your notes and press <code>Alt+D</code>.</p>
-            </div>
-          </template>
-
-          <!-- Loaded Lexicon Content -->
-          <template x-if="!lexiconLoading && !lexiconError && lexiconData">
-            <div style="display: flex; flex-direction: column; gap: 14px;">
-              <!-- Definitions list -->
-              <div class="lexicon-definitions-section" x-show="lexiconData?.meanings && lexiconData.meanings.length > 0">
-                <template x-for="(meaning, mIdx) in lexiconData?.meanings || []" :key="mIdx">
-                  <div class="lexicon-pos-group">
-                    <span class="lexicon-pos-tag" x-text="meaning.partOfSpeech"></span>
-                    <template x-for="(def, dIdx) in meaning.definitions" :key="dIdx">
-                      <div class="lexicon-definition-item">
-                        <span x-text="def.definition"></span>
-                        <span class="lexicon-example" x-show="def.example" x-text="`“${def.example}”`"></span>
-                      </div>
-                    </template>
-                  </div>
-                </template>
-              </div>
-
-              <!-- Thesaurus Grid -->
-              <div class="lexicon-thesaurus-grid" x-show="(lexiconData?.synonyms && lexiconData.synonyms.length > 0) || (lexiconData?.antonyms && lexiconData.antonyms.length > 0)">
-                <!-- Synonyms Column -->
-                <div class="lexicon-thesaurus-col">
-                  <div class="lexicon-thesaurus-title">
-                    <span>Synonyms</span>
-                    <span class="lexicon-thesaurus-hint" x-show="lexiconTarget?.selStart != null">Click to swap into note</span>
-                  </div>
-                  <div class="lexicon-chips-wrap">
-                    <template x-for="syn in lexiconData?.synonyms || []" :key="syn">
-                      <span class="lexicon-chip" @click="replaceWithLexiconWord(syn)" :title="lexiconTarget?.selStart != null ? `Replace '${lexiconTarget.targetWord}' with '${syn}' in note` : `Copy '${syn}' to clipboard`">
-                        <span x-text="syn"></span>
-                        <span class="lexicon-chip-action-search" @click.stop="searchLexicon(syn)" title="Look up synonym">
-                          <span class="material-symbols-outlined icon-12">search</span>
-                        </span>
-                      </span>
-                    </template>
-                    <span x-show="!lexiconData?.synonyms || lexiconData.synonyms.length === 0" style="font-size: 0.82rem; color: var(--text-muted); font-style: italic;">None found</span>
-                  </div>
-                </div>
-
-                <!-- Antonyms Column -->
-                <div class="lexicon-thesaurus-col">
-                  <div class="lexicon-thesaurus-title">
-                    <span>Antonyms</span>
-                    <span class="lexicon-thesaurus-hint" x-show="lexiconTarget?.selStart != null">Click to swap into note</span>
-                  </div>
-                  <div class="lexicon-chips-wrap">
-                    <template x-for="ant in lexiconData?.antonyms || []" :key="ant">
-                      <span class="lexicon-chip" @click="replaceWithLexiconWord(ant)" :title="lexiconTarget?.selStart != null ? `Replace '${lexiconTarget.targetWord}' with '${ant}' in note` : `Copy '${ant}' to clipboard`">
-                        <span x-text="ant"></span>
-                        <span class="lexicon-chip-action-search" @click.stop="searchLexicon(ant)" title="Look up antonym">
-                          <span class="material-symbols-outlined icon-12">search</span>
-                        </span>
-                      </span>
-                    </template>
-                    <span x-show="!lexiconData?.antonyms || lexiconData.antonyms.length === 0" style="font-size: 0.82rem; color: var(--text-muted); font-style: italic;">None found</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </template>
-        </div>
-      </article>
-    </dialog>
-
-    <!-- AI Gateway Configuration Modal -->
-    <dialog class="modal-backdrop" :open="aiConfigModalOpen" x-show="aiConfigModalOpen" x-cloak aria-labelledby="aiConfigModalTitle" @click.self="closeAiConfigModal()" @keydown.escape.window="if (aiConfigModalOpen) closeAiConfigModal()">
-      <article class="modal-card modal-card-ai-config" role="document">
-        <header class="modal-header">
-          <h2 id="aiConfigModalTitle" class="modal-title">
-            <span class="material-symbols-outlined modal-title-icon">psychology</span>
-            <span>AI Gateway &amp; Model Selection</span>
-          </h2>
-          <button type="button" class="btn-icon" @click="closeAiConfigModal()" aria-label="Close AI Gateway settings">
-            <span class="material-symbols-outlined">close</span>
-          </button>
-        </header>
-
-        <div class="modal-body">
-          <!-- Gateway Status Card -->
-          <div class="ai-config-status-card">
-            <div class="ai-config-row">
-              <span class="ai-config-label-text">Connection Status</span>
-              <span class="ai-status-pill" :class="aiConfig.configured ? 'active' : 'inactive'">
-                <span class="material-symbols-outlined icon-14" x-text="aiConfig.configured ? 'check_circle' : 'warning'"></span>
-                <span x-text="aiConfig.configured ? 'Configured &amp; Ready' : 'Unconfigured / Default'"></span>
-              </span>
-            </div>
-            <div class="ai-config-row">
-              <span class="ai-config-label-text">Endpoint Mode</span>
-              <span class="ai-config-value" x-text="aiConfig.isScriptLevel ? 'Script Properties (Server-Side Proxy)' : 'Direct URL / Environment'"></span>
-            </div>
-            <div class="ai-config-row" x-show="aiConfig.serviceUrl">
-              <span class="ai-config-label-text">Service URL</span>
-              <span class="ai-config-value" x-text="aiConfig.serviceUrl"></span>
-            </div>
-          </div>
-
-          <!-- Model Selection -->
-          <div style="margin-bottom: 16px;">
-            <label for="ai-active-model-select" style="display: block; font-weight: 600; font-size: 0.88rem; margin-bottom: 4px;">
-              Active AI Model
-            </label>
-            <select id="ai-active-model-select" class="ai-model-select" x-model="aiConfig.activeModel" @change="saveAiModel($event.target.value)" :disabled="aiSavingModel">
-              <template x-for="m in supportedAiModels" :key="m.id">
-                <option :value="m.id" :selected="m.id === aiConfig.activeModel" x-text="`${m.name} (${m.provider}) — ${m.speed}`"></option>
-              </template>
-            </select>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 0.8rem;">
-              <span style="color: var(--text-muted);">Switch between Google Gemini, USAi Luna/Terra, and Anthropic Claude.</span>
-              <span x-show="aiSaveModelStatus" x-text="aiSaveModelStatus" style="color: var(--binder-teal); font-weight: 600;"></span>
-            </div>
-          </div>
-
-          <!-- Connection Test Section -->
-          <div style="margin-bottom: 16px;">
-            <div style="display: flex; gap: 10px; align-items: center;">
-              <button type="button" class="btn btn-secondary" @click="testAiGateway()" :disabled="aiTesting">
-                <span class="material-symbols-outlined icon-16" :class="{ 'spin': aiTesting }">sync</span>
-                <span x-text="aiTesting ? 'Testing Connection...' : 'Test AI Gateway'"></span>
-              </button>
-            </div>
-            <div x-show="aiTestResult" style="margin-top: 10px; padding: 10px; border-radius: 4px; font-size: 0.84rem;" :style="aiTestResult?.success ? 'background: rgba(45, 106, 90, 0.08); border: 1px solid var(--binder-teal); color: var(--binder-teal);' : 'background: rgba(197, 34, 31, 0.08); border: 1px solid #c5221f; color: #c5221f;'">
-              <div style="font-weight: 600; display: flex; align-items: center; gap: 6px;">
-                <span class="material-symbols-outlined icon-16" x-text="aiTestResult?.success ? 'check_circle' : 'error'"></span>
-                <span x-text="aiTestResult?.success ? 'Connection Successful!' : 'Connection Failed'"></span>
-              </div>
-              <div x-show="aiTestResult?.message || aiTestResult?.error" style="margin-top: 4px; font-family: monospace; font-size: 0.78rem;" x-text="aiTestResult?.message || aiTestResult?.error"></div>
-            </div>
-          </div>
-
-          <div style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4; border-top: 1px solid var(--border-line); padding-top: 10px;">
-            <p style="margin: 0;">AI calls route server-to-server via Google Apps Script <code>UrlFetchApp</code>, bypassing local client firewalls and enterprise proxy restrictions.</p>
-          </div>
-        </div>
-
-        <footer class="modal-footer">
-          <button type="button" class="btn btn-secondary" @click="closeAiConfigModal()">Close</button>
-        </footer>
-      </article>
-    </dialog>
-
-    <!-- In-Binder AI Assist Modal -->
-    <dialog class="modal-backdrop" :open="aiAssistModalOpen" x-show="aiAssistModalOpen" x-cloak aria-labelledby="aiAssistModalTitle" @click.self="closeAiAssistModal()" @keydown.escape.window="if (aiAssistModalOpen) closeAiAssistModal()">
-      <article class="modal-card modal-card-ai-assist" role="document">
-        <header class="modal-header">
-          <h2 id="aiAssistModalTitle" class="modal-title">
-            <span class="material-symbols-outlined modal-title-icon">auto_awesome</span>
-            <span>AI Assist for Note Card</span>
-          </h2>
-          <button type="button" class="btn-icon" @click="closeAiAssistModal()" aria-label="Close AI Assist">
-            <span class="material-symbols-outlined">close</span>
-          </button>
-        </header>
-
-        <div class="modal-body">
-          <!-- Action Mode Pills -->
-          <div class="ai-action-pills" role="radiogroup" aria-label="Select AI Assist Task">
-            <button type="button" class="ai-action-pill" :class="{ 'active': aiAssistAction === 'summarize' }" @click="aiAssistAction = 'summarize'">
-              <span class="material-symbols-outlined icon-14">summarize</span>
-              <span>Summarize</span>
-            </button>
-            <button type="button" class="ai-action-pill" :class="{ 'active': aiAssistAction === 'tasks' }" @click="aiAssistAction = 'tasks'">
-              <span class="material-symbols-outlined icon-14">checklist</span>
-              <span>Extract Tasks to Today</span>
-            </button>
-            <button type="button" class="ai-action-pill" :class="{ 'active': aiAssistAction === 'polish' }" @click="aiAssistAction = 'polish'">
-              <span class="material-symbols-outlined icon-14">spellcheck</span>
-              <span>Polish Tone</span>
-            </button>
-            <button type="button" class="ai-action-pill" :class="{ 'active': aiAssistAction === 'custom' }" @click="aiAssistAction = 'custom'">
-              <span class="material-symbols-outlined icon-14">chat</span>
-              <span>Custom Prompt</span>
-            </button>
-          </div>
-
-          <!-- Custom Prompt Field -->
-          <div x-show="aiAssistAction === 'custom'" style="margin-bottom: 12px;">
-            <label for="ai-custom-prompt-input" style="display: block; font-size: 0.84rem; font-weight: 600; margin-bottom: 4px;">Custom Prompt / Instruction</label>
-            <input type="text" id="ai-custom-prompt-input" class="form-input" x-model="aiAssistCustomPrompt" placeholder="e.g. Translate to Spanish, Format as meeting agenda, etc.">
-          </div>
-
-          <!-- Trigger Button -->
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <button type="button" class="btn btn-primary" @click="runAiAssist()" :disabled="aiAssistLoading">
-              <span class="material-symbols-outlined icon-16" :class="{ 'spin': aiAssistLoading }">auto_awesome</span>
-              <span x-text="aiAssistLoading ? 'Processing with AI...' : 'Run AI Assist'"></span>
-            </button>
-            <span style="font-size: 0.8rem; color: var(--text-muted);">Model: <strong x-text="aiConfig.activeModel"></strong></span>
-          </div>
-
-          <!-- Error Notice -->
-          <div x-show="aiAssistModalError" style="margin-top: 8px; padding: 8px 12px; background: rgba(197, 34, 31, 0.08); border: 1px solid #c5221f; color: #c5221f; border-radius: 4px; font-size: 0.84rem;">
-            <span class="material-symbols-outlined icon-14" style="vertical-align: middle;">error</span>
-            <span x-text="aiAssistModalError"></span>
-          </div>
-
-          <!-- AI Result Preview & Action Buttons -->
-          <div x-show="aiAssistResult" style="margin-top: 12px;">
-            <div style="font-size: 0.84rem; font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">AI Result Preview</div>
-            <div class="ai-result-area" x-text="aiAssistResult"></div>
-
-            <div class="ai-result-actions">
-              <button type="button" class="btn btn-primary" @click="applyAiAssistResult('append')">
-                <span class="material-symbols-outlined icon-14">add_circle</span>
-                <span>Append to Card</span>
-              </button>
-              <button type="button" class="btn btn-secondary" @click="applyAiAssistResult('replace')">
-                <span class="material-symbols-outlined icon-14">swap_horiz</span>
-                <span>Replace Card Content</span>
-              </button>
-              <button type="button" class="btn btn-secondary" @click="applyAiAssistResult('copy')">
-                <span class="material-symbols-outlined icon-14">content_copy</span>
-                <span>Copy</span>
-              </button>
-              <button type="button" class="btn btn-secondary" @click="addExtractedTasksToToday()" x-show="aiAssistAction === 'tasks' || (aiAssistResult &amp;&amp; aiAssistResult.includes('- [ ]'))">
-                <span class="material-symbols-outlined icon-14">playlist_add</span>
-                <span>Add Tasks to Today</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <footer class="modal-footer">
-          <button type="button" class="btn btn-secondary" @click="closeAiAssistModal()">Close</button>
-        </footer>
-      </article>
-    </dialog>
-
-    <!-- Toast Notification for Lexicon replacement / copy -->
-    <div class="lexicon-toast" x-show="lexiconToast" x-cloak>
-      <span class="material-symbols-outlined icon-18">auto_stories</span>
-      <span x-text="lexiconToast"></span>
     </div>
 
     <!-- Global Autocomplete Category Suggestions Datalist -->

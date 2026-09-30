@@ -5046,7 +5046,7 @@
         if (!task || !task.id) return;
         this.editingTaskId = task.id;
         const parsed = this.parseTask(task.title);
-        this.editingTaskTitle = parsed.cleanTitle;
+        this.editingTaskTitle = task.notes ? `${parsed.cleanTitle} | ${task.notes}` : parsed.cleanTitle;
         this.$nextTick(() => {
           const el = document.getElementById(`task-title-input-${task.id}`);
           if (el) {
@@ -5066,6 +5066,7 @@
         this.editingTaskId = null;
         const details = extractTaskDetails(newTitle || '');
         const trimmed = details.rawTitle;
+        const hasPipe = (newTitle || '').includes('|');
         this.editingTaskTitle = '';
 
         let task = this.dailyTasks.find(t => t.id === taskId);
@@ -5078,7 +5079,7 @@
 
         const parsed = this.parseTask(task.title);
         const titleChanged = Boolean(trimmed && trimmed !== parsed.cleanTitle);
-        const notesChanged = Boolean(details.notes && details.notes !== (task.notes || ''));
+        const notesChanged = hasPipe && details.notes !== (task.notes || '');
         if (!titleChanged && !notesChanged) {
           return;
         }
@@ -5087,20 +5088,20 @@
         const oldNotes = task.notes || '';
         const newFullTitle = titleChanged ? updateTaskTitleText(oldTitle, trimmed) : oldTitle;
         task.title = newFullTitle;
-        if (details.notes) {
+        if (notesChanged) {
           task.notes = details.notes;
         }
 
         const linkedMaster = !isMaster ? this.masterTasks.find(m => m.movedTaskId === task.id) : null;
         if (linkedMaster) {
           linkedMaster.title = newFullTitle;
-          if (details.notes) linkedMaster.notes = details.notes;
+          if (notesChanged) linkedMaster.notes = details.notes;
         }
         if (isMaster && task.movedTaskId) {
           const linkedDaily = this.dailyTasks.find(d => d.id === task.movedTaskId);
           if (linkedDaily) {
             linkedDaily.title = newFullTitle;
-            if (details.notes) linkedDaily.notes = details.notes;
+            if (notesChanged) linkedDaily.notes = details.notes;
           }
         }
 
@@ -5111,7 +5112,7 @@
         }
 
         const updates = { title: newFullTitle };
-        if (details.notes) updates.notes = details.notes;
+        if (notesChanged) updates.notes = details.notes;
 
         try {
           if (isMaster) {

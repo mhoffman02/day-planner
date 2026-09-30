@@ -72,10 +72,6 @@
             <td>A running, searchable log of the key decisions and outcomes you've tagged with <code>#index</code> in your notes, so you can find "what did we decide about X" without digging back through old notes.</td>
           </tr>
           <tr>
-            <td><b>Lexicon</b></td>
-            <td>A quick-reference dictionary of abbreviations, acronyms, and project shorthand used throughout your notes and tasks.</td>
-          </tr>
-          <tr>
             <td><b>Future Planning</b></td>
             <td>A 12-month look-ahead for goals and milestones that are more than a month out.</td>
           </tr>
@@ -163,20 +159,6 @@
         </p>
       </article>
 
-      <article class="guide-card">
-        <h3 class="guide-card-title">
-          <span class="material-symbols-outlined">auto_awesome</span> AI Assist (Google Docs)
-        </h3>
-        <p class="guide-card-text">
-          The <span class="material-symbols-outlined icon-16">auto_awesome</span> button on a note card copies that card's text to your clipboard, then opens Google's Gemini in a small popup window &mdash; paste with Ctrl+V once it opens. A full Google Doc was tried first, but Google's own document chrome doesn't fit cleanly in a small window, so this opens just the clean Gemini chat instead. If opening it ever fails, this button turns itself off automatically. Toggle it here; your choice is remembered on this device.
-        </p>
-        <div class="install-actions-bar">
-          <button type="button" class="btn-primary install-action-btn" @click="toggleGeminiEnabled()">
-            <span class="material-symbols-outlined icon-18" x-text="geminiEnabled ? 'toggle_on' : 'toggle_off'"></span>
-            <span x-text="geminiEnabled ? 'Turn Off AI Assist Button' : 'Turn On AI Assist Button'"></span>
-          </button>
-        </div>
-      </article>
     </section>
   </section>
 

@@ -24,7 +24,6 @@ import {
   getCachedFutureMatrix, setCachedFutureMatrix, hydrateFutureMatrixFromIdb,
   saveNoteRevision, getNoteRevisions, hydrateNoteRevisionsFromIdb
 } from './dailyDataCache.js';
-import { cleanLookupWord, getWordAtCaret, fetchLexicon } from './lexiconService.js';
 window.GASBridge = GASBridge;
 window.Alpine = Alpine;
 
@@ -328,8 +327,6 @@ Alpine.data('plannerApp', () => ({
       sttRefreshedFlash: false,
       sttScratchDocUrl: '',
       sttScratchCreating: false,
-      geminiEnabled: true,
-      aiAssistError: null,
       noteViewMode: 'cards', // 'cards' (Option 1) or 'doc' (Option 2)
       quoteCardCollapsed: false,
       noteFilterMenuOpen: false,
@@ -388,15 +385,6 @@ Alpine.data('plannerApp', () => ({
       timeMachineToast: null,
       taskToast: null,
 
-      // In-Binder Lexicon & Thesaurus Popover state
-      lexiconOpen: false,
-      lexiconLoading: false,
-      lexiconQuery: '',
-      lexiconData: null,
-      lexiconError: null,
-      lexiconTarget: null,
-      lexiconToast: null,
-
       // Themed Day Calendar Picker state
       dayPickerOpen: false,
       dayPickerYear: null,
@@ -416,40 +404,6 @@ Alpine.data('plannerApp', () => ({
       linkModalResolving: false,
       linkModalDetectedDrive: false,
       linkModalLastResolvedUrl: '',
-      // AI Gateway Configuration Modal state
-      aiConfigModalOpen: false,
-      aiConfig: {
-        configured: false,
-        serviceUrl: '',
-        hasKey: false,
-        defaultModel: 'gemini-2.5-flash',
-        activeModel: 'gemini-2.5-flash',
-        isScriptLevel: false
-      },
-      aiTesting: false,
-      aiTestResult: null,
-      aiSavingModel: false,
-      aiSaveModelStatus: null,
-      supportedAiModels: [
-        { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google', speed: 'Fast (Recommended)' },
-        { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite', provider: 'Google', speed: 'Fastest' },
-        { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google', speed: 'Deep Reasoning' },
-        { id: 'gemini-3.7-flash', name: 'Gemini 3.7 Flash', provider: 'Google', speed: 'Latest Flash' },
-        { id: 'luna', name: 'Luna', provider: 'USAi (Work)', speed: 'Federal General' },
-        { id: 'terra', name: 'Terra', provider: 'USAi (Work)', speed: 'Federal General' },
-        { id: 'claude-3-5-haiku', name: 'Claude 3.5 Haiku', provider: 'Anthropic', speed: 'Fast' },
-        { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'Anthropic', speed: 'Balanced / Writing' },
-        { id: 'claude-3-opus', name: 'Claude 3 Opus', provider: 'Anthropic', speed: 'Complex Analysis' }
-      ],
-
-      // In-Binder AI Assist Modal state (for Note Cards & Tasks)
-      aiAssistModalOpen: false,
-      aiAssistCard: null,
-      aiAssistAction: 'summarize', // 'summarize' | 'tasks' | 'polish' | 'custom'
-      aiAssistCustomPrompt: '',
-      aiAssistLoading: false,
-      aiAssistResult: '',
-      aiAssistModalError: null,
 
       // Task inputs
       newTaskTitle: '',
@@ -526,7 +480,6 @@ Alpine.data('plannerApp', () => ({
         this.sttSupported = typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
         this.sttBlocked = !this.sttSupported;
         this.initTheme();
-        this.initAiAssist();
         this.initColumnWidths();
         this.initRecentTopics();
         this.initCategories();
@@ -727,41 +680,6 @@ Alpine.data('plannerApp', () => ({
         document.documentElement.style.colorScheme = this.theme;
       },
 
-      initAiAssist() {
-        try {
-          const saved = localStorage.getItem('dayPlannerGeminiEnabled');
-          this.geminiEnabled = saved === null ? true : saved === 'true';
-        } catch {
-          this.geminiEnabled = true;
-        }
-      },
-
-      toggleGeminiEnabled() {
-        this.geminiEnabled = !this.geminiEnabled;
-        this.aiAssistError = null;
-        try {
-          localStorage.setItem('dayPlannerGeminiEnabled', String(this.geminiEnabled));
-        } catch {
-          // ignore localStorage quota/disabled errors
-        }
-      },
-
-      disableAiAssist(message) {
-        this.geminiEnabled = false;
-        this.aiAssistError = message;
-        try {
-          localStorage.setItem('dayPlannerGeminiEnabled', 'false');
-        } catch {
-          // ignore localStorage quota/disabled errors
-        }
-      },
-
-      // In-binder AI Assist launcher for note cards
-      openAiAssist(card) {
-        if (!this.geminiEnabled) return;
-        this.openAiAssistModal(card);
-      },
-
       setupKeyboardShortcuts() {
         window.addEventListener('keydown', (e) => {
           const keyLower = e.key ? e.key.toLowerCase() : '';
@@ -810,9 +728,6 @@ Alpine.data('plannerApp', () => ({
           } else if ((e.key === '/' || ((e.ctrlKey || e.metaKey) && e.key === '/')) && !isInputFocused) {
             e.preventDefault();
             this.toggleSearchModal();
-          } else if (e.altKey && (keyLower === 'd')) {
-            e.preventDefault();
-            this.openLexiconFromActiveOrGlobal();
           } else if (e.key === 'Escape') {
             if (this.dayPickerOpen) {
               e.preventDefault();
@@ -826,9 +741,6 @@ Alpine.data('plannerApp', () => ({
             } else if (this.linkModalOpen) {
               e.preventDefault();
               this.closeLinkModal();
-            } else if (this.lexiconOpen) {
-              e.preventDefault();
-              this.closeLexicon();
             } else if (this.timeMachineOpen) {
               e.preventDefault();
               this.closeTimeMachine();
@@ -1817,12 +1729,6 @@ Alpine.data('plannerApp', () => ({
         if (!card) return;
         const lines = this.cardLines(card);
         const currentLine = lines[idx] || '';
-
-        if (e.altKey && (e.key === 'd' || e.key === 'D')) {
-          e.preventDefault();
-          this.openLexiconFromCardLine(card, idx);
-          return;
-        }
 
         if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
           if (e.key === 'c' || e.key === 'C') {
@@ -3249,7 +3155,7 @@ Alpine.data('plannerApp', () => ({
         if (!task || !task.id) return;
         this.editingTaskId = task.id;
         const parsed = this.parseTask(task.title);
-        this.editingTaskTitle = parsed.cleanTitle;
+        this.editingTaskTitle = task.notes ? `${parsed.cleanTitle} | ${task.notes}` : parsed.cleanTitle;
         this.$nextTick(() => {
           const el = document.getElementById(`task-title-input-${task.id}`);
           if (el) {
@@ -3269,6 +3175,7 @@ Alpine.data('plannerApp', () => ({
         this.editingTaskId = null;
         const details = extractTaskDetails(newTitle || '');
         const trimmed = details.rawTitle;
+        const hasPipe = (newTitle || '').includes('|');
         this.editingTaskTitle = '';
 
         let task = this.dailyTasks.find(t => t.id === taskId);
@@ -3281,7 +3188,7 @@ Alpine.data('plannerApp', () => ({
 
         const parsed = this.parseTask(task.title);
         const titleChanged = Boolean(trimmed && trimmed !== parsed.cleanTitle);
-        const notesChanged = Boolean(details.notes && details.notes !== (task.notes || ''));
+        const notesChanged = hasPipe && details.notes !== (task.notes || '');
         if (!titleChanged && !notesChanged) {
           return;
         }
@@ -3290,20 +3197,20 @@ Alpine.data('plannerApp', () => ({
         const oldNotes = task.notes || '';
         const newFullTitle = titleChanged ? updateTaskTitleText(oldTitle, trimmed) : oldTitle;
         task.title = newFullTitle;
-        if (details.notes) {
+        if (notesChanged) {
           task.notes = details.notes;
         }
 
         const linkedMaster = !isMaster ? this.masterTasks.find(m => m.movedTaskId === task.id) : null;
         if (linkedMaster) {
           linkedMaster.title = newFullTitle;
-          if (details.notes) linkedMaster.notes = details.notes;
+          if (notesChanged) linkedMaster.notes = details.notes;
         }
         if (isMaster && task.movedTaskId) {
           const linkedDaily = this.dailyTasks.find(d => d.id === task.movedTaskId);
           if (linkedDaily) {
             linkedDaily.title = newFullTitle;
-            if (details.notes) linkedDaily.notes = details.notes;
+            if (notesChanged) linkedDaily.notes = details.notes;
           }
         }
 
@@ -3314,7 +3221,7 @@ Alpine.data('plannerApp', () => ({
         }
 
         const updates = { title: newFullTitle };
-        if (details.notes) updates.notes = details.notes;
+        if (notesChanged) updates.notes = details.notes;
 
         try {
           if (isMaster) {
@@ -3945,400 +3852,6 @@ Alpine.data('plannerApp', () => ({
         if (!ts) return '';
         const d = new Date(ts);
         return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-      },
-
-      // In-Binder Lexicon & Thesaurus
-      openLexiconFromCard(card) {
-        if (!card) return;
-        const lineIdx = (card._activeLineIndex !== null && card._activeLineIndex !== undefined)
-          ? card._activeLineIndex
-          : null;
-        if (lineIdx !== null) {
-          this.openLexiconFromCardLine(card, lineIdx);
-        } else {
-          const winSel = typeof window !== 'undefined' && window.getSelection ? window.getSelection().toString().trim() : '';
-          const clean = cleanLookupWord(winSel);
-          this.lexiconTarget = { card, lineIdx: null, selStart: null, selEnd: null, targetWord: clean || winSel || '' };
-          this.lexiconQuery = clean || winSel || '';
-          this.lexiconOpen = true;
-          if (clean) {
-            this.searchLexicon(clean);
-          } else {
-            this.lexiconData = null;
-            this.lexiconError = null;
-            this.$nextTick(() => {
-              const input = this.$refs.lexiconSearchInput || document.getElementById('lexiconSearchInput');
-              if (input) {
-                input.focus();
-                input.select();
-              }
-            });
-          }
-        }
-      },
-
-      openLexiconFromCardLine(card, lineIdx) {
-        let selStart = null;
-        let selEnd = null;
-        let targetWord = '';
-
-        const lines = this.cardLines(card);
-        const lineText = lines[lineIdx] || '';
-
-        const el = document.getElementById(`card-line-${card.id}-${lineIdx}`);
-        if (el && typeof el.selectionStart === 'number' && typeof el.selectionEnd === 'number') {
-          if (el.selectionStart !== el.selectionEnd) {
-            selStart = Math.min(el.selectionStart, el.selectionEnd);
-            selEnd = Math.max(el.selectionStart, el.selectionEnd);
-            targetWord = lineText.slice(selStart, selEnd);
-          } else {
-            const wordInfo = getWordAtCaret(lineText, el.selectionStart);
-            if (wordInfo) {
-              selStart = wordInfo.start;
-              selEnd = wordInfo.end;
-              targetWord = wordInfo.word;
-            }
-          }
-        }
-
-        if (!targetWord) {
-          const winSel = typeof window !== 'undefined' && window.getSelection ? window.getSelection().toString().trim() : '';
-          if (winSel) targetWord = winSel;
-        }
-
-        const clean = cleanLookupWord(targetWord);
-        this.lexiconTarget = {
-          card,
-          lineIdx,
-          selStart,
-          selEnd,
-          targetWord: clean || targetWord
-        };
-
-        this.lexiconQuery = clean || targetWord || '';
-        this.lexiconOpen = true;
-
-        if (clean) {
-          this.searchLexicon(clean);
-        } else {
-          this.lexiconData = null;
-          this.lexiconError = null;
-          this.$nextTick(() => {
-            const input = this.$refs.lexiconSearchInput || document.getElementById('lexiconSearchInput');
-            if (input) {
-              input.focus();
-              input.select();
-            }
-          });
-        }
-      },
-
-      openLexiconFromActiveOrGlobal() {
-        const activeCard = (this.noteCards || []).find(c => c._activeLineIndex !== null && c._activeLineIndex !== undefined);
-        if (activeCard) {
-          this.openLexiconFromCardLine(activeCard, activeCard._activeLineIndex);
-          return;
-        }
-
-        const winSel = typeof window !== 'undefined' && window.getSelection ? window.getSelection().toString().trim() : '';
-        const clean = cleanLookupWord(winSel);
-
-        this.lexiconTarget = null;
-        this.lexiconQuery = clean || winSel || '';
-        this.lexiconOpen = true;
-
-        if (clean) {
-          this.searchLexicon(clean);
-        } else {
-          this.lexiconData = null;
-          this.lexiconError = null;
-          this.$nextTick(() => {
-            const input = this.$refs.lexiconSearchInput || document.getElementById('lexiconSearchInput');
-            if (input) {
-              input.focus();
-              input.select();
-            }
-          });
-        }
-      },
-
-      async searchLexicon(word) {
-        const clean = cleanLookupWord(word || this.lexiconQuery);
-        if (!clean) {
-          this.lexiconError = 'Please enter a word to search.';
-          return;
-        }
-
-        this.lexiconQuery = clean;
-        this.lexiconLoading = true;
-        this.lexiconError = null;
-
-        try {
-          const res = await fetchLexicon(clean, { gasBridge: this.bridge });
-          if (res && res.success) {
-            this.lexiconData = res;
-            this.lexiconError = null;
-          } else {
-            this.lexiconData = null;
-            this.lexiconError = res?.error || `No definitions found for "${clean}".`;
-          }
-        } catch (err) {
-          this.lexiconData = null;
-          this.lexiconError = `Lookup failed: ${err.message || err}`;
-        } finally {
-          this.lexiconLoading = false;
-        }
-      },
-
-      playPronunciation(word, audioUrl) {
-        if (audioUrl && typeof window !== 'undefined' && window.Audio) {
-          try {
-            const audio = new window.Audio(audioUrl);
-            audio.play().catch(() => {
-              this.playSpeechSynthesis(word);
-            });
-            return;
-          } catch {
-            // fall through
-          }
-        }
-        this.playSpeechSynthesis(word);
-      },
-
-      playSpeechSynthesis(word) {
-        if (typeof window !== 'undefined' && window.speechSynthesis && window.SpeechSynthesisUtterance) {
-          try {
-            window.speechSynthesis.cancel();
-            const utterance = new window.SpeechSynthesisUtterance(word);
-            utterance.rate = 0.9;
-            window.speechSynthesis.speak(utterance);
-          } catch (e) {
-            console.warn('Speech synthesis failed:', e);
-          }
-        }
-      },
-
-      replaceWithLexiconWord(newWord) {
-        if (!newWord) return;
-        const target = this.lexiconTarget;
-
-        if (target && target.card && target.lineIdx != null && target.selStart != null && target.selEnd != null) {
-          const card = target.card;
-          const lineIdx = target.lineIdx;
-          const lines = this.cardLines(card);
-          const lineText = lines[lineIdx] || '';
-
-          const start = Math.min(target.selStart, target.selEnd);
-          const end = Math.max(target.selStart, target.selEnd);
-
-          const before = lineText.slice(0, start);
-          const after = lineText.slice(end);
-
-          let replacement = newWord;
-          if (target.targetWord && /^[A-Z]/.test(target.targetWord)) {
-            replacement = newWord.charAt(0).toUpperCase() + newWord.slice(1);
-          }
-
-          lines[lineIdx] = before + replacement + after;
-          card.content = lines.join('\n');
-          this.syncCardsToDailyNote();
-          this.scheduleDailyNoteSave();
-
-          const oldWordDisplay = target.targetWord || 'selection';
-          this.showLexiconToast(`Replaced "${oldWordDisplay}" with "${replacement}"`);
-          this.closeLexicon();
-          return;
-        }
-
-        if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-          navigator.clipboard.writeText(newWord).then(() => {
-            this.showLexiconToast(`Copied "${newWord}" to clipboard`);
-          }).catch(() => {
-            this.showLexiconToast(`"${newWord}"`);
-          });
-        } else {
-          this.showLexiconToast(`"${newWord}"`);
-        }
-      },
-
-      showLexiconToast(msg) {
-        this.lexiconToast = msg;
-        setTimeout(() => {
-          if (this.lexiconToast === msg) {
-            this.lexiconToast = null;
-          }
-        }, 3500);
-      },
-
-      closeLexicon() {
-        this.lexiconOpen = false;
-        const target = this.lexiconTarget;
-        if (target && target.card && target.lineIdx != null) {
-          this.$nextTick(() => {
-            const el = document.getElementById(`card-line-${target.card.id}-${target.lineIdx}`);
-            if (el) el.focus();
-          });
-        }
-      },
-
-      // AI Gateway Configuration Methods
-      async openAiConfigModal() {
-        this.aiConfigModalOpen = true;
-        this.aiTestResult = null;
-        this.aiSaveModelStatus = null;
-        try {
-          if (this.bridge && typeof this.bridge.getAiMicroserviceConfig === 'function') {
-            const cfg = await this.bridge.getAiMicroserviceConfig();
-            if (cfg) {
-              this.aiConfig = cfg;
-            }
-          }
-        } catch (err) {
-          console.warn('[AI Config] failed to load config:', err);
-        }
-      },
-
-      closeAiConfigModal() {
-        this.aiConfigModalOpen = false;
-        this.aiTestResult = null;
-        this.aiSaveModelStatus = null;
-      },
-
-      async testAiGateway() {
-        this.aiTesting = true;
-        this.aiTestResult = null;
-        try {
-          if (this.bridge && typeof this.bridge.testAiMicroservice === 'function') {
-            const res = await this.bridge.testAiMicroservice(null, null, this.aiConfig.activeModel);
-            this.aiTestResult = res;
-          } else {
-            this.aiTestResult = { success: false, error: 'Bridge not available.' };
-          }
-        } catch (err) {
-          this.aiTestResult = { success: false, error: err.message || err.toString() };
-        } finally {
-          this.aiTesting = false;
-        }
-      },
-
-      async saveAiModel(newModel) {
-        if (!newModel) return;
-        this.aiSavingModel = true;
-        this.aiSaveModelStatus = null;
-        try {
-          if (this.bridge && typeof this.bridge.setAiUserSelectedModel === 'function') {
-            const res = await this.bridge.setAiUserSelectedModel(newModel);
-            if (res && res.success) {
-              this.aiConfig.activeModel = newModel;
-              this.aiSaveModelStatus = 'Active model updated to ' + newModel;
-            } else {
-              this.aiSaveModelStatus = 'Failed: ' + ((res && res.error) || 'Unknown error');
-            }
-          }
-        } catch (err) {
-          this.aiSaveModelStatus = 'Error: ' + (err.message || err.toString());
-        } finally {
-          this.aiSavingModel = false;
-          setTimeout(() => { this.aiSaveModelStatus = null; }, 4000);
-        }
-      },
-
-      // In-Binder AI Assist Methods (for Note Cards & Tasks)
-      openAiAssistModal(card) {
-        this.aiAssistCard = card;
-        this.aiAssistModalOpen = true;
-        this.aiAssistResult = '';
-        this.aiAssistModalError = null;
-        this.aiAssistLoading = false;
-        this.aiAssistAction = 'summarize';
-        this.aiAssistCustomPrompt = '';
-      },
-
-      closeAiAssistModal() {
-        this.aiAssistModalOpen = false;
-        this.aiAssistLoading = false;
-        this.aiAssistModalError = null;
-      },
-
-      async runAiAssist() {
-        if (!this.aiAssistCard) return;
-        const noteText = this.aiAssistCard.content || '';
-        if (!noteText.trim()) {
-          this.aiAssistModalError = 'This note card is empty. Type some notes first!';
-          return;
-        }
-
-        let prompt;
-        if (this.aiAssistAction === 'summarize') {
-          prompt = 'Please provide a clear, concise bulleted executive summary of the following notes:\n\n' + noteText;
-        } else if (this.aiAssistAction === 'tasks') {
-          prompt = 'Extract all distinct actionable tasks and to-dos from the following notes. Output each task on its own line prefixed with "- [ ] " or "#a " / "#b " based on priority:\n\n' + noteText;
-        } else if (this.aiAssistAction === 'polish') {
-          prompt = 'Polish and refine the following notes for professional clarity, correct grammar, and crisp organization, while preserving all key facts, tags, and decisions:\n\n' + noteText;
-        } else {
-          prompt = (this.aiAssistCustomPrompt || '').trim() + '\n\nContext notes:\n' + noteText;
-        }
-
-        this.aiAssistLoading = true;
-        this.aiAssistModalError = null;
-        this.aiAssistResult = '';
-
-        try {
-          if (this.bridge && typeof this.bridge.callAiMicroservice === 'function') {
-            const res = await this.bridge.callAiMicroservice(prompt);
-            if (res && res.success) {
-              this.aiAssistResult = res.content || res.result || '';
-            } else {
-              this.aiAssistModalError = (res && res.error) ? res.error : 'AI service call failed.';
-            }
-          } else {
-            this.aiAssistModalError = 'AI bridge connector unavailable.';
-          }
-        } catch (err) {
-          this.aiAssistModalError = 'Error: ' + (err.message || err.toString());
-        } finally {
-          this.aiAssistLoading = false;
-        }
-      },
-
-      applyAiAssistResult(mode) {
-        if (!this.aiAssistCard || !this.aiAssistResult) return;
-        if (mode === 'append') {
-          this.aiAssistCard.content = (this.aiAssistCard.content ? this.aiAssistCard.content + '\n\n' : '') + this.aiAssistResult;
-          this.syncCardsToDailyNote();
-          this.scheduleDailyNoteSave();
-        } else if (mode === 'replace') {
-          this.aiAssistCard.content = this.aiAssistResult;
-          this.syncCardsToDailyNote();
-          this.scheduleDailyNoteSave();
-        } else if (mode === 'copy') {
-          if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-            navigator.clipboard.writeText(this.aiAssistResult).catch(() => {});
-          }
-          this.showLexiconToast('Copied AI result to clipboard');
-        }
-        this.closeAiAssistModal();
-      },
-
-      async addExtractedTasksToToday() {
-        if (!this.aiAssistResult) return;
-        const lines = this.aiAssistResult.split('\n');
-        let count = 0;
-        for (const rawLine of lines) {
-          let line = rawLine.trim();
-          if (!line) continue;
-          line = line.replace(/^[-*•]\s*(\[[ xX]?\]\s*)?/, '').trim();
-          if (!line) continue;
-          try {
-            await this.bridge.addDailyTask(this.selectedDate, line, 'General', null, '');
-            count++;
-          } catch (err) {
-            console.error('Failed to add extracted task:', line, err);
-          }
-        }
-        await this.loadDayData();
-        this.showLexiconToast(`Added ${count} task${count === 1 ? '' : 's'} to Today!`);
-        this.closeAiAssistModal();
       },
 
       parseTask(title) {

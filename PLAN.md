@@ -25,16 +25,15 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 | **Search Engine** | `src/searchEngine.js` | Cross-entity search (Ctrl + K) | `tests/searchEngine.test.js` |
 | **Binder Store** | `src/binderStore.js` | View router, local date math navigation | `tests/binderStore.test.js` |
 | **Future Matrix Engine** | `src/futureMatrixEngine.js` | 12-month forward-look month keys & item helpers | `tests/futureMatrixEngine.test.js` |
-| **Lexicon Service** | `src/lexiconService.js` | In-binder dictionary & thesaurus engine with GAS fallback proxy | `tests/lexiconService.test.js` |
 
 ---
 
 ## 3. Active & Upcoming Phases
 
-### Phase 24: WORK Enterprise Verification & AI Assist Refinements (Active)
-- [x] **WORK Deployment Repoint to Version 122**: `michael.hoffman@gsa.gov` repointed live deployment in WORK Apps Script IDE (`https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit`) to Version 122 activating build 361.
-- [ ] **AI Assist Live Verification on WORK**: Verify that the server-side proxy (`callAiMicroservice` via `UrlFetchApp`) executes cleanly from Google data centers to USAi's endpoint, bypassing the federal network's client browser proxy blocks on `gemini.google.com`.
-- [ ] **AI Assist Context Expansion & Formatting Polish**: Support selecting specific lines or multi-card synthesis in AI Assist, and add inline markdown rendering preview for AI summaries.
+### Phase 24: AI Assist & Thesaurus Removed — Low ROI (Closed 2026-09-30)
+AI Assist (in-binder modal + AI Gateway settings) and the Thesaurus/Dictionary lookup were removed
+entirely (not disabled) — user judgment call that the ROI didn't justify the OAuth/config surface
+and WORK-network complexity. Superseded the prior WORK AI verification work.
 
 ---
 
