@@ -1,17 +1,10 @@
 # Active Tasks (TODO)
 
-## Phase 23: Task Inline Editing & Unified AI Gateway Architecture
+## Phase 23: Direct AI Gateway UI Wiring (In Progress)
 
-- [x] **Inline Task Description Editing** — Completed in commit [`abdf26a`](file:///home/mike/projects/day-planner/.git/commit/abdf26a).
-- [x] **Unified AI Multi-Model REST Gateway Architecture** — Completed in commit [`83aecbf`](file:///home/mike/projects/day-planner/.git/commit/83aecbf), [`486cd8a`](file:///home/mike/projects/day-planner/.git/commit/486cd8a).
-  - Target endpoints: `aiService.js` directly calls **Google Gemini Free API** (`https://generativelanguage.googleapis.com/...`) at HOME, and **USAi API** at WORK.
-  - Sheets `=AI(...)` microservice officially deprecated as a dead end (requires interactive user UI focus in sheet to evaluate).
-  - Unified configuration: `ScriptProperties` stores `AI_ENDPOINT_URL`, `AI_API_KEY`, and `AI_MODEL` per Apps Script project deployment (HOME vs. WORK).
-  - User customization: `UserProperties.AI_MODEL_OVERRIDE` allows personal selection without overriding shared script props.
-  - Multi-model format support: OpenAI / USAi chat completions format, Google Gemini native format, and `x-goog-api-key` header support.
-  - Models supported: Gemini 2.5 Flash Lite/Flash/Pro, Gemini 3.7 Flash, Luna, Terra, Haiku, Sonnet, Opus.
-- [ ] **AI Gateway UI Wiring (WIP)**
+- [ ] **AI Gateway Settings UI & Model Selection Wiring**
   - Add Settings / AI Config panel: test connection, inspect configured endpoint & key status, and pick active model from dropdown.
+  - Wire Alpine state to bridge `testAiMicroservice()` and `setAiUserSelectedModel()`.
   - Agree on UI touchpoints (e.g. Note Card AI Assist action menu: summarize, extract tasks, refine tone).
 
 ## Open

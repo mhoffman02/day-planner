@@ -1,5 +1,19 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-30 — Unified AI REST Multi-Model Gateway Architecture Shipped
+
+- [x] **Unified AI Multi-Model REST Gateway Architecture**: Commits [`83aecbf`](file:///home/mike/projects/day-planner/.git/commit/83aecbf) & [`486cd8a`](file:///home/mike/projects/day-planner/.git/commit/486cd8a).
+  - Built unified REST endpoint connector in [`src/aiService.js`](file:///home/mike/projects/day-planner/src/aiService.js) and [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L3130).
+  - Target endpoints: `aiService.js` directly calls **Google Gemini Free API** (`https://generativelanguage.googleapis.com/...`) at HOME, and **USAi API** at WORK.
+  - Sheets `=AI(...)` microservice permanently deprecated as an architectural dead end (requires interactive user UI focus in Google Sheets to evaluate formulas).
+  - Zero-branching environment config: `ScriptProperties` stores `AI_ENDPOINT_URL`, `AI_API_KEY`, and `AI_MODEL` per Apps Script project deployment (HOME vs. WORK).
+  - User customization: `UserProperties.AI_MODEL_OVERRIDE` allows personal model selection without overriding shared script properties.
+  - Multi-model format support: OpenAI / USAi chat completions format (`choices[0].message.content`), Google Gemini native format (`candidates[0].content.parts[0].text`), legacy `ai-lite` format, and `x-goog-api-key` header support.
+  - Supported models: `gemini-2.5-flash-lite`, `gemini-2.5-flash`, `gemini-2.5-pro`, `gemini-3.7-flash`, `luna`, `terra`, `haiku`, `sonnet`, `opus`.
+  - Added backend RPC methods `getEffectiveAiConfig_()`, `testAiMicroservice()`, `callAiMicroservice()`, `getAiMicroserviceConfig()`, and `setAiUserSelectedModel()`, mirrored to [`src/gasBridge.js`](file:///home/mike/projects/day-planner/src/gasBridge.js) and [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html).
+  - Upgraded test suite in [`tests/aiService.test.js`](file:///home/mike/projects/day-planner/tests/aiService.test.js) (17/17 tests passing; overall test suite 225/225 passing).
+  - Server-side proxying in Apps Script (`callAiMicroservice` via `UrlFetchApp`) executes directly from Google's infrastructure, bypassing the WORK federal network browser proxy blocking `gemini.google.com`.
+
 ## 2026-09-30 — Task Inline Description Editing Shipped
 
 - [x] **Today page, Tasks panel: click-to-edit task Description**: Commit [`abdf26a`](file:///home/mike/projects/day-planner/.git/commit/abdf26a).
