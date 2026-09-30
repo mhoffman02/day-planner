@@ -38,8 +38,8 @@ Deliver a high-productivity, aesthetically authentic Franklin-style Google Digit
    - **Files**: [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js#L140-L220), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html#L140-L220), [`index.html`](file:///home/mike/projects/day-planner/index.html#L380-L450), [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html#L380-L450), [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css).
    - **Task**: In the Settings modal, add an **AI Gateway** section showing endpoint connection status (`getAiMicroserviceConfig()`), default model, active model, and a model picker dropdown (`SUPPORTED_WORK_MODELS`) that calls `setAiUserSelectedModel(model)` and provides a "Test Connection" button.
 
-2. **WORK Deployment Repoint Needed (User-Blocked)**
-   - **Task**: WORK version 116 is pushed (`npm run push:work`), awaiting repoint by `michael.hoffman@gsa.gov` via [Deploy > Manage deployments](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit).
+2. **Configure USAi Properties on WORK**
+   - **Task**: In WORK Apps Script Editor (`1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`), set `ScriptProperties` for USAi (`AI_ENDPOINT_URL`, `AI_API_KEY`, `AI_MODEL`) so Day Planner can query USAi directly on the federal network. Version 118 was repointed by user!
 
 3. **Wire AI Assist UI Touchpoints**
    - **Files**: [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js#L1500-L1600), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html#L1500-L1600), [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css).

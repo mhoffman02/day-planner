@@ -13,4 +13,4 @@
 
 ## Loose end (user-blocked)
 
-- [ ] **WORK deployment repoint needed**: WORK version 116 is pushed (`npm run push:work`, prior session turn), carrying every fix live on HOME through @281/build 334 (Phase 21 cache port + pagination/grid bugs + the AI Assist noopener fix, disabled-not-hidden button state, Gemini-only). Still needs `michael.hoffman@gsa.gov` to repoint via [Deploy > Manage deployments](https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit) — not agent-doable. Note: even once repointed, the AI Assist button itself will still not work on WORK (see Open item above) — this repoint is only about picking up the other fixes.
+- [x] **WORK deployment repointed to Version 118**: Repointed by `michael.hoffman@gsa.gov` via Manage deployments. Carrying all Phase 21-23 features (inline task description editing, deep archive fullText search, time-machine notes restore, lexicon popover, and unified AI REST gateway connector).
