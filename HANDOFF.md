@@ -1,7 +1,7 @@
 # CONTEXT HANDOFF DOCUMENT
 
 ## OBJECTIVE
-Deliver a high-productivity, aesthetically authentic Franklin-style Google Digital Day Planner operating 100% within Google Apps Script on both personal (HOME) and locked-down federal (WORK) Google accounts. We are in Phase 24 (WORK Enterprise Verification & AI Assist Refinements). Builds 360 and 361 delivered task notes popover boundary escaping, dedicated notes header lexicon button, in-binder AI Gateway settings and AI Assist modals, and restored the Dark Forest theme; the next step is repointing the WORK deployment to Version 122 and verifying AI Assist live on the federal environment.
+Deliver a high-productivity, aesthetically authentic Franklin-style Google Digital Day Planner operating 100% within Google Apps Script on both personal (HOME) and locked-down federal (WORK) Google accounts. We are in Phase 24 (WORK Enterprise Verification & AI Assist Refinements). Builds 360 and 361 delivered task notes popover boundary escaping, dedicated notes header lexicon button, in-binder AI Gateway settings and AI Assist modals, and restored the Dark Forest theme. Version 122 is now active on the federal WORK deployment; the next step is verifying AI Assist live on the federal environment and expanding AI Assist context and markdown formatting.
 
 ---
 
@@ -22,7 +22,7 @@ Deliver a high-productivity, aesthetically authentic Franklin-style Google Digit
 - **Git Branch**: `pure-gas-main` (clean working tree after documentation commit).
 - **Latest Day-Planner Commit**: [`a78356f`](file:///home/mike/projects/day-planner/.git/commit/a78356f) — `fix(theme): close unclosed .modal-detail-intro rule restoring full dark theme stylesheet and prevent compact header overflow (Build 361)`.
 - **HOME Deployment**: Version 286 (Build 361) live on `AKfycbzZW7LNOkWUhz_SQd4Ka2LCKvT9zwajFGGAHmDXtpG_W0YR28mPFEKwbtDLWyX13xn7YA`. Verified responsive and healthy via CDP probe (`npm run probe`).
-- **WORK Deployment**: Version 122 pushed to WORK Apps Script project via `npm run push:work`. Ready for `michael.hoffman@gsa.gov` to repoint deployment in IDE to Version 122.
+- **WORK Deployment**: Version 122 activated by `michael.hoffman@gsa.gov` on live WORK deployment `AKfycbyLuAiuboGfbMg98PqUt7YQMNyB4Mk4rAUPXT_5FPbbHM2s4B1LP2GzeqOdJu_BhslA`.
 - **Pre-flight Status**: 100% clean. 230/230 tests passing across 38 test suites. Zero ESLint warnings/errors. Character AST checks passed.
 
 ---
@@ -38,18 +38,19 @@ Deliver a high-productivity, aesthetically authentic Franklin-style Google Digit
 
 ## OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
 
-1. **Repoint WORK Deployment to Version 122 in IDE**
-   - **Task**: In WORK Apps Script Editor (`https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit`), `michael.hoffman@gsa.gov` repoints the live deployment via Manage Deployments to Version 122 to activate build 361 (task notes popover boundary escape, lexicon notes button, in-binder AI Gateway and AI Assist modals, and dark mode CSS fix).
-
-2. **AI Assist Live Verification on WORK via Server Proxy**
+1. **AI Assist Live Verification on WORK via Server Proxy**
    - **Files**: [`src/aiService.js`](file:///home/mike/projects/day-planner/src/aiService.js), [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L3130).
    - **Task**: Verify that server-side proxy (`callAiMicroservice` via `UrlFetchApp`) executes cleanly from Google data centers to USAi's endpoint, bypassing the federal network's client browser proxy blocks on `gemini.google.com`. Test connection in AI Gateway Settings and run Summarize/Extract Tasks from Note Cards.
 
-3. **AI Assist Context Expansion & Formatting Polish**
+2. **AI Assist Context Expansion & Formatting Polish**
    - **Files**: [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js#L1520-L1620), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html#L1520-L1620), [`index.html`](file:///home/mike/projects/day-planner/index.html#L520-L580), [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html#L520-L580), [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css).
    - **Task**: Support selecting specific lines or multi-card synthesis in AI Assist, and add inline markdown rendering preview for AI summaries.
+
+3. **Lexicon Service Offline/Direct Fallback Polish**
+   - **Files**: [`src/lexiconService.js`](file:///home/mike/projects/day-planner/src/lexiconService.js), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html), [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L2890).
+   - **Task**: Polish dictionary/thesaurus edge cases when network latency is high or offline, caching recent lookups in IndexedDB / local storage for instant recall.
 
 ---
 
 ## IMMEDIATE NEXT STEP
-Repoint the live WORK Apps Script deployment in the Google Apps Script IDE (`https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit`) to **Version 122** via Manage Deployments, then test the in-binder AI Gateway modal (`Test Connection`) and Note Card AI Assist (`Extract Tasks to Today`).
+Verify the in-binder AI Gateway modal (`Test Connection`) and Note Card AI Assist (`Extract Tasks to Today`) on the active WORK deployment (`https://script.google.com/a/macros/gsa.gov/s/AKfycbyLuAiuboGfbMg98PqUt7YQMNyB4Mk4rAUPXT_5FPbbHM2s4B1LP2GzeqOdJu_BhslA/exec`), then proceed with implementing AI Assist context expansion and markdown formatting preview.

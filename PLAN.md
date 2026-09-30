@@ -32,7 +32,7 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 ## 3. Active & Upcoming Phases
 
 ### Phase 24: WORK Enterprise Verification & AI Assist Refinements (Active)
-- [ ] **WORK Deployment Repoint to Version 122**: `michael.hoffman@gsa.gov` repoints deployment via Manage Deployments in WORK Apps Script IDE (`https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit`) to activate build 361.
+- [x] **WORK Deployment Repoint to Version 122**: `michael.hoffman@gsa.gov` repointed live deployment in WORK Apps Script IDE (`https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit`) to Version 122 activating build 361.
 - [ ] **AI Assist Live Verification on WORK**: Verify that the server-side proxy (`callAiMicroservice` via `UrlFetchApp`) executes cleanly from Google data centers to USAi's endpoint, bypassing the federal network's client browser proxy blocks on `gemini.google.com`.
 - [ ] **AI Assist Context Expansion & Formatting Polish**: Support selecting specific lines or multi-card synthesis in AI Assist, and add inline markdown rendering preview for AI summaries.
 

@@ -25,7 +25,7 @@
   - Verified live via CDP: `main` background shifts cleanly between parchment `#fcfbfa` (light) and deep forest `#142820` (dark).
 - [x] **Deployments**:
   - HOME: Deployed Version 286 (`AKfycbzZW7LNOkWUhz_SQd4Ka2LCKvT9zwajFGGAHmDXtpG_W0YR28mPFEKwbtDLWyX13xn7YA`).
-  - WORK: Created Version 122 via `npm run push:work`.
+  - WORK: Created Version 122 via `npm run push:work` and activated by `michael.hoffman@gsa.gov` on live WORK deployment (`AKfycbyLuAiuboGfbMg98PqUt7YQMNyB4Mk4rAUPXT_5FPbbHM2s4B1LP2GzeqOdJu_BhslA`).
 
 ## 2026-09-30 (evening) — Tasks Inline Notes Delimiter, Status Menu Clipping Fix, Time Machine Fix, and About Overhaul (Build 358)
 
