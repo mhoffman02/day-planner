@@ -405,7 +405,7 @@ const DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mho
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const DAY_PLANNER_BUILD_NUMBER = 369;
+const DAY_PLANNER_BUILD_NUMBER = 370;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -1179,16 +1179,16 @@ function getDailyData(dateStr) {
 
 /** @returns {string} Local YYYY-MM-DD key for a Date, using the script's own local fields (no UTC shift). */
 function localDateKey_(d) {
-  var m = String(d.getMonth() + 1).padStart(2, '0');
-  var day = String(d.getDate()).padStart(2, '0');
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
   return d.getFullYear() + '-' + m + '-' + day;
 }
 
 /** @returns {Array<string>} Every YYYY-MM-DD date key from startDateStr to endDateStr, inclusive. */
 function enumerateDateRange_(startDateStr, endDateStr) {
-  var keys = [];
-  var cur = new Date(startDateStr + 'T00:00:00');
-  var end = new Date(endDateStr + 'T00:00:00');
+  const keys = [];
+  const cur = new Date(startDateStr + 'T00:00:00');
+  const end = new Date(endDateStr + 'T00:00:00');
   while (cur <= end) {
     keys.push(localDateKey_(cur));
     cur.setDate(cur.getDate() + 1);
@@ -1205,13 +1205,13 @@ function enumerateDateRange_(startDateStr, endDateStr) {
  * @returns {Array<string>} The subset of dateKeys this event spans.
  */
 function eventOverlapDateKeys_(evt, dateKeys) {
-  var startRaw = evt.start && (evt.start.dateTime || evt.start.date);
-  var endRaw = evt.end && (evt.end.dateTime || evt.end.date);
+  const startRaw = evt.start && (evt.start.dateTime || evt.start.date);
+  const endRaw = evt.end && (evt.end.dateTime || evt.end.date);
   if (!startRaw) return [];
-  var isAllDay = !!(evt.start && evt.start.date && !evt.start.dateTime);
+  const isAllDay = !!(evt.start && evt.start.date && !evt.start.dateTime);
 
-  var startDate = new Date(startRaw);
-  var endDate = endRaw ? new Date(endRaw) : startDate;
+  const startDate = new Date(startRaw);
+  let endDate = endRaw ? new Date(endRaw) : startDate;
   if (isAllDay) {
     // Google Calendar's all-day end.date is exclusive -- step back a day so the range covers
     // the last real day the event occupies, not the day after it ends.
@@ -1221,8 +1221,8 @@ function eventOverlapDateKeys_(evt, dateKeys) {
     endDate = new Date(endDate.getTime() - 1);
   }
 
-  var startKey = localDateKey_(startDate);
-  var endKey = localDateKey_(endDate < startDate ? startDate : endDate);
+  const startKey = localDateKey_(startDate);
+  const endKey = localDateKey_(endDate < startDate ? startDate : endDate);
   return dateKeys.filter(function(k) { return k >= startKey && k <= endKey; });
 }
 
@@ -1240,9 +1240,9 @@ function eventOverlapDateKeys_(evt, dateKeys) {
  * @returns {{days: Object<string, Object>, warnings: Array<string>}} Per-date payloads keyed by date.
  */
 function getDailyDataRange(startDateStr, endDateStr) {
-  var warnings = [];
-  var dateKeys = enumerateDateRange_(startDateStr, endDateStr);
-  var days = {};
+  const warnings = [];
+  const dateKeys = enumerateDateRange_(startDateStr, endDateStr);
+  const days = {};
   dateKeys.forEach(function(k) {
     days[k] = { date: k, tasks: [], calendarEvents: [], noteContent: null, docUrl: '' };
   });
@@ -1254,16 +1254,16 @@ function getDailyDataRange(startDateStr, endDateStr) {
     return { days: days, warnings: warnings };
   }
 
-  var rangeStart = new Date(startDateStr + 'T00:00:00');
-  var rangeEndExclusive = new Date(endDateStr + 'T00:00:00');
+  const rangeStart = new Date(startDateStr + 'T00:00:00');
+  const rangeEndExclusive = new Date(endDateStr + 'T00:00:00');
   rangeEndExclusive.setDate(rangeEndExclusive.getDate() + 1);
 
   // 1. Calendar events, paginated, bucketed by day overlap.
   try {
-    var calItems = [];
-    var calPageToken = null;
+    let calItems = [];
+    let calPageToken = null;
     do {
-      var calParams = {
+      const calParams = {
         timeMin: rangeStart.toISOString(),
         timeMax: rangeEndExclusive.toISOString(),
         singleEvents: true,
@@ -1272,13 +1272,13 @@ function getDailyDataRange(startDateStr, endDateStr) {
         fields: 'items(id,summary,start,end,location,description,hangoutLink,conferenceData,htmlLink,extendedProperties),nextPageToken'
       };
       if (calPageToken) calParams.pageToken = calPageToken;
-      var calResp = Calendar.Events.list('primary', calParams);
+      const calResp = Calendar.Events.list('primary', calParams);
       calItems = calItems.concat(calResp.items || []);
       calPageToken = calResp.nextPageToken || null;
     } while (calPageToken);
 
     calItems.forEach(function(evt) {
-      var mapped = {
+      const mapped = {
         id: evt.id,
         title: evt.summary || '(untitled)',
         startTime: evt.start && (evt.start.dateTime || evt.start.date),
@@ -1299,15 +1299,15 @@ function getDailyDataRange(startDateStr, endDateStr) {
 
   // 2. Tasks, paginated, padded UTC window, bucketed by exact due date.
   try {
-    var dueMinUtc = new Date(startDateStr + 'T00:00:00.000Z');
+    const dueMinUtc = new Date(startDateStr + 'T00:00:00.000Z');
     dueMinUtc.setUTCDate(dueMinUtc.getUTCDate() - 1);
-    var dueMaxUtc = new Date(endDateStr + 'T00:00:00.000Z');
+    const dueMaxUtc = new Date(endDateStr + 'T00:00:00.000Z');
     dueMaxUtc.setUTCDate(dueMaxUtc.getUTCDate() + 2);
 
-    var taskItems = [];
-    var taskPageToken = null;
+    let taskItems = [];
+    let taskPageToken = null;
     do {
-      var taskParams = {
+      const taskParams = {
         dueMin: dueMinUtc.toISOString(),
         dueMax: dueMaxUtc.toISOString(),
         showCompleted: true,
@@ -1315,16 +1315,16 @@ function getDailyDataRange(startDateStr, endDateStr) {
         maxResults: 100
       };
       if (taskPageToken) taskParams.pageToken = taskPageToken;
-      var taskResp = Tasks.Tasks.list('@default', taskParams);
+      const taskResp = Tasks.Tasks.list('@default', taskParams);
       taskItems = taskItems.concat(taskResp.items || []);
       taskPageToken = taskResp.nextPageToken || null;
     } while (taskPageToken);
 
     taskItems.forEach(function(t) {
       if (!t.due) return;
-      var dueDateKey = t.due.substring(0, 10);
+      const dueDateKey = t.due.substring(0, 10);
       if (!days[dueDateKey]) return;
-      var meta = decodeTaskMeta(t.notes);
+      const meta = decodeTaskMeta(t.notes);
       days[dueDateKey].tasks.push({
         id: t.id,
         title: t.title,
@@ -1344,28 +1344,28 @@ function getDailyDataRange(startDateStr, endDateStr) {
   // spanned by the range, split into per-day sections in memory.
   if (typeof DriveApp !== 'undefined' && typeof Docs !== 'undefined') {
     try {
-      var targetFolder = getValidatedRootFolder();
+      const targetFolder = getValidatedRootFolder();
       if (targetFolder) {
-        var monthKeys = {};
+        const monthKeys = {};
         dateKeys.forEach(function(k) { monthKeys[k.substring(0, 7)] = true; });
-        var monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
         Object.keys(monthKeys).forEach(function(monthKey) {
-          var monthParts = monthKey.split('-');
-          var monthName = monthNames[parseInt(monthParts[1], 10) - 1];
-          var year = parseInt(monthParts[0], 10);
-          var docName = 'Day Planner Notes - ' + monthName + ' ' + year;
+          const monthParts = monthKey.split('-');
+          const monthName = monthNames[parseInt(monthParts[1], 10) - 1];
+          const year = parseInt(monthParts[0], 10);
+          const docName = 'Day Planner Notes - ' + monthName + ' ' + year;
 
-          var files = targetFolder.getFilesByName(docName);
+          const files = targetFolder.getFilesByName(docName);
           if (!files.hasNext()) return; // read-only: never create a month's doc during a prefetch
-          var docId = files.next().getId();
-          var docUrl = 'https:' + '/' + '/docs.google.com/document/d/' + docId + '/edit';
-          var elements = docsGetBodyElements_(docId);
+          const docId = files.next().getId();
+          const docUrl = 'https:' + '/' + '/docs.google.com/document/d/' + docId + '/edit';
+          const elements = docsGetBodyElements_(docId);
 
           dateKeys.forEach(function(k) {
             if (k.substring(0, 7) !== monthKey) return;
             days[k].docUrl = docUrl;
-            var extracted = extractDaySectionText_(elements, k);
+            const extracted = extractDaySectionText_(elements, k);
             if (extracted !== null) days[k].noteContent = extracted;
           });
         });
@@ -1389,18 +1389,18 @@ function getDailyDataRange(startDateStr, endDateStr) {
  * @returns {GoogleAppsScript.Document.Document} Opened Google Document instance.
  */
 function getOrCreateMonthlyNotesDoc_(targetFolder, docName, monthName, year) {
-  var files = targetFolder.getFilesByName(docName);
+  const files = targetFolder.getFilesByName(docName);
   if (files.hasNext()) {
     return files.next().getId();
   }
 
-  var resource = {
+  const resource = {
     title: docName,
     mimeType: 'application/vnd.google-apps.document',
     parents: [{ id: targetFolder.getId() }]
   };
-  var created = Drive.Files.insert(resource);
-  var titleText = 'Day Planner Notes - ' + monthName + ' ' + year;
+  const created = Drive.Files.insert(resource);
+  const titleText = 'Day Planner Notes - ' + monthName + ' ' + year;
   Docs.Documents.batchUpdate({
     requests: [
       { insertText: { location: { index: 1 }, text: titleText } },
@@ -1426,8 +1426,8 @@ function getOrCreateMonthlyNotesDoc_(targetFolder, docName, monthName, year) {
  */
 function isDayHeadingElement_(element, dateStr, dayFormatted) {
   if (!element) return false;
-  var heading = docsElementHeading_(element);
-  var text = docsElementText_(element).trim();
+  const heading = docsElementHeading_(element);
+  const text = docsElementText_(element).trim();
   if (heading === 'HEADING_2' || text.indexOf('Day Planner - ') === 0 || text.indexOf('## ') === 0) {
     if (text.indexOf(dateStr) !== -1 || (dayFormatted && text.indexOf(dayFormatted) !== -1)) {
       return true;
@@ -1443,8 +1443,8 @@ function isDayHeadingElement_(element, dateStr, dayFormatted) {
  */
 function isAnyDayHeadingElement_(element) {
   if (!element) return false;
-  var heading = docsElementHeading_(element);
-  var text = docsElementText_(element).trim();
+  const heading = docsElementHeading_(element);
+  const text = docsElementText_(element).trim();
   if (heading === 'HEADING_2') return true;
   if (text.indexOf('Day Planner - ') === 0 || text.indexOf('## ') === 0) return true;
   return false;
@@ -1460,12 +1460,12 @@ function isAnyDayHeadingElement_(element) {
  * @returns {string|null} Card content text, or null if this date has no section in the doc.
  */
 function extractDaySectionText_(elements, dateStr) {
-  var parts = dateStr.split('-');
-  var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 12, 0, 0);
-  var dayFormatted = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  const parts = dateStr.split('-');
+  const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 12, 0, 0);
+  const dayFormatted = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 
-  var dayHeadingIndex = -1;
-  for (var i = 0; i < elements.length; i++) {
+  let dayHeadingIndex = -1;
+  for (let i = 0; i < elements.length; i++) {
     if (isDayHeadingElement_(elements[i], dateStr, dayFormatted)) {
       dayHeadingIndex = i;
       break;
@@ -1473,13 +1473,13 @@ function extractDaySectionText_(elements, dateStr) {
   }
   if (dayHeadingIndex === -1) return null;
 
-  var contentLines = [];
-  for (var j = dayHeadingIndex + 1; j < elements.length; j++) {
-    var el = elements[j];
+  const contentLines = [];
+  for (let j = dayHeadingIndex + 1; j < elements.length; j++) {
+    const el = elements[j];
     if (isAnyDayHeadingElement_(el)) break;
     if (docsElementIsPageBreak_(el)) continue;
-    var heading = docsElementHeading_(el);
-    var text = docsElementText_(el);
+    const heading = docsElementHeading_(el);
+    const text = docsElementText_(el);
     if (heading === 'HEADING_3') {
       contentLines.push('### ' + text);
     } else if (docsElementIsListItem_(el)) {
@@ -1505,23 +1505,23 @@ function getOrCreateDailyDocContent(dateStr, knownDocId) {
   }
 
   try {
-    var docId = knownDocId;
+    let docId = knownDocId;
     if (!docId) {
-      var targetFolder = getValidatedRootFolder();
+      const targetFolder = getValidatedRootFolder();
       if (!targetFolder) {
         return '### #index [Architecture] System Design\nFinalized 3-column binder layout with Alpine.js and clean CSS.';
       }
 
-      var parts = dateStr.split('-');
-      var docDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 12, 0, 0);
-      var monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-      var monthName = monthNames[docDate.getMonth()];
-      var year = docDate.getFullYear();
-      var docName = 'Day Planner Notes - ' + monthName + ' ' + year;
+      const parts = dateStr.split('-');
+      const docDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 12, 0, 0);
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      const monthName = monthNames[docDate.getMonth()];
+      const year = docDate.getFullYear();
+      const docName = 'Day Planner Notes - ' + monthName + ' ' + year;
       docId = getOrCreateMonthlyNotesDoc_(targetFolder, docName, monthName, year);
     }
-    var elements = docsGetBodyElements_(docId);
-    var extracted = extractDaySectionText_(elements, dateStr);
+    const elements = docsGetBodyElements_(docId);
+    const extracted = extractDaySectionText_(elements, dateStr);
     return extracted !== null ? extracted : ('### #index [General] Daily Notes\n- Initialized daily topic card.');
   } catch (err) {
     logError('getOrCreateDailyDocContent(' + dateStr + ')', err);
@@ -1544,36 +1544,36 @@ function saveDailyDocCards(dateStr, noteContent) {
   }
 
   try {
-    var targetFolder = getValidatedRootFolder();
+    const targetFolder = getValidatedRootFolder();
     if (!targetFolder) throw new Error('Root folder not configured.');
 
-    var parts = dateStr.split('-');
-    var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 12, 0, 0);
-    var monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    var monthName = monthNames[d.getMonth()];
-    var year = d.getFullYear();
-    var docName = 'Day Planner Notes - ' + monthName + ' ' + year;
+    const parts = dateStr.split('-');
+    const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 12, 0, 0);
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const monthName = monthNames[d.getMonth()];
+    const year = d.getFullYear();
+    const docName = 'Day Planner Notes - ' + monthName + ' ' + year;
 
-    var docId = getOrCreateMonthlyNotesDoc_(targetFolder, docName, monthName, year);
-    var dayFormatted = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-    var dayHeadingText = 'Day Planner - ' + dayFormatted;
-    var lines = (noteContent || '').split('\n');
+    const docId = getOrCreateMonthlyNotesDoc_(targetFolder, docName, monthName, year);
+    const dayFormatted = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    const dayHeadingText = 'Day Planner - ' + dayFormatted;
+    const lines = (noteContent || '').split('\n');
 
-    var elements = docsGetBodyElements_(docId);
-    var dayHeadingIndex = -1;
-    for (var i = 0; i < elements.length; i++) {
+    const elements = docsGetBodyElements_(docId);
+    let dayHeadingIndex = -1;
+    for (let i = 0; i < elements.length; i++) {
       if (isDayHeadingElement_(elements[i], dateStr, dayFormatted)) {
         dayHeadingIndex = i;
         break;
       }
     }
 
-    var requests = [];
+    let requests = [];
 
     if (dayHeadingIndex !== -1) {
       // Idempotent replacement: determine range of existing day section [dayHeadingIndex, endElIndex)
-      var endElIndex = elements.length;
-      for (var j = dayHeadingIndex + 1; j < elements.length; j++) {
+      let endElIndex = elements.length;
+      for (let j = dayHeadingIndex + 1; j < elements.length; j++) {
         if (isAnyDayHeadingElement_(elements[j])) {
           // If the element immediately preceding the next day heading is a page break, keep it
           // in place for the next section rather than deleting it as part of this one.
@@ -1586,26 +1586,26 @@ function saveDailyDocCards(dateStr, noteContent) {
         }
       }
 
-      var deleteStart = elements[dayHeadingIndex].startIndex;
-      var deleteEnd = elements[endElIndex - 1].endIndex;
-      var docEndIndex = elements[elements.length - 1].endIndex;
+      const deleteStart = elements[dayHeadingIndex].startIndex;
+      let deleteEnd = elements[endElIndex - 1].endIndex;
+      const docEndIndex = elements[elements.length - 1].endIndex;
       // A doc's final newline can never be deleted -- clamp if this range would reach doc end.
       if (deleteEnd >= docEndIndex) deleteEnd = docEndIndex - 1;
 
       requests.push({ deleteContentRange: { range: { startIndex: deleteStart, endIndex: deleteEnd } } });
-      var plan = buildDaySectionRequests_(deleteStart, dayHeadingText, lines);
+      const plan = buildDaySectionRequests_(deleteStart, dayHeadingText, lines);
       requests.push({ insertText: { location: { index: deleteStart }, text: plan.text } });
       requests = requests.concat(plan.styleRequests);
     } else {
       // New day: insert a page break first if the doc doesn't already end with one, then the
       // heading and cards after it.
-      var lastElement = elements[elements.length - 1];
-      var insertAt = lastElement ? lastElement.endIndex - 1 : 1;
+      const lastElement = elements[elements.length - 1];
+      let insertAt = lastElement ? lastElement.endIndex - 1 : 1;
       if (lastElement && !docsElementIsPageBreak_(lastElement)) {
         requests.push({ insertPageBreak: { location: { index: insertAt } } });
         insertAt += 1;
       }
-      var newPlan = buildDaySectionRequests_(insertAt, dayHeadingText, lines);
+      const newPlan = buildDaySectionRequests_(insertAt, dayHeadingText, lines);
       requests.push({ insertText: { location: { index: insertAt }, text: newPlan.text } });
       requests = requests.concat(newPlan.styleRequests);
     }
@@ -1633,14 +1633,14 @@ function createDictationScratchDoc() {
     return { success: true, docId: 'mock-scratch-doc', docUrl: 'https:' + '/' + '/docs.google.com/document/d/mock-scratch-doc/edit' };
   }
   try {
-    var scratchTimestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
-    var targetFolder = getValidatedRootFolder();
-    var created = Drive.Files.insert({
+    const scratchTimestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+    const targetFolder = getValidatedRootFolder();
+    const created = Drive.Files.insert({
       title: 'Day Planner - Voice Typing Scratchpad ' + scratchTimestamp,
       mimeType: 'application/vnd.google-apps.document',
       parents: targetFolder ? [{ id: targetFolder.getId() }] : undefined
     });
-    var instructions = 'Click below, then use Tools > Voice typing (Ctrl+Shift+S). Switch back to Day Planner and click "Pull from Doc" when done.';
+    const instructions = 'Click below, then use Tools > Voice typing (Ctrl+Shift+S). Switch back to Day Planner and click "Pull from Doc" when done.';
     Docs.Documents.batchUpdate({
       requests: [{ insertText: { location: { index: 1 }, text: instructions } }]
     }, created.id);
@@ -1667,15 +1667,15 @@ function pullDictationScratchText(docId) {
     return { success: false, error: 'No scratch doc id provided.' };
   }
   try {
-    var elements = docsGetBodyElements_(docId);
-    var lines = elements.map(docsElementText_);
-    var placeholder = 'Click below, then use Tools > Voice typing';
-    var text = lines.filter(function (line) {
+    const elements = docsGetBodyElements_(docId);
+    const lines = elements.map(docsElementText_);
+    const placeholder = 'Click below, then use Tools > Voice typing';
+    const text = lines.filter(function (line) {
       return line.indexOf(placeholder) !== 0;
     }).join('\n').trim();
 
     try {
-      var docEndIndex = elements.length ? elements[elements.length - 1].endIndex : 2;
+      const docEndIndex = elements.length ? elements[elements.length - 1].endIndex : 2;
       if (docEndIndex > 2) {
         Docs.Documents.batchUpdate({
           requests: [{ deleteContentRange: { range: { startIndex: 1, endIndex: docEndIndex - 1 } } }]
@@ -1702,19 +1702,19 @@ function resolveDriveFileTitle(url) {
   if (!url || typeof url !== 'string') {
     return { success: false, error: 'No URL provided.' };
   }
-  var idMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/) || url.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+  const idMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/) || url.match(/\/folders\/([a-zA-Z0-9_-]+)/);
   if (!idMatch) {
     return { success: false, error: 'Not a recognized Google Docs/Sheets/Slides/Forms/Drive URL.' };
   }
-  var fileId = idMatch[1];
-  var isFolder = /\/folders\//.test(url);
+  const fileId = idMatch[1];
+  const isFolder = /\/folders\//.test(url);
 
-  var errors = [];
+  const errors = [];
 
   // Try 1: Drive Advanced Service v2 (Handles files, folders, shortcuts, and shared drives)
   try {
     if (typeof Drive !== 'undefined' && Drive.Files && Drive.Files.get) {
-      var item = null;
+      let item = null;
       try {
         item = Drive.Files.get(fileId, { supportsAllDrives: true });
       } catch {
@@ -1725,7 +1725,7 @@ function resolveDriveFileTitle(url) {
       }
     }
   } catch (v2Err) {
-    var m1 = 'Drive v2: ' + (v2Err.message || v2Err.toString());
+    const m1 = 'Drive v2: ' + (v2Err.message || v2Err.toString());
     errors.push(m1);
     logWarn('resolveDriveFileTitle: ' + m1);
   }
@@ -1734,15 +1734,15 @@ function resolveDriveFileTitle(url) {
   try {
     if (typeof DriveApp !== 'undefined') {
       if (isFolder) {
-        var folder = DriveApp.getFolderById(fileId);
+        const folder = DriveApp.getFolderById(fileId);
         if (folder) return { success: true, title: folder.getName(), fileId: fileId };
       } else {
-        var file = DriveApp.getFileById(fileId);
+        const file = DriveApp.getFileById(fileId);
         if (file) return { success: true, title: file.getName(), fileId: fileId };
       }
     }
   } catch (driveErr) {
-    var m2 = 'DriveApp: ' + (driveErr.message || driveErr.toString());
+    const m2 = 'DriveApp: ' + (driveErr.message || driveErr.toString());
     errors.push(m2);
     logWarn('resolveDriveFileTitle: ' + m2);
   }
@@ -1752,22 +1752,22 @@ function resolveDriveFileTitle(url) {
   // requiring the broad `documents` OAuth scope for no additional benefit)
   try {
     if (/spreadsheets/i.test(url) && typeof SpreadsheetApp !== 'undefined') {
-      var ss = SpreadsheetApp.openById(fileId);
+      const ss = SpreadsheetApp.openById(fileId);
       if (ss) return { success: true, title: ss.getName(), fileId: fileId };
     }
   } catch (ssErr) {
-    var m4 = 'SpreadsheetApp: ' + (ssErr.message || ssErr.toString());
+    const m4 = 'SpreadsheetApp: ' + (ssErr.message || ssErr.toString());
     errors.push(m4);
     logWarn('resolveDriveFileTitle: ' + m4);
   }
 
   try {
     if (/presentation/i.test(url) && typeof SlidesApp !== 'undefined') {
-      var pres = SlidesApp.openById(fileId);
+      const pres = SlidesApp.openById(fileId);
       if (pres) return { success: true, title: pres.getName(), fileId: fileId };
     }
   } catch (presErr) {
-    var m5 = 'SlidesApp: ' + (presErr.message || presErr.toString());
+    const m5 = 'SlidesApp: ' + (presErr.message || presErr.toString());
     errors.push(m5);
     logWarn('resolveDriveFileTitle: ' + m5);
   }
@@ -1784,8 +1784,8 @@ function resolveDriveFileTitle(url) {
  * @returns {GoogleAppsScript.Drive.Folder|null} Found or created folder object, or null on error.
  */
 function getFolderByNameOrCreate(parent, name) {
-  var lock = LockService.getUserLock();
-  var lockAcquired = false;
+  const lock = LockService.getUserLock();
+  let lockAcquired = false;
   try {
     lockAcquired = lock.tryLock(10000);
     if (!lockAcquired) {
@@ -1796,23 +1796,23 @@ function getFolderByNameOrCreate(parent, name) {
   }
 
   try {
-    var rootFolder = getValidatedRootFolder();
+    const rootFolder = getValidatedRootFolder();
     if (!rootFolder) {
       throw new Error('No valid Google Drive Day Planner folder connected.');
     }
     if (parent) {
-      var folders = parent.getFoldersByName(name);
+      const folders = parent.getFoldersByName(name);
       if (folders.hasNext()) return folders.next();
 
       // Preferred under drive.file scope: create directly in parent folder via Drive Advanced Service
       if (typeof Drive !== 'undefined' && Drive.Files && Drive.Files.insert) {
         try {
-          var folderResource = {
+          const folderResource = {
             title: name,
             mimeType: 'application/vnd.google-apps.folder',
             parents: [{ id: parent.getId() }]
           };
-          var createdFolder = Drive.Files.insert(folderResource);
+          const createdFolder = Drive.Files.insert(folderResource);
           return DriveApp.getFolderById(createdFolder.id);
         } catch (driveApiErr) {
           console.warn('Drive.Files.insert folder creation fallback: ' + driveApiErr.toString());
@@ -1856,13 +1856,13 @@ function getFolderByNameOrCreate(parent, name) {
 function buildMasterTasksClearinghouse(rawTasks) {
   if (!rawTasks || !rawTasks.length) return [];
 
-  var normalized = rawTasks.map(function(t) {
-    var rawDue = t.due ? String(t.due).substring(0, 10) : (t.dueDate || null);
-    var movedTo = t.movedTo || null;
-    var movedTaskId = t.movedTaskId || null;
-    var sourceMasterId = t.sourceMasterId || null;
-    var status = t.status || '•';
-    var isCompleted = status === '✓' || status === 'X' || t.status === 'completed' || t.statusRaw === 'completed';
+  const normalized = rawTasks.map(function(t) {
+    const rawDue = t.due ? String(t.due).substring(0, 10) : (t.dueDate || null);
+    const movedTo = t.movedTo || null;
+    const movedTaskId = t.movedTaskId || null;
+    const sourceMasterId = t.sourceMasterId || null;
+    const status = t.status || '•';
+    const isCompleted = status === '✓' || status === 'X' || t.status === 'completed' || t.statusRaw === 'completed';
 
     return {
       id: t.id,
@@ -1880,31 +1880,31 @@ function buildMasterTasksClearinghouse(rawTasks) {
     };
   });
 
-  var taskById = {};
-  var dailyBySourceMasterId = {};
-  var masterByMovedTaskId = {};
+  const taskById = {};
+  const dailyBySourceMasterId = {};
+  const masterByMovedTaskId = {};
 
-  for (var i = 0; i < normalized.length; i++) {
-    var item = normalized[i];
+  for (let i = 0; i < normalized.length; i++) {
+    const item = normalized[i];
     if (item.id) taskById[item.id] = item;
     if (item.sourceMasterId) dailyBySourceMasterId[item.sourceMasterId] = item;
     if (item.movedTaskId) masterByMovedTaskId[item.movedTaskId] = item;
   }
 
-  var consumedIds = {};
-  var clearinghouse = [];
+  const consumedIds = {};
+  const clearinghouse = [];
 
   // Pass 1: Moved master tasks paired with daily task
-  for (var j = 0; j < normalized.length; j++) {
-    var mItem = normalized[j];
+  for (let j = 0; j < normalized.length; j++) {
+    const mItem = normalized[j];
     if (consumedIds[mItem.id]) continue;
 
-    var targetDaily = mItem.movedTaskId ? taskById[mItem.movedTaskId] : dailyBySourceMasterId[mItem.id];
+    const targetDaily = mItem.movedTaskId ? taskById[mItem.movedTaskId] : dailyBySourceMasterId[mItem.id];
     if (targetDaily && targetDaily.id !== mItem.id) {
       consumedIds[mItem.id] = true;
       consumedIds[targetDaily.id] = true;
 
-      var mergedDueDate = targetDaily.dueDate || mItem.dueDate || mItem.movedTo;
+      const mergedDueDate = targetDaily.dueDate || mItem.dueDate || mItem.movedTo;
       clearinghouse.push({
         id: mItem.id,
         title: targetDaily.title || mItem.title,
@@ -1919,12 +1919,12 @@ function buildMasterTasksClearinghouse(rawTasks) {
       continue;
     }
 
-    var sourceMaster = mItem.sourceMasterId ? taskById[mItem.sourceMasterId] : masterByMovedTaskId[mItem.id];
+    const sourceMaster = mItem.sourceMasterId ? taskById[mItem.sourceMasterId] : masterByMovedTaskId[mItem.id];
     if (sourceMaster && sourceMaster.id !== mItem.id) {
       consumedIds[mItem.id] = true;
       consumedIds[sourceMaster.id] = true;
 
-      var sMergedDueDate = mItem.dueDate || sourceMaster.dueDate || sourceMaster.movedTo;
+      const sMergedDueDate = mItem.dueDate || sourceMaster.dueDate || sourceMaster.movedTo;
       clearinghouse.push({
         id: sourceMaster.id,
         title: mItem.title || sourceMaster.title,
@@ -1941,8 +1941,8 @@ function buildMasterTasksClearinghouse(rawTasks) {
   }
 
   // Pass 2: Unlinked tasks
-  for (var k = 0; k < normalized.length; k++) {
-    var uItem = normalized[k];
+  for (let k = 0; k < normalized.length; k++) {
+    const uItem = normalized[k];
     if (consumedIds[uItem.id]) continue;
 
     if (uItem.rawDue) {
