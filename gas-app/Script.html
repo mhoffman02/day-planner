@@ -404,6 +404,13 @@
     return trimmed;
   }
 
+  function updateTaskTitleText(oldTitle, newCleanTitle) {
+    const parsed = parseTaskTitle(oldTitle);
+    const trimmed = (newCleanTitle || '').trim();
+    if (!trimmed) return oldTitle;
+    return formatTaskTitle(parsed.priorityGroup, parsed.sequence, trimmed);
+  }
+
   function extractInlinePriority(input, defaultPriority) {
     const fallback = defaultPriority || 'A';
     if (!input) return { priorityGroup: fallback, cleanTitle: '' };
@@ -1988,6 +1995,8 @@
 
       // Data collections
       dailyTasks: [],
+      editingTaskId: null,
+      editingTaskTitle: '',
       openStatusMenuTaskId: null,
       statusMenuCloseTimer: null,
       statusMenuDropUp: false,
@@ -4946,6 +4955,87 @@
         } catch (err) {
           console.error('🔥 addDailyTask error:', err);
           this.errorMessage = `Error adding task: ${err.message || err.toString()}`;
+        }
+      },
+
+      startEditingTask(task) {
+        if (!task || !task.id) return;
+        this.editingTaskId = task.id;
+        const parsed = this.parseTask(task.title);
+        this.editingTaskTitle = parsed.cleanTitle;
+        this.$nextTick(() => {
+          const el = document.getElementById(`task-title-input-${task.id}`);
+          if (el) {
+            el.focus();
+            el.select();
+          }
+        });
+      },
+
+      cancelEditingTask() {
+        this.editingTaskId = null;
+        this.editingTaskTitle = '';
+      },
+
+      async updateTaskTitle(taskId, newTitle) {
+        if (!this.editingTaskId || this.editingTaskId !== taskId) return;
+        this.editingTaskId = null;
+        const trimmed = (newTitle || '').trim();
+        this.editingTaskTitle = '';
+
+        let task = this.dailyTasks.find(t => t.id === taskId);
+        let isMaster = false;
+        if (!task) {
+          task = this.masterTasks.find(t => t.id === taskId);
+          isMaster = true;
+        }
+        if (!task) return;
+
+        const parsed = this.parseTask(task.title);
+        if (!trimmed || trimmed === parsed.cleanTitle) {
+          return;
+        }
+
+        const oldTitle = task.title;
+        const newFullTitle = updateTaskTitleText(oldTitle, trimmed);
+        task.title = newFullTitle;
+
+        const linkedMaster = !isMaster ? this.masterTasks.find(m => m.movedTaskId === task.id) : null;
+        if (linkedMaster) linkedMaster.title = newFullTitle;
+        if (isMaster && task.movedTaskId) {
+          const linkedDaily = this.dailyTasks.find(d => d.id === task.movedTaskId);
+          if (linkedDaily) linkedDaily.title = newFullTitle;
+        }
+
+        if (isMaster) {
+          this.syncMasterTasksCacheFromLiveState();
+        } else {
+          this.syncDailyCacheFromLiveState();
+        }
+
+        try {
+          if (isMaster) {
+            if (this.bridge && typeof this.bridge.updateMasterTask === 'function') {
+              await this.bridge.updateMasterTask(task.id, { title: newFullTitle });
+            } else if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
+              await this.bridge.updateDailyTask('', task.id, { title: newFullTitle });
+            }
+          } else {
+            if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
+              await this.bridge.updateDailyTask(this.selectedDate, task.id, { title: newFullTitle });
+            }
+          }
+          await this.trigger2WaySync();
+        } catch (err) {
+          console.error('🔥 updateTaskTitle error:', err);
+          task.title = oldTitle;
+          if (linkedMaster) linkedMaster.title = oldTitle;
+          if (isMaster) {
+            this.syncMasterTasksCacheFromLiveState();
+          } else {
+            this.syncDailyCacheFromLiveState();
+          }
+          this.errorMessage = `Error updating task title: ${err.message || err.toString()}`;
         }
       },
 

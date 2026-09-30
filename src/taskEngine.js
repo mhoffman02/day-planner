@@ -121,6 +121,19 @@ export function formatTaskTitle(priorityGroup, sequence, cleanTitle) {
 }
 
 /**
+ * Updates the clean title portion of a task title while preserving its priority prefix.
+ * @param {string} oldTitle Original task title string (e.g. "[A1] Buy milk").
+ * @param {string} newCleanTitle New clean title string (e.g. "Buy oat milk").
+ * @returns {string} New formatted task title with existing priority preserved.
+ */
+export function updateTaskTitleText(oldTitle, newCleanTitle) {
+  const parsed = parseTaskTitle(oldTitle);
+  const trimmed = (newCleanTitle || '').trim();
+  if (!trimmed) return oldTitle;
+  return formatTaskTitle(parsed.priorityGroup, parsed.sequence, trimmed);
+}
+
+/**
  * Cycle to the next task status code in sequence.
  * @param {string} currentStatus Current status code symbol.
  * @returns {string} Next status code symbol.

@@ -1708,6 +1708,39 @@
     overflow: visible;
   }
 
+  /* Inline Task Description Editing */
+  .task-title-text {
+    cursor: text;
+    border-radius: 2px;
+    padding: 1px 3px;
+    margin: -1px -3px;
+    transition: background-color var(--duration-fast) var(--ease-standard);
+  }
+
+  .task-title-text:hover {
+    background-color: var(--binder-teal-light);
+  }
+
+  .task-title-inline-input {
+    display: inline-block;
+    width: calc(100% - 32px);
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+    color: inherit;
+    padding: 1px 3px;
+    margin: -1px -3px;
+    border: none !important;
+    border-bottom: 1px solid var(--binder-teal, #2d6a5a) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    outline: none !important;
+    box-shadow: none !important;
+    text-decoration: none !important;
+    vertical-align: middle;
+  }
+
   .event-pill-text {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -5210,6 +5243,15 @@
 
   [data-theme="dark"] .star-toggle:focus-visible {
     outline-color: #52a38b !important;
+  }
+
+  [data-theme="dark"] .task-title-text:hover {
+    background-color: rgba(79, 140, 126, 0.15);
+  }
+
+  [data-theme="dark"] .task-title-inline-input {
+    border-bottom-color: #52a38b !important;
+    color: #e2f2ec;
   }
 
   [data-theme="dark"] section.schedule-list {

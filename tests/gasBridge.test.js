@@ -56,14 +56,16 @@ describe('GAS Bridge Unit Tests', () => {
     assert.equal(transferred.category, 'Work');
   });
 
-  it('should update daily task status, star, and notes via bridge', async () => {
+  it('should update daily task status, star, notes, and title via bridge', async () => {
     const bridge = new GASBridge(true);
     const updated = await bridge.updateDailyTask('2026-08-15', 't1', {
+      title: '[A1] Updated task title',
       status: 'X',
       starred: true,
       notes: 'Postponed pending review'
     });
     assert.ok(updated);
+    assert.equal(updated.title, '[A1] Updated task title');
     assert.equal(updated.status, 'X');
     assert.equal(updated.starred, true);
     assert.equal(updated.notes, 'Postponed pending review');

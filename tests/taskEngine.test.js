@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import {
   parseTaskTitle,
   formatTaskTitle,
+  updateTaskTitleText,
   getNextStatus,
   sortTasks,
   getTaskSortValue,
@@ -51,6 +52,15 @@ describe('Task Engine Unit Tests', () => {
 
     const raw = formatTaskTitle(null, null, 'No priority task');
     assert.equal(raw, 'No priority task');
+  });
+
+  it('should update task title text while preserving priority prefix', () => {
+    assert.equal(updateTaskTitleText('[A1] Buy milk', 'Buy oat milk'), '[A1] Buy oat milk');
+    assert.equal(updateTaskTitleText('[B3] Submit quarterly report', 'Submit Q3 report'), '[B3] Submit Q3 report');
+    assert.equal(updateTaskTitleText('Unprioritized task', 'Updated unprioritized task'), 'Updated unprioritized task');
+    assert.equal(updateTaskTitleText('[A1] Keep original on empty', ''), '[A1] Keep original on empty');
+    assert.equal(updateTaskTitleText('[A1] Keep original on spaces', '   '), '[A1] Keep original on spaces');
+    assert.equal(updateTaskTitleText('[C2] Trim whitespace', '  Trimmed title  '), '[C2] Trimmed title');
   });
 
   it('should cycle through task status codes accurately', () => {

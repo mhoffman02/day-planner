@@ -345,7 +345,21 @@
                       <td class="task-title-cell" :class="{ 'task-canceled': task.status === 'X', 'task-done': task.status === '✓' || task.status === 'Ⓓ' || task.status === 'D/✓' }">
                         <button type="button" class="star-toggle" :class="{ 'is-starred': task.starred }" @click.stop="toggleTaskStar(task)"
                                 :aria-label="task.starred ? 'Unstar task' : 'Star task'" x-text="task.starred ? '★' : '☆'"></button>
-                        <span x-text="parseTask(task.title).cleanTitle"></span>
+                        <span class="task-title-text"
+                              x-show="editingTaskId !== task.id"
+                              @click="startEditingTask(task)"
+                              title="Click to edit task description"
+                              x-text="parseTask(task.title).cleanTitle"></span>
+                        <input type="text"
+                               x-show="editingTaskId === task.id"
+                               :id="'task-title-input-' + task.id"
+                               x-model="editingTaskTitle"
+                               @keydown.enter.prevent="updateTaskTitle(task.id, editingTaskTitle)"
+                               @keydown.escape.prevent.stop="cancelEditingTask()"
+                               @blur="updateTaskTitle(task.id, editingTaskTitle)"
+                               class="task-title-inline-input"
+                               aria-label="Edit task description"
+                               x-cloak>
                         <span class="notes-indicator-wrap" x-show="hasNotes(task)" @mouseenter="openNotesPopover(task.id, $event)" @mouseleave="scheduleNotesPopoverClose(task.id)">
                           <button type="button" class="notes-indicator" @click.stop="toggleNotesPopover(task.id, $event)"
                                   aria-label="View notes" aria-haspopup="true" :aria-expanded="openNotesPopoverTaskId === task.id">
@@ -927,7 +941,21 @@
                     <td class="task-title-cell" :class="{ 'task-canceled': mTask.status === 'X', 'task-done': mTask.status === '✓' || mTask.status === 'D/✓' }">
                       <button type="button" class="star-toggle" :class="{ 'is-starred': mTask.starred }" @click.stop="toggleTaskStar(mTask)"
                               :aria-label="mTask.starred ? 'Unstar task' : 'Star task'" x-text="mTask.starred ? '★' : '☆'"></button>
-                      <span x-text="parseTask(mTask.title).cleanTitle"></span>
+                      <span class="task-title-text"
+                            x-show="editingTaskId !== mTask.id"
+                            @click="startEditingTask(mTask)"
+                            title="Click to edit task description"
+                            x-text="parseTask(mTask.title).cleanTitle"></span>
+                      <input type="text"
+                             x-show="editingTaskId === mTask.id"
+                             :id="'task-title-input-' + mTask.id"
+                             x-model="editingTaskTitle"
+                             @keydown.enter.prevent="updateTaskTitle(mTask.id, editingTaskTitle)"
+                             @keydown.escape.prevent.stop="cancelEditingTask()"
+                             @blur="updateTaskTitle(mTask.id, editingTaskTitle)"
+                             class="task-title-inline-input"
+                             aria-label="Edit task description"
+                             x-cloak>
                       <span class="notes-indicator-wrap" x-show="hasNotes(mTask)" @mouseenter="openNotesPopover(mTask.id, $event)" @mouseleave="scheduleNotesPopoverClose(mTask.id)">
                         <button type="button" class="notes-indicator" @click.stop="toggleNotesPopover(mTask.id, $event)"
                                 aria-label="View notes" aria-haspopup="true" :aria-expanded="openNotesPopoverTaskId === mTask.id">
