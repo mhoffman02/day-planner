@@ -1,5 +1,16 @@
 # Task History (TODO_HISTORY)
 
+## 2026-09-30 — Task Inline Description Editing Shipped
+
+- [x] **Today page, Tasks panel: click-to-edit task Description**: Commit [`abdf26a`](file:///home/mike/projects/day-planner/.git/commit/abdf26a).
+  - Defined inline editing state (`editingTaskId`, `editingTaskTitle`) in Alpine data model.
+  - Enabled click-to-edit on task clean titles in both Daily Tasks and Master Tasks panels.
+  - Swaps clean title span with seamless, in-place Franklin aesthetic input on click (`.task-title-text`, `.task-title-inline-input`).
+  - Added `updateTaskTitleText` helper in [`src/taskEngine.js`](file:///home/mike/projects/day-planner/src/taskEngine.js) preserving priority prefixes (e.g. `[A1]`) when description text is modified.
+  - Saves on Enter or blur with double-save guard and Escape cancellation, updating local cache and Google Tasks backend via `updateDailyTask`.
+  - Added unit test suite in [`tests/taskInlineEdit.test.js`](file:///home/mike/projects/day-planner/tests/taskInlineEdit.test.js) (6 tests) and updated [`tests/gasBridge.test.js`](file:///home/mike/projects/day-planner/tests/gasBridge.test.js).
+  - Kept in 100% lockstep across `src/` (`app.js`, `styles.css`) and `gas-app/` (`Index.html`, `Script.html`, `Styles.html`).
+
 ## 2026-09-29 (night, cont.) — Deep Archive Search Shipped & AI Microservice Integrated
 
 - [x] **Step 3: Deep Archive Search via Drive fullText index into `Ctrl + K`**: Commit [`984d1e1`](file:///home/mike/projects/day-planner/.git/commit/984d1e1).

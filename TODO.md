@@ -2,15 +2,6 @@
 
 ## Phase 23: Task Inline Editing & AI Microservice Verification
 
-- [ ] **Today page, Tasks panel: click-to-edit task Description**
-  - **Goal**: Allow users to click a task's title/description to edit it inline, matching the Daily Notes panel note-card UX (click a line to edit it in place, Enter/blur to save).
-  - **Files**: [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js#L1600-L1750), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html#L3100-L3250), [`index.html`](file:///home/mike/projects/day-planner/index.html#L450-L550), [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html#L450-L550).
-  - **Implementation**:
-    1. Define inline editing state (`editingTaskId`, `editingTaskTitle`) in Alpine data model.
-    2. When clicking description text, swap text span with an input styled seamlessly in Franklin aesthetic (no jarring box, matching font/size).
-    3. On Enter or blur, call `updateTaskTitle(task.id, newTitle)` and trigger save/sync. On Escape, cancel.
-    4. Ensure lockstep across `src/` and `gas-app/`.
-
 - [ ] **AI Microservice Verification & UI Wiring (WIP)**
   - **Goal**: Complete testing of `ai-microservice` on HOME/WORK and connect live Web App endpoint to Day Planner.
   - **Status**: Backend proxy connector and client library are in place ([`src/aiService.js`](file:///home/mike/projects/day-planner/src/aiService.js), [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs#L2930)). Microservice deployed to HOME sheet (`1kW7_HpM7aoPInpcgDO7i8Rv6hNvFU8rtL1CaJIO5BXK9685TyZ3gtWUN`).

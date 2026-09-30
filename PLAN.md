@@ -32,7 +32,7 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 ## 3. Active & Upcoming Phases
 
 ### Phase 23: Task Inline Editing & AI Microservice UI Integration (In Progress)
-- [ ] **Today page Tasks panel: click-to-edit task Description**: Enable inline editing on task titles/descriptions matching Daily Notes note-card line editing pattern.
+- [x] **Today page Tasks panel: click-to-edit task Description**: Enable inline editing on task titles/descriptions matching Daily Notes note-card line editing pattern ([`abdf26a`](file:///home/mike/projects/day-planner/.git/commit/abdf26a)).
 - [ ] **AI Microservice End-to-End Verification & Settings Wiring (WIP)**: Complete live testing of container-bound microservice on HOME/WORK; add Settings modal entry to configure URL/API Key and wire AI assist actions into note cards.
 
 ---
