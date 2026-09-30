@@ -405,7 +405,7 @@ var DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mhoff
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-var DAY_PLANNER_BUILD_NUMBER = 349;
+var DAY_PLANNER_BUILD_NUMBER = 350;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -3046,39 +3046,99 @@ function searchArchiveNotes(query) {
 }
 
 /**
- * Tests connection to the AI microservice via server-side UrlFetchApp.
- * Validates the GET /v1 self-describing manifest. Saves validated endpoint
- * and optional API key to UserProperties.
- * @param {string} [serviceUrl] Microservice Web App URL.
- * @param {string} [apiKey] Optional shared secret API key.
- * @returns {{success: boolean, service?: string, version?: string, latencyMs?: number, error?: string}}
+ * Resolves effective AI gateway configuration using ScriptProperties (project defaults)
+ * and UserProperties (user-specific overrides).
+ * Supported properties:
+ * - AI_ENDPOINT_URL (fallback: AI_MICROSERVICE_URL)
+ * - AI_API_KEY (fallback: AI_MICROSERVICE_API_KEY)
+ * - AI_MODEL (default model in ScriptProperties, override in UserProperties.AI_MODEL_OVERRIDE)
+ * @returns {{endpointUrl: string, apiKey: string, defaultModel: string, model: string, isScriptConfigured: boolean}}
  */
-function testAiMicroservice(serviceUrl, apiKey) {
+function getEffectiveAiConfig_() {
+  var scriptProps = PropertiesService.getScriptProperties();
+  var userProps = PropertiesService.getUserProperties();
+
+  var endpointUrl = (
+    userProps.getProperty('AI_ENDPOINT_URL') ||
+    userProps.getProperty('AI_MICROSERVICE_URL') ||
+    scriptProps.getProperty('AI_ENDPOINT_URL') ||
+    scriptProps.getProperty('AI_MICROSERVICE_URL') ||
+    ''
+  ).trim();
+
+  var apiKey = (
+    userProps.getProperty('AI_API_KEY') ||
+    userProps.getProperty('AI_MICROSERVICE_API_KEY') ||
+    scriptProps.getProperty('AI_API_KEY') ||
+    scriptProps.getProperty('AI_MICROSERVICE_API_KEY') ||
+    ''
+  ).trim();
+
+  var defaultModel = (scriptProps.getProperty('AI_MODEL') || 'gemini-2.5-flash').trim();
+  var selectedModel = (
+    userProps.getProperty('AI_MODEL_OVERRIDE') ||
+    userProps.getProperty('AI_MODEL') ||
+    defaultModel
+  ).trim();
+
+  return {
+    endpointUrl: endpointUrl,
+    apiKey: apiKey,
+    defaultModel: defaultModel,
+    model: selectedModel,
+    isScriptConfigured: Boolean(scriptProps.getProperty('AI_ENDPOINT_URL') || scriptProps.getProperty('AI_MICROSERVICE_URL'))
+  };
+}
+
+/**
+ * Tests connection to the AI endpoint via server-side UrlFetchApp.
+ * Validates manifest or test ping response. If serviceUrl/apiKey/model are passed,
+ * persists them to UserProperties.
+ * @param {string} [serviceUrl] Endpoint URL override.
+ * @param {string} [apiKey] API key override.
+ * @param {string} [model] Model ID override.
+ * @returns {{success: boolean, service?: string, version?: string, latencyMs?: number, model?: string, error?: string}}
+ */
+function testAiMicroservice(serviceUrl, apiKey, model) {
   try {
     var userProps = PropertiesService.getUserProperties();
-    var targetUrl = (serviceUrl || userProps.getProperty('AI_MICROSERVICE_URL') || '').trim();
-    var key = (apiKey !== undefined ? apiKey : (userProps.getProperty('AI_MICROSERVICE_API_KEY') || '')).trim();
+    if (serviceUrl) {
+      userProps.setProperty('AI_ENDPOINT_URL', serviceUrl.trim());
+    }
+    if (apiKey !== undefined && apiKey !== null) {
+      userProps.setProperty('AI_API_KEY', apiKey.trim());
+    }
+    if (model) {
+      userProps.setProperty('AI_MODEL_OVERRIDE', model.trim());
+    }
+
+    var config = getEffectiveAiConfig_();
+    var targetUrl = (serviceUrl || config.endpointUrl || '').trim();
+    var key = (apiKey !== undefined ? apiKey : config.apiKey).trim();
+    var activeModel = (model || config.model || 'gemini-2.5-flash').trim();
 
     if (!targetUrl) {
-      return { success: false, error: 'No service URL provided or saved.' };
-    }
-
-    if (serviceUrl) {
-      userProps.setProperty('AI_MICROSERVICE_URL', targetUrl);
-    }
-    if (apiKey !== undefined) {
-      userProps.setProperty('AI_MICROSERVICE_API_KEY', key);
+      return { success: false, error: 'No endpoint URL configured in ScriptProperties or provided.' };
     }
 
     if (typeof UrlFetchApp === 'undefined') {
-      return { success: true, service: 'ai-lite', version: 'v1', latencyMs: 80 };
+      return { success: true, service: 'ai-gateway', version: 'v1', model: activeModel, latencyMs: 80 };
     }
 
-    var cleanUrl = targetUrl.replace(/\/+$/, '') + '/v1';
+    var isAppsScriptWebApp = targetUrl.indexOf('script.google.com') !== -1;
+    var cleanUrl = isAppsScriptWebApp && !targetUrl.endsWith('/v1')
+      ? targetUrl.replace(/\/+$/, '') + '/v1'
+      : targetUrl;
+
     var start = Date.now();
+    var headers = { 'Accept': 'application/json' };
+    if (key) {
+      headers['Authorization'] = 'Bearer ' + key;
+    }
+
     var resp = UrlFetchApp.fetch(cleanUrl, {
       method: 'get',
-      headers: { 'Accept': 'application/json' },
+      headers: headers,
       muteHttpExceptions: true,
       followRedirects: true
     });
@@ -3089,6 +3149,48 @@ function testAiMicroservice(serviceUrl, apiKey) {
     try {
       json = JSON.parse(content);
     } catch (e) {
+      if (cleanUrl.indexOf('/chat/completions') !== -1 || resp.getResponseCode() === 405) {
+        var pingStart = Date.now();
+        var pingResp = UrlFetchApp.fetch(cleanUrl, {
+          method: 'post',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + key
+          },
+          payload: JSON.stringify({
+            model: activeModel,
+            messages: [{ role: 'user', content: 'ping' }],
+            max_tokens: 5
+          }),
+          muteHttpExceptions: true
+        });
+        elapsed = Date.now() - pingStart;
+        var pingContent = pingResp.getContentText();
+        try {
+          var pingJson = JSON.parse(pingContent);
+          if (pingJson && (pingJson.choices || pingJson.candidates || pingJson.response)) {
+            return {
+              success: true,
+              service: 'openai-compatible',
+              version: 'v1',
+              model: activeModel,
+              latencyMs: elapsed
+            };
+          }
+          if (pingJson && pingJson.error) {
+            return {
+              success: false,
+              error: 'AI endpoint rejected test ping: ' + (pingJson.error.message || JSON.stringify(pingJson.error))
+            };
+          }
+        } catch (pingParseErr) {
+          return {
+            success: false,
+            error: 'AI endpoint returned invalid response (' + pingResp.getResponseCode() + ', ' + pingParseErr.message + '): ' + pingContent.substring(0, 100)
+          };
+        }
+      }
       return { success: false, error: 'Service returned non-JSON response from ' + cleanUrl + ' (' + e.message + '): ' + content.substring(0, 100) };
     }
 
@@ -3097,13 +3199,24 @@ function testAiMicroservice(serviceUrl, apiKey) {
         success: true,
         service: json.service || 'ai-lite',
         version: json.version || 'v1',
+        model: activeModel,
+        latencyMs: elapsed
+      };
+    }
+
+    if (json && (json.choices || json.models || json.status === 'ok' || json.name)) {
+      return {
+        success: true,
+        service: 'openai-compatible',
+        version: 'v1',
+        model: activeModel,
         latencyMs: elapsed
       };
     }
 
     return {
       success: false,
-      error: 'Service at ' + cleanUrl + ' did not return expected ai-lite manifest: ' + content.substring(0, 100)
+      error: 'Service at ' + cleanUrl + ' did not return expected manifest: ' + content.substring(0, 100)
     };
   } catch (err) {
     recordServerLog('ERROR', 'testAiMicroservice', err.message, err.stack);
@@ -3112,53 +3225,76 @@ function testAiMicroservice(serviceUrl, apiKey) {
 }
 
 /**
- * Sends a prompt to the AI microservice via server-side UrlFetchApp.
+ * Sends a prompt to the AI endpoint via server-side UrlFetchApp.
+ * Supports OpenAI/USAi chat completions, Gemini, and ai-lite microservices.
  * @param {string} prompt Prompt text.
+ * @param {string} [modelOverride] Optional model ID override.
  * @param {string} [apiKeyOverride] Optional key override.
  * @param {string} [serviceUrlOverride] Optional URL override.
- * @returns {{success: boolean, text?: string, elapsedMs?: number, code?: string, message?: string, error?: string}}
+ * @returns {{success: boolean, text?: string, model?: string, elapsedMs?: number, code?: string, message?: string, error?: string}}
  */
-function callAiMicroservice(prompt, apiKeyOverride, serviceUrlOverride) {
+function callAiMicroservice(prompt, modelOverride, apiKeyOverride, serviceUrlOverride) {
   try {
     var cleanPrompt = (prompt || '').trim();
     if (!cleanPrompt) {
       return { success: false, code: 'EMPTY_PROMPT', message: 'Prompt cannot be empty.' };
     }
 
-    var userProps = PropertiesService.getUserProperties();
-    var targetUrl = (serviceUrlOverride || userProps.getProperty('AI_MICROSERVICE_URL') || '').trim();
-    var key = (apiKeyOverride !== undefined ? apiKeyOverride : (userProps.getProperty('AI_MICROSERVICE_API_KEY') || '')).trim();
+    var config = getEffectiveAiConfig_();
+    var targetUrl = (serviceUrlOverride || config.endpointUrl || '').trim();
+    var key = (apiKeyOverride !== undefined && apiKeyOverride !== null ? apiKeyOverride : config.apiKey).trim();
+    var activeModel = (modelOverride || config.model || 'gemini-2.5-flash').trim();
 
     if (!targetUrl) {
       return {
         success: false,
         code: 'NOT_CONFIGURED',
-        message: 'AI microservice URL is not configured. Run testAiMicroservice with your Web App URL.'
+        message: 'AI endpoint URL is not configured. Please set AI_ENDPOINT_URL in Script Properties.'
       };
     }
 
     if (typeof UrlFetchApp === 'undefined') {
       return {
         success: true,
-        text: '[Mock AI]: Processed prompt: "' + cleanPrompt.substring(0, 40) + '..."',
+        text: '[Mock AI (' + activeModel + ')]: Processed prompt: "' + cleanPrompt.substring(0, 40) + '..."',
+        model: activeModel,
         elapsedMs: 250
       };
     }
 
-    var endpointUrl = targetUrl.replace(/\/+$/, '') + '/v1';
-    var payload = JSON.stringify({
-      apiKey: key,
-      prompt: cleanPrompt
-    });
+    var isAppsScriptWebApp = targetUrl.indexOf('script.google.com') !== -1;
+    var endpointUrl = isAppsScriptWebApp && !targetUrl.endsWith('/v1')
+      ? targetUrl.replace(/\/+$/, '') + '/v1'
+      : targetUrl;
 
+    var headers = {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+    };
+    if (key) {
+      headers['Authorization'] = 'Bearer ' + key;
+    }
+
+    var requestBody = {
+      model: activeModel,
+      prompt: cleanPrompt,
+      apiKey: key,
+      messages: [
+        { role: 'user', content: cleanPrompt }
+      ]
+    };
+
+    var start = Date.now();
     var resp = UrlFetchApp.fetch(endpointUrl, {
       method: 'post',
-      contentType: 'application/json',
-      payload: payload,
+      headers: headers,
+      payload: JSON.stringify(requestBody),
       muteHttpExceptions: true,
       followRedirects: true
     });
 
+    var elapsed = Date.now() - start;
+    var statusCode = resp.getResponseCode();
     var content = resp.getContentText();
     var json = null;
     try {
@@ -3167,60 +3303,121 @@ function callAiMicroservice(prompt, apiKeyOverride, serviceUrlOverride) {
       return {
         success: false,
         code: 'PARSE_ERROR',
-        message: 'Invalid JSON response from AI microservice (' + parseErr.message + '): ' + content.substring(0, 100)
+        message: 'Invalid JSON response from AI endpoint (' + parseErr.message + '): ' + content.substring(0, 100)
       };
     }
 
+    // 1. OpenAI / USAi format: choices[0].message.content
+    if (json && Array.isArray(json.choices) && json.choices.length > 0) {
+      var choice = json.choices[0];
+      var text = (choice && choice.message && choice.message.content) ? choice.message.content : ((choice && choice.text) ? choice.text : '');
+      return {
+        success: true,
+        text: String(text).trim(),
+        model: json.model || activeModel,
+        elapsedMs: elapsed
+      };
+    }
+
+    // 2. Gemini native format: candidates[0].content.parts
+    if (json && Array.isArray(json.candidates) && json.candidates.length > 0) {
+      var candidate = json.candidates[0];
+      var parts = (candidate && candidate.content && Array.isArray(candidate.content.parts)) ? candidate.content.parts : [];
+      var geminiText = parts.map(function(p) { return p.text || ''; }).join('');
+      return {
+        success: true,
+        text: String(geminiText).trim(),
+        model: json.modelVersion || activeModel,
+        elapsedMs: elapsed
+      };
+    }
+
+    // 3. ai-lite / Sheets microservice format: response
     if (json && json.response !== undefined) {
       return {
         success: true,
         text: String(json.response),
-        elapsedMs: typeof json.elapsedMs === 'number' ? json.elapsedMs : 0
+        model: activeModel,
+        elapsedMs: typeof json.elapsedMs === 'number' ? json.elapsedMs : elapsed
       };
     }
 
-    if (json && json.error) {
+    // Error envelopes
+    if (statusCode >= 400 || (json && json.error)) {
+      var errObj = json ? json.error : null;
+      var errCode = (errObj && (errObj.code || errObj.type)) || ('HTTP_' + statusCode);
+      var errMsg = (errObj && (errObj.message || errObj.code)) || ('HTTP ' + statusCode + ': ' + content.substring(0, 100));
       return {
         success: false,
-        code: json.error.code || 'UNKNOWN_ERROR',
-        message: json.error.message || 'AI microservice returned an error.'
+        code: errCode,
+        message: errMsg
       };
     }
 
     return {
       success: false,
       code: 'UNEXPECTED_RESPONSE',
-      message: 'Unexpected payload structure from AI microservice.'
+      message: 'Unexpected payload structure from AI endpoint.'
     };
   } catch (err) {
     recordServerLog('ERROR', 'callAiMicroservice', err.message, err.stack);
     return {
       success: false,
       code: 'NETWORK_ERROR',
-      message: 'Failed to call AI microservice: ' + err.message
+      message: 'Failed to call AI endpoint: ' + err.message
     };
   }
 }
 
 /**
- * Retrieves the currently saved AI microservice configuration status.
- * @returns {{configured: boolean, serviceUrl: string, hasKey: boolean}}
+ * Retrieves the currently resolved AI configuration status.
+ * @returns {{configured: boolean, serviceUrl: string, hasKey: boolean, defaultModel: string, activeModel: string, isScriptLevel: boolean}}
  */
 function getAiMicroserviceConfig() {
   try {
-    var userProps = PropertiesService.getUserProperties();
-    var url = userProps.getProperty('AI_MICROSERVICE_URL') || '';
-    var key = userProps.getProperty('AI_MICROSERVICE_API_KEY') || '';
+    var config = getEffectiveAiConfig_();
     return {
-      configured: !!url,
-      serviceUrl: url,
-      hasKey: !!key
+      configured: Boolean(config.endpointUrl),
+      serviceUrl: config.endpointUrl,
+      hasKey: Boolean(config.apiKey),
+      defaultModel: config.defaultModel,
+      activeModel: config.model,
+      isScriptLevel: config.isScriptConfigured
     };
   } catch (err) {
     recordServerLog('WARN', 'getAiMicroserviceConfig', err.message);
-    return { configured: false, serviceUrl: '', hasKey: false };
+    return {
+      configured: false,
+      serviceUrl: '',
+      hasKey: false,
+      defaultModel: 'gemini-2.5-flash',
+      activeModel: 'gemini-2.5-flash',
+      isScriptLevel: false
+    };
   }
 }
+
+/**
+ * Sets the active user's personalized model selection in UserProperties.
+ * @param {string} modelName Selected model ID string.
+ * @returns {{success: boolean, model: string}}
+ */
+function setAiUserSelectedModel(modelName) {
+  try {
+    var cleanModel = (modelName || '').trim();
+    var userProps = PropertiesService.getUserProperties();
+    if (cleanModel) {
+      userProps.setProperty('AI_MODEL_OVERRIDE', cleanModel);
+    } else {
+      userProps.deleteProperty('AI_MODEL_OVERRIDE');
+    }
+    return { success: true, model: cleanModel || getEffectiveAiConfig_().defaultModel };
+  } catch (err) {
+    recordServerLog('ERROR', 'setAiUserSelectedModel', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
 
 // ── Explicit export surface ──────────────────────────────────────────────────
 // Everything above is private to this IIFE. Only names assigned here are visible to: the Apps
@@ -3266,6 +3463,7 @@ global.searchArchiveNotes = searchArchiveNotes;              // google.script.ru
 global.testAiMicroservice = testAiMicroservice;              // google.script.run: Script.html
 global.callAiMicroservice = callAiMicroservice;              // google.script.run: Script.html
 global.getAiMicroserviceConfig = getAiMicroserviceConfig;    // google.script.run: Script.html
+global.setAiUserSelectedModel = setAiUserSelectedModel;      // google.script.run: Script.html
 
 // Cross-file only (not reachable from any client/template/trigger/IDE surface above, but needed
 // by other .gs files' own IIFEs since GAS has no import statement -- this global object is the
@@ -3324,6 +3522,7 @@ global._searchArchiveNotesInternal = searchArchiveNotes;
 global._testAiMicroserviceInternal = testAiMicroservice;
 global._callAiMicroserviceInternal = callAiMicroservice;
 global._getAiMicroserviceConfigInternal = getAiMicroserviceConfig;
+global._setAiUserSelectedModelInternal = setAiUserSelectedModel;
 
 })(typeof globalThis !== 'undefined' ? globalThis : this);
 
@@ -3503,15 +3702,19 @@ function searchArchiveNotes(query) {
   return (typeof _searchArchiveNotesInternal === 'function') ? _searchArchiveNotesInternal(query) : (globalThis._searchArchiveNotesInternal ? globalThis._searchArchiveNotesInternal(query) : []);
 }
 
-function testAiMicroservice(serviceUrl, apiKey) {
-  return (typeof _testAiMicroserviceInternal === 'function') ? _testAiMicroserviceInternal(serviceUrl, apiKey) : (globalThis._testAiMicroserviceInternal ? globalThis._testAiMicroserviceInternal(serviceUrl, apiKey) : { success: false, error: 'Internal error' });
+function testAiMicroservice(serviceUrl, apiKey, model) {
+  return (typeof _testAiMicroserviceInternal === 'function') ? _testAiMicroserviceInternal(serviceUrl, apiKey, model) : (globalThis._testAiMicroserviceInternal ? globalThis._testAiMicroserviceInternal(serviceUrl, apiKey, model) : { success: false, error: 'Internal error' });
 }
 
-function callAiMicroservice(prompt, apiKeyOverride, serviceUrlOverride) {
-  return (typeof _callAiMicroserviceInternal === 'function') ? _callAiMicroserviceInternal(prompt, apiKeyOverride, serviceUrlOverride) : (globalThis._callAiMicroserviceInternal ? globalThis._callAiMicroserviceInternal(prompt, apiKeyOverride, serviceUrlOverride) : { success: false, error: 'Internal error' });
+function callAiMicroservice(prompt, modelOverride, apiKeyOverride, serviceUrlOverride) {
+  return (typeof _callAiMicroserviceInternal === 'function') ? _callAiMicroserviceInternal(prompt, modelOverride, apiKeyOverride, serviceUrlOverride) : (globalThis._callAiMicroserviceInternal ? globalThis._callAiMicroserviceInternal(prompt, modelOverride, apiKeyOverride, serviceUrlOverride) : { success: false, error: 'Internal error' });
 }
 
 function getAiMicroserviceConfig() {
-  return (typeof _getAiMicroserviceConfigInternal === 'function') ? _getAiMicroserviceConfigInternal() : (globalThis._getAiMicroserviceConfigInternal ? globalThis._getAiMicroserviceConfigInternal() : { configured: false, serviceUrl: '', hasKey: false });
+  return (typeof _getAiMicroserviceConfigInternal === 'function') ? _getAiMicroserviceConfigInternal() : (globalThis._getAiMicroserviceConfigInternal ? globalThis._getAiMicroserviceConfigInternal() : { configured: false, serviceUrl: '', hasKey: false, defaultModel: 'gemini-2.5-flash', activeModel: 'gemini-2.5-flash', isScriptLevel: false });
+}
+
+function setAiUserSelectedModel(modelName) {
+  return (typeof _setAiUserSelectedModelInternal === 'function') ? _setAiUserSelectedModelInternal(modelName) : (globalThis._setAiUserSelectedModelInternal ? globalThis._setAiUserSelectedModelInternal(modelName) : { success: false, error: 'Internal error' });
 }
 

@@ -908,17 +908,19 @@ export class GASBridge {
   }
 
   /**
-   * Tests connection to the Sheets AI microservice.
-   * @param {string} [serviceUrl] Service Web App URL.
+   * Tests connection to the AI gateway or microservice.
+   * @param {string} [serviceUrl] Service endpoint URL.
    * @param {string} [apiKey] Optional API key.
+   * @param {string} [model] Optional model ID.
    * @returns {Promise<object>} Connection test result.
    */
-  async testAiMicroservice(serviceUrl, apiKey) {
+  async testAiMicroservice(serviceUrl, apiKey, model) {
     if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
       return {
         success: true,
-        service: 'ai-lite',
+        service: 'ai-gateway',
         version: 'v1',
+        model: model || 'gemini-2.5-flash',
         latencyMs: 95
       };
     }
@@ -927,22 +929,25 @@ export class GASBridge {
       window.google.script.run
         .withSuccessHandler(resolve)
         .withFailureHandler(reject)
-        .testAiMicroservice(serviceUrl, apiKey);
+        .testAiMicroservice(serviceUrl, apiKey, model);
     });
   }
 
   /**
-   * Calls the Sheets AI microservice to process a prompt.
+   * Calls the AI gateway / microservice to process a prompt.
    * @param {string} prompt Prompt text.
+   * @param {string} [modelOverride] Optional model ID override.
    * @param {string} [apiKeyOverride] Optional key override.
    * @param {string} [serviceUrlOverride] Optional URL override.
    * @returns {Promise<object>} AI response result.
    */
-  async callAiMicroservice(prompt, apiKeyOverride, serviceUrlOverride) {
+  async callAiMicroservice(prompt, modelOverride, apiKeyOverride, serviceUrlOverride) {
     if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      const activeModel = modelOverride || 'gemini-2.5-flash';
       return {
         success: true,
-        text: `[Mock AI Microservice]: Processed prompt "${(prompt || '').substring(0, 30)}..."`,
+        text: `[Mock AI (${activeModel})]: Processed prompt "${(prompt || '').substring(0, 30)}..."`,
+        model: activeModel,
         elapsedMs: 320
       };
     }
@@ -951,12 +956,12 @@ export class GASBridge {
       window.google.script.run
         .withSuccessHandler(resolve)
         .withFailureHandler(reject)
-        .callAiMicroservice(prompt, apiKeyOverride, serviceUrlOverride);
+        .callAiMicroservice(prompt, modelOverride, apiKeyOverride, serviceUrlOverride);
     });
   }
 
   /**
-   * Retrieves current AI microservice configuration status.
+   * Retrieves current AI gateway configuration status.
    * @returns {Promise<object>} Configuration status.
    */
   async getAiMicroserviceConfig() {
@@ -964,7 +969,10 @@ export class GASBridge {
       return {
         configured: true,
         serviceUrl: 'https:' + '/' + '/script.google.com/macros/s/mock-deployment/exec',
-        hasKey: true
+        hasKey: true,
+        defaultModel: 'gemini-2.5-flash',
+        activeModel: 'gemini-2.5-flash',
+        isScriptLevel: true
       };
     }
 
@@ -973,6 +981,27 @@ export class GASBridge {
         .withSuccessHandler(resolve)
         .withFailureHandler(reject)
         .getAiMicroserviceConfig();
+    });
+  }
+
+  /**
+   * Sets the active user's personalized model selection.
+   * @param {string} modelName Selected model ID string.
+   * @returns {Promise<object>} Update result.
+   */
+  async setAiUserSelectedModel(modelName) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      return {
+        success: true,
+        model: modelName || 'gemini-2.5-flash'
+      };
+    }
+
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .setAiUserSelectedModel(modelName);
     });
   }
 }

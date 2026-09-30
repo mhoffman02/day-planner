@@ -1,8 +1,23 @@
 /**
  * @file aiService.js
- * @description Client integration service for the Google Sheets AI() Microservice (ai-lite).
+ * @description Client integration service for REST AI Gateways and Microservices (USAi, Google AI Studio, ai-lite).
  * Handles endpoint routing, request formatting, envelope validation, and connection testing.
  */
+
+/**
+ * Catalog of known enterprise models available on WORK (USAi) and HOME (Gemini).
+ */
+export const SUPPORTED_WORK_MODELS = [
+  { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite', provider: 'Google', speed: 'Fastest' },
+  { id: 'gemini-2.5-flash',      name: 'Gemini 2.5 Flash',      provider: 'Google', speed: 'Fast' },
+  { id: 'gemini-2.5-pro',        name: 'Gemini 2.5 Pro',        provider: 'Google', speed: 'Deep Reasoning' },
+  { id: 'gemini-3.7-flash',      name: 'Gemini 3.7 Flash',      provider: 'Google', speed: 'Latest Flash' },
+  { id: 'luna',                  name: 'Luna',                  provider: 'USAi',   speed: 'General' },
+  { id: 'terra',                 name: 'Terra',                 provider: 'USAi',   speed: 'General' },
+  { id: 'claude-3-5-haiku',      name: 'Claude 3.5 Haiku',      provider: 'Anthropic', speed: 'Fast' },
+  { id: 'claude-3-5-sonnet',     name: 'Claude 3.5 Sonnet',     provider: 'Anthropic', speed: 'Balanced / Writing' },
+  { id: 'claude-3-opus',         name: 'Claude 3 Opus',         provider: 'Anthropic', speed: 'Complex Analysis' }
+];
 
 /**
  * Normalizes and formats the microservice endpoint URL to target the correct API version route.
@@ -21,10 +36,9 @@ export function buildAiServiceUrl(rawUrl, version = 'v1') {
 }
 
 /**
- * Parses and unpacks the standard ContentService envelope response from ai-lite.
- * Apps Script always returns HTTP 200; this inspects the JSON payload for 'response' vs 'error'.
+ * Parses and unpacks standard LLM responses across OpenAI/USAi, Gemini native, and ai-lite envelopes.
  * @param {object|string} rawPayload Response JSON object or string.
- * @returns {{success: boolean, text?: string, elapsedMs?: number, code?: string, message?: string}}
+ * @returns {{success: boolean, text?: string, model?: string, elapsedMs?: number, code?: string, message?: string}}
  */
 export function parseAiResponse(rawPayload) {
   let payload = rawPayload;
@@ -48,6 +62,32 @@ export function parseAiResponse(rawPayload) {
     };
   }
 
+  // 1. OpenAI / USAi chat completions format: { choices: [{ message: { content: "..." } }] }
+  if (Array.isArray(payload.choices) && payload.choices.length > 0) {
+    const choice = payload.choices[0];
+    const text = choice?.message?.content || choice?.text || '';
+    return {
+      success: true,
+      text: String(text).trim(),
+      model: payload.model || null,
+      elapsedMs: typeof payload.elapsedMs === 'number' ? payload.elapsedMs : 0
+    };
+  }
+
+  // 2. Google Gemini native generateContent format: { candidates: [{ content: { parts: [{ text: "..." }] } }] }
+  if (Array.isArray(payload.candidates) && payload.candidates.length > 0) {
+    const candidate = payload.candidates[0];
+    const parts = Array.isArray(candidate?.content?.parts) ? candidate.content.parts : [];
+    const text = parts.map(p => p.text || '').join('');
+    return {
+      success: true,
+      text: String(text).trim(),
+      model: payload.modelVersion || null,
+      elapsedMs: typeof payload.elapsedMs === 'number' ? payload.elapsedMs : 0
+    };
+  }
+
+  // 3. ai-lite / Sheets microservice format: { response: "...", elapsedMs: 1200 }
   if (payload.response !== undefined) {
     return {
       success: true,
@@ -56,39 +96,52 @@ export function parseAiResponse(rawPayload) {
     };
   }
 
-  if (payload.error && typeof payload.error === 'object') {
+  // 4. Error envelopes
+  if (payload.error) {
+    if (typeof payload.error === 'object') {
+      return {
+        success: false,
+        code: payload.error.code || payload.error.type || 'AI_ERROR',
+        message: payload.error.message || 'An error occurred during AI processing.'
+      };
+    }
     return {
       success: false,
-      code: payload.error.code || 'UNKNOWN_ERROR',
-      message: payload.error.message || 'An error occurred during AI processing.'
+      code: 'AI_ERROR',
+      message: String(payload.error)
     };
   }
 
   return {
     success: false,
     code: 'UNKNOWN_FORMAT',
-    message: 'Response payload contained neither a "response" nor "error" envelope key.'
+    message: 'Response payload contained unrecognized structure.'
   };
 }
 
 /**
- * Tests connection to the AI microservice by querying the self-describing GET /v1 manifest.
+ * Tests connection to the AI endpoint by querying manifest (for Web App) or validating response.
  * @param {string} serviceUrl Web App endpoint URL.
  * @param {Function} [fetchFn=fetch] HTTP fetch function (supports dependency injection for testing).
  * @returns {Promise<{success: boolean, service?: string, version?: string, elapsedMs?: number, error?: string}>}
  */
 export async function testAiConnection(serviceUrl, fetchFn = (typeof fetch !== 'undefined' ? fetch : null)) {
-  const url = buildAiServiceUrl(serviceUrl, 'v1');
-  if (!url) {
+  if (!serviceUrl || typeof serviceUrl !== 'string') {
     return { success: false, error: 'No service URL provided.' };
   }
   if (!fetchFn) {
     return { success: false, error: 'Fetch client is unavailable in this environment.' };
   }
 
+  const cleanUrl = serviceUrl.trim();
+  const isAppsScriptWebApp = cleanUrl.includes('script.google.com');
+  const targetUrl = isAppsScriptWebApp && !cleanUrl.endsWith('/v1')
+    ? buildAiServiceUrl(cleanUrl, 'v1')
+    : cleanUrl;
+
   const start = Date.now();
   try {
-    const res = await fetchFn(url, {
+    const res = await fetchFn(targetUrl, {
       method: 'GET',
       headers: { 'Accept': 'application/json' }
     });
@@ -112,49 +165,88 @@ export async function testAiConnection(serviceUrl, fetchFn = (typeof fetch !== '
       };
     }
 
+    if (data && (data.choices || data.models || data.status === 'ok' || data.name)) {
+      return {
+        success: true,
+        service: 'openai-compatible',
+        version: 'v1',
+        elapsedMs
+      };
+    }
+
     return {
       success: false,
-      error: `Service at ${url} did not return expected ai-lite manifest.`
+      error: `Service at ${targetUrl} did not return expected manifest or response.`
     };
   } catch (err) {
     return {
       success: false,
-      error: `Failed to connect to AI microservice at ${url}: ${err.message || err.toString()}`
+      error: `Failed to connect to AI endpoint at ${targetUrl}: ${err.message || err.toString()}`
     };
   }
 }
 
 /**
- * Sends a prompt to the AI microservice POST /v1 endpoint.
+ * Sends a prompt to the AI endpoint (supports USAi / OpenAI chat completions, Gemini, and ai-lite).
  * @param {string} serviceUrl Web App endpoint URL.
  * @param {string} apiKey Shared secret API key.
  * @param {string} prompt Prompt text to evaluate.
+ * @param {string|Function} [modelOrFetchFn='gemini-2.5-flash'] Model ID string, or fetchFn if 4 arguments passed.
  * @param {Function} [fetchFn=fetch] HTTP fetch function.
- * @returns {Promise<{success: boolean, text?: string, elapsedMs?: number, code?: string, message?: string}>}
+ * @returns {Promise<{success: boolean, text?: string, model?: string, elapsedMs?: number, code?: string, message?: string}>}
  */
-export async function sendAiPrompt(serviceUrl, apiKey, prompt, fetchFn = (typeof fetch !== 'undefined' ? fetch : null)) {
-  const url = buildAiServiceUrl(serviceUrl, 'v1');
-  if (!url) {
-    return { success: false, code: 'CONFIG_ERROR', message: 'No service URL provided.' };
+export async function sendAiPrompt(serviceUrl, apiKey, prompt, modelOrFetchFn = 'gemini-2.5-flash', fetchFn = (typeof fetch !== 'undefined' ? fetch : null)) {
+  let model = modelOrFetchFn;
+  let activeFetch = fetchFn;
+
+  // Backwards compatibility: if 4th argument is a function, treat it as fetchFn
+  if (typeof modelOrFetchFn === 'function') {
+    activeFetch = modelOrFetchFn;
+    model = 'gemini-2.5-flash';
   }
-  if (!prompt || !prompt.trim()) {
+  if (!activeFetch && typeof fetch !== 'undefined') {
+    activeFetch = fetch;
+  }
+
+  const cleanPrompt = (prompt || '').trim();
+  if (!cleanPrompt) {
     return { success: false, code: 'EMPTY_PROMPT', message: 'Prompt cannot be empty.' };
   }
-  if (!fetchFn) {
+  if (!serviceUrl || typeof serviceUrl !== 'string') {
+    return { success: false, code: 'CONFIG_ERROR', message: 'No service URL provided.' };
+  }
+  if (!activeFetch) {
     return { success: false, code: 'ENV_ERROR', message: 'Fetch client is unavailable.' };
   }
 
+  const cleanUrl = serviceUrl.trim();
+  const isAppsScriptWebApp = cleanUrl.includes('script.google.com');
+  const targetUrl = isAppsScriptWebApp && !cleanUrl.endsWith('/v1')
+    ? buildAiServiceUrl(cleanUrl, 'v1')
+    : cleanUrl;
+
+  const headers = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  };
+  if (apiKey) {
+    headers['Authorization'] = `Bearer ${apiKey.trim()}`;
+  }
+
+  const requestBody = {
+    apiKey: apiKey || '',
+    model: typeof model === 'string' && model ? model : 'gemini-2.5-flash',
+    prompt: cleanPrompt,
+    messages: [
+      { role: 'user', content: cleanPrompt }
+    ]
+  };
+
   try {
-    const res = await fetchFn(url, {
+    const res = await activeFetch(targetUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify({
-        apiKey: apiKey || '',
-        prompt: prompt.trim()
-      })
+      headers,
+      body: JSON.stringify(requestBody)
     });
 
     let raw;
@@ -171,7 +263,7 @@ export async function sendAiPrompt(serviceUrl, apiKey, prompt, fetchFn = (typeof
     return {
       success: false,
       code: 'NETWORK_ERROR',
-      message: `Failed to communicate with AI microservice: ${err.message || err.toString()}`
+      message: `Failed to communicate with AI endpoint: ${err.message || err.toString()}`
     };
   }
 }

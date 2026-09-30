@@ -1,6 +1,6 @@
 /**
  * @file aiService.test.js
- * @description Unit tests for ai-microservice client integration: URL building, envelope parsing, and network communication.
+ * @description Unit tests for AI service client integration: URL building, envelope parsing, and network communication.
  */
 
 import { describe, it } from 'node:test';
@@ -9,10 +9,27 @@ import {
   buildAiServiceUrl,
   parseAiResponse,
   testAiConnection,
-  sendAiPrompt
+  sendAiPrompt,
+  SUPPORTED_WORK_MODELS
 } from '../src/aiService.js';
 
-describe('AI Microservice Client Unit Tests', () => {
+describe('AI Gateway & Microservice Client Unit Tests', () => {
+  describe('SUPPORTED_WORK_MODELS', () => {
+    it('should include key models for WORK including Gemini, Claude, and internal models', () => {
+      assert.ok(Array.isArray(SUPPORTED_WORK_MODELS));
+      assert.ok(SUPPORTED_WORK_MODELS.length >= 8);
+      const ids = SUPPORTED_WORK_MODELS.map(m => m.id);
+      assert.ok(ids.includes('gemini-2.5-flash'));
+      assert.ok(ids.includes('gemini-2.5-pro'));
+      assert.ok(ids.includes('gemini-3.7-flash'));
+      assert.ok(ids.includes('luna'));
+      assert.ok(ids.includes('terra'));
+      assert.ok(ids.includes('claude-3-5-haiku'));
+      assert.ok(ids.includes('claude-3-5-sonnet'));
+      assert.ok(ids.includes('claude-3-opus'));
+    });
+  });
+
   describe('buildAiServiceUrl', () => {
     it('should format URL with /v1 route cleanly', () => {
       assert.equal(
@@ -36,7 +53,7 @@ describe('AI Microservice Client Unit Tests', () => {
   });
 
   describe('parseAiResponse', () => {
-    it('should extract response text and elapsedMs on success', () => {
+    it('should extract response text and elapsedMs on success (ai-lite format)', () => {
       const payload = {
         service: 'ai-lite',
         version: 'v1',
@@ -47,6 +64,46 @@ describe('AI Microservice Client Unit Tests', () => {
       assert.equal(result.success, true);
       assert.equal(result.text, 'Plan three focused work blocks for tomorrow morning.');
       assert.equal(result.elapsedMs, 3450);
+    });
+
+    it('should parse USAi / OpenAI chat completions format', () => {
+      const payload = {
+        id: 'chatcmpl-123',
+        model: 'claude-3-5-sonnet',
+        choices: [
+          {
+            index: 0,
+            message: {
+              role: 'assistant',
+              content: 'Executive summary of meeting notes.'
+            }
+          }
+        ],
+        elapsedMs: 850
+      };
+      const result = parseAiResponse(payload);
+      assert.equal(result.success, true);
+      assert.equal(result.text, 'Executive summary of meeting notes.');
+      assert.equal(result.model, 'claude-3-5-sonnet');
+      assert.equal(result.elapsedMs, 850);
+    });
+
+    it('should parse Google Gemini native generateContent format', () => {
+      const payload = {
+        modelVersion: 'gemini-2.5-flash',
+        candidates: [
+          {
+            content: {
+              parts: [{ text: 'Here are your action items.' }],
+              role: 'model'
+            }
+          }
+        ]
+      };
+      const result = parseAiResponse(payload);
+      assert.equal(result.success, true);
+      assert.equal(result.text, 'Here are your action items.');
+      assert.equal(result.model, 'gemini-2.5-flash');
     });
 
     it('should parse JSON string input gracefully', () => {
@@ -139,7 +196,7 @@ describe('AI Microservice Client Unit Tests', () => {
 
       const res = await testAiConnection('https://script.google.com/macros/s/test/exec', mockFetch);
       assert.equal(res.success, false);
-      assert.ok(res.error.includes('did not return expected ai-lite manifest'));
+      assert.ok(res.error.includes('did not return expected manifest'));
     });
 
     it('should handle network exceptions', async () => {
@@ -154,7 +211,7 @@ describe('AI Microservice Client Unit Tests', () => {
   });
 
   describe('sendAiPrompt', () => {
-    it('should format request correctly and parse response', async () => {
+    it('should format request correctly with legacy 4-arg signature', async () => {
       let capturedBody = null;
       let capturedHeaders = null;
 
@@ -185,6 +242,43 @@ describe('AI Microservice Client Unit Tests', () => {
       assert.equal(capturedBody.apiKey, 'secret-key-123');
       assert.equal(capturedBody.prompt, 'Summarize today notes');
       assert.equal(capturedHeaders['Content-Type'], 'application/json');
+      assert.equal(capturedHeaders['Authorization'], 'Bearer secret-key-123');
+    });
+
+    it('should format request with explicit model parameter (USAi / OpenAI style)', async () => {
+      let capturedBody = null;
+      let capturedHeaders = null;
+
+      const mockFetch = async (url, opts) => {
+        assert.equal(url, 'https://usai.example.gov/v1/chat/completions');
+        capturedHeaders = opts.headers;
+        capturedBody = JSON.parse(opts.body);
+        return {
+          ok: true,
+          json: async () => ({
+            choices: [
+              { message: { content: 'Claude Sonnet response' } }
+            ],
+            model: 'claude-3-5-sonnet'
+          })
+        };
+      };
+
+      const result = await sendAiPrompt(
+        'https://usai.example.gov/v1/chat/completions',
+        'usai-token-xyz',
+        'Draft project outline',
+        'claude-3-5-sonnet',
+        mockFetch
+      );
+
+      assert.equal(result.success, true);
+      assert.equal(result.text, 'Claude Sonnet response');
+      assert.equal(result.model, 'claude-3-5-sonnet');
+      assert.equal(capturedBody.model, 'claude-3-5-sonnet');
+      assert.equal(capturedBody.prompt, 'Draft project outline');
+      assert.deepEqual(capturedBody.messages, [{ role: 'user', content: 'Draft project outline' }]);
+      assert.equal(capturedHeaders['Authorization'], 'Bearer usai-token-xyz');
     });
 
     it('should guard against empty prompt without making network request', async () => {

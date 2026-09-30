@@ -1682,7 +1682,7 @@
       });
     }
 
-    async testAiMicroservice(serviceUrl, apiKey) {
+    async testAiMicroservice(serviceUrl, apiKey, model) {
       if (this.useMock || typeof window === 'undefined' || !window.google || !window.google.script || !window.google.script.run) {
         return { success: false, error: 'Bridge unavailable.' };
       }
@@ -1691,11 +1691,11 @@
         window.google.script.run
           .withSuccessHandler(resolve)
           .withFailureHandler(reject)
-          .testAiMicroservice(serviceUrl, apiKey);
+          .testAiMicroservice(serviceUrl, apiKey, model);
       });
     }
 
-    async callAiMicroservice(prompt, apiKeyOverride, serviceUrlOverride) {
+    async callAiMicroservice(prompt, modelOverride, apiKeyOverride, serviceUrlOverride) {
       if (this.useMock || typeof window === 'undefined' || !window.google || !window.google.script || !window.google.script.run) {
         return { success: false, error: 'Bridge unavailable.' };
       }
@@ -1704,7 +1704,7 @@
         window.google.script.run
           .withSuccessHandler(resolve)
           .withFailureHandler(reject)
-          .callAiMicroservice(prompt, apiKeyOverride, serviceUrlOverride);
+          .callAiMicroservice(prompt, modelOverride, apiKeyOverride, serviceUrlOverride);
       });
     }
 
@@ -1718,6 +1718,19 @@
           .withSuccessHandler(resolve)
           .withFailureHandler(reject)
           .getAiMicroserviceConfig();
+      });
+    }
+
+    async setAiUserSelectedModel(modelName) {
+      if (this.useMock || typeof window === 'undefined' || !window.google || !window.google.script || !window.google.script.run) {
+        return { success: false, error: 'Bridge unavailable.' };
+      }
+
+      return new Promise((resolve, reject) => {
+        window.google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .setAiUserSelectedModel(modelName);
       });
     }
   }
