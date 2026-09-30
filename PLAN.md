@@ -32,11 +32,11 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 
 ### Phase 25: WORK Repoint & Post-Removal Verification (In Progress)
 Phase 24 (AI Assist/Thesaurus removal — see `PLAN-HISTORY.md`) is code-complete and live on HOME
-(`@288`, Build 365, user-confirmed passing). WORK Version 123 was pushed and created via
+(`@288`, Build 365, user-confirmed passing). WORK Version 124 was pushed and created via
 `npm run push:work`; only the manual repoint step remains.
-- [ ] **Repoint WORK `/exec` to Version 123**: `michael.hoffman@gsa.gov` must repoint the live
+- [ ] **Repoint WORK `/exec` to Version 124**: `michael.hoffman@gsa.gov` must repoint the live
   WORK deployment in the WORK Apps Script IDE (`https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit`
-  → Deploy → Manage deployments → Edit → select Version 123 → Deploy). Cross-domain restriction —
+  → Deploy → Manage deployments → Edit → select Version 124 → Deploy). Cross-domain restriction —
   cannot be done from HOME's `mhoffman02@gmail.com` session.
 - [ ] **Confirm Notes Version History fix holds after hard refresh**: user reported the button
   doing nothing; live CDP testing against HOME `@288` couldn't reproduce (works correctly). Likely

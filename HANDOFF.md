@@ -1,14 +1,14 @@
 # Resume: WORK repoint pending; AI Assist/Thesaurus removal is done and live on HOME
 
 **Start by:** Ask the user whether `michael.hoffman@gsa.gov` has repointed the WORK `/exec`
-deployment to Version 123 yet, and whether the Notes Version History button worked after a hard
+deployment to Version 124 yet, and whether the Notes Version History button worked after a hard
 refresh. Both are in `TODO.md` Phase 25 and blocked on the user — there is no independent agent
 work queued right now.
 
 This session removed AI Assist and Thesaurus/Dictionary entirely (user's low-ROI call, not a
 disable) across the client, GAS backend, and CSS in both the local-preview and `gas-app/` copies,
 fixed a real bug where editing an existing task hid its notes, and promoted the result from HOME
-to WORK. HOME is live and user-confirmed passing (`@288`, Build 365). WORK has Version 123 pushed
+to WORK. HOME is live and user-confirmed passing (`@288`, Build 365). WORK has Version 124 pushed
 but not yet pointed to by the live deployment — that step requires the WORK-domain account.
 
 - What changed — `TODO_HISTORY.md`'s "2026-09-30 (evening)" entry (full detail + commit SHAs)

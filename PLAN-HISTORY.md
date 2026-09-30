@@ -269,8 +269,8 @@ removed entirely rather than disabled.*
   and confirm.
 - [x] Deployed to HOME (`/dev` verified first, then pinned production deployment, now `@288`,
   Build 365). User confirmed HOME tested and passed.
-- [x] Promoted to WORK via `npm run push:work`: pushed code, created WORK Version 123. Final step
-  (repointing the live WORK `/exec` deployment to Version 123) requires
+- [x] Promoted to WORK via `npm run push:work`: pushed code, created WORK Version 124. Final step
+  (repointing the live WORK `/exec` deployment to Version 124) requires
   `michael.hoffman@gsa.gov` in the WORK Apps Script IDE — cross-domain deploy restriction, not
   completable by this session. **Pending as of this handoff.**
 

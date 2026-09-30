@@ -31,8 +31,8 @@
   hard refresh in `PLAN.md`/`TODO.md` Phase 25.
 - [x] **Deployed to HOME and promoted to WORK**: pushed + deployed to HOME `/dev` then the pinned
   production deployment (`@288`, Build 365); user confirmed HOME tested and passed. Ran
-  `npm run push:work` — pushed code and created WORK Version 123. Repointing the live WORK `/exec`
-  deployment to Version 123 needs `michael.hoffman@gsa.gov` in the WORK IDE (cross-domain
+  `npm run push:work` — pushed code and created WORK Version 124. Repointing the live WORK `/exec`
+  deployment to Version 124 needs `michael.hoffman@gsa.gov` in the WORK IDE (cross-domain
   restriction) — tracked as open in `TODO.md` Phase 25.
 
 ## 2026-09-30 (afternoon) — Task Notes Boundary Escape, Lexicon Notes Header Button, In-Binder AI Gateway & Assist Modals, and Dark Mode CSS Fix (Builds 360 & 361)
