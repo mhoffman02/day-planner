@@ -17,7 +17,7 @@
 
 (function(global) {
 
-var MAX_RING_LOGS_ = 25;
+const MAX_RING_LOGS_ = 25;
 
 /**
  * Records a structured execution log entry into a persistent UserProperties ring buffer.
@@ -28,9 +28,9 @@ var MAX_RING_LOGS_ = 25;
  */
 function recordServerLog(level, context, message, stack) {
   try {
-    var userProps = PropertiesService.getUserProperties();
-    var raw = userProps.getProperty('RECENT_SERVER_LOGS');
-    var logs = [];
+    const userProps = PropertiesService.getUserProperties();
+    const raw = userProps.getProperty('RECENT_SERVER_LOGS');
+    let logs = [];
     if (raw) {
       try {
         logs = JSON.parse(raw);
@@ -85,10 +85,10 @@ function recordServerLog(level, context, message, stack) {
  * @returns {Array<Object>} Paragraph structural elements, each with startIndex/endIndex/paragraph.
  */
 function docsGetBodyElements_(documentId) {
-  var doc = Docs.Documents.get(documentId, {
+  const doc = Docs.Documents.get(documentId, {
     fields: 'body.content(startIndex,endIndex,paragraph(paragraphStyle.namedStyleType,bullet,elements(textRun.content,pageBreak)))'
   });
-  var content = (doc.body && doc.body.content) || [];
+  const content = (doc.body && doc.body.content) || [];
   return content.filter(function (el) { return !!el.paragraph; });
 }
 
@@ -128,14 +128,14 @@ function docsElementIsListItem_(el) {
  * @returns {{text: string, styleRequests: Array<Object>}} Insertable text and follow-up requests.
  */
 function buildDaySectionRequests_(baseIndex, dayHeadingText, lines) {
-  var text = '';
-  var styleReqs = [];
-  var bulletRanges = [];
+  let text = '';
+  const styleReqs = [];
+  const bulletRanges = [];
 
   function appendLine(str, kind) {
-    var start = baseIndex + text.length;
+    const start = baseIndex + text.length;
     text += str + '\n';
-    var end = baseIndex + text.length - 1;
+    const end = baseIndex + text.length - 1;
     if (kind === 'H2' || kind === 'H3') {
       styleReqs.push({
         updateParagraphStyle: {
@@ -171,7 +171,7 @@ function buildDaySectionRequests_(baseIndex, dayHeadingText, lines) {
   // NORMAL_TEXT first, then apply the specific H2/H3 overrides above on top -- request order
   // matters here since later requests win on overlapping ranges. Without this, a bullet/plain
   // line silently inherits HEADING_2 and gets misread as a day-section boundary on the next read.
-  var resetReq = {
+  const resetReq = {
     updateParagraphStyle: {
       range: { startIndex: baseIndex, endIndex: baseIndex + text.length - 1 },
       paragraphStyle: { namedStyleType: 'NORMAL_TEXT' },
@@ -185,7 +185,7 @@ function buildDaySectionRequests_(baseIndex, dayHeadingText, lines) {
   // line silently comes out bulleted too. That turned "#category: Work" into "- #category: Work"
   // on round-trip, which the client's tag regex doesn't match, so it fell into card content and a
   // fresh tag got written on top of it on every subsequent save (accumulating leaked tags).
-  var bulletResetReq = {
+  const bulletResetReq = {
     deleteParagraphBullets: {
       range: { startIndex: baseIndex, endIndex: baseIndex + text.length - 1 }
     }
@@ -203,10 +203,10 @@ function buildDaySectionRequests_(baseIndex, dayHeadingText, lines) {
  * @returns {{startIndex: number, endIndex: number}} Character range of the inserted text.
  */
 function docsAppendParagraph_(documentId, text) {
-  var doc = Docs.Documents.get(documentId);
-  var content = doc.body.content;
-  var lastEndIndex = content[content.length - 1].endIndex;
-  var insertAt = lastEndIndex - 1;
+  const doc = Docs.Documents.get(documentId);
+  const content = doc.body.content;
+  const lastEndIndex = content[content.length - 1].endIndex;
+  const insertAt = lastEndIndex - 1;
   Docs.Documents.batchUpdate({
     requests: [{ insertText: { location: { index: insertAt }, text: '\n' + text } }]
   }, documentId);
@@ -228,9 +228,9 @@ function appendRunLogToDoc_(level, context, message, stack) {
   if (typeof Docs === 'undefined' || typeof Drive === 'undefined') return;
 
   try {
-    var userProps = PropertiesService.getUserProperties();
-    var cachedDocId = userProps.getProperty('DAY_PLANNER_RUN_LOG_DOC_ID');
-    var docId = null;
+    const userProps = PropertiesService.getUserProperties();
+    const cachedDocId = userProps.getProperty('DAY_PLANNER_RUN_LOG_DOC_ID');
+    let docId = null;
 
     if (cachedDocId) {
       try {
@@ -244,23 +244,23 @@ function appendRunLogToDoc_(level, context, message, stack) {
     }
 
     if (!docId) {
-      var targetFolder = getValidatedRootFolder();
+      const targetFolder = getValidatedRootFolder();
       if (!targetFolder) return;
 
-      var docName = 'Day Planner - Run Log';
-      var files = targetFolder.getFilesByName(docName);
+      const docName = 'Day Planner - Run Log';
+      const files = targetFolder.getFilesByName(docName);
       if (files.hasNext()) {
         docId = files.next().getId();
       } else {
-        var newFile = Drive.Files.insert({
+        const newFile = Drive.Files.insert({
           title: docName,
           mimeType: 'application/vnd.google-apps.document',
           parents: [{ id: targetFolder.getId() }]
         });
         docId = newFile.id;
 
-        var headerText = 'Day Planner - System Diagnostics & Run Log';
-        var subText = 'Permanent audit log of server-side events, warnings, and error diagnostics.';
+        const headerText = 'Day Planner - System Diagnostics & Run Log';
+        const subText = 'Permanent audit log of server-side events, warnings, and error diagnostics.';
         Docs.Documents.batchUpdate({
           requests: [
             { insertText: { location: { index: 1 }, text: headerText + '\n' + subText + '\n' } },
@@ -282,8 +282,8 @@ function appendRunLogToDoc_(level, context, message, stack) {
 
     if (!docId) return;
 
-    var timeStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'America/Los_Angeles', 'yyyy-MM-dd HH:mm:ss');
-    var logLine = '[' + timeStr + '] [' + (level || 'INFO') + '] [' + (context || 'general') + '] ' + (message || '');
+    const timeStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'America/Los_Angeles', 'yyyy-MM-dd HH:mm:ss');
+    const logLine = '[' + timeStr + '] [' + (level || 'INFO') + '] [' + (context || 'general') + '] ' + (message || '');
     docsAppendParagraph_(docId, logLine);
 
     if (stack) {
@@ -300,16 +300,16 @@ function appendRunLogToDoc_(level, context, message, stack) {
  */
 function getRunLogDocUrl() {
   try {
-    var userProps = PropertiesService.getUserProperties();
-    var cachedDocId = userProps.getProperty('DAY_PLANNER_RUN_LOG_DOC_ID');
+    const userProps = PropertiesService.getUserProperties();
+    const cachedDocId = userProps.getProperty('DAY_PLANNER_RUN_LOG_DOC_ID');
     if (cachedDocId) {
       return 'https://docs.google.com/document/d/' + cachedDocId + '/edit';
     }
-    var targetFolder = getValidatedRootFolder();
+    const targetFolder = getValidatedRootFolder();
     if (!targetFolder) return null;
-    var files = targetFolder.getFilesByName('Day Planner - Run Log');
+    const files = targetFolder.getFilesByName('Day Planner - Run Log');
     if (files.hasNext()) {
-      var id = files.next().getId();
+      const id = files.next().getId();
       userProps.setProperty('DAY_PLANNER_RUN_LOG_DOC_ID', id);
       return 'https://docs.google.com/document/d/' + id + '/edit';
     }
@@ -325,9 +325,9 @@ function getRunLogDocUrl() {
  */
 function getRecentServerLogs() {
   try {
-    var raw = PropertiesService.getUserProperties().getProperty('RECENT_SERVER_LOGS');
+    const raw = PropertiesService.getUserProperties().getProperty('RECENT_SERVER_LOGS');
     if (!raw) return [];
-    var logs = JSON.parse(raw);
+    const logs = JSON.parse(raw);
     return Array.isArray(logs) ? logs : [];
   } catch (err) {
     return [{ timestamp: new Date().toISOString(), level: 'ERROR', context: 'getRecentServerLogs', message: err.toString(), stack: err.stack || null }];
@@ -355,8 +355,8 @@ function clearRecentServerLogs() {
  * @returns {{success: boolean, error: string, stack: string|null, context: string}} Standardized error payload.
  */
 function logError(context, err) {
-  var errorMsg = '🔥 ' + context + ': ' + (err ? (err.message || err.toString()) : 'Unknown error');
-  var stack = (err && err.stack) ? err.stack : null;
+  const errorMsg = '🔥 ' + context + ': ' + (err ? (err.message || err.toString()) : 'Unknown error');
+  const stack = (err && err.stack) ? err.stack : null;
   console.error(errorMsg + '\nStack:\n' + (stack || 'No stack trace available'));
   recordServerLog('ERROR', context, errorMsg, stack);
   return {
@@ -374,7 +374,7 @@ function logError(context, err) {
  * @param {string|null} [stack] Optional stack trace.
  */
 function logWarn(context, message, stack) {
-  var warnMsg = '⚠️ ' + context + ': ' + (message || '');
+  const warnMsg = '⚠️ ' + context + ': ' + (message || '');
   console.warn(warnMsg + (stack ? '\nStack:\n' + stack : ''));
   recordServerLog('WARN', context, warnMsg, stack || null);
 }
@@ -387,7 +387,7 @@ function logWarn(context, message, stack) {
 function onOpen() {
   if (typeof DocumentApp !== 'undefined') {
     try {
-      var ui = DocumentApp.getUi();
+      const ui = DocumentApp.getUi();
       ui.createMenu('Planner 📖')
         .addItem('🔍 Search Across All Months...', 'showCrossMonthSearchSidebar')
         .addItem('📌 View #index Decision Registry', 'showIndexRegistrySidebar')
@@ -400,19 +400,19 @@ function onOpen() {
   }
 }
 
-var DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day-planner/pure-gas-main/icons/favicon.png';
+const DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day-planner/pure-gas-main/icons/favicon.png';
 
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-var DAY_PLANNER_BUILD_NUMBER = 368;
+const DAY_PLANNER_BUILD_NUMBER = 369;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
  * @returns {GoogleAppsScript.HTML.HtmlOutput} Evaluated HTML setup page output.
  */
 function renderSetupFolderPage() {
-  var output = HtmlService.createTemplateFromFile('SetupFolder')
+  const output = HtmlService.createTemplateFromFile('SetupFolder')
     .evaluate()
     .setTitle('Day Planner - Setup Google Drive Folder')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
@@ -448,7 +448,7 @@ function doGet_original(e) {
     }
 
     // 1. Check if requested /self-test diagnostic endpoint (via pathInfo or query param)
-    var isSelfTest = e && (
+    const isSelfTest = e && (
       (e.pathInfo && (e.pathInfo.indexOf('self-test') !== -1 || e.pathInfo.indexOf('selftest') !== -1 || e.pathInfo.indexOf('logs') !== -1)) ||
       (e.parameter && (e.parameter.view === 'self-test' || e.parameter['self-test'] !== undefined || e.parameter.post === '1' || e.parameter.view === 'logs' || e.parameter.logs === '1'))
     );
@@ -458,13 +458,13 @@ function doGet_original(e) {
     }
 
     // 2. Check if requested /setup-folder endpoint
-    var isSetupRequest = e && (
+    const isSetupRequest = e && (
       (e.pathInfo && e.pathInfo.indexOf('setup') !== -1) ||
       (e.parameter && (e.parameter.setup === '1' || e.parameter.view === 'setup'))
     );
 
     // 3. Validate presence of configured root folder for main web app
-    var validatedFolder = getValidatedRootFolder();
+    const validatedFolder = getValidatedRootFolder();
     if (!validatedFolder || isSetupRequest) {
       return renderSetupFolderPage();
     }
@@ -477,8 +477,8 @@ function doGet_original(e) {
       logError('doGet background sync init', syncErr);
     }
 
-    var template = HtmlService.createTemplateFromFile('Index');
-    var output = template.evaluate()
+    const template = HtmlService.createTemplateFromFile('Index');
+    const output = template.evaluate()
       .setTitle('Day Planner')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
@@ -491,13 +491,13 @@ function doGet_original(e) {
     return output;
 
   } catch (err) {
-    var fail = logError('doGet exception', err);
-    var errStr = (err.message || err.toString()).toLowerCase();
-    var isFolderError = errStr.indexOf('folder') !== -1 || errStr.indexOf('drive') !== -1 || errStr.indexOf('day planner') !== -1;
+    const fail = logError('doGet exception', err);
+    const errStr = (err.message || err.toString()).toLowerCase();
+    const isFolderError = errStr.indexOf('folder') !== -1 || errStr.indexOf('drive') !== -1 || errStr.indexOf('day planner') !== -1;
     if (isFolderError) {
       return renderSetupFolderPage();
     }
-    var errOutput = HtmlService.createHtmlOutput('<h3>🔥 Day Planner Render Failure</h3><p><b>' + escapeHtml_(fail.error) + '</b></p><pre>' + escapeHtml_(fail.stack || '') + '</pre>')
+    const errOutput = HtmlService.createHtmlOutput('<h3>🔥 Day Planner Render Failure</h3><p><b>' + escapeHtml_(fail.error) + '</b></p><pre>' + escapeHtml_(fail.stack || '') + '</pre>')
       .setTitle('Day Planner - Render Failure')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1.0');
 
@@ -534,8 +534,8 @@ function escapeHtml_(str) {
 function getValidatedRootFolder() {
   if (typeof DriveApp === 'undefined') return null;
 
-  var userProps = PropertiesService.getUserProperties();
-  var cachedId = userProps.getProperty('DAY_PLANNER_ROOT_FOLDER_ID');
+  const userProps = PropertiesService.getUserProperties();
+  const cachedId = userProps.getProperty('DAY_PLANNER_ROOT_FOLDER_ID');
 
   if (cachedId) {
     try {
@@ -551,8 +551,8 @@ function getValidatedRootFolder() {
   // otherwise each pass the "no cached ID yet" check and independently adopt or create their own
   // folder before any of them has written DAY_PLANNER_ROOT_FOLDER_ID. Serialize
   // per-user so only one execution at a time can reach the adopt/create step.
-  var lock = LockService.getUserLock();
-  var lockAcquired = false;
+  const lock = LockService.getUserLock();
+  let lockAcquired = false;
   try {
     lockAcquired = lock.tryLock(10000);
     if (!lockAcquired) {
@@ -564,7 +564,7 @@ function getValidatedRootFolder() {
 
   try {
     // Re-check the cache now that we (may) hold the lock
-    var relockedId = userProps.getProperty('DAY_PLANNER_ROOT_FOLDER_ID');
+    const relockedId = userProps.getProperty('DAY_PLANNER_ROOT_FOLDER_ID');
     if (relockedId) {
       try {
         return DriveApp.getFolderById(relockedId);
@@ -575,13 +575,13 @@ function getValidatedRootFolder() {
 
     // Auto-search for existing "Day Planner" folder in Drive (under drive.file scope)
     try {
-      var folders = DriveApp.getFoldersByName('Day Planner');
+      const folders = DriveApp.getFoldersByName('Day Planner');
       while (folders.hasNext()) {
-        var folder = folders.next();
-        var isOwner = true;
+        const folder = folders.next();
+        let isOwner = true;
         try {
-          var owner = folder.getOwner();
-          var userEmail = Session.getActiveUser().getEmail();
+          const owner = folder.getOwner();
+          const userEmail = Session.getActiveUser().getEmail();
           if (owner && owner.getEmail() && userEmail) {
             isOwner = (owner.getEmail().toLowerCase() === userEmail.toLowerCase());
           }
@@ -599,7 +599,7 @@ function getValidatedRootFolder() {
 
     // Fallback: Check known default folder ID if accessible under drive.file
     try {
-      var defaultFolder = DriveApp.getFolderById('1N2WRrFmtsAWKgqeaFIj9HtiQ2wupFEk0');
+      const defaultFolder = DriveApp.getFolderById('1N2WRrFmtsAWKgqeaFIj9HtiQ2wupFEk0');
       if (defaultFolder) {
         userProps.setProperty('DAY_PLANNER_ROOT_FOLDER_ID', '1N2WRrFmtsAWKgqeaFIj9HtiQ2wupFEk0');
         return defaultFolder;
@@ -612,11 +612,11 @@ function getValidatedRootFolder() {
     // Attempt 1: Advanced Drive Service (preferred under drive.file scope)
     try {
       if (typeof Drive !== 'undefined' && Drive.Files && Drive.Files.insert) {
-        var folderResource = {
+        const folderResource = {
           title: 'Day Planner',
           mimeType: 'application/vnd.google-apps.folder'
         };
-        var created = Drive.Files.insert(folderResource);
+        const created = Drive.Files.insert(folderResource);
         if (created && created.id) {
           userProps.setProperty('DAY_PLANNER_ROOT_FOLDER_ID', created.id);
           return DriveApp.getFolderById(created.id);
@@ -628,7 +628,7 @@ function getValidatedRootFolder() {
 
     // Attempt 2: DriveApp fallback
     try {
-      var newFolder = DriveApp.createFolder('Day Planner');
+      const newFolder = DriveApp.createFolder('Day Planner');
       if (newFolder) {
         userProps.setProperty('DAY_PLANNER_ROOT_FOLDER_ID', newFolder.getId());
         return newFolder;
@@ -661,11 +661,11 @@ function validateAndSaveFolderUrl(inputUrl) {
     return { success: false, error: 'Please enter a valid Google Drive folder web link or folder ID.' };
   }
 
-  var sanitizedInput = inputUrl.trim();
-  var extractedId = sanitizedInput;
+  const sanitizedInput = inputUrl.trim();
+  let extractedId = sanitizedInput;
 
   // Extract ID from full Google Drive URL if present
-  var urlMatch = sanitizedInput.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+  const urlMatch = sanitizedInput.match(/\/folders\/([a-zA-Z0-9_-]+)/);
   if (urlMatch) {
     extractedId = urlMatch[1];
   }
@@ -676,21 +676,21 @@ function validateAndSaveFolderUrl(inputUrl) {
   }
 
   try {
-    var folder = DriveApp.getFolderById(extractedId);
-    var folderName = folder.getName();
+    const folder = DriveApp.getFolderById(extractedId);
+    const folderName = folder.getName();
 
     // Folder ownership / capability validation: support Google Workspace enterprise domains
-    var isAuthorized = true;
+    let isAuthorized = true;
     try {
-      var owner = folder.getOwner();
-      var currentUser = Session.getActiveUser().getEmail();
+      const owner = folder.getOwner();
+      const currentUser = Session.getActiveUser().getEmail();
       if (owner && owner.getEmail() && currentUser) {
         isAuthorized = (owner.getEmail().toLowerCase() === currentUser.toLowerCase());
       } else {
         // In Google Workspace (e.g. GSA), folder.getOwner() often returns null or hides email.
         // Check write capabilities via Drive API v2 if available.
         if (typeof Drive !== 'undefined' && Drive.Files && Drive.Files.get) {
-          var meta = Drive.Files.get(extractedId, { fields: 'editable,userPermission(role)' });
+          const meta = Drive.Files.get(extractedId, { fields: 'editable,userPermission(role)' });
           isAuthorized = !meta || meta.editable || (meta.userPermission && (meta.userPermission.role === 'owner' || meta.userPermission.role === 'writer'));
         }
       }
@@ -745,12 +745,12 @@ function include(filename) {
  * @returns {void}
  */
 function ensure2WaySyncTriggerInstalled(minutes) {
-  var freq = minutes || 5;
+  const freq = minutes || 5;
   try {
-    var existingTriggers = ScriptApp.getProjectTriggers();
-    var triggerFound = false;
+    const existingTriggers = ScriptApp.getProjectTriggers();
+    let triggerFound = false;
 
-    for (var i = 0; i < existingTriggers.length; i++) {
+    for (let i = 0; i < existingTriggers.length; i++) {
       if (existingTriggers[i].getHandlerFunction() === 'syncWorkspaceChanges') {
         triggerFound = true;
         break;
@@ -775,8 +775,8 @@ function ensure2WaySyncTriggerInstalled(minutes) {
  */
 function setup2WaySyncTrigger() {
   try {
-    var existingTriggers = ScriptApp.getProjectTriggers();
-    for (var i = 0; i < existingTriggers.length; i++) {
+    const existingTriggers = ScriptApp.getProjectTriggers();
+    for (let i = 0; i < existingTriggers.length; i++) {
       if (existingTriggers[i].getHandlerFunction() === 'syncWorkspaceChanges') {
         ScriptApp.deleteTrigger(existingTriggers[i]);
       }
@@ -800,23 +800,23 @@ function setup2WaySyncTrigger() {
  */
 function syncWorkspaceChanges() {
   try {
-    var todayStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
-    var dailyData = getDailyData(todayStr);
+    const todayStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    const dailyData = getDailyData(todayStr);
 
     if (dailyData.error) {
       console.error('syncWorkspaceChanges warning: dailyData returned error: ' + dailyData.error);
       return;
     }
 
-    var tasks = dailyData.tasks || [];
-    var defaultCal = CalendarApp.getDefaultCalendar();
-    var matchingEvts = defaultCal.getEventsForDay(new Date());
+    const tasks = dailyData.tasks || [];
+    const defaultCal = CalendarApp.getDefaultCalendar();
+    const matchingEvts = defaultCal.getEventsForDay(new Date());
 
     tasks.forEach(function(task) {
       if (!task.id) return;
       try {
-        var linkedEvt = null;
-        for (var j = 0; j < matchingEvts.length; j++) {
+        let linkedEvt = null;
+        for (let j = 0; j < matchingEvts.length; j++) {
           if (matchingEvts[j].getTag('gasTaskId') === task.id) {
             linkedEvt = matchingEvts[j];
             break;
@@ -824,8 +824,8 @@ function syncWorkspaceChanges() {
         }
 
         if (linkedEvt) {
-          var isDone = task.status === '✓' || task.status === 'Ⓓ' || task.status === 'D/✓';
-          var formattedTitle = isDone ? '[✓] ' + task.title : task.title;
+          const isDone = task.status === '✓' || task.status === 'Ⓓ' || task.status === 'D/✓';
+          const formattedTitle = isDone ? '[✓] ' + task.title : task.title;
           linkedEvt.setTitle(formattedTitle);
         }
       } catch (taskErr) {
@@ -839,11 +839,11 @@ function syncWorkspaceChanges() {
   }
 }
 
-var TASK_STATUS_MARKER_RE = /(?:^<!--dp-status:(.+?)-->\n?|\[Status:\s*([^\]]+)\]\n?)/m;
-var TASK_EXTRA_STATUSES = ['○', '→', 'X', 'Ⓓ'];
-var DP_TOKEN_LINE_RE = /^<!--dp-(?:status|meta):.*?-->\n?/gm;
-var TASK_META_MARKER_RE = /<!--dp-meta:(.*?)-->\n?/;
-var DP_HUMAN_TAGS_RE = /\[(?:Category|Starred|Master|Future|MovedTo|SourceMaster|Status)(?::[^\]]*)?\]\n?/gi;
+const TASK_STATUS_MARKER_RE = /(?:^<!--dp-status:(.+?)-->\n?|\[Status:\s*([^\]]+)\]\n?)/m;
+const TASK_EXTRA_STATUSES = ['○', '→', 'X', 'Ⓓ'];
+const DP_TOKEN_LINE_RE = /^<!--dp-(?:status|meta):.*?-->\n?/gm;
+const TASK_META_MARKER_RE = /<!--dp-meta:(.*?)-->\n?/;
+const DP_HUMAN_TAGS_RE = /\[(?:Category|Starred|Master|Future|MovedTo|SourceMaster|Status)(?::[^\]]*)?\]\n?/gi;
 
 /**
  * Strips the hidden status marker line from a Task's notes, if present.
@@ -876,12 +876,12 @@ function stripDpTokens(notes) {
  * @returns {string} New notes value to send in the patch.
  */
 function encodeTaskStatusNotes(status, existingNotes) {
-  var rest = stripTaskStatusMarker(existingNotes);
+  const rest = stripTaskStatusMarker(existingNotes);
   if (TASK_EXTRA_STATUSES.indexOf(status) === -1 && status !== 'D/✓') {
     return rest;
   }
-  var cleanStatus = status === 'D/✓' ? 'Ⓓ' : status;
-  var marker = '[Status: ' + cleanStatus + ']';
+  const cleanStatus = status === 'D/✓' ? 'Ⓓ' : status;
+  const marker = '[Status: ' + cleanStatus + ']';
   return rest ? rest + '\n\n' + marker : marker;
 }
 
@@ -891,10 +891,10 @@ function encodeTaskStatusNotes(status, existingNotes) {
  * @returns {string} One of '•', '○', '✓', '→', 'X', 'Ⓓ'.
  */
 function deriveTaskStatus(googleTask) {
-  var notes = googleTask.notes || '';
-  var match = notes.match(TASK_STATUS_MARKER_RE);
+  const notes = googleTask.notes || '';
+  const match = notes.match(TASK_STATUS_MARKER_RE);
   if (match) {
-    var raw = (match[1] || match[2] || '').trim();
+    const raw = (match[1] || match[2] || '').trim();
     if (raw === 'D/✓' || raw === 'Ⓓ') return 'Ⓓ';
     if (TASK_EXTRA_STATUSES.indexOf(raw) !== -1) return raw;
   }
@@ -909,7 +909,7 @@ function deriveTaskStatus(googleTask) {
  */
 function decodeTaskMeta(notes) {
   if (!notes) return {};
-  var match = notes.match(TASK_META_MARKER_RE);
+  const match = notes.match(TASK_META_MARKER_RE);
   if (match) {
     try {
       return JSON.parse(match[1]);
@@ -917,21 +917,21 @@ function decodeTaskMeta(notes) {
       // Fall through to human tag parsing
     }
   }
-  var meta = {};
-  var catMatch = notes.match(/\[Category:\s*([^\]]+)\]/i);
+  const meta = {};
+  const catMatch = notes.match(/\[Category:\s*([^\]]+)\]/i);
   if (catMatch) meta.category = catMatch[1].trim();
-  var starMatch = notes.match(/\[Starred\]/i);
+  const starMatch = notes.match(/\[Starred\]/i);
   if (starMatch) meta.starred = true;
-  var masterMatch = notes.match(/\[Master\]/i);
+  const masterMatch = notes.match(/\[Master\]/i);
   if (masterMatch) meta.master = true;
-  var futureMatch = notes.match(/\[Future\]/i);
+  const futureMatch = notes.match(/\[Future\]/i);
   if (futureMatch) meta.future = true;
-  var movedMatch = notes.match(/\[MovedTo:\s*([^,\]]+)(?:,\s*id:\s*([^\]]+))?\]/i);
+  const movedMatch = notes.match(/\[MovedTo:\s*([^,\]]+)(?:,\s*id:\s*([^\]]+))?\]/i);
   if (movedMatch) {
     meta.movedTo = movedMatch[1].trim();
     if (movedMatch[2]) meta.movedTaskId = movedMatch[2].trim();
   }
-  var srcMatch = notes.match(/\[SourceMaster:\s*([^\]]+)\]/i);
+  const srcMatch = notes.match(/\[SourceMaster:\s*([^\]]+)\]/i);
   if (srcMatch) meta.sourceMasterId = srcMatch[1].trim();
   return meta;
 }
@@ -944,13 +944,13 @@ function decodeTaskMeta(notes) {
  * @returns {string} New notes value to send in the patch.
  */
 function encodeTaskMeta(existingNotes, metaPatch) {
-  var merged = Object.assign({}, decodeTaskMeta(existingNotes), metaPatch);
-  var rest = (existingNotes || '')
+  const merged = Object.assign({}, decodeTaskMeta(existingNotes), metaPatch);
+  const rest = (existingNotes || '')
     .replace(TASK_META_MARKER_RE, '')
     .replace(/\[(?:Category|Starred|Master|Future|MovedTo|SourceMaster)(?::[^\]]*)?\]\n?/gi, '')
     .trim();
 
-  var tags = [];
+  const tags = [];
   if (merged.category && merged.category !== 'General') {
     tags.push('[Category: ' + merged.category + ']');
   }
@@ -973,7 +973,7 @@ function encodeTaskMeta(existingNotes, metaPatch) {
   if (tags.length === 0) {
     return rest;
   }
-  var tagStr = tags.join(' ');
+  const tagStr = tags.join(' ');
   return rest ? rest + '\n\n' + tagStr : tagStr;
 }
 
@@ -984,18 +984,18 @@ function encodeTaskMeta(existingNotes, metaPatch) {
  */
 function extractMeetLinkFromEvent_(evt) {
   if (!evt) return null;
-  var link = evt.hangoutLink || null;
+  let link = evt.hangoutLink || null;
   if (!link && typeof evt.getHangoutLink === 'function') {
     try {
-      var hl = evt.getHangoutLink();
+      const hl = evt.getHangoutLink();
       if (hl && typeof hl === 'string') link = hl.trim();
     } catch {
       // getHangoutLink may throw if unsupported on specific event type
     }
   }
   if (!link && evt.conferenceData && evt.conferenceData.entryPoints) {
-    for (var c = 0; c < evt.conferenceData.entryPoints.length; c++) {
-      var ep = evt.conferenceData.entryPoints[c];
+    for (let c = 0; c < evt.conferenceData.entryPoints.length; c++) {
+      const ep = evt.conferenceData.entryPoints[c];
       if (ep && (ep.entryPointType === 'video' || (ep.uri && ep.uri.indexOf('meet.google.com') !== -1))) {
         if (ep.uri && typeof ep.uri === 'string') {
           link = ep.uri.trim();
@@ -1005,11 +1005,11 @@ function extractMeetLinkFromEvent_(evt) {
     }
   }
   if (!link) {
-    var title = (typeof evt.getTitle === 'function' ? evt.getTitle() : '') || evt.title || evt.summary || '';
-    var desc = (typeof evt.getDescription === 'function' ? evt.getDescription() : '') || evt.description || '';
-    var loc = (typeof evt.getLocation === 'function' ? evt.getLocation() : '') || evt.location || '';
-    var combined = title + ' ' + loc + ' ' + desc;
-    var match = combined.match(/(?:https?:\/\/)?meet\.google\.com\/[a-z0-9_-]+(?:\?[^\s"'<>]*)?/i);
+    const title = (typeof evt.getTitle === 'function' ? evt.getTitle() : '') || evt.title || evt.summary || '';
+    const desc = (typeof evt.getDescription === 'function' ? evt.getDescription() : '') || evt.description || '';
+    const loc = (typeof evt.getLocation === 'function' ? evt.getLocation() : '') || evt.location || '';
+    const combined = title + ' ' + loc + ' ' + desc;
+    const match = combined.match(/(?:https?:\/\/)?meet\.google\.com\/[a-z0-9_-]+(?:\?[^\s"'<>]*)?/i);
     if (match) {
       link = match[0];
       if (!/^https?:\/\//i.test(link)) {
@@ -1026,7 +1026,7 @@ function extractMeetLinkFromEvent_(evt) {
  * @returns {{date: string, tasks: Array<object>, calendarEvents: Array<object>, noteContent: string, warnings: Array<string>}|object} Daily planner dataset or error payload.
  */
 function getDailyData(dateStr) {
-  var result = {
+  const result = {
     date: dateStr,
     tasks: [],
     calendarEvents: [],
@@ -1036,13 +1036,13 @@ function getDailyData(dateStr) {
   };
 
   try {
-    var targetDate = new Date(dateStr + 'T00:00:00');
-    var nextDate = new Date(targetDate.getTime() + 24 * 60 * 60 * 1000);
+    const targetDate = new Date(dateStr + 'T00:00:00');
+    const nextDate = new Date(targetDate.getTime() + 24 * 60 * 60 * 1000);
 
     // 1. Fetch Calendar Events
     if (typeof Calendar !== 'undefined' && Calendar.Events) {
       try {
-        var dayResp = Calendar.Events.list('primary', {
+        const dayResp = Calendar.Events.list('primary', {
           timeMin: targetDate.toISOString(),
           timeMax: nextDate.toISOString(),
           singleEvents: true,
@@ -1051,7 +1051,7 @@ function getDailyData(dateStr) {
           fields: 'items(id,summary,start,end,location,description,hangoutLink,conferenceData,htmlLink,extendedProperties)'
         });
         result.calendarEvents = (dayResp.items || []).map(function(evt) {
-          var meetLink = extractMeetLinkFromEvent_(evt);
+          const meetLink = extractMeetLinkFromEvent_(evt);
           return {
             id: evt.id,
             title: evt.summary || '(untitled)',
@@ -1069,12 +1069,12 @@ function getDailyData(dateStr) {
       }
     } else if (typeof CalendarApp !== 'undefined') {
       try {
-        var defaultCal = CalendarApp.getDefaultCalendar();
-        var defaultCalId = defaultCal.getId();
-        var events = defaultCal.getEvents(targetDate, nextDate);
+        const defaultCal = CalendarApp.getDefaultCalendar();
+        const defaultCalId = defaultCal.getId();
+        const events = defaultCal.getEvents(targetDate, nextDate);
         result.calendarEvents = events.map(function(evt) {
-          var meetLink = extractMeetLinkFromEvent_(evt);
-          var bareId = evt.getId().replace(/@google\.com$/, '');
+          const meetLink = extractMeetLinkFromEvent_(evt);
+          const bareId = evt.getId().replace(/@google\.com$/, '');
           return {
             id: bareId,
             title: evt.getTitle(),
@@ -1100,15 +1100,15 @@ function getDailyData(dateStr) {
     // call would silently drop tasks past the first page.
     if (typeof Tasks !== 'undefined') {
       try {
-        var dueMinUtc = new Date(dateStr + 'T00:00:00.000Z');
+        const dueMinUtc = new Date(dateStr + 'T00:00:00.000Z');
         dueMinUtc.setUTCDate(dueMinUtc.getUTCDate() - 1);
-        var dueMaxUtc = new Date(dateStr + 'T00:00:00.000Z');
+        const dueMaxUtc = new Date(dateStr + 'T00:00:00.000Z');
         dueMaxUtc.setUTCDate(dueMaxUtc.getUTCDate() + 2);
 
-        var dayTaskItems = [];
-        var dayPageToken = null;
+        let dayTaskItems = [];
+        let dayPageToken = null;
         do {
-          var dayTaskParams = {
+          const dayTaskParams = {
             dueMin: dueMinUtc.toISOString(),
             dueMax: dueMaxUtc.toISOString(),
             showCompleted: true,
@@ -1116,7 +1116,7 @@ function getDailyData(dateStr) {
             maxResults: 100
           };
           if (dayPageToken) dayTaskParams.pageToken = dayPageToken;
-          var dayTaskResp = Tasks.Tasks.list('@default', dayTaskParams);
+          const dayTaskResp = Tasks.Tasks.list('@default', dayTaskParams);
           dayTaskItems = dayTaskItems.concat(dayTaskResp.items || []);
           dayPageToken = dayTaskResp.nextPageToken || null;
         } while (dayPageToken);
@@ -1124,7 +1124,7 @@ function getDailyData(dateStr) {
         result.tasks = dayTaskItems
           .filter(function(t) { return Boolean(t.due) && t.due.substring(0, 10) === dateStr; })
           .map(function(t) {
-            var meta = decodeTaskMeta(t.notes);
+            const meta = decodeTaskMeta(t.notes);
             return {
               id: t.id,
               title: t.title,
@@ -1146,14 +1146,14 @@ function getDailyData(dateStr) {
     // own getValidatedRootFolder()+getOrCreateMonthlyNotesDoc_() Drive round trip.
     try {
       if (typeof DriveApp !== 'undefined' && typeof Docs !== 'undefined') {
-        var targetFolder = getValidatedRootFolder();
+        const targetFolder = getValidatedRootFolder();
         if (targetFolder) {
-          var d = new Date(dateStr + 'T00:00:00');
-          var monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-          var monthName = monthNames[d.getMonth()];
-          var year = d.getFullYear();
-          var docName = 'Day Planner Notes - ' + monthName + ' ' + year;
-          var docId = getOrCreateMonthlyNotesDoc_(targetFolder, docName, monthName, year);
+          const d = new Date(dateStr + 'T00:00:00');
+          const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+          const monthName = monthNames[d.getMonth()];
+          const year = d.getFullYear();
+          const docName = 'Day Planner Notes - ' + monthName + ' ' + year;
+          const docId = getOrCreateMonthlyNotesDoc_(targetFolder, docName, monthName, year);
           if (docId) {
             result.docUrl = 'https:' + '/' + '/docs.google.com/document/d/' + docId + '/edit';
           }

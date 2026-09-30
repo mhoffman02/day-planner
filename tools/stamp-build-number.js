@@ -14,13 +14,13 @@ const file = path.join('gas-app', 'Code.gs');
 const count = parseInt(execSync('git rev-list --count HEAD').toString().trim(), 10);
 
 const src = fs.readFileSync(file, 'utf8');
-const re = /var DAY_PLANNER_BUILD_NUMBER = \d+;/;
+const re = /const DAY_PLANNER_BUILD_NUMBER = \d+;/;
 if (!re.test(src)) {
   console.error(`DAY_PLANNER_BUILD_NUMBER literal not found in ${file}`);
   process.exit(1);
 }
 
-const updated = src.replace(re, `var DAY_PLANNER_BUILD_NUMBER = ${count};`);
+const updated = src.replace(re, `const DAY_PLANNER_BUILD_NUMBER = ${count};`);
 if (updated === src) {
   console.log(`DAY_PLANNER_BUILD_NUMBER already ${count} in ${file} — nothing to do.`);
 } else {
