@@ -77,7 +77,7 @@
 </head>
 <body>
   <!-- Main Binder Application Container -->
-  <main class="binder-container" x-data="plannerApp" x-cloak>
+  <main class="binder-container" x-data="plannerApp" x-cloak @scroll.window.passive="openStatusMenuTaskId = null">
     
     <!-- Single Consolidated Top Bar (Brand, Date Controls, View Tabs, & Actions) -->
     <header class="binder-header single-top-bar" aria-label="Day Planner Header">
@@ -279,7 +279,7 @@
                 <button type="button" class="priority-segment-btn" :class="{ 'active b': newTaskPriorityGroup === 'B' }" @click="newTaskPriorityGroup = 'B'" role="radio" :aria-checked="newTaskPriorityGroup === 'B'" aria-label="Priority B" title="B: Medium priority (Alt+B or #b)" accesskey="b">B</button>
                 <button type="button" class="priority-segment-btn" :class="{ 'active c': newTaskPriorityGroup === 'C' }" @click="newTaskPriorityGroup = 'C'" role="radio" :aria-checked="newTaskPriorityGroup === 'C'" aria-label="Priority C" title="C: Normal priority (Alt+C or #c)" accesskey="c">C</button>
               </div>
-              <input type="text" x-model="newTaskTitle" @input="handleTaskTitleInput()" placeholder="Add task title (e.g. Call vendor / #a Call vendor)..." class="task-input-field" aria-label="New task description">
+              <input type="text" x-model="newTaskTitle" @input="handleTaskTitleInput()" placeholder="Add task title (e.g. #a Call vendor | discuss Q3 scope)..." title="Tip: Prefix with #a, #b, or #c for priority. Use ' | ' to add notes/details (e.g. #a Call vendor | discuss scope)." class="task-input-field" aria-label="New task description">
               <input type="text" x-model="newTaskCategory" placeholder="Category" class="task-input-field daily-task-category-input" list="category-suggestions" aria-label="Task category">
               <button type="submit" class="btn-primary btn-add-task-round" aria-label="Add Task" title="Add Task">
                 <span class="material-symbols-outlined">add</span>
@@ -287,7 +287,7 @@
             </form>
 
             <!-- Task Table Grid -->
-            <figure class="table-container daily-tasks-table-container">
+            <figure class="table-container daily-tasks-table-container" @scroll.passive="openStatusMenuTaskId = null">
               <table class="task-table daily-tasks-table">
                 <thead>
                   <tr>
@@ -316,7 +316,8 @@
                           <button type="button" class="status-btn" @click="toggleStatusMenu(task.id, $event)" x-text="task.status || '•'"
                                   aria-haspopup="menu" :aria-expanded="openStatusMenuTaskId === task.id"
                                   :aria-label="'Task status: ' + (task.status || 'Open') + '. Click to choose a status.'"></button>
-                          <div class="status-menu" :class="{ 'dropup': statusMenuDropUp, 'dropdown-down': !statusMenuDropUp }" role="menu" x-show="openStatusMenuTaskId === task.id" @click.outside="openStatusMenuTaskId = null" x-cloak>
+                          <div class="status-menu" :class="{ 'dropup': statusMenuDropUp, 'dropdown-down': !statusMenuDropUp }" role="menu" x-show="openStatusMenuTaskId === task.id" @click.outside="openStatusMenuTaskId = null" x-cloak
+                               :style="openStatusMenuTaskId === task.id && statusMenuPos.left ? (statusMenuDropUp ? 'position: fixed; bottom: ' + statusMenuPos.bottom + '; left: ' + statusMenuPos.left + ';' : 'position: fixed; top: ' + statusMenuPos.top + '; left: ' + statusMenuPos.left + ';') : ''">
                             <template x-for="opt in statusOptions" :key="opt.value">
                               <button type="button" class="status-menu-item" role="menuitem"
                                       :class="{ 'is-active': (task.status || '•') === opt.value }"
@@ -832,7 +833,7 @@
               <button type="button" class="priority-segment-btn" :class="{ 'active b': newMasterTaskPriorityGroup === 'B' }" @click="newMasterTaskPriorityGroup = 'B'" role="radio" :aria-checked="newMasterTaskPriorityGroup === 'B'" aria-label="Priority B" title="Assign Priority B (Alt+B or #b)" accesskey="b">B</button>
               <button type="button" class="priority-segment-btn" :class="{ 'active c': newMasterTaskPriorityGroup === 'C' }" @click="newMasterTaskPriorityGroup = 'C'" role="radio" :aria-checked="newMasterTaskPriorityGroup === 'C'" aria-label="Priority C" title="Assign Priority C (Alt+C or #c)" accesskey="c">C</button>
             </div>
-            <input type="text" x-model="newMasterTaskTitle" @input="handleMasterTaskTitleInput()" placeholder="Add master task title (e.g. Call vendor / #a Call vendor)..." class="task-input-field master-task-title-input" aria-label="New master task description">
+            <input type="text" x-model="newMasterTaskTitle" @input="handleMasterTaskTitleInput()" placeholder="Add master task (e.g. #a Refactor auth | add tests)..." title="Tip: Prefix with #a, #b, or #c for priority. Use ' | ' to add notes/details (e.g. #a Refactor auth | add tests)." class="task-input-field master-task-title-input" aria-label="New master task description">
             <div class="master-task-due-wrap" @click.outside="closeMasterTaskDuePicker()">
               <button type="button" class="task-input-field master-task-due-btn" @click="toggleMasterTaskDuePicker()" title="Optional due date (click to pick)" aria-haspopup="dialog" :aria-expanded="masterTaskDuePickerOpen">
                 <span class="material-symbols-outlined icon-16" style="opacity:0.7;">calendar_today</span>
@@ -880,7 +881,7 @@
               <span class="material-symbols-outlined icon-18" :class="{ spin: addingMasterTask }" x-text="addingMasterTask ? 'progress_activity' : 'add'">add</span>
             </button>
           </form>
-          <figure class="table-container master-tasks-table-container">
+          <figure class="table-container master-tasks-table-container" @scroll.passive="openStatusMenuTaskId = null">
             <table class="task-table table-card master-tasks-table">
               <thead>
                 <tr class="table-header-row">
@@ -913,7 +914,8 @@
                         <button type="button" class="status-btn" @click="toggleStatusMenu(mTask.id, $event)" x-text="mTask.status || '•'"
                                 aria-haspopup="menu" :aria-expanded="openStatusMenuTaskId === mTask.id"
                                 :aria-label="'Master task status: ' + (mTask.status || 'Open') + '. Click to choose a status.'"></button>
-                        <div class="status-menu" :class="{ 'dropup': statusMenuDropUp, 'dropdown-down': !statusMenuDropUp }" role="menu" x-show="openStatusMenuTaskId === mTask.id" @click.outside="openStatusMenuTaskId = null" x-cloak>
+                        <div class="status-menu" :class="{ 'dropup': statusMenuDropUp, 'dropdown-down': !statusMenuDropUp }" role="menu" x-show="openStatusMenuTaskId === mTask.id" @click.outside="openStatusMenuTaskId = null" x-cloak
+                             :style="openStatusMenuTaskId === mTask.id && statusMenuPos.left ? (statusMenuDropUp ? 'position: fixed; bottom: ' + statusMenuPos.bottom + '; left: ' + statusMenuPos.left + ';' : 'position: fixed; top: ' + statusMenuPos.top + '; left: ' + statusMenuPos.left + ';') : ''">
                           <template x-for="opt in statusOptions" :key="opt.value">
                             <button type="button" class="status-menu-item" role="menuitem"
                                     :class="{ 'is-active': (mTask.status || '•') === opt.value }"
@@ -1094,7 +1096,8 @@
                             <button type="button" class="status-btn" @click="toggleStatusMenu(item.id, $event)" x-text="item.status || '•'"
                                     aria-haspopup="menu" :aria-expanded="openStatusMenuTaskId === item.id"
                                     :aria-label="'Item status: ' + (item.status || 'Open') + '. Click to choose a status.'"></button>
-                            <div class="status-menu" :class="{ 'dropup': statusMenuDropUp, 'dropdown-down': !statusMenuDropUp }" role="menu" x-show="openStatusMenuTaskId === item.id" @click.outside="openStatusMenuTaskId = null" x-cloak>
+                            <div class="status-menu" :class="{ 'dropup': statusMenuDropUp, 'dropdown-down': !statusMenuDropUp }" role="menu" x-show="openStatusMenuTaskId === item.id" @click.outside="openStatusMenuTaskId = null" x-cloak
+                                 :style="openStatusMenuTaskId === item.id && statusMenuPos.left ? (statusMenuDropUp ? 'position: fixed; bottom: ' + statusMenuPos.bottom + '; left: ' + statusMenuPos.left + ';' : 'position: fixed; top: ' + statusMenuPos.top + '; left: ' + statusMenuPos.left + ';') : ''">
                               <template x-for="opt in statusOptions" :key="opt.value">
                                 <button type="button" class="status-menu-item" role="menuitem"
                                         :class="{ 'is-active': (item.status || '•') === opt.value }"
@@ -1204,8 +1207,12 @@
             <td>Your longer-running to-do list, grouped by category (Work, Personal, Financial, Projects, and more) — for things that aren't tied to one specific day yet.</td>
           </tr>
           <tr>
-            <td><b>Decision Registry</b></td>
-            <td>A running, searchable log of the key decisions and outcomes you've tagged in your notes, so you can find "what did we decide about X" without digging back through old notes.</td>
+            <td><b>Monthly Index</b></td>
+            <td>A running, searchable log of the key decisions and outcomes you've tagged with <code>#index</code> in your notes, so you can find "what did we decide about X" without digging back through old notes.</td>
+          </tr>
+          <tr>
+            <td><b>Lexicon</b></td>
+            <td>A quick-reference dictionary of abbreviations, acronyms, and project shorthand used throughout your notes and tasks.</td>
           </tr>
           <tr>
             <td><b>Future Planning</b></td>
@@ -1222,10 +1229,13 @@
     <section class="cards-stack">
       <article class="guide-card">
         <h3 class="guide-card-title">
-          <span class="material-symbols-outlined">format_list_bulleted</span> Prioritizing Your Tasks
+          <span class="material-symbols-outlined">format_list_bulleted</span> Prioritizing Your Tasks & Inline Notes
         </h3>
         <p class="guide-card-text">
-          Every task gets a priority letter and number: <b>A</b> for urgent, <b>B</b> for important, <b>C</b> for everything else, then a number for order within that group. Click a task's status box to mark it, in order: Open <span class="material-symbols-outlined icon-16">arrow_forward</span> Completed <span class="material-symbols-outlined icon-16">arrow_forward</span> Forwarded to another day <span class="material-symbols-outlined icon-16">arrow_forward</span> Canceled <span class="material-symbols-outlined icon-16">arrow_forward</span> Delegated to someone else.
+          Every task gets a priority letter and number: <b>A</b> for urgent, <b>B</b> for important, <b>C</b> for everything else, then a number for order within that group (type <code>#a</code>, <code>#b</code>, or <code>#c</code> in the input or click the priority selector). Click a task's status box to mark it: Open <span class="material-symbols-outlined icon-16">arrow_forward</span> Completed <span class="material-symbols-outlined icon-16">arrow_forward</span> Forwarded <span class="material-symbols-outlined icon-16">arrow_forward</span> Canceled <span class="material-symbols-outlined icon-16">arrow_forward</span> Delegated.
+        </p>
+        <p class="guide-card-text">
+          <b>Adding Notes & Details:</b> Use a pipe <code>|</code> in the task description to attach details (e.g. <code>Call vendor | discuss Q3 scope and renewal terms</code>). The title becomes "Call vendor", and the details save straight to Google Tasks details, accessible anytime via the sticky note icon (<span class="material-symbols-outlined icon-16">sticky_note_2</span>).
         </p>
       </article>
 
@@ -1240,10 +1250,19 @@
 
       <article class="guide-card">
         <h3 class="guide-card-title">
+          <span class="material-symbols-outlined">history</span> Note Version History (Time Machine)
+        </h3>
+        <p class="guide-card-text">
+          Need to review earlier versions of your daily notes or restore deleted thoughts? Click the Time Machine icon (<span class="material-symbols-outlined icon-16">history</span>) in the Notes column header to inspect hourly revisions, see diffs, and restore any snapshot with one click.
+        </p>
+      </article>
+
+      <article class="guide-card">
+        <h3 class="guide-card-title">
           <span class="material-symbols-outlined">tag</span> Logging a Decision So You Can Find It Later
         </h3>
         <p class="guide-card-text">
-          While typing a note, add a tag like <code>#index [Meeting] Approved the Q3 budget</code>. It automatically shows up in the <b>Decision Registry</b> tab, in date order — a running record of the calls you've made, without any extra filing.
+          While typing a note, add a tag like <code>#index [Meeting] Approved the Q3 budget</code>. It automatically shows up in the <b>Monthly Index</b> tab, in date order — a running record of the calls you've made, without any extra filing.
         </p>
       </article>
 

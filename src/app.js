@@ -9,6 +9,7 @@ import {
   isValidStatus,
   STATUS_OPTIONS,
   sortTasksByColumn,
+  extractTaskDetails,
   extractInlinePriority,
   filterTasksByStatus,
   filterTasksByDateHorizon
@@ -289,6 +290,7 @@ Alpine.data('plannerApp', () => ({
       openStatusMenuTaskId: null,
       statusMenuCloseTimer: null,
       statusMenuDropUp: false,
+      statusMenuPos: { top: null, bottom: null, left: null },
       statusOptions: STATUS_OPTIONS,
       dailyTaskSort: { column: null, direction: 'asc' },
       openNotesPopoverTaskId: null,
@@ -2878,7 +2880,8 @@ Alpine.data('plannerApp', () => ({
       },
 
       async addMasterTask() {
-        const extracted = extractInlinePriority(this.newMasterTaskTitle, this.newMasterTaskPriorityGroup);
+        const details = extractTaskDetails(this.newMasterTaskTitle);
+        const extracted = extractInlinePriority(details.rawTitle, this.newMasterTaskPriorityGroup);
         this.newMasterTaskPriorityGroup = extracted.priorityGroup;
         const taskTitle = extracted.cleanTitle;
         if (!taskTitle || this.addingMasterTask) return;
@@ -2889,10 +2892,11 @@ Alpine.data('plannerApp', () => ({
           const dueDate = this.newMasterTaskDueDate ? this.newMasterTaskDueDate.trim() : null;
           const existingCount = this.masterTasks.length + 1;
           const formattedTitle = formatTaskTitle(this.newMasterTaskPriorityGroup, existingCount, taskTitle);
-          const created = await this.bridge.addMasterTask(formattedTitle, category, dueDate);
+          const created = await this.bridge.addMasterTask(formattedTitle, category, dueDate, details.notes);
           created._moveDate = getLocalDateStr();
           created._moving = false;
           created._isNew = true;
+          if (details.notes && !created.notes) created.notes = details.notes;
           if (!created.category) created.category = category;
           if (!created.status) created.status = '•';
           this.masterTasks.push(created);
@@ -3210,7 +3214,8 @@ Alpine.data('plannerApp', () => ({
       },
 
       async addDailyTask() {
-        const extracted = extractInlinePriority(this.newTaskTitle, this.newTaskPriorityGroup);
+        const details = extractTaskDetails(this.newTaskTitle);
+        const extracted = extractInlinePriority(details.rawTitle, this.newTaskPriorityGroup);
         this.newTaskPriorityGroup = extracted.priorityGroup;
         const taskTitle = extracted.cleanTitle;
         if (!taskTitle) return;
@@ -3219,8 +3224,9 @@ Alpine.data('plannerApp', () => ({
           this.recordCategory(category);
           const existingCount = this.dailyTasks.length + 1;
           const formattedTitle = formatTaskTitle(this.newTaskPriorityGroup, existingCount, taskTitle);
-          const newTask = await this.bridge.addDailyTask(this.selectedDate, formattedTitle, category);
+          const newTask = await this.bridge.addDailyTask(this.selectedDate, formattedTitle, category, null, details.notes);
           newTask._isNew = true;
+          if (details.notes && !newTask.notes) newTask.notes = details.notes;
           this.dailyTasks.push(newTask);
           this.newTaskTitle = '';
           this.newTaskCategory = '';
@@ -3254,7 +3260,8 @@ Alpine.data('plannerApp', () => ({
       async updateTaskTitle(taskId, newTitle) {
         if (!this.editingTaskId || this.editingTaskId !== taskId) return;
         this.editingTaskId = null;
-        const trimmed = (newTitle || '').trim();
+        const details = extractTaskDetails(newTitle || '');
+        const trimmed = details.rawTitle;
         this.editingTaskTitle = '';
 
         let task = this.dailyTasks.find(t => t.id === taskId);
@@ -3266,19 +3273,31 @@ Alpine.data('plannerApp', () => ({
         if (!task) return;
 
         const parsed = this.parseTask(task.title);
-        if (!trimmed || trimmed === parsed.cleanTitle) {
+        const titleChanged = Boolean(trimmed && trimmed !== parsed.cleanTitle);
+        const notesChanged = Boolean(details.notes && details.notes !== (task.notes || ''));
+        if (!titleChanged && !notesChanged) {
           return;
         }
 
         const oldTitle = task.title;
-        const newFullTitle = updateTaskTitleText(oldTitle, trimmed);
+        const oldNotes = task.notes || '';
+        const newFullTitle = titleChanged ? updateTaskTitleText(oldTitle, trimmed) : oldTitle;
         task.title = newFullTitle;
+        if (details.notes) {
+          task.notes = details.notes;
+        }
 
         const linkedMaster = !isMaster ? this.masterTasks.find(m => m.movedTaskId === task.id) : null;
-        if (linkedMaster) linkedMaster.title = newFullTitle;
+        if (linkedMaster) {
+          linkedMaster.title = newFullTitle;
+          if (details.notes) linkedMaster.notes = details.notes;
+        }
         if (isMaster && task.movedTaskId) {
           const linkedDaily = this.dailyTasks.find(d => d.id === task.movedTaskId);
-          if (linkedDaily) linkedDaily.title = newFullTitle;
+          if (linkedDaily) {
+            linkedDaily.title = newFullTitle;
+            if (details.notes) linkedDaily.notes = details.notes;
+          }
         }
 
         if (isMaster) {
@@ -3287,23 +3306,30 @@ Alpine.data('plannerApp', () => ({
           this.syncDailyCacheFromLiveState();
         }
 
+        const updates = { title: newFullTitle };
+        if (details.notes) updates.notes = details.notes;
+
         try {
           if (isMaster) {
             if (this.bridge && typeof this.bridge.updateMasterTask === 'function') {
-              await this.bridge.updateMasterTask(task.id, { title: newFullTitle });
+              await this.bridge.updateMasterTask(task.id, updates);
             } else if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
-              await this.bridge.updateDailyTask('', task.id, { title: newFullTitle });
+              await this.bridge.updateDailyTask('', task.id, updates);
             }
           } else {
             if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
-              await this.bridge.updateDailyTask(this.selectedDate, task.id, { title: newFullTitle });
+              await this.bridge.updateDailyTask(this.selectedDate, task.id, updates);
             }
           }
           await this.trigger2WaySync();
         } catch (err) {
           console.error('🔥 updateTaskTitle error:', err);
           task.title = oldTitle;
-          if (linkedMaster) linkedMaster.title = oldTitle;
+          task.notes = oldNotes;
+          if (linkedMaster) {
+            linkedMaster.title = oldTitle;
+            linkedMaster.notes = oldNotes;
+          }
           if (isMaster) {
             this.syncMasterTasksCacheFromLiveState();
           } else {
@@ -3419,10 +3445,17 @@ Alpine.data('plannerApp', () => ({
         this.openStatusMenuTaskId = taskId;
         if (event && (event.currentTarget || event.target)) {
           const el = event.currentTarget || event.target;
-          const rect = el.getBoundingClientRect();
+          const btn = el.closest ? (el.closest('.status-btn') || el) : el;
+          const rect = btn.getBoundingClientRect();
           const spaceBelow = window.innerHeight - rect.bottom;
           const spaceAbove = rect.top;
-          this.statusMenuDropUp = (spaceBelow < 275 && spaceAbove > spaceBelow) || spaceBelow < 160;
+          const dropUp = (spaceBelow < 275 && spaceAbove > spaceBelow) || spaceBelow < 160;
+          this.statusMenuDropUp = dropUp;
+          this.statusMenuPos = {
+            top: dropUp ? null : `${Math.round(rect.bottom + 2)}px`,
+            bottom: dropUp ? `${Math.round(window.innerHeight - rect.top + 2)}px` : null,
+            left: `${Math.round(rect.left)}px`
+          };
         }
       },
 
@@ -3431,14 +3464,7 @@ Alpine.data('plannerApp', () => ({
         if (this.openStatusMenuTaskId === taskId) {
           this.openStatusMenuTaskId = null;
         } else {
-          this.openStatusMenuTaskId = taskId;
-          if (event && (event.currentTarget || event.target)) {
-            const el = event.currentTarget || event.target;
-            const rect = el.getBoundingClientRect();
-            const spaceBelow = window.innerHeight - rect.bottom;
-            const spaceAbove = rect.top;
-            this.statusMenuDropUp = (spaceBelow < 275 && spaceAbove > spaceBelow) || spaceBelow < 160;
-          }
+          this.openStatusMenu(taskId, event);
         }
       },
 

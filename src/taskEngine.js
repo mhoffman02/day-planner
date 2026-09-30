@@ -82,6 +82,24 @@ export function parseTaskTitle(rawTitle = '') {
 }
 
 /**
+ * Extracts inline notes/details delimited by a pipe ('|') from task input text.
+ * E.g. "Install AWS VPNC | use profile us-east-1" -> { rawTitle: "Install AWS VPNC", notes: "use profile us-east-1" }
+ * @param {string} [input=''] Raw user task input.
+ * @returns {{rawTitle: string, notes: string}} Extracted title portion and notes text.
+ */
+export function extractTaskDetails(input = '') {
+  if (!input || typeof input !== 'string') return { rawTitle: '', notes: '' };
+  const pipeIndex = input.indexOf('|');
+  if (pipeIndex === -1) {
+    return { rawTitle: input.trim(), notes: '' };
+  }
+  return {
+    rawTitle: input.slice(0, pipeIndex).trim(),
+    notes: input.slice(pipeIndex + 1).trim()
+  };
+}
+
+/**
  * Extracts an inline priority hash prefix (e.g. "#A", "#b", "#c") from task input text.
  * Requires the prefix to be separated by whitespace, punctuation (: or -), or end of string.
  * Returns the detected priority group ('A', 'B', 'C') or defaultPriority, along with the cleaned title.

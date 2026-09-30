@@ -405,7 +405,7 @@ var DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mhoff
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-var DAY_PLANNER_BUILD_NUMBER = 357;
+var DAY_PLANNER_BUILD_NUMBER = 358;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -2031,7 +2031,7 @@ function getMasterTasks(monthYearStr) {
  * @param {string} [dueDate=null] Optional due date in YYYY-MM-DD format.
  * @returns {{id: string, title: string, category: string, status: string, starred: boolean, notes: string, dueDate: string|null, movedTo: null, movedTaskId: null}} Created master task object.
  */
-function addMasterTask(title, category, dueDate) {
+function addMasterTask(title, category, dueDate, notes) {
   try {
     if (typeof Tasks === 'undefined') {
       return {
@@ -2040,7 +2040,7 @@ function addMasterTask(title, category, dueDate) {
         category: category || 'General',
         status: '•',
         starred: false,
-        notes: '',
+        notes: notes || '',
         dueDate: dueDate || null,
         movedTo: null,
         movedTaskId: null
@@ -2048,7 +2048,7 @@ function addMasterTask(title, category, dueDate) {
     }
     var taskResource = {
       title: title,
-      notes: encodeTaskMeta('', { master: true, category: category || 'General' })
+      notes: encodeTaskMeta(notes || '', { master: true, category: category || 'General' })
     };
     if (dueDate) {
       taskResource.due = dueDate + 'T00:00:00.000Z';
@@ -2137,7 +2137,7 @@ function markMasterTaskMoved(masterTaskId, targetDateStr, movedTaskId) {
  * @param {string} [sourceMasterId] Optional originating master task ID.
  * @returns {{id: string, title: string, status: string, category: string, dueDate: string, starred: boolean, notes: string, sourceMasterId: (string|null)}} Created task object.
  */
-function addDailyTask(dateStr, title, category, sourceMasterId) {
+function addDailyTask(dateStr, title, category, sourceMasterId, notes) {
   try {
     if (typeof Tasks !== 'undefined') {
       var metaPatch = { category: category || 'General' };
@@ -2145,7 +2145,7 @@ function addDailyTask(dateStr, title, category, sourceMasterId) {
       var taskResource = {
         title: title,
         due: dateStr + 'T00:00:00.000Z',
-        notes: encodeTaskMeta('', metaPatch)
+        notes: encodeTaskMeta(notes || '', metaPatch)
       };
       var created = Tasks.Tasks.insert(taskResource, '@default');
       return {
@@ -2163,11 +2163,11 @@ function addDailyTask(dateStr, title, category, sourceMasterId) {
       id: 'task_' + new Date().getTime(),
       title: title,
       status: '•',
+      notes: notes || '',
       category: category || 'General',
       dueDate: dateStr,
       sourceMasterId: sourceMasterId || null,
-      starred: false,
-      notes: ''
+      starred: false
     };
   } catch (err) {
     logError('addDailyTask', err);
@@ -3651,8 +3651,8 @@ function getMasterTasks(monthYearStr) {
   return (typeof _getMasterTasksInternal === 'function') ? _getMasterTasksInternal(monthYearStr) : (globalThis._getMasterTasksInternal ? globalThis._getMasterTasksInternal(monthYearStr) : null);
 }
 
-function addDailyTask(dateStr, title, category, sourceMasterId) {
-  return (typeof _addDailyTaskInternal === 'function') ? _addDailyTaskInternal(dateStr, title, category, sourceMasterId) : (globalThis._addDailyTaskInternal ? globalThis._addDailyTaskInternal(dateStr, title, category, sourceMasterId) : null);
+function addDailyTask(dateStr, title, category, sourceMasterId, notes) {
+  return (typeof _addDailyTaskInternal === 'function') ? _addDailyTaskInternal(dateStr, title, category, sourceMasterId, notes) : (globalThis._addDailyTaskInternal ? globalThis._addDailyTaskInternal(dateStr, title, category, sourceMasterId, notes) : null);
 }
 
 function updateDailyTask(dateStr, taskId, updates) {
@@ -3667,8 +3667,8 @@ function forwardDailyTask(sourceDateStr, taskId, targetDateStr) {
   return (typeof _forwardDailyTaskInternal === 'function') ? _forwardDailyTaskInternal(sourceDateStr, taskId, targetDateStr) : (globalThis._forwardDailyTaskInternal ? globalThis._forwardDailyTaskInternal(sourceDateStr, taskId, targetDateStr) : null);
 }
 
-function addMasterTask(title, category, dueDate) {
-  return (typeof _addMasterTaskInternal === 'function') ? _addMasterTaskInternal(title, category, dueDate) : (globalThis._addMasterTaskInternal ? globalThis._addMasterTaskInternal(title, category, dueDate) : null);
+function addMasterTask(title, category, dueDate, notes) {
+  return (typeof _addMasterTaskInternal === 'function') ? _addMasterTaskInternal(title, category, dueDate, notes) : (globalThis._addMasterTaskInternal ? globalThis._addMasterTaskInternal(title, category, dueDate, notes) : null);
 }
 
 function updateMasterTask(taskId, updates) {

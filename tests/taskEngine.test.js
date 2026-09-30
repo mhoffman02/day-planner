@@ -20,6 +20,7 @@ import {
   STATUS_LIST,
   STATUS_OPTIONS,
   isValidStatus,
+  extractTaskDetails,
   extractInlinePriority,
   filterTasksByStatus,
   filterTasksByDateHorizon,
@@ -259,6 +260,38 @@ describe('Task Engine Unit Tests', () => {
     ];
     const sorted = sortTasksByColumn(tasks, 'title', 'asc');
     assert.equal(sorted[0].id, 't2');
+  });
+
+  describe('extractTaskDetails', () => {
+    it('should split title and notes using pipe delimiter', () => {
+      const res = extractTaskDetails('Install AWS VPNC | use profile us-east-1 and RSA token');
+      assert.equal(res.rawTitle, 'Install AWS VPNC');
+      assert.equal(res.notes, 'use profile us-east-1 and RSA token');
+    });
+
+    it('should return empty notes when no pipe delimiter exists', () => {
+      const res = extractTaskDetails('Call vendor');
+      assert.equal(res.rawTitle, 'Call vendor');
+      assert.equal(res.notes, '');
+    });
+
+    it('should trim surrounding whitespace from both title and notes', () => {
+      const res = extractTaskDetails('   Deploy to production   |   check rollbacks first   ');
+      assert.equal(res.rawTitle, 'Deploy to production');
+      assert.equal(res.notes, 'check rollbacks first');
+    });
+
+    it('should preserve subsequent pipes in the notes body', () => {
+      const res = extractTaskDetails('Database migration | step 1 | step 2');
+      assert.equal(res.rawTitle, 'Database migration');
+      assert.equal(res.notes, 'step 1 | step 2');
+    });
+
+    it('should handle empty or falsy inputs gracefully', () => {
+      assert.deepEqual(extractTaskDetails(''), { rawTitle: '', notes: '' });
+      assert.deepEqual(extractTaskDetails(null), { rawTitle: '', notes: '' });
+      assert.deepEqual(extractTaskDetails(undefined), { rawTitle: '', notes: '' });
+    });
   });
 
   describe('extractInlinePriority', () => {

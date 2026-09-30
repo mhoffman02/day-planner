@@ -68,8 +68,12 @@
             <td>Your longer-running to-do list, grouped by category (Work, Personal, Financial, Projects, and more) — for things that aren't tied to one specific day yet.</td>
           </tr>
           <tr>
-            <td><b>Decision Registry</b></td>
-            <td>A running, searchable log of the key decisions and outcomes you've tagged in your notes, so you can find "what did we decide about X" without digging back through old notes.</td>
+            <td><b>Monthly Index</b></td>
+            <td>A running, searchable log of the key decisions and outcomes you've tagged with <code>#index</code> in your notes, so you can find "what did we decide about X" without digging back through old notes.</td>
+          </tr>
+          <tr>
+            <td><b>Lexicon</b></td>
+            <td>A quick-reference dictionary of abbreviations, acronyms, and project shorthand used throughout your notes and tasks.</td>
           </tr>
           <tr>
             <td><b>Future Planning</b></td>
@@ -86,10 +90,13 @@
     <section class="cards-stack">
       <article class="guide-card">
         <h3 class="guide-card-title">
-          <span class="material-symbols-outlined">format_list_bulleted</span> Prioritizing Your Tasks
+          <span class="material-symbols-outlined">format_list_bulleted</span> Prioritizing Your Tasks & Inline Notes
         </h3>
         <p class="guide-card-text">
-          Every task gets a priority letter and number: <b>A</b> for urgent, <b>B</b> for important, <b>C</b> for everything else, then a number for order within that group. Click a task's status box to mark it, in order: Open <span class="material-symbols-outlined icon-16">arrow_forward</span> Completed <span class="material-symbols-outlined icon-16">arrow_forward</span> Forwarded to another day <span class="material-symbols-outlined icon-16">arrow_forward</span> Canceled <span class="material-symbols-outlined icon-16">arrow_forward</span> Delegated to someone else.
+          Every task gets a priority letter and number: <b>A</b> for urgent, <b>B</b> for important, <b>C</b> for everything else, then a number for order within that group (type <code>#a</code>, <code>#b</code>, or <code>#c</code> in the input or click the priority selector). Click a task's status box to mark it: Open <span class="material-symbols-outlined icon-16">arrow_forward</span> Completed <span class="material-symbols-outlined icon-16">arrow_forward</span> Forwarded <span class="material-symbols-outlined icon-16">arrow_forward</span> Canceled <span class="material-symbols-outlined icon-16">arrow_forward</span> Delegated.
+        </p>
+        <p class="guide-card-text">
+          <b>Adding Notes & Details:</b> Use a pipe <code>|</code> in the task description to attach details (e.g. <code>Call vendor | discuss Q3 scope and renewal terms</code>). The title becomes "Call vendor", and the details save straight to Google Tasks details, accessible anytime via the sticky note icon (<span class="material-symbols-outlined icon-16">sticky_note_2</span>).
         </p>
       </article>
 
@@ -104,10 +111,19 @@
 
       <article class="guide-card">
         <h3 class="guide-card-title">
+          <span class="material-symbols-outlined">history</span> Note Version History (Time Machine)
+        </h3>
+        <p class="guide-card-text">
+          Need to review earlier versions of your daily notes or restore deleted thoughts? Click the Time Machine icon (<span class="material-symbols-outlined icon-16">history</span>) in the Notes column header to inspect hourly revisions, see diffs, and restore any snapshot with one click.
+        </p>
+      </article>
+
+      <article class="guide-card">
+        <h3 class="guide-card-title">
           <span class="material-symbols-outlined">tag</span> Logging a Decision So You Can Find It Later
         </h3>
         <p class="guide-card-text">
-          While typing a note, add a tag like <code>#index [Meeting] Approved the Q3 budget</code>. It automatically shows up in the <b>Decision Registry</b> tab, in date order — a running record of the calls you've made, without any extra filing.
+          While typing a note, add a tag like <code>#index [Meeting] Approved the Q3 budget</code>. It automatically shows up in the <b>Monthly Index</b> tab, in date order — a running record of the calls you've made, without any extra filing.
         </p>
       </article>
 

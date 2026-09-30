@@ -411,6 +411,18 @@
     return formatTaskTitle(parsed.priorityGroup, parsed.sequence, trimmed);
   }
 
+  function extractTaskDetails(input) {
+    if (!input || typeof input !== 'string') return { rawTitle: '', notes: '' };
+    const pipeIndex = input.indexOf('|');
+    if (pipeIndex === -1) {
+      return { rawTitle: input.trim(), notes: '' };
+    }
+    return {
+      rawTitle: input.slice(0, pipeIndex).trim(),
+      notes: input.slice(pipeIndex + 1).trim()
+    };
+  }
+
   function extractInlinePriority(input, defaultPriority) {
     const fallback = defaultPriority || 'A';
     if (!input) return { priorityGroup: fallback, cleanTitle: '' };
@@ -1318,7 +1330,7 @@
       return this._runRpc('getMasterTasks', monthYearStr);
     }
 
-    async addDailyTask(dateStr, title, category = 'General', sourceMasterId = null) {
+    async addDailyTask(dateStr, title, category = 'General', sourceMasterId = null, notes = '') {
       if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
         if (!this.mockData.dailyTasks[dateStr]) {
           this.mockData.dailyTasks[dateStr] = [];
@@ -1331,7 +1343,7 @@
           dueDate: dateStr,
           sourceMasterId: sourceMasterId || null,
           starred: false,
-          notes: ''
+          notes: notes || ''
         };
         this.mockData.dailyTasks[dateStr].push(newTask);
         return newTask;
@@ -1341,17 +1353,19 @@
         window.google.script.run
           .withSuccessHandler(resolve)
           .withFailureHandler(reject)
-          .addDailyTask(dateStr, title, category, sourceMasterId);
+          .addDailyTask(dateStr, title, category, sourceMasterId, notes);
       });
     }
 
-    async addMasterTask(title, category = 'General', dueDate = null) {
+    async addMasterTask(title, category = 'General', dueDate = null, notes = '') {
       if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
         const newTask = {
           id: `m_${Date.now()}`,
           title,
           category: category || 'General',
           status: '•',
+          starred: false,
+          notes: notes || '',
           dueDate: dueDate || null,
           movedTo: null,
           movedTaskId: null
@@ -1364,7 +1378,7 @@
         window.google.script.run
           .withSuccessHandler(resolve)
           .withFailureHandler(reject)
-          .addMasterTask(title, category, dueDate);
+          .addMasterTask(title, category, dueDate, notes);
       });
     }
 
@@ -2026,6 +2040,7 @@
       openStatusMenuTaskId: null,
       statusMenuCloseTimer: null,
       statusMenuDropUp: false,
+      statusMenuPos: { top: null, bottom: null, left: null },
       statusOptions: STATUS_OPTIONS,
       dailyTaskSort: { column: null, direction: 'asc' },
       openNotesPopoverTaskId: null,
@@ -4597,7 +4612,8 @@
       },
 
       async addMasterTask() {
-        const extracted = extractInlinePriority(this.newMasterTaskTitle, this.newMasterTaskPriorityGroup);
+        const details = extractTaskDetails(this.newMasterTaskTitle);
+        const extracted = extractInlinePriority(details.rawTitle, this.newMasterTaskPriorityGroup);
         this.newMasterTaskPriorityGroup = extracted.priorityGroup;
         const taskTitle = extracted.cleanTitle;
         if (!taskTitle || this.addingMasterTask) return;
@@ -4608,10 +4624,11 @@
           const dueDate = this.newMasterTaskDueDate ? this.newMasterTaskDueDate.trim() : null;
           const existingCount = this.masterTasks.length + 1;
           const formattedTitle = formatTaskTitle(this.newMasterTaskPriorityGroup, existingCount, taskTitle);
-          const created = await this.bridge.addMasterTask(formattedTitle, category, dueDate);
+          const created = await this.bridge.addMasterTask(formattedTitle, category, dueDate, details.notes);
           created._moveDate = getLocalDateStr();
           created._moving = false;
           created._isNew = true;
+          if (details.notes && !created.notes) created.notes = details.notes;
           if (!created.category) created.category = category;
           if (!created.status) created.status = '•';
           if (!created.dueDate && dueDate) created.dueDate = dueDate;
@@ -4993,7 +5010,8 @@
       },
 
       async addDailyTask() {
-        const extracted = extractInlinePriority(this.newTaskTitle, this.newTaskPriorityGroup);
+        const details = extractTaskDetails(this.newTaskTitle);
+        const extracted = extractInlinePriority(details.rawTitle, this.newTaskPriorityGroup);
         this.newTaskPriorityGroup = extracted.priorityGroup;
         const taskTitle = extracted.cleanTitle;
         if (!taskTitle) return;
@@ -5002,7 +5020,8 @@
           this.recordCategory(category);
           const existingCount = this.dailyTasks.length + 1;
           const formattedTitle = formatTaskTitle(this.newTaskPriorityGroup, existingCount, taskTitle);
-          const newTask = await this.bridge.addDailyTask(this.selectedDate, formattedTitle, category);
+          const newTask = await this.bridge.addDailyTask(this.selectedDate, formattedTitle, category, null, details.notes);
+          if (details.notes && !newTask.notes) newTask.notes = details.notes;
           this.dailyTasks.push(newTask);
           this.newTaskTitle = '';
           this.newTaskCategory = '';
@@ -5036,7 +5055,8 @@
       async updateTaskTitle(taskId, newTitle) {
         if (!this.editingTaskId || this.editingTaskId !== taskId) return;
         this.editingTaskId = null;
-        const trimmed = (newTitle || '').trim();
+        const details = extractTaskDetails(newTitle || '');
+        const trimmed = details.rawTitle;
         this.editingTaskTitle = '';
 
         let task = this.dailyTasks.find(t => t.id === taskId);
@@ -5048,19 +5068,31 @@
         if (!task) return;
 
         const parsed = this.parseTask(task.title);
-        if (!trimmed || trimmed === parsed.cleanTitle) {
+        const titleChanged = Boolean(trimmed && trimmed !== parsed.cleanTitle);
+        const notesChanged = Boolean(details.notes && details.notes !== (task.notes || ''));
+        if (!titleChanged && !notesChanged) {
           return;
         }
 
         const oldTitle = task.title;
-        const newFullTitle = updateTaskTitleText(oldTitle, trimmed);
+        const oldNotes = task.notes || '';
+        const newFullTitle = titleChanged ? updateTaskTitleText(oldTitle, trimmed) : oldTitle;
         task.title = newFullTitle;
+        if (details.notes) {
+          task.notes = details.notes;
+        }
 
         const linkedMaster = !isMaster ? this.masterTasks.find(m => m.movedTaskId === task.id) : null;
-        if (linkedMaster) linkedMaster.title = newFullTitle;
+        if (linkedMaster) {
+          linkedMaster.title = newFullTitle;
+          if (details.notes) linkedMaster.notes = details.notes;
+        }
         if (isMaster && task.movedTaskId) {
           const linkedDaily = this.dailyTasks.find(d => d.id === task.movedTaskId);
-          if (linkedDaily) linkedDaily.title = newFullTitle;
+          if (linkedDaily) {
+            linkedDaily.title = newFullTitle;
+            if (details.notes) linkedDaily.notes = details.notes;
+          }
         }
 
         if (isMaster) {
@@ -5069,23 +5101,30 @@
           this.syncDailyCacheFromLiveState();
         }
 
+        const updates = { title: newFullTitle };
+        if (details.notes) updates.notes = details.notes;
+
         try {
           if (isMaster) {
             if (this.bridge && typeof this.bridge.updateMasterTask === 'function') {
-              await this.bridge.updateMasterTask(task.id, { title: newFullTitle });
+              await this.bridge.updateMasterTask(task.id, updates);
             } else if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
-              await this.bridge.updateDailyTask('', task.id, { title: newFullTitle });
+              await this.bridge.updateDailyTask('', task.id, updates);
             }
           } else {
             if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
-              await this.bridge.updateDailyTask(this.selectedDate, task.id, { title: newFullTitle });
+              await this.bridge.updateDailyTask(this.selectedDate, task.id, updates);
             }
           }
           await this.trigger2WaySync();
         } catch (err) {
           console.error('🔥 updateTaskTitle error:', err);
           task.title = oldTitle;
-          if (linkedMaster) linkedMaster.title = oldTitle;
+          task.notes = oldNotes;
+          if (linkedMaster) {
+            linkedMaster.title = oldTitle;
+            linkedMaster.notes = oldNotes;
+          }
           if (isMaster) {
             this.syncMasterTasksCacheFromLiveState();
           } else {
@@ -5201,10 +5240,17 @@
         this.openStatusMenuTaskId = taskId;
         if (event && (event.currentTarget || event.target)) {
           var el = event.currentTarget || event.target;
-          var rect = el.getBoundingClientRect();
+          var btn = el.closest ? (el.closest('.status-btn') || el) : el;
+          var rect = btn.getBoundingClientRect();
           var spaceBelow = window.innerHeight - rect.bottom;
           var spaceAbove = rect.top;
-          this.statusMenuDropUp = (spaceBelow < 275 && spaceAbove > spaceBelow) || spaceBelow < 160;
+          var dropUp = (spaceBelow < 275 && spaceAbove > spaceBelow) || spaceBelow < 160;
+          this.statusMenuDropUp = dropUp;
+          this.statusMenuPos = {
+            top: dropUp ? null : Math.round(rect.bottom + 2) + 'px',
+            bottom: dropUp ? Math.round(window.innerHeight - rect.top + 2) + 'px' : null,
+            left: Math.round(rect.left) + 'px'
+          };
         }
       },
 
@@ -5213,14 +5259,7 @@
         if (this.openStatusMenuTaskId === taskId) {
           this.openStatusMenuTaskId = null;
         } else {
-          this.openStatusMenuTaskId = taskId;
-          if (event && (event.currentTarget || event.target)) {
-            var el = event.currentTarget || event.target;
-            var rect = el.getBoundingClientRect();
-            var spaceBelow = window.innerHeight - rect.bottom;
-            var spaceAbove = rect.top;
-            this.statusMenuDropUp = (spaceBelow < 275 && spaceAbove > spaceBelow) || spaceBelow < 160;
-          }
+          this.openStatusMenu(taskId, event);
         }
       },
 

@@ -81,7 +81,7 @@
 </head>
 <body>
   <!-- Main Binder Application Container -->
-  <main class="binder-container" x-data="plannerApp" x-cloak>
+  <main class="binder-container" x-data="plannerApp" x-cloak @scroll.window.passive="openStatusMenuTaskId = null">
     
     <!-- Single Consolidated Top Bar (Brand, Date Controls, View Tabs, & Actions) -->
     <header class="binder-header single-top-bar" aria-label="Day Planner Header">
@@ -283,7 +283,7 @@
                 <button type="button" class="priority-segment-btn" :class="{ 'active b': newTaskPriorityGroup === 'B' }" @click="newTaskPriorityGroup = 'B'" role="radio" :aria-checked="newTaskPriorityGroup === 'B'" aria-label="Priority B" title="B: Medium priority (Alt+B or #b)" accesskey="b">B</button>
                 <button type="button" class="priority-segment-btn" :class="{ 'active c': newTaskPriorityGroup === 'C' }" @click="newTaskPriorityGroup = 'C'" role="radio" :aria-checked="newTaskPriorityGroup === 'C'" aria-label="Priority C" title="C: Normal priority (Alt+C or #c)" accesskey="c">C</button>
               </div>
-              <input type="text" x-model="newTaskTitle" @input="handleTaskTitleInput()" placeholder="Add task title (e.g. Call vendor / #a Call vendor)..." class="task-input-field" aria-label="New task description">
+              <input type="text" x-model="newTaskTitle" @input="handleTaskTitleInput()" placeholder="Add task title (e.g. #a Call vendor | discuss Q3 scope)..." title="Tip: Prefix with #a, #b, or #c for priority. Use ' | ' to add notes/details (e.g. #a Call vendor | discuss scope)." class="task-input-field" aria-label="New task description">
               <input type="text" x-model="newTaskCategory" placeholder="Category" class="task-input-field daily-task-category-input" list="category-suggestions" aria-label="Task category">
               <button type="submit" class="btn-primary btn-add-task-round" aria-label="Add Task" title="Add Task">
                 <span class="material-symbols-outlined">add</span>
@@ -291,7 +291,7 @@
             </form>
 
             <!-- Task Table Grid -->
-            <figure class="table-container daily-tasks-table-container">
+            <figure class="table-container daily-tasks-table-container" @scroll.passive="openStatusMenuTaskId = null">
               <table class="task-table daily-tasks-table">
                 <thead>
                   <tr>
@@ -320,7 +320,8 @@
                           <button type="button" class="status-btn" @click="toggleStatusMenu(task.id, $event)" x-text="task.status || '•'"
                                   aria-haspopup="menu" :aria-expanded="openStatusMenuTaskId === task.id"
                                   :aria-label="'Task status: ' + (task.status || 'Open') + '. Click to choose a status.'"></button>
-                          <div class="status-menu" :class="{ 'dropup': statusMenuDropUp, 'dropdown-down': !statusMenuDropUp }" role="menu" x-show="openStatusMenuTaskId === task.id" @click.outside="openStatusMenuTaskId = null" x-cloak>
+                          <div class="status-menu" :class="{ 'dropup': statusMenuDropUp, 'dropdown-down': !statusMenuDropUp }" role="menu" x-show="openStatusMenuTaskId === task.id" @click.outside="openStatusMenuTaskId = null" x-cloak
+                               :style="openStatusMenuTaskId === task.id && statusMenuPos.left ? (statusMenuDropUp ? 'position: fixed; bottom: ' + statusMenuPos.bottom + '; left: ' + statusMenuPos.left + ';' : 'position: fixed; top: ' + statusMenuPos.top + '; left: ' + statusMenuPos.left + ';') : ''">
                             <template x-for="opt in statusOptions" :key="opt.value">
                               <button type="button" class="status-menu-item" role="menuitem"
                                       :class="{ 'is-active': (task.status || '•') === opt.value }"
@@ -836,7 +837,7 @@
               <button type="button" class="priority-segment-btn" :class="{ 'active b': newMasterTaskPriorityGroup === 'B' }" @click="newMasterTaskPriorityGroup = 'B'" role="radio" :aria-checked="newMasterTaskPriorityGroup === 'B'" aria-label="Priority B" title="Assign Priority B (Alt+B or #b)" accesskey="b">B</button>
               <button type="button" class="priority-segment-btn" :class="{ 'active c': newMasterTaskPriorityGroup === 'C' }" @click="newMasterTaskPriorityGroup = 'C'" role="radio" :aria-checked="newMasterTaskPriorityGroup === 'C'" aria-label="Priority C" title="Assign Priority C (Alt+C or #c)" accesskey="c">C</button>
             </div>
-            <input type="text" x-model="newMasterTaskTitle" @input="handleMasterTaskTitleInput()" placeholder="Add master task title (e.g. Call vendor / #a Call vendor)..." class="task-input-field master-task-title-input" aria-label="New master task description">
+            <input type="text" x-model="newMasterTaskTitle" @input="handleMasterTaskTitleInput()" placeholder="Add master task (e.g. #a Refactor auth | add tests)..." title="Tip: Prefix with #a, #b, or #c for priority. Use ' | ' to add notes/details (e.g. #a Refactor auth | add tests)." class="task-input-field master-task-title-input" aria-label="New master task description">
             <div class="master-task-due-wrap" @click.outside="closeMasterTaskDuePicker()">
               <button type="button" class="task-input-field master-task-due-btn" @click="toggleMasterTaskDuePicker()" title="Optional due date (click to pick)" aria-haspopup="dialog" :aria-expanded="masterTaskDuePickerOpen">
                 <span class="material-symbols-outlined icon-16" style="opacity:0.7;">calendar_today</span>
@@ -884,7 +885,7 @@
               <span class="material-symbols-outlined icon-18" :class="{ spin: addingMasterTask }" x-text="addingMasterTask ? 'progress_activity' : 'add'">add</span>
             </button>
           </form>
-          <figure class="table-container master-tasks-table-container">
+          <figure class="table-container master-tasks-table-container" @scroll.passive="openStatusMenuTaskId = null">
             <table class="task-table table-card master-tasks-table">
               <thead>
                 <tr class="table-header-row">
@@ -917,7 +918,8 @@
                         <button type="button" class="status-btn" @click="toggleStatusMenu(mTask.id, $event)" x-text="mTask.status || '•'"
                                 aria-haspopup="menu" :aria-expanded="openStatusMenuTaskId === mTask.id"
                                 :aria-label="'Master task status: ' + (mTask.status || 'Open') + '. Click to choose a status.'"></button>
-                        <div class="status-menu" :class="{ 'dropup': statusMenuDropUp, 'dropdown-down': !statusMenuDropUp }" role="menu" x-show="openStatusMenuTaskId === mTask.id" @click.outside="openStatusMenuTaskId = null" x-cloak>
+                        <div class="status-menu" :class="{ 'dropup': statusMenuDropUp, 'dropdown-down': !statusMenuDropUp }" role="menu" x-show="openStatusMenuTaskId === mTask.id" @click.outside="openStatusMenuTaskId = null" x-cloak
+                             :style="openStatusMenuTaskId === mTask.id && statusMenuPos.left ? (statusMenuDropUp ? 'position: fixed; bottom: ' + statusMenuPos.bottom + '; left: ' + statusMenuPos.left + ';' : 'position: fixed; top: ' + statusMenuPos.top + '; left: ' + statusMenuPos.left + ';') : ''">
                           <template x-for="opt in statusOptions" :key="opt.value">
                             <button type="button" class="status-menu-item" role="menuitem"
                                     :class="{ 'is-active': (mTask.status || '•') === opt.value }"
@@ -1098,7 +1100,8 @@
                             <button type="button" class="status-btn" @click="toggleStatusMenu(item.id, $event)" x-text="item.status || '•'"
                                     aria-haspopup="menu" :aria-expanded="openStatusMenuTaskId === item.id"
                                     :aria-label="'Item status: ' + (item.status || 'Open') + '. Click to choose a status.'"></button>
-                            <div class="status-menu" :class="{ 'dropup': statusMenuDropUp, 'dropdown-down': !statusMenuDropUp }" role="menu" x-show="openStatusMenuTaskId === item.id" @click.outside="openStatusMenuTaskId = null" x-cloak>
+                            <div class="status-menu" :class="{ 'dropup': statusMenuDropUp, 'dropdown-down': !statusMenuDropUp }" role="menu" x-show="openStatusMenuTaskId === item.id" @click.outside="openStatusMenuTaskId = null" x-cloak
+                                 :style="openStatusMenuTaskId === item.id && statusMenuPos.left ? (statusMenuDropUp ? 'position: fixed; bottom: ' + statusMenuPos.bottom + '; left: ' + statusMenuPos.left + ';' : 'position: fixed; top: ' + statusMenuPos.top + '; left: ' + statusMenuPos.left + ';') : ''">
                               <template x-for="opt in statusOptions" :key="opt.value">
                                 <button type="button" class="status-menu-item" role="menuitem"
                                         :class="{ 'is-active': (item.status || '•') === opt.value }"

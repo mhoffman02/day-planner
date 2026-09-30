@@ -259,7 +259,7 @@ export class GASBridge {
    * @param {string} [sourceMasterId] Optional originating master task ID.
    * @returns {Promise<object>} Created daily task item promise.
    */
-  async addDailyTask(dateStr, title, category = 'General', sourceMasterId = null) {
+  async addDailyTask(dateStr, title, category = 'General', sourceMasterId = null, notes = '') {
     if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
       if (!this.mockData.dailyTasks[dateStr]) {
         this.mockData.dailyTasks[dateStr] = [];
@@ -272,7 +272,7 @@ export class GASBridge {
         dueDate: dateStr,
         sourceMasterId: sourceMasterId || null,
         starred: false,
-        notes: ''
+        notes: notes || ''
       };
       this.mockData.dailyTasks[dateStr].push(newTask);
       return newTask;
@@ -282,7 +282,7 @@ export class GASBridge {
       window.google.script.run
         .withSuccessHandler(resolve)
         .withFailureHandler(reject)
-        .addDailyTask(dateStr, title, category, sourceMasterId);
+        .addDailyTask(dateStr, title, category, sourceMasterId, notes);
     });
   }
 
@@ -291,9 +291,10 @@ export class GASBridge {
    * @param {string} title Task title description.
    * @param {string} [category='General'] Optional category classification.
    * @param {string} [dueDate=null] Optional due date in YYYY-MM-DD format.
+   * @param {string} [notes=''] Optional task details/notes.
    * @returns {Promise<object>} Created master task item promise.
    */
-  async addMasterTask(title, category = 'General', dueDate = null) {
+  async addMasterTask(title, category = 'General', dueDate = null, notes = '') {
     if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
       const newTask = {
         id: `m_${Date.now()}`,
@@ -301,7 +302,7 @@ export class GASBridge {
         category: category || 'General',
         status: '•',
         starred: false,
-        notes: '',
+        notes: notes || '',
         dueDate: dueDate || null,
         movedTo: null,
         movedTaskId: null
@@ -314,7 +315,7 @@ export class GASBridge {
       window.google.script.run
         .withSuccessHandler(resolve)
         .withFailureHandler(reject)
-        .addMasterTask(title, category, dueDate);
+        .addMasterTask(title, category, dueDate, notes);
     });
   }
 
