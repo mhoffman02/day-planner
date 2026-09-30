@@ -231,12 +231,16 @@ export async function sendAiPrompt(serviceUrl, apiKey, prompt, modelOrFetchFn = 
   };
   if (apiKey) {
     headers['Authorization'] = `Bearer ${apiKey.trim()}`;
+    headers['x-goog-api-key'] = apiKey.trim();
   }
 
   const requestBody = {
     apiKey: apiKey || '',
     model: typeof model === 'string' && model ? model : 'gemini-2.5-flash',
     prompt: cleanPrompt,
+    contents: [
+      { role: 'user', parts: [{ text: cleanPrompt }] }
+    ],
     messages: [
       { role: 'user', content: cleanPrompt }
     ]
