@@ -9,8 +9,5 @@
 
 ## Open
 
-- [ ] **AI Assist on WORK via Server Proxy** — Browser direct access to `gemini.google.com` is blocked by the federal network's proxy. The new unified server-side proxy (`callAiMicroservice` via `UrlFetchApp`) executes directly from Google's data centers to USAi's endpoint, bypassing the client browser proxy block! Pending deployment verification.
-
-## Loose end (user-blocked)
-
-- [x] **WORK deployment repointed to Version 118**: Repointed by `michael.hoffman@gsa.gov` via Manage deployments. Carrying all Phase 21-23 features (inline task description editing, deep archive fullText search, time-machine notes restore, lexicon popover, and unified AI REST gateway connector).
+- [ ] **Repoint WORK deployment to Version 120**: `michael.hoffman@gsa.gov` repoints deployment via Manage Deployments in WORK Apps Script IDE (`https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit`) to carry build 358 (inline task notes delimiter, fixed-position status menu clipping fix, Time Machine, and updated About guide).
+- [ ] **AI Assist on WORK via Server Proxy Verification** — Browser direct access to `gemini.google.com` is blocked by the federal network's proxy. The new unified server-side proxy (`callAiMicroservice` via `UrlFetchApp`) executes directly from Google's data centers to USAi's endpoint, bypassing the client browser proxy block! Pending user verification on WORK.
