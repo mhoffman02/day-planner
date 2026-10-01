@@ -405,7 +405,7 @@ const DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mho
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const DAY_PLANNER_BUILD_NUMBER = 371;
+const DAY_PLANNER_BUILD_NUMBER = 372;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -2506,7 +2506,7 @@ function updateFutureItemStatus(year, monthKey, itemId, status) {
     if (typeof Tasks === 'undefined') {
       return { id: itemId, title: '', category: 'General', status: status };
     }
-    var updated = updateDailyTask('', itemId, { status: status });
+    const updated = updateDailyTask('', itemId, { status: status });
     if (!updated) return null;
     return { id: updated.id, title: updated.title, category: updated.category, status: updated.status };
   } catch (err) {
@@ -2532,15 +2532,15 @@ function transferFutureItem(year, monthKey, itemId, dateStr, priorityGroup) {
     if (typeof Tasks === 'undefined') {
       return { id: itemId, title: '', status: '•', category: 'General', dueDate: dateStr };
     }
-    var current = Tasks.Tasks.get('@default', itemId);
-    var formattedTitle = '[' + (priorityGroup || 'A').toUpperCase() + '1] ' + current.title;
-    var patch = {
+    const current = Tasks.Tasks.get('@default', itemId);
+    const formattedTitle = '[' + (priorityGroup || 'A').toUpperCase() + '1] ' + current.title;
+    const patch = {
       title: formattedTitle,
       due: dateStr + 'T00:00:00.000Z',
       notes: encodeTaskMeta(current.notes, { future: false })
     };
-    var updated = Tasks.Tasks.patch(patch, '@default', itemId);
-    var meta = decodeTaskMeta(updated.notes);
+    const updated = Tasks.Tasks.patch(patch, '@default', itemId);
+    const meta = decodeTaskMeta(updated.notes);
     return {
       id: updated.id,
       title: updated.title,
@@ -2569,13 +2569,13 @@ function transferFutureItem(year, monthKey, itemId, dateStr, priorityGroup) {
  */
 function pushFutureItemToNextMonth(year, monthKey, itemId) {
   try {
-    var nextKey = nextMonthKeyStr_(monthKey);
+    const nextKey = nextMonthKeyStr_(monthKey);
     if (typeof Tasks === 'undefined') {
       return { id: itemId, title: '', category: 'General', status: '•', dueDate: lastDayOfMonthStr_(nextKey) };
     }
-    var nextDue = lastDayOfMonthStr_(nextKey);
-    var updated = Tasks.Tasks.patch({ due: nextDue + 'T00:00:00.000Z' }, '@default', itemId);
-    var meta = decodeTaskMeta(updated.notes);
+    const nextDue = lastDayOfMonthStr_(nextKey);
+    const updated = Tasks.Tasks.patch({ due: nextDue + 'T00:00:00.000Z' }, '@default', itemId);
+    const meta = decodeTaskMeta(updated.notes);
     return {
       id: updated.id,
       title: updated.title,
@@ -2609,7 +2609,7 @@ function deleteFutureItem(year, monthKey, itemId) {
  * @returns {Array<{docName: string, docId: string, docUrl: string, matches: Array<{heading: string, snippet: string}>}>} Match results.
  */
 function searchAcrossAllMonthlyDocs(query) {
-  var cleanQuery = (query || '').trim().toLowerCase();
+  const cleanQuery = (query || '').trim().toLowerCase();
   if (!cleanQuery) return [];
 
   if (typeof DriveApp === 'undefined' || typeof Docs === 'undefined') {
@@ -2626,22 +2626,22 @@ function searchAcrossAllMonthlyDocs(query) {
   }
 
   try {
-    var targetFolder = getValidatedRootFolder();
+    const targetFolder = getValidatedRootFolder();
     if (!targetFolder) return [];
 
-    var files = targetFolder.getFiles();
-    var results = [];
+    const files = targetFolder.getFiles();
+    const results = [];
 
     while (files.hasNext()) {
-      var file = files.next();
-      var name = file.getName();
+      const file = files.next();
+      const name = file.getName();
       if (name.indexOf('Day Planner Notes') !== -1) {
-        var text = docsGetBodyElements_(file.getId()).map(docsElementText_).join('\n');
+        const text = docsGetBodyElements_(file.getId()).map(docsElementText_).join('\n');
 
         if (text.toLowerCase().indexOf(cleanQuery) !== -1) {
-          var lines = text.split('\n');
-          var matches = [];
-          var currentHeading = name;
+          const lines = text.split('\n');
+          const matches = [];
+          let currentHeading = name;
 
           lines.forEach(function(line) {
             if (line.startsWith('Day Planner - ') || line.startsWith('## ')) {
@@ -2677,7 +2677,7 @@ function searchAcrossAllMonthlyDocs(query) {
  */
 function showCrossMonthSearchSidebar() {
   if (typeof DocumentApp === 'undefined') return;
-  var html = HtmlService.createHtmlOutput(
+  const html = HtmlService.createHtmlOutput(
     '<div style="font-family:sans-serif; padding:12px; color:#1c2826;">' +
     '<h3 style="color:#2d6a5a; margin-top:0;">🔍 Universal Planner Search</h3>' +
     '<p style="font-size:0.82rem; color:#5c6b66;">Search topics, decisions, and keywords across all 12 monthly Google Docs.</p>' +
@@ -2714,7 +2714,7 @@ function showCrossMonthSearchSidebar() {
  */
 function showIndexRegistrySidebar() {
   if (typeof DocumentApp === 'undefined') return;
-  var html = HtmlService.createHtmlOutput(
+  const html = HtmlService.createHtmlOutput(
     '<div style="font-family:sans-serif; padding:12px; color:#1c2826;">' +
     '<h3 style="color:#2d6a5a; margin-top:0;">📌 #index Decision Registry</h3>' +
     '<p style="font-size:0.82rem; color:#5c6b66;">Key decisions & indexed milestones tagged with <b>#index [Topic]</b> across your planner.</p>' +
@@ -2746,8 +2746,8 @@ function showIndexRegistrySidebar() {
  */
 function openPlannerWebAppDialog() {
   if (typeof DocumentApp === 'undefined') return;
-  var url = ScriptApp.getService().getUrl();
-  var html = HtmlService.createHtmlOutput(
+  const url = ScriptApp.getService().getUrl();
+  const html = HtmlService.createHtmlOutput(
     '<div style="font-family:sans-serif; padding:16px; text-align:center;">' +
     '<h3 style="color:#2d6a5a;">📖 Day Planner Web App</h3>' +
     '<p>Click below to open your Digital Binder Application in a new browser tab:</p>' +
@@ -2774,42 +2774,42 @@ function getWebAppUrl() {
  * @returns {string} Formatted date (YYYY-MM-DD) or empty string.
  */
 function parseArchiveNoteHeading_(heading, docTitle) {
-  var monthMap = {
+  const monthMap = {
     january: '01', february: '02', march: '03', april: '04',
     may: '05', june: '06', july: '07', august: '08',
     september: '09', october: '10', november: '11', december: '12'
   };
 
-  var text = (heading || '').trim();
+  const text = (heading || '').trim();
 
   // 1. Look for ISO date: YYYY-MM-DD
-  var isoMatch = text.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
+  const isoMatch = text.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
   if (isoMatch) {
     return isoMatch[1] + '-' + isoMatch[2] + '-' + isoMatch[3];
   }
 
   // 2. Look for Month Day, Year (e.g. "Sunday, August 16, 2026")
-  var monthDayYearMatch = text.match(/([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})/);
+  const monthDayYearMatch = text.match(/([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})/);
   if (monthDayYearMatch) {
-    var mName = monthDayYearMatch[1].toLowerCase();
+    const mName = monthDayYearMatch[1].toLowerCase();
     if (monthMap[mName]) {
-      var y = monthDayYearMatch[3];
-      var m = monthMap[mName];
-      var d = String(monthDayYearMatch[2]);
+      const y = monthDayYearMatch[3];
+      const m = monthMap[mName];
+      let d = String(monthDayYearMatch[2]);
       if (d.length === 1) d = '0' + d;
       return y + '-' + m + '-' + d;
     }
   }
 
   // 3. Fall back to docTitle if it contains Year and Month
-  var titleText = (docTitle || '').trim();
-  var titleIsoMatch = titleText.match(/\b(\d{4})-(\d{2})\b/);
+  const titleText = (docTitle || '').trim();
+  const titleIsoMatch = titleText.match(/\b(\d{4})-(\d{2})\b/);
   if (titleIsoMatch) {
     return titleIsoMatch[1] + '-' + titleIsoMatch[2] + '-01';
   }
-  var titleMonthMatch = titleText.match(/([A-Za-z]+)\s+(\d{4})/);
+  const titleMonthMatch = titleText.match(/([A-Za-z]+)\s+(\d{4})/);
   if (titleMonthMatch) {
-    var tmName = titleMonthMatch[1].toLowerCase();
+    const tmName = titleMonthMatch[1].toLowerCase();
     if (monthMap[tmName]) {
       return titleMonthMatch[2] + '-' + monthMap[tmName] + '-01';
     }
@@ -2825,7 +2825,7 @@ function parseArchiveNoteHeading_(heading, docTitle) {
  * @returns {Array<{type: string, title: string, snippet: string, date: string, targetView: string, docName: string, docUrl: string}>}
  */
 function searchArchiveNotes(query) {
-  var cleanQuery = (query || '').trim();
+  const cleanQuery = (query || '').trim();
   if (!cleanQuery || cleanQuery.length < 2) return [];
 
   if (typeof DriveApp === 'undefined' && typeof Drive === 'undefined') {
@@ -2843,13 +2843,13 @@ function searchArchiveNotes(query) {
   }
 
   try {
-    var escapedQuery = cleanQuery.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-    var driveQuery = "fullText contains '" + escapedQuery + "' and title contains 'Day Planner Notes - ' and trashed = false";
+    const escapedQuery = cleanQuery.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const driveQuery = "fullText contains '" + escapedQuery + "' and title contains 'Day Planner Notes - ' and trashed = false";
 
-    var matchingFiles = [];
+    let matchingFiles = [];
     if (typeof Drive !== 'undefined' && Drive.Files && Drive.Files.list) {
       try {
-        var listRes = Drive.Files.list({
+        const listRes = Drive.Files.list({
           q: driveQuery,
           maxResults: 12,
           fields: 'items(id,title,alternateLink)'
@@ -2864,10 +2864,10 @@ function searchArchiveNotes(query) {
 
     if (matchingFiles.length === 0 && typeof DriveApp !== 'undefined') {
       try {
-        var fileIter = DriveApp.searchFiles(driveQuery);
-        var count = 0;
+        const fileIter = DriveApp.searchFiles(driveQuery);
+        let count = 0;
         while (fileIter.hasNext() && count < 12) {
-          var f = fileIter.next();
+          const f = fileIter.next();
           matchingFiles.push({
             id: f.getId(),
             title: f.getName(),
@@ -2880,16 +2880,16 @@ function searchArchiveNotes(query) {
       }
     }
 
-    var results = [];
-    var cleanLower = cleanQuery.toLowerCase();
+    const results = [];
+    const cleanLower = cleanQuery.toLowerCase();
 
-    for (var i = 0; i < matchingFiles.length; i++) {
-      var file = matchingFiles[i];
-      var fileId = file.id;
-      var fileTitle = file.title || ('Day Planner Notes - ' + (i + 1));
-      var fileUrl = file.alternateLink || ('https:' + '/' + '/docs.google.com/document/d/' + fileId + '/edit');
+    for (let i = 0; i < matchingFiles.length; i++) {
+      const file = matchingFiles[i];
+      const fileId = file.id;
+      const fileTitle = file.title || ('Day Planner Notes - ' + (i + 1));
+      const fileUrl = file.alternateLink || ('https:' + '/' + '/docs.google.com/document/d/' + fileId + '/edit');
 
-      var elements = [];
+      let elements = [];
       try {
         if (typeof docsGetBodyElements_ === 'function') {
           elements = docsGetBodyElements_(fileId);
@@ -2899,17 +2899,17 @@ function searchArchiveNotes(query) {
         continue;
       }
 
-      var currentHeading = fileTitle;
-      var currentDate = '';
-      var docMatches = 0;
+      let currentHeading = fileTitle;
+      let currentDate = '';
+      let docMatches = 0;
 
-      for (var j = 0; j < elements.length; j++) {
-        var el = elements[j];
-        var text = (typeof docsElementText_ === 'function') ? docsElementText_(el) : '';
+      for (let j = 0; j < elements.length; j++) {
+        const el = elements[j];
+        const text = (typeof docsElementText_ === 'function') ? docsElementText_(el) : '';
         if (!text) continue;
 
-        var heading = (typeof docsElementHeading_ === 'function') ? docsElementHeading_(el) : '';
-        var isHeading = heading === 'HEADING_2' || text.indexOf('Day Planner - ') === 0 || text.indexOf('## ') === 0;
+        const heading = (typeof docsElementHeading_ === 'function') ? docsElementHeading_(el) : '';
+        const isHeading = heading === 'HEADING_2' || text.indexOf('Day Planner - ') === 0 || text.indexOf('## ') === 0;
 
         if (isHeading) {
           currentHeading = text;
@@ -2917,14 +2917,14 @@ function searchArchiveNotes(query) {
         }
 
         if (text.toLowerCase().indexOf(cleanLower) !== -1) {
-          var dateForMatch = currentDate || parseArchiveNoteHeading_(text, fileTitle);
+          const dateForMatch = currentDate || parseArchiveNoteHeading_(text, fileTitle);
 
-          var idx = text.toLowerCase().indexOf(cleanLower);
-          var start = Math.max(0, idx - 25);
-          var end = Math.min(text.length, idx + cleanLower.length + 45);
-          var prefix = start > 0 ? '...' : '';
-          var suffix = end < text.length ? '...' : '';
-          var snippet = prefix + text.substring(start, end).replace(/\n/g, ' ') + suffix;
+          const idx = text.toLowerCase().indexOf(cleanLower);
+          const start = Math.max(0, idx - 25);
+          const end = Math.min(text.length, idx + cleanLower.length + 45);
+          const prefix = start > 0 ? '...' : '';
+          const suffix = end < text.length ? '...' : '';
+          const snippet = prefix + text.substring(start, end).replace(/\n/g, ' ') + suffix;
 
           results.push({
             type: 'archive',
