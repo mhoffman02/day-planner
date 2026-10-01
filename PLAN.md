@@ -34,12 +34,10 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 Phase 24 (AI Assist/Thesaurus removal — see `PLAN-HISTORY.md`) is code-complete and live on HOME
 (`@288`, Build 365, user-confirmed passing). A full `var`->`const`/`let` conversion of
 `gas-app/Code.gs` landed on top (`@290`, Build 374) — see `PLAN-HISTORY.md` Phase 26. WORK
-Version 125 was pushed via `npm run push:work` but predates the Build 374 Version History fix, so a newer WORK version is needed before the manual repoint.
-- [ ] **(Next) Promote Build 374 to WORK** (`npm run push:work`): Version History modal fix
-  (`ecdc1d5`, HOME `@292`, user-confirmed) postdates WORK Version 125.
-- [ ] **Repoint WORK `/exec` to the new version**: `michael.hoffman@gsa.gov` must repoint the live
+Version 127 (includes the Build 374 Version History fix) was pushed via `npm run push:work` on 2026-10-01; only the manual repoint step remains.
+- [ ] **Repoint WORK `/exec` to Version 127**: `michael.hoffman@gsa.gov` must repoint the live
   WORK deployment in the WORK Apps Script IDE (`https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit`
-  → Deploy → Manage deployments → Edit → select the new version → Deploy). Cross-domain
+  → Deploy → Manage deployments → Edit → select Version 127 → Deploy). Cross-domain
   restriction — cannot be done from HOME's `mhoffman02@gmail.com` session.
 
 ---
