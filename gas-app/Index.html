@@ -316,12 +316,12 @@
                         <span class="priority-badge" :class="parseTask(task.title).priorityGroup || 'A'" x-text="parseTask(task.title).priorityCode || 'A1'"></span>
                       </td>
                       <td>
-                        <div class="status-menu-wrap" @mouseenter="openStatusMenu(task.id, $event)" @mouseleave="scheduleStatusMenuClose(task.id)">
-                          <button type="button" class="status-btn" @click="toggleStatusMenu(task.id, $event)" x-text="task.status || '•'"
+                        <div class="status-menu-wrap" @pointerenter="$event.pointerType === 'mouse' && openStatusMenu(task.id, $event)" @pointerleave="$event.pointerType === 'mouse' && scheduleStatusMenuClose(task.id)" @pointerdown.outside="openStatusMenuTaskId === task.id && (openStatusMenuTaskId = null)" @keydown.escape="openStatusMenuTaskId = null">
+                          <button type="button" class="status-btn" @click="openStatusMenu(task.id, $event)" x-text="task.status || '•'"
                                   aria-haspopup="menu" :aria-expanded="openStatusMenuTaskId === task.id"
                                   :aria-label="'Task status: ' + (task.status || 'Open') + '. Click to choose a status.'"></button>
-                          <div class="status-menu" :class="{ 'dropup': statusMenuDropUp, 'dropdown-down': !statusMenuDropUp }" role="menu" x-show="openStatusMenuTaskId === task.id" @click.outside="openStatusMenuTaskId = null" x-cloak
-                               :style="openStatusMenuTaskId === task.id && statusMenuPos.left ? (statusMenuDropUp ? 'position: fixed; bottom: ' + statusMenuPos.bottom + '; left: ' + statusMenuPos.left + ';' : 'position: fixed; top: ' + statusMenuPos.top + '; left: ' + statusMenuPos.left + ';') : ''">
+                          <div class="status-menu" :class="{ 'dropup': statusMenuDropUp, 'dropdown-down': !statusMenuDropUp }" role="menu" x-show="openStatusMenuTaskId === task.id" x-cloak
+                               :style="statusMenuStyle(task.id)">
                             <template x-for="opt in statusOptions" :key="opt.value">
                               <button type="button" class="status-menu-item" role="menuitem"
                                       :class="{ 'is-active': (task.status || '•') === opt.value }"
@@ -909,12 +909,12 @@
                       <span class="priority-badge" :class="parseTask(mTask.title).priorityGroup || 'A'" x-text="parseTask(mTask.title).priorityCode || 'A1'"></span>
                     </td>
                     <td>
-                      <div class="status-menu-wrap" @mouseenter="openStatusMenu(mTask.id, $event)" @mouseleave="scheduleStatusMenuClose(mTask.id)">
-                        <button type="button" class="status-btn" @click="toggleStatusMenu(mTask.id, $event)" x-text="mTask.status || '•'"
+                      <div class="status-menu-wrap" @pointerenter="$event.pointerType === 'mouse' && openStatusMenu(mTask.id, $event)" @pointerleave="$event.pointerType === 'mouse' && scheduleStatusMenuClose(mTask.id)" @pointerdown.outside="openStatusMenuTaskId === mTask.id && (openStatusMenuTaskId = null)" @keydown.escape="openStatusMenuTaskId = null">
+                        <button type="button" class="status-btn" @click="openStatusMenu(mTask.id, $event)" x-text="mTask.status || '•'"
                                 aria-haspopup="menu" :aria-expanded="openStatusMenuTaskId === mTask.id"
                                 :aria-label="'Master task status: ' + (mTask.status || 'Open') + '. Click to choose a status.'"></button>
-                        <div class="status-menu" :class="{ 'dropup': statusMenuDropUp, 'dropdown-down': !statusMenuDropUp }" role="menu" x-show="openStatusMenuTaskId === mTask.id" @click.outside="openStatusMenuTaskId = null" x-cloak
-                             :style="openStatusMenuTaskId === mTask.id && statusMenuPos.left ? (statusMenuDropUp ? 'position: fixed; bottom: ' + statusMenuPos.bottom + '; left: ' + statusMenuPos.left + ';' : 'position: fixed; top: ' + statusMenuPos.top + '; left: ' + statusMenuPos.left + ';') : ''">
+                        <div class="status-menu" :class="{ 'dropup': statusMenuDropUp, 'dropdown-down': !statusMenuDropUp }" role="menu" x-show="openStatusMenuTaskId === mTask.id" x-cloak
+                             :style="statusMenuStyle(mTask.id)">
                           <template x-for="opt in statusOptions" :key="opt.value">
                             <button type="button" class="status-menu-item" role="menuitem"
                                     :class="{ 'is-active': (mTask.status || '•') === opt.value }"
@@ -1091,12 +1091,12 @@
                     <template x-for="item in futureMonthItems(String(idx + 1).padStart(2, '0'))" :key="item.id">
                       <li class="future-item-row">
                         <div class="future-item-main">
-                          <div class="status-menu-wrap" @mouseenter="openStatusMenu(item.id, $event)" @mouseleave="scheduleStatusMenuClose(item.id)">
-                            <button type="button" class="status-btn" @click="toggleStatusMenu(item.id, $event)" x-text="item.status || '•'"
+                          <div class="status-menu-wrap" @pointerenter="$event.pointerType === 'mouse' && openStatusMenu(item.id, $event)" @pointerleave="$event.pointerType === 'mouse' && scheduleStatusMenuClose(item.id)" @pointerdown.outside="openStatusMenuTaskId === item.id && (openStatusMenuTaskId = null)" @keydown.escape="openStatusMenuTaskId = null">
+                            <button type="button" class="status-btn" @click="openStatusMenu(item.id, $event)" x-text="item.status || '•'"
                                     aria-haspopup="menu" :aria-expanded="openStatusMenuTaskId === item.id"
                                     :aria-label="'Item status: ' + (item.status || 'Open') + '. Click to choose a status.'"></button>
-                            <div class="status-menu" :class="{ 'dropup': statusMenuDropUp, 'dropdown-down': !statusMenuDropUp }" role="menu" x-show="openStatusMenuTaskId === item.id" @click.outside="openStatusMenuTaskId = null" x-cloak
-                                 :style="openStatusMenuTaskId === item.id && statusMenuPos.left ? (statusMenuDropUp ? 'position: fixed; bottom: ' + statusMenuPos.bottom + '; left: ' + statusMenuPos.left + ';' : 'position: fixed; top: ' + statusMenuPos.top + '; left: ' + statusMenuPos.left + ';') : ''">
+                            <div class="status-menu" :class="{ 'dropup': statusMenuDropUp, 'dropdown-down': !statusMenuDropUp }" role="menu" x-show="openStatusMenuTaskId === item.id" x-cloak
+                                 :style="statusMenuStyle(item.id)">
                               <template x-for="opt in statusOptions" :key="opt.value">
                                 <button type="button" class="status-menu-item" role="menuitem"
                                         :class="{ 'is-active': (item.status || '•') === opt.value }"

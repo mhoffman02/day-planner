@@ -3379,13 +3379,12 @@ Alpine.data('plannerApp', () => ({
         }
       },
 
-      toggleStatusMenu(taskId, event) {
-        clearTimeout(this.statusMenuCloseTimer);
-        if (this.openStatusMenuTaskId === taskId) {
-          this.openStatusMenuTaskId = null;
-        } else {
-          this.openStatusMenu(taskId, event);
-        }
+      // Object (not string) so Alpine merges it and never clobbers the display:none set by x-show.
+      statusMenuStyle(taskId) {
+        if (this.openStatusMenuTaskId !== taskId || !this.statusMenuPos.left) return {};
+        return this.statusMenuDropUp
+          ? { position: 'fixed', bottom: this.statusMenuPos.bottom, left: this.statusMenuPos.left }
+          : { position: 'fixed', top: this.statusMenuPos.top, left: this.statusMenuPos.left };
       },
 
       scheduleStatusMenuClose(taskId) {
