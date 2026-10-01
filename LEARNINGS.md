@@ -1,5 +1,14 @@
 # Learnings
 
+## 2026-10-01 — Deployed-But-Unmerged Worktree Branch
+
+**Worked well:** Checking `git merge-base --is-ancestor` per worktree branch before pruning
+caught a branch whose feature was live on HOME `@291` but missing from `pure-gas-main`, so later
+deploys (`@292`, WORK v127) had silently dropped it.
+**Needs improvement:** A worktree session that deploys must merge to `pure-gas-main` in the same
+step. Deploying from an unmerged branch lets the next deploy from main roll the feature back
+without any signal.
+
 ## 2026-10-01 — Mislabeled a Build Number in a Deploy Description, Caught by the User
 
 **Worked well:** The `var`->`const`/`let` conversion itself held up end to end — reviewed all

@@ -1,5 +1,14 @@
 # Task History (TODO_HISTORY)
 
+## 2026-10-01 — Unmerged "GH Build" Branch Merged, Worktrees Pruned (Build 378)
+
+- [x] **Merged `worktree-ai-assist-md-multiselect` into `pure-gas-main`**: Commit `b7b0029`.
+  Its `3366ef6` ("GH Build N" prefix) had been deployed to HOME `@291` from the worktree but never
+  merged, so `@292` and WORK v127 shipped without it. Tracker-doc conflicts resolved toward
+  `pure-gas-main`'s newer state. Lint + 203 tests clean. Deployed HOME `/dev` + pinned prod `@294`.
+- [x] **Pruned merged worktrees/branches** `sts-menu-fix` and `version-history`. The
+  `ai-assist-md-multiselect` worktree was left in place — locked by a still-running session.
+
 ## 2026-10-01 — Version History Button Fixed & Renamed (Build 374)
 
 - [x] **Fixed: Notes Version History button did nothing**: Commit `ecdc1d5`.

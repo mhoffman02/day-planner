@@ -31,13 +31,15 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 ## 3. Active & Upcoming Phases
 
 ### Phase 25: WORK Repoint & Post-Removal Verification (In Progress)
-Phase 24 (AI Assist/Thesaurus removal — see `PLAN-HISTORY.md`) is code-complete and live on HOME
-(`@288`, Build 365, user-confirmed passing). A full `var`->`const`/`let` conversion of
-`gas-app/Code.gs` landed on top (`@290`, Build 374) — see `PLAN-HISTORY.md` Phase 26. WORK
-Version 127 (includes the Build 374 Version History fix) was pushed via `npm run push:work` on 2026-10-01; only the manual repoint step remains.
-- [ ] **Repoint WORK `/exec` to Version 127**: `michael.hoffman@gsa.gov` must repoint the live
-  WORK deployment in the WORK Apps Script IDE (`https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit`
-  → Deploy → Manage deployments → Edit → select Version 127 → Deploy). Cross-domain
+Phase 24 (AI Assist/Thesaurus removal), Phase 26 (`var`->`const`/`let`), and Phase 27 ("GH Build N"
+prefix) are archived in `PLAN-HISTORY.md`. HOME is at `@294`, Build 378 — includes the Version
+History fix, the Sts status-menu fix, and the GH prefix (merged 2026-10-01 from a worktree branch
+that had been deployed but never merged). WORK v127 predates the last two, so the remaining work
+is: cut v128, then one manual repoint.
+- [ ] **Cut WORK Version 128** via `npm run push:work`.
+- [ ] **Repoint WORK `/exec` to Version 128**: `michael.hoffman@gsa.gov` must do this in the WORK
+  Apps Script IDE (`https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit`
+  → Deploy → Manage deployments → Edit → select Version 128 → Deploy). Cross-domain
   restriction — cannot be done from HOME's `mhoffman02@gmail.com` session.
 
 ---
