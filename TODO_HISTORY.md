@@ -13,6 +13,48 @@
     [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html).
   - Verified in mock mode via CDP; deployed HOME `/dev` + pinned prod `@292`; user confirmed fixed.
 
+## 2026-10-01 — `var`->`const`/`let` Conversion Removed, Franklin/Covey Branding Removed, User-Verified on HOME (Build 372)
+
+- [x] **Franklin/Covey brand references removed**: Commit `8274216`. User request: the product
+  is just a "Day Planner" — stripped "Franklin Day Planner"/"Franklin Covey"/"Franklin Planner"
+  brand phrasing across `PRD.md`, `REQUIREMENTS.md`, `manifest.json`, `index.html`/
+  `gas-app/Index.html`, JSDoc headers in `src/*.js`, `gas-app/Code.gs`, `gas-app/Styles.html`,
+  `src/styles.css`, test descriptions, and history docs. Explicitly left untouched: the real
+  "Quote of the Day" feature content (`src/quotesEngine.js` / `gas-app/Script.html`) that
+  legitimately attributes quotes to Benjamin Franklin and Stephen R. Covey as their actual
+  authors — user confirmed quotes stay, this was about product branding only.
+- [x] **`var`->`const`/`let` conversion in `gas-app/Code.gs`**: Commits `56030be`, `8a1283b`,
+  `424fb43`, `0c30991`. All 425 `var` declarations converted — `const` by default, `let` only
+  where reassigned — in 4 verified batches, each passing `node --check` + full test suite + lint
+  before the next. Reviewed every occurrence for the two real `var`->`let`/`const` hazards
+  (same-scope redeclaration, block-scope-leak reliance); zero confirmed must-stay-`var` cases.
+  Also fixed `tools/stamp-build-number.js`'s regex, which matched the literal
+  `var DAY_PLANNER_BUILD_NUMBER` text.
+- [x] **Deployed to HOME and promoted to WORK**: `@290`, Build 372 (label "Build 374" in the
+  deploy description was a mislabeling — 372 is the actual value the pre-commit hook stamped at
+  that commit; confirmed correct, not a stale-cache issue). WORK Version 125 pushed (later
+  superseded by Version 126 below), pending `michael.hoffman@gsa.gov` repoint (supersedes the
+  still-open Version 124 repoint from the prior session).
+- [x] **User verified live on HOME `/dev`**: all tests passed. First hard-refresh attempt hit a
+  transient `DEADLINE_EXCEEDED` "error reading from storage" — consistent with this project's
+  already-documented GAS cold-start cost (see `project_gas_startup_perf_roi` memory, closed
+  NO-GO) rather than a regression from the `var` conversion (a pure declaration-keyword change
+  with zero logic difference, confirmed by identical test results before/after). Second attempt
+  loaded cleanly showing Build 372, which is the correct, current value. Saved a memory note
+  (`project_app_slow_cold_load.md`) that the app takes ~10s to cold-load, so live-check tooling
+  should wait longer before concluding something is broken.
+- [x] **Resolved the deployment-version/build-number confusion**: user was confused by deployment
+  version `@290` (Apps Script's own counter) vs. app build number `372`
+  (`DAY_PLANNER_BUILD_NUMBER`, our git-commit-count stamp) being shown in different places under
+  the same "build" label. Offered to show the deployment version in the UI too; user declined and
+  asked instead for a "GH" prefix on the existing build-number display so it reads e.g.
+  "GH Build 374" — visibly the git-commit build, no new number added. Implemented in the nav
+  hover tooltip and About page badge, both `index.html`/`gas-app/Index.html`/`gas-app/About.html`
+  copies. `npm test`/`npm run lint` clean. Deployed to HOME (`@291`, Build 374 — grepped the
+  actual stamped value this time rather than recalling it, per the earlier mislabel lesson in
+  this same entry). Promoted to WORK: pushed code, created WORK Version 126, final repoint step
+  pending `michael.hoffman@gsa.gov`.
+
 ## 2026-09-30 (evening) — AI Assist & Thesaurus Removed, Task-Edit Notes Bug Fixed, Promoted HOME → WORK (Build 365)
 
 - [x] **AI Assist & Thesaurus/Dictionary Removed (Low ROI)**: Commits `b02f3cf` & `1ee31b5`.

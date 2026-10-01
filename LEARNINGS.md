@@ -1,5 +1,41 @@
 # Learnings
 
+## 2026-10-01 — Mislabeled a Build Number in a Deploy Description, Caught by the User
+
+**Worked well:** The `var`->`const`/`let` conversion itself held up end to end — reviewed all
+425 declarations by hand for the two real hazards (same-scope redeclaration, block-scope-leak),
+caught and fixed a real tooling dependency (`tools/stamp-build-number.js`'s regex matched the
+literal `var DAY_PLANNER_BUILD_NUMBER` text), and the user's own live `/dev` test after deploy
+came back clean (all tests passed). When the user then hit a `DEADLINE_EXCEEDED` error on the
+very first hard refresh, didn't reflexively treat it as a regression — checked it against this
+project's own already-closed-out finding that GAS cold-start cost isn't optimizable, recognized
+the second attempt succeeded cleanly, and explained it as likely transient rather than guessing.
+
+**Needs improvement:** Wrote "Build 374" into a `clasp deploy -d` description and then into
+`PLAN-HISTORY.md` without re-checking the actual stamped value in the file at that moment — it
+was really 372 (the pre-commit hook stamps `git rev-list --count HEAD`, which had moved by the
+time I typed the label from memory). The user caught the mismatch by comparing the GAS
+deployment version (`@290`) against what I'd said, which also surfaced that these are two
+unrelated numbering systems (Apps Script's own deployment version vs. this app's own build-number
+stamp) that both get called "build" colloquially — worth clarifying in the UI itself, not just in
+chat, since it's a recurring confusion point now. Lesson: when writing a build/version number
+into a commit message, deploy description, or doc, grep the actual current value out of the file
+at that moment rather than recalling it from a few messages back — small numbers that increment
+on every commit are exactly the kind of detail memory gets wrong without the source in front of it.
+
+A second, related mistake while fixing the first: ran `sed -i 's/Version 125/Version 126/g'`
+across all four tracker docs to update the "current WORK version" reference after a later
+deploy superseded 125 with 126 — but `PLAN-HISTORY.md`/`TODO_HISTORY.md` are *append-only
+history*, where an already-archived entry describing an earlier moment ("Phase 26 created WORK
+Version 125") is supposed to stay historically accurate, not track "what's current now." The
+blind replace corrupted that entry to claim Phase 26 created Version 126, which it didn't.
+Caught it by re-reading the diff before committing, but the fix was manual per-line correction
+afterward rather than prevented upfront. Lesson: before a bulk find/replace across tracker docs,
+check whether each matched location is describing *current state* (should track reality) or a
+*frozen historical moment* (should not be touched) — `PLAN.md`/`TODO.md` are the former,
+`PLAN-HISTORY.md`/`TODO_HISTORY.md` entries for past phases are the latter, and sed can't tell
+them apart.
+
 ## 2026-09-30 (evening) — AI Assist/Thesaurus Removal Almost Shipped a Half-Mirrored Codebase
 
 **Worked well:** When the user said ROI wasn't there for AI Assist/Thesaurus, asked a clarifying
