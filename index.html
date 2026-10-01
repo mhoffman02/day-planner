@@ -446,7 +446,7 @@
                 <button type="button" class="btn-icon-subtle" @click="toggleMaximizeColumn('notes')" :title="maximizedColumn === 'notes' ? 'Restore Columns (Esc)' : 'Maximize Notes'" :aria-label="maximizedColumn === 'notes' ? 'Restore Columns (Esc)' : 'Maximize Notes'">
                   <span class="material-symbols-outlined" x-text="maximizedColumn === 'notes' ? 'close_fullscreen' : 'open_in_full'"></span>
                 </button>
-                <button type="button" class="btn-icon-subtle" @click="openTimeMachine()" title="Note Version History (Time Machine)" aria-label="Note Version History (Time Machine)">
+                <button type="button" class="btn-icon-subtle" @click="openTimeMachine()" title="Version History" aria-label="Version History">
                   <span class="material-symbols-outlined">history</span>
                 </button>
                 <!-- Dropdown Filter Menu Toggle -->
@@ -1241,10 +1241,10 @@
 
       <article class="guide-card">
         <h3 class="guide-card-title">
-          <span class="material-symbols-outlined">history</span> Note Version History (Time Machine)
+          <span class="material-symbols-outlined">history</span> Version History
         </h3>
         <p class="guide-card-text">
-          Need to review earlier versions of your daily notes or restore deleted thoughts? Click the Time Machine icon (<span class="material-symbols-outlined icon-16">history</span>) in the Notes column header to inspect hourly revisions, see diffs, and restore any snapshot with one click.
+          Need to review earlier versions of your daily notes or restore deleted thoughts? Click the Version History icon (<span class="material-symbols-outlined icon-16">history</span>) in the Notes column header to inspect hourly revisions, see diffs, and restore any snapshot with one click.
         </p>
       </article>
 
@@ -1685,11 +1685,11 @@
 
     <!-- Note Time Machine / Version History Modal -->
     <dialog class="modal-backdrop" :open="timeMachineOpen" x-show="timeMachineOpen" x-cloak aria-labelledby="timeMachineTitle" @click.self="closeTimeMachine()" @keydown.escape.window="if (timeMachineOpen) closeTimeMachine()">
-      <article class="modal-card modal-card-time-machine" @click.away="closeTimeMachine()">
+      <article class="modal-card modal-card-time-machine">
         <header class="modal-header-spaced">
           <h3 id="timeMachineTitle" class="modal-title-with-icon">
             <span class="material-symbols-outlined">history</span>
-            <span>Note Version History (Time Machine) &mdash; <span x-text="formatSelectedDateDisplay(selectedDate)"></span></span>
+            <span>Version History &mdash; <span x-text="formatSelectedDateDisplay(selectedDate)"></span></span>
           </h3>
           <button type="button" class="btn-icon-subtle" @click="closeTimeMachine()" aria-label="Close Version History">
             <span class="material-symbols-outlined">close</span>
