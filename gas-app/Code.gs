@@ -405,7 +405,7 @@ const DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mho
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const DAY_PLANNER_BUILD_NUMBER = 370;
+const DAY_PLANNER_BUILD_NUMBER = 371;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -1992,17 +1992,17 @@ function getMasterTasks(monthYearStr) {
         { id: 'm4', title: '[B2] Migrate server infrastructure to GCP', category: 'Projects', status: '•', starred: false, notes: 'Evaluate Cloud Run vs App Engine', dueDate: null, movedTo: null, movedTaskId: null }
       ];
     }
-    var items = [];
-    var pageToken = null;
+    let items = [];
+    let pageToken = null;
     do {
-      var listParams = { showCompleted: true, showHidden: true, maxResults: 100 };
+      const listParams = { showCompleted: true, showHidden: true, maxResults: 100 };
       if (pageToken) listParams.pageToken = pageToken;
-      var resp = Tasks.Tasks.list('@default', listParams);
+      const resp = Tasks.Tasks.list('@default', listParams);
       items = items.concat(resp.items || []);
       pageToken = resp.nextPageToken || null;
     } while (pageToken);
-    var decoded = items.map(function(t) {
-      var meta = decodeTaskMeta(t.notes);
+    const decoded = items.map(function(t) {
+      const meta = decodeTaskMeta(t.notes);
       return {
         id: t.id,
         title: t.title,
@@ -2046,15 +2046,15 @@ function addMasterTask(title, category, dueDate, notes) {
         movedTaskId: null
       };
     }
-    var taskResource = {
+    const taskResource = {
       title: title,
       notes: encodeTaskMeta(notes || '', { master: true, category: category || 'General' })
     };
     if (dueDate) {
       taskResource.due = dueDate + 'T00:00:00.000Z';
     }
-    var created = Tasks.Tasks.insert(taskResource, '@default');
-    var meta = decodeTaskMeta(created.notes);
+    const created = Tasks.Tasks.insert(taskResource, '@default');
+    const meta = decodeTaskMeta(created.notes);
     return {
       id: created.id,
       title: created.title,
@@ -2110,11 +2110,11 @@ function markMasterTaskMoved(masterTaskId, targetDateStr, movedTaskId) {
         movedTaskId: movedTaskId
       };
     }
-    var current = Tasks.Tasks.get('@default', masterTaskId);
-    var notes = encodeTaskMeta(current.notes, { movedTo: targetDateStr, movedTaskId: movedTaskId });
+    const current = Tasks.Tasks.get('@default', masterTaskId);
+    let notes = encodeTaskMeta(current.notes, { movedTo: targetDateStr, movedTaskId: movedTaskId });
     notes = encodeTaskStatusNotes('→', notes);
-    var updated = Tasks.Tasks.patch({ notes: notes }, '@default', masterTaskId);
-    var meta = decodeTaskMeta(updated.notes);
+    const updated = Tasks.Tasks.patch({ notes: notes }, '@default', masterTaskId);
+    const meta = decodeTaskMeta(updated.notes);
     return {
       id: updated.id,
       title: updated.title,
@@ -2140,14 +2140,14 @@ function markMasterTaskMoved(masterTaskId, targetDateStr, movedTaskId) {
 function addDailyTask(dateStr, title, category, sourceMasterId, notes) {
   try {
     if (typeof Tasks !== 'undefined') {
-      var metaPatch = { category: category || 'General' };
+      const metaPatch = { category: category || 'General' };
       if (sourceMasterId) metaPatch.sourceMasterId = sourceMasterId;
-      var taskResource = {
+      const taskResource = {
         title: title,
         due: dateStr + 'T00:00:00.000Z',
         notes: encodeTaskMeta(notes || '', metaPatch)
       };
-      var created = Tasks.Tasks.insert(taskResource, '@default');
+      const created = Tasks.Tasks.insert(taskResource, '@default');
       return {
         id: created.id,
         title: created.title,
@@ -2196,8 +2196,8 @@ function updateDailyTask(dateStr, taskId, updates) {
       };
     }
 
-    var patch = {};
-    var current = null;
+    const patch = {};
+    let current = null;
     function ensureCurrent() {
       if (!current) current = Tasks.Tasks.get('@default', taskId);
       return current;
@@ -2210,27 +2210,27 @@ function updateDailyTask(dateStr, taskId, updates) {
       patch.notes = encodeTaskStatusNotes(updates.status, ensureCurrent().notes);
     }
     if (updates && updates.category !== undefined) {
-      var notesBaseCat = patch.notes !== undefined ? patch.notes : ensureCurrent().notes;
+      const notesBaseCat = patch.notes !== undefined ? patch.notes : ensureCurrent().notes;
       patch.notes = encodeTaskMeta(notesBaseCat, { category: updates.category });
     }
     if (updates && updates.starred !== undefined) {
-      var notesBaseStar = patch.notes !== undefined ? patch.notes : ensureCurrent().notes;
+      const notesBaseStar = patch.notes !== undefined ? patch.notes : ensureCurrent().notes;
       patch.notes = encodeTaskMeta(notesBaseStar, { starred: Boolean(updates.starred) });
     }
     if (updates && updates.dueDate !== undefined) {
       patch.due = updates.dueDate + 'T00:00:00.000Z';
     }
 
-    var updated = Tasks.Tasks.patch(patch, '@default', taskId);
+    const updated = Tasks.Tasks.patch(patch, '@default', taskId);
 
     // Mirror a status change back onto source master task or moved daily task
     if (updates && updates.status !== undefined) {
-      var cur = ensureCurrent();
+      const cur = ensureCurrent();
       if (cur) {
-        var meta = decodeTaskMeta(cur.notes);
+        const meta = decodeTaskMeta(cur.notes);
         if (meta.sourceMasterId) {
           try {
-            var masterCurrent = Tasks.Tasks.get('@default', meta.sourceMasterId);
+            const masterCurrent = Tasks.Tasks.get('@default', meta.sourceMasterId);
             Tasks.Tasks.patch({
               status: patch.status,
               notes: encodeTaskStatusNotes(updates.status, masterCurrent.notes)
@@ -2241,7 +2241,7 @@ function updateDailyTask(dateStr, taskId, updates) {
         }
         if (meta.movedTaskId) {
           try {
-            var movedCurrent = Tasks.Tasks.get('@default', meta.movedTaskId);
+            const movedCurrent = Tasks.Tasks.get('@default', meta.movedTaskId);
             Tasks.Tasks.patch({
               status: patch.status,
               notes: encodeTaskStatusNotes(updates.status, movedCurrent.notes)
@@ -2253,7 +2253,7 @@ function updateDailyTask(dateStr, taskId, updates) {
       }
     }
 
-    var updatedMeta = decodeTaskMeta(updated.notes);
+    const updatedMeta = decodeTaskMeta(updated.notes);
     return {
       id: updated.id,
       title: updated.title,
@@ -2303,24 +2303,24 @@ function deleteDailyTask(taskId) {
  */
 function forwardDailyTask(sourceDateStr, taskId, targetDateStr) {
   try {
-    var cur = (typeof Tasks !== 'undefined') ? Tasks.Tasks.get('@default', taskId) : null;
-    var title = cur ? cur.title : '';
-    var meta = cur ? decodeTaskMeta(cur.notes) : {};
-    var category = meta.category || 'General';
+    const cur = (typeof Tasks !== 'undefined') ? Tasks.Tasks.get('@default', taskId) : null;
+    const title = cur ? cur.title : '';
+    const meta = cur ? decodeTaskMeta(cur.notes) : {};
+    const category = meta.category || 'General';
 
     // 1. Mark original task as forwarded
-    var originalTask = updateDailyTask(sourceDateStr, taskId, { status: '→' });
+    const originalTask = updateDailyTask(sourceDateStr, taskId, { status: '→' });
 
     // 2. Parse priority group and clean title
-    var match = (title || '').match(/^\[([A-C])[1-9]\]\s*(.*)$/i);
-    var priorityGroup = match ? match[1].toUpperCase() : 'A';
-    var cleanTitle = match ? match[2].trim() : (title || 'Untitled Task').trim();
+    const match = (title || '').match(/^\[([A-C])[1-9]\]\s*(.*)$/i);
+    const priorityGroup = match ? match[1].toUpperCase() : 'A';
+    const cleanTitle = match ? match[2].trim() : (title || 'Untitled Task').trim();
 
     // 3. Format title for target date
-    var formattedTitle = '[' + priorityGroup + '1] ' + cleanTitle;
+    const formattedTitle = '[' + priorityGroup + '1] ' + cleanTitle;
 
     // 4. Create task on target date
-    var forwardedTask = addDailyTask(targetDateStr, formattedTitle, category);
+    const forwardedTask = addDailyTask(targetDateStr, formattedTitle, category);
 
     return {
       originalTask: originalTask,
@@ -2339,9 +2339,9 @@ function forwardDailyTask(sourceDateStr, taskId, targetDateStr) {
  * @returns {string} The following month's key in YYYY-MM format.
  */
 function nextMonthKeyStr_(monthKey) {
-  var parts = monthKey.split('-');
-  var year = parseInt(parts[0], 10);
-  var month = parseInt(parts[1], 10) + 1;
+  const parts = monthKey.split('-');
+  let year = parseInt(parts[0], 10);
+  let month = parseInt(parts[1], 10) + 1;
   if (month > 12) {
     month = 1;
     year += 1;
@@ -2355,10 +2355,10 @@ function nextMonthKeyStr_(monthKey) {
  * @returns {string} Last calendar day of that month, YYYY-MM-DD.
  */
 function lastDayOfMonthStr_(monthKey) {
-  var parts = monthKey.split('-');
-  var year = parseInt(parts[0], 10);
-  var month = parseInt(parts[1], 10);
-  var lastDay = new Date(year, month, 0).getDate();
+  const parts = monthKey.split('-');
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10);
+  const lastDay = new Date(year, month, 0).getDate();
   return monthKey + '-' + String(lastDay).padStart(2, '0');
 }
 
@@ -2372,9 +2372,9 @@ function lastDayOfMonthStr_(monthKey) {
  */
 function resolveFutureItemDueDate_(monthKey, day) {
   if (!day) return lastDayOfMonthStr_(monthKey);
-  var parts = monthKey.split('-');
-  var lastDay = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10), 0).getDate();
-  var clampedDay = Math.min(Math.max(1, parseInt(day, 10) || 1), lastDay);
+  const parts = monthKey.split('-');
+  const lastDay = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10), 0).getDate();
+  const clampedDay = Math.min(Math.max(1, parseInt(day, 10) || 1), lastDay);
   return monthKey + '-' + String(clampedDay).padStart(2, '0');
 }
 
@@ -2385,18 +2385,18 @@ function resolveFutureItemDueDate_(monthKey, day) {
  * @returns {{year: string, months: Object<string, Array<object>>}} Full year matrix.
  */
 function getFutureMatrixData_(year) {
-  var yearStr = String(year);
-  var matrixData = { year: yearStr, months: {} };
-  for (var m = 1; m <= 12; m++) {
+  const yearStr = String(year);
+  const matrixData = { year: yearStr, months: {} };
+  for (let m = 1; m <= 12; m++) {
     matrixData.months[yearStr + '-' + String(m).padStart(2, '0')] = [];
   }
 
   // Tasks API caps maxResults at 100 per page (matches getMasterTasks' own list call), so a
   // year with more than 100 due-dated tasks (daily + future combined) needs pagination -- a
   // single unpaginated call would silently truncate and could drop Future items entirely.
-  var pageToken = null;
+  let pageToken = null;
   do {
-    var listParams = {
+    const listParams = {
       showCompleted: true,
       showHidden: true,
       maxResults: 100,
@@ -2404,14 +2404,14 @@ function getFutureMatrixData_(year) {
       dueMax: yearStr + '-12-31T23:59:59.999Z'
     };
     if (pageToken) listParams.pageToken = pageToken;
-    var resp = Tasks.Tasks.list('@default', listParams);
-    var items = resp.items || [];
-    for (var i = 0; i < items.length; i++) {
-      var t = items[i];
+    const resp = Tasks.Tasks.list('@default', listParams);
+    const items = resp.items || [];
+    for (let i = 0; i < items.length; i++) {
+      const t = items[i];
       if (!t.due) continue;
-      var meta = decodeTaskMeta(t.notes);
+      const meta = decodeTaskMeta(t.notes);
       if (!meta.future) continue;
-      var monthKey = t.due.substring(0, 7);
+      const monthKey = t.due.substring(0, 7);
       if (!matrixData.months[monthKey]) matrixData.months[monthKey] = [];
       matrixData.months[monthKey].push({
         id: t.id,
@@ -2438,9 +2438,9 @@ function getFutureMatrixData_(year) {
 function getFutureMatrix(year) {
   try {
     if (typeof Tasks === 'undefined') {
-      var mockYear = String(year);
-      var mock = { year: mockYear, months: {} };
-      for (var m = 1; m <= 12; m++) {
+      const mockYear = String(year);
+      const mock = { year: mockYear, months: {} };
+      for (let m = 1; m <= 12; m++) {
         mock.months[mockYear + '-' + String(m).padStart(2, '0')] = [];
       }
       return mock;
@@ -2472,14 +2472,14 @@ function addFutureItem(year, monthKey, title, category, day) {
         dueDate: resolveFutureItemDueDate_(monthKey, day)
       };
     }
-    var dueDate = resolveFutureItemDueDate_(monthKey, day);
-    var taskResource = {
+    const dueDate = resolveFutureItemDueDate_(monthKey, day);
+    const taskResource = {
       title: title,
       due: dueDate + 'T00:00:00.000Z',
       notes: encodeTaskMeta('', { future: true, category: category || 'General' })
     };
-    var created = Tasks.Tasks.insert(taskResource, '@default');
-    var meta = decodeTaskMeta(created.notes);
+    const created = Tasks.Tasks.insert(taskResource, '@default');
+    const meta = decodeTaskMeta(created.notes);
     return {
       id: created.id,
       title: created.title,
