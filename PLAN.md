@@ -33,11 +33,15 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 ### Phase 25: WORK Repoint & Post-Removal Verification (In Progress)
 Phase 24 (AI Assist/Thesaurus removal — see `PLAN-HISTORY.md`) is code-complete and live on HOME
 (`@288`, Build 365, user-confirmed passing). A full `var`->`const`/`let` conversion of
-`gas-app/Code.gs` landed on top (`@290`, Build 374) — see `PLAN-HISTORY.md` Phase 26. WORK
-Version 125 was pushed and created via `npm run push:work`; only the manual repoint step remains.
-- [ ] **Repoint WORK `/exec` to Version 125**: `michael.hoffman@gsa.gov` must repoint the live
+`gas-app/Code.gs` (Phase 26), a Franklin/Covey branding cleanup, and a "GH Build N" display
+prefix (Phase 27 — distinguishes the app's own build-number stamp from Apps Script's own
+deployment version, which confused the user when shown separately) all landed on top — HOME
+`@291`, Build 374, user-verified `/dev` build before the final prefix tweak (all tests passed).
+WORK Version 126 was pushed and created via `npm run push:work`; only the manual repoint step
+remains.
+- [ ] **Repoint WORK `/exec` to Version 126**: `michael.hoffman@gsa.gov` must repoint the live
   WORK deployment in the WORK Apps Script IDE (`https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit`
-  → Deploy → Manage deployments → Edit → select Version 125 → Deploy). Cross-domain restriction —
+  → Deploy → Manage deployments → Edit → select Version 126 → Deploy). Cross-domain restriction —
   cannot be done from HOME's `mhoffman02@gmail.com` session.
 - [ ] **Confirm Notes Version History fix holds after hard refresh**: user reported the button
   doing nothing; live CDP testing against HOME `@288` couldn't reproduce (works correctly). Likely

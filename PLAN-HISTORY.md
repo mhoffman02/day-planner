@@ -270,9 +270,9 @@ removed entirely rather than disabled.*
 - [x] Deployed to HOME (`/dev` verified first, then pinned production deployment, now `@288`,
   Build 365). User confirmed HOME tested and passed.
 - [x] Promoted to WORK via `npm run push:work`: pushed code, created WORK Version 124 (later
-  superseded by Version 125, see Phase 26). Final step (repointing the live WORK `/exec`
-  deployment) requires `michael.hoffman@gsa.gov` in the WORK Apps Script IDE — cross-domain
-  deploy restriction, not completable by this session.
+  superseded by Version 125 in Phase 26, then Version 126 in Phase 27). Final step (repointing
+  the live WORK `/exec` deployment) requires `michael.hoffman@gsa.gov` in the WORK Apps Script
+  IDE — cross-domain deploy restriction, not completable by this session.
 
 ### Phase 26: `var` → `const`/`let` Conversion in `gas-app/Code.gs`
 *Goal: modernize all 425 `var` declarations in `Code.gs` to `const` (default) or `let` (only
@@ -295,13 +295,30 @@ than a blind find-and-replace.*
 - [x] Left the 5 remaining `var` matches alone — they're inside HTML string literals
   (`showCrossMonthSearchSidebar`/`showIndexRegistrySidebar`'s generated Google Docs sidebar
   client-side JS), a different execution context than `Code.gs`'s own server-side code.
-- [x] Deployed to HOME (`/dev` push, then pinned production, `@290`, Build 374). Live CDP
-  verification was blocked by a fresh-Chrome-profile OAuth re-consent dialog needing a human
+- [x] Deployed to HOME (`/dev` push, then pinned production, `@290`, Build 372 — "Build 374" in
+  the original deploy description was a mislabeling, corrected here). Live CDP verification at
+  deploy time was blocked by a fresh-Chrome-profile OAuth re-consent dialog needing a human
   click; proceeded on the strength of `node --check` + full test suite + lint + manual
   per-declaration review instead, since this is a pure declaration-keyword change with zero
-  logic changes.
-- [x] Promoted to WORK via `npm run push:work`: pushed code, created WORK Version 125. Final
-  repoint step pending `michael.hoffman@gsa.gov` (same cross-domain restriction as Phase 25).
+  logic changes. User independently verified live on HOME `/dev` afterward: all tests passed.
+- [x] Promoted to WORK via `npm run push:work`: pushed code, created WORK Version 125 (superseded
+  by Version 126, see Phase 27). Final repoint step pending `michael.hoffman@gsa.gov` (same
+  cross-domain restriction as Phase 25).
+
+### Phase 27: "GH Build N" Display Prefix
+*Goal: distinguish the app's own build-number stamp from Apps Script's own deployment version
+counter in the UI, after the user was confused seeing both numbers ("@290" vs. "372") under the
+same "build" label.*
+
+- [x] User declined showing the Apps Script deployment version in the UI; asked instead for a
+  "GH" prefix on the existing build-number display so it reads e.g. "GH Build 374" — visibly the
+  git-commit build, no new number added.
+- [x] Implemented in the nav hover tooltip and About page build badge, both source copies
+  (`index.html`/`gas-app/Index.html`/`gas-app/About.html`). `npm test`/`npm run lint` clean.
+- [x] Deployed to HOME (`/dev` push, then pinned production, `@291`, Build 374 — verified from
+  the actual stamped file value this time, not recalled from memory, per the Phase 26 mislabel
+  lesson). Promoted to WORK: pushed code, created WORK Version 126. Final repoint step pending
+  `michael.hoffman@gsa.gov`.
 
 ---
 
