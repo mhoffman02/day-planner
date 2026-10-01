@@ -1,5 +1,18 @@
 # Task History (TODO_HISTORY)
 
+## 2026-10-01 — Version History Button Fixed & Renamed (Build 374)
+
+- [x] **Fixed: Notes Version History button did nothing**: Commit `ecdc1d5`.
+  - Root cause: the modal card had `@click.away="closeTimeMachine()"` — the opening click bubbled
+    to the document after Alpine had already shown the dialog, closing it instantly. Earlier
+    "couldn't reproduce / stale cache" diagnosis was wrong. Removed `@click.away`; backdrop close
+    is still handled by `@click.self` on the `<dialog>`.
+  - Renamed "Note Version History (Time Machine)" → "Version History" in button title/aria-label,
+    modal title, and About page, in both [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html)
+    and [`index.html`](file:///home/mike/projects/day-planner/index.html), plus
+    [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html).
+  - Verified in mock mode via CDP; deployed HOME `/dev` + pinned prod `@292`; user confirmed fixed.
+
 ## 2026-09-30 (evening) — AI Assist & Thesaurus Removed, Task-Edit Notes Bug Fixed, Promoted HOME → WORK (Build 365)
 
 - [x] **AI Assist & Thesaurus/Dictionary Removed (Low ROI)**: Commits `b02f3cf` & `1ee31b5`.

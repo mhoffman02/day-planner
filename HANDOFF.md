@@ -1,21 +1,16 @@
-# Resume: WORK repoint pending; AI Assist/Thesaurus removal is done and live on HOME
+# Resume: Version History fixed on HOME; WORK needs a new version + repoint
 
-**Start by:** Ask the user whether `michael.hoffman@gsa.gov` has repointed the WORK `/exec`
-deployment to Version 124 yet, and whether the Notes Version History button worked after a hard
-refresh. Both are in `TODO.md` Phase 25 and blocked on the user — there is no independent agent
-work queued right now.
+**Start by:** Run `npm run push:work` to create a new WORK version containing Build 374 (commit
+`ecdc1d5`, the Version History modal fix) — WORK Version 125 predates it.
 
-This session removed AI Assist and Thesaurus/Dictionary entirely (user's low-ROI call, not a
-disable) across the client, GAS backend, and CSS in both the local-preview and `gas-app/` copies,
-fixed a real bug where editing an existing task hid its notes, and promoted the result from HOME
-to WORK. HOME is live and user-confirmed passing (`@288`, Build 365). WORK has Version 124 pushed
-but not yet pointed to by the live deployment — that step requires the WORK-domain account.
+This session fixed the Notes "Version History" button (formerly "Note Version History (Time
+Machine)"), which did nothing when clicked: the modal card's `@click.away` caught the opening
+click and closed the dialog instantly. Removed it (backdrop close still works via `@click.self`)
+and renamed the labels in `gas-app/Index.html`, `index.html`, and `gas-app/About.html`. Live on
+HOME `/dev` and pinned prod `@292`; user confirmed fixed.
 
-- What changed — `TODO_HISTORY.md`'s "2026-09-30 (evening)" entry (full detail + commit SHAs)
-- Archived phase — `PLAN-HISTORY.md`'s "Phase 24: AI Assist & Thesaurus Removed — Low ROI"
-- Still open — `TODO.md` Phase 25 (2 items, both user-blocked — repoint WORK, confirm Time Machine)
-- Gotcha for next session — `LEARNINGS.md`'s 2026-09-30 entry: any future `src/app.js` structural
-  removal needs the identical symbol list grepped in `gas-app/Script.html` *before* calling it
-  done, not caught later by live testing. This repo has two parallel copies of the whole client
-  (local-preview `src/`+`index.html`, and `gas-app/` for GAS) that must be kept in lockstep by
-  hand — there is no build step that enforces it.
+- What changed — `TODO_HISTORY.md`'s "2026-10-01 — Version History Button Fixed & Renamed" entry
+- Still open — `TODO.md` Phase 25:
+  - (Next) Promote Build 374 to WORK via `npm run push:work`
+  - Repoint WORK `/exec` to that new version — user-blocked (`michael.hoffman@gsa.gov` only, WORK IDE → Deploy → Manage deployments)
+- Note: the main checkout's local `pure-gas-main` is behind `origin` — `git pull` before working there.

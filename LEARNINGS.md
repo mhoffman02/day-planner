@@ -206,3 +206,7 @@ live-testing catches it by luck.
 
 **Needs improvement:**
 - Remember to update both MEMORY and PLAN documents immediately whenever an architectural pivot (like discarding the Sheets microservice) is confirmed.
+
+## 2026-10-01
+**Worked well:** Read the modal markup instead of re-testing — `@click.away` on a modal opened by an outside button closes it on the same click; one-line fix.
+**Needs improvement:** Prior session blamed "stale cache" after a CDP test passed; a synthetic/test click passing isn't proof the user's path works — inspect the handlers before attributing a user report to caching.
