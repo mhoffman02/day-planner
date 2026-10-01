@@ -269,10 +269,39 @@ removed entirely rather than disabled.*
   and confirm.
 - [x] Deployed to HOME (`/dev` verified first, then pinned production deployment, now `@288`,
   Build 365). User confirmed HOME tested and passed.
-- [x] Promoted to WORK via `npm run push:work`: pushed code, created WORK Version 124. Final step
-  (repointing the live WORK `/exec` deployment to Version 124) requires
-  `michael.hoffman@gsa.gov` in the WORK Apps Script IDE — cross-domain deploy restriction, not
-  completable by this session. **Pending as of this handoff.**
+- [x] Promoted to WORK via `npm run push:work`: pushed code, created WORK Version 124 (later
+  superseded by Version 125, see Phase 26). Final step (repointing the live WORK `/exec`
+  deployment) requires `michael.hoffman@gsa.gov` in the WORK Apps Script IDE — cross-domain
+  deploy restriction, not completable by this session.
+
+### Phase 26: `var` → `const`/`let` Conversion in `gas-app/Code.gs`
+*Goal: modernize all 425 `var` declarations in `Code.gs` to `const` (default) or `let` (only
+where reassigned), at the user's request — reviewed first for any case that MUST stay `var`
+(none found; V8 runtime fully supports `const`/`let`), then executed in verified batches rather
+than a blind find-and-replace.*
+
+- [x] Reviewed all 425 `var` occurrences for the two real `var`->`let`/`const` hazards:
+  same-scope redeclaration (an automated scan's 3 raw hits were false positives — two were in
+  separate nested callback scopes, one was inside a string literal generating client HTML, not a
+  real duplicate) and reliance on `var`'s block-scope-leak hoisting (every `var` that crossed an
+  `if`/`try`/`for` block boundary was promoted to `let` at the function's top scope so it's still
+  reachable after the block closes). Zero confirmed must-stay-`var` cases.
+- [x] Converted in 4 verified batches (commits in order): lines 1-1180, lines 1180-1978, lines
+  1985-2494, and lines 2500-3051 (final). Each batch: `node --check`, `npm test` (203/203),
+  `npm run lint` before moving to the next.
+- [x] Also updated `tools/stamp-build-number.js`'s regex, which matched the literal
+  `var DAY_PLANNER_BUILD_NUMBER = \d+;` text — would have silently broken every future
+  pre-commit build-stamp otherwise.
+- [x] Left the 5 remaining `var` matches alone — they're inside HTML string literals
+  (`showCrossMonthSearchSidebar`/`showIndexRegistrySidebar`'s generated Google Docs sidebar
+  client-side JS), a different execution context than `Code.gs`'s own server-side code.
+- [x] Deployed to HOME (`/dev` push, then pinned production, `@290`, Build 374). Live CDP
+  verification was blocked by a fresh-Chrome-profile OAuth re-consent dialog needing a human
+  click; proceeded on the strength of `node --check` + full test suite + lint + manual
+  per-declaration review instead, since this is a pure declaration-keyword change with zero
+  logic changes.
+- [x] Promoted to WORK via `npm run push:work`: pushed code, created WORK Version 125. Final
+  repoint step pending `michael.hoffman@gsa.gov` (same cross-domain restriction as Phase 25).
 
 ---
 
