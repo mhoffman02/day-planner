@@ -459,17 +459,58 @@ function renderSelfTestDiagnosticReport(e) {
   return diagOutput;
 }
 
+/**
+ * IDE Setup Helper (Phase 28 live spike). The IDE hides return values, so every step is logged:
+ * provisions the hub Sheet (Sheets under drive.file), lists its tabs, reads Config, runs
+ * discoverMeetingSeries (DRY_RUN saves nothing). Ends with "[hubSpike] RESULT: PASS" or logs
+ * "RESULT: FAIL at <step>" and rethrows.
+ * @returns {object} {ok, sheetUrl, tabs, discovery}.
+ */
+function hubSpike() {
+  var out = { ok: false };
+  var current = '';
+  function step(name, fn) {
+    current = name;
+    var v = fn();
+    console.log('[hubSpike] ' + name + ': ' + (typeof v === 'string' ? v : JSON.stringify(v)));
+    return v;
+  }
+  try {
+    var id = step('Sheet id', function() { return DPConfig.ensureSetup(); });
+    out.sheetUrl = step('Sheet', function() { return DPConfig.getSheetUrl(); });
+    out.tabs = step('Tabs', function() {
+      return (Sheets.Spreadsheets.get(id, { fields: 'sheets.properties.title' }).sheets || []).map(function(s) { return s.properties.title; });
+    });
+    step('Config', function() {
+      var c = DPConfig.getConfig();
+      return { TimeZone: c.TimeZone, UserEmail: c.UserEmail, TasksListId: c.TasksListId, features: c.features };
+    });
+    step('Registry rows', function() { return DPConfig.getRegistry().length; });
+    out.discovery = step('discoverMeetingSeries', function() { return _discoverMeetingSeriesInternal(); });
+    current = 'discoverMeetingSeries result';
+    if (!out.discovery || out.discovery.ok !== true) throw new Error((out.discovery && out.discovery.message) || 'no result');
+  } catch (err) {
+    console.error('[hubSpike] RESULT: FAIL at ' + current + ': ' + (err && err.message));
+    throw err;
+  }
+  out.ok = true;
+  console.log('[hubSpike] RESULT: PASS');
+  return out;
+}
+
 // ── Explicit export surface ──────────────────────────────────────────────────
 // See the header comment above and .agents/rules/gas-namespace-iife.md.
 global.runSelfTest = runSelfTest;                             // IDE manual-run
 global.runPowerOnSelfTest = runPowerOnSelfTest;               // IDE manual-run (backward-compat alias)
 global.testDoGetInIDE = testDoGetInIDE;                       // IDE manual-run
+global.hubSpike = hubSpike;                                   // IDE manual-run (Phase 28 live spike)
 global.renderSelfTestDiagnosticReport = renderSelfTestDiagnosticReport; // called by Code.gs's doGet
 
 // Internal aliases for top-level entry point delegators
 global._runSelfTestInternal = runSelfTest;
 global._runPowerOnSelfTestInternal = runPowerOnSelfTest;
 global._testDoGetInIDEInternal = testDoGetInIDE;
+global._hubSpikeInternal = hubSpike;
 
 })(typeof globalThis !== 'undefined' ? globalThis : this);
 
@@ -504,6 +545,15 @@ function runSelfTest() {
  */
 function runPowerOnSelfTest() {
   return (typeof _runPowerOnSelfTestInternal === 'function') ? _runPowerOnSelfTestInternal() : (globalThis._runPowerOnSelfTestInternal ? globalThis._runPowerOnSelfTestInternal() : null);
+}
+
+/**
+ * Phase 28 live spike: provisions the hub Sheet and logs each step (IDE hides return values).
+ * Statically discovered by the Apps Script IDE dropdown.
+ * @returns {object} {ok, sheetUrl, tabs, discovery}.
+ */
+function hubSpike() {
+  return (typeof _hubSpikeInternal === 'function') ? _hubSpikeInternal() : (globalThis._hubSpikeInternal ? globalThis._hubSpikeInternal() : null);
 }
 
 /**

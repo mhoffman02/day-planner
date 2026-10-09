@@ -86,8 +86,9 @@ Order of operations (HOME first; HOME is the mastercopy):
 The hub Sheet is created by the app and read/written through the Sheets Advanced service under `drive.file` only.
 This worked for Docs; it is unproven for Sheets.
 
-1. With the app open on HOME, the first RPC (`getHubStatus`, called on load) runs `DPConfig.ensureSetup()`.
-   Alternative: run `getHubStatus` from the IDE.
+1. Run `UnitTests.gs:hubSpike` in the IDE. It runs `DPConfig.ensureSetup()`, lists the tabs, reads Config, runs
+   `discoverMeetingSeries` (DRY_RUN), and logs every step ending in `[hubSpike] RESULT: PASS` or `FAIL at <step>`.
+   (`getHubStatus` deliberately touches no Sheet while unprovisioned, and the IDE hides return values.)
 2. Pass: a Sheet named "Day Planner Hub Config" appears in the Day Planner Drive folder with four tabs
    (`Config`, `Meeting Registry`, `Integration Ledger`, `Integration Ledger Archive`), headers present, Config seeded with flags
    (`DRY_RUN` TRUE), Registry seeded with 10 series (5 enabled); `getHubStatus` returns `ok:true`; edit a flag in the

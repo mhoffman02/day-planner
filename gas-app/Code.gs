@@ -405,7 +405,7 @@ const DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mho
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const DAY_PLANNER_BUILD_NUMBER = 412;
+const DAY_PLANNER_BUILD_NUMBER = 413;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -531,6 +531,19 @@ function escapeHtml_(str) {
  * Synchronized with LockService.getUserLock() to prevent race conditions during folder discovery.
  * @returns {GoogleAppsScript.Drive.Folder|null} Configured Google Drive root folder object or null.
  */
+/**
+ * The current user's access to a Drive folder, from Drive v2 userPermission/editable. Replaces
+ * owner-email comparison: Session user lookups need userinfo.email, which the manifest lacks.
+ * Throws on any Drive failure so callers fail closed instead of assuming access.
+ * @param {string} folderId
+ * @returns {{owner: boolean, writable: boolean}}
+ */
+function driveFolderAccess_(folderId) {
+  const meta = Drive.Files.get(folderId, { fields: 'editable,userPermission(role)' });
+  const role = meta && meta.userPermission ? meta.userPermission.role : '';
+  return { owner: role === 'owner', writable: role === 'owner' || role === 'writer' || (meta && meta.editable === true) };
+}
+
 function getValidatedRootFolder() {
   if (typeof DriveApp === 'undefined') return null;
 
@@ -578,15 +591,11 @@ function getValidatedRootFolder() {
       const folders = DriveApp.getFoldersByName('Day Planner');
       while (folders.hasNext()) {
         const folder = folders.next();
-        let isOwner = true;
+        let isOwner = false;
         try {
-          const owner = folder.getOwner();
-          const userEmail = Session.getActiveUser().getEmail();
-          if (owner && owner.getEmail() && userEmail) {
-            isOwner = (owner.getEmail().toLowerCase() === userEmail.toLowerCase());
-          }
+          isOwner = driveFolderAccess_(folder.getId()).owner;
         } catch (e) {
-          console.error('Folder owner check failed, treating as non-owner: ' + e.message);
+          console.error('Folder owner check failed for ' + folder.getId() + ', skipping it (not bound): ' + e.message);
         }
         if (isOwner) {
           userProps.setProperty('DAY_PLANNER_ROOT_FOLDER_ID', folder.getId());
@@ -680,27 +689,15 @@ function validateAndSaveFolderUrl(inputUrl) {
     const folderName = folder.getName();
 
     // Folder ownership / capability validation: support Google Workspace enterprise domains
-    let isAuthorized = true;
+    // Owner or writer required (works on Workspace domains where getOwner() hides the email).
+    let access;
     try {
-      const owner = folder.getOwner();
-      const currentUser = Session.getActiveUser().getEmail();
-      if (owner && owner.getEmail() && currentUser) {
-        isAuthorized = (owner.getEmail().toLowerCase() === currentUser.toLowerCase());
-      } else {
-        // In Google Workspace (e.g. GSA), folder.getOwner() often returns null or hides email.
-        // Check write capabilities via Drive API v2 if available.
-        if (typeof Drive !== 'undefined' && Drive.Files && Drive.Files.get) {
-          const meta = Drive.Files.get(extractedId, { fields: 'editable,userPermission(role)' });
-          isAuthorized = !meta || meta.editable || (meta.userPermission && (meta.userPermission.role === 'owner' || meta.userPermission.role === 'writer'));
-        }
-      }
+      access = driveFolderAccess_(extractedId);
     } catch (permErr) {
-      // In restricted enterprise environments, proceed if getFolderById succeeded
-      console.warn('validateAndSaveFolderUrl perm check notice: ' + permErr.toString());
-      isAuthorized = true;
+      logError('validateAndSaveFolderUrl permission check(' + extractedId + ')', permErr);
+      return { success: false, error: 'Could not verify your access to this folder: ' + permErr.message };
     }
-
-    if (!isAuthorized) {
+    if (!access.writable) {
       return {
         success: false,
         error: 'Folder is not owned by or writable for this account.'
