@@ -13,7 +13,9 @@ export const VIEWS = {
   MONTHLY_CALENDAR: 'monthly-calendar',
   MASTER_TASKS: 'master-tasks',
   MONTHLY_INDEX: 'monthly-index',
-  FUTURE_MATRIX: 'future-matrix'
+  FUTURE_MATRIX: 'future-matrix',
+  TRIAGE: 'triage',
+  MEETING_PREP: 'meetingPrep'
 };
 
 /**

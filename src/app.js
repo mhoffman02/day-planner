@@ -2,6 +2,10 @@ import Alpine from 'https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/module.esm.
 import { GASBridge } from './gasBridge.js';
 import { getLocalDateStr } from './binderStore.js';
 import {
+  isHubViewVisible, scoreBandLabel, ledgerStatusLabel, canRetryLedger, formatCutoffCountdown,
+  QUEUE_ORDER, QUEUE_TITLES
+} from './hubUi.js';
+import {
   parseTaskTitle,
   formatTaskTitle,
   updateTaskTitleText,
@@ -277,6 +281,23 @@ const DICTATION_POPUP_HTML = `<!doctype html>
 
 Alpine.data('plannerApp', () => ({
       activeView: 'daily',
+
+      // Gmail / Meeting Hub (Triage + Meeting Prep). Hidden until getHubStatus reports flags ON.
+      hubFlags: null,
+      hubDryRun: false,
+      hubLastRun: null,
+      hubCounts: {},
+      hubNowMs: Date.now(),
+      triageBoard: { queues: {} },
+      triageLoading: false,
+      triageNotice: null,
+      triageReadLater: [],
+      showReadLater: false,
+      meetingPicker: { open: false, threadId: null, subject: '', loading: false, recommended: null, choices: [], backlogSeriesKey: '', selected: '', framing: 'Decision needed' },
+      waitingForm: { open: false, threadId: null, subject: '', waitingOn: '', nagDate: '' },
+      meetingPrep: null,
+      meetingPrepLoading: false,
+      meetingPrepSeries: 'NCMMS_CORE',
       selectedDate: getLocalDateStr(),
       selectedYear: new Date().getFullYear(),
       selectedMonth: new Date().getMonth() + 1,
@@ -478,7 +499,8 @@ Alpine.data('plannerApp', () => ({
       },
 
       async init() {
-        this.bridge = new GASBridge(false);
+        // Mock-only: ?hubDryRun=1 previews the Dry run banner and DRY_RUN ledger outcomes.
+        this.bridge = new GASBridge(false, { dryRun: new URLSearchParams(window.location.search).get('hubDryRun') === '1' });
         this.appBuildNumber = typeof window !== 'undefined' ? (window.DAY_PLANNER_BUILD_NUMBER ?? null) : null;
         this.sttSupported = typeof window !== 'undefined' && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
         this.sttBlocked = !this.sttSupported;
@@ -487,6 +509,7 @@ Alpine.data('plannerApp', () => ({
         this.initUiZoom();
         this.initRecentTopics();
         this.initCategories();
+        this.initHub();
         await this.loadDayData();
         await this.loadMasterTasks();
         this.setupKeyboardShortcuts();
@@ -847,6 +870,180 @@ Alpine.data('plannerApp', () => ({
         }
         if (viewName === 'master-tasks') {
           await this.loadMasterTasks();
+        }
+        if (viewName === 'triage' && this.showTriageNav) {
+          await this.loadTriageBoard();
+        }
+        if (viewName === 'meetingPrep' && this.showMeetingPrepNav) {
+          await this.loadMeetingPrep();
+        }
+      },
+
+      // ---- Gmail / Meeting Hub ----
+      get showTriageNav() {
+        return isHubViewVisible('triage', this.hubFlags);
+      },
+
+      get showMeetingPrepNav() {
+        return isHubViewVisible('meetingPrep', this.hubFlags);
+      },
+
+      get triageQueueList() {
+        const queues = (this.triageBoard && this.triageBoard.queues) || {};
+        return QUEUE_ORDER.map((key) => ({
+          key,
+          title: QUEUE_TITLES[key],
+          items: (queues[key] || []).filter((t) => this.showReadLater || !this.triageReadLater.includes(t.threadId))
+        }));
+      },
+
+      get triageItemCount() {
+        return this.triageQueueList.reduce((n, q) => n + q.items.length, 0);
+      },
+
+      hubBand(score) { return scoreBandLabel(score); },
+      hubLedgerLabel(status) { return ledgerStatusLabel(status); },
+      hubCanRetry(status) { return canRetryLedger(status); },
+      hubCountdown(iso) { return formatCutoffCountdown(iso, this.hubNowMs); },
+
+      async loadHubStatus() {
+        try {
+          const st = await this.bridge.getHubStatus();
+          this.hubFlags = (st && st.flags) || null;
+          this.hubDryRun = !!(st && st.dryRun);
+          this.hubLastRun = (st && st.lastRun) || null;
+          this.hubCounts = (st && st.counts) || {};
+        } catch (err) {
+          this.hubFlags = null;
+          console.warn('Hub status unavailable, Triage and Meeting Prep stay hidden:', err);
+        }
+      },
+
+      initHub() {
+        try {
+          const saved = JSON.parse(localStorage.getItem('dayPlannerHubReadLater') || '[]');
+          if (Array.isArray(saved)) this.triageReadLater = saved.filter((x) => typeof x === 'string');
+        } catch {
+          this.triageReadLater = [];
+        }
+        setInterval(() => { this.hubNowMs = Date.now(); }, 60000);
+        return this.loadHubStatus();
+      },
+
+      async loadTriageBoard() {
+        this.triageLoading = true;
+        try {
+          this.triageBoard = await this.bridge.getTriageBoard({});
+        } catch (err) {
+          console.error('Triage board failed to load:', err);
+          this.errorMessage = 'Triage board failed to load: ' + (err.message || err);
+        } finally {
+          this.triageLoading = false;
+        }
+      },
+
+      async runTriageAction(label, call) {
+        try {
+          const r = await call();
+          this.triageNotice = { kind: r.ok ? 'ok' : 'error', text: label + ': ' + r.message, url: r.targetUrl || null };
+          if (!r.ok) console.error('Triage action failed:', label, r);
+          await this.loadTriageBoard();
+          return r;
+        } catch (err) {
+          console.error('Triage action threw:', label, err);
+          this.triageNotice = { kind: 'error', text: label + ' failed: ' + (err.message || err), url: null };
+          return null;
+        }
+      },
+
+      triageTask(item, today) {
+        const priority = today ? (item.score >= 8 ? 'A1' : 'B1') : (item.score >= 4 ? 'B1' : 'C1');
+        return this.runTriageAction(today ? 'Task Today' : 'Task Later', () => this.bridge.routeThreadToTask(item.threadId, { today, priority }));
+      },
+
+      dismissTriageEntry(item) {
+        return this.runTriageAction('Dismiss', () => this.bridge.dismissTriageItem(item.threadId));
+      },
+
+      retryTriageItem(item) {
+        if (!item.operationKey) {
+          console.error('Retry impossible, item has no operationKey:', item);
+          this.triageNotice = { kind: 'error', text: 'Retry failed: the server did not supply an operation key for this item.', url: null };
+          return null;
+        }
+        return this.runTriageAction('Retry', () => this.bridge.retryFailedOperation(item.operationKey));
+      },
+
+      readLaterItem(item) {
+        if (!this.triageReadLater.includes(item.threadId)) this.triageReadLater.push(item.threadId);
+        this.persistReadLater();
+        this.triageNotice = { kind: 'ok', text: 'Read Later: saved in this browser only, Gmail and the ledger are untouched.', url: null };
+      },
+
+      persistReadLater() {
+        try {
+          localStorage.setItem('dayPlannerHubReadLater', JSON.stringify(this.triageReadLater));
+        } catch (err) {
+          console.error('Read Later could not be persisted:', err);
+        }
+      },
+
+      openWaitingForm(item) {
+        const [y, m, d] = getLocalDateStr().split('-').map(Number);
+        const nag = new Date(y, m - 1, d + 3);
+        const nagStr = nag.getFullYear() + '-' + String(nag.getMonth() + 1).padStart(2, '0') + '-' + String(nag.getDate()).padStart(2, '0');
+        this.waitingForm = { open: true, threadId: item.threadId, subject: item.subject, waitingOn: item.from || '', nagDate: nagStr };
+      },
+
+      closeWaitingForm() {
+        this.waitingForm.open = false;
+      },
+
+      async confirmWaiting() {
+        const f = this.waitingForm;
+        this.closeWaitingForm();
+        await this.runTriageAction('Waiting', () => this.bridge.routeThreadToWaiting(f.threadId, { waitingOn: f.waitingOn, nagDate: f.nagDate || null }));
+      },
+
+      async openMeetingPicker(item) {
+        this.meetingPicker = { open: true, threadId: item.threadId, subject: item.subject, loading: true, recommended: null, choices: [], backlogSeriesKey: '', selected: '', framing: 'Decision needed' };
+        try {
+          const c = await this.bridge.getUpcomingMeetingChoices(item.threadId);
+          this.meetingPicker.recommended = c.recommended || null;
+          this.meetingPicker.choices = c.choices || [];
+          this.meetingPicker.backlogSeriesKey = c.backlogSeriesKey || '';
+          this.meetingPicker.selected = (c.recommended && c.recommended.occurrenceId) || '';
+        } catch (err) {
+          console.error('Meeting choices failed to load:', err);
+          this.meetingPicker.open = false;
+          this.triageNotice = { kind: 'error', text: 'Send to Meeting failed: ' + (err.message || err), url: null };
+        } finally {
+          this.meetingPicker.loading = false;
+        }
+      },
+
+      closeMeetingPicker() {
+        this.meetingPicker.open = false;
+      },
+
+      async confirmMeetingRoute() {
+        const p = this.meetingPicker;
+        this.closeMeetingPicker();
+        const backlog = p.selected === '__backlog__';
+        const occurrenceId = backlog ? p.backlogSeriesKey : p.selected;
+        await this.runTriageAction('Send to Meeting', () => this.bridge.routeThreadToMeeting(p.threadId, occurrenceId, { framing: p.framing, backlog }));
+      },
+
+      async loadMeetingPrep() {
+        this.meetingPrepLoading = true;
+        this.hubNowMs = Date.now();
+        try {
+          this.meetingPrep = await this.bridge.getMeetingPrep(this.meetingPrepSeries, null);
+        } catch (err) {
+          console.error('Meeting prep failed to load:', err);
+          this.errorMessage = 'Meeting prep failed to load: ' + (err.message || err);
+        } finally {
+          this.meetingPrepLoading = false;
         }
       },
 

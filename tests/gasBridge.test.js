@@ -286,6 +286,104 @@ describe('GAS Bridge Unit Tests', () => {
     assert.ok(url);
     assert.ok(url.includes('/exec'));
   });
+
+  describe('Hub RPC mocks', () => {
+    const QUEUES = ['directAction', 'meetingCarryIns', 'systemExceptions', 'fyiReading'];
+
+    it('getHubStatus returns flags, dryRun, lastRun, counts', async () => {
+      const st = await new GASBridge(true).getHubStatus();
+      assert.equal(typeof st.flags, 'object');
+      assert.equal(typeof st.dryRun, 'boolean');
+      assert.ok('lastRun' in st);
+      assert.equal(typeof st.counts, 'object');
+    });
+
+    it('getTriageBoard returns four populated queues with contract item fields', async () => {
+      const board = await new GASBridge(true).getTriageBoard({});
+      QUEUES.forEach((q) => {
+        assert.ok(Array.isArray(board.queues[q]) && board.queues[q].length > 0, q);
+        const it0 = board.queues[q][0];
+        ['threadId', 'subject', 'from', 'date', 'score', 'signals', 'labels', 'suggestedDestinations', 'gmailUrl'].forEach((k) => assert.ok(k in it0, `${q}.${k}`));
+        assert.ok('ledgerStatus' in it0);
+      });
+      const statuses = new Set(QUEUES.flatMap((q) => board.queues[q].map((t) => t.ledgerStatus)));
+      ['DONE', 'ERROR', 'DEFERRED', 'DRY_RUN'].forEach((s) => assert.ok(statuses.has(s), s));
+    });
+
+    it('getUpcomingMeetingChoices returns recommended, choices, backlogSeriesKey', async () => {
+      const c = await new GASBridge(true).getUpcomingMeetingChoices('t-2001');
+      assert.ok(c.recommended.occurrenceId && c.recommended.start && c.recommended.reason);
+      assert.ok(c.choices.length >= 2 && c.choices.every((x) => x.occurrenceId && x.start && x.label));
+      assert.ok(c.choices.some((x) => x.occurrenceId === c.recommended.occurrenceId));
+      assert.equal(c.backlogSeriesKey, 'NCMMS_CORE');
+    });
+
+    it('routeThreadToTask is idempotent: one mock task, ledger DONE', async () => {
+      const bridge = new GASBridge(true);
+      const a = await bridge.routeThreadToTask('t-1001', { today: true, priority: 'A1' });
+      const b = await bridge.routeThreadToTask('t-1001', { today: true, priority: 'A1' });
+      assert.equal(a.ok, true);
+      assert.equal(b.ok, true);
+      assert.equal(a.operationKey, b.operationKey);
+      assert.equal(bridge.hub.tasks.length, 1);
+      assert.equal(bridge.hub.ledger.get(a.operationKey).status, 'DONE');
+      const board = await bridge.getTriageBoard({});
+      assert.equal(board.queues.directAction.find((t) => t.threadId === 't-1001').ledgerStatus, 'DONE');
+    });
+
+    it('routeThreadToWaiting and routeThreadToMeeting are idempotent', async () => {
+      const bridge = new GASBridge(true);
+      await bridge.routeThreadToWaiting('t-1002', { waitingOn: 'Priya', nagDate: '2026-10-20' });
+      await bridge.routeThreadToWaiting('t-1002', { waitingOn: 'Priya', nagDate: '2026-10-20' });
+      assert.equal(bridge.hub.waiting.length, 1);
+      const before = bridge.hub.carryIns.length;
+      const m1 = await bridge.routeThreadToMeeting('t-2001', 'NCMMS_CORE-occ-1', { framing: 'Decision needed' });
+      const m2 = await bridge.routeThreadToMeeting('t-2001', 'NCMMS_CORE-occ-1', { framing: 'Decision needed' });
+      assert.equal(m1.ok && m2.ok, true);
+      assert.equal(bridge.hub.carryIns.length, before + 1);
+    });
+
+    it('dry run records DRY_RUN and creates nothing', async () => {
+      const bridge = new GASBridge(true, { dryRun: true });
+      const r = await bridge.routeThreadToTask('t-1001', {});
+      assert.equal(r.ok, true);
+      assert.match(r.message, /Would create Task/);
+      assert.equal(bridge.hub.tasks.length, 0);
+      assert.equal(bridge.hub.ledger.get(r.operationKey).status, 'DRY_RUN');
+    });
+
+    it('dismissTriageItem removes the item from the board; unknown thread fails loud', async () => {
+      const bridge = new GASBridge(true);
+      const r = await bridge.dismissTriageItem('t-4001');
+      assert.equal(r.ok, true);
+      const board = await bridge.getTriageBoard({});
+      assert.ok(!board.queues.fyiReading.some((t) => t.threadId === 't-4001'));
+      const bad = await bridge.dismissTriageItem('nope');
+      assert.equal(bad.ok, false);
+      assert.equal(bad.errorCode, 'NOT_FOUND');
+    });
+
+    it('retryFailedOperation recovers an ERROR row, rejects non-errors', async () => {
+      const bridge = new GASBridge(true);
+      const board = await bridge.getTriageBoard({});
+      const failed = board.queues.directAction.find((t) => t.ledgerStatus === 'ERROR');
+      const r = await bridge.retryFailedOperation(failed.operationKey);
+      assert.equal(r.ok, true);
+      const again = await bridge.retryFailedOperation(failed.operationKey);
+      assert.equal(again.ok, false);
+      assert.equal(again.errorCode, 'NOT_RETRYABLE');
+    });
+
+    it('getMeetingPrep returns the contract shape and reflects routed carry-ins', async () => {
+      const bridge = new GASBridge(true);
+      const p0 = await bridge.getMeetingPrep('NCMMS_CORE', 'NCMMS_CORE-occ-1');
+      ['title', 'start', 'cutoff', 'carryIns', 'carryInCount', 'agenda', 'notesDocUrl', 'status'].forEach((k) => assert.ok(k in p0, k));
+      assert.equal(p0.carryInCount, p0.carryIns.length);
+      await bridge.routeThreadToMeeting('t-2003', 'NCMMS_CORE-occ-1', {});
+      const p1 = await bridge.getMeetingPrep('NCMMS_CORE', 'NCMMS_CORE-occ-1');
+      assert.equal(p1.carryInCount, p0.carryInCount + 1);
+    });
+  });
 });
 
 

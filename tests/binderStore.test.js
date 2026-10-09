@@ -59,4 +59,16 @@ describe('Binder Store Unit Tests', () => {
     store.closeSearchModal();
     assert.equal(store.searchModal.isOpen, false);
   });
+
+  it('routes to triage and meetingPrep views and back', () => {
+    const store = new BinderStore('2026-08-15');
+    store.setView(VIEWS.TRIAGE);
+    assert.equal(store.activeView, 'triage');
+    store.setView(VIEWS.MEETING_PREP);
+    assert.equal(store.activeView, 'meetingPrep');
+    store.setView(VIEWS.DAILY);
+    assert.equal(store.activeView, VIEWS.DAILY);
+    store.setView('not-a-view');
+    assert.equal(store.activeView, VIEWS.DAILY);
+  });
 });

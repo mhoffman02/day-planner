@@ -218,6 +218,18 @@
           <span class="material-symbols-outlined icon-16">explore</span>
           <span>Future</span>
         </button>
+        <template x-if="showTriageNav">
+          <button type="button" class="segment-btn" :class="{ 'active': activeView === 'triage' }" @click="setView('triage')" title="Gmail Triage Board">
+            <span class="material-symbols-outlined icon-16">inbox</span>
+            <span>Triage</span>
+          </button>
+        </template>
+        <template x-if="showMeetingPrepNav">
+          <button type="button" class="segment-btn" :class="{ 'active': activeView === 'meetingPrep' }" @click="setView('meetingPrep')" title="Meeting Prep and Carry-ins">
+            <span class="material-symbols-outlined icon-16">event_note</span>
+            <span>Meeting Prep</span>
+          </button>
+        </template>
         <button type="button" class="segment-btn" :class="{ 'active': activeView === 'about' }" @click="setView('about')" :title="'Help & About' + (appBuildNumber ? ' — GH Build ' + appBuildNumber : '')">
           <span class="material-symbols-outlined icon-16">info</span>
           <span>About</span>
@@ -1152,6 +1164,203 @@
         </section>
       </template>
 
+      <!-- View: Gmail Triage board -->
+      <template x-if="activeView === 'triage'">
+        <section class="view-container hub-view" aria-label="Triage">
+          <header class="hub-header">
+            <h2 class="view-title">
+              <span class="material-symbols-outlined">inbox</span>
+              Triage
+            </h2>
+            <p class="hub-header-meta" x-show="showTriageNav">
+              <span x-text="triageItemCount + (triageItemCount === 1 ? ' thread' : ' threads')"></span>
+              <span x-show="hubLastRun"> &middot; last run <span x-text="hubLastRun ? hubLastRun.replace('T', ' ').slice(0, 16) : ''"></span></span>
+              <span x-show="triageReadLater.length > 0"> &middot;
+                <button type="button" class="hub-link-btn" @click="showReadLater = !showReadLater" :aria-pressed="showReadLater" x-text="(showReadLater ? 'Hide' : 'Show') + ' read later (' + triageReadLater.length + ')'"></button>
+              </span>
+            </p>
+            <button type="button" class="btn-secondary hub-refresh-btn" @click="loadTriageBoard()" :disabled="triageLoading" x-show="showTriageNav">Refresh</button>
+          </header>
+
+          <aside class="hub-banner hub-banner-dryrun" role="status" x-show="hubDryRun &amp;&amp; showTriageNav">
+            <strong>Dry run is ON.</strong> Actions are recorded in the ledger as Dry run and nothing is created in Tasks or Docs.
+          </aside>
+
+          <aside class="hub-banner" :class="triageNotice ? 'hub-banner-' + triageNotice.kind : ''" role="status" x-show="triageNotice">
+            <span x-text="triageNotice ? triageNotice.text : ''"></span>
+            <template x-if="triageNotice &amp;&amp; triageNotice.url">
+              <a :href="triageNotice.url" target="_blank" rel="noopener noreferrer" class="hub-notice-link">Open result</a>
+            </template>
+            <button type="button" class="hub-link-btn" @click="triageNotice = null" aria-label="Dismiss message">Dismiss</button>
+          </aside>
+
+          <template x-if="!showTriageNav">
+            <section class="hub-empty" aria-label="Triage is off">
+              <h3 class="hub-empty-title">Triage is turned off</h3>
+              <p>The Gmail triage board is disabled for this deployment (feature flags are off). Nothing is read from Gmail.</p>
+              <p>When enabled, Day Planner reads Gmail but never changes it. Apply the 🎯/ labels yourself in Gmail (for example 🎯/Task, 🎯/Task-Today, 🎯/Waiting, 🎯/Meeting, 🎯/Read, 🎯/Review) and they are picked up here.</p>
+            </section>
+          </template>
+
+          <template x-if="showTriageNav &amp;&amp; !triageLoading &amp;&amp; triageItemCount === 0">
+            <section class="hub-empty" aria-label="Nothing to triage">
+              <h3 class="hub-empty-title">Nothing to triage</h3>
+              <p>No candidate threads right now. Day Planner never changes Gmail, so 🎯/ labels (🎯/Task, 🎯/Task-Today, 🎯/Waiting, 🎯/Meeting, 🎯/Read, 🎯/Review) are applied manually in Gmail.</p>
+            </section>
+          </template>
+
+          <template x-if="showTriageNav">
+            <div class="hub-queues">
+              <template x-for="q in triageQueueList" :key="q.key">
+                <section class="hub-queue" :aria-labelledby="'hubQueue-' + q.key">
+                  <h3 class="hub-queue-title" :id="'hubQueue-' + q.key" x-text="q.title + ' (' + q.items.length + ')'"></h3>
+                  <p class="hub-queue-empty" x-show="q.items.length === 0">Nothing in this queue.</p>
+                  <figure class="table-container hub-table-wrap" x-show="q.items.length > 0">
+                    <table class="hub-table">
+                      <thead>
+                        <tr>
+                          <th scope="col" class="hub-col-score">Score</th>
+                          <th scope="col">Thread</th>
+                          <th scope="col" class="hub-col-signals">Signals and labels</th>
+                          <th scope="col" class="hub-col-ledger">Ledger</th>
+                          <th scope="col" class="hub-col-actions">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <template x-for="item in q.items" :key="item.threadId">
+                          <tr>
+                            <td class="hub-col-score">
+                              <span class="hub-score-num" x-text="item.score"></span>
+                              <span class="hub-band" x-text="hubBand(item.score)"></span>
+                            </td>
+                            <td>
+                              <span class="hub-subject" x-text="item.subject"></span>
+                              <span class="hub-from" x-text="item.from + ' · ' + (item.date || '').replace('T', ' ').slice(0, 16)"></span>
+                              <template x-if="item.suggestedDestinations &amp;&amp; item.suggestedDestinations.length > 0">
+                                <span class="hub-suggest">Suggested:
+                                  <template x-for="d in item.suggestedDestinations" :key="d.seriesKey">
+                                    <span class="hub-suggest-item" :title="d.reason" x-text="d.seriesKey"></span>
+                                  </template>
+                                </span>
+                              </template>
+                            </td>
+                            <td class="hub-col-signals">
+                              <span class="hub-signals" x-text="(item.signals || []).join(', ')"></span>
+                              <span class="hub-labels" x-text="(item.labels || []).join(', ')"></span>
+                            </td>
+                            <td class="hub-col-ledger">
+                              <span class="hub-ledger" :class="item.ledgerStatus ? 'hub-ledger-' + item.ledgerStatus.toLowerCase().replace('_', '-') : ''" x-text="hubLedgerLabel(item.ledgerStatus) || 'None'"></span>
+                              <template x-if="hubCanRetry(item.ledgerStatus)">
+                                <button type="button" class="hub-action-btn" @click="retryTriageItem(item)" :aria-label="'Retry failed operation: ' + item.subject">Retry</button>
+                              </template>
+                            </td>
+                            <td class="hub-col-actions">
+                              <div class="hub-actions" role="group" :aria-label="'Actions for ' + item.subject">
+                                <button type="button" class="hub-action-btn" @click="triageTask(item, true)" :aria-label="'Task Today: ' + item.subject">Task Today</button>
+                                <button type="button" class="hub-action-btn" @click="triageTask(item, false)" :aria-label="'Task Later: ' + item.subject">Task Later</button>
+                                <button type="button" class="hub-action-btn" @click="openWaitingForm(item)" :aria-label="'Waiting: ' + item.subject">Waiting</button>
+                                <button type="button" class="hub-action-btn" @click="openMeetingPicker(item)" :aria-label="'Send to Meeting: ' + item.subject">Send to Meeting</button>
+                                <button type="button" class="hub-action-btn" @click="readLaterItem(item)" :aria-label="'Read Later: ' + item.subject">Read Later</button>
+                                <button type="button" class="hub-action-btn" @click="dismissTriageEntry(item)" :aria-label="'Dismiss: ' + item.subject">Dismiss</button>
+                                <a class="hub-action-btn hub-action-link" :href="item.gmailUrl" target="_blank" rel="noopener noreferrer" :aria-label="'Open Gmail: ' + item.subject">Open Gmail</a>
+                              </div>
+                            </td>
+                          </tr>
+                        </template>
+                      </tbody>
+                    </table>
+                  </figure>
+                </section>
+              </template>
+            </div>
+          </template>
+        </section>
+      </template>
+
+      <!-- View: Meeting Prep -->
+      <template x-if="activeView === 'meetingPrep'">
+        <section class="view-container hub-view" aria-label="Meeting Prep">
+          <header class="hub-header">
+            <h2 class="view-title">
+              <span class="material-symbols-outlined">event_note</span>
+              Meeting Prep
+            </h2>
+            <button type="button" class="btn-secondary hub-refresh-btn" @click="loadMeetingPrep()" :disabled="meetingPrepLoading" x-show="showMeetingPrepNav">Refresh</button>
+          </header>
+
+          <aside class="hub-banner hub-banner-dryrun" role="status" x-show="hubDryRun &amp;&amp; showMeetingPrepNav">
+            <strong>Dry run is ON.</strong> Carry-ins are recorded in the ledger but not written to the notes Doc.
+          </aside>
+
+          <template x-if="!showMeetingPrepNav">
+            <section class="hub-empty" aria-label="Meeting Prep is off">
+              <h3 class="hub-empty-title">Meeting Prep is turned off</h3>
+              <p>The meeting carry-in pilot is disabled for this deployment (feature flags are off).</p>
+              <p>Email carry-ins reach a meeting only when you route a thread from Triage or apply a 🎯/Meeting label manually in Gmail.</p>
+            </section>
+          </template>
+
+          <template x-if="showMeetingPrepNav &amp;&amp; !meetingPrep &amp;&amp; !meetingPrepLoading">
+            <section class="hub-empty" aria-label="No upcoming meeting">
+              <h3 class="hub-empty-title">No upcoming meeting prepared</h3>
+              <p>No upcoming occurrence was found for this series. Carry-ins routed from Triage appear here.</p>
+            </section>
+          </template>
+
+          <template x-if="showMeetingPrepNav &amp;&amp; meetingPrep">
+            <article class="hub-prep" aria-label="Upcoming meeting preparation">
+              <h3 class="hub-prep-title" x-text="meetingPrep.title"></h3>
+              <table class="hub-table hub-facts">
+                <tbody>
+                  <tr><th scope="row">Starts</th><td x-text="(meetingPrep.start || '').replace('T', ' ').slice(0, 16)"></td></tr>
+                  <tr><th scope="row">Prep cutoff</th><td><span x-text="(meetingPrep.cutoff || '').replace('T', ' ').slice(0, 16)"></span> <strong class="hub-countdown" x-text="'(' + hubCountdown(meetingPrep.cutoff) + ')'"></strong></td></tr>
+                  <tr><th scope="row">Status</th><td x-text="meetingPrep.status"></td></tr>
+                  <tr>
+                    <th scope="row">Notes Doc</th>
+                    <td>
+                      <template x-if="meetingPrep.notesDocUrl">
+                        <a :href="meetingPrep.notesDocUrl" target="_blank" rel="noopener noreferrer">Open meeting notes Doc</a>
+                      </template>
+                      <span x-show="!meetingPrep.notesDocUrl">Not created yet</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <h4 class="hub-queue-title" id="hubCarryInsTitle" x-text="'Carry-ins (' + meetingPrep.carryInCount + ')'"></h4>
+              <p class="hub-queue-empty" x-show="!meetingPrep.carryIns || meetingPrep.carryIns.length === 0">No carry-ins yet.</p>
+              <figure class="table-container hub-table-wrap" x-show="meetingPrep.carryIns &amp;&amp; meetingPrep.carryIns.length > 0">
+                <table class="hub-table" aria-labelledby="hubCarryInsTitle">
+                  <thead>
+                    <tr>
+                      <th scope="col">Carry-in</th>
+                      <th scope="col" class="hub-col-ledger">Status</th>
+                      <th scope="col" class="hub-col-actions">Source</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="(c, idx) in meetingPrep.carryIns" :key="idx">
+                      <tr>
+                        <td x-text="c.text"></td>
+                        <td class="hub-col-ledger"><span class="hub-ledger" :class="c.status ? 'hub-ledger-' + c.status.toLowerCase().replace('_', '-') : ''" x-text="hubLedgerLabel(c.status)"></span></td>
+                        <td class="hub-col-actions"><a class="hub-action-btn hub-action-link" :href="c.gmailUrl" target="_blank" rel="noopener noreferrer" :aria-label="'Open Gmail: ' + c.text">Open Gmail</a></td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </figure>
+
+              <h4 class="hub-queue-title">Agenda</h4>
+              <ol class="hub-agenda">
+                <template x-for="(a, i) in (meetingPrep.agenda || [])" :key="i">
+                  <li x-text="a"></li>
+                </template>
+              </ol>
+            </article>
+          </template>
+        </section>
+      </template>
+
       <!-- View 6: Static About Page -->
       <template x-if="activeView === 'about'">
         <section class="view-container-compact about-view-container" aria-label="About Day Planner">
@@ -1160,6 +1369,79 @@
       </template>
 
     </section>
+
+    <!-- Triage: Send to Meeting occurrence picker -->
+    <dialog class="modal-backdrop" :open="meetingPicker.open" x-show="meetingPicker.open" x-cloak aria-labelledby="meetingPickerTitle" @click.self="closeMeetingPicker()" @keydown.escape.window="closeMeetingPicker()">
+      <article class="modal-card modal-card-form" @click.away="closeMeetingPicker()">
+        <header class="modal-header-spaced">
+          <h3 id="meetingPickerTitle" class="modal-title-with-icon">
+            <span class="material-symbols-outlined">event_note</span> Send to Meeting
+          </h3>
+          <button type="button" class="btn-icon-subtle" @click="closeMeetingPicker()" title="Close" aria-label="Close">
+            <span class="material-symbols-outlined icon-18">close</span>
+          </button>
+        </header>
+        <form @submit.prevent="confirmMeetingRoute()" class="hub-form">
+          <p class="hub-form-subject" x-text="meetingPicker.subject"></p>
+          <p class="hub-queue-empty" x-show="meetingPicker.loading">Loading upcoming occurrences</p>
+          <fieldset class="hub-fieldset" x-show="!meetingPicker.loading">
+            <legend>Occurrence</legend>
+            <template x-for="c in meetingPicker.choices" :key="c.occurrenceId">
+              <label class="hub-radio-row">
+                <input type="radio" name="hubOccurrence" :value="c.occurrenceId" x-model="meetingPicker.selected">
+                <span x-text="c.label + ' · ' + (c.start || '').replace('T', ' ').slice(0, 16)"></span>
+                <strong class="hub-recommended" x-show="meetingPicker.recommended &amp;&amp; meetingPicker.recommended.occurrenceId === c.occurrenceId" x-text="'Recommended: ' + (meetingPicker.recommended ? meetingPicker.recommended.reason : '')"></strong>
+              </label>
+            </template>
+            <label class="hub-radio-row" x-show="meetingPicker.backlogSeriesKey">
+              <input type="radio" name="hubOccurrence" value="__backlog__" x-model="meetingPicker.selected">
+              <span x-text="'Series backlog (' + meetingPicker.backlogSeriesKey + '), no specific date'"></span>
+            </label>
+          </fieldset>
+          <div class="form-group">
+            <label for="hubFraming" class="form-label">Framing</label>
+            <select id="hubFraming" x-model="meetingPicker.framing" class="form-select">
+              <option value="Decision needed">Decision needed</option>
+              <option value="Input needed">Input needed</option>
+              <option value="FYI">FYI</option>
+            </select>
+          </div>
+          <footer class="modal-actions">
+            <button type="submit" class="btn-primary" :disabled="meetingPicker.loading || !meetingPicker.selected">Send to Meeting</button>
+            <button type="button" class="btn-secondary" @click="closeMeetingPicker()">Cancel</button>
+          </footer>
+        </form>
+      </article>
+    </dialog>
+
+    <!-- Triage: Waiting details -->
+    <dialog class="modal-backdrop" :open="waitingForm.open" x-show="waitingForm.open" x-cloak aria-labelledby="waitingFormTitle" @click.self="closeWaitingForm()" @keydown.escape.window="closeWaitingForm()">
+      <article class="modal-card modal-card-form" @click.away="closeWaitingForm()">
+        <header class="modal-header-spaced">
+          <h3 id="waitingFormTitle" class="modal-title-with-icon">
+            <span class="material-symbols-outlined">hourglass_empty</span> Waiting
+          </h3>
+          <button type="button" class="btn-icon-subtle" @click="closeWaitingForm()" title="Close" aria-label="Close">
+            <span class="material-symbols-outlined icon-18">close</span>
+          </button>
+        </header>
+        <form @submit.prevent="confirmWaiting()" class="hub-form">
+          <p class="hub-form-subject" x-text="waitingForm.subject"></p>
+          <div class="form-group">
+            <label for="hubWaitingOn" class="form-label">Waiting on</label>
+            <input type="text" id="hubWaitingOn" x-model="waitingForm.waitingOn" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label for="hubNagDate" class="form-label">Nag date</label>
+            <input type="date" id="hubNagDate" x-model="waitingForm.nagDate" class="form-input">
+          </div>
+          <footer class="modal-actions">
+            <button type="submit" class="btn-primary">Create Waiting item</button>
+            <button type="button" class="btn-secondary" @click="closeWaitingForm()">Cancel</button>
+          </footer>
+        </form>
+      </article>
+    </dialog>
 
     <!-- Event Detail Modal -->
     <dialog class="modal-backdrop" :open="eventModalOpen" x-show="eventModalOpen" x-cloak aria-labelledby="eventModalTitle" @click.self="closeEventModal()">
