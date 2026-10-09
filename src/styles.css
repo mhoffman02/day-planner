@@ -500,12 +500,12 @@
   /* Fixed width (widest date + 1em) so the nav does not bounce while paging dates.
      Widest "Mon, Mar 30, 2026" measures ~8.5em in fallback serif; 12em covers wider webfonts. */
   .date-picker-btn .date-text-display {
-    min-width: 12em;
+    min-width: 8em;
     text-align: center;
   }
 
   .month-display-btn .date-text-display {
-    min-width: 10em;
+    min-width: 6em;
     text-align: center;
   }
 
