@@ -412,8 +412,8 @@ Alpine.data('plannerApp', () => ({
 
       // Resizable 3-Column Layout state
       colWidths: [33.33, 33.33, 33.34],
-      // Tasks pane text zoom, percent (80-140). Persisted per device.
-      taskZoom: 100,
+      // Whole-UI zoom, percent (80-140). Persisted per device.
+      uiZoom: 100,
       isResizing: false,
       activeResizerIndex: null,
       maximizedColumn: null, // 'tasks' | 'appointments' | 'notes' | null
@@ -483,7 +483,7 @@ Alpine.data('plannerApp', () => ({
         this.sttBlocked = !this.sttSupported;
         this.initTheme();
         this.initColumnWidths();
-        this.initTaskZoom();
+        this.initUiZoom();
         this.initRecentTopics();
         this.initCategories();
         await this.loadDayData();
@@ -543,22 +543,22 @@ Alpine.data('plannerApp', () => ({
         this.recentCategories = defaultCategories;
       },
 
-      initTaskZoom() {
+      initUiZoom() {
         try {
-          const saved = parseInt(localStorage.getItem('dayPlannerTaskZoom'), 10);
-          if (saved >= 80 && saved <= 140) this.taskZoom = saved;
+          const saved = parseInt(localStorage.getItem('dayPlannerUiZoom'), 10);
+          if (saved >= 80 && saved <= 140) this.uiZoom = saved;
         } catch (e) {
-          console.warn('Could not load saved task zoom:', e);
+          console.warn('Could not load saved UI zoom:', e);
         }
       },
 
-      setTaskZoom(value) {
+      setUiZoom(value) {
         const n = Math.round(Number(value));
-        this.taskZoom = Math.min(140, Math.max(80, isNaN(n) ? 100 : n));
+        this.uiZoom = Math.min(140, Math.max(80, isNaN(n) ? 100 : n));
         try {
-          localStorage.setItem('dayPlannerTaskZoom', String(this.taskZoom));
+          localStorage.setItem('dayPlannerUiZoom', String(this.uiZoom));
         } catch (e) {
-          console.warn('Could not save task zoom:', e);
+          console.warn('Could not save UI zoom:', e);
         }
       },
 

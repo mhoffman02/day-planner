@@ -81,7 +81,7 @@
 </head>
 <body>
   <!-- Main Binder Application Container -->
-  <main class="binder-container" x-data="plannerApp" x-cloak @scroll.window.passive="openStatusMenuTaskId = null">
+  <main class="binder-container" x-data="plannerApp" x-cloak :style="{ '--ui-zoom': uiZoom / 100 }" @scroll.window.passive="openStatusMenuTaskId = null">
     
     <!-- Single Consolidated Top Bar (Brand, Date Controls, View Tabs, & Actions) -->
     <header class="binder-header single-top-bar" aria-label="Day Planner Header">
@@ -224,6 +224,11 @@
 
       <!-- Right: Global Action Utilities -->
       <div class="header-actions-compact">
+        <div class="ui-zoom" title="UI size (double-click to reset)" @dblclick="setUiZoom(100)">
+          <span class="ui-zoom-glyph" style="font-size: 0.75rem;" aria-hidden="true">A</span>
+          <input type="range" min="80" max="140" step="5" :value="uiZoom" @input="setUiZoom($event.target.value)" aria-label="UI size">
+          <span class="ui-zoom-glyph" style="font-size: 1.1rem;" aria-hidden="true">A</span>
+        </div>
         <button type="button" class="search-trigger-compact" @click.stop="toggleSearchModal()" title="Search Across All Items (/ or Ctrl+Shift+F or Ctrl+K)">
           <span class="material-symbols-outlined icon-18">search</span>
           <span class="search-label">Search</span>
@@ -264,16 +269,11 @@
                  :style="{ '--col1-w': colWidths[0] + '%', '--col2-w': colWidths[1] + '%', '--col3-w': colWidths[2] + '%' }">
           
           <!-- Column 1: Daily Task List Panel -->
-          <article class="page-panel col-tasks" :class="{ 'is-maximized': maximizedColumn === 'tasks' }" :style="{ '--task-zoom': taskZoom / 100 }">
+          <article class="page-panel col-tasks" :class="{ 'is-maximized': maximizedColumn === 'tasks' }">
             <header class="panel-header">
               <h3 class="panel-header-title">
                 <span class="material-symbols-outlined">format_list_numbered</span> Tasks
               </h3>
-              <div class="tasks-zoom" title="Tasks text size (double-click to reset)" @dblclick="setTaskZoom(100)">
-                <span class="tasks-zoom-glyph" style="font-size: 0.75rem;" aria-hidden="true">A</span>
-                <input type="range" min="80" max="140" step="5" :value="taskZoom" @input="setTaskZoom($event.target.value)" aria-label="Tasks text size">
-                <span class="tasks-zoom-glyph" style="font-size: 1.1rem;" aria-hidden="true">A</span>
-              </div>
               <div class="tasks-header-actions">
                 <button type="button" class="btn-icon-subtle" @click="toggleMaximizeColumn('tasks')" :title="maximizedColumn === 'tasks' ? 'Restore Columns (Esc)' : 'Maximize Tasks'" :aria-label="maximizedColumn === 'tasks' ? 'Restore Columns (Esc)' : 'Maximize Tasks'">
                   <span class="material-symbols-outlined" x-text="maximizedColumn === 'tasks' ? 'close_fullscreen' : 'open_in_full'"></span>
