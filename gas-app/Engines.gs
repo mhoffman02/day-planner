@@ -125,6 +125,477 @@ function makeResult(r) {
   return Object.freeze({ ...r });
 }
 
+// ---- eventClassifier.js ----
+/**
+ * @file eventClassifier.js
+ * @description Classifies normalized Calendar v3 events into EVENT_TYPE (spec section 5) and gates
+ * which events may be meeting destinations / imported back into Tasks. Pure functions; titles are
+ * normalized (emoji and punctuation stripped, case-folded) so cosmetic title edits never break
+ * matching. Task-derived events (extendedProperties.shared.gasTaskId) are never importable.
+ */
+
+
+
+
+/**
+ * Normalize an event title for matching: case-fold, drop emoji/symbols/punctuation, collapse spaces.
+ * @param {string} title
+ * @returns {string}
+ */
+function normalizeEventTitle(title) {
+  if (typeof title !== 'string') throw new Error(`normalizeEventTitle expects a string, got ${typeof title}`);
+  return title
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/['’`]/g, '')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim();
+}
+
+const EC_HOLIDAY_RE = /\b(federal holiday|holiday|christmas|thanksgiving|juneteenth|independence day|labor day|memorial day|veterans day|columbus day|presidents day|martin luther king|new years day)\b/;
+const EC_LEAVE_RE = /\b(out of office|ooo|annual leave|sick leave|leave|vacation|pto|day off)\b/;
+const EC_PAY_RE = /\b(pay date|payday|pay day|pay period)\b/;
+
+function ecRequireEvent(event) {
+  if (!event || typeof event !== 'object') throw new Error('classifyEvent requires an event object');
+  if (typeof event.summary !== 'string') throw new Error(`classifyEvent: event ${event.id || '(no id)'} has no string summary`);
+}
+
+function ecIsAllDay(event) {
+  if (typeof event.allDay === 'boolean') return event.allDay;
+  const s = event.start;
+  return !!(s && typeof s === 'object' && s.date && !s.dateTime);
+}
+
+function ecActiveRows(registry) {
+  const rows = Array.isArray(registry) ? registry : DEFAULT_SERIES;
+  return rows.filter((r) => r && r.Enabled !== false);
+}
+
+function ecMatchesRegistry(event, norm, rows) {
+  return rows.some((r) => {
+    if (r.RecurringEventId && (event.recurringEventId === r.RecurringEventId || event.id === r.RecurringEventId)) return true;
+    const fb = r.TitleFallback ? normalizeEventTitle(r.TitleFallback) : '';
+    return fb !== '' && (norm === fb || (' ' + norm + ' ').includes(' ' + fb + ' '));
+  });
+}
+
+function ecResult(type, importable, reason) {
+  return { type, importable, reason };
+}
+
+/**
+ * Classify with detail.
+ * @param {object} event Normalized Calendar event (summary, start, end, allDay, eventType, transparency,
+ *   extendedProperties.shared.gasTaskId, recurringEventId, id).
+ * @param {Array<object>} [registry] Parsed registry rows; defaults to DEFAULT_SERIES.
+ * @returns {{type: string, importable: boolean, reason: string}} importable = may be imported into Tasks.
+ */
+function classifyEventDetailed(event, registry) {
+  ecRequireEvent(event);
+  const shared = event.extendedProperties && event.extendedProperties.shared;
+  if (shared && shared.gasTaskId) return ecResult(EVENT_TYPE.TASK_DUE, false, 'task-derived (gasTaskId)');
+
+  const norm = normalizeEventTitle(event.summary);
+  const allDay = ecIsAllDay(event);
+
+  if (/^due\b/.test(norm) || /\bpending tasks?$/.test(norm)) return ecResult(EVENT_TYPE.TASK_DUE, false, 'task-like title');
+
+  const et = event.eventType;
+  if (et === 'outOfOffice') return ecResult(EVENT_TYPE.LEAVE, false, 'outOfOffice eventType');
+  if (et === 'focusTime') return ecResult(EVENT_TYPE.FOCUS, true, 'focusTime eventType');
+  if (et === 'workingLocation') return ecResult(EVENT_TYPE.AVAILABILITY, false, 'workingLocation eventType');
+  if (et === 'birthday' || et === 'fromGmail') return ecResult(EVENT_TYPE.INFORMATIONAL, false, `${et} eventType`);
+
+  if (/\b(sunrise|sunset)\b/.test(norm)) return ecResult(EVENT_TYPE.INFORMATIONAL, false, 'sunrise/sunset');
+  if (norm === 'event busy' || /\bcore hours\b/.test(norm)) return ecResult(EVENT_TYPE.AVAILABILITY, false, 'availability overlay');
+  if (EC_PAY_RE.test(norm) || EC_HOLIDAY_RE.test(norm)) return ecResult(EVENT_TYPE.INFORMATIONAL, false, 'pay date / holiday');
+  if (EC_LEAVE_RE.test(norm)) return ecResult(EVENT_TYPE.LEAVE, false, 'leave notice');
+  if (norm === 'daily check in') return ecResult(EVENT_TYPE.ROUTINE, true, 'daily check-in');
+  if (/\blunch\b/.test(norm) || norm === 'out') return ecResult(EVENT_TYPE.ROUTINE, true, 'lunch/out');
+
+  // All-day events can never be a meeting destination; treat as informational (task due dates, notices).
+  if (allDay) return ecResult(EVENT_TYPE.INFORMATIONAL, false, 'all-day event');
+
+  // Workflow neighbours of a meeting must be checked before the meeting match: their titles contain it.
+  if (/\bprep\b|\bpreparation\b/.test(norm)) return ecResult(EVENT_TYPE.PREP, true, 'prep block');
+  if (/\bfollow ?up\b/.test(norm)) return ecResult(EVENT_TYPE.FOLLOWUP, true, 'follow-up');
+  if (/^post ncmms updates\b/.test(norm)) return ecResult(EVENT_TYPE.FOLLOWUP, true, 'publish item');
+  if (/\b(focus time|heads down|deep work)\b/.test(norm)) return ecResult(EVENT_TYPE.FOCUS, true, 'focus block');
+
+  if (ecMatchesRegistry(event, norm, ecActiveRows(registry))) return ecResult(EVENT_TYPE.MEETING, true, 'registered series');
+  const attendees = Array.isArray(event.attendees) ? event.attendees.length : 0;
+  if (event.hangoutLink || event.conferenceData || attendees > 1) return ecResult(EVENT_TYPE.MEETING, true, 'conference/attendees');
+
+  return ecResult(EVENT_TYPE.INFORMATIONAL, true, 'unclassified');
+}
+
+/**
+ * @param {object} event
+ * @param {Array<object>} [registry]
+ * @returns {string} EVENT_TYPE value.
+ */
+function classifyEvent(event, registry) {
+  return classifyEventDetailed(event, registry).type;
+}
+
+/**
+ * @param {string} type EVENT_TYPE value.
+ * @returns {boolean} True only for MEETING.
+ */
+function isMeetingDestination(type) {
+  if (!Object.values(EVENT_TYPE).includes(type)) throw new Error(`isMeetingDestination: ${JSON.stringify(type)} is not an EVENT_TYPE`);
+  return type === EVENT_TYPE.MEETING;
+}
+
+// ---- occurrenceSelector.js ----
+/**
+ * @file occurrenceSelector.js
+ * @description Picks the Calendar occurrence a recurring-meeting item should be routed to (spec
+ * section 7) and resolves registry series to calendar events (prefer persisted RecurringEventId,
+ * title fallback for discovery only). Pure: `now` and `timeZone` are always injected; instants are
+ * epoch-ms arithmetic, local calendar dates come from Intl in the given IANA zone (never from
+ * toISOString on a local date). The target identity is the occurrence event id, never the date.
+ */
+
+
+
+const OS_MINUTE_MS = 60 * 1000;
+const OS_MODES = ['current', 'recommended', 'specific', 'backlog'];
+
+function osCheckZone(timeZone) {
+  if (typeof timeZone !== 'string' || timeZone === '') throw new Error('selectOccurrence: timeZone (IANA name) is required');
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone });
+  } catch (e) {
+    throw new Error(`selectOccurrence: invalid timeZone ${JSON.stringify(timeZone)}: ${e.message}`, { cause: e });
+  }
+}
+
+function osZoneParts(ms, timeZone) {
+  const f = new Intl.DateTimeFormat('en-US', {
+    timeZone, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit'
+  });
+  const p = {};
+  for (const part of f.formatToParts(new Date(ms))) p[part.type] = part.value;
+  return { y: Number(p.year), m: Number(p.month), d: Number(p.day), h: Number(p.hour), mi: Number(p.minute), s: Number(p.second) };
+}
+
+function osZoneOffsetMs(ms, timeZone) {
+  const p = osZoneParts(ms, timeZone);
+  return Date.UTC(p.y, p.m - 1, p.d, p.h, p.mi, p.s) - Math.floor(ms / 1000) * 1000;
+}
+
+function osLocalYmd(ms, timeZone) {
+  const p = osZoneParts(ms, timeZone);
+  return `${p.y}-${String(p.m).padStart(2, '0')}-${String(p.d).padStart(2, '0')}`;
+}
+
+/** Parse an ISO string / Date / epoch ms / Calendar {dateTime,date} into epoch ms. Offset-less strings are read in timeZone. */
+function osToMs(value, timeZone, what) {
+  if (value && typeof value === 'object' && !(value instanceof Date)) {
+    const tz = value.timeZone || timeZone;
+    return osToMs(value.dateTime || value.date, tz, what);
+  }
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) throw new Error(`${what}: invalid Date`);
+    return value.getTime();
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value !== 'string' || value === '') throw new Error(`${what}: missing or non-string time ${JSON.stringify(value)}`);
+  if (/(Z|[+-]\d{2}:?\d{2})$/i.test(value)) {
+    const ms = Date.parse(value);
+    if (Number.isNaN(ms)) throw new Error(`${what}: unparseable time ${JSON.stringify(value)}`);
+    return ms;
+  }
+  const m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(value);
+  if (!m) throw new Error(`${what}: unparseable time ${JSON.stringify(value)}`);
+  const guess = Date.UTC(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0));
+  const first = guess - osZoneOffsetMs(guess, timeZone);
+  return guess - osZoneOffsetMs(first, timeZone);
+}
+
+function osNowMs(now, timeZone) {
+  if (now === undefined || now === null) throw new Error('selectOccurrence: now is required (inject it; no ambient clock)');
+  return osToMs(now, timeZone, 'now');
+}
+
+function osPrepStart(occ) {
+  if (occ.prepStart) return occ.prepStart;
+  if (occ.prep && occ.prep.start) return occ.prep.start;
+  return null;
+}
+
+function osPrepMinutes(series) {
+  const n = series && series.PrepMinutes;
+  if (!Number.isInteger(n) || n < 0) throw new Error(`selectOccurrence: series ${series && series.SeriesKey} needs integer PrepMinutes >= 0, got ${JSON.stringify(n)}`);
+  return n;
+}
+
+function osDescribe(occ, series, timeZone) {
+  if (!occ || typeof occ.id !== 'string' || occ.id === '') throw new Error('selectOccurrence: every occurrence needs a string event id');
+  const startMs = osToMs(occ.start, timeZone, `occurrence ${occ.id} start`);
+  const endMs = occ.end ? osToMs(occ.end, timeZone, `occurrence ${occ.id} end`) : startMs;
+  const prep = osPrepStart(occ);
+  const cutoffMs = prep ? osToMs(prep, timeZone, `occurrence ${occ.id} prepStart`) : startMs - osPrepMinutes(series) * OS_MINUTE_MS;
+  return { id: occ.id, startMs, endMs, cutoffMs, linkedPrep: !!prep };
+}
+
+function osResult(d, reason, deferred) {
+  const r = { occurrenceId: d.id, cutoffISO: new Date(d.cutoffMs).toISOString(), reason };
+  if (deferred) r.deferred = true;
+  return r;
+}
+
+/**
+ * Select the target occurrence for a recurring series.
+ * @param {{occurrences: Array<object>, series: {SeriesKey: string, PrepMinutes: number}, now: (string|Date|number),
+ *   timeZone: string, override?: {mode: string, occurrenceId?: string}}} args
+ *   occurrences: {id, start, end, status?, prepStart?|prep?:{start}}; prep wins over start - PrepMinutes.
+ * @returns {{occurrenceId: (string|null), cutoffISO: (string|null), reason: string, deferred?: boolean, backlog?: boolean, seriesKey?: string}}
+ */
+function selectOccurrence({ occurrences, series, now, timeZone, override } = {}) {
+  osCheckZone(timeZone);
+  if (!series || typeof series.SeriesKey !== 'string') throw new Error('selectOccurrence: series with SeriesKey is required');
+  if (!Array.isArray(occurrences)) throw new Error('selectOccurrence: occurrences must be an array');
+  const nowMs = osNowMs(now, timeZone);
+  const mode = override ? override.mode : undefined;
+  if (override && !OS_MODES.includes(mode)) throw new Error(`selectOccurrence: unknown override mode ${JSON.stringify(mode)} (use ${OS_MODES.join('/')})`);
+
+  const all = occurrences
+    .filter((o) => !(o && o.status === 'cancelled'))
+    .map((o) => osDescribe(o, series, timeZone))
+    .sort((a, b) => a.startMs - b.startMs || (a.id < b.id ? -1 : 1));
+
+  if (mode === 'backlog') {
+    return { occurrenceId: null, cutoffISO: null, backlog: true, seriesKey: series.SeriesKey, reason: `override: series backlog for ${series.SeriesKey}` };
+  }
+  if (mode === 'specific') {
+    const id = override.occurrenceId;
+    if (typeof id !== 'string' || id === '') throw new Error('selectOccurrence: override mode specific requires occurrenceId');
+    const hit = all.find((d) => d.id === id);
+    if (!hit) throw new Error(`selectOccurrence: override occurrenceId ${id} is not an occurrence of ${series.SeriesKey}`);
+    return osResult(hit, `override: specific occurrence ${id}`);
+  }
+
+  const upcoming = all.filter((d) => d.endMs > nowMs || d.startMs > nowMs);
+  if (mode === 'current') {
+    const today = osLocalYmd(nowMs, timeZone);
+    const hit = upcoming.find((d) => osLocalYmd(d.startMs, timeZone) === today);
+    if (!hit) throw new Error(`selectOccurrence: no current occurrence of ${series.SeriesKey} today (${today}, ${timeZone})`);
+    return osResult(hit, 'override: current occurrence');
+  }
+
+  const skipped = [];
+  for (const d of upcoming) {
+    if (d.cutoffMs >= nowMs) {
+      if (skipped.length) {
+        return osResult(d, `cutoff passed for ${skipped.join(', ')}; using next occurrence`, true);
+      }
+      return osResult(d, `earliest occurrence with cutoff ${new Date(d.cutoffMs).toISOString()} not yet passed`);
+    }
+    skipped.push(d.id);
+  }
+  throw new Error(`selectOccurrence: no upcoming occurrence of ${series.SeriesKey} with an open cutoff at ${new Date(nowMs).toISOString()}`);
+}
+
+/**
+ * Resolve each enabled registry row to its calendar events.
+ * Prefers the persisted RecurringEventId; matches on normalized TitleFallback only for discovery.
+ * @param {Array<object>} registryRows Parsed registry rows.
+ * @param {Array<object>} events Normalized events ({id, summary, recurringEventId}).
+ * @returns {Array<{seriesKey: string, row: object, matchedBy: (string|null), events: Array<object>, renamed: boolean,
+ *   discovery: boolean, discoveredRecurringEventId: (string|null), staleRecurringEventId: boolean}>}
+ */
+function resolveSeries(registryRows, events) {
+  if (!Array.isArray(registryRows)) throw new Error('resolveSeries: registryRows must be an array');
+  if (!Array.isArray(events)) throw new Error('resolveSeries: events must be an array');
+  return registryRows.filter((r) => r && r.Enabled !== false).map((row) => {
+    const fb = row.TitleFallback ? normalizeEventTitle(row.TitleFallback) : '';
+    const titleMatches = (e) => fb !== '' && typeof e.summary === 'string' && normalizeEventTitle(e.summary) === fb;
+    const base = { seriesKey: row.SeriesKey, row, matchedBy: null, events: [], renamed: false, discovery: false, discoveredRecurringEventId: null, staleRecurringEventId: false };
+    if (row.RecurringEventId) {
+      const byId = events.filter((e) => e.recurringEventId === row.RecurringEventId || e.id === row.RecurringEventId);
+      if (byId.length) {
+        return { ...base, matchedBy: 'recurringEventId', events: byId, renamed: fb !== '' && byId.some((e) => !titleMatches(e)) };
+      }
+    }
+    const byTitle = events.filter(titleMatches);
+    if (!byTitle.length) return base;
+    const found = byTitle.find((e) => e.recurringEventId);
+    return {
+      ...base,
+      matchedBy: 'titleFallback',
+      events: byTitle,
+      discovery: true,
+      discoveredRecurringEventId: found ? found.recurringEventId : null,
+      staleRecurringEventId: !!row.RecurringEventId
+    };
+  });
+}
+
+// ---- registry.js ----
+/**
+ * @file registry.js
+ * @description Meeting Registry: DEFAULT_SERIES table (spec section 5) plus parse/validate of the
+ * 13-column Meeting Registry sheet (spec section 6). Pure functions, no Google services; throws a
+ * setup error (code REGISTRY_SETUP) naming the column/row/value that is wrong.
+ */
+
+
+
+const RG_DEFAULT_POST_REVIEW_MINUTES = 30;
+const RG_DEFAULT_PREP_MINUTES = 30;
+const RG_AI_VALUES = ['TRUE', 'FALSE', 'CONDITIONAL'];
+const RG_GEMINI_VALUES = ['TRUE', 'FALSE', 'TBD'];
+
+function rgSeries(SeriesKey, DisplayName, TitleFallback, PrepMinutes, extra = {}) {
+  return Object.freeze({
+    Enabled: true,
+    SeriesKey,
+    DisplayName,
+    CalendarId: '',
+    RecurringEventId: '',
+    TitleFallback,
+    MeetingRole: EVENT_TYPE.MEETING,
+    PrepMinutes,
+    PostReviewMinutes: RG_DEFAULT_POST_REVIEW_MINUTES,
+    HumanNotesDocId: '',
+    GeminiExpected: 'TBD',
+    AIAllowed: 'FALSE',
+    LabelHints: Object.freeze([]),
+    ...extra
+  });
+}
+
+/** The 10 known series from spec section 5 (IDs/doc ids are supplied locally via the sheet). */
+const DEFAULT_SERIES = Object.freeze([
+  rgSeries('NCMMS_CORE', 'NCMMS Core Team', 'NCMMS Core Team Meeting', 30, { GeminiExpected: 'TRUE', AIAllowed: 'CONDITIONAL', LabelHints: Object.freeze(['_NCMMS', 'VIP']) }),
+  rgSeries('NCMMS_DAILY', 'NCMMS Daily Standup', 'NCMMS - Daily Standup', 10, { GeminiExpected: 'TRUE', AIAllowed: 'CONDITIONAL', LabelHints: Object.freeze(['_NCMMS', 'Jira']) }),
+  rgSeries('FACILITY_TECH', 'Facility Technology & Innovation', 'Facility Technology & Innovation Weekly', 30),
+  rgSeries('NCMMS_AA', 'NCMMS A&A Assessment', 'NCMMS - A&A Assessment', 30, { LabelHints: Object.freeze(['_NCMMS']) }),
+  rgSeries('WEEKLY_STATUS', 'Weekly Status Report', 'Weekly Status Report', 60),
+  rgSeries('NCMMS_CHECKIN', 'NCMMS Check-in', 'NCMMS - Check-in', 30),
+  rgSeries('NCMMS_ACQ', 'NCMMS Acquisition', 'NCMMS Acquisition', 30, { LabelHints: Object.freeze(['_NCMMS/Acquisition']) }),
+  rgSeries('TRM_PM', 'GSA/TRM PM Meeting', 'GSA/TRM Weekly PM Meeting', 30, { LabelHints: Object.freeze(['_NCMMS/COR-TRM']) }),
+  rgSeries('PRODUCT_OWNER_BOARD', 'Product Owner’s Board', "PBS IT Product Owner's Board Meeting", 30),
+  rgSeries('ELEVATOR_DATA', 'Elevator Data', 'Elevator Data', 30)
+]);
+
+function rgFail(message) {
+  const err = new Error(`Meeting Registry setup error: ${message}`);
+  err.code = 'REGISTRY_SETUP';
+  return err;
+}
+
+function rgText(v) {
+  return v === undefined || v === null ? '' : String(v).trim();
+}
+
+function rgLabel(row, rowNum) {
+  const key = rgText(row.SeriesKey);
+  return key ? `row ${rowNum} (${key})` : `row ${rowNum}`;
+}
+
+function rgParseEnabled(v, where) {
+  if (typeof v === 'boolean') return v;
+  const s = rgText(v).toUpperCase();
+  if (s === 'TRUE' || s === 'YES' || s === 'Y' || s === '1') return true;
+  if (s === 'FALSE' || s === 'NO' || s === 'N' || s === '0' || s === '') return false;
+  throw rgFail(`${where}: Enabled must be TRUE or FALSE, got ${JSON.stringify(v)}`);
+}
+
+function rgParseMinutes(v, column, where, fallback) {
+  const s = rgText(v);
+  if (s === '') return fallback;
+  if (!/^\d+$/.test(s)) throw rgFail(`${where}: ${column} must be a whole number of minutes >= 0, got ${JSON.stringify(v)}`);
+  return Number(s);
+}
+
+function rgParseEnum(v, column, allowed, fallback, where) {
+  const s = rgText(v).toUpperCase();
+  if (s === '') return fallback;
+  // Tolerate prose after the keyword, e.g. "FALSE initially" from the spec table.
+  const word = s.split(/\s+/)[0];
+  if (allowed.includes(word)) return word;
+  throw rgFail(`${where}: ${column} must be one of ${allowed.join('/')}, got ${JSON.stringify(v)}`);
+}
+
+/**
+ * Validate parsed registry rows. Throws on the first setup problem.
+ * @param {Array<object>} rows Parsed rows (see parseRegistry) or DEFAULT_SERIES.
+ * @returns {Array<object>} The same rows.
+ */
+function validateRegistry(rows) {
+  if (!Array.isArray(rows)) throw rgFail('registry must be an array of rows');
+  const seen = new Set();
+  rows.forEach((row, i) => {
+    const where = rgLabel(row, i + 1);
+    for (const col of ['SeriesKey', 'DisplayName', 'MeetingRole']) {
+      if (rgText(row[col]) === '') throw rgFail(`${where}: mandatory value ${col} is empty`);
+    }
+    if (!Object.values(EVENT_TYPE).includes(row.MeetingRole)) {
+      throw rgFail(`${where}: MeetingRole must be an EVENT_TYPE (${Object.values(EVENT_TYPE).join(', ')}), got ${JSON.stringify(row.MeetingRole)}`);
+    }
+    if (rgText(row.RecurringEventId) === '' && rgText(row.TitleFallback) === '') {
+      throw rgFail(`${where}: needs RecurringEventId or TitleFallback so the series can be found`);
+    }
+    for (const col of ['PrepMinutes', 'PostReviewMinutes']) {
+      if (!Number.isInteger(row[col]) || row[col] < 0) throw rgFail(`${where}: ${col} must be a whole number >= 0, got ${JSON.stringify(row[col])}`);
+    }
+    if (!RG_AI_VALUES.includes(row.AIAllowed)) throw rgFail(`${where}: AIAllowed must be one of ${RG_AI_VALUES.join('/')}, got ${JSON.stringify(row.AIAllowed)}`);
+    if (!RG_GEMINI_VALUES.includes(row.GeminiExpected)) throw rgFail(`${where}: GeminiExpected must be one of ${RG_GEMINI_VALUES.join('/')}, got ${JSON.stringify(row.GeminiExpected)}`);
+    if (seen.has(row.SeriesKey)) throw rgFail(`${where}: duplicate SeriesKey ${row.SeriesKey}`);
+    seen.add(row.SeriesKey);
+  });
+  return rows;
+}
+
+/**
+ * Parse the Meeting Registry sheet (first row = header, order-insensitive) and validate it.
+ * @param {Array<Array<*>>} rows2D Sheet values.
+ * @returns {Array<object>} One object per non-blank data row with typed fields.
+ */
+function parseRegistry(rows2D) {
+  if (!Array.isArray(rows2D) || rows2D.length === 0 || !Array.isArray(rows2D[0])) {
+    throw rgFail('sheet has no header row');
+  }
+  const header = rows2D[0].map(rgText);
+  const missing = REGISTRY_COLUMNS.filter((c) => !header.includes(c));
+  if (missing.length) throw rgFail(`missing mandatory column(s): ${missing.join(', ')}`);
+  const idx = {};
+  for (const c of REGISTRY_COLUMNS) idx[c] = header.indexOf(c);
+
+  const defaultsByKey = new Map(DEFAULT_SERIES.map((s) => [s.SeriesKey, s]));
+  const out = [];
+  for (let r = 1; r < rows2D.length; r++) {
+    const raw = rows2D[r];
+    if (!Array.isArray(raw)) throw rgFail(`row ${r + 1} is not an array`);
+    if (raw.every((c) => rgText(c) === '')) continue;
+    const cell = (c) => raw[idx[c]];
+    const seriesKey = rgText(cell('SeriesKey'));
+    const where = `row ${r + 1}${seriesKey ? ` (${seriesKey})` : ''}`;
+    const known = defaultsByKey.get(seriesKey);
+    out.push({
+      Enabled: rgParseEnabled(cell('Enabled'), where),
+      SeriesKey: seriesKey,
+      DisplayName: rgText(cell('DisplayName')),
+      CalendarId: rgText(cell('CalendarId')),
+      RecurringEventId: rgText(cell('RecurringEventId')),
+      TitleFallback: rgText(cell('TitleFallback')),
+      MeetingRole: rgText(cell('MeetingRole')).toUpperCase() || EVENT_TYPE.MEETING,
+      PrepMinutes: rgParseMinutes(cell('PrepMinutes'), 'PrepMinutes', where, known ? known.PrepMinutes : RG_DEFAULT_PREP_MINUTES),
+      PostReviewMinutes: rgParseMinutes(cell('PostReviewMinutes'), 'PostReviewMinutes', where, RG_DEFAULT_POST_REVIEW_MINUTES),
+      HumanNotesDocId: rgText(cell('HumanNotesDocId')),
+      GeminiExpected: rgParseEnum(cell('GeminiExpected'), 'GeminiExpected', RG_GEMINI_VALUES, 'TBD', where),
+      AIAllowed: rgParseEnum(cell('AIAllowed'), 'AIAllowed', RG_AI_VALUES, 'FALSE', where),
+      LabelHints: rgText(cell('LabelHints')).split(',').map((s) => s.trim()).filter(Boolean)
+    });
+  }
+  return validateRegistry(out);
+}
+
 // used by other .gs files (Config/Queue/Repository wrappers); not a google.script.run surface
 global.DPEngines = Object.freeze({
   EVENT_TYPE: EVENT_TYPE,
@@ -141,7 +612,16 @@ global.DPEngines = Object.freeze({
   gmailMeetingKey: gmailMeetingKey,
   geminiProposeKey: geminiProposeKey,
   meetingTaskKey: meetingTaskKey,
-  makeResult: makeResult
+  makeResult: makeResult,
+  normalizeEventTitle: normalizeEventTitle,
+  classifyEventDetailed: classifyEventDetailed,
+  classifyEvent: classifyEvent,
+  isMeetingDestination: isMeetingDestination,
+  selectOccurrence: selectOccurrence,
+  resolveSeries: resolveSeries,
+  DEFAULT_SERIES: DEFAULT_SERIES,
+  validateRegistry: validateRegistry,
+  parseRegistry: parseRegistry
 });
 
 })(this);
