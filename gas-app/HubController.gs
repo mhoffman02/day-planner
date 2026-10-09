@@ -230,7 +230,10 @@ function retryFailedOperation(operationKey) {
       var spec = { kind: kinds[parts[2]], threadId: threadId, opKey: operationKey, dryRun: pre.features.DRY_RUN === true, settings: settings, options: {} };
       if (parts[2] === 'MEETING') {
         var meta;
-        try { meta = JSON.parse(row.MetadataJson || '{}'); } catch { meta = {}; }
+        try { meta = JSON.parse(row.MetadataJson || '{}'); } catch (e) {
+          console.error('HubController: corrupt MetadataJson for ' + operationKey + ', retrying without it: ' + e.message);
+          meta = {};
+        }
         if (parts[3] && parts[3].indexOf('BACKLOG-') === 0) {
           spec.seriesKey = parts[3].slice(8);
           spec.override = { mode: 'backlog' };
@@ -442,8 +445,8 @@ function getHubStatus() {
     var props = PropertiesService.getUserProperties();
     var lastRun = null;
     var lastDry = null;
-    try { lastRun = JSON.parse(props.getProperty(HUB_LAST_RUN_PROP_) || 'null'); } catch { lastRun = null; }
-    try { lastDry = JSON.parse(props.getProperty(HUB_LAST_RUN_DRY_PROP_) || 'null'); } catch { lastDry = null; }
+    try { lastRun = JSON.parse(props.getProperty(HUB_LAST_RUN_PROP_) || 'null'); } catch (e) { console.error('HubController: corrupt last-run property: ' + e.message); lastRun = null; }
+    try { lastDry = JSON.parse(props.getProperty(HUB_LAST_RUN_DRY_PROP_) || 'null'); } catch (e) { console.error('HubController: corrupt last-dry-run property: ' + e.message); lastDry = null; }
     if (lastDry && (!lastRun || String(lastDry.at) > String(lastRun.at))) lastRun = lastDry;
     var triggers = ScriptApp.getProjectTriggers().filter(function(t) { return t.getHandlerFunction() === HUB_TRIGGER_HANDLER_; }).length;
     return DPEngines.makeResult({ ok: true, status: 'OK', message: 'Hub status', flags: pre.features, dryRun: pre.features.DRY_RUN === true, lastRun: lastRun, counts: counts, triggers: triggers });

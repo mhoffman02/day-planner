@@ -394,7 +394,10 @@ function collectItems_(ctx) {
           if (active) {
             var occId = active.OperationKey.split('|')[3];
             var meta;
-            try { meta = JSON.parse(active.MetadataJson || '{}'); } catch { meta = {}; }
+            try { meta = JSON.parse(active.MetadataJson || '{}'); } catch (e) {
+              console.error('QueueProcessor: corrupt MetadataJson for ' + active.OperationKey + ', resuming without it: ' + e.message);
+              meta = {};
+            }
             var prior = occs.filter(function(x) { return x.id === occId; })[0];
             var start = prior ? prior.start : (meta.start || null);
             if (start) {

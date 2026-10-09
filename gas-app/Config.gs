@@ -97,13 +97,13 @@ function userCalendarTimeZone_() {
       var setting = Calendar.Settings.get('timezone');
       if (setting && setting.value) return String(setting.value);
     }
-  } catch { /* fall through to the primary calendar */ }
+  } catch (e) { console.error('Config: Calendar timezone setting unavailable, trying primary calendar: ' + e.message); }
   try {
     if (typeof Calendar !== 'undefined' && Calendar.Calendars && Calendar.Calendars.get) {
       var primary = Calendar.Calendars.get('primary');
       if (primary && primary.timeZone) return String(primary.timeZone);
     }
-  } catch { /* fall through to the script time zone */ }
+  } catch (e) { console.error('Config: primary calendar timezone unavailable, using script time zone: ' + e.message); }
   return '';
 }
 
@@ -113,8 +113,8 @@ function buildConfigSeed_() {
   // SETUP_ERROR naming the key, so the user fills it in the Config tab.
   var tz = userCalendarTimeZone_();
   var email;
-  if (!tz) { try { tz = Session.getScriptTimeZone(); } catch { tz = ''; } }
-  try { email = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail(); } catch { email = ''; }
+  if (!tz) { try { tz = Session.getScriptTimeZone(); } catch (e) { console.error('Config: script time zone unavailable: ' + e.message); tz = ''; } }
+  try { email = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail(); } catch (e) { console.error('Config: user email unavailable: ' + e.message); email = ''; }
   tz = tz || '';
   email = email || '';
   var rows = [
