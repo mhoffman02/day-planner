@@ -894,6 +894,109 @@
     background: rgba(255, 255, 255, 0.3) !important;
   }
 
+  /* Date nav: [<] date [>] + Today link only when off-today */
+  .today-link-btn {
+    background: transparent;
+    border: none;
+    color: #ffffff;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 3px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    white-space: nowrap;
+  }
+
+  .today-link-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  /* Icon-only Search / Sync and the View options popover */
+  .search-trigger-compact,
+  .sync-btn-compact,
+  .view-options-btn {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .view-options-wrap {
+    position: relative;
+  }
+
+  .view-options-btn {
+    background: rgba(255, 255, 255, 0.15) !important;
+    border: 1px solid rgba(255, 255, 255, 0.25) !important;
+    color: #ffffff !important;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+  }
+
+  .view-options-btn:hover {
+    background: rgba(255, 255, 255, 0.3) !important;
+  }
+
+  .view-options-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 2000;
+    background: #ffffff;
+    border: 1px solid var(--border-line, #d1d5db);
+    border-radius: 4px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+    padding: 10px 12px;
+    min-width: 250px;
+    color: var(--binder-teal);
+  }
+
+  [data-theme="dark"] .view-options-dropdown {
+    background: #1e2621;
+    border-color: #33443a;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+  }
+
+  .view-options-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 0;
+  }
+
+  .view-options-label {
+    width: 44px;
+    font-family: var(--font-family-header);
+    font-size: 0.85rem;
+  }
+
+  .view-options-value {
+    width: 38px;
+    text-align: right;
+    font-size: 0.75rem;
+  }
+
+  .view-options-theme-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: 1px solid var(--border-line, #d1d5db);
+    color: inherit;
+    border-radius: 4px;
+    padding: 3px 8px;
+    cursor: pointer;
+    font-size: 0.8rem;
+  }
+
+  .view-options-theme-btn:hover {
+    background: rgba(45, 106, 90, 0.1);
+  }
+
   /* Responsive Top Bar Layout Guards */
   @media (min-width: 1400px) {
     .header-left {

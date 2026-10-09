@@ -387,6 +387,7 @@ Alpine.data('plannerApp', () => ({
 
       // Themed Day Calendar Picker state
       dayPickerOpen: false,
+      viewOptionsOpen: false,
       dayPickerYear: null,
       dayPickerMonth: null,
       masterTaskDuePickerOpen: false,
@@ -750,6 +751,9 @@ Alpine.data('plannerApp', () => ({
           } else if ((e.key === '/' || ((e.ctrlKey || e.metaKey) && e.key === '/')) && !isInputFocused) {
             e.preventDefault();
             this.toggleSearchModal();
+          } else if (keyLower === 't' && !e.ctrlKey && !e.metaKey && !e.altKey && !isInputFocused && !this.isMonthlyView && this.activeView !== 'master-tasks') {
+            e.preventDefault();
+            this.jumpToToday();
           } else if (e.key === 'Escape') {
             if (this.dayPickerOpen) {
               e.preventDefault();
@@ -1006,6 +1010,10 @@ Alpine.data('plannerApp', () => ({
         this.selectedYear = d.getFullYear();
         this.selectedMonth = d.getMonth() + 1;
         await this.loadDayData();
+      },
+
+      isOffToday() {
+        return this.selectedDate !== getLocalDateStr();
       },
 
       async jumpToToday() {
