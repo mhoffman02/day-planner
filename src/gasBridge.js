@@ -6,6 +6,7 @@
 
 import { transferMasterTaskToToday, buildMasterTasksClearinghouse, forwardTaskToDate } from './taskEngine.js';
 import { createFutureItem, nextMonthKey, emptyYearMatrix } from './futureMatrixEngine.js';
+import { HubMock } from './hubMock.js';
 
 /**
  * Service bridge for invoking Apps Script backend functions or providing mock fallback data.
@@ -14,9 +15,11 @@ export class GASBridge {
   /**
    * Creates an instance of GASBridge.
    * @param {boolean} [useMock=true] Whether to force local mock data mode.
+   * @param {{dryRun?: boolean, flags?: object}} [hubOptions] Options for the mock Gmail/Meeting Hub.
    */
-  constructor(useMock = true) {
+  constructor(useMock = true, hubOptions = {}) {
     this.useMock = useMock;
+    this.hub = new HubMock(hubOptions);
 
     // Seed mock data for local dev server & unit tests
     this.mockData = {
@@ -855,6 +858,62 @@ export class GASBridge {
         .searchArchiveNotes(query);
     });
   }
+
+
+  /**
+   * Calls a Gmail/Meeting Hub server RPC, or its idempotent local mock outside Apps Script.
+   * @param {string} name RPC function name.
+   * @param {Array<*>} args RPC arguments.
+   * @returns {Promise<*>} RPC result.
+   * @private
+   */
+  _hubRpc(name, args) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      return Promise.resolve(this.hub[name](...args));
+    }
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)[name](...args);
+    });
+  }
+
+  /** @returns {Promise<{flags: object, dryRun: boolean, lastRun: string|null, counts: object}>} Hub flags and status. */
+  getHubStatus() { return this._hubRpc('getHubStatus', []); }
+
+  /**
+   * @param {object} [filters] Board filters.
+   * @returns {Promise<{queues: {directAction: Array, meetingCarryIns: Array, systemExceptions: Array, fyiReading: Array}}>} Triage board.
+   */
+  getTriageBoard(filters = {}) { return this._hubRpc('getTriageBoard', [filters]); }
+
+  /**
+   * @param {string} threadId Gmail thread id.
+   * @returns {Promise<{recommended: object, choices: Array, backlogSeriesKey: string}>} Occurrence choices.
+   */
+  getUpcomingMeetingChoices(threadId) { return this._hubRpc('getUpcomingMeetingChoices', [threadId]); }
+
+  /** @returns {Promise<object>} Result contract. */
+  routeThreadToTask(threadId, opts = {}) { return this._hubRpc('routeThreadToTask', [threadId, opts]); }
+
+  /** @returns {Promise<object>} Result contract. */
+  routeThreadToWaiting(threadId, opts = {}) { return this._hubRpc('routeThreadToWaiting', [threadId, opts]); }
+
+  /** @returns {Promise<object>} Result contract. */
+  routeThreadToMeeting(threadId, occurrenceId, opts = {}) { return this._hubRpc('routeThreadToMeeting', [threadId, occurrenceId, opts]); }
+
+  /** @returns {Promise<object>} Result contract. */
+  dismissTriageItem(threadId) { return this._hubRpc('dismissTriageItem', [threadId]); }
+
+  /** @returns {Promise<object>} Result contract. */
+  retryFailedOperation(operationKey) { return this._hubRpc('retryFailedOperation', [operationKey]); }
+
+  /**
+   * @param {string} seriesKey Meeting series key.
+   * @param {string} [occurrenceId] Occurrence id.
+   * @returns {Promise<object>} Meeting prep payload.
+   */
+  getMeetingPrep(seriesKey, occurrenceId) { return this._hubRpc('getMeetingPrep', [seriesKey, occurrenceId]); }
 
 }
 
