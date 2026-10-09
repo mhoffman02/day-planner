@@ -122,6 +122,11 @@ export default [
       // their own file, so the default 'all' setting flags every one as unused. Local
       // vars/params inside function bodies are still checked normally.
       'no-unused-vars': ['warn', { vars: 'local' }],
+      // Phase 28: GmailApp needs the full mail.google.com scope. Use the Advanced Gmail
+      // service (gmail.readonly). (Legacy SpreadsheetApp use in Code.gs predates this rule.)
+      'no-restricted-syntax': ['error',
+        { selector: "Identifier[name='GmailApp']", message: 'GmailApp requires the full mail scope. Use the Advanced Gmail service (gmail.readonly).' }
+      ],
       // GAS concatenates all .gs files into one shared global scope at
       // runtime, so cross-file function refs are false positives here.
       'no-undef': 'off'
