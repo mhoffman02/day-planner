@@ -405,7 +405,7 @@ const DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mho
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const DAY_PLANNER_BUILD_NUMBER = 400;
+const DAY_PLANNER_BUILD_NUMBER = 403;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -454,7 +454,7 @@ function doGet_original(e) {
     );
 
     if (isSelfTest) {
-      return renderSelfTestDiagnosticReport();
+      return renderSelfTestDiagnosticReport(e);
     }
 
     // 2. Check if requested /setup-folder endpoint
@@ -3238,3 +3238,74 @@ function searchArchiveNotes(query) {
   return (typeof _searchArchiveNotesInternal === 'function') ? _searchArchiveNotesInternal(query) : (globalThis._searchArchiveNotesInternal ? globalThis._searchArchiveNotesInternal(query) : []);
 }
 
+// ── Gmail/Meeting hub (Phase 28) delegators ──────────────────────────────────
+// Implemented in HubController.gs / QueueProcessor.gs / Triggers.gs (each exports a global._xInternal alias).
+// RPCs: google.script.run; installHubTriggers/removeHubTriggers: IDE manual-run; hubDispatch: trigger handler name.
+
+function getTriageBoard(filters) {
+  return (typeof _getTriageBoardInternal === 'function') ? _getTriageBoardInternal(filters) : (globalThis._getTriageBoardInternal ? globalThis._getTriageBoardInternal(filters) : null);
+}
+
+function getMeetingPrep(seriesKey, occurrenceId) {
+  return (typeof _getMeetingPrepInternal === 'function') ? _getMeetingPrepInternal(seriesKey, occurrenceId) : (globalThis._getMeetingPrepInternal ? globalThis._getMeetingPrepInternal(seriesKey, occurrenceId) : null);
+}
+
+function getUpcomingMeetingChoices(threadId) {
+  return (typeof _getUpcomingMeetingChoicesInternal === 'function') ? _getUpcomingMeetingChoicesInternal(threadId) : (globalThis._getUpcomingMeetingChoicesInternal ? globalThis._getUpcomingMeetingChoicesInternal(threadId) : null);
+}
+
+function routeThreadToTask(threadId, options) {
+  return (typeof _routeThreadToTaskInternal === 'function') ? _routeThreadToTaskInternal(threadId, options) : (globalThis._routeThreadToTaskInternal ? globalThis._routeThreadToTaskInternal(threadId, options) : null);
+}
+
+function routeThreadToWaiting(threadId, options) {
+  return (typeof _routeThreadToWaitingInternal === 'function') ? _routeThreadToWaitingInternal(threadId, options) : (globalThis._routeThreadToWaitingInternal ? globalThis._routeThreadToWaitingInternal(threadId, options) : null);
+}
+
+function routeThreadToMeeting(threadId, occurrenceId, options) {
+  return (typeof _routeThreadToMeetingInternal === 'function') ? _routeThreadToMeetingInternal(threadId, occurrenceId, options) : (globalThis._routeThreadToMeetingInternal ? globalThis._routeThreadToMeetingInternal(threadId, occurrenceId, options) : null);
+}
+
+function dismissTriageItem(threadId) {
+  return (typeof _dismissTriageItemInternal === 'function') ? _dismissTriageItemInternal(threadId) : (globalThis._dismissTriageItemInternal ? globalThis._dismissTriageItemInternal(threadId) : null);
+}
+
+function processWorkflowQueue() {
+  return (typeof _processWorkflowQueueInternal === 'function') ? _processWorkflowQueueInternal() : (globalThis._processWorkflowQueueInternal ? globalThis._processWorkflowQueueInternal() : null);
+}
+
+function discoverMeetingSeries() {
+  return (typeof _discoverMeetingSeriesInternal === 'function') ? _discoverMeetingSeriesInternal() : (globalThis._discoverMeetingSeriesInternal ? globalThis._discoverMeetingSeriesInternal() : null);
+}
+
+function retryFailedOperation(operationKey) {
+  return (typeof _retryFailedOperationInternal === 'function') ? _retryFailedOperationInternal(operationKey) : (globalThis._retryFailedOperationInternal ? globalThis._retryFailedOperationInternal(operationKey) : null);
+}
+
+function getHubStatus() {
+  return (typeof _getHubStatusInternal === 'function') ? _getHubStatusInternal() : (globalThis._getHubStatusInternal ? globalThis._getHubStatusInternal() : null);
+}
+
+function discoverGeminiNotes(occurrenceId) {
+  return (typeof _discoverGeminiNotesInternal === 'function') ? _discoverGeminiNotesInternal(occurrenceId) : (globalThis._discoverGeminiNotesInternal ? globalThis._discoverGeminiNotesInternal(occurrenceId) : null);
+}
+
+function getProposedMeetingActions(occurrenceId) {
+  return (typeof _getProposedMeetingActionsInternal === 'function') ? _getProposedMeetingActionsInternal(occurrenceId) : (globalThis._getProposedMeetingActionsInternal ? globalThis._getProposedMeetingActionsInternal(occurrenceId) : null);
+}
+
+function confirmMeetingActions(occurrenceId, selectedItems) {
+  return (typeof _confirmMeetingActionsInternal === 'function') ? _confirmMeetingActionsInternal(occurrenceId, selectedItems) : (globalThis._confirmMeetingActionsInternal ? globalThis._confirmMeetingActionsInternal(occurrenceId, selectedItems) : null);
+}
+
+function installHubTriggers() {
+  return (typeof _installHubTriggersInternal === 'function') ? _installHubTriggersInternal() : (globalThis._installHubTriggersInternal ? globalThis._installHubTriggersInternal() : null);
+}
+
+function removeHubTriggers() {
+  return (typeof _removeHubTriggersInternal === 'function') ? _removeHubTriggersInternal() : (globalThis._removeHubTriggersInternal ? globalThis._removeHubTriggersInternal() : null);
+}
+
+function hubDispatch() {
+  return (typeof _hubDispatchInternal === 'function') ? _hubDispatchInternal() : (globalThis._hubDispatchInternal ? globalThis._hubDispatchInternal() : null);
+}
