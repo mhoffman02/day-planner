@@ -3,7 +3,7 @@
 **Start by:** from the main checkout run `git merge worktree-today-hover-zoom`, then live-verify on HOME `/dev`.
 
 ## OBJECTIVE
-Fix Today-page task-notes hover popovers (clipped, start open, last note opens when hovering first) and add a text-zoom slider to the Tasks pane header. Code is done and pushed to HOME and WORK; merge + live verification + WORK repoint remain.
+Fix Today-page task-notes hover popovers (clipped, start open, last note opens when hovering first) and add a text-zoom slider to the Tasks pane header. Code is done; pushed to HOME /dev and WORK v130; merge + live verification + WORK repoint remain.
 
 ## KEY DECISIONS
 - Root cause: popover `:style` was a string → Alpine sets `cssText`, wiping `x-show`'s `display:none` on every popover whenever `notesPopoverPos` changed. Fixed with object-returning `notesPopoverStyle()` (same as `statusMenuStyle`).
@@ -15,7 +15,7 @@ Fix Today-page task-notes hover popovers (clipped, start open, last note opens w
 ## CURRENT STATE
 - Branch `worktree-today-hover-zoom` @ `f641dc3` (based on `pure-gas-main` `4a7d75b`), worktree `.claude/worktrees/today-hover-zoom`. Not merged into `pure-gas-main`.
 - Lint + 203 tests pass. Not browser-verified.
-- Deployed to HOME `/dev` + pinned prod and pushed to WORK from the worktree this session.
+- HOME `/dev` (@HEAD) pushed. HOME pinned-prod `clasp deploy -i` FAILED ("Only users in the same domain as the script owner may deploy this script") - rerun it after merge. WORK pushed as Version 130.
 
 ## CONSTRAINTS & PREFERENCES
 - Be terse; start replies `🔋Mike:`; commit directly, no PR theater.
