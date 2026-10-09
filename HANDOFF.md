@@ -1,32 +1,35 @@
-# Resume: Merge the hover/zoom fix, verify live on HOME, user repoints WORK
+<!-- handoff: branch=feat/gmail-meeting-hub worktree=/home/mike/projects/day-planner/.claude/worktrees/today-hover-zoom base=11ab231c12a8 written=2026-10-09T14:02:08-07:00 -->
+# Resume: Gmail/Meeting hub is built and merged; next is the user-gated push to HOME
 
-**Start by:** from the main checkout run `git merge worktree-today-hover-zoom`, then live-verify on HOME `/dev`.
+**Start by:** ask the user to approve the first `clasp push` to HOME (it carries `gmail.readonly` and forces re-consent), then walk them through steps L1-L10 in [`docs/hub-setup-and-gate.md`](file:///home/mike/projects/day-planner/docs/hub-setup-and-gate.md). Do not push without that approval.
 
 ## OBJECTIVE
-Fix Today-page task-notes hover popovers (clipped, start open, last note opens when hovering first) and add a text-zoom slider to the Tasks pane header. Code is done; pushed to HOME /dev and WORK v130; merge + live verification + WORK repoint remain.
+Phase 28 turns Day Planner into a workflow hub: Gmail triage to Google Tasks, recurring-meeting prep from Calendar, app-owned meeting-notes Docs, and (later) Gemini/human-note reconciliation. Code is complete and tested locally; nothing has run on Google yet.
 
 ## KEY DECISIONS
-- Root cause: popover `:style` was a string → Alpine sets `cssText`, wiping `x-show`'s `display:none` on every popover whenever `notesPopoverPos` changed. Fixed with object-returning `notesPopoverStyle()` (same as `statusMenuStyle`).
-- Hover is mouse-only (`pointerType === 'mouse'`); tap opens; outside tap/Esc closes. Matches status menu.
-- Clipped top row = cursor glyph over first line → 22px top padding, no gap.
-- Zoom slider centered in Tasks header (user's suggestion; navbar crowded), 80-140%, `localStorage` key `dayPlannerTaskZoom`, double-click resets. "Ask UX PRO" was not spawned; decided inline.
-- `gas-app/{Index,Script,Styles}.html` are the production files (hand-maintained, ES5 style in Script.html); `src/` is a mirror.
+- Gmail is read-only (`gmail.readonly`, Advanced Gmail service). `GmailApp` is lint-banned. The user applies labels by hand, prefix `🎯/`.
+- Config, Meeting Registry and Integration Ledger live in an app-created Sheet. Flags default OFF, `DRY_RUN` ON (flags are cached in the `HUB_FLAGS_JSON` UserProperty).
+- Logic lives in pure `src/integration/*.js` engines, built into `gas-app/Engines.gs` by `tools/build-gas-engines.js` (`--check` is a gate). `.gs` wrappers stay thin.
+- Idempotency: ledger op keys such as `GMAIL|<threadId>|TASK`, also embedded in task notes via dp-meta.
+- Notes Doc is app-owned (`Meeting Notes - <Series>`); Waiting = Task plus `[Waiting]` tag.
+- User rule: no silent failures. Every `catch` in `gas-app/*.gs` now logs `console.error` (commits `368b36e`, `11ab231`).
 
 ## CURRENT STATE
-- Branch `worktree-today-hover-zoom` @ `f641dc3` (based on `pure-gas-main` `4a7d75b`), worktree `.claude/worktrees/today-hover-zoom`. Not merged into `pure-gas-main`.
-- Lint + 203 tests pass. Not browser-verified.
-- HOME `/dev` (@HEAD) pushed. HOME pinned-prod `clasp deploy -i` FAILED ("Only users in the same domain as the script owner may deploy this script") - rerun it after merge. WORK pushed as Version 130.
+- Branch `feat/gmail-meeting-hub`, merged into `pure-gas-main` by fast-forward (it already contained the hover/zoom fix `f641dc3`).
+- Lint clean, 483/483 tests pass, `Engines.gs` in sync. Nothing pushed to a remote or to clasp.
+- Unverified: Sheets under `drive.file` (needs the live spike). Phase 6 is only parser plus interface; Phase 7 not built.
 
 ## CONSTRAINTS & PREFERENCES
-- Be terse; start replies `🔋Mike:`; commit directly, no PR theater.
-- After `push:work` just say "Update WORK" (no repoint steps).
-- Never use generic browser automation; use `tools/ensure-chrome.js` + `tools/e2e/*`.
-- No pills; GAS HTML files: no `//`, apostrophes, backticks in strings/comments.
+- Terse replies, start with `🔋Mike:`; commit directly, no PR theater; "I abhor silent failures".
+- Q8 gate: STOP before any `clasp push` carrying the new scope until the user approves. HOME is mastercopy; WORK only via `npm run push:work`.
+- Browser checks only via `tools/ensure-chrome.js` + `tools/e2e/*`. Close any open IDE editor tab before a push. No pills; GAS HTML files must not contain `//`, apostrophes or backticks in strings or comments.
+- Use the `haiku` alias for light subagent work (user wants "Haiku 5.5", exact ID unverified).
 
 ## OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
-1. Merge `worktree-today-hover-zoom` into `pure-gas-main` (see [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md)).
-2. Live-verify popovers + zoom on HOME ([`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html), [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html) `notesPopoverStyle`, `setTaskZoom`).
-3. User repoints WORK `/exec` (only `michael.hoffman@gsa.gov`).
+1. Push gate + IDE Services (+) for Gmail and Sheets on HOME ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) lines 14-19).
+2. Live HOME spike: Sheets under `drive.file`, emoji label resolution, DRY_RUN smoke; seed 2-3 threads ([`docs/hub-setup-and-gate.md`](file:///home/mike/projects/day-planner/docs/hub-setup-and-gate.md)).
+3. WORK: repoint to the latest version (user only), and `npm run push:work` for the hub after HOME passes.
 
 ## IMMEDIATE NEXT STEP
-`git merge worktree-today-hover-zoom` in `/home/mike/projects/day-planner` (note its uncommitted `.claude/commands/handoff.md` edit).
+Ask the user: "Approve the first `clasp push` to HOME carrying `gmail.readonly`?" If yes, close the IDE editor tab, then `cd gas-app && clasp push --force`.
+Housekeeping after the merge: remove the `today-hover-zoom` worktree and the stale `agent-*` worktrees and `feat/gmail-hub-*` branches.

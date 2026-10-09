@@ -2,9 +2,8 @@
 
 ## Phase 25: WORK Repoint & Post-Removal Verification (Active)
 
-- [ ] **Merge `worktree-today-hover-zoom` (`f641dc3`) into `pure-gas-main`** from the main checkout
-  (`git merge worktree-today-hover-zoom`). Fixes notes-popover bugs + adds Tasks zoom slider.
-  Then remove the worktree + branch.
+- [ ] Hover/zoom fix (`f641dc3`) rides in on the `pure-gas-main` merge of `feat/gmail-meeting-hub`; afterward remove the
+  `today-hover-zoom` worktree and `worktree-today-hover-zoom` branch.
 - [ ] **Live-verify on HOME**: notes popovers start closed, hovering note 1 never opens the last,
   first line not covered by cursor, iPad tap opens / outside tap closes; zoom slider (80-140%)
   persists across reloads and double-click resets.
@@ -14,7 +13,7 @@
 
 ## Phase 28: Gmail / Meeting Hub (user-only gate steps)
 
-- [ ] **Approve the first push containing `gmail.readonly`** (any `clasp push` of `feat/gmail-hub-integration`
+- [ ] **Approve the first push containing `gmail.readonly`** (any `clasp push` of `pure-gas-main`
   carries the scope and the Gmail/Sheets Advanced Services). Nothing has been pushed.
 - [ ] **IDE Services (+) on HOME**: add Gmail and Sheets; enable both APIs in the linked Cloud project; re-consent
   as `mhoffman02@gmail.com` (runbook: `docs/hub-setup-and-gate.md` section 4).

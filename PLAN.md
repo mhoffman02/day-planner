@@ -42,9 +42,10 @@ is: cut v128, then one manual repoint.
   → Deploy → Manage deployments → Edit → select Version 128 → Deploy). Cross-domain
   restriction — cannot be done from HOME's `mhoffman02@gmail.com` session.
 
-### Phase 28: Gmail / Calendar / Tasks / Meeting-Notes Hub (Code complete, gated)
+### Phase 28: Gmail / Calendar / Tasks / Meeting-Notes Hub (In Progress - code complete, at push gate)
 Spec [`docs/specs/gmail-meeting-hub.md`](docs/specs/gmail-meeting-hub.md); architecture, setup/gate runbook and acceptance
-matrix in `docs/hub-*.md`. Branch `feat/gmail-hub-integration`. Gmail is read-only; all flags OFF, `DRY_RUN` ON.
+matrix in `docs/hub-*.md`. Branch `feat/gmail-meeting-hub` (merged into `pure-gas-main`). Gmail is read-only; all flags OFF, `DRY_RUN` ON.
+483 tests pass; adversarial-review findings fixed; every swallowed catch now logs.
 - [x] Wave 0: contracts, `build-gas-engines` tool, vm stubs, `GmailApp` lint ban, spec saved.
 - [x] Wave 1: pure engines (classifier, selector, triage score, ledger, registry, notes planner, Gemini parser, routing).
 - [x] Wave 2: `.gs` repositories, queue, RPC controller, triggers; Triage + Meeting Prep UI and mocks.
