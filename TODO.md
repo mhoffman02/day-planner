@@ -2,9 +2,12 @@
 
 ## Phase 25: WORK Repoint & Post-Removal Verification (Active)
 
-- [ ] **Cut WORK Version 128 via `npm run push:work`**: v127 (pushed at `215c3cf`) predates the
-  Sts status-menu fix (`8599a3d`) and the "GH Build N" prefix merge (`b7b0029`, Build 378). HOME
-  already has both (`@294`). Agent can do this.
-- [ ] **Repoint WORK `/exec` to Version 128** (supersedes the pending v127 repoint): only
+- [ ] **Merge `worktree-today-hover-zoom` (`f641dc3`) into `pure-gas-main`** from the main checkout
+  (`git merge worktree-today-hover-zoom`). Fixes notes-popover bugs + adds Tasks zoom slider.
+  Then remove the worktree + branch.
+- [ ] **Live-verify on HOME**: notes popovers start closed, hovering note 1 never opens the last,
+  first line not covered by cursor, iPad tap opens / outside tap closes; zoom slider (80-140%)
+  persists across reloads and double-click resets.
+- [ ] **Repoint WORK `/exec` to the newly pushed Version** (supersedes v127/v128): only
   `michael.hoffman@gsa.gov` can do this, in the WORK Apps Script IDE (Deploy → Manage
   deployments → Edit → select version → Deploy). Blocked on the user.
