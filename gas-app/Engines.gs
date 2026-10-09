@@ -125,6 +125,467 @@ function makeResult(r) {
   return Object.freeze({ ...r });
 }
 
+// ---- aiGuard.js ----
+/**
+ * @file aiGuard.js
+ * @description Fail-closed guard deciding whether any AI integration may touch an item, plus the
+ * provider-neutral LanguageAssistant interface (spec section 14). No provider is wired in; the base
+ * class throws 'Not configured'. Pure; no Google services, no logging of content.
+ */
+
+
+
+// Extra conservative signals beyond AI_EXCLUDED_LABELS: audit and COR/procurement content.
+const AIGUARD_SENSITIVE_RE = /audit|procure|acquisition|(?:^|[^a-z])cor(?:[^a-z]|$)|foia/i;
+const AIGUARD_SENSITIVE_SIGNALS = new Set(['AUDIT', 'COR_PROCUREMENT', 'PROCUREMENT', 'FOIA', 'HR']);
+
+function aiguardLabelExcluded(label) {
+  const l = String(label).toLowerCase();
+  const listed = AI_EXCLUDED_LABELS.some((x) => {
+    const e = x.toLowerCase();
+    return e.endsWith('/') ? l.startsWith(e) : l === e || l.startsWith(e + '/');
+  });
+  return listed || AIGUARD_SENSITIVE_RE.test(l);
+}
+
+/**
+ * @param {{labels:string[], seriesAiAllowed:(boolean|string), featureFlag:boolean, userSelected?:boolean, signals?:string[]}} options
+ * @returns {boolean} true only when every gate passes
+ */
+function isAiAllowed(options) {
+  if (!options || typeof options !== 'object') throw new Error('isAiAllowed: options object required');
+  if (!Array.isArray(options.labels)) throw new Error('isAiAllowed: labels must be an array');
+  if (options.labels.some(aiguardLabelExcluded)) return false;
+  if ((options.signals || []).some((s) => AIGUARD_SENSITIVE_SIGNALS.has(String(s).toUpperCase()))) return false;
+  if (options.featureFlag !== true) return false;
+  const series = typeof options.seriesAiAllowed === 'string' ? options.seriesAiAllowed.trim().toLowerCase() : options.seriesAiAllowed;
+  if (series === true || series === 'true') return true;
+  if (series === 'conditional') return options.userSelected === true;
+  return false;
+}
+
+/** Provider-neutral interface for a future approved language model. Unconfigured in v1. */
+class LanguageAssistant {
+  draftMeetingFramingLine() {
+    throw new Error('Not configured');
+  }
+
+  extractCandidateActions() {
+    throw new Error('Not configured');
+  }
+}
+
+// ---- externalTickets.js ----
+/**
+ * @file externalTickets.js
+ * @description Extracts a stable external-ticket key (Jira, ServiceNow, Apps Script failure) from an
+ * email so multiple notifications about one ticket dedupe to one key. The key type comes from the
+ * ticket ID pattern, not the sender. Pure; message bodies are read in memory only and never logged.
+ */
+
+const TICKETS_JIRA_RE = /\b([A-Z][A-Z0-9]{1,9}-\d{1,7})\b/g;
+const TICKETS_SNOW_RE = /\b((?:INC|REQ|RITM|CHG|PRB|TASK|SCTASK)\d{7,})\b/;
+const TICKETS_SCRIPT_RE = /summary of failures for google apps script:\s*(.+)/i;
+// Common non-ticket tokens shaped like PROJECT-123.
+const TICKETS_JIRA_DENY = new Set(['UTF', 'ISO', 'COVID', 'SHA', 'RFC', 'CVE', 'HTTP', 'NIST', 'FIPS', 'WCAG', 'GPT', 'MD', 'SSL', 'TLS']);
+
+function ticketsJira(text) {
+  for (const m of text.matchAll(TICKETS_JIRA_RE)) {
+    const prefix = m[1].slice(0, m[1].indexOf('-'));
+    if (!TICKETS_JIRA_DENY.has(prefix)) return m[1];
+  }
+  return null;
+}
+
+function ticketsFromText(text) {
+  const snow = text.match(TICKETS_SNOW_RE);
+  const jira = ticketsJira(text);
+  // When one text names both, the ServiceNow ID wins only if it appears first.
+  if (snow && jira) return text.indexOf(snow[1]) <= text.indexOf(jira) ? `SERVICENOW|${snow[1]}` : `JIRA|${jira}`;
+  if (snow) return `SERVICENOW|${snow[1]}`;
+  if (jira) return `JIRA|${jira}`;
+  return null;
+}
+
+/**
+ * @param {string} subject
+ * @param {string} from
+ * @param {string|null} [bodyText]
+ * @returns {string|null} 'JIRA|ABC-123' | 'SERVICENOW|INC0012345' | 'SCRIPT_FAILURE|<slug>' | null
+ */
+function extractExternalTicketKey(subject, from, bodyText) {
+  if (typeof subject !== 'string') throw new Error('extractExternalTicketKey: subject must be a string');
+  if (typeof from !== 'string') throw new Error('extractExternalTicketKey: from must be a string');
+  const script = subject.match(TICKETS_SCRIPT_RE);
+  if (script) {
+    const slug = script[1].toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    if (slug) return `SCRIPT_FAILURE|${slug}`;
+  }
+  const fromSubject = ticketsFromText(subject);
+  if (fromSubject) return fromSubject;
+  return typeof bodyText === 'string' ? ticketsFromText(bodyText) : null;
+}
+
+// ---- geminiParser.js ----
+/**
+ * @file geminiParser.js
+ * @description Deterministic parser for Gemini-generated meeting notes (spec section 13) plus the
+ * MeetingNotesProvider adapter base. Finds explicit action headings and checkbox/list items under
+ * them only; AI extraction is deferred. Proposes items, never creates anything. Pure; no clock, no
+ * crypto dependency, no logging of note content.
+ *
+ * docModel accepts: null/undefined/'' (no notes -> []), a plain string (lines), an array of
+ * paragraphs, or {paragraphs:[...]}. A paragraph is a string or {text, heading?:boolean, list?:boolean}.
+ */
+
+const GEMINIPARSER_ACTION_HEADING_RE = /^(?:suggested\s+)?(?:action\s+items?|next\s+steps?|follow[- ]?ups?|to[- ]?dos?)$/i;
+const GEMINIPARSER_OTHER_HEADING_RE = /^(?:summary|decisions?|key\s+(?:points|decisions)|details|attendees|notes|discussion|overview)$/i;
+const GEMINIPARSER_LIST_MARKER_RE = /^\s*(?:[-*•]\s+|\d+[.)]\s+|\[[ xX]?\]\s*)/;
+const GEMINIPARSER_CHECKBOX_RE = /^\s*(?:[-*•]\s+)?\[[ xX]?\]\s*/;
+const GEMINIPARSER_DATE_WORD_RE = /\b(?:mon|tues?|wed(?:nes)?|thu(?:rs)?|fri|sat|sun)[a-z]*\b|\btoday\b|\btomorrow\b|\beo[dw]\b|\bcob\b|\basap\b|\bnext (?:week|month)\b|\bend of\b|\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b|\d{1,2}\/\d{1,2}|\d{4}-\d{2}-\d{2}/i;
+const GEMINIPARSER_NOT_OWNERS = new Set(['We', 'I', 'They', 'It', 'There', 'This', 'That', 'Everyone', 'Team', 'The']);
+
+function geminiparserParagraphs(docModel) {
+  if (docModel === null || docModel === undefined || docModel === '') return [];
+  let raw;
+  if (typeof docModel === 'string') raw = docModel.split('\n');
+  else if (Array.isArray(docModel)) raw = docModel;
+  else if (typeof docModel === 'object' && Array.isArray(docModel.paragraphs)) raw = docModel.paragraphs;
+  else throw new Error('parseGeminiNotes: docModel must be a string, paragraph array, or {paragraphs}');
+  let offset = 0;
+  return raw.map((p) => {
+    const para = typeof p === 'string' ? { text: p } : p;
+    if (!para || typeof para.text !== 'string') throw new Error('parseGeminiNotes: paragraph must be a string or {text}');
+    const out = { text: para.text, heading: para.heading === true, list: para.list === true, offset };
+    offset += para.text.length + 1;
+    return out;
+  });
+}
+
+function geminiparserHeadingText(text) {
+  return text.trim().replace(/^#{1,6}\s*/, '').replace(/\*\*|__/g, '').replace(/:\s*$/, '').trim();
+}
+
+/** @returns {'action'|'other'|null} */
+function geminiparserClassifyHeading(p) {
+  const isListItem = p.list || GEMINIPARSER_LIST_MARKER_RE.test(p.text);
+  const clean = geminiparserHeadingText(p.text);
+  if (clean === '') return null;
+  if (GEMINIPARSER_ACTION_HEADING_RE.test(clean) && (p.heading || !isListItem)) return 'action';
+  if (p.heading || /^\s*#/.test(p.text)) return 'other';
+  if (!isListItem && GEMINIPARSER_OTHER_HEADING_RE.test(clean)) return 'other';
+  return null;
+}
+
+function geminiparserHash32(str, seed) {
+  let h = seed >>> 0;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return h.toString(16).padStart(8, '0');
+}
+
+/** Stable 16-hex-char hash of the normalized action text (own FNV-1a, two seeds). */
+function geminiparserActionHash(text) {
+  const norm = text.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  return geminiparserHash32(norm, 0x811c9dc5) + geminiparserHash32(norm, 0x01000193);
+}
+
+function geminiparserOwnerAndText(raw) {
+  const text = raw;
+  const lead = text.match(/^owner:\s*([^-–—:,;]+?)\s*(?:[-–—:]\s*|$)(.*)$/i);
+  if (lead) return { owner: lead[1].trim(), text: lead[2].trim() };
+  const trail = text.match(/[,;(]\s*owner:\s*([^,;()]+)\)?\s*$/i);
+  if (trail) {
+    return { owner: trail[1].trim(), text: text.slice(0, trail.index).trim() };
+  }
+  const at = text.match(/@([\w.-]+)/);
+  if (at) return { owner: at[1], text };
+  const will = text.match(/^([A-Z][\w'’.-]*(?: [A-Z][\w'’.-]*){0,2}) will\b/);
+  if (will && !GEMINIPARSER_NOT_OWNERS.has(will[1])) return { owner: will[1], text };
+  return { owner: null, text };
+}
+
+function geminiparserDueHint(text) {
+  const m = text.match(/\b(?:due(?:\s+on|\s+by)?:?|by|before|until)\s+([^.,;()]+)/i);
+  if (!m) return null;
+  const hint = m[1].trim();
+  return GEMINIPARSER_DATE_WORD_RE.test(hint) ? hint : null;
+}
+
+/**
+ * Parse proposed action items from a Gemini notes document model.
+ * @param {*} docModel see file header
+ * @returns {Array<{text:string, owner:(string|null), dueHint:(string|null), sourceHeading:string, sourceOffset:number, actionHash:string}>}
+ */
+function parseGeminiNotes(docModel) {
+  const paras = geminiparserParagraphs(docModel);
+  const proposals = [];
+  const seen = new Set();
+  let section = null; // heading text while inside an action section
+  for (const p of paras) {
+    const kind = geminiparserClassifyHeading(p);
+    if (kind === 'action') { section = geminiparserHeadingText(p.text); continue; }
+    if (kind === 'other') { section = null; continue; }
+    if (section === null) continue;
+    const isItem = p.list || GEMINIPARSER_LIST_MARKER_RE.test(p.text);
+    if (!isItem) continue;
+    const stripped = p.text.replace(GEMINIPARSER_CHECKBOX_RE, '').replace(GEMINIPARSER_LIST_MARKER_RE, '').trim();
+    if (stripped === '') continue;
+    const { owner, text } = geminiparserOwnerAndText(stripped);
+    if (text === '') continue;
+    const actionHash = geminiparserActionHash(text);
+    if (seen.has(actionHash)) continue;
+    seen.add(actionHash);
+    proposals.push({ text, owner, dueHint: geminiparserDueHint(text), sourceHeading: section, sourceOffset: p.offset, actionHash });
+  }
+  return proposals;
+}
+
+/** Adapter base for locating and reading meeting notes for an occurrence. Unconfigured in v1. */
+class MeetingNotesProvider {
+  discoverForOccurrence() {
+    throw new Error('Not configured');
+  }
+
+  readProposedActions() {
+    throw new Error('Not configured');
+  }
+
+  readProposedDecisions() {
+    throw new Error('Not configured');
+  }
+}
+
+// ---- topicRouting.js ----
+/**
+ * @file topicRouting.js
+ * @description Label-to-meeting-series destination suggestions (spec section 12). Suggestions only:
+ * confirmation is required unless the user applied an explicit workflow Meeting label.
+ * Pure function; no Google services.
+ */
+
+
+
+const TOPICROUTING_EXPLICIT = Object.freeze({
+  [WORKFLOW_LABEL.MEETING_NCMMS_CORE]: 'NCMMS_CORE',
+  [WORKFLOW_LABEL.MEETING_NCMMS_DAILY]: 'NCMMS_DAILY'
+});
+
+function topicroutingHas(set, name) {
+  return set.has(name.toLowerCase());
+}
+
+/**
+ * @param {string[]} labels Gmail label names on the thread
+ * @returns {{suggestions:Array<{seriesKey:string,reason:string}>, requireConfirmation:boolean, explicit:boolean, humanReviewOnly:boolean}}
+ */
+function suggestDestinations(labels) {
+  if (!Array.isArray(labels)) throw new Error('suggestDestinations: labels must be an array');
+  const set = new Set(labels.map((l) => String(l).toLowerCase()));
+  const humanReviewOnly = topicroutingHas(set, '_NCMMS/OIG Audit');
+
+  const explicit = [];
+  for (const label of labels) {
+    const key = TOPICROUTING_EXPLICIT[label];
+    // Unknown Meeting/* labels are recognized but inert in v1.
+    if (key) explicit.push({ seriesKey: key, reason: `Explicit label ${label}` });
+  }
+
+  const found = [];
+  if (explicit.length === 0 && !humanReviewOnly) {
+    const push = (seriesKey, reason) => found.push({ seriesKey, reason });
+    const ncmms = [...set].some((l) => l === '_ncmms' || l.startsWith('_ncmms/'));
+    if (topicroutingHas(set, '_NCMMS/Acquisition')) push('NCMMS_ACQ', 'Label _NCMMS/Acquisition');
+    if (topicroutingHas(set, '_NCMMS/COR-TRM')) {
+      push('TRM_PM', 'Label _NCMMS/COR-TRM');
+      push('NCMMS_CORE', 'Label _NCMMS/COR-TRM (fallback)');
+    }
+    if (topicroutingHas(set, '_NCMMS/Approval-Request')) push('NCMMS_CORE', 'Label _NCMMS/Approval-Request (or make a task)');
+    if (topicroutingHas(set, '_NCMMS/ncmms-support')) push('NCMMS_DAILY', 'Label _NCMMS/ncmms-support (unresolved exceptions)');
+    if (topicroutingHas(set, 'P&S Tech & Innovation')) push('FACILITY_TECH', 'Label P&S Tech & Innovation');
+    if (topicroutingHas(set, 'Elevator')) push('ELEVATOR_DATA', 'Label Elevator (exceptions only)');
+    if (topicroutingHas(set, 'Jira') && ncmms) push('NCMMS_DAILY', 'Jira with NCMMS context');
+    if (topicroutingHas(set, '_NCMMS')) {
+      if (topicroutingHas(set, 'VIP') || topicroutingHas(set, '00_AR')) push('NCMMS_CORE', 'Label _NCMMS with VIP/action candidate');
+      else push('NCMMS_DAILY', 'Label _NCMMS (general operational issue)');
+    }
+  }
+
+  const seen = new Set();
+  const suggestions = [...explicit, ...found].filter((s) => (seen.has(s.seriesKey) ? false : seen.add(s.seriesKey)));
+  const isExplicit = explicit.length > 0;
+  return {
+    suggestions,
+    requireConfirmation: !isExplicit,
+    explicit: isExplicit,
+    humanReviewOnly
+  };
+}
+
+// ---- triageScore.js ----
+/**
+ * @file triageScore.js
+ * @description Deterministic, configurable Gmail thread triage scoring (spec section 11) and queue
+ * assignment. Pure functions: no Google services, no clock. Message bodies are read in memory only
+ * and are never logged or returned. The score NEVER produces an auto-create action; it only ranks
+ * threads for human review.
+ */
+
+const TRIAGE_BAND = Object.freeze({
+  HIGH_CONFIDENCE: 'HIGH_CONFIDENCE',
+  HUMAN_REVIEW: 'HUMAN_REVIEW',
+  LIKELY_FYI: 'LIKELY_FYI',
+  NOISE: 'NOISE'
+});
+
+const TRIAGE_QUEUE = Object.freeze({
+  DIRECT_ACTION: 'Direct Action',
+  MEETING_CARRY_INS: 'Meeting Carry-ins',
+  SYSTEM_EXCEPTIONS: 'System Exceptions',
+  FYI_READING: 'FYI/Reading'
+});
+
+const TRIAGE_DEFAULT_WEIGHTS = Object.freeze({
+  DIRECT_TO: 3,
+  LATEST_FROM_OTHER: 2,
+  EXPLICIT_REQUEST: 3,
+  DEADLINE_NEAR_REQUEST: 2,
+  VIP: 2,
+  NO_REPLY_SINCE_REQUEST: 3,
+  ONLY_COPIED: -2,
+  AUTOMATED_SENDER: -4,
+  NOISE_LABEL: -4,
+  COMPLETED_LANGUAGE: -3
+});
+
+const TRIAGE_NOISE_LABELS = ['Auto-file', 'News', 'Elevator'];
+const TRIAGE_EXCEPTION_LABELS = ['Jira', 'ServiceNow', 'scripts', 'Elevator'];
+const TRIAGE_CARRY_IN_LABELS = ['_NCMMS', '_NCMMS/COR-TRM', '_NCMMS/Acquisition', 'OFM', 'IT', 'P&S Tech & Innovation'];
+const TRIAGE_REQUEST_RE = /\b(please|can you|could you|would you|will you|need you to|i need|we need|kindly|action required|let me know|requesting|your approval|your review)\b/i;
+const TRIAGE_DEADLINE_RE = /\b(by|before|due|deadline|no later than|until|asap|eod|cob|today|tomorrow|tonight|monday|tuesday|wednesday|thursday|friday|this week|next week|\d{1,2}\/\d{1,2}|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.? \d{1,2})\b/i;
+const TRIAGE_COMPLETED_RE = /\b(resolved|completed|closed|no further action|issue is fixed|marked as done)\b/i;
+const TRIAGE_AUTOMATED_RE = /(no[-_.]?reply|do[-_.]?not[-_.]?reply|mailer-daemon|notifications?@|alerts?@|automated@|postmaster@|bounce)/i;
+const TRIAGE_PROXIMITY_CHARS = 100;
+
+function triageAddress(raw) {
+  const s = String(raw || '');
+  const m = s.match(/<([^>]+)>/);
+  return (m ? m[1] : s).trim().toLowerCase();
+}
+
+function triageHasAddress(list, email) {
+  return Array.isArray(list) && list.some((a) => triageAddress(a) === email);
+}
+
+function triageHasLabel(labels, name, orChild = false) {
+  const n = name.toLowerCase();
+  return labels.some((l) => {
+    const x = String(l).toLowerCase();
+    return x === n || (orChild && x.startsWith(n + '/'));
+  });
+}
+
+function triageNearRequest(body) {
+  const req = body.match(TRIAGE_REQUEST_RE);
+  if (!req) return false;
+  const lo = Math.max(0, req.index - TRIAGE_PROXIMITY_CHARS);
+  const hi = req.index + req[0].length + TRIAGE_PROXIMITY_CHARS;
+  return TRIAGE_DEADLINE_RE.test(body.slice(lo, hi));
+}
+
+function triageValidate(thread) {
+  if (!thread || typeof thread !== 'object') throw new Error('scoreThread: thread object required');
+  if (!Array.isArray(thread.labels)) throw new Error('scoreThread: thread.labels must be an array');
+  if (!Array.isArray(thread.messages) || thread.messages.length === 0) {
+    throw new Error('scoreThread: thread.messages must be a non-empty array');
+  }
+  if (typeof thread.userEmail !== 'string' || thread.userEmail === '') {
+    throw new Error('scoreThread: thread.userEmail required');
+  }
+}
+
+function triageWeights(config) {
+  const over = (config && config.weights) || {};
+  for (const k of Object.keys(over)) {
+    if (!(k in TRIAGE_DEFAULT_WEIGHTS)) throw new Error(`scoreThread: unknown weight '${k}'`);
+    if (typeof over[k] !== 'number' || Number.isNaN(over[k])) throw new Error(`scoreThread: weight '${k}' must be a number`);
+  }
+  return { ...TRIAGE_DEFAULT_WEIGHTS, ...over };
+}
+
+function triageBand(score) {
+  if (score >= 8) return TRIAGE_BAND.HIGH_CONFIDENCE;
+  if (score >= 4) return TRIAGE_BAND.HUMAN_REVIEW;
+  if (score >= 0) return TRIAGE_BAND.LIKELY_FYI;
+  return TRIAGE_BAND.NOISE;
+}
+
+/**
+ * Score a thread. Returns a frozen {score, band, signals[], autoCreate:false}; never an action.
+ * @param {{labels:string[], userEmail:string, messages:Array<{from:string,to:string[],cc:string[],date:string,bodyText:string,isFromUser:boolean}>}} thread
+ * @param {{weights?:Object<string,number>, automatedSenders?:string[]}} [config]
+ */
+function scoreThread(thread, config) {
+  triageValidate(thread);
+  const w = triageWeights(config);
+  const me = triageAddress(thread.userEmail);
+  const labels = thread.labels;
+  const msgs = thread.messages;
+  const signals = [];
+  const add = (id, reason) => signals.push({ id, points: w[id], reason });
+
+  let latestOtherIdx = -1;
+  msgs.forEach((m, i) => { if (!m.isFromUser) latestOtherIdx = i; });
+  const latestOther = latestOtherIdx >= 0 ? msgs[latestOtherIdx] : null;
+
+  if (latestOther) {
+    if (triageHasAddress(latestOther.to, me)) add('DIRECT_TO', 'User is in To');
+    else if (triageHasAddress(latestOther.cc, me)) add('ONLY_COPIED', 'User is only copied');
+    if (latestOtherIdx === msgs.length - 1) add('LATEST_FROM_OTHER', 'Latest message is from someone else');
+    const extra = (config && config.automatedSenders) || [];
+    const from = triageAddress(latestOther.from);
+    if (TRIAGE_AUTOMATED_RE.test(from) || extra.some((s) => from.includes(String(s).toLowerCase()))) {
+      add('AUTOMATED_SENDER', 'Known automated sender');
+    }
+  }
+
+  let requestIdx = -1;
+  msgs.forEach((m, i) => { if (!m.isFromUser && TRIAGE_REQUEST_RE.test(m.bodyText || '')) requestIdx = i; });
+  if (requestIdx >= 0) {
+    add('EXPLICIT_REQUEST', 'Explicit request phrase');
+    if (triageNearRequest(msgs[requestIdx].bodyText)) add('DEADLINE_NEAR_REQUEST', 'Deadline language near request');
+    if (!msgs.slice(requestIdx + 1).some((m) => m.isFromUser)) add('NO_REPLY_SINCE_REQUEST', 'No user reply since request');
+  }
+
+  if (triageHasLabel(labels, 'VIP')) add('VIP', 'VIP label');
+  if (TRIAGE_NOISE_LABELS.some((l) => triageHasLabel(labels, l))) add('NOISE_LABEL', 'Auto-file/News/Elevator label');
+  if (TRIAGE_COMPLETED_RE.test(msgs[msgs.length - 1].bodyText || '')) add('COMPLETED_LANGUAGE', 'Completed/resolved/closed language');
+
+  const score = signals.reduce((sum, s) => sum + s.points, 0);
+  return Object.freeze({ score, band: triageBand(score), signals, autoCreate: false });
+}
+
+/**
+ * Assign a triage queue. Existing labels (00_AR, FYI_Candidate, ...) are hints only.
+ * @param {{labels:string[]}} thread
+ * @param {{band:string}} scoreResult
+ * @returns {string} one of TRIAGE_QUEUE values
+ */
+function queueFor(thread, scoreResult) {
+  if (!thread || !Array.isArray(thread.labels)) throw new Error('queueFor: thread.labels must be an array');
+  if (!scoreResult || !(scoreResult.band in TRIAGE_BAND)) throw new Error('queueFor: valid scoreResult required');
+  const labels = thread.labels;
+  const band = scoreResult.band;
+  if (TRIAGE_EXCEPTION_LABELS.some((l) => triageHasLabel(labels, l))) return TRIAGE_QUEUE.SYSTEM_EXCEPTIONS;
+  if (band === TRIAGE_BAND.HIGH_CONFIDENCE) return TRIAGE_QUEUE.DIRECT_ACTION;
+  if (band === TRIAGE_BAND.NOISE) return TRIAGE_QUEUE.FYI_READING;
+  if (TRIAGE_CARRY_IN_LABELS.some((l) => triageHasLabel(labels, l, true))) return TRIAGE_QUEUE.MEETING_CARRY_INS;
+  if (band === TRIAGE_BAND.HUMAN_REVIEW) return TRIAGE_QUEUE.DIRECT_ACTION;
+  return TRIAGE_QUEUE.FYI_READING;
+}
+
 // used by other .gs files (Config/Queue/Repository wrappers); not a google.script.run surface
 global.DPEngines = Object.freeze({
   EVENT_TYPE: EVENT_TYPE,
@@ -141,7 +602,18 @@ global.DPEngines = Object.freeze({
   gmailMeetingKey: gmailMeetingKey,
   geminiProposeKey: geminiProposeKey,
   meetingTaskKey: meetingTaskKey,
-  makeResult: makeResult
+  makeResult: makeResult,
+  isAiAllowed: isAiAllowed,
+  LanguageAssistant: LanguageAssistant,
+  extractExternalTicketKey: extractExternalTicketKey,
+  parseGeminiNotes: parseGeminiNotes,
+  MeetingNotesProvider: MeetingNotesProvider,
+  suggestDestinations: suggestDestinations,
+  TRIAGE_BAND: TRIAGE_BAND,
+  TRIAGE_QUEUE: TRIAGE_QUEUE,
+  TRIAGE_DEFAULT_WEIGHTS: TRIAGE_DEFAULT_WEIGHTS,
+  scoreThread: scoreThread,
+  queueFor: queueFor
 });
 
 })(this);
