@@ -171,11 +171,16 @@ function bodyText_(payload) {
   return out.join('\n').slice(0, GMAIL_BODY_CAP_);
 }
 
+var userEmailMemo_ = null;
+
 /**
- * @returns {string} Lower-cased email of the active user.
+ * Config tab UserEmail (seeded from the Gmail profile), read once per execution. Not
+ * Session.getActiveUser: the manifest has no userinfo.email scope.
+ * @returns {string} Lower-cased email of the user.
  */
 function userEmail_() {
-  return String(Session.getActiveUser().getEmail() || '').toLowerCase();
+  if (userEmailMemo_ === null) userEmailMemo_ = String(DPConfig.getConfig().UserEmail).toLowerCase();
+  return userEmailMemo_;
 }
 
 /**

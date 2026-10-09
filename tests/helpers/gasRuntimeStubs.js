@@ -113,6 +113,7 @@ function makeAdvancedFakes() {
     data,
     Gmail: {
       Users: {
+        getProfile() { return { emailAddress: 'tester@example.com' }; },
         Threads: {
           get(userId, threadId) { if (!data.threads[threadId]) throw notFound('thread'); return data.threads[threadId]; },
           list(userId, opts = {}) {

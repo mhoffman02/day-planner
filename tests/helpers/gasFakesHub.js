@@ -69,6 +69,7 @@ function makeGmail(h) {
   h.gmail.labelId = labelId;
   return {
     Users: {
+      getProfile(userId) { h.gmail.calls.push('getProfile'); return { emailAddress: 'Me@Example.test' }; },
       Labels: { list() { h.gmail.calls.push('labels.list'); return { labels: h.gmail.labels.map((l) => ({ ...l })) }; } },
       Threads: {
         list(userId, opts = {}) {
@@ -233,7 +234,9 @@ export function makeHubContext(o = {}) {
   ctx.Calendar = makeCalendar(h);
   ctx.Tasks = makeTasks(h);
   ctx.ScriptApp = makeScriptApp(h);
-  ctx.Session = { getScriptTimeZone: () => TZ, getActiveUser: () => ({ getEmail: () => 'me@example.test' }), getEffectiveUser: () => ({ getEmail: () => 'me@example.test' }) };
+  // Production manifest has no userinfo.email scope, so Session user lookups throw (seen live on HOME 2026-10-09).
+  const noEmailScope = () => { throw new Error('Specified permissions are not sufficient to call Session.getActiveUser. Required permissions: https://www.googleapis.com/auth/userinfo.email'); };
+  ctx.Session = { getScriptTimeZone: () => TZ, getActiveUser: noEmailScope, getEffectiveUser: noEmailScope };
   ctx.Utilities.formatDate = (d, tz, pattern) => formatInZone(d, tz, pattern);
   ctx.Utilities.base64DecodeWebSafe = (s) => Array.from(Buffer.from(String(s).replace(/-/g, '+').replace(/_/g, '/'), 'base64'));
   ctx.Utilities.newBlob = (bytes) => ({ getDataAsString: () => Buffer.from(bytes).toString('utf8') });

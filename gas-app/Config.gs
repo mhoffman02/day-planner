@@ -114,7 +114,8 @@ function buildConfigSeed_() {
   var tz = userCalendarTimeZone_();
   var email;
   if (!tz) { try { tz = Session.getScriptTimeZone(); } catch (e) { console.error('Config: script time zone unavailable: ' + e.message); tz = ''; } }
-  try { email = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail(); } catch (e) { console.error('Config: user email unavailable: ' + e.message); email = ''; }
+  // Gmail profile, not Session.getActiveUser: the manifest has no userinfo.email scope.
+  try { email = Gmail.Users.getProfile('me').emailAddress; } catch (e) { console.error('Config: user email unavailable from Gmail profile: ' + e.message); email = ''; }
   tz = tz || '';
   email = email || '';
   var rows = [
