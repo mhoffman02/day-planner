@@ -335,7 +335,7 @@
                           <button type="button" class="status-btn" @click="openStatusMenu(task.id, $event)" x-text="task.status || '•'"
                                   aria-haspopup="menu" :aria-expanded="openStatusMenuTaskId === task.id"
                                   :aria-label="'Task status: ' + (task.status || 'Open') + '. Click to choose a status.'"></button>
-                          <div class="status-menu" :class="{ 'dropup': statusMenuDropUp, 'dropdown-down': !statusMenuDropUp }" role="menu" x-show="openStatusMenuTaskId === task.id" x-cloak
+                          <div class="status-menu" :class="{ 'dropup': statusMenuDropUp, 'dropdown-down': !statusMenuDropUp }" role="menu" x-cloak
                                :style="statusMenuStyle(task.id)">
                             <template x-for="opt in statusOptions" :key="opt.value">
                               <button type="button" class="status-menu-item" role="menuitem"
@@ -381,7 +381,7 @@
                                   aria-label="View notes" aria-haspopup="true" :aria-expanded="openNotesPopoverTaskId === task.id">
                             <span class="material-symbols-outlined icon-14">sticky_note_2</span>
                           </button>
-                          <div class="notes-popover" :class="{ 'dropup': notesPopoverDropUp, 'dropdown-down': !notesPopoverDropUp }" :style="openNotesPopoverTaskId === task.id && notesPopoverPos.left ? (notesPopoverDropUp ? 'position: fixed; bottom: ' + notesPopoverPos.bottom + '; left: ' + notesPopoverPos.left + ';' : 'position: fixed; top: ' + notesPopoverPos.top + '; left: ' + notesPopoverPos.left + ';') : ''" role="tooltip" x-show="openNotesPopoverTaskId === task.id" x-cloak x-text="task.notes"></div>
+                          <div class="notes-popover" :class="{ 'dropup': notesPopoverDropUp, 'dropdown-down': !notesPopoverDropUp }" :style="notesPopoverStyle(task.id)" role="tooltip" x-cloak x-text="task.notes"></div>
                         </span>
                       </td>
                       <td class="td-category" x-text="task.category || 'Work'"></td>
@@ -928,7 +928,7 @@
                         <button type="button" class="status-btn" @click="openStatusMenu(mTask.id, $event)" x-text="mTask.status || '•'"
                                 aria-haspopup="menu" :aria-expanded="openStatusMenuTaskId === mTask.id"
                                 :aria-label="'Master task status: ' + (mTask.status || 'Open') + '. Click to choose a status.'"></button>
-                        <div class="status-menu" :class="{ 'dropup': statusMenuDropUp, 'dropdown-down': !statusMenuDropUp }" role="menu" x-show="openStatusMenuTaskId === mTask.id" x-cloak
+                        <div class="status-menu" :class="{ 'dropup': statusMenuDropUp, 'dropdown-down': !statusMenuDropUp }" role="menu" x-cloak
                              :style="statusMenuStyle(mTask.id)">
                           <template x-for="opt in statusOptions" :key="opt.value">
                             <button type="button" class="status-menu-item" role="menuitem"
@@ -974,7 +974,7 @@
                                 aria-label="View notes" aria-haspopup="true" :aria-expanded="openNotesPopoverTaskId === mTask.id">
                           <span class="material-symbols-outlined icon-14">sticky_note_2</span>
                         </button>
-                        <div class="notes-popover" :class="{ 'dropup': notesPopoverDropUp, 'dropdown-down': !notesPopoverDropUp }" :style="openNotesPopoverTaskId === mTask.id && notesPopoverPos.left ? (notesPopoverDropUp ? 'position: fixed; bottom: ' + notesPopoverPos.bottom + '; left: ' + notesPopoverPos.left + ';' : 'position: fixed; top: ' + notesPopoverPos.top + '; left: ' + notesPopoverPos.left + ';') : ''" role="tooltip" x-show="openNotesPopoverTaskId === mTask.id" x-cloak x-text="mTask.notes"></div>
+                        <div class="notes-popover" :class="{ 'dropup': notesPopoverDropUp, 'dropdown-down': !notesPopoverDropUp }" :style="notesPopoverStyle(mTask.id)" role="tooltip" x-cloak x-text="mTask.notes"></div>
                       </span>
                     </td>
                     <td class="td-category" x-text="mTask.category || 'General'"></td>
@@ -1110,7 +1110,7 @@
                             <button type="button" class="status-btn" @click="openStatusMenu(item.id, $event)" x-text="item.status || '•'"
                                     aria-haspopup="menu" :aria-expanded="openStatusMenuTaskId === item.id"
                                     :aria-label="'Item status: ' + (item.status || 'Open') + '. Click to choose a status.'"></button>
-                            <div class="status-menu" :class="{ 'dropup': statusMenuDropUp, 'dropdown-down': !statusMenuDropUp }" role="menu" x-show="openStatusMenuTaskId === item.id" x-cloak
+                            <div class="status-menu" :class="{ 'dropup': statusMenuDropUp, 'dropdown-down': !statusMenuDropUp }" role="menu" x-cloak
                                  :style="statusMenuStyle(item.id)">
                               <template x-for="opt in statusOptions" :key="opt.value">
                                 <button type="button" class="status-menu-item" role="menuitem"

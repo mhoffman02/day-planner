@@ -3349,26 +3349,38 @@ Alpine.data('plannerApp', () => ({
         return Boolean(task.notes && task.notes.trim());
       },
 
+      // Fixed-position popovers live inside the CSS-zoomed container: convert viewport px to its px.
+      zoomedRect(el) {
+        const z = this.uiZoom / 100;
+        const r = el.getBoundingClientRect();
+        return { left: r.left / z, right: r.right / z, top: r.top / z, bottom: r.bottom / z };
+      },
+
+      zoomedViewport() {
+        const z = this.uiZoom / 100;
+        return { w: window.innerWidth / z, h: window.innerHeight / z };
+      },
+
       openNotesPopover(taskId, event) {
         clearTimeout(this.notesPopoverCloseTimer);
         this.openNotesPopoverTaskId = taskId;
         if (event && (event.currentTarget || event.target)) {
           const el = event.currentTarget || event.target;
           const btn = el.closest ? (el.closest('.notes-indicator') || el) : el;
-          const rect = btn.getBoundingClientRect();
-          const spaceBelow = window.innerHeight - rect.bottom;
+          const rect = this.zoomedRect(btn);
+          const spaceBelow = this.zoomedViewport().h - rect.bottom;
           const spaceAbove = rect.top;
           const dropUp = (spaceBelow < 275 && spaceAbove > spaceBelow) || spaceBelow < 160;
           this.notesPopoverDropUp = dropUp;
 
           let left = Math.round(rect.left);
           const popoverWidth = 280;
-          if (left + popoverWidth > window.innerWidth - 16) {
-            left = Math.max(16, window.innerWidth - popoverWidth - 16);
+          if (left + popoverWidth > this.zoomedViewport().w - 16) {
+            left = Math.max(16, this.zoomedViewport().w - popoverWidth - 16);
           }
           this.notesPopoverPos = {
             top: dropUp ? null : `${Math.round(rect.bottom)}px`,
-            bottom: dropUp ? `${Math.round(window.innerHeight - rect.top + 4)}px` : null,
+            bottom: dropUp ? `${Math.round(this.zoomedViewport().h - rect.top + 4)}px` : null,
             left: `${left}px`
           };
         }
@@ -3385,10 +3397,10 @@ Alpine.data('plannerApp', () => ({
 
       // Object (not string) so Alpine merges it and never clobbers the display:none set by x-show.
       notesPopoverStyle(taskId) {
-        if (this.openNotesPopoverTaskId !== taskId || !this.notesPopoverPos.left) return {};
+        if (this.openNotesPopoverTaskId !== taskId || !this.notesPopoverPos.left) return { display: 'none' };
         return this.notesPopoverDropUp
-          ? { position: 'fixed', bottom: this.notesPopoverPos.bottom, left: this.notesPopoverPos.left }
-          : { position: 'fixed', top: this.notesPopoverPos.top, left: this.notesPopoverPos.left };
+          ? { display: 'block', position: 'fixed', bottom: this.notesPopoverPos.bottom, left: this.notesPopoverPos.left }
+          : { display: 'block', position: 'fixed', top: this.notesPopoverPos.top, left: this.notesPopoverPos.left };
       },
 
       scheduleNotesPopoverClose(taskId) {
@@ -3404,14 +3416,14 @@ Alpine.data('plannerApp', () => ({
         if (event && (event.currentTarget || event.target)) {
           const el = event.currentTarget || event.target;
           const btn = el.closest ? (el.closest('.status-btn') || el) : el;
-          const rect = btn.getBoundingClientRect();
-          const spaceBelow = window.innerHeight - rect.bottom;
+          const rect = this.zoomedRect(btn);
+          const spaceBelow = this.zoomedViewport().h - rect.bottom;
           const spaceAbove = rect.top;
           const dropUp = (spaceBelow < 275 && spaceAbove > spaceBelow) || spaceBelow < 160;
           this.statusMenuDropUp = dropUp;
           this.statusMenuPos = {
             top: dropUp ? null : `${Math.round(rect.bottom + 2)}px`,
-            bottom: dropUp ? `${Math.round(window.innerHeight - rect.top + 2)}px` : null,
+            bottom: dropUp ? `${Math.round(this.zoomedViewport().h - rect.top + 2)}px` : null,
             left: `${Math.round(rect.left)}px`
           };
         }
@@ -3419,10 +3431,10 @@ Alpine.data('plannerApp', () => ({
 
       // Object (not string) so Alpine merges it and never clobbers the display:none set by x-show.
       statusMenuStyle(taskId) {
-        if (this.openStatusMenuTaskId !== taskId || !this.statusMenuPos.left) return {};
+        if (this.openStatusMenuTaskId !== taskId || !this.statusMenuPos.left) return { display: 'none' };
         return this.statusMenuDropUp
-          ? { position: 'fixed', bottom: this.statusMenuPos.bottom, left: this.statusMenuPos.left }
-          : { position: 'fixed', top: this.statusMenuPos.top, left: this.statusMenuPos.left };
+          ? { display: 'flex', position: 'fixed', bottom: this.statusMenuPos.bottom, left: this.statusMenuPos.left }
+          : { display: 'flex', position: 'fixed', top: this.statusMenuPos.top, left: this.statusMenuPos.left };
       },
 
       scheduleStatusMenuClose(taskId) {
