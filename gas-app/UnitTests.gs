@@ -16,6 +16,36 @@
 (function(global) {
 
 /**
+ * Read-only / pure hub checks (Phase 28). Never writes Gmail, Tasks, Docs, Sheets or Calendar and never
+ * creates the config Sheet. Checks that need a disabled or missing service report SKIP, not FAIL, so the
+ * live self-test stays HEALTHY before the Gmail scope gate is passed. Not counted in totalTests.
+ * @returns {Array<{test: string, status: string, details: string}>} Hub check results.
+ */
+function runHubSelfChecks() {
+  var out = [];
+  var add = function(test, status, details) { out.push({ test: 'H. ' + test, status: status, details: details }); };
+  try {
+    if (typeof DPEngines === 'undefined') {
+      add('Hub engines', 'FAIL', 'DPEngines is not loaded (Engines.gs missing from the deployment)');
+      return out;
+    }
+    var names = ['DPConfig', 'DPLedgerRepo', 'DPNotesRepo', 'DPGmailRepo', 'DPCalendarRepo', 'DPTaskRepo', 'DPQueue', 'DPTriggers'];
+    var missing = names.filter(function(n) { return typeof global[n] === 'undefined'; });
+    add('Hub modules loaded', missing.length ? 'FAIL' : 'PASS', missing.length ? 'Missing: ' + missing.join(', ') : 'All hub modules present');
+    var plan = DPEngines.planTaskFromThread({ thread: { threadId: 'selftest', subject: 'Self-test', url: 'https://example.invalid/t' }, today: true,
+      existingTasks: [], opKey: DPEngines.gmailTaskKey('selftest', true), now: new Date(), timeZone: Session.getScriptTimeZone() });
+    add('Task planner dry plan', plan.action === 'CREATE' && /^\d{4}-\d{2}-\d{2}T/.test(plan.task.due) ? 'PASS' : 'FAIL', 'Planned ' + plan.action + ' (nothing written)');
+    var triggers = ScriptApp.getProjectTriggers().filter(function(t) { return t.getHandlerFunction() === 'hubDispatch'; }).length;
+    add('Dispatcher trigger count', triggers <= 1 ? 'PASS' : 'FAIL', triggers + ' hubDispatch trigger(s) installed');
+    add('Advanced Gmail service', typeof Gmail === 'undefined' ? 'SKIP' : 'PASS', typeof Gmail === 'undefined' ? 'Gmail advanced service not enabled (scope gate not passed)' : 'Advanced Gmail service enabled');
+  } catch (err) {
+    console.error('🔥 [Self-Test Hub]: ' + err.toString());
+    add('Hub self-checks', 'FAIL', String(err && err.message));
+  }
+  return out;
+}
+
+/**
  * Runs automated self-test diagnostics across Drive, Tasks, Calendar, Docs, and Sync triggers.
  * @returns {{overallStatus: string, passedCount: number, totalTests: number, timestamp: string, results: Array<{test: string, status: string, details: string}>}} Diagnostic summary object.
  */
@@ -294,7 +324,8 @@ function runSelfTest() {
     passedCount: passedCount,
     totalTests: totalTests,
     timestamp: new Date().toISOString(),
-    results: results
+    results: results,
+    hub: runHubSelfChecks()
   };
 }
 
@@ -325,11 +356,15 @@ function testDoGetInIDE() {
 }
 
 /**
- * Renders HTML diagnostic report page for the /self-test web endpoint.
- * @returns {GoogleAppsScript.HTML.HtmlOutput} Rendered self-test diagnostic report HTML.
+ * Renders HTML diagnostic report page for the /self-test web endpoint, or JSON when format=json.
+ * @param {object} [e] doGet event (format=json selects the read-only JSON output).
+ * @returns {GoogleAppsScript.HTML.HtmlOutput|GoogleAppsScript.Content.TextOutput} Report.
  */
-function renderSelfTestDiagnosticReport() {
+function renderSelfTestDiagnosticReport(e) {
   var testResult = runSelfTest();
+  if (e && e.parameter && e.parameter.format === 'json') {
+    return ContentService.createTextOutput(JSON.stringify(testResult, null, 2)).setMimeType(ContentService.MimeType.JSON);
+  }
   var isHealthy = testResult.passedCount === testResult.totalTests;
   var badgeColor = isHealthy ? '#2e7d32' : '#c62828';
   var badgeBg = isHealthy ? '#e8f5e9' : '#ffebee';
@@ -373,8 +408,8 @@ function renderSelfTestDiagnosticReport() {
     '<p class="diag-meta">Timestamp: ' + testResult.timestamp + ' | Target: Google Workspace Integration Engine</p>' +
     '<table><thead><tr><th>Test Suite</th><th>Result</th><th>Diagnostic Details</th></tr></thead><tbody>';
 
-  testResult.results.forEach(function(r) {
-    var cls = r.status === 'PASS' ? 'status-pass' : 'status-fail';
+  testResult.results.concat(testResult.hub || []).forEach(function(r) {
+    var cls = r.status === 'PASS' ? 'status-pass' : (r.status === 'SKIP' ? '' : 'status-fail');
     html += '<tr><td><b>' + escape(r.test) + '</b></td><td class="' + cls + '">' + escape(r.status) + '</td><td>' + escape(r.details) + '</td></tr>';
   });
 
