@@ -412,6 +412,8 @@ Alpine.data('plannerApp', () => ({
 
       // Resizable 3-Column Layout state
       colWidths: [33.33, 33.33, 33.34],
+      // Tasks pane text zoom, percent (80-140). Persisted per device.
+      taskZoom: 100,
       isResizing: false,
       activeResizerIndex: null,
       maximizedColumn: null, // 'tasks' | 'appointments' | 'notes' | null
@@ -481,6 +483,7 @@ Alpine.data('plannerApp', () => ({
         this.sttBlocked = !this.sttSupported;
         this.initTheme();
         this.initColumnWidths();
+        this.initTaskZoom();
         this.initRecentTopics();
         this.initCategories();
         await this.loadDayData();
@@ -538,6 +541,25 @@ Alpine.data('plannerApp', () => ({
           // ignore localStorage error
         }
         this.recentCategories = defaultCategories;
+      },
+
+      initTaskZoom() {
+        try {
+          const saved = parseInt(localStorage.getItem('dayPlannerTaskZoom'), 10);
+          if (saved >= 80 && saved <= 140) this.taskZoom = saved;
+        } catch (e) {
+          console.warn('Could not load saved task zoom:', e);
+        }
+      },
+
+      setTaskZoom(value) {
+        const n = Math.round(Number(value));
+        this.taskZoom = Math.min(140, Math.max(80, isNaN(n) ? 100 : n));
+        try {
+          localStorage.setItem('dayPlannerTaskZoom', String(this.taskZoom));
+        } catch (e) {
+          console.warn('Could not save task zoom:', e);
+        }
       },
 
       initColumnWidths() {
@@ -3337,7 +3359,7 @@ Alpine.data('plannerApp', () => ({
             left = Math.max(16, window.innerWidth - popoverWidth - 16);
           }
           this.notesPopoverPos = {
-            top: dropUp ? null : `${Math.round(rect.bottom + 4)}px`,
+            top: dropUp ? null : `${Math.round(rect.bottom)}px`,
             bottom: dropUp ? `${Math.round(window.innerHeight - rect.top + 4)}px` : null,
             left: `${left}px`
           };
@@ -3351,6 +3373,14 @@ Alpine.data('plannerApp', () => ({
         } else {
           this.openNotesPopover(taskId, event);
         }
+      },
+
+      // Object (not string) so Alpine merges it and never clobbers the display:none set by x-show.
+      notesPopoverStyle(taskId) {
+        if (this.openNotesPopoverTaskId !== taskId || !this.notesPopoverPos.left) return {};
+        return this.notesPopoverDropUp
+          ? { position: 'fixed', bottom: this.notesPopoverPos.bottom, left: this.notesPopoverPos.left }
+          : { position: 'fixed', top: this.notesPopoverPos.top, left: this.notesPopoverPos.left };
       },
 
       scheduleNotesPopoverClose(taskId) {

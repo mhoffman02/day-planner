@@ -1227,6 +1227,37 @@
     box-sizing: border-box;
   }
 
+  /* Tasks pane zoom slider (header, centered between title and actions) */
+  .tasks-zoom {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 auto;
+    color: var(--binder-teal);
+  }
+
+  .tasks-zoom-glyph {
+    font-family: var(--font-family-header);
+    line-height: 1;
+    user-select: none;
+  }
+
+  .tasks-zoom input[type="range"] {
+    width: 88px;
+    min-width: 40px;
+    margin: 0;
+    accent-color: var(--binder-teal);
+    cursor: pointer;
+  }
+
+  .col-tasks table.task-table td {
+    font-size: calc(0.9rem * var(--task-zoom, 1));
+  }
+
+  .col-tasks table.task-table th {
+    font-size: calc(0.75rem * var(--task-zoom, 1));
+  }
+
   .tasks-header-actions,
   .appointments-header-actions {
     display: flex;
@@ -1466,7 +1497,9 @@
     color: #1c2826;
     border: 1px solid #c8ded7;
     border-radius: 6px;
-    padding: 10px 14px;
+    /* 22px top padding keeps the first line clear of the hand-cursor glyph, which hangs
+       down-right of the icon hotspot into the popover (and closes the hover gap). */
+    padding: 22px 14px 10px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
     min-width: 180px;
     max-width: min(280px, 80vw);
@@ -1479,6 +1512,7 @@
 
   .notes-popover.dropup {
     top: auto;
+    padding-top: 10px;
     bottom: calc(100% + 4px);
     box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.2);
   }

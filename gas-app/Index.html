@@ -264,11 +264,16 @@
                  :style="{ '--col1-w': colWidths[0] + '%', '--col2-w': colWidths[1] + '%', '--col3-w': colWidths[2] + '%' }">
           
           <!-- Column 1: Daily Task List Panel -->
-          <article class="page-panel col-tasks" :class="{ 'is-maximized': maximizedColumn === 'tasks' }">
+          <article class="page-panel col-tasks" :class="{ 'is-maximized': maximizedColumn === 'tasks' }" :style="{ '--task-zoom': taskZoom / 100 }">
             <header class="panel-header">
               <h3 class="panel-header-title">
                 <span class="material-symbols-outlined">format_list_numbered</span> Tasks
               </h3>
+              <div class="tasks-zoom" title="Tasks text size (double-click to reset)" @dblclick="setTaskZoom(100)">
+                <span class="tasks-zoom-glyph" style="font-size: 0.75rem;" aria-hidden="true">A</span>
+                <input type="range" min="80" max="140" step="5" :value="taskZoom" @input="setTaskZoom($event.target.value)" aria-label="Tasks text size">
+                <span class="tasks-zoom-glyph" style="font-size: 1.1rem;" aria-hidden="true">A</span>
+              </div>
               <div class="tasks-header-actions">
                 <button type="button" class="btn-icon-subtle" @click="toggleMaximizeColumn('tasks')" :title="maximizedColumn === 'tasks' ? 'Restore Columns (Esc)' : 'Maximize Tasks'" :aria-label="maximizedColumn === 'tasks' ? 'Restore Columns (Esc)' : 'Maximize Tasks'">
                   <span class="material-symbols-outlined" x-text="maximizedColumn === 'tasks' ? 'close_fullscreen' : 'open_in_full'"></span>
@@ -361,12 +366,12 @@
                                class="task-title-inline-input"
                                aria-label="Edit task description"
                                x-cloak>
-                        <span class="notes-indicator-wrap" x-show="hasNotes(task)" @mouseenter="openNotesPopover(task.id, $event)" @mouseleave="scheduleNotesPopoverClose(task.id)">
-                          <button type="button" class="notes-indicator" @click.stop="toggleNotesPopover(task.id, $event)"
+                        <span class="notes-indicator-wrap" x-show="hasNotes(task)" @pointerenter="$event.pointerType === 'mouse' && openNotesPopover(task.id, $event)" @pointerleave="$event.pointerType === 'mouse' && scheduleNotesPopoverClose(task.id)" @pointerdown.outside="openNotesPopoverTaskId === task.id && (openNotesPopoverTaskId = null)" @keydown.escape="openNotesPopoverTaskId = null">
+                          <button type="button" class="notes-indicator" @click="openNotesPopover(task.id, $event)"
                                   aria-label="View notes" aria-haspopup="true" :aria-expanded="openNotesPopoverTaskId === task.id">
                             <span class="material-symbols-outlined icon-14">sticky_note_2</span>
                           </button>
-                          <div class="notes-popover" :class="{ 'dropup': notesPopoverDropUp, 'dropdown-down': !notesPopoverDropUp }" :style="openNotesPopoverTaskId === task.id && notesPopoverPos.left ? (notesPopoverDropUp ? 'position: fixed; bottom: ' + notesPopoverPos.bottom + '; left: ' + notesPopoverPos.left + ';' : 'position: fixed; top: ' + notesPopoverPos.top + '; left: ' + notesPopoverPos.left + ';') : ''" role="tooltip" x-show="openNotesPopoverTaskId === task.id" x-cloak x-text="task.notes"></div>
+                          <div class="notes-popover" :class="{ 'dropup': notesPopoverDropUp, 'dropdown-down': !notesPopoverDropUp }" :style="notesPopoverStyle(task.id)" role="tooltip" x-show="openNotesPopoverTaskId === task.id" x-cloak x-text="task.notes"></div>
                         </span>
                       </td>
                       <td class="td-category" x-text="task.category || 'Work'"></td>
@@ -954,12 +959,12 @@
                              class="task-title-inline-input"
                              aria-label="Edit task description"
                              x-cloak>
-                      <span class="notes-indicator-wrap" x-show="hasNotes(mTask)" @mouseenter="openNotesPopover(mTask.id, $event)" @mouseleave="scheduleNotesPopoverClose(mTask.id)">
-                        <button type="button" class="notes-indicator" @click.stop="toggleNotesPopover(mTask.id, $event)"
+                      <span class="notes-indicator-wrap" x-show="hasNotes(mTask)" @pointerenter="$event.pointerType === 'mouse' && openNotesPopover(mTask.id, $event)" @pointerleave="$event.pointerType === 'mouse' && scheduleNotesPopoverClose(mTask.id)" @pointerdown.outside="openNotesPopoverTaskId === mTask.id && (openNotesPopoverTaskId = null)" @keydown.escape="openNotesPopoverTaskId = null">
+                        <button type="button" class="notes-indicator" @click="openNotesPopover(mTask.id, $event)"
                                 aria-label="View notes" aria-haspopup="true" :aria-expanded="openNotesPopoverTaskId === mTask.id">
                           <span class="material-symbols-outlined icon-14">sticky_note_2</span>
                         </button>
-                        <div class="notes-popover" :class="{ 'dropup': notesPopoverDropUp, 'dropdown-down': !notesPopoverDropUp }" :style="openNotesPopoverTaskId === mTask.id && notesPopoverPos.left ? (notesPopoverDropUp ? 'position: fixed; bottom: ' + notesPopoverPos.bottom + '; left: ' + notesPopoverPos.left + ';' : 'position: fixed; top: ' + notesPopoverPos.top + '; left: ' + notesPopoverPos.left + ';') : ''" role="tooltip" x-show="openNotesPopoverTaskId === mTask.id" x-cloak x-text="mTask.notes"></div>
+                        <div class="notes-popover" :class="{ 'dropup': notesPopoverDropUp, 'dropdown-down': !notesPopoverDropUp }" :style="notesPopoverStyle(mTask.id)" role="tooltip" x-show="openNotesPopoverTaskId === mTask.id" x-cloak x-text="mTask.notes"></div>
                       </span>
                     </td>
                     <td class="td-category" x-text="mTask.category || 'General'"></td>
