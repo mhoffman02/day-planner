@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { LEDGER_COLUMNS, LEDGER_STATUS } from '../src/integration/contracts.js';
 import {
   decideOperation, beginOp, completeOp, failOp, deferOp, sanitizeError, maskId,
-  dryRunMessage, claimOperation, runOperation
+  dryRunMessage, claimOperation, runOperation, stackFrames, formatSafeError
 } from '../src/integration/ledger.js';
 
 const T0 = new Date('2026-10-06T12:00:00Z');
@@ -155,4 +155,17 @@ test('(k) sanitizeError strips emails, long ids, urls, extra lines and caps leng
   assert.equal(sanitizeError(undefined), 'Unknown error');
   const row = failOp(beginOp(op, T0), T0, new Error('mail to a@b.com failed'));
   assert.ok(!/@/.test(row.ErrorMessage));
+});
+
+test('stackFrames keeps only "at" frames; formatSafeError never repeats the raw message', () => {
+  const err = new Error('boom pat@example.test\nline two kim@example.test');
+  const frames = stackFrames(err.stack);
+  assert.match(frames, /^\s+at /);
+  assert.doesNotMatch(frames, /@example\.test/);
+  assert.equal(stackFrames(undefined), '(no stack frames)');
+  assert.equal(stackFrames('Error: only a header'), '(no stack frames)');
+  const line = formatSafeError('ctx', err);
+  assert.match(line, /^ctx: boom \[email\]\n\s+at /);
+  assert.doesNotMatch(line, /@example\.test/);
+  assert.equal(formatSafeError('ctx', 'plain'), 'ctx: plain\n(no stack frames)');
 });

@@ -544,8 +544,8 @@ Alpine.data('plannerApp', () => ({
               return;
             }
           }
-        } catch {
-          // ignore localStorage error
+        } catch (err) {
+          console.error('initRecentTopics: could not read saved topics from localStorage, using defaults:', err.stack);
         }
         this.recentTopics = ['Sprint', '1:1', 'Standup', 'Planning', 'Admin', 'Architecture', 'Bug Triage', 'Personal', 'Review', 'General'];
       },
@@ -561,8 +561,8 @@ Alpine.data('plannerApp', () => ({
               return;
             }
           }
-        } catch {
-          // ignore localStorage error
+        } catch (err) {
+          console.error('initCategories: could not read saved categories from localStorage, using defaults:', err.stack);
         }
         this.recentCategories = defaultCategories;
       },
@@ -572,7 +572,7 @@ Alpine.data('plannerApp', () => ({
           const saved = parseInt(localStorage.getItem('dayPlannerUiZoom'), 10);
           if (saved >= 80 && saved <= 150) this.uiZoom = saved;
         } catch (e) {
-          console.warn('Could not load saved UI zoom:', e);
+          console.error('Could not load saved UI zoom:', e.stack);
         }
       },
 
@@ -590,7 +590,7 @@ Alpine.data('plannerApp', () => ({
         try {
           localStorage.setItem('dayPlannerUiZoom', String(this.uiZoom));
         } catch (e) {
-          console.warn('Could not save UI zoom:', e);
+          console.error('Could not save UI zoom:', e.stack);
         }
       },
 
@@ -605,7 +605,7 @@ Alpine.data('plannerApp', () => ({
             }
           }
         } catch (e) {
-          console.warn('Could not load saved column widths:', e);
+          console.error('Could not load saved column widths:', e.stack);
         }
       },
 
@@ -613,8 +613,8 @@ Alpine.data('plannerApp', () => ({
         this.colWidths = [33.33, 33.33, 33.34];
         try {
           localStorage.removeItem('dayPlannerColumnWidths');
-        } catch {
-          // ignore localStorage unavailable
+        } catch (err) {
+          console.error('resetColumnWidths: could not clear saved column widths from localStorage:', err.stack);
         }
       },
 
@@ -692,8 +692,8 @@ Alpine.data('plannerApp', () => ({
 
           try {
             localStorage.setItem('dayPlannerColumnWidths', JSON.stringify(this.colWidths));
-          } catch {
-            // ignore localStorage quota/disabled errors
+          } catch (err) {
+            console.error('column resize: could not persist column widths to localStorage (quota/disabled):', err.stack);
           }
         };
 
@@ -713,7 +713,8 @@ Alpine.data('plannerApp', () => ({
           } else {
             this.theme = 'light';
           }
-        } catch {
+        } catch (err) {
+          console.error('initTheme: could not read saved theme from localStorage, using light:', err.stack);
           this.theme = 'light';
         }
         this.applyTheme();
@@ -723,8 +724,8 @@ Alpine.data('plannerApp', () => ({
         this.theme = this.theme === 'dark' ? 'light' : 'dark';
         try {
           localStorage.setItem('dayPlannerTheme', this.theme);
-        } catch {
-          // ignore localStorage quota/disabled errors
+        } catch (err) {
+          console.error('toggleTheme: could not persist theme to localStorage (quota/disabled):', err.stack);
         }
         this.applyTheme();
       },
@@ -853,7 +854,7 @@ Alpine.data('plannerApp', () => ({
 
           this.buildScheduleGrid();
         } catch (err) {
-          console.error('🔥 trigger2WaySync error:', err);
+          console.error('🔥 trigger2WaySync error:', err.stack);
           this.errorMessage = `2-Way Sync Warning: ${err.message || err.toString()}`;
         } finally {
           this.isSyncing = false;
@@ -916,7 +917,7 @@ Alpine.data('plannerApp', () => ({
           this.hubCounts = (st && st.counts) || {};
         } catch (err) {
           this.hubFlags = null;
-          console.warn('Hub status unavailable, Triage and Meeting Prep stay hidden:', err);
+          console.error('Hub status unavailable, Triage and Meeting Prep stay hidden:', err.stack);
         }
       },
 
@@ -924,7 +925,8 @@ Alpine.data('plannerApp', () => ({
         try {
           const saved = JSON.parse(localStorage.getItem('dayPlannerHubReadLater') || '[]');
           if (Array.isArray(saved)) this.triageReadLater = saved.filter((x) => typeof x === 'string');
-        } catch {
+        } catch (err) {
+          console.error('initHub: could not read Read Later list from localStorage, starting empty:', err.stack);
           this.triageReadLater = [];
         }
         setInterval(() => { this.hubNowMs = Date.now(); }, 60000);
@@ -938,7 +940,7 @@ Alpine.data('plannerApp', () => ({
           if (!board || board.ok !== true) throw new Error((board && board.message) || 'Triage board unavailable');
           this.triageBoard = board;
         } catch (err) {
-          console.error('Triage board failed to load:', err);
+          console.error('Triage board failed to load:', err.stack);
           this.errorMessage = 'Triage board failed to load: ' + (err.message || err);
         } finally {
           this.triageLoading = false;
@@ -953,7 +955,7 @@ Alpine.data('plannerApp', () => ({
           await this.loadTriageBoard();
           return r;
         } catch (err) {
-          console.error('Triage action threw:', label, err);
+          console.error('Triage action threw:', label, err.stack);
           this.triageNotice = { kind: 'error', text: label + ' failed: ' + (err.message || err), url: null };
           return null;
         }
@@ -987,7 +989,7 @@ Alpine.data('plannerApp', () => ({
         try {
           localStorage.setItem('dayPlannerHubReadLater', JSON.stringify(this.triageReadLater));
         } catch (err) {
-          console.error('Read Later could not be persisted:', err);
+          console.error('Read Later could not be persisted:', err.stack);
         }
       },
 
@@ -1021,7 +1023,7 @@ Alpine.data('plannerApp', () => ({
           this.meetingPicker.backlogSeriesKey = dest.seriesKey;
           this.meetingPicker.selected = (dest.recommended && dest.recommended.occurrenceId) || '';
         } catch (err) {
-          console.error('Meeting choices failed to load:', err);
+          console.error('Meeting choices failed to load:', err.stack);
           this.meetingPicker.open = false;
           this.triageNotice = { kind: 'error', text: 'Send to Meeting failed: ' + (err.message || err), url: null };
         } finally {
@@ -1049,7 +1051,7 @@ Alpine.data('plannerApp', () => ({
           if (!prep || prep.ok !== true) throw new Error((prep && prep.message) || 'Meeting prep unavailable');
           this.meetingPrep = prep;
         } catch (err) {
-          console.error('Meeting prep failed to load:', err);
+          console.error('Meeting prep failed to load:', err.stack);
           this.errorMessage = 'Meeting prep failed to load: ' + (err.message || err);
         } finally {
           this.meetingPrepLoading = false;
@@ -1095,7 +1097,7 @@ Alpine.data('plannerApp', () => ({
           setCachedFutureMatrix(year, matrix);
           this.applyFutureMatrix(matrix);
         } catch (err) {
-          console.error('loadFutureMatrix error:', err);
+          console.error('loadFutureMatrix failed; keeping cached matrix if any (UI message only when uncached):', err.stack);
           if (!cached) {
             this.errorMessage = `Could not load Future Planning Matrix: ${err.message || err.toString()}`;
           }
@@ -1129,7 +1131,7 @@ Alpine.data('plannerApp', () => ({
           this.newFutureItemTitle[monthKey] = '';
           this.syncFutureMatrixCacheFromLiveState();
         } catch (err) {
-          console.error('addFutureItemToMonth error:', err);
+          console.error('addFutureItemToMonth error:', err.stack);
           this.errorMessage = `Error adding item: ${err.message || err.toString()}`;
         }
       },
@@ -1141,7 +1143,7 @@ Alpine.data('plannerApp', () => ({
           await this.bridge.updateFutureItemStatus(this.futureMatrixYear, monthKey, item.id, item.status);
           this.syncFutureMatrixCacheFromLiveState();
         } catch (err) {
-          console.error('toggleFutureItemStatus error:', err);
+          console.error('toggleFutureItemStatus error:', err.stack);
           this.errorMessage = `Could not save item status: ${err.message || err.toString()}`;
         }
       },
@@ -1159,7 +1161,7 @@ Alpine.data('plannerApp', () => ({
           await this.bridge.updateFutureItemStatus(this.futureMatrixYear, monthKey, item.id, item.status);
           this.syncFutureMatrixCacheFromLiveState();
         } catch (err) {
-          console.error('selectFutureItemStatus error:', err);
+          console.error('selectFutureItemStatus error:', err.stack);
           this.errorMessage = `Could not save item status: ${err.message || err.toString()}`;
         }
       },
@@ -1180,7 +1182,7 @@ Alpine.data('plannerApp', () => ({
             invalidateCached(targetDate);
           }
         } catch (err) {
-          console.error('transferFutureItemToDay error:', err);
+          console.error('transferFutureItemToDay error:', err.stack);
           this.errorMessage = `Error transferring item: ${err.message || err.toString()}`;
         }
       },
@@ -1196,7 +1198,7 @@ Alpine.data('plannerApp', () => ({
             this.syncFutureMatrixCacheFromLiveState();
           }
         } catch (err) {
-          console.error('pushFutureItemForward error:', err);
+          console.error('pushFutureItemForward error:', err.stack);
           this.errorMessage = `Error pushing item forward: ${err.message || err.toString()}`;
         }
       },
@@ -1210,7 +1212,7 @@ Alpine.data('plannerApp', () => ({
           if (idx !== -1) items.splice(idx, 1);
           this.syncFutureMatrixCacheFromLiveState();
         } catch (err) {
-          console.error('deleteFutureItemFromMonth error:', err);
+          console.error('deleteFutureItemFromMonth error:', err.stack);
           this.errorMessage = `Error deleting item: ${err.message || err.toString()}`;
         }
       },
@@ -1608,7 +1610,7 @@ Alpine.data('plannerApp', () => ({
           }
           this.applyDailyData(data);
         } catch (err) {
-          console.error('🔥 loadDayData error:', err);
+          console.error('🔥 loadDayData failed; keeping cached day if any (UI message only when uncached):', err.stack);
           if (dateStr === this.selectedDate && !cached) {
             this.errorMessage = `Error loading daily workspace: ${err.message || err.toString()}`;
           }
@@ -1638,7 +1640,7 @@ Alpine.data('plannerApp', () => ({
           const result = await this.bridge.getDailyDataRange(windowDates[0], windowDates[windowDates.length - 1]);
           if (result && result.days) primeFromRange(result.days);
         } catch (err) {
-          console.error('🔥 background range prefetch failed:', err);
+          console.error('🔥 background range prefetch failed; days will load individually on navigation:', err.stack);
         }
       },
 
@@ -1717,8 +1719,8 @@ Alpine.data('plannerApp', () => ({
         this.recentCategories = list.slice(0, 20);
         try {
           localStorage.setItem('dayPlannerCategories', JSON.stringify(this.recentCategories));
-        } catch {
-          // ignore
+        } catch (err) {
+          console.error('recordCategory: could not persist categories to localStorage:', err.stack);
         }
         this.recordRecentTopic(clean);
       },
@@ -1732,8 +1734,8 @@ Alpine.data('plannerApp', () => ({
         this.recentTopics = list.slice(0, 20);
         try {
           localStorage.setItem('dayPlannerRecentTopics', JSON.stringify(this.recentTopics));
-        } catch {
-          // ignore
+        } catch (err) {
+          console.error('recordRecentTopic: could not persist recent topics to localStorage:', err.stack);
         }
       },
 
@@ -1746,8 +1748,8 @@ Alpine.data('plannerApp', () => ({
         this.recentTopics = (this.recentTopics || []).filter(t => t.toLowerCase() !== topicToRemove.toLowerCase());
         try {
           localStorage.setItem('dayPlannerRecentTopics', JSON.stringify(this.recentTopics));
-        } catch {
-          // ignore
+        } catch (err) {
+          console.error('removeRecentTopic: could not persist recent topics to localStorage:', err.stack);
         }
       },
 
@@ -2036,7 +2038,7 @@ Alpine.data('plannerApp', () => ({
               const el = document.getElementById(`card-line-${card.id}-${idx + 1}`);
               if (el) {
                 el.focus();
-                try { el.setSelectionRange(caretPos, caretPos); } catch { /* ignore */ }
+                try { el.setSelectionRange(caretPos, caretPos); } catch (err) { console.error('Enter: could not restore caret in new card line:', err.stack); }
               }
             }, 40);
             return;
@@ -2054,7 +2056,7 @@ Alpine.data('plannerApp', () => ({
             const el = document.getElementById(`card-line-${card.id}-${idx + 1}`);
             if (el) {
               el.focus();
-              try { el.setSelectionRange(el.value.length, el.value.length); } catch { /* ignore */ }
+              try { el.setSelectionRange(el.value.length, el.value.length); } catch (err) { console.error('Enter: could not move caret to end of new card line:', err.stack); }
             }
           }, 40);
           return;
@@ -2134,7 +2136,8 @@ Alpine.data('plannerApp', () => ({
         try {
           const parsed = new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`);
           return parsed.hostname.replace(/^www\./, '');
-        } catch {
+        } catch (err) {
+          console.error('getDefaultLinkText: not a parseable URL, using raw text as link label:', err.stack);
           return trimmed;
         }
       },
@@ -2241,7 +2244,7 @@ Alpine.data('plannerApp', () => ({
         } catch (err) {
           const errMsg = err?.message || String(err);
           this.linkModalError = errMsg;
-          console.warn('Google Drive title lookup error:', err);
+          console.error('Google Drive title lookup error:', err.stack);
           if (!this.linkModalText) {
             this.linkModalText = this.getDefaultLinkText(candidate);
           }
@@ -2282,7 +2285,7 @@ Alpine.data('plannerApp', () => ({
               this.linkModalText = res.title;
             }
           } catch (err) {
-            console.warn('Google Drive title lookup failed on submit:', err);
+            console.error('Google Drive title lookup failed on submit:', err.stack);
           } finally {
             this.linkModalResolving = false;
           }
@@ -2342,7 +2345,7 @@ Alpine.data('plannerApp', () => ({
             displayText = result.title;
           }
         } catch (err) {
-          console.warn('Smart-paste title lookup failed, pasting plain URL instead:', err);
+          console.error('Smart-paste title lookup failed, pasting plain URL instead:', err.stack);
         }
 
         const wrapped = displayText === trimmed ? trimmed : `[[link:${trimmed}]]${displayText}[[/link]]`;
@@ -2540,7 +2543,7 @@ Alpine.data('plannerApp', () => ({
           this.sttScratchDocUrl = result.docUrl;
         } catch (err) {
           this.sttError = 'Could not create a voice typing doc: ' + (err.message || err);
-          console.error('[STT] createDictationScratchDoc threw', err);
+          console.error('[STT] createDictationScratchDoc threw', err.stack);
         } finally {
           this.sttScratchCreating = false;
         }
@@ -2580,7 +2583,7 @@ Alpine.data('plannerApp', () => ({
           setTimeout(() => { this.sttRefreshedFlash = false; }, 1800);
         } catch (err) {
           this.sttError = 'Could not pull voice-typed text: ' + (err.message || err);
-          console.error('[STT] pullFromDictationScratchpad threw', err);
+          console.error('[STT] pullFromDictationScratchpad threw', err.stack);
         } finally {
           this.sttRefreshing = false;
         }
@@ -2992,7 +2995,7 @@ Alpine.data('plannerApp', () => ({
             await this.bridge.saveDailyDocCards(dateStr, noteContent);
             saveNoteRevision(dateStr, noteContent);
           } catch (err) {
-            console.error('🔥 saveDailyDocCards error:', err);
+            console.error('🔥 saveDailyDocCards error:', err.stack);
             this.errorMessage = `Could not save daily note: ${err.message || err.toString()}`;
           }
         }, 1200);
@@ -3029,7 +3032,7 @@ Alpine.data('plannerApp', () => ({
           setCachedMasterTasks(tasks);
           this.applyMasterTasks(tasks);
         } catch (err) {
-          console.error('🔥 loadMasterTasks error:', err);
+          console.error('🔥 loadMasterTasks failed; keeping cached list if any (UI message only when uncached):', err.stack);
           if (!cached) {
             this.errorMessage = `Error loading master tasks: ${err.message || err.toString()}`;
           }
@@ -3076,7 +3079,7 @@ Alpine.data('plannerApp', () => ({
             created._isNew = false;
           }, 2000);
         } catch (err) {
-          console.error('🔥 addMasterTask error:', err);
+          console.error('🔥 addMasterTask error:', err.stack);
           this.errorMessage = `Could not add master task: ${err.message || err.toString()}`;
         } finally {
           this.addingMasterTask = false;
@@ -3099,7 +3102,7 @@ Alpine.data('plannerApp', () => ({
           }
           await this.trigger2WaySync();
         } catch (err) {
-          console.error('🔥 deleteMasterTask error:', err);
+          console.error('🔥 deleteMasterTask error:', err.stack);
           this.errorMessage = `Error deleting master task: ${err.message || err.toString()}`;
         }
       },
@@ -3184,7 +3187,7 @@ Alpine.data('plannerApp', () => ({
             await this.trigger2WaySync();
           }
         } catch (err) {
-          console.error('🔥 moveMasterTaskToDate error:', err);
+          console.error('🔥 moveMasterTaskToDate error:', err.stack);
           this.errorMessage = `Error moving master task: ${err.message || err.toString()}`;
         } finally {
           mTask._moving = false;
@@ -3344,7 +3347,7 @@ Alpine.data('plannerApp', () => ({
           if (requestedYear !== this.selectedYear || requestedMonth !== this.selectedMonth) return;
           if (this.activeView === 'monthly-calendar') this.buildMonthlyGrid();
         } catch (err) {
-          console.error('🔥 loadMonthlyCalendarData error:', err);
+          console.error('🔥 loadMonthlyCalendarData failed; month grid shows only already-cached days:', err.stack);
         }
       },
 
@@ -3390,7 +3393,7 @@ Alpine.data('plannerApp', () => ({
           this.syncDailyCacheFromLiveState();
           await this.trigger2WaySync();
         } catch (err) {
-          console.error('🔥 addDailyTask error:', err);
+          console.error('🔥 addDailyTask error:', err.stack);
           this.errorMessage = `Error adding task: ${err.message || err.toString()}`;
         }
       },
@@ -3481,7 +3484,7 @@ Alpine.data('plannerApp', () => ({
           }
           await this.trigger2WaySync();
         } catch (err) {
-          console.error('🔥 updateTaskTitle error:', err);
+          console.error('🔥 updateTaskTitle error:', err.stack);
           task.title = oldTitle;
           task.notes = oldNotes;
           if (linkedMaster) {
@@ -3511,7 +3514,7 @@ Alpine.data('plannerApp', () => ({
           }
           await this.trigger2WaySync();
         } catch (err) {
-          console.error('🔥 deleteDailyTask error:', err);
+          console.error('🔥 deleteDailyTask error:', err.stack);
           this.errorMessage = `Error deleting task: ${err.message || err.toString()}`;
         }
       },
@@ -3555,7 +3558,7 @@ Alpine.data('plannerApp', () => ({
           }
         } catch (err) {
           task.starred = previous;
-          console.error('🔥 toggleTaskStar persist error:', err);
+          console.error('🔥 toggleTaskStar persist failed; star reverted locally:', err.stack);
         }
       },
 
@@ -3703,7 +3706,7 @@ Alpine.data('plannerApp', () => ({
             }
           }
         } catch (err) {
-          console.error('🔥 setTaskStatus persist error:', err);
+          console.error('🔥 setTaskStatus persist error:', err.stack);
           this.errorMessage = `Could not save task status: ${err.message || err.toString()}`;
         }
         // A status change can touch both lists at once (a linked master<->daily pair mirrors the
@@ -3754,7 +3757,7 @@ Alpine.data('plannerApp', () => ({
           const displayDest = targetDate === todayStr ? 'Today' : targetDate;
           this.showTaskToast(`Forwarded "${cleanTitle}" to ${displayDest}`);
         } catch (err) {
-          console.error('🔥 forwardDailyTask error:', err);
+          console.error('🔥 forwardDailyTask error:', err.stack);
           this.errorMessage = `Could not forward task: ${err.message || err.toString()}`;
         }
       },
@@ -3860,7 +3863,7 @@ Alpine.data('plannerApp', () => ({
           this.closeCreateEventModal();
           await this.trigger2WaySync();
         } catch (err) {
-          console.error('🔥 saveNewEvent error:', err);
+          console.error('🔥 saveNewEvent error:', err.stack);
           this.errorMessage = `Error saving appointment: ${err.message || err.toString()}`;
         }
       },
@@ -3978,7 +3981,7 @@ Alpine.data('plannerApp', () => ({
             this.selectedSearchIndex = 0;
           }
         } catch (err) {
-          console.warn('[search] Deep archive search error:', err);
+          console.error('[search] Deep archive search failed; showing local results only:', err.stack);
         } finally {
           if (query === this.searchQuery.trim()) {
             this.archiveSearching = false;
@@ -4072,7 +4075,7 @@ Alpine.data('plannerApp', () => ({
           }
           this.timeMachineRevisions = revs || [];
         } catch (err) {
-          console.warn('[TimeMachine] Failed to load revisions', err);
+          console.error('[TimeMachine] Failed to load revisions; keeping prior revision list:', err.stack);
         } finally {
           this.timeMachineLoading = false;
         }

@@ -44,7 +44,9 @@ function ledgerParseMeta(row) {
   try {
     const parsed = JSON.parse((row && row.MetadataJson) || '{}');
     return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-  } catch {
+  } catch (err) {
+    // JSON.parse messages quote the input, so log sanitized text + frames only.
+    console.error(`ledger: corrupt MetadataJson, treating metadata as empty (attempt count resets to 0): ${sanitizeError(err)}\n${stackFrames(err.stack)}`);
     return {};
   }
 }
@@ -139,6 +141,27 @@ export function sanitizeError(err, maxLen = LEDGER_DEFAULT_ERROR_MAX) {
   s = s.trim();
   if (s.length > maxLen) s = `${s.slice(0, Math.max(0, maxLen - 3))}...`;
   return s;
+}
+
+/**
+ * Only the "at ..." frame lines of a V8 stack. The header (and any further message lines before the
+ * first frame) repeats the raw message, which may carry PII that sanitizeError removes.
+ * @param {*} stack err.stack (any value; non-strings yield the placeholder).
+ * @returns {string} Newline-joined frames, or '(no stack frames)'.
+ */
+export function stackFrames(stack) {
+  const frames = typeof stack === 'string' ? stack.split(/\r?\n/).filter((l) => /^\s+at\s/.test(l)) : [];
+  return frames.length ? frames.join('\n') : '(no stack frames)';
+}
+
+/**
+ * One PII-safe console.error payload: context, sanitized message, then the stack frames.
+ * @param {string} context What failed and the fallback taken.
+ * @param {*} err Thrown value.
+ * @returns {string}
+ */
+export function formatSafeError(context, err) {
+  return `${context}: ${sanitizeError(err)}\n${stackFrames(err && typeof err === 'object' ? err.stack : null)}`;
 }
 
 /**
@@ -334,6 +357,7 @@ export function runOperation(a) {
   try {
     result = a.work({ row: claim.row, retry: claim.action === 'RETRY' }) || {};
   } catch (err) {
+    console.error(`ledger: operation work failed, recording ERROR row: ${sanitizeError(err)}\n${stackFrames(err && err.stack)}`);
     const failed = failOp(claim.row, a.clock(), err);
     a.store.put(failed);
     return {

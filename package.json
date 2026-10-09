@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "lint": "eslint src gas-app/*.gs tools server.js && node tools/check-gas-script-html-safe-chars.js",
+    "lint": "eslint src gas-app/*.gs tools server.js && node tools/check-gas-script-html-safe-chars.js && node tools/check-catch-logging.js && node tools/build-gas-engines.js --check",
+    "check:catches": "node tools/check-catch-logging.js",
     "build:engines": "node tools/build-gas-engines.js",
     "check:engines": "node tools/build-gas-engines.js --check",
     "check:gas-safe-chars": "node tools/check-gas-script-html-safe-chars.js",

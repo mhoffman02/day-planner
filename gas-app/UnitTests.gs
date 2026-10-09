@@ -39,7 +39,7 @@ function runHubSelfChecks() {
     add('Dispatcher trigger count', triggers <= 1 ? 'PASS' : 'FAIL', triggers + ' hubDispatch trigger(s) installed');
     add('Advanced Gmail service', typeof Gmail === 'undefined' ? 'SKIP' : 'PASS', typeof Gmail === 'undefined' ? 'Gmail advanced service not enabled (scope gate not passed)' : 'Advanced Gmail service enabled');
   } catch (err) {
-    console.error('🔥 [Self-Test Hub]: ' + err.toString());
+    console.error('🔥 [Self-Test Hub]: checks threw, reporting Hub self-checks as FAIL\n' + (err && err.stack));
     add('Hub self-checks', 'FAIL', String(err && err.message));
   }
   return out;
@@ -282,7 +282,7 @@ function runSelfTest() {
     try {
       Drive.Files.remove(testDocId);
     } catch (cleanupErr) {
-      console.warn('Test 7 cleanup skipped: ' + cleanupErr.toString());
+      console.error('🔥 [Self-Test 7 cleanup]: could not delete the 1901 throwaway test Doc, leaving it in Drive\n' + cleanupErr.stack);
     }
 
     if (xReplaced && yIntact && bulletOk && singleHeading) {
@@ -454,7 +454,7 @@ function renderSelfTestDiagnosticReport(e) {
   try {
     diagOutput.setFaviconUrl(typeof DAY_PLANNER_FAVICON_URL !== 'undefined' ? DAY_PLANNER_FAVICON_URL : 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day-planner/pure-gas-main/icons/favicon.png');
   } catch (_favErr) {
-    console.warn('setFaviconUrl notice: ' + _favErr.toString());
+    console.error('Self-test page: setFaviconUrl failed, serving without favicon\n' + _favErr.stack);
   }
   return diagOutput;
 }

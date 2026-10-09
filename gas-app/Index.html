@@ -47,7 +47,9 @@
             mEl.href = URL.createObjectURL(blob);
           }
         }
-      } catch (_e) {}
+      } catch (err) {
+        console.error('Index manifest start_url rewrite failed, keeping static manifest', err.stack);
+      }
     })();
   </script>
   <script>
@@ -65,6 +67,7 @@
           document.documentElement.style.colorScheme = 'light';
         }
       } catch (e) {
+        console.error('Index theme bootstrap failed, falling back to light theme', e.stack);
         document.documentElement.setAttribute('data-theme', 'light');
         document.documentElement.style.colorScheme = 'light';
       }

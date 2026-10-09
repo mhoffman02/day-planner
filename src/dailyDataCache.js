@@ -107,7 +107,7 @@ function openDb() {
       if (!settled) {
         settled = true;
         clearTimeout(timeoutId);
-        console.warn('[dailyDataCache] IndexedDB open threw, falling back to memory-only cache for this session:', err);
+        console.error('[dailyDataCache] IndexedDB open threw, falling back to memory-only cache for this session:', err.stack);
         dbPromise = null;
         resolve(null);
       }
@@ -138,7 +138,7 @@ export function setCached(dateStr, data) {
       const tx = db.transaction(STORE_DAILY, 'readwrite');
       tx.objectStore(STORE_DAILY).put(entry);
     } catch (err) {
-      console.warn('[dailyDataCache] IDB put failed for', dateStr, err);
+      console.error('[dailyDataCache] IDB put failed for', dateStr, '-- memory cache only:', err.stack);
     }
   });
 }
@@ -152,7 +152,7 @@ export function invalidateCached(dateStr) {
       const tx = db.transaction(STORE_DAILY, 'readwrite');
       tx.objectStore(STORE_DAILY).delete(dateStr);
     } catch (err) {
-      console.warn('[dailyDataCache] IDB delete failed for', dateStr, err);
+      console.error('[dailyDataCache] IDB delete failed for', dateStr, '-- stale entry may rehydrate next session:', err.stack);
     }
   });
 }
@@ -176,8 +176,12 @@ export async function hydrateFromIdb(dateStr) {
         if (entry) dailyMemory.set(dateStr, entry);
         resolve(entry);
       };
-      req.onerror = () => resolve(null);
-    } catch {
+      req.onerror = () => {
+        console.error('[dailyDataCache] hydrateFromIdb: IDB get failed', dateStr, '-- treating as not cached:', req.error);
+        resolve(null);
+      };
+    } catch (err) {
+      console.error('[dailyDataCache] hydrateFromIdb: IDB read threw', dateStr, '-- treating as not cached (null):', err.stack);
       resolve(null);
     }
   });
@@ -242,7 +246,7 @@ export function setCachedMasterTasks(tasks) {
       const tx = db.transaction(STORE_MASTER_TASKS, 'readwrite');
       tx.objectStore(STORE_MASTER_TASKS).put(entry);
     } catch (err) {
-      console.warn('[dailyDataCache] IDB put failed for masterTasks', err);
+      console.error('[dailyDataCache] IDB put failed for masterTasks -- memory cache only:', err.stack);
     }
   });
 }
@@ -261,8 +265,12 @@ export async function hydrateMasterTasksFromIdb() {
         if (entry) masterTasksMemory = entry;
         resolve(entry);
       };
-      req.onerror = () => resolve(null);
-    } catch {
+      req.onerror = () => {
+        console.error('[dailyDataCache] hydrateMasterTasksFromIdb: IDB get failed', '-- treating as not cached:', req.error);
+        resolve(null);
+      };
+    } catch (err) {
+      console.error('[dailyDataCache] hydrateMasterTasksFromIdb: IDB read threw', '-- treating as not cached (null):', err.stack);
       resolve(null);
     }
   });
@@ -289,7 +297,7 @@ export function setCachedFutureMatrix(year, matrix) {
       const tx = db.transaction(STORE_FUTURE_MATRIX, 'readwrite');
       tx.objectStore(STORE_FUTURE_MATRIX).put(entry);
     } catch (err) {
-      console.warn('[dailyDataCache] IDB put failed for futureMatrix', yearKey, err);
+      console.error('[dailyDataCache] IDB put failed for futureMatrix', yearKey, '-- memory cache only:', err.stack);
     }
   });
 }
@@ -312,8 +320,12 @@ export async function hydrateFutureMatrixFromIdb(year) {
         if (entry) futureMatrixMemory.set(yearKey, entry);
         resolve(entry);
       };
-      req.onerror = () => resolve(null);
-    } catch {
+      req.onerror = () => {
+        console.error('[dailyDataCache] hydrateFutureMatrixFromIdb: IDB get failed', yearKey, '-- treating as not cached:', req.error);
+        resolve(null);
+      };
+    } catch (err) {
+      console.error('[dailyDataCache] hydrateFutureMatrixFromIdb: IDB read threw', yearKey, '-- treating as not cached (null):', err.stack);
       resolve(null);
     }
   });
@@ -355,7 +367,7 @@ export function saveNoteRevision(dateStr, noteContent) {
       const tx = db.transaction(STORE_NOTE_REVISIONS, 'readwrite');
       tx.objectStore(STORE_NOTE_REVISIONS).put(entry);
     } catch (err) {
-      console.warn('[dailyDataCache] IDB put failed for noteRevisions', dateStr, err);
+      console.error('[dailyDataCache] IDB put failed for noteRevisions', dateStr, '-- revision kept in memory only:', err.stack);
     }
   });
 
@@ -390,8 +402,12 @@ export async function hydrateNoteRevisionsFromIdb(dateStr) {
         if (revs.length > 0) noteRevisionsMemory.set(dateStr, revs);
         resolve(revs);
       };
-      req.onerror = () => resolve([]);
-    } catch {
+      req.onerror = () => {
+        console.error('[dailyDataCache] hydrateNoteRevisionsFromIdb: IDB get failed', dateStr, '-- treating as not cached:', req.error);
+        resolve([]);
+      };
+    } catch (err) {
+      console.error('[dailyDataCache] hydrateNoteRevisionsFromIdb: IDB read threw', dateStr, '-- treating as not cached ([]):', err.stack);
       resolve([]);
     }
   });

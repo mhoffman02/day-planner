@@ -8,6 +8,8 @@
  * Stores only the Gmail link and subject, never message bodies.
  */
 
+import { sanitizeError, stackFrames } from './ledger.js';
+
 const TASK_PLANNER_PRIORITY_RE = /^([A-Ca-c])([1-9])$/;
 const TASK_PLANNER_META_RE = /<!--dp-meta:(.*?)-->\n?/;
 const TASK_PLANNER_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -67,7 +69,9 @@ export function taskPlannerReadMeta(notes) {
   try {
     const parsed = JSON.parse(m[1]);
     return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch {
+  } catch (err) {
+    // JSON.parse messages quote the notes, so log sanitized text + frames only.
+    console.error(`taskPlanner: corrupt dp-meta JSON in Task notes, treating meta as empty: ${sanitizeError(err)}\n${stackFrames(err.stack)}`);
     return {};
   }
 }

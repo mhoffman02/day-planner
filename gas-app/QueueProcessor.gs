@@ -62,12 +62,13 @@ function missingDependency_() {
 }
 
 /**
- * Logs a sanitized one-line error (never bodies, addresses or long ids).
+ * console.errors the sanitized message plus the stack frames (never bodies, addresses or long ids:
+ * the V8 stack header, which repeats the raw message, is dropped by DPEngines.stackFrames).
  * @param {string} context Operation context.
  * @param {*} err Error or message.
  */
 function logSafe_(context, err) {
-  console.error(context + ': ' + DPEngines.sanitizeError(err));
+  console.error(DPEngines.formatSafeError(context, err));
 }
 
 /**
@@ -395,7 +396,7 @@ function collectItems_(ctx) {
             var occId = active.OperationKey.split('|')[3];
             var meta;
             try { meta = JSON.parse(active.MetadataJson || '{}'); } catch (e) {
-              console.error('QueueProcessor: corrupt MetadataJson for ' + active.OperationKey + ', resuming without it: ' + e.message);
+              logSafe_('QueueProcessor: corrupt MetadataJson, resuming the PENDING row without it', e);
               meta = {};
             }
             var prior = occs.filter(function(x) { return x.id === occId; })[0];

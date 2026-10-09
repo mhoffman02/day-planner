@@ -203,6 +203,20 @@ describe('Calendar Engine Unit Tests', () => {
       assert.equal(link, 'https://meet.google.com/cal-app-meet');
     });
 
+    it('should log the stack loudly and fall back to conferenceData when getHangoutLink throws', (t) => {
+      const errorSpy = t.mock.method(console, 'error', () => {});
+      const evt = {
+        title: 'CalendarApp Event',
+        getHangoutLink: () => { throw new Error('unsupported event type'); },
+        conferenceData: { entryPoints: [{ entryPointType: 'video', uri: 'https://meet.google.com/conf-data' }] }
+      };
+      assert.equal(extractMeetLink(evt), 'https://meet.google.com/conf-data');
+      assert.equal(errorSpy.mock.callCount(), 1);
+      const logged = errorSpy.mock.calls[0].arguments.join(' ');
+      assert.match(logged, /getHangoutLink/);
+      assert.match(logged, /unsupported event type\n\s+at /);
+    });
+
     it('should return null when no meeting link exists anywhere', () => {
       assert.equal(extractMeetLink({ description: 'In-person meeting in Room 4B', location: 'HQ' }), null);
       assert.equal(extractMeetLink(null), null);

@@ -538,7 +538,9 @@ function ledgerParseMeta(row) {
   try {
     const parsed = JSON.parse((row && row.MetadataJson) || '{}');
     return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-  } catch {
+  } catch (err) {
+    // JSON.parse messages quote the input, so log sanitized text + frames only.
+    console.error(`ledger: corrupt MetadataJson, treating metadata as empty (attempt count resets to 0): ${sanitizeError(err)}\n${stackFrames(err.stack)}`);
     return {};
   }
 }
@@ -633,6 +635,27 @@ function sanitizeError(err, maxLen = LEDGER_DEFAULT_ERROR_MAX) {
   s = s.trim();
   if (s.length > maxLen) s = `${s.slice(0, Math.max(0, maxLen - 3))}...`;
   return s;
+}
+
+/**
+ * Only the "at ..." frame lines of a V8 stack. The header (and any further message lines before the
+ * first frame) repeats the raw message, which may carry PII that sanitizeError removes.
+ * @param {*} stack err.stack (any value; non-strings yield the placeholder).
+ * @returns {string} Newline-joined frames, or '(no stack frames)'.
+ */
+function stackFrames(stack) {
+  const frames = typeof stack === 'string' ? stack.split(/\r?\n/).filter((l) => /^\s+at\s/.test(l)) : [];
+  return frames.length ? frames.join('\n') : '(no stack frames)';
+}
+
+/**
+ * One PII-safe console.error payload: context, sanitized message, then the stack frames.
+ * @param {string} context What failed and the fallback taken.
+ * @param {*} err Thrown value.
+ * @returns {string}
+ */
+function formatSafeError(context, err) {
+  return `${context}: ${sanitizeError(err)}\n${stackFrames(err && typeof err === 'object' ? err.stack : null)}`;
 }
 
 /**
@@ -828,6 +851,7 @@ function runOperation(a) {
   try {
     result = a.work({ row: claim.row, retry: claim.action === 'RETRY' }) || {};
   } catch (err) {
+    console.error(`ledger: operation work failed, recording ERROR row: ${sanitizeError(err)}\n${stackFrames(err && err.stack)}`);
     const failed = failOp(claim.row, a.clock(), err);
     a.store.put(failed);
     return {
@@ -1344,6 +1368,7 @@ function planBatch(a) {
       try {
         available = a.isSourceAvailable(item);
       } catch (err) {
+        console.error(`queuePlanner: source check failed, quarantining item as retryable: ${sanitizeError(err)}\n${stackFrames(err && err.stack)}`);
         quarantined.push(queuePlannerQuarantine(item, 'SOURCE_CHECK_FAILED', err, true, now, a.priorRow ? a.priorRow(item) : null));
         continue;
       }
@@ -1536,6 +1561,8 @@ function parseRegistry(rows2D) {
  * Stores only the Gmail link and subject, never message bodies.
  */
 
+
+
 const TASK_PLANNER_PRIORITY_RE = /^([A-Ca-c])([1-9])$/;
 const TASK_PLANNER_META_RE = /<!--dp-meta:(.*?)-->\n?/;
 const TASK_PLANNER_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -1595,7 +1622,9 @@ function taskPlannerReadMeta(notes) {
   try {
     const parsed = JSON.parse(m[1]);
     return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch {
+  } catch (err) {
+    // JSON.parse messages quote the notes, so log sanitized text + frames only.
+    console.error(`taskPlanner: corrupt dp-meta JSON in Task notes, treating meta as empty: ${sanitizeError(err)}\n${stackFrames(err.stack)}`);
     return {};
   }
 }
@@ -1950,6 +1979,8 @@ global.DPEngines = Object.freeze({
   findActiveMeetingRow: findActiveMeetingRow,
   maskId: maskId,
   sanitizeError: sanitizeError,
+  stackFrames: stackFrames,
+  formatSafeError: formatSafeError,
   dryRunMessage: dryRunMessage,
   decideOperation: decideOperation,
   beginOp: beginOp,

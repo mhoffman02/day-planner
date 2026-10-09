@@ -937,7 +937,7 @@
         if (!settled) {
           settled = true;
           clearTimeout(timeoutId);
-          console.warn('[dailyDataCache] IndexedDB open threw, falling back to memory-only cache for this session:', err);
+          console.error('[dailyDataCache] IndexedDB open threw, falling back to memory-only cache for this session:', err.stack);
           dpCacheDbPromise = null;
           resolve(null);
         }
@@ -959,7 +959,7 @@
         const tx = db.transaction(DP_CACHE_STORE_NAME, 'readwrite');
         tx.objectStore(DP_CACHE_STORE_NAME).put(entry);
       } catch (err) {
-        console.warn('[dailyDataCache] IDB put failed for', dateStr, err);
+        console.error('[dailyDataCache] IDB put failed for', dateStr, '- memory cache only', err.stack);
       }
     });
   }
@@ -972,7 +972,7 @@
         const tx = db.transaction(DP_CACHE_STORE_NAME, 'readwrite');
         tx.objectStore(DP_CACHE_STORE_NAME).delete(dateStr);
       } catch (err) {
-        console.warn('[dailyDataCache] IDB delete failed for', dateStr, err);
+        console.error('[dailyDataCache] IDB delete failed for', dateStr, '- stale IDB entry may persist', err.stack);
       }
     });
   }
@@ -1005,6 +1005,7 @@
           };
           req.onerror = () => resolve(null);
         } catch (err) {
+          console.error('[dailyDataCache] IDB read failed for', dateStr, '- treating as cache miss', err.stack);
           resolve(null);
         }
       });
@@ -1035,7 +1036,7 @@
         const tx = db.transaction(DP_CACHE_STORE_MASTER_TASKS, 'readwrite');
         tx.objectStore(DP_CACHE_STORE_MASTER_TASKS).put(entry);
       } catch (err) {
-        console.warn('[dailyDataCache] IDB put failed for masterTasks', err);
+        console.error('[dailyDataCache] IDB put failed for masterTasks - memory cache only', err.stack);
       }
     });
   }
@@ -1055,6 +1056,7 @@
           };
           req.onerror = () => resolve(null);
         } catch (err) {
+          console.error('[dailyDataCache] IDB read failed for masterTasks - treating as cache miss', err.stack);
           resolve(null);
         }
       });
@@ -1075,7 +1077,7 @@
         const tx = db.transaction(DP_CACHE_STORE_FUTURE_MATRIX, 'readwrite');
         tx.objectStore(DP_CACHE_STORE_FUTURE_MATRIX).put(entry);
       } catch (err) {
-        console.warn('[dailyDataCache] IDB put failed for futureMatrix', yearKey, err);
+        console.error('[dailyDataCache] IDB put failed for futureMatrix', yearKey, '- memory cache only', err.stack);
       }
     });
   }
@@ -1096,6 +1098,7 @@
           };
           req.onerror = () => resolve(null);
         } catch (err) {
+          console.error('[dailyDataCache] IDB read failed for futureMatrix', yearKey, '- treating as cache miss', err.stack);
           resolve(null);
         }
       });
@@ -1131,7 +1134,7 @@
         const tx = db.transaction(DP_CACHE_STORE_NOTE_REVISIONS, 'readwrite');
         tx.objectStore(DP_CACHE_STORE_NOTE_REVISIONS).put(entry);
       } catch (err) {
-        console.warn('[dailyDataCache] IDB put failed for noteRevisions', dateStr, err);
+        console.error('[dailyDataCache] IDB put failed for noteRevisions', dateStr, '- revision kept in memory only', err.stack);
       }
     });
 
@@ -1158,6 +1161,7 @@
           };
           req.onerror = () => resolve([]);
         } catch (err) {
+          console.error('[dailyDataCache] IDB read failed for noteRevisions', dateStr, '- returning empty history', err.stack);
           resolve([]);
         }
       });
@@ -2036,7 +2040,7 @@
             }
           }
         } catch (e) {
-          // ignore localStorage error
+          console.error('initRecentTopics: localStorage read/parse failed, using default topics', e.stack);
         }
         this.recentTopics = ['Sprint', '1:1', 'Standup', 'Planning', 'Admin', 'Architecture', 'Bug Triage', 'Personal', 'Review', 'General'];
       },
@@ -2053,7 +2057,7 @@
             }
           }
         } catch (e) {
-          // ignore localStorage error
+          console.error('initCategories: localStorage read/parse failed, using default categories', e.stack);
         }
         this.recentCategories = defaultCategories;
       },
@@ -2063,7 +2067,7 @@
           const saved = parseInt(localStorage.getItem('dayPlannerUiZoom'), 10);
           if (saved >= 80 && saved <= 150) this.uiZoom = saved;
         } catch (e) {
-          console.warn('Could not load saved UI zoom:', e);
+          console.error('initUiZoom: could not load saved UI zoom, keeping default', e.stack);
         }
       },
 
@@ -2081,7 +2085,7 @@
         try {
           localStorage.setItem('dayPlannerUiZoom', String(this.uiZoom));
         } catch (e) {
-          console.warn('Could not save UI zoom:', e);
+          console.error('setUiZoom: could not persist UI zoom, applied for this session only', e.stack);
         }
       },
 
@@ -2096,7 +2100,7 @@
             }
           }
         } catch (e) {
-          console.warn('Could not load saved column widths:', e);
+          console.error('initColumnWidths: could not load saved column widths, keeping defaults', e.stack);
         }
       },
 
@@ -2104,7 +2108,9 @@
         this.colWidths = [33.33, 33.33, 33.34];
         try {
           localStorage.removeItem('dayPlannerColumnWidths');
-        } catch (e) {}
+        } catch (e) {
+          console.error('resetColumnWidths: could not clear saved widths, old widths may return on reload', e.stack);
+        }
       },
 
       toggleMaximizeColumn(name) {
@@ -2181,7 +2187,9 @@
 
           try {
             localStorage.setItem('dayPlannerColumnWidths', JSON.stringify(this.colWidths));
-          } catch (e) {}
+          } catch (e) {
+            console.error('initResize: could not persist column widths, applied for this session only', e.stack);
+          }
         };
 
         window.addEventListener('mousemove', onPointerMove);
@@ -2201,6 +2209,7 @@
             this.theme = 'light';
           }
         } catch (e) {
+          console.error('initTheme: theme lookup failed, falling back to light theme', e.stack);
           this.theme = 'light';
         }
         this.applyTheme();
@@ -2210,7 +2219,9 @@
         this.theme = this.theme === 'dark' ? 'light' : 'dark';
         try {
           localStorage.setItem('dayPlannerTheme', this.theme);
-        } catch (e) {}
+        } catch (e) {
+          console.error('toggleTheme: could not persist theme, applied for this session only', e.stack);
+        }
         this.applyTheme();
       },
 
@@ -2338,7 +2349,7 @@
 
           this.buildScheduleGrid();
         } catch (err) {
-          console.error('🔥 trigger2WaySync error:', err);
+          console.error('🔥 trigger2WaySync error:', err.stack);
           this.errorMessage = `2-Way Sync Warning: ${err.message || err.toString()}`;
         } finally {
           this.isSyncing = false;
@@ -2401,7 +2412,7 @@
           this.hubCounts = (st && st.counts) || {};
         } catch (err) {
           this.hubFlags = null;
-          console.warn('Hub status unavailable, Triage and Meeting Prep stay hidden:', err);
+          console.error('loadHubStatus: hub status unavailable, Triage and Meeting Prep stay hidden', err.stack);
         }
       },
 
@@ -2409,7 +2420,8 @@
         try {
           const saved = JSON.parse(localStorage.getItem('dayPlannerHubReadLater') || '[]');
           if (Array.isArray(saved)) this.triageReadLater = saved.filter((x) => typeof x === 'string');
-        } catch {
+        } catch (err) {
+          console.error('initHub: Read Later list unreadable from localStorage, starting empty', err.stack);
           this.triageReadLater = [];
         }
         setInterval(() => { this.hubNowMs = Date.now(); }, 60000);
@@ -2423,7 +2435,7 @@
           if (!board || board.ok !== true) throw new Error((board && board.message) || 'Triage board unavailable');
           this.triageBoard = board;
         } catch (err) {
-          console.error('Triage board failed to load:', err);
+          console.error('Triage board failed to load:', err.stack);
           this.errorMessage = 'Triage board failed to load: ' + (err.message || err);
         } finally {
           this.triageLoading = false;
@@ -2438,7 +2450,7 @@
           await this.loadTriageBoard();
           return r;
         } catch (err) {
-          console.error('Triage action threw:', label, err);
+          console.error('Triage action threw:', label, err.stack);
           this.triageNotice = { kind: 'error', text: label + ' failed: ' + (err.message || err), url: null };
           return null;
         }
@@ -2472,7 +2484,7 @@
         try {
           localStorage.setItem('dayPlannerHubReadLater', JSON.stringify(this.triageReadLater));
         } catch (err) {
-          console.error('Read Later could not be persisted:', err);
+          console.error('Read Later could not be persisted, kept for this session only:', err.stack);
         }
       },
 
@@ -2506,7 +2518,7 @@
           this.meetingPicker.backlogSeriesKey = dest.seriesKey;
           this.meetingPicker.selected = (dest.recommended && dest.recommended.occurrenceId) || '';
         } catch (err) {
-          console.error('Meeting choices failed to load:', err);
+          console.error('Meeting choices failed to load:', err.stack);
           this.meetingPicker.open = false;
           this.triageNotice = { kind: 'error', text: 'Send to Meeting failed: ' + (err.message || err), url: null };
         } finally {
@@ -2534,7 +2546,7 @@
           if (!prep || prep.ok !== true) throw new Error((prep && prep.message) || 'Meeting prep unavailable');
           this.meetingPrep = prep;
         } catch (err) {
-          console.error('Meeting prep failed to load:', err);
+          console.error('Meeting prep failed to load:', err.stack);
           this.errorMessage = 'Meeting prep failed to load: ' + (err.message || err);
         } finally {
           this.meetingPrepLoading = false;
@@ -2580,7 +2592,7 @@
           dpSetCachedFutureMatrix(year, matrix);
           this.applyFutureMatrix(matrix);
         } catch (err) {
-          console.error('loadFutureMatrix error:', err);
+          console.error('loadFutureMatrix error, keeping cached matrix if any:', err.stack);
           if (!cached) {
             this.errorMessage = `Could not load Future Planning Matrix: ${err.message || err.toString()}`;
           }
@@ -2614,7 +2626,7 @@
           this.newFutureItemTitle[monthKey] = '';
           this.syncFutureMatrixCacheFromLiveState();
         } catch (err) {
-          console.error('addFutureItemToMonth error:', err);
+          console.error('addFutureItemToMonth error:', err.stack);
           this.errorMessage = `Error adding item: ${err.message || err.toString()}`;
         }
       },
@@ -2626,7 +2638,7 @@
           await this.bridge.updateFutureItemStatus(this.futureMatrixYear, monthKey, item.id, item.status);
           this.syncFutureMatrixCacheFromLiveState();
         } catch (err) {
-          console.error('toggleFutureItemStatus error:', err);
+          console.error('toggleFutureItemStatus error, local status left changed:', err.stack);
           this.errorMessage = `Could not save item status: ${err.message || err.toString()}`;
         }
       },
@@ -2644,7 +2656,7 @@
           await this.bridge.updateFutureItemStatus(this.futureMatrixYear, monthKey, item.id, item.status);
           this.syncFutureMatrixCacheFromLiveState();
         } catch (err) {
-          console.error('selectFutureItemStatus error:', err);
+          console.error('selectFutureItemStatus error, local status left changed:', err.stack);
           this.errorMessage = `Could not save item status: ${err.message || err.toString()}`;
         }
       },
@@ -2665,7 +2677,7 @@
             dpInvalidateCached(targetDate);
           }
         } catch (err) {
-          console.error('transferFutureItemToDay error:', err);
+          console.error('transferFutureItemToDay error:', err.stack);
           this.errorMessage = `Error transferring item: ${err.message || err.toString()}`;
         }
       },
@@ -2681,7 +2693,7 @@
             this.syncFutureMatrixCacheFromLiveState();
           }
         } catch (err) {
-          console.error('pushFutureItemForward error:', err);
+          console.error('pushFutureItemForward error:', err.stack);
           this.errorMessage = `Error pushing item forward: ${err.message || err.toString()}`;
         }
       },
@@ -2695,7 +2707,7 @@
           if (idx !== -1) items.splice(idx, 1);
           this.syncFutureMatrixCacheFromLiveState();
         } catch (err) {
-          console.error('deleteFutureItemFromMonth error:', err);
+          console.error('deleteFutureItemFromMonth error:', err.stack);
           this.errorMessage = `Error deleting item: ${err.message || err.toString()}`;
         }
       },
@@ -3090,7 +3102,7 @@
           }
           this.applyDailyData(data);
         } catch (err) {
-          console.error('🔥 loadDayData error:', err);
+          console.error('🔥 loadDayData error, keeping cached day if any:', err.stack);
           if (dateStr === this.selectedDate && !cached) {
             this.errorMessage = `Error loading daily workspace: ${err.message || err.toString()}`;
           }
@@ -3120,7 +3132,7 @@
           const result = await this.bridge.getDailyDataRange(windowDates[0], windowDates[windowDates.length - 1]);
           if (result && result.days) dpPrimeFromRange(result.days);
         } catch (err) {
-          console.error('🔥 background range prefetch failed:', err);
+          console.error('🔥 background range prefetch failed, days load on demand instead:', err.stack);
         }
       },
 
@@ -3200,7 +3212,7 @@
         try {
           localStorage.setItem('dayPlannerCategories', JSON.stringify(this.recentCategories));
         } catch (e) {
-          // ignore
+          console.error('recordCategory: could not persist categories, kept for this session only', e.stack);
         }
         this.recordRecentTopic(clean);
       },
@@ -3215,7 +3227,7 @@
         try {
           localStorage.setItem('dayPlannerRecentTopics', JSON.stringify(this.recentTopics));
         } catch (e) {
-          // ignore
+          console.error('recordRecentTopic: could not persist recent topics, kept for this session only', e.stack);
         }
       },
 
@@ -3229,7 +3241,7 @@
         try {
           localStorage.setItem('dayPlannerRecentTopics', JSON.stringify(this.recentTopics));
         } catch (e) {
-          // ignore
+          console.error('removeRecentTopic: could not persist removal, topic may return on reload', e.stack);
         }
       },
 
@@ -3518,7 +3530,7 @@
               const el = document.getElementById(`card-line-${card.id}-${idx + 1}`);
               if (el) {
                 el.focus();
-                try { el.setSelectionRange(caretPos, caretPos); } catch (_err) { /* ignore */ }
+                try { el.setSelectionRange(caretPos, caretPos); } catch (_err) { console.error('handleLineKeydown: caret placement failed after split, caret left at default', _err.stack); }
               }
             }, 40);
             return;
@@ -3536,7 +3548,7 @@
             const el = document.getElementById(`card-line-${card.id}-${idx + 1}`);
             if (el) {
               el.focus();
-              try { el.setSelectionRange(el.value.length, el.value.length); } catch (_err) { /* ignore */ }
+              try { el.setSelectionRange(el.value.length, el.value.length); } catch (_err) { console.error('handleLineKeydown: caret placement failed on new line, caret left at default', _err.stack); }
             }
           }, 40);
           return;
@@ -3617,6 +3629,7 @@
           const parsed = new URL(trimmed.startsWith('http') ? trimmed : ('https:' + '/' + '/' + trimmed));
           return parsed.hostname.replace(/^www\./, '');
         } catch (_err) {
+          console.error('getDefaultLinkText: URL parse failed, using raw text as label', _err.stack);
           return trimmed;
         }
       },
@@ -3723,7 +3736,7 @@
         } catch (err) {
           const errMsg = err?.message || String(err);
           this.linkModalError = errMsg;
-          console.warn('Google Drive title lookup error:', err);
+          console.error('Google Drive title lookup error, using default link text:', err.stack);
           if (!this.linkModalText) {
             this.linkModalText = this.getDefaultLinkText(candidate);
           }
@@ -3764,7 +3777,7 @@
               this.linkModalText = res.title;
             }
           } catch (err) {
-            console.warn('Google Drive title lookup failed on submit:', err);
+            console.error('Google Drive title lookup failed on submit, using default link text:', err.stack);
           } finally {
             this.linkModalResolving = false;
           }
@@ -3824,7 +3837,7 @@
             displayText = result.title;
           }
         } catch (err) {
-          console.warn('Smart-paste title lookup failed, pasting plain URL instead:', err);
+          console.error('Smart-paste title lookup failed, pasting plain URL instead:', err.stack);
         }
 
         const wrapped = displayText === trimmed ? trimmed : `[[link:${trimmed}]]${displayText}[[/link]]`;
@@ -4021,7 +4034,7 @@
           this.sttScratchDocUrl = result.docUrl;
         } catch (err) {
           this.sttError = 'Could not create a voice typing doc: ' + (err.message || err);
-          console.error('[STT] createDictationScratchDoc threw', err);
+          console.error('[STT] createDictationScratchDoc threw', err.stack);
         } finally {
           this.sttScratchCreating = false;
         }
@@ -4061,7 +4074,7 @@
           setTimeout(() => { this.sttRefreshedFlash = false; }, 1800);
         } catch (err) {
           this.sttError = 'Could not pull voice-typed text: ' + (err.message || err);
-          console.error('[STT] pullFromDictationScratchpad threw', err);
+          console.error('[STT] pullFromDictationScratchpad threw', err.stack);
         } finally {
           this.sttRefreshing = false;
         }
@@ -4469,7 +4482,7 @@
             await this.bridge.saveDailyDocCards(dateStr, noteContent);
             dpSaveNoteRevision(dateStr, noteContent);
           } catch (err) {
-            console.error('🔥 saveDailyDocCards error:', err);
+            console.error('🔥 saveDailyDocCards error, note NOT saved to Drive (local cache still holds the edit):', err.stack);
             this.errorMessage = `Could not save daily note: ${err.message || err.toString()}`;
           }
         }, 1200);
@@ -4506,7 +4519,7 @@
           dpSetCachedMasterTasks(tasks);
           this.applyMasterTasks(tasks);
         } catch (err) {
-          console.error('🔥 loadMasterTasks error:', err);
+          console.error('🔥 loadMasterTasks error, keeping cached list if any:', err.stack);
           if (!cached) {
             this.errorMessage = `Error loading master tasks: ${err.message || err.toString()}`;
           }
@@ -4559,7 +4572,7 @@
             created._isNew = false;
           }, 2000);
         } catch (err) {
-          console.error('🔥 addMasterTask error:', err);
+          console.error('🔥 addMasterTask error:', err.stack);
           this.errorMessage = `Could not add master task: ${err.message || err.toString()}`;
         } finally {
           this.addingMasterTask = false;
@@ -4605,7 +4618,7 @@
           }
           await this.trigger2WaySync();
         } catch (err) {
-          console.error('🔥 deleteMasterTask error:', err);
+          console.error('🔥 deleteMasterTask error, task already removed locally but may still exist server-side:', err.stack);
           this.errorMessage = `Error deleting master task: ${err.message || err.toString()}`;
         }
       },
@@ -4690,7 +4703,7 @@
             await this.trigger2WaySync();
           }
         } catch (err) {
-          console.error('🔥 moveMasterTaskToDate error:', err);
+          console.error('🔥 moveMasterTaskToDate error:', err.stack);
           this.errorMessage = `Error moving master task: ${err.message || err.toString()}`;
         } finally {
           mTask._moving = false;
@@ -4885,7 +4898,7 @@
           if (requestedYear !== this.selectedYear || requestedMonth !== this.selectedMonth) return;
           if (this.activeView === 'monthly-calendar') this.buildMonthlyGrid();
         } catch (err) {
-          console.error('🔥 loadMonthlyCalendarData error:', err);
+          console.error('🔥 loadMonthlyCalendarData error, grid shows cached days only:', err.stack);
         }
       },
 
@@ -4930,7 +4943,7 @@
           this.syncDailyCacheFromLiveState();
           await this.trigger2WaySync();
         } catch (err) {
-          console.error('🔥 addDailyTask error:', err);
+          console.error('🔥 addDailyTask error:', err.stack);
           this.errorMessage = `Error adding task: ${err.message || err.toString()}`;
         }
       },
@@ -5021,7 +5034,7 @@
           }
           await this.trigger2WaySync();
         } catch (err) {
-          console.error('🔥 updateTaskTitle error:', err);
+          console.error('🔥 updateTaskTitle error, reverting local title and notes:', err.stack);
           task.title = oldTitle;
           task.notes = oldNotes;
           if (linkedMaster) {
@@ -5051,7 +5064,7 @@
           }
           await this.trigger2WaySync();
         } catch (err) {
-          console.error('🔥 deleteDailyTask error:', err);
+          console.error('🔥 deleteDailyTask error, task already removed locally but may still exist server-side:', err.stack);
           this.errorMessage = `Error deleting task: ${err.message || err.toString()}`;
         }
       },
@@ -5095,7 +5108,7 @@
           }
         } catch (err) {
           task.starred = previous;
-          console.error('🔥 toggleTaskStar persist error:', err);
+          console.error('🔥 toggleTaskStar persist error, star reverted:', err.stack);
         }
       },
 
@@ -5243,7 +5256,7 @@
             }
           }
         } catch (err) {
-          console.error('🔥 setTaskStatus persist error:', err);
+          console.error('🔥 setTaskStatus persist error, local status kept and cached anyway:', err.stack);
           this.errorMessage = `Could not save task status: ${err.message || err.toString()}`;
         }
         // A status change can touch both lists at once (a linked master<->daily pair mirrors the
@@ -5294,7 +5307,7 @@
           const displayDest = targetDate === todayStr ? 'Today' : targetDate;
           this.showTaskToast('Forwarded "' + cleanTitle + '" to ' + displayDest);
         } catch (err) {
-          console.error('🔥 forwardDailyTask error:', err);
+          console.error('🔥 forwardDailyTask error:', err.stack);
           this.errorMessage = 'Could not forward task: ' + (err.message || err.toString());
         }
       },
@@ -5337,7 +5350,9 @@
           try {
             var hl = evt.getHangoutLink();
             if (hl && typeof hl === 'string' && hl.trim()) return hl.trim();
-          } catch (_) {}
+          } catch (err) {
+            console.error('extractMeetLink: getHangoutLink threw, trying conferenceData and text fallbacks', err.stack);
+          }
         }
         if (evt.conferenceData && Array.isArray(evt.conferenceData.entryPoints)) {
           for (var c = 0; c < evt.conferenceData.entryPoints.length; c++) {
@@ -5453,7 +5468,7 @@
           this.closeCreateEventModal();
           await this.trigger2WaySync();
         } catch (err) {
-          console.error('🔥 saveNewEvent error:', err);
+          console.error('🔥 saveNewEvent error:', err.stack);
           this.errorMessage = `Error saving appointment: ${err.message || err.toString()}`;
         }
       },
@@ -5571,7 +5586,7 @@
             this.selectedSearchIndex = 0;
           }
         } catch (err) {
-          console.warn('[search] Deep archive search error:', err);
+          console.error('[search] Deep archive search error, showing local results only:', err.stack);
         } finally {
           if (query === this.searchQuery.trim()) {
             this.archiveSearching = false;
@@ -5642,7 +5657,7 @@
           }
           this.timeMachineRevisions = revs || [];
         } catch (err) {
-          console.warn('[TimeMachine] Failed to load revisions', err);
+          console.error('[TimeMachine] Failed to load revisions, list left unchanged', err.stack);
         } finally {
           this.timeMachineLoading = false;
         }

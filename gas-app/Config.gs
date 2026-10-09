@@ -48,6 +48,16 @@ function engines_() {
   return global.DPEngines;
 }
 
+/**
+ * console.errors the sanitized message plus stack frames. Local (not DPQueue.logSafe): Config runs
+ * without QueueProcessor loaded (first-run setup, unit tests).
+ * @param {string} context What failed and the fallback taken.
+ * @param {*} err Thrown value.
+ */
+function logSafe_(context, err) {
+  console.error(engines_().formatSafeError(context, err));
+}
+
 function setupError_(message) {
   var e = new Error('SETUP_ERROR: ' + message);
   e.code = 'SETUP_ERROR';
@@ -97,13 +107,13 @@ function userCalendarTimeZone_() {
       var setting = Calendar.Settings.get('timezone');
       if (setting && setting.value) return String(setting.value);
     }
-  } catch (e) { console.error('Config: Calendar timezone setting unavailable, trying primary calendar: ' + e.message); }
+  } catch (e) { logSafe_('Config: Calendar timezone setting unavailable, trying primary calendar', e); }
   try {
     if (typeof Calendar !== 'undefined' && Calendar.Calendars && Calendar.Calendars.get) {
       var primary = Calendar.Calendars.get('primary');
       if (primary && primary.timeZone) return String(primary.timeZone);
     }
-  } catch (e) { console.error('Config: primary calendar timezone unavailable, using script time zone: ' + e.message); }
+  } catch (e) { logSafe_('Config: primary calendar timezone unavailable, using script time zone', e); }
   return '';
 }
 
@@ -113,9 +123,9 @@ function buildConfigSeed_() {
   // SETUP_ERROR naming the key, so the user fills it in the Config tab.
   var tz = userCalendarTimeZone_();
   var email;
-  if (!tz) { try { tz = Session.getScriptTimeZone(); } catch (e) { console.error('Config: script time zone unavailable: ' + e.message); tz = ''; } }
+  if (!tz) { try { tz = Session.getScriptTimeZone(); } catch (e) { logSafe_('Config: script time zone unavailable, leaving TimeZone empty (getConfig then fails SETUP_ERROR)', e); tz = ''; } }
   // Gmail profile, not Session.getActiveUser: the manifest has no userinfo.email scope.
-  try { email = Gmail.Users.getProfile('me').emailAddress; } catch (e) { console.error('Config: user email unavailable from Gmail profile: ' + e.message); email = ''; }
+  try { email = Gmail.Users.getProfile('me').emailAddress; } catch (e) { logSafe_('Config: user email unavailable from Gmail profile, leaving UserEmail empty (getConfig then fails SETUP_ERROR)', e); email = ''; }
   tz = tz || '';
   email = email || '';
   var rows = [
@@ -303,7 +313,7 @@ function getFeatures(opts) {
   var raw = PropertiesService.getUserProperties().getProperty(PROP_FLAGS);
   var stored = null;
   if (raw) {
-    try { stored = JSON.parse(raw); } catch (e) { console.error('Config: HUB_FLAGS_JSON is corrupt, treating flags as defaults (OFF): ' + e.message); }
+    try { stored = JSON.parse(raw); } catch (e) { logSafe_('Config: HUB_FLAGS_JSON is corrupt, treating flags as defaults (OFF)', e); }
   }
   return flagsFromStored_(stored);
 }

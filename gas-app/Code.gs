@@ -18,6 +18,9 @@
 (function(global) {
 
 const MAX_RING_LOGS_ = 25;
+// True while recordServerLog runs: a log raised inside it (Run Log Doc append -> getValidatedRootFolder
+// -> logError) stays console-only instead of recursing without bound.
+let recordingServerLog_ = false;
 
 /**
  * Records a structured execution log entry into a persistent UserProperties ring buffer.
@@ -27,6 +30,16 @@ const MAX_RING_LOGS_ = 25;
  * @param {string|null} [stack] Optional error stack trace.
  */
 function recordServerLog(level, context, message, stack) {
+  if (recordingServerLog_) return;
+  recordingServerLog_ = true;
+  try {
+    recordServerLogUnguarded_(level, context, message, stack);
+  } finally {
+    recordingServerLog_ = false;
+  }
+}
+
+function recordServerLogUnguarded_(level, context, message, stack) {
   try {
     const userProps = PropertiesService.getUserProperties();
     const raw = userProps.getProperty('RECENT_SERVER_LOGS');
@@ -36,7 +49,7 @@ function recordServerLog(level, context, message, stack) {
         logs = JSON.parse(raw);
         if (!Array.isArray(logs)) logs = [];
       } catch (parseErr) {
-        console.warn('recordServerLog parse exception: ' + parseErr.toString());
+        console.error('recordServerLog: RECENT_SERVER_LOGS is corrupt, starting a fresh ring buffer\n' + parseErr.stack);
         logs = [];
       }
     }
@@ -55,14 +68,14 @@ function recordServerLog(level, context, message, stack) {
 
     userProps.setProperty('RECENT_SERVER_LOGS', JSON.stringify(logs));
   } catch (propErr) {
-    console.warn('recordServerLog storage exception: ' + propErr.toString());
+    console.error('recordServerLog: could not write RECENT_SERVER_LOGS, entry kept in console only\n' + propErr.stack);
   }
 
   // Also persist to the permanent Google Doc Run Log in the user's Day Planner folder
   try {
     appendRunLogToDoc_(level, context, message, stack);
   } catch (docLogErr) {
-    console.warn('appendRunLogToDoc_ trigger exception: ' + docLogErr.toString());
+    console.error('recordServerLog: Run Log Doc append threw, entry kept in console/ring buffer only\n' + docLogErr.stack);
   }
 }
 
@@ -237,7 +250,7 @@ function appendRunLogToDoc_(level, context, message, stack) {
         Docs.Documents.get(cachedDocId);
         docId = cachedDocId;
       } catch (openErr) {
-        console.warn('cachedDocId open exception: ' + openErr.toString());
+        console.error('appendRunLogToDoc_: cached Run Log Doc unreadable, clearing its id and re-resolving\n' + openErr.stack);
         userProps.deleteProperty('DAY_PLANNER_RUN_LOG_DOC_ID');
         docId = null;
       }
@@ -290,7 +303,7 @@ function appendRunLogToDoc_(level, context, message, stack) {
       docsAppendParagraph_(docId, stack);
     }
   } catch (err) {
-    console.warn('appendRunLogToDoc_ exception: ' + err.toString());
+    console.error('appendRunLogToDoc_: Run Log Doc append failed, entry not persisted to the Doc\n' + err.stack);
   }
 }
 
@@ -314,7 +327,7 @@ function getRunLogDocUrl() {
       return 'https://docs.google.com/document/d/' + id + '/edit';
     }
   } catch (err) {
-    console.warn('getRunLogDocUrl exception: ' + err.toString());
+    logError('getRunLogDocUrl: could not resolve the Run Log Doc, returning null', err);
     return null;
   }
 }
@@ -330,6 +343,8 @@ function getRecentServerLogs() {
     const logs = JSON.parse(raw);
     return Array.isArray(logs) ? logs : [];
   } catch (err) {
+    // console only: logError would rewrite the very ring buffer that failed to read.
+    console.error('getRecentServerLogs: could not read RECENT_SERVER_LOGS, returning this error as the only entry\n' + err.stack);
     return [{ timestamp: new Date().toISOString(), level: 'ERROR', context: 'getRecentServerLogs', message: err.toString(), stack: err.stack || null }];
   }
 }
@@ -343,7 +358,8 @@ function clearRecentServerLogs() {
     PropertiesService.getUserProperties().deleteProperty('RECENT_SERVER_LOGS');
     return { success: true };
   } catch (err) {
-    return { success: false, error: err.toString() };
+    logError('clearRecentServerLogs: could not delete RECENT_SERVER_LOGS', err);
+    return { success: false, error: err.message || String(err) };
   }
 }
 
@@ -395,7 +411,7 @@ function onOpen() {
         .addItem('📅 Open Day Planner Web App', 'openPlannerWebAppDialog')
         .addToUi();
     } catch (err) {
-      console.log('onOpen custom menu notice: ' + err.toString());
+      logError('onOpen: could not add the Planner custom menu, continuing without it', err);
     }
   }
 }
@@ -405,7 +421,7 @@ const DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mho
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const DAY_PLANNER_BUILD_NUMBER = 413;
+const DAY_PLANNER_BUILD_NUMBER = 414;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -421,7 +437,7 @@ function renderSetupFolderPage() {
   try {
     output.setFaviconUrl(DAY_PLANNER_FAVICON_URL);
   } catch (_favErr) {
-    console.warn('setFaviconUrl notice: ' + _favErr.toString());
+    console.error('renderSetupFolderPage: setFaviconUrl failed, serving without favicon\n' + _favErr.stack);
   }
   return output;
 }
@@ -486,7 +502,7 @@ function doGet_original(e) {
     try {
       output.setFaviconUrl(DAY_PLANNER_FAVICON_URL);
     } catch (_favErr) {
-      console.warn('setFaviconUrl notice: ' + _favErr.toString());
+      console.error('doGet: setFaviconUrl failed, serving without favicon\n' + _favErr.stack);
     }
     return output;
 
@@ -504,7 +520,7 @@ function doGet_original(e) {
     try {
       errOutput.setFaviconUrl(DAY_PLANNER_FAVICON_URL);
     } catch (_favErr) {
-      console.warn('setFaviconUrl notice: ' + _favErr.toString());
+      console.error('doGet error page: setFaviconUrl failed, serving without favicon\n' + _favErr.stack);
     }
     return errOutput;
   }
@@ -554,10 +570,12 @@ function getValidatedRootFolder() {
     try {
       return DriveApp.getFolderById(cachedId);
     } catch (err) {
-      logWarn('getValidatedRootFolder', 'cached ID invalid or unreadable: ' + err.toString(), err.stack);
+      logError('getValidatedRootFolder: cached folder id invalid or unreadable, re-searching', err);
     }
   }
 
+  // Past the relock re-check below, catches use console.error, never logError: logError reaches the
+  // Run Log sink, which calls getValidatedRootFolder again and would adopt/create a second folder.
   // From here on (search-then-adopt), concurrent executions under the SAME account --
   // parallel google.script.run calls on page load, the 5-min sync trigger overlapping a
   // manual visit, or a retry from validateAndSaveFolderUrl() -- could
@@ -572,7 +590,7 @@ function getValidatedRootFolder() {
       logWarn('getValidatedRootFolder', 'lock timed out after 10s (contended by a concurrent execution), proceeding unlocked');
     }
   } catch (lockErr) {
-    logWarn('getValidatedRootFolder', 'lock acquisition threw, proceeding unlocked: ' + lockErr.toString());
+    logError('getValidatedRootFolder: lock acquisition threw, proceeding unlocked', lockErr);
   }
 
   try {
@@ -582,7 +600,7 @@ function getValidatedRootFolder() {
       try {
         return DriveApp.getFolderById(relockedId);
       } catch (relockedErr) {
-        logWarn('getValidatedRootFolder', 'relocked ID invalid or unreadable: ' + relockedErr.toString(), relockedErr.stack);
+        console.error('getValidatedRootFolder: relocked folder id invalid or unreadable, re-searching\n' + relockedErr.stack);
       }
     }
 
@@ -595,7 +613,7 @@ function getValidatedRootFolder() {
         try {
           isOwner = driveFolderAccess_(folder.getId()).owner;
         } catch (e) {
-          console.error('Folder owner check failed for ' + folder.getId() + ', skipping it (not bound): ' + e.message);
+          console.error('getValidatedRootFolder: owner check failed for folder ' + folder.getId() + ', skipping it (not bound)\n' + e.stack);
         }
         if (isOwner) {
           userProps.setProperty('DAY_PLANNER_ROOT_FOLDER_ID', folder.getId());
@@ -603,7 +621,7 @@ function getValidatedRootFolder() {
         }
       }
     } catch (err) {
-      console.warn('getValidatedRootFolder auto-search notice: ' + err.toString() + '\nStack:\n' + (err.stack || 'No stack trace available'));
+      console.error('getValidatedRootFolder: Day Planner folder auto-search failed, trying the known default folder\n' + err.stack);
     }
 
     // Fallback: Check known default folder ID if accessible under drive.file
@@ -614,7 +632,7 @@ function getValidatedRootFolder() {
         return defaultFolder;
       }
     } catch (defaultFolderErr) {
-      console.warn('Known folder lookup skipped: ' + defaultFolderErr.toString());
+      console.error('getValidatedRootFolder: known default folder not accessible, trying auto-create\n' + defaultFolderErr.stack);
     }
 
     // Auto-create "Day Planner" root folder if none exists
@@ -632,7 +650,7 @@ function getValidatedRootFolder() {
         }
       }
     } catch (driveInsertErr) {
-      console.warn('getValidatedRootFolder Drive.Files.insert notice: ' + driveInsertErr.toString());
+      console.error('getValidatedRootFolder: Drive.Files.insert folder create failed, falling back to DriveApp.createFolder\n' + driveInsertErr.stack);
     }
 
     // Attempt 2: DriveApp fallback
@@ -643,7 +661,7 @@ function getValidatedRootFolder() {
         return newFolder;
       }
     } catch (createErr) {
-      console.warn('getValidatedRootFolder auto-create notice: ' + createErr.toString());
+      console.error('getValidatedRootFolder: DriveApp.createFolder failed, returning null (setup page)\n' + createErr.stack);
     }
 
     // No valid folder cached, found, or created; return null to trigger SetupFolder.html
@@ -653,7 +671,7 @@ function getValidatedRootFolder() {
       try {
         lock.releaseLock();
       } catch (relErr) {
-        console.warn('getValidatedRootFolder: lock release threw: ' + relErr.toString());
+        console.error('getValidatedRootFolder: lock release threw (lock expires on its own)\n' + relErr.stack);
       }
     }
   }
@@ -916,7 +934,7 @@ function decodeTaskMeta(notes) {
       const parsed = JSON.parse(match[1]);
       if (parsed && typeof parsed === 'object') Object.assign(meta, parsed);
     } catch (e) {
-      console.error('Corrupt dp-meta JSON in task notes, falling back to human tags: ' + e.message);
+      console.error('decodeTaskMeta: corrupt dp-meta JSON in task notes, falling back to human tags\n' + e.stack);
     }
   }
   const catMatch = notes.match(/\[Category:\s*([^\]]+)\]/i);
@@ -1002,7 +1020,7 @@ function extractMeetLinkFromEvent_(evt) {
       const hl = evt.getHangoutLink();
       if (hl && typeof hl === 'string') link = hl.trim();
     } catch (e) {
-      console.error('getHangoutLink failed for this event type: ' + e.message);
+      console.error('extractMeetLinkFromEvent_: getHangoutLink failed, trying conferenceData/description\n' + e.stack);
     }
   }
   if (!link && evt.conferenceData && evt.conferenceData.entryPoints) {
@@ -1694,7 +1712,7 @@ function pullDictationScratchText(docId) {
         }, docId);
       }
     } catch (clearErr) {
-      console.warn('pullDictationScratchText body clear skipped: ' + clearErr.toString());
+      logError('pullDictationScratchText: scratch Doc clear failed, returning the text anyway (it can be pulled again)', clearErr);
     }
 
     return { success: true, text: text };
@@ -1730,7 +1748,7 @@ function resolveDriveFileTitle(url) {
       try {
         item = Drive.Files.get(fileId, { supportsAllDrives: true });
       } catch (e) {
-        console.error('Drive.Files.get with supportsAllDrives failed, retrying plain: ' + e.message);
+        console.error('resolveDriveFileTitle: Drive.Files.get with supportsAllDrives failed, retrying plain\n' + e.stack);
         item = Drive.Files.get(fileId);
       }
       if (item && (item.title || item.name)) {
@@ -1740,7 +1758,7 @@ function resolveDriveFileTitle(url) {
   } catch (v2Err) {
     const m1 = 'Drive v2: ' + (v2Err.message || v2Err.toString());
     errors.push(m1);
-    logWarn('resolveDriveFileTitle: ' + m1);
+    logError('resolveDriveFileTitle: Drive v2 lookup failed, trying DriveApp', v2Err);
   }
 
   // Try 2: DriveApp (Folders and Files)
@@ -1757,7 +1775,7 @@ function resolveDriveFileTitle(url) {
   } catch (driveErr) {
     const m2 = 'DriveApp: ' + (driveErr.message || driveErr.toString());
     errors.push(m2);
-    logWarn('resolveDriveFileTitle: ' + m2);
+    logError('resolveDriveFileTitle: DriveApp lookup failed, trying SpreadsheetApp/SlidesApp', driveErr);
   }
 
   // Try 3: Specialized Workspace App services (Docs handled by Try 1/2 via Drive metadata
@@ -1771,7 +1789,7 @@ function resolveDriveFileTitle(url) {
   } catch (ssErr) {
     const m4 = 'SpreadsheetApp: ' + (ssErr.message || ssErr.toString());
     errors.push(m4);
-    logWarn('resolveDriveFileTitle: ' + m4);
+    logError('resolveDriveFileTitle: SpreadsheetApp lookup failed, trying SlidesApp', ssErr);
   }
 
   try {
@@ -1782,7 +1800,7 @@ function resolveDriveFileTitle(url) {
   } catch (presErr) {
     const m5 = 'SlidesApp: ' + (presErr.message || presErr.toString());
     errors.push(m5);
-    logWarn('resolveDriveFileTitle: ' + m5);
+    logError('resolveDriveFileTitle: SlidesApp lookup failed, returning the collected errors', presErr);
   }
 
   return { success: false, error: errors.join('; ') || 'Unable to resolve title for this Drive link.' };
@@ -1805,7 +1823,7 @@ function getFolderByNameOrCreate(parent, name) {
       console.warn('getFolderByNameOrCreate: lock timed out after 10s, proceeding unlocked');
     }
   } catch (lockErr) {
-    console.warn('getFolderByNameOrCreate: lock acquisition threw, proceeding unlocked: ' + lockErr.toString());
+    logError('getFolderByNameOrCreate: lock acquisition threw, proceeding unlocked', lockErr);
   }
 
   try {
@@ -1828,7 +1846,7 @@ function getFolderByNameOrCreate(parent, name) {
           const createdFolder = Drive.Files.insert(folderResource);
           return DriveApp.getFolderById(createdFolder.id);
         } catch (driveApiErr) {
-          console.warn('Drive.Files.insert folder creation fallback: ' + driveApiErr.toString());
+          logError('getFolderByNameOrCreate(' + name + '): Drive.Files.insert failed, falling back to parent.createFolder', driveApiErr);
         }
       }
 
@@ -1837,7 +1855,7 @@ function getFolderByNameOrCreate(parent, name) {
         try {
           return parent.createFolder(name);
         } catch (createErr) {
-          console.warn('getFolderByNameOrCreate could not create subfolder: ' + createErr.toString());
+          logError('getFolderByNameOrCreate(' + name + '): parent.createFolder failed, returning the parent folder instead', createErr);
         }
       }
       return parent;
@@ -1851,7 +1869,7 @@ function getFolderByNameOrCreate(parent, name) {
       try {
         lock.releaseLock();
       } catch (relErr) {
-        console.warn('getFolderByNameOrCreate: lock release threw: ' + relErr.toString());
+        logError('getFolderByNameOrCreate: lock release threw (lock expires on its own)', relErr);
       }
     }
   }
@@ -2871,7 +2889,7 @@ function searchArchiveNotes(query) {
           matchingFiles = listRes.items;
         }
       } catch (listErr) {
-        console.warn('Drive.Files.list archive search warning: ' + listErr.toString());
+        logError('searchArchiveNotes: Drive.Files.list failed, falling back to DriveApp.searchFiles', listErr);
       }
     }
 
@@ -2889,7 +2907,7 @@ function searchArchiveNotes(query) {
           count++;
         }
       } catch (iterErr) {
-        console.warn('DriveApp.searchFiles archive warning: ' + iterErr.toString());
+        logError('searchArchiveNotes: DriveApp.searchFiles failed, searching only files found so far', iterErr);
       }
     }
 
@@ -2908,7 +2926,7 @@ function searchArchiveNotes(query) {
           elements = docsGetBodyElements_(fileId);
         }
       } catch (docsErr) {
-        console.warn('docsGetBodyElements_ error on ' + fileId + ': ' + docsErr.toString());
+        logError('searchArchiveNotes: could not read notes Doc ' + fileId + ', skipping it', docsErr);
         continue;
       }
 
@@ -2959,7 +2977,7 @@ function searchArchiveNotes(query) {
 
     return results;
   } catch (err) {
-    recordServerLog('ERROR', 'searchArchiveNotes', err.message, err.stack);
+    logError('searchArchiveNotes: archive search failed, returning no results', err);
     return [];
   }
 }

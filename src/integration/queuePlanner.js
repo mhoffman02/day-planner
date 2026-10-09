@@ -5,7 +5,7 @@
  * independently (a malformed item or one whose thread vanished is quarantined as an ERROR ledger
  * row with a sanitized message while the rest proceed), and returns the cursor to resume from.
  */
-import { beginOp, failOp, sanitizeError, ledgerAttemptsOf } from './ledger.js';
+import { beginOp, failOp, sanitizeError, stackFrames, ledgerAttemptsOf } from './ledger.js';
 
 function queuePlannerQuarantine(item, code, message, retryable, now, prior) {
   const valid = item && typeof item === 'object' && typeof item.opKey === 'string' && item.opKey !== ''
@@ -66,6 +66,7 @@ export function planBatch(a) {
       try {
         available = a.isSourceAvailable(item);
       } catch (err) {
+        console.error(`queuePlanner: source check failed, quarantining item as retryable: ${sanitizeError(err)}\n${stackFrames(err && err.stack)}`);
         quarantined.push(queuePlannerQuarantine(item, 'SOURCE_CHECK_FAILED', err, true, now, a.priorRow ? a.priorRow(item) : null));
         continue;
       }

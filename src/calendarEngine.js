@@ -87,8 +87,9 @@ export function extractMeetLink(rawEvent = {}) {
     try {
       const hl = rawEvent.getHangoutLink();
       if (hl && typeof hl === 'string' && hl.trim()) return hl.trim();
-    } catch {
-      // getHangoutLink may throw if unsupported on specific event type
+    } catch (err) {
+      // getHangoutLink may throw if unsupported on specific event type -- keep probing the other sources.
+      console.error('extractMeetLink: getHangoutLink() threw, falling back to conferenceData/description', err.stack);
     }
   }
   if (rawEvent.conferenceData && Array.isArray(rawEvent.conferenceData.entryPoints)) {
