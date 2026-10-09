@@ -2,14 +2,25 @@
  * @file Config.gs
  * @description Gmail/Meeting hub configuration (Phase 28, spec sections 6, 18, 19). Owns the
  * app-created "Day Planner Hub Config" Sheet (Day Planner Drive folder, drive.file scope) with four
- * tabs: Config (Key/Value + feature flags), Meeting Registry, Integration Ledger, Triage Dismissals.
+ * tabs: Config (Key/Value + feature flags), Meeting Registry, Integration Ledger, Integration Ledger
+ * Archive (DONE rows older than 90 days, see LedgerRepository.gs). Triage dismissals are ledger rows.
  * Uses ONLY the Advanced Sheets/Drive services (never the legacy Gmail/Spreadsheet built-ins). Reads
  * DPEngines (Engines.gs) lazily at call time, never at top level (gas-global-init-order rule).
  *
  * Wrapped in one IIFE (gas-namespace-iife rule); the only global it creates is `DPConfig`, used by
  * other .gs files (LedgerRepository, NotesRepository, queue/trigger code). Not a google.script.run
- * surface. ensureSetup() takes no lock: call it from a single dispatcher or under the caller's
- * LockService lock (locks are not re-entrant, so locking here would deadlock a locked caller).
+ * surface.
+ *
+ * FLAGS OFF IS A NO-OP: feature flags are mirrored into the UserProperties key HUB_FLAGS_JSON
+ * (written by ensureSetup, setFeature, getConfig and every fresh read). getFeatures() reads ONLY
+ * that key, so with the hub unprovisioned (key absent) all flags are OFF, DRY_RUN is true and no
+ * Drive/Sheets call is made; the Sheet is never created by a read. getFeatures({fresh:true}) re-reads
+ * the Config tab when (and only when) the Sheet already exists, picking up flags edited by hand.
+ *
+ * LOCKING: ensureSetup() serializes first-run creation with LockService.getUserLock() (a lock
+ * distinct from the script lock the queue/controllers hold, so a locked caller cannot deadlock) and
+ * re-checks the stored Sheet id after acquiring it, so concurrent first runs create exactly one Sheet.
+ * Every other function here takes no lock.
  * Missing mandatory configuration throws Error('SETUP_ERROR: <key> ...') (spec section 19).
  */
 (function(global) {
@@ -21,10 +32,11 @@ var MIME_SHEET = 'application/vnd.google-apps.spreadsheet';
 var TAB_CONFIG = 'Config';
 var TAB_REGISTRY = 'Meeting Registry';
 var TAB_LEDGER = 'Integration Ledger';
-var TAB_DISMISSALS = 'Triage Dismissals';
-var ALL_TABS = ['Config', 'Meeting Registry', 'Integration Ledger', 'Triage Dismissals'];
+var TAB_ARCHIVE = 'Integration Ledger Archive';
+var ALL_TABS = ['Config', 'Meeting Registry', 'Integration Ledger', 'Integration Ledger Archive'];
 var CONFIG_HEADER = ['Key', 'Value'];
-var DISMISSAL_COLUMNS = ['ThreadId', 'DismissedAt', 'Note'];
+var PROP_FLAGS = 'HUB_FLAGS_JSON';
+var SETUP_LOCK_WAIT_MS = 30000;
 var MANDATORY_KEYS = ['TimeZone', 'UserEmail', 'TasksListId'];
 var ENABLED_SERIES = ['NCMMS_CORE', 'NCMMS_DAILY', 'NCMMS_AA', 'NCMMS_ACQ', 'TRM_PM'];
 var CONFIG_READ_RANGE = 'A2:B200';
@@ -78,13 +90,30 @@ function findHubSheetInFolder_(folderId) {
   return res && res.items && res.items.length ? res.items[0].id : null;
 }
 
+/** @returns {string} The user's Calendar time zone (Settings, else primary calendar), or '' when unavailable. */
+function userCalendarTimeZone_() {
+  try {
+    if (typeof Calendar !== 'undefined' && Calendar.Settings && Calendar.Settings.get) {
+      var setting = Calendar.Settings.get('timezone');
+      if (setting && setting.value) return String(setting.value);
+    }
+  } catch { /* fall through to the primary calendar */ }
+  try {
+    if (typeof Calendar !== 'undefined' && Calendar.Calendars && Calendar.Calendars.get) {
+      var primary = Calendar.Calendars.get('primary');
+      if (primary && primary.timeZone) return String(primary.timeZone);
+    }
+  } catch { /* fall through to the script time zone */ }
+  return '';
+}
+
 function buildConfigSeed_() {
   var E = engines_();
   // A seed the runtime cannot supply stays empty on purpose: getConfig() then fails loudly with
   // SETUP_ERROR naming the key, so the user fills it in the Config tab.
-  var tz;
+  var tz = userCalendarTimeZone_();
   var email;
-  try { tz = Session.getScriptTimeZone(); } catch { tz = ''; }
+  if (!tz) { try { tz = Session.getScriptTimeZone(); } catch { tz = ''; } }
   try { email = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail(); } catch { email = ''; }
   tz = tz || '';
   email = email || '';
@@ -140,7 +169,7 @@ function populate_(sheetId) {
     { range: range_(TAB_CONFIG, 'A1:B1'), values: [CONFIG_HEADER] },
     { range: range_(TAB_REGISTRY, 'A1:' + colLetter_(E.REGISTRY_COLUMNS.length) + '1'), values: [E.REGISTRY_COLUMNS.slice()] },
     { range: range_(TAB_LEDGER, 'A1:' + colLetter_(E.LEDGER_COLUMNS.length) + '1'), values: [E.LEDGER_COLUMNS.slice()] },
-    { range: range_(TAB_DISMISSALS, 'A1:' + colLetter_(DISMISSAL_COLUMNS.length) + '1'), values: [DISMISSAL_COLUMNS] }
+    { range: range_(TAB_ARCHIVE, 'A1:' + colLetter_(E.LEDGER_COLUMNS.length) + '1'), values: [E.LEDGER_COLUMNS.slice()] }
   ];
   if (configEmpty) {
     var seed = buildConfigSeed_();
@@ -156,23 +185,38 @@ function populate_(sheetId) {
 /**
  * Idempotent: returns the hub Sheet id from UserProperties DP_HUB_SHEET_ID, else adopts an existing
  * app-created Sheet by name in the Day Planner folder (crash recovery) or creates one, populates
- * tabs/seeds, and records the id last.
+ * tabs/seeds, and records the id last. First-run creation runs under the user lock and re-checks the
+ * stored id after acquiring it (concurrent first runs create exactly one Sheet).
  * @returns {string} Spreadsheet id.
  */
 function ensureSetup() {
   var props = PropertiesService.getUserProperties();
   var existing = props.getProperty(PROP_SHEET_ID);
   if (existing) return existing;
-  var folderId = getFolderId();
-  var id = findHubSheetInFolder_(folderId);
-  if (!id) {
-    var created = Drive.Files.insert({ title: SHEET_TITLE, mimeType: MIME_SHEET, parents: [{ id: folderId }] });
-    if (!created || !created.id) throw new Error('Hub Sheet creation returned no id');
-    id = created.id;
+  var lock = LockService.getUserLock();
+  lock.waitLock(SETUP_LOCK_WAIT_MS); // throws on timeout: fail loud rather than create a second Sheet
+  try {
+    existing = props.getProperty(PROP_SHEET_ID);
+    if (existing) return existing;
+    var folderId = getFolderId();
+    var id = findHubSheetInFolder_(folderId);
+    if (!id) {
+      var created = Drive.Files.insert({ title: SHEET_TITLE, mimeType: MIME_SHEET, parents: [{ id: folderId }] });
+      if (!created || !created.id) throw new Error('Hub Sheet creation returned no id');
+      id = created.id;
+    }
+    populate_(id);
+    props.setProperty(PROP_SHEET_ID, id);
+    refreshFlags_();
+    return id;
+  } finally {
+    lock.releaseLock();
   }
-  populate_(id);
-  props.setProperty(PROP_SHEET_ID, id);
-  return id;
+}
+
+/** @returns {boolean} True when the hub Sheet already exists (no Drive/Sheets call). */
+function isProvisioned() {
+  return !!PropertiesService.getUserProperties().getProperty(PROP_SHEET_ID);
 }
 
 function readConfigMap_() {
@@ -213,6 +257,7 @@ function featuresFromMap_(map) {
  */
 function getConfig() {
   var map = readConfigMap_();
+  PropertiesService.getUserProperties().setProperty(PROP_FLAGS, JSON.stringify(featuresFromMap_(map)));
   MANDATORY_KEYS.forEach(function (k) {
     if (!map[k]) throw setupError_(k + ' is missing or empty in the "Config" tab of the Day Planner Hub Config sheet');
   });
@@ -231,9 +276,35 @@ function getConfig() {
   });
 }
 
-/** @returns {Object} Frozen feature flags (every DPEngines.DEFAULT_FEATURES key; DRY_RUN defaults true). */
-function getFeatures() {
-  return featuresFromMap_(readConfigMap_());
+function flagsFromStored_(stored) {
+  var defaults = engines_().DEFAULT_FEATURES;
+  var out = {};
+  Object.keys(defaults).forEach(function (name) {
+    out[name] = stored && typeof stored[name] === 'boolean' ? stored[name] : defaults[name];
+  });
+  return Object.freeze(out);
+}
+
+/** Re-reads the Config tab and mirrors the flags into HUB_FLAGS_JSON. Needs the Sheet to exist. */
+function refreshFlags_() {
+  var flags = featuresFromMap_(readConfigMap_());
+  PropertiesService.getUserProperties().setProperty(PROP_FLAGS, JSON.stringify(flags));
+  return flags;
+}
+
+/**
+ * @param {{fresh?: boolean}} [opts] fresh re-reads the Config tab, but only if the Sheet already exists.
+ * @returns {Object} Frozen feature flags (every DPEngines.DEFAULT_FEATURES key; DRY_RUN defaults true).
+ *   Without opts this reads only UserProperties: hub never provisioned => all OFF, no Drive/Sheets call.
+ */
+function getFeatures(opts) {
+  if (opts && opts.fresh === true && isProvisioned()) return refreshFlags_();
+  var raw = PropertiesService.getUserProperties().getProperty(PROP_FLAGS);
+  var stored = null;
+  if (raw) {
+    try { stored = JSON.parse(raw); } catch (e) { console.error('Config: HUB_FLAGS_JSON is corrupt, treating flags as defaults (OFF): ' + e.message); }
+  }
+  return flagsFromStored_(stored);
 }
 
 /**
@@ -258,7 +329,7 @@ function setFeature(name, value) {
   } else {
     Sheets.Spreadsheets.Values.append(payload, id, range_(TAB_CONFIG, 'A1:B1'), { valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS' });
   }
-  return getFeatures();
+  return refreshFlags_();
 }
 
 /** @returns {Array<Object>} Parsed + validated registry rows via DPEngines.parseRegistry. */
@@ -338,6 +409,8 @@ global.DPConfig = Object.freeze({
   ensureSetup: ensureSetup,
   getConfig: getConfig,
   getFeatures: getFeatures,
+  isProvisioned: isProvisioned,
+  tabs: Object.freeze({ LEDGER: TAB_LEDGER, ARCHIVE: TAB_ARCHIVE }), // used by LedgerRepository
   getRegistry: getRegistry,
   setFeature: setFeature,
   getSheetUrl: getSheetUrl,

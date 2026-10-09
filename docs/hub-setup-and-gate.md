@@ -13,7 +13,7 @@ Never paste these into a public prompt or commit them. Most are created or fille
 |---|---|---|
 | Config spreadsheet ID | User property `DP_HUB_SHEET_ID`; the Sheet is app-created ("Day Planner Hub Config") in the Day Planner Drive folder | App (automatic) |
 | Day Planner Drive folder | User property `DAY_PLANNER_ROOT_FOLDER_ID` (existing first-run setup) | Already bound; required before the Sheet can be created |
-| Timezone | Config tab `TimeZone` (seeded from the script time zone) | Confirm; mandatory |
+| Timezone | Config tab `TimeZone` (seeded from the Calendar user setting, else the primary calendar, else the script time zone) | Confirm; mandatory |
 | User email | Config tab `UserEmail` (seeded from the session; may be blank on some accounts) | Fill if blank; mandatory |
 | Google Tasks list ID | Config tab `TasksListId` (seeded `@default`) | Optionally the real list ID; mandatory |
 | Primary Calendar ID | Meeting Registry `CalendarId` (blank = `primary`; discovery writes it) | Optional |
@@ -89,9 +89,10 @@ This worked for Docs; it is unproven for Sheets.
 1. With the app open on HOME, the first RPC (`getHubStatus`, called on load) runs `DPConfig.ensureSetup()`.
    Alternative: run `getHubStatus` from the IDE.
 2. Pass: a Sheet named "Day Planner Hub Config" appears in the Day Planner Drive folder with four tabs
-   (`Config`, `Meeting Registry`, `Integration Ledger`, `Triage Dismissals`), headers present, Config seeded with flags
+   (`Config`, `Meeting Registry`, `Integration Ledger`, `Integration Ledger Archive`), headers present, Config seeded with flags
    (`DRY_RUN` TRUE), Registry seeded with 10 series (5 enabled); `getHubStatus` returns `ok:true`; edit a flag in the
-   Sheet and see it reflected; run `discoverMeetingSeries` with `DRY_RUN` TRUE (reports matches, `persisted:false`),
+   Sheet and see it reflected (`getHubStatus` and every `hubDispatch` tick re-read the Config tab and refresh the
+   `HUB_FLAGS_JSON` property mirror; the other RPCs read only that mirror); run `discoverMeetingSeries` with `DRY_RUN` TRUE (reports matches, `persisted:false`),
    then FALSE and confirm `RecurringEventId`/`CalendarId` appear in the registry row.
 3. Fail: `getHubStatus` returns `ok:false` with a message containing a 403/"permission"/"insufficient" error from
    Sheets, or the Sheet exists but reads fail; `SETUP_ERROR` about the Sheet id is a different problem (folder not
@@ -154,7 +155,7 @@ This worked for Docs; it is unproven for Sheets.
 - The Triage board scans a bounded set (default 40, max 100) of threads carrying the triage labels, not the whole inbox.
 - Send to Meeting picker uses the first available suggested series; a thread suggested to several series needs a
   second route for the others.
-- Apps Script limits: 6-minute executions (bounded batch, resumable cursor), `LockService` waits of 10 s for RPCs;
+- Apps Script limits: 6-minute executions (bounded batch with a 4 minute start guard, resumable by DONE-filtering, no cursor), `LockService` waits of 10 s for RPCs;
   Docs/Sheets quotas apply.
 - Sheet-backed config means user edits are not validated until read; invalid values throw `SETUP_ERROR`.
 - Local preview mode uses `src/hubMock.js`; it matches response shapes (tested) but not Google behavior.
@@ -180,3 +181,24 @@ Collected from the build waves; each is covered by tests at the fake level but n
 | A13 | Priority uses the existing `[A1]-[C9]` convention (`A1` for score >= 8 Today, `B1` otherwise; `C1` low) rather than the spec `[A]` | Task titles differ from spec | Product decision |
 | A14 | Notes Docs are app-owned (`Meeting Notes - <Series>`); the user's existing human-notes Doc is untouched | Two docs per series | Product decision |
 | A15 | `discoverMeetingSeries` now persists both `RecurringEventId` and `CalendarId` (the calendar the event was found on; `primary` when the row was blank) | Registry gets an explicit `primary` | Live L1 |
+
+## Operational behavior added by the adversarial review fixes (findings 2-6, 8-14)
+
+- **Flags OFF is a no-op.** Flags are mirrored into the UserProperties key `HUB_FLAGS_JSON`. Until the hub Sheet
+  exists the key is absent, so every flag reads OFF (`DRY_RUN` TRUE) and app load (`getHubStatus`) makes no Drive or
+  Sheets call and never creates the Sheet. The Sheet is created only by an explicit setup action
+  (`DPConfig.ensureSetup`, `setFeature`, `getConfig`, `discoverMeetingSeries`). First-run creation is serialized with
+  the user lock and re-checks the stored id, so two concurrent first runs create one Sheet.
+- **Retries.** The trigger loop re-runs a failed (`ERROR`) item only when it is retryable: backoff 5, 10, 20, 40 minutes
+  (cap 240), at most 5 attempts (`attempts`, `retryable`, `nextRetryAt` in `MetadataJson`). `SERIES_NOT_FOUND`,
+  `OCCURRENCE_NOT_FOUND`, `SOURCE_MISSING` and any `retryable:false` error are never auto-retried. The manual
+  `retryFailedOperation` always re-runs.
+- **Runtime/quota.** One ledger read and one Tasks list read per queue run; no new item starts after 4 minutes (the rest
+  resume next run, no `PENDING` orphans, lock released). `LOCK_BUSY` or a failed pass does not mark a daily job done.
+  `TRIAGE_REFRESH` counts from metadata-format reads, capped at 20 threads.
+- **Ledger capacity.** At 5000 rows, `DONE` rows older than 90 days move to the `Integration Ledger Archive` tab in one
+  batch; with nothing archivable the operation still fails with `LEDGER_FULL`.
+- **DRY_RUN bookkeeping.** A dry run writes only `HUB_LAST_RUN_DRY` (never `HUB_LAST_RUN`); `getHubStatus.lastRun`
+  reports whichever is newer.
+- **Links.** Gmail links are account-agnostic (`mail.google.com/mail/#all/<threadId>`, no `/u/0/`); previously created
+  Tasks keep their old links.

@@ -12,6 +12,12 @@ const LEDGER_DEFAULT_STALE_MINUTES = 15;
 const LEDGER_DEFAULT_ERROR_MAX = 200;
 const LEDGER_DEFAULT_ID_RUN = 20;
 const LEDGER_DEFAULT_LOCK_WAIT_MS = 5000;
+const LEDGER_MAX_ATTEMPTS = 5;
+const LEDGER_BACKOFF_BASE_MIN = 5;
+const LEDGER_BACKOFF_MAX_MIN = 240;
+const LEDGER_RECENT_WINDOW_DAYS = 14;
+// Errors that retrying cannot fix: only a manual retryFailedOperation re-runs them.
+const LEDGER_PERMANENT_CODES = Object.freeze(['SERIES_NOT_FOUND', 'OCCURRENCE_NOT_FOUND', 'SOURCE_MISSING']);
 
 function ledgerIso(now) {
   const d = now instanceof Date ? now : new Date(now);
@@ -32,6 +38,78 @@ function ledgerBlankRow() {
 
 function ledgerJson(metadata) {
   return metadata === undefined || metadata === null ? '' : JSON.stringify(metadata);
+}
+
+function ledgerParseMeta(row) {
+  try {
+    const parsed = JSON.parse((row && row.MetadataJson) || '{}');
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * @param {object|null} row Ledger row.
+ * @returns {number} Failed attempts recorded in the row's MetadataJson (0 when none).
+ */
+export function ledgerAttemptsOf(row) {
+  return Number(ledgerParseMeta(row).attempts) || 0;
+}
+
+/**
+ * Minutes to wait before the next automatic retry after the nth failed attempt (5, 10, 20, ... capped).
+ * @param {number} attempts Failed attempts so far (>= 1).
+ * @returns {number}
+ */
+export function retryBackoffMinutes(attempts) {
+  const n = Math.max(1, Number(attempts) || 1);
+  return Math.min(LEDGER_BACKOFF_BASE_MIN * 2 ** (n - 1), LEDGER_BACKOFF_MAX_MIN);
+}
+
+/**
+ * Whether the trigger loop may automatically re-run an ERROR row. Permanent errors (see
+ * LEDGER_PERMANENT_CODES, or retryable:false recorded in MetadataJson) never are; retryable ones
+ * back off exponentially and stop after the attempt cap. Manual retry ignores this decision.
+ * @param {object} row Ledger row.
+ * @param {Date|string|number} now
+ * @param {{maxAttempts?:number}} [opts]
+ * @returns {{retry:boolean, reason:'NOT_ERROR'|'PERMANENT'|'ATTEMPTS_EXHAUSTED'|'BACKOFF'|'OK'}}
+ */
+export function retryDecision(row, now, opts = {}) {
+  if (!row || row.Status !== LEDGER_STATUS.ERROR) return { retry: true, reason: 'NOT_ERROR' };
+  const meta = ledgerParseMeta(row);
+  if (meta.retryable === false || LEDGER_PERMANENT_CODES.includes(row.ErrorCode)) return { retry: false, reason: 'PERMANENT' };
+  const max = opts.maxAttempts === undefined ? LEDGER_MAX_ATTEMPTS : opts.maxAttempts;
+  if ((Number(meta.attempts) || 0) >= max) return { retry: false, reason: 'ATTEMPTS_EXHAUSTED' };
+  const nowMs = new Date(ledgerIso(now)).getTime();
+  if (meta.nextRetryAt && nowMs < Date.parse(meta.nextRetryAt)) return { retry: false, reason: 'BACKOFF' };
+  return { retry: true, reason: 'OK' };
+}
+
+/**
+ * Finds a non-ERROR (PENDING or DONE) MEETING row for the same thread and series inside the recent
+ * window, so a retry after a crash reuses its occurrence instead of creating a second carry-in when
+ * the cutoff has rolled over to a later occurrence. Most recently updated row wins.
+ * @param {Array<object>} rows Ledger rows.
+ * @param {{threadId:string, seriesKey:string, now:Date|string|number, windowDays?:number}} q
+ * @returns {object|null}
+ */
+export function findActiveMeetingRow(rows, q) {
+  const nowMs = new Date(ledgerIso(q.now)).getTime();
+  const windowMs = (q.windowDays === undefined ? LEDGER_RECENT_WINDOW_DAYS : q.windowDays) * 86400000;
+  const prefix = `GMAIL|${q.threadId}|MEETING|`;
+  let best = null;
+  for (const r of rows || []) {
+    if (!r || typeof r.OperationKey !== 'string' || !r.OperationKey.startsWith(prefix)) continue;
+    if (r.Status !== LEDGER_STATUS.PENDING && r.Status !== LEDGER_STATUS.DONE) continue;
+    const meta = ledgerParseMeta(r);
+    if (meta.seriesKey && meta.seriesKey !== q.seriesKey) continue;
+    const at = Date.parse(r.UpdatedAt || r.CreatedAt || '');
+    if (Number.isNaN(at) || nowMs - at > windowMs) continue;
+    if (!best || at > Date.parse(best.UpdatedAt || best.CreatedAt)) best = r;
+  }
+  return best;
 }
 
 /**
@@ -163,11 +241,20 @@ export function completeOp(row, now, result = {}) {
 /** PENDING -> ERROR with sanitized message. */
 export function failOp(row, now, error) {
   const code = error && typeof error === 'object' && error.code ? String(error.code) : 'ERROR';
-  return ledgerTransition(row, now, {
+  const failed = ledgerTransition(row, now, {
     Status: LEDGER_STATUS.ERROR,
     ErrorCode: sanitizeError(code, 40),
     ErrorMessage: sanitizeError(error)
   });
+  const meta = ledgerParseMeta(row);
+  const attempts = (Number(meta.attempts) || 0) + 1;
+  const permanent = (error && typeof error === 'object' && error.retryable === false) || LEDGER_PERMANENT_CODES.includes(code);
+  meta.attempts = attempts;
+  meta.retryable = !permanent;
+  if (permanent) delete meta.nextRetryAt;
+  else meta.nextRetryAt = new Date(new Date(ledgerIso(now)).getTime() + retryBackoffMinutes(attempts) * 60000).toISOString();
+  failed.MetadataJson = JSON.stringify(meta);
+  return failed;
 }
 
 /** PENDING -> DEFERRED */
@@ -216,6 +303,8 @@ export function claimOperation(a) {
     }
     const fresh = beginOp(op, now);
     const row = existing && existing.CreatedAt ? { ...fresh, CreatedAt: existing.CreatedAt } : fresh;
+    const priorAttempts = Number(ledgerParseMeta(existing).attempts) || 0;
+    if (priorAttempts > 0) row.MetadataJson = JSON.stringify({ ...ledgerParseMeta(row), attempts: priorAttempts });
     if (op.deferReason) {
       const deferred = deferOp(row, now, op.deferReason);
       store.put(deferred);

@@ -72,11 +72,26 @@ export function taskPlannerReadMeta(notes) {
   }
 }
 
+/**
+ * Serializes dp-meta so no value can terminate the HTML comment early: after JSON.stringify,
+ * "<" and ">" (and the U+2028/2029 line separators, which "." in the reader regex does not match)
+ * are written as unicode escapes. JSON.parse reads them back unchanged.
+ * @param {object} meta
+ * @returns {string}
+ */
+function taskPlannerEncodeMeta(meta) {
+  return JSON.stringify(meta)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
+}
+
 function taskPlannerBuildNotes(thread, now, meta, tag) {
   const url = taskPlannerRequire(thread && thread.url, 'thread.url');
   const lines = [`Gmail: ${url}`, `Created: ${now.toISOString()}`];
   if (tag) lines.push('', tag);
-  lines.push(`<!--dp-meta:${JSON.stringify(meta)}-->`);
+  lines.push(`<!--dp-meta:${taskPlannerEncodeMeta(meta)}-->`);
   return lines.join('\n');
 }
 

@@ -63,7 +63,7 @@ Processed/Error are ledger statuses, not Gmail labels; config/ledger/registry li
 | File | Global | Role |
 |---|---|---|
 | `Engines.gs` | `DPEngines` | Generated engines |
-| `Config.gs` | `DPConfig` | Hub Sheet (tabs `Config`, `Meeting Registry`, `Integration Ledger`, `Triage Dismissals`), flags, registry read/write (`getRegistry`, `setRegistryDocId`, `updateRegistryRow`), `SETUP_ERROR` on missing mandatory keys |
+| `Config.gs` | `DPConfig` | Hub Sheet (tabs `Config`, `Meeting Registry`, `Integration Ledger`, `Integration Ledger Archive`; dismissals are ledger rows), flags, registry read/write (`getRegistry`, `setRegistryDocId`, `updateRegistryRow`), `SETUP_ERROR` on missing mandatory keys |
 | `LedgerRepository.gs` | `DPLedgerRepo` | Ledger rows: upsert, list, `appendMany` (one write) |
 | `GmailRepository.gs` | `DPGmailRepo` | Read-only Advanced Gmail: label-name to id, thread metadata, `withBody` only in memory |
 | `CalendarRepository.gs` | `DPCalendarRepo` | Advanced Calendar reads, occurrences, `discoverSeries` (persists recurring ids via `DPConfig.updateRegistryRow` outside DRY_RUN) |

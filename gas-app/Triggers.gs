@@ -102,7 +102,7 @@ function runJob_(job, features, today, settings) {
   }
   if (job === 'TRIAGE_REFRESH') {
     if (features.TRIAGE_BOARD !== true) return { skipped: 'TRIAGE_BOARD off' };
-    var board = global._getTriageBoardInternal ? global._getTriageBoardInternal({}) : null;
+    var board = global._getTriageBoardInternal ? global._getTriageBoardInternal({ countOnly: true }) : null;
     var sizes = {};
     if (board && board.queues) Object.keys(board.queues).forEach(function(k) { sizes[k] = board.queues[k].length; });
     return { queues: sizes };
@@ -123,7 +123,7 @@ function hubDispatch() {
     return { ok: false, status: 'ERROR', message: 'Hub modules are not loaded' };
   }
   try {
-    var features = DPConfig.getFeatures();
+    var features = DPConfig.getFeatures({ fresh: true });
     if (features.GMAIL_ROUTER !== true) return DPEngines.makeResult({ ok: true, status: 'NOOP', message: 'GMAIL_ROUTER flag is off' });
     var settings = DPQueue.getSettings();
     var props = PropertiesService.getUserProperties();
@@ -141,9 +141,12 @@ function hubDispatch() {
     if (queueOnce) summary.queue = DPQueue.run(false).status;
     due.forEach(function(job) {
       try {
-        summary.jobs[job] = runJob_(job, features, today, settings);
-        if (job === 'CORE_CARRYIN') summary.queue = summary.jobs[job].status;
-        if (features.DRY_RUN !== true) props.setProperty(HUB_JOB_PROP_PREFIX_ + job, today);
+        var jobResult = runJob_(job, features, today, settings);
+        summary.jobs[job] = jobResult;
+        if (job === 'CORE_CARRYIN') summary.queue = jobResult.status;
+        // A busy lock or a failed pass did not do the day's work: leave the job unmarked so the next tick retries.
+        var transient = jobResult.status === 'LOCK_BUSY' || jobResult.status === 'ERROR';
+        if (features.DRY_RUN !== true && !transient) props.setProperty(HUB_JOB_PROP_PREFIX_ + job, today);
       } catch (jobErr) {
         DPQueue.logSafe('hubDispatch job ' + job, jobErr);
         summary.jobs[job] = { error: DPEngines.sanitizeError(jobErr) };

@@ -11,23 +11,33 @@ import { AI_EXCLUDED_LABELS } from './contracts.js';
 const AIGUARD_SENSITIVE_RE = /audit|procure|acquisition|(?:^|[^a-z])cor(?:[^a-z]|$)|foia/i;
 const AIGUARD_SENSITIVE_SIGNALS = new Set(['AUDIT', 'COR_PROCUREMENT', 'PROCUREMENT', 'FOIA', 'HR']);
 
-function aiguardLabelExcluded(label) {
-  const l = String(label).toLowerCase();
-  const listed = AI_EXCLUDED_LABELS.some((x) => {
-    const e = x.toLowerCase();
-    return e.endsWith('/') ? l.startsWith(e) : l === e || l.startsWith(e + '/');
+function aiguardListed(l, list) {
+  return list.some((x) => {
+    const e = String(x).toLowerCase().trim();
+    if (e === '') return false;
+    return e.endsWith('/') ? l.startsWith(e) : l === e || l.startsWith(`${e}/`);
   });
-  return listed || AIGUARD_SENSITIVE_RE.test(l);
+}
+
+// HR in any spelling: "HR", "_HR", "hr/Cases", "Work/HR/Cases" (a path segment equal to hr, leading underscores ignored).
+function aiguardIsHr(l) {
+  return l.split('/').some((seg) => seg.trim().replace(/^_+/, '') === 'hr');
+}
+
+function aiguardLabelExcluded(label, extra) {
+  const l = String(label).toLowerCase().trim();
+  return aiguardListed(l, AI_EXCLUDED_LABELS) || aiguardListed(l, extra) || aiguardIsHr(l) || AIGUARD_SENSITIVE_RE.test(l);
 }
 
 /**
- * @param {{labels:string[], seriesAiAllowed:(boolean|string), featureFlag:boolean, userSelected?:boolean, signals?:string[]}} options
+ * @param {{labels:string[], seriesAiAllowed:(boolean|string), featureFlag:boolean, userSelected?:boolean, signals?:string[], excludedLabels?:string[]}} options excludedLabels is the Config ExcludedAiLabels list (added to the built-in exclusions)
  * @returns {boolean} true only when every gate passes
  */
 export function isAiAllowed(options) {
   if (!options || typeof options !== 'object') throw new Error('isAiAllowed: options object required');
   if (!Array.isArray(options.labels)) throw new Error('isAiAllowed: labels must be an array');
-  if (options.labels.some(aiguardLabelExcluded)) return false;
+  const extra = Array.isArray(options.excludedLabels) ? options.excludedLabels : [];
+  if (options.labels.some((l) => aiguardLabelExcluded(l, extra))) return false;
   if ((options.signals || []).some((s) => AIGUARD_SENSITIVE_SIGNALS.has(String(s).toUpperCase()))) return false;
   if (options.featureFlag !== true) return false;
   const series = typeof options.seriesAiAllowed === 'string' ? options.seriesAiAllowed.trim().toLowerCase() : options.seriesAiAllowed;

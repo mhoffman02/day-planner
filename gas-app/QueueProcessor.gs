@@ -3,15 +3,26 @@
  * @description Workflow queue for the Gmail/Meeting hub (Phase 28). Reads threads carrying the
  * user-applied workflow labels (Gmail is strictly read-only: labels are never removed, so the queue
  * is drained by ledger status, not by label state), and performs each operation exactly once:
- *   - the script lock is held by THIS file for a whole operation (the ledger/config/notes repositories
- *     take no locks); DPEngines.runOperation gets a no-op lock adapter because the real lock is held;
+ *   - the script lock is held by THIS file for a whole operation (the ledger/notes repositories and
+ *     every Config function except the one-time DPConfig.ensureSetup take no locks; ensureSetup uses
+ *     its own separate user lock, so it cannot deadlock a script-locked caller);
+ *     DPEngines.runOperation gets a no-op lock adapter because the real lock is held;
  *   - every operation is claimed in the ledger first (PENDING), keyed by source + action + target,
  *     and Task creation also embeds the key in the Task notes so a crash between Task create and the
  *     ledger DONE write cannot duplicate (TaskRepository.findExistingByOpKey);
- *   - batches are bounded (BatchSize), resumable (cursor in UserProperties) and each item is
- *     quarantined independently (a failure becomes a sanitized ERROR ledger row; the rest proceed).
+ *   - batches are bounded (BatchSize) and resumable WITHOUT a cursor: DONE rows are filtered out of
+ *     the candidate list, so each run simply takes the next unprocessed items. Each item is
+ *     quarantined independently (a failure becomes a sanitized ERROR ledger row; the rest proceed);
+ *   - ERROR rows are re-run by the trigger loop only when DPEngines.retryDecision allows it:
+ *     permanent errors (SERIES_NOT_FOUND, OCCURRENCE_NOT_FOUND, SOURCE_MISSING, retryable:false)
+ *     never, retryable ones with exponential backoff and at most 5 attempts; the manual
+ *     retryFailedOperation RPC always re-runs;
+ *   - quota: one Sheets read of the ledger per run (DPLedgerRepo session, write-through) and one
+ *     Tasks list read per run (DPTaskRepo run cache); no new item starts after 4 minutes of
+ *     elapsed time, unstarted items stay untouched and the lock is released normally.
  * All flags default OFF, so with the flags off processWorkflowQueue is a no-op that touches no
- * Google service. DRY_RUN performs no Tasks/Docs/Ledger/cursor writes and returns the spec strings.
+ * Google service. DRY_RUN performs no Tasks/Docs/Ledger writes and returns the spec strings; its
+ * only side effect is the HUB_LAST_RUN_DRY property (never HUB_LAST_RUN).
  *
  * IIFE per .agents/rules/gas-namespace-iife.md. Exports: DPQueue (cross-file) and the
  * processWorkflowQueue RPC alias (needs the matching top-level delegator in Code.gs).
@@ -20,8 +31,9 @@
  */
 (function(global) {
 
-var QUEUE_CURSOR_PROP_ = 'HUB_QUEUE_CURSOR';
 var QUEUE_LAST_RUN_PROP_ = 'HUB_LAST_RUN';
+var QUEUE_LAST_RUN_DRY_PROP_ = 'HUB_LAST_RUN_DRY';
+var QUEUE_MAX_RUN_MS_ = 4 * 60 * 1000;
 var QUEUE_LOCK_WAIT_MS_ = 500;
 var QUEUE_PAGE_SIZE_ = 100;
 var QUEUE_MAX_PAGES_ = 3;
@@ -59,10 +71,11 @@ function logSafe_(context, err) {
 }
 
 /**
- * @returns {object} Frozen feature flags.
+ * @param {{fresh?:boolean}} [opts] fresh re-reads the Config tab when the Sheet already exists.
+ * @returns {object} Frozen feature flags (UserProperties-backed; no Sheet is created by this call).
  */
-function getFeatures() {
-  return DPConfig.getFeatures();
+function getFeatures(opts) {
+  return DPConfig.getFeatures(opts);
 }
 
 /**
@@ -126,16 +139,27 @@ function docUrl_(docId) {
   return 'https://docs.google.com/document/d/' + docId + '/edit';
 }
 
+var ROUTE_ACTIONS_ = { TASK: 'CREATE_TASK', TASK_TODAY: 'CREATE_TASK', WAITING: 'CREATE_WAITING', MEETING: 'ROUTE_MEETING' };
+
 /**
- * Best-effort PENDING to ERROR so a retry is immediate instead of waiting out the stale window.
+ * Best-effort PENDING to ERROR so the failure is recorded (attempt counter, backoff or permanent
+ * flag) instead of waiting out the stale window. A failure before the claim (for example
+ * SERIES_NOT_FOUND) has no row yet, so one is created, otherwise the trigger loop would retry it forever.
  * @param {string} opKey Operation key.
  * @param {*} err Cause.
+ * @param {object} [spec] Route spec (used to create the row for a pre-claim failure).
  */
-function markError_(opKey, err) {
+function markError_(opKey, err, spec) {
   try {
+    var E = DPEngines;
     var store = ledgerStore();
     var row = store.get(opKey);
-    if (row && row.Status === DPEngines.LEDGER_STATUS.PENDING) store.put(DPEngines.failOp(row, new Date(), err));
+    if (row && row.Status === E.LEDGER_STATUS.PENDING) {
+      store.put(E.failOp(row, new Date(), err));
+    } else if (!row && spec && !spec.dryRun && spec.threadId && ROUTE_ACTIONS_[spec.kind]) {
+      var now = new Date();
+      store.put(E.failOp(E.beginOp({ opKey: opKey, sourceType: 'GMAIL', sourceId: spec.threadId, action: ROUTE_ACTIONS_[spec.kind], targetType: spec.kind === 'MEETING' ? 'DOC' : 'TASK' }, now), now, err));
+    }
   } catch (secondary) {
     logSafe_('markError_ could not persist ERROR (row stays PENDING and goes stale)', secondary);
   }
@@ -214,7 +238,7 @@ function executeRoute(spec) {
       var occKey = target.backlog ? 'BACKLOG-' + target.series.SeriesKey : target.occurrenceId;
       opKey = opKey || E.gmailMeetingKey(spec.threadId, occKey);
       op = { opKey: opKey, sourceType: 'GMAIL', sourceId: spec.threadId, sourceVersion: thread.lastMessageId, action: 'ROUTE_MEETING', targetType: target.backlog ? 'BACKLOG' : 'DOC',
-        kind: 'MEETING', occurrenceId: target.occurrenceId || occKey, docId: target.series.HumanNotesDocId || 'new', metadata: { seriesKey: target.series.SeriesKey } };
+        kind: 'MEETING', occurrenceId: target.occurrenceId || occKey, docId: target.series.HumanNotesDocId || 'new', metadata: { seriesKey: target.series.SeriesKey, start: target.start || '' } };
       work = function() { return carryIn_(spec, thread, target, now); };
     } else {
       throw new Error('Unknown route kind');
@@ -231,7 +255,7 @@ function executeRoute(spec) {
     var r = E.runOperation({ store: store, lock: nolock, clock: function() { return new Date(); }, op: op, work: work });
     return mapOutcome_(r, opKey, thread, target, spec.settings.timeZone);
   } catch (err) {
-    if (opKey) markError_(opKey, err);
+    if (opKey) markError_(opKey, err, spec);
     logSafe_('executeRoute ' + spec.kind, err);
     return E.makeResult({ ok: false, operationKey: opKey || undefined, status: 'ERROR', errorCode: (err && err.code) ? E.sanitizeError(String(err.code), 40) : 'ERROR', message: E.sanitizeError(err), retryable: !(err && err.retryable === false) });
   }
@@ -310,19 +334,9 @@ function targetUrlOf_(type, id) {
 }
 
 /**
- * @param {number} length Item count.
- * @returns {number} Saved cursor (0 when absent or past the end).
- */
-function readCursor_(length) {
-  var raw = PropertiesService.getUserProperties().getProperty(QUEUE_CURSOR_PROP_);
-  var n = raw === null ? 0 : parseInt(raw, 10);
-  return (isNaN(n) || n < 0 || n >= length) ? 0 : n;
-}
-
-/**
  * Collects candidate items (deduplicated; DONE operations filtered out so the queue drains even
  * though labels are never removed).
- * @param {object} ctx {features, settings, registry, doneKeys, meetingDoneThreads, errors}.
+ * @param {object} ctx {features, settings, registry, doneKeys, blockedKeys, ledgerRows, meetingDoneThreads, errors}.
  * @returns {Array<object>} Items {opKey, threadId, kind, action, ...}.
  */
 function collectItems_(ctx) {
@@ -345,7 +359,7 @@ function collectItems_(ctx) {
     return ids;
   }
   function push(item) {
-    if (seen[item.opKey] || ctx.doneKeys[item.opKey]) return;
+    if (seen[item.opKey] || ctx.doneKeys[item.opKey] || ctx.blockedKeys[item.opKey]) return;
     seen[item.opKey] = true;
     items.push(item);
   }
@@ -373,6 +387,22 @@ function collectItems_(ctx) {
         var sel = E.selectOccurrence({ occurrences: occs, series: series, now: now, timeZone: ctx.settings.timeZone });
         var hit = occs.filter(function(x) { return x.id === sel.occurrenceId; })[0];
         coreIds.forEach(function(tid) {
+          // Carry-in idempotency must not depend on the freshly selected occurrence alone: a PENDING row
+          // left by a crash after the Doc write is resumed on ITS occurrence even if the cutoff has since
+          // rolled over to the next one (the Doc signature then makes it a no-op that just records DONE).
+          var active = E.findActiveMeetingRow(ctx.ledgerRows, { threadId: tid, seriesKey: QUEUE_CORE_SERIES_, now: now });
+          if (active) {
+            var occId = active.OperationKey.split('|')[3];
+            var meta;
+            try { meta = JSON.parse(active.MetadataJson || '{}'); } catch { meta = {}; }
+            var prior = occs.filter(function(x) { return x.id === occId; })[0];
+            var start = prior ? prior.start : (meta.start || null);
+            if (start) {
+              push({ opKey: active.OperationKey, threadId: tid, kind: 'MEETING', action: 'ROUTE_MEETING', seriesKey: QUEUE_CORE_SERIES_,
+                occurrenceInfo: { id: occId, start: start, deferred: false, reason: 'resumed earlier routing' } });
+              return;
+            }
+          }
           push({ opKey: E.gmailMeetingKey(tid, sel.occurrenceId), threadId: tid, kind: 'MEETING', action: 'ROUTE_MEETING', seriesKey: QUEUE_CORE_SERIES_,
             occurrenceInfo: { id: sel.occurrenceId, start: hit ? hit.start : null, deferred: !!sel.deferred, reason: sel.reason } });
         });
@@ -386,68 +416,94 @@ function collectItems_(ctx) {
 }
 
 /**
- * Body of one locked queue run.
+ * Body of one locked queue run. One ledger read and at most one Tasks list read per run; stops
+ * starting new items after QUEUE_MAX_RUN_MS_.
  * @param {boolean} dry True for DRY_RUN.
  * @param {object} features Feature flags.
  * @returns {object} makeResult-shaped summary.
  */
 function runLocked_(dry, features) {
   var E = DPEngines;
+  var startMs = Date.now();
   var settings = getSettings();
   var registry = DPConfig.getRegistry();
   var store = ledgerStore();
-  var doneKeys = {};
-  var meetingDoneThreads = {};
-  DPLedgerRepo.list({ status: E.LEDGER_STATUS.DONE, sourceType: 'GMAIL' }).forEach(function(r) {
-    doneKeys[r.OperationKey] = true;
-    var m = /^GMAIL\|([^|]+)\|MEETING\|/.exec(r.OperationKey);
-    if (m) meetingDoneThreads[m[1]] = true;
-  });
-  var errors = [];
-  var items = collectItems_({ features: features, settings: settings, registry: registry, doneKeys: doneKeys, meetingDoneThreads: meetingDoneThreads, errors: errors });
-  var metaByThread = {};
-  var plan = E.planBatch({
-    items: items,
-    cursor: readCursor_(items.length),
-    batchSize: settings.batchSize,
-    lockHeld: true,
-    flags: features,
-    clock: function() { return new Date(); },
-    isSourceAvailable: function(item) {
-      try {
-        metaByThread[item.threadId] = metaByThread[item.threadId] || DPGmailRepo.getThreadMeta(item.threadId, null);
-        return true;
-      } catch (err) {
-        if (err && err.code === 'THREAD_NOT_FOUND') return false;
-        throw err;
+  DPLedgerRepo.beginSession();
+  DPTaskRepo.beginRun(settings.tasksListId);
+  try {
+    var now0 = new Date();
+    var doneKeys = {};
+    var blockedKeys = {};
+    var meetingDoneThreads = {};
+    var ledgerRows = DPLedgerRepo.list({ sourceType: 'GMAIL' });
+    ledgerRows.forEach(function(r) {
+      if (r.Status === E.LEDGER_STATUS.DONE) {
+        doneKeys[r.OperationKey] = true;
+        var m = /^GMAIL\|([^|]+)\|MEETING\|/.exec(r.OperationKey);
+        if (m) meetingDoneThreads[m[1]] = true;
+      } else if (r.Status === E.LEDGER_STATUS.ERROR && !E.retryDecision(r, now0).retry) {
+        blockedKeys[r.OperationKey] = true; // permanent, backing off, or out of attempts: manual retry only
       }
+    });
+    var errors = [];
+    var items = collectItems_({ features: features, settings: settings, registry: registry, doneKeys: doneKeys, blockedKeys: blockedKeys, ledgerRows: ledgerRows, meetingDoneThreads: meetingDoneThreads, errors: errors });
+    var metaByThread = {};
+    var plan = E.planBatch({
+      items: items,
+      cursor: 0,
+      batchSize: settings.batchSize,
+      lockHeld: true,
+      flags: features,
+      clock: function() { return new Date(); },
+      priorRow: function(item) { return store.get(item.opKey); },
+      isSourceAvailable: function(item) {
+        try {
+          metaByThread[item.threadId] = metaByThread[item.threadId] || DPGmailRepo.getThreadMeta(item.threadId, null);
+          return true;
+        } catch (err) {
+          if (err && err.code === 'THREAD_NOT_FOUND') return false;
+          throw err;
+        }
+      }
+    });
+    var counts = { candidates: items.length, processed: 0, skipped: 0, inFlight: 0, errors: 0, quarantined: plan.quarantined.length, deferred: 0, notStarted: 0, dryRun: dry };
+    var messages = [];
+    if (!dry) {
+      plan.quarantined.forEach(function(q) { if (q.ledgerRow) store.put(q.ledgerRow); });
+    } else {
+      plan.quarantined.forEach(function(q) { messages.push('Would quarantine: ' + q.errorMessage); });
     }
-  });
-  var counts = { candidates: items.length, processed: 0, skipped: 0, inFlight: 0, errors: 0, quarantined: plan.quarantined.length, deferred: 0, dryRun: dry };
-  var messages = [];
-  if (!dry) {
-    plan.quarantined.forEach(function(q) { if (q.ledgerRow) store.put(q.ledgerRow); });
-  } else {
-    plan.quarantined.forEach(function(q) { messages.push('Would quarantine: ' + q.errorMessage); });
+    var timeLimited = false;
+    for (var i = 0; i < plan.toProcess.length; i++) {
+      if (Date.now() - startMs >= QUEUE_MAX_RUN_MS_) {
+        timeLimited = true;
+        counts.notStarted = plan.toProcess.length - i;
+        break;
+      }
+      var item = plan.toProcess[i];
+      var r = executeRoute({ kind: item.kind, threadId: item.threadId, thread: metaByThread[item.threadId], seriesKey: item.seriesKey, occurrenceInfo: item.occurrenceInfo,
+        dryRun: dry, settings: settings, registry: registry, opKey: item.opKey });
+      if (!r.ok) counts.errors += 1;
+      else if (r.status === 'SKIPPED') counts.skipped += 1;
+      else if (r.status === 'IN_FLIGHT') counts.inFlight += 1;
+      else counts.processed += 1;
+      if (r.deferred) counts.deferred += 1;
+      if (messages.length < QUEUE_MAX_MESSAGES_) messages.push(r.message);
+    }
+    counts.errors += errors.length;
+    counts.timeLimited = timeLimited;
+    var status = dry ? 'DRY_RUN' : 'DONE';
+    // DRY_RUN never touches the live HUB_LAST_RUN record, only its own clearly named property.
+    PropertiesService.getUserProperties().setProperty(dry ? QUEUE_LAST_RUN_DRY_PROP_ : QUEUE_LAST_RUN_PROP_, JSON.stringify({ at: new Date().toISOString(), status: status, counts: counts }));
+    var done = !timeLimited && items.length <= settings.batchSize;
+    return E.makeResult({ ok: errors.length === 0, status: status,
+      message: (dry ? 'Dry run: ' : '') + counts.processed + ' processed, ' + counts.skipped + ' skipped, ' + counts.errors + ' errors, ' + counts.quarantined + ' quarantined' +
+        (timeLimited ? ', stopped at the ' + (QUEUE_MAX_RUN_MS_ / 60000) + ' minute time limit (' + counts.notStarted + ' not started; they resume next run)' : ''),
+      counts: counts, messages: messages, errors: errors, done: done });
+  } finally {
+    DPTaskRepo.endRun();
+    DPLedgerRepo.endSession();
   }
-  plan.toProcess.forEach(function(item) {
-    var r = executeRoute({ kind: item.kind, threadId: item.threadId, thread: metaByThread[item.threadId], seriesKey: item.seriesKey, occurrenceInfo: item.occurrenceInfo,
-      dryRun: dry, settings: settings, registry: registry, opKey: item.opKey });
-    if (!r.ok) counts.errors += 1;
-    else if (r.status === 'SKIPPED') counts.skipped += 1;
-    else if (r.status === 'IN_FLIGHT') counts.inFlight += 1;
-    else counts.processed += 1;
-    if (r.deferred) counts.deferred += 1;
-    if (messages.length < QUEUE_MAX_MESSAGES_) messages.push(r.message);
-  });
-  counts.errors += errors.length;
-  if (!dry) {
-    PropertiesService.getUserProperties().setProperty(QUEUE_CURSOR_PROP_, String(plan.done ? 0 : plan.nextCursor));
-  }
-  var status = dry ? 'DRY_RUN' : 'DONE';
-  PropertiesService.getUserProperties().setProperty(QUEUE_LAST_RUN_PROP_, JSON.stringify({ at: new Date().toISOString(), status: status, counts: counts }));
-  return E.makeResult({ ok: errors.length === 0, status: status, message: (dry ? 'Dry run: ' : '') + counts.processed + ' processed, ' + counts.skipped + ' skipped, ' + counts.errors + ' errors, ' + counts.quarantined + ' quarantined',
-    counts: counts, messages: messages, errors: errors, nextCursor: plan.nextCursor, done: plan.done });
 }
 
 /**

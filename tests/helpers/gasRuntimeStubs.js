@@ -64,10 +64,10 @@ function makePropertiesService() {
 }
 
 function makeLockService() {
-  const state = { holder: null, nextId: 1 };
-  return {
-    state,
-    getScriptLock() {
+  // Script lock and user lock are independent locks (as in Apps Script), each with its own holder.
+  const make = () => {
+    const state = { holder: null, nextId: 1 };
+    const handle = () => {
       const id = state.nextId;
       state.nextId += 1;
       return {
@@ -82,8 +82,12 @@ function makeLockService() {
         hasLock: () => state.holder === id,
         releaseLock() { if (state.holder === id) state.holder = null; }
       };
-    }
+    };
+    return { state, handle };
   };
+  const script = make();
+  const user = make();
+  return { state: script.state, userState: user.state, getScriptLock: script.handle, getUserLock: user.handle };
 }
 
 function makeCacheService() {

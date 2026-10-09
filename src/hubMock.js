@@ -8,7 +8,7 @@
 import { gmailTaskKey, gmailWaitingKey, gmailMeetingKey, DEFAULT_FEATURES } from './integration/contracts.js';
 import { TRIAGE_BAND } from './integration/triageScore.js';
 
-const GMAIL_BASE = 'https:' + '/' + '/mail.google.com/mail/u/0/#all/';
+const GMAIL_BASE = 'https:' + '/' + '/mail.google.com/mail/#all/';
 const DOCS_BASE = 'https:' + '/' + '/docs.google.com/document/d/';
 
 /**

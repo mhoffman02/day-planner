@@ -166,12 +166,24 @@ function listOccurrences(seriesRow, registry, now, horizonDays) {
 }
 
 /**
+ * @param {*} err Thrown by Calendar.Events.get.
+ * @returns {boolean} True only for an HTTP 404/410 (event gone), never for 5xx, quota or network errors.
+ */
+function isNotFound_(err) {
+  if (err && (err.code === 404 || err.code === 410)) return true;
+  var text = String((err && err.message) || err);
+  return /\b(404|410)\b|not ?found|\bgone\b|deleted/i.test(text) && !/rate limit|quota|backend|unavailable|timeout|internal/i.test(text);
+}
+
+/**
  * Verifies an occurrence still exists and is a legitimate meeting destination.
  * @param {object} seriesRow Registry row.
  * @param {string} occurrenceId Calendar event id.
  * @param {Array<object>} registry Parsed registry rows.
  * @returns {object} Normalized, classified event.
- * @throws {Error} OCCURRENCE_NOT_FOUND / OCCURRENCE_NOT_DESTINATION (retryable false).
+ * @throws {Error} OCCURRENCE_NOT_FOUND (HTTP 404/410 only) / OCCURRENCE_NOT_IN_SERIES /
+ *   OCCURRENCE_NOT_DESTINATION (all retryable false). Any other Calendar failure (5xx, quota,
+ *   network) is rethrown unchanged and stays retryable.
  */
 function getOccurrence(seriesRow, occurrenceId, registry) {
   requireCalendar_();
@@ -179,6 +191,7 @@ function getOccurrence(seriesRow, occurrenceId, registry) {
   try {
     raw = Calendar.Events.get(seriesRow.CalendarId || 'primary', occurrenceId, { fields: 'id,summary,status,start,end,eventType,transparency,recurringEventId,htmlLink,hangoutLink,extendedProperties(shared)' });
   } catch (err) {
+    if (!isNotFound_(err)) throw err;
     var nf = new Error('Calendar occurrence not found');
     nf.code = 'OCCURRENCE_NOT_FOUND';
     nf.retryable = false;
@@ -189,6 +202,14 @@ function getOccurrence(seriesRow, occurrenceId, registry) {
   var c = DPEngines.classifyEventDetailed(evt, registry);
   evt.type = c.type;
   evt.importable = c.importable;
+  // The id is client supplied: it must belong to the requested series (recurringEventId, else title match).
+  var owned = DPEngines.resolveSeries([seriesRow], [evt]);
+  if (!owned.length || !owned[0].events.length) {
+    var foreign = new Error('Calendar event does not belong to the requested meeting series');
+    foreign.code = 'OCCURRENCE_NOT_IN_SERIES';
+    foreign.retryable = false;
+    throw foreign;
+  }
   if (!isDestination_(evt)) {
     var bad = new Error('Calendar event is not a meeting destination');
     bad.code = 'OCCURRENCE_NOT_DESTINATION';

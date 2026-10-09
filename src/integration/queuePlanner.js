@@ -5,9 +5,9 @@
  * independently (a malformed item or one whose thread vanished is quarantined as an ERROR ledger
  * row with a sanitized message while the rest proceed), and returns the cursor to resume from.
  */
-import { beginOp, failOp, sanitizeError } from './ledger.js';
+import { beginOp, failOp, sanitizeError, ledgerAttemptsOf } from './ledger.js';
 
-function queuePlannerQuarantine(item, code, message, retryable, now) {
+function queuePlannerQuarantine(item, code, message, retryable, now, prior) {
   const valid = item && typeof item === 'object' && typeof item.opKey === 'string' && item.opKey !== ''
     && typeof item.threadId === 'string' && item.threadId !== '';
   const errorMessage = sanitizeError(message);
@@ -19,7 +19,9 @@ function queuePlannerQuarantine(item, code, message, retryable, now) {
       sourceId: item.threadId,
       action: item.action || 'QUEUE_ITEM'
     }, now);
-    ledgerRow = failOp(pending, now, { code, message: errorMessage });
+    const attempts = ledgerAttemptsOf(prior);
+    if (attempts > 0) pending.MetadataJson = JSON.stringify({ attempts });
+    ledgerRow = failOp(pending, now, { code, message: errorMessage, retryable });
   }
   return {
     opKey: valid ? item.opKey : null,
@@ -33,7 +35,7 @@ function queuePlannerQuarantine(item, code, message, retryable, now) {
 
 /**
  * Plans one bounded slice of the queue.
- * @param {{items:Array<object>, cursor:number, batchSize:number, lockHeld:boolean, flags:{GMAIL_ROUTER?:boolean}, clock:Function, isSourceAvailable?:Function}} a
+ * @param {{items:Array<object>, cursor:number, batchSize:number, lockHeld:boolean, flags:{GMAIL_ROUTER?:boolean}, clock:Function, isSourceAvailable?:Function, priorRow?:Function}} a priorRow(item) returns the item's existing ledger row (keeps the attempt counter across re-quarantines)
  * @returns {{action:'PROCESS'|'NOOP'|'REFUSED', reason:string, toProcess:Array<object>, quarantined:Array<object>, nextCursor:number, done:boolean}}
  */
 export function planBatch(a) {
@@ -56,7 +58,7 @@ export function planBatch(a) {
     const wellFormed = item && typeof item === 'object' && typeof item.opKey === 'string' && item.opKey !== ''
       && typeof item.threadId === 'string' && item.threadId !== '';
     if (!wellFormed) {
-      quarantined.push(queuePlannerQuarantine(item, 'MALFORMED_ITEM', 'Queue item is missing opKey or threadId', false, now));
+      quarantined.push(queuePlannerQuarantine(item, 'MALFORMED_ITEM', 'Queue item is missing opKey or threadId', false, now, null));
       continue;
     }
     let available = true;
@@ -64,12 +66,12 @@ export function planBatch(a) {
       try {
         available = a.isSourceAvailable(item);
       } catch (err) {
-        quarantined.push(queuePlannerQuarantine(item, 'SOURCE_CHECK_FAILED', err, true, now));
+        quarantined.push(queuePlannerQuarantine(item, 'SOURCE_CHECK_FAILED', err, true, now, a.priorRow ? a.priorRow(item) : null));
         continue;
       }
     }
     if (!available) {
-      quarantined.push(queuePlannerQuarantine(item, 'SOURCE_MISSING', 'Source thread no longer exists', false, now));
+      quarantined.push(queuePlannerQuarantine(item, 'SOURCE_MISSING', 'Source thread no longer exists', false, now, a.priorRow ? a.priorRow(item) : null));
       continue;
     }
     toProcess.push(item);

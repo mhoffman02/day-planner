@@ -139,23 +139,33 @@ function makeResult(r) {
 const AIGUARD_SENSITIVE_RE = /audit|procure|acquisition|(?:^|[^a-z])cor(?:[^a-z]|$)|foia/i;
 const AIGUARD_SENSITIVE_SIGNALS = new Set(['AUDIT', 'COR_PROCUREMENT', 'PROCUREMENT', 'FOIA', 'HR']);
 
-function aiguardLabelExcluded(label) {
-  const l = String(label).toLowerCase();
-  const listed = AI_EXCLUDED_LABELS.some((x) => {
-    const e = x.toLowerCase();
-    return e.endsWith('/') ? l.startsWith(e) : l === e || l.startsWith(e + '/');
+function aiguardListed(l, list) {
+  return list.some((x) => {
+    const e = String(x).toLowerCase().trim();
+    if (e === '') return false;
+    return e.endsWith('/') ? l.startsWith(e) : l === e || l.startsWith(`${e}/`);
   });
-  return listed || AIGUARD_SENSITIVE_RE.test(l);
+}
+
+// HR in any spelling: "HR", "_HR", "hr/Cases", "Work/HR/Cases" (a path segment equal to hr, leading underscores ignored).
+function aiguardIsHr(l) {
+  return l.split('/').some((seg) => seg.trim().replace(/^_+/, '') === 'hr');
+}
+
+function aiguardLabelExcluded(label, extra) {
+  const l = String(label).toLowerCase().trim();
+  return aiguardListed(l, AI_EXCLUDED_LABELS) || aiguardListed(l, extra) || aiguardIsHr(l) || AIGUARD_SENSITIVE_RE.test(l);
 }
 
 /**
- * @param {{labels:string[], seriesAiAllowed:(boolean|string), featureFlag:boolean, userSelected?:boolean, signals?:string[]}} options
+ * @param {{labels:string[], seriesAiAllowed:(boolean|string), featureFlag:boolean, userSelected?:boolean, signals?:string[], excludedLabels?:string[]}} options excludedLabels is the Config ExcludedAiLabels list (added to the built-in exclusions)
  * @returns {boolean} true only when every gate passes
  */
 function isAiAllowed(options) {
   if (!options || typeof options !== 'object') throw new Error('isAiAllowed: options object required');
   if (!Array.isArray(options.labels)) throw new Error('isAiAllowed: labels must be an array');
-  if (options.labels.some(aiguardLabelExcluded)) return false;
+  const extra = Array.isArray(options.excludedLabels) ? options.excludedLabels : [];
+  if (options.labels.some((l) => aiguardLabelExcluded(l, extra))) return false;
   if ((options.signals || []).some((s) => AIGUARD_SENSITIVE_SIGNALS.has(String(s).toUpperCase()))) return false;
   if (options.featureFlag !== true) return false;
   const series = typeof options.seriesAiAllowed === 'string' ? options.seriesAiAllowed.trim().toLowerCase() : options.seriesAiAllowed;
@@ -496,6 +506,12 @@ const LEDGER_DEFAULT_STALE_MINUTES = 15;
 const LEDGER_DEFAULT_ERROR_MAX = 200;
 const LEDGER_DEFAULT_ID_RUN = 20;
 const LEDGER_DEFAULT_LOCK_WAIT_MS = 5000;
+const LEDGER_MAX_ATTEMPTS = 5;
+const LEDGER_BACKOFF_BASE_MIN = 5;
+const LEDGER_BACKOFF_MAX_MIN = 240;
+const LEDGER_RECENT_WINDOW_DAYS = 14;
+// Errors that retrying cannot fix: only a manual retryFailedOperation re-runs them.
+const LEDGER_PERMANENT_CODES = Object.freeze(['SERIES_NOT_FOUND', 'OCCURRENCE_NOT_FOUND', 'SOURCE_MISSING']);
 
 function ledgerIso(now) {
   const d = now instanceof Date ? now : new Date(now);
@@ -516,6 +532,78 @@ function ledgerBlankRow() {
 
 function ledgerJson(metadata) {
   return metadata === undefined || metadata === null ? '' : JSON.stringify(metadata);
+}
+
+function ledgerParseMeta(row) {
+  try {
+    const parsed = JSON.parse((row && row.MetadataJson) || '{}');
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * @param {object|null} row Ledger row.
+ * @returns {number} Failed attempts recorded in the row's MetadataJson (0 when none).
+ */
+function ledgerAttemptsOf(row) {
+  return Number(ledgerParseMeta(row).attempts) || 0;
+}
+
+/**
+ * Minutes to wait before the next automatic retry after the nth failed attempt (5, 10, 20, ... capped).
+ * @param {number} attempts Failed attempts so far (>= 1).
+ * @returns {number}
+ */
+function retryBackoffMinutes(attempts) {
+  const n = Math.max(1, Number(attempts) || 1);
+  return Math.min(LEDGER_BACKOFF_BASE_MIN * 2 ** (n - 1), LEDGER_BACKOFF_MAX_MIN);
+}
+
+/**
+ * Whether the trigger loop may automatically re-run an ERROR row. Permanent errors (see
+ * LEDGER_PERMANENT_CODES, or retryable:false recorded in MetadataJson) never are; retryable ones
+ * back off exponentially and stop after the attempt cap. Manual retry ignores this decision.
+ * @param {object} row Ledger row.
+ * @param {Date|string|number} now
+ * @param {{maxAttempts?:number}} [opts]
+ * @returns {{retry:boolean, reason:'NOT_ERROR'|'PERMANENT'|'ATTEMPTS_EXHAUSTED'|'BACKOFF'|'OK'}}
+ */
+function retryDecision(row, now, opts = {}) {
+  if (!row || row.Status !== LEDGER_STATUS.ERROR) return { retry: true, reason: 'NOT_ERROR' };
+  const meta = ledgerParseMeta(row);
+  if (meta.retryable === false || LEDGER_PERMANENT_CODES.includes(row.ErrorCode)) return { retry: false, reason: 'PERMANENT' };
+  const max = opts.maxAttempts === undefined ? LEDGER_MAX_ATTEMPTS : opts.maxAttempts;
+  if ((Number(meta.attempts) || 0) >= max) return { retry: false, reason: 'ATTEMPTS_EXHAUSTED' };
+  const nowMs = new Date(ledgerIso(now)).getTime();
+  if (meta.nextRetryAt && nowMs < Date.parse(meta.nextRetryAt)) return { retry: false, reason: 'BACKOFF' };
+  return { retry: true, reason: 'OK' };
+}
+
+/**
+ * Finds a non-ERROR (PENDING or DONE) MEETING row for the same thread and series inside the recent
+ * window, so a retry after a crash reuses its occurrence instead of creating a second carry-in when
+ * the cutoff has rolled over to a later occurrence. Most recently updated row wins.
+ * @param {Array<object>} rows Ledger rows.
+ * @param {{threadId:string, seriesKey:string, now:Date|string|number, windowDays?:number}} q
+ * @returns {object|null}
+ */
+function findActiveMeetingRow(rows, q) {
+  const nowMs = new Date(ledgerIso(q.now)).getTime();
+  const windowMs = (q.windowDays === undefined ? LEDGER_RECENT_WINDOW_DAYS : q.windowDays) * 86400000;
+  const prefix = `GMAIL|${q.threadId}|MEETING|`;
+  let best = null;
+  for (const r of rows || []) {
+    if (!r || typeof r.OperationKey !== 'string' || !r.OperationKey.startsWith(prefix)) continue;
+    if (r.Status !== LEDGER_STATUS.PENDING && r.Status !== LEDGER_STATUS.DONE) continue;
+    const meta = ledgerParseMeta(r);
+    if (meta.seriesKey && meta.seriesKey !== q.seriesKey) continue;
+    const at = Date.parse(r.UpdatedAt || r.CreatedAt || '');
+    if (Number.isNaN(at) || nowMs - at > windowMs) continue;
+    if (!best || at > Date.parse(best.UpdatedAt || best.CreatedAt)) best = r;
+  }
+  return best;
 }
 
 /**
@@ -647,11 +735,20 @@ function completeOp(row, now, result = {}) {
 /** PENDING -> ERROR with sanitized message. */
 function failOp(row, now, error) {
   const code = error && typeof error === 'object' && error.code ? String(error.code) : 'ERROR';
-  return ledgerTransition(row, now, {
+  const failed = ledgerTransition(row, now, {
     Status: LEDGER_STATUS.ERROR,
     ErrorCode: sanitizeError(code, 40),
     ErrorMessage: sanitizeError(error)
   });
+  const meta = ledgerParseMeta(row);
+  const attempts = (Number(meta.attempts) || 0) + 1;
+  const permanent = (error && typeof error === 'object' && error.retryable === false) || LEDGER_PERMANENT_CODES.includes(code);
+  meta.attempts = attempts;
+  meta.retryable = !permanent;
+  if (permanent) delete meta.nextRetryAt;
+  else meta.nextRetryAt = new Date(new Date(ledgerIso(now)).getTime() + retryBackoffMinutes(attempts) * 60000).toISOString();
+  failed.MetadataJson = JSON.stringify(meta);
+  return failed;
 }
 
 /** PENDING -> DEFERRED */
@@ -700,6 +797,8 @@ function claimOperation(a) {
     }
     const fresh = beginOp(op, now);
     const row = existing && existing.CreatedAt ? { ...fresh, CreatedAt: existing.CreatedAt } : fresh;
+    const priorAttempts = Number(ledgerParseMeta(existing).attempts) || 0;
+    if (priorAttempts > 0) row.MetadataJson = JSON.stringify({ ...ledgerParseMeta(row), attempts: priorAttempts });
     if (op.deferReason) {
       const deferred = deferOp(row, now, op.deferReason);
       store.put(deferred);
@@ -1186,7 +1285,7 @@ function resolveSeries(registryRows, events) {
  */
 
 
-function queuePlannerQuarantine(item, code, message, retryable, now) {
+function queuePlannerQuarantine(item, code, message, retryable, now, prior) {
   const valid = item && typeof item === 'object' && typeof item.opKey === 'string' && item.opKey !== ''
     && typeof item.threadId === 'string' && item.threadId !== '';
   const errorMessage = sanitizeError(message);
@@ -1198,7 +1297,9 @@ function queuePlannerQuarantine(item, code, message, retryable, now) {
       sourceId: item.threadId,
       action: item.action || 'QUEUE_ITEM'
     }, now);
-    ledgerRow = failOp(pending, now, { code, message: errorMessage });
+    const attempts = ledgerAttemptsOf(prior);
+    if (attempts > 0) pending.MetadataJson = JSON.stringify({ attempts });
+    ledgerRow = failOp(pending, now, { code, message: errorMessage, retryable });
   }
   return {
     opKey: valid ? item.opKey : null,
@@ -1212,7 +1313,7 @@ function queuePlannerQuarantine(item, code, message, retryable, now) {
 
 /**
  * Plans one bounded slice of the queue.
- * @param {{items:Array<object>, cursor:number, batchSize:number, lockHeld:boolean, flags:{GMAIL_ROUTER?:boolean}, clock:Function, isSourceAvailable?:Function}} a
+ * @param {{items:Array<object>, cursor:number, batchSize:number, lockHeld:boolean, flags:{GMAIL_ROUTER?:boolean}, clock:Function, isSourceAvailable?:Function, priorRow?:Function}} a priorRow(item) returns the item's existing ledger row (keeps the attempt counter across re-quarantines)
  * @returns {{action:'PROCESS'|'NOOP'|'REFUSED', reason:string, toProcess:Array<object>, quarantined:Array<object>, nextCursor:number, done:boolean}}
  */
 function planBatch(a) {
@@ -1235,7 +1336,7 @@ function planBatch(a) {
     const wellFormed = item && typeof item === 'object' && typeof item.opKey === 'string' && item.opKey !== ''
       && typeof item.threadId === 'string' && item.threadId !== '';
     if (!wellFormed) {
-      quarantined.push(queuePlannerQuarantine(item, 'MALFORMED_ITEM', 'Queue item is missing opKey or threadId', false, now));
+      quarantined.push(queuePlannerQuarantine(item, 'MALFORMED_ITEM', 'Queue item is missing opKey or threadId', false, now, null));
       continue;
     }
     let available = true;
@@ -1243,12 +1344,12 @@ function planBatch(a) {
       try {
         available = a.isSourceAvailable(item);
       } catch (err) {
-        quarantined.push(queuePlannerQuarantine(item, 'SOURCE_CHECK_FAILED', err, true, now));
+        quarantined.push(queuePlannerQuarantine(item, 'SOURCE_CHECK_FAILED', err, true, now, a.priorRow ? a.priorRow(item) : null));
         continue;
       }
     }
     if (!available) {
-      quarantined.push(queuePlannerQuarantine(item, 'SOURCE_MISSING', 'Source thread no longer exists', false, now));
+      quarantined.push(queuePlannerQuarantine(item, 'SOURCE_MISSING', 'Source thread no longer exists', false, now, a.priorRow ? a.priorRow(item) : null));
       continue;
     }
     toProcess.push(item);
@@ -1499,11 +1600,26 @@ function taskPlannerReadMeta(notes) {
   }
 }
 
+/**
+ * Serializes dp-meta so no value can terminate the HTML comment early: after JSON.stringify,
+ * "<" and ">" (and the U+2028/2029 line separators, which "." in the reader regex does not match)
+ * are written as unicode escapes. JSON.parse reads them back unchanged.
+ * @param {object} meta
+ * @returns {string}
+ */
+function taskPlannerEncodeMeta(meta) {
+  return JSON.stringify(meta)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
+}
+
 function taskPlannerBuildNotes(thread, now, meta, tag) {
   const url = taskPlannerRequire(thread && thread.url, 'thread.url');
   const lines = [`Gmail: ${url}`, `Created: ${now.toISOString()}`];
   if (tag) lines.push('', tag);
-  lines.push(`<!--dp-meta:${JSON.stringify(meta)}-->`);
+  lines.push(`<!--dp-meta:${taskPlannerEncodeMeta(meta)}-->`);
   return lines.join('\n');
 }
 
@@ -1828,6 +1944,10 @@ global.DPEngines = Object.freeze({
   extractExternalTicketKey: extractExternalTicketKey,
   parseGeminiNotes: parseGeminiNotes,
   MeetingNotesProvider: MeetingNotesProvider,
+  ledgerAttemptsOf: ledgerAttemptsOf,
+  retryBackoffMinutes: retryBackoffMinutes,
+  retryDecision: retryDecision,
+  findActiveMeetingRow: findActiveMeetingRow,
   maskId: maskId,
   sanitizeError: sanitizeError,
   dryRunMessage: dryRunMessage,

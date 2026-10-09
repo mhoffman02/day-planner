@@ -22,6 +22,8 @@ var HUB_OPKEY_RE_ = /^[A-Za-z0-9_.~|-]{1,300}$/;
 var HUB_UPCOMING_COUNT_ = 5;
 var HUB_TRIAGE_LABELS_ = ['00_AR', 'FYI_Candidate', 'VIP'];
 var HUB_LAST_RUN_PROP_ = 'HUB_LAST_RUN';
+var HUB_LAST_RUN_DRY_PROP_ = 'HUB_LAST_RUN_DRY';
+var HUB_COUNT_ONLY_LIMIT_ = 20;
 var HUB_TRIGGER_HANDLER_ = 'hubDispatch';
 // Stable client keys for the four triage queues (DPEngines.TRIAGE_QUEUE values are display names).
 var HUB_QUEUE_KEYS_ = { 'Direct Action': 'directAction', 'Meeting Carry-ins': 'meetingCarryIns', 'System Exceptions': 'systemExceptions', 'FYI/Reading': 'fyiReading' };
@@ -48,14 +50,15 @@ function failFrom_(err) {
 /**
  * Dependency + flag preflight shared by every RPC.
  * @param {string[]} needed Feature flags that must all be true.
+ * @param {{fresh?:boolean}} [opts] fresh re-reads the Config tab when the hub Sheet already exists.
  * @returns {{failure:(object|null), features:(object|null)}} Either a failed result or the flags.
  */
-function preflight_(needed) {
+function preflight_(needed, opts) {
   if (typeof DPEngines === 'undefined') return { failure: { ok: false, status: 'ERROR', errorCode: 'SETUP_ERROR', message: 'DPEngines is not loaded' }, features: null };
   if (typeof DPQueue === 'undefined') return { failure: fail_('SETUP_ERROR', 'QueueProcessor is not loaded'), features: null };
   var missing = DPQueue.missingDependency();
   if (missing) return { failure: DPQueue.setupResult('Missing dependency ' + missing), features: null };
-  var features = DPQueue.getFeatures();
+  var features = DPQueue.getFeatures(opts);
   for (var i = 0; i < needed.length; i++) {
     if (features[needed[i]] !== true) return { failure: fail_('FLAG_OFF', needed[i] + ' flag is off', true), features: features };
   }
@@ -349,7 +352,9 @@ function getTriageBoard(filters) {
   var pre = preflight_(['GMAIL_ROUTER', 'TRIAGE_BOARD']);
   if (pre.failure) return pre.failure;
   var f = opts_(filters);
-  var limit = Math.min(Math.max(parseInt(f.limit, 10) || HUB_TRIAGE_LIMIT_DEFAULT_, 1), HUB_TRIAGE_LIMIT_MAX_);
+  // countOnly (TRIAGE_REFRESH job): metadata-format reads and a smaller cap, since only queue sizes are wanted.
+  var countOnly = f.countOnly === true;
+  var limit = Math.min(Math.max(parseInt(f.limit, 10) || HUB_TRIAGE_LIMIT_DEFAULT_, 1), countOnly ? HUB_COUNT_ONLY_LIMIT_ : HUB_TRIAGE_LIMIT_MAX_);
   var labels = HUB_TRIAGE_LABELS_.concat([DPEngines.WORKFLOW_LABEL.REVIEW, DPEngines.WORKFLOW_LABEL.MEETING, DPEngines.WORKFLOW_LABEL.READ]);
   if (Array.isArray(f.labels) && f.labels.length && f.labels.length <= 10 && f.labels.every(function(l) { return typeof l === 'string' && l.length <= 100; })) labels = f.labels;
   try {
@@ -374,7 +379,7 @@ function getTriageBoard(filters) {
     ids.forEach(function(id) {
       if (dismissed[id] && f.includeDismissed !== true) return;
       try {
-        var t = DPGmailRepo.getThreadMeta(id, { withBody: true });
+        var t = DPGmailRepo.getThreadMeta(id, { withBody: !countOnly });
         var scored = E.scoreThread({ labels: t.labels, userEmail: t.userEmail, messages: t.messages.map(function(m) {
           return { from: m.from, to: m.to, cc: m.cc, date: m.date, bodyText: m.bodyText, isFromUser: m.isFromUser };
         }) });
@@ -425,13 +430,21 @@ function discoverMeetingSeries() {
  * @returns {object} {ok, flags, dryRun, lastRun, counts, triggers, message}.
  */
 function getHubStatus() {
-  var pre = preflight_([]);
+  var pre = preflight_([], { fresh: true });
   if (pre.failure) return pre.failure;
   try {
+    // This runs on app load: with the hub unprovisioned or every flag OFF it must not touch Drive/Sheets.
     var counts = {};
-    DPLedgerRepo.list({ sourceType: 'GMAIL' }).forEach(function(r) { counts[r.Status] = (counts[r.Status] || 0) + 1; });
+    var anyOn = Object.keys(pre.features).some(function(k) { return k !== 'DRY_RUN' && pre.features[k] === true; });
+    if (anyOn && DPConfig.isProvisioned()) {
+      DPLedgerRepo.list({ sourceType: 'GMAIL' }).forEach(function(r) { counts[r.Status] = (counts[r.Status] || 0) + 1; });
+    }
+    var props = PropertiesService.getUserProperties();
     var lastRun = null;
-    try { lastRun = JSON.parse(PropertiesService.getUserProperties().getProperty(HUB_LAST_RUN_PROP_) || 'null'); } catch { lastRun = null; }
+    var lastDry = null;
+    try { lastRun = JSON.parse(props.getProperty(HUB_LAST_RUN_PROP_) || 'null'); } catch { lastRun = null; }
+    try { lastDry = JSON.parse(props.getProperty(HUB_LAST_RUN_DRY_PROP_) || 'null'); } catch { lastDry = null; }
+    if (lastDry && (!lastRun || String(lastDry.at) > String(lastRun.at))) lastRun = lastDry;
     var triggers = ScriptApp.getProjectTriggers().filter(function(t) { return t.getHandlerFunction() === HUB_TRIGGER_HANDLER_; }).length;
     return DPEngines.makeResult({ ok: true, status: 'OK', message: 'Hub status', flags: pre.features, dryRun: pre.features.DRY_RUN === true, lastRun: lastRun, counts: counts, triggers: triggers });
   } catch (err) {

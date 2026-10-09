@@ -33,7 +33,7 @@ test('(a) ensureSetup twice creates exactly one Sheet and seeds the registry onc
   assert.equal(id1, id2);
   assert.equal(ctx.__fakes.driveFiles.filter((f) => f.mimeType.endsWith('spreadsheet')).length, 1);
   const tabs = ctx.__fakes.sheets[id1].tabs.map((t) => t.title);
-  assert.deepEqual(toHost(tabs), ['Config', 'Meeting Registry', 'Integration Ledger', 'Triage Dismissals']);
+  assert.deepEqual(toHost(tabs), ['Config', 'Meeting Registry', 'Integration Ledger', 'Integration Ledger Archive']);
   const reg = ctx.__fakes.sheets[id1].tabs[1].rows;
   assert.equal(reg.length, 1 + ctx.DPEngines.DEFAULT_SERIES.length);
   const registry = ctx.DPConfig.getRegistry();

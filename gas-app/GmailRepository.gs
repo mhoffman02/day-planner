@@ -16,7 +16,8 @@
 (function(global) {
 
 var GMAIL_ME_ = 'me';
-var GMAIL_URL_BASE_ = 'https://mail.google.com/mail/u/0/#all/';
+// Account-agnostic permalink (no /u/0/ account index): Gmail resolves it in whichever signed-in account owns the thread.
+var GMAIL_URL_BASE_ = 'https://mail.google.com/mail/#all/';
 var GMAIL_THREAD_ID_RE_ = /^[A-Za-z0-9_-]{1,64}$/;
 var GMAIL_BODY_CAP_ = 4000;
 var GMAIL_META_HEADERS_ = ['From', 'To', 'Cc', 'Subject', 'Date'];
@@ -116,6 +117,16 @@ function header_(headers, name) {
 }
 
 /**
+ * @param {number|string} value Epoch ms or a date string.
+ * @returns {string} ISO instant, or '' when the value is missing or unparseable.
+ */
+function isoOrEmpty_(value) {
+  if (value === '' || value === undefined || value === null) return '';
+  var d = new Date(value);
+  return isNaN(d.getTime()) ? '' : d.toISOString();
+}
+
+/**
  * @param {string} list Comma separated address list header.
  * @returns {string[]} Individual address strings.
  */
@@ -203,7 +214,8 @@ function getThreadMeta(threadId, opts) {
     var h = (m.payload && m.payload.headers) || [];
     var from = header_(h, 'From');
     var dateHeader = header_(h, 'Date');
-    var dateIso = m.internalDate ? new Date(Number(m.internalDate)).toISOString() : (dateHeader ? new Date(dateHeader).toISOString() : '');
+    // internalDate first, the Date header as fallback; an unparseable value yields '' instead of throwing for the whole thread.
+    var dateIso = isoOrEmpty_(m.internalDate ? Number(m.internalDate) : NaN) || isoOrEmpty_(dateHeader);
     return {
       id: m.id,
       from: from,

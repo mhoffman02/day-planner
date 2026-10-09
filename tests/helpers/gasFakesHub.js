@@ -41,6 +41,7 @@ function installClock(ctx, iso) {
 }
 
 function makeLocks() {
+  const mk = () => {
   const state = { holder: null, nextId: 1 };
   const handle = () => {
     const id = state.nextId;
@@ -52,7 +53,11 @@ function makeLocks() {
       releaseLock() { if (state.holder === id) state.holder = null; }
     };
   };
-  return { state, getScriptLock: handle, getUserLock: handle };
+  return { state, handle };
+  };
+  const script = mk();
+  const user = mk();
+  return { state: script.state, userState: user.state, getScriptLock: script.handle, getUserLock: user.handle };
 }
 
 function makeGmail(h) {
@@ -160,6 +165,8 @@ function makeLedger(ctx, h) {
   const assertLocked = () => { if (ctx.LockService.state.holder === null) throw new Error('LEDGER_WITHOUT_LOCK: caller must hold the lock'); };
   const stamp = () => new Date().toISOString();
   return {
+    beginSession() {},
+    endSession() {},
     get(opKey) { const r = h.ledger.rows.get(opKey); return r ? { ...r } : null; },
     upsert(row) {
       assertLocked();
@@ -232,15 +239,34 @@ export function makeHubContext(o = {}) {
   ctx.Utilities.newBlob = (bytes) => ({ getDataAsString: () => Buffer.from(bytes).toString('utf8') });
   const engines = loadEngines(ctx);
   h.config.registry = seedRegistry(engines);
-  ctx.DPConfig = {
-    getFeatures: () => ({ ...engines.DEFAULT_FEATURES, ...h.config.features }),
-    getConfig: () => ({ TimeZone: TZ, UserEmail: 'me@example.test', TasksListId: 'LIST1', BatchSize: h.config.batchSize, TriggerMinutes: h.config.triggerMinutes || 10, MaxExcerptChars: 160, features: { ...engines.DEFAULT_FEATURES, ...h.config.features } }),
-    getRegistry: () => h.config.registry,
-    getSheetId: () => 'sheet1',
-    getSheetUrl: () => 'https://example.invalid/sheet'
-  };
-  ctx.DPLedgerRepo = makeLedger(ctx, h);
+  if (o.realStores) {
+    // Real Config.gs + LedgerRepository.gs on the Sheets fake (quota / first-run tests).
+    loadGasFile(ctx, 'Config.gs');
+    loadGasFile(ctx, 'LedgerRepository.gs');
+    ctx.PropertiesService.getUserProperties().setProperty('DAY_PLANNER_ROOT_FOLDER_ID', 'FOLDER1');
+    if (o.realStores === 'cold') return finishLoad(ctx, o); // first-run state: nothing provisioned yet
+    const sheetId = ctx.DPConfig.ensureSetup();
+    if (o.batchSize) ctx.__fakes.sheets[sheetId].tabs[0].rows.find((r) => r[0] === 'BatchSize')[1] = String(o.batchSize);
+    Object.keys(h.config.features).forEach((k) => ctx.DPConfig.setFeature(k, h.config.features[k]));
+    h.config.registry = ctx.DPConfig.getRegistry();
+  } else {
+    ctx.DPConfig = {
+      getFeatures: () => ({ ...engines.DEFAULT_FEATURES, ...h.config.features }),
+      getConfig: () => ({ TimeZone: TZ, UserEmail: 'me@example.test', TasksListId: 'LIST1', BatchSize: h.config.batchSize, TriggerMinutes: h.config.triggerMinutes || 10, MaxExcerptChars: 160, features: { ...engines.DEFAULT_FEATURES, ...h.config.features } }),
+      getRegistry: () => h.config.registry,
+      getSheetId: () => 'sheet1',
+      isProvisioned: () => true,
+      getSheetUrl: () => 'https://example.invalid/sheet'
+    };
+    ctx.DPLedgerRepo = makeLedger(ctx, h);
+  }
   ctx.DPNotesRepo = makeNotes(ctx, h);
+  return finishLoad(ctx, o);
+}
+
+function finishLoad(ctx, o) {
+  const h = ctx.__hub;
+  if (!ctx.DPNotesRepo) ctx.DPNotesRepo = makeNotes(ctx, h);
   if (o.load !== false) for (const f of HUB_FILES) loadGasFile(ctx, f);
   return ctx;
 }

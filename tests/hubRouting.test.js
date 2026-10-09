@@ -21,7 +21,7 @@ test('(a) a 🎯/Task thread yields exactly one Task; rerun creates zero more', 
   assert.equal(ctx.__hub.tasks.items.length, 1);
   const task = ctx.__hub.tasks.items[0];
   assert.match(task.title, /Review the SOW/);
-  assert.match(task.notes, /Gmail: https:\/\/mail\.google\.com\/mail\/u\/0\/#all\/t1/);
+  assert.match(task.notes, /Gmail: https:\/\/mail\.google\.com\/mail\/#all\/t1/);
   assert.equal(ctx.__hub.tasks.lastList, 'LIST1');
   assert.equal(ctx.__hub.ledger.rows.get(keyTask).Status, 'DONE');
   run(ctx);
@@ -65,6 +65,7 @@ test('(c) crash after Task create but before ledger DONE: retry creates no dupli
   assert.equal(r1.counts.errors, 1);
   assert.equal(ctx.__hub.tasks.items.length, 1);
   ctx.__hub.ledger.failUpsert = null;
+  ctx.__setNow('2026-10-05T22:06:00Z'); // past the 5 minute retry backoff recorded on the ERROR row
   run(ctx);
   assert.equal(ctx.__hub.tasks.items.length, 1);
   assert.equal(ctx.__hub.ledger.rows.get(keyTask).Status, 'DONE');

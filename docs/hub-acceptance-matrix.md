@@ -17,7 +17,7 @@ UNCOVERED = deliberately not built or not testable offline (reason given).
 |---|---|---|
 | Applying `🎯/Task` creates exactly one Task | COVERED | hubRouting: "(a) a 🎯/Task thread yields exactly one Task; rerun creates zero more"; "(a) Tasks beyond the first page and completed Tasks are searched before any create" |
 | A label that stays on a ledgered thread does not duplicate | COVERED | hubRouting: "(a) ... rerun creates zero more"; ledger: "(a) duplicate routing returns SKIP_DONE and creates nothing" |
-| Task includes a valid Gmail link | COVERED | hubRouting "(a) ..." asserts `Gmail: https://mail.google.com/mail/u/0/#all/<id>` in notes; taskPlanner: "notes carry Gmail URL, creation timestamp and dp-meta op-key marker" |
+| Task includes a valid Gmail link | COVERED | hubRouting "(a) ..." asserts `Gmail: https://mail.google.com/mail/#all/<id>` in notes; taskPlanner: "notes carry Gmail URL, creation timestamp and dp-meta op-key marker" |
 | Ledger `DONE` (spec: PROCESSED) after success | COVERED | hubRouting "(a) ..." (row `Status === 'DONE'`); ledger: "transitions PENDING->DONE\|ERROR\|DEFERRED and reject illegal ones"; hubLedgerRepo: "(e) upsert same OperationKey twice => one row..." |
 | Ledger `ERROR` after failure | COVERED | hubRouting: "(d) failed item: sanitized ERROR row, rest of batch processed, retryFailedOperation succeeds later"; ledger: "(f) recoverable failure -> ERROR row then retry succeeds" |
 | A failed item can be retried | COVERED | hubRouting "(d) failed item ..."; "(d) a thread deleted after queueing is quarantined as ERROR..."; hubRouting: "(h) a doc write that is inaccessible quarantines as ERROR and retry succeeds once fixed"; hubContractParity: "(b) mock/real server outputs satisfy the shared shape checker" (retry failure shape). UI Retry button: live step L6 |
@@ -108,3 +108,20 @@ L8 timeout/trigger behavior, L9 WORK scope approval, L10 Gemini sample (deferred
   parser only by scope decision; flags OFF.
 - No other section 21 or 22 item is uncovered. PARTIAL items need a live check for the real Google
   service behavior the fakes cannot prove.
+
+## Adversarial review fixes (findings 2-6, 8-14), all in tests/hubReviewFixes.test.js
+
+| Finding | Status | Evidence |
+| :--- | :--- | :--- |
+| 2 Flags OFF is a no-op; race-safe first run | COVERED | "#2 flags OFF ... no Sheet", "#2 setFeature persists a cheap flag cache", "#2 ensureSetup is serialized", "#2 ensureSetup re-checks the stored id" |
+| 3 `-->` in dp-meta values | COVERED | "#3 taskPlanner ...", "#3 Code.gs encodeTaskMeta ..." |
+| 4 Permanent errors / backoff / attempt cap | COVERED | "#4 pure ...", "#4 queue: a permanent failure ...", "#4 queue: retryable errors back off ..." |
+| 5 Ledger/Tasks reads per run, elapsed-time guard | COVERED | "#5 a 25-item batch ...", "#5 elapsed-time guard ..." |
+| 6 getOccurrence ownership and 404-only mapping | COVERED | "#6 getOccurrence rejects ...", "#6 getOccurrence maps only HTTP 404 ..." |
+| 8 Carry-in idempotency across cutoff rollover | COVERED | "#8 crash after the Doc write then cutoff rollover ..." |
+| 9 TimeZone seeded from Calendar | COVERED | "#9 TimeZone seed ..." |
+| 10 aiGuard HR labels and ExcludedAiLabels | COVERED | "#10 aiGuard excludes HR labels ..." (config key is passed as `excludedLabels`; no production call site feeds an AI provider yet) |
+| 11 Invalid Date header; account-agnostic Gmail URL | COVERED | "#11 ..." (both) |
+| 12 LOCK_BUSY / TRIAGE_REFRESH | COVERED | "#12 LOCK_BUSY ...", "#12 TRIAGE_REFRESH ..." |
+| 13 DRY_RUN last-run property | COVERED | "#13 DRY_RUN writes only HUB_LAST_RUN_DRY ..." |
+| 14 Ledger archive on LEDGER_FULL; no Triage Dismissals tab | COVERED | "#14 LEDGER_FULL archives ...", "#14 ... nothing archivable ...", "#14 seeded Sheet ..." |

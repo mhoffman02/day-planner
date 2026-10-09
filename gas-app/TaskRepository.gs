@@ -16,6 +16,7 @@ var TASKS_PAGE_SIZE_ = 100;
 var TASKS_MAX_PAGES_ = 50;
 var TASKS_DEFAULT_LIST_ = '@default';
 var WAITING_TAG_RE_ = /\[Waiting\]/;
+var run_ = null;
 
 /**
  * @param {string} [listId] Tasks list id from config.
@@ -48,12 +49,35 @@ function listAllTasks(listId) {
 }
 
 /**
+ * Starts a queue run: the Tasks list is read ONCE (lazily, at the first lookup) and reused for every
+ * op-key check in the run; Tasks created during the run are added to the cache. The caller holds
+ * the script lock and MUST call endRun() in a finally block.
+ * @param {string} [listId] Tasks list id.
+ */
+function beginRun(listId) {
+  run_ = { listId: listId_(listId), tasks: null };
+}
+
+/** Ends the run opened by beginRun (safe when none is open). */
+function endRun() {
+  run_ = null;
+}
+
+function existingTasks_(listId) {
+  if (run_ && run_.listId === listId_(listId)) {
+    if (!run_.tasks) run_.tasks = listAllTasks(listId);
+    return run_.tasks;
+  }
+  return listAllTasks(listId);
+}
+
+/**
  * @param {string} opKey Operation key.
  * @param {string} [listId] Tasks list id.
  * @returns {object|null} The Task previously created for the key, or null.
  */
 function findExistingByOpKey(opKey, listId) {
-  return DPEngines.findExistingByOpKey(listAllTasks(listId), opKey);
+  return DPEngines.findExistingByOpKey(existingTasks_(listId), opKey);
 }
 
 /**
@@ -65,6 +89,7 @@ function findExistingByOpKey(opKey, listId) {
 function createFromPlan_(plan, listId) {
   if (plan.action === 'EXISTS') return { created: false, task: plan.task };
   var task = Tasks.Tasks.insert(plan.task, listId_(listId));
+  if (run_ && run_.tasks && run_.listId === listId_(listId)) run_.tasks.push(task);
   return { created: true, task: task };
 }
 
@@ -78,7 +103,7 @@ function createFromThread(a) {
     thread: { threadId: a.thread.threadId, subject: a.thread.subject, url: a.thread.url },
     today: !!a.today,
     priority: a.priority,
-    existingTasks: listAllTasks(a.listId),
+    existingTasks: existingTasks_(a.listId),
     opKey: a.opKey,
     now: a.now,
     timeZone: a.timeZone
@@ -97,7 +122,7 @@ function createWaiting(a) {
     waitingOn: a.waitingOn,
     nagDate: a.nagDate,
     priority: a.priority,
-    existingTasks: listAllTasks(a.listId),
+    existingTasks: existingTasks_(a.listId),
     opKey: a.opKey,
     now: a.now
   });
@@ -129,6 +154,8 @@ function taskUrl(task) {
 
 global.DPTaskRepo = Object.freeze({
   listAllTasks: listAllTasks,
+  beginRun: beginRun,
+  endRun: endRun,
   findExistingByOpKey: findExistingByOpKey,
   createFromThread: createFromThread,
   createWaiting: createWaiting,
