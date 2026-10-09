@@ -405,7 +405,7 @@ const DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mho
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const DAY_PLANNER_BUILD_NUMBER = 409;
+const DAY_PLANNER_BUILD_NUMBER = 410;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -585,8 +585,8 @@ function getValidatedRootFolder() {
           if (owner && owner.getEmail() && userEmail) {
             isOwner = (owner.getEmail().toLowerCase() === userEmail.toLowerCase());
           }
-        } catch {
-          // In some restricted environments getOwner() may throw; proceed safely
+        } catch (e) {
+          console.error('Folder owner check failed, treating as non-owner: ' + e.message);
         }
         if (isOwner) {
           userProps.setProperty('DAY_PLANNER_ROOT_FOLDER_ID', folder.getId());
@@ -918,8 +918,8 @@ function decodeTaskMeta(notes) {
     try {
       const parsed = JSON.parse(match[1]);
       if (parsed && typeof parsed === 'object') Object.assign(meta, parsed);
-    } catch {
-      // Fall through to human tag parsing
+    } catch (e) {
+      console.error('Corrupt dp-meta JSON in task notes, falling back to human tags: ' + e.message);
     }
   }
   const catMatch = notes.match(/\[Category:\s*([^\]]+)\]/i);
@@ -1004,8 +1004,8 @@ function extractMeetLinkFromEvent_(evt) {
     try {
       const hl = evt.getHangoutLink();
       if (hl && typeof hl === 'string') link = hl.trim();
-    } catch {
-      // getHangoutLink may throw if unsupported on specific event type
+    } catch (e) {
+      console.error('getHangoutLink failed for this event type: ' + e.message);
     }
   }
   if (!link && evt.conferenceData && evt.conferenceData.entryPoints) {
@@ -1732,7 +1732,8 @@ function resolveDriveFileTitle(url) {
       let item = null;
       try {
         item = Drive.Files.get(fileId, { supportsAllDrives: true });
-      } catch {
+      } catch (e) {
+        console.error('Drive.Files.get with supportsAllDrives failed, retrying plain: ' + e.message);
         item = Drive.Files.get(fileId);
       }
       if (item && (item.title || item.name)) {
