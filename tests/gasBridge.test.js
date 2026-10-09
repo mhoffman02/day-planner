@@ -303,7 +303,7 @@ describe('GAS Bridge Unit Tests', () => {
       QUEUES.forEach((q) => {
         assert.ok(Array.isArray(board.queues[q]) && board.queues[q].length > 0, q);
         const it0 = board.queues[q][0];
-        ['threadId', 'subject', 'from', 'date', 'score', 'signals', 'labels', 'suggestedDestinations', 'gmailUrl'].forEach((k) => assert.ok(k in it0, `${q}.${k}`));
+        ['threadId', 'subject', 'fromName', 'date', 'score', 'signals', 'labels', 'suggestions', 'url'].forEach((k) => assert.ok(k in it0, `${q}.${k}`));
         assert.ok('ledgerStatus' in it0);
       });
       const statuses = new Set(QUEUES.flatMap((q) => board.queues[q].map((t) => t.ledgerStatus)));
@@ -312,10 +312,12 @@ describe('GAS Bridge Unit Tests', () => {
 
     it('getUpcomingMeetingChoices returns recommended, choices, backlogSeriesKey', async () => {
       const c = await new GASBridge(true).getUpcomingMeetingChoices('t-2001');
-      assert.ok(c.recommended.occurrenceId && c.recommended.start && c.recommended.reason);
-      assert.ok(c.choices.length >= 2 && c.choices.every((x) => x.occurrenceId && x.start && x.label));
-      assert.ok(c.choices.some((x) => x.occurrenceId === c.recommended.occurrenceId));
-      assert.equal(c.backlogSeriesKey, 'NCMMS_CORE');
+      assert.equal(c.ok, true);
+      const dest = c.choices[0];
+      assert.equal(dest.seriesKey, 'NCMMS_CORE');
+      assert.ok(dest.recommended.occurrenceId && dest.recommended.reason);
+      assert.ok(dest.upcoming.length >= 2 && dest.upcoming.every((x) => x.occurrenceId && x.start && x.cutoffISO));
+      assert.ok(dest.upcoming.some((x) => x.occurrenceId === dest.recommended.occurrenceId));
     });
 
     it('routeThreadToTask is idempotent: one mock task, ledger DONE', async () => {
@@ -337,8 +339,8 @@ describe('GAS Bridge Unit Tests', () => {
       await bridge.routeThreadToWaiting('t-1002', { waitingOn: 'Priya', nagDate: '2026-10-20' });
       assert.equal(bridge.hub.waiting.length, 1);
       const before = bridge.hub.carryIns.length;
-      const m1 = await bridge.routeThreadToMeeting('t-2001', 'NCMMS_CORE-occ-1', { framing: 'Decision needed' });
-      const m2 = await bridge.routeThreadToMeeting('t-2001', 'NCMMS_CORE-occ-1', { framing: 'Decision needed' });
+      const m1 = await bridge.routeThreadToMeeting('t-2001', 'NCMMS_CORE-occ-1', { framing: 'Decision needed', seriesKey: 'NCMMS_CORE' });
+      const m2 = await bridge.routeThreadToMeeting('t-2001', 'NCMMS_CORE-occ-1', { framing: 'Decision needed', seriesKey: 'NCMMS_CORE' });
       assert.equal(m1.ok && m2.ok, true);
       assert.equal(bridge.hub.carryIns.length, before + 1);
     });
@@ -360,7 +362,7 @@ describe('GAS Bridge Unit Tests', () => {
       assert.ok(!board.queues.fyiReading.some((t) => t.threadId === 't-4001'));
       const bad = await bridge.dismissTriageItem('nope');
       assert.equal(bad.ok, false);
-      assert.equal(bad.errorCode, 'NOT_FOUND');
+      assert.equal(bad.errorCode, 'THREAD_NOT_FOUND');
     });
 
     it('retryFailedOperation recovers an ERROR row, rejects non-errors', async () => {
@@ -377,9 +379,9 @@ describe('GAS Bridge Unit Tests', () => {
     it('getMeetingPrep returns the contract shape and reflects routed carry-ins', async () => {
       const bridge = new GASBridge(true);
       const p0 = await bridge.getMeetingPrep('NCMMS_CORE', 'NCMMS_CORE-occ-1');
-      ['title', 'start', 'cutoff', 'carryIns', 'carryInCount', 'agenda', 'notesDocUrl', 'status'].forEach((k) => assert.ok(k in p0, k));
-      assert.equal(p0.carryInCount, p0.carryIns.length);
-      await bridge.routeThreadToMeeting('t-2003', 'NCMMS_CORE-occ-1', {});
+      ['series', 'occurrence', 'upcoming', 'carryInCount', 'notesDocUrl', 'warning'].forEach((k) => assert.ok(k in p0, k));
+      assert.equal(p0.occurrence.occurrenceId, 'NCMMS_CORE-occ-1');
+      await bridge.routeThreadToMeeting('t-2003', 'NCMMS_CORE-occ-1', { seriesKey: 'NCMMS_CORE' });
       const p1 = await bridge.getMeetingPrep('NCMMS_CORE', 'NCMMS_CORE-occ-1');
       assert.equal(p1.carryInCount, p0.carryInCount + 1);
     });

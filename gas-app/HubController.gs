@@ -23,6 +23,8 @@ var HUB_UPCOMING_COUNT_ = 5;
 var HUB_TRIAGE_LABELS_ = ['00_AR', 'FYI_Candidate', 'VIP'];
 var HUB_LAST_RUN_PROP_ = 'HUB_LAST_RUN';
 var HUB_TRIGGER_HANDLER_ = 'hubDispatch';
+// Stable client keys for the four triage queues (DPEngines.TRIAGE_QUEUE values are display names).
+var HUB_QUEUE_KEYS_ = { 'Direct Action': 'directAction', 'Meeting Carry-ins': 'meetingCarryIns', 'System Exceptions': 'systemExceptions', 'FYI/Reading': 'fyiReading' };
 
 /**
  * @param {string} code Error code.
@@ -367,7 +369,7 @@ function getTriageBoard(filters) {
       if (!cur || (r.Status === E.LEDGER_STATUS.ERROR && cur.Status !== E.LEDGER_STATUS.ERROR) || (cur.Status !== E.LEDGER_STATUS.ERROR && String(r.UpdatedAt) > String(cur.UpdatedAt))) ledgerByThread[r.SourceId] = r;
     });
     var queues = {};
-    Object.keys(E.TRIAGE_QUEUE).forEach(function(k) { queues[E.TRIAGE_QUEUE[k]] = []; });
+    Object.keys(E.TRIAGE_QUEUE).forEach(function(k) { queues[HUB_QUEUE_KEYS_[E.TRIAGE_QUEUE[k]]] = []; });
     var errors = 0;
     ids.forEach(function(id) {
       if (dismissed[id] && f.includeDismissed !== true) return;
@@ -380,7 +382,7 @@ function getTriageBoard(filters) {
         var last = t.messages[t.messages.length - 1];
         var led = ledgerByThread[id] || null;
         var routing = E.suggestDestinations(t.labels);
-        queues[queue].push({
+        queues[HUB_QUEUE_KEYS_[queue]].push({
           threadId: id, url: t.url, subject: t.subject, fromName: last ? last.fromName : '', date: last ? last.date : '', labels: t.labels,
           score: scored.score, band: scored.band, signals: scored.signals.map(function(s) { return s.id; }), queue: queue,
           ticketKey: E.extractExternalTicketKey(t.subject, last ? last.from : '', null),

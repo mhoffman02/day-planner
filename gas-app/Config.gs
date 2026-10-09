@@ -290,6 +290,43 @@ function setRegistryDocId(seriesKey, docId) {
   throw setupError_('SeriesKey ' + seriesKey + ' not found in the Meeting Registry tab');
 }
 
+/**
+ * Writes one or more registry columns for a series in ONE Sheets batch write. Takes no lock
+ * (callers hold the script lock). SeriesKey is the row identity and cannot be rewritten.
+ * @param {string} seriesKey
+ * @param {Object} fields Map of REGISTRY_COLUMNS name to value.
+ */
+function updateRegistryRow(seriesKey, fields) {
+  var E = engines_();
+  var names = fields && typeof fields === 'object' ? Object.keys(fields) : [];
+  if (!names.length) throw new Error('updateRegistryRow requires a non-empty fields object');
+  names.forEach(function (n) {
+    if (n === 'SeriesKey') throw new Error('updateRegistryRow cannot change SeriesKey');
+    if (E.REGISTRY_COLUMNS.indexOf(n) === -1) throw new Error('Unknown Meeting Registry column: ' + n);
+  });
+  var id = ensureSetup();
+  var values = Sheets.Spreadsheets.Values.get(id, range_(TAB_REGISTRY, REGISTRY_READ_RANGE)).values || [];
+  var header = (values[0] || []).map(cell_);
+  var keyCol = header.indexOf('SeriesKey');
+  if (keyCol < 0) throw setupError_('Meeting Registry header lacks SeriesKey');
+  var cols = names.map(function (n) {
+    var c = header.indexOf(n);
+    if (c < 0) throw setupError_('Meeting Registry header lacks ' + n);
+    return c;
+  });
+  for (var r = 1; r < values.length; r++) {
+    if (cell_(values[r][keyCol]) === seriesKey) {
+      var data = names.map(function (n, i) {
+        var a1 = colLetter_(cols[i] + 1) + (r + 1);
+        return { range: range_(TAB_REGISTRY, a1 + ':' + a1), values: [[fields[n] === undefined || fields[n] === null ? '' : String(fields[n])]] };
+      });
+      Sheets.Spreadsheets.Values.batchUpdate({ valueInputOption: 'RAW', data: data }, id);
+      return;
+    }
+  }
+  throw setupError_('SeriesKey ' + seriesKey + ' not found in the Meeting Registry tab');
+}
+
 /** @returns {string} Browser URL of the hub Sheet. */
 function getSheetUrl() {
   return 'https:' + '/' + '/docs.google.com/spreadsheets/d/' + ensureSetup() + '/edit';
@@ -306,7 +343,8 @@ global.DPConfig = Object.freeze({
   getSheetUrl: getSheetUrl,
   getSheetId: getSheetId,
   getFolderId: getFolderId,
-  setRegistryDocId: setRegistryDocId
+  setRegistryDocId: setRegistryDocId,
+  updateRegistryRow: updateRegistryRow // used by CalendarRepository.discoverSeries
 });
 
 })(this);

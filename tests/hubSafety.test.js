@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { toHost } from './helpers/gasRuntimeStubs.js';
+import { toHost, loadGasFile } from './helpers/gasRuntimeStubs.js';
 import { makeHubContext, addThread, addCoreOccurrences, lines } from './helpers/gasFakesHub.js';
 
 const gasDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'gas-app');
@@ -173,5 +173,20 @@ test('discoverMeetingSeries finds the recurring id and reports the missing regis
   const saved = [];
   ctx.DPConfig = { ...ctx.DPConfig, updateRegistryRow: (k, f) => saved.push([k, f]) };
   assert.equal(call(ctx, 'discoverMeetingSeries').persisted, true);
-  assert.deepEqual(toHost(saved), [['NCMMS_CORE', { RecurringEventId: 'coreRec' }]]);
+  assert.deepEqual(toHost(saved), [['NCMMS_CORE', { RecurringEventId: 'coreRec', CalendarId: 'primary' }]]);
+});
+
+test('discoverMeetingSeries persists RecurringEventId and CalendarId through the real DPConfig registry writer', () => {
+  const ctx = makeHubContext({ features: { DRY_RUN: false } });
+  addCoreOccurrences(ctx);
+  loadGasFile(ctx, 'Config.gs');
+  ctx.PropertiesService.getUserProperties().setProperty('DAY_PLANNER_ROOT_FOLDER_ID', 'FOLDER1');
+  ctx.DPConfig.ensureSetup();
+  ctx.DPConfig.setFeature('DRY_RUN', false);
+  const r = call(ctx, 'discoverMeetingSeries');
+  assert.equal(r.ok, true, r.message);
+  assert.equal(r.persisted, true);
+  const core = toHost(ctx.DPConfig.getRegistry()).find((x) => x.SeriesKey === 'NCMMS_CORE');
+  assert.equal(core.RecurringEventId, 'coreRec');
+  assert.equal(core.CalendarId, 'primary');
 });

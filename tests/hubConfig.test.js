@@ -151,3 +151,32 @@ test('(k) appsscript.json: valid, gmail.readonly present, broad scopes absent, s
   assert.ok(svc.some((s) => s.userSymbol === 'Sheets' && s.serviceId === 'sheets' && s.version === 'v4'));
   assert.ok(svc.some((s) => s.userSymbol === 'Gmail' && s.serviceId === 'gmail' && s.version === 'v1'));
 });
+
+function registryRows(ctx) {
+  const id = ctx.PropertiesService.getUserProperties().getProperty('DP_HUB_SHEET_ID');
+  return ctx.__fakes.sheets[id].tabs.find((t) => t.title === 'Meeting Registry').rows;
+}
+
+test('updateRegistryRow writes validated fields in one batch call', () => {
+  const ctx = setup();
+  ctx.DPConfig.ensureSetup();
+  const before = ctx.__fakes.sheetsCalls.length;
+  ctx.DPConfig.updateRegistryRow('NCMMS_CORE', { RecurringEventId: 'rec123', CalendarId: 'cal@x' });
+  const rows = registryRows(ctx);
+  const h = rows[0];
+  const row = rows.find((r) => r[h.indexOf('SeriesKey')] === 'NCMMS_CORE');
+  assert.equal(row[h.indexOf('RecurringEventId')], 'rec123');
+  assert.equal(row[h.indexOf('CalendarId')], 'cal@x');
+  const writes = ctx.__fakes.sheetsCalls.slice(before).filter((c) => /^values\.(update|batchUpdate|append)$/.test(c.method));
+  assert.deepEqual(writes.map((c) => c.method), ['values.batchUpdate']);
+  assert.equal(ctx.DPConfig.getRegistry().find((r) => r.SeriesKey === 'NCMMS_CORE').RecurringEventId, 'rec123');
+});
+
+test('updateRegistryRow rejects unknown series, unknown columns, and SeriesKey rewrites', () => {
+  const ctx = setup();
+  ctx.DPConfig.ensureSetup();
+  assert.throws(() => ctx.DPConfig.updateRegistryRow('NOPE', { RecurringEventId: 'x' }), /NOPE/);
+  assert.throws(() => ctx.DPConfig.updateRegistryRow('NCMMS_CORE', { Bogus: 'x' }), /Bogus/);
+  assert.throws(() => ctx.DPConfig.updateRegistryRow('NCMMS_CORE', { SeriesKey: 'Z' }), /SeriesKey/);
+  assert.throws(() => ctx.DPConfig.updateRegistryRow('NCMMS_CORE', {}), /fields/);
+});

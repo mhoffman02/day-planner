@@ -204,7 +204,7 @@ function getOccurrence(seriesRow, occurrenceId, registry) {
  * @param {Array<object>} registry Parsed registry rows.
  * @param {Date} now Current instant.
  * @param {{persist:boolean}} opts persist false means report only (DRY_RUN).
- * @returns {{discovered:Array<{seriesKey:string,recurringEventId:string,matchedBy:string,renamed:boolean}>,
+ * @returns {{discovered:Array<{seriesKey:string,recurringEventId:string,calendarId:string,matchedBy:string,renamed:boolean}>,
  *   stale:string[], persisted:boolean, persistGap:(string|null)}} Discovery report.
  */
 function discoverSeries(registry, now, opts) {
@@ -221,7 +221,7 @@ function discoverSeries(registry, now, opts) {
     DPEngines.resolveSeries(byCalendar[cal], events).forEach(function(s) {
       if (s.staleRecurringEventId) stale.push(s.seriesKey);
       if (s.discovery && s.discoveredRecurringEventId) {
-        discovered.push({ seriesKey: s.seriesKey, recurringEventId: s.discoveredRecurringEventId, matchedBy: s.matchedBy, renamed: s.renamed });
+        discovered.push({ seriesKey: s.seriesKey, recurringEventId: s.discoveredRecurringEventId, calendarId: cal, matchedBy: s.matchedBy, renamed: s.renamed });
       }
     });
   });
@@ -229,7 +229,7 @@ function discoverSeries(registry, now, opts) {
   var persistGap = null;
   if (opts && opts.persist && discovered.length) {
     if (typeof DPConfig !== 'undefined' && DPConfig && typeof DPConfig.updateRegistryRow === 'function') {
-      discovered.forEach(function(d) { DPConfig.updateRegistryRow(d.seriesKey, { RecurringEventId: d.recurringEventId }); });
+      discovered.forEach(function(d) { DPConfig.updateRegistryRow(d.seriesKey, { RecurringEventId: d.recurringEventId, CalendarId: d.calendarId }); });
       persisted = true;
     } else {
       persistGap = 'DPConfig.updateRegistryRow(seriesKey, fields) is not available; RecurringEventId not saved';

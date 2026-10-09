@@ -909,6 +909,7 @@ Alpine.data('plannerApp', () => ({
       async loadHubStatus() {
         try {
           const st = await this.bridge.getHubStatus();
+          if (!st || st.ok !== true) throw new Error((st && st.message) || 'Hub status unavailable');
           this.hubFlags = (st && st.flags) || null;
           this.hubDryRun = !!(st && st.dryRun);
           this.hubLastRun = (st && st.lastRun) || null;
@@ -933,7 +934,9 @@ Alpine.data('plannerApp', () => ({
       async loadTriageBoard() {
         this.triageLoading = true;
         try {
-          this.triageBoard = await this.bridge.getTriageBoard({});
+          const board = await this.bridge.getTriageBoard({});
+          if (!board || board.ok !== true) throw new Error((board && board.message) || 'Triage board unavailable');
+          this.triageBoard = board;
         } catch (err) {
           console.error('Triage board failed to load:', err);
           this.errorMessage = 'Triage board failed to load: ' + (err.message || err);
@@ -992,7 +995,7 @@ Alpine.data('plannerApp', () => ({
         const [y, m, d] = getLocalDateStr().split('-').map(Number);
         const nag = new Date(y, m - 1, d + 3);
         const nagStr = nag.getFullYear() + '-' + String(nag.getMonth() + 1).padStart(2, '0') + '-' + String(nag.getDate()).padStart(2, '0');
-        this.waitingForm = { open: true, threadId: item.threadId, subject: item.subject, waitingOn: item.from || '', nagDate: nagStr };
+        this.waitingForm = { open: true, threadId: item.threadId, subject: item.subject, waitingOn: item.fromName || '', nagDate: nagStr };
       },
 
       closeWaitingForm() {
@@ -1006,13 +1009,17 @@ Alpine.data('plannerApp', () => ({
       },
 
       async openMeetingPicker(item) {
-        this.meetingPicker = { open: true, threadId: item.threadId, subject: item.subject, loading: true, recommended: null, choices: [], backlogSeriesKey: '', selected: '', framing: 'Decision needed' };
+        this.meetingPicker = { open: true, threadId: item.threadId, subject: item.subject, loading: true, seriesKey: '', recommended: null, choices: [], backlogSeriesKey: '', selected: '', framing: 'Decision needed' };
         try {
           const c = await this.bridge.getUpcomingMeetingChoices(item.threadId);
-          this.meetingPicker.recommended = c.recommended || null;
-          this.meetingPicker.choices = c.choices || [];
-          this.meetingPicker.backlogSeriesKey = c.backlogSeriesKey || '';
-          this.meetingPicker.selected = (c.recommended && c.recommended.occurrenceId) || '';
+          if (!c || c.ok !== true) throw new Error((c && c.message) || 'Meeting choices unavailable');
+          const dest = (c.choices || []).find((x) => !x.unavailable);
+          if (!dest) throw new Error('No enabled meeting series is suggested for this thread');
+          this.meetingPicker.seriesKey = dest.seriesKey;
+          this.meetingPicker.recommended = dest.recommended || null;
+          this.meetingPicker.choices = dest.upcoming || [];
+          this.meetingPicker.backlogSeriesKey = dest.seriesKey;
+          this.meetingPicker.selected = (dest.recommended && dest.recommended.occurrenceId) || '';
         } catch (err) {
           console.error('Meeting choices failed to load:', err);
           this.meetingPicker.open = false;
@@ -1031,14 +1038,16 @@ Alpine.data('plannerApp', () => ({
         this.closeMeetingPicker();
         const backlog = p.selected === '__backlog__';
         const occurrenceId = backlog ? p.backlogSeriesKey : p.selected;
-        await this.runTriageAction('Send to Meeting', () => this.bridge.routeThreadToMeeting(p.threadId, occurrenceId, { framing: p.framing, backlog }));
+        await this.runTriageAction('Send to Meeting', () => this.bridge.routeThreadToMeeting(p.threadId, occurrenceId, { framing: p.framing, backlog, seriesKey: p.seriesKey }));
       },
 
       async loadMeetingPrep() {
         this.meetingPrepLoading = true;
         this.hubNowMs = Date.now();
         try {
-          this.meetingPrep = await this.bridge.getMeetingPrep(this.meetingPrepSeries, null);
+          const prep = await this.bridge.getMeetingPrep(this.meetingPrepSeries, null);
+          if (!prep || prep.ok !== true) throw new Error((prep && prep.message) || 'Meeting prep unavailable');
+          this.meetingPrep = prep;
         } catch (err) {
           console.error('Meeting prep failed to load:', err);
           this.errorMessage = 'Meeting prep failed to load: ' + (err.message || err);

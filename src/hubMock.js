@@ -5,7 +5,8 @@
  * idempotent by operation key, mirroring the real ledger: a repeated call returns the same
  * result and never creates a second mock task.
  */
-import { gmailTaskKey, gmailWaitingKey, gmailMeetingKey } from './integration/contracts.js';
+import { gmailTaskKey, gmailWaitingKey, gmailMeetingKey, DEFAULT_FEATURES } from './integration/contracts.js';
+import { TRIAGE_BAND } from './integration/triageScore.js';
 
 const GMAIL_BASE = 'https:' + '/' + '/mail.google.com/mail/u/0/#all/';
 const DOCS_BASE = 'https:' + '/' + '/docs.google.com/document/d/';
@@ -21,18 +22,58 @@ function localIso(deltaMin) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:00`;
 }
 
-function thread(id, subject, from, ageMin, score, signals, labels, dest) {
+function bandFor(score) {
+  if (score >= 8) return TRIAGE_BAND.HIGH_CONFIDENCE;
+  if (score >= 4) return TRIAGE_BAND.HUMAN_REVIEW;
+  if (score >= 0) return TRIAGE_BAND.LIKELY_FYI;
+  return TRIAGE_BAND.NOISE;
+}
+
+/** Server shape of one triage item (see HubController.getTriageBoard); ledger fields are filled at read time. */
+function thread(id, subject, from, ageMin, score, signals, labels, suggestions) {
   return {
     threadId: id,
+    url: GMAIL_BASE + id,
     subject,
-    from,
+    fromName: from,
     date: localIso(-ageMin),
-    score,
-    signals,
     labels,
-    suggestedDestinations: dest,
-    gmailUrl: GMAIL_BASE + id
+    score,
+    band: bandFor(score),
+    signals,
+    suggestions,
+    requireConfirmation: suggestions.length > 1,
+    humanReviewOnly: false,
+    errorMessage: null
   };
+}
+
+const QUEUE_DISPLAY = {
+  directAction: 'Direct Action',
+  meetingCarryIns: 'Meeting Carry-ins',
+  systemExceptions: 'System Exceptions',
+  fyiReading: 'FYI/Reading'
+};
+
+const SERIES_NAMES = { NCMMS_CORE: 'NCMMS Core Weekly', NCMMS_DAILY: 'NCMMS Daily', NCMMS_ACQ: 'NCMMS Acquisition', TRM_PM: 'TRM Project Management' };
+
+/**
+ * Three upcoming occurrences for a series, in the server upcoming[] shape.
+ * @param {string} seriesKey Series key.
+ * @returns {Array<object>} Occurrences.
+ */
+function mockOccurrences(seriesKey) {
+  return [26, 7 * 24 + 26, 14 * 24 + 26].map((hours, i) => {
+    const start = localIso(hours * 60);
+    return {
+      occurrenceId: `${seriesKey}-occ-${i + 1}`,
+      start,
+      end: localIso(hours * 60 + 30),
+      cutoffISO: localIso(hours * 60 - 8 * 60),
+      date: start.slice(0, 10),
+      summary: SERIES_NAMES[seriesKey] || seriesKey
+    };
+  });
 }
 
 function buildThreads() {
@@ -85,12 +126,9 @@ function buildThreads() {
   };
 }
 
+/** Existing carry-ins already in the notes Doc; the real server returns only their count. */
 function buildCarryIns() {
-  return [
-    { text: 'Decision needed: confirm cutover date for NCMMS Core (Ravi Menon)', gmailUrl: GMAIL_BASE + 't-2001', status: 'DONE' },
-    { text: 'Input needed: vendor invoice question on TRM task order (Elena Park)', gmailUrl: GMAIL_BASE + 't-2002', status: 'DRY_RUN' },
-    { text: 'FYI: SOW comments from acquisition (Marcus Lee)', gmailUrl: GMAIL_BASE + 't-1003', status: 'DONE' }
-  ];
+  return ['t-2001', 't-2002', 't-1003'].map((id) => ({ threadId: id }));
 }
 
 /**
@@ -102,17 +140,17 @@ export class HubMock {
    * reach DONE; the real server defaults DRY_RUN ON.
    */
   constructor(opts = {}) {
+    this.dryRun = opts.dryRun === true;
     this.flags = {
+      ...DEFAULT_FEATURES,
       GMAIL_ROUTER: true,
       TRIAGE_BOARD: true,
       NCMMS_CORE_PILOT: true,
-      GEMINI_DISCOVERY: false,
-      GEMINI_RECONCILIATION: false,
-      USAI_ASSIST: false,
-      ...(opts.flags || {})
+      ...(opts.flags || {}),
+      DRY_RUN: this.dryRun
     };
-    this.dryRun = opts.dryRun === true;
     this.queues = buildThreads();
+    Object.keys(this.queues).forEach((k) => this.queues[k].forEach((t) => { t.queue = QUEUE_DISPLAY[k]; }));
     this.ledger = new Map();
     this.threadOps = new Map();
     this.tasks = [];
@@ -120,7 +158,7 @@ export class HubMock {
     this.dismissed = new Set();
     this.carryIns = buildCarryIns();
     this.failNext = new Set();
-    this.lastRun = localIso(-7);
+    this.lastRun = { at: localIso(-7), status: 'OK', counts: { processed: 2, skipped: 0, errors: 0, quarantined: 0 } };
     // Fixture ledger rows so every status renders in review.
     this._seedLedger('t-1003', 'DONE');
     this._seedLedger('t-1004', 'ERROR');
@@ -143,7 +181,17 @@ export class HubMock {
   }
 
   _result(ok, message, extra = {}) {
-    return { ok, message, ...extra };
+    return { ok, status: ok ? 'DONE' : 'ERROR', message, ...extra };
+  }
+
+  _fail(errorCode, message, extra = {}) {
+    return { ok: false, status: 'ERROR', errorCode, message, ...extra };
+  }
+
+  /** @returns {object|null} FLAG_OFF failure when any needed flag is off (server preflight parity). */
+  _preflight(needed) {
+    const off = needed.find((f) => this.flags[f] !== true);
+    return off ? this._fail('FLAG_OFF', `${off} flag is off`) : null;
   }
 
   /**
@@ -156,66 +204,97 @@ export class HubMock {
    * @returns {object} Result contract.
    */
   _apply(threadId, key, sideEffect, doneMsg, dryMsg) {
+    const gate = this._preflight(['GMAIL_ROUTER']);
+    if (gate) return gate;
     const src = this._find(threadId);
-    if (!src) return this._result(false, 'Thread not found in current triage set', { errorCode: 'NOT_FOUND' });
+    if (!src) return this._fail('NOT_FOUND', 'Thread not found in current triage set');
     const existing = this.ledger.get(key);
-    const sourceUrl = src.gmailUrl;
+    const sourceUrl = src.url;
     if (existing && existing.status === 'DONE') {
-      return this._result(true, 'Already processed', { operationKey: key, sourceUrl, targetUrl: existing.targetUrl });
+      return { ok: true, status: 'SKIPPED', message: 'Already processed', operationKey: key, sourceUrl, targetUrl: existing.targetUrl };
     }
     if (this.failNext.delete(key)) {
       this.ledger.set(key, { status: 'ERROR', threadId });
       this.threadOps.set(threadId, { status: 'ERROR', operationKey: key });
-      return this._result(false, 'Simulated failure', { operationKey: key, sourceUrl, errorCode: 'MOCK_FAILURE' });
+      return this._fail('MOCK_FAILURE', 'Simulated failure', { operationKey: key, sourceUrl });
     }
     if (this.dryRun) {
       this.ledger.set(key, { status: 'DRY_RUN', threadId });
       this.threadOps.set(threadId, { status: 'DRY_RUN', operationKey: key });
-      return this._result(true, dryMsg, { operationKey: key, sourceUrl });
+      return { ok: true, status: 'DRY_RUN', message: dryMsg, operationKey: key, sourceUrl };
     }
     const targetUrl = sideEffect();
     this.ledger.set(key, { status: 'DONE', threadId, targetUrl });
     this.threadOps.set(threadId, { status: 'DONE', operationKey: key });
-    return this._result(true, doneMsg, { operationKey: key, sourceUrl, targetUrl });
+    return { ok: true, status: 'DONE', message: doneMsg, operationKey: key, sourceUrl, targetUrl };
   }
 
   getHubStatus() {
-    const counts = { DONE: 0, ERROR: 0, DEFERRED: 0, DRY_RUN: 0 };
-    this.ledger.forEach((row) => { if (counts[row.status] !== undefined) counts[row.status] += 1; });
-    return { flags: { ...this.flags }, dryRun: this.dryRun, lastRun: this.lastRun, counts };
+    const counts = {};
+    this.ledger.forEach((row) => { counts[row.status] = (counts[row.status] || 0) + 1; });
+    return {
+      ok: true,
+      status: 'OK',
+      message: 'Hub status',
+      flags: { ...this.flags },
+      dryRun: this.dryRun,
+      lastRun: { ...this.lastRun, counts: { ...this.lastRun.counts } },
+      counts,
+      triggers: 1
+    };
   }
 
   getTriageBoard(filters = {}) {
+    const gate = this._preflight(['GMAIL_ROUTER', 'TRIAGE_BOARD']);
+    if (gate) return gate;
     const text = (filters && filters.text ? String(filters.text) : '').trim().toLowerCase();
     const queues = {};
+    let total = 0;
     Object.keys(this.queues).forEach((key) => {
       queues[key] = this.queues[key]
         .filter((t) => !this.dismissed.has(t.threadId))
-        .filter((t) => !text || t.subject.toLowerCase().includes(text) || t.from.toLowerCase().includes(text))
-        .map((t) => ({
-          ...t,
-          signals: [...t.signals],
-          labels: [...t.labels],
-          suggestedDestinations: t.suggestedDestinations.map((d) => ({ ...d })),
-          ledgerStatus: (this.threadOps.get(t.threadId) || {}).status || null,
-          operationKey: (this.threadOps.get(t.threadId) || {}).operationKey || null
-        }));
+        .filter((t) => !text || t.subject.toLowerCase().includes(text) || t.fromName.toLowerCase().includes(text))
+        .map((t) => {
+          const op = this.threadOps.get(t.threadId) || {};
+          return {
+            ...t,
+            signals: [...t.signals],
+            labels: [...t.labels],
+            suggestions: t.suggestions.map((d) => ({ ...d })),
+            ledgerStatus: op.status || null,
+            operationKey: op.operationKey || null,
+            errorMessage: op.status === 'ERROR' ? 'Simulated failure' : null
+          };
+        });
+      total += queues[key].length;
     });
-    return { queues };
+    return { ok: true, status: 'OK', message: `${total} thread(s) triaged`, queues, errors: 0, dryRun: this.dryRun };
   }
 
   getUpcomingMeetingChoices(threadId) {
+    const gate = this._preflight(['GMAIL_ROUTER']);
+    if (gate) return gate;
     const src = this._find(threadId);
-    const seriesKey = (src && src.suggestedDestinations[0] && src.suggestedDestinations[0].seriesKey) || 'NCMMS_CORE';
-    const choices = [
-      { occurrenceId: `${seriesKey}-occ-1`, start: localIso(26 * 60), label: 'Next occurrence' },
-      { occurrenceId: `${seriesKey}-occ-2`, start: localIso(7 * 24 * 60 + 26 * 60), label: 'Following week' },
-      { occurrenceId: `${seriesKey}-occ-3`, start: localIso(14 * 24 * 60 + 26 * 60), label: 'Two weeks out' }
-    ];
+    if (!src) return this._fail('THREAD_NOT_FOUND', 'Gmail thread not found');
+    const choices = src.suggestions.map((s) => {
+      const upcoming = mockOccurrences(s.seriesKey);
+      return {
+        seriesKey: s.seriesKey,
+        displayName: SERIES_NAMES[s.seriesKey] || s.seriesKey,
+        reason: s.reason,
+        upcoming,
+        recommended: { occurrenceId: upcoming[0].occurrenceId, cutoffISO: upcoming[0].cutoffISO, reason: 'Next occurrence before cutoff', deferred: false }
+      };
+    });
     return {
-      recommended: { occurrenceId: choices[0].occurrenceId, start: choices[0].start, reason: 'Next occurrence before cutoff' },
+      ok: true,
+      status: 'OK',
+      message: `${choices.length} destination(s) suggested`,
+      sourceUrl: src.url,
       choices,
-      backlogSeriesKey: seriesKey
+      requireConfirmation: src.requireConfirmation,
+      humanReviewOnly: src.humanReviewOnly,
+      overrides: ['current', 'recommended', 'specific', 'backlog']
     };
   }
 
@@ -244,54 +323,72 @@ export class HubMock {
     }, 'Waiting item created', 'Would create Task');
   }
 
+  /**
+   * Mirrors the server contract: options.seriesKey is required, occurrenceId is a calendar event id
+   * (or the series key when options.backlog is true).
+   */
   routeThreadToMeeting(threadId, occurrenceId, opts = {}) {
-    if (!occurrenceId || String(occurrenceId).includes('|')) {
-      return this._result(false, 'A valid occurrence is required', { errorCode: 'BAD_OCCURRENCE' });
+    const o = opts || {};
+    if (o.backlog !== true && (typeof o.seriesKey !== 'string' || !o.seriesKey)) {
+      return this._fail('INVALID_INPUT', 'options.seriesKey is required');
     }
-    const key = gmailMeetingKey(threadId, occurrenceId);
-    const src = this._find(threadId);
+    if (!occurrenceId || String(occurrenceId).includes('|')) {
+      return this._fail('INVALID_INPUT', 'Invalid occurrence id');
+    }
+    const key = gmailMeetingKey(threadId, o.backlog === true ? `BACKLOG-${occurrenceId}` : occurrenceId);
     return this._apply(threadId, key, () => {
-      this.carryIns.push({
-        text: `${(opts && opts.framing) || 'Input needed'}: ${src.subject} (${src.from})`,
-        gmailUrl: src.gmailUrl,
-        status: 'DONE'
-      });
+      this.carryIns.push({ threadId });
       return DOCS_BASE + 'mock-notes-doc/edit';
     }, 'Carry-in appended to meeting notes', 'Would append carry-in to Doc mock...');
   }
 
   dismissTriageItem(threadId) {
-    if (!this._find(threadId)) return this._result(false, 'Thread not found in current triage set', { errorCode: 'NOT_FOUND' });
+    const gate = this._preflight(['GMAIL_ROUTER']);
+    if (gate) return gate;
+    const src = this._find(threadId);
+    if (!src) return this._fail('THREAD_NOT_FOUND', 'Gmail thread not found');
+    const operationKey = `GMAIL|${threadId}|DISMISS`;
+    if (this.dryRun) return { ok: true, status: 'DRY_RUN', message: 'Would dismiss from triage', operationKey };
     this.dismissed.add(threadId);
-    return this._result(true, 'Dismissed from triage set (Gmail untouched)', { operationKey: `GMAIL|${threadId}|DISMISS` });
+    return { ok: true, status: 'DONE', message: 'Dismissed from triage', operationKey, sourceUrl: src.url };
   }
 
   retryFailedOperation(operationKey) {
     const row = this.ledger.get(operationKey);
-    if (!row || row.status !== 'ERROR') {
-      return this._result(false, 'No failed operation to retry', { operationKey, errorCode: 'NOT_RETRYABLE' });
-    }
+    if (!row) return this._fail('NOT_FOUND', 'No ledger row for that operation');
+    if (row.status !== 'ERROR') return this._fail('NOT_RETRYABLE', 'Operation is not in ERROR status');
     this.ledger.delete(operationKey);
     row.status = 'DONE';
     this.ledger.set(operationKey, row);
     this.threadOps.set(row.threadId, { status: 'DONE', operationKey });
-    return this._result(true, 'Retry succeeded', { operationKey, sourceUrl: (this._find(row.threadId) || {}).gmailUrl });
+    return { ok: true, status: 'DONE', message: 'Retry succeeded', operationKey, sourceUrl: (this._find(row.threadId) || {}).url };
   }
 
   getMeetingPrep(seriesKey, occurrenceId) {
+    const gate = this._preflight(['GMAIL_ROUTER', 'NCMMS_CORE_PILOT']);
+    if (gate) return gate;
     const key = seriesKey || 'NCMMS_CORE';
-    const carryIns = this.carryIns.map((c) => ({ ...c }));
+    const upcoming = mockOccurrences(key);
+    const hit = upcoming.find((o) => o.occurrenceId === occurrenceId) || upcoming[0];
     return {
-      title: key === 'NCMMS_CORE' ? 'NCMMS Core Weekly' : key,
-      seriesKey: key,
-      occurrenceId: occurrenceId || `${key}-occ-1`,
-      start: localIso(26 * 60),
-      cutoff: localIso(18 * 60),
-      carryIns,
-      carryInCount: carryIns.length,
-      agenda: ['Cutover schedule status', 'Open approvals and COR designations', 'Vendor invoice questions', 'Risks and blockers'],
+      ok: true,
+      status: 'OK',
+      message: `${SERIES_NAMES[key] || key} on ${hit.date}`,
+      series: { seriesKey: key, displayName: SERIES_NAMES[key] || key, prepMinutes: 30 },
+      occurrence: {
+        occurrenceId: hit.occurrenceId,
+        start: hit.start,
+        end: hit.end,
+        date: hit.date,
+        cutoffISO: hit.cutoffISO,
+        reason: 'Next occurrence before cutoff',
+        deferred: false,
+        htmlLink: null
+      },
+      upcoming,
+      carryInCount: this.carryIns.length,
       notesDocUrl: DOCS_BASE + 'mock-notes-doc/edit',
-      status: this.dryRun ? 'DRY_RUN' : 'READY'
+      warning: null
     };
   }
 }

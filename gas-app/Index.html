@@ -1174,7 +1174,7 @@
             </h2>
             <p class="hub-header-meta" x-show="showTriageNav">
               <span x-text="triageItemCount + (triageItemCount === 1 ? ' thread' : ' threads')"></span>
-              <span x-show="hubLastRun"> &middot; last run <span x-text="hubLastRun ? hubLastRun.replace('T', ' ').slice(0, 16) : ''"></span></span>
+              <span x-show="hubLastRun"> &middot; last run <span x-text="hubLastRun &amp;&amp; hubLastRun.at ? hubLastRun.at.replace('T', ' ').slice(0, 16) : ''"></span></span>
               <span x-show="triageReadLater.length > 0"> &middot;
                 <button type="button" class="hub-link-btn" @click="showReadLater = !showReadLater" :aria-pressed="showReadLater" x-text="(showReadLater ? 'Hide' : 'Show') + ' read later (' + triageReadLater.length + ')'"></button>
               </span>
@@ -1235,10 +1235,10 @@
                             </td>
                             <td>
                               <span class="hub-subject" x-text="item.subject"></span>
-                              <span class="hub-from" x-text="item.from + ' · ' + (item.date || '').replace('T', ' ').slice(0, 16)"></span>
-                              <template x-if="item.suggestedDestinations &amp;&amp; item.suggestedDestinations.length > 0">
+                              <span class="hub-from" x-text="item.fromName + ' · ' + (item.date || '').replace('T', ' ').slice(0, 16)"></span>
+                              <template x-if="item.suggestions &amp;&amp; item.suggestions.length > 0">
                                 <span class="hub-suggest">Suggested:
-                                  <template x-for="d in item.suggestedDestinations" :key="d.seriesKey">
+                                  <template x-for="d in item.suggestions" :key="d.seriesKey">
                                     <span class="hub-suggest-item" :title="d.reason" x-text="d.seriesKey"></span>
                                   </template>
                                 </span>
@@ -1262,7 +1262,7 @@
                                 <button type="button" class="hub-action-btn" @click="openMeetingPicker(item)" :aria-label="'Send to Meeting: ' + item.subject">Send to Meeting</button>
                                 <button type="button" class="hub-action-btn" @click="readLaterItem(item)" :aria-label="'Read Later: ' + item.subject">Read Later</button>
                                 <button type="button" class="hub-action-btn" @click="dismissTriageEntry(item)" :aria-label="'Dismiss: ' + item.subject">Dismiss</button>
-                                <a class="hub-action-btn hub-action-link" :href="item.gmailUrl" target="_blank" rel="noopener noreferrer" :aria-label="'Open Gmail: ' + item.subject">Open Gmail</a>
+                                <a class="hub-action-btn hub-action-link" :href="item.url" target="_blank" rel="noopener noreferrer" :aria-label="'Open Gmail: ' + item.subject">Open Gmail</a>
                               </div>
                             </td>
                           </tr>
@@ -1309,12 +1309,12 @@
 
           <template x-if="showMeetingPrepNav &amp;&amp; meetingPrep">
             <article class="hub-prep" aria-label="Upcoming meeting preparation">
-              <h3 class="hub-prep-title" x-text="meetingPrep.title"></h3>
+              <h3 class="hub-prep-title" x-text="meetingPrep.series.displayName"></h3>
               <table class="hub-table hub-facts">
                 <tbody>
-                  <tr><th scope="row">Starts</th><td x-text="(meetingPrep.start || '').replace('T', ' ').slice(0, 16)"></td></tr>
-                  <tr><th scope="row">Prep cutoff</th><td><span x-text="(meetingPrep.cutoff || '').replace('T', ' ').slice(0, 16)"></span> <strong class="hub-countdown" x-text="'(' + hubCountdown(meetingPrep.cutoff) + ')'"></strong></td></tr>
-                  <tr><th scope="row">Status</th><td x-text="meetingPrep.status"></td></tr>
+                  <tr><th scope="row">Starts</th><td x-text="(meetingPrep.occurrence.start || '').replace('T', ' ').slice(0, 16)"></td></tr>
+                  <tr><th scope="row">Prep cutoff</th><td><span x-text="(meetingPrep.occurrence.cutoffISO || '').replace('T', ' ').slice(0, 16)"></span> <strong class="hub-countdown" x-text="'(' + hubCountdown(meetingPrep.occurrence.cutoffISO) + ')'"></strong></td></tr>
+                  <tr><th scope="row">Status</th><td x-text="meetingPrep.occurrence.deferred ? 'Deferred to the next occurrence' : (hubDryRun ? 'Dry run' : 'Ready')"></td></tr>
                   <tr>
                     <th scope="row">Notes Doc</th>
                     <td>
@@ -1327,35 +1327,10 @@
                 </tbody>
               </table>
 
-              <h4 class="hub-queue-title" id="hubCarryInsTitle" x-text="'Carry-ins (' + meetingPrep.carryInCount + ')'"></h4>
-              <p class="hub-queue-empty" x-show="!meetingPrep.carryIns || meetingPrep.carryIns.length === 0">No carry-ins yet.</p>
-              <figure class="table-container hub-table-wrap" x-show="meetingPrep.carryIns &amp;&amp; meetingPrep.carryIns.length > 0">
-                <table class="hub-table" aria-labelledby="hubCarryInsTitle">
-                  <thead>
-                    <tr>
-                      <th scope="col">Carry-in</th>
-                      <th scope="col" class="hub-col-ledger">Status</th>
-                      <th scope="col" class="hub-col-actions">Source</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <template x-for="(c, idx) in meetingPrep.carryIns" :key="idx">
-                      <tr>
-                        <td x-text="c.text"></td>
-                        <td class="hub-col-ledger"><span class="hub-ledger" :class="c.status ? 'hub-ledger-' + c.status.toLowerCase().replace('_', '-') : ''" x-text="hubLedgerLabel(c.status)"></span></td>
-                        <td class="hub-col-actions"><a class="hub-action-btn hub-action-link" :href="c.gmailUrl" target="_blank" rel="noopener noreferrer" :aria-label="'Open Gmail: ' + c.text">Open Gmail</a></td>
-                      </tr>
-                    </template>
-                  </tbody>
-                </table>
-              </figure>
-
-              <h4 class="hub-queue-title">Agenda</h4>
-              <ol class="hub-agenda">
-                <template x-for="(a, i) in (meetingPrep.agenda || [])" :key="i">
-                  <li x-text="a"></li>
-                </template>
-              </ol>
+              <h4 class="hub-queue-title" id="hubCarryInsTitle" x-text="'Carry-ins (' + (meetingPrep.carryInCount === null ? 'unknown' : meetingPrep.carryInCount) + ')'"></h4>
+              <p class="hub-queue-empty" x-show="meetingPrep.carryInCount === 0">No carry-ins yet.</p>
+              <p class="hub-queue-empty" x-show="meetingPrep.warning" x-text="meetingPrep.warning"></p>
+              <p class="hub-queue-empty">Carry-in entries are listed in the meeting notes Doc under this occurrence.</p>
             </article>
           </template>
         </section>
@@ -1389,7 +1364,7 @@
             <template x-for="c in meetingPicker.choices" :key="c.occurrenceId">
               <label class="hub-radio-row">
                 <input type="radio" name="hubOccurrence" :value="c.occurrenceId" x-model="meetingPicker.selected">
-                <span x-text="c.label + ' · ' + (c.start || '').replace('T', ' ').slice(0, 16)"></span>
+                <span x-text="(c.summary || 'Occurrence') + ' · ' + (c.start || '').replace('T', ' ').slice(0, 16)"></span>
                 <strong class="hub-recommended" x-show="meetingPicker.recommended &amp;&amp; meetingPicker.recommended.occurrenceId === c.occurrenceId" x-text="'Recommended: ' + (meetingPicker.recommended ? meetingPicker.recommended.reason : '')"></strong>
               </label>
             </template>
