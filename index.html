@@ -236,9 +236,9 @@
             <div class="view-options-row" title="UI size (double-click to reset)" @dblclick="setUiZoom(100)">
               <span class="view-options-label">Size</span>
               <div class="ui-zoom">
-                <span class="ui-zoom-glyph" style="font-size: 0.75rem;" aria-hidden="true">A</span>
-                <input type="range" min="80" max="140" step="5" :value="uiZoom" @input="setUiZoom($event.target.value)" aria-label="UI size">
-                <span class="ui-zoom-glyph" style="font-size: 1.1rem;" aria-hidden="true">A</span>
+                <button type="button" class="ui-zoom-glyph" style="font-size: 0.75rem;" @click="stepUiZoom(-1)" :disabled="uiZoom <= 80" title="Zoom out" aria-label="Zoom out">A</button>
+                <input type="range" min="80" max="150" step="5" :value="uiZoom" @input="setUiZoom($event.target.value)" aria-label="UI size">
+                <button type="button" class="ui-zoom-glyph" style="font-size: 1.1rem;" @click="stepUiZoom(1)" :disabled="uiZoom >= 150" title="Zoom in" aria-label="Zoom in">A</button>
               </div>
               <span class="view-options-value" x-text="uiZoom + '%'"></span>
             </div>

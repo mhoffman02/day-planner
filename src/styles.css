@@ -1354,6 +1354,21 @@
     font-family: var(--font-family-header);
     line-height: 1;
     user-select: none;
+    background: transparent;
+    border: none;
+    color: inherit;
+    padding: 2px 4px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  .ui-zoom-glyph:hover:not(:disabled) {
+    background: rgba(45, 106, 90, 0.12);
+  }
+
+  .ui-zoom-glyph:disabled {
+    opacity: 0.35;
+    cursor: default;
   }
 
   .ui-zoom input[type="range"] {
