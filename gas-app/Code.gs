@@ -405,7 +405,7 @@ const DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mho
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const DAY_PLANNER_BUILD_NUMBER = 398;
+const DAY_PLANNER_BUILD_NUMBER = 400;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -843,6 +843,7 @@ const TASK_STATUS_MARKER_RE = /(?:^<!--dp-status:(.+?)-->\n?|\[Status:\s*([^\]]+
 const TASK_EXTRA_STATUSES = ['○', '→', 'X', 'Ⓓ'];
 const DP_TOKEN_LINE_RE = /^<!--dp-(?:status|meta):.*?-->\n?/gm;
 const TASK_META_MARKER_RE = /<!--dp-meta:(.*?)-->\n?/;
+const TASK_HUMAN_META_KEYS = ['category', 'starred', 'master', 'future', 'movedTo', 'movedTaskId', 'sourceMasterId'];
 const DP_HUMAN_TAGS_RE = /\[(?:Category|Starred|Master|Future|MovedTo|SourceMaster|Status)(?::[^\]]*)?\]\n?/gi;
 
 /**
@@ -909,15 +910,18 @@ function deriveTaskStatus(googleTask) {
  */
 function decodeTaskMeta(notes) {
   if (!notes) return {};
+  const meta = {};
+  // JSON marker first (hub keys such as opKey live only here; legacy notes may also carry
+  // human-tag keys), then human-readable tags override it.
   const match = notes.match(TASK_META_MARKER_RE);
   if (match) {
     try {
-      return JSON.parse(match[1]);
+      const parsed = JSON.parse(match[1]);
+      if (parsed && typeof parsed === 'object') Object.assign(meta, parsed);
     } catch {
       // Fall through to human tag parsing
     }
   }
-  const meta = {};
   const catMatch = notes.match(/\[Category:\s*([^\]]+)\]/i);
   if (catMatch) meta.category = catMatch[1].trim();
   const starMatch = notes.match(/\[Starred\]/i);
@@ -970,11 +974,19 @@ function encodeTaskMeta(existingNotes, metaPatch) {
     tags.push('[SourceMaster: ' + merged.sourceMasterId + ']');
   }
 
-  if (tags.length === 0) {
-    return rest;
-  }
-  const tagStr = tags.join(' ');
-  return rest ? rest + '\n\n' + tagStr : tagStr;
+  // Keys with no human-readable tag (hub provenance: opKey, gmailThreadId, waitingOn, nagDate, ...)
+  // are preserved in the hidden JSON marker so an unrelated edit never strips idempotency data.
+  const hidden = {};
+  Object.keys(merged).forEach(function(k) {
+    if (TASK_HUMAN_META_KEYS.indexOf(k) === -1 && merged[k] !== undefined && merged[k] !== null) {
+      hidden[k] = merged[k];
+    }
+  });
+  const markerStr = Object.keys(hidden).length ? '<!--dp-meta:' + JSON.stringify(hidden) + '-->' : '';
+
+  const body = tags.length === 0 ? rest : (rest ? rest + '\n\n' + tags.join(' ') : tags.join(' '));
+  if (!markerStr) return body;
+  return body ? body + '\n' + markerStr : markerStr;
 }
 
 /**
