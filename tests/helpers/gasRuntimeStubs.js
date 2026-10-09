@@ -102,7 +102,7 @@ function makeCacheService() {
 
 /** In-memory fakes with the call shapes of the Advanced services. Seed via the returned `data`. */
 function makeAdvancedFakes() {
-  const data = { threads: {}, events: [], tasks: [], docs: {}, inaccessibleDocs: new Set(), nextId: 1 };
+  const data = { threads: {}, events: [], tasks: [], docs: {}, inaccessibleDocs: new Set(), driveFiles: [], sheets: {}, sheetsCalls: [], nextId: 1 };
   const id = (p) => { const v = `${p}${data.nextId}`; data.nextId += 1; return v; };
   const notFound = (what) => { const e = new Error(`${what} not found`); e.code = 404; return e; };
   return {
@@ -138,13 +138,264 @@ function makeAdvancedFakes() {
     },
     Docs: {
       Documents: {
-        get(docId) {
-          if (data.inaccessibleDocs.has(docId)) { const e = new Error('The caller does not have permission'); e.code = 403; throw e; }
-          if (!data.docs[docId]) throw notFound('document');
-          return data.docs[docId];
+        get(docId) { return docToApi(docGuard(docId)); },
+        create(doc) { return docToApi(newFakeDoc((doc && doc.title) || 'Untitled')); },
+        batchUpdate(body, docId) {
+          const doc = docGuard(docId);
+          const wc = body.writeControl;
+          if (wc && wc.requiredRevisionId && wc.requiredRevisionId !== doc.revisionId) {
+            const e = new Error('Precondition failed: revision mismatch'); e.code = 400; throw e;
+          }
+          // Atomic: apply to a copy, commit only if every request succeeds.
+          const work = { ...doc, chars: doc.chars.map((c) => ({ ...c })) };
+          for (const r of body.requests) applyDocRequest(work, r);
+          doc.chars = work.chars;
+          doc.revisionId = `rev${Number(doc.revisionId.slice(3)) + 1}`;
+          doc.appliedRequests.push(...body.requests);
+          return { documentId: docId };
+        }
+      }
+    },
+    Drive: {
+      Files: {
+        insert(resource) {
+          const f = { id: id('file'), title: resource.title, mimeType: resource.mimeType, parents: resource.parents || [] };
+          data.driveFiles.push(f);
+          if (f.mimeType === 'application/vnd.google-apps.document') newFakeDoc(f.title, f.id);
+          if (f.mimeType === 'application/vnd.google-apps.spreadsheet') {
+            data.sheets[f.id] = { title: f.title, tabs: [{ sheetId: 0, title: 'Sheet1', rows: [] }], nextSheetId: 1 };
+          }
+          return { ...f };
         },
-        create(doc) { const docId = id('doc'); data.docs[docId] = { documentId: docId, ...doc }; return data.docs[docId]; },
-        batchUpdate(body, docId) { this.get(docId); (data.docs[docId].appliedRequests ||= []).push(...body.requests); return { documentId: docId }; }
+        list(opts = {}) {
+          const q = String(opts.q || '');
+          const title = (/title = '([^']*)'/.exec(q) || [])[1];
+          const mime = (/mimeType = '([^']*)'/.exec(q) || [])[1];
+          const parent = (/'([^']*)' in parents/.exec(q) || [])[1];
+          const items = data.driveFiles.filter((f) => (!title || f.title === title) && (!mime || f.mimeType === mime)
+            && (!parent || f.parents.some((p) => p.id === parent)));
+          return { items: items.map((f) => ({ ...f })) };
+        }
+      }
+    },
+    Sheets: makeSheetsFake(data)
+  };
+
+  function docGuard(docId) {
+    if (data.inaccessibleDocs.has(docId)) { const e = new Error('The caller does not have permission'); e.code = 403; throw e; }
+    if (!data.docs[docId]) throw notFound('document');
+    return data.docs[docId];
+  }
+  function newFakeDoc(title, docId) {
+    const did = docId || id('doc');
+    // chars model the body after the leading section break; pstyle lives on each '\n'.
+    const doc = { documentId: did, title, revisionId: 'rev1', chars: [{ ch: '\n', link: null, pstyle: 'NORMAL_TEXT' }], appliedRequests: [] };
+    data.docs[did] = doc;
+    return doc;
+  }
+}
+
+/** Renders a fake doc as the Docs API resource shape (index 0 = section break, text from index 1). */
+function docToApi(doc) {
+  const content = [{ startIndex: 0, endIndex: 1, sectionBreak: {} }];
+  let i = 0;
+  while (i < doc.chars.length) {
+    let j = i;
+    while (doc.chars[j].ch !== '\n') j += 1;
+    const elements = [];
+    let k = i;
+    while (k <= j) {
+      const link = doc.chars[k].link;
+      let m = k;
+      while (m + 1 <= j && doc.chars[m + 1].link === link) m += 1;
+      const text = doc.chars.slice(k, m + 1).map((c) => c.ch).join('');
+      elements.push({ startIndex: k + 1, endIndex: m + 2, textRun: { content: text, textStyle: link ? { link: { url: link } } : {} } });
+      k = m + 1;
+    }
+    content.push({ startIndex: i + 1, endIndex: j + 2, paragraph: { elements, paragraphStyle: { namedStyleType: doc.chars[j].pstyle } } });
+    i = j + 1;
+  }
+  return { documentId: doc.documentId, title: doc.title, revisionId: doc.revisionId, body: { content } };
+}
+
+function docBad(msg) { const e = new Error(msg); e.code = 400; return e; }
+
+/** Applies one Docs request (insertText, updateParagraphStyle, updateTextStyle, deleteParagraphBullets). */
+function applyDocRequest(doc, r) {
+  const n = doc.chars.length;
+  if (r.insertText) {
+    const { index } = r.insertText.location;
+    if (index < 1 || index > n) throw docBad(`insertText index ${index} out of range 1..${n}`);
+    // Real Docs: inserted text inherits char style from its neighbour and paragraph style from the
+    // paragraph it lands in. Callers must restyle explicitly.
+    let nl = index - 1;
+    while (doc.chars[nl].ch !== '\n') nl += 1;
+    const pstyle = doc.chars[nl].pstyle;
+    const inheritLink = index >= 2 ? doc.chars[index - 2].link : null;
+    const units = [];
+    for (let u = 0; u < r.insertText.text.length; u += 1) {
+      const ch = r.insertText.text[u]; // UTF-16 unit, matching Docs index arithmetic
+      units.push({ ch, link: inheritLink, pstyle: ch === '\n' ? pstyle : undefined });
+    }
+    doc.chars.splice(index - 1, 0, ...units);
+  } else if (r.updateParagraphStyle) {
+    const { startIndex, endIndex } = r.updateParagraphStyle.range;
+    if (startIndex < 1 || endIndex > n + 1 || startIndex >= endIndex) throw docBad('updateParagraphStyle range invalid');
+    // Every paragraph overlapping [startIndex, endIndex) is styled; its style lives on its newline.
+    for (let p = startIndex - 1; p < endIndex - 1; p += 1) {
+      let q = p;
+      while (doc.chars[q].ch !== '\n') q += 1;
+      doc.chars[q].pstyle = r.updateParagraphStyle.paragraphStyle.namedStyleType;
+    }
+  } else if (r.updateTextStyle) {
+    const { startIndex, endIndex } = r.updateTextStyle.range;
+    if (startIndex < 1 || endIndex > n + 1 || startIndex >= endIndex) throw docBad('updateTextStyle range invalid');
+    const url = r.updateTextStyle.textStyle && r.updateTextStyle.textStyle.link ? r.updateTextStyle.textStyle.link.url : null;
+    if (String(r.updateTextStyle.fields).split(',').includes('link')) {
+      for (let p = startIndex; p < endIndex; p += 1) doc.chars[p - 1].link = url;
+    }
+  } else if (!r.deleteParagraphBullets) {
+    throw docBad(`unsupported fake Docs request: ${Object.keys(r).join(',')}`);
+  }
+}
+
+/** Plain text of a fake doc (for assertions). */
+export function fakeDocText(doc) { return doc.chars.map((c) => c.ch).join(''); }
+
+/** Paragraphs [{text, style, links:[{start,end,url}]}] of a fake doc (for assertions). */
+export function fakeDocParagraphs(doc) {
+  const out = [];
+  let cur = [];
+  for (const c of doc.chars) {
+    if (c.ch === '\n') {
+      const links = [];
+      cur.forEach((x, i) => {
+        if (!x.link) return;
+        const last = links[links.length - 1];
+        if (last && last.url === x.link && last.end === i) last.end = i + 1;
+        else links.push({ start: i, end: i + 1, url: x.link });
+      });
+      out.push({ text: cur.map((x) => x.ch).join(''), style: c.pstyle, links });
+      cur = [];
+    } else cur.push(c);
+  }
+  return out;
+}
+
+/**
+ * Minimal in-memory Advanced Sheets v4 fake. Supports Spreadsheets.get/batchUpdate (addSheet,
+ * updateSheetProperties title) and Spreadsheets.Values.get/batchGet/update/batchUpdate/append with
+ * A1 ranges. `data.sheetsCalls` logs every call ({method, ...}) so tests can assert batching.
+ */
+function makeSheetsFake(data) {
+  const log = (method, extra = {}) => data.sheetsCalls.push({ method, ...extra });
+  const sheet = (sid) => {
+    if (!data.sheets[sid]) { const e = new Error('Requested entity was not found.'); e.code = 404; throw e; }
+    return data.sheets[sid];
+  };
+  const colNum = (s) => [...s].reduce((a, ch) => a * 26 + ch.charCodeAt(0) - 64, 0);
+  const colLetter = (n) => { let s = ''; for (let x = n; x > 0; x = Math.floor((x - 1) / 26)) s = String.fromCharCode(65 + ((x - 1) % 26)) + s; return s; };
+  function parseRange(range) {
+    const m = /^(?:'((?:[^']|'')+)'|([^!]+))!(.+)$/.exec(range);
+    if (!m) throw new Error(`fake Sheets: unsupported range ${range}`);
+    const tab = (m[1] || m[2]).replace(/''/g, "'");
+    const a = /^([A-Z]+)(\d*)(?::([A-Z]+)(\d*))?$/.exec(m[3]);
+    if (!a) throw new Error(`fake Sheets: unsupported A1 ${m[3]}`);
+    return {
+      tab,
+      c1: colNum(a[1]),
+      r1: a[2] ? Number(a[2]) : 1,
+      c2: a[3] ? colNum(a[3]) : colNum(a[1]),
+      r2: a[4] ? Number(a[4]) : (a[3] ? Infinity : (a[2] ? Number(a[2]) : Infinity))
+    };
+  }
+  const tabOf = (sp, name) => {
+    const t = sp.tabs.find((x) => x.title === name);
+    if (!t) throw new Error(`Unable to parse range: ${name}`);
+    return t;
+  };
+  function readRange(sp, range) {
+    const { tab, c1, r1, c2, r2 } = parseRange(range);
+    const t = tabOf(sp, tab);
+    const out = [];
+    for (let r = r1; r <= Math.min(r2, t.rows.length); r += 1) {
+      const row = [];
+      for (let c = c1; c <= c2; c += 1) row.push((t.rows[r - 1] || [])[c - 1] === undefined ? '' : t.rows[r - 1][c - 1]);
+      while (row.length && row[row.length - 1] === '') row.pop();
+      out.push(row);
+    }
+    while (out.length && out[out.length - 1].length === 0) out.pop();
+    return out;
+  }
+  function writeValues(sp, range, values) {
+    const { tab, c1, r1 } = parseRange(range);
+    const t = tabOf(sp, tab);
+    values.forEach((vals, i) => {
+      const r = r1 + i;
+      while (t.rows.length < r) t.rows.push([]);
+      vals.forEach((v, j) => {
+        const row = t.rows[r - 1];
+        while (row.length < c1 + j) row.push('');
+        row[c1 + j - 1] = v;
+      });
+    });
+  }
+  const lastDataRow = (t) => {
+    let last = 0;
+    t.rows.forEach((row, i) => { if (row.some((c) => c !== '' && c !== undefined)) last = i + 1; });
+    return last;
+  };
+  return {
+    Spreadsheets: {
+      get(sid) {
+        log('spreadsheets.get');
+        const sp = sheet(sid);
+        return { spreadsheetId: sid, sheets: sp.tabs.map((t) => ({ properties: { sheetId: t.sheetId, title: t.title } })) };
+      },
+      batchUpdate(body, sid) {
+        log('spreadsheets.batchUpdate', { requests: body.requests.length });
+        const sp = sheet(sid);
+        for (const r of body.requests) {
+          if (r.addSheet) {
+            const title = r.addSheet.properties.title;
+            if (sp.tabs.some((t) => t.title === title)) throw new Error(`A sheet with the name "${title}" already exists.`);
+            sp.tabs.push({ sheetId: sp.nextSheetId, title, rows: [] });
+            sp.nextSheetId += 1;
+          } else if (r.updateSheetProperties) {
+            const p = r.updateSheetProperties.properties;
+            const t = sp.tabs.find((x) => x.sheetId === p.sheetId);
+            if (!t) throw new Error('fake Sheets: unknown sheetId');
+            if (String(r.updateSheetProperties.fields).includes('title')) t.title = p.title;
+          } else throw new Error(`fake Sheets: unsupported request ${Object.keys(r).join(',')}`);
+        }
+        return { spreadsheetId: sid };
+      },
+      Values: {
+        get(sid, range) { log('values.get', { range }); return { range, values: readRange(sheet(sid), range) }; },
+        batchGet(sid, opts) {
+          log('values.batchGet', { ranges: opts.ranges });
+          const sp = sheet(sid);
+          return { valueRanges: opts.ranges.map((range) => ({ range, values: readRange(sp, range) })) };
+        },
+        update(resource, sid, range, opts = {}) {
+          log('values.update', { range, valueInputOption: opts.valueInputOption });
+          writeValues(sheet(sid), range, resource.values);
+          return { updatedRows: resource.values.length };
+        },
+        batchUpdate(body, sid) {
+          log('values.batchUpdate', { ranges: body.data.map((d) => d.range), valueInputOption: body.valueInputOption });
+          const sp = sheet(sid);
+          body.data.forEach((d) => writeValues(sp, d.range, d.values));
+          return { totalUpdatedRows: body.data.reduce((n, d) => n + d.values.length, 0) };
+        },
+        append(resource, sid, range, opts = {}) {
+          log('values.append', { range, rows: resource.values.length, valueInputOption: opts.valueInputOption });
+          const sp = sheet(sid);
+          const { tab, c1 } = parseRange(range);
+          const t = tabOf(sp, tab);
+          writeValues(sp, `'${tab}'!${colLetter(c1)}${lastDataRow(t) + 1}`, resource.values);
+          return { updates: { updatedRows: resource.values.length } };
+        }
       }
     }
   };
@@ -166,6 +417,9 @@ export function makeGasContext() {
     Calendar: fakes.Calendar,
     Tasks: fakes.Tasks,
     Docs: fakes.Docs,
+    Drive: fakes.Drive,
+    Sheets: fakes.Sheets,
+    Session: { getScriptTimeZone: () => 'America/New_York', getActiveUser: () => ({ getEmail: () => 'tester@example.com' }), getEffectiveUser: () => ({ getEmail: () => 'tester@example.com' }) },
     console: { log: (...a) => lines.push(a.join(' ')), warn: (...a) => lines.push(a.join(' ')), error: (...a) => lines.push(a.join(' ')) },
     __fakes: fakes.data,
     __consoleLines: lines
