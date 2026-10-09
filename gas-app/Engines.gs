@@ -125,6 +125,751 @@ function makeResult(r) {
   return Object.freeze({ ...r });
 }
 
+// ---- ledger.js ----
+/**
+ * @file ledger.js
+ * @description Pure idempotency/ledger decision logic for the Gmail/Meeting hub (Phase 28).
+ * Rows are plain objects keyed by LEDGER_COLUMNS; persistence, clock and locking are injected
+ * ports (store {get,put}, lock {tryLock,releaseLock}, clock()). No Date.now, no Google services.
+ * Processed/Error are ledger statuses (not Gmail labels). Error messages are sanitized: never
+ * email addresses, message bodies, or long opaque ids.
+ */
+
+
+const LEDGER_DEFAULT_STALE_MINUTES = 15;
+const LEDGER_DEFAULT_ERROR_MAX = 200;
+const LEDGER_DEFAULT_ID_RUN = 20;
+const LEDGER_DEFAULT_LOCK_WAIT_MS = 5000;
+
+function ledgerIso(now) {
+  const d = now instanceof Date ? now : new Date(now);
+  if (Number.isNaN(d.getTime())) throw new Error(`Invalid ledger timestamp: ${String(now)}`);
+  return d.toISOString();
+}
+
+function ledgerRequire(value, name) {
+  if (typeof value !== 'string' || value === '') throw new Error(`ledger: ${name} is required`);
+  return value;
+}
+
+function ledgerBlankRow() {
+  const row = {};
+  for (const col of LEDGER_COLUMNS) row[col] = '';
+  return row;
+}
+
+function ledgerJson(metadata) {
+  return metadata === undefined || metadata === null ? '' : JSON.stringify(metadata);
+}
+
+/**
+ * Masks an opaque id for display, keeping only the first and last three characters.
+ * @param {string} id
+ * @returns {string}
+ */
+function maskId(id) {
+  const s = String(id === undefined || id === null ? '' : id);
+  if (s.length <= 8) return '***';
+  return `${s.slice(0, 3)}...${s.slice(-3)}`;
+}
+
+/**
+ * Reduces any error to a short, single-line message safe to persist/log.
+ * @param {Error|string|undefined} err
+ * @param {number} [maxLen]
+ * @returns {string}
+ */
+function sanitizeError(err, maxLen = LEDGER_DEFAULT_ERROR_MAX) {
+  const raw = err && typeof err === 'object' ? err.message : err;
+  if (raw === undefined || raw === null || String(raw).trim() === '') return 'Unknown error';
+  let s = String(raw).split(/\r?\n/)[0];
+  s = s.replace(/https?:\/\/\S+/gi, '[url]');
+  s = s.replace(/[^\s@<>"']+@[^\s@<>"']+/g, '[email]');
+  s = s.replace(new RegExp(`[A-Za-z0-9_-]{${LEDGER_DEFAULT_ID_RUN},}`, 'g'), '[id]');
+  s = s.trim();
+  if (s.length > maxLen) s = `${s.slice(0, Math.max(0, maxLen - 3))}...`;
+  return s;
+}
+
+/**
+ * Human-readable DRY_RUN text per spec section 22.
+ * @param {'CREATE_TASK'|'ROUTE_MEETING'|'APPEND_CARRY_IN'|'SKIP_DONE'|'DEFER_CUTOFF'} kind
+ * @param {{occurrenceId?:string, docId?:string}} [ctx]
+ * @returns {string}
+ */
+function dryRunMessage(kind, ctx = {}) {
+  switch (kind) {
+    case 'CREATE_TASK': return 'Would create Task';
+    case 'ROUTE_MEETING': return `Would route to NCMMS Core occurrence ${ledgerRequire(ctx.occurrenceId, 'occurrenceId')}`;
+    case 'APPEND_CARRY_IN': return `Would append carry-in to Doc ${maskId(ledgerRequire(ctx.docId, 'docId'))}`;
+    case 'SKIP_DONE': return 'Would skip because already processed';
+    case 'DEFER_CUTOFF': return 'Would defer because cutoff passed';
+    default: throw new Error(`Unknown dry-run kind: ${String(kind)}`);
+  }
+}
+
+/**
+ * Decides what to do with an operation given its existing ledger row.
+ * @param {object|null} existingRow
+ * @param {Date|string|number} now
+ * @param {{staleMinutes?:number, dryRun?:boolean}} [opts]
+ * @returns {{action:string, reason:string}}
+ */
+function decideOperation(existingRow, now, opts = {}) {
+  const staleMinutes = opts.staleMinutes === undefined ? LEDGER_DEFAULT_STALE_MINUTES : opts.staleMinutes;
+  const nowMs = new Date(ledgerIso(now)).getTime();
+  let action;
+  let reason;
+  const status = existingRow ? existingRow.Status : '';
+  if (!existingRow || status === LEDGER_STATUS.DRY_RUN || status === '') {
+    action = 'PROCEED';
+    reason = 'No prior operation recorded';
+  } else if (status === LEDGER_STATUS.DONE || status === LEDGER_STATUS.SKIPPED) {
+    action = 'SKIP_DONE';
+    reason = 'Already processed';
+  } else if (status === LEDGER_STATUS.PENDING) {
+    const updatedMs = new Date(ledgerIso(existingRow.UpdatedAt || existingRow.CreatedAt)).getTime();
+    const ageMin = (nowMs - updatedMs) / 60000;
+    if (ageMin >= staleMinutes) {
+      action = 'RETRY';
+      reason = `Pending operation stale (${Math.floor(ageMin)} min)`;
+    } else {
+      action = 'WAIT_IN_FLIGHT';
+      reason = 'Operation in flight';
+    }
+  } else if (status === LEDGER_STATUS.ERROR) {
+    action = 'RETRY';
+    reason = 'Previous attempt failed';
+  } else if (status === LEDGER_STATUS.DEFERRED) {
+    action = 'PROCEED';
+    reason = 'Previously deferred';
+  } else {
+    throw new Error(`Unknown ledger status: ${String(status)}`);
+  }
+  if (opts.dryRun) return { action: `WOULD_${action}`, reason };
+  return { action, reason };
+}
+
+/**
+ * Creates a PENDING row for a new operation.
+ * @param {{opKey:string, sourceType:string, sourceId:string, sourceVersion?:string, action:string, targetType?:string, metadata?:object}} op
+ * @param {Date|string|number} now
+ * @returns {object} ledger row
+ */
+function beginOp(op, now) {
+  const at = ledgerIso(now);
+  const row = ledgerBlankRow();
+  row.OperationKey = ledgerRequire(op && op.opKey, 'opKey');
+  row.SourceType = ledgerRequire(op.sourceType, 'sourceType');
+  row.SourceId = ledgerRequire(op.sourceId, 'sourceId');
+  row.SourceVersion = op.sourceVersion || '';
+  row.Action = ledgerRequire(op.action, 'action');
+  row.TargetType = op.targetType || '';
+  row.Status = LEDGER_STATUS.PENDING;
+  row.CreatedAt = at;
+  row.UpdatedAt = at;
+  row.MetadataJson = ledgerJson(op.metadata);
+  return row;
+}
+
+function ledgerTransition(row, now, fields) {
+  if (!row || row.Status !== LEDGER_STATUS.PENDING) {
+    throw new Error(`Illegal ledger transition: row must be PENDING (was ${row ? row.Status : 'missing'})`);
+  }
+  return { ...row, ...fields, UpdatedAt: ledgerIso(now) };
+}
+
+/** PENDING -> DONE */
+function completeOp(row, now, result = {}) {
+  const fields = { Status: LEDGER_STATUS.DONE, ErrorCode: '', ErrorMessage: '' };
+  if (result.targetId) fields.TargetId = result.targetId;
+  if (result.targetType) fields.TargetType = result.targetType;
+  if (result.metadata) fields.MetadataJson = ledgerJson(result.metadata);
+  return ledgerTransition(row, now, fields);
+}
+
+/** PENDING -> ERROR with sanitized message. */
+function failOp(row, now, error) {
+  const code = error && typeof error === 'object' && error.code ? String(error.code) : 'ERROR';
+  return ledgerTransition(row, now, {
+    Status: LEDGER_STATUS.ERROR,
+    ErrorCode: sanitizeError(code, 40),
+    ErrorMessage: sanitizeError(error)
+  });
+}
+
+/** PENDING -> DEFERRED */
+function deferOp(row, now, reason) {
+  return ledgerTransition(row, now, {
+    Status: LEDGER_STATUS.DEFERRED,
+    ErrorCode: sanitizeError(reason || 'DEFERRED', 40),
+    ErrorMessage: ''
+  });
+}
+
+function ledgerDryMessages(op, action) {
+  if (action === 'WOULD_SKIP_DONE') return [dryRunMessage('SKIP_DONE')];
+  if (action === 'WOULD_PROCEED' || action === 'WOULD_RETRY') {
+    if (op.deferReason) return [dryRunMessage('DEFER_CUTOFF')];
+    if (op.kind === 'MEETING') {
+      return [dryRunMessage('ROUTE_MEETING', op), dryRunMessage('APPEND_CARRY_IN', op)];
+    }
+    return [dryRunMessage('CREATE_TASK')];
+  }
+  return [];
+}
+
+/**
+ * Claims an operation under the lock: read ledger, decide, write PENDING (or DEFERRED).
+ * DRY_RUN performs no lock, no write.
+ * @param {{store:{get:Function,put:Function}, lock:{tryLock:Function,releaseLock:Function}, clock:Function, op:object, staleMinutes?:number, dryRun?:boolean, lockWaitMs?:number}} a
+ * @returns {{action:string, reason:string, row:object|null, messages:string[]}}
+ */
+function claimOperation(a) {
+  const { store, lock, clock, op } = a;
+  const now = clock();
+  if (a.dryRun) {
+    const d = decideOperation(store.get(op.opKey), now, { staleMinutes: a.staleMinutes, dryRun: true });
+    const action = op.deferReason && d.action !== 'WOULD_SKIP_DONE' ? 'WOULD_DEFER' : d.action;
+    return { action, reason: d.reason, row: null, messages: ledgerDryMessages(op, d.action) };
+  }
+  if (!lock.tryLock(a.lockWaitMs === undefined ? LEDGER_DEFAULT_LOCK_WAIT_MS : a.lockWaitMs)) {
+    return { action: 'WAIT_IN_FLIGHT', reason: 'Lock busy', row: null, messages: [] };
+  }
+  try {
+    const existing = store.get(op.opKey);
+    const d = decideOperation(existing, now, { staleMinutes: a.staleMinutes });
+    if (d.action === 'SKIP_DONE' || d.action === 'WAIT_IN_FLIGHT') {
+      return { action: d.action, reason: d.reason, row: existing, messages: [] };
+    }
+    const fresh = beginOp(op, now);
+    const row = existing && existing.CreatedAt ? { ...fresh, CreatedAt: existing.CreatedAt } : fresh;
+    if (op.deferReason) {
+      const deferred = deferOp(row, now, op.deferReason);
+      store.put(deferred);
+      return { action: 'DEFER', reason: String(op.deferReason), row: deferred, messages: [] };
+    }
+    store.put(row);
+    return { action: d.action, reason: d.reason, row, messages: [] };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Claims then runs work(), recording DONE or a sanitized ERROR. work returns
+ * {targetId?, targetType?, metadata?}. A failure to write the DONE row propagates (the PENDING
+ * row then goes stale and the retry must be idempotent via the target's own op-key).
+ * @param {object} a claimOperation args plus work
+ * @returns {{ok:boolean, action:string, reason?:string, row:object|null, messages:string[], retryable?:boolean, errorCode?:string}}
+ */
+function runOperation(a) {
+  const claim = claimOperation(a);
+  const proceeding = claim.action === 'PROCEED' || claim.action === 'RETRY';
+  if (!proceeding) {
+    return { ok: !claim.action.startsWith('ERROR'), ...claim };
+  }
+  let result;
+  try {
+    result = a.work({ row: claim.row, retry: claim.action === 'RETRY' }) || {};
+  } catch (err) {
+    const failed = failOp(claim.row, a.clock(), err);
+    a.store.put(failed);
+    return {
+      ok: false,
+      action: 'ERROR',
+      reason: failed.ErrorMessage,
+      row: failed,
+      messages: [],
+      retryable: !(err && typeof err === 'object' && err.retryable === false),
+      errorCode: failed.ErrorCode
+    };
+  }
+  const done = completeOp(claim.row, a.clock(), result);
+  a.store.put(done);
+  return { ok: true, action: 'DONE', reason: '', row: done, messages: [] };
+}
+
+// ---- notesPlanner.js ----
+/**
+ * @file notesPlanner.js
+ * @description Pure planner for the app-owned meeting-notes Doc (Phase 28, spec section 8).
+ * Input is a simplified document model {paragraphs:[{text, style, links?, sig?}]}; output is
+ * requests-as-data. Request paragraph indices refer to the document state AFTER all earlier
+ * requests in the same list were applied (the Docs executor translates them to character indices).
+ * Carry-ins are pointers only (subject, sender, date, Gmail link, optional capped excerpt): the
+ * message body is never accepted. Re-planning against the updated model is idempotent.
+ */
+
+const NOTES_SECTIONS = Object.freeze([
+  'PREP / EMAIL CARRY-INS', 'AGENDA', 'HUMAN NOTES', 'DECISIONS', 'ACTION ITEMS', 'GEMINI RECONCILIATION'
+]);
+
+const NOTES_PLANNER_DATE_HEADING_RE = /^\d{4}-\d{2}-\d{2} — /;
+const NOTES_PLANNER_BODY_FIELDS = ['body', 'bodyText', 'plainBody', 'htmlBody', 'messageBody', 'html'];
+const NOTES_PLANNER_DEFAULT_EXCERPT = 160;
+const NOTES_PLANNER_MAX_LINE = 200;
+const NOTES_PLANNER_DEFAULT_KIND = 'Decision/Input needed';
+
+function notesPlannerError(code, message, retryable) {
+  const e = new Error(message);
+  e.code = code;
+  e.retryable = retryable;
+  return e;
+}
+
+function notesPlannerAssertDoc(doc) {
+  if (!doc || doc.accessible === false || !Array.isArray(doc.paragraphs)) {
+    throw notesPlannerError('DOC_INACCESSIBLE', 'Notes Doc is inaccessible; no changes were planned', true);
+  }
+}
+
+/**
+ * Occurrence heading text: "<YYYY-MM-DD> — <DisplayName>".
+ * @param {{date:string, displayName:string}} occurrence
+ * @returns {string}
+ */
+function notesPlannerHeadingText(occurrence) {
+  if (!occurrence || !/^\d{4}-\d{2}-\d{2}$/.test(String(occurrence.date)) || !occurrence.displayName) {
+    throw new Error('notesPlanner: occurrence needs date (YYYY-MM-DD) and displayName');
+  }
+  return `${occurrence.date} — ${occurrence.displayName}`;
+}
+
+function notesPlannerHash(str) {
+  // cyrb53: small, synchronous, identical in node and Apps Script V8.
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i += 1) {
+    const ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  const n = 4294967296 * (2097151 & h2) + (h1 >>> 0);
+  return n.toString(16).padStart(14, '0');
+}
+
+function notesPlannerOneLine(value, max) {
+  const s = String(value === undefined || value === null ? '' : value).replace(/\s+/g, ' ').trim();
+  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
+}
+
+function notesPlannerClone(doc) {
+  return { ...doc, paragraphs: doc.paragraphs.map((p) => ({ ...p })) };
+}
+
+/**
+ * Applies planner requests to a document model (pure; used by tests and dry-run previews).
+ * @param {{paragraphs:Array<object>}} doc
+ * @param {Array<object>} requests
+ * @returns {{paragraphs:Array<object>}} new model
+ */
+function applyNotesRequests(doc, requests) {
+  const out = notesPlannerClone(doc);
+  for (const r of requests) {
+    if (r.type !== 'INSERT_PARAGRAPHS') throw new Error(`notesPlanner: unknown request type ${String(r.type)}`);
+    if (r.beforeIndex < 0 || r.beforeIndex > out.paragraphs.length) {
+      throw new Error(`notesPlanner: beforeIndex ${r.beforeIndex} out of range`);
+    }
+    out.paragraphs.splice(r.beforeIndex, 0, ...r.paragraphs.map((p) => ({ ...p })));
+  }
+  return out;
+}
+
+function notesPlannerFindBlock(doc, occurrence) {
+  const heading = notesPlannerHeadingText(occurrence);
+  const start = doc.paragraphs.findIndex((p) => String(p.text).trim() === heading);
+  if (start === -1) return null;
+  let end = doc.paragraphs.length;
+  for (let i = start + 1; i < doc.paragraphs.length; i += 1) {
+    const p = doc.paragraphs[i];
+    if (p.style === 'HEADING_1' || p.style === 'HEADING_2' || NOTES_PLANNER_DATE_HEADING_RE.test(String(p.text))) {
+      end = i;
+      break;
+    }
+  }
+  const sections = {};
+  for (let i = start + 1; i < end; i += 1) {
+    const t = String(doc.paragraphs[i].text).trim();
+    if (NOTES_SECTIONS.includes(t) && sections[t] === undefined) sections[t] = i;
+  }
+  return { start, end, sections };
+}
+
+function notesPlannerSkeleton(occurrence, sections) {
+  const ps = [];
+  if (occurrence) ps.push({ text: notesPlannerHeadingText(occurrence), style: 'HEADING_2' });
+  for (const s of sections) {
+    ps.push({ text: s, style: 'HEADING_3' }, { text: '', style: 'NORMAL' });
+  }
+  return ps;
+}
+
+/**
+ * Plans what is needed so the occurrence heading and all six subsections exist.
+ * @param {{paragraphs:Array<object>}|null} docModel
+ * @param {{occurrenceId?:string, date:string, displayName:string}} occurrence
+ * @returns {{status:'EXISTS'|'CREATE_SKELETON'|'ADD_SUBSECTIONS', missing:string[], requests:Array<object>}}
+ */
+function planOccurrenceSection(docModel, occurrence) {
+  notesPlannerAssertDoc(docModel);
+  const block = notesPlannerFindBlock(docModel, occurrence);
+  if (!block) {
+    return {
+      status: 'CREATE_SKELETON',
+      missing: [...NOTES_SECTIONS],
+      requests: [{ type: 'INSERT_PARAGRAPHS', beforeIndex: docModel.paragraphs.length, paragraphs: notesPlannerSkeleton(occurrence, NOTES_SECTIONS) }]
+    };
+  }
+  const missing = NOTES_SECTIONS.filter((s) => block.sections[s] === undefined);
+  if (missing.length === 0) return { status: 'EXISTS', missing: [], requests: [] };
+  const requests = [];
+  let working = docModel;
+  for (const s of missing) {
+    const b = notesPlannerFindBlock(working, occurrence);
+    const next = NOTES_SECTIONS.slice(NOTES_SECTIONS.indexOf(s) + 1).find((n) => b.sections[n] !== undefined);
+    const req = {
+      type: 'INSERT_PARAGRAPHS',
+      beforeIndex: next === undefined ? b.end : b.sections[next],
+      paragraphs: notesPlannerSkeleton(null, [s])
+    };
+    requests.push(req);
+    working = applyNotesRequests(working, [req]);
+  }
+  return { status: 'ADD_SUBSECTIONS', missing, requests };
+}
+
+function notesPlannerValidateCarryIn(carryIn) {
+  if (!carryIn || typeof carryIn !== 'object') throw new Error('notesPlanner: carryIn is required');
+  for (const f of NOTES_PLANNER_BODY_FIELDS) {
+    if (carryIn[f] !== undefined) {
+      throw new Error(`notesPlanner: carry-ins are pointer-only; refusing field "${f}"`);
+    }
+  }
+  for (const f of ['threadId', 'subject', 'gmailUrl']) {
+    if (typeof carryIn[f] !== 'string' || carryIn[f].trim() === '') throw new Error(`notesPlanner: carryIn.${f} is required`);
+  }
+}
+
+function notesPlannerCarryInParagraphs(carryIn, signature, maxExcerpt) {
+  const kind = notesPlannerOneLine(carryIn.kind || NOTES_PLANNER_DEFAULT_KIND, 60);
+  const framing = notesPlannerOneLine(carryIn.framing, NOTES_PLANNER_MAX_LINE);
+  const subject = notesPlannerOneLine(carryIn.subject, NOTES_PLANNER_MAX_LINE);
+  const first = `• [${kind}] ${framing ? `${framing} — ` : ''}${subject}`;
+  const from = notesPlannerOneLine(carryIn.fromName || 'Unknown sender', 80);
+  const received = notesPlannerOneLine(carryIn.receivedDate || 'unknown date', 40);
+  const prefix = `  From: ${from} | Received: ${received} | `;
+  const ps = [
+    { text: first, style: 'NORMAL', sig: signature },
+    { text: `${prefix}Gmail`, style: 'NORMAL', links: [{ start: prefix.length, end: prefix.length + 5, url: carryIn.gmailUrl }] }
+  ];
+  if (carryIn.excerpt) {
+    ps.push({ text: `  “${notesPlannerOneLine(carryIn.excerpt, maxExcerpt)}”`, style: 'NORMAL' });
+  }
+  return ps;
+}
+
+/**
+ * Plans appending one carry-in under PREP / EMAIL CARRY-INS (creating skeleton parts as needed).
+ * @param {{paragraphs:Array<object>}|null} docModel
+ * @param {{occurrenceId:string, date:string, displayName:string}} occurrence
+ * @param {{threadId:string, subject:string, gmailUrl:string, kind?:string, framing?:string, fromName?:string, receivedDate?:string, excerpt?:string}} carryIn
+ * @param {{maxExcerpt?:number}} [opts]
+ * @returns {{action:'APPEND'|'ALREADY_PRESENT', signature:string, requests:Array<object>, structure:string}}
+ */
+function planCarryIn(docModel, occurrence, carryIn, opts = {}) {
+  notesPlannerAssertDoc(docModel);
+  notesPlannerValidateCarryIn(carryIn);
+  const maxExcerpt = opts.maxExcerpt === undefined ? NOTES_PLANNER_DEFAULT_EXCERPT : opts.maxExcerpt;
+  if (typeof occurrence.occurrenceId !== 'string' || occurrence.occurrenceId === '') {
+    throw new Error('notesPlanner: occurrence.occurrenceId is required for carry-ins');
+  }
+  const probe = notesPlannerCarryInParagraphs(carryIn, '', maxExcerpt);
+  const signature = notesPlannerHash(`${carryIn.threadId}|${occurrence.occurrenceId}|${probe[0].text}`);
+
+  const structure = planOccurrenceSection(docModel, occurrence);
+  const requests = [...structure.requests];
+  const working = applyNotesRequests(docModel, requests);
+  const block = notesPlannerFindBlock(working, occurrence);
+  const prepIdx = block.sections[NOTES_SECTIONS[0]];
+
+  const already = working.paragraphs.slice(block.start, block.end).some((p) => p.sig === signature
+    || (p.links || []).some((l) => l.url === carryIn.gmailUrl));
+  if (already) return { action: 'ALREADY_PRESENT', signature, requests: [], structure: 'EXISTS' };
+
+  const nextSection = NOTES_SECTIONS.slice(1).map((s) => block.sections[s]).find((i) => i !== undefined);
+  const sectionEnd = nextSection === undefined ? block.end : nextSection;
+  let insertAt = prepIdx + 1;
+  for (let i = prepIdx + 1; i < sectionEnd; i += 1) {
+    if (String(working.paragraphs[i].text).trim() !== '') insertAt = i + 1;
+  }
+  requests.push({
+    type: 'INSERT_PARAGRAPHS',
+    beforeIndex: insertAt,
+    paragraphs: notesPlannerCarryInParagraphs(carryIn, signature, maxExcerpt)
+  });
+  return { action: 'APPEND', signature, requests, structure: structure.status };
+}
+
+/**
+ * Number of carry-in entries currently under PREP / EMAIL CARRY-INS for an occurrence.
+ * @param {{paragraphs:Array<object>}|null} docModel
+ * @param {{date:string, displayName:string}} occurrence
+ * @returns {number}
+ */
+function carryInCount(docModel, occurrence) {
+  if (!docModel || !Array.isArray(docModel.paragraphs)) return 0;
+  const block = notesPlannerFindBlock(docModel, occurrence);
+  if (!block || block.sections[NOTES_SECTIONS[0]] === undefined) return 0;
+  const prep = block.sections[NOTES_SECTIONS[0]];
+  const next = NOTES_SECTIONS.slice(1).map((s) => block.sections[s]).find((i) => i !== undefined);
+  const end = next === undefined ? block.end : next;
+  let n = 0;
+  for (let i = prep + 1; i < end; i += 1) {
+    if (String(docModel.paragraphs[i].text).startsWith('•')) n += 1;
+  }
+  return n;
+}
+
+// ---- queuePlanner.js ----
+/**
+ * @file queuePlanner.js
+ * @description Pure, bounded, resumable batch planner for the workflow queue (Phase 28).
+ * Refuses to run without the lock, no-ops when the GMAIL_ROUTER flag is off, processes items
+ * independently (a malformed item or one whose thread vanished is quarantined as an ERROR ledger
+ * row with a sanitized message while the rest proceed), and returns the cursor to resume from.
+ */
+
+
+function queuePlannerQuarantine(item, code, message, retryable, now) {
+  const valid = item && typeof item === 'object' && typeof item.opKey === 'string' && item.opKey !== ''
+    && typeof item.threadId === 'string' && item.threadId !== '';
+  const errorMessage = sanitizeError(message);
+  let ledgerRow = null;
+  if (valid) {
+    const pending = beginOp({
+      opKey: item.opKey,
+      sourceType: 'GMAIL',
+      sourceId: item.threadId,
+      action: item.action || 'QUEUE_ITEM'
+    }, now);
+    ledgerRow = failOp(pending, now, { code, message: errorMessage });
+  }
+  return {
+    opKey: valid ? item.opKey : null,
+    status: 'ERROR',
+    errorCode: code,
+    errorMessage,
+    retryable,
+    ledgerRow
+  };
+}
+
+/**
+ * Plans one bounded slice of the queue.
+ * @param {{items:Array<object>, cursor:number, batchSize:number, lockHeld:boolean, flags:{GMAIL_ROUTER?:boolean}, clock:Function, isSourceAvailable?:Function}} a
+ * @returns {{action:'PROCESS'|'NOOP'|'REFUSED', reason:string, toProcess:Array<object>, quarantined:Array<object>, nextCursor:number, done:boolean}}
+ */
+function planBatch(a) {
+  if (!Array.isArray(a.items)) throw new Error('queuePlanner: items must be an array');
+  if (!Number.isInteger(a.cursor) || a.cursor < 0) throw new Error('queuePlanner: cursor must be a non-negative integer');
+  if (!Number.isInteger(a.batchSize) || a.batchSize < 1) throw new Error('queuePlanner: batchSize must be a positive integer');
+  const empty = { toProcess: [], quarantined: [], nextCursor: a.cursor, done: false };
+  if (!a.flags || a.flags.GMAIL_ROUTER !== true) {
+    return { ...empty, action: 'NOOP', reason: 'GMAIL_ROUTER flag is off' };
+  }
+  if (a.lockHeld !== true) {
+    return { ...empty, action: 'REFUSED', reason: 'LOCK_NOT_HELD' };
+  }
+  const now = a.clock();
+  const end = Math.min(a.items.length, a.cursor + a.batchSize);
+  const toProcess = [];
+  const quarantined = [];
+  for (let i = a.cursor; i < end; i += 1) {
+    const item = a.items[i];
+    const wellFormed = item && typeof item === 'object' && typeof item.opKey === 'string' && item.opKey !== ''
+      && typeof item.threadId === 'string' && item.threadId !== '';
+    if (!wellFormed) {
+      quarantined.push(queuePlannerQuarantine(item, 'MALFORMED_ITEM', 'Queue item is missing opKey or threadId', false, now));
+      continue;
+    }
+    let available = true;
+    if (a.isSourceAvailable) {
+      try {
+        available = a.isSourceAvailable(item);
+      } catch (err) {
+        quarantined.push(queuePlannerQuarantine(item, 'SOURCE_CHECK_FAILED', err, true, now));
+        continue;
+      }
+    }
+    if (!available) {
+      quarantined.push(queuePlannerQuarantine(item, 'SOURCE_MISSING', 'Source thread no longer exists', false, now));
+      continue;
+    }
+    toProcess.push(item);
+  }
+  return {
+    action: 'PROCESS',
+    reason: '',
+    toProcess,
+    quarantined,
+    nextCursor: end,
+    done: end >= a.items.length
+  };
+}
+
+// ---- taskPlanner.js ----
+/**
+ * @file taskPlanner.js
+ * @description Pure planning of Google Task payloads from Gmail thread metadata (Phase 28).
+ * Titles follow the Day Planner [A1]-[C9] convention (mirrors taskEngine.formatTaskTitle, which
+ * cannot be imported here: engines only import siblings). Idempotency identity is an op-key stored
+ * in a hidden dp-meta marker in the Task notes (same marker Code.gs decodeTaskMeta parses), so a
+ * retry after a crash between Task create and ledger write finds the task instead of duplicating.
+ * Stores only the Gmail link and subject, never message bodies.
+ */
+
+const TASK_PLANNER_PRIORITY_RE = /^([A-Ca-c])([1-9])$/;
+const TASK_PLANNER_META_RE = /<!--dp-meta:(.*?)-->\n?/;
+const TASK_PLANNER_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const TASK_PLANNER_MAX_SUBJECT = 200;
+
+function taskPlannerRequire(value, name) {
+  if (typeof value !== 'string' || value.trim() === '') throw new Error(`taskPlanner: ${name} is required`);
+  return value;
+}
+
+function taskPlannerPriorityPrefix(priority) {
+  if (priority === undefined || priority === null || priority === '') return '';
+  let group;
+  let seq;
+  if (typeof priority === 'string') {
+    const m = priority.trim().match(TASK_PLANNER_PRIORITY_RE);
+    if (!m) throw new Error(`taskPlanner: invalid priority ${JSON.stringify(priority)} (expected A1..C9)`);
+    group = m[1];
+    seq = m[2];
+  } else {
+    group = String(priority.group || '');
+    seq = String(priority.sequence);
+    if (!TASK_PLANNER_PRIORITY_RE.test(group + seq)) {
+      throw new Error(`taskPlanner: invalid priority ${JSON.stringify(priority)} (expected A1..C9)`);
+    }
+  }
+  return `[${group.toUpperCase()}${seq}] `;
+}
+
+function taskPlannerTitle(thread, priority, prefixText) {
+  const subject = String((thread && thread.subject) || '').trim().slice(0, TASK_PLANNER_MAX_SUBJECT) || '(no subject)';
+  return `${taskPlannerPriorityPrefix(priority)}${prefixText || ''}${subject}`;
+}
+
+/**
+ * Local calendar date (YYYY-MM-DD) of an instant in an IANA time zone.
+ * @param {Date} now
+ * @param {string} timeZone
+ * @returns {string}
+ */
+function taskPlannerLocalDate(now, timeZone) {
+  taskPlannerRequire(timeZone, 'timeZone');
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' })
+    .formatToParts(now);
+  const get = (t) => parts.find((p) => p.type === t).value;
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
+/**
+ * Parses the dp-meta JSON marker from Task notes.
+ * @param {string} notes
+ * @returns {object} parsed meta, or {} when absent/unparseable
+ */
+function taskPlannerReadMeta(notes) {
+  const m = String(notes || '').match(TASK_PLANNER_META_RE);
+  if (!m) return {};
+  try {
+    const parsed = JSON.parse(m[1]);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function taskPlannerBuildNotes(thread, now, meta, tag) {
+  const url = taskPlannerRequire(thread && thread.url, 'thread.url');
+  const lines = [`Gmail: ${url}`, `Created: ${now.toISOString()}`];
+  if (tag) lines.push('', tag);
+  lines.push(`<!--dp-meta:${JSON.stringify(meta)}-->`);
+  return lines.join('\n');
+}
+
+function taskPlannerDue(dateStr) {
+  return `${dateStr}T00:00:00.000Z`;
+}
+
+/**
+ * Finds a Task previously created for an op-key.
+ * @param {Array<{notes?:string}>} tasks
+ * @param {string} opKey
+ * @returns {object|null}
+ */
+function findExistingByOpKey(tasks, opKey) {
+  taskPlannerRequire(opKey, 'opKey');
+  for (const t of tasks || []) {
+    if (taskPlannerReadMeta(t && t.notes).opKey === opKey) return t;
+  }
+  return null;
+}
+
+/**
+ * Plans a Task from a labeled Gmail thread.
+ * @param {{thread:{threadId:string, subject:string, url:string}, today?:boolean, priority?:string|{group:string,sequence:number}, existingTasks:Array<object>, opKey:string, now:Date, timeZone?:string}} a
+ * @returns {{action:'CREATE', task:object}|{action:'EXISTS', task:object}}
+ */
+function planTaskFromThread(a) {
+  taskPlannerRequire(a.opKey, 'opKey');
+  taskPlannerRequire(a.thread && a.thread.threadId, 'thread.threadId');
+  const existing = findExistingByOpKey(a.existingTasks, a.opKey);
+  if (existing) return { action: 'EXISTS', task: existing };
+  const task = {
+    title: taskPlannerTitle(a.thread, a.priority, ''),
+    notes: taskPlannerBuildNotes(a.thread, a.now, { opKey: a.opKey, gmailThreadId: a.thread.threadId }, '')
+  };
+  if (a.today) task.due = taskPlannerDue(taskPlannerLocalDate(a.now, a.timeZone));
+  return { action: 'CREATE', task };
+}
+
+/**
+ * Plans a Waiting item: a Task tagged [Waiting] whose dp-meta records who is awaited and when to nag.
+ * @param {{thread:object, waitingOn:string, nagDate:string, priority?:string|object, existingTasks:Array<object>, opKey:string, now:Date}} a
+ * @returns {{action:'CREATE', task:object}|{action:'EXISTS', task:object}}
+ */
+function planWaiting(a) {
+  taskPlannerRequire(a.opKey, 'opKey');
+  taskPlannerRequire(a.thread && a.thread.threadId, 'thread.threadId');
+  taskPlannerRequire(a.waitingOn, 'waitingOn');
+  if (!TASK_PLANNER_DATE_RE.test(String(a.nagDate))) {
+    throw new Error(`taskPlanner: nagDate must be YYYY-MM-DD, got ${JSON.stringify(a.nagDate)}`);
+  }
+  const existing = findExistingByOpKey(a.existingTasks, a.opKey);
+  if (existing) return { action: 'EXISTS', task: existing };
+  const meta = {
+    opKey: a.opKey,
+    gmailThreadId: a.thread.threadId,
+    waitingOn: a.waitingOn.trim(),
+    nagDate: a.nagDate,
+    gmailLink: taskPlannerRequire(a.thread.url, 'thread.url')
+  };
+  return {
+    action: 'CREATE',
+    task: {
+      title: taskPlannerTitle(a.thread, a.priority, ''),
+      notes: taskPlannerBuildNotes(a.thread, a.now, meta, '[Waiting]'),
+      due: taskPlannerDue(a.nagDate)
+    }
+  };
+}
+
 // used by other .gs files (Config/Queue/Repository wrappers); not a google.script.run surface
 global.DPEngines = Object.freeze({
   EVENT_TYPE: EVENT_TYPE,
@@ -141,7 +886,29 @@ global.DPEngines = Object.freeze({
   gmailMeetingKey: gmailMeetingKey,
   geminiProposeKey: geminiProposeKey,
   meetingTaskKey: meetingTaskKey,
-  makeResult: makeResult
+  makeResult: makeResult,
+  maskId: maskId,
+  sanitizeError: sanitizeError,
+  dryRunMessage: dryRunMessage,
+  decideOperation: decideOperation,
+  beginOp: beginOp,
+  completeOp: completeOp,
+  failOp: failOp,
+  deferOp: deferOp,
+  claimOperation: claimOperation,
+  runOperation: runOperation,
+  NOTES_SECTIONS: NOTES_SECTIONS,
+  notesPlannerHeadingText: notesPlannerHeadingText,
+  applyNotesRequests: applyNotesRequests,
+  planOccurrenceSection: planOccurrenceSection,
+  planCarryIn: planCarryIn,
+  carryInCount: carryInCount,
+  planBatch: planBatch,
+  taskPlannerLocalDate: taskPlannerLocalDate,
+  taskPlannerReadMeta: taskPlannerReadMeta,
+  findExistingByOpKey: findExistingByOpKey,
+  planTaskFromThread: planTaskFromThread,
+  planWaiting: planWaiting
 });
 
 })(this);
