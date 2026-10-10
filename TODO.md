@@ -27,8 +27,10 @@ HOME `/dev` and the gas-rpc API deployment (@301) run `59e4119`. Pinned prod `/e
   (light + dark) and a real `meetError`; stale "offline copy" notices; task notes edit persists to Google;
   delete during an in-flight save stays deleted; typing on two days within 1.2s saves both notes.
 - [ ] **Decide pinned prod `/exec` deploy** (user): held because it carries `gmail.readonly`.
-- [ ] **Create the `🎯/` Gmail labels** and label 2-3 test threads; confirm assumptions A1-A15 in
+- [x] **Create the `🎯/` Gmail labels** (done 2026-10-10; 3 test threads on Task/Task-Today/Waiting) and label 2-3 test threads; confirm assumptions A1-A15 in
   [`docs/hub-setup-and-gate.md`](file:///home/mike/projects/day-planner/docs/hub-setup-and-gate.md).
-- [ ] **DRY_RUN smoke**, then real-service steps L1-L8 from the same runbook.
+- [x] **DRY_RUN smoke** 2026-10-10 via gas-rpc: L1 Sheets, L2 emoji label resolution, L3 Config flag edit picked up,
+  L4 `processWorkflowQueue` = "Would create Task" x3, ledger counts `{}` (zero writes).
+- [ ] **Real-service steps L5-L8** from the same runbook (L5 needs user to set `DRY_RUN` FALSE).
 - [ ] **Re-route old MEETING ERROR rows** that have no series (they now fail `MISSING_SERIES` by design).
 - [ ] **WORK**: after HOME passes, `npm run push:work`, then the WORK-IDE steps (admin may need to approve the scope).
