@@ -32,8 +32,44 @@ function gasBytes(value) {
   return typeof value === 'string' ? Buffer.from(value, 'utf8') : Buffer.from(value);
 }
 
+/**
+ * Utilities.formatDate(date, timeZone, pattern) for the SimpleDateFormat subset the server uses:
+ * yyyy MM dd HH mm ss, quoted literals ('T') and punctuation. Any other pattern letter throws, so a
+ * new pattern in server code fails the test instead of silently formatting wrong.
+ */
+export function formatDateInZone(date, tz, pattern) {
+  if (!(date instanceof Date) && Object.prototype.toString.call(date) !== '[object Date]') throw new Error('formatDate: date must be a Date');
+  if (Number.isNaN(date.getTime())) throw new Error('formatDate: invalid date');
+  const f = new Intl.DateTimeFormat('en-CA', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const p = {};
+  for (const part of f.formatToParts(date)) p[part.type] = part.value;
+  const tokens = { yyyy: p.year, MM: p.month, dd: p.day, HH: p.hour, mm: p.minute, ss: p.second };
+  let out = '';
+  for (let i = 0; i < pattern.length;) {
+    const ch = pattern[i];
+    if (ch === "'") {
+      const end = pattern.indexOf("'", i + 1);
+      if (end < 0) throw new Error(`formatDate: unterminated quote in ${pattern}`);
+      out += pattern.slice(i + 1, end);
+      i = end + 1;
+    } else if (/[A-Za-z]/.test(ch)) {
+      let j = i;
+      while (pattern[j] === ch) j += 1;
+      const tok = pattern.slice(i, j);
+      if (!(tok in tokens)) throw new Error(`formatDate stub: unsupported pattern token ${tok} in ${pattern}`);
+      out += tokens[tok];
+      i = j;
+    } else {
+      out += ch;
+      i += 1;
+    }
+  }
+  return out;
+}
+
 function makeUtilities() {
   return {
+    formatDate: formatDateInZone,
     DigestAlgorithm: { MD5: 'md5', SHA_1: 'sha1', SHA_256: 'sha256' },
     Charset: { UTF_8: 'utf8' },
     // Real GAS returns signed bytes (-128..127); mirror that.

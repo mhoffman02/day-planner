@@ -4276,6 +4276,26 @@
     color: #d9534f;
   }
 
+  /* Flat binder checkbox row (Add Google Meet): native box, teal accent, square corners */
+  .form-check-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    cursor: pointer;
+  }
+
+  .form-check-input {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    border-radius: 2px;
+    accent-color: var(--binder-teal, #2d6a5a);
+    cursor: pointer;
+  }
+
   .form-row-2 {
     display: grid;
     grid-template-columns: 1fr 1fr;

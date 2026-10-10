@@ -17,6 +17,7 @@
   carries the scope and the Gmail/Sheets Advanced Services). Nothing has been pushed.
 - [ ] **IDE Services (+) on HOME**: add Gmail and Sheets; enable both APIs in the linked Cloud project; re-consent
   as `mhoffman02@gmail.com` (runbook: `docs/hub-setup-and-gate.md` section 4).
-- [ ] **Run the live Sheets-under-`drive.file` spike** on HOME and report pass/fail (fallback options in the same doc).
+- [x] **Live Sheets-under-`drive.file` spike** PASSED on HOME 2026-10-09 (`UnitTests.gs:hubSpike`: Sheet created, 4 tabs read, no 403).
+  `UserEmail` blank from the pre-fix seed was filled by hand. Rerun `UnitTests.gs:hubSpike` to confirm `RESULT: PASS` end to end.
 - [ ] **Create the `🎯/` Gmail labels** and label 2-3 test threads; confirm assumptions A1-A15 in the doc.
 - [ ] **WORK**: after HOME passes, `npm run push:work`, then the WORK-IDE steps (admin may need to approve the scope).

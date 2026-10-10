@@ -159,7 +159,9 @@ function markError_(opKey, err, spec) {
       store.put(E.failOp(row, new Date(), err));
     } else if (!row && spec && !spec.dryRun && spec.threadId && ROUTE_ACTIONS_[spec.kind]) {
       var now = new Date();
-      store.put(E.failOp(E.beginOp({ opKey: opKey, sourceType: 'GMAIL', sourceId: spec.threadId, action: ROUTE_ACTIONS_[spec.kind], targetType: spec.kind === 'MEETING' ? 'DOC' : 'TASK' }, now), now, err));
+      // A MEETING row always records its series so a later retry never has to guess it.
+      var meta = spec.kind === 'MEETING' && typeof spec.seriesKey === 'string' && spec.seriesKey ? { seriesKey: spec.seriesKey } : undefined;
+      store.put(E.failOp(E.beginOp({ opKey: opKey, sourceType: 'GMAIL', sourceId: spec.threadId, action: ROUTE_ACTIONS_[spec.kind], targetType: spec.kind === 'MEETING' ? 'DOC' : 'TASK', metadata: meta }, now), now, err));
     }
   } catch (secondary) {
     logSafe_('markError_ could not persist ERROR (row stays PENDING and goes stale)', secondary);
@@ -394,11 +396,9 @@ function collectItems_(ctx) {
           var active = E.findActiveMeetingRow(ctx.ledgerRows, { threadId: tid, seriesKey: QUEUE_CORE_SERIES_, now: now });
           if (active) {
             var occId = active.OperationKey.split('|')[3];
-            var meta;
-            try { meta = JSON.parse(active.MetadataJson || '{}'); } catch (e) {
-              logSafe_('QueueProcessor: corrupt MetadataJson, resuming the PENDING row without it', e);
-              meta = {};
-            }
+            // findActiveMeetingRow never returns a row with corrupt metadata; if that invariant breaks,
+            // this throws and the whole selection is recorded as SELECTION_FAILED (never resumed blind).
+            var meta = JSON.parse(active.MetadataJson || '{}');
             var prior = occs.filter(function(x) { return x.id === occId; })[0];
             var start = prior ? prior.start : (meta.start || null);
             if (start) {

@@ -434,7 +434,7 @@ const DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mho
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const DAY_PLANNER_BUILD_NUMBER = 417;
+const DAY_PLANNER_BUILD_NUMBER = 418;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -1105,15 +1105,15 @@ function getDailyData(dateStr) {
   };
 
   try {
-    const targetDate = new Date(dateStr + 'T00:00:00');
-    const nextDate = new Date(targetDate.getTime() + 24 * 60 * 60 * 1000);
-
-    // 1. Fetch Calendar Events
+    // 1. Fetch Calendar Events. The day is midnight-to-midnight in the user's primary calendar time
+    // zone (not the script zone); an unreadable zone skips the fetch with a loud warning.
     if (typeof Calendar !== 'undefined' && Calendar.Events) {
       try {
+        const calTz = primaryCalendarTimeZone_('so calendar events for ' + dateStr + ' were not loaded');
+        const dayWindow = calendarDayWindow_(dateStr, dateStr, calTz);
         const dayResp = Calendar.Events.list('primary', {
-          timeMin: targetDate.toISOString(),
-          timeMax: nextDate.toISOString(),
+          timeMin: dayWindow.timeMin,
+          timeMax: dayWindow.timeMax,
           singleEvents: true,
           maxResults: 250,
           conferenceDataVersion: 1,
@@ -1127,7 +1127,10 @@ function getDailyData(dateStr) {
       try {
         const defaultCal = CalendarApp.getDefaultCalendar();
         const defaultCalId = defaultCal.getId();
-        const events = defaultCal.getEvents(targetDate, nextDate);
+        const calAppTz = defaultCal.getTimeZone();
+        if (!calAppTz) throw new Error('Could not read your calendar time zone, so calendar events for ' + dateStr + ' were not loaded.');
+        const appWindow = calendarDayWindow_(dateStr, dateStr, calAppTz);
+        const events = defaultCal.getEvents(new Date(appWindow.timeMin), new Date(appWindow.timeMax));
         result.calendarEvents = events.map(function(evt) {
           const meetLink = extractMeetLinkFromEvent_(evt);
           const bareId = evt.getId().replace(/@google\.com$/, '');
@@ -1277,33 +1280,88 @@ function validateCalendarEventPayload_(payload) {
 
 /**
  * Resolves the primary calendar's IANA time zone. Fails closed: no fallback to the script time
- * zone, which would silently place the event at the wrong hour for a user in another zone.
+ * zone, which would silently place an event (or a day window) at the wrong hour for a user in
+ * another zone. Single source for createCalendarEvent, getDailyData and getDailyDataRange.
+ * @param {string} consequence What the caller then does not do, for the user message (e.g. 'so the event was not created').
  * @returns {string} IANA time zone name.
  * @throws {Error} When the lookup throws or returns no time zone.
  */
-function primaryCalendarTimeZone_() {
+function primaryCalendarTimeZone_(consequence) {
   let tz;
   try {
+    if (!Calendar.Calendars) throw new Error('Calendar.Calendars advanced service is unavailable');
     const primary = Calendar.Calendars.get('primary');
     tz = primary && primary.timeZone ? String(primary.timeZone) : '';
   } catch (err) {
-    logError('primaryCalendarTimeZone_: Calendar.Calendars.get(primary) failed; event not created', err);
-    throw new Error('Could not read your calendar time zone, so the event was not created. Please try again.', { cause: err });
+    logError('primaryCalendarTimeZone_: Calendar.Calendars.get(primary) failed; ' + consequence, err);
+    throw new Error('Could not read your calendar time zone, ' + consequence + '. Please try again.', { cause: err });
   }
   if (!tz) {
-    logError('primaryCalendarTimeZone_', new Error('primary calendar has no timeZone; event not created'));
-    throw new Error('Could not read your calendar time zone, so the event was not created.');
+    logError('primaryCalendarTimeZone_', new Error('primary calendar has no timeZone; ' + consequence));
+    throw new Error('Could not read your calendar time zone, ' + consequence + '.');
   }
   return tz;
+}
+
+/**
+ * Wall-clock fields of an instant in a time zone, re-read as if they were UTC (offset probe).
+ * @param {number} ms Epoch milliseconds.
+ * @param {string} tz IANA time zone.
+ * @returns {number} Epoch milliseconds of the same wall-clock fields in UTC.
+ */
+function zonedWallClockMs_(ms, tz) {
+  const s = Utilities.formatDate(new Date(ms), tz, "yyyy-MM-dd'T'HH:mm:ss");
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})$/.exec(s);
+  if (!m) throw new Error('Unexpected formatDate output for time zone ' + tz + ': ' + s);
+  return Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]), Number(m[6]));
+}
+
+/**
+ * The instant local midnight starts on y-m-d in tz. Pure y/m/d arithmetic (d may overflow into the
+ * next month); two offset probes so a DST change near midnight resolves to the real offset.
+ * @returns {number} Epoch milliseconds.
+ */
+function zonedMidnightMs_(y, m, d, tz) {
+  const wall = Date.UTC(y, m - 1, d);
+  const first = wall - (zonedWallClockMs_(wall, tz) - wall);
+  return wall - (zonedWallClockMs_(first, tz) - first);
+}
+
+/**
+ * Window [start-day midnight, day-after-end midnight) in the calendar time zone, as UTC instants.
+ * Each bound is its own midnight, so 23h/25h DST days are exact.
+ * @param {string} startDateStr YYYY-MM-DD.
+ * @param {string} endDateStr YYYY-MM-DD (inclusive).
+ * @param {string} tz IANA time zone.
+ * @returns {{timeMin: string, timeMax: string}} RFC3339 UTC instants.
+ */
+function calendarDayWindow_(startDateStr, endDateStr, tz) {
+  const a = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(startDateStr));
+  const b = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(endDateStr));
+  if (!a || !b) throw new Error('Invalid date range ' + startDateStr + '..' + endDateStr + ' (expected YYYY-MM-DD)');
+  return {
+    timeMin: new Date(zonedMidnightMs_(Number(a[1]), Number(a[2]), Number(a[3]), tz)).toISOString(),
+    timeMax: new Date(zonedMidnightMs_(Number(b[1]), Number(b[2]), Number(b[3]) + 1, tz)).toISOString()
+  };
+}
+
+/** @returns {string} YYYY-MM-DD shifted by n days, pure y/m/d arithmetic on the date string. */
+function shiftDateKey_(dateKey, n) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateKey));
+  if (!m) throw new Error('Invalid date key ' + dateKey);
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + n));
+  return d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0');
 }
 
 /**
  * Creates a timed event on the user's primary Google Calendar.
  * Times are wall-clock values in the primary calendar's time zone, sent as dateTime + timeZone
  * so the Calendar API resolves the offset (no client/server offset arithmetic, DST-safe).
- * addMeet is accepted but ignored: this server does not create Meet conferences.
+ * addMeet === true requests a Google Meet conference (conferenceDataVersion 1). If the event is
+ * saved but the Meet link is not (status not success, or no video entry point), the event is kept
+ * and returned with meetLink null plus meetError (user-facing text). meetError is absent otherwise.
  * @param {{title: string, dateStr: string, startTime: string, endTime: string, description?: string, location?: string, addMeet?: boolean}} payload Event fields.
- * @returns {{id: string, title: string, startTime: string, endTime: string, location: string, description: string, meetLink: (string|null), htmlLink: (string|null), syncTaskId: (string|null)}} The created event, in the getDailyData calendarEvents shape.
+ * @returns {{id: string, title: string, startTime: string, endTime: string, location: string, description: string, meetLink: (string|null), htmlLink: (string|null), syncTaskId: (string|null), meetError?: string}} The created event, in the getDailyData calendarEvents shape.
  * @throws {Error} 'Invalid event: ...' for bad input; a friendly message when Calendar fails.
  */
 function createCalendarEvent(payload) {
@@ -1311,7 +1369,7 @@ function createCalendarEvent(payload) {
   if (typeof Calendar === 'undefined' || !Calendar.Events || !Calendar.Calendars) {
     throw new Error('Google Calendar is not available, so the event was not created.');
   }
-  const tz = primaryCalendarTimeZone_();
+  const tz = primaryCalendarTimeZone_('so the event was not created');
   const resource = {
     summary: ev.title,
     start: { dateTime: ev.dateStr + 'T' + ev.startTime + ':00', timeZone: tz },
@@ -1319,16 +1377,54 @@ function createCalendarEvent(payload) {
   };
   if (ev.description) resource.description = ev.description;
   if (ev.location) resource.location = ev.location;
+  const addMeet = payload.addMeet === true;
+  if (addMeet) {
+    resource.conferenceData = { createRequest: { requestId: Utilities.getUuid(), conferenceSolutionKey: { type: 'hangoutsMeet' } } };
+  }
 
   let created;
   try {
-    created = Calendar.Events.insert(resource, 'primary');
+    created = addMeet
+      ? Calendar.Events.insert(resource, 'primary', { conferenceDataVersion: 1 })
+      : Calendar.Events.insert(resource, 'primary');
     if (!created || !created.id) throw new Error('Calendar.Events.insert returned no event id');
   } catch (err) {
     logError('createCalendarEvent(' + ev.dateStr + ' ' + ev.startTime + '-' + ev.endTime + ')', err);
     throw new Error('Could not create the event "' + ev.title + '" in Google Calendar (' + (err.message || err) + '). Nothing was saved.', { cause: err });
   }
-  return mapCalendarApiEvent_(created);
+  const out = mapCalendarApiEvent_(created);
+  if (addMeet) {
+    const meet = createdMeetLink_(created);
+    out.meetLink = meet.link;
+    if (!meet.link) {
+      // The event IS saved; only the Meet conference is missing. Keep the event, tell the user.
+      logError('createCalendarEvent: Meet link not created for event ' + created.id + ' (' + meet.reason + '); event kept without Meet', new Error('Meet conference not created: ' + meet.reason));
+      out.meetError = meet.pending
+        ? 'The event was saved, but its Google Meet link is not ready yet. Refresh the day in a minute to see it.'
+        : 'The event was saved, but a Google Meet link could not be added. Add Meet to it from Google Calendar.';
+    }
+  }
+  return out;
+}
+
+/**
+ * Meet link of an event just inserted with a conference createRequest. Only the conference itself
+ * counts (hangoutLink or the video entry point): never a meet URL found in the title/description,
+ * which could be an unrelated or stale meeting.
+ * @param {Object} created Calendar.Events.insert result.
+ * @returns {{link: (string|null), pending: boolean, reason: string}} link null when not created.
+ */
+function createdMeetLink_(created) {
+  const conf = created.conferenceData || null;
+  const status = conf && conf.createRequest && conf.createRequest.status ? conf.createRequest.status.statusCode : '';
+  if (!conf) return { link: null, pending: false, reason: 'no conferenceData in the insert response' };
+  if (status !== 'success') return { link: null, pending: status === 'pending', reason: 'createRequest status ' + (status || 'missing') };
+  let link = typeof created.hangoutLink === 'string' && created.hangoutLink.trim() ? created.hangoutLink.trim() : null;
+  if (!link) {
+    const video = (conf.entryPoints || []).filter(function(ep) { return ep && ep.entryPointType === 'video' && typeof ep.uri === 'string' && ep.uri.trim(); })[0];
+    link = video ? video.uri.trim() : null;
+  }
+  return link ? { link: link, pending: false, reason: 'ok' } : { link: null, pending: false, reason: 'conference created without a video entry point' };
 }
 
 /** @returns {string} Local YYYY-MM-DD key for a Date, using the script's own local fields (no UTC shift). */
@@ -1353,30 +1449,30 @@ function enumerateDateRange_(startDateStr, endDateStr) {
 /**
  * Determines which of the requested date keys a Calendar event overlaps, by actual start/end
  * span rather than just its start date -- otherwise day 2+ of a multi-day event silently
- * disappears from the range payload.
+ * disappears from the range payload. Timed events are bucketed by their instants in the calendar
+ * time zone; all-day events by their date strings (never parsed as UTC midnight).
  * @param {Object} evt Raw Calendar.Events.list item.
  * @param {Array<string>} dateKeys Sorted candidate date keys for the requested range.
+ * @param {string} tz Primary calendar IANA time zone.
  * @returns {Array<string>} The subset of dateKeys this event spans.
  */
-function eventOverlapDateKeys_(evt, dateKeys) {
-  const startRaw = evt.start && (evt.start.dateTime || evt.start.date);
-  const endRaw = evt.end && (evt.end.dateTime || evt.end.date);
-  if (!startRaw) return [];
-  const isAllDay = !!(evt.start && evt.start.date && !evt.start.dateTime);
-
-  const startDate = new Date(startRaw);
-  let endDate = endRaw ? new Date(endRaw) : startDate;
-  if (isAllDay) {
-    // Google Calendar's all-day end.date is exclusive -- step back a day so the range covers
-    // the last real day the event occupies, not the day after it ends.
-    endDate = new Date(endDate.getTime() - 24 * 60 * 60 * 1000);
+function eventOverlapDateKeys_(evt, dateKeys, tz) {
+  if (!evt.start || !(evt.start.dateTime || evt.start.date)) return [];
+  let startKey;
+  let endKey;
+  if (!evt.start.dateTime) {
+    startKey = evt.start.date;
+    // Google Calendar's all-day end.date is exclusive -- the last real day is the day before.
+    endKey = evt.end && evt.end.date ? shiftDateKey_(evt.end.date, -1) : startKey;
   } else {
+    const startMs = Date.parse(evt.start.dateTime);
+    const endMs = evt.end && evt.end.dateTime ? Date.parse(evt.end.dateTime) : startMs;
+    if (isNaN(startMs) || isNaN(endMs)) throw new Error('Calendar event ' + evt.id + ' has an unreadable start/end time');
+    startKey = Utilities.formatDate(new Date(startMs), tz, 'yyyy-MM-dd');
     // A timed event ending exactly at local midnight shouldn't also claim the next calendar day.
-    endDate = new Date(endDate.getTime() - 1);
+    endKey = Utilities.formatDate(new Date(Math.max(startMs, endMs - 1)), tz, 'yyyy-MM-dd');
   }
-
-  const startKey = localDateKey_(startDate);
-  const endKey = localDateKey_(endDate < startDate ? startDate : endDate);
+  if (endKey < startKey) endKey = startKey;
   return dateKeys.filter(function(k) { return k >= startKey && k <= endKey; });
 }
 
@@ -1408,9 +1504,11 @@ function getDailyDataRange(startDateStr, endDateStr) {
     return { days: days, warnings: warnings };
   }
 
-  const rangeStart = new Date(startDateStr + 'T00:00:00');
-  const rangeEndExclusive = new Date(endDateStr + 'T00:00:00');
-  rangeEndExclusive.setDate(rangeEndExclusive.getDate() + 1);
+  // The range is midnight-to-midnight in the user's primary calendar time zone. Unreadable zone:
+  // throw (logged with stack). A warning would be silent here: the prefetch caller primes its
+  // cache from the days and ignores warnings.
+  const calTz = primaryCalendarTimeZone_('so calendar data for ' + startDateStr + '..' + endDateStr + ' was not loaded');
+  const rangeWindow = calendarDayWindow_(startDateStr, endDateStr, calTz);
 
   // 1. Calendar events, paginated, bucketed by day overlap.
   try {
@@ -1418,8 +1516,8 @@ function getDailyDataRange(startDateStr, endDateStr) {
     let calPageToken = null;
     do {
       const calParams = {
-        timeMin: rangeStart.toISOString(),
-        timeMax: rangeEndExclusive.toISOString(),
+        timeMin: rangeWindow.timeMin,
+        timeMax: rangeWindow.timeMax,
         singleEvents: true,
         maxResults: 250,
         conferenceDataVersion: 1,
@@ -1433,7 +1531,7 @@ function getDailyDataRange(startDateStr, endDateStr) {
 
     calItems.forEach(function(evt) {
       const mapped = mapCalendarApiEvent_(evt);
-      eventOverlapDateKeys_(evt, dateKeys).forEach(function(k) {
+      eventOverlapDateKeys_(evt, dateKeys, calTz).forEach(function(k) {
         if (days[k]) days[k].calendarEvents.push(mapped);
       });
     });

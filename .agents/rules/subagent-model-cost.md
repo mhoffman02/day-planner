@@ -13,6 +13,9 @@
 - Claude's `Agent` tool has no effort parameter; effort comes from the agent definition. So spawn via
   `subagent_type: "lite" | "worker" | "deep"` (user-level `~/.claude/agents/*.md`, model + effort pinned in
   frontmatter). Do not use `general-purpose` with a `model` override: that pins model but not effort.
+- Subagents MUST NOT call the advisor tool (an Opus agent consulting an Opus advisor pays twice for the
+  same judgment). Tier agents set `disallowedTools: advisor`; a lower tier that needs more judgment
+  reports "needs a higher tier" instead. Only the orchestrating session uses the advisor.
 - State the chosen tier (model/effort) and a one-line reason when spawning.
 - A tier that fails its exit-criteria tests is retried one tier up; do not start at the top "to be safe".
 - Every subagent prompt MUST carry exit criteria: concrete commands plus expected results (full test suite, lint,

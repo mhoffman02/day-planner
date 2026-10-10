@@ -16,8 +16,7 @@ const TZ = 'America/Chicago';
 const EVENT_KEYS = ['description', 'endTime', 'htmlLink', 'id', 'location', 'meetLink', 'startTime', 'syncTaskId', 'title'];
 
 function calCtx(o = {}) {
-  const ctx = makeGasContext();
-  ctx.Utilities.formatDate = () => '2026-10-09 12:00:00';
+  const ctx = makeGasContext(); // real zone-aware Utilities.formatDate stub (getDailyData needs it)
   const inserts = [];
   ctx.Calendar.Calendars = {
     get: o.calendarsGet || ((id) => { if (id !== 'primary') throw new Error('unexpected calendar ' + id); return { id: 'me@example.com', timeZone: TZ }; })
@@ -35,6 +34,8 @@ function calCtx(o = {}) {
       end: { dateTime: resource.end.dateTime + off, timeZone: resource.end.timeZone },
       htmlLink: 'https:' + '//calendar.google.com/event?eid=x' + inserts.length
     };
+    // o.meet(resource, opts) returns the conference fields the API attaches ({conferenceData, hangoutLink}).
+    if (o.meet) Object.assign(created, o.meet(resource, opts));
     ctx.__fakes.events.push(created);
     return created;
   });
@@ -79,12 +80,79 @@ test('returned event is identical to how getDailyData(dateStr) maps the same eve
   assert.deepEqual(created, listed);
 });
 
-test('optional description/location omitted -> empty strings in the returned shape; addMeet accepted', () => {
-  const { ctx, inserts } = calCtx();
+// Contract change 2026-10-09 (#11 Meet): addMeet === true now creates a Meet conference. Without it
+// (absent or false) no conferenceData is requested and no meetError key is returned.
+test('optional description/location omitted -> empty strings; addMeet absent/false -> no conference, no meetError', () => {
+  for (const extra of [{}, { addMeet: false }]) {
+    const { ctx, inserts } = calCtx();
+    const out = toHost(ctx.createCalendarEvent(good(extra)));
+    assert.equal(out.description, '');
+    assert.equal(out.location, '');
+    assert.equal(inserts[0].resource.conferenceData, undefined);
+    assert.equal(inserts[0].opts && inserts[0].opts.conferenceDataVersion, undefined);
+    assert.deepEqual(Object.keys(out).sort(), EVENT_KEYS);
+  }
+});
+
+const MEET_URI = 'https:' + '//meet.google.com/abc-defg-hij';
+const meetOk = (resource) => ({
+  hangoutLink: MEET_URI,
+  conferenceData: {
+    createRequest: { requestId: resource.conferenceData.createRequest.requestId, conferenceSolutionKey: { type: 'hangoutsMeet' }, status: { statusCode: 'success' } },
+    entryPoints: [{ entryPointType: 'video', uri: MEET_URI }, { entryPointType: 'phone', uri: 'tel:+1-555-0100' }],
+    conferenceSolution: { key: { type: 'hangoutsMeet' } }
+  }
+});
+
+test('addMeet true -> conferenceData.createRequest (hangoutsMeet, unique requestId) with conferenceDataVersion 1; meetLink returned', () => {
+  const { ctx, inserts } = calCtx({ meet: meetOk });
   const out = toHost(ctx.createCalendarEvent(good({ addMeet: true })));
-  assert.equal(out.description, '');
-  assert.equal(out.location, '');
-  assert.equal(inserts[0].resource.conferenceData, undefined, 'Meet creation is not implemented server-side');
+  const second = toHost(ctx.createCalendarEvent(good({ addMeet: true })));
+  const req = inserts[0].resource.conferenceData.createRequest;
+  assert.deepEqual(req.conferenceSolutionKey, { type: 'hangoutsMeet' });
+  assert.equal(typeof req.requestId, 'string');
+  assert.ok(req.requestId.length > 0);
+  assert.notEqual(req.requestId, inserts[1].resource.conferenceData.createRequest.requestId, 'requestId must be unique per insert');
+  assert.deepEqual(inserts[0].opts, { conferenceDataVersion: 1 });
+  assert.equal(out.meetLink, MEET_URI);
+  assert.equal(second.meetLink, MEET_URI);
+  assert.deepEqual(Object.keys(out).sort(), EVENT_KEYS, 'no meetError key on success');
+});
+
+test('addMeet true, entry point only (no hangoutLink) -> meetLink is the video entry point uri', () => {
+  const { ctx } = calCtx({ meet: (r) => { const m = meetOk(r); delete m.hangoutLink; return m; } });
+  const out = toHost(ctx.createCalendarEvent(good({ addMeet: true })));
+  assert.equal(out.meetLink, MEET_URI);
+  assert.equal(out.meetError, undefined);
+});
+
+const meetFailureCases = [
+  ['status failure', (r) => ({ conferenceData: { createRequest: { requestId: r.conferenceData.createRequest.requestId, status: { statusCode: 'failure' } } } })],
+  ['status pending (link not ready)', (r) => ({ conferenceData: { createRequest: { requestId: r.conferenceData.createRequest.requestId, status: { statusCode: 'pending' } } } })],
+  ['success but no entry point and no hangoutLink', (r) => ({ conferenceData: { createRequest: { requestId: r.conferenceData.createRequest.requestId, status: { statusCode: 'success' } }, entryPoints: [] } })],
+  ['no conferenceData at all', () => ({})]
+];
+
+for (const [name, meet] of meetFailureCases) {
+  test(`addMeet true, ${name} -> event still saved, meetLink null, user-facing meetError, context+stack logged`, () => {
+    const { ctx, inserts } = calCtx({ meet });
+    const out = toHost(ctx.createCalendarEvent(good({ addMeet: true, description: 'Join at ' + MEET_URI + '/old' })));
+    assert.equal(inserts.length, 1);
+    assert.equal(out.id, 'evt1', 'event returned (it was saved)');
+    assert.equal(ctx.__fakes.events.length, 1, 'event not deleted');
+    assert.equal(out.meetLink, null, 'never fall back to a Meet URL scraped from the description');
+    assert.equal(typeof out.meetError, 'string');
+    assert.match(out.meetError, /Meet/);
+    assert.match(out.meetError, /saved/i);
+    assert.doesNotMatch(out.meetError, /\n\s+at |statusCode|conferenceData/, 'no stack or raw API text in the user message');
+    assert.deepEqual(Object.keys(out).sort(), [...EVENT_KEYS, 'meetError'].sort());
+    assert.match(consoleText(ctx), /createCalendarEvent[\s\S]*Meet[\s\S]*evt1[\s\S]*\n\s+at /, 'context + stack logged');
+  });
+}
+
+test('addMeet true and the insert itself fails -> throws as before, nothing claimed', () => {
+  const { ctx } = calCtx({ insert: () => { throw new Error('Invalid conference type value.'); } });
+  assert.throws(() => ctx.createCalendarEvent(good({ addMeet: true })), /could not create/i);
 });
 
 const INVALID = [

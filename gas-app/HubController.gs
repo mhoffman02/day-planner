@@ -231,21 +231,25 @@ function retryFailedOperation(operationKey) {
       if (row.Status !== DPEngines.LEDGER_STATUS.ERROR) return fail_('NOT_RETRYABLE', 'Operation is not in ERROR status');
       var spec = { kind: kinds[parts[2]], threadId: threadId, opKey: operationKey, dryRun: pre.features.DRY_RUN === true, settings: settings, options: {} };
       if (parts[2] === 'MEETING') {
-        var meta;
-        try { meta = JSON.parse(row.MetadataJson || '{}'); } catch (e) {
-          // Never guess the destination series: fail the retry and leave the ERROR row as is.
-          DPQueue.logSafe('HubController: corrupt MetadataJson on a MEETING retry, refusing to guess the series (retry failed)', e);
+        // Never guess the destination series: it must be recorded in the row (metadata seriesKey
+        // or a BACKLOG-<series> op key). Otherwise fail and leave the ERROR row exactly as is.
+        var series = DPEngines.meetingRowSeries(row);
+        if (series.reason === 'CORRUPT_METADATA') {
+          DPQueue.logSafe('HubController: corrupt MetadataJson on a MEETING retry, refusing to guess the series (retry failed, nothing written)', new Error('corrupt MetadataJson'));
           return fail_('CORRUPT_METADATA', 'Cannot retry: this operation\'s saved routing metadata is corrupt. Route the thread again from the triage board.', true);
         }
-        if (!meta || typeof meta !== 'object' || Array.isArray(meta)) {
-          DPQueue.logSafe('HubController: MetadataJson on a MEETING retry is not an object, refusing to guess the series (retry failed)', new Error('corrupt MetadataJson'));
-          return fail_('CORRUPT_METADATA', 'Cannot retry: this operation\'s saved routing metadata is corrupt. Route the thread again from the triage board.', true);
+        if (series.reason === 'SERIES_CONFLICT') {
+          DPQueue.logSafe('HubController: MEETING retry has conflicting series in op key and metadata, refusing to guess (retry failed, nothing written)', new Error('SERIES_CONFLICT'));
+          return fail_('SERIES_CONFLICT', 'Cannot retry: this operation records two different meeting series. Route the thread again from the triage board.', true);
         }
+        if (series.reason !== 'OK' || !HUB_SERIES_KEY_RE_.test(series.seriesKey)) {
+          DPQueue.logSafe('HubController: MEETING retry has no usable seriesKey recorded, refusing to guess the series (retry failed, nothing written)', new Error('MISSING_SERIES'));
+          return fail_('MISSING_SERIES', 'Cannot retry: this operation did not record which meeting series it was for. Route the thread again from the triage board.', true);
+        }
+        spec.seriesKey = series.seriesKey;
         if (parts[3] && parts[3].indexOf('BACKLOG-') === 0) {
-          spec.seriesKey = parts[3].slice(8);
           spec.override = { mode: 'backlog' };
         } else {
-          spec.seriesKey = meta.seriesKey || 'NCMMS_CORE';
           spec.occurrenceId = parts[3];
         }
       }

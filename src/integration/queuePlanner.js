@@ -20,7 +20,11 @@ function queuePlannerQuarantine(item, code, message, retryable, now, prior) {
       action: item.action || 'QUEUE_ITEM'
     }, now);
     const attempts = ledgerAttemptsOf(prior);
-    if (attempts > 0) pending.MetadataJson = JSON.stringify({ attempts });
+    const meta = {};
+    // A MEETING row must always carry its series: retry never guesses the destination.
+    if (typeof item.seriesKey === 'string' && item.seriesKey !== '') meta.seriesKey = item.seriesKey;
+    if (attempts > 0) meta.attempts = attempts;
+    if (Object.keys(meta).length) pending.MetadataJson = JSON.stringify(meta);
     ledgerRow = failOp(pending, now, { code, message: errorMessage, retryable });
   }
   return {

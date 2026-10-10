@@ -1549,6 +1549,13 @@
           </div>
 
           <div class="form-group">
+            <label for="evtAddMeetInput" class="form-check-label">
+              <input type="checkbox" id="evtAddMeetInput" x-model="newEventData.addMeet" class="form-check-input">
+              <span class="material-symbols-outlined icon-16" aria-hidden="true">videocam</span> Add Google Meet
+            </label>
+          </div>
+
+          <div class="form-group">
             <label for="evtDescInput" class="form-label">Notes / Agenda
               <button type="button" class="format-btn stt-mic-btn stt-mic-btn-inline" :class="{ 'stt-listening': sttListening, 'stt-blocked': sttBlocked }" @mousedown.prevent @click="toggleDictation(document.getElementById('evtDescInput'))" :title="sttMicTitle()" :aria-label="sttListening ? 'Stop voice typing' : 'Start voice typing'"><span class="material-symbols-outlined icon-16" x-text="sttListening ? 'mic' : (sttBlocked ? 'mic_off' : 'mic_none')"></span></button>
             </label>

@@ -9,6 +9,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { bothClients, loadScriptHtml, makeVm, settle, captureConsoleError } from './helpers/plannerHarness.js';
 import { GASBridge } from '../src/gasBridge.js';
+import { createSaveQueue } from '../src/saveGuard.js';
 
 const DATE = '2026-10-09';
 
@@ -66,9 +67,261 @@ function gatedStatusBridge() {
   };
 }
 
-const clients = await bothClients({ exportNames: ['GASBridge', 'window'] });
+const clients = await bothClients({ exportNames: ['GASBridge', 'window', 'dpCreateSaveQueue'] });
+
+function queueFactory(c) {
+  return c.scope ? c.scope.dpCreateSaveQueue : createSaveQueue;
+}
 
 for (const c of clients) {
+  describe(`save queue reconcile with a server read [${c.label}]`, () => {
+    it('keeps the local value while a write is in flight and adopts the server copy as the rollback target', async () => {
+      const q = queueFactory(c)();
+      const gate = deferred();
+      let rolledBackTo;
+      const p = q.submit('k', { value: 'B', baseline: 'A', write: () => gate.promise, onFailed: (err, confirmed) => { rolledBackTo = confirmed; } });
+      const mark = q.mark();
+      const r = q.reconcile('k', 'S', mark);
+      assert.equal(r.keepLocal, true);
+      assert.equal(r.confirmed, 'S');
+      gate.reject(new Error('write failed'));
+      await p;
+      assert.equal(rolledBackTo, 'S');
+    });
+
+    it('does not keep the local value of a key whose failure handler is running (its own rollback re-read)', async () => {
+      const q = queueFactory(c)();
+      let seen;
+      await q.submit('k', {
+        value: 'B',
+        baseline: 'A',
+        write: boom('failed'),
+        onFailed: () => { seen = q.reconcile('k', 'S', q.mark()); }
+      });
+      assert.equal(seen.keepLocal, false);
+      assert.equal(seen.confirmed, 'S');
+    });
+
+    it('a value submitted and confirmed after the read began stays on screen and stays the confirmed value', async () => {
+      const q = queueFactory(c)();
+      const mark = q.mark();
+      await q.submit('k', { value: 'B', baseline: 'A', write: async () => ({ ok: true }) });
+      const r = q.reconcile('k', 'A-old-read', mark);
+      assert.equal(r.keepLocal, true);
+      assert.equal(r.confirmed, 'B');
+    });
+
+    it('a write in flight when the read began that confirms before the read returns keeps local (the read may predate it)', async () => {
+      const q = queueFactory(c)();
+      const gate = deferred();
+      const p = q.submit('k', { value: 'B', baseline: 'A', write: () => gate.promise });
+      const mark = q.mark();
+      gate.resolve({ ok: true });
+      await p;
+      const r = q.reconcile('k', 'A-old-read', mark);
+      assert.equal(r.keepLocal, true);
+      assert.equal(r.confirmed, 'B');
+    });
+
+    it('an unknown key takes the server copy; a null mark (cached copy, not a server read) never adopts it', async () => {
+      const q = queueFactory(c)();
+      assert.deepEqual({ ...q.reconcile('none', 'S', q.mark()) }, { keepLocal: false, confirmed: 'S' });
+      const gate = deferred();
+      let rolledBackTo;
+      const p = q.submit('k', { value: 'B', baseline: 'A', write: () => gate.promise, onFailed: (err, confirmed) => { rolledBackTo = confirmed; } });
+      assert.equal(q.reconcile('k', 'C', null).keepLocal, true);
+      gate.reject(new Error('x'));
+      await p;
+      assert.equal(rolledBackTo, 'A');
+    });
+  });
+
+  describe(`full-day reloads never clobber unsaved saves [${c.label}]`, () => {
+    const live = (vm, id) => vm.dailyTasks.find((t) => t.id === id);
+
+    it('forward-failure re-fetch keeps another task in-flight status on screen; its later failure rolls back to the server copy', async () => {
+      const SRC = '2031-09-10';
+      const t1 = { id: 't1', title: 'a', status: '•' };
+      const t2 = { id: 't2', title: 'b', status: '•' };
+      const t2Gate = deferred();
+      const vm = dailyVm(c, {
+        date: SRC,
+        tasks: [t1, t2],
+        bridge: {
+          forwardDailyTask: boom('Nothing was forwarded: the target copy could not be created.'),
+          updateDailyTask: () => t2Gate.promise,
+          getDailyData: async () => dayData([{ id: 't1', title: 'a', status: '•' }, { id: 't2', title: 'b-server', status: 'X' }])
+        }
+      });
+      const t2Save = vm.setTaskStatus(t2, '✓');
+      await settle(2);
+      await captureConsoleError(async () => { await vm.setTaskStatus(t1, '→'); await settle(); });
+      assert.equal(live(vm, 't2').status, '✓', 'pending pick stays on screen');
+      assert.equal(live(vm, 't2').title, 'b-server', 'fields without a pending save take the server copy');
+      assert.equal(live(vm, 't1').status, '•');
+      assert.equal(c.cache.getCached(SRC).tasks.find((t) => t.id === 't2').status, 'X', 'cache holds only the server-confirmed value');
+      await captureConsoleError(async () => { t2Gate.reject(new Error('t2 failed')); await t2Save; await settle(); });
+      assert.equal(live(vm, 't2').status, 'X', 'rollback goes to the server copy, not the pre-pick value');
+      assert.equal(c.cache.getCached(SRC).tasks.find((t) => t.id === 't2').status, 'X');
+    });
+
+    it('statuses picked while the re-fetch is in flight (one confirmed, one still saving) are not clobbered', async () => {
+      const SRC = '2031-09-11';
+      const t1 = { id: 't1', title: 'a', status: '•' };
+      const t2 = { id: 't2', title: 'b', status: '•' };
+      const t3 = { id: 't3', title: 'c', status: '•' };
+      const refetchGate = deferred();
+      const t3Gate = deferred();
+      const vm = dailyVm(c, {
+        date: SRC,
+        tasks: [t1, t2, t3],
+        bridge: {
+          forwardDailyTask: boom('Nothing was forwarded: the target copy could not be created.'),
+          updateDailyTask: (d, id, u) => (id === 't3' ? t3Gate.promise : Promise.resolve({ id, status: u.status })),
+          getDailyData: () => refetchGate.promise
+        }
+      });
+      let t3Save;
+      await captureConsoleError(async () => {
+        const fwd = vm.setTaskStatus(t1, '→');
+        await settle(3);
+        await vm.setTaskStatus(t2, '✓');
+        t3Save = vm.setTaskStatus(t3, 'X');
+        await settle(3);
+        refetchGate.resolve(dayData([
+          { id: 't1', title: 'a', status: '•' }, { id: 't2', title: 'b', status: '•' }, { id: 't3', title: 'c', status: '•' }
+        ]));
+        await fwd;
+        await settle();
+      });
+      assert.equal(live(vm, 't2').status, '✓', 'pick confirmed during the re-fetch survives the older read');
+      assert.equal(live(vm, 't3').status, 'X', 'pick still saving survives');
+      const cached = c.cache.getCached(SRC).tasks;
+      assert.equal(cached.find((t) => t.id === 't2').status, '✓', 'confirmed pick stays cached');
+      assert.equal(cached.find((t) => t.id === 't3').status, '•', 'unconfirmed pick never cached');
+      t3Gate.resolve({ id: 't3', status: 'X' });
+      await t3Save;
+      await settle();
+      assert.equal(c.cache.getCached(SRC).tasks.find((t) => t.id === 't3').status, 'X');
+    });
+
+    it('loadDayData (cache apply and server apply) keeps an in-flight status save on screen', async () => {
+      const t1 = { id: 't1', title: 'a', status: '•' };
+      const gate = deferred();
+      const vm = dailyVm(c, {
+        tasks: [t1],
+        bridge: { updateDailyTask: () => gate.promise, getDailyData: async () => dayData([{ id: 't1', title: 'a', status: '•' }]) }
+      });
+      const save = vm.setTaskStatus(t1, '✓');
+      await settle(2);
+      await vm.loadDayData();
+      assert.equal(live(vm, 't1').status, '✓');
+      assert.equal(c.cache.getCached(DATE).tasks[0].status, '•');
+      gate.resolve({ id: 't1', status: '✓' });
+      await save;
+      await settle();
+      assert.equal(live(vm, 't1').status, '✓');
+      assert.equal(c.cache.getCached(DATE).tasks[0].status, '✓');
+    });
+
+    it('navigating away and back mid-save shows the pending value, and a failure then rolls back the task on screen', async () => {
+      const OTHER = '2026-10-10';
+      const t1 = { id: 't1', title: 'a', status: '•' };
+      const gate = deferred();
+      const vm = dailyVm(c, {
+        tasks: [t1],
+        bridge: {
+          updateDailyTask: () => gate.promise,
+          getDailyData: async (d) => dayData(d === DATE ? [{ id: 't1', title: 'a', status: '•' }] : [])
+        }
+      });
+      const save = vm.setTaskStatus(t1, '✓');
+      await settle(2);
+      vm.selectedDate = OTHER;
+      await vm.loadDayData();
+      vm.selectedDate = DATE;
+      await vm.loadDayData();
+      assert.equal(live(vm, 't1').status, '✓');
+      await captureConsoleError(async () => { gate.reject(new Error('Tasks API 503')); await save; await settle(); });
+      assert.equal(live(vm, 't1').status, '•', 'the on-screen copy is rolled back, not only the detached original');
+      assert.match(entry(vm, 'task-status:t1').message, /Tasks API 503/);
+    });
+
+    it('loadDayData keeps an in-flight note save in the editor and cache; its failure rolls back to the server text', async () => {
+      const gates = [];
+      const vm = dailyVm(c, {
+        bridge: {
+          getDailyData: async () => dayData([], { noteContent: 'v1' }),
+          saveDailyDocCards: () => { const g = deferred(); gates.push(g); return g.promise; }
+        }
+      });
+      await vm.loadDayData();
+      vm.dailyNote = 'v2';
+      vm.scheduleDailyNoteSave();
+      await settle(3);
+      assert.equal(gates.length, 1, 'save in flight');
+      await vm.loadDayData();
+      assert.equal(vm.dailyNote, 'v2');
+      assert.equal(c.cache.getCached(DATE).noteContent, 'v2');
+      await captureConsoleError(async () => { gates[0].reject(new Error('Drive 500')); await settle(); });
+      assert.equal(vm.dailyNote, 'v2', 'editor text kept');
+      assert.equal(c.cache.getCached(DATE).noteContent, 'v1', 'cache rolled back to the server text');
+      assert.ok(entry(vm, `save-note:${DATE}`));
+    });
+
+    it('loadMasterTasks keeps an in-flight master status save on screen', async () => {
+      const m1 = { id: 'm1', title: '[A1] x', status: '•', category: 'General' };
+      const gate = deferred();
+      const vm = dailyVm(c, {
+        master: [m1],
+        bridge: { updateMasterTask: () => gate.promise, getMasterTasks: async () => [{ id: 'm1', title: '[A1] x', status: '•', category: 'General' }] }
+      });
+      const save = vm.setTaskStatus(m1, '✓');
+      await settle(2);
+      await vm.loadMasterTasks();
+      assert.equal(vm.masterTasks.find((t) => t.id === 'm1').status, '✓');
+      gate.resolve({ id: 'm1', status: '✓' });
+      await save;
+      await settle();
+      assert.equal(vm.masterTasks.find((t) => t.id === 'm1').status, '✓');
+    });
+  });
+
+  describe(`offline-copy notices for days not viewed [${c.label}]`, () => {
+    it('navigating away resolves the left day stale notice; other entries and the new day notice survive', async () => {
+      const OTHER = '2026-10-10';
+      const vm = dailyVm(c, { bridge: { getDailyData: boom('network down') } });
+      c.cache.setCached(OTHER, dayData([]));
+      await captureConsoleError(async () => { await vm.loadDayData(); });
+      assert.equal(entry(vm, `load-day:${DATE}`).kind, 'stale');
+      vm.reportError('task-status:x', 'Could not save task status: quota');
+      vm.selectedDate = OTHER;
+      await captureConsoleError(async () => { await vm.loadDayData(); });
+      assert.equal(entry(vm, `load-day:${DATE}`), null);
+      assert.equal(entry(vm, `load-day:${OTHER}`).kind, 'stale');
+      assert.ok(entry(vm, 'task-status:x'));
+    });
+
+    it('a successful re-fetch of a day resolves its load-day notice', async () => {
+      const SRC = '2031-10-10';
+      const task = { id: 't7', title: 'g', status: '•' };
+      let fail = true;
+      const vm = dailyVm(c, {
+        date: SRC,
+        tasks: [task],
+        bridge: {
+          forwardDailyTask: boom('Nothing was forwarded: the target copy could not be created.'),
+          getDailyData: async () => { if (fail) throw new Error('network down'); return dayData([{ id: 't7', title: 'g', status: '•' }]); }
+        }
+      });
+      await captureConsoleError(async () => { await vm.loadDayData(); });
+      assert.ok(entry(vm, `load-day:${SRC}`));
+      fail = false;
+      await captureConsoleError(async () => { await vm.setTaskStatus(vm.dailyTasks[0], '→'); await settle(); });
+      assert.equal(entry(vm, `load-day:${SRC}`), null);
+    });
+  });
+
   describe(`keyed error tray [${c.label}]`, () => {
     it('same key replaces its entry; newest first; max 3 visible plus a hidden count; dismiss removes one', () => {
       const vm = dailyVm(c);
@@ -502,6 +755,59 @@ for (const c of clients) {
       assert.deepEqual(vm.calendarEvents.map((e) => e.id), ['ev1']);
     });
 
+    it('"Add Google Meet" sends addMeet: true only when checked; opening the modal resets it', async () => {
+      const payloads = [];
+      const vm = eventVm({ createCalendarEvent: async (p) => { payloads.push(p); return { ...created, id: `ev${payloads.length}` }; } });
+      vm.openCreateEventModal();
+      assert.equal(vm.newEventData.addMeet, false);
+      vm.newEventData.title = 'Standup';
+      vm.newEventData.addMeet = true;
+      await vm.saveNewEvent();
+      assert.equal(payloads[0].addMeet, true);
+      vm.openCreateEventModal();
+      assert.equal(vm.newEventData.addMeet, false);
+      vm.newEventData.title = 'Lunch';
+      await vm.saveNewEvent();
+      assert.equal('addMeet' in payloads[1], false);
+    });
+
+    it('a created event with a meetLink is shown with that link (event modal shows Join)', async () => {
+      const vm = eventVm({ createCalendarEvent: async () => ({ ...created, meetLink: 'https://meet.google.com/abc-defg-hij' }) });
+      vm.newEventData.addMeet = true;
+      await vm.saveNewEvent();
+      const evt = vm.calendarEvents.find((e) => e.id === 'ev1');
+      assert.equal(evt.meetLink, 'https://meet.google.com/abc-defg-hij');
+      vm.openEventModal(evt);
+      assert.equal(vm.selectedEvent.meetLink, 'https://meet.google.com/abc-defg-hij');
+      assert.equal(vm.errorTray.length, 0);
+    });
+
+    it('meetError: the event is kept (it IS saved), the modal closes, and a meet:<id> tray entry carries the reason', async () => {
+      const vm = eventVm({ createCalendarEvent: async () => ({ ...created, meetError: 'Meet conference could not be created (quota).' }) });
+      vm.newEventData.addMeet = true;
+      await captureConsoleError(async () => { await vm.saveNewEvent(); });
+      assert.deepEqual(vm.calendarEvents.map((e) => e.id), ['ev1']);
+      assert.deepEqual(c.cache.getCached(DATE).calendarEvents.map((e) => e.id), ['ev1']);
+      assert.equal(vm.createEventModalOpen, false);
+      assert.equal(vm.createEventError, null);
+      const e = entry(vm, 'meet:ev1');
+      assert.ok(e, 'meet warning filed');
+      assert.match(e.message, /Meet conference could not be created \(quota\)\./);
+      assert.match(e.message, /saved/i);
+    });
+
+    it('meetError is still filed when the user navigated away mid-create', async () => {
+      const g = deferred();
+      const vm = eventVm({ createCalendarEvent: () => g.promise });
+      vm.newEventData.addMeet = true;
+      const p = vm.saveNewEvent();
+      vm.selectedDate = '2026-10-12';
+      vm.calendarEvents = [];
+      g.resolve({ ...created, meetError: 'Meet failed' });
+      await captureConsoleError(async () => { await p; });
+      assert.match(entry(vm, 'meet:ev1').message, /Meet failed/);
+    });
+
     it('navigating away mid-create caches the event on the original day only', async () => {
       const g = deferred();
       const vm = eventVm({ createCalendarEvent: () => g.promise });
@@ -529,10 +835,23 @@ describe('createCalendarEvent bridges', () => {
     assert.match(evt.startTime, /^2026-11-02T09:00:00[+-]\d{2}:\d{2}$/);
     assert.match(evt.endTime, /^2026-11-02T10:30:00[+-]\d{2}:\d{2}$/);
     assert.equal(evt.description, '');
-    assert.equal(evt.meetLink, null, 'Meet links are not created (server ignores addMeet)');
+    assert.match(evt.meetLink, /^https:\/\/meet\.google\.com\/[a-z]{3}-[a-z]{4}-[a-z]{3}$/, 'addMeet yields a Meet link');
     assert.equal(evt.syncTaskId, null);
     const day = await bridge.getDailyData('2026-11-02');
     assert.ok(day.calendarEvents.some((e) => e.id === evt.id));
+  });
+
+  it('src/gasBridge.js mock: no addMeet means no Meet link; mockMeetError simulates a saved event whose Meet failed', async () => {
+    const bridge = new GASBridge(true);
+    const plain = await bridge.createCalendarEvent({ title: 'Lunch', dateStr: '2026-11-03', startTime: '12:00', endTime: '13:00' });
+    assert.equal(plain.meetLink, null);
+    assert.equal('meetError' in plain, false);
+    bridge.mockMeetError = 'Meet conference could not be created (simulated).';
+    const evt = await bridge.createCalendarEvent({ title: 'Sync', dateStr: '2026-11-03', startTime: '09:00', endTime: '10:00', addMeet: true });
+    assert.equal(evt.meetLink, null);
+    assert.equal(evt.meetError, 'Meet conference could not be created (simulated).');
+    const day = await bridge.getDailyData('2026-11-03');
+    assert.ok(day.calendarEvents.some((e) => e.id === evt.id), 'the event itself is saved');
   });
 
   it('src/gasBridge.js mock rejects invalid input', async () => {

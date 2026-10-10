@@ -71,18 +71,26 @@ export function restoreIfUnchanged(obj, field, wrote, previous) {
  *     superseded by a queued value is logged and the queued value is sent instead.
  * Returns the drain promise for the submit that started it; a coalesced submit resolves at once
  * (the in-flight drain will send its value), so callers never deadlock on their own queue.
+ *
+ * Server re-reads (a full-day reload) reconcile against the queue instead of replacing local
+ * state: mark() before the read, then reconcile(key, serverValue, mark) per item (see below).
  */
 export function createSaveQueue() {
   const items = new Map();
+  // Monotonic clock over submits and confirmations, so a server read can tell which local
+  // values it may predate.
+  let clock = 0;
 
   async function drain(item) {
     while (item.pending) {
       const job = item.pending;
       item.pending = null;
       let result;
+      item.writing = true;
       try {
         result = await job.write(job.value);
       } catch (err) {
+        item.writing = false;
         if (item.pending) {
           console.error(`🔥 save ${item.key}: write failed but a newer value is queued; sending that instead of rolling back:`, err.stack);
           continue;
@@ -90,7 +98,9 @@ export function createSaveQueue() {
         await job.onFailed(err, item.confirmed);
         continue;
       }
+      item.writing = false;
       item.confirmed = job.value;
+      item.confirmedAt = ++clock;
       if (job.onSaved) await job.onSaved(job.value, result, Boolean(item.pending));
     }
   }
@@ -99,15 +109,42 @@ export function createSaveQueue() {
     submit(key, job) {
       let item = items.get(key);
       if (!item) {
-        item = { key, confirmed: job.baseline, latest: undefined, pending: null, running: null };
+        item = { key, confirmed: job.baseline, confirmedAt: 0, submittedAt: 0, latest: undefined, pending: null, running: null, writing: false };
         items.set(key, item);
       }
-      if (!item.running) item.confirmed = job.baseline;
+      if (!item.running) {
+        item.confirmed = job.baseline;
+        item.confirmedAt = clock;
+      }
+      item.submittedAt = ++clock;
       item.latest = job.value;
       item.pending = job;
       if (item.running) return Promise.resolve();
       item.running = drain(item).finally(() => { item.running = null; });
       return item.running;
+    },
+    /** @returns {number} A marker to take just before a server read starts (see reconcile). */
+    mark() {
+      return clock;
+    },
+    /**
+     * Reconciles one item of a reloaded copy with the queue.
+     * @param {string} key Save key (e.g. task-status:<id>).
+     * @param {*} incomingValue The value in the reloaded copy.
+     * @param {number|null} mark mark() taken before a SERVER read; null when the copy is not a
+     *   fresh server read (e.g. the local cache), which is then never adopted as confirmed.
+     * @returns {{keepLocal: boolean, confirmed: *}} keepLocal: the local value must stay on
+     *   screen (a value is queued or being written, or was submitted or confirmed after the read began).
+     *   confirmed: the value known to be saved, for the cache; the server value is adopted as the
+     *   rollback target unless a save confirmed after the read began (the read may predate it).
+     */
+    reconcile(key, incomingValue, mark) {
+      const item = items.get(key);
+      if (!item) return { keepLocal: false, confirmed: incomingValue };
+      const unsaved = Boolean(item.pending) || item.writing;
+      if (mark === null || mark === undefined) return { keepLocal: unsaved, confirmed: item.confirmed };
+      if (item.confirmedAt <= mark) item.confirmed = incomingValue;
+      return { keepLocal: unsaved || item.submittedAt > mark || item.confirmedAt > mark, confirmed: item.confirmed };
     },
     /** @returns {*} The most recently submitted value for key (undefined if never submitted). */
     latest(key) {

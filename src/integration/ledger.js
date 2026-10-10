@@ -47,7 +47,7 @@ function ledgerJson(metadata) {
  * @param {object|null} row Ledger row.
  * @returns {{meta:object, corrupt:boolean}}
  */
-function ledgerReadMeta(row) {
+function ledgerReadMeta(row, fallback = 'treating the row as retry-exhausted (no auto-retry)') {
   const raw = row ? row.MetadataJson : '';
   if (raw === undefined || raw === null || raw === '') return { meta: {}, corrupt: false };
   let parsed;
@@ -55,11 +55,11 @@ function ledgerReadMeta(row) {
     parsed = JSON.parse(raw);
   } catch (err) {
     // JSON.parse messages quote the input, so log sanitized text + frames only.
-    console.error(`ledger: corrupt MetadataJson (unparseable), treating the row as retry-exhausted (no auto-retry): ${sanitizeError(err)}\n${stackFrames(err.stack)}`);
+    console.error(`ledger: corrupt MetadataJson (unparseable), ${fallback}: ${sanitizeError(err)}\n${stackFrames(err.stack)}`);
     return { meta: {}, corrupt: true };
   }
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    console.error(`ledger: corrupt MetadataJson (not a JSON object), treating the row as retry-exhausted (no auto-retry)\n${stackFrames(new Error('corrupt MetadataJson').stack)}`);
+    console.error(`ledger: corrupt MetadataJson (not a JSON object), ${fallback}\n${stackFrames(new Error('corrupt MetadataJson').stack)}`);
     return { meta: {}, corrupt: true };
   }
   return { meta: parsed, corrupt: false };
@@ -112,10 +112,31 @@ export function retryDecision(row, now, opts = {}) {
   return { retry: true, reason: 'OK' };
 }
 
+const LEDGER_BACKLOG_PREFIX = 'BACKLOG-';
+
+/**
+ * The destination series of a MEETING row, only when it is unambiguously recorded: the metadata
+ * seriesKey and/or the series encoded in a BACKLOG-<series> op key. Never a default.
+ * @param {object} row Ledger row.
+ * @returns {{seriesKey:(string|null), reason:('OK'|'CORRUPT_METADATA'|'MISSING_SERIES'|'SERIES_CONFLICT')}}
+ */
+export function meetingRowSeries(row) {
+  const { meta, corrupt } = ledgerReadMeta(row, 'the MEETING destination series is unknown');
+  if (corrupt) return { seriesKey: null, reason: 'CORRUPT_METADATA' };
+  const occ = String(row && row.OperationKey || '').split('|')[3] || '';
+  const fromKey = occ.startsWith(LEDGER_BACKLOG_PREFIX) ? occ.slice(LEDGER_BACKLOG_PREFIX.length) : '';
+  const fromMeta = typeof meta.seriesKey === 'string' ? meta.seriesKey : '';
+  if (fromKey && fromMeta && fromKey !== fromMeta) return { seriesKey: null, reason: 'SERIES_CONFLICT' };
+  const seriesKey = fromMeta || fromKey;
+  return seriesKey ? { seriesKey, reason: 'OK' } : { seriesKey: null, reason: 'MISSING_SERIES' };
+}
+
 /**
  * Finds a non-ERROR (PENDING or DONE) MEETING row for the same thread and series inside the recent
  * window, so a retry after a crash reuses its occurrence instead of creating a second carry-in when
- * the cutoff has rolled over to a later occurrence. Most recently updated row wins.
+ * the cutoff has rolled over to a later occurrence. Most recently updated row wins. A row whose
+ * series is not unambiguously recorded (corrupt metadata, no seriesKey, conflicting series) is
+ * unusable: it is logged and never matched, rather than read as matching every series.
  * @param {Array<object>} rows Ledger rows.
  * @param {{threadId:string, seriesKey:string, now:Date|string|number, windowDays?:number}} q
  * @returns {object|null}
@@ -128,8 +149,13 @@ export function findActiveMeetingRow(rows, q) {
   for (const r of rows || []) {
     if (!r || typeof r.OperationKey !== 'string' || !r.OperationKey.startsWith(prefix)) continue;
     if (r.Status !== LEDGER_STATUS.PENDING && r.Status !== LEDGER_STATUS.DONE) continue;
-    const meta = ledgerParseMeta(r);
-    if (meta.seriesKey && meta.seriesKey !== q.seriesKey) continue;
+    const series = meetingRowSeries(r);
+    if (series.reason !== 'OK') {
+      const why = series.reason === 'CORRUPT_METADATA' ? 'corrupt MetadataJson' : (series.reason === 'MISSING_SERIES' ? 'no seriesKey recorded' : 'conflicting series');
+      console.error(`ledger: findActiveMeetingRow skipped an unusable MEETING row (${why}); it is not resumed and the thread is routed fresh\n${stackFrames(new Error(series.reason).stack)}`);
+      continue;
+    }
+    if (series.seriesKey !== q.seriesKey) continue;
     const at = Date.parse(r.UpdatedAt || r.CreatedAt || '');
     if (Number.isNaN(at) || nowMs - at > windowMs) continue;
     if (!best || at > Date.parse(best.UpdatedAt || best.CreatedAt)) best = r;

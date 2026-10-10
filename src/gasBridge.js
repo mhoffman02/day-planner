@@ -409,11 +409,12 @@ export class GASBridge {
    * Creates a Google Calendar event on the default calendar (RPC createCalendarEvent).
    * @param {{title: string, dateStr: string, startTime: string, endTime: string,
    *   description?: string, location?: string, addMeet?: boolean}} payload dateStr is
-   *   YYYY-MM-DD; startTime/endTime are HH:MM. addMeet is accepted but ignored (the server does
-   *   not create Meet links yet), so meetLink is always null.
+   *   YYYY-MM-DD; startTime/endTime are HH:MM. addMeet: true asks for a Google Meet conference.
    * @returns {Promise<object>} The created event in the getDailyData calendarEvents shape
    *   ({id, title, startTime, endTime, location, description, meetLink, htmlLink, syncTaskId},
-   *   with ISO start/end timestamps carrying a UTC offset).
+   *   with ISO start/end timestamps carrying a UTC offset). When the event saved but the Meet
+   *   conference failed, meetLink is null and an extra meetError string says why. The mock
+   *   returns a fake Meet link for addMeet; set bridge.mockMeetError to simulate meetError.
    * @throws {Error} 'Invalid event: <reason>' on bad input, or the server/API failure.
    */
   async createCalendarEvent(payload) {
@@ -442,6 +443,10 @@ export class GASBridge {
         htmlLink: 'https:' + '/' + `/calendar.google.com/calendar/event?eid=${id}`,
         syncTaskId: null
       };
+      if (p.addMeet === true && !this.mockMeetError) {
+        const letters = (n) => Array.from({ length: n }, (_, i) => String.fromCharCode(97 + ((this.mockEventSeq * 7 + i * 3) % 26))).join('');
+        event.meetLink = 'https:' + '/' + `/meet.google.com/${letters(3)}-${letters(4)}-${letters(3)}`;
+      }
       if (!this.mockData.calendarEvents[p.dateStr]) {
         // Seed from what getDailyData would have shown for this day, so the new event joins it.
         const seed = this.mockData.calendarEvents['2026-08-15'] || [];
@@ -452,7 +457,7 @@ export class GASBridge {
         }));
       }
       this.mockData.calendarEvents[p.dateStr].push(event);
-      return { ...event };
+      return (p.addMeet === true && this.mockMeetError) ? { ...event, meetError: this.mockMeetError } : { ...event };
     }
 
     return new Promise((resolve, reject) => {

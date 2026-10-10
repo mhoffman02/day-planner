@@ -360,6 +360,8 @@ Alpine.data('plannerApp', () => ({
       isHeaderResizing: false,
       docPreviewEditing: false,
       noteSaveTimer: null,
+      // Date whose note edit is waiting out the save debounce (unsaved, not yet in saveQueue).
+      noteSaveTimerDate: null,
       // Per-date edit counter, bumped on every local write-through (note edit, task mutation).
       // loadDayData snapshots this before a background revalidation fetch and skips applying the
       // response if it changed while the fetch was in flight, so a slow round trip can never
@@ -404,7 +406,8 @@ Alpine.data('plannerApp', () => ({
         startTime: '09:00',
         endTime: '10:00',
         location: '',
-        description: ''
+        description: '',
+        addMeet: false
       },
 
       searchModalOpen: false,
@@ -1644,8 +1647,10 @@ Alpine.data('plannerApp', () => ({
         }
       },
 
-      applyDailyData(data) {
-        this.dailyTasks = data.tasks || [];
+      // mark: saveQueue.mark() taken before the server read that produced data, or null when
+      // data is the local cache. Tasks with an unsaved status keep their on-screen value.
+      applyDailyData(data, mark = null) {
+        this.dailyTasks = this.reconcileReloadedTasks(data.tasks || [], this.dailyTasks, mark).live;
         this.calendarEvents = data.calendarEvents || [];
         this.dailyNote = data.noteContent || '';
         this.dailyDocUrl = data.docUrl || '';
@@ -1655,6 +1660,65 @@ Alpine.data('plannerApp', () => ({
         if (this.dailyNote && this.dailyNote.trim()) {
           saveNoteRevision(data.date || this.selectedDate, this.dailyNote);
         }
+      },
+
+      // Merges a reloaded task list (a server read since mark, or the cache when mark is null)
+      // with the per-task status save queue instead of replacing the screen wholesale. A task
+      // whose status save is queued, in flight, or submitted/confirmed after the read began keeps
+      // its on-screen object and status (other fields take the reloaded copy), so its in-flight
+      // save still rolls back the object on screen; every other task takes the reloaded copy.
+      // Returns { live, confirmed }: live for the screen, confirmed (statuses known saved) for
+      // the cache. Tasks missing from the reloaded list are dropped (the server owns membership).
+      reconcileReloadedTasks(incoming, liveList, mark) {
+        const liveById = new Map((liveList || []).map(t => [t.id, t]));
+        const live = [];
+        const confirmed = [];
+        (incoming || []).forEach(s => {
+          const key = `task-status:${s.id}`;
+          const r = this.saveQueue.reconcile(key, s.status, mark);
+          const withConfirmed = (r.confirmed === s.status || r.confirmed === undefined) ? s : { ...s, status: r.confirmed };
+          confirmed.push(withConfirmed);
+          if (!r.keepLocal) {
+            live.push(s);
+            return;
+          }
+          const local = liveById.get(s.id);
+          if (local) {
+            Object.keys(s).forEach(f => { if (f !== 'status') local[f] = s[f]; });
+            live.push(local);
+          } else if (this.saveQueue.reconcile(key, s.status, null).keepLocal) {
+            live.push({ ...s, status: this.saveQueue.latest(key) });
+          } else {
+            live.push(withConfirmed);
+          }
+        });
+        return { live, confirmed };
+      },
+
+      // Note counterpart of reconcileReloadedTasks for a server read of dateStr since mark. While
+      // a save of that note is debouncing, queued, in flight, or submitted/confirmed after the
+      // read began, the local text (the cache write-through) stays. Returns { text, saved }:
+      // text for the screen and cache, saved for savedNoteByDate (the rollback target).
+      reconcileReloadedNote(dateStr, serverNote, mark) {
+        const key = `save-note:${dateStr}`;
+        const r = this.saveQueue.reconcile(key, serverNote || '', mark);
+        const saved = typeof r.confirmed === 'string' ? r.confirmed : (serverNote || '');
+        if (!r.keepLocal && this.noteSaveTimerDate !== dateStr) return { text: serverNote, saved };
+        const cachedEntry = getCached(dateStr);
+        const latest = this.saveQueue.latest(key);
+        let text = serverNote;
+        if (cachedEntry && typeof cachedEntry.noteContent === 'string') text = cachedEntry.noteContent;
+        else if (typeof latest === 'string') text = latest;
+        return { text, saved };
+      },
+
+      // Offline-copy (stale) notices are about the day on screen: leaving a day resolves its
+      // notice (the next visit re-checks and re-files it if still offline). Failures stay.
+      resolveStaleDayNotices(keepDate) {
+        const keep = `load-day:${keepDate}`;
+        const drop = e => e.kind === 'stale' && e.key.startsWith('load-day:') && e.key !== keep;
+        if (!(this.errorTray || []).some(drop)) return;
+        this.errorTray = this.errorTray.filter(e => !drop(e));
       },
 
       bumpDailyEditSeq(dateStr) {
@@ -1685,6 +1749,7 @@ Alpine.data('plannerApp', () => ({
       // stale server data, and the user's in-progress edit is silently reverted mid-keystroke.
       async loadDayData() {
         const dateStr = this.selectedDate;
+        this.resolveStaleDayNotices(dateStr);
         let cached = getCached(dateStr);
         if (!cached) {
           cached = await hydrateFromIdb(dateStr);
@@ -1694,6 +1759,7 @@ Alpine.data('plannerApp', () => ({
         }
         this.dailyLoading = !cached;
         const seqAtFetchStart = this.dailyEditSeq[dateStr] || 0;
+        const mark = this.saveQueue.mark();
         try {
           const data = await this.bridge.getDailyData(dateStr);
           const editedWhileFetching = (this.dailyEditSeq[dateStr] || 0) !== seqAtFetchStart;
@@ -1703,15 +1769,20 @@ Alpine.data('plannerApp', () => ({
             // The next navigation away and back will revalidate again.
             return;
           }
-          setCached(dateStr, data, { synced: true });
+          // Saves still pending (or confirmed after this read began) are merged, not replaced:
+          // the cache gets only confirmed task values, the note keeps its unsaved text.
+          const onScreen = dateStr === this.selectedDate;
+          const tasks = this.reconcileReloadedTasks(data.tasks || [], onScreen ? this.dailyTasks : [], mark);
+          const note = this.reconcileReloadedNote(dateStr, data.noteContent, mark);
+          setCached(dateStr, { ...data, tasks: tasks.confirmed, noteContent: note.text }, { synced: true });
           // Last note text known to be saved in Google Docs for this date: the rollback target if
           // a later note save fails (see scheduleDailyNoteSave).
-          this.savedNoteByDate[dateStr] = data.noteContent || '';
+          this.savedNoteByDate[dateStr] = note.saved;
           this.resolveError(`load-day:${dateStr}`);
           if (dateStr !== this.selectedDate) return; // user navigated away; cached for next visit
           const problems = [data.error, ...(data.warnings || [])].filter(Boolean);
           if (problems.length > 0) this.reportError(`load-day:${dateStr}`, problems.join(' | '));
-          this.applyDailyData(data);
+          this.applyDailyData({ ...data, noteContent: note.text }, mark);
         } catch (err) {
           console.error('🔥 loadDayData: refresh failed; showing cached day (if any) with a stale notice:', err.stack);
           if (dateStr === this.selectedDate) {
@@ -3102,8 +3173,10 @@ Alpine.data('plannerApp', () => ({
         const existingCacheEntry = getCached(dateStr) || { tasks: this.dailyTasks, calendarEvents: this.calendarEvents, docUrl: this.dailyDocUrl };
         setCached(dateStr, { ...existingCacheEntry, noteContent });
         this.bumpDailyEditSeq(dateStr);
+        this.noteSaveTimerDate = dateStr;
         this.noteSaveTimer = setTimeout(() => {
           this.noteSaveTimer = null;
+          this.noteSaveTimerDate = null;
           this.saveDailyNote(dateStr, noteContent);
         }, 1200);
       },
@@ -3191,13 +3264,16 @@ Alpine.data('plannerApp', () => ({
       // (add/delete/star/status/move) landed while the fetch was in flight.
       async loadMasterTasks() {
         const cached = getCachedMasterTasks() || await hydrateMasterTasksFromIdb();
-        if (cached) this.applyMasterTasks(cached.tasks);
+        if (cached) this.applyMasterTasks(this.reconcileReloadedTasks(cached.tasks, this.masterTasks, null).live);
         const seqAtFetchStart = this.masterTasksEditSeq;
+        const mark = this.saveQueue.mark();
         try {
           const tasks = await this.bridge.getMasterTasks(`${this.selectedMonthName} ${this.selectedYear}`);
           if (this.masterTasksEditSeq !== seqAtFetchStart) return; // a local edit already superseded this
-          setCachedMasterTasks(tasks, { synced: true });
-          this.applyMasterTasks(tasks);
+          // Unsaved status picks stay on screen; the cache gets only confirmed values.
+          const merged = this.reconcileReloadedTasks(tasks || [], this.masterTasks, mark);
+          setCachedMasterTasks(merged.confirmed, { synced: true });
+          this.applyMasterTasks(merged.live);
           this.resolveError('load-master');
         } catch (err) {
           console.error('🔥 loadMasterTasks: refresh failed; showing cached list (if any) with a stale notice:', err.stack);
@@ -3882,7 +3958,14 @@ Alpine.data('plannerApp', () => ({
 
       async rollbackTaskStatus({ task, isMaster, dateStr, key, attempted, confirmed, err, targetDate }) {
         console.error(`🔥 setTaskStatus failed for ${task.id}; status rolled back to the last confirmed value "${confirmed}":`, err.stack);
-        this.statusCopies(task, isMaster).forEach(t => { restoreIfUnchanged(t, 'status', attempted, confirmed); });
+        // A reload during the save may have put a different object for this task on screen:
+        // roll back that one (and its linked copy) too, never only the detached original.
+        const copies = new Set(this.statusCopies(task, isMaster));
+        const onScreen = isMaster
+          ? this.masterTasks.find(t => t.id === task.id)
+          : (dateStr === this.selectedDate ? this.dailyTasks.find(t => t.id === task.id) : null);
+        if (onScreen && !copies.has(onScreen)) this.statusCopies(onScreen, isMaster).forEach(t => copies.add(t));
+        copies.forEach(t => { restoreIfUnchanged(t, 'status', attempted, confirmed); });
         this.cacheTaskStatusState(dateStr);
         const isForward = !isMaster && attempted === '→';
         let message = `${isForward ? 'Could not forward task' : 'Could not save task status'}: ${err.message || err.toString()}`;
@@ -3924,19 +4007,26 @@ Alpine.data('plannerApp', () => ({
         if (!this.bridge || typeof this.bridge.getDailyData !== 'function') {
           throw new Error('getDailyData is unavailable in this build');
         }
+        const mark = this.saveQueue.mark();
         const data = await this.bridge.getDailyData(dateStr);
         if (!data || !Array.isArray(data.tasks)) throw new Error(`the server returned no task list for ${dateStr}`);
+        // Merge, never replace: a task with a status save pending (or picked during this read)
+        // keeps its on-screen value; only its rollback target takes the server copy.
+        const onScreen = dateStr === this.selectedDate;
+        const tasks = this.reconcileReloadedTasks(data.tasks, onScreen ? this.dailyTasks : [], mark);
         const existing = getCached(dateStr);
         if (existing) {
-          setCached(dateStr, { ...existing, tasks: data.tasks, calendarEvents: data.calendarEvents || existing.calendarEvents });
+          setCached(dateStr, { ...existing, tasks: tasks.confirmed, calendarEvents: data.calendarEvents || existing.calendarEvents });
         } else {
-          setCached(dateStr, data, { synced: true });
-          this.savedNoteByDate[dateStr] = data.noteContent || '';
+          const note = this.reconcileReloadedNote(dateStr, data.noteContent, mark);
+          setCached(dateStr, { ...data, tasks: tasks.confirmed, noteContent: note.text }, { synced: true });
+          this.savedNoteByDate[dateStr] = note.saved;
         }
         // Any revalidation started before this read is older than it: make loadDayData drop it.
         this.bumpDailyEditSeq(dateStr);
-        if (dateStr === this.selectedDate) {
-          this.dailyTasks = data.tasks;
+        this.resolveError(`load-day:${dateStr}`);
+        if (onScreen) {
+          this.dailyTasks = tasks.live;
           this.buildScheduleGrid();
         }
       },
@@ -4040,7 +4130,8 @@ Alpine.data('plannerApp', () => ({
           startTime: '09:00',
           endTime: '10:00',
           location: '',
-          description: ''
+          description: '',
+          addMeet: false
         };
         this.createEventError = null;
         this.createEventModalOpen = true;
@@ -4081,6 +4172,7 @@ Alpine.data('plannerApp', () => ({
           description: form.description || '',
           location: form.location || ''
         };
+        if (form.addMeet) payload.addMeet = true;
         this.createEventSaving = true;
         this.createEventError = null;
         let evt;
@@ -4094,6 +4186,13 @@ Alpine.data('plannerApp', () => ({
           return;
         } finally {
           this.createEventSaving = false;
+        }
+        // The event IS saved even when its Meet conference failed: keep it and say so in the tray.
+        const { meetError, ...event } = evt;
+        evt = event;
+        if (meetError) {
+          console.error(`🔥 saveNewEvent: event ${evt.id} on ${dateStr} saved, but Google Meet was not added:`, meetError);
+          this.reportError(`meet:${evt.id}`, `Appointment "${evt.title || payload.title}" was saved, but Google Meet was not added: ${meetError}`);
         }
         if (dateStr === this.selectedDate) {
           this.calendarEvents.push(evt);
