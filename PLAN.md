@@ -42,17 +42,19 @@ is: cut v128, then one manual repoint.
   → Deploy → Manage deployments → Edit → select Version 128 → Deploy). Cross-domain
   restriction — cannot be done from HOME's `mhoffman02@gmail.com` session.
 
-### Phase 28: Gmail / Calendar / Tasks / Meeting-Notes Hub (In Progress - code complete, at push gate)
+### Phase 28: Gmail / Calendar / Tasks / Meeting-Notes Hub (In Progress - live HOME verification)
 Spec [`docs/specs/gmail-meeting-hub.md`](docs/specs/gmail-meeting-hub.md); architecture, setup/gate runbook and acceptance
-matrix in `docs/hub-*.md`. Branch `feat/gmail-meeting-hub` (merged into `pure-gas-main`). Gmail is read-only; all flags OFF, `DRY_RUN` ON.
-483 tests pass; adversarial-review findings fixed; every swallowed catch now logs.
+matrix in `docs/hub-*.md`. Branch `feat/gmail-meeting-hub` (`781c521`, ahead of `pure-gas-main`). Gmail is read-only; all flags OFF, `DRY_RUN` ON.
+784 tests pass; fail-loud catch gate in lint + pre-commit; save/load paths fail closed (error tray, per-item save queue).
 - [x] Wave 0: contracts, `build-gas-engines` tool, vm stubs, `GmailApp` lint ban, spec saved.
 - [x] Wave 1: pure engines (classifier, selector, triage score, ledger, registry, notes planner, Gemini parser, routing).
 - [x] Wave 2: `.gs` repositories, queue, RPC controller, triggers; Triage + Meeting Prep UI and mocks.
 - [x] Wave 3: registry persistence (`DPConfig.updateRegistryRow`), contract parity tests, acceptance matrix, docs.
-- [ ] **PUSH GATE**: user approves the first `clasp push` containing `gmail.readonly` + Gmail/Sheets Advanced Services;
-  enable both in IDE Services (+), re-consent (see `docs/hub-setup-and-gate.md` section 4).
-- [ ] **Live HOME spike**: Sheets under `drive.file`, label resolution with emoji, DRY_RUN smoke, real-service steps L1-L8.
+- [x] **PUSH GATE**: approved and pushed to HOME `/dev` 2026-10-09; Gmail + Sheets in IDE Services; re-consented.
+- [x] Hardening: fail-loud catches, fail-closed saves, error tray, `createCalendarEvent` + Meet, calendar-TZ day windows.
+- [ ] **Live HOME verification** (in progress): Sheets spike PASSED; remaining: `hubSpike` rerun, `/dev` UX checks,
+  emoji label resolution, DRY_RUN smoke, real-service steps L1-L8 (checklist in `TODO.md`).
+- [ ] **Pinned prod `/exec`**: redeploy only on user go (carries `gmail.readonly`).
 - [ ] **WORK promotion**: `npm run push:work` after HOME passes; admin approval of the new scope may block it.
 - Out of scope: Gemini discovery/actions (Phase 6 build), USAi (Phase 7).
 

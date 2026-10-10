@@ -1,5 +1,20 @@
 # Task History (TODO_HISTORY)
 
+## 2026-10-09/10 — Phase 28 Push Gate Passed; Fail-Loud + Fail-Closed Hardening (784 tests)
+
+- [x] **Push gate**: user approved; `gmail.readonly` + Gmail/Sheets Advanced Services pushed to HOME `/dev`;
+  IDE Services already listed Gmail and Sheets (below the fold). No Cloud step needed on the default project.
+- [x] **Live Sheets-under-`drive.file` spike** PASSED on HOME (`UnitTests.gs:hubSpike`: Sheet created, 4 tabs read, no 403).
+- [x] **User email** from the Gmail profile, not `Session.getActiveUser` (no `userinfo.email` scope): `b13d15b`.
+- [x] **Folder access** via Drive `userPermission`, fail closed (old check bound any "Day Planner" folder): `86cdaa3`.
+- [x] **Fail-loud gate**: every catch rethrows or logs its stack; `tools/check-catch-logging.js` in lint + pre-commit: `85f0097`.
+- [x] **Peer-project skills** pulled (tdd, diagnosing-bugs, grilling, gas-dev, work-the-plan, ...): `3aa5df8`.
+- [x] **Fail closed on every save/load path**: `206aeee`.
+- [x] **Keyed error tray, per-item save queue, compensating forward, `createCalendarEvent` RPC**: `2c2984d`.
+- [x] **Series never guessed, calendar-TZ day windows, Meet links, reload merges pending saves**: `0d99268`.
+- [x] **Per-date note saves (data loss), queued deletes/titles/stars, confirmed-only caching, prefetch
+  warnings surface, Meet retry/poll, `updateDailyTask` persists notes (was silently dropped)**: `781c521`.
+
 ## 2026-10-01 — Unmerged "GH Build" Branch Merged, Worktrees Pruned (Build 378)
 
 - [x] **Merged `worktree-ai-assist-md-multiselect` into `pure-gas-main`**: Commit `b7b0029`.
