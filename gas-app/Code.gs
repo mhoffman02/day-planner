@@ -434,7 +434,7 @@ const DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mho
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const DAY_PLANNER_BUILD_NUMBER = 426;
+const DAY_PLANNER_BUILD_NUMBER = 427;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -3670,6 +3670,10 @@ function retryFailedOperation(operationKey) {
 
 function getHubStatus() {
   return (typeof _getHubStatusInternal === 'function') ? _getHubStatusInternal() : (globalThis._getHubStatusInternal ? globalThis._getHubStatusInternal() : null);
+}
+
+function hubSetFeature(name, value) {
+  return (typeof _hubSetFeatureInternal === 'function') ? _hubSetFeatureInternal(name, value) : (globalThis._hubSetFeatureInternal ? globalThis._hubSetFeatureInternal(name, value) : null);
 }
 
 function discoverGeminiNotes(occurrenceId) {

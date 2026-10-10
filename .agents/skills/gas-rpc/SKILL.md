@@ -23,6 +23,21 @@ node tools/gas-rpc.js runSelfTest --raw # full scripts.run response
 
 Only names Apps Script's static scan sees as **top-level** functions — the same rule as `google.script.run` (see [[gas-namespace-iife]]). A function that exists only as `global.x = x` inside an IIFE returns `FUNCTION_NOT_FOUND`. Add a top-level delegator for it first. Return values must be plain JSON (no GAS objects).
 
+## Hub Sheet reads/writes: do them yourself, never ask the user
+
+The user wants a fully automatic flow. Never ask them to edit the hub Config Sheet when an RPC covers it:
+
+```bash
+npm run rpc -- getHubStatus                     # read flags, dryRun, last run, ledger counts
+npm run rpc -- hubSetFeature DRY_RUN false      # write one flag (any DPEngines.DEFAULT_FEATURES key; value is a JSON boolean)
+npm run rpc -- processWorkflowQueue             # run the queue (honors DRY_RUN)
+npm run rpc -- getTriageBoard                   # read the triage board
+```
+
+`hubSetFeature` writes the Config tab and returns the fresh flags. Restore a flag you flipped for a test when the
+test ends. For a value with no RPC yet (registry cells, non-flag Config keys), add a typed top-level RPC (TDD +
+delegator), not a generic range-write endpoint (user decision 2026-10-10: typed endpoints only).
+
 ## Setup (done 2026-10-10; redo only if auth breaks)
 
 1. HOME script linked to GCP project **Day Planner** (`day-planner-507615`, number `951958469609`); Apps Script API enabled there. Consent screen stays in **Testing** by owner choice (not ready to publish/share), so the refresh token dies every **7 days**. The tool tracks first use of each token (`~/.config/day-planner/gas-rpc-state.json`, fingerprint only) and warns on stderr from day 6; on expiry it exits 2 with `invalid_grant … 7-day`. When you see either, **remind the user** and redo step 3 (one browser approval).

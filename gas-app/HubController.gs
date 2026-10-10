@@ -469,6 +469,27 @@ function getHubStatus() {
 }
 
 /**
+ * Sets one hub feature flag in the Config tab (DPConfig.setFeature). Lets the agent flip flags via
+ * gas-rpc (Execution API) instead of a manual Sheet edit. Hub must already be provisioned.
+ * @param {string} name A DPEngines.DEFAULT_FEATURES key.
+ * @param {boolean} value New value (real boolean, not a string).
+ * @returns {object} {ok, flags, dryRun, message} or a failed result.
+ */
+function hubSetFeature(name, value) {
+  var pre = preflight_([]);
+  if (pre.failure) return pre.failure;
+  if (typeof name !== 'string' || !Object.prototype.hasOwnProperty.call(DPEngines.DEFAULT_FEATURES, name)) return fail_('INVALID_INPUT', 'Unknown feature flag', true);
+  if (typeof value !== 'boolean') return fail_('INVALID_INPUT', 'Feature flag value must be true or false', true);
+  try {
+    if (!DPConfig.isProvisioned()) return fail_('SETUP_ERROR', 'Hub Sheet is not set up yet', true);
+    var flags = DPConfig.setFeature(name, value);
+    return DPEngines.makeResult({ ok: true, status: 'OK', message: name + ' set to ' + (value ? 'TRUE' : 'FALSE'), flags: flags, dryRun: flags.DRY_RUN === true });
+  } catch (err) {
+    return failFrom_(err);
+  }
+}
+
+/**
  * @param {string} flag Flag that would have to be on.
  * @param {*} occurrenceId Occurrence id (validated).
  * @param {*} [selectedItems] Items (validated when present).
@@ -521,6 +542,7 @@ global._dismissTriageItemInternal = dismissTriageItem;             // google.scr
 global._discoverMeetingSeriesInternal = discoverMeetingSeries;     // google.script.run
 global._retryFailedOperationInternal = retryFailedOperation;       // google.script.run
 global._getHubStatusInternal = getHubStatus;                       // google.script.run
+global._hubSetFeatureInternal = hubSetFeature;                     // gas-rpc (Execution API) + IDE manual-run
 global._discoverGeminiNotesInternal = discoverGeminiNotes;         // google.script.run (stub, flag gated)
 global._getProposedMeetingActionsInternal = getProposedMeetingActions; // google.script.run (stub, flag gated)
 global._confirmMeetingActionsInternal = confirmMeetingActions;     // google.script.run (stub, flag gated)

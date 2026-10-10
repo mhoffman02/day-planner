@@ -18,7 +18,7 @@ const call = (ctx, name, ...args) => toHost(ctx[`_${name}Internal`](...args));
 
 const RPC_NAMES = ['getTriageBoard', 'getMeetingPrep', 'getUpcomingMeetingChoices', 'routeThreadToTask', 'routeThreadToWaiting', 'routeThreadToMeeting',
   'dismissTriageItem', 'processWorkflowQueue', 'discoverMeetingSeries', 'retryFailedOperation', 'getHubStatus', 'discoverGeminiNotes',
-  'getProposedMeetingActions', 'confirmMeetingActions', 'installHubTriggers', 'removeHubTriggers', 'hubDispatch'];
+  'getProposedMeetingActions', 'confirmMeetingActions', 'installHubTriggers', 'removeHubTriggers', 'hubDispatch', 'hubSetFeature'];
 
 test('(k) every hub RPC has one implementation, one Code.gs top-level delegator, and an IIFE alias', () => {
   for (const name of RPC_NAMES) {
