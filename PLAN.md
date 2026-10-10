@@ -59,6 +59,38 @@ matrix in `docs/hub-*.md`. Branch `feat/gmail-meeting-hub` (`781c521`, ahead of 
 - [ ] **WORK promotion**: `npm run push:work` after HOME passes; admin approval of the new scope may block it.
 - Out of scope: Gemini discovery/actions (Phase 6 build), USAi (Phase 7).
 
+### Phase 29: Hub Sheet batched range store (Planned; awaiting user go)
+Goal: one Sheets REST call to read and roughly one per item to write, in place of today's 4 reads per run plus 2 writes per
+item. The Advanced Service `Sheets.Spreadsheets.Values.batchGet/batchUpdate` *is* the Sheets REST v4 API; no UrlFetchApp.
+Pattern borrowed from sheetfu's Table (read once, queue edits, one commit). The GAS "Sheets-as-DB" libraries
+(Tamotsu, GAS-DB, ServiceSQL) were rejected: they sit on SpreadsheetApp (needs the broad `spreadsheets` scope), and a
+script library adds load time plus code the catch lint can't see. User decisions 2026-10-10: Advanced Service only, hub
+Sheet only, claims stay write-through, typed RPCs only (no generic range endpoint).
+- [ ] **Prerequisite: app-file writes work under the linked GCP project** (see `TODO.md` top item). Nothing below can be
+  verified live until this is fixed.
+- [ ] Step 0, no behavior change: count Sheets reads and writes in run `counts` (`sheetsReads`, `sheetsWrites`). Also fix
+  `processWorkflowQueue` returning `ok:true` when `counts.errors > 0`, red test first. Then run L5 on today's code to
+  get a measured baseline.
+- [ ] Pure range logic in `src/integration/sheetRanges.js` (A1/col letters, tab quoting with `'` escaping, ValueRange
+  assembly from queued writes, ~50-range flush cap), node-tested, built into Engines.gs. One shared helper replaces
+  the copies in `Config.gs` and `LedgerRepository.gs` (the ledger's copy doesn't escape `'` in tab names).
+- [ ] One snapshot per locked run: a single `Values.batchGet` of Config `A2:B200` + Registry `A1:M500` + Ledger
+  `A2:..5001`. `getConfig`, `getFeatures({fresh})`, `getRegistry` and `beginSession` read from it. Lives only for that
+  locked execution; archive compaction stays in the read step. Keep `valueRenderOption` at the default FORMATTED_VALUE
+  (UNFORMATTED would change how hand-typed Config cells parse).
+- [ ] Write combining: send each item's completion in the same `Values.batchUpdate` as the next item's claim
+  (`[complete N, claim N+1]`), so every claim is still durable before its side effect. Safe because a stale PENDING row
+  retries after 15 min and Task creation is idempotent (op key in `dp-meta`, `findExistingByOpKey`). `endSession`'s
+  `finally` flushes anything still queued, logs the stack, and never masks the original error.
+- [ ] `updateRegistryRows([...])`: discovery makes one `batchUpdate` from the snapshot, in place of a read plus a write per series.
+- [ ] Exit criteria (unit): a fake `Sheets` call counter. A 3-item run makes 1 `batchGet` and at most 4 writes (today
+  about 4 reads and 6 writes); DRY_RUN makes 0 writes; every claim is written before its side effect. Full `npm test` +
+  lint pass.
+- [ ] Exit criteria (live): `npm run rpc -- processWorkflowQueue` counters before and after, via gas-rpc.
+- Known risks: a hand sort or delete in the Ledger tab during a run misdirects writes, because row numbers are cached
+  (same as today, slightly wider window). Cells near the 40k-character limit are covered by the flush cap.
+- Module rules: IIFE wrap, literal-only top-level values, export as used by other .gs files, no top-level delegator.
+
 ---
 
 ## 4. Standing Verification Criteria

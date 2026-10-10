@@ -11,6 +11,19 @@
   `michael.hoffman@gsa.gov` can do this, in the WORK Apps Script IDE (Deploy → Manage
   deployments → Edit → select version → Deploy). Blocked on the user.
 
+## BLOCKER: app-file writes fail on HOME since the GCP project link (2026-10-10)
+
+L5 failed: `sheets.values.update: The caller does not have permission` on the hub Sheet. Reads work (`drive.readonly`).
+The Sheet was created 2026-10-09 16:36 PDT, before HOME was linked to GCP `day-planner-507615` (2026-10-10 ~12:00), and
+`drive.file` grants belong to the Cloud project that created or opened the file. The link is script-wide, so pinned
+`/exec` @297 likely can't write older Daily Notes Docs either. WORK is unaffected (default project). Fix is the user's call:
+- [ ] Confirm the blast radius: user edits one Daily Note on HOME `/exec` and checks the error tray.
+- [ ] Choose: (a) unlink back to the default project (old grants return, gas-rpc stops); (b) re-grant files via
+  Google Picker with the new project's appId (no Picker in the app today); (c) recreate the hub Sheet under the new
+  project (doesn't fix Daily Notes); (d) broad scopes (rejected earlier).
+- [ ] `processWorkflowQueue` returns `ok:true` with `counts.errors: 3` and `errors: []`, so gas-rpc exits 0 on a fully
+  failed run. Fix red-test-first (Phase 29 step 0).
+
 ## Phase 28: Gmail / Meeting Hub — live HOME verification (In Progress)
 
 HOME `/dev` and the gas-rpc API deployment (@301) run `59e4119`. Pinned prod `/exec` (@297) NOT redeployed since the scope change.
