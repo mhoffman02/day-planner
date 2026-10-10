@@ -434,7 +434,7 @@ const DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mho
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const DAY_PLANNER_BUILD_NUMBER = 418;
+const DAY_PLANNER_BUILD_NUMBER = 419;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -1026,6 +1026,20 @@ function encodeTaskMeta(existingNotes, metaPatch) {
 }
 
 /**
+ * Replaces the user-visible notes text of a task while keeping its hidden status and meta markers.
+ * The client edits notes without markers; markers typed into the text are stripped so they cannot forge
+ * metadata.
+ * @param {object} googleTask Current Task resource (raw notes with markers).
+ * @param {string} userText New user-visible notes text.
+ * @returns {string} Raw notes value to persist.
+ */
+function replaceTaskNotesText_(googleTask, userText) {
+  const existing = googleTask.notes || '';
+  const withMeta = encodeTaskMeta(stripDpTokens(String(userText || '')), decodeTaskMeta(existing));
+  return encodeTaskStatusNotes(deriveTaskStatus(googleTask), withMeta);
+}
+
+/**
  * Extracts a Google Meet video conference link from calendar event objects or text fields.
  * @param {object} evt Raw calendar event or CalendarEvent instance.
  * @returns {string|null} Full Google Meet URL or null.
@@ -1278,6 +1292,9 @@ function validateCalendarEventPayload_(payload) {
   };
 }
 
+// Per-execution memo of the primary calendar zone. Literal initializer only (gas-global-init-order).
+var primaryTzMemo_ = null;
+
 /**
  * Resolves the primary calendar's IANA time zone. Fails closed: no fallback to the script time
  * zone, which would silently place an event (or a day window) at the wrong hour for a user in
@@ -1287,6 +1304,7 @@ function validateCalendarEventPayload_(payload) {
  * @throws {Error} When the lookup throws or returns no time zone.
  */
 function primaryCalendarTimeZone_(consequence) {
+  if (primaryTzMemo_) return primaryTzMemo_;
   let tz;
   try {
     if (!Calendar.Calendars) throw new Error('Calendar.Calendars advanced service is unavailable');
@@ -1300,6 +1318,7 @@ function primaryCalendarTimeZone_(consequence) {
     logError('primaryCalendarTimeZone_', new Error('primary calendar has no timeZone; ' + consequence));
     throw new Error('Could not read your calendar time zone, ' + consequence + '.');
   }
+  primaryTzMemo_ = tz; // only successes are memoized
   return tz;
 }
 
@@ -1383,6 +1402,7 @@ function createCalendarEvent(payload) {
   }
 
   let created;
+  let rejectedMeet = false;
   try {
     created = addMeet
       ? Calendar.Events.insert(resource, 'primary', { conferenceDataVersion: 1 })
@@ -1390,11 +1410,35 @@ function createCalendarEvent(payload) {
     if (!created || !created.id) throw new Error('Calendar.Events.insert returned no event id');
   } catch (err) {
     logError('createCalendarEvent(' + ev.dateStr + ' ' + ev.startTime + '-' + ev.endTime + ')', err);
-    throw new Error('Could not create the event "' + ev.title + '" in Google Calendar (' + (err.message || err) + '). Nothing was saved.', { cause: err });
+    if (!(addMeet && isConferenceRejection_(err))) {
+      throw new Error('Could not create the event "' + ev.title + '" in Google Calendar (' + (err.message || err) + '). Nothing was saved.', { cause: err });
+    }
+    // The API definitively rejected the conference request, so no event was created: retry ONCE without it.
+    rejectedMeet = true;
+    delete resource.conferenceData;
+    try {
+      created = insertEventChecked_(resource);
+    } catch (retryErr) {
+      logError('createCalendarEvent retry without Meet(' + ev.dateStr + ' ' + ev.startTime + '-' + ev.endTime + ')', retryErr);
+      throw new Error('Could not create the event "' + ev.title + '" in Google Calendar (' + (retryErr.message || retryErr) + '). Nothing was saved.', { cause: retryErr });
+    }
   }
   const out = mapCalendarApiEvent_(created);
+  if (rejectedMeet) {
+    out.meetLink = null;
+    out.meetError = 'The event was saved, but Google Calendar rejected the Meet request. Add Meet to it from Google Calendar.';
+    return out;
+  }
   if (addMeet) {
-    const meet = createdMeetLink_(created);
+    let meet = createdMeetLink_(created);
+    if (meet.pending) {
+      try {
+        meet = pollMeetLink_(created.id, meet);
+      } catch (pollErr) {
+        logError('createCalendarEvent: polling Meet link failed for event ' + created.id + '; event kept without Meet', pollErr);
+        meet = { link: null, pending: false, reason: 'polling failed: ' + (pollErr && pollErr.message) };
+      }
+    }
     out.meetLink = meet.link;
     if (!meet.link) {
       // The event IS saved; only the Meet conference is missing. Keep the event, tell the user.
@@ -1405,6 +1449,40 @@ function createCalendarEvent(payload) {
     }
   }
   return out;
+}
+
+/** Plain insert on the primary calendar that throws when the response has no event id. */
+function insertEventChecked_(resource) {
+  const created = Calendar.Events.insert(resource, 'primary');
+  if (!created || !created.id) throw new Error('Calendar.Events.insert returned no event id');
+  return created;
+}
+
+/**
+ * True only when the error clearly says the conference type/solution was rejected. Conservative on
+ * purpose: any other failure (timeout, 5xx, quota) may have created the event, so it is never retried.
+ * @param {*} err Thrown by Calendar.Events.insert.
+ * @returns {boolean}
+ */
+function isConferenceRejection_(err) {
+  const msg = String(err && err.message ? err.message : err);
+  return /conference/i.test(msg) && /invalid|not (allowed|supported|permitted)|unsupported|rejected/i.test(msg);
+}
+
+/**
+ * Polls a pending Meet createRequest: at most 3 Events.get calls, 1s apart. Throws if Events.get throws
+ * (caller logs and keeps the event).
+ * @param {string} eventId Inserted event id.
+ * @param {{link: (string|null), pending: boolean, reason: string}} meet Last known (pending) state.
+ * @returns {{link: (string|null), pending: boolean, reason: string}} Final state.
+ */
+function pollMeetLink_(eventId, meet) {
+  let state = meet;
+  for (let i = 0; i < 3 && state.pending; i++) {
+    Utilities.sleep(1000);
+    state = createdMeetLink_(Calendar.Events.get('primary', eventId, { conferenceDataVersion: 1 }));
+  }
+  return state;
 }
 
 /**
@@ -2462,9 +2540,13 @@ function updateDailyTask(dateStr, taskId, updates) {
     if (updates && updates.title !== undefined) {
       patch.title = updates.title;
     }
+    // Notes text first, so status/category/star below layer their markers on top of it.
+    if (updates && updates.notes !== undefined) {
+      patch.notes = replaceTaskNotesText_(ensureCurrent(), updates.notes);
+    }
     if (updates && updates.status !== undefined) {
       patch.status = (updates.status === '✓' || updates.status === 'Ⓓ' || updates.status === 'D/✓') ? 'completed' : 'needsAction';
-      patch.notes = encodeTaskStatusNotes(updates.status, ensureCurrent().notes);
+      patch.notes = encodeTaskStatusNotes(updates.status, patch.notes !== undefined ? patch.notes : ensureCurrent().notes);
     }
     if (updates && updates.category !== undefined) {
       const notesBaseCat = patch.notes !== undefined ? patch.notes : ensureCurrent().notes;

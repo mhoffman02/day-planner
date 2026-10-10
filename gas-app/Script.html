@@ -990,6 +990,37 @@
       busy(key) {
         const item = items.get(key);
         return Boolean(item && item.running);
+      },
+      /** @returns {boolean} True while a value for key is queued or being written (not yet confirmed or failed). */
+      unsaved(key) {
+        const item = items.get(key);
+        return Boolean(item && (item.pending || item.writing));
+      },
+      /** @returns {*} The last value the server confirmed for key (undefined if never submitted). */
+      confirmed(key) {
+        const item = items.get(key);
+        return item ? item.confirmed : undefined;
+      },
+      /**
+       * Drops the queued (not yet sent) value for key, e.g. because the item is being deleted. An
+       * in-flight write is not affected (await idle(key) for it). Returns true when one was dropped.
+       */
+      cancel(key) {
+        const item = items.get(key);
+        if (!item || !item.pending) return false;
+        item.pending = null;
+        return true;
+      },
+      /**
+       * Settles once nothing for key is queued or in flight. A failure of that drain belongs to
+       * its own submitter; here it is logged and the wait still ends.
+       */
+      idle(key) {
+        const item = items.get(key);
+        if (!item || !item.running) return Promise.resolve();
+        return item.running.then(() => undefined, (err) => {
+          console.error(`🔥 save ${key}: its save handler threw (reported to its own caller); continuing after it settled:`, (err && err.stack) || String(err));
+        });
       }
     };
   }
@@ -1341,6 +1372,24 @@
     }
     return dates;
   }
+
+  // Per-field task saves, each serialized through saveQueue under PREFIX:taskId (deletes use
+  // task-delete:taskId). value(task) is what the queue tracks as confirmed/latest, fields(value)
+  // maps it back onto a task object, same(a, b) compares two values. Reloads and cache writes
+  // consult every kind, so a pending title or star is never overwritten or cached as saved, same
+  // as status. Mirrors TASK_SAVE_KINDS in src/app.js.
+  const TASK_SAVE_KINDS = [
+    { prefix: 'task-status', value: t => t.status, fields: v => ({ status: v }), same: (a, b) => a === b },
+    {
+      prefix: 'task-title',
+      value: t => ({ title: t.title, notes: t.notes || '' }),
+      fields: v => ({ title: v.title, notes: v.notes }),
+      same: (a, b) => Boolean(a && b) && a.title === b.title && a.notes === b.notes
+    },
+    { prefix: 'task-star', value: t => Boolean(t.starred), fields: v => ({ starred: v }), same: (a, b) => a === b }
+  ];
+  const TASK_TITLE_KIND = TASK_SAVE_KINDS[1];
+  const TASK_STAR_KIND = TASK_SAVE_KINDS[2];
 
   // HUB-UI-MIRROR-BEGIN (mirrors src/hubUi.js; tests/hubUi.test.js asserts both agree)
   const QUEUE_ORDER = ['directAction', 'meetingCarryIns', 'systemExceptions', 'fyiReading'];
@@ -2036,9 +2085,10 @@
       activeTopicCardId: null,
       topicSelectedIndex: -1,
       docPreviewEditing: false,
-      noteSaveTimer: null,
-      // Date whose note edit is waiting out the save debounce (unsaved, not yet in saveQueue).
-      noteSaveTimerDate: null,
+      // Per-date note-save debounce timers: date -> timer handle for an edit waiting out the
+      // debounce (unsaved, not yet in saveQueue). Per date, so typing on another day within the
+      // debounce window never cancels this day pending save.
+      noteSaveTimers: {},
       // Per-date edit counter, bumped on every local write-through (note edit, task mutation).
       // loadDayData snapshots this before a background revalidation fetch and skips applying the
       // response if it changed while the fetch was in flight, so a slow round trip can never
@@ -3332,53 +3382,99 @@
       },
 
       // Merges a reloaded task list (a server read since mark, or the cache when mark is null)
-      // with the per-task status save queue instead of replacing the screen wholesale. A task
-      // whose status save is queued, in flight, or submitted/confirmed after the read began keeps
-      // its on-screen object and status (other fields take the reloaded copy), so its in-flight
-      // save still rolls back the object on screen; every other task takes the reloaded copy.
-      // Returns { live, confirmed }: live for the screen, confirmed (statuses known saved) for
-      // the cache. Tasks missing from the reloaded list are dropped (the server owns membership).
+      // with the per-task save queue instead of replacing the screen wholesale. For each save
+      // kind (status, title, star) whose save is queued, in flight, or submitted/confirmed after
+      // the read began, the task keeps its on-screen object and those fields (other fields take
+      // the reloaded copy), so the in-flight save still rolls back the object on screen. A task
+      // with a delete pending (or confirmed after the read began) is left out entirely, so a
+      // reload never resurrects it. Returns { live, confirmed }: live for the screen, confirmed
+      // (values known saved) for the cache. Tasks missing from the reloaded list are dropped
+      // (the server owns membership).
       reconcileReloadedTasks(incoming, liveList, mark) {
         const liveById = new Map((liveList || []).map(t => [t.id, t]));
         const live = [];
         const confirmed = [];
         (incoming || []).forEach(s => {
-          const key = `task-status:${s.id}`;
-          const r = this.saveQueue.reconcile(key, s.status, mark);
-          const withConfirmed = (r.confirmed === s.status || r.confirmed === undefined) ? s : { ...s, status: r.confirmed };
-          confirmed.push(withConfirmed);
-          if (!r.keepLocal) {
+          if (this.taskDeleteHidesRead(s.id, mark)) return;
+          let saved = s;
+          const kept = [];
+          TASK_SAVE_KINDS.forEach(kind => {
+            const r = this.saveQueue.reconcile(`${kind.prefix}:${s.id}`, kind.value(s), mark);
+            if (r.confirmed !== undefined && !kind.same(r.confirmed, kind.value(s))) saved = { ...saved, ...kind.fields(r.confirmed) };
+            if (r.keepLocal) kept.push(kind);
+          });
+          confirmed.push(saved);
+          if (kept.length === 0) {
             live.push(s);
             return;
           }
+          const keptFields = new Set();
+          kept.forEach(kind => Object.keys(kind.fields(kind.value(s))).forEach(f => keptFields.add(f)));
           const local = liveById.get(s.id);
           if (local) {
-            Object.keys(s).forEach(f => { if (f !== 'status') local[f] = s[f]; });
+            Object.keys(s).forEach(f => { if (!keptFields.has(f)) local[f] = s[f]; });
             live.push(local);
-          } else if (this.saveQueue.reconcile(key, s.status, null).keepLocal) {
-            live.push({ ...s, status: this.saveQueue.latest(key) });
-          } else {
-            live.push(withConfirmed);
+            return;
           }
+          // No object on screen (e.g. navigated away and back): show the confirmed copy with the
+          // latest value of every save still queued or in flight.
+          const shown = { ...saved };
+          kept.forEach(kind => {
+            const key = `${kind.prefix}:${s.id}`;
+            if (this.saveQueue.unsaved(key)) Object.assign(shown, kind.fields(this.saveQueue.latest(key)));
+          });
+          live.push(shown);
         });
         return { live, confirmed };
       },
 
+      // True while a delete of this task is queued or in flight, or when it was confirmed after
+      // the read behind mark began (that read may predate it): the reloaded copy must not bring
+      // the task back. mark null (a cache copy): hidden once any delete of it was confirmed.
+      taskDeleteHidesRead(taskId, mark) {
+        const key = `task-delete:${taskId}`;
+        if (this.saveQueue.unsaved(key)) return true;
+        return this.saveQueue.reconcile(key, false, mark).confirmed === true;
+      },
+
+      // The cache copy of a live task: a field whose save is still queued or in flight holds its
+      // last confirmed value, so writing one task through to the cache never records another
+      // task (or another field) as saved before Google confirmed it.
+      confirmedTaskCopy(t) {
+        let out = t;
+        TASK_SAVE_KINDS.forEach(kind => {
+          const key = `${kind.prefix}:${t.id}`;
+          if (!this.saveQueue.unsaved(key)) return;
+          const confirmed = this.saveQueue.confirmed(key);
+          if (confirmed !== undefined) out = { ...out, ...kind.fields(confirmed) };
+        });
+        return out;
+      },
+
+      confirmedTaskList(list) {
+        return (list || []).map(t => this.confirmedTaskCopy(t));
+      },
+
+      noteSaveDebouncing(dateStr) {
+        return Object.prototype.hasOwnProperty.call(this.noteSaveTimers, dateStr);
+      },
+
       // Note counterpart of reconcileReloadedTasks for a server read of dateStr since mark. While
       // a save of that note is debouncing, queued, in flight, or submitted/confirmed after the
-      // read began, the local text (the cache write-through) stays. Returns { text, saved }:
-      // text for the screen and cache, saved for savedNoteByDate (the rollback target).
+      // read began, the local text (the cache write-through) stays. Returns { text, saved,
+      // unsaved }: text for the screen and cache, saved for savedNoteByDate (the rollback
+      // target), unsaved true when text differs from saved (the cache must not be stamped synced).
       reconcileReloadedNote(dateStr, serverNote, mark) {
         const key = `save-note:${dateStr}`;
         const r = this.saveQueue.reconcile(key, serverNote || '', mark);
         const saved = typeof r.confirmed === 'string' ? r.confirmed : (serverNote || '');
-        if (!r.keepLocal && this.noteSaveTimerDate !== dateStr) return { text: serverNote, saved };
+        if (!r.keepLocal && !this.noteSaveDebouncing(dateStr)) return { text: serverNote, saved, unsaved: false };
         const cachedEntry = dpGetCached(dateStr);
         const latest = this.saveQueue.latest(key);
         let text = serverNote;
         if (cachedEntry && typeof cachedEntry.noteContent === 'string') text = cachedEntry.noteContent;
         else if (typeof latest === 'string') text = latest;
-        return { text, saved };
+        return { text, saved, unsaved: (text || '') !== saved };
       },
 
       // Offline-copy (stale) notices are about the day on screen: leaving a day resolves its
@@ -3396,14 +3492,15 @@
 
       // Snapshots the currently-open day’s live task/event state into the cache. Called after any
       // in-place mutation of this.dailyTasks/this.calendarEvents so a subsequent revisit of this
-      // date (or a background prefetch elsewhere) does not read back stale pre-edit data.
+      // date (or a background prefetch elsewhere) does not read back stale pre-edit data. Tasks
+      // are written with confirmed values only (confirmedTaskList).
       syncDailyCacheFromLiveState(dateStr) {
         const targetDate = dateStr || this.selectedDate;
         if (targetDate !== this.selectedDate) return;
         this.bumpDailyEditSeq(targetDate);
         const existing = dpGetCached(targetDate) || { noteContent: this.dailyNote, docUrl: this.dailyDocUrl };
         dpSetCached(targetDate, Object.assign({}, existing, {
-          tasks: this.dailyTasks,
+          tasks: this.confirmedTaskList(this.dailyTasks),
           calendarEvents: this.calendarEvents,
           docUrl: this.dailyDocUrl
         }));
@@ -3443,7 +3540,8 @@
           const onScreen = dateStr === this.selectedDate;
           const tasks = this.reconcileReloadedTasks(data.tasks || [], onScreen ? this.dailyTasks : [], mark);
           const note = this.reconcileReloadedNote(dateStr, data.noteContent, mark);
-          dpSetCached(dateStr, { ...data, tasks: tasks.confirmed, noteContent: note.text }, { synced: true });
+          // An unsaved note kept in the entry means it does not match Google: no synced stamp.
+          dpSetCached(dateStr, { ...data, tasks: tasks.confirmed, noteContent: note.text }, { synced: !note.unsaved });
           // Last note text known to be saved in Google Docs for this date: the rollback target if
           // a later note save fails (see scheduleDailyNoteSave).
           this.savedNoteByDate[dateStr] = note.saved;
@@ -3483,12 +3581,37 @@
         const windowDates = dpBuildDateWindow(centerDateStr, 14);
         const missing = windowDates.filter(d => !dpGetCached(d));
         if (missing.length === 0) return;
+        const first = windowDates[0];
+        const last = windowDates[windowDates.length - 1];
         try {
-          const result = await this.bridge.getDailyDataRange(windowDates[0], windowDates[windowDates.length - 1]);
-          if (result && result.days) dpPrimeFromRange(result.days);
+          const result = await this.bridge.getDailyDataRange(first, last);
+          this.primeRangeResult(result, 'prefetch-range',
+            `Background load of ${first} to ${last} was incomplete, so those days were not cached and each loads on its own when opened`,
+            () => this.runDailyRangePrefetch(centerDateStr));
         } catch (err) {
           console.error('🔥 background range prefetch failed, days load on demand instead:', err.stack);
         }
+      },
+
+      // Primes the cache from a getDailyDataRange result only when the server read was clean.
+      // Its warnings are range-wide (a failed Calendar/Tasks/Docs read can leave any day in the
+      // range empty), so a result with warnings caches nothing -- an empty calendar must never
+      // be stored as a synced day -- and files a tray entry under key (message: what happened,
+      // followed by the warnings). A clean result resolves that entry. Throws on a malformed
+      // result. Returns true when the days were primed.
+      primeRangeResult(result, key, message, retry) {
+        if (!result || typeof result.days !== 'object' || result.days === null) {
+          throw new Error('getDailyDataRange returned no days');
+        }
+        const warnings = (Array.isArray(result.warnings) ? result.warnings : []).filter(Boolean);
+        if (warnings.length > 0) {
+          console.error(`🔥 ${key}: range read returned warnings; nothing cached:`, warnings.join(' | '));
+          this.reportError(key, `${message}: ${warnings.join(' | ')}`, { retry });
+          return false;
+        }
+        dpPrimeFromRange(result.days);
+        this.resolveError(key);
+        return true;
       },
 
       initHeaderResize(e) {
@@ -4823,24 +4946,24 @@
       },
 
       scheduleDailyNoteSave() {
-        if (this.noteSaveTimer) clearTimeout(this.noteSaveTimer);
         // Capture the date/content now, not when the timer fires -- navigating to a different
         // day within the debounce window changes this.selectedDate/this.dailyNote out from under
         // a fire-time read, which silently saved the note onto the wrong day (or lost it) instead
         // of the day the user was actually typing on.
         const dateStr = this.selectedDate;
         const noteContent = this.dailyNote;
+        // One debounce timer per date: a newer edit of the same day replaces its pending save,
+        // an edit of another day never cancels it.
+        if (this.noteSaveDebouncing(dateStr)) clearTimeout(this.noteSaveTimers[dateStr]);
         // Write through into the cache at edit time (optimistic), so navigating back to this date
         // inside the 1200ms debounce window shows the just-typed content. If the save then fails,
         // the cache is rolled back to the last saved text (rollbackUnsavedNoteCache) so unsaved
         // text is never served from cache as if it were saved.
-        const existingCacheEntry = dpGetCached(dateStr) || { tasks: this.dailyTasks, calendarEvents: this.calendarEvents, docUrl: this.dailyDocUrl };
+        const existingCacheEntry = dpGetCached(dateStr) || { tasks: this.confirmedTaskList(this.dailyTasks), calendarEvents: this.calendarEvents, docUrl: this.dailyDocUrl };
         dpSetCached(dateStr, { ...existingCacheEntry, noteContent });
         this.bumpDailyEditSeq(dateStr);
-        this.noteSaveTimerDate = dateStr;
-        this.noteSaveTimer = setTimeout(() => {
-          this.noteSaveTimer = null;
-          this.noteSaveTimerDate = null;
+        this.noteSaveTimers[dateStr] = setTimeout(() => {
+          delete this.noteSaveTimers[dateStr];
           this.saveDailyNote(dateStr, noteContent);
         }, 1200);
       },
@@ -4919,7 +5042,7 @@
       // switch (or a background revalidation already in flight) never reads back stale data.
       syncMasterTasksCacheFromLiveState() {
         this.masterTasksEditSeq += 1;
-        dpSetCachedMasterTasks(this.masterTasks);
+        dpSetCachedMasterTasks(this.confirmedTaskList(this.masterTasks));
       },
 
       // Stale-while-revalidate + IndexedDB hydration, same pattern as loadDayData: render
@@ -5031,18 +5154,70 @@
         const idx = this.masterTasks.findIndex(t => t.id === task.id);
         if (idx !== -1) this.masterTasks.splice(idx, 1);
         this.syncMasterTasksCacheFromLiveState();
-        try {
-          await dpCallBridge(this.bridge, [['deleteMasterTask', [task.id]], ['deleteDailyTask', ['', task.id]]], 'master task deletion');
-        } catch (err) {
-          console.error('🔥 deleteMasterTask failed; task restored to the list and cache:', err.stack);
-          if (idx !== -1 && !this.masterTasks.some(t => t.id === task.id)) {
-            this.masterTasks.splice(Math.min(idx, this.masterTasks.length), 0, task);
+        return this.deleteTaskQueued({
+          task,
+          isMaster: true,
+          dateStr: this.selectedDate,
+          what: 'master task',
+          send: () => dpCallBridge(this.bridge, [['deleteMasterTask', [task.id]], ['deleteDailyTask', ['', task.id]]], 'master task deletion'),
+          restore: () => {
+            if (idx !== -1 && !this.masterTasks.some(t => t.id === task.id)) {
+              this.masterTasks.splice(Math.min(idx, this.masterTasks.length), 0, task);
+            }
+            this.syncMasterTasksCacheFromLiveState();
           }
-          this.syncMasterTasksCacheFromLiveState();
-          this.reportError(`task-delete:${task.id}`, `Could not delete master task: ${err.message || err.toString()}`);
-          return;
-        }
-        await this.trigger2WaySync();
+        });
+      },
+
+      // Deletes go through the per-item queue (key task-delete:taskId). While one is queued or in
+      // flight (or confirmed after a read began) reloads leave the task out (taskDeleteHidesRead),
+      // so nothing resurrects it. Before the delete is sent, that task queued status/title/star
+      // saves are dropped (never sent after it) and its in-flight ones are awaited, so a late save
+      // or its rollback cannot race the delete. A failed delete restores the task (restore) and
+      // files task-delete:taskId; a confirmed one resolves every tray entry of that task.
+      deleteTaskQueued({ task, isMaster, dateStr, what, send, restore }) {
+        const key = `task-delete:${task.id}`;
+        return this.saveQueue.submit(key, {
+          value: true,
+          baseline: false,
+          write: async () => {
+            await this.supersedeTaskSaves(task, isMaster, dateStr);
+            return send();
+          },
+          onSaved: async () => {
+            this.resolveError(key);
+            TASK_SAVE_KINDS.forEach(kind => this.resolveError(`${kind.prefix}:${task.id}`));
+            await this.trigger2WaySync();
+          },
+          onFailed: (err) => {
+            console.error(`🔥 delete of ${what} ${task.id} failed; task restored to the list and cache:`, err.stack);
+            restore();
+            this.reportError(key, `Could not delete ${what}: ${err.message || err.toString()}`);
+          }
+        });
+      },
+
+      // Drops the task queued (not yet sent) field saves and waits out the in-flight ones. A live
+      // copy still showing a dropped value goes back to the last confirmed value, so a task
+      // restored after a failed delete never shows a value that was never saved.
+      async supersedeTaskSaves(task, isMaster, dateStr) {
+        const dropped = [];
+        TASK_SAVE_KINDS.forEach(kind => {
+          const key = `${kind.prefix}:${task.id}`;
+          const value = this.saveQueue.latest(key);
+          if (this.saveQueue.cancel(key)) dropped.push({ kind, key, value });
+        });
+        await Promise.all(TASK_SAVE_KINDS.map(kind => this.saveQueue.idle(`${kind.prefix}:${task.id}`)));
+        dropped.forEach(({ kind, key, value }) => {
+          const confirmed = this.saveQueue.confirmed(key);
+          if (confirmed === undefined) return;
+          console.warn(`${key}: queued value dropped because the task is being deleted; live copies reset to the last confirmed value.`);
+          const back = kind.fields(confirmed);
+          const tried = kind.fields(value);
+          this.liveTaskCopies(task, isMaster, dateStr, true).forEach(t => {
+            Object.keys(back).forEach(f => { dpRestoreIfUnchanged(t, f, tried[f], back[f]); });
+          });
+        });
       },
 
       isMasterTaskStatusFilterActive(statusVal) {
@@ -5316,7 +5491,9 @@
         const requestedMonth = this.selectedMonth;
         try {
           const result = await this.bridge.getDailyDataRange(monthStartStr, monthEndStr);
-          if (result && result.days) dpPrimeFromRange(result.days);
+          this.primeRangeResult(result, `load-month:${requestedYear}-${requestedMonth}`,
+            `Could not fully load ${MONTH_NAMES[requestedMonth - 1]} ${requestedYear}; the calendar shows only days already cached (others may look empty)`,
+            () => this.loadMonthlyCalendarData());
           if (requestedYear !== this.selectedYear || requestedMonth !== this.selectedMonth) return;
           if (this.activeView === 'monthly-calendar') this.buildMonthlyGrid();
         } catch (err) {
@@ -5415,39 +5592,72 @@
         }
 
         const newFullTitle = titleChanged ? updateTaskTitleText(task.title, trimmed) : task.title;
-        const linkedMaster = !isMaster ? this.masterTasks.find(m => m.movedTaskId === task.id) : null;
-        const linkedDaily = (isMaster && task.movedTaskId) ? this.dailyTasks.find(d => d.id === task.movedTaskId) : null;
-        // Snapshot every copy this edit touches so a failed save rolls each back to its own
-        // last saved title/notes.
-        const touched = [task, linkedMaster, linkedDaily].filter(Boolean).map(t => ({ t, title: t.title, notes: t.notes }));
-        touched.forEach(({ t }) => {
-          t.title = newFullTitle;
-          if (notesChanged) t.notes = details.notes;
+        const dateStr = this.selectedDate;
+        const key = `task-title:${task.id}`;
+        const baseline = TASK_TITLE_KIND.value(task);
+        // notesEdited: send notes only when this edit (or a still-unsaved earlier one it
+        // supersedes in the queue) changed them.
+        const prior = this.saveQueue.unsaved(key) ? this.saveQueue.latest(key) : null;
+        const value = {
+          title: newFullTitle,
+          notes: notesChanged ? details.notes : baseline.notes,
+          notesEdited: notesChanged || Boolean(prior && prior.notesEdited)
+        };
+        // The task and its linked master/daily copy move (and roll back) together.
+        this.statusCopies(task, isMaster).forEach(t => {
+          t.title = value.title;
+          if (notesChanged) t.notes = value.notes;
         });
-        this.syncDailyCacheFromLiveState();
-        this.syncMasterTasksCacheFromLiveState();
+        // Serialized per task (key task-title:taskId), latest wins; reloads keep the pending edit
+        // on screen and the caches get the title only once Google confirmed it.
+        return this.saveQueue.submit(key, {
+          value,
+          baseline,
+          write: async (v) => {
+            const updates = { title: v.title };
+            if (v.notesEdited) updates.notes = v.notes;
+            const candidates = isMaster
+              ? [['updateMasterTask', [task.id, updates]], ['updateDailyTask', ['', task.id, updates]]]
+              : [['updateDailyTask', [dateStr, task.id, updates]]];
+            return dpRequireSaved(await dpCallBridge(this.bridge, candidates, 'task title'), 'task title');
+          },
+          onSaved: async (v, result, hasNewer) => {
+            this.resolveError(key);
+            if (hasNewer) return;
+            this.cacheTaskStatusState(dateStr);
+            await this.trigger2WaySync();
+          },
+          onFailed: (err, confirmed) => this.rollbackTaskField({
+            kind: TASK_TITLE_KIND, task, isMaster, dateStr, key, attempted: value, confirmed, err, what: 'task title', linked: true
+          })
+        });
+      },
 
-        const updates = { title: newFullTitle };
-        if (notesChanged) updates.notes = details.notes;
-        const candidates = isMaster
-          ? [['updateMasterTask', [task.id, updates]], ['updateDailyTask', ['', task.id, updates]]]
-          : [['updateDailyTask', [this.selectedDate, task.id, updates]]];
+      // Every live object for this task: the original, the copy on screen now (a reload may have
+      // replaced it), and with linked true their linked master/daily copies.
+      liveTaskCopies(task, isMaster, dateStr, linked) {
+        const onScreen = isMaster
+          ? this.masterTasks.find(t => t.id === task.id)
+          : (dateStr === this.selectedDate ? this.dailyTasks.find(t => t.id === task.id) : null);
+        const copies = new Set([task, onScreen].filter(Boolean));
+        if (linked) [...copies].forEach(t => this.statusCopies(t, isMaster).forEach(x => copies.add(x)));
+        return [...copies];
+      },
 
-        try {
-          dpRequireSaved(await dpCallBridge(this.bridge, candidates, 'task title'), 'task title');
-        } catch (err) {
-          console.error('🔥 updateTaskTitle failed; title/notes rolled back on the task and its linked copy:', err.stack);
-          touched.forEach(({ t, title, notes }) => {
-            dpRestoreIfUnchanged(t, 'title', newFullTitle, title);
-            if (notesChanged) dpRestoreIfUnchanged(t, 'notes', details.notes, notes);
+      // Rolls a failed title/star save back to the last confirmed value on every live copy still
+      // showing the attempted value (a newer edit is never clobbered), writes the caches, and
+      // files the tray entry under key.
+      rollbackTaskField({ kind, task, isMaster, dateStr, key, attempted, confirmed, err, what, linked }) {
+        console.error(`🔥 ${what} save failed for ${task.id}; rolled back to the last confirmed value:`, err.stack);
+        if (confirmed !== undefined) {
+          const back = kind.fields(confirmed);
+          const tried = kind.fields(attempted);
+          this.liveTaskCopies(task, isMaster, dateStr, linked).forEach(t => {
+            Object.keys(back).forEach(f => { dpRestoreIfUnchanged(t, f, tried[f], back[f]); });
           });
-          this.syncDailyCacheFromLiveState();
-          this.syncMasterTasksCacheFromLiveState();
-          this.reportError(`task-title:${task.id}`, `Could not save task title: ${err.message || err.toString()}`);
-          return;
         }
-        this.resolveError(`task-title:${task.id}`);
-        await this.trigger2WaySync();
+        this.cacheTaskStatusState(dateStr);
+        this.reportError(key, `Could not save ${what}: ${err.message || err.toString()}`);
       },
 
       async deleteDailyTask(task) {
@@ -5460,22 +5670,26 @@
         const idx = list.findIndex(t => t.id === task.id);
         if (idx !== -1) list.splice(idx, 1);
         this.syncDailyCacheFromLiveState();
-        try {
-          await dpCallBridge(this.bridge, [['deleteDailyTask', [dateStr, task.id]]], 'task deletion');
-        } catch (err) {
-          console.error('🔥 deleteDailyTask failed; task restored to the list and cache:', err.stack);
-          if (idx !== -1 && !list.some(t => t.id === task.id)) {
-            list.splice(Math.min(idx, list.length), 0, task);
+        return this.deleteTaskQueued({
+          task,
+          isMaster: false,
+          dateStr,
+          what: 'task',
+          send: () => dpCallBridge(this.bridge, [['deleteDailyTask', [dateStr, task.id]]], 'task deletion'),
+          restore: () => {
+            if (idx === -1) return;
+            // Back into the list on screen when that day is open (a reload may have replaced the
+            // array), otherwise into the captured list, and the day cache is dropped.
+            const onScreen = dateStr === this.selectedDate;
+            const target = onScreen ? this.dailyTasks : list;
+            if (!target.some(t => t.id === task.id)) target.splice(Math.min(idx, target.length), 0, task);
+            if (onScreen) {
+              this.syncDailyCacheFromLiveState();
+            } else {
+              dpInvalidateCached(dateStr);
+            }
           }
-          if (dateStr === this.selectedDate && list === this.dailyTasks) {
-            this.syncDailyCacheFromLiveState();
-          } else {
-            dpInvalidateCached(dateStr);
-          }
-          this.reportError(`task-delete:${task.id}`, `Could not delete task: ${err.message || err.toString()}`);
-          return;
-        }
-        await this.trigger2WaySync();
+        });
       },
 
       setTaskSort(sortStateKey, column) {
@@ -5493,28 +5707,33 @@
         return sortTasksByColumn(tasks, sortState.column, sortState.direction);
       },
 
+      // Serialized per task (key task-star:taskId), latest wins; reloads keep the pending star on
+      // screen, the caches get it only once Google confirmed it, and a failure rolls back to the
+      // last confirmed value.
       async toggleTaskStar(task) {
-        const previous = Boolean(task.starred);
-        const next = !previous;
+        const baseline = TASK_STAR_KIND.value(task);
+        const next = !baseline;
         task.starred = next;
         const isMaster = this.masterTasks.some(m => m.id === task.id);
-        const candidates = isMaster
-          ? [['updateMasterTask', [task.id, { starred: next }]], ['updateDailyTask', ['', task.id, { starred: next }]]]
-          : [['updateDailyTask', [this.selectedDate, task.id, { starred: next }]]];
-        try {
-          dpRequireSaved(await dpCallBridge(this.bridge, candidates, 'task star'), 'task star');
-        } catch (err) {
-          console.error('🔥 toggleTaskStar failed; star rolled back:', err.stack);
-          dpRestoreIfUnchanged(task, 'starred', next, previous);
-          this.reportError(`task-star:${task.id}`, `Could not save star: ${err.message || err.toString()}`);
-          return;
-        }
-        this.resolveError(`task-star:${task.id}`);
-        if (isMaster) {
-          this.syncMasterTasksCacheFromLiveState();
-        } else {
-          this.syncDailyCacheFromLiveState();
-        }
+        const dateStr = this.selectedDate;
+        const key = `task-star:${task.id}`;
+        return this.saveQueue.submit(key, {
+          value: next,
+          baseline,
+          write: async (starred) => {
+            const candidates = isMaster
+              ? [['updateMasterTask', [task.id, { starred }]], ['updateDailyTask', ['', task.id, { starred }]]]
+              : [['updateDailyTask', [dateStr, task.id, { starred }]]];
+            return dpRequireSaved(await dpCallBridge(this.bridge, candidates, 'task star'), 'task star');
+          },
+          onSaved: (starred, result, hasNewer) => {
+            this.resolveError(key);
+            if (!hasNewer) this.cacheTaskStatusState(dateStr);
+          },
+          onFailed: (err, confirmed) => this.rollbackTaskField({
+            kind: TASK_STAR_KIND, task, isMaster, dateStr, key, attempted: next, confirmed, err, what: 'star', linked: false
+          })
+        });
       },
 
       hasNotes(task) {
@@ -5672,7 +5891,8 @@
         ], 'task status'), 'task status');
       },
 
-      // Writes the (confirmed) live task state through to the caches; a day no longer open is
+      // Writes the live task state through to the caches (confirmed values only, see
+      // confirmedTaskCopy) after a status/title/star save settles; a day no longer open is
       // invalidated instead, so its next visit refetches rather than trusting a stale copy.
       cacheTaskStatusState(dateStr) {
         if (dateStr === this.selectedDate) {
@@ -5746,7 +5966,7 @@
           dpSetCached(dateStr, { ...existing, tasks: tasks.confirmed, calendarEvents: data.calendarEvents || existing.calendarEvents });
         } else {
           const note = this.reconcileReloadedNote(dateStr, data.noteContent, mark);
-          dpSetCached(dateStr, { ...data, tasks: tasks.confirmed, noteContent: note.text }, { synced: true });
+          dpSetCached(dateStr, { ...data, tasks: tasks.confirmed, noteContent: note.text }, { synced: !note.unsaved });
           this.savedNoteByDate[dateStr] = note.saved;
         }
         // Any revalidation started before this read is older than it: make loadDayData drop it.

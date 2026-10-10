@@ -39,8 +39,13 @@ function calCtx(o = {}) {
     ctx.__fakes.events.push(created);
     return created;
   });
+  const gets = [];
+  const sleeps = [];
+  ctx.Utilities.sleep = (ms) => { sleeps.push(ms); };
+  ctx.Calendar.Events.get = o.get || ((calendarId, eventId, opts) => { gets.push({ calendarId, eventId, opts: toHost(opts) }); return o.getResult ? o.getResult(gets.length) : { id: eventId }; });
+  if (o.get) { const inner = o.get; ctx.Calendar.Events.get = (c, e, opts) => { gets.push({ calendarId: c, eventId: e, opts: toHost(opts) }); return inner(c, e, opts, gets.length); }; }
   loadGasFile(ctx, 'Code.gs');
-  return { ctx, inserts };
+  return { ctx, inserts, gets, sleeps };
 }
 
 const good = (over = {}) => ({ title: '  Design review  ', dateStr: '2026-10-09', startTime: '09:00', endTime: '10:30', ...over });
@@ -219,4 +224,131 @@ test('calendar time zone missing in the response -> fails closed', () => {
   const { ctx, inserts } = calCtx({ calendarsGet: () => ({ id: 'primary' }) });
   assert.throws(() => ctx.createCalendarEvent(good()), /time zone/i);
   assert.equal(inserts.length, 0);
+});
+
+// --- (b) conference-type rejection retries once without conferenceData; anything else never retries ---
+test('conference type rejected on insert -> exactly 2 inserts (second without conferenceData), event kept, meetError set', () => {
+  let n = 0;
+  const calls = [];
+  const { ctx } = calCtx({
+    insert: (resource, calendarId, opts) => {
+      n += 1;
+      calls.push({ hasConf: resource.conferenceData !== undefined, opts: toHost(opts) });
+      if (resource.conferenceData) throw new Error('Invalid conference type value.');
+      return { id: 'evtR', summary: resource.summary, start: { dateTime: resource.start.dateTime + '-05:00' }, end: { dateTime: resource.end.dateTime + '-05:00' } };
+    }
+  });
+  const out = toHost(ctx.createCalendarEvent(good({ addMeet: true })));
+  assert.equal(n, 2);
+  assert.equal(calls[0].hasConf, true);
+  assert.equal(calls[1].hasConf, false);
+  assert.equal(out.id, 'evtR');
+  assert.equal(out.meetLink, null);
+  assert.equal(typeof out.meetError, 'string');
+  assert.match(out.meetError, /saved/i);
+  assert.match(consoleText(ctx), /Invalid conference type[\s\S]*\n\s+at /, 'rejection stack logged');
+});
+
+for (const msg of ['API call to calendar.events.insert failed with error: Service timed out', 'Backend Error 503', 'Quota exceeded for conference rate']) {
+  test(`non-rejection insert error (${msg}) with addMeet -> exactly 1 insert, throws, stack logged`, () => {
+    let n = 0;
+    const { ctx } = calCtx({ insert: () => { n += 1; throw new Error(msg); } });
+    assert.throws(() => ctx.createCalendarEvent(good({ addMeet: true })), /could not create/i);
+    assert.equal(n, 1, 'blind retry could duplicate the event');
+    assert.match(consoleText(ctx), /\n\s+at /);
+  });
+}
+
+test('conference rejection retry that itself fails -> throws (nothing saved)', () => {
+  let n = 0;
+  const { ctx } = calCtx({ insert: () => { n += 1; throw new Error(n === 1 ? 'conference solution not allowed' : 'Backend Error'); } });
+  assert.throws(() => ctx.createCalendarEvent(good({ addMeet: true })), /could not create/i);
+  assert.equal(n, 2);
+});
+
+test('addMeet false and insert fails with a conference-looking message -> 1 call, throws, no conferenceData', () => {
+  let n = 0;
+  const { ctx } = calCtx({ insert: (r) => { n += 1; assert.equal(r.conferenceData, undefined); throw new Error('Invalid conference type value.'); } });
+  assert.throws(() => ctx.createCalendarEvent(good({ addMeet: false })), /could not create/i);
+  assert.equal(n, 1);
+});
+
+// --- (c) pending conference: bounded poll of Events.get ---
+const pendingMeet = (r) => ({ conferenceData: { createRequest: { requestId: r.conferenceData.createRequest.requestId, status: { statusCode: 'pending' } } } });
+
+test('pending then success on poll 2 -> returns Meet link, 2 gets with conferenceDataVersion 1, sleeps bounded', () => {
+  const { ctx, gets, sleeps } = calCtx({
+    meet: pendingMeet,
+    get: (c, id, opts, k) => (k < 2
+      ? { id, conferenceData: { createRequest: { status: { statusCode: 'pending' } } } }
+      : { id, hangoutLink: MEET_URI, conferenceData: { createRequest: { status: { statusCode: 'success' } }, entryPoints: [{ entryPointType: 'video', uri: MEET_URI }] } })
+  });
+  const out = toHost(ctx.createCalendarEvent(good({ addMeet: true })));
+  assert.equal(gets.length, 2);
+  assert.equal(gets[0].calendarId, 'primary');
+  assert.equal(gets[0].eventId, 'evt1');
+  assert.deepEqual(gets[0].opts, { conferenceDataVersion: 1 });
+  assert.equal(out.meetLink, MEET_URI);
+  assert.equal(out.meetError, undefined);
+  assert.ok(sleeps.length >= 1 && sleeps.every((ms) => ms <= 1000));
+});
+
+test('pending x3 -> exactly 3 gets, meetLink null, meetError set', () => {
+  const { ctx, gets, sleeps } = calCtx({ meet: pendingMeet, get: (c, id) => ({ id, conferenceData: { createRequest: { status: { statusCode: 'pending' } } } }) });
+  const out = toHost(ctx.createCalendarEvent(good({ addMeet: true })));
+  assert.equal(gets.length, 3);
+  assert.ok(sleeps.every((ms) => ms <= 1000));
+  assert.equal(out.meetLink, null);
+  assert.equal(typeof out.meetError, 'string');
+  assert.equal(out.id, 'evt1');
+});
+
+test('pending then failure on poll -> stops polling, meetError, no link', () => {
+  const { ctx, gets } = calCtx({ meet: pendingMeet, get: (c, id) => ({ id, conferenceData: { createRequest: { status: { statusCode: 'failure' } } } }) });
+  const out = toHost(ctx.createCalendarEvent(good({ addMeet: true })));
+  assert.equal(gets.length, 1);
+  assert.equal(out.meetLink, null);
+  assert.equal(typeof out.meetError, 'string');
+});
+
+test('Events.get throws while polling -> event returned with meetError, stack logged, not rethrown', () => {
+  const { ctx, gets } = calCtx({ meet: pendingMeet, get: () => { throw new Error('Events.get 500 boom'); } });
+  const out = toHost(ctx.createCalendarEvent(good({ addMeet: true })));
+  assert.equal(gets.length, 1);
+  assert.equal(out.id, 'evt1');
+  assert.equal(out.meetLink, null);
+  assert.equal(typeof out.meetError, 'string');
+  assert.match(consoleText(ctx), /Events\.get 500 boom[\s\S]*\n\s+at /);
+});
+
+test('non-pending outcomes never poll', () => {
+  const { ctx, gets } = calCtx({ meet: meetOk });
+  ctx.createCalendarEvent(good({ addMeet: true }));
+  assert.equal(gets.length, 0);
+});
+
+// --- (d) primary time zone memoized per execution, failures never cached ---
+test('two creates in one execution -> one Calendars.get', () => {
+  let n = 0;
+  const { ctx } = calCtx({ calendarsGet: () => { n += 1; return { timeZone: TZ }; } });
+  ctx.createCalendarEvent(good());
+  ctx.createCalendarEvent(good());
+  assert.equal(n, 1);
+});
+
+test('first Calendars.get throws, second succeeds -> 2 calls, correct zone, failure not cached', () => {
+  let n = 0;
+  const { ctx, inserts } = calCtx({ calendarsGet: () => { n += 1; if (n === 1) throw new Error('Calendars.get 500'); return { timeZone: TZ }; } });
+  assert.throws(() => ctx.createCalendarEvent(good()), /time zone/i);
+  ctx.createCalendarEvent(good());
+  assert.equal(n, 2);
+  assert.equal(inserts[0].resource.start.timeZone, TZ);
+});
+
+test('missing timeZone is not cached either', () => {
+  let n = 0;
+  const { ctx } = calCtx({ calendarsGet: () => { n += 1; return n === 1 ? { id: 'p' } : { timeZone: TZ }; } });
+  assert.throws(() => ctx.createCalendarEvent(good()), /time zone/i);
+  ctx.createCalendarEvent(good());
+  assert.equal(n, 2);
 });

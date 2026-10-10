@@ -155,6 +155,38 @@ export function createSaveQueue() {
     busy(key) {
       const item = items.get(key);
       return Boolean(item && item.running);
+    },
+    /** @returns {boolean} True while a value for key is queued or being written (not yet confirmed or failed). */
+    unsaved(key) {
+      const item = items.get(key);
+      return Boolean(item && (item.pending || item.writing));
+    },
+    /** @returns {*} The last value the server confirmed for key (undefined if never submitted). */
+    confirmed(key) {
+      const item = items.get(key);
+      return item ? item.confirmed : undefined;
+    },
+    /**
+     * Drops the queued (not yet sent) value for key, e.g. because the item is being deleted. An
+     * in-flight write is not affected (await idle(key) for it).
+     * @returns {boolean} True when a queued value was dropped.
+     */
+    cancel(key) {
+      const item = items.get(key);
+      if (!item || !item.pending) return false;
+      item.pending = null;
+      return true;
+    },
+    /**
+     * @returns {Promise<void>} Settles once nothing for key is queued or in flight. A failure of
+     *   that drain belongs to its own submitter; here it is logged and the wait still ends.
+     */
+    idle(key) {
+      const item = items.get(key);
+      if (!item || !item.running) return Promise.resolve();
+      return item.running.then(() => undefined, (err) => {
+        console.error(`🔥 save ${key}: its save handler threw (reported to its own caller); continuing after it settled:`, (err && err.stack) || String(err));
+      });
     }
   };
 }
