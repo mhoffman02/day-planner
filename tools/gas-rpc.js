@@ -12,6 +12,7 @@
  * Auth: reuses the clasp login refresh token (~/.clasprc.json, or env GAS_RPC_CLASPRC).
  * Setup: npx clasp login --user rpc --creds ~/.config/day-planner/clasp-run-client.json --use-project-scopes
  */
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -82,6 +83,37 @@ export function readScriptId(claspJsonPath = DEFAULT_CLASP_JSON) {
   return cfg.scriptId;
 }
 
+const DAY_MS = 86400000;
+const TESTING_TOKEN_LIFE_DAYS = 7;
+const WARN_AT_DAYS = 6;
+
+/**
+ * Reminder for the GCP consent screen staying in "Testing": Google kills its refresh tokens after
+ * 7 days and clasp records no login time. Remembers when each refresh token (by SHA-256
+ * fingerprint, never the token) was first seen; a new login resets the clock.
+ * @param {string} refreshToken
+ * @param {number} nowMs
+ * @param {string} statePath
+ * @returns {string|null} Warning text from day 6 on, else null.
+ */
+export function checkTokenAge(refreshToken, nowMs, statePath) {
+  const fp = crypto.createHash('sha256').update(refreshToken).digest('hex').slice(0, 16);
+  let state = {};
+  if (fs.existsSync(statePath)) {
+    const text = fs.readFileSync(statePath, 'utf8');
+    if (text.trim()) state = JSON.parse(text);
+  }
+  if (state.fingerprint !== fp) {
+    fs.mkdirSync(path.dirname(statePath), { recursive: true });
+    fs.writeFileSync(statePath, JSON.stringify({ fingerprint: fp, firstSeenMs: nowMs }), { mode: 0o600 });
+    return null;
+  }
+  const ageDays = Math.floor((nowMs - state.firstSeenMs) / DAY_MS);
+  if (ageDays < WARN_AT_DAYS) return null;
+  const expires = new Date(state.firstSeenMs + TESTING_TOKEN_LIFE_DAYS * DAY_MS).toISOString().slice(0, 10);
+  return `gas-rpc: rpc login is ${ageDays} days old; Testing-mode tokens expire ~${expires}. ${LOGIN_HINT}`;
+}
+
 /**
  * Exchange the refresh token for an access token.
  * @returns {Promise<string>}
@@ -101,7 +133,8 @@ export async function refreshAccessToken(creds, fetchImpl = fetch) {
   const data = await res.json();
   if (!res.ok || !data || !data.access_token) {
     const detail = [data && data.error, data && data.error_description].filter(Boolean).join(': ');
-    throw new Error(`Token refresh failed (HTTP ${res.status}): ${detail || 'no access_token returned'}. ${LOGIN_HINT}`);
+    const expiry = data && data.error === 'invalid_grant' ? ' Likely the 7-day Testing-mode token expiry.' : '';
+    throw new Error(`Token refresh failed (HTTP ${res.status}): ${detail || 'no access_token returned'}.${expiry} ${LOGIN_HINT}`);
   }
   return data.access_token;
 }
@@ -195,6 +228,9 @@ export async function main(argv, { fetchImpl = fetch, stdout = process.stdout, s
     const body = buildRunRequest(fn, rawArgs.map(parseArg), !prod);
     const scriptId = readScriptId();
     const creds = loadClaspCredentials(undefined, env);
+    const statePath = env.GAS_RPC_STATE || path.join(os.homedir(), '.config', 'day-planner', 'gas-rpc-state.json');
+    const ageWarning = checkTokenAge(creds.refreshToken, Date.now(), statePath);
+    if (ageWarning) stderr.write(`${ageWarning}\n`);
     const accessToken = await refreshAccessToken(creds, fetchImpl);
     const resp = await runFunction({ scriptId, accessToken, body, fetchImpl });
     const out = interpretRunResponse(resp);

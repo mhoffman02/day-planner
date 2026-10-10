@@ -23,7 +23,7 @@ Only names Apps Script's static scan sees as **top-level** functions — the sam
 
 ## One-time setup (already done once; redo only if auth breaks)
 
-1. HOME script linked to GCP project **Day Planner** (`day-planner-507615`, number `951958469609`) in IDE → Project Settings. Apps Script API enabled there; consent screen **In production**. In "Testing" mode refresh tokens expire every 7 days.
+1. HOME script linked to GCP project **Day Planner** (`day-planner-507615`, number `951958469609`) in IDE → Project Settings. Apps Script API enabled there. Consent screen stays in **Testing** by owner choice (not ready to publish/share), so the refresh token dies every **7 days**. The tool tracks first use of each token (`~/.config/day-planner/gas-rpc-state.json`, fingerprint only) and warns on stderr from day 6; on expiry it exits 2 with `invalid_grant … 7-day`. When you see either, **remind the user** and redo step 3 (one browser approval).
 2. Desktop OAuth client JSON at `~/.config/day-planner/clasp-run-client.json` (never in the repo).
 3. `npx clasp login --user rpc --creds ~/.config/day-planner/clasp-run-client.json --use-project-scopes`. That stores `tokens.rpc` in `~/.clasprc.json`, apart from the `default` push login. The tool prefers `rpc`; override with `GAS_RPC_CLASP_USER` / `GAS_RPC_CLASPRC`.
 4. `gas-app/appsscript.json` carries `"executionApi": {"access": "MYSELF"}`.
@@ -34,6 +34,6 @@ Only names Apps Script's static scan sees as **top-level** functions — the sam
 | :--- | :--- |
 | 403 `PERMISSION_DENIED` | Script not linked to the OAuth client's GCP project, Apps Script API off in that project, or `executionApi` missing in the pushed manifest |
 | 404 | Wrong scriptId or manifest without `executionApi` not yet pushed |
-| 401 / `invalid_grant` | Token revoked/expired; redo setup step 3 (check the consent screen is In production) |
+| 401 / `invalid_grant` | 7-day Testing expiry (or revoked); remind the user, redo setup step 3 |
 | `Script function not found` | Missing top-level delegator (see above) or not pushed |
 | New scope in manifest | Re-run step 3 so the token carries it; `--use-project-scopes` reads the manifest |
