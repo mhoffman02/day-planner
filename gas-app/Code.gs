@@ -434,7 +434,7 @@ const DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mho
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const DAY_PLANNER_BUILD_NUMBER = 428;
+const DAY_PLANNER_BUILD_NUMBER = 429;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -571,6 +571,51 @@ function driveFolderAccess_(folderId) {
   const meta = Drive.Files.get(folderId, { fields: 'editable,userPermission(role)' });
   const role = meta && meta.userPermission ? meta.userPermission.role : '';
   return { owner: role === 'owner', writable: role === 'owner' || role === 'writer' || (meta && meta.editable === true) };
+}
+
+const DRIVE_GRANT_META_FIELDS = 'id,title,mimeType';
+const DRIVE_PERMISSION_DENIED_RE = /does not have (sufficient )?permission|insufficient.*permission|insufficientFilePermissions/i;
+
+/**
+ * No-op metadata patch (empty body, modified date untouched): succeeds only when the app holds a
+ * drive.file write grant on the file. Permission refusals become data; anything else throws.
+ */
+function driveGrantRow_(meta) {
+  const row = { id: meta.id, title: meta.title, mimeType: meta.mimeType, appCanWrite: true };
+  try {
+    Drive.Files.patch({}, meta.id, { modifiedDateBehavior: 'noChange', updateViewedDate: false, fields: 'id' });
+  } catch (err) {
+    if (!DRIVE_PERMISSION_DENIED_RE.test(String(err && err.message))) {
+      console.error('driveWriteAccessReport: write probe failed for a non-permission reason on ' + meta.id + ', aborting\n' + err.stack);
+      throw err;
+    }
+    row.appCanWrite = false;
+    row.error = err.message;
+  }
+  return row;
+}
+
+/**
+ * Drive grant probe: the bound Day Planner folder and its direct children, each with whether the app
+ * may write it. Drive metadata (editable, capabilities.canEdit) reports the user's role, not the
+ * app's drive.file grant, so each file gets a no-op patch instead. Sizes the Picker re-grant after
+ * the GCP project link dropped grants on older files (2026-10-10). Never discovers or creates a
+ * folder; throws when none is bound.
+ * @returns {{ok: boolean, folder: Object, files: Object[], unwritable: string[]}}
+ */
+function driveWriteAccessReport() {
+  const folderId = PropertiesService.getUserProperties().getProperty('DAY_PLANNER_ROOT_FOLDER_ID');
+  if (!folderId) throw new Error('Day Planner folder is not set up yet; open the app once to bind it');
+  const folder = driveGrantRow_(Drive.Files.get(folderId, { fields: DRIVE_GRANT_META_FIELDS }));
+  const files = [];
+  let pageToken;
+  do {
+    const res = Drive.Files.list({ q: "'" + folderId + "' in parents and trashed = false", fields: 'items(' + DRIVE_GRANT_META_FIELDS + '),nextPageToken', maxResults: 200, pageToken: pageToken });
+    (res.items || []).forEach((item) => files.push(driveGrantRow_(item)));
+    pageToken = res.nextPageToken;
+  } while (pageToken);
+  const unwritable = [folder].concat(files).filter((f) => !f.appCanWrite).map((f) => f.id);
+  return { ok: true, folder: folder, files: files, unwritable: unwritable };
 }
 
 function getValidatedRootFolder() {
@@ -3429,6 +3474,7 @@ global._saveDailyDocCardsInternal = saveDailyDocCards;
 global._createDictationScratchDocInternal = createDictationScratchDoc;
 global._pullDictationScratchTextInternal = pullDictationScratchText;
 global._resolveDriveFileTitleInternal = resolveDriveFileTitle;
+global._driveWriteAccessReportInternal = driveWriteAccessReport; // gas-rpc (Execution API): read-only drive.file grant probe
 global._getFutureMatrixInternal = getFutureMatrix;
 global._addFutureItemInternal = addFutureItem;
 global._updateFutureItemStatusInternal = updateFutureItemStatus;
@@ -3574,6 +3620,10 @@ function pullDictationScratchText(docId) {
 
 function resolveDriveFileTitle(url) {
   return (typeof _resolveDriveFileTitleInternal === 'function') ? _resolveDriveFileTitleInternal(url) : (globalThis._resolveDriveFileTitleInternal ? globalThis._resolveDriveFileTitleInternal(url) : null);
+}
+
+function driveWriteAccessReport() {
+  return (typeof _driveWriteAccessReportInternal === 'function') ? _driveWriteAccessReportInternal() : (globalThis._driveWriteAccessReportInternal ? globalThis._driveWriteAccessReportInternal() : null);
 }
 
 function getFutureMatrix(year) {

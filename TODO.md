@@ -18,9 +18,17 @@ The Sheet was created 2026-10-09 16:36 PDT, before HOME was linked to GCP `day-p
 `drive.file` grants belong to the Cloud project that created or opened the file. The link is script-wide, so pinned
 `/exec` @297 likely can't write older Daily Notes Docs either. WORK is unaffected (default project). Fix is the user's call:
 - [ ] Confirm the blast radius: user edits one Daily Note on HOME `/exec` and checks the error tray.
-- [ ] Choose: (a) unlink back to the default project (old grants return, gas-rpc stops); (b) re-grant files via
-  Google Picker with the new project's appId (no Picker in the app today); (c) recreate the hub Sheet under the new
-  project (doesn't fix Daily Notes); (d) broad scopes (rejected earlier).
+- [x] Choose: user picked **(b) Picker re-grant** with the new project's appId (2026-10-10). Rejected: (a) unlink
+  (gas-rpc stops), (c) recreate hub Sheet (doesn't fix Daily Notes), (d) broad scopes.
+- [ ] **Size it with `npm run rpc -- driveWriteAccessReport --deploy`** (built, not yet run: the deploy was blocked by
+  the auto-mode classifier). It lists the folder + children with `appCanWrite` and an `unwritable` id list. Drive
+  metadata (`editable`, `capabilities.canEdit`) is useless here: live it reported `canEdit: true` for all 7 files,
+  hub Sheet included. The probe does a no-op `Drive.Files.patch` (`modifiedDateBehavior: noChange`) per file;
+  expect the hub Sheet in `unwritable` (control). If the folder is unwritable, new monthly Docs fail too.
+- [ ] Picker setup (user, GCP `day-planner-507615`): enable the Google Picker API; create an API key restricted to it.
+  Key goes in Script Properties, never in source (repo is public).
+- [ ] Build the re-grant page: token RPC (`ScriptApp.getOAuthToken`), Picker with `setAppId('951958469609')`,
+  multi-select of the `unwritable` files plus the folder. Exit: probe `unwritable` empty, then L5 with 0 errors.
 - [ ] `processWorkflowQueue` returns `ok:true` with `counts.errors: 3` and `errors: []`, so gas-rpc exits 0 on a fully
   failed run. Fix red-test-first (Phase 29 step 0).
 
