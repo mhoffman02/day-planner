@@ -15,8 +15,9 @@
 
 HOME `/dev` and the gas-rpc API deployment (@301) run `59e4119`. Pinned prod `/exec` (@297) NOT redeployed since the scope change.
 
-- [ ] **Fast-forward `pure-gas-main`** to `feat/gmail-meeting-hub`; user runs the merge.
-- [ ] **Rerun `hubSpike`** yourself: `npm run rpc -- hubSpike` (expect `RESULT: PASS` now that `UserEmail` is filled).
+- [x] **Fast-forward `pure-gas-main`** to `feat/gmail-meeting-hub`; user runs the merge.
+- [x] **Rerun `hubSpike`** yourself: PASS 2026-10-10 (`ok:true`, 4 tabs, discovery DRY_RUN 0 series) after enabling the 6
+  advanced-service APIs in GCP `day-planner-507615` (linking to a standard project drops the default project's enabled APIs).
 - [ ] **Watch the 7-day Testing expiry**: does the web app or the 5-min sync trigger start failing auth weekly now
   that the script is linked to a Testing-mode GCP project? gas-rpc warns on day 6 (rpc login dies 2026-10-17).
 - [ ] **Publish consent screen** (user, "once it's working"), then rerun the rpc login (skill `gas-rpc` setup step 3)
