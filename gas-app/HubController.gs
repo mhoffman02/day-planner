@@ -233,8 +233,13 @@ function retryFailedOperation(operationKey) {
       if (parts[2] === 'MEETING') {
         var meta;
         try { meta = JSON.parse(row.MetadataJson || '{}'); } catch (e) {
-          DPQueue.logSafe('HubController: corrupt MetadataJson, retrying the operation without it', e);
-          meta = {};
+          // Never guess the destination series: fail the retry and leave the ERROR row as is.
+          DPQueue.logSafe('HubController: corrupt MetadataJson on a MEETING retry, refusing to guess the series (retry failed)', e);
+          return fail_('CORRUPT_METADATA', 'Cannot retry: this operation\'s saved routing metadata is corrupt. Route the thread again from the triage board.', true);
+        }
+        if (!meta || typeof meta !== 'object' || Array.isArray(meta)) {
+          DPQueue.logSafe('HubController: MetadataJson on a MEETING retry is not an object, refusing to guess the series (retry failed)', new Error('corrupt MetadataJson'));
+          return fail_('CORRUPT_METADATA', 'Cannot retry: this operation\'s saved routing metadata is corrupt. Route the thread again from the triage board.', true);
         }
         if (parts[3] && parts[3].indexOf('BACKLOG-') === 0) {
           spec.seriesKey = parts[3].slice(8);

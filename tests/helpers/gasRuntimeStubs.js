@@ -225,7 +225,7 @@ function docToApi(doc) {
 
 function docBad(msg) { const e = new Error(msg); e.code = 400; return e; }
 
-/** Applies one Docs request (insertText, updateParagraphStyle, updateTextStyle, deleteParagraphBullets). */
+/** Applies one Docs request (insertText, updateParagraphStyle, updateTextStyle, deleteContentRange, deleteParagraphBullets). */
 function applyDocRequest(doc, r) {
   const n = doc.chars.length;
   if (r.insertText) {
@@ -259,6 +259,11 @@ function applyDocRequest(doc, r) {
     if (String(r.updateTextStyle.fields).split(',').includes('link')) {
       for (let p = startIndex; p < endIndex; p += 1) doc.chars[p - 1].link = url;
     }
+  } else if (r.deleteContentRange) {
+    // Real Docs refuses to delete the body's final newline (index n).
+    const { startIndex, endIndex } = r.deleteContentRange.range;
+    if (startIndex < 1 || endIndex > n || startIndex >= endIndex) throw docBad('deleteContentRange range invalid');
+    doc.chars.splice(startIndex - 1, endIndex - startIndex);
   } else if (!r.deleteParagraphBullets) {
     throw docBad(`unsupported fake Docs request: ${Object.keys(r).join(',')}`);
   }

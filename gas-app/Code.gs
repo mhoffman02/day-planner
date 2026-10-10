@@ -18,7 +18,7 @@
 (function(global) {
 
 const MAX_RING_LOGS_ = 25;
-// True while recordServerLog runs: a log raised inside it (Run Log Doc append -> getValidatedRootFolder
+// True while recordServerLog runs: a log raised inside it (Run Log Doc append -> Drive/Docs helper
 // -> logError) stays console-only instead of recursing without bound.
 let recordingServerLog_ = false;
 
@@ -257,8 +257,21 @@ function appendRunLogToDoc_(level, context, message, stack) {
     }
 
     if (!docId) {
-      const targetFolder = getValidatedRootFolder();
-      if (!targetFolder) return;
+      // Never getValidatedRootFolder() here: a log write must not adopt or create the root folder
+      // (it can run mid-discovery or for a user who has not finished setup). Use only an already
+      // cached folder id; anything else keeps the entry in console + ring buffer only.
+      const rootId = userProps.getProperty('DAY_PLANNER_ROOT_FOLDER_ID');
+      if (!rootId) {
+        console.error('appendRunLogToDoc_: no cached root folder id yet, Run Log Doc append skipped (entry kept in console/ring buffer only)\n' + new Error('Run Log folder not resolved').stack);
+        return;
+      }
+      let targetFolder;
+      try {
+        targetFolder = DriveApp.getFolderById(rootId);
+      } catch (folderErr) {
+        console.error('appendRunLogToDoc_: cached root folder unreadable, Run Log Doc append skipped (entry kept in console/ring buffer only)\n' + folderErr.stack);
+        return;
+      }
 
       const docName = 'Day Planner - Run Log';
       const files = targetFolder.getFilesByName(docName);
@@ -421,7 +434,7 @@ const DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mho
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const DAY_PLANNER_BUILD_NUMBER = 415;
+const DAY_PLANNER_BUILD_NUMBER = 416;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -574,8 +587,8 @@ function getValidatedRootFolder() {
     }
   }
 
-  // Past the relock re-check below, catches use console.error, never logError: logError reaches the
-  // Run Log sink, which calls getValidatedRootFolder again and would adopt/create a second folder.
+  // Past the relock re-check below, catches use console.error, never logError: the Run Log sink must
+  // stay out of folder discovery (it only ever uses an already cached root id, see appendRunLogToDoc_).
   // From here on (search-then-adopt), concurrent executions under the SAME account --
   // parallel google.script.run calls on page load, the 5-min sync trigger overlapping a
   // manual visit, or a retry from validateAndSaveFolderUrl() -- could
@@ -624,15 +637,20 @@ function getValidatedRootFolder() {
       console.error('getValidatedRootFolder: Day Planner folder auto-search failed, trying the known default folder\n' + err.stack);
     }
 
-    // Fallback: Check known default folder ID if accessible under drive.file
+    // Fallback: known default folder ID, adopted only when the user OWNS it (same bar as the
+    // auto-search above). A failed owner check skips it (fail closed), never assumes ownership.
+    const defaultFolderId = '1N2WRrFmtsAWKgqeaFIj9HtiQ2wupFEk0';
     try {
-      const defaultFolder = DriveApp.getFolderById('1N2WRrFmtsAWKgqeaFIj9HtiQ2wupFEk0');
+      const defaultFolder = DriveApp.getFolderById(defaultFolderId);
       if (defaultFolder) {
-        userProps.setProperty('DAY_PLANNER_ROOT_FOLDER_ID', '1N2WRrFmtsAWKgqeaFIj9HtiQ2wupFEk0');
-        return defaultFolder;
+        if (driveFolderAccess_(defaultFolderId).owner) {
+          userProps.setProperty('DAY_PLANNER_ROOT_FOLDER_ID', defaultFolderId);
+          return defaultFolder;
+        }
+        console.error('getValidatedRootFolder: known default folder is not owned by this user, skipping it (not bound), trying auto-create\n' + new Error('default folder not owned').stack);
       }
     } catch (defaultFolderErr) {
-      console.error('getValidatedRootFolder: known default folder not accessible, trying auto-create\n' + defaultFolderErr.stack);
+      console.error('getValidatedRootFolder: known default folder not accessible or owner check failed, skipping it (not bound), trying auto-create\n' + defaultFolderErr.stack);
     }
 
     // Auto-create "Day Planner" root folder if none exists
@@ -1685,13 +1703,15 @@ function createDictationScratchDoc() {
 /**
  * Reads back the dictated text from a scratch doc created by createDictationScratchDoc(),
  * strips the instructional placeholder line, and clears the doc body so a re-pull of the same
- * docId can't silently return duplicate text.
+ * docId can't silently return duplicate text. A failed clear still returns the text (it was read)
+ * but reports cleared: false + clearError, so the caller knows a re-pull of this docId would
+ * return the same text again.
  * @param {string} docId The scratch doc's id, as returned by createDictationScratchDoc().
- * @returns {{success: boolean, text?: string, error?: string}} Pull result.
+ * @returns {{success: boolean, text?: string, cleared?: boolean, clearError?: string, error?: string}} Pull result.
  */
 function pullDictationScratchText(docId) {
   if (typeof Docs === 'undefined') {
-    return { success: true, text: 'Mock voice-typed text from local dev scratch doc.' };
+    return { success: true, text: 'Mock voice-typed text from local dev scratch doc.', cleared: true };
   }
   if (!docId) {
     return { success: false, error: 'No scratch doc id provided.' };
@@ -1712,10 +1732,16 @@ function pullDictationScratchText(docId) {
         }, docId);
       }
     } catch (clearErr) {
-      logError('pullDictationScratchText: scratch Doc clear failed, returning the text anyway (it can be pulled again)', clearErr);
+      logError('pullDictationScratchText: scratch Doc clear failed, returning the text with cleared:false (a re-pull would return it again)', clearErr);
+      return {
+        success: true,
+        text: text,
+        cleared: false,
+        clearError: 'Text was pulled, but the voice typing Doc could not be cleared: ' + (clearErr.message || String(clearErr))
+      };
     }
 
-    return { success: true, text: text };
+    return { success: true, text: text, cleared: true };
   } catch (err) {
     logError('pullDictationScratchText(' + docId + ')', err);
     return { success: false, error: err.message || err.toString() };
@@ -1812,7 +1838,9 @@ function resolveDriveFileTitle(url) {
  * Synchronized with LockService.getUserLock() to prevent race conditions during folder creation.
  * @param {GoogleAppsScript.Drive.Folder|null} parent Parent folder object, or null to target root folder.
  * @param {string} name Folder name to find or create.
- * @returns {GoogleAppsScript.Drive.Folder|null} Found or created folder object, or null on error.
+ * @returns {GoogleAppsScript.Drive.Folder} Found or created folder object.
+ * @throws {Error} When no root folder is connected or the subfolder cannot be found or created
+ *   (never falls back to the parent, which would file content in the wrong folder).
  */
 function getFolderByNameOrCreate(parent, name) {
   const lock = LockService.getUserLock();
@@ -1835,6 +1863,7 @@ function getFolderByNameOrCreate(parent, name) {
       const folders = parent.getFoldersByName(name);
       if (folders.hasNext()) return folders.next();
 
+      const causes = [];
       // Preferred under drive.file scope: create directly in parent folder via Drive Advanced Service
       if (typeof Drive !== 'undefined' && Drive.Files && Drive.Files.insert) {
         try {
@@ -1846,7 +1875,8 @@ function getFolderByNameOrCreate(parent, name) {
           const createdFolder = Drive.Files.insert(folderResource);
           return DriveApp.getFolderById(createdFolder.id);
         } catch (driveApiErr) {
-          logError('getFolderByNameOrCreate(' + name + '): Drive.Files.insert failed, falling back to parent.createFolder', driveApiErr);
+          console.error('getFolderByNameOrCreate(' + name + '): Drive.Files.insert failed, falling back to parent.createFolder\n' + driveApiErr.stack);
+          causes.push('Drive.Files.insert: ' + (driveApiErr.message || String(driveApiErr)));
         }
       }
 
@@ -1855,15 +1885,17 @@ function getFolderByNameOrCreate(parent, name) {
         try {
           return parent.createFolder(name);
         } catch (createErr) {
-          logError('getFolderByNameOrCreate(' + name + '): parent.createFolder failed, returning the parent folder instead', createErr);
+          console.error('getFolderByNameOrCreate(' + name + '): parent.createFolder failed, no create path left\n' + createErr.stack);
+          causes.push('parent.createFolder: ' + (createErr.message || String(createErr)));
         }
       }
-      return parent;
+      // Never hand back the parent: files would silently land in the wrong folder.
+      throw new Error('Could not create folder "' + name + '" in folder ' + parent.getId() + ' (' + (causes.join('; ') || 'no create method available') + ')');
     }
     return rootFolder;
   } catch (err) {
-    logError('getFolderByNameOrCreate(' + name + ')', err);
-    return null;
+    logError('getFolderByNameOrCreate(' + name + '): failed, rethrowing to the caller', err);
+    throw err;
   } finally {
     if (lockAcquired) {
       try {
@@ -2852,8 +2884,14 @@ function parseArchiveNoteHeading_(heading, docTitle) {
 /**
  * Deep archive search across historical Day Planner Notes monthly Google Docs
  * using Google Drive fullText search index.
+ * Failure contract (an empty array always means "searched everything, no matches"):
+ *  - every search path failed, or something failed and nothing matched: throws (client failure handler).
+ *  - some notes Docs (or the DriveApp fallback listing) failed but matches were found: every returned
+ *    item also carries partial: true and archiveError (user-safe message naming what was skipped).
+ *    Flags live on each item because array properties do not survive google.script.run.
  * @param {string} query Search keyword.
- * @returns {Array<{type: string, title: string, snippet: string, date: string, targetView: string, docName: string, docUrl: string}>}
+ * @returns {Array<{type: string, title: string, snippet: string, date: string, targetView: string, docName: string, docUrl: string, partial?: boolean, archiveError?: string}>}
+ * @throws {Error} When the search could not run or failed with no matches to show.
  */
 function searchArchiveNotes(query) {
   const cleanQuery = (query || '').trim();
@@ -2878,6 +2916,9 @@ function searchArchiveNotes(query) {
     const driveQuery = "fullText contains '" + escapedQuery + "' and title contains 'Day Planner Notes - ' and trashed = false";
 
     let matchingFiles = [];
+    // listOk: an authoritative listing succeeded, so zero files really means "no matches".
+    let listOk = false;
+    const failures = [];
     if (typeof Drive !== 'undefined' && Drive.Files && Drive.Files.list) {
       try {
         const listRes = Drive.Files.list({
@@ -2885,11 +2926,14 @@ function searchArchiveNotes(query) {
           maxResults: 12,
           fields: 'items(id,title,alternateLink)'
         });
-        if (listRes && Array.isArray(listRes.items)) {
-          matchingFiles = listRes.items;
+        if (!listRes || (listRes.items !== undefined && !Array.isArray(listRes.items))) {
+          throw new Error('Drive.Files.list returned an unexpected response shape');
         }
+        matchingFiles = listRes.items || [];
+        listOk = true;
       } catch (listErr) {
         logError('searchArchiveNotes: Drive.Files.list failed, falling back to DriveApp.searchFiles', listErr);
+        failures.push('Drive search failed: ' + (listErr.message || String(listErr)));
       }
     }
 
@@ -2906,13 +2950,25 @@ function searchArchiveNotes(query) {
           });
           count++;
         }
+        listOk = true;
       } catch (iterErr) {
-        logError('searchArchiveNotes: DriveApp.searchFiles failed, searching only files found so far', iterErr);
+        if (listOk) {
+          // Drive.Files.list already answered authoritatively with zero files; this fallback is extra.
+          logError('searchArchiveNotes: DriveApp.searchFiles fallback failed after a clean empty Drive.Files.list, keeping "no matches"', iterErr);
+        } else {
+          logError('searchArchiveNotes: DriveApp.searchFiles failed, searching only files found so far', iterErr);
+          failures.push('DriveApp search failed: ' + (iterErr.message || String(iterErr)));
+        }
       }
+    }
+
+    if (!listOk && matchingFiles.length === 0) {
+      throw new Error('Archive search failed: ' + (failures.join('; ') || 'no Drive search service available'));
     }
 
     const results = [];
     const cleanLower = cleanQuery.toLowerCase();
+    let unreadableDocs = 0;
 
     for (let i = 0; i < matchingFiles.length; i++) {
       const file = matchingFiles[i];
@@ -2926,7 +2982,8 @@ function searchArchiveNotes(query) {
           elements = docsGetBodyElements_(fileId);
         }
       } catch (docsErr) {
-        logError('searchArchiveNotes: could not read notes Doc ' + fileId + ', skipping it', docsErr);
+        logError('searchArchiveNotes: could not read notes Doc ' + fileId + ', skipping it (results flagged partial)', docsErr);
+        unreadableDocs++;
         continue;
       }
 
@@ -2975,10 +3032,21 @@ function searchArchiveNotes(query) {
       if (results.length >= 25) break;
     }
 
+    if (unreadableDocs > 0) {
+      failures.unshift(unreadableDocs + ' of ' + matchingFiles.length + ' notes Docs could not be read');
+    }
+    if (failures.length > 0) {
+      const archiveError = 'Archive search incomplete: ' + failures.join('; ');
+      if (results.length === 0) throw new Error(archiveError);
+      results.forEach(function (r) {
+        r.partial = true;
+        r.archiveError = archiveError;
+      });
+    }
     return results;
   } catch (err) {
-    logError('searchArchiveNotes: archive search failed, returning no results', err);
-    return [];
+    logError('searchArchiveNotes: archive search failed, rethrowing to the client failure handler', err);
+    throw err;
   }
 }
 

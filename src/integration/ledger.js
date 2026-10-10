@@ -40,23 +40,44 @@ function ledgerJson(metadata) {
   return metadata === undefined || metadata === null ? '' : JSON.stringify(metadata);
 }
 
-function ledgerParseMeta(row) {
+/**
+ * Reads a row's MetadataJson. Blank means no metadata. Anything that is not a JSON object is CORRUPT:
+ * the attempt counter and retry flags are unknowable, so callers must fail closed (no auto-retry)
+ * instead of reading it as "0 attempts", which would bypass the backoff and the attempt cap.
+ * @param {object|null} row Ledger row.
+ * @returns {{meta:object, corrupt:boolean}}
+ */
+function ledgerReadMeta(row) {
+  const raw = row ? row.MetadataJson : '';
+  if (raw === undefined || raw === null || raw === '') return { meta: {}, corrupt: false };
+  let parsed;
   try {
-    const parsed = JSON.parse((row && row.MetadataJson) || '{}');
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    parsed = JSON.parse(raw);
   } catch (err) {
     // JSON.parse messages quote the input, so log sanitized text + frames only.
-    console.error(`ledger: corrupt MetadataJson, treating metadata as empty (attempt count resets to 0): ${sanitizeError(err)}\n${stackFrames(err.stack)}`);
-    return {};
+    console.error(`ledger: corrupt MetadataJson (unparseable), treating the row as retry-exhausted (no auto-retry): ${sanitizeError(err)}\n${stackFrames(err.stack)}`);
+    return { meta: {}, corrupt: true };
   }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    console.error(`ledger: corrupt MetadataJson (not a JSON object), treating the row as retry-exhausted (no auto-retry)\n${stackFrames(new Error('corrupt MetadataJson').stack)}`);
+    return { meta: {}, corrupt: true };
+  }
+  return { meta: parsed, corrupt: false };
+}
+
+function ledgerParseMeta(row) {
+  return ledgerReadMeta(row).meta;
 }
 
 /**
  * @param {object|null} row Ledger row.
- * @returns {number} Failed attempts recorded in the row's MetadataJson (0 when none).
+ * @returns {number} Failed attempts recorded in the row's MetadataJson (0 when none; the attempt
+ * cap when the metadata is corrupt, so a corrupt row is never treated as fresh).
  */
 export function ledgerAttemptsOf(row) {
-  return Number(ledgerParseMeta(row).attempts) || 0;
+  const { meta, corrupt } = ledgerReadMeta(row);
+  if (corrupt) return LEDGER_MAX_ATTEMPTS;
+  return Number(meta.attempts) || 0;
 }
 
 /**
@@ -71,16 +92,18 @@ export function retryBackoffMinutes(attempts) {
 
 /**
  * Whether the trigger loop may automatically re-run an ERROR row. Permanent errors (see
- * LEDGER_PERMANENT_CODES, or retryable:false recorded in MetadataJson) never are; retryable ones
- * back off exponentially and stop after the attempt cap. Manual retry ignores this decision.
+ * LEDGER_PERMANENT_CODES, or retryable:false recorded in MetadataJson) never are, nor are rows with
+ * corrupt MetadataJson (attempts unknowable); retryable ones back off exponentially and stop after
+ * the attempt cap. Manual retry ignores this decision.
  * @param {object} row Ledger row.
  * @param {Date|string|number} now
  * @param {{maxAttempts?:number}} [opts]
- * @returns {{retry:boolean, reason:'NOT_ERROR'|'PERMANENT'|'ATTEMPTS_EXHAUSTED'|'BACKOFF'|'OK'}}
+ * @returns {{retry:boolean, reason:'NOT_ERROR'|'CORRUPT_METADATA'|'PERMANENT'|'ATTEMPTS_EXHAUSTED'|'BACKOFF'|'OK'}}
  */
 export function retryDecision(row, now, opts = {}) {
   if (!row || row.Status !== LEDGER_STATUS.ERROR) return { retry: true, reason: 'NOT_ERROR' };
-  const meta = ledgerParseMeta(row);
+  const { meta, corrupt } = ledgerReadMeta(row);
+  if (corrupt) return { retry: false, reason: 'CORRUPT_METADATA' };
   if (meta.retryable === false || LEDGER_PERMANENT_CODES.includes(row.ErrorCode)) return { retry: false, reason: 'PERMANENT' };
   const max = opts.maxAttempts === undefined ? LEDGER_MAX_ATTEMPTS : opts.maxAttempts;
   if ((Number(meta.attempts) || 0) >= max) return { retry: false, reason: 'ATTEMPTS_EXHAUSTED' };
@@ -269,9 +292,10 @@ export function failOp(row, now, error) {
     ErrorCode: sanitizeError(code, 40),
     ErrorMessage: sanitizeError(error)
   });
-  const meta = ledgerParseMeta(row);
-  const attempts = (Number(meta.attempts) || 0) + 1;
-  const permanent = (error && typeof error === 'object' && error.retryable === false) || LEDGER_PERMANENT_CODES.includes(code);
+  const { meta, corrupt } = ledgerReadMeta(row);
+  // Corrupt metadata: attempts unknowable, so record the cap and mark it permanent (manual retry only).
+  const attempts = corrupt ? LEDGER_MAX_ATTEMPTS : (Number(meta.attempts) || 0) + 1;
+  const permanent = corrupt || (error && typeof error === 'object' && error.retryable === false) || LEDGER_PERMANENT_CODES.includes(code);
   meta.attempts = attempts;
   meta.retryable = !permanent;
   if (permanent) delete meta.nextRetryAt;
@@ -326,7 +350,7 @@ export function claimOperation(a) {
     }
     const fresh = beginOp(op, now);
     const row = existing && existing.CreatedAt ? { ...fresh, CreatedAt: existing.CreatedAt } : fresh;
-    const priorAttempts = Number(ledgerParseMeta(existing).attempts) || 0;
+    const priorAttempts = ledgerAttemptsOf(existing);
     if (priorAttempts > 0) row.MetadataJson = JSON.stringify({ ...ledgerParseMeta(row), attempts: priorAttempts });
     if (op.deferReason) {
       const deferred = deferOp(row, now, op.deferReason);

@@ -249,6 +249,26 @@ test('(h) a doc write that is inaccessible quarantines as ERROR and retry succee
   assert.equal(coreCount(ctx), 1);
 });
 
+// 2026-10-09 fail-open review #7: a MEETING retry whose MetadataJson is corrupt used to default the
+// series to NCMMS_CORE and route there. It must fail explicitly instead of guessing a destination.
+test('(h2) retry of a MEETING op with corrupt MetadataJson fails explicitly and writes nothing', () => {
+  const ctx = makeHubContext({ ...coreOpts, now: '2026-10-05T22:00:00Z' });
+  addCoreOccurrences(ctx);
+  addThread(ctx, { id: 't1', labels: ['🎯/Meeting/NCMMS-Core'] });
+  ctx.__hub.notes.inaccessible = true;
+  run(ctx);
+  const key = 'GMAIL|t1|MEETING|core_20261006';
+  assert.equal(ctx.__hub.ledger.rows.get(key).Status, 'ERROR');
+  ctx.__hub.ledger.rows.get(key).MetadataJson = '{"seriesKey":"NCMMS_';
+  ctx.__hub.notes.inaccessible = false;
+  const retry = call(ctx, 'retryFailedOperation', key);
+  assert.equal(retry.ok, false, 'must not guess the series');
+  assert.equal(retry.errorCode, 'CORRUPT_METADATA');
+  assert.equal(coreCount(ctx), 0, 'nothing routed');
+  assert.equal(ctx.__hub.ledger.rows.get(key).Status, 'ERROR');
+  assert.match(ctx.__consoleLines.join('\n'), /corrupt MetadataJson[\s\S]*\n\s+at /);
+});
+
 test('(i) Task-derived (gasTaskId) Calendar events are never destinations nor importable', () => {
   const ctx = makeHubContext({ ...coreOpts, now: '2026-10-05T22:00:00Z' });
   addCoreOccurrences(ctx);

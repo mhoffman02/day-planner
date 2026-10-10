@@ -851,6 +851,49 @@
     return merged;
   }
 
+  // Fail-closed save helpers, mirrored from src/saveGuard.js. Keep both copies in sync
+  // (tests/failClosedSaves.test.js runs every caller against both client copies).
+  // A missing bridge method is a failed save; a null update result means nothing was written;
+  // a rollback only restores a field that still holds the value the failed write set.
+  async function dpCallBridge(bridge, candidates, what) {
+    for (const [name, args] of candidates) {
+      if (bridge && typeof bridge[name] === 'function') {
+        return bridge[name](...args);
+      }
+    }
+    const names = candidates.map(([name]) => name).join(' / ');
+    throw new Error('Not saved: ' + what + ' -- server method ' + names + ' is unavailable in this build.');
+  }
+
+  function dpRequireSaved(result, what) {
+    if (result === null || result === undefined) {
+      throw new Error('Not saved: ' + what + ' -- the item no longer exists in Google (deleted elsewhere?). Reload to refresh.');
+    }
+    return result;
+  }
+
+  function dpRestoreIfUnchanged(obj, field, wrote, previous) {
+    if (!obj || obj[field] !== wrote) return false;
+    obj[field] = previous;
+    return true;
+  }
+
+  const DP_SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  function dpFormatSyncedAt(syncedAt) {
+    if (!syncedAt) return 'unknown';
+    const d = new Date(syncedAt);
+    if (isNaN(d.getTime())) return 'unknown';
+    const h = d.getHours();
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return DP_SHORT_MONTHS[d.getMonth()] + ' ' + d.getDate() + ', ' + (h % 12 || 12) + ':' + mm + ' ' + (h < 12 ? 'AM' : 'PM');
+  }
+
+  function dpStaleNoticeText(label, syncedAt, err) {
+    const reason = (err && err.message) || String(err);
+    return label + ': showing offline copy (last synced ' + dpFormatSyncedAt(syncedAt) + '). Refresh failed: ' + reason;
+  }
+
   // Daily data cache, mirrored from src/dailyDataCache.js. Keep both copies in sync. Memory-first
   // Map cache keyed by date, with IndexedDB persistence behind it, probed lazily and falling back
   // to memory-only (with a loud console warning) if IndexedDB is blocked. A single open() call
@@ -946,35 +989,59 @@
     return dpCacheDbPromise;
   }
 
+  function dpDescribeIdbError(e) {
+    if (!e) return 'unknown IndexedDB error';
+    return (e.name ? e.name + ': ' : '') + (e.message || String(e));
+  }
+
+  // Mirrors persistToIdb in src/dailyDataCache.js. Quota/constraint failures arrive as an async
+  // transaction error/abort event, never through a sync try, so those handlers are what make a
+  // failed persist visible. Resolves true on commit, false when IDB is unavailable, rejects on
+  // error/abort; the rejection is always logged here so fire-and-forget callers stay safe.
+  function dpCachePersist(storeName, op, context) {
+    const result = dpCacheOpenDb().then((db) => {
+      if (!db) return false;
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readwrite');
+        let settled = false;
+        const fail = () => {
+          if (settled) return;
+          settled = true;
+          reject(new Error('IndexedDB ' + context + ' failed (' + dpDescribeIdbError(tx.error) + ')'));
+        };
+        tx.oncomplete = () => {
+          if (settled) return;
+          settled = true;
+          resolve(true);
+        };
+        tx.onerror = fail;
+        tx.onabort = fail;
+        op(tx.objectStore(storeName));
+      });
+    });
+    result.then(null, (err) => {
+      console.error('[dailyDataCache] ' + context + ' NOT persisted - memory cache only, lost on reload:', (err && err.stack) || dpDescribeIdbError(err));
+    });
+    return result;
+  }
+
   function dpGetCached(dateStr) {
     return dpCacheMemory.get(dateStr) || null;
   }
 
-  function dpSetCached(dateStr, data) {
-    const entry = dpCacheCloneForStorage(Object.assign({}, data, { date: dateStr }));
+  // syncedAt (epoch ms) is stamped only when opts.synced (data straight from the server) and
+  // otherwise carried forward, so a local write-through never looks like a fresh sync.
+  function dpSetCached(dateStr, data, opts) {
+    const prev = dpCacheMemory.get(dateStr);
+    const syncedAt = (opts && opts.synced) ? Date.now() : ((data && data.syncedAt) || (prev && prev.syncedAt) || null);
+    const entry = dpCacheCloneForStorage(Object.assign({}, data, { date: dateStr, syncedAt: syncedAt }));
     dpCacheMemory.set(dateStr, entry);
-    dpCacheOpenDb().then((db) => {
-      if (!db) return;
-      try {
-        const tx = db.transaction(DP_CACHE_STORE_NAME, 'readwrite');
-        tx.objectStore(DP_CACHE_STORE_NAME).put(entry);
-      } catch (err) {
-        console.error('[dailyDataCache] IDB put failed for', dateStr, '- memory cache only', err.stack);
-      }
-    });
+    return dpCachePersist(DP_CACHE_STORE_NAME, (store) => store.put(entry), 'put dailyData ' + dateStr);
   }
 
   function dpInvalidateCached(dateStr) {
     dpCacheMemory.delete(dateStr);
-    dpCacheOpenDb().then((db) => {
-      if (!db) return;
-      try {
-        const tx = db.transaction(DP_CACHE_STORE_NAME, 'readwrite');
-        tx.objectStore(DP_CACHE_STORE_NAME).delete(dateStr);
-      } catch (err) {
-        console.error('[dailyDataCache] IDB delete failed for', dateStr, '- stale IDB entry may persist', err.stack);
-      }
-    });
+    return dpCachePersist(DP_CACHE_STORE_NAME, (store) => store.delete(dateStr), 'delete dailyData ' + dateStr + ' (stale entry may rehydrate next session)');
   }
 
   // entry.noteContent === null only means no note section exists for this date yet (common for
@@ -986,7 +1053,7 @@
       if (dpCacheMemory.has(dateStr)) return;
       const entry = days[dateStr];
       if (!entry) return;
-      dpSetCached(dateStr, entry);
+      dpSetCached(dateStr, entry, { synced: true });
     });
   }
 
@@ -1003,7 +1070,10 @@
             if (entry) dpCacheMemory.set(dateStr, entry);
             resolve(entry);
           };
-          req.onerror = () => resolve(null);
+          req.onerror = () => {
+            console.error('[dailyDataCache] IDB get failed for', dateStr, '- treating as cache miss:', dpDescribeIdbError(req.error));
+            resolve(null);
+          };
         } catch (err) {
           console.error('[dailyDataCache] IDB read failed for', dateStr, '- treating as cache miss', err.stack);
           resolve(null);
@@ -1027,18 +1097,11 @@
     return dpMasterTasksMemory;
   }
 
-  function dpSetCachedMasterTasks(tasks) {
-    const entry = dpCacheCloneForStorage({ key: DP_CACHE_MASTER_TASKS_KEY, tasks: tasks, cachedAt: new Date().toISOString() });
+  function dpSetCachedMasterTasks(tasks, opts) {
+    const syncedAt = (opts && opts.synced) ? Date.now() : ((dpMasterTasksMemory && dpMasterTasksMemory.syncedAt) || null);
+    const entry = dpCacheCloneForStorage({ key: DP_CACHE_MASTER_TASKS_KEY, tasks: tasks, cachedAt: new Date().toISOString(), syncedAt: syncedAt });
     dpMasterTasksMemory = entry;
-    dpCacheOpenDb().then((db) => {
-      if (!db) return;
-      try {
-        const tx = db.transaction(DP_CACHE_STORE_MASTER_TASKS, 'readwrite');
-        tx.objectStore(DP_CACHE_STORE_MASTER_TASKS).put(entry);
-      } catch (err) {
-        console.error('[dailyDataCache] IDB put failed for masterTasks - memory cache only', err.stack);
-      }
-    });
+    return dpCachePersist(DP_CACHE_STORE_MASTER_TASKS, (store) => store.put(entry), 'put masterTasks');
   }
 
   function dpHydrateMasterTasksFromIdb() {
@@ -1054,7 +1117,10 @@
             if (entry) dpMasterTasksMemory = entry;
             resolve(entry);
           };
-          req.onerror = () => resolve(null);
+          req.onerror = () => {
+            console.error('[dailyDataCache] IDB get failed for masterTasks - treating as cache miss:', dpDescribeIdbError(req.error));
+            resolve(null);
+          };
         } catch (err) {
           console.error('[dailyDataCache] IDB read failed for masterTasks - treating as cache miss', err.stack);
           resolve(null);
@@ -1067,19 +1133,13 @@
     return dpFutureMatrixMemory.get(String(year)) || null;
   }
 
-  function dpSetCachedFutureMatrix(year, matrix) {
+  function dpSetCachedFutureMatrix(year, matrix, opts) {
     const yearKey = String(year);
-    const entry = dpCacheCloneForStorage(Object.assign({}, matrix, { year: yearKey, cachedAt: new Date().toISOString() }));
+    const prev = dpFutureMatrixMemory.get(yearKey);
+    const syncedAt = (opts && opts.synced) ? Date.now() : ((matrix && matrix.syncedAt) || (prev && prev.syncedAt) || null);
+    const entry = dpCacheCloneForStorage(Object.assign({}, matrix, { year: yearKey, cachedAt: new Date().toISOString(), syncedAt: syncedAt }));
     dpFutureMatrixMemory.set(yearKey, entry);
-    dpCacheOpenDb().then((db) => {
-      if (!db) return;
-      try {
-        const tx = db.transaction(DP_CACHE_STORE_FUTURE_MATRIX, 'readwrite');
-        tx.objectStore(DP_CACHE_STORE_FUTURE_MATRIX).put(entry);
-      } catch (err) {
-        console.error('[dailyDataCache] IDB put failed for futureMatrix', yearKey, '- memory cache only', err.stack);
-      }
-    });
+    return dpCachePersist(DP_CACHE_STORE_FUTURE_MATRIX, (store) => store.put(entry), 'put futureMatrix ' + yearKey);
   }
 
   function dpHydrateFutureMatrixFromIdb(year) {
@@ -1096,7 +1156,10 @@
             if (entry) dpFutureMatrixMemory.set(yearKey, entry);
             resolve(entry);
           };
-          req.onerror = () => resolve(null);
+          req.onerror = () => {
+            console.error('[dailyDataCache] IDB get failed for futureMatrix', yearKey, '- treating as cache miss:', dpDescribeIdbError(req.error));
+            resolve(null);
+          };
         } catch (err) {
           console.error('[dailyDataCache] IDB read failed for futureMatrix', yearKey, '- treating as cache miss', err.stack);
           resolve(null);
@@ -1128,15 +1191,7 @@
     dpNoteRevisionsMemory.set(dateStr, updated);
 
     const entry = dpCacheCloneForStorage({ date: dateStr, revisions: updated });
-    dpCacheOpenDb().then((db) => {
-      if (!db) return;
-      try {
-        const tx = db.transaction(DP_CACHE_STORE_NOTE_REVISIONS, 'readwrite');
-        tx.objectStore(DP_CACHE_STORE_NOTE_REVISIONS).put(entry);
-      } catch (err) {
-        console.error('[dailyDataCache] IDB put failed for noteRevisions', dateStr, '- revision kept in memory only', err.stack);
-      }
-    });
+    dpCachePersist(DP_CACHE_STORE_NOTE_REVISIONS, (store) => store.put(entry), 'put noteRevisions ' + dateStr);
 
     return updated;
   }
@@ -1159,7 +1214,10 @@
             if (revs.length > 0) dpNoteRevisionsMemory.set(dateStr, revs);
             resolve(revs);
           };
-          req.onerror = () => resolve([]);
+          req.onerror = () => {
+            console.error('[dailyDataCache] IDB get failed for noteRevisions', dateStr, '- returning empty history:', dpDescribeIdbError(req.error));
+            resolve([]);
+          };
         } catch (err) {
           console.error('[dailyDataCache] IDB read failed for noteRevisions', dateStr, '- returning empty history', err.stack);
           resolve([]);
@@ -1878,6 +1936,15 @@
       // Sync & Error states
       isSyncing: false,
       errorMessage: null,
+      // { scope, text } of the stale/offline notice currently in the banner (see showStaleNotice).
+      staleNotice: null,
+      // Per-date note text last confirmed saved to Google Docs; rollback target for a failed save.
+      savedNoteByDate: {},
+      noteSaveError: null,
+      createEventError: null,
+      archiveSearchError: null,
+      archiveSearchWarning: null,
+      timeMachineError: null,
 
       // Modals
       eventModalOpen: false,
@@ -2331,9 +2398,30 @@
         }
       },
 
+      // Stale/offline indicator: a load that fell back to cached data says so in the error banner,
+      // with the time the cached copy last matched the server. Cleared by the next successful
+      // refresh of the same scope (daily, master, future), unless another error replaced it.
+      showStaleNotice(scope, label, cachedEntry, err) {
+        const text = dpStaleNoticeText(label, cachedEntry && cachedEntry.syncedAt, err);
+        // One banner slot: never let an informational stale notice replace a real failure
+        // (e.g. an unsaved-note warning). Only an empty banner or an older stale notice yields.
+        const bannerFree = !this.errorMessage || (this.staleNotice && this.errorMessage === this.staleNotice.text);
+        if (!bannerFree) return;
+        this.staleNotice = { scope, text };
+        this.errorMessage = text;
+      },
+
+      clearStaleNotice(scope) {
+        if (!this.staleNotice || this.staleNotice.scope !== scope) return;
+        if (this.errorMessage === this.staleNotice.text) this.errorMessage = null;
+        this.staleNotice = null;
+      },
+
       async trigger2WaySync() {
         this.isSyncing = true;
-        this.errorMessage = null;
+        // Never clear errorMessage here: callers run this right after a write, and wiping the
+        // banner would hide a failure reported just before (fail-silent). The banner is
+        // dismissed by the user or replaced by the next error.
 
         try {
           await new Promise(r => setTimeout(r, 400)); // Visual indicator
@@ -2589,11 +2677,15 @@
           const matrix = await this.bridge.getFutureMatrix(year);
           if (year !== this.futureMatrixYear) return; // user navigated to a different year
           if ((this.futureMatrixEditSeq[year] || 0) !== seqAtFetchStart) return; // superseded by a local edit
-          dpSetCachedFutureMatrix(year, matrix);
+          dpSetCachedFutureMatrix(year, matrix, { synced: true });
           this.applyFutureMatrix(matrix);
+          this.clearStaleNotice('future');
         } catch (err) {
-          console.error('loadFutureMatrix error, keeping cached matrix if any:', err.stack);
-          if (!cached) {
+          console.error('loadFutureMatrix: refresh failed; showing cached matrix (if any) with a stale notice:', err.stack);
+          if (year !== this.futureMatrixYear) return;
+          if (cached) {
+            this.showStaleNotice('future', `Future Planning ${year}`, cached, err);
+          } else {
             this.errorMessage = `Could not load Future Planning Matrix: ${err.message || err.toString()}`;
           }
         }
@@ -2632,15 +2724,7 @@
       },
 
       async toggleFutureItemStatus(mm, item) {
-        const monthKey = this.futureMonthKey(mm);
-        item.status = getNextStatus(item.status);
-        try {
-          await this.bridge.updateFutureItemStatus(this.futureMatrixYear, monthKey, item.id, item.status);
-          this.syncFutureMatrixCacheFromLiveState();
-        } catch (err) {
-          console.error('toggleFutureItemStatus error, local status left changed:', err.stack);
-          this.errorMessage = `Could not save item status: ${err.message || err.toString()}`;
-        }
+        await this.saveFutureItemStatus(mm, item, getNextStatus(item.status));
       },
 
       async selectFutureItemStatus(mm, item, newStatus) {
@@ -2650,15 +2734,25 @@
           console.error(`🔥 selectFutureItemStatus: ignoring invalid status "${newStatus}"`);
           return;
         }
-        item.status = newStatus;
+        await this.saveFutureItemStatus(mm, item, newStatus);
+      },
+
+      // Optimistic status change that rolls back (UI only; the cache is written on success only)
+      // if the Tasks write fails, is unavailable, or reports the item missing (null).
+      async saveFutureItemStatus(mm, item, newStatus) {
+        const year = this.futureMatrixYear;
         const monthKey = this.futureMonthKey(mm);
+        const previous = item.status;
+        item.status = newStatus;
         try {
-          await this.bridge.updateFutureItemStatus(this.futureMatrixYear, monthKey, item.id, item.status);
-          this.syncFutureMatrixCacheFromLiveState();
+          dpRequireSaved(await dpCallBridge(this.bridge, [['updateFutureItemStatus', [year, monthKey, item.id, newStatus]]], 'Future Planning item status'), 'Future Planning item status');
         } catch (err) {
-          console.error('selectFutureItemStatus error, local status left changed:', err.stack);
+          console.error('saveFutureItemStatus: save failed; status rolled back to last saved value:', err.stack);
+          dpRestoreIfUnchanged(item, 'status', newStatus, previous);
           this.errorMessage = `Could not save item status: ${err.message || err.toString()}`;
+          return;
         }
+        if (year === this.futureMatrixYear) this.syncFutureMatrixCacheFromLiveState();
       },
 
       async transferFutureItemToDay(mm, item) {
@@ -3090,10 +3184,17 @@
           const data = await this.bridge.getDailyData(dateStr);
           const editedWhileFetching = (this.dailyEditSeq[dateStr] || 0) !== seqAtFetchStart;
           if (editedWhileFetching) {
+            // A local edit already wrote a newer version into the cache; this response is now
+            // stale relative to it -- drop it instead of caching/applying over the newer edit.
+            // The next navigation away and back will revalidate again.
             return;
           }
-          dpSetCached(dateStr, data);
-          if (dateStr !== this.selectedDate) return;
+          dpSetCached(dateStr, data, { synced: true });
+          // Last note text known to be saved in Google Docs for this date: the rollback target if
+          // a later note save fails (see scheduleDailyNoteSave).
+          this.savedNoteByDate[dateStr] = data.noteContent || '';
+          if (dateStr !== this.selectedDate) return; // user navigated away; cached for next visit
+          this.clearStaleNotice('daily');
           if (data.error) {
             this.errorMessage = data.error;
           }
@@ -3102,9 +3203,13 @@
           }
           this.applyDailyData(data);
         } catch (err) {
-          console.error('🔥 loadDayData error, keeping cached day if any:', err.stack);
-          if (dateStr === this.selectedDate && !cached) {
-            this.errorMessage = `Error loading daily workspace: ${err.message || err.toString()}`;
+          console.error('🔥 loadDayData: refresh failed; showing cached day (if any) with a stale notice:', err.stack);
+          if (dateStr === this.selectedDate) {
+            if (cached) {
+              this.showStaleNotice('daily', `Daily page ${dateStr}`, cached, err);
+            } else {
+              this.errorMessage = `Error loading daily workspace: ${err.message || err.toString()}`;
+            }
           }
         } finally {
           if (dateStr === this.selectedDate) this.dailyLoading = false;
@@ -4070,6 +4175,11 @@
           sttScratchDocId = null;
           this.sttScratchDocUrl = '';
           this.sttError = null;
+          if (result.cleared === false) {
+            // Text was read and inserted, but the server could not empty the scratch doc.
+            console.error('[STT] scratch doc read but NOT cleared:', result.clearError);
+            this.sttError = 'Inserted the voice-typed text, but the voice typing doc could not be cleared (' + (result.clearError || 'unknown error') + '). That doc still holds this text, so it may reappear if pulled again.';
+          }
           this.sttRefreshedFlash = true;
           setTimeout(() => { this.sttRefreshedFlash = false; }, 1800);
         } catch (err) {
@@ -4470,22 +4580,46 @@
         // of the day the user was actually typing on.
         const dateStr = this.selectedDate;
         const noteContent = this.dailyNote;
-        // Write through into the cache at edit time (optimistic), not on save success -- so
-        // navigating back to this date inside the 1200ms debounce window shows the just-typed
-        // content instead of the stale pre-edit cache entry.
+        // Write through into the cache at edit time (optimistic), so navigating back to this date
+        // inside the 1200ms debounce window shows the just-typed content. If the save then fails,
+        // the cache is rolled back to the last saved text (rollbackUnsavedNoteCache) so unsaved
+        // text is never served from cache as if it were saved.
         const existingCacheEntry = dpGetCached(dateStr) || { tasks: this.dailyTasks, calendarEvents: this.calendarEvents, docUrl: this.dailyDocUrl };
-        dpSetCached(dateStr, Object.assign({}, existingCacheEntry, { noteContent: noteContent }));
+        dpSetCached(dateStr, { ...existingCacheEntry, noteContent });
         this.bumpDailyEditSeq(dateStr);
         this.noteSaveTimer = setTimeout(async () => {
-          if (!this.bridge || typeof this.bridge.saveDailyDocCards !== 'function') return;
           try {
-            await this.bridge.saveDailyDocCards(dateStr, noteContent);
-            dpSaveNoteRevision(dateStr, noteContent);
+            const result = await dpCallBridge(this.bridge, [['saveDailyDocCards', [dateStr, noteContent]]], `daily note for ${dateStr}`);
+            // Code.gs reports Drive/Docs failures as a resolved { success: false, error }.
+            if (!result || result.success !== true) {
+              throw new Error((result && result.error) || 'the server did not confirm the save');
+            }
           } catch (err) {
-            console.error('🔥 saveDailyDocCards error, note NOT saved to Drive (local cache still holds the edit):', err.stack);
-            this.errorMessage = `Could not save daily note: ${err.message || err.toString()}`;
+            console.error(`🔥 saveDailyDocCards failed for ${dateStr}; note NOT saved, cache rolled back to last saved text, editor text kept:`, err.stack);
+            this.rollbackUnsavedNoteCache(dateStr, noteContent);
+            this.noteSaveError = `Daily note for ${dateStr} NOT saved: ${err.message || err.toString()}. Your text is still in the editor; edit again to retry, or copy it before leaving this day.`;
+            this.errorMessage = this.noteSaveError;
+            return;
           }
+          this.savedNoteByDate[dateStr] = noteContent;
+          dpSaveNoteRevision(dateStr, noteContent);
+          if (this.noteSaveError && this.errorMessage === this.noteSaveError) this.errorMessage = null;
+          this.noteSaveError = null;
         }, 1200);
+      },
+
+      // Restores the cached note for dateStr to the last text confirmed saved, but only if the
+      // cache still holds the text this failed save attempted (a newer edit owns it otherwise,
+      // and its own pending save will commit or roll back). Unknown saved text: drop the entry
+      // so the next visit refetches from Google instead of trusting the cache.
+      rollbackUnsavedNoteCache(dateStr, attemptedContent) {
+        const entry = dpGetCached(dateStr);
+        if (!entry || entry.noteContent !== attemptedContent) return;
+        if (Object.prototype.hasOwnProperty.call(this.savedNoteByDate, dateStr)) {
+          dpSetCached(dateStr, { ...entry, noteContent: this.savedNoteByDate[dateStr] });
+        } else {
+          dpInvalidateCached(dateStr);
+        }
       },
 
       applyMasterTasks(tasks) {
@@ -4516,11 +4650,14 @@
         try {
           const tasks = await this.bridge.getMasterTasks(`${this.selectedMonthName} ${this.selectedYear}`);
           if (this.masterTasksEditSeq !== seqAtFetchStart) return; // a local edit already superseded this
-          dpSetCachedMasterTasks(tasks);
+          dpSetCachedMasterTasks(tasks, { synced: true });
           this.applyMasterTasks(tasks);
+          this.clearStaleNotice('master');
         } catch (err) {
-          console.error('🔥 loadMasterTasks error, keeping cached list if any:', err.stack);
-          if (!cached) {
+          console.error('🔥 loadMasterTasks: refresh failed; showing cached list (if any) with a stale notice:', err.stack);
+          if (cached) {
+            this.showStaleNotice('master', 'Master Tasks', cached, err);
+          } else {
             this.errorMessage = `Error loading master tasks: ${err.message || err.toString()}`;
           }
         }
@@ -4605,22 +4742,21 @@
       async deleteMasterTask(task) {
         if (!task || !task.id) return;
         this.openStatusMenuTaskId = null;
+        const idx = this.masterTasks.findIndex(t => t.id === task.id);
+        if (idx !== -1) this.masterTasks.splice(idx, 1);
+        this.syncMasterTasksCacheFromLiveState();
         try {
-          const idx = this.masterTasks.findIndex(t => t.id === task.id);
-          if (idx !== -1) {
-            this.masterTasks.splice(idx, 1);
+          await dpCallBridge(this.bridge, [['deleteMasterTask', [task.id]], ['deleteDailyTask', ['', task.id]]], 'master task deletion');
+        } catch (err) {
+          console.error('🔥 deleteMasterTask failed; task restored to the list and cache:', err.stack);
+          if (idx !== -1 && !this.masterTasks.some(t => t.id === task.id)) {
+            this.masterTasks.splice(Math.min(idx, this.masterTasks.length), 0, task);
           }
           this.syncMasterTasksCacheFromLiveState();
-          if (this.bridge && typeof this.bridge.deleteMasterTask === 'function') {
-            await this.bridge.deleteMasterTask(task.id);
-          } else if (this.bridge && typeof this.bridge.deleteDailyTask === 'function') {
-            await this.bridge.deleteDailyTask('', task.id);
-          }
-          await this.trigger2WaySync();
-        } catch (err) {
-          console.error('🔥 deleteMasterTask error, task already removed locally but may still exist server-side:', err.stack);
-          this.errorMessage = `Error deleting master task: ${err.message || err.toString()}`;
+          this.errorMessage = `Could not delete master task: ${err.message || err.toString()}`;
+          return;
         }
+        await this.trigger2WaySync();
       },
 
       isMasterTaskStatusFilterActive(statusVal) {
@@ -4898,7 +5034,9 @@
           if (requestedYear !== this.selectedYear || requestedMonth !== this.selectedMonth) return;
           if (this.activeView === 'monthly-calendar') this.buildMonthlyGrid();
         } catch (err) {
-          console.error('🔥 loadMonthlyCalendarData error, grid shows cached days only:', err.stack);
+          console.error('🔥 loadMonthlyCalendarData failed; month grid shows only already-cached days:', err.stack);
+          if (requestedYear !== this.selectedYear || requestedMonth !== this.selectedMonth) return;
+          this.errorMessage = `Could not refresh ${MONTH_NAMES[requestedMonth - 1]} ${requestedYear}; the calendar shows only days already cached (others may look empty): ${err.message || err.toString()}`;
         }
       },
 
@@ -4990,83 +5128,67 @@
           return;
         }
 
-        const oldTitle = task.title;
-        const oldNotes = task.notes || '';
-        const newFullTitle = titleChanged ? updateTaskTitleText(oldTitle, trimmed) : oldTitle;
-        task.title = newFullTitle;
-        if (notesChanged) {
-          task.notes = details.notes;
-        }
-
+        const newFullTitle = titleChanged ? updateTaskTitleText(task.title, trimmed) : task.title;
         const linkedMaster = !isMaster ? this.masterTasks.find(m => m.movedTaskId === task.id) : null;
-        if (linkedMaster) {
-          linkedMaster.title = newFullTitle;
-          if (notesChanged) linkedMaster.notes = details.notes;
-        }
-        if (isMaster && task.movedTaskId) {
-          const linkedDaily = this.dailyTasks.find(d => d.id === task.movedTaskId);
-          if (linkedDaily) {
-            linkedDaily.title = newFullTitle;
-            if (notesChanged) linkedDaily.notes = details.notes;
-          }
-        }
-
-        if (isMaster) {
-          this.syncMasterTasksCacheFromLiveState();
-        } else {
-          this.syncDailyCacheFromLiveState();
-        }
+        const linkedDaily = (isMaster && task.movedTaskId) ? this.dailyTasks.find(d => d.id === task.movedTaskId) : null;
+        // Snapshot every copy this edit touches so a failed save rolls each back to its own
+        // last saved title/notes.
+        const touched = [task, linkedMaster, linkedDaily].filter(Boolean).map(t => ({ t, title: t.title, notes: t.notes }));
+        touched.forEach(({ t }) => {
+          t.title = newFullTitle;
+          if (notesChanged) t.notes = details.notes;
+        });
+        this.syncDailyCacheFromLiveState();
+        this.syncMasterTasksCacheFromLiveState();
 
         const updates = { title: newFullTitle };
         if (notesChanged) updates.notes = details.notes;
+        const candidates = isMaster
+          ? [['updateMasterTask', [task.id, updates]], ['updateDailyTask', ['', task.id, updates]]]
+          : [['updateDailyTask', [this.selectedDate, task.id, updates]]];
 
         try {
-          if (isMaster) {
-            if (this.bridge && typeof this.bridge.updateMasterTask === 'function') {
-              await this.bridge.updateMasterTask(task.id, updates);
-            } else if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
-              await this.bridge.updateDailyTask('', task.id, updates);
-            }
-          } else {
-            if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
-              await this.bridge.updateDailyTask(this.selectedDate, task.id, updates);
-            }
-          }
-          await this.trigger2WaySync();
+          dpRequireSaved(await dpCallBridge(this.bridge, candidates, 'task title'), 'task title');
         } catch (err) {
-          console.error('🔥 updateTaskTitle error, reverting local title and notes:', err.stack);
-          task.title = oldTitle;
-          task.notes = oldNotes;
-          if (linkedMaster) {
-            linkedMaster.title = oldTitle;
-            linkedMaster.notes = oldNotes;
-          }
-          if (isMaster) {
-            this.syncMasterTasksCacheFromLiveState();
-          } else {
-            this.syncDailyCacheFromLiveState();
-          }
-          this.errorMessage = `Error updating task title: ${err.message || err.toString()}`;
+          console.error('🔥 updateTaskTitle failed; title/notes rolled back on the task and its linked copy:', err.stack);
+          touched.forEach(({ t, title, notes }) => {
+            dpRestoreIfUnchanged(t, 'title', newFullTitle, title);
+            if (notesChanged) dpRestoreIfUnchanged(t, 'notes', details.notes, notes);
+          });
+          this.syncDailyCacheFromLiveState();
+          this.syncMasterTasksCacheFromLiveState();
+          this.errorMessage = `Could not save task title: ${err.message || err.toString()}`;
+          return;
         }
+        await this.trigger2WaySync();
       },
 
       async deleteDailyTask(task) {
         if (!task || !task.id) return;
         this.openStatusMenuTaskId = null;
+        // Capture the day and its live list: if the user navigates away while the delete is in
+        // flight, a rollback must restore the task into THAT day, never the newly opened one.
+        const dateStr = this.selectedDate;
+        const list = this.dailyTasks;
+        const idx = list.findIndex(t => t.id === task.id);
+        if (idx !== -1) list.splice(idx, 1);
+        this.syncDailyCacheFromLiveState();
         try {
-          const idx = this.dailyTasks.findIndex(t => t.id === task.id);
-          if (idx !== -1) {
-            this.dailyTasks.splice(idx, 1);
-          }
-          this.syncDailyCacheFromLiveState();
-          if (this.bridge && typeof this.bridge.deleteDailyTask === 'function') {
-            await this.bridge.deleteDailyTask(this.selectedDate, task.id);
-          }
-          await this.trigger2WaySync();
+          await dpCallBridge(this.bridge, [['deleteDailyTask', [dateStr, task.id]]], 'task deletion');
         } catch (err) {
-          console.error('🔥 deleteDailyTask error, task already removed locally but may still exist server-side:', err.stack);
-          this.errorMessage = `Error deleting task: ${err.message || err.toString()}`;
+          console.error('🔥 deleteDailyTask failed; task restored to the list and cache:', err.stack);
+          if (idx !== -1 && !list.some(t => t.id === task.id)) {
+            list.splice(Math.min(idx, list.length), 0, task);
+          }
+          if (dateStr === this.selectedDate && list === this.dailyTasks) {
+            this.syncDailyCacheFromLiveState();
+          } else {
+            dpInvalidateCached(dateStr);
+          }
+          this.errorMessage = `Could not delete task: ${err.message || err.toString()}`;
+          return;
         }
+        await this.trigger2WaySync();
       },
 
       setTaskSort(sortStateKey, column) {
@@ -5086,29 +5208,24 @@
 
       async toggleTaskStar(task) {
         const previous = Boolean(task.starred);
-        task.starred = !previous;
+        const next = !previous;
+        task.starred = next;
         const isMaster = this.masterTasks.some(m => m.id === task.id);
+        const candidates = isMaster
+          ? [['updateMasterTask', [task.id, { starred: next }]], ['updateDailyTask', ['', task.id, { starred: next }]]]
+          : [['updateDailyTask', [this.selectedDate, task.id, { starred: next }]]];
         try {
-          let updated = null;
-          if (isMaster) {
-            if (this.bridge && typeof this.bridge.updateMasterTask === 'function') {
-              updated = await this.bridge.updateMasterTask(task.id, { starred: task.starred });
-            } else if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
-              updated = await this.bridge.updateDailyTask('', task.id, { starred: task.starred });
-            }
-          } else {
-            updated = await this.bridge.updateDailyTask(this.selectedDate, task.id, { starred: task.starred });
-          }
-          if (!updated) {
-            task.starred = previous;
-          } else if (isMaster) {
-            this.syncMasterTasksCacheFromLiveState();
-          } else {
-            this.syncDailyCacheFromLiveState();
-          }
+          dpRequireSaved(await dpCallBridge(this.bridge, candidates, 'task star'), 'task star');
         } catch (err) {
-          task.starred = previous;
-          console.error('🔥 toggleTaskStar persist error, star reverted:', err.stack);
+          console.error('🔥 toggleTaskStar failed; star rolled back:', err.stack);
+          dpRestoreIfUnchanged(task, 'starred', next, previous);
+          this.errorMessage = `Could not save star: ${err.message || err.toString()}`;
+          return;
+        }
+        if (isMaster) {
+          this.syncMasterTasksCacheFromLiveState();
+        } else {
+          this.syncDailyCacheFromLiveState();
         }
       },
 
@@ -5222,45 +5339,32 @@
           console.error(`🔥 setTaskStatus: ignoring invalid status "${newStatus}"`);
           return;
         }
-        task.status = newStatus;
         const isMaster = this.masterTasks.some(m => m.id === task.id);
         const linkedMaster = !isMaster ? this.masterTasks.find(m => m.movedTaskId === task.id) : null;
-        if (linkedMaster) linkedMaster.status = newStatus;
-        if (isMaster && task.movedTaskId) {
-          const linkedDaily = this.dailyTasks.find(d => d.id === task.movedTaskId);
-          if (linkedDaily) linkedDaily.status = newStatus;
-        }
+        const linkedDaily = (isMaster && task.movedTaskId) ? this.dailyTasks.find(d => d.id === task.movedTaskId) : null;
+        // A linked master/daily pair mirrors status either direction; snapshot every copy so a
+        // failed save rolls each back. Caches are only written after the save lands.
+        const touched = [task, linkedMaster, linkedDaily].filter(Boolean).map(t => ({ t, status: t.status }));
+        touched.forEach(({ t }) => { t.status = newStatus; });
         try {
           if (isMaster) {
-            if (this.bridge && typeof this.bridge.updateMasterTask === 'function') {
-              await this.bridge.updateMasterTask(task.id, {
-                title: task.title,
-                status: task.status,
-                category: task.category
-              });
-            } else if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
-              await this.bridge.updateDailyTask('', task.id, {
-                title: task.title,
-                status: task.status
-              });
-            }
+            dpRequireSaved(await dpCallBridge(this.bridge, [
+              ['updateMasterTask', [task.id, { title: task.title, status: newStatus, category: task.category }]],
+              ['updateDailyTask', ['', task.id, { title: task.title, status: newStatus }]]
+            ], 'task status'), 'task status');
+          } else if (newStatus === '→') {
+            await this.forwardDailyTask(task);
           } else {
-            if (newStatus === '→') {
-              await this.forwardDailyTask(task);
-            } else if (this.bridge && typeof this.bridge.updateDailyTask === 'function') {
-              await this.bridge.updateDailyTask(this.selectedDate, task.id, {
-                title: task.title,
-                status: task.status,
-                dueDate: task.dueDate
-              });
-            }
+            dpRequireSaved(await dpCallBridge(this.bridge, [
+              ['updateDailyTask', [this.selectedDate, task.id, { title: task.title, status: newStatus, dueDate: task.dueDate }]]
+            ], 'task status'), 'task status');
           }
         } catch (err) {
-          console.error('🔥 setTaskStatus persist error, local status kept and cached anyway:', err.stack);
+          console.error('🔥 setTaskStatus failed; status rolled back to last saved value:', err.stack);
+          touched.forEach(({ t, status }) => { dpRestoreIfUnchanged(t, 'status', newStatus, status); });
           this.errorMessage = `Could not save task status: ${err.message || err.toString()}`;
+          return;
         }
-        // A status change can touch both lists at once (a linked master<->daily pair mirrors the
-        // status either direction), so sync both caches regardless of which side was edited.
         this.syncDailyCacheFromLiveState();
         this.syncMasterTasksCacheFromLiveState();
         await this.trigger2WaySync();
@@ -5275,8 +5379,10 @@
         }, 4000);
       },
 
+      // Throws on failure (no catch here): its caller setTaskStatus owns the rollback and the
+      // user-facing error, so a failed forward can never be cached or toasted as done.
       async forwardDailyTask(task, explicitTargetDate = null) {
-        if (!task || !task.id) return;
+        if (!task || !task.id) throw new Error('Not saved: no task to forward.');
         const sourceDate = this.selectedDate;
         const todayStr = getLocalDateStr();
         let targetDate = explicitTargetDate;
@@ -5284,32 +5390,28 @@
           if (sourceDate < todayStr) {
             targetDate = todayStr;
           } else {
-            const d = new Date(sourceDate + 'T00:00:00');
-            d.setDate(d.getDate() + 1);
-            const mm = String(d.getMonth() + 1).padStart(2, '0');
-            const dd = String(d.getDate()).padStart(2, '0');
-            targetDate = d.getFullYear() + '-' + mm + '-' + dd;
+            const [y, m, d] = sourceDate.split('-').map(Number);
+            const next = new Date(y, m - 1, d + 1);
+            const mm = String(next.getMonth() + 1).padStart(2, '0');
+            const dd = String(next.getDate()).padStart(2, '0');
+            targetDate = `${next.getFullYear()}-${mm}-${dd}`;
           }
         }
 
-        try {
-          const res = await this.bridge.forwardDailyTask(sourceDate, task.id, targetDate);
-          if (res && res.forwardedTask) {
-            if (targetDate === this.selectedDate) {
-              this.dailyTasks.push(res.forwardedTask);
-              this.syncDailyCacheFromLiveState();
-            } else {
-              if (typeof dpInvalidateCached === 'function') dpInvalidateCached(targetDate);
-            }
-          }
-          const parsed = this.parseTask(task.title);
-          const cleanTitle = parsed.cleanTitle || task.title;
-          const displayDest = targetDate === todayStr ? 'Today' : targetDate;
-          this.showTaskToast('Forwarded "' + cleanTitle + '" to ' + displayDest);
-        } catch (err) {
-          console.error('🔥 forwardDailyTask error:', err.stack);
-          this.errorMessage = 'Could not forward task: ' + (err.message || err.toString());
+        const res = await dpCallBridge(this.bridge, [['forwardDailyTask', [sourceDate, task.id, targetDate]]], 'task forward');
+        if (!res || !res.forwardedTask) {
+          throw new Error(`Not saved: task was not forwarded to ${targetDate} (the server returned no forwarded task).`);
         }
+        if (targetDate === this.selectedDate) {
+          this.dailyTasks.push(res.forwardedTask);
+          this.syncDailyCacheFromLiveState();
+        } else {
+          dpInvalidateCached(targetDate);
+        }
+        const parsed = this.parseTask(task.title);
+        const cleanTitle = parsed.cleanTitle || task.title;
+        const displayDest = targetDate === todayStr ? 'Today' : targetDate;
+        this.showTaskToast(`Forwarded "${cleanTitle}" to ${displayDest}`);
       },
 
       async toggleTaskStatus(task) {
@@ -5424,6 +5526,7 @@
           location: '',
           description: ''
         };
+        this.createEventError = null;
         this.createEventModalOpen = true;
       },
 
@@ -5447,30 +5550,15 @@
         this.closeCreateEventModal();
       },
 
+      // No server RPC creates Google Calendar events (Code.gs only reads Calendar), so this must
+      // refuse rather than show a local-only appointment that was never saved anywhere. The
+      // modal stays open with the input intact; the error is shown inside it, pointing at the
+      // working path (the pre-filled native Google Calendar window).
       async saveNewEvent() {
         if (!this.newEventData.title.trim()) return;
-        try {
-          const startIso = `${this.selectedDate}T${this.newEventData.startTime || '09:00'}:00Z`;
-          const endIso = `${this.selectedDate}T${this.newEventData.endTime || '10:00'}:00Z`;
-
-          const newEvt = {
-            id: `evt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-            title: this.newEventData.title.trim(),
-            startTime: startIso,
-            endTime: endIso,
-            location: this.newEventData.location ? this.newEventData.location.trim() : '',
-            description: this.newEventData.description ? this.newEventData.description.trim() : '',
-            gCalLink: `${'https:' + '/' + '/calendar.google.com/calendar/r/day/'}${this.selectedDate.replace(/-/g, '/')}`
-          };
-
-          this.calendarEvents.push(newEvt);
-          this.buildScheduleGrid();
-          this.closeCreateEventModal();
-          await this.trigger2WaySync();
-        } catch (err) {
-          console.error('🔥 saveNewEvent error:', err.stack);
-          this.errorMessage = `Error saving appointment: ${err.message || err.toString()}`;
-        }
+        const err = new Error('Appointment NOT saved: Day Planner cannot write to Google Calendar yet. Use "Open Native gCal Window" to create it in Google Calendar.');
+        console.error('🔥 saveNewEvent refused: no Calendar create RPC exists, nothing was saved:', err.stack);
+        this.createEventError = err.message;
       },
 
       openSearchModal() {
@@ -5496,6 +5584,8 @@
         }
         this.archiveSearching = false;
         this.archiveSearchQuery = '';
+        this.archiveSearchError = null;
+        this.archiveSearchWarning = null;
         this.searchModalOpen = false;
         this.searchQuery = '';
         this.searchResults = { totalMatches: 0, calendar: [], tasks: [], notes: [], index: [], archive: [] };
@@ -5574,9 +5664,20 @@
       async runArchiveSearch(query) {
         if (!query || query !== this.searchQuery.trim()) return;
         this.archiveSearching = true;
+        this.archiveSearchError = null;
+        this.archiveSearchWarning = null;
         try {
           const archiveResults = await this.bridge.searchArchiveNotes(query);
           if (query !== this.searchQuery.trim()) return;
+          if (!Array.isArray(archiveResults)) {
+            throw new Error('the archive search returned an unexpected response');
+          }
+          // [] is a clean no-match. Partial results (some monthly docs unreadable) carry
+          // { partial: true, archiveError } on every item: show them, but say they are incomplete.
+          const partial = archiveResults.find(r => r && r.partial);
+          if (partial) {
+            this.archiveSearchWarning = partial.archiveError || 'Archive search incomplete: some archive docs could not be read.';
+          }
 
           this.archiveSearchQuery = query;
           this.searchResults = mergeArchiveSearchResults(this.searchResults, archiveResults);
@@ -5586,7 +5687,10 @@
             this.selectedSearchIndex = 0;
           }
         } catch (err) {
-          console.error('[search] Deep archive search error, showing local results only:', err.stack);
+          console.error('[search] Deep archive search failed; local results only, error shown in the search modal:', err.stack);
+          if (query === this.searchQuery.trim()) {
+            this.archiveSearchError = `Archive search failed: ${err.message || err.toString()}`;
+          }
         } finally {
           if (query === this.searchQuery.trim()) {
             this.archiveSearching = false;
@@ -5645,6 +5749,7 @@
       async openTimeMachine() {
         this.timeMachineLoading = true;
         this.timeMachineOpen = true;
+        this.timeMachineError = null;
         this.selectedRevisionIndex = 0;
         try {
           let revs = dpGetNoteRevisions(this.selectedDate);
@@ -5657,7 +5762,8 @@
           }
           this.timeMachineRevisions = revs || [];
         } catch (err) {
-          console.error('[TimeMachine] Failed to load revisions, list left unchanged', err.stack);
+          console.error('[TimeMachine] Failed to load revisions; error shown in the Time Machine panel:', err.stack);
+          this.timeMachineError = `Could not load saved snapshots: ${err.message || err.toString()}`;
         } finally {
           this.timeMachineLoading = false;
         }

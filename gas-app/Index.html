@@ -1561,6 +1561,14 @@
             </div>
           </div>
 
+          <!-- Not-saved error shown inside the modal (the page banner sits behind it) -->
+          <aside class="error-banner" role="alert" x-show="createEventError" x-cloak>
+            <div class="error-banner-content">
+              <span class="material-symbols-outlined">warning</span>
+              <span x-text="createEventError"></span>
+            </div>
+          </aside>
+
           <footer class="modal-form-actions">
             <button type="button" class="btn-secondary btn-gcal-popup" @click="launchNativeGCalCreate()" title="Open pre-filled Google Calendar event creator window">
               <span class="material-symbols-outlined icon-16">open_in_new</span> Open Native gCal Window
@@ -1653,6 +1661,18 @@
               <span class="spinner-inline"></span> Searching archive...
             </div>
           </div>
+          <aside class="error-banner" role="alert" x-show="archiveSearchError" x-cloak>
+            <div class="error-banner-content">
+              <span class="material-symbols-outlined">warning</span>
+              <span x-text="archiveSearchError"></span>
+            </div>
+          </aside>
+          <aside class="error-banner" role="alert" x-show="archiveSearchWarning" x-cloak>
+            <div class="error-banner-content">
+              <span class="material-symbols-outlined">info</span>
+              <span x-text="archiveSearchWarning"></span>
+            </div>
+          </aside>
         </header>
         <section>
           <input
@@ -1771,7 +1791,10 @@
             <template x-if="timeMachineLoading">
               <div class="time-machine-empty-list">Loading saved snapshots...</div>
             </template>
-            <template x-if="!timeMachineLoading && timeMachineRevisions.length === 0">
+            <template x-if="!timeMachineLoading && timeMachineError">
+              <div class="time-machine-empty-list" role="alert" x-text="timeMachineError"></div>
+            </template>
+            <template x-if="!timeMachineLoading && !timeMachineError && timeMachineRevisions.length === 0">
               <div class="time-machine-empty-list">No earlier snapshots recorded yet for this date. Snapshots are created automatically when notes are edited and saved.</div>
             </template>
             <template x-for="(rev, idx) in timeMachineRevisions" :key="rev.timestamp">

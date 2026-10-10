@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { LEDGER_COLUMNS, LEDGER_STATUS } from '../src/integration/contracts.js';
 import {
   decideOperation, beginOp, completeOp, failOp, deferOp, sanitizeError, maskId,
-  dryRunMessage, claimOperation, runOperation, stackFrames, formatSafeError
+  dryRunMessage, claimOperation, runOperation, stackFrames, formatSafeError,
+  retryDecision, ledgerAttemptsOf
 } from '../src/integration/ledger.js';
 
 const T0 = new Date('2026-10-06T12:00:00Z');
@@ -168,4 +169,35 @@ test('stackFrames keeps only "at" frames; formatSafeError never repeats the raw 
   assert.match(line, /^ctx: boom \[email\]\n\s+at /);
   assert.doesNotMatch(line, /@example\.test/);
   assert.equal(formatSafeError('ctx', 'plain'), 'ctx: plain\n(no stack frames)');
+});
+
+// 2026-10-09 fail-open review #6: corrupt MetadataJson used to reset attempts to 0, so a corrupt ERROR
+// row was auto-retried forever (no backoff, no cap). Corrupt metadata now means exhausted: no auto-retry.
+test('corrupt MetadataJson is treated as exhausted: never auto-retried, attempt cap carried, logged', () => {
+  const errs = [];
+  const realError = console.error;
+  console.error = (...a) => errs.push(a.join(' '));
+  try {
+    const corruptVariants = ['{bad', '[1,2]', '42', 'null', '"x"'];
+    for (const MetadataJson of corruptVariants) {
+      const row = { ...failOp(beginOp(op, T0), T0, Object.assign(new Error('Backend Error'), { code: '500' })), MetadataJson };
+      const d = retryDecision(row, plus(100000));
+      assert.equal(d.retry, false, `${MetadataJson} must not auto-retry`);
+      assert.equal(d.reason, 'CORRUPT_METADATA', MetadataJson);
+      assert.ok(ledgerAttemptsOf(row) >= 5, `${MetadataJson} attempts must be the cap, got ${ledgerAttemptsOf(row)}`);
+    }
+    // claim -> fail cycle on a corrupt ERROR row (manual retry path) must not reset to a retryable attempt 1.
+    const store = makeStore();
+    store.put({ ...failOp(beginOp(op, T0), T0, Object.assign(new Error('x'), { code: '500' })), MetadataJson: '{bad' });
+    const claim = claimOperation({ store, lock: openLock(), clock: () => plus(1), op });
+    assert.equal(claim.action, 'RETRY');
+    const failed = failOp(claim.row, plus(2), Object.assign(new Error('x'), { code: '500' }));
+    const after = retryDecision(failed, plus(100000));
+    assert.equal(after.retry, false, `after a corrupt row's retry fails it stays blocked (${after.reason})`);
+    assert.match(errs.join('\n'), /corrupt MetadataJson[^\n]*no auto-retry/);
+  } finally {
+    console.error = realError;
+  }
+  // Blank metadata is not corrupt.
+  assert.equal(retryDecision({ ...failOp(beginOp(op, T0), T0, { code: '500', message: 'x' }), MetadataJson: '' }, plus(100000)).retry, true);
 });

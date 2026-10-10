@@ -727,13 +727,15 @@ export class GASBridge {
   }
 
   /**
-   * Reads and trashes the scratch doc created by createDictationScratchDoc().
+   * Reads (then clears) the scratch doc created by createDictationScratchDoc().
+   * cleared: false + clearError means the text was read but the doc could not be emptied, so
+   * the caller must warn the user (the same text may come back on a later pull).
    * @param {string} docId The scratch doc's id.
-   * @returns {Promise<{success: boolean, text?: string, error?: string}>}
+   * @returns {Promise<{success: boolean, text?: string, cleared?: boolean, clearError?: string, error?: string}>}
    */
   async pullDictationScratchText(docId) {
     if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
-      return { success: true, text: 'Mock voice-typed text from local dev scratch doc.' };
+      return { success: true, text: 'Mock voice-typed text from local dev scratch doc.', cleared: true };
     }
 
     return new Promise((resolve, reject) => {
@@ -789,6 +791,8 @@ export class GASBridge {
 
   /**
    * Performs deep archive search across historical monthly notes Google Docs.
+   * [] is a clean no-match; a total failure rejects; partial results carry
+   * { partial: true, archiveError } on every item.
    * @param {string} query Search query string.
    * @returns {Promise<Array<object>>} Archive search results.
    */

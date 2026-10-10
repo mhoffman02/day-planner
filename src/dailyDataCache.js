@@ -88,7 +88,7 @@ function openDb() {
         if (settled) return;
         settled = true;
         clearTimeout(timeoutId);
-        console.warn('[dailyDataCache] IndexedDB open failed, falling back to memory-only cache for this session:', req.error);
+        console.warn('[dailyDataCache] IndexedDB open failed, falling back to memory-only cache for this session:', describeIdbError(req.error));
         dbPromise = null; // allow a later retry instead of caching this failure forever
         resolve(null);
       };
@@ -116,6 +116,52 @@ function openDb() {
   return dbPromise;
 }
 
+function describeIdbError(e) {
+  if (!e) return 'unknown IndexedDB error';
+  return (e.name ? e.name + ': ' : '') + (e.message || String(e));
+}
+
+/**
+ * Runs one readwrite IndexedDB operation and reports its REAL outcome. Quota/constraint failures
+ * arrive asynchronously as a transaction error/abort event -- never through a synchronous try
+ * around db.transaction() -- so without these handlers a failed persist was invisible while the
+ * memory cache looked durable. Resolves true on commit, false when IDB is unavailable
+ * (memory-only session, already warned at open), and rejects on error/abort. The rejection is
+ * always console.error-logged here, so fire-and-forget callers never cause an unhandled
+ * rejection, and callers that await can still react to it.
+ * @param {string} storeName Object store to write.
+ * @param {function(IDBObjectStore): void} op Issues the put/delete against the store.
+ * @param {string} context What is being persisted, for the error text.
+ * @returns {Promise<boolean>}
+ */
+function persistToIdb(storeName, op, context) {
+  const result = openDb().then((db) => {
+    if (!db) return false;
+    return new Promise((resolve, reject) => {
+      // A synchronous throw here (closed connection, bad key) rejects this promise directly.
+      const tx = db.transaction(storeName, 'readwrite');
+      let settled = false;
+      const fail = () => {
+        if (settled) return;
+        settled = true;
+        reject(new Error('IndexedDB ' + context + ' failed (' + describeIdbError(tx.error) + ')'));
+      };
+      tx.oncomplete = () => {
+        if (settled) return;
+        settled = true;
+        resolve(true);
+      };
+      tx.onerror = fail;
+      tx.onabort = fail;
+      op(tx.objectStore(storeName));
+    });
+  });
+  result.then(null, (err) => {
+    console.error('[dailyDataCache] ' + context + ' NOT persisted -- memory cache only, lost on reload:', (err && err.stack) || describeIdbError(err));
+  });
+  return result;
+}
+
 // ── Daily data (per-date: tasks, calendarEvents, noteContent, docUrl) ───────────────────────
 
 /** @returns {object|null} The cached entry for dateStr, or null if not present (memory only). */
@@ -126,35 +172,27 @@ export function getCached(dateStr) {
 /**
  * Writes an entry into the memory cache immediately (synchronous) and persists it to IndexedDB
  * in the background (best-effort, never blocks the caller).
+ * `syncedAt` (epoch ms) records the last time this entry matched the server: stamped only when
+ * opts.synced is true (a successful server fetch), otherwise carried forward from the payload or
+ * the previous entry, so a local write-through never masquerades as a fresh sync. The UI uses it
+ * for the "offline/stale, last synced <time>" notice.
  * @param {string} dateStr YYYY-MM-DD key.
  * @param {object} data Daily payload (tasks/calendarEvents/noteContent/docUrl, etc.).
+ * @param {{synced?: boolean}} [opts] synced: true when data came straight from the server.
+ * @returns {Promise<boolean>} IndexedDB persist outcome (see persistToIdb).
  */
-export function setCached(dateStr, data) {
-  const entry = cloneForStorage({ ...data, date: dateStr });
+export function setCached(dateStr, data, opts = {}) {
+  const prev = dailyMemory.get(dateStr);
+  const syncedAt = opts.synced ? Date.now() : ((data && data.syncedAt) || (prev && prev.syncedAt) || null);
+  const entry = cloneForStorage({ ...data, date: dateStr, syncedAt });
   dailyMemory.set(dateStr, entry);
-  openDb().then((db) => {
-    if (!db) return;
-    try {
-      const tx = db.transaction(STORE_DAILY, 'readwrite');
-      tx.objectStore(STORE_DAILY).put(entry);
-    } catch (err) {
-      console.error('[dailyDataCache] IDB put failed for', dateStr, '-- memory cache only:', err.stack);
-    }
-  });
+  return persistToIdb(STORE_DAILY, (store) => store.put(entry), 'put dailyData ' + dateStr);
 }
 
 /** Removes dateStr from both the memory cache and IndexedDB. */
 export function invalidateCached(dateStr) {
   dailyMemory.delete(dateStr);
-  openDb().then((db) => {
-    if (!db) return;
-    try {
-      const tx = db.transaction(STORE_DAILY, 'readwrite');
-      tx.objectStore(STORE_DAILY).delete(dateStr);
-    } catch (err) {
-      console.error('[dailyDataCache] IDB delete failed for', dateStr, '-- stale entry may rehydrate next session:', err.stack);
-    }
-  });
+  return persistToIdb(STORE_DAILY, (store) => store.delete(dateStr), 'delete dailyData ' + dateStr + ' (stale entry may rehydrate next session)');
 }
 
 /**
@@ -177,7 +215,7 @@ export async function hydrateFromIdb(dateStr) {
         resolve(entry);
       };
       req.onerror = () => {
-        console.error('[dailyDataCache] hydrateFromIdb: IDB get failed', dateStr, '-- treating as not cached:', req.error);
+        console.error('[dailyDataCache] hydrateFromIdb: IDB get failed', dateStr, '-- treating as not cached:', describeIdbError(req.error));
         resolve(null);
       };
     } catch (err) {
@@ -206,7 +244,7 @@ export function primeFromRange(days) {
     if (dailyMemory.has(dateStr)) return;
     const entry = days[dateStr];
     if (!entry) return;
-    setCached(dateStr, entry);
+    setCached(dateStr, entry, { synced: true });
   });
 }
 
@@ -236,19 +274,15 @@ export function getCachedMasterTasks() {
 
 /**
  * @param {Array<object>} tasks Master task clearinghouse list to cache.
+ * @param {{synced?: boolean}} [opts] synced: true when tasks came straight from the server
+ *   (stamps syncedAt; otherwise the previous syncedAt is carried forward, see setCached).
+ * @returns {Promise<boolean>} IndexedDB persist outcome (see persistToIdb).
  */
-export function setCachedMasterTasks(tasks) {
-  const entry = cloneForStorage({ key: MASTER_TASKS_KEY, tasks, cachedAt: new Date().toISOString() });
+export function setCachedMasterTasks(tasks, opts = {}) {
+  const syncedAt = opts.synced ? Date.now() : ((masterTasksMemory && masterTasksMemory.syncedAt) || null);
+  const entry = cloneForStorage({ key: MASTER_TASKS_KEY, tasks, cachedAt: new Date().toISOString(), syncedAt });
   masterTasksMemory = entry;
-  openDb().then((db) => {
-    if (!db) return;
-    try {
-      const tx = db.transaction(STORE_MASTER_TASKS, 'readwrite');
-      tx.objectStore(STORE_MASTER_TASKS).put(entry);
-    } catch (err) {
-      console.error('[dailyDataCache] IDB put failed for masterTasks -- memory cache only:', err.stack);
-    }
-  });
+  return persistToIdb(STORE_MASTER_TASKS, (store) => store.put(entry), 'put masterTasks');
 }
 
 /** @returns {Promise<object|null>} The hydrated master-tasks entry, or null if not persisted. */
@@ -266,7 +300,7 @@ export async function hydrateMasterTasksFromIdb() {
         resolve(entry);
       };
       req.onerror = () => {
-        console.error('[dailyDataCache] hydrateMasterTasksFromIdb: IDB get failed', '-- treating as not cached:', req.error);
+        console.error('[dailyDataCache] hydrateMasterTasksFromIdb: IDB get failed', '-- treating as not cached:', describeIdbError(req.error));
         resolve(null);
       };
     } catch (err) {
@@ -286,20 +320,17 @@ export function getCachedFutureMatrix(year) {
 /**
  * @param {number|string} year Target year.
  * @param {object} matrix Future matrix payload ({ year, months }) as returned by getFutureMatrix.
+ * @param {{synced?: boolean}} [opts] synced: true when matrix came straight from the server
+ *   (stamps syncedAt; otherwise the previous syncedAt is carried forward, see setCached).
+ * @returns {Promise<boolean>} IndexedDB persist outcome (see persistToIdb).
  */
-export function setCachedFutureMatrix(year, matrix) {
+export function setCachedFutureMatrix(year, matrix, opts = {}) {
   const yearKey = String(year);
-  const entry = cloneForStorage({ ...matrix, year: yearKey, cachedAt: new Date().toISOString() });
+  const prev = futureMatrixMemory.get(yearKey);
+  const syncedAt = opts.synced ? Date.now() : ((matrix && matrix.syncedAt) || (prev && prev.syncedAt) || null);
+  const entry = cloneForStorage({ ...matrix, year: yearKey, cachedAt: new Date().toISOString(), syncedAt });
   futureMatrixMemory.set(yearKey, entry);
-  openDb().then((db) => {
-    if (!db) return;
-    try {
-      const tx = db.transaction(STORE_FUTURE_MATRIX, 'readwrite');
-      tx.objectStore(STORE_FUTURE_MATRIX).put(entry);
-    } catch (err) {
-      console.error('[dailyDataCache] IDB put failed for futureMatrix', yearKey, '-- memory cache only:', err.stack);
-    }
-  });
+  return persistToIdb(STORE_FUTURE_MATRIX, (store) => store.put(entry), 'put futureMatrix ' + yearKey);
 }
 
 /**
@@ -321,7 +352,7 @@ export async function hydrateFutureMatrixFromIdb(year) {
         resolve(entry);
       };
       req.onerror = () => {
-        console.error('[dailyDataCache] hydrateFutureMatrixFromIdb: IDB get failed', yearKey, '-- treating as not cached:', req.error);
+        console.error('[dailyDataCache] hydrateFutureMatrixFromIdb: IDB get failed', yearKey, '-- treating as not cached:', describeIdbError(req.error));
         resolve(null);
       };
     } catch (err) {
@@ -361,15 +392,7 @@ export function saveNoteRevision(dateStr, noteContent) {
   noteRevisionsMemory.set(dateStr, updated);
 
   const entry = cloneForStorage({ date: dateStr, revisions: updated });
-  openDb().then((db) => {
-    if (!db) return;
-    try {
-      const tx = db.transaction(STORE_NOTE_REVISIONS, 'readwrite');
-      tx.objectStore(STORE_NOTE_REVISIONS).put(entry);
-    } catch (err) {
-      console.error('[dailyDataCache] IDB put failed for noteRevisions', dateStr, '-- revision kept in memory only:', err.stack);
-    }
-  });
+  persistToIdb(STORE_NOTE_REVISIONS, (store) => store.put(entry), 'put noteRevisions ' + dateStr);
 
   return updated;
 }
@@ -403,7 +426,7 @@ export async function hydrateNoteRevisionsFromIdb(dateStr) {
         resolve(revs);
       };
       req.onerror = () => {
-        console.error('[dailyDataCache] hydrateNoteRevisionsFromIdb: IDB get failed', dateStr, '-- treating as not cached:', req.error);
+        console.error('[dailyDataCache] hydrateNoteRevisionsFromIdb: IDB get failed', dateStr, '-- treating as not cached:', describeIdbError(req.error));
         resolve([]);
       };
     } catch (err) {
