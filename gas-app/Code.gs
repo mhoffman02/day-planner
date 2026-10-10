@@ -434,7 +434,7 @@ const DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mho
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const DAY_PLANNER_BUILD_NUMBER = 416;
+const DAY_PLANNER_BUILD_NUMBER = 417;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -1069,6 +1069,27 @@ function extractMeetLinkFromEvent_(evt) {
 }
 
 /**
+ * Maps a Calendar Advanced Service (v3) event resource to the client's calendar event shape. Single
+ * mapper for getDailyData, getDailyDataRange and createCalendarEvent, so a created event is
+ * indistinguishable from a listed one.
+ * @param {Object} evt Raw Calendar.Events item.
+ * @returns {{id: string, title: string, startTime: string, endTime: string, location: string, description: string, meetLink: (string|null), htmlLink: (string|null), syncTaskId: (string|null)}} Client event.
+ */
+function mapCalendarApiEvent_(evt) {
+  return {
+    id: evt.id,
+    title: evt.summary || '(untitled)',
+    startTime: evt.start && (evt.start.dateTime || evt.start.date),
+    endTime: evt.end && (evt.end.dateTime || evt.end.date),
+    location: evt.location || '',
+    description: evt.description || '',
+    meetLink: extractMeetLinkFromEvent_(evt),
+    htmlLink: evt.htmlLink || null,
+    syncTaskId: (evt.extendedProperties && evt.extendedProperties.shared && evt.extendedProperties.shared.gasTaskId) || null
+  };
+}
+
+/**
  * Retrieves daily data: Calendar events, Google Tasks, and Google Doc daily notes for a given date.
  * @param {string} dateStr Target date string in YYYY-MM-DD format.
  * @returns {{date: string, tasks: Array<object>, calendarEvents: Array<object>, noteContent: string, warnings: Array<string>}|object} Daily planner dataset or error payload.
@@ -1098,20 +1119,7 @@ function getDailyData(dateStr) {
           conferenceDataVersion: 1,
           fields: 'items(id,summary,start,end,location,description,hangoutLink,conferenceData,htmlLink,extendedProperties)'
         });
-        result.calendarEvents = (dayResp.items || []).map(function(evt) {
-          const meetLink = extractMeetLinkFromEvent_(evt);
-          return {
-            id: evt.id,
-            title: evt.summary || '(untitled)',
-            startTime: evt.start && (evt.start.dateTime || evt.start.date),
-            endTime: evt.end && (evt.end.dateTime || evt.end.date),
-            location: evt.location || '',
-            description: evt.description || '',
-            meetLink: meetLink,
-            htmlLink: evt.htmlLink || null,
-            syncTaskId: (evt.extendedProperties && evt.extendedProperties.shared && evt.extendedProperties.shared.gasTaskId) || null
-          };
-        });
+        result.calendarEvents = (dayResp.items || []).map(mapCalendarApiEvent_);
       } catch (calErr) {
         result.warnings.push(logError('Calendar.Events.list', calErr).error);
       }
@@ -1225,6 +1233,104 @@ function getDailyData(dateStr) {
   return result;
 }
 
+/**
+ * Validates a createCalendarEvent payload. Pure local y/m/d checks, no Date-to-UTC conversion.
+ * @param {*} payload Raw client payload.
+ * @returns {{title: string, dateStr: string, startTime: string, endTime: string, description: string, location: string}} Normalized fields.
+ * @throws {Error} 'Invalid event: <reason>' on any bad field.
+ */
+function validateCalendarEventPayload_(payload) {
+  function invalid(reason) { return new Error('Invalid event: ' + reason); }
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw invalid('payload must be an object');
+
+  if (typeof payload.title !== 'string') throw invalid('title is required');
+  const title = payload.title.trim();
+  if (!title) throw invalid('title is required');
+  if (title.length > 500) throw invalid('title must be 500 characters or fewer');
+
+  const dateStr = payload.dateStr;
+  const dm = typeof dateStr === 'string' ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr) : null;
+  if (!dm) throw invalid('date must be YYYY-MM-DD');
+  const y = Number(dm[1]);
+  const m = Number(dm[2]);
+  const d = Number(dm[3]);
+  const probe = new Date(y, m - 1, d);
+  if (probe.getFullYear() !== y || probe.getMonth() !== m - 1 || probe.getDate() !== d) throw invalid('date ' + dateStr + ' does not exist');
+
+  const timeRe = /^([01]\d|2[0-3]):[0-5]\d$/;
+  if (typeof payload.startTime !== 'string' || !timeRe.test(payload.startTime)) throw invalid('start time must be HH:MM (00:00-23:59)');
+  if (typeof payload.endTime !== 'string' || !timeRe.test(payload.endTime)) throw invalid('end time must be HH:MM (00:00-23:59)');
+  if (payload.endTime <= payload.startTime) throw invalid('end time must be after start time');
+
+  if (payload.description !== undefined && payload.description !== null && typeof payload.description !== 'string') throw invalid('description must be text');
+  if (payload.location !== undefined && payload.location !== null && typeof payload.location !== 'string') throw invalid('location must be text');
+
+  return {
+    title: title,
+    dateStr: dateStr,
+    startTime: payload.startTime,
+    endTime: payload.endTime,
+    description: payload.description || '',
+    location: payload.location || ''
+  };
+}
+
+/**
+ * Resolves the primary calendar's IANA time zone. Fails closed: no fallback to the script time
+ * zone, which would silently place the event at the wrong hour for a user in another zone.
+ * @returns {string} IANA time zone name.
+ * @throws {Error} When the lookup throws or returns no time zone.
+ */
+function primaryCalendarTimeZone_() {
+  let tz;
+  try {
+    const primary = Calendar.Calendars.get('primary');
+    tz = primary && primary.timeZone ? String(primary.timeZone) : '';
+  } catch (err) {
+    logError('primaryCalendarTimeZone_: Calendar.Calendars.get(primary) failed; event not created', err);
+    throw new Error('Could not read your calendar time zone, so the event was not created. Please try again.', { cause: err });
+  }
+  if (!tz) {
+    logError('primaryCalendarTimeZone_', new Error('primary calendar has no timeZone; event not created'));
+    throw new Error('Could not read your calendar time zone, so the event was not created.');
+  }
+  return tz;
+}
+
+/**
+ * Creates a timed event on the user's primary Google Calendar.
+ * Times are wall-clock values in the primary calendar's time zone, sent as dateTime + timeZone
+ * so the Calendar API resolves the offset (no client/server offset arithmetic, DST-safe).
+ * addMeet is accepted but ignored: this server does not create Meet conferences.
+ * @param {{title: string, dateStr: string, startTime: string, endTime: string, description?: string, location?: string, addMeet?: boolean}} payload Event fields.
+ * @returns {{id: string, title: string, startTime: string, endTime: string, location: string, description: string, meetLink: (string|null), htmlLink: (string|null), syncTaskId: (string|null)}} The created event, in the getDailyData calendarEvents shape.
+ * @throws {Error} 'Invalid event: ...' for bad input; a friendly message when Calendar fails.
+ */
+function createCalendarEvent(payload) {
+  const ev = validateCalendarEventPayload_(payload);
+  if (typeof Calendar === 'undefined' || !Calendar.Events || !Calendar.Calendars) {
+    throw new Error('Google Calendar is not available, so the event was not created.');
+  }
+  const tz = primaryCalendarTimeZone_();
+  const resource = {
+    summary: ev.title,
+    start: { dateTime: ev.dateStr + 'T' + ev.startTime + ':00', timeZone: tz },
+    end: { dateTime: ev.dateStr + 'T' + ev.endTime + ':00', timeZone: tz }
+  };
+  if (ev.description) resource.description = ev.description;
+  if (ev.location) resource.location = ev.location;
+
+  let created;
+  try {
+    created = Calendar.Events.insert(resource, 'primary');
+    if (!created || !created.id) throw new Error('Calendar.Events.insert returned no event id');
+  } catch (err) {
+    logError('createCalendarEvent(' + ev.dateStr + ' ' + ev.startTime + '-' + ev.endTime + ')', err);
+    throw new Error('Could not create the event "' + ev.title + '" in Google Calendar (' + (err.message || err) + '). Nothing was saved.', { cause: err });
+  }
+  return mapCalendarApiEvent_(created);
+}
+
 /** @returns {string} Local YYYY-MM-DD key for a Date, using the script's own local fields (no UTC shift). */
 function localDateKey_(d) {
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -1326,17 +1432,7 @@ function getDailyDataRange(startDateStr, endDateStr) {
     } while (calPageToken);
 
     calItems.forEach(function(evt) {
-      const mapped = {
-        id: evt.id,
-        title: evt.summary || '(untitled)',
-        startTime: evt.start && (evt.start.dateTime || evt.start.date),
-        endTime: evt.end && (evt.end.dateTime || evt.end.date),
-        location: evt.location || '',
-        description: evt.description || '',
-        meetLink: extractMeetLinkFromEvent_(evt),
-        htmlLink: evt.htmlLink || null,
-        syncTaskId: (evt.extendedProperties && evt.extendedProperties.shared && evt.extendedProperties.shared.gasTaskId) || null
-      };
+      const mapped = mapCalendarApiEvent_(evt);
       eventOverlapDateKeys_(evt, dateKeys).forEach(function(k) {
         if (days[k]) days[k].calendarEvents.push(mapped);
       });
@@ -2357,42 +2453,59 @@ function deleteDailyTask(taskId) {
 }
 
 /**
- * Forwards an existing daily task to a new target date in Google Tasks.
- * Sets the original task's status to '→' and creates an open task on targetDate.
+ * Forwards an existing daily task to a new target date in Google Tasks, as a compensating
+ * two-step write: the open copy on targetDate is created FIRST, then the original is marked '→'.
+ * If marking fails, the new copy is deleted and the thrown error says nothing was forwarded; if
+ * that compensating delete also fails, the thrown error says the task may be duplicated. Never
+ * leaves the source marked forwarded without a copy, and never reports a partial forward as success.
  * @param {string} sourceDateStr Source date in YYYY-MM-DD format.
  * @param {string} taskId Google Task ID.
  * @param {string} targetDateStr Target date in YYYY-MM-DD format.
  * @returns {{originalTask: object, forwardedTask: object}} Resulting task objects.
  */
 function forwardDailyTask(sourceDateStr, taskId, targetDateStr) {
+  let forwardedTask;
   try {
     const cur = (typeof Tasks !== 'undefined') ? Tasks.Tasks.get('@default', taskId) : null;
     const title = cur ? cur.title : '';
     const meta = cur ? decodeTaskMeta(cur.notes) : {};
     const category = meta.category || 'General';
 
-    // 1. Mark original task as forwarded
-    const originalTask = updateDailyTask(sourceDateStr, taskId, { status: '→' });
-
-    // 2. Parse priority group and clean title
     const match = (title || '').match(/^\[([A-C])[1-9]\]\s*(.*)$/i);
     const priorityGroup = match ? match[1].toUpperCase() : 'A';
     const cleanTitle = match ? match[2].trim() : (title || 'Untitled Task').trim();
-
-    // 3. Format title for target date
     const formattedTitle = '[' + priorityGroup + '1] ' + cleanTitle;
 
-    // 4. Create task on target date
-    const forwardedTask = addDailyTask(targetDateStr, formattedTitle, category);
-
-    return {
-      originalTask: originalTask,
-      forwardedTask: forwardedTask
-    };
+    // 1. Create the open copy on the target date first: a failure here changes nothing.
+    forwardedTask = addDailyTask(targetDateStr, formattedTitle, category);
   } catch (err) {
-    logError('forwardDailyTask(' + taskId + ')', err);
+    logError('forwardDailyTask(' + taskId + '): reading the source or creating the copy on ' + targetDateStr + ' failed; nothing changed', err);
     throw err;
   }
+
+  // 2. Mark the original forwarded. updateDailyTask returns null (no throw) on a 404, so a source
+  // deleted mid-forward is a failure here too, never a success with originalTask: null.
+  let originalTask;
+  try {
+    originalTask = updateDailyTask(sourceDateStr, taskId, { status: '→' });
+    if (!originalTask) throw new Error('the original task no longer exists');
+  } catch (markErr) {
+    logError('forwardDailyTask(' + taskId + '): marking the source forwarded failed; deleting the new copy ' + forwardedTask.id + ' on ' + targetDateStr, markErr);
+    try {
+      deleteDailyTask(forwardedTask.id);
+      console.error('forwardDailyTask(' + taskId + '): rolled back; deleted copy ' + forwardedTask.id + ' on ' + targetDateStr + ', nothing was forwarded');
+    } catch (rollbackErr) {
+      logError('forwardDailyTask(' + taskId + '): compensating delete of copy ' + forwardedTask.id + ' on ' + targetDateStr + ' failed; task is now duplicated', rollbackErr);
+      throw new Error('Forward failed: could not mark the original task as forwarded (' + (markErr.message || markErr) +
+        ') and could not remove the new copy (' + (rollbackErr.message || rollbackErr) + '). The task may be duplicated on ' + targetDateStr + '.', { cause: rollbackErr });
+    }
+    throw new Error('Nothing was forwarded: could not mark the original task as forwarded (' + (markErr.message || markErr) + ').', { cause: markErr });
+  }
+
+  return {
+    originalTask: originalTask,
+    forwardedTask: forwardedTask
+  };
 }
 
 /**
@@ -3091,6 +3204,7 @@ global.ensure2WaySyncTriggerInstalled = ensure2WaySyncTriggerInstalled; // IDE m
 global.setup2WaySyncTrigger = setup2WaySyncTrigger;          // IDE manual-run
 global.searchArchiveNotes = searchArchiveNotes;              // google.script.run: Script.html
 global.forwardDailyTask = forwardDailyTask;                  // google.script.run: Script.html
+global.createCalendarEvent = createCalendarEvent;            // google.script.run: Script.html
 
 // Cross-file only (not reachable from any client/template/trigger/IDE surface above, but needed
 // by other .gs files' own IIFEs since GAS has no import statement -- this global object is the
@@ -3126,6 +3240,7 @@ global._addDailyTaskInternal = addDailyTask;
 global._updateDailyTaskInternal = updateDailyTask;
 global._deleteDailyTaskInternal = deleteDailyTask;
 global._forwardDailyTaskInternal = forwardDailyTask;
+global._createCalendarEventInternal = createCalendarEvent;
 global._addMasterTaskInternal = addMasterTask;
 global._updateMasterTaskInternal = updateMasterTask;
 global._deleteMasterTaskInternal = deleteMasterTask;
@@ -3243,6 +3358,10 @@ function deleteDailyTask(taskId) {
 
 function forwardDailyTask(sourceDateStr, taskId, targetDateStr) {
   return (typeof _forwardDailyTaskInternal === 'function') ? _forwardDailyTaskInternal(sourceDateStr, taskId, targetDateStr) : (globalThis._forwardDailyTaskInternal ? globalThis._forwardDailyTaskInternal(sourceDateStr, taskId, targetDateStr) : null);
+}
+
+function createCalendarEvent(payload) {
+  return (typeof _createCalendarEventInternal === 'function') ? _createCalendarEventInternal(payload) : (globalThis._createCalendarEventInternal ? globalThis._createCalendarEventInternal(payload) : null);
 }
 
 function addMasterTask(title, category, dueDate, notes) {

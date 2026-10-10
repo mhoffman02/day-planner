@@ -406,6 +406,64 @@ export class GASBridge {
   }
 
   /**
+   * Creates a Google Calendar event on the default calendar (RPC createCalendarEvent).
+   * @param {{title: string, dateStr: string, startTime: string, endTime: string,
+   *   description?: string, location?: string, addMeet?: boolean}} payload dateStr is
+   *   YYYY-MM-DD; startTime/endTime are HH:MM. addMeet is accepted but ignored (the server does
+   *   not create Meet links yet), so meetLink is always null.
+   * @returns {Promise<object>} The created event in the getDailyData calendarEvents shape
+   *   ({id, title, startTime, endTime, location, description, meetLink, htmlLink, syncTaskId},
+   *   with ISO start/end timestamps carrying a UTC offset).
+   * @throws {Error} 'Invalid event: <reason>' on bad input, or the server/API failure.
+   */
+  async createCalendarEvent(payload) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      const p = payload || {};
+      const hhmm = /^([01]\d|2[0-3]):[0-5]\d$/;
+      if (!p.title || !String(p.title).trim()) throw new Error('Invalid event: a title is required.');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(p.dateStr || '')) throw new Error('Invalid event: dateStr must be YYYY-MM-DD.');
+      if (!hhmm.test(p.startTime || '') || !hhmm.test(p.endTime || '')) throw new Error('Invalid event: start and end must be HH:MM.');
+      if (p.endTime <= p.startTime) throw new Error('Invalid event: the end time must be after the start time.');
+      const [y, m, d] = p.dateStr.split('-').map(Number);
+      const offsetMin = -new Date(y, m - 1, d).getTimezoneOffset();
+      const sign = offsetMin >= 0 ? '+' : '-';
+      const abs = Math.abs(offsetMin);
+      const offset = `${sign}${String(Math.floor(abs / 60)).padStart(2, '0')}:${String(abs % 60).padStart(2, '0')}`;
+      this.mockEventSeq = (this.mockEventSeq || 0) + 1;
+      const id = `mock-evt-${Date.now()}-${this.mockEventSeq}`;
+      const event = {
+        id,
+        title: String(p.title).trim(),
+        startTime: `${p.dateStr}T${p.startTime}:00${offset}`,
+        endTime: `${p.dateStr}T${p.endTime}:00${offset}`,
+        location: p.location || '',
+        description: p.description || '',
+        meetLink: null,
+        htmlLink: 'https:' + '/' + `/calendar.google.com/calendar/event?eid=${id}`,
+        syncTaskId: null
+      };
+      if (!this.mockData.calendarEvents[p.dateStr]) {
+        // Seed from what getDailyData would have shown for this day, so the new event joins it.
+        const seed = this.mockData.calendarEvents['2026-08-15'] || [];
+        this.mockData.calendarEvents[p.dateStr] = seed.map(e => ({
+          ...e,
+          startTime: e.startTime ? e.startTime.replace(/^\d{4}-\d{2}-\d{2}/, p.dateStr) : e.startTime,
+          endTime: e.endTime ? e.endTime.replace(/^\d{4}-\d{2}-\d{2}/, p.dateStr) : e.endTime
+        }));
+      }
+      this.mockData.calendarEvents[p.dateStr].push(event);
+      return { ...event };
+    }
+
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .createCalendarEvent(payload);
+    });
+  }
+
+  /**
    * Forwards an existing daily task to a new target date.
    * @param {string} sourceDateStr Source date in YYYY-MM-DD format.
    * @param {string} taskId Task identifier.

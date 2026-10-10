@@ -54,7 +54,75 @@ export function restoreIfUnchanged(obj, field, wrote, previous) {
   return true;
 }
 
-const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/**
+ * Per-item save serializer. Saves submitted under the same key run one at a time, in order;
+ * while one is in flight, newer submits only replace the queued value (latest wins, superseded
+ * intermediate values are skipped). Tracks the last value the server confirmed per key, so a
+ * failure rolls back to it -- never to an earlier unconfirmed value.
+ *
+ * submit(key, job) where job = { value, baseline, write(value), onSaved(value, result, hasNewer),
+ * onFailed(err, lastConfirmed) }:
+ *   - baseline: the value currently known to be saved; adopted as lastConfirmed when the key is
+ *     idle (after an idle period the UI holds the confirmed or reloaded server value);
+ *   - write: performs the save, throws on failure;
+ *   - onSaved runs after every confirmed write (hasNewer is true when a newer value is queued, so
+ *     the caller must not cache live state as saved yet);
+ *   - onFailed runs only when the LATEST value failed (nothing newer queued). A failure that is
+ *     superseded by a queued value is logged and the queued value is sent instead.
+ * Returns the drain promise for the submit that started it; a coalesced submit resolves at once
+ * (the in-flight drain will send its value), so callers never deadlock on their own queue.
+ */
+export function createSaveQueue() {
+  const items = new Map();
+
+  async function drain(item) {
+    while (item.pending) {
+      const job = item.pending;
+      item.pending = null;
+      let result;
+      try {
+        result = await job.write(job.value);
+      } catch (err) {
+        if (item.pending) {
+          console.error(`🔥 save ${item.key}: write failed but a newer value is queued; sending that instead of rolling back:`, err.stack);
+          continue;
+        }
+        await job.onFailed(err, item.confirmed);
+        continue;
+      }
+      item.confirmed = job.value;
+      if (job.onSaved) await job.onSaved(job.value, result, Boolean(item.pending));
+    }
+  }
+
+  return {
+    submit(key, job) {
+      let item = items.get(key);
+      if (!item) {
+        item = { key, confirmed: job.baseline, latest: undefined, pending: null, running: null };
+        items.set(key, item);
+      }
+      if (!item.running) item.confirmed = job.baseline;
+      item.latest = job.value;
+      item.pending = job;
+      if (item.running) return Promise.resolve();
+      item.running = drain(item).finally(() => { item.running = null; });
+      return item.running;
+    },
+    /** @returns {*} The most recently submitted value for key (undefined if never submitted). */
+    latest(key) {
+      const item = items.get(key);
+      return item ? item.latest : undefined;
+    },
+    /** @returns {boolean} True while a save for key is in flight. */
+    busy(key) {
+      const item = items.get(key);
+      return Boolean(item && item.running);
+    }
+  };
+}
+
+const SHORT_MONTHS =['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /**
  * @param {number|null} syncedAt Epoch ms of the last successful server sync.

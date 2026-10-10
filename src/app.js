@@ -28,7 +28,7 @@ import {
   getCachedFutureMatrix, setCachedFutureMatrix, hydrateFutureMatrixFromIdb,
   saveNoteRevision, getNoteRevisions, hydrateNoteRevisionsFromIdb
 } from './dailyDataCache.js';
-import { callBridge, requireSaved, restoreIfUnchanged, staleNoticeText } from './saveGuard.js';
+import { callBridge, requireSaved, restoreIfUnchanged, staleNoticeText, createSaveQueue } from './saveGuard.js';
 window.GASBridge = GASBridge;
 window.Alpine = Alpine;
 
@@ -376,13 +376,20 @@ Alpine.data('plannerApp', () => ({
 
       // Sync & Error states
       isSyncing: false,
-      errorMessage: null,
-      // { scope, text } of the stale/offline notice currently in the banner (see showStaleNotice).
-      staleNotice: null,
+      // Keyed error tray (replaces the single banner). Entries: { key, message, kind, seq, retry }.
+      // Keys name the operation (save-note:<date>, task-status:<id>, sync, load-day:<date>, ...):
+      // the same key replaces its entry, and that operation succeeding later resolves it.
+      // kind error (a failure) ranks above kind stale (offline-copy notice); newest first.
+      errorTray: [],
+      errorTraySeq: 0,
+      errorTrayExpanded: false,
+      // Per-item save serializer (one in-flight write per key, latest value wins).
+      saveQueue: createSaveQueue(),
       // Per-date note text last confirmed saved to Google Docs; rollback target for a failed save.
       savedNoteByDate: {},
-      noteSaveError: null,
       createEventError: null,
+      // True while createCalendarEvent is in flight (a double submit would create a duplicate).
+      createEventSaving: false,
       archiveSearchError: null,
       archiveSearchWarning: null,
       timeMachineError: null,
@@ -494,6 +501,35 @@ Alpine.data('plannerApp', () => ({
       get filteredMasterTasks() {
         const byStatus = filterTasksByStatus(this.masterTasks || [], this.masterTaskStatusFilter);
         return filterTasksByDateHorizon(byStatus, this.masterTaskDateFilter, getLocalDateStr());
+      },
+
+      // Newest message in the tray (failures before stale notices), or null when empty. The
+      // setter files a string under the generic general key; null resolves that key.
+      get errorMessage() {
+        const first = this.orderedErrors[0];
+        return first ? first.message : null;
+      },
+
+      set errorMessage(text) {
+        if (text) {
+          this.reportError('general', text);
+        } else {
+          this.resolveError('general');
+        }
+      },
+
+      get orderedErrors() {
+        const rank = (e) => (e.kind === 'stale' ? 1 : 0);
+        return [...(this.errorTray || [])].sort((a, b) => (rank(a) - rank(b)) || (b.seq - a.seq));
+      },
+
+      get visibleErrors() {
+        const all = this.orderedErrors;
+        return this.errorTrayExpanded ? all : all.slice(0, 3);
+      },
+
+      get hiddenErrorCount() {
+        return this.orderedErrors.length - this.visibleErrors.length;
       },
 
       get isMonthlyView() {
@@ -846,30 +882,55 @@ Alpine.data('plannerApp', () => ({
         }
       },
 
-      // Stale/offline indicator: a load that fell back to cached data says so in the error banner,
-      // with the time the cached copy last matched the server. Cleared by the next successful
-      // refresh of the same scope (daily, master, future), unless another error replaced it.
-      showStaleNotice(scope, label, cachedEntry, err) {
-        const text = staleNoticeText(label, cachedEntry && cachedEntry.syncedAt, err);
-        // One banner slot: never let an informational stale notice replace a real failure
-        // (e.g. an unsaved-note warning). Only an empty banner or an older stale notice yields.
-        const bannerFree = !this.errorMessage || (this.staleNotice && this.errorMessage === this.staleNotice.text);
-        if (!bannerFree) return;
-        this.staleNotice = { scope, text };
-        this.errorMessage = text;
+      // Files (or replaces) the tray entry for key. message is user-facing (err.message only,
+      // never a stack). opts.retry: a function re-running the failed operation; opts.kind:
+      // error (default) or stale (informational offline-copy notice).
+      reportError(key, message, opts = {}) {
+        if (!key) throw new Error('reportError: a key is required');
+        this.errorTraySeq += 1;
+        const rest = (this.errorTray || []).filter(e => e.key !== key);
+        this.errorTray = [{ key, message: String(message), kind: opts.kind || 'error', seq: this.errorTraySeq, retry: opts.retry || null }, ...rest];
       },
 
-      clearStaleNotice(scope) {
-        if (!this.staleNotice || this.staleNotice.scope !== scope) return;
-        if (this.errorMessage === this.staleNotice.text) this.errorMessage = null;
-        this.staleNotice = null;
+      resolveError(key) {
+        if (!(this.errorTray || []).some(e => e.key === key)) return;
+        this.errorTray = this.errorTray.filter(e => e.key !== key);
+      },
+
+      resolveErrorsWithPrefix(prefix) {
+        if (!(this.errorTray || []).some(e => e.key.startsWith(prefix))) return;
+        this.errorTray = this.errorTray.filter(e => !e.key.startsWith(prefix));
+      },
+
+      dismissError(key) {
+        this.resolveError(key);
+        if (this.errorTray.length <= 3) this.errorTrayExpanded = false;
+      },
+
+      // Runs the retry stored on the entry. The entry stays until the operation itself succeeds (resolves
+      // it) or fails again (replaces it), so a failing retry is never shown as fixed.
+      async retryError(key) {
+        const entry = (this.errorTray || []).find(e => e.key === key);
+        if (!entry || typeof entry.retry !== 'function') return;
+        try {
+          await entry.retry();
+        } catch (err) {
+          console.error(`🔥 retry of "${key}" threw; entry kept with the new error:`, err.stack);
+          this.reportError(key, `Retry failed: ${err.message || err.toString()}`, { retry: entry.retry });
+        }
+      },
+
+      // Stale/offline indicator: a load that fell back to cached data files a stale tray entry
+      // under the key of the load, with the time the cached copy last matched the server. The next
+      // successful load with the same key resolves it.
+      showStaleNotice(key, label, cachedEntry, err) {
+        this.reportError(key, staleNoticeText(label, cachedEntry && cachedEntry.syncedAt, err), { kind: 'stale' });
       },
 
       async trigger2WaySync() {
         this.isSyncing = true;
-        // Never clear errorMessage here: callers run this right after a write, and wiping the
-        // banner would hide a failure reported just before (fail-silent). The banner is
-        // dismissed by the user or replaced by the next error.
+        // A sync success resolves only sync* tray entries: callers run this right after a write,
+        // and wiping other entries would hide a failure reported just before (fail-silent).
 
         try {
           await new Promise(r => setTimeout(r, 400)); // Visual indicator
@@ -884,9 +945,10 @@ Alpine.data('plannerApp', () => ({
           });
 
           this.buildScheduleGrid();
+          this.resolveErrorsWithPrefix('sync');
         } catch (err) {
           console.error('🔥 trigger2WaySync error:', err.stack);
-          this.errorMessage = `2-Way Sync Warning: ${err.message || err.toString()}`;
+          this.reportError('sync', `2-Way Sync Warning: ${err.message || err.toString()}`, { retry: () => this.trigger2WaySync() });
         } finally {
           this.isSyncing = false;
         }
@@ -970,9 +1032,10 @@ Alpine.data('plannerApp', () => ({
           const board = await this.bridge.getTriageBoard({});
           if (!board || board.ok !== true) throw new Error((board && board.message) || 'Triage board unavailable');
           this.triageBoard = board;
+          this.resolveError('load-triage');
         } catch (err) {
           console.error('Triage board failed to load:', err.stack);
-          this.errorMessage = 'Triage board failed to load: ' + (err.message || err);
+          this.reportError('load-triage', 'Triage board failed to load: ' + (err.message || err), { retry: () => this.loadTriageBoard() });
         } finally {
           this.triageLoading = false;
         }
@@ -1081,9 +1144,10 @@ Alpine.data('plannerApp', () => ({
           const prep = await this.bridge.getMeetingPrep(this.meetingPrepSeries, null);
           if (!prep || prep.ok !== true) throw new Error((prep && prep.message) || 'Meeting prep unavailable');
           this.meetingPrep = prep;
+          this.resolveError('load-meeting-prep');
         } catch (err) {
           console.error('Meeting prep failed to load:', err.stack);
-          this.errorMessage = 'Meeting prep failed to load: ' + (err.message || err);
+          this.reportError('load-meeting-prep', 'Meeting prep failed to load: ' + (err.message || err), { retry: () => this.loadMeetingPrep() });
         } finally {
           this.meetingPrepLoading = false;
         }
@@ -1127,14 +1191,14 @@ Alpine.data('plannerApp', () => ({
           if ((this.futureMatrixEditSeq[year] || 0) !== seqAtFetchStart) return; // superseded by a local edit
           setCachedFutureMatrix(year, matrix, { synced: true });
           this.applyFutureMatrix(matrix);
-          this.clearStaleNotice('future');
+          this.resolveError(`load-future:${year}`);
         } catch (err) {
           console.error('loadFutureMatrix: refresh failed; showing cached matrix (if any) with a stale notice:', err.stack);
           if (year !== this.futureMatrixYear) return;
           if (cached) {
-            this.showStaleNotice('future', `Future Planning ${year}`, cached, err);
+            this.showStaleNotice(`load-future:${year}`, `Future Planning ${year}`, cached, err);
           } else {
-            this.errorMessage = `Could not load Future Planning Matrix: ${err.message || err.toString()}`;
+            this.reportError(`load-future:${year}`, `Could not load Future Planning Matrix: ${err.message || err.toString()}`, { retry: () => this.loadFutureMatrix() });
           }
         }
       },
@@ -1165,9 +1229,10 @@ Alpine.data('plannerApp', () => ({
           this.futureMatrix.months[monthKey].push(newItem);
           this.newFutureItemTitle[monthKey] = '';
           this.syncFutureMatrixCacheFromLiveState();
+          this.resolveError(`future-add:${monthKey}`);
         } catch (err) {
           console.error('addFutureItemToMonth error:', err.stack);
-          this.errorMessage = `Error adding item: ${err.message || err.toString()}`;
+          this.reportError(`future-add:${monthKey}`, `Error adding item: ${err.message || err.toString()}`);
         }
       },
 
@@ -1197,9 +1262,10 @@ Alpine.data('plannerApp', () => ({
         } catch (err) {
           console.error('saveFutureItemStatus: save failed; status rolled back to last saved value:', err.stack);
           restoreIfUnchanged(item, 'status', newStatus, previous);
-          this.errorMessage = `Could not save item status: ${err.message || err.toString()}`;
+          this.reportError(`future-status:${item.id}`, `Could not save item status: ${err.message || err.toString()}`);
           return;
         }
+        this.resolveError(`future-status:${item.id}`);
         if (year === this.futureMatrixYear) this.syncFutureMatrixCacheFromLiveState();
       },
 
@@ -1220,7 +1286,7 @@ Alpine.data('plannerApp', () => ({
           }
         } catch (err) {
           console.error('transferFutureItemToDay error:', err.stack);
-          this.errorMessage = `Error transferring item: ${err.message || err.toString()}`;
+          this.reportError(`future-transfer:${item.id}`, `Error transferring item: ${err.message || err.toString()}`);
         }
       },
 
@@ -1236,7 +1302,7 @@ Alpine.data('plannerApp', () => ({
           }
         } catch (err) {
           console.error('pushFutureItemForward error:', err.stack);
-          this.errorMessage = `Error pushing item forward: ${err.message || err.toString()}`;
+          this.reportError(`future-push:${item.id}`, `Error pushing item forward: ${err.message || err.toString()}`);
         }
       },
 
@@ -1250,7 +1316,7 @@ Alpine.data('plannerApp', () => ({
           this.syncFutureMatrixCacheFromLiveState();
         } catch (err) {
           console.error('deleteFutureItemFromMonth error:', err.stack);
-          this.errorMessage = `Error deleting item: ${err.message || err.toString()}`;
+          this.reportError(`future-delete:${item.id}`, `Error deleting item: ${err.message || err.toString()}`);
         }
       },
 
@@ -1641,22 +1707,18 @@ Alpine.data('plannerApp', () => ({
           // Last note text known to be saved in Google Docs for this date: the rollback target if
           // a later note save fails (see scheduleDailyNoteSave).
           this.savedNoteByDate[dateStr] = data.noteContent || '';
+          this.resolveError(`load-day:${dateStr}`);
           if (dateStr !== this.selectedDate) return; // user navigated away; cached for next visit
-          this.clearStaleNotice('daily');
-          if (data.error) {
-            this.errorMessage = data.error;
-          }
-          if (data.warnings && data.warnings.length > 0) {
-            this.errorMessage = data.warnings.join(' | ');
-          }
+          const problems = [data.error, ...(data.warnings || [])].filter(Boolean);
+          if (problems.length > 0) this.reportError(`load-day:${dateStr}`, problems.join(' | '));
           this.applyDailyData(data);
         } catch (err) {
           console.error('🔥 loadDayData: refresh failed; showing cached day (if any) with a stale notice:', err.stack);
           if (dateStr === this.selectedDate) {
             if (cached) {
-              this.showStaleNotice('daily', `Daily page ${dateStr}`, cached, err);
+              this.showStaleNotice(`load-day:${dateStr}`, `Daily page ${dateStr}`, cached, err);
             } else {
-              this.errorMessage = `Error loading daily workspace: ${err.message || err.toString()}`;
+              this.reportError(`load-day:${dateStr}`, `Error loading daily workspace: ${err.message || err.toString()}`);
             }
           }
         } finally {
@@ -3040,25 +3102,56 @@ Alpine.data('plannerApp', () => ({
         const existingCacheEntry = getCached(dateStr) || { tasks: this.dailyTasks, calendarEvents: this.calendarEvents, docUrl: this.dailyDocUrl };
         setCached(dateStr, { ...existingCacheEntry, noteContent });
         this.bumpDailyEditSeq(dateStr);
-        this.noteSaveTimer = setTimeout(async () => {
-          try {
-            const result = await callBridge(this.bridge, [['saveDailyDocCards', [dateStr, noteContent]]], `daily note for ${dateStr}`);
+        this.noteSaveTimer = setTimeout(() => {
+          this.noteSaveTimer = null;
+          this.saveDailyNote(dateStr, noteContent);
+        }, 1200);
+      },
+
+      // Serialized per date (key save-note:<date>): one saveDailyDocCards call in flight per day;
+      // text typed meanwhile replaces the queued text (latest wins). The rollback target is
+      // savedNoteByDate (the last text Google confirmed); the editor text is always kept.
+      saveDailyNote(dateStr, noteContent) {
+        const key = `save-note:${dateStr}`;
+        return this.saveQueue.submit(key, {
+          value: noteContent,
+          baseline: this.savedNoteByDate[dateStr],
+          write: async (text) => {
+            const result = await callBridge(this.bridge, [['saveDailyDocCards', [dateStr, text]]], `daily note for ${dateStr}`);
             // Code.gs reports Drive/Docs failures as a resolved { success: false, error }.
             if (!result || result.success !== true) {
               throw new Error((result && result.error) || 'the server did not confirm the save');
             }
-          } catch (err) {
+            return result;
+          },
+          onSaved: (text) => {
+            this.savedNoteByDate[dateStr] = text;
+            saveNoteRevision(dateStr, text);
+            this.resolveError(key);
+          },
+          onFailed: (err) => {
             console.error(`🔥 saveDailyDocCards failed for ${dateStr}; note NOT saved, cache rolled back to last saved text, editor text kept:`, err.stack);
             this.rollbackUnsavedNoteCache(dateStr, noteContent);
-            this.noteSaveError = `Daily note for ${dateStr} NOT saved: ${err.message || err.toString()}. Your text is still in the editor; edit again to retry, or copy it before leaving this day.`;
-            this.errorMessage = this.noteSaveError;
-            return;
+            this.reportError(key, `Daily note for ${dateStr} NOT saved: ${err.message || err.toString()}. Your text is still in the editor; press Retry or edit again, or copy it before leaving this day.`, {
+              retry: () => this.retryDailyNoteSave(dateStr)
+            });
           }
-          this.savedNoteByDate[dateStr] = noteContent;
-          saveNoteRevision(dateStr, noteContent);
-          if (this.noteSaveError && this.errorMessage === this.noteSaveError) this.errorMessage = null;
-          this.noteSaveError = null;
-        }, 1200);
+        });
+      },
+
+      // Re-sends the latest text submitted for dateStr (never an older one, and never whatever
+      // day happens to be open now), writing it through to the cache again like a fresh edit.
+      retryDailyNoteSave(dateStr) {
+        const text = this.saveQueue.latest(`save-note:${dateStr}`);
+        if (typeof text !== 'string') throw new Error(`No unsaved note text is known for ${dateStr}.`);
+        // Write through only over the rolled-back (last saved) text: if the cache already holds
+        // newer typing, that text has its own pending save and must not be replaced.
+        const entry = getCached(dateStr);
+        if (entry && entry.noteContent === this.savedNoteByDate[dateStr]) {
+          setCached(dateStr, { ...entry, noteContent: text });
+          this.bumpDailyEditSeq(dateStr);
+        }
+        return this.saveDailyNote(dateStr, text);
       },
 
       // Restores the cached note for dateStr to the last text confirmed saved, but only if the
@@ -3105,13 +3198,13 @@ Alpine.data('plannerApp', () => ({
           if (this.masterTasksEditSeq !== seqAtFetchStart) return; // a local edit already superseded this
           setCachedMasterTasks(tasks, { synced: true });
           this.applyMasterTasks(tasks);
-          this.clearStaleNotice('master');
+          this.resolveError('load-master');
         } catch (err) {
           console.error('🔥 loadMasterTasks: refresh failed; showing cached list (if any) with a stale notice:', err.stack);
           if (cached) {
-            this.showStaleNotice('master', 'Master Tasks', cached, err);
+            this.showStaleNotice('load-master', 'Master Tasks', cached, err);
           } else {
-            this.errorMessage = `Error loading master tasks: ${err.message || err.toString()}`;
+            this.reportError('load-master', `Error loading master tasks: ${err.message || err.toString()}`, { retry: () => this.loadMasterTasks() });
           }
         }
       },
@@ -3157,7 +3250,7 @@ Alpine.data('plannerApp', () => ({
           }, 2000);
         } catch (err) {
           console.error('🔥 addMasterTask error:', err.stack);
-          this.errorMessage = `Could not add master task: ${err.message || err.toString()}`;
+          this.reportError('master-add', `Could not add master task: ${err.message || err.toString()}`);
         } finally {
           this.addingMasterTask = false;
         }
@@ -3177,7 +3270,7 @@ Alpine.data('plannerApp', () => ({
             this.masterTasks.splice(Math.min(idx, this.masterTasks.length), 0, task);
           }
           this.syncMasterTasksCacheFromLiveState();
-          this.errorMessage = `Could not delete master task: ${err.message || err.toString()}`;
+          this.reportError(`task-delete:${task.id}`, `Could not delete master task: ${err.message || err.toString()}`);
           return;
         }
         await this.trigger2WaySync();
@@ -3264,7 +3357,7 @@ Alpine.data('plannerApp', () => ({
           }
         } catch (err) {
           console.error('🔥 moveMasterTaskToDate error:', err.stack);
-          this.errorMessage = `Error moving master task: ${err.message || err.toString()}`;
+          this.reportError(`master-move:${mTask.id}`, `Error moving master task: ${err.message || err.toString()}`);
         } finally {
           mTask._moving = false;
         }
@@ -3425,7 +3518,7 @@ Alpine.data('plannerApp', () => ({
         } catch (err) {
           console.error('🔥 loadMonthlyCalendarData failed; month grid shows only already-cached days:', err.stack);
           if (requestedYear !== this.selectedYear || requestedMonth !== this.selectedMonth) return;
-          this.errorMessage = `Could not refresh ${MONTH_NAMES[requestedMonth - 1]} ${requestedYear}; the calendar shows only days already cached (others may look empty): ${err.message || err.toString()}`;
+          this.reportError(`load-month:${requestedYear}-${requestedMonth}`, `Could not refresh ${MONTH_NAMES[requestedMonth - 1]} ${requestedYear}; the calendar shows only days already cached (others may look empty): ${err.message || err.toString()}`, { retry: () => this.loadMonthlyCalendarData() });
         }
       },
 
@@ -3472,7 +3565,7 @@ Alpine.data('plannerApp', () => ({
           await this.trigger2WaySync();
         } catch (err) {
           console.error('🔥 addDailyTask error:', err.stack);
-          this.errorMessage = `Error adding task: ${err.message || err.toString()}`;
+          this.reportError('task-add', `Error adding task: ${err.message || err.toString()}`);
         }
       },
 
@@ -3547,9 +3640,10 @@ Alpine.data('plannerApp', () => ({
           });
           this.syncDailyCacheFromLiveState();
           this.syncMasterTasksCacheFromLiveState();
-          this.errorMessage = `Could not save task title: ${err.message || err.toString()}`;
+          this.reportError(`task-title:${task.id}`, `Could not save task title: ${err.message || err.toString()}`);
           return;
         }
+        this.resolveError(`task-title:${task.id}`);
         await this.trigger2WaySync();
       },
 
@@ -3575,7 +3669,7 @@ Alpine.data('plannerApp', () => ({
           } else {
             invalidateCached(dateStr);
           }
-          this.errorMessage = `Could not delete task: ${err.message || err.toString()}`;
+          this.reportError(`task-delete:${task.id}`, `Could not delete task: ${err.message || err.toString()}`);
           return;
         }
         await this.trigger2WaySync();
@@ -3609,9 +3703,10 @@ Alpine.data('plannerApp', () => ({
         } catch (err) {
           console.error('🔥 toggleTaskStar failed; star rolled back:', err.stack);
           restoreIfUnchanged(task, 'starred', next, previous);
-          this.errorMessage = `Could not save star: ${err.message || err.toString()}`;
+          this.reportError(`task-star:${task.id}`, `Could not save star: ${err.message || err.toString()}`);
           return;
         }
+        this.resolveError(`task-star:${task.id}`);
         if (isMaster) {
           this.syncMasterTasksCacheFromLiveState();
         } else {
@@ -3730,34 +3825,120 @@ Alpine.data('plannerApp', () => ({
           return;
         }
         const isMaster = this.masterTasks.some(m => m.id === task.id);
+        const dateStr = this.selectedDate;
+        const key = `task-status:${task.id}`;
+        const baseline = task.status;
+        // A linked master/daily pair mirrors status either direction, so every copy moves (and
+        // rolls back) together.
+        this.statusCopies(task, isMaster).forEach(t => { t.status = newStatus; });
+        const targetDate = (!isMaster && newStatus === '→') ? this.forwardTargetDate(dateStr) : null;
+        // Serialized per task (key task-status:<id>): one write in flight; a status picked
+        // meanwhile replaces the queued one. A failure rolls back to the last value Google
+        // confirmed, never to an earlier unconfirmed pick. Caches only ever get confirmed values.
+        return this.saveQueue.submit(key, {
+          value: newStatus,
+          baseline,
+          write: (status) => this.writeTaskStatus(task, status, isMaster, dateStr, targetDate),
+          onSaved: async (status, result, hasNewer) => {
+            this.resolveError(key);
+            if (hasNewer) return; // the live status is a newer, unconfirmed pick: do not cache it yet
+            this.cacheTaskStatusState(dateStr);
+            await this.trigger2WaySync();
+          },
+          onFailed: (err, confirmed) => this.rollbackTaskStatus({ task, isMaster, dateStr, key, attempted: newStatus, confirmed, err, targetDate })
+        });
+      },
+
+      // The task plus its linked master/daily copy (if any) currently in the live lists.
+      statusCopies(task, isMaster) {
         const linkedMaster = !isMaster ? this.masterTasks.find(m => m.movedTaskId === task.id) : null;
         const linkedDaily = (isMaster && task.movedTaskId) ? this.dailyTasks.find(d => d.id === task.movedTaskId) : null;
-        // A linked master/daily pair mirrors status either direction; snapshot every copy so a
-        // failed save rolls each back. Caches are only written after the save lands.
-        const touched = [task, linkedMaster, linkedDaily].filter(Boolean).map(t => ({ t, status: t.status }));
-        touched.forEach(({ t }) => { t.status = newStatus; });
-        try {
-          if (isMaster) {
-            requireSaved(await callBridge(this.bridge, [
-              ['updateMasterTask', [task.id, { title: task.title, status: newStatus, category: task.category }]],
-              ['updateDailyTask', ['', task.id, { title: task.title, status: newStatus }]]
-            ], 'task status'), 'task status');
-          } else if (newStatus === '→') {
-            await this.forwardDailyTask(task);
-          } else {
-            requireSaved(await callBridge(this.bridge, [
-              ['updateDailyTask', [this.selectedDate, task.id, { title: task.title, status: newStatus, dueDate: task.dueDate }]]
-            ], 'task status'), 'task status');
-          }
-        } catch (err) {
-          console.error('🔥 setTaskStatus failed; status rolled back to last saved value:', err.stack);
-          touched.forEach(({ t, status }) => { restoreIfUnchanged(t, 'status', newStatus, status); });
-          this.errorMessage = `Could not save task status: ${err.message || err.toString()}`;
-          return;
+        return [task, linkedMaster, linkedDaily].filter(Boolean);
+      },
+
+      async writeTaskStatus(task, status, isMaster, dateStr, targetDate) {
+        if (isMaster) {
+          return requireSaved(await callBridge(this.bridge, [
+            ['updateMasterTask', [task.id, { title: task.title, status, category: task.category }]],
+            ['updateDailyTask', ['', task.id, { title: task.title, status }]]
+          ], 'task status'), 'task status');
         }
-        this.syncDailyCacheFromLiveState();
+        if (status === '→') return this.forwardDailyTask(task, targetDate, dateStr);
+        return requireSaved(await callBridge(this.bridge, [
+          ['updateDailyTask', [dateStr, task.id, { title: task.title, status, dueDate: task.dueDate }]]
+        ], 'task status'), 'task status');
+      },
+
+      // Writes the (confirmed) live task state through to the caches; a day no longer open is
+      // invalidated instead, so its next visit refetches rather than trusting a stale copy.
+      cacheTaskStatusState(dateStr) {
+        if (dateStr === this.selectedDate) {
+          this.syncDailyCacheFromLiveState(dateStr);
+        } else {
+          invalidateCached(dateStr);
+        }
         this.syncMasterTasksCacheFromLiveState();
-        await this.trigger2WaySync();
+      },
+
+      async rollbackTaskStatus({ task, isMaster, dateStr, key, attempted, confirmed, err, targetDate }) {
+        console.error(`🔥 setTaskStatus failed for ${task.id}; status rolled back to the last confirmed value "${confirmed}":`, err.stack);
+        this.statusCopies(task, isMaster).forEach(t => { restoreIfUnchanged(t, 'status', attempted, confirmed); });
+        this.cacheTaskStatusState(dateStr);
+        const isForward = !isMaster && attempted === '→';
+        let message = `${isForward ? 'Could not forward task' : 'Could not save task status'}: ${err.message || err.toString()}`;
+        // A forward that may have left a copy on the target day must not be retried blindly:
+        // a second forward would create another copy. The user checks the target day instead.
+        const duplicated = isForward && /may be duplicated/i.test(err.message || '');
+        if (isForward) {
+          // The server writes the target copy first and compensates on failure, so the real end
+          // state is unknown here: re-read Google as the truth instead of assuming the rollback.
+          const days = [dateStr];
+          if (targetDate && (duplicated || getCached(targetDate))) days.push(targetDate);
+          for (const day of days) {
+            try {
+              await this.refetchDayFromServer(day);
+            } catch (refetchErr) {
+              console.error(`🔥 forward rollback: could not re-read ${day} from Google; showing the rolled-back state, which may not match Google:`, refetchErr.stack);
+              message += ` Could not re-check ${day} from Google (${refetchErr.message || refetchErr.toString()}); reload to verify.`;
+            }
+          }
+        }
+        this.reportError(key, message, { retry: duplicated ? null : () => this.retryTaskStatus(task.id, dateStr, key) });
+      },
+
+      // Re-sends the latest status submitted for the task (looked up by id in the live lists).
+      retryTaskStatus(taskId, dateStr, key) {
+        const status = this.saveQueue.latest(key);
+        const task = this.masterTasks.find(t => t.id === taskId) ||
+          (dateStr === this.selectedDate ? this.dailyTasks.find(t => t.id === taskId) : null);
+        if (!task || !isValidStatus(status)) {
+          throw new Error(`that task is not on the open page; open ${dateStr} and set its status again.`);
+        }
+        return this.setTaskStatus(task, status);
+      },
+
+      // Re-reads one day from Google as the source of truth after a failed multi-step write.
+      // Replaces that day tasks and events in the cache (the note keeps its own save pipeline)
+      // and, when it is the open day, the live task list. Throws on failure.
+      async refetchDayFromServer(dateStr) {
+        if (!this.bridge || typeof this.bridge.getDailyData !== 'function') {
+          throw new Error('getDailyData is unavailable in this build');
+        }
+        const data = await this.bridge.getDailyData(dateStr);
+        if (!data || !Array.isArray(data.tasks)) throw new Error(`the server returned no task list for ${dateStr}`);
+        const existing = getCached(dateStr);
+        if (existing) {
+          setCached(dateStr, { ...existing, tasks: data.tasks, calendarEvents: data.calendarEvents || existing.calendarEvents });
+        } else {
+          setCached(dateStr, data, { synced: true });
+          this.savedNoteByDate[dateStr] = data.noteContent || '';
+        }
+        // Any revalidation started before this read is older than it: make loadDayData drop it.
+        this.bumpDailyEditSeq(dateStr);
+        if (dateStr === this.selectedDate) {
+          this.dailyTasks = data.tasks;
+          this.buildScheduleGrid();
+        }
       },
 
       showTaskToast(msg) {
@@ -3769,24 +3950,23 @@ Alpine.data('plannerApp', () => ({
         }, 4000);
       },
 
+      // Past days forward to today; today and later forward to the next day.
+      forwardTargetDate(sourceDate) {
+        const todayStr = getLocalDateStr();
+        if (sourceDate < todayStr) return todayStr;
+        const [y, m, d] = sourceDate.split('-').map(Number);
+        const next = new Date(y, m - 1, d + 1);
+        const mm = String(next.getMonth() + 1).padStart(2, '0');
+        const dd = String(next.getDate()).padStart(2, '0');
+        return `${next.getFullYear()}-${mm}-${dd}`;
+      },
+
       // Throws on failure (no catch here): its caller setTaskStatus owns the rollback and the
       // user-facing error, so a failed forward can never be cached or toasted as done.
-      async forwardDailyTask(task, explicitTargetDate = null) {
+      async forwardDailyTask(task, explicitTargetDate = null, sourceDate = this.selectedDate) {
         if (!task || !task.id) throw new Error('Not saved: no task to forward.');
-        const sourceDate = this.selectedDate;
         const todayStr = getLocalDateStr();
-        let targetDate = explicitTargetDate;
-        if (!targetDate) {
-          if (sourceDate < todayStr) {
-            targetDate = todayStr;
-          } else {
-            const [y, m, d] = sourceDate.split('-').map(Number);
-            const next = new Date(y, m - 1, d + 1);
-            const mm = String(next.getMonth() + 1).padStart(2, '0');
-            const dd = String(next.getDate()).padStart(2, '0');
-            targetDate = `${next.getFullYear()}-${mm}-${dd}`;
-          }
-        }
+        const targetDate = explicitTargetDate || this.forwardTargetDate(sourceDate);
 
         const res = await callBridge(this.bridge, [['forwardDailyTask', [sourceDate, task.id, targetDate]]], 'task forward');
         if (!res || !res.forwardedTask) {
@@ -3885,15 +4065,48 @@ Alpine.data('plannerApp', () => ({
         this.closeCreateEventModal();
       },
 
-      // No server RPC creates Google Calendar events (Code.gs only reads Calendar), so this must
-      // refuse rather than show a local-only appointment that was never saved anywhere. The
-      // modal stays open with the input intact; the error is shown inside it, pointing at the
-      // working path (the pre-filled native Google Calendar window).
+      // Creates the appointment in Google Calendar (createCalendarEvent RPC) and shows it only
+      // once Google returned the created event. On failure the modal stays open with the input
+      // intact and the error shown inside it. The day is captured up front: navigating away
+      // mid-request adds the event to that day (cache), never to the newly opened one.
       async saveNewEvent() {
-        if (!this.newEventData.title.trim()) return;
-        const err = new Error('Appointment NOT saved: Day Planner cannot write to Google Calendar yet. Use "Open Native gCal Window" to create it in Google Calendar.');
-        console.error('🔥 saveNewEvent refused: no Calendar create RPC exists, nothing was saved:', err.stack);
-        this.createEventError = err.message;
+        const form = this.newEventData;
+        if (!form.title.trim() || this.createEventSaving) return;
+        const dateStr = this.selectedDate;
+        const payload = {
+          title: form.title.trim(),
+          dateStr,
+          startTime: form.startTime,
+          endTime: form.endTime,
+          description: form.description || '',
+          location: form.location || ''
+        };
+        this.createEventSaving = true;
+        this.createEventError = null;
+        let evt;
+        try {
+          evt = await callBridge(this.bridge, [['createCalendarEvent', [payload]]], 'appointment');
+          if (!evt || !evt.id) throw new Error('Not saved: Google Calendar did not return the created event.');
+        } catch (err) {
+          console.error(`🔥 saveNewEvent: createCalendarEvent failed for ${dateStr}; nothing shown, modal kept open with the input:`, err.stack);
+          const msg = err.message || err.toString();
+          this.createEventError = /not saved/i.test(msg) ? msg : `Appointment NOT saved: ${msg}`;
+          return;
+        } finally {
+          this.createEventSaving = false;
+        }
+        if (dateStr === this.selectedDate) {
+          this.calendarEvents.push(evt);
+          this.buildScheduleGrid();
+          this.syncDailyCacheFromLiveState(dateStr);
+        } else {
+          const entry = getCached(dateStr);
+          if (entry) {
+            setCached(dateStr, { ...entry, calendarEvents: [...(entry.calendarEvents || []), evt] });
+            this.bumpDailyEditSeq(dateStr);
+          }
+        }
+        this.createEventModalOpen = false;
       },
 
       openSearchModal() {

@@ -267,16 +267,30 @@
 
     </header>
 
-    <!-- Centralized Error & Warning Banner -->
-    <template x-if="errorMessage">
-      <aside class="error-banner" role="alert">
-        <div class="error-banner-content">
-          <span class="material-symbols-outlined">warning</span>
-          <span x-text="errorMessage"></span>
-        </div>
-        <button type="button" @click="errorMessage = null" class="error-close-btn" aria-label="Close">
-          <span class="material-symbols-outlined icon-18">close</span>
-        </button>
+    <!-- Keyed error tray: one row per failing operation (failures first, then offline notices) -->
+    <template x-if="errorTray.length > 0">
+      <aside class="error-tray" role="alert" aria-live="assertive">
+        <header class="error-tray-header">
+          <span class="material-symbols-outlined icon-18">warning</span>
+          <h2 class="error-tray-title">Needs attention</h2>
+          <span class="error-tray-count" x-text="errorTray.length === 1 ? '1 item' : (errorTray.length + ' items')"></span>
+        </header>
+        <ul class="error-tray-list">
+          <template x-for="entry in visibleErrors" :key="entry.key">
+            <li class="error-tray-row" :class="{ 'is-stale': entry.kind === 'stale' }">
+              <span class="material-symbols-outlined icon-16 error-tray-icon" aria-hidden="true" x-text="entry.kind === 'stale' ? 'cloud_off' : 'error'"></span>
+              <span class="error-tray-message" x-text="entry.message"></span>
+              <button type="button" class="error-tray-action" x-show="entry.retry" @click="retryError(entry.key)">Retry</button>
+              <button type="button" class="error-close-btn" @click="dismissError(entry.key)" aria-label="Dismiss">
+                <span class="material-symbols-outlined icon-18">close</span>
+              </button>
+            </li>
+          </template>
+        </ul>
+        <button type="button" class="error-tray-more"
+                x-show="hiddenErrorCount > 0 || (errorTrayExpanded && errorTray.length > 3)"
+                @click="errorTrayExpanded = !errorTrayExpanded"
+                x-text="errorTrayExpanded ? 'Show fewer' : ('+' + hiddenErrorCount + ' more')"></button>
       </aside>
     </template>
 
@@ -1767,7 +1781,7 @@
             </div>
           </div>
 
-          <!-- Not-saved error shown inside the modal (the page banner sits behind it) -->
+          <!-- Not-saved error shown inside the modal (the page error tray sits behind it) -->
           <aside class="error-banner" role="alert" x-show="createEventError" x-cloak>
             <div class="error-banner-content">
               <span class="material-symbols-outlined">warning</span>
@@ -1781,8 +1795,9 @@
             </button>
             <div class="action-right-group">
               <button type="button" class="btn-link" @click="closeCreateEventModal()">Cancel</button>
-              <button type="submit" class="btn-primary">
-                <span class="material-symbols-outlined icon-16">add</span> Create Appointment
+              <button type="submit" class="btn-primary" :disabled="createEventSaving">
+                <span class="material-symbols-outlined icon-16" x-text="createEventSaving ? 'hourglass_top' : 'add'"></span>
+                <span x-text="createEventSaving ? 'Creating…' : 'Create Appointment'"></span>
               </button>
             </div>
           </footer>
