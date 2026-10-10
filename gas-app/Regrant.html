@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Day Planner - Restore Drive Access</title>
+  <style>
+    :root { --cream: #fcfbfa; --teal: #2d6a5a; --ink: #2b2b2b; --rule: #d9d4cc; --bad: #9b2c2c; }
+    body { background: var(--cream); color: var(--ink); font-family: Georgia, 'Times New Roman', serif; margin: 0; padding: 24px 16px; }
+    main { max-width: 760px; margin: 0 auto; }
+    h1 { color: var(--teal); font-weight: normal; border-bottom: 2px solid var(--teal); padding-bottom: 6px; }
+    p, li { line-height: 1.5; }
+    button { font: inherit; background: var(--teal); color: #fff; border: 0; border-radius: 4px; padding: 8px 16px; cursor: pointer; }
+    button[disabled] { opacity: 0.5; cursor: default; }
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+    th, td { text-align: left; border-bottom: 1px solid var(--rule); padding: 6px 4px; }
+    th { color: var(--teal); font-weight: normal; border-bottom: 2px solid var(--teal); }
+    .no { color: var(--bad); }
+    #status { margin-top: 12px; min-height: 1.5em; }
+    #status.error { color: var(--bad); }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Restore Drive Access</h1>
+    <p>Day Planner can only edit Drive files you have handed to it. Moving the script to its new Google Cloud project dropped that for the files below, so saves to them fail.</p>
+    <ol>
+      <li>Click <strong>Choose files</strong>.</li>
+      <li>In the <strong>Day Planner folder</strong> tab, Shift-click to select every item marked <em>No</em>, then click <strong>Select</strong>.</li>
+      <li>Open the picker again, go to the <strong>Folders</strong> tab, select the <strong>Day Planner</strong> folder itself, then click <strong>Select</strong>.</li>
+    </ol>
+    <button id="pick" disabled>Choose files</button>
+    <div id="status">Loading...</div>
+    <table>
+      <thead><tr><th>Item</th><th>Type</th><th>App can write</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </main>
+  <script src="https://apis.google.com/js/api.js"></script>
+  <script>
+    var PICKER_ORIGIN = 'https:' + '/' + '/script.google.com';
+    var cfg = null;
+
+    function setStatus(text, isError) {
+      var el = document.getElementById('status');
+      el.textContent = text;
+      el.className = isError ? 'error' : '';
+    }
+
+    function fail(context, err) {
+      console.error('Regrant: ' + context + '\n' + (err && err.stack ? err.stack : err));
+      setStatus(context + ': ' + (err && err.message ? err.message : String(err)), true);
+    }
+
+    function callServer(fnName) {
+      return new Promise(function(resolve, reject) {
+        google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[fnName]();
+      });
+    }
+
+    function shortType(mimeType) {
+      var parts = String(mimeType || '').split(/[./]/);
+      return parts[parts.length - 1];
+    }
+
+    function renderReport(report) {
+      var body = document.getElementById('rows');
+      body.textContent = '';
+      [report.folder].concat(report.files).forEach(function(item, i) {
+        var tr = document.createElement('tr');
+        [i === 0 ? item.title + ' (folder itself)' : item.title, shortType(item.mimeType), item.appCanWrite ? 'Yes' : 'No']
+          .forEach(function(text, col) {
+            var td = document.createElement('td');
+            td.textContent = text;
+            if (col === 2 && !item.appCanWrite) td.className = 'no';
+            tr.appendChild(td);
+          });
+        body.appendChild(tr);
+      });
+      var left = report.unwritable.length;
+      setStatus(left === 0 ? 'All items writable. You can close this page.' : left + ' item(s) still need access.', false);
+    }
+
+    function refresh() {
+      setStatus('Checking access...', false);
+      return callServer('driveWriteAccessReport').then(renderReport).catch(function(err) { fail('Access check failed', err); });
+    }
+
+    function onPicked(data) {
+      if (data.action !== google.picker.Action.PICKED) return;
+      setStatus('Granted ' + data.docs.length + ' item(s). Re-checking...', false);
+      refresh();
+    }
+
+    function openPicker() {
+      var inFolder = new google.picker.DocsView(google.picker.ViewId.DOCS)
+        .setParent(cfg.folderId)
+        .setIncludeFolders(true)
+        .setSelectFolderEnabled(true)
+        .setMode(google.picker.DocsViewMode.LIST)
+        .setLabel('Day Planner folder');
+      var folders = new google.picker.DocsView(google.picker.ViewId.FOLDERS)
+        .setSelectFolderEnabled(true)
+        .setMode(google.picker.DocsViewMode.LIST);
+      new google.picker.PickerBuilder()
+        .addView(inFolder)
+        .addView(folders)
+        .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
+        .setOAuthToken(cfg.token)
+        .setDeveloperKey(cfg.apiKey)
+        .setAppId(cfg.appId)
+        .setOrigin(PICKER_ORIGIN)
+        .setCallback(onPicked)
+        .build()
+        .setVisible(true);
+    }
+
+    document.getElementById('pick').addEventListener('click', function() {
+      try {
+        openPicker();
+      } catch (err) {
+        console.error('Regrant: Could not open Google Picker\n' + err.stack);
+        setStatus('Could not open Google Picker: ' + err.message, true);
+      }
+    });
+
+    callServer('getDriveRegrantConfig').then(function(config) {
+      cfg = config;
+      gapi.load('picker', {
+        callback: function() { document.getElementById('pick').disabled = false; },
+        onerror: function() { fail('Google Picker failed to load', new Error('gapi.load picker onerror')); }
+      });
+      return refresh();
+    }).catch(function(err) { fail('Setup failed', err); });
+  </script>
+</body>
+</html>

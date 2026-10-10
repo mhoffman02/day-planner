@@ -434,7 +434,7 @@ const DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mho
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const DAY_PLANNER_BUILD_NUMBER = 430;
+const DAY_PLANNER_BUILD_NUMBER = 431;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -484,6 +484,11 @@ function doGet_original(e) {
 
     if (isSelfTest) {
       return renderSelfTestDiagnosticReport(e);
+    }
+
+    // 1b. Drive re-grant page (Google Picker); before folder validation, which may try to write.
+    if (e && e.parameter && e.parameter.view === 'regrant') {
+      return renderRegrantPage();
     }
 
     // 2. Check if requested /setup-folder endpoint
@@ -604,8 +609,7 @@ function driveGrantRow_(meta) {
  * @returns {{ok: boolean, folder: Object, files: Object[], unwritable: string[]}}
  */
 function driveWriteAccessReport() {
-  const folderId = PropertiesService.getUserProperties().getProperty('DAY_PLANNER_ROOT_FOLDER_ID');
-  if (!folderId) throw new Error('Day Planner folder is not set up yet; open the app once to bind it');
+  const folderId = boundRootFolderId_();
   const folder = driveGrantRow_(Drive.Files.get(folderId, { fields: DRIVE_GRANT_META_FIELDS }));
   const files = [];
   let pageToken;
@@ -616,6 +620,42 @@ function driveWriteAccessReport() {
   } while (pageToken);
   const unwritable = [folder].concat(files).filter((f) => !f.appCanWrite).map((f) => f.id);
   return { ok: true, folder: folder, files: files, unwritable: unwritable };
+}
+
+/** Bound Day Planner folder id from UserProperties; throws (no discovery) when unset. */
+function boundRootFolderId_() {
+  const folderId = PropertiesService.getUserProperties().getProperty('DAY_PLANNER_ROOT_FOLDER_ID');
+  if (!folderId) throw new Error('Day Planner folder is not set up yet; open the app once to bind it');
+  return folderId;
+}
+
+// GCP project NUMBER of the project HOME is linked to; Picker grants drive.file to this app id.
+const PICKER_APP_ID = '951958469609';
+
+/**
+ * What the ?view=regrant page needs to open Google Picker: the user's OAuth token (web app is
+ * access MYSELF, so it only ever reaches the owner), the Picker API key from Script Properties
+ * (never in source: public repo), the project-number appId and the bound folder id.
+ * @returns {{token: string, apiKey: string, appId: string, folderId: string}}
+ */
+function getDriveRegrantConfig() {
+  const apiKey = PropertiesService.getScriptProperties().getProperty('PICKER_API_KEY');
+  if (!apiKey) throw new Error('PICKER_API_KEY script property is not set (Project Settings > Script Properties)');
+  return { token: ScriptApp.getOAuthToken(), apiKey: apiKey, appId: PICKER_APP_ID, folderId: boundRootFolderId_() };
+}
+
+function renderRegrantPage() {
+  const output = HtmlService.createTemplateFromFile('Regrant')
+    .evaluate()
+    .setTitle('Day Planner - Restore Drive Access')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  try {
+    output.setFaviconUrl(DAY_PLANNER_FAVICON_URL);
+  } catch (_favErr) {
+    console.error('renderRegrantPage: setFaviconUrl failed, serving without favicon\n' + _favErr.stack);
+  }
+  return output;
 }
 
 function getValidatedRootFolder() {
@@ -3474,7 +3514,8 @@ global._saveDailyDocCardsInternal = saveDailyDocCards;
 global._createDictationScratchDocInternal = createDictationScratchDoc;
 global._pullDictationScratchTextInternal = pullDictationScratchText;
 global._resolveDriveFileTitleInternal = resolveDriveFileTitle;
-global._driveWriteAccessReportInternal = driveWriteAccessReport; // gas-rpc (Execution API): read-only drive.file grant probe
+global._driveWriteAccessReportInternal = driveWriteAccessReport; // gas-rpc (Execution API) + google.script.run: Regrant.html
+global._getDriveRegrantConfigInternal = getDriveRegrantConfig;   // google.script.run: Regrant.html
 global._getFutureMatrixInternal = getFutureMatrix;
 global._addFutureItemInternal = addFutureItem;
 global._updateFutureItemStatusInternal = updateFutureItemStatus;
@@ -3624,6 +3665,10 @@ function resolveDriveFileTitle(url) {
 
 function driveWriteAccessReport() {
   return (typeof _driveWriteAccessReportInternal === 'function') ? _driveWriteAccessReportInternal() : (globalThis._driveWriteAccessReportInternal ? globalThis._driveWriteAccessReportInternal() : null);
+}
+
+function getDriveRegrantConfig() {
+  return (typeof _getDriveRegrantConfigInternal === 'function') ? _getDriveRegrantConfigInternal() : (globalThis._getDriveRegrantConfigInternal ? globalThis._getDriveRegrantConfigInternal() : null);
 }
 
 function getFutureMatrix(year) {
