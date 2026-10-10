@@ -142,4 +142,4 @@ Gmail (user applies 🎯/ label)                     Calendar (recurring series)
 ## 7. Test tiers
 
 A pure engines (`npm test`), B vm-loaded `.gs` with service fakes (`tests/helpers/gasRuntimeStubs.js`,
-`gasFakesHub.js`), C live `UnitTests.gs` self-test, D remote trigger/readback on HOME only. No `clasp run`.
+`gasFakesHub.js`), C live `UnitTests.gs` self-test, D remote run on HOME only via the Apps Script Execution API: `npm run rpc -- <fn>` (`tools/gas-rpc.js`, skill `gas-rpc`).

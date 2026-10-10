@@ -47,5 +47,8 @@
   "webapp": {
     "access": "MYSELF",
     "executeAs": "USER_DEPLOYING"
+  },
+  "executionApi": {
+    "access": "MYSELF"
   }
 }
