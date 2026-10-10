@@ -65,6 +65,14 @@ test('folder refusal is reported in unwritable too', () => {
   assert.deepEqual(toHost(ctx.driveWriteAccessReport()).unwritable, [FOLDER]);
 });
 
+test('the live drive.file refusal wording counts as a grant gap (HOME 2026-10-10)', () => {
+  const live = 'GoogleJsonResponseException: API call to drive.files.patch failed with error: The authenticated user has not granted the app 951958469609 write access to the file folder1';
+  const { ctx } = probeCtx({ patchError: { [FOLDER]: live, sheet1: live } });
+  const out = toHost(ctx.driveWriteAccessReport());
+  assert.deepEqual(out.unwritable, [FOLDER, 'sheet1']);
+  assert.equal(out.folder.error, live);
+});
+
 test('a non-permission Drive failure throws instead of being reported as a grant gap', () => {
   const { ctx } = probeCtx({ patchError: { doc1: 'Service unavailable: Drive' } });
   assert.throws(() => ctx.driveWriteAccessReport(), /Service unavailable/);

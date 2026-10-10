@@ -434,7 +434,7 @@ const DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mho
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const DAY_PLANNER_BUILD_NUMBER = 429;
+const DAY_PLANNER_BUILD_NUMBER = 430;
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -574,7 +574,7 @@ function driveFolderAccess_(folderId) {
 }
 
 const DRIVE_GRANT_META_FIELDS = 'id,title,mimeType';
-const DRIVE_PERMISSION_DENIED_RE = /does not have (sufficient )?permission|insufficient.*permission|insufficientFilePermissions/i;
+const DRIVE_PERMISSION_DENIED_RE = /has not granted the app \d+ write access|does not have (sufficient )?permission|insufficient.*permission|insufficientFilePermissions/i;
 
 /**
  * No-op metadata patch (empty body, modified date untouched): succeeds only when the app holds a
