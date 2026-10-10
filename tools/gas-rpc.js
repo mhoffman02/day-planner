@@ -3,15 +3,20 @@
  * @file tools/gas-rpc.js
  * @description Calls the Google Apps Script Execution API (scripts.run) on the HOME script so an
  * agent can run server-side GAS functions headlessly. Prints JSON results; exit code 0 = ok,
- * 1 = script/test failure, 2 = usage/auth/http error. HOME-only by design: the script ID is read
- * from gas-app/.clasp.json and there is no override flag.
+ * 1 = script/test failure, 2 = usage/auth/http error. HOME-only by design: it targets HOME's
+ * API-executable deployment and there is no override flag.
+ *
+ * Verified live 2026-10-10: scripts.run 404s for the script ID and for devMode:true; it only
+ * answers on the API-executable deployment ID with devMode:false, i.e. the code version that
+ * deployment points at. `--deploy` pushes @HEAD and repoints that deployment first.
  *
  * Usage:
- *   node tools/gas-rpc.js <functionName> [jsonArg ...] [--raw] [--prod]
+ *   node tools/gas-rpc.js <functionName> [jsonArg ...] [--raw] [--deploy]
  *
  * Auth: reuses the clasp login refresh token (~/.clasprc.json, or env GAS_RPC_CLASPRC).
  * Setup: npx clasp login --user rpc --creds ~/.config/day-planner/clasp-run-client.json --use-project-scopes
  */
+import { execFileSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -21,7 +26,15 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_CLASP_JSON = path.join(REPO_ROOT, 'gas-app', '.clasp.json');
 const LOGIN_HINT = 'Run: npx clasp login --user rpc --creds ~/.config/day-planner/clasp-run-client.json --use-project-scopes';
-const USAGE = 'Usage: node tools/gas-rpc.js <functionName> [jsonArg ...] [--raw] [--prod]';
+const USAGE = 'Usage: node tools/gas-rpc.js <functionName> [jsonArg ...] [--raw] [--deploy]';
+const HOME_SCRIPT_ID = '1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W';
+/** HOME's API-executable deployment (created 2026-10-10 as @299); scripts.run's target. */
+export const API_DEPLOYMENT_ID = 'AKfycbwT8sjqgk-Y7Q3ZZic5myURAKB3qQGTiHjJUgGDurDe_NN7wCaw1jDXVH85khj-wM0xhQ';
+const DEPLOY_DESCRIPTION = 'gas-rpc API executable';
+
+function claspDeploy(args) {
+  execFileSync('npx', args, { cwd: path.join(REPO_ROOT, 'gas-app'), stdio: ['ignore', process.stderr, process.stderr] });
+}
 
 function readJsonFile(filePath, label, hint) {
   let text;
@@ -140,7 +153,7 @@ export async function refreshAccessToken(creds, fetchImpl = fetch) {
 }
 
 /** Build the scripts.run request body. */
-export function buildRunRequest(functionName, parameters = [], devMode = true) {
+export function buildRunRequest(functionName, parameters = [], devMode = false) {
   if (!functionName || !/^[A-Za-z_$][\w$]*$/.test(functionName)) {
     throw new Error(`Invalid function name: ${JSON.stringify(functionName)}`);
   }
@@ -148,8 +161,8 @@ export function buildRunRequest(functionName, parameters = [], devMode = true) {
 }
 
 /** POST scripts.run; returns parsed JSON plus httpStatus. */
-export async function runFunction({ scriptId, accessToken, body, fetchImpl = fetch }) {
-  const res = await fetchImpl(`https://script.googleapis.com/v1/scripts/${scriptId}:run`, {
+export async function runFunction({ runId, accessToken, body, fetchImpl = fetch }) {
+  const res = await fetchImpl(`https://script.googleapis.com/v1/scripts/${runId}:run`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
@@ -162,7 +175,7 @@ function httpHint(status, apiStatus) {
   if (status === 403 || apiStatus === 'PERMISSION_DENIED') {
     return 'Script must be linked to the same standard GCP project as the OAuth client, Apps Script API enabled in that project, and `executionApi` present in the pushed manifest';
   }
-  if (status === 404) return 'scriptId wrong or no API-executable access (push manifest with executionApi)';
+  if (status === 404) return 'API_DEPLOYMENT_ID deleted, or its version lacks executionApi; check `clasp list-deployments`';
   if (status === 401) return 're-run clasp login';
   return undefined;
 }
@@ -215,24 +228,31 @@ function parseArg(s) {
 /**
  * CLI entry. Returns the exit code.
  */
-export async function main(argv, { fetchImpl = fetch, stdout = process.stdout, stderr = process.stderr, env = process.env } = {}) {
+export async function main(argv, { fetchImpl = fetch, deployImpl = claspDeploy, stdout = process.stdout, stderr = process.stderr, env = process.env } = {}) {
   const raw = argv.includes('--raw');
-  const prod = argv.includes('--prod');
-  const positional = argv.filter((a) => a !== '--raw' && a !== '--prod');
+  const deploy = argv.includes('--deploy');
+  const positional = argv.filter((a) => a !== '--raw' && a !== '--deploy');
   if (positional.length === 0) {
     stderr.write(`${USAGE}\n`);
     return 2;
   }
   try {
     const [fn, ...rawArgs] = positional;
-    const body = buildRunRequest(fn, rawArgs.map(parseArg), !prod);
-    const scriptId = readScriptId();
+    const body = buildRunRequest(fn, rawArgs.map(parseArg));
+    if (deploy) {
+      const scriptId = readScriptId(env.GAS_RPC_CLASP_JSON || DEFAULT_CLASP_JSON);
+      if (scriptId !== HOME_SCRIPT_ID) {
+        throw new Error(`--deploy refused: gas-app/.clasp.json targets ${scriptId}, not the HOME script`);
+      }
+      deployImpl(['clasp', 'push', '--force']);
+      deployImpl(['clasp', 'update-deployment', API_DEPLOYMENT_ID, '-d', DEPLOY_DESCRIPTION]);
+    }
     const creds = loadClaspCredentials(undefined, env);
     const statePath = env.GAS_RPC_STATE || path.join(os.homedir(), '.config', 'day-planner', 'gas-rpc-state.json');
     const ageWarning = checkTokenAge(creds.refreshToken, Date.now(), statePath);
     if (ageWarning) stderr.write(`${ageWarning}\n`);
     const accessToken = await refreshAccessToken(creds, fetchImpl);
-    const resp = await runFunction({ scriptId, accessToken, body, fetchImpl });
+    const resp = await runFunction({ runId: API_DEPLOYMENT_ID, accessToken, body, fetchImpl });
     const out = interpretRunResponse(resp);
     if (raw) {
       stdout.write(`${JSON.stringify(resp, null, 2)}\n`);

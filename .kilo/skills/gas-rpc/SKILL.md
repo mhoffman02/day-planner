@@ -6,34 +6,38 @@ description: Run any top-level HOME Apps Script function (runSelfTest, hubSpike,
 # gas-rpc — headless server-side test runner (Tier D)
 
 ```bash
-npm run rpc -- runSelfTest              # full live self-test; exit 1 if any check fails
+npm run rpc -- runSelfTest --deploy     # push @HEAD, repoint API deployment, run; exit 1 on any FAIL
+npm run rpc -- runSelfTest              # run against whatever version the API deployment points at
 node tools/gas-rpc.js hubSpike          # any top-level function in gas-app/*.gs
 node tools/gas-rpc.js someFn '"2026-10-10"' '{"dryRun":true}'   # args are JSON
 node tools/gas-rpc.js runSelfTest --raw # full scripts.run response
 ```
 
-- stdout = the function's return value as JSON. stderr = error object (`kind: http|script|client`, script errors carry the GAS stack).
-- Exit: `0` ok, `1` script threw or result reports failures (`passedCount !== totalTests`, `overallStatus` FAIL, or an array item with `status: 'FAIL'`), `2` usage/auth/HTTP.
-- `devMode: true` by default → runs **latest `clasp push`ed code (@HEAD)**, no deployment needed. Push first, then run. `--prod` runs the versioned API-executable deployment instead.
-- HOME only. The script ID comes from `gas-app/.clasp.json`; there is deliberately no override. WORK (GSA) cannot link a standard GCP project, so it can never use this.
+- stdout = the function's return value as JSON. stderr = error object (`kind: http|script|client`; script errors carry `errorType` and the GAS stack).
+- Exit: `0` ok, `1` script threw (e.g. `FUNCTION_NOT_FOUND`) or result reports failures (`passedCount !== totalTests`, `overallStatus` FAIL, or an array item with `status: 'FAIL'`), `2` usage/auth/HTTP.
+- **Run the code you just changed with `--deploy`.** Verified live 2026-10-10: `scripts.run` answers only on the API-executable deployment ID (`API_DEPLOYMENT_ID` in `tools/gas-rpc.js`) with `devMode: false`. The script ID and `devMode: true` both 404. So a run executes the deployment's pinned version; `--deploy` does `clasp push --force` + `clasp update-deployment <API id>` first, which creates a new version each time. Don't use `--deploy` in a loop when nothing changed.
+- `--deploy` is fine without asking: it touches only the API deployment, never the pinned web-app `/exec` deployment users open. It refuses unless `gas-app/.clasp.json` is the HOME script.
+- HOME only. WORK (GSA) cannot link a standard GCP project, so it can never use this.
 
 ## Callable functions
 
-Only names Apps Script's static scan sees as **top-level** functions — the same rule as `google.script.run` (see [[gas-namespace-iife]]). A function that exists only as `global.x = x` inside an IIFE returns "Script function not found". Add a top-level delegator for it first. Return values must be plain JSON (no GAS objects).
+Only names Apps Script's static scan sees as **top-level** functions — the same rule as `google.script.run` (see [[gas-namespace-iife]]). A function that exists only as `global.x = x` inside an IIFE returns `FUNCTION_NOT_FOUND`. Add a top-level delegator for it first. Return values must be plain JSON (no GAS objects).
 
-## One-time setup (already done once; redo only if auth breaks)
+## Setup (done 2026-10-10; redo only if auth breaks)
 
-1. HOME script linked to GCP project **Day Planner** (`day-planner-507615`, number `951958469609`) in IDE → Project Settings. Apps Script API enabled there. Consent screen stays in **Testing** by owner choice (not ready to publish/share), so the refresh token dies every **7 days**. The tool tracks first use of each token (`~/.config/day-planner/gas-rpc-state.json`, fingerprint only) and warns on stderr from day 6; on expiry it exits 2 with `invalid_grant … 7-day`. When you see either, **remind the user** and redo step 3 (one browser approval).
+1. HOME script linked to GCP project **Day Planner** (`day-planner-507615`, number `951958469609`); Apps Script API enabled there. Consent screen stays in **Testing** by owner choice (not ready to publish/share), so the refresh token dies every **7 days**. The tool tracks first use of each token (`~/.config/day-planner/gas-rpc-state.json`, fingerprint only) and warns on stderr from day 6; on expiry it exits 2 with `invalid_grant … 7-day`. When you see either, **remind the user** and redo step 3 (one browser approval).
 2. Desktop OAuth client JSON at `~/.config/day-planner/clasp-run-client.json` (never in the repo).
-3. `npx clasp login --user rpc --creds ~/.config/day-planner/clasp-run-client.json --use-project-scopes`. That stores `tokens.rpc` in `~/.clasprc.json`, apart from the `default` push login. The tool prefers `rpc`; override with `GAS_RPC_CLASP_USER` / `GAS_RPC_CLASPRC`.
+3. `cd gas-app && npx clasp --user rpc login --creds ~/.config/day-planner/clasp-run-client.json --use-project-scopes --redirect-port 8765`. It prints a URL for the user to approve. The token lands in `~/.clasprc.json` slot `rpc`, apart from the `default` push login.
 4. `gas-app/appsscript.json` carries `"executionApi": {"access": "MYSELF"}`.
+
+clasp credentials: `~/.clasprc.json` `default` and `rpc` = mhoffman02@gmail.com (HOME push/deploy and RPC); `~/.clasprc.work.json` = GSA (used only by `npm run push:work`). Deploying HOME as the GSA account fails with "Only users in the same domain as the script owner may deploy".
 
 ## Troubleshooting
 
 | Symptom | Cause |
 | :--- | :--- |
-| 403 `PERMISSION_DENIED` | Script not linked to the OAuth client's GCP project, Apps Script API off in that project, or `executionApi` missing in the pushed manifest |
-| 404 | Wrong scriptId or manifest without `executionApi` not yet pushed |
+| 404 `NOT_FOUND` | API deployment deleted, or its version predates `executionApi`; check `clasp list-deployments`, update `API_DEPLOYMENT_ID` |
+| 403 `PERMISSION_DENIED` | Script not linked to the OAuth client's GCP project, or Apps Script API off there |
 | 401 / `invalid_grant` | 7-day Testing expiry (or revoked); remind the user, redo setup step 3 |
-| `Script function not found` | Missing top-level delegator (see above) or not pushed |
-| New scope in manifest | Re-run step 3 so the token carries it; `--use-project-scopes` reads the manifest |
+| `FUNCTION_NOT_FOUND` | Missing top-level delegator, or not deployed (`--deploy`) |
+| New scope in manifest | Redo setup step 3 so the token carries it |

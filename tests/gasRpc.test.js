@@ -15,7 +15,8 @@ import {
   runFunction,
   interpretRunResponse,
   main,
-  checkTokenAge
+  checkTokenAge,
+  API_DEPLOYMENT_ID
 } from '../tools/gas-rpc.js';
 
 const SECRET_TOKEN = 'rt-SUPER-SECRET-VALUE';
@@ -116,7 +117,7 @@ test('runFunction sends correct request', async () => {
     return jsonResponse(200, { response: { result: 1 } });
   };
   const body = { function: 'f', parameters: [], devMode: true };
-  const out = await runFunction({ scriptId: 'SID', accessToken: 'tok', body, fetchImpl });
+  const out = await runFunction({ runId: 'SID', accessToken: 'tok', body, fetchImpl });
   assert.equal(seen.url, 'https://script.googleapis.com/v1/scripts/SID:run');
   assert.equal(seen.opts.headers.Authorization, 'Bearer tok');
   assert.deepEqual(JSON.parse(seen.opts.body), body);
@@ -215,17 +216,43 @@ test('main: exit 2 on usage', async () => {
   assert.match(io.err.join(''), /Usage/);
 });
 
-test('main: --prod sets devMode false and args are JSON parsed', async () => {
+test('main: calls the API-executable deployment (devMode false) and JSON-parses args', async () => {
   const io = makeIo();
   let sent;
+  let sentUrl;
   const fetchImpl = async (url, opts) => {
     if (String(url).includes('oauth2')) return jsonResponse(200, { access_token: 'at' });
+    sentUrl = String(url);
     sent = JSON.parse(opts.body);
     return jsonResponse(200, { done: true, response: { result: 'x' } });
   };
-  const code = await main(['fn', '{"a":1}', 'plain', '--prod'], { fetchImpl, stdout: io.stdout, stderr: io.stderr, env: makeEnv() });
+  const code = await main(['fn', '{"a":1}', 'plain'], { fetchImpl, stdout: io.stdout, stderr: io.stderr, env: makeEnv() });
   assert.equal(code, 0);
+  assert.equal(sentUrl, `https://script.googleapis.com/v1/scripts/${API_DEPLOYMENT_ID}:run`);
   assert.deepEqual(sent, { function: 'fn', parameters: [{ a: 1 }, 'plain'], devMode: false });
+});
+
+test('main: --deploy pushes and repoints the API deployment before running', async () => {
+  const io = makeIo();
+  const steps = [];
+  const fetchImpl = async (url) => {
+    if (String(url).includes('oauth2')) return jsonResponse(200, { access_token: 'at' });
+    steps.push('run');
+    return jsonResponse(200, { done: true, response: { result: 1 } });
+  };
+  const deployImpl = (args) => steps.push(args.join(' '));
+  const code = await main(['fn', '--deploy'], { fetchImpl, deployImpl, stdout: io.stdout, stderr: io.stderr, env: makeEnv() });
+  assert.equal(code, 0);
+  assert.deepEqual(steps, ['clasp push --force', `clasp update-deployment ${API_DEPLOYMENT_ID} -d gas-rpc API executable`, 'run']);
+});
+
+test('main: --deploy refuses when gas-app/.clasp.json is not the HOME script', async () => {
+  const io = makeIo();
+  const deployImpl = () => assert.fail('must not deploy');
+  const env = { ...makeEnv(), GAS_RPC_CLASP_JSON: tmpFile('clasp.json', { scriptId: 'WORK-ID' }) };
+  const code = await main(['fn', '--deploy'], { fetchImpl: fakeFetch(200, {}), deployImpl, stdout: io.stdout, stderr: io.stderr, env });
+  assert.equal(code, 2);
+  assert.match(io.err.join(''), /HOME/);
 });
 
 test('appsscript.json has executionApi and unchanged webapp', () => {
