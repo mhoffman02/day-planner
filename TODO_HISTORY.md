@@ -1,5 +1,15 @@
 # Task History (TODO_HISTORY)
 
+## 2026-10-10 — Tier D: headless server-side test runner (Execution API)
+
+- [x] **`tools/gas-rpc.js`** (`npm run rpc -- <fn> [--deploy]`, skill `gas-rpc`): runs top-level HOME GAS functions via
+  `scripts.run`, prints JSON, exits 0/1/2: `c702561`, 7-day Testing token reminder `a2c7774`.
+- [x] **Live-verified**: `runSelfTest --deploy` = HEALTHY 7/7; unknown function = `FUNCTION_NOT_FOUND` exit 1: `59e4119`.
+  `scripts.run` answers only on the API-executable deployment ID (`AKfycbwT8sjq…`) with `devMode:false`.
+- [x] **GCP**: HOME script linked to "Day Planner" (`day-planner-507615`, #951958469609); Desktop OAuth client
+  `…1oe2h6on…`; consent screen kept in Testing (user choice). clasp creds split: `~/.clasprc.json` default+rpc =
+  Gmail, `~/.clasprc.work.json` = GSA (push:work only).
+
 ## 2026-10-09/10 — Phase 28 Push Gate Passed; Fail-Loud + Fail-Closed Hardening (784 tests)
 
 - [x] **Push gate**: user approved; `gmail.readonly` + Gmail/Sheets Advanced Services pushed to HOME `/dev`;

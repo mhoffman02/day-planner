@@ -13,10 +13,14 @@
 
 ## Phase 28: Gmail / Meeting Hub — live HOME verification (In Progress)
 
-HOME `/dev` runs `781c521` (pushed 2026-10-10 10:02). Pinned prod `/exec` NOT redeployed since the scope change.
+HOME `/dev` and the gas-rpc API deployment (@301) run `59e4119`. Pinned prod `/exec` (@297) NOT redeployed since the scope change.
 
-- [ ] **Fast-forward `pure-gas-main`** to `feat/gmail-meeting-hub` (`781c521`); user runs the merge.
-- [ ] **Rerun `UnitTests.gs:hubSpike`** (user): expect `RESULT: PASS` now that `UserEmail` is filled.
+- [ ] **Fast-forward `pure-gas-main`** to `feat/gmail-meeting-hub`; user runs the merge.
+- [ ] **Rerun `hubSpike`** yourself: `npm run rpc -- hubSpike` (expect `RESULT: PASS` now that `UserEmail` is filled).
+- [ ] **Watch the 7-day Testing expiry**: does the web app or the 5-min sync trigger start failing auth weekly now
+  that the script is linked to a Testing-mode GCP project? gas-rpc warns on day 6 (rpc login dies 2026-10-17).
+- [ ] **Publish consent screen** (user, "once it's working"), then rerun the rpc login (skill `gas-rpc` setup step 3)
+  and drop the 7-day notes from the skill doc.
 - [ ] **Live `/dev` checks** via `tools/ensure-chrome.js` + `tools/e2e/*` only:
   error tray (Retry, "+N more", auto-resolve); Create Appointment lands in the right slot; "Add Google Meet"
   (light + dark) and a real `meetError`; stale "offline copy" notices; task notes edit persists to Google;

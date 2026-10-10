@@ -1,5 +1,5 @@
-<!-- handoff: branch=feat/gmail-meeting-hub worktree=/home/mike/projects/day-planner/.claude/worktrees/today-hover-zoom base=781c52154cb1 written=2026-10-10T10:35:13-07:00 -->
-# Resume: Phase 28 hub is live on HOME /dev and hardened; next is live verification
+<!-- handoff: branch=feat/gmail-meeting-hub worktree=/home/mike/projects/day-planner/.claude/worktrees/today-hover-zoom base=59e4119c5ade written=2026-10-10T13:37:34-07:00 -->
+# Resume: agent can now run HOME server-side tests headlessly; next is Phase 28 live verification
 
 > **WARNING: written on branch `feat/gmail-meeting-hub`** (worktree `/home/mike/projects/day-planner/.claude/worktrees/today-hover-zoom`),
 > not `pure-gas-main`. Until merged, `pure-gas-main`'s copy of this file is stale. Merge:
@@ -7,42 +7,45 @@
 
 **Verify first:**
 `git log --branches --remotes -1 --abbrev=12 --format='%h %p %cI' -- HANDOFF.md`
-Stale if that commit is dated after `2026-10-10T10:35:13-07:00` **and** its parent isn't `781c52154cb1`. Then
-`git log --oneline 781c52154cb1..feat/gmail-meeting-hub`: anything besides the handoff commit landed after this prompt.
+Stale if that commit is dated after `2026-10-10T13:37:34-07:00` **and** its parent isn't `59e4119c5ade`. Then
+`git log --oneline 59e4119c5ade..feat/gmail-meeting-hub`: anything besides the handoff commit landed after this prompt.
 
-**Start by:** ask the user for the results of (1) `UnitTests.gs:hubSpike` (expect `RESULT: PASS`) and (2) the live `/dev` checks in
-[`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) "Phase 28" section, and whether to redeploy pinned prod `/exec`
-(held: carries `gmail.readonly`). If they want help with the `/dev` checks, drive them with `node tools/ensure-chrome.js` + `tools/e2e/*`.
+**Start by:** `npm run rpc -- hubSpike` and read the JSON (expect `RESULT: PASS`). On failure, fix red-test-first, then
+`npm run rpc -- <fn> --deploy` to rerun against the new code.
 
 ## OBJECTIVE
-Phase 28 makes Day Planner a workflow hub: Gmail triage to Google Tasks, recurring-meeting prep from Calendar, app-owned
-meeting-notes Docs. Code is pushed to HOME `/dev`; this session also hardened the whole app to fail loud and fail closed.
+Phase 28 makes Day Planner a workflow hub: Gmail triage to Google Tasks, recurring-meeting prep, app-owned meeting-notes
+Docs. It is live on HOME `/dev`. This session added test tier D so the agent runs server-side GAS tests itself
+("I want YOU to be able to run tests and read results directly, hands-free for me").
 
 ## KEY DECISIONS
-- Gmail read-only (`gmail.readonly`, Advanced Gmail; `GmailApp` lint-banned); labels `🎯/...` applied by hand.
-- No `userinfo.email` scope: user email comes from `Gmail.Users.getProfile('me')`, stored in Config `UserEmail`.
-- Folder access via `Drive.Files.get(...userPermission)`; fail closed (`driveFolderAccess_` in [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs)).
-- Every catch rethrows or `console.error`s its stack; enforced by [`tools/check-catch-logging.js`](file:///home/mike/projects/day-planner/tools/check-catch-logging.js) in lint + pre-commit.
-- Client errors go to a keyed error tray; saves go through a per-item queue (`createSaveQueue` in [`src/saveGuard.js`](file:///home/mike/projects/day-planner/src/saveGuard.js)) with rollback; note timers per date; deletes cancel queued saves.
-- Meeting retries never guess a series (`MISSING_SERIES`/`SERIES_CONFLICT`/`CORRUPT_METADATA`).
-- Day windows use the primary calendar time zone. Meet: retry without conference only on an explicit conference rejection; poll pending up to 3x; problems reported only via `meetError`.
-- Subagents: tier agents `lite`/`worker`/`deep` (`~/.claude/agents/`), cheapest capable model AND effort, no advisor, TDD + exit criteria ([`.agents/rules/subagent-model-cost.md`](file:///home/mike/projects/day-planner/.agents/rules/subagent-model-cost.md)).
+- Tier D = Apps Script Execution API, not a signed `doGet`: [`tools/gas-rpc.js`](file:///home/mike/projects/day-planner/tools/gas-rpc.js),
+  skill [`.agents/skills/gas-rpc/SKILL.md`](file:///home/mike/projects/day-planner/.agents/skills/gas-rpc/SKILL.md). HOME only (GSA can't link a GCP project).
+- `scripts.run` answers ONLY on the API-executable deployment ID (`AKfycbwT8sjq…`) with `devMode:false`; script ID and
+  `devMode:true` both 404 (verified live). `--deploy` = `clasp push` + `clasp update-deployment` of that ID; never touches pinned `/exec`.
+- HOME script linked to GCP "Day Planner" (`day-planner-507615`, #951958469609). Desktop OAuth client `…1oe2h6on…` (the
+  `…i2q6…` Web client is the old GIS one, unusable by clasp).
+- Consent screen stays in **Testing** by user choice ("not ready to share"); rpc refresh token dies every 7 days. The tool warns from
+  day 6. User will publish "once it's working"; then re-login.
+- clasp creds: `~/.clasprc.json` `default` + `rpc` = mhoffman02@gmail.com; `~/.clasprc.work.json` = GSA (push:work only). The
+  old GSA `default` made HOME deploys fail ("Only users in the same domain...").
+- Earlier Phase 28 decisions (gmail.readonly only, fail-loud/fail-closed, series never guessed) stand; see `PLAN.md` Phase 28.
 
 ## CURRENT STATE
-- Branch `feat/gmail-meeting-hub` at `781c521` (+ this handoff commit), NOT yet merged to `pure-gas-main` (last ff was before `b13d15b`).
-- Lint clean, 784/784 tests pass. HOME `/dev` = `781c521` (pushed 2026-10-10 10:02). Pinned prod `/exec` not redeployed since the scope change.
-- Sheets-under-`drive.file` spike PASSED on HOME; `hubSpike` failed at Config only because `UserEmail` was blank (user filled it); rerun pending.
+- Branch `feat/gmail-meeting-hub` at `59e4119` (+ this handoff commit), pushed to origin; NOT merged to `pure-gas-main`.
+- Lint clean, 811/811 tests. HOME `/dev` and API deployment @301 run the `59e4119` code; pinned prod `/exec` still @297.
+- Live: `npm run rpc -- runSelfTest --deploy` = HEALTHY 7/7 (exit 0).
 
 ## CONSTRAINTS & PREFERENCES
-- Terse, start with `🔋Mike:`; commit directly, no PR theater. "Force fails. TDD. Fail loud. NEVER fail silent!"; fix pre-existing fail-open bugs, do not just report them.
-- Name IDE functions only as `File.gs:fn` (e.g. "run `UnitTests.gs:hubSpike`"), no how-to steps.
-- Browser checks only via `tools/ensure-chrome.js` + `tools/e2e/*`. No pills. GAS HTML: no `//` in strings, no apostrophes/backticks in comments.
-- Worktree-isolated sessions refuse compound git commands: run plain single git commands.
+- Terse, start with `🔋Mike:`; commit directly, no PR theater. "Force fails. TDD. Fail loud. NEVER fail silent!"
+- Run GAS functions yourself via `npm run rpc`; only ask the user to click Run when gas-rpc can't (auth expired → give them the login URL).
+- Name IDE functions as `File.gs:fn`. Browser checks only via `tools/ensure-chrome.js` + `tools/e2e/*` (the CDP profile is NOT signed in to Google).
+- Subagents: tier agents `lite`/`worker`/`deep`, cheapest capable, exit criteria + TDD. Worktree sessions refuse compound git commands.
 
 ## OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
-1. Live HOME verification: `hubSpike` rerun + `/dev` UX checks ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) lines 14-27).
-2. Merge `feat/gmail-meeting-hub` into `pure-gas-main`; decide pinned prod `/exec` deploy.
-3. `🎯/` labels + 2-3 test threads, DRY_RUN smoke, steps L1-L8 ([`docs/hub-setup-and-gate.md`](file:///home/mike/projects/day-planner/docs/hub-setup-and-gate.md)); then WORK via `npm run push:work`.
+1. `hubSpike` via gas-rpc, then the live `/dev` UX checks ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) lines 19, 24-27).
+2. User: merge to `pure-gas-main`, decide pinned prod `/exec` deploy (carries `gmail.readonly`) ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) lines 18, 28).
+3. Watch for the 7-day Testing expiry hitting the web app or triggers; publish + re-login when the user says so ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) lines 20-23).
 
 ## IMMEDIATE NEXT STEP
-Ask: "hubSpike result? `/dev` checks done? Deploy pinned prod `/exec` (carries `gmail.readonly`)?" Act on the answers; fix any failure red-test-first.
+`npm run rpc -- hubSpike`

@@ -52,6 +52,7 @@ matrix in `docs/hub-*.md`. Branch `feat/gmail-meeting-hub` (`781c521`, ahead of 
 - [x] Wave 3: registry persistence (`DPConfig.updateRegistryRow`), contract parity tests, acceptance matrix, docs.
 - [x] **PUSH GATE**: approved and pushed to HOME `/dev` 2026-10-09; Gmail + Sheets in IDE Services; re-consented.
 - [x] Hardening: fail-loud catches, fail-closed saves, error tray, `createCalendarEvent` + Meet, calendar-TZ day windows.
+- [x] Test tier D: agent runs HOME GAS functions headlessly, `npm run rpc -- <fn> --deploy` (skill `gas-rpc`), live 7/7.
 - [ ] **Live HOME verification** (in progress): Sheets spike PASSED; remaining: `hubSpike` rerun, `/dev` UX checks,
   emoji label resolution, DRY_RUN smoke, real-service steps L1-L8 (checklist in `TODO.md`).
 - [ ] **Pinned prod `/exec`**: redeploy only on user go (carries `gmail.readonly`).
