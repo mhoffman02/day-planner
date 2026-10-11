@@ -15,8 +15,7 @@
 
 Re-granted via `?view=regrant` (Google Picker, appId 951958469609). Probe `unwritable: []`; L5 `processWorkflowQueue`
 3 processed, 0 errors. Left:
-- [ ] Probe only checks one level deep: files under the `2026` subfolder are unchecked. Edit a Daily Note on HOME
-  `/dev` and check the error tray; if it fails, open `?view=regrant` and pick that subfolder's files.
+- [x] `2026` subfolder notes writable: Daily Note save on HOME `/dev` persisted across reload (2026-10-10).
 - [ ] `processWorkflowQueue` returns `ok:true` with `counts.errors: 3` and `errors: []`, so gas-rpc exits 0 on a fully
   failed run. Fix red-test-first (Phase 29 step 0).
 
