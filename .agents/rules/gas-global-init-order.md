@@ -1,34 +1,37 @@
-# GAS Cross-File Global Init Order
+# GAS Shared State: No Global Variables, Only Namespace Objects With Getters/Setters
 
-All `.gs` files in an Apps Script project execute as if concatenated into one script, sharing
-one global scope. Function declarations are hoisted, so calling a function from another file is
-always safe regardless of file order. Top-level `var`/`let`/`const` *initializers* are not
-hoisted the same way, and Google does not officially document the cross-file load order — but
-`clasp push` (how this project deploys) verifiably executes files in plain alphabetical-by-filename
-order, overriding any manual reorder done in the Apps Script editor's own file-list UI (confirmed:
-[clasp#72](https://github.com/google/clasp/issues/72),
-[Apps Script community thread](https://groups.google.com/g/google-apps-script-community/c/wqIdm0Cfj0g)).
-So a top-level initializer that calls a function/service defined in a file that sorts later can
-silently read `undefined` instead of erroring.
+All `.gs` files in an Apps Script project share one global scope, and `clasp push` loads them in
+alphabetical-by-filename order ([clasp#72](https://github.com/google/clasp/issues/72)). A global
+variable read from another file can therefore be `undefined` or stale depending on which file
+sorted first. That is a load-order race, and it fails silently. Function declarations are hoisted,
+so a call made at run time is always safe. A variable read at load time is not.
 
-- MUST NOT write a top-level `var`/`let`/`const` in `gas-app/*.gs` whose initializer is anything
-  other than a literal (string/number/boolean/regex, or an array/object built only from literals).
-- MUST initialize anything that needs a function call, a service handle (`CacheService...`,
-  `PropertiesService...`), or another global's value lazily — inside a function, computed on
-  first call (memoize in a module-local variable if reuse matters) — never as a top-level
-  initializer.
-- MUST NOT "fix" ordering by renaming a file to sort first (e.g. `_globals.gs`, `0_Globals.gs`).
-  That only relocates the hazard onto a naming convention that the next added file can silently
-  violate (`0Aardvark.gs` sorts *before* `0_Globals.gs` — `A` < `_` in ASCII). The hoisted-function
-  approach above has no file-order dependency at all, so prefer it outright rather than trying to
-  win the alphabet.
-- Enforced by `node tools/check-gas-global-init-order.js` (`npm run lint`, pre-commit).
+- MUST NOT create global variables. No top-level `var`/`let`/`const` outside a file's IIFE (see
+  [[gas-namespace-iife]]), and no `global.SOME_VALUE = value` exports of bare constants or state.
+- MUST keep every shared value inside an IIFE-built global object (the "g"-style namespace:
+  `DPConfig`, `DPQueue`, `DPEngines`, ...), frozen with `Object.freeze`. The value itself stays
+  private to the IIFE. Other files read it through a getter (`DPConfig.sheetsMeter()`) and change it
+  through a setter (`DPConfig.resetSheetsMeter()`, `DPConfig.setFeature(k, v)`), never by direct
+  property access.
+- MUST read namespaces lazily, inside a function at call time (`global.DPConfig.getSheetId()`),
+  never in a top-level initializer, because the owning file may not have loaded yet.
+- Anything needing a function call or service handle (`PropertiesService...`, `CacheService...`)
+  is built on first use inside a getter and memoized in an IIFE-private variable.
+- MUST NOT "fix" ordering by renaming a file to sort first (`_globals.gs`, `0_Globals.gs`). The next
+  added file can sort ahead of it (`0Aardvark.gs` < `0_Globals.gs`). Getters have no file-order
+  dependency at all.
+- Exception: the top-level delegator functions in `Code.gs` that `google.script.run`, `doGet`,
+  triggers and the IDE need (see [[gas-namespace-iife]]). They are hoisted functions, not variables.
 
-Current safe examples in `gas-app/Code.gs`: `DAY_PLANNER_FAVICON_URL`, `APP_VERSION`,
-`TASK_STATUS_MARKER_RE`, `TASK_EXTRA_STATUSES`, `TASK_META_MARKER_RE` — all literals, no
-cross-file load-order dependency. See [[single-source-of-truth-constants]] for the related (but
-distinct) rule about not hand-duplicating the *value* of a shared constant across files.
+Reference: the Sheets meter in `gas-app/Config.gs` (`sheetsMeter_` is IIFE-private, exposed only via
+`DPConfig.sheetsMeter()` / `DPConfig.resetSheetsMeter()`).
 
-**Why:** a load-order-dependent top-level global would fail intermittently/silently rather than
-at a predictable point, and Apps Script gives no API to pin file load order the way ES module
-imports do.
+Known violations to migrate: `global.DAY_PLANNER_FAVICON_URL` (read by `UnitTests.gs`) and
+`global.DAY_PLANNER_BUILD_NUMBER` (read by the `Index.html` template scriptlet, stamped by the
+pre-commit hook) in `gas-app/Code.gs`.
+
+See [[single-source-of-truth-constants]] for the related rule about not duplicating a shared value.
+
+**Why:** the user, 2026-10-10: "NO GLOBAL variables -- wrap them all in a 'g' type global object to
+avoid races." The older version of this rule allowed literal-only top-level globals and cited a
+checker script (`tools/check-gas-global-init-order.js`) that no longer exists.

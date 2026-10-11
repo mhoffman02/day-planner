@@ -12,7 +12,7 @@ MUST NOT: invent GAS method names or signatures. Verify at `https://developers.g
 ## This repo's GAS rules (these win over anything in `reference/`)
 
 - [gas-namespace-iife](../../rules/gas-namespace-iife.md): IIFE per `.gs` file, export surface, top-level delegators.
-- [gas-global-init-order](../../rules/gas-global-init-order.md): literal-only top-level initializers (clasp pushes alphabetically).
+- [gas-global-init-order](../../rules/gas-global-init-order.md): no global variables; shared values live in frozen IIFE namespace objects behind getters/setters (clasp pushes alphabetically).
 - [gas-html-safe-chars](../../rules/gas-html-safe-chars.md): no literal `//`, backticks or apostrophes in `gas-app/*.html` strings/comments.
 - [gas-environments](../../rules/gas-environments.md): HOME vs WORK scripts, dev/exec endpoints.
 - [fail-loud-catch](../../rules/fail-loud-catch.md): every catch logs or rethrows.
