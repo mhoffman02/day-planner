@@ -207,6 +207,28 @@ test('#4 queue: a run whose items fail reports ok:false with each failure in err
   assert.equal(r.errors[0].operationKey, 'GMAIL|t1|TASK');
   assert.equal(typeof r.errors[0].message, 'string');
   assert.ok(r.errors[0].code, JSON.stringify(r.errors[0]));
+  assert.equal(r.status, 'FAILED', 'every attempted item failed');
+  assert.match(r.message, /^1 of 1 items failed/);
+});
+
+test('#4 queue: some items fail -> status PARTIAL, message leads with the failure count', () => {
+  const ctx = makeHubContext({ features: LIVE });
+  addThread(ctx, { id: 't1', labels: ['🎯/Task'], subject: 'Good one' });
+  addThread(ctx, { id: 't2', labels: ['🎯/Task'], subject: 'Bad one' });
+  ctx.__hub.tasks.onInsert = (res) => { if (/Bad one/.test(res.title)) { const e = new Error('Backend Error'); e.code = 500; throw e; } };
+  const r = run(ctx);
+  assert.equal(r.ok, false);
+  assert.equal(r.status, 'PARTIAL', JSON.stringify(r));
+  assert.match(r.message, /^1 of 2 items failed/);
+  assert.equal(r.errors[0].operationKey, 'GMAIL|t2|TASK');
+});
+
+test('#4 queue: a clean run keeps status DONE', () => {
+  const ctx = makeHubContext({ features: LIVE });
+  addThread(ctx, { id: 't1', labels: ['🎯/Task'] });
+  const r = run(ctx);
+  assert.equal(r.ok, true);
+  assert.equal(r.status, 'DONE');
 });
 
 // ---------------------------------------------------------------- #5 quota / runtime

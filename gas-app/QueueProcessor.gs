@@ -500,12 +500,15 @@ function runLocked_(dry, features) {
     }
     counts.errors += collectErrors;
     counts.timeLimited = timeLimited;
-    var status = dry ? 'DRY_RUN' : 'DONE';
+    // Outcome in words, not just ok: FAILED = nothing succeeded, PARTIAL = some items failed.
+    var succeeded = counts.processed + counts.skipped + counts.inFlight;
+    var status = dry ? 'DRY_RUN' : (counts.errors === 0 ? 'DONE' : (succeeded === 0 ? 'FAILED' : 'PARTIAL'));
+    var failedLead = counts.errors ? counts.errors + ' of ' + (succeeded + counts.errors) + ' items failed; ' : '';
     // DRY_RUN never touches the live HUB_LAST_RUN record, only its own clearly named property.
     PropertiesService.getUserProperties().setProperty(dry ? QUEUE_LAST_RUN_DRY_PROP_ : QUEUE_LAST_RUN_PROP_, JSON.stringify({ at: new Date().toISOString(), status: status, counts: counts }));
     var done = !timeLimited && items.length <= settings.batchSize;
     return E.makeResult({ ok: counts.errors === 0, status: status,
-      message: (dry ? 'Dry run: ' : '') + counts.processed + ' processed, ' + counts.skipped + ' skipped, ' + counts.errors + ' errors, ' + counts.quarantined + ' quarantined' +
+      message: failedLead + (dry ? 'Dry run: ' : '') + counts.processed + ' processed, ' + counts.skipped + ' skipped, ' + counts.errors + ' errors, ' + counts.quarantined + ' quarantined' +
         (timeLimited ? ', stopped at the ' + (QUEUE_MAX_RUN_MS_ / 60000) + ' minute time limit (' + counts.notStarted + ' not started; they resume next run)' : ''),
       counts: counts, messages: messages, errors: errors, done: done });
   } finally {
