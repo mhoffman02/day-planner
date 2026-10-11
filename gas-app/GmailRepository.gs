@@ -153,6 +153,19 @@ function address_(from) {
 }
 
 /**
+ * The Advanced Gmail service returns body.data already decoded, as a byte array; base64-decoding it threw
+ * "Could not decode string." live (2026-10-10). A string (REST shape: base64url, unpadded) is decoded.
+ * @param {Array<number>|string} data body.data
+ * @returns {Array<number>} Bytes for Utilities.newBlob.
+ */
+function bodyBytes_(data) {
+  if (typeof data !== 'string') return data;
+  var s = data;
+  while (s.length % 4 !== 0) s += '=';
+  return Utilities.base64DecodeWebSafe(s);
+}
+
+/**
  * Extracts plain text from a full-format payload, in memory only, capped.
  * @param {object} payload Gmail message payload.
  * @returns {string} Up to the cap of plain text.
@@ -164,7 +177,7 @@ function bodyText_(payload) {
     var part = stack.shift();
     if (!part) continue;
     if (part.mimeType === 'text/plain' && part.body && part.body.data) {
-      out.push(Utilities.newBlob(Utilities.base64DecodeWebSafe(part.body.data)).getDataAsString());
+      out.push(Utilities.newBlob(bodyBytes_(part.body.data)).getDataAsString());
     }
     (part.parts || []).forEach(function(p) { stack.push(p); });
   }

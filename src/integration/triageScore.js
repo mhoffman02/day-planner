@@ -6,6 +6,8 @@
  * threads for human review.
  */
 
+import { LEDGER_STATUS } from './contracts.js';
+
 export const TRIAGE_BAND = Object.freeze({
   HIGH_CONFIDENCE: 'HIGH_CONFIDENCE',
   HUMAN_REVIEW: 'HUMAN_REVIEW',
@@ -142,7 +144,7 @@ export function scoreThread(thread, config) {
 
 /**
  * Assign a triage queue. Existing labels (00_AR, FYI_Candidate, ...) are hints only.
- * @param {{labels:string[]}} thread
+ * @param {{labels:string[], ledgerStatus?:string}} thread ledgerStatus ERROR forces System Exceptions.
  * @param {{band:string}} scoreResult
  * @returns {string} one of TRIAGE_QUEUE values
  */
@@ -151,6 +153,8 @@ export function queueFor(thread, scoreResult) {
   if (!scoreResult || !(scoreResult.band in TRIAGE_BAND)) throw new Error('queueFor: valid scoreResult required');
   const labels = thread.labels;
   const band = scoreResult.band;
+  // A failed hub operation needs the user's Retry, so it beats every band and label rule.
+  if (thread.ledgerStatus === LEDGER_STATUS.ERROR) return TRIAGE_QUEUE.SYSTEM_EXCEPTIONS;
   if (TRIAGE_EXCEPTION_LABELS.some((l) => triageHasLabel(labels, l))) return TRIAGE_QUEUE.SYSTEM_EXCEPTIONS;
   if (band === TRIAGE_BAND.HIGH_CONFIDENCE) return TRIAGE_QUEUE.DIRECT_ACTION;
   if (band === TRIAGE_BAND.NOISE) return TRIAGE_QUEUE.FYI_READING;

@@ -40,8 +40,9 @@
         var mEl = document.getElementById('manifest-link');
         if (mEl && typeof window !== 'undefined' && window.location && window.location.href) {
           var raw = mEl.getAttribute('href');
-          if (raw && raw.indexOf('data:application/manifest+json,') === 0) {
-            var m = JSON.parse(decodeURIComponent(raw.substring(29)));
+          var prefix = 'data:application/manifest+json,';
+          if (raw && raw.indexOf(prefix) === 0) {
+            var m = JSON.parse(decodeURIComponent(raw.slice(prefix.length)));
             m.start_url = window.location.href;
             var blob = new Blob([JSON.stringify(m)], { type: 'application/manifest+json' });
             mEl.href = URL.createObjectURL(blob);

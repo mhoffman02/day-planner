@@ -93,6 +93,11 @@ describe('safety and queues', () => {
     assert.equal(queueFor(thread({}, ['FYI_Candidate']), { band: TRIAGE_BAND.LIKELY_FYI, score: 2, signals: [] }), TRIAGE_QUEUE.FYI_READING);
     assert.equal(queueFor(thread({}, ['00_AR']), mid), TRIAGE_QUEUE.DIRECT_ACTION);
   });
+  it('queueFor sends a thread whose ledger op failed to System Exceptions, whatever its band', () => {
+    const hi = { band: TRIAGE_BAND.HIGH_CONFIDENCE, score: 9, signals: [] };
+    assert.equal(queueFor({ ...thread({}, ['🎯/Task']), ledgerStatus: 'ERROR' }, hi), TRIAGE_QUEUE.SYSTEM_EXCEPTIONS);
+    assert.equal(queueFor({ ...thread({}, ['VIP']), ledgerStatus: 'DONE' }, hi), TRIAGE_QUEUE.DIRECT_ACTION);
+  });
   it('00_AR alone does not change score (hint only)', () => {
     assert.equal(scoreThread(thread({}, ['00_AR'])).score, scoreThread(thread({}, [])).score);
   });

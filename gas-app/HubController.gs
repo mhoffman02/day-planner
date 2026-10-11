@@ -375,13 +375,6 @@ function getTriageBoard(filters) {
   if (Array.isArray(f.labels) && f.labels.length && f.labels.length <= 10 && f.labels.every(function(l) { return typeof l === 'string' && l.length <= 100; })) labels = f.labels;
   try {
     var E = DPEngines;
-    var ids = [];
-    var seen = {};
-    labels.forEach(function(label) {
-      DPGmailRepo.listThreadsByLabel(label, { maxResults: limit }).threadIds.forEach(function(id) {
-        if (!seen[id] && ids.length < limit) { seen[id] = true; ids.push(id); }
-      });
-    });
     var ledgerByThread = {};
     var dismissed = {};
     DPLedgerRepo.list({ sourceType: 'GMAIL' }).forEach(function(r) {
@@ -389,9 +382,18 @@ function getTriageBoard(filters) {
       var cur = ledgerByThread[r.SourceId];
       if (!cur || (r.Status === E.LEDGER_STATUS.ERROR && cur.Status !== E.LEDGER_STATUS.ERROR) || (cur.Status !== E.LEDGER_STATUS.ERROR && String(r.UpdatedAt) > String(cur.UpdatedAt))) ledgerByThread[r.SourceId] = r;
     });
+    var ids = [];
+    var seen = {};
+    var add = function(id) { if (!seen[id] && ids.length < limit) { seen[id] = true; ids.push(id); } };
+    // Failed ops first: a 🎯/Task thread carries no triage label, so without this its ERROR has no Retry anywhere.
+    Object.keys(ledgerByThread).forEach(function(id) { if (ledgerByThread[id].Status === E.LEDGER_STATUS.ERROR) add(id); });
+    labels.forEach(function(label) {
+      DPGmailRepo.listThreadsByLabel(label, { maxResults: limit }).threadIds.forEach(add);
+    });
     var queues = {};
     Object.keys(E.TRIAGE_QUEUE).forEach(function(k) { queues[HUB_QUEUE_KEYS_[E.TRIAGE_QUEUE[k]]] = []; });
     var errors = 0;
+    var itemErrors = [];
     ids.forEach(function(id) {
       if (dismissed[id] && f.includeDismissed !== true) return;
       try {
@@ -399,9 +401,9 @@ function getTriageBoard(filters) {
         var scored = E.scoreThread({ labels: t.labels, userEmail: t.userEmail, messages: t.messages.map(function(m) {
           return { from: m.from, to: m.to, cc: m.cc, date: m.date, bodyText: m.bodyText, isFromUser: m.isFromUser };
         }) });
-        var queue = E.queueFor({ labels: t.labels }, scored);
-        var last = t.messages[t.messages.length - 1];
         var led = ledgerByThread[id] || null;
+        var queue = E.queueFor({ labels: t.labels, ledgerStatus: led ? led.Status : null }, scored);
+        var last = t.messages[t.messages.length - 1];
         var routing = E.suggestDestinations(t.labels);
         queues[HUB_QUEUE_KEYS_[queue]].push({
           threadId: id, url: t.url, subject: t.subject, fromName: last ? last.fromName : '', date: last ? last.date : '', labels: t.labels,
@@ -412,12 +414,13 @@ function getTriageBoard(filters) {
         });
       } catch (itemErr) {
         errors += 1;
+        itemErrors.push({ threadId: id, message: E.sanitizeError(itemErr) });
         DPQueue.logSafe('getTriageBoard item', itemErr);
       }
     });
     Object.keys(queues).forEach(function(q) { queues[q].sort(function(a, b) { return b.score - a.score; }); });
     var total = Object.keys(queues).reduce(function(n, q) { return n + queues[q].length; }, 0);
-    return E.makeResult({ ok: true, status: 'OK', message: total + ' thread(s) triaged', queues: queues, errors: errors, dryRun: pre.features.DRY_RUN === true });
+    return E.makeResult({ ok: true, status: 'OK', message: total + ' thread(s) triaged', queues: queues, errors: errors, itemErrors: itemErrors, dryRun: pre.features.DRY_RUN === true });
   } catch (err) {
     return failFrom_(err);
   }
@@ -490,6 +493,26 @@ function hubSetFeature(name, value) {
 }
 
 /**
+ * Points the hub at another Google Tasks list (Config TasksListId). Lets the agent force and undo a Tasks
+ * failure via gas-rpc (runbook L6) instead of a manual Sheet edit. Hub must already be provisioned.
+ * @param {string} listId Tasks list id: 1-200 chars of [A-Za-z0-9@_-] (e.g. "@default").
+ * @returns {object} {ok, previous, tasksListId, message} or a failed result.
+ */
+function hubSetTasksListId(listId) {
+  var pre = preflight_([]);
+  if (pre.failure) return pre.failure;
+  if (typeof listId !== 'string' || !/^[A-Za-z0-9@_-]{1,200}$/.test(listId)) return fail_('INVALID_INPUT', 'Tasks list id must be 1-200 letters, digits, @, _ or -', true);
+  try {
+    if (!DPConfig.isProvisioned()) return fail_('SETUP_ERROR', 'Hub Sheet is not set up yet', true);
+    var previous = DPConfig.getConfig().TasksListId;
+    var now = DPConfig.setTasksListId(listId);
+    return DPEngines.makeResult({ ok: true, status: 'OK', message: 'TasksListId set', previous: previous, tasksListId: now });
+  } catch (err) {
+    return failFrom_(err);
+  }
+}
+
+/**
  * @param {string} flag Flag that would have to be on.
  * @param {*} occurrenceId Occurrence id (validated).
  * @param {*} [selectedItems] Items (validated when present).
@@ -543,6 +566,7 @@ global._discoverMeetingSeriesInternal = discoverMeetingSeries;     // google.scr
 global._retryFailedOperationInternal = retryFailedOperation;       // google.script.run
 global._getHubStatusInternal = getHubStatus;                       // google.script.run
 global._hubSetFeatureInternal = hubSetFeature;                     // gas-rpc (Execution API) + IDE manual-run
+global._hubSetTasksListIdInternal = hubSetTasksListId;             // gas-rpc (Execution API) + IDE manual-run
 global._discoverGeminiNotesInternal = discoverGeminiNotes;         // google.script.run (stub, flag gated)
 global._getProposedMeetingActionsInternal = getProposedMeetingActions; // google.script.run (stub, flag gated)
 global._confirmMeetingActionsInternal = confirmMeetingActions;     // google.script.run (stub, flag gated)

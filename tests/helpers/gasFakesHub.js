@@ -23,8 +23,10 @@ function err404(what) {
   return e;
 }
 
-function b64url(text) {
-  return Buffer.from(text, 'utf8').toString('base64').replace(/\+/g, '-').replace(/\//g, '_');
+// The Apps Script Advanced Gmail service hands body.data back already decoded, as a Java byte[] (signed bytes),
+// not the REST API's base64url string (live 2026-10-10: decoding it threw "Could not decode string.").
+function gasBodyBytes(text) {
+  return Array.from(Buffer.from(text, 'utf8')).map((b) => (b > 127 ? b - 256 : b));
 }
 
 function formatInZone(date, tz, pattern) {
@@ -91,7 +93,7 @@ function makeGmail(h) {
               payload: {
                 headers: [{ name: 'From', value: m.from }, { name: 'To', value: m.to }, { name: 'Cc', value: m.cc || '' }, { name: 'Subject', value: m.subject }, { name: 'Date', value: new Date(m.internalDate).toUTCString() }],
                 mimeType: 'text/plain',
-                body: opts.format === 'full' ? { data: b64url(m.body || '') } : {}
+                body: opts.format === 'full' ? { data: gasBodyBytes(m.body || '') } : {}
               }
             }))
           };
@@ -240,7 +242,11 @@ export function makeHubContext(o = {}) {
   const noEmailScope = () => { throw new Error('Specified permissions are not sufficient to call Session.getActiveUser. Required permissions: https://www.googleapis.com/auth/userinfo.email'); };
   ctx.Session = { getScriptTimeZone: () => TZ, getActiveUser: noEmailScope, getEffectiveUser: noEmailScope };
   ctx.Utilities.formatDate = (d, tz, pattern) => formatInZone(d, tz, pattern);
-  ctx.Utilities.base64DecodeWebSafe = (s) => Array.from(Buffer.from(String(s).replace(/-/g, '+').replace(/_/g, '/'), 'base64'));
+  // Like Apps Script: unpadded input whose length is not a multiple of 4 throws (live 2026-10-10 triage board).
+  ctx.Utilities.base64DecodeWebSafe = (s) => {
+    if (String(s).length % 4 !== 0 || !/^[A-Za-z0-9_-]*={0,2}$/.test(String(s))) throw new Error('Could not decode string.');
+    return Array.from(Buffer.from(String(s).replace(/-/g, '+').replace(/_/g, '/'), 'base64'));
+  };
   ctx.Utilities.newBlob = (bytes) => ({ getDataAsString: () => Buffer.from(bytes).toString('utf8') });
   const engines = loadEngines(ctx);
   h.config.registry = seedRegistry(engines);

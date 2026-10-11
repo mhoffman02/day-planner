@@ -196,6 +196,39 @@ test('#4 queue: retryable errors back off, stop after 5 attempts, and manual ret
   assert.equal(ctx.__hub.tasks.inserts, 6);
 });
 
+test('L6 live 2026-10-10: a 🎯/Task thread whose Task create failed shows in System Exceptions with its retry key', () => {
+  const ctx = makeHubContext({ features: { ...LIVE, TRIAGE_BOARD: true } });
+  addThread(ctx, { id: 't1', labels: ['🎯/Task'] });
+  ctx.__hub.tasks.failInsert = true;
+  run(ctx);
+  const board = call(ctx, 'getTriageBoard', {});
+  assert.equal(board.ok, true, JSON.stringify(board));
+  const item = board.queues.systemExceptions.find((i) => i.threadId === 't1');
+  assert.ok(item, `failed thread missing from System Exceptions: ${JSON.stringify(board.queues)}`);
+  assert.equal(item.ledgerStatus, 'ERROR');
+  assert.equal(item.operationKey, 'GMAIL|t1|TASK');
+  assert.equal(typeof item.errorMessage, 'string');
+  ctx.__hub.tasks.failInsert = false;
+  const retried = call(ctx, 'retryFailedOperation', item.operationKey);
+  assert.equal(retried.ok, true, JSON.stringify(retried));
+  const after = call(ctx, 'getTriageBoard', {});
+  assert.equal(after.queues.systemExceptions.some((i) => i.threadId === 't1'), false, 'DONE thread leaves the board');
+});
+
+test('getTriageBoard names each item that failed to load (live 2026-10-10 returned errors:1 with no reason)', () => {
+  const ctx = makeHubContext({ features: { ...LIVE, TRIAGE_BOARD: true } });
+  addThread(ctx, { id: 't1', labels: ['🎯/Task'] });
+  ctx.__hub.tasks.failInsert = true;
+  run(ctx);
+  delete ctx.__hub.gmail.threads.t1;
+  const board = call(ctx, 'getTriageBoard', {});
+  assert.equal(board.errors, 1);
+  assert.equal(board.itemErrors.length, 1, JSON.stringify(board));
+  assert.equal(board.itemErrors[0].threadId, 't1');
+  assert.equal(typeof board.itemErrors[0].message, 'string');
+  assert.ok(board.itemErrors[0].message.length > 0);
+});
+
 test('#4 queue: a run whose items fail reports ok:false with each failure in errors (2026-10-10 L5: ok:true, errors:[])', () => {
   const ctx = makeHubContext({ features: LIVE });
   addThread(ctx, { id: 't1', labels: ['🎯/Task'] });

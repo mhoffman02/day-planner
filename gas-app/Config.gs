@@ -405,13 +405,34 @@ function setFeature(name, value) {
   var defaults = engines_().DEFAULT_FEATURES;
   if (!Object.prototype.hasOwnProperty.call(defaults, name)) throw new Error('Unknown feature flag: ' + String(name));
   if (typeof value !== 'boolean') throw new Error('Feature flag value must be boolean for ' + name);
+  writeConfigRow_(name, value ? 'TRUE' : 'FALSE');
+  return refreshFlags_();
+}
+
+/**
+ * Persists TasksListId in the Config tab (the Google Tasks list the hub creates Tasks in).
+ * @param {string} listId Tasks list id (caller validates the format).
+ * @returns {string} The new TasksListId read back from getConfig.
+ */
+function setTasksListId(listId) {
+  if (typeof listId !== 'string' || !listId) throw new Error('TasksListId must be a non-empty string');
+  writeConfigRow_('TasksListId', listId);
+  return getConfig().TasksListId;
+}
+
+/**
+ * Writes one Config key/value row (one range write; appends the row if absent) and patches the snapshot.
+ * @param {string} name Config key in column A.
+ * @param {string} cellValue Raw value for column B.
+ */
+function writeConfigRow_(name, cellValue) {
   var id = ensureSetup();
   var keys = snapshot_ ? snapshot_.config : sheets_().Values.get(id, engines_().a1Range(TAB_CONFIG, CONFIG_READ_RANGE.replace('B200', 'A200'))).values || [];
   var row = -1;
   for (var i = 0; i < keys.length; i++) {
     if (cell_(keys[i][0]) === name) { row = i + 2; break; }
   }
-  var payload = { values: [[name, value ? 'TRUE' : 'FALSE']] };
+  var payload = { values: [[name, cellValue]] };
   if (row > 0) {
     sheets_().Values.update(payload, id, engines_().a1Range(TAB_CONFIG, 'A' + row + ':B' + row), { valueInputOption: 'RAW' });
     if (snapshot_) patchSnapshot_(snapshot_.config, row - 2, 1, payload.values[0][1]);
@@ -419,7 +440,6 @@ function setFeature(name, value) {
     sheets_().Values.append(payload, id, engines_().a1Range(TAB_CONFIG, 'A1:B1'), { valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS' });
     if (snapshot_) snapshot_.config.push(payload.values[0].slice());
   }
-  return refreshFlags_();
 }
 
 /** @returns {Array<Object>} Parsed + validated registry rows via DPEngines.parseRegistry. */
@@ -512,6 +532,7 @@ global.DPConfig = Object.freeze({
   tabs: Object.freeze({ LEDGER: TAB_LEDGER, ARCHIVE: TAB_ARCHIVE }), // used by LedgerRepository
   getRegistry: getRegistry,
   setFeature: setFeature,
+  setTasksListId: setTasksListId, // used by HubController.hubSetTasksListId (gas-rpc)
   getSheetUrl: getSheetUrl,
   getSheetId: getSheetId,
   getFolderId: getFolderId,
