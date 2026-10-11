@@ -1,5 +1,11 @@
 # Task History (TODO_HISTORY)
 
+## 2026-10-10 — Phase 29 step 0: Sheets read/write meter
+
+- [x] **Run `counts.sheetsReads`/`sheetsWrites`**: every hub Sheets call in `Config.gs`/`LedgerRepository.gs` goes
+  through metered `DPConfig.sheets()`; `runQueue` resets it first. Test `tests/hubSheetsMeter.test.js`: `4199eeb`.
+  Live HOME run via gas-rpc (@307): 0 items, 3 reads, 0 writes. `DRY_RUN` is already FALSE on HOME.
+
 ## 2026-10-10 — Drive grants restored after the GCP project link; queue run outcome fix
 
 - [x] **Re-grant page** `?view=regrant` (Google Picker, `setAppId` 951958469609, API key in Script Properties

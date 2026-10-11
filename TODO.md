@@ -13,16 +13,17 @@
 
 ## Phase 29 step 0: measure before batching (In Progress)
 
-- [x] Count Sheets reads/writes per run in `counts` (`sheetsReads`, `sheetsWrites`): meter on `DPConfig` (reads =
-  `Spreadsheets.get`, `Values.get/batchGet`; writes = `update/append/batchUpdate`, `Spreadsheets.batchUpdate`), reset
-  at the top of `runQueue`. Red test: realStores run, meter totals equal `__fakes.sheetsCalls` bucketed the same way.
-  Non-realStores `DPConfig` fake returns zeros.
-- [ ] L5 baseline via `npm run rpc -- processWorkflowQueue --deploy` (needs `DRY_RUN` FALSE and labelled threads) before
+- [ ] L5 baseline via `npm run rpc -- processWorkflowQueue --deploy` (`DRY_RUN` is already FALSE on HOME; needs
+  freshly labelled `🎯/` threads, the 3 test threads are already DONE; empty run = 3 reads, 0 writes) before
   the rpc login dies 2026-10-17. Record the counters in `PLAN.md` Phase 29.
+- [ ] Independent of the baseline: pure range logic in `src/integration/sheetRanges.js` (A1/col letters, tab quoting
+  with `'` escaping, ValueRange assembly, ~50-range flush cap), TDD in `tests/sheetRanges.test.js`, built into
+  Engines.gs (`node tools/build-gas-engines.js`). Replaces the `colLetter_`/`range_` copies in `Config.gs` and
+  `LedgerRepository.gs` (the ledger copy doesn't escape `'`). See `PLAN.md` Phase 29 bullet 3.
 
 ## Phase 28: Gmail / Meeting Hub — live HOME verification (In Progress)
 
-HOME `/dev` and the gas-rpc API deployment (@301) run `59e4119`. Pinned prod `/exec` (@297) NOT redeployed since the scope change.
+HOME `/dev` and the gas-rpc API deployment (@307) run `4199eeb`. Pinned prod `/exec` (@297) NOT redeployed since the scope change.
 
 - [x] **Fast-forward `pure-gas-main`** to `feat/gmail-meeting-hub`; user runs the merge.
 - [x] **Rerun `hubSpike`** yourself: PASS 2026-10-10 (`ok:true`, 4 tabs, discovery DRY_RUN 0 series) after enabling the 6
