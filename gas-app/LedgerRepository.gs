@@ -15,7 +15,9 @@
  * from the in-memory index. Completion writes (DONE, ERROR, DEFERRED, ...) are queued and sent in the
  * same Values.batchUpdate as the next PENDING claim, which is always sent at once so it is durable
  * before its side effect. flush()/endSession() send what is left. A crash before that leaves the
- * row PENDING; it retries after the stale window and the targets are idempotent by op key. Outside a session each
+ * row PENDING; it retries after the stale window and the targets are idempotent by op key. Every
+ * side effect (Task insert, notes Doc write) runs inside DPEngines.runOperation after its PENDING
+ * claim; DEFERRED/ERROR/quarantine rows have no side effect after them. Outside a session each
  * call re-reads, as before. The session is only valid while the caller holds the script lock.
  *
  * CAPACITY: the tab is capped at MAX_ROWS. When a read hits the cap, DONE rows whose UpdatedAt is
@@ -32,7 +34,6 @@ var MAX_ROWS = 5000;
 var MAX_CELL_CHARS = 40000;
 var ARCHIVE_AFTER_DAYS = 90;
 var session_ = null;
-var CLAIM_STATUS = 'PENDING';
 
 function cols_() { return global.DPEngines.LEDGER_COLUMNS; }
 
@@ -225,7 +226,7 @@ function upsert(row) {
   merged.CreatedAt = found ? (found.row.CreatedAt || now) : (row.CreatedAt || now);
   merged.UpdatedAt = row.UpdatedAt || now;
   var payload = { values: [toArray_(merged)] };
-  var isClaim = merged.Status === CLAIM_STATUS;
+  var isClaim = merged.Status === global.DPEngines.LEDGER_STATUS.PENDING;
   if (session_ && found) {
     writeRow_(idx, 'A' + found.rowNumber + ':' + lastCol_() + found.rowNumber, payload.values[0], isClaim);
     found.row = merged;
