@@ -4,6 +4,36 @@ Archived completed phases from [`PLAN.md`](file:///home/mike/projects/day-planne
 
 ---
 
+### Phase 25: WORK Repoint & Post-Removal Verification (Done 2026-10-10; WORK repoint moved to Phase 30)
+Phase 24 (AI Assist/Thesaurus removal), Phase 26 (`var`->`const`/`let`), and Phase 27 ("GH Build N"
+prefix) are archived in `PLAN-HISTORY.md`. HOME is at `@294`, Build 378 — includes the Version
+History fix, the Sts status-menu fix, and the GH prefix (merged 2026-10-01 from a worktree branch
+that had been deployed but never merged). WORK v127 predates the last two, so the remaining work
+is: cut v128, then one manual repoint.
+- [ ] ~~Cut WORK Version 128~~ (moved to Phase 30) via `npm run push:work`.
+- [ ] ~~Repoint WORK `/exec`~~ (moved to Phase 30): `michael.hoffman@gsa.gov` must do this in the WORK
+  Apps Script IDE (`https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit`
+  → Deploy → Manage deployments → Edit → select Version 128 → Deploy). Cross-domain
+  restriction — cannot be done from HOME's `mhoffman02@gmail.com` session.
+
+### Phase 28: Gmail / Calendar / Tasks / Meeting-Notes Hub (Done 2026-10-10; prod /exec + WORK moved to Phase 30)
+Spec [`docs/specs/gmail-meeting-hub.md`](docs/specs/gmail-meeting-hub.md); architecture, setup/gate runbook and acceptance
+matrix in `docs/hub-*.md`. Branch `feat/gmail-meeting-hub` (`781c521`, ahead of `pure-gas-main`). Gmail is read-only; all flags OFF, `DRY_RUN` ON.
+784 tests pass; fail-loud catch gate in lint + pre-commit; save/load paths fail closed (error tray, per-item save queue).
+- [x] Wave 0: contracts, `build-gas-engines` tool, vm stubs, `GmailApp` lint ban, spec saved.
+- [x] Wave 1: pure engines (classifier, selector, triage score, ledger, registry, notes planner, Gemini parser, routing).
+- [x] Wave 2: `.gs` repositories, queue, RPC controller, triggers; Triage + Meeting Prep UI and mocks.
+- [x] Wave 3: registry persistence (`DPConfig.updateRegistryRow`), contract parity tests, acceptance matrix, docs.
+- [x] **PUSH GATE**: approved and pushed to HOME `/dev` 2026-10-09; Gmail + Sheets in IDE Services; re-consented.
+- [x] Hardening: fail-loud catches, fail-closed saves, error tray, `createCalendarEvent` + Meet, calendar-TZ day windows.
+- [x] Test tier D: agent runs HOME GAS functions headlessly, `npm run rpc -- <fn> --deploy` (skill `gas-rpc`), live 7/7.
+- [x] **Live HOME verification** 2026-10-10: L1-L8 and all `/dev` UX checks passed (TODO_HISTORY). Live checks found and
+  fixed 4 bugs: failed 🎯/Task ops never reached Triage, Advanced Gmail byte bodies threw "Could not decode string.",
+  the error tray Retry froze the app on any failed save, and the manifest start_url rewrite always failed.
+- [ ] ~~Pinned prod `/exec`~~ (moved to Phase 30): redeploy only on user go (carries `gmail.readonly`).
+- [ ] ~~WORK promotion~~ (moved to Phase 30): `npm run push:work` after HOME passes; admin approval of the new scope may block it.
+- Out of scope: Gemini discovery/actions (Phase 6 build), USAi (Phase 7).
+
 ### Phase 29: Hub Sheet batched range store (Done 2026-10-10)
 Goal: one Sheets REST call to read and roughly one per item to write, in place of today's 4 reads per run plus 2 writes per
 item. The Advanced Service `Sheets.Spreadsheets.Values.batchGet/batchUpdate` *is* the Sheets REST v4 API; no UrlFetchApp.

@@ -30,6 +30,7 @@ The user wants a fully automatic flow. Never ask them to edit the hub Config She
 ```bash
 npm run rpc -- getHubStatus                     # read flags, dryRun, last run, ledger counts
 npm run rpc -- hubSetFeature DRY_RUN false      # write one flag (any DPEngines.DEFAULT_FEATURES key; value is a JSON boolean)
+npm run rpc -- hubSetTasksListId '"@default"'   # write Config TasksListId; returns previous (bogus id = forced L6 failure)
 npm run rpc -- processWorkflowQueue             # run the queue (honors DRY_RUN)
 npm run rpc -- getTriageBoard                   # read the triage board
 ```

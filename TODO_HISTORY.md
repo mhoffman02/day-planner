@@ -1,5 +1,25 @@
 # Task History (TODO_HISTORY)
 
+## 2026-10-10 — Phases 25 + 28 HOME live checks (gas-rpc @313-318 + CDP on /dev)
+
+- [x] **Phase 25 hover/zoom**: `f641dc3` in `pure-gas-main`; branch `worktree-today-hover-zoom` deleted (locked
+  `today-hover-zoom` worktree left in place). Live: popovers start closed; hovering each of 3 notes opens only its own,
+  7px below the cursor; touch-enter does not open, tap opens, outside tap closes; zoom 120 persists across reload
+  (`--ui-zoom` 1.2), double-click resets to 100. Slider range is 80-150 (TODO said 80-140).
+- [x] **L5** 3 Tasks, DONE 6 -> 9 (Phase 29 run). **L6** new `hubSetTasksListId` RPC: bogus list -> ledger ERROR shown
+  in Triage System Exceptions with its op key -> `@default` restored -> `retryFailedOperation` DONE (ledger DONE 10).
+- [x] **L7** Triage renders 4 queues against the real server (🎯/Review thread in FYI/Reading). Meeting Prep with the
+  pilot on fails loud "no upcoming occurrence of NCMMS_CORE" (no NCMMS calendar on HOME); full render moved to Phase 30.
+- [x] **L8** `installHubTriggers` x2 -> 1 trigger; parallel runs -> one `LOCK_BUSY`; scheduled run 04:11Z; trigger removed.
+- [x] **MEETING ERROR rows**: none left (ledger held only DONE rows).
+- [x] **/dev UX**: error tray (Retry, "+2 more", auto-resolve); appointment lands in the 2:00 PM slot with a real Meet
+  link (server copy checked); Add Google Meet readable light + dark; `meetError` tray path (stubbed reply); stale
+  "showing offline copy" notice and its auto-resolve; task notes edit persists (rpc read); delete during an in-flight
+  notes save stays deleted (rpc read); two days typed 991ms apart both saved (rpc read). Test data restored.
+- [x] **Bugs found live and fixed (red test first)**: failed 🎯/Task ops never reached Triage; Advanced Gmail returns
+  `body.data` as bytes ("Could not decode string."); error tray `x-show="entry.retry"` ran the retry every render and
+  froze the app on any failed save; manifest `start_url` rewrite sliced the data: prefix 2 chars short.
+
 ## 2026-10-10 — Phase 29 live exit: 3-item batched run
 
 - [x] **Live 3-item run**: 3 new self-sent threads labeled `🎯/Task`, `🎯/Task-Today`, `🎯/Waiting`;
