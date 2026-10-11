@@ -1,5 +1,10 @@
 # Task History (TODO_HISTORY)
 
+## 2026-10-10 — Phase 29 live exit: 3-item batched run
+
+- [x] **Live 3-item run**: 3 new self-sent threads labeled `🎯/Task`, `🎯/Task-Today`, `🎯/Waiting`;
+  `processWorkflowQueue` (@312): 1 read, 4 writes, 3 Tasks created, 0 errors; `getHubStatus` DONE 6 -> 9.
+
 ## 2026-10-10 — Phase 29 step 0: Sheets read/write meter
 
 - [x] **Run `counts.sheetsReads`/`sheetsWrites`**: every hub Sheets call in `Config.gs`/`LedgerRepository.gs` goes

@@ -11,15 +11,6 @@
   `michael.hoffman@gsa.gov` can do this, in the WORK Apps Script IDE (Deploy → Manage
   deployments → Edit → select version → Deploy). Blocked on the user.
 
-## Phase 29: Hub Sheet batching — live exit check (In Progress)
-
-Code done and on HOME `/dev` (`464ed69` snapshot, `7480c07` write combining, `eacaf7f` updateRegistryRows, `1cda8db`).
-
-- [ ] **Live 3-item run** (blocked on user: run `/mcp` and pick "claude.ai Gmail"). Then Claude composes 3 NEW emails
-  to self with unique subjects and labels one each `🎯/Task`, `🎯/Task-Today`, `🎯/Waiting` (forwards thread into
-  the DONE thread; see memory). Run `npm run rpc -- processWorkflowQueue --deploy`: expect `sheetsReads` 1,
-  `sheetsWrites` 4, `getHubStatus` `counts.DONE` 6 -> 9. Record in `PLAN.md`, tick the live exit, archive Phase 29.
-
 ## Phase 28: Gmail / Meeting Hub — live HOME verification (In Progress)
 
 HOME `/dev` and the gas-rpc API deployment (@307) run `4199eeb`. Pinned prod `/exec` (@297) NOT redeployed since the scope change.
