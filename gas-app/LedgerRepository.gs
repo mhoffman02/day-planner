@@ -34,17 +34,9 @@ function cols_() { return global.DPEngines.LEDGER_COLUMNS; }
 
 function tabs_() { return global.DPConfig.tabs; }
 
-function colLetter_(n) {
-  var s = '';
-  for (var x = n; x > 0; x = Math.floor((x - 1) / 26)) s = String.fromCharCode(65 + ((x - 1) % 26)) + s;
-  return s;
-}
+function lastCol_() { return global.DPEngines.colLetter(cols_().length); }
 
-function lastCol_() { return colLetter_(cols_().length); }
-
-function rangeIn_(tab, a1) { return "'" + tab + "'!" + a1; }
-
-function rangeFor_(a1) { return rangeIn_(tabs_().LEDGER, a1); }
+function rangeFor_(a1) { return global.DPEngines.a1Range(tabs_().LEDGER, a1); }
 
 function nowIso_() { return new Date().toISOString(); }
 
@@ -78,7 +70,7 @@ function ensureArchiveTab_(sheetId) {
   var have = (meta.sheets || []).some(function(s) { return s.properties.title === tabs_().ARCHIVE; });
   if (have) return;
   global.DPConfig.sheets().batchUpdate({ requests: [{ addSheet: { properties: { title: tabs_().ARCHIVE } } }] }, sheetId);
-  global.DPConfig.sheets().Values.update({ values: [cols_().slice()] }, sheetId, rangeIn_(tabs_().ARCHIVE, 'A1:' + lastCol_() + '1'), { valueInputOption: 'RAW' });
+  global.DPConfig.sheets().Values.update({ values: [cols_().slice()] }, sheetId, global.DPEngines.a1Range(tabs_().ARCHIVE, 'A1:' + lastCol_() + '1'), { valueInputOption: 'RAW' });
 }
 
 /**
@@ -102,7 +94,7 @@ function archiveOldDone_(sheetId, values) {
   });
   if (!archived.length) return null;
   ensureArchiveTab_(sheetId);
-  global.DPConfig.sheets().Values.append({ values: archived }, sheetId, rangeIn_(tabs_().ARCHIVE, 'A1'), { valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS' });
+  global.DPConfig.sheets().Values.append({ values: archived }, sheetId, global.DPEngines.a1Range(tabs_().ARCHIVE, 'A1'), { valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS' });
   var blank = [];
   for (var i = kept.length; i < values.length; i++) blank.push(cols_().map(function() { return ''; }));
   var data = [];

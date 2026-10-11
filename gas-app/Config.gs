@@ -109,20 +109,6 @@ function setupError_(message) {
   return e;
 }
 
-function quoteTab_(tab) {
-  return "'" + tab.replace(/'/g, "''") + "'";
-}
-
-function range_(tab, a1) {
-  return quoteTab_(tab) + '!' + a1;
-}
-
-function colLetter_(n) {
-  var s = '';
-  for (var x = n; x > 0; x = Math.floor((x - 1) / 26)) s = String.fromCharCode(65 + ((x - 1) % 26)) + s;
-  return s;
-}
-
 function cell_(v) {
   return v === undefined || v === null ? '' : String(v).trim();
 }
@@ -215,25 +201,25 @@ function populate_(sheetId) {
   if (requests.length) sheets_().batchUpdate({ requests: requests }, sheetId);
 
   var probe = sheets_().Values.batchGet(sheetId, {
-    ranges: [range_(TAB_CONFIG, 'A2:A2'), range_(TAB_REGISTRY, 'A2:A2')]
+    ranges: [engines_().a1Range(TAB_CONFIG, 'A2:A2'), engines_().a1Range(TAB_REGISTRY, 'A2:A2')]
   });
   var vr = probe.valueRanges || [];
   var configEmpty = !(vr[0] && vr[0].values && vr[0].values.length);
   var registryEmpty = !(vr[1] && vr[1].values && vr[1].values.length);
 
   var data = [
-    { range: range_(TAB_CONFIG, 'A1:B1'), values: [CONFIG_HEADER] },
-    { range: range_(TAB_REGISTRY, 'A1:' + colLetter_(E.REGISTRY_COLUMNS.length) + '1'), values: [E.REGISTRY_COLUMNS.slice()] },
-    { range: range_(TAB_LEDGER, 'A1:' + colLetter_(E.LEDGER_COLUMNS.length) + '1'), values: [E.LEDGER_COLUMNS.slice()] },
-    { range: range_(TAB_ARCHIVE, 'A1:' + colLetter_(E.LEDGER_COLUMNS.length) + '1'), values: [E.LEDGER_COLUMNS.slice()] }
+    { range: engines_().a1Range(TAB_CONFIG, 'A1:B1'), values: [CONFIG_HEADER] },
+    { range: engines_().a1Range(TAB_REGISTRY, 'A1:' + engines_().colLetter(E.REGISTRY_COLUMNS.length) + '1'), values: [E.REGISTRY_COLUMNS.slice()] },
+    { range: engines_().a1Range(TAB_LEDGER, 'A1:' + engines_().colLetter(E.LEDGER_COLUMNS.length) + '1'), values: [E.LEDGER_COLUMNS.slice()] },
+    { range: engines_().a1Range(TAB_ARCHIVE, 'A1:' + engines_().colLetter(E.LEDGER_COLUMNS.length) + '1'), values: [E.LEDGER_COLUMNS.slice()] }
   ];
   if (configEmpty) {
     var seed = buildConfigSeed_();
-    data.push({ range: range_(TAB_CONFIG, 'A2:B' + (seed.length + 1)), values: seed });
+    data.push({ range: engines_().a1Range(TAB_CONFIG, 'A2:B' + (seed.length + 1)), values: seed });
   }
   if (registryEmpty) {
     var reg = buildRegistrySeed_();
-    data.push({ range: range_(TAB_REGISTRY, 'A2:' + colLetter_(E.REGISTRY_COLUMNS.length) + (reg.length + 1)), values: reg });
+    data.push({ range: engines_().a1Range(TAB_REGISTRY, 'A2:' + engines_().colLetter(E.REGISTRY_COLUMNS.length) + (reg.length + 1)), values: reg });
   }
   sheets_().Values.batchUpdate({ valueInputOption: 'RAW', data: data }, sheetId);
 }
@@ -277,7 +263,7 @@ function isProvisioned() {
 
 function readConfigMap_() {
   var id = ensureSetup();
-  var res = sheets_().Values.get(id, range_(TAB_CONFIG, CONFIG_READ_RANGE));
+  var res = sheets_().Values.get(id, engines_().a1Range(TAB_CONFIG, CONFIG_READ_RANGE));
   var map = {};
   (res.values || []).forEach(function (row) {
     var k = cell_(row[0]);
@@ -374,16 +360,16 @@ function setFeature(name, value) {
   if (!Object.prototype.hasOwnProperty.call(defaults, name)) throw new Error('Unknown feature flag: ' + String(name));
   if (typeof value !== 'boolean') throw new Error('Feature flag value must be boolean for ' + name);
   var id = ensureSetup();
-  var keys = sheets_().Values.get(id, range_(TAB_CONFIG, CONFIG_READ_RANGE.replace('B200', 'A200'))).values || [];
+  var keys = sheets_().Values.get(id, engines_().a1Range(TAB_CONFIG, CONFIG_READ_RANGE.replace('B200', 'A200'))).values || [];
   var row = -1;
   for (var i = 0; i < keys.length; i++) {
     if (cell_(keys[i][0]) === name) { row = i + 2; break; }
   }
   var payload = { values: [[name, value ? 'TRUE' : 'FALSE']] };
   if (row > 0) {
-    sheets_().Values.update(payload, id, range_(TAB_CONFIG, 'A' + row + ':B' + row), { valueInputOption: 'RAW' });
+    sheets_().Values.update(payload, id, engines_().a1Range(TAB_CONFIG, 'A' + row + ':B' + row), { valueInputOption: 'RAW' });
   } else {
-    sheets_().Values.append(payload, id, range_(TAB_CONFIG, 'A1:B1'), { valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS' });
+    sheets_().Values.append(payload, id, engines_().a1Range(TAB_CONFIG, 'A1:B1'), { valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS' });
   }
   return refreshFlags_();
 }
@@ -391,7 +377,7 @@ function setFeature(name, value) {
 /** @returns {Array<Object>} Parsed + validated registry rows via DPEngines.parseRegistry. */
 function getRegistry() {
   var id = ensureSetup();
-  var res = sheets_().Values.get(id, range_(TAB_REGISTRY, REGISTRY_READ_RANGE));
+  var res = sheets_().Values.get(id, engines_().a1Range(TAB_REGISTRY, REGISTRY_READ_RANGE));
   return engines_().parseRegistry(res.values || []);
 }
 
@@ -402,15 +388,15 @@ function getRegistry() {
  */
 function setRegistryDocId(seriesKey, docId) {
   var id = ensureSetup();
-  var values = sheets_().Values.get(id, range_(TAB_REGISTRY, REGISTRY_READ_RANGE)).values || [];
+  var values = sheets_().Values.get(id, engines_().a1Range(TAB_REGISTRY, REGISTRY_READ_RANGE)).values || [];
   var header = (values[0] || []).map(cell_);
   var keyCol = header.indexOf('SeriesKey');
   var docCol = header.indexOf('HumanNotesDocId');
   if (keyCol < 0 || docCol < 0) throw setupError_('Meeting Registry header lacks SeriesKey/HumanNotesDocId');
   for (var r = 1; r < values.length; r++) {
     if (cell_(values[r][keyCol]) === seriesKey) {
-      var a1 = colLetter_(docCol + 1) + (r + 1);
-      sheets_().Values.update({ values: [[docId]] }, id, range_(TAB_REGISTRY, a1 + ':' + a1), { valueInputOption: 'RAW' });
+      var a1 = engines_().colLetter(docCol + 1) + (r + 1);
+      sheets_().Values.update({ values: [[docId]] }, id, engines_().a1Range(TAB_REGISTRY, a1 + ':' + a1), { valueInputOption: 'RAW' });
       return;
     }
   }
@@ -432,7 +418,7 @@ function updateRegistryRow(seriesKey, fields) {
     if (E.REGISTRY_COLUMNS.indexOf(n) === -1) throw new Error('Unknown Meeting Registry column: ' + n);
   });
   var id = ensureSetup();
-  var values = sheets_().Values.get(id, range_(TAB_REGISTRY, REGISTRY_READ_RANGE)).values || [];
+  var values = sheets_().Values.get(id, engines_().a1Range(TAB_REGISTRY, REGISTRY_READ_RANGE)).values || [];
   var header = (values[0] || []).map(cell_);
   var keyCol = header.indexOf('SeriesKey');
   if (keyCol < 0) throw setupError_('Meeting Registry header lacks SeriesKey');
@@ -444,8 +430,8 @@ function updateRegistryRow(seriesKey, fields) {
   for (var r = 1; r < values.length; r++) {
     if (cell_(values[r][keyCol]) === seriesKey) {
       var data = names.map(function (n, i) {
-        var a1 = colLetter_(cols[i] + 1) + (r + 1);
-        return { range: range_(TAB_REGISTRY, a1 + ':' + a1), values: [[fields[n] === undefined || fields[n] === null ? '' : String(fields[n])]] };
+        var a1 = engines_().colLetter(cols[i] + 1) + (r + 1);
+        return { range: engines_().a1Range(TAB_REGISTRY, a1 + ':' + a1), values: [[fields[n] === undefined || fields[n] === null ? '' : String(fields[n])]] };
       });
       sheets_().Values.batchUpdate({ valueInputOption: 'RAW', data: data }, id);
       return;
