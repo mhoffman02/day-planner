@@ -9,7 +9,7 @@
  * (`google.script.run`/`_runGasCall`), HtmlService templates, time-driven triggers (referenced
  * by name string), or the Apps Script IDE's manual-run dropdown. Everything else here is a
  * private helper invisible outside this file. `logError`, `getFolderByNameOrCreate`,
- * `getOrCreateDailyDocContent`, `DAY_PLANNER_FAVICON_URL`, `syncWorkspaceChanges`, and `doGet`
+ * `getOrCreateDailyDocContent`, `DPApp`, `syncWorkspaceChanges`, and `doGet`
  * are Code.gs internals consumed here via its own export list -- see
  * .agents/rules/gas-namespace-iife.md before adding or removing an export.
  */
@@ -452,7 +452,7 @@ function renderSelfTestDiagnosticReport(e) {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 
   try {
-    diagOutput.setFaviconUrl(typeof DAY_PLANNER_FAVICON_URL !== 'undefined' ? DAY_PLANNER_FAVICON_URL : 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day-planner/pure-gas-main/icons/favicon.png');
+    diagOutput.setFaviconUrl(global.DPApp.faviconUrl());
   } catch (_favErr) {
     console.error('Self-test page: setFaviconUrl failed, serving without favicon\n' + _favErr.stack);
   }

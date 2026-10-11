@@ -429,12 +429,18 @@ function onOpen() {
   }
 }
 
-const DAY_PLANNER_FAVICON_URL = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day-planner/pure-gas-main/icons/favicon.png';
+const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day-planner/pure-gas-main/icons/favicon.png';
 
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const DAY_PLANNER_BUILD_NUMBER = 440;
+const BUILD_NUMBER_ = 441;
+
+// Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
+const DPApp = Object.freeze({
+  faviconUrl: function() { return FAVICON_URL_; },
+  buildNumber: function() { return BUILD_NUMBER_; }
+});
 
 /**
  * Renders the HTML template page for setting up or connecting a Google Drive root folder.
@@ -448,7 +454,7 @@ function renderSetupFolderPage() {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 
   try {
-    output.setFaviconUrl(DAY_PLANNER_FAVICON_URL);
+    output.setFaviconUrl(DPApp.faviconUrl());
   } catch (_favErr) {
     console.error('renderSetupFolderPage: setFaviconUrl failed, serving without favicon\n' + _favErr.stack);
   }
@@ -518,7 +524,7 @@ function doGet_original(e) {
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 
     try {
-      output.setFaviconUrl(DAY_PLANNER_FAVICON_URL);
+      output.setFaviconUrl(DPApp.faviconUrl());
     } catch (_favErr) {
       console.error('doGet: setFaviconUrl failed, serving without favicon\n' + _favErr.stack);
     }
@@ -536,7 +542,7 @@ function doGet_original(e) {
       .addMetaTag('viewport', 'width=device-width, initial-scale=1.0');
 
     try {
-      errOutput.setFaviconUrl(DAY_PLANNER_FAVICON_URL);
+      errOutput.setFaviconUrl(DPApp.faviconUrl());
     } catch (_favErr) {
       console.error('doGet error page: setFaviconUrl failed, serving without favicon\n' + _favErr.stack);
     }
@@ -651,7 +657,7 @@ function renderRegrantPage() {
     .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   try {
-    output.setFaviconUrl(DAY_PLANNER_FAVICON_URL);
+    output.setFaviconUrl(DPApp.faviconUrl());
   } catch (_favErr) {
     console.error('renderRegrantPage: setFaviconUrl failed, serving without favicon\n' + _favErr.stack);
   }
@@ -3487,8 +3493,7 @@ global.getOrCreateMonthlyNotesDoc_ = getOrCreateMonthlyNotesDoc_; // used by Uni
 global.docsGetBodyElements_ = docsGetBodyElements_;          // used by UnitTests.gs
 global.docsElementHeading_ = docsElementHeading_;            // used by UnitTests.gs
 global.docsElementText_ = docsElementText_;                  // used by UnitTests.gs
-global.DAY_PLANNER_FAVICON_URL = DAY_PLANNER_FAVICON_URL;    // used by UnitTests.gs
-global.DAY_PLANNER_BUILD_NUMBER = DAY_PLANNER_BUILD_NUMBER;  // HtmlService template scriptlet: Index.html
+global.DPApp = DPApp;                                        // used by UnitTests.gs; HtmlService template scriptlet: Index.html
 
 // Internal aliases for top-level entry point delegators
 global._doGetInternal = doGet_original;

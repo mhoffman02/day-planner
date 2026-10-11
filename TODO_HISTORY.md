@@ -958,3 +958,5 @@
   - Enforced [`.agents/rules/no-pills.md`](file:///home/mike/projects/day-planner/.agents/rules/no-pills.md) across all top-bar compact action buttons (`.today-jump-btn`, `.search-trigger-compact`, `.sync-btn-compact`, `.security-badge`), setting `border-radius: 4px` (commit [`53962c5`](https://github.com/mhoffman02/day-planner/commit/53962c5)).
 
 
+
+- [x] GAS globals rule (2026-10-10): build number + favicon URL moved behind frozen `DPApp.buildNumber()` / `DPApp.faviconUrl()` in `gas-app/Code.gs`; `tools/stamp-build-number.js` stamps `BUILD_NUMBER_`.

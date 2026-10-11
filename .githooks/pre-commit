@@ -9,7 +9,7 @@ ERRORS=0
 echo "🔍 Pre-commit checks..."
 
 # ── Auto-fix: Build Number Stamp ────────────────────────────────────────────
-# Keeps DAY_PLANNER_BUILD_NUMBER (shown in the nav hover + About page) equal to the commit
+# Keeps BUILD_NUMBER_ (DPApp.buildNumber()) (shown in the nav hover + About page) equal to the commit
 # count on every commit, not just "real deploys" — see tools/stamp-build-number.js. If it
 # changed gas-app/Code.gs, re-stage it so the stamp lands in this same commit.
 node tools/stamp-build-number.js

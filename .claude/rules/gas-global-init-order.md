@@ -26,10 +26,6 @@ so a call made at run time is always safe. A variable read at load time is not.
 Reference: the Sheets meter in `gas-app/Config.gs` (`sheetsMeter_` is IIFE-private, exposed only via
 `DPConfig.sheetsMeter()` / `DPConfig.resetSheetsMeter()`).
 
-Known violations to migrate: `global.DAY_PLANNER_FAVICON_URL` (read by `UnitTests.gs`) and
-`global.DAY_PLANNER_BUILD_NUMBER` (read by the `Index.html` template scriptlet, stamped by the
-pre-commit hook) in `gas-app/Code.gs`.
-
 See [[single-source-of-truth-constants]] for the related rule about not duplicating a shared value.
 
 **Why:** the user, 2026-10-10: "NO GLOBAL variables -- wrap them all in a 'g' type global object to

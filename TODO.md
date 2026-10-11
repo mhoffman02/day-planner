@@ -21,12 +21,6 @@
   Engines.gs (`node tools/build-gas-engines.js`). Replaces the `colLetter_`/`range_` copies in `Config.gs` and
   `LedgerRepository.gs` (the ledger copy doesn't escape `'`). See `PLAN.md` Phase 29 bullet 3.
 
-## GAS globals rule (2026-10-10)
-
-- [ ] Move `global.DAY_PLANNER_FAVICON_URL` / `global.DAY_PLANNER_BUILD_NUMBER` (`gas-app/Code.gs`) behind getters on a
-  frozen namespace object; update `UnitTests.gs`, the `Index.html` scriptlet and the pre-commit build-number stamp.
-  Rule: `.agents/rules/gas-global-init-order.md`.
-
 ## Phase 28: Gmail / Meeting Hub — live HOME verification (In Progress)
 
 HOME `/dev` and the gas-rpc API deployment (@307) run `4199eeb`. Pinned prod `/exec` (@297) NOT redeployed since the scope change.
