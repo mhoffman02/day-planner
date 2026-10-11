@@ -280,7 +280,7 @@
             <li class="error-tray-row" :class="{ 'is-stale': entry.kind === 'stale' }">
               <span class="material-symbols-outlined icon-16 error-tray-icon" aria-hidden="true" x-text="entry.kind === 'stale' ? 'cloud_off' : 'error'"></span>
               <span class="error-tray-message" x-text="entry.message"></span>
-              <button type="button" class="error-tray-action" x-show="entry.retry" @click="retryError(entry.key)">Retry</button>
+              <button type="button" class="error-tray-action" x-show="typeof entry.retry === 'function'" @click="retryError(entry.key)">Retry</button>
               <button type="button" class="error-close-btn" @click="dismissError(entry.key)" aria-label="Dismiss">
                 <span class="material-symbols-outlined icon-18">close</span>
               </button>
