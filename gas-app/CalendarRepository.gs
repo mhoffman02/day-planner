@@ -249,11 +249,11 @@ function discoverSeries(registry, now, opts) {
   var persisted = false;
   var persistGap = null;
   if (opts && opts.persist && discovered.length) {
-    if (typeof DPConfig !== 'undefined' && DPConfig && typeof DPConfig.updateRegistryRow === 'function') {
-      discovered.forEach(function(d) { DPConfig.updateRegistryRow(d.seriesKey, { RecurringEventId: d.recurringEventId, CalendarId: d.calendarId }); });
+    if (typeof DPConfig !== 'undefined' && DPConfig && typeof DPConfig.updateRegistryRows === 'function') {
+      DPConfig.updateRegistryRows(discovered.map(function(d) { return { seriesKey: d.seriesKey, fields: { RecurringEventId: d.recurringEventId, CalendarId: d.calendarId } }; }));
       persisted = true;
     } else {
-      persistGap = 'DPConfig.updateRegistryRow(seriesKey, fields) is not available; RecurringEventId not saved';
+      persistGap = 'DPConfig.updateRegistryRows(updates) is not available; RecurringEventId not saved';
     }
   }
   return { discovered: discovered, stale: stale, persisted: persisted, persistGap: persistGap };

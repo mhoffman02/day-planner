@@ -171,7 +171,7 @@ test('discoverMeetingSeries finds the recurring id and reports the missing regis
   assert.equal(r.persisted, false);
   assert.match(r.message, /RecurringEventId not saved/);
   const saved = [];
-  ctx.DPConfig = { ...ctx.DPConfig, updateRegistryRow: (k, f) => saved.push([k, f]) };
+  ctx.DPConfig = { ...ctx.DPConfig, updateRegistryRows: (us) => us.forEach((u) => saved.push([u.seriesKey, u.fields])) };
   assert.equal(call(ctx, 'discoverMeetingSeries').persisted, true);
   assert.deepEqual(toHost(saved), [['NCMMS_CORE', { RecurringEventId: 'coreRec', CalendarId: 'primary' }]]);
 });

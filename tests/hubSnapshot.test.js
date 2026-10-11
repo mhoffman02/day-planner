@@ -69,10 +69,10 @@ test('setRegistryDocId during a snapshot is visible to the next getRegistry (no 
   assert.equal(reads(ctx).length, 1, 'registry write located its row from the snapshot');
 });
 
-test('updateRegistryRow during a snapshot is visible to the next getRegistry', () => {
+test('updateRegistryRows during a snapshot is visible to the next getRegistry', () => {
   const ctx = liveCtx();
   ctx.DPConfig.beginSnapshot([]);
-  ctx.DPConfig.updateRegistryRow('NCMMS_CORE', { HumanNotesDocId: 'DOC9' });
+  ctx.DPConfig.updateRegistryRows([{ seriesKey: 'NCMMS_CORE', fields: { HumanNotesDocId: 'DOC9' } }]);
   const row = ctx.DPConfig.getRegistry().find((r) => r.SeriesKey === 'NCMMS_CORE');
   ctx.DPConfig.endSnapshot();
   assert.equal(row.HumanNotesDocId, 'DOC9');

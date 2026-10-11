@@ -157,11 +157,11 @@ function registryRows(ctx) {
   return ctx.__fakes.sheets[id].tabs.find((t) => t.title === 'Meeting Registry').rows;
 }
 
-test('updateRegistryRow writes validated fields in one batch call', () => {
+test('updateRegistryRows writes validated fields in one batch call', () => {
   const ctx = setup();
   ctx.DPConfig.ensureSetup();
   const before = ctx.__fakes.sheetsCalls.length;
-  ctx.DPConfig.updateRegistryRow('NCMMS_CORE', { RecurringEventId: 'rec123', CalendarId: 'cal@x' });
+  ctx.DPConfig.updateRegistryRows([{ seriesKey: 'NCMMS_CORE', fields: { RecurringEventId: 'rec123', CalendarId: 'cal@x' } }]);
   const rows = registryRows(ctx);
   const h = rows[0];
   const row = rows.find((r) => r[h.indexOf('SeriesKey')] === 'NCMMS_CORE');
@@ -172,11 +172,28 @@ test('updateRegistryRow writes validated fields in one batch call', () => {
   assert.equal(ctx.DPConfig.getRegistry().find((r) => r.SeriesKey === 'NCMMS_CORE').RecurringEventId, 'rec123');
 });
 
-test('updateRegistryRow rejects unknown series, unknown columns, and SeriesKey rewrites', () => {
+test('updateRegistryRows writes several series with one read and one batch write', () => {
   const ctx = setup();
   ctx.DPConfig.ensureSetup();
-  assert.throws(() => ctx.DPConfig.updateRegistryRow('NOPE', { RecurringEventId: 'x' }), /NOPE/);
-  assert.throws(() => ctx.DPConfig.updateRegistryRow('NCMMS_CORE', { Bogus: 'x' }), /Bogus/);
-  assert.throws(() => ctx.DPConfig.updateRegistryRow('NCMMS_CORE', { SeriesKey: 'Z' }), /SeriesKey/);
-  assert.throws(() => ctx.DPConfig.updateRegistryRow('NCMMS_CORE', {}), /fields/);
+  const before = ctx.__fakes.sheetsCalls.length;
+  ctx.DPConfig.updateRegistryRows([
+    { seriesKey: 'NCMMS_CORE', fields: { RecurringEventId: 'r1', CalendarId: 'c1' } },
+    { seriesKey: 'TRM_PM', fields: { RecurringEventId: 'r2', CalendarId: 'c2' } }
+  ]);
+  assert.deepEqual(ctx.__fakes.sheetsCalls.slice(before).map((c) => c.method), ['values.get', 'values.batchUpdate']);
+  const reg = toHost(ctx.DPConfig.getRegistry());
+  assert.equal(reg.find((r) => r.SeriesKey === 'NCMMS_CORE').RecurringEventId, 'r1');
+  assert.equal(reg.find((r) => r.SeriesKey === 'TRM_PM').CalendarId, 'c2');
+  assert.throws(() => ctx.DPConfig.updateRegistryRows([{ seriesKey: 'NCMMS_CORE', fields: { RecurringEventId: 'x' } }, { seriesKey: 'NOPE', fields: { RecurringEventId: 'y' } }]), /NOPE/);
+  assert.equal(toHost(ctx.DPConfig.getRegistry()).find((r) => r.SeriesKey === 'NCMMS_CORE').RecurringEventId, 'r1', 'validation fails before any write');
+  assert.throws(() => ctx.DPConfig.updateRegistryRows('x'), /array/);
+});
+
+test('updateRegistryRows rejects unknown series, unknown columns, and SeriesKey rewrites', () => {
+  const ctx = setup();
+  ctx.DPConfig.ensureSetup();
+  assert.throws(() => ctx.DPConfig.updateRegistryRows([{ seriesKey: 'NOPE', fields: { RecurringEventId: 'x' } }]), /NOPE/);
+  assert.throws(() => ctx.DPConfig.updateRegistryRows([{ seriesKey: 'NCMMS_CORE', fields: { Bogus: 'x' } }]), /Bogus/);
+  assert.throws(() => ctx.DPConfig.updateRegistryRows([{ seriesKey: 'NCMMS_CORE', fields: { SeriesKey: 'Z' } }]), /SeriesKey/);
+  assert.throws(() => ctx.DPConfig.updateRegistryRows([{ seriesKey: 'NCMMS_CORE', fields: {} }]), /fields/);
 });

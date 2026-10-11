@@ -23,7 +23,7 @@
  * Every other function here takes no lock.
  * RUN SNAPSHOT: a locked queue run calls beginSnapshot() once (ONE Values.batchGet of Config,
  * Registry and the caller's extra ranges) and endSnapshot() in a finally block. While it is open,
- * config/registry reads are served from it and setFeature/setRegistryDocId/updateRegistryRow patch
+ * config/registry reads are served from it and setFeature/setRegistryDocId/updateRegistryRows patch
  * it after their write-through, so no later read in the run is stale.
  * Missing mandatory configuration throws Error('SETUP_ERROR: <key> ...') (spec section 19).
  */
@@ -451,41 +451,50 @@ function setRegistryDocId(seriesKey, docId) {
 }
 
 /**
- * Writes one or more registry columns for a series in ONE Sheets batch write. Takes no lock
+ * Writes registry columns for one or more series: one registry read (none inside a run snapshot)
+ * and ONE Sheets batch write. Validates every update before writing anything. Takes no lock
  * (callers hold the script lock). SeriesKey is the row identity and cannot be rewritten.
- * @param {string} seriesKey
- * @param {Object} fields Map of REGISTRY_COLUMNS name to value.
+ * @param {Array<{seriesKey:string, fields:Object}>} updates fields maps REGISTRY_COLUMNS name to value.
  */
-function updateRegistryRow(seriesKey, fields) {
+function updateRegistryRows(updates) {
   var E = engines_();
-  var names = fields && typeof fields === 'object' ? Object.keys(fields) : [];
-  if (!names.length) throw new Error('updateRegistryRow requires a non-empty fields object');
-  names.forEach(function (n) {
-    if (n === 'SeriesKey') throw new Error('updateRegistryRow cannot change SeriesKey');
-    if (E.REGISTRY_COLUMNS.indexOf(n) === -1) throw new Error('Unknown Meeting Registry column: ' + n);
+  if (!Array.isArray(updates)) throw new Error('updateRegistryRows requires an array of {seriesKey, fields}');
+  if (!updates.length) return;
+  updates.forEach(function (u) {
+    var names = u && u.fields && typeof u.fields === 'object' ? Object.keys(u.fields) : [];
+    if (!names.length) throw new Error('updateRegistryRows requires a non-empty fields object');
+    names.forEach(function (n) {
+      if (n === 'SeriesKey') throw new Error('updateRegistryRows cannot change SeriesKey');
+      if (E.REGISTRY_COLUMNS.indexOf(n) === -1) throw new Error('Unknown Meeting Registry column: ' + n);
+    });
   });
   var id = ensureSetup();
   var values = registryValues_(id);
   var header = (values[0] || []).map(cell_);
   var keyCol = header.indexOf('SeriesKey');
   if (keyCol < 0) throw setupError_('Meeting Registry header lacks SeriesKey');
-  var cols = names.map(function (n) {
-    var c = header.indexOf(n);
-    if (c < 0) throw setupError_('Meeting Registry header lacks ' + n);
-    return c;
-  });
-  for (var r = 1; r < values.length; r++) {
-    if (cell_(values[r][keyCol]) === seriesKey) {
-      var data = names.map(function (n, i) {
-        var a1 = engines_().colLetter(cols[i] + 1) + (r + 1);
-        return { range: engines_().a1Range(TAB_REGISTRY, a1 + ':' + a1), values: [[fields[n] === undefined || fields[n] === null ? '' : String(fields[n])]] };
-      });
-      sheets_().Values.batchUpdate({ valueInputOption: 'RAW', data: data }, id);
-      if (snapshot_) data.forEach(function (d, i) { patchSnapshot_(snapshot_.registry, r, cols[i], d.values[0][0]); });
-      return;
+  var cells = [];
+  updates.forEach(function (u) {
+    var r = -1;
+    for (var i = 1; i < values.length; i++) {
+      if (cell_(values[i][keyCol]) === u.seriesKey) { r = i; break; }
     }
-  }
-  throw setupError_('SeriesKey ' + seriesKey + ' not found in the Meeting Registry tab');
+    if (r < 0) throw setupError_('SeriesKey ' + u.seriesKey + ' not found in the Meeting Registry tab');
+    Object.keys(u.fields).forEach(function (n) {
+      var c = header.indexOf(n);
+      if (c < 0) throw setupError_('Meeting Registry header lacks ' + n);
+      var v = u.fields[n] === undefined || u.fields[n] === null ? '' : String(u.fields[n]);
+      cells.push({ r: r, c: c, v: v });
+    });
+  });
+  var data = cells.map(function (x) {
+    var a1 = E.colLetter(x.c + 1) + (x.r + 1);
+    return { range: E.a1Range(TAB_REGISTRY, a1 + ':' + a1), values: [[x.v]] };
+  });
+  E.chunkValueRanges(data).forEach(function (chunk) {
+    sheets_().Values.batchUpdate({ valueInputOption: 'RAW', data: chunk }, id);
+  });
+  if (snapshot_) cells.forEach(function (x) { patchSnapshot_(snapshot_.registry, x.r, x.c, x.v); });
 }
 
 /** @returns {string} Browser URL of the hub Sheet. */
@@ -507,7 +516,7 @@ global.DPConfig = Object.freeze({
   getSheetId: getSheetId,
   getFolderId: getFolderId,
   setRegistryDocId: setRegistryDocId,
-  updateRegistryRow: updateRegistryRow, // used by CalendarRepository.discoverSeries
+  updateRegistryRows: updateRegistryRows, // used by CalendarRepository.discoverSeries (one batch write)
   beginSnapshot: beginSnapshot, // used by QueueProcessor.runLocked_ (one batchGet per locked run)
   endSnapshot: endSnapshot, // used by QueueProcessor.runLocked_ (finally)
   sheets: sheets_, // metered Sheets.Spreadsheets, used by LedgerRepository
