@@ -58,6 +58,51 @@ function logSafe_(context, err) {
   console.error(engines_().formatSafeError(context, err));
 }
 
+var sheetsMeter_ = { reads: 0, writes: 0 };
+var sheetsApi_ = null;
+
+/**
+ * Metered stand-in for Sheets.Spreadsheets: every hub Sheets call goes through it so a queue run can
+ * report its reads (get, Values.get/batchGet) and writes (batchUpdate, Values.update/batchUpdate/
+ * append). Counts the attempt, so a call that throws still counts. Built on first use.
+ * @returns {object} Same call shapes as Sheets.Spreadsheets for the methods the hub uses.
+ */
+function sheets_() {
+  if (sheetsApi_) return sheetsApi_;
+  var call = function (kind, owner, name) {
+    return function () {
+      sheetsMeter_[kind] += 1;
+      var o = owner();
+      return o[name].apply(o, arguments);
+    };
+  };
+  var top = function () { return Sheets.Spreadsheets; };
+  var values = function () { return Sheets.Spreadsheets.Values; };
+  sheetsApi_ = {
+    get: call('reads', top, 'get'),
+    batchUpdate: call('writes', top, 'batchUpdate'),
+    Values: {
+      get: call('reads', values, 'get'),
+      batchGet: call('reads', values, 'batchGet'),
+      update: call('writes', values, 'update'),
+      batchUpdate: call('writes', values, 'batchUpdate'),
+      append: call('writes', values, 'append')
+    }
+  };
+  return sheetsApi_;
+}
+
+/** Zeroes the Sheets meter (top of every queue run). */
+function resetSheetsMeter() {
+  sheetsMeter_.reads = 0;
+  sheetsMeter_.writes = 0;
+}
+
+/** @returns {{reads:number, writes:number}} Sheets calls since the last reset. */
+function sheetsMeter() {
+  return { reads: sheetsMeter_.reads, writes: sheetsMeter_.writes };
+}
+
 function setupError_(message) {
   var e = new Error('SETUP_ERROR: ' + message);
   e.code = 'SETUP_ERROR';
@@ -157,7 +202,7 @@ function buildRegistrySeed_() {
 /** Creates missing tabs, writes headers, seeds Config/Registry only when they have no data rows. */
 function populate_(sheetId) {
   var E = engines_();
-  var meta = Sheets.Spreadsheets.get(sheetId, { fields: 'sheets.properties(sheetId,title)' });
+  var meta = sheets_().get(sheetId, { fields: 'sheets.properties(sheetId,title)' });
   var existing = (meta.sheets || []).map(function (s) { return s.properties; });
   var have = existing.map(function (p) { return p.title; });
   var missing = ALL_TABS.filter(function (t) { return have.indexOf(t) === -1; });
@@ -167,9 +212,9 @@ function populate_(sheetId) {
     missing = missing.slice(1);
   }
   missing.forEach(function (t) { requests.push({ addSheet: { properties: { title: t } } }); });
-  if (requests.length) Sheets.Spreadsheets.batchUpdate({ requests: requests }, sheetId);
+  if (requests.length) sheets_().batchUpdate({ requests: requests }, sheetId);
 
-  var probe = Sheets.Spreadsheets.Values.batchGet(sheetId, {
+  var probe = sheets_().Values.batchGet(sheetId, {
     ranges: [range_(TAB_CONFIG, 'A2:A2'), range_(TAB_REGISTRY, 'A2:A2')]
   });
   var vr = probe.valueRanges || [];
@@ -190,7 +235,7 @@ function populate_(sheetId) {
     var reg = buildRegistrySeed_();
     data.push({ range: range_(TAB_REGISTRY, 'A2:' + colLetter_(E.REGISTRY_COLUMNS.length) + (reg.length + 1)), values: reg });
   }
-  Sheets.Spreadsheets.Values.batchUpdate({ valueInputOption: 'RAW', data: data }, sheetId);
+  sheets_().Values.batchUpdate({ valueInputOption: 'RAW', data: data }, sheetId);
 }
 
 /**
@@ -232,7 +277,7 @@ function isProvisioned() {
 
 function readConfigMap_() {
   var id = ensureSetup();
-  var res = Sheets.Spreadsheets.Values.get(id, range_(TAB_CONFIG, CONFIG_READ_RANGE));
+  var res = sheets_().Values.get(id, range_(TAB_CONFIG, CONFIG_READ_RANGE));
   var map = {};
   (res.values || []).forEach(function (row) {
     var k = cell_(row[0]);
@@ -329,16 +374,16 @@ function setFeature(name, value) {
   if (!Object.prototype.hasOwnProperty.call(defaults, name)) throw new Error('Unknown feature flag: ' + String(name));
   if (typeof value !== 'boolean') throw new Error('Feature flag value must be boolean for ' + name);
   var id = ensureSetup();
-  var keys = Sheets.Spreadsheets.Values.get(id, range_(TAB_CONFIG, CONFIG_READ_RANGE.replace('B200', 'A200'))).values || [];
+  var keys = sheets_().Values.get(id, range_(TAB_CONFIG, CONFIG_READ_RANGE.replace('B200', 'A200'))).values || [];
   var row = -1;
   for (var i = 0; i < keys.length; i++) {
     if (cell_(keys[i][0]) === name) { row = i + 2; break; }
   }
   var payload = { values: [[name, value ? 'TRUE' : 'FALSE']] };
   if (row > 0) {
-    Sheets.Spreadsheets.Values.update(payload, id, range_(TAB_CONFIG, 'A' + row + ':B' + row), { valueInputOption: 'RAW' });
+    sheets_().Values.update(payload, id, range_(TAB_CONFIG, 'A' + row + ':B' + row), { valueInputOption: 'RAW' });
   } else {
-    Sheets.Spreadsheets.Values.append(payload, id, range_(TAB_CONFIG, 'A1:B1'), { valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS' });
+    sheets_().Values.append(payload, id, range_(TAB_CONFIG, 'A1:B1'), { valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS' });
   }
   return refreshFlags_();
 }
@@ -346,7 +391,7 @@ function setFeature(name, value) {
 /** @returns {Array<Object>} Parsed + validated registry rows via DPEngines.parseRegistry. */
 function getRegistry() {
   var id = ensureSetup();
-  var res = Sheets.Spreadsheets.Values.get(id, range_(TAB_REGISTRY, REGISTRY_READ_RANGE));
+  var res = sheets_().Values.get(id, range_(TAB_REGISTRY, REGISTRY_READ_RANGE));
   return engines_().parseRegistry(res.values || []);
 }
 
@@ -357,7 +402,7 @@ function getRegistry() {
  */
 function setRegistryDocId(seriesKey, docId) {
   var id = ensureSetup();
-  var values = Sheets.Spreadsheets.Values.get(id, range_(TAB_REGISTRY, REGISTRY_READ_RANGE)).values || [];
+  var values = sheets_().Values.get(id, range_(TAB_REGISTRY, REGISTRY_READ_RANGE)).values || [];
   var header = (values[0] || []).map(cell_);
   var keyCol = header.indexOf('SeriesKey');
   var docCol = header.indexOf('HumanNotesDocId');
@@ -365,7 +410,7 @@ function setRegistryDocId(seriesKey, docId) {
   for (var r = 1; r < values.length; r++) {
     if (cell_(values[r][keyCol]) === seriesKey) {
       var a1 = colLetter_(docCol + 1) + (r + 1);
-      Sheets.Spreadsheets.Values.update({ values: [[docId]] }, id, range_(TAB_REGISTRY, a1 + ':' + a1), { valueInputOption: 'RAW' });
+      sheets_().Values.update({ values: [[docId]] }, id, range_(TAB_REGISTRY, a1 + ':' + a1), { valueInputOption: 'RAW' });
       return;
     }
   }
@@ -387,7 +432,7 @@ function updateRegistryRow(seriesKey, fields) {
     if (E.REGISTRY_COLUMNS.indexOf(n) === -1) throw new Error('Unknown Meeting Registry column: ' + n);
   });
   var id = ensureSetup();
-  var values = Sheets.Spreadsheets.Values.get(id, range_(TAB_REGISTRY, REGISTRY_READ_RANGE)).values || [];
+  var values = sheets_().Values.get(id, range_(TAB_REGISTRY, REGISTRY_READ_RANGE)).values || [];
   var header = (values[0] || []).map(cell_);
   var keyCol = header.indexOf('SeriesKey');
   if (keyCol < 0) throw setupError_('Meeting Registry header lacks SeriesKey');
@@ -402,7 +447,7 @@ function updateRegistryRow(seriesKey, fields) {
         var a1 = colLetter_(cols[i] + 1) + (r + 1);
         return { range: range_(TAB_REGISTRY, a1 + ':' + a1), values: [[fields[n] === undefined || fields[n] === null ? '' : String(fields[n])]] };
       });
-      Sheets.Spreadsheets.Values.batchUpdate({ valueInputOption: 'RAW', data: data }, id);
+      sheets_().Values.batchUpdate({ valueInputOption: 'RAW', data: data }, id);
       return;
     }
   }
@@ -428,7 +473,10 @@ global.DPConfig = Object.freeze({
   getSheetId: getSheetId,
   getFolderId: getFolderId,
   setRegistryDocId: setRegistryDocId,
-  updateRegistryRow: updateRegistryRow // used by CalendarRepository.discoverSeries
+  updateRegistryRow: updateRegistryRow, // used by CalendarRepository.discoverSeries
+  sheets: sheets_, // metered Sheets.Spreadsheets, used by LedgerRepository
+  resetSheetsMeter: resetSheetsMeter, // used by QueueProcessor.runQueue
+  sheetsMeter: sheetsMeter // used by QueueProcessor (counts.sheetsReads/sheetsWrites)
 });
 
 })(this);

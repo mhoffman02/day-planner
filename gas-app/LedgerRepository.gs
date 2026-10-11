@@ -74,11 +74,11 @@ function fullError_() {
 
 /** Creates the archive tab (with header) when an older Sheet lacks it. */
 function ensureArchiveTab_(sheetId) {
-  var meta = Sheets.Spreadsheets.get(sheetId, { fields: 'sheets.properties(sheetId,title)' });
+  var meta = global.DPConfig.sheets().get(sheetId, { fields: 'sheets.properties(sheetId,title)' });
   var have = (meta.sheets || []).some(function(s) { return s.properties.title === tabs_().ARCHIVE; });
   if (have) return;
-  Sheets.Spreadsheets.batchUpdate({ requests: [{ addSheet: { properties: { title: tabs_().ARCHIVE } } }] }, sheetId);
-  Sheets.Spreadsheets.Values.update({ values: [cols_().slice()] }, sheetId, rangeIn_(tabs_().ARCHIVE, 'A1:' + lastCol_() + '1'), { valueInputOption: 'RAW' });
+  global.DPConfig.sheets().batchUpdate({ requests: [{ addSheet: { properties: { title: tabs_().ARCHIVE } } }] }, sheetId);
+  global.DPConfig.sheets().Values.update({ values: [cols_().slice()] }, sheetId, rangeIn_(tabs_().ARCHIVE, 'A1:' + lastCol_() + '1'), { valueInputOption: 'RAW' });
 }
 
 /**
@@ -102,19 +102,19 @@ function archiveOldDone_(sheetId, values) {
   });
   if (!archived.length) return null;
   ensureArchiveTab_(sheetId);
-  Sheets.Spreadsheets.Values.append({ values: archived }, sheetId, rangeIn_(tabs_().ARCHIVE, 'A1'), { valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS' });
+  global.DPConfig.sheets().Values.append({ values: archived }, sheetId, rangeIn_(tabs_().ARCHIVE, 'A1'), { valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS' });
   var blank = [];
   for (var i = kept.length; i < values.length; i++) blank.push(cols_().map(function() { return ''; }));
   var data = [];
   if (kept.length) data.push({ range: rangeFor_('A2:' + lastCol_() + (kept.length + 1)), values: kept });
   data.push({ range: rangeFor_('A' + (kept.length + 2) + ':' + lastCol_() + (values.length + 1)), values: blank });
-  Sheets.Spreadsheets.Values.batchUpdate({ valueInputOption: 'RAW', data: data }, sheetId);
+  global.DPConfig.sheets().Values.batchUpdate({ valueInputOption: 'RAW', data: data }, sheetId);
   return kept;
 }
 
 /** One bounded read of every data row, archiving old DONE rows when the cap is hit. */
 function readValues_(sheetId) {
-  var res = Sheets.Spreadsheets.Values.get(sheetId, rangeFor_('A2:' + lastCol_() + (MAX_ROWS + 1)));
+  var res = global.DPConfig.sheets().Values.get(sheetId, rangeFor_('A2:' + lastCol_() + (MAX_ROWS + 1)));
   var values = res.values || [];
   if (values.length >= MAX_ROWS) {
     var kept = archiveOldDone_(sheetId, values);
@@ -187,15 +187,15 @@ function upsert(row) {
   var payload = { values: [toArray_(merged)] };
   if (found) {
     var a1 = 'A' + found.rowNumber + ':' + lastCol_() + found.rowNumber;
-    Sheets.Spreadsheets.Values.update(payload, idx.sheetId, rangeFor_(a1), { valueInputOption: 'RAW' });
+    global.DPConfig.sheets().Values.update(payload, idx.sheetId, rangeFor_(a1), { valueInputOption: 'RAW' });
     found.row = merged;
   } else if (session_) {
     if (idx.rows.length + 1 >= MAX_ROWS) throw fullError_();
-    Sheets.Spreadsheets.Values.update(payload, idx.sheetId, rangeFor_('A' + idx.next + ':' + lastCol_() + idx.next), { valueInputOption: 'RAW' });
+    global.DPConfig.sheets().Values.update(payload, idx.sheetId, rangeFor_('A' + idx.next + ':' + lastCol_() + idx.next), { valueInputOption: 'RAW' });
     track_(idx, { rowNumber: idx.next, row: merged });
     idx.next += 1;
   } else {
-    Sheets.Spreadsheets.Values.append(payload, idx.sheetId, rangeFor_('A1'), { valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS' });
+    global.DPConfig.sheets().Values.append(payload, idx.sheetId, rangeFor_('A1'), { valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS' });
   }
   return merged;
 }
@@ -237,13 +237,13 @@ function appendMany(rows) {
   });
   if (session_) {
     if (idx.rows.length + values.length >= MAX_ROWS) throw fullError_();
-    Sheets.Spreadsheets.Values.update({ values: values }, idx.sheetId, rangeFor_('A' + idx.next + ':' + lastCol_() + (idx.next + values.length - 1)), { valueInputOption: 'RAW' });
+    global.DPConfig.sheets().Values.update({ values: values }, idx.sheetId, rangeFor_('A' + idx.next + ':' + lastCol_() + (idx.next + values.length - 1)), { valueInputOption: 'RAW' });
     objects.forEach(function(o) {
       track_(idx, { rowNumber: idx.next, row: o });
       idx.next += 1;
     });
   } else {
-    Sheets.Spreadsheets.Values.append({ values: values }, idx.sheetId, rangeFor_('A1'), { valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS' });
+    global.DPConfig.sheets().Values.append({ values: values }, idx.sheetId, rangeFor_('A1'), { valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS' });
   }
   return values.length;
 }

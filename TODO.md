@@ -13,7 +13,7 @@
 
 ## Phase 29 step 0: measure before batching (In Progress)
 
-- [ ] Count Sheets reads/writes per run in `counts` (`sheetsReads`, `sheetsWrites`): meter on `DPConfig` (reads =
+- [x] Count Sheets reads/writes per run in `counts` (`sheetsReads`, `sheetsWrites`): meter on `DPConfig` (reads =
   `Spreadsheets.get`, `Values.get/batchGet`; writes = `update/append/batchUpdate`, `Spreadsheets.batchUpdate`), reset
   at the top of `runQueue`. Red test: realStores run, meter totals equal `__fakes.sheetsCalls` bucketed the same way.
   Non-realStores `DPConfig` fake returns zeros.

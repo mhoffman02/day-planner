@@ -259,7 +259,9 @@ export function makeHubContext(o = {}) {
       getRegistry: () => h.config.registry,
       getSheetId: () => 'sheet1',
       isProvisioned: () => true,
-      getSheetUrl: () => 'https://example.invalid/sheet'
+      getSheetUrl: () => 'https://example.invalid/sheet',
+      resetSheetsMeter: () => {},
+      sheetsMeter: () => ({ reads: 0, writes: 0 })
     };
     ctx.DPLedgerRepo = makeLedger(ctx, h);
   }

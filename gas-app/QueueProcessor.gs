@@ -500,6 +500,9 @@ function runLocked_(dry, features) {
     }
     counts.errors += collectErrors;
     counts.timeLimited = timeLimited;
+    var meter = DPConfig.sheetsMeter(); // since the reset at the top of runQueue
+    counts.sheetsReads = meter.reads;
+    counts.sheetsWrites = meter.writes;
     // Outcome in words, not just ok: FAILED = nothing succeeded, PARTIAL = some items failed.
     var succeeded = counts.processed + counts.skipped + counts.inFlight;
     var status = dry ? 'DRY_RUN' : (counts.errors === 0 ? 'DONE' : (succeeded === 0 ? 'FAILED' : 'PARTIAL'));
@@ -526,6 +529,7 @@ function runQueue(forceDry) {
   var missing = missingDependency_();
   if (missing) return typeof DPEngines === 'undefined' ? { ok: false, message: 'DPEngines is not loaded' } : setupResult_('Missing dependency ' + missing);
   try {
+    DPConfig.resetSheetsMeter();
     var features = getFeatures();
     if (features.GMAIL_ROUTER !== true) {
       return DPEngines.makeResult({ ok: true, status: 'NOOP', message: 'GMAIL_ROUTER flag is off' });
