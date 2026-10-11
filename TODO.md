@@ -16,7 +16,7 @@
 Re-granted via `?view=regrant` (Google Picker, appId 951958469609). Probe `unwritable: []`; L5 `processWorkflowQueue`
 3 processed, 0 errors. Left:
 - [ ] Probe only checks one level deep: files under the `2026` subfolder are unchecked. Edit a Daily Note on HOME
-  `/exec` and check the error tray; if it fails, open `?view=regrant` and pick that subfolder's files.
+  `/dev` and check the error tray; if it fails, open `?view=regrant` and pick that subfolder's files.
 - [ ] `processWorkflowQueue` returns `ok:true` with `counts.errors: 3` and `errors: []`, so gas-rpc exits 0 on a fully
   failed run. Fix red-test-first (Phase 29 step 0).
 
@@ -35,7 +35,7 @@ HOME `/dev` and the gas-rpc API deployment (@301) run `59e4119`. Pinned prod `/e
   error tray (Retry, "+N more", auto-resolve); Create Appointment lands in the right slot; "Add Google Meet"
   (light + dark) and a real `meetError`; stale "offline copy" notices; task notes edit persists to Google;
   delete during an in-flight save stays deleted; typing on two days within 1.2s saves both notes.
-- [ ] **Decide pinned prod `/exec` deploy** (user): held because it carries `gmail.readonly`.
+- [ ] **Pinned prod `/exec` deploy at release only** (user go): test on `/dev`; prod carries `gmail.readonly`.
 - [x] **Create the `🎯/` Gmail labels** (done 2026-10-10; 3 test threads on Task/Task-Today/Waiting) and label 2-3 test threads; confirm assumptions A1-A15 in
   [`docs/hub-setup-and-gate.md`](file:///home/mike/projects/day-planner/docs/hub-setup-and-gate.md).
 - [x] **DRY_RUN smoke** 2026-10-10 via gas-rpc: L1 Sheets, L2 emoji label resolution, L3 Config flag edit picked up,
