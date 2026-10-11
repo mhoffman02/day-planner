@@ -12,8 +12,10 @@
  * QUOTA: a queue run calls beginSession() once (ONE Sheets read of the whole ledger, or none when
  * the rows come from the run's DPConfig snapshot batchGet) and
  * endSession() in a finally block. While a session is open get/list/upsert/appendMany are served
- * from the in-memory index and every write goes straight through (one Values.update per row), so a
- * 25-item batch costs one ledger read instead of one-plus-per-operation. Outside a session each
+ * from the in-memory index. Completion writes (DONE, ERROR, DEFERRED, ...) are queued and sent in the
+ * same Values.batchUpdate as the next PENDING claim, which is always sent at once so it is durable
+ * before its side effect. flush()/endSession() send what is left. A crash before that leaves the
+ * row PENDING; it retries after the stale window and the targets are idempotent by op key. Outside a session each
  * call re-reads, as before. The session is only valid while the caller holds the script lock.
  *
  * CAPACITY: the tab is capped at MAX_ROWS. When a read hits the cap, DONE rows whose UpdatedAt is
@@ -30,6 +32,7 @@ var MAX_ROWS = 5000;
 var MAX_CELL_CHARS = 40000;
 var ARCHIVE_AFTER_DAYS = 90;
 var session_ = null;
+var CLAIM_STATUS = 'PENDING';
 
 function cols_() { return global.DPEngines.LEDGER_COLUMNS; }
 
@@ -125,7 +128,7 @@ function readValues_(sheetId, prefetched) {
 /** @returns {{sheetId:string, rows:Array<{rowNumber:number,row:Object}>, byKey:Object, next:number}} Index of the ledger. */
 function buildIndex_(sheetId, prefetched) {
   var values = readValues_(sheetId, prefetched);
-  var idx = { sheetId: sheetId, rows: [], byKey: {}, next: values.length + 2 };
+  var idx = { sheetId: sheetId, rows: [], byKey: {}, next: values.length + 2, queue: [] };
   values.forEach(function(arr, i) {
     var entry = { rowNumber: i + 2, row: toObject_(arr) };
     idx.rows.push(entry);
@@ -147,9 +150,46 @@ function beginSession(prefetched) {
   session_ = buildIndex_(global.DPConfig.getSheetId(), prefetched);
 }
 
-/** Closes the session opened by beginSession (safe to call when none is open). */
+/**
+ * Queues one row write in the open session. A claim (PENDING) is never queued: it is sent at once
+ * together with everything queued before it, so it is durable before its side effect runs.
+ * A later write to the same range replaces the queued one.
+ */
+function writeRow_(idx, a1, arr, isClaim) {
+  var range = rangeFor_(a1);
+  idx.queue = idx.queue.filter(function(w) { return w.range !== range; });
+  idx.queue.push({ range: range, values: [arr] });
+  if (isClaim) flush();
+}
+
+/**
+ * Sends every queued session write in ONE Values.batchUpdate (more only past the range cap).
+ * The queue is cleared before sending, so a failure is not retried by endSession. Throws on failure.
+ */
+function flush() {
+  if (!session_ || !session_.queue.length) return;
+  var data = session_.queue;
+  session_.queue = [];
+  global.DPEngines.chunkValueRanges(data).forEach(function(chunk) {
+    global.DPConfig.sheets().Values.batchUpdate({ valueInputOption: 'RAW', data: chunk }, session_.sheetId);
+  });
+}
+
+/**
+ * Closes the session opened by beginSession (safe to call when none is open), sending any queued
+ * writes first. Called from a finally block, so a failed send is logged with its stack and not
+ * thrown, never masking the error already in flight; the rows stay PENDING and retry once stale.
+ * The success path calls flush() itself first, so its failures do throw.
+ */
 function endSession() {
-  session_ = null;
+  try {
+    flush();
+  } catch (err) {
+    console.error('LedgerRepository.endSession: queued ledger writes were not saved; those rows stay PENDING and retry after the stale window: ' +
+      (err && err.message) + '\n' + (err && err.stack));
+  } finally {
+    session_ = null;
+  }
 }
 
 /** @returns {Object|null} Ledger row for opKey, or null. */
@@ -185,13 +225,17 @@ function upsert(row) {
   merged.CreatedAt = found ? (found.row.CreatedAt || now) : (row.CreatedAt || now);
   merged.UpdatedAt = row.UpdatedAt || now;
   var payload = { values: [toArray_(merged)] };
-  if (found) {
+  var isClaim = merged.Status === CLAIM_STATUS;
+  if (session_ && found) {
+    writeRow_(idx, 'A' + found.rowNumber + ':' + lastCol_() + found.rowNumber, payload.values[0], isClaim);
+    found.row = merged;
+  } else if (found) {
     var a1 = 'A' + found.rowNumber + ':' + lastCol_() + found.rowNumber;
     global.DPConfig.sheets().Values.update(payload, idx.sheetId, rangeFor_(a1), { valueInputOption: 'RAW' });
     found.row = merged;
   } else if (session_) {
     if (idx.rows.length + 1 >= MAX_ROWS) throw fullError_();
-    global.DPConfig.sheets().Values.update(payload, idx.sheetId, rangeFor_('A' + idx.next + ':' + lastCol_() + idx.next), { valueInputOption: 'RAW' });
+    writeRow_(idx, 'A' + idx.next + ':' + lastCol_() + idx.next, payload.values[0], isClaim);
     track_(idx, { rowNumber: idx.next, row: merged });
     idx.next += 1;
   } else {
@@ -237,7 +281,8 @@ function appendMany(rows) {
   });
   if (session_) {
     if (idx.rows.length + values.length >= MAX_ROWS) throw fullError_();
-    global.DPConfig.sheets().Values.update({ values: values }, idx.sheetId, rangeFor_('A' + idx.next + ':' + lastCol_() + (idx.next + values.length - 1)), { valueInputOption: 'RAW' });
+    idx.queue.push({ range: rangeFor_('A' + idx.next + ':' + lastCol_() + (idx.next + values.length - 1)), values: values });
+    flush();
     objects.forEach(function(o) {
       track_(idx, { rowNumber: idx.next, row: o });
       idx.next += 1;
@@ -256,6 +301,7 @@ global.DPLedgerRepo = Object.freeze({
   appendMany: appendMany,
   readRange: readRange,       // used by QueueProcessor.gs (snapshot batchGet)
   beginSession: beginSession, // used by QueueProcessor.gs
+  flush: flush,               // used by QueueProcessor.gs (before the meter read)
   endSession: endSession      // used by QueueProcessor.gs
 });
 

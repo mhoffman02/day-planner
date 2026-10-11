@@ -501,6 +501,7 @@ function runLocked_(dry, features) {
     }
     counts.errors += collectErrors;
     counts.timeLimited = timeLimited;
+    DPLedgerRepo.flush(); // queued completions; throws (fail loud) before the run reports success
     var meter = DPConfig.sheetsMeter(); // since the reset at the top of runQueue
     counts.sheetsReads = meter.reads;
     counts.sheetsWrites = meter.writes;

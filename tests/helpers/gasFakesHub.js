@@ -167,6 +167,7 @@ function makeLedger(ctx, h) {
   const stamp = () => new Date().toISOString();
   return {
     readRange: () => "'Integration Ledger'!A2:N5001",
+    flush() {},
     beginSession() {},
     endSession() {},
     get(opKey) { const r = h.ledger.rows.get(opKey); return r ? { ...r } : null; },

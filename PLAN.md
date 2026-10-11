@@ -79,7 +79,7 @@ Sheet only, claims stay write-through, typed RPCs only (no generic range endpoin
   `A2:..5001`. `getConfig`, `getFeatures({fresh})`, `getRegistry` and `beginSession` read from it. Lives only for that
   locked execution; archive compaction stays in the read step. Keep `valueRenderOption` at the default FORMATTED_VALUE
   (UNFORMATTED would change how hand-typed Config cells parse).
-- [ ] Write combining: send each item's completion in the same `Values.batchUpdate` as the next item's claim
+- [x] (pending sha; fake 3-item run: 6 writes -> 4) Write combining: send each item's completion in the same `Values.batchUpdate` as the next item's claim
   (`[complete N, claim N+1]`), so every claim is still durable before its side effect. Safe because a stale PENDING row
   retries after 15 min and Task creation is idempotent (op key in `dp-meta`, `findExistingByOpKey`). `endSession`'s
   `finally` flushes anything still queued, logs the stack, and never masks the original error.
