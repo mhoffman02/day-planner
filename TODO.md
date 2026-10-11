@@ -6,6 +6,8 @@ Everything here needs the user (GSA account, a release go, or a decision). HOME 
 
 - [ ] **Delete the test appointment** "Day Planner e2e test - safe to delete" (HOME calendar, 2026-10-30 14:00, has a Meet
   link). The app has no event-delete RPC, so it was left for you.
+- [ ] **Other test data you may want to clear**: the "Hub L6 forced-failure test" email and the Task it created in
+  `@default`; default "Daily Notes" sections for 10-30 and 10-31 in the October notes Doc.
 - [ ] **Watch the 7-day Testing expiry** (gated to 2026-10-17): does the web app or the 5-min sync trigger start failing
   auth weekly now that the script is linked to a Testing-mode GCP project? gas-rpc warns on day 6.
 - [ ] **Publish consent screen** (user, "once it's working"), then rerun the rpc login (skill `gas-rpc` setup step 3)

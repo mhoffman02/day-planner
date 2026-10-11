@@ -27,7 +27,9 @@ matrix in `docs/hub-*.md`. Branch `feat/gmail-meeting-hub` (`781c521`, ahead of 
 - [x] **PUSH GATE**: approved and pushed to HOME `/dev` 2026-10-09; Gmail + Sheets in IDE Services; re-consented.
 - [x] Hardening: fail-loud catches, fail-closed saves, error tray, `createCalendarEvent` + Meet, calendar-TZ day windows.
 - [x] Test tier D: agent runs HOME GAS functions headlessly, `npm run rpc -- <fn> --deploy` (skill `gas-rpc`), live 7/7.
-- [x] **Live HOME verification** 2026-10-10: L1-L8 and all `/dev` UX checks passed (TODO_HISTORY). Live checks found and
+- [x] **Live HOME verification** 2026-10-10: L1-L8 and the `/dev` UX checks passed (TODO_HISTORY). Substitutions:
+  hover/touch via synthetic PointerEvents (no real iPad); `meetError` via a stubbed reply (a real Google rejection
+  can't be induced on HOME; server path in `createCalendarEvent.test.js`); full Meeting Prep render deferred to WORK. Live checks found and
   fixed 4 bugs: failed 🎯/Task ops never reached Triage, Advanced Gmail byte bodies threw "Could not decode string.",
   the error tray Retry froze the app on any failed save, and the manifest start_url rewrite always failed.
 - [ ] ~~Pinned prod `/exec`~~ (moved to Phase 30): redeploy only on user go (carries `gmail.readonly`).
