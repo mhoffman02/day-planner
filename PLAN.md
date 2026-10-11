@@ -67,10 +67,11 @@ Pattern borrowed from sheetfu's Table (read once, queue edits, one commit). The 
 script library adds load time plus code the catch lint can't see. User decisions 2026-10-10: Advanced Service only, hub
 Sheet only, claims stay write-through, typed RPCs only (no generic range endpoint).
 - [x] **Prerequisite: app-file writes work under the linked GCP project**: re-granted via `?view=regrant` 2026-10-10.
-- [ ] Step 0 (in progress, checklist in `TODO.md`): run outcome fix done (`de3c983`, `a9f2813`); run `counts` now
+- [x] Step 0 (done 2026-10-10): run outcome fix done (`de3c983`, `a9f2813`); run `counts` now
   carry `sheetsReads`/`sheetsWrites` (`4199eeb`). Empty-run floor on HOME 2026-10-10: 3 reads, 0 writes (0 items).
-  Next: L5 with fresh items for the per-item baseline.
-- [ ] Pure range logic in `src/integration/sheetRanges.js` (A1/col letters, tab quoting with `'` escaping, ValueRange
+  L5 baseline 2026-10-10 (`8e2cd43`, 3 fresh items, 3 Tasks created): **4 reads, 6 writes** = floor 3 reads + 1 read
+  when items exist, 2 writes per item. Target after batching: 1 read, ~4 writes for the same run.
+- [x] (`8e2cd43`) Pure range logic in `src/integration/sheetRanges.js` (A1/col letters, tab quoting with `'` escaping, ValueRange
   assembly from queued writes, ~50-range flush cap), node-tested, built into Engines.gs. One shared helper replaces
   the copies in `Config.gs` and `LedgerRepository.gs` (the ledger's copy doesn't escape `'` in tab names).
 - [ ] One snapshot per locked run: a single `Values.batchGet` of Config `A2:B200` + Registry `A1:M500` + Ledger

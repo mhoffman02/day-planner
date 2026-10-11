@@ -960,3 +960,5 @@
 
 
 - [x] GAS globals rule (2026-10-10): build number + favicon URL moved behind frozen `DPApp.buildNumber()` / `DPApp.faviconUrl()` in `gas-app/Code.gs`; `tools/stamp-build-number.js` stamps `BUILD_NUMBER_`.
+
+- [x] 2026-10-10 Phase 29 step 0: L5 baseline (3 items: 4 reads, 6 writes; empty floor 3 reads, 0 writes) and shared `src/integration/sheetRanges.js` helper (`8e2cd43`).
