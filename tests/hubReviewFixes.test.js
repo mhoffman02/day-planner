@@ -196,6 +196,19 @@ test('#4 queue: retryable errors back off, stop after 5 attempts, and manual ret
   assert.equal(ctx.__hub.tasks.inserts, 6);
 });
 
+test('#4 queue: a run whose items fail reports ok:false with each failure in errors (2026-10-10 L5: ok:true, errors:[])', () => {
+  const ctx = makeHubContext({ features: LIVE });
+  addThread(ctx, { id: 't1', labels: ['🎯/Task'] });
+  ctx.__hub.tasks.failInsert = true;
+  const r = run(ctx);
+  assert.equal(r.ok, false, JSON.stringify(r));
+  assert.equal(r.counts.errors, 1, 'one failed item counts once');
+  assert.equal(r.errors.length, 1);
+  assert.equal(r.errors[0].operationKey, 'GMAIL|t1|TASK');
+  assert.equal(typeof r.errors[0].message, 'string');
+  assert.ok(r.errors[0].code, JSON.stringify(r.errors[0]));
+});
+
 // ---------------------------------------------------------------- #5 quota / runtime
 test('#5 a 25-item batch does <= 3 ledger Sheets reads and ONE Tasks list read', () => {
   const ctx = makeHubContext({ realStores: true, features: LIVE, batchSize: 25 });

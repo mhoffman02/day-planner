@@ -477,6 +477,7 @@ function runLocked_(dry, features) {
     } else {
       plan.quarantined.forEach(function(q) { messages.push('Would quarantine: ' + q.errorMessage); });
     }
+    var collectErrors = errors.length; // selection failures; item failures are counted in the loop
     var timeLimited = false;
     for (var i = 0; i < plan.toProcess.length; i++) {
       if (Date.now() - startMs >= QUEUE_MAX_RUN_MS_) {
@@ -487,20 +488,23 @@ function runLocked_(dry, features) {
       var item = plan.toProcess[i];
       var r = executeRoute({ kind: item.kind, threadId: item.threadId, thread: metaByThread[item.threadId], seriesKey: item.seriesKey, occurrenceInfo: item.occurrenceInfo,
         dryRun: dry, settings: settings, registry: registry, opKey: item.opKey });
-      if (!r.ok) counts.errors += 1;
+      if (!r.ok) {
+        counts.errors += 1;
+        if (errors.length < QUEUE_MAX_MESSAGES_) errors.push({ operationKey: item.opKey, code: r.errorCode || 'ERROR', message: r.message });
+      }
       else if (r.status === 'SKIPPED') counts.skipped += 1;
       else if (r.status === 'IN_FLIGHT') counts.inFlight += 1;
       else counts.processed += 1;
       if (r.deferred) counts.deferred += 1;
       if (messages.length < QUEUE_MAX_MESSAGES_) messages.push(r.message);
     }
-    counts.errors += errors.length;
+    counts.errors += collectErrors;
     counts.timeLimited = timeLimited;
     var status = dry ? 'DRY_RUN' : 'DONE';
     // DRY_RUN never touches the live HUB_LAST_RUN record, only its own clearly named property.
     PropertiesService.getUserProperties().setProperty(dry ? QUEUE_LAST_RUN_DRY_PROP_ : QUEUE_LAST_RUN_PROP_, JSON.stringify({ at: new Date().toISOString(), status: status, counts: counts }));
     var done = !timeLimited && items.length <= settings.batchSize;
-    return E.makeResult({ ok: errors.length === 0, status: status,
+    return E.makeResult({ ok: counts.errors === 0, status: status,
       message: (dry ? 'Dry run: ' : '') + counts.processed + ' processed, ' + counts.skipped + ' skipped, ' + counts.errors + ' errors, ' + counts.quarantined + ' quarantined' +
         (timeLimited ? ', stopped at the ' + (QUEUE_MAX_RUN_MS_ / 60000) + ' minute time limit (' + counts.notStarted + ' not started; they resume next run)' : ''),
       counts: counts, messages: messages, errors: errors, done: done });

@@ -207,6 +207,7 @@ export function interpretRunResponse(resp) {
   const result = resp.response?.result;
   let failed = false;
   if (result && typeof result === 'object' && !Array.isArray(result)) {
+    if (result.ok === false) failed = true; // makeResult-shaped RPCs (e.g. processWorkflowQueue with item errors)
     if (typeof result.passedCount === 'number' && typeof result.totalTests === 'number' && result.passedCount !== result.totalTests) failed = true;
     if (typeof result.overallStatus === 'string' && /FAIL|UNHEALTHY/i.test(result.overallStatus)) failed = true;
   } else if (Array.isArray(result)) {

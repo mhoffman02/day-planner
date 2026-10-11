@@ -155,6 +155,8 @@ test('interpretRunResponse: result heuristics', () => {
   assert.equal(interpretRunResponse(wrap({ passedCount: 6, totalTests: 7 })).ok, false);
   assert.equal(interpretRunResponse(wrap({ overallStatus: 'UNHEALTHY' })).ok, false);
   assert.equal(interpretRunResponse(wrap([{ status: 'PASS' }, { status: 'FAIL' }])).ok, false);
+  assert.equal(interpretRunResponse(wrap({ ok: false, status: 'DONE', message: '0 processed, 3 errors' })).ok, false, 'makeResult ok:false is a failure');
+  assert.equal(interpretRunResponse(wrap({ ok: true, status: 'DONE', message: '3 processed' })).ok, true);
   const plain = interpretRunResponse(wrap('hello'));
   assert.equal(plain.ok, true);
   assert.equal(plain.result, 'hello');
