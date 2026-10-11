@@ -59,18 +59,16 @@ matrix in `docs/hub-*.md`. Branch `feat/gmail-meeting-hub` (`781c521`, ahead of 
 - [ ] **WORK promotion**: `npm run push:work` after HOME passes; admin approval of the new scope may block it.
 - Out of scope: Gemini discovery/actions (Phase 6 build), USAi (Phase 7).
 
-### Phase 29: Hub Sheet batched range store (Planned; awaiting user go)
+### Phase 29: Hub Sheet batched range store (In Progress; user go 2026-10-10)
 Goal: one Sheets REST call to read and roughly one per item to write, in place of today's 4 reads per run plus 2 writes per
 item. The Advanced Service `Sheets.Spreadsheets.Values.batchGet/batchUpdate` *is* the Sheets REST v4 API; no UrlFetchApp.
 Pattern borrowed from sheetfu's Table (read once, queue edits, one commit). The GAS "Sheets-as-DB" libraries
 (Tamotsu, GAS-DB, ServiceSQL) were rejected: they sit on SpreadsheetApp (needs the broad `spreadsheets` scope), and a
 script library adds load time plus code the catch lint can't see. User decisions 2026-10-10: Advanced Service only, hub
 Sheet only, claims stay write-through, typed RPCs only (no generic range endpoint).
-- [ ] **Prerequisite: app-file writes work under the linked GCP project** (see `TODO.md` top item). Nothing below can be
-  verified live until this is fixed.
-- [ ] Step 0, no behavior change: count Sheets reads and writes in run `counts` (`sheetsReads`, `sheetsWrites`). Also fix
-  `processWorkflowQueue` returning `ok:true` when `counts.errors > 0`, red test first. Then run L5 on today's code to
-  get a measured baseline.
+- [x] **Prerequisite: app-file writes work under the linked GCP project**: re-granted via `?view=regrant` 2026-10-10.
+- [ ] Step 0 (in progress, checklist in `TODO.md`): run outcome fix done (`de3c983`, `a9f2813`); next count Sheets
+  reads/writes in run `counts` (`sheetsReads`, `sheetsWrites`), then run L5 for a measured baseline.
 - [ ] Pure range logic in `src/integration/sheetRanges.js` (A1/col letters, tab quoting with `'` escaping, ValueRange
   assembly from queued writes, ~50-range flush cap), node-tested, built into Engines.gs. One shared helper replaces
   the copies in `Config.gs` and `LedgerRepository.gs` (the ledger's copy doesn't escape `'` in tab names).

@@ -11,13 +11,14 @@
   `michael.hoffman@gsa.gov` can do this, in the WORK Apps Script IDE (Deploy → Manage
   deployments → Edit → select version → Deploy). Blocked on the user.
 
-## Drive grants after the GCP project link (2026-10-10): fixed
+## Phase 29 step 0: measure before batching (In Progress)
 
-Re-granted via `?view=regrant` (Google Picker, appId 951958469609). Probe `unwritable: []`; L5 `processWorkflowQueue`
-3 processed, 0 errors. Left:
-- [x] `2026` subfolder notes writable: Daily Note save on HOME `/dev` persisted across reload (2026-10-10).
-- [ ] `processWorkflowQueue` returns `ok:true` with `counts.errors: 3` and `errors: []`, so gas-rpc exits 0 on a fully
-  failed run. Fix red-test-first (Phase 29 step 0).
+- [ ] Count Sheets reads/writes per run in `counts` (`sheetsReads`, `sheetsWrites`): meter on `DPConfig` (reads =
+  `Spreadsheets.get`, `Values.get/batchGet`; writes = `update/append/batchUpdate`, `Spreadsheets.batchUpdate`), reset
+  at the top of `runQueue`. Red test: realStores run, meter totals equal `__fakes.sheetsCalls` bucketed the same way.
+  Non-realStores `DPConfig` fake returns zeros.
+- [ ] L5 baseline via `npm run rpc -- processWorkflowQueue --deploy` (needs `DRY_RUN` FALSE and labelled threads) before
+  the rpc login dies 2026-10-17. Record the counters in `PLAN.md` Phase 29.
 
 ## Phase 28: Gmail / Meeting Hub — live HOME verification (In Progress)
 

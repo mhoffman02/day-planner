@@ -1,5 +1,13 @@
 # Task History (TODO_HISTORY)
 
+## 2026-10-10 — Drive grants restored after the GCP project link; queue run outcome fix
+
+- [x] **Re-grant page** `?view=regrant` (Google Picker, `setAppId` 951958469609, API key in Script Properties
+  `PICKER_API_KEY`): `e8cae82`; write probe `driveWriteAccessReport` recognises Drive's refusal: `ba10fbc`.
+  Probe `unwritable: []`; L5 3 Tasks created, 0 errors; Daily Note save into `2026` subfolder persisted on `/dev`.
+- [x] **Queue run outcome**: failed items now give `ok:false`, listed in `errors`; gas-rpc exits 1 on `ok:false`:
+  `de3c983`. Status `DONE`/`PARTIAL`/`FAILED`, message leads "N of M items failed": `a9f2813`.
+
 ## 2026-10-10 — Tier D: headless server-side test runner (Execution API)
 
 - [x] **`tools/gas-rpc.js`** (`npm run rpc -- <fn> [--deploy]`, skill `gas-rpc`): runs top-level HOME GAS functions via

@@ -255,3 +255,7 @@ live-testing catches it by luck.
 ## 2026-10-01
 **Worked well:** Read the modal markup instead of re-testing — `@click.away` on a modal opened by an outside button closes it on the same click; one-line fix.
 **Needs improvement:** Prior session blamed "stale cache" after a CDP test passed; a synthetic/test click passing isn't proof the user's path works — inspect the handlers before attributing a user report to caching.
+
+## 2026-10-10 (Drive re-grant, queue outcome)
+**Worked well:** Picker re-grant with `setAppId` restored `drive.file` writes without widening scope; red tests caught both halves of the silent-failure bug (server `ok` and the rpc tool exit code).
+**Needs improvement:** a bare `ok:false` was still unclear to the user; report run outcome in words (`PARTIAL`/`FAILED`, "N of M failed"). Run version-control commands from the worktree root, not `gas-app/`.
