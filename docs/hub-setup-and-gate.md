@@ -2,7 +2,7 @@
 
 Architecture: [`hub-architecture.md`](hub-architecture.md). Acceptance mapping: [`hub-acceptance-matrix.md`](hub-acceptance-matrix.md).
 
-Status: code complete and merged on the integration branch; nothing below the PUSH GATE has been run. All hub
+Status: live on HOME prod (@319, 2026-10-10); HOME live checks passed (see PLAN-HISTORY Phase 28); WORK v132 pushed, pending IDE repoint. All hub
 features default OFF and `DRY_RUN` is ON.
 
 ## 1. Private setup values checklist (spec "Private setup values")

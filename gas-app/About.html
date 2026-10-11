@@ -31,7 +31,7 @@
         <span class="material-symbols-outlined">lock</span> Your Privacy
       </h3>
       <p class="callout-text">
-        Day Planner only ever writes inside one folder — the one you create for it below. It <b>cannot change anything else in your Google Drive.</b> The one exception: when you paste a Google Docs, Sheets, Slides, or Drive link into a note, it briefly reads that file's title (nothing else) so it can show a readable name instead of a raw link.
+        Day Planner only ever writes inside one folder — the one you create for it below. It <b>cannot change anything else in your Google Drive.</b> If you turn on the optional Gmail hub, it can also <b>read</b> (never send, change, or delete) the emails you label with 🎯. The one exception: when you paste a Google Docs, Sheets, Slides, or Drive link into a note, it briefly reads that file's title (nothing else) so it can show a readable name instead of a raw link.
       </p>
       <div class="folder-instructions-box">
         <b>How to set it up:</b>
@@ -74,6 +74,14 @@
           <tr>
             <td><b>Future Planning</b></td>
             <td>A 12-month look-ahead for goals and milestones that are more than a month out.</td>
+          </tr>
+          <tr>
+            <td><b>Triage</b> <i>(optional)</i></td>
+            <td>A board of the Gmail threads you've labelled with 🎯, showing what the hub did with each one (Done, Error, or Waiting). Appears once the Gmail hub is on.</td>
+          </tr>
+          <tr>
+            <td><b>Meeting Prep</b> <i>(optional)</i></td>
+            <td>Before a recurring meeting, shows how many carry-in items are waiting in its notes Doc, with a link to open it. Appears once the Gmail hub is on.</td>
           </tr>
         </tbody>
       </table>
@@ -147,6 +155,18 @@
         </h3>
         <p class="guide-card-text">
           Click the sync icon in the top bar any time to reconcile your tasks and Google Calendar appointments. This also happens automatically in the background every few minutes, so the two rarely drift apart.
+        </p>
+      </article>
+
+      <article class="guide-card">
+        <h3 class="guide-card-title">
+          <span class="material-symbols-outlined">mail</span> Turning Emails Into Tasks (Gmail Hub)
+        </h3>
+        <p class="guide-card-text">
+          In Gmail, label a thread <b>🎯/Task</b> (or <b>🎯/Task-Today</b> to date it today, or <b>🎯/Waiting</b> for things you are waiting on). On each scheduled run (every few minutes, once the hub schedule is installed), the hub turns each newly labelled thread into a Google Task with a link back to the email. Label a meeting thread <b>🎯/Meeting/NCMMS-Core</b> to add it to that meeting’s notes as a carry-in. Each email is handled once, so leaving the label on is safe.
+        </p>
+        <p class="guide-card-text">
+          <b>Turning it on:</b> the hub is off by default. Its settings live in the <b>Config</b> tab of the <i>Day Planner Hub Config</i> Sheet in your Day Planner folder. Set <code>GMAIL_ROUTER</code> to TRUE, check the trial run, then set <code>DRY_RUN</code> to FALSE. While <code>DRY_RUN</code> is TRUE, the hub only reports what it <i>would</i> do. Set <code>TRIAGE_BOARD</code> and <code>NCMMS_CORE_PILOT</code> to TRUE to show the Triage and Meeting Prep tabs. The <b>Meeting Registry</b> tab lists your recurring meetings and their notes Docs. If a thread shows <b>Error</b> in Triage, fix the cause and press <b>Retry</b>; most errors are also retried automatically.
         </p>
       </article>
 
