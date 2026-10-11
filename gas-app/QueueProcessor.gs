@@ -420,7 +420,7 @@ function collectItems_(ctx) {
 }
 
 /**
- * Body of one locked queue run. One ledger read and at most one Tasks list read per run; stops
+ * Body of one locked queue run. One Sheets read (snapshot batchGet) and at most one Tasks list read per run; stops
  * starting new items after QUEUE_MAX_RUN_MS_.
  * @param {boolean} dry True for DRY_RUN.
  * @param {object} features Feature flags.
@@ -429,12 +429,13 @@ function collectItems_(ctx) {
 function runLocked_(dry, features) {
   var E = DPEngines;
   var startMs = Date.now();
-  var settings = getSettings();
-  var registry = DPConfig.getRegistry();
   var store = ledgerStore();
-  DPLedgerRepo.beginSession();
-  DPTaskRepo.beginRun(settings.tasksListId);
   try {
+    // ONE Sheets read for the run: Config + Registry + Ledger in a single batchGet.
+    DPLedgerRepo.beginSession(DPConfig.beginSnapshot([DPLedgerRepo.readRange()])[0]);
+    var settings = getSettings();
+    var registry = DPConfig.getRegistry();
+    DPTaskRepo.beginRun(settings.tasksListId);
     var now0 = new Date();
     var doneKeys = {};
     var blockedKeys = {};
@@ -517,6 +518,7 @@ function runLocked_(dry, features) {
   } finally {
     DPTaskRepo.endRun();
     DPLedgerRepo.endSession();
+    DPConfig.endSnapshot();
   }
 }
 

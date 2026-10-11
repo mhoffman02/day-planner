@@ -166,6 +166,7 @@ function makeLedger(ctx, h) {
   const assertLocked = () => { if (ctx.LockService.state.holder === null) throw new Error('LEDGER_WITHOUT_LOCK: caller must hold the lock'); };
   const stamp = () => new Date().toISOString();
   return {
+    readRange: () => "'Integration Ledger'!A2:N5001",
     beginSession() {},
     endSession() {},
     get(opKey) { const r = h.ledger.rows.get(opKey); return r ? { ...r } : null; },
@@ -260,6 +261,8 @@ export function makeHubContext(o = {}) {
       getSheetId: () => 'sheet1',
       isProvisioned: () => true,
       getSheetUrl: () => 'https://example.invalid/sheet',
+      beginSnapshot: (extra) => extra.map(() => []),
+      endSnapshot: () => {},
       resetSheetsMeter: () => {},
       sheetsMeter: () => ({ reads: 0, writes: 0 })
     };

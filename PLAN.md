@@ -74,7 +74,7 @@ Sheet only, claims stay write-through, typed RPCs only (no generic range endpoin
 - [x] (`8e2cd43`) Pure range logic in `src/integration/sheetRanges.js` (A1/col letters, tab quoting with `'` escaping, ValueRange
   assembly from queued writes, ~50-range flush cap), node-tested, built into Engines.gs. One shared helper replaces
   the copies in `Config.gs` and `LedgerRepository.gs` (the ledger's copy doesn't escape `'` in tab names).
-- [ ] One snapshot per locked run: a single `Values.batchGet` of Config `A2:B200` + Registry `A1:M500` + Ledger
+- [x] (pending sha) One snapshot per locked run: a single `Values.batchGet` of Config `A2:B200` + Registry `A1:M500` + Ledger
   `A2:..5001`. `getConfig`, `getFeatures({fresh})`, `getRegistry` and `beginSession` read from it. Lives only for that
   locked execution; archive compaction stays in the read step. Keep `valueRenderOption` at the default FORMATTED_VALUE
   (UNFORMATTED would change how hand-typed Config cells parse).

@@ -9,7 +9,8 @@
  * hold LockService.getScriptLock() (e.g. via DPEngines.claimOperation/runOperation) around them;
  * this file deliberately takes no lock itself because locks are not re-entrant.
  *
- * QUOTA: a queue run calls beginSession() once (ONE Sheets read of the whole ledger) and
+ * QUOTA: a queue run calls beginSession() once (ONE Sheets read of the whole ledger, or none when
+ * the rows come from the run's DPConfig snapshot batchGet) and
  * endSession() in a finally block. While a session is open get/list/upsert/appendMany are served
  * from the in-memory index and every write goes straight through (one Values.update per row), so a
  * 25-item batch costs one ledger read instead of one-plus-per-operation. Outside a session each
@@ -104,10 +105,15 @@ function archiveOldDone_(sheetId, values) {
   return kept;
 }
 
-/** One bounded read of every data row, archiving old DONE rows when the cap is hit. */
-function readValues_(sheetId) {
-  var res = global.DPConfig.sheets().Values.get(sheetId, rangeFor_('A2:' + lastCol_() + (MAX_ROWS + 1)));
-  var values = res.values || [];
+/** @returns {string} A1 range of every ledger data row (row 2 to the cap). */
+function readRange() { return rangeFor_('A2:' + lastCol_() + (MAX_ROWS + 1)); }
+
+/**
+ * One bounded read of every data row (skipped when prefetched is given), archiving old DONE rows
+ * when the cap is hit.
+ */
+function readValues_(sheetId, prefetched) {
+  var values = prefetched || global.DPConfig.sheets().Values.get(sheetId, readRange()).values || [];
   if (values.length >= MAX_ROWS) {
     var kept = archiveOldDone_(sheetId, values);
     if (!kept || kept.length >= MAX_ROWS) throw fullError_();
@@ -117,8 +123,8 @@ function readValues_(sheetId) {
 }
 
 /** @returns {{sheetId:string, rows:Array<{rowNumber:number,row:Object}>, byKey:Object, next:number}} Index of the ledger. */
-function buildIndex_(sheetId) {
-  var values = readValues_(sheetId);
+function buildIndex_(sheetId, prefetched) {
+  var values = readValues_(sheetId, prefetched);
   var idx = { sheetId: sheetId, rows: [], byKey: {}, next: values.length + 2 };
   values.forEach(function(arr, i) {
     var entry = { rowNumber: i + 2, row: toObject_(arr) };
@@ -131,12 +137,14 @@ function buildIndex_(sheetId) {
 function index_() { return session_ || buildIndex_(global.DPConfig.getSheetId()); }
 
 /**
- * Opens a read-through session: ONE Sheets read now, then all get/list/upsert/appendMany calls are
- * served from memory with write-through. The caller must hold the script lock and MUST call
- * endSession() in a finally block.
+ * Opens a read-through session: ONE Sheets read now (none when prefetched is given), then all
+ * get/list/upsert/appendMany calls are served from memory with write-through. The caller must hold
+ * the script lock and MUST call endSession() in a finally block.
+ * @param {Array<Array<string>>} [prefetched] Rows of readRange() already fetched by the caller.
  */
-function beginSession() {
-  session_ = buildIndex_(global.DPConfig.getSheetId());
+function beginSession(prefetched) {
+  if (prefetched !== undefined && !Array.isArray(prefetched)) throw new Error('beginSession prefetched rows must be an array');
+  session_ = buildIndex_(global.DPConfig.getSheetId(), prefetched);
 }
 
 /** Closes the session opened by beginSession (safe to call when none is open). */
@@ -246,6 +254,7 @@ global.DPLedgerRepo = Object.freeze({
   upsert: upsert,
   list: list,
   appendMany: appendMany,
+  readRange: readRange,       // used by QueueProcessor.gs (snapshot batchGet)
   beginSession: beginSession, // used by QueueProcessor.gs
   endSession: endSession      // used by QueueProcessor.gs
 });

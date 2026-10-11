@@ -21,6 +21,10 @@
  * distinct from the script lock the queue/controllers hold, so a locked caller cannot deadlock) and
  * re-checks the stored Sheet id after acquiring it, so concurrent first runs create exactly one Sheet.
  * Every other function here takes no lock.
+ * RUN SNAPSHOT: a locked queue run calls beginSnapshot() once (ONE Values.batchGet of Config,
+ * Registry and the caller's extra ranges) and endSnapshot() in a finally block. While it is open,
+ * config/registry reads are served from it and setFeature/setRegistryDocId/updateRegistryRow patch
+ * it after their write-through, so no later read in the run is stale.
  * Missing mandatory configuration throws Error('SETUP_ERROR: <key> ...') (spec section 19).
  */
 (function(global) {
@@ -261,11 +265,53 @@ function isProvisioned() {
   return !!PropertiesService.getUserProperties().getProperty(PROP_SHEET_ID);
 }
 
-function readConfigMap_() {
+var snapshot_ = null;
+
+/**
+ * Opens a run snapshot: ONE Values.batchGet of the Config and Registry tabs plus extraRanges.
+ * Until endSnapshot(), config/registry reads come from it and config/registry writes patch it.
+ * The caller must hold the script lock and MUST call endSnapshot() in a finally block.
+ * @param {Array<string>} extraRanges More A1 ranges to fetch in the same call (the ledger).
+ * @returns {Array<Array<Array<string>>>} Values of each extra range, in order.
+ */
+function beginSnapshot(extraRanges) {
+  if (!Array.isArray(extraRanges)) throw new Error('beginSnapshot requires an array of ranges');
   var id = ensureSetup();
-  var res = sheets_().Values.get(id, engines_().a1Range(TAB_CONFIG, CONFIG_READ_RANGE));
+  var ranges = [engines_().a1Range(TAB_CONFIG, CONFIG_READ_RANGE), engines_().a1Range(TAB_REGISTRY, REGISTRY_READ_RANGE)].concat(extraRanges);
+  var got = sheets_().Values.batchGet(id, { ranges: ranges }).valueRanges || [];
+  if (got.length !== ranges.length) throw new Error('Sheets batchGet returned ' + got.length + ' ranges, expected ' + ranges.length);
+  var vals = got.map(function (vr) { return vr.values || []; });
+  snapshot_ = { config: vals[0], registry: vals[1] };
+  return vals.slice(2);
+}
+
+/** Drops the run snapshot (safe to call when none is open). */
+function endSnapshot() {
+  snapshot_ = null;
+}
+
+/** @returns {Array<Array<string>>} Config tab rows from A2, from the snapshot when one is open. */
+function configValues_(id) {
+  if (snapshot_) return snapshot_.config;
+  return sheets_().Values.get(id, engines_().a1Range(TAB_CONFIG, CONFIG_READ_RANGE)).values || [];
+}
+
+/** @returns {Array<Array<string>>} Registry tab rows from A1 (header first), from the snapshot when open. */
+function registryValues_(id) {
+  if (snapshot_) return snapshot_.registry;
+  return sheets_().Values.get(id, engines_().a1Range(TAB_REGISTRY, REGISTRY_READ_RANGE)).values || [];
+}
+
+/** Writes value into the open snapshot at 0-based (row, col), padding short rows. */
+function patchSnapshot_(rows, r, c, value) {
+  while (rows.length <= r) rows.push([]);
+  while (rows[r].length <= c) rows[r].push('');
+  rows[r][c] = value;
+}
+
+function readConfigMap_() {
   var map = {};
-  (res.values || []).forEach(function (row) {
+  configValues_(ensureSetup()).forEach(function (row) {
     var k = cell_(row[0]);
     if (k) map[k] = cell_(row[1]);
   });
@@ -360,7 +406,7 @@ function setFeature(name, value) {
   if (!Object.prototype.hasOwnProperty.call(defaults, name)) throw new Error('Unknown feature flag: ' + String(name));
   if (typeof value !== 'boolean') throw new Error('Feature flag value must be boolean for ' + name);
   var id = ensureSetup();
-  var keys = sheets_().Values.get(id, engines_().a1Range(TAB_CONFIG, CONFIG_READ_RANGE.replace('B200', 'A200'))).values || [];
+  var keys = snapshot_ ? snapshot_.config : sheets_().Values.get(id, engines_().a1Range(TAB_CONFIG, CONFIG_READ_RANGE.replace('B200', 'A200'))).values || [];
   var row = -1;
   for (var i = 0; i < keys.length; i++) {
     if (cell_(keys[i][0]) === name) { row = i + 2; break; }
@@ -368,17 +414,17 @@ function setFeature(name, value) {
   var payload = { values: [[name, value ? 'TRUE' : 'FALSE']] };
   if (row > 0) {
     sheets_().Values.update(payload, id, engines_().a1Range(TAB_CONFIG, 'A' + row + ':B' + row), { valueInputOption: 'RAW' });
+    if (snapshot_) patchSnapshot_(snapshot_.config, row - 2, 1, payload.values[0][1]);
   } else {
     sheets_().Values.append(payload, id, engines_().a1Range(TAB_CONFIG, 'A1:B1'), { valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS' });
+    if (snapshot_) snapshot_.config.push(payload.values[0].slice());
   }
   return refreshFlags_();
 }
 
 /** @returns {Array<Object>} Parsed + validated registry rows via DPEngines.parseRegistry. */
 function getRegistry() {
-  var id = ensureSetup();
-  var res = sheets_().Values.get(id, engines_().a1Range(TAB_REGISTRY, REGISTRY_READ_RANGE));
-  return engines_().parseRegistry(res.values || []);
+  return engines_().parseRegistry(registryValues_(ensureSetup()));
 }
 
 /**
@@ -388,7 +434,7 @@ function getRegistry() {
  */
 function setRegistryDocId(seriesKey, docId) {
   var id = ensureSetup();
-  var values = sheets_().Values.get(id, engines_().a1Range(TAB_REGISTRY, REGISTRY_READ_RANGE)).values || [];
+  var values = registryValues_(id);
   var header = (values[0] || []).map(cell_);
   var keyCol = header.indexOf('SeriesKey');
   var docCol = header.indexOf('HumanNotesDocId');
@@ -397,6 +443,7 @@ function setRegistryDocId(seriesKey, docId) {
     if (cell_(values[r][keyCol]) === seriesKey) {
       var a1 = engines_().colLetter(docCol + 1) + (r + 1);
       sheets_().Values.update({ values: [[docId]] }, id, engines_().a1Range(TAB_REGISTRY, a1 + ':' + a1), { valueInputOption: 'RAW' });
+      if (snapshot_) patchSnapshot_(snapshot_.registry, r, docCol, docId);
       return;
     }
   }
@@ -418,7 +465,7 @@ function updateRegistryRow(seriesKey, fields) {
     if (E.REGISTRY_COLUMNS.indexOf(n) === -1) throw new Error('Unknown Meeting Registry column: ' + n);
   });
   var id = ensureSetup();
-  var values = sheets_().Values.get(id, engines_().a1Range(TAB_REGISTRY, REGISTRY_READ_RANGE)).values || [];
+  var values = registryValues_(id);
   var header = (values[0] || []).map(cell_);
   var keyCol = header.indexOf('SeriesKey');
   if (keyCol < 0) throw setupError_('Meeting Registry header lacks SeriesKey');
@@ -434,6 +481,7 @@ function updateRegistryRow(seriesKey, fields) {
         return { range: engines_().a1Range(TAB_REGISTRY, a1 + ':' + a1), values: [[fields[n] === undefined || fields[n] === null ? '' : String(fields[n])]] };
       });
       sheets_().Values.batchUpdate({ valueInputOption: 'RAW', data: data }, id);
+      if (snapshot_) data.forEach(function (d, i) { patchSnapshot_(snapshot_.registry, r, cols[i], d.values[0][0]); });
       return;
     }
   }
@@ -460,6 +508,8 @@ global.DPConfig = Object.freeze({
   getFolderId: getFolderId,
   setRegistryDocId: setRegistryDocId,
   updateRegistryRow: updateRegistryRow, // used by CalendarRepository.discoverSeries
+  beginSnapshot: beginSnapshot, // used by QueueProcessor.runLocked_ (one batchGet per locked run)
+  endSnapshot: endSnapshot, // used by QueueProcessor.runLocked_ (finally)
   sheets: sheets_, // metered Sheets.Spreadsheets, used by LedgerRepository
   resetSheetsMeter: resetSheetsMeter, // used by QueueProcessor.runQueue
   sheetsMeter: sheetsMeter // used by QueueProcessor (counts.sheetsReads/sheetsWrites)
