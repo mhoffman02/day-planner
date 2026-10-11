@@ -1,69 +1,84 @@
-<!-- handoff: branch=worktree-drive-grant-picker worktree=/home/mike/projects/day-planner/.claude/worktrees/drive-grant-picker base=4199eebc3bea written=2026-10-10T19:25:39-07:00 -->
-# Resume: Phase 29 step 0 meter shipped; L5 baseline waits on fresh labelled threads; next is the `sheetRanges.js` helper module
+<!-- handoff: branch=worktree-drive-grant-picker worktree=/home/mike/projects/day-planner/.claude/worktrees/drive-grant-picker base=1cda8dbcb872 written=2026-10-10T20:11:54-07:00 -->
+# Resume: Phase 29 code is done and on /dev; only the live 3-item check is left (needs Gmail connector auth)
 
 > **WARNING: written on branch `worktree-drive-grant-picker`** (worktree
 > `/home/mike/projects/day-planner/.claude/worktrees/drive-grant-picker`). Every commit was also pushed to
-> `origin/pure-gas-main`. The main checkout's local `pure-gas-main` is behind (`cb35933`). Update it:
-> `git -C /home/mike/projects/day-planner pull --ff-only`
+> `origin/pure-gas-main`. To update the main checkout: `git -C /home/mike/projects/day-planner pull --ff-only`
 
 **Verify first:**
 `git fetch -q; git log --branches --remotes -1 --abbrev=12 --format='%h %p %cI' -- HANDOFF.md`
-This prompt is stale if that commit is dated after `2026-10-10T19:25:39-07:00` **and** its parent (2nd field) isn't
-`4199eebc3bea`, or if `git worktree list` shows a worktree whose `HANDOFF.md` stamp has a later `written=`. If stale,
-read `git show <1st field>:HANDOFF.md` (or that worktree's file), use it instead, and tell the user. Then run
-`git log --oneline 4199eebc3bea..origin/pure-gas-main`: any commit besides the handoff commit means work landed after
-this prompt, so check it before redoing anything.
+This prompt is stale if that commit is dated after `2026-10-10T20:11:54-07:00` **and** its parent (2nd field) isn't
+`1cda8dbcb872`, or if `git worktree list` shows a worktree whose `HANDOFF.md` stamp has a later `written=`. If stale,
+read `git show <1st field>:HANDOFF.md` and use that instead. Then run `git log --oneline 1cda8dbcb872..origin/pure-gas-main`.
+Any commit there besides the handoff commit means work landed after this prompt.
 
-**Start by:** ask the user whether they have labelled fresh `🎯/` threads for the L5 baseline. If they have, run
-`npm run rpc -- processWorkflowQueue --deploy` and record `counts.sheetsReads`/`sheetsWrites` per item in
-[`PLAN.md`](file:///home/mike/projects/day-planner/PLAN.md) Phase 29. If they haven't, start the independent item:
-TDD `src/integration/sheetRanges.js` ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) line 19).
+**Start by:** if the `mcp__claude_ai_Gmail__*` tools beyond `authenticate` are available, do the live 3-item run
+([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) line 18). If they aren't, ask the user to run `/mcp` and pick
+"claude.ai Gmail". Don't ask the user to make the threads; Claude makes them.
 
 ## OBJECTIVE
-Phase 29: cut hub Sheet traffic per queue run to about one batched read plus about one write per item, down from
-4 reads per run plus 2 writes per item, using only the Advanced Sheets service. Step 0 measures before batching:
-a per-run Sheets meter (done), then an L5 baseline with real items.
+Phase 29 cuts hub Sheet traffic per queue run, using only the Advanced Sheets service. Before: 4 reads and 6 writes for
+3 items. Target: 1 read and about 4 writes. The code is done; the remaining step is a live confirmation with real items.
 
 ## KEY DECISIONS
-- User decisions 2026-10-10 (in `PLAN.md` Phase 29): Advanced Service only (no SpreadsheetApp, no libraries), hub
-  Sheet only, claims stay write-through, typed RPCs only.
-- Meter design: `DPConfig.sheets()` is a metered stand-in for `Sheets.Spreadsheets`. Reads are `get` and
-  `Values.get/batchGet`; writes are `batchUpdate` and `Values.update/batchUpdate/append`. It counts attempts, so a
-  call that throws still counts. `runQueue` resets the meter before `getFeatures` (fresh Config reads count), and
-  `runLocked_` copies it into `counts`. `endSession` writes nothing, so nothing is missed.
-- Test on `/dev` only. The pinned prod `/exec` deploy waits for a release and the user's go (memory file body fixed
-  this session to match).
+- **Snapshot** ([`gas-app/Config.gs`](file:///home/mike/projects/day-planner/gas-app/Config.gs) `beginSnapshot`/`endSnapshot`):
+  - Makes ONE `Values.batchGet` of Config `A2:B200`, Registry `A1:M500` and the ledger (`DPLedgerRepo.readRange()`).
+  - While it is open, `getConfig`, `getRegistry` and `getFeatures({fresh})` read from it. `setFeature`,
+    `setRegistryDocId` and `updateRegistryRows` patch it after their write, so later reads in the run are never stale.
+  - It is opened only inside `runLocked_` and dropped in that function's `finally`.
+- **Write combining** ([`gas-app/LedgerRepository.gs`](file:///home/mike/projects/day-planner/gas-app/LedgerRepository.gs)):
+  - Inside a session, non-PENDING rows are queued. A PENDING claim sends the queue plus itself in one `batchUpdate`,
+    so every claim is durable before its side effect.
+  - `runLocked_` calls `DPLedgerRepo.flush()` before reading the meter. That call throws on failure.
+  - `endSession` flushes anything left over. On failure it logs the stack and doesn't throw, so it never masks the
+    run's own error. The rows then stay PENDING and retry once stale; the targets are idempotent by op key.
+- **Discovery** uses `DPConfig.updateRegistryRows([{seriesKey, fields}])`: it validates every update first, then does
+  one read and one batch write. `updateRegistryRow` was removed because nothing called it.
+- Earlier decisions stand: Advanced Service only, hub Sheet only, typed RPCs only, `FORMATTED_VALUE` reads.
 
 ## CURRENT STATE
-- `4199eeb` feat(queue): `counts.sheetsReads/sheetsWrites`. Files: `gas-app/Config.gs` (`sheets_`,
-  `resetSheetsMeter`, `sheetsMeter`, exported on `DPConfig`), `gas-app/LedgerRepository.gs` (calls
-  `global.DPConfig.sheets()`), `gas-app/QueueProcessor.gs`, `tests/helpers/gasFakesHub.js` (fake returns zeros), new
-  `tests/hubSheetsMeter.test.js`. 829/829 tests, lint clean.
-- Pushed to `origin/pure-gas-main` and to HOME `/dev` (`clasp push --force`). The gas-rpc API deployment is @307.
-- Live HOME run: `ok:true`, 0 candidates, **3 reads, 0 writes** (the empty-run floor). `dryRun:false`: **`DRY_RUN`
-  is already FALSE on HOME.** The 3 test threads are already DONE in the ledger, so there were no items.
-- `tools/check-gas-global-init-order.js` is referenced by `.agents/rules/gas-global-init-order.md` but doesn't exist
-  in the checkout (not part of `npm run lint`). Worth a TODO or a doc fix.
+- **Commits**, all pushed and on HOME `/dev`; the gas-rpc API deployment was redeployed on each run:
+  - `464ed69` snapshot
+  - `7480c07` write combining
+  - `eacaf7f` updateRegistryRows
+  - `1cda8db` PENDING check reads `DPEngines.LEDGER_STATUS.PENDING`
+- **Tests:** 854/854, lint clean. New: [`tests/hubSnapshot.test.js`](file:///home/mike/projects/day-planner/tests/hubSnapshot.test.js),
+  [`tests/hubWriteCombine.test.js`](file:///home/mike/projects/day-planner/tests/hubWriteCombine.test.js).
+  The fake 3-item run makes 1 `batchGet` and 4 writes.
+- **Live on HOME:**
+  - Empty `processWorkflowQueue`: `sheetsReads` 1 (was 3), 0 writes, DONE.
+  - `hubSpike` ok and `runSelfTest` 100% PASS.
+  - `discoverMeetingSeries` ok, but it matched 0 series, so the batch write has not run live.
+- **Not live-verified yet:** the combined write path. The empty runs make 0 writes.
+- **Ledger:** `counts.DONE` is 6 and `DRY_RUN` is FALSE on HOME, so the test run creates real Tasks.
+- Phase 29 is not archived. Its live exit criterion is still open.
 
 ## CONSTRAINTS & PREFERENCES
 - Start replies with `🔋Mike:`. Terse, no preamble or recap. Use `file://` links.
-- Red test first for any `src/*.js` fix. Every catch rethrows or calls `console.error` with the stack.
-- `gas-app/*.gs`: IIFE plus explicit exports with a per-export comment; top-level globals must be literals only.
-- Commit straight to the working branch and push to `origin/pure-gas-main`. No PRs.
-- Use tier subagents (`lite`/`worker`/`deep`) with model and effort set explicitly.
+- No global variables in `.gs`. Shared state lives in frozen IIFE namespaces behind getters and setters.
+- Every catch rethrows or calls `console.error` with the stack. TDD: red test first.
+- Commit straight to the working branch and push to `origin/pure-gas-main`. No PRs. `clasp push` to `/dev` after a
+  commit is pre-authorized; the prod `/exec` deploy needs the user's go.
+- User, 2026-10-10: "YOU forward the 3 emails". Claude creates the test threads.
+  - Use NEW emails with unique subjects. A self-forward lands in the old DONE thread and gets skipped.
+  - The app is `gmail.readonly` and can't send. Do not widen its scope.
 
 ## OPEN THREADS (THE 3 MOST IMPORTANT TASKS)
-1. **L5 baseline** ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) line 16): user-blocked on freshly
-   labelled `🎯/` threads; must run before the rpc login dies **2026-10-17**.
-2. **`src/integration/sheetRanges.js`** ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) line 19,
-   [`PLAN.md`](file:///home/mike/projects/day-planner/PLAN.md) line 73): pure A1/tab-quoting/ValueRange helpers,
-   node-tested, built into Engines.gs, replacing the copies in Config.gs and LedgerRepository.gs.
-3. **Phase 28 live `/dev` checks and the 7-day Testing expiry watch**
-   ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) lines 31-38).
+1. **Live 3-item run** ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) line 18).
+   - Blocked on `/mcp` Gmail auth. Must happen before the rpc login dies on **2026-10-17**.
+   - Expect 1 read, 4 writes, and `counts.DONE` 6 → 9.
+   - Then tick the live exit in [`PLAN.md`](file:///home/mike/projects/day-planner/PLAN.md) Phase 29 and archive the
+     phase to `PLAN-HISTORY.md`.
+2. **Phase 28 live `/dev` checks** via `tools/ensure-chrome.js` + `tools/e2e/*`
+   ([`TODO.md`](file:///home/mike/projects/day-planner/TODO.md), Phase 28 section).
+3. **7-day Testing expiry watch / publish the consent screen** (user decision); the rpc login dies 2026-10-17.
 
-User-blocked / time-gated: L5 baseline (labelled threads, before 2026-10-17); pinned prod `/exec` deploy and WORK
-promotion only on the user's go; WORK `/exec` repoint (GSA account only).
+Blocked on the user:
+- Pinned prod `/exec` deploy and WORK promotion, only on the user's go.
+- WORK `/exec` repoint, which only the GSA account can do.
 
 ## IMMEDIATE NEXT STEP
-Ask: "Have you labelled fresh `🎯/` threads for the L5 baseline?" If not, create `tests/sheetRanges.test.js` with
-red cases for `colLetter(27) === 'AA'` and quoting `O'Brien` → `'O''Brien'!A1`.
+Once Gmail is authenticated:
+1. Send 3 emails to mhoffman02@gmail.com with subjects `DP L5 batch test <timestamp> A/B/C`.
+2. Label them `🎯/Task`, `🎯/Task-Today` and `🎯/Waiting`.
+3. Run `npm run rpc -- processWorkflowQueue --deploy`, then `npm run rpc -- getHubStatus`.

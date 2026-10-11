@@ -83,11 +83,12 @@ Sheet only, claims stay write-through, typed RPCs only (no generic range endpoin
   (`[complete N, claim N+1]`), so every claim is still durable before its side effect. Safe because a stale PENDING row
   retries after 15 min and Task creation is idempotent (op key in `dp-meta`, `findExistingByOpKey`). `endSession`'s
   `finally` flushes anything still queued, logs the stack, and never masks the original error.
-- [x] (pending sha) `updateRegistryRows([...])`: discovery makes one `batchUpdate` from the snapshot, in place of a read plus a write per series.
+- [x] (`eacaf7f`; fake-verified only: live discovery on HOME matched 0 series, so no write ran) `updateRegistryRows([...])`: discovery makes one `batchUpdate` from the snapshot, in place of a read plus a write per series.
 - [x] (`tests/hubSnapshot.test.js`, `tests/hubWriteCombine.test.js`) Exit criteria (unit): a fake `Sheets` call counter. A 3-item run makes 1 `batchGet` and at most 4 writes (today
   about 4 reads and 6 writes); DRY_RUN makes 0 writes; every claim is written before its side effect. Full `npm test` +
   lint pass.
-- [ ] Exit criteria (live): `npm run rpc -- processWorkflowQueue` counters before and after, via gas-rpc.
+- [ ] Exit criteria (live): `npm run rpc -- processWorkflowQueue` counters before and after, via gas-rpc. Empty run
+  done (3 reads -> 1, 0 writes). Still needed: 3 fresh items, expect 1 read / 4 writes (baseline 4 / 6).
 - Known risks: a hand sort or delete in the Ledger tab during a run misdirects writes, because row numbers are cached
   (same as today, slightly wider window). Cells near the 40k-character limit are covered by the flush cap.
 - Module rules: IIFE wrap, literal-only top-level values, export as used by other .gs files, no top-level delegator.
