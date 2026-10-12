@@ -105,7 +105,7 @@ try {
   }
   console.log('\n======================================================');
   console.log('🎉 Successfully pushed code to WORK (Federal GSA)!');
-  console.log('   Live WORK Endpoint: https://script.google.com/a/macros/gsa.gov/s/AKfycbyLuAiuboGfbMg98PqUt7YQMNyB4Mk4rAUPXT_5FPbbHM2s4B1LP2GzeqOdJu_BhslA/exec');
+  console.log('   Live WORK Endpoint: https://script.google.com/a/macros/gsa.gov/s/AKfycbzDYvr-YAgJ9pwHHcC7O5jj_gThdr1kc13qy_B_MB0-ohY7SjfAm3osXcXtBOZ428Sh/exec');
   console.log('   (repoint this deployment to the new version in the IDE -- only michael.hoffman@gsa.gov can do that)');
   console.log('   WORK IDE:           https://script.google.com/d/' + WORK_SCRIPT_ID + '/edit');
   console.log('======================================================');

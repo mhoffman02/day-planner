@@ -1368,21 +1368,33 @@
     </button>
   </header>
 
+  <nav class="about-toc" aria-label="On this page" x-data="{ jump(id) { const el = document.getElementById(id); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }">
+    <button type="button" class="about-toc-link" @click="jump('heading-purpose')">Overview</button>
+    <button type="button" class="about-toc-link" @click="jump('heading-setup')">Setup</button>
+    <button type="button" class="about-toc-link" @click="jump('heading-features')">Tabs</button>
+    <button type="button" class="about-toc-link" @click="jump('heading-tasks')">Tasks</button>
+    <button type="button" class="about-toc-link" @click="jump('heading-notes')">Notes</button>
+    <button type="button" class="about-toc-link" @click="jump('heading-tags')">Tags</button>
+    <button type="button" class="about-toc-link" @click="jump('heading-auto')">Automatic Tasks</button>
+    <button type="button" class="about-toc-link" @click="jump('heading-sync')">Search &amp; Sync</button>
+    <button type="button" class="about-toc-link" @click="jump('heading-install')">Install</button>
+  </nav>
+
   <section aria-labelledby="heading-purpose">
-    <h2 id="heading-purpose" class="about-section-heading">1. What Day Planner Does For You</h2>
+    <h2 id="heading-purpose" class="about-section-heading">What Day Planner Does For You</h2>
     <p class="about-paragraph">
       Day Planner brings your to-do list, today's schedule, and your notes together on one page, in the classic day-planner layout — so you're not juggling separate apps to see what's due, what's next, and what was decided. Everything you enter is saved straight to your own Google account, so it's there the next time you open it, on any device.
     </p>
   </section>
 
   <section aria-labelledby="heading-setup">
-    <h2 id="heading-setup" class="about-section-heading">2. One-Time Setup: Your Day Planner Folder</h2>
+    <h2 id="heading-setup" class="about-section-heading">One-Time Setup: Your Day Planner Folder</h2>
     <aside class="security-callout">
       <h3 class="security-callout-title">
         <span class="material-symbols-outlined">lock</span> Your Privacy
       </h3>
       <p class="callout-text">
-        Day Planner only ever reads or writes inside one folder — the one you create for it below. It <b>cannot see, open, or change anything else in your Google Drive.</b>
+        Day Planner only ever writes inside one folder — the one you create for it below. It <b>cannot change anything else in your Google Drive.</b> If you turn on the optional Gmail hub, it can also <b>read</b> (never send, change, or delete) the emails you label with 🎯. The one exception: when you paste a Google Docs, Sheets, Slides, or Drive link into a note, it briefly reads that file's title (nothing else) so it can show a readable name instead of a raw link.
       </p>
       <div class="folder-instructions-box">
         <b>How to set it up:</b>
@@ -1396,7 +1408,7 @@
   </section>
 
   <section aria-labelledby="heading-features">
-    <h2 id="heading-features" class="about-section-heading">3. What You Can Do</h2>
+    <h2 id="heading-features" class="about-section-heading">The Tabs</h2>
     <figure class="table-container">
       <table class="task-table matrix-table">
         <thead>
@@ -1408,7 +1420,7 @@
         <tbody>
           <tr>
             <td><b>Daily</b></td>
-            <td>Your main workspace: today's tasks, today's schedule, and today's notes, side by side.</td>
+            <td>Your main workspace: today's tasks, today's schedule, and today's notes, side by side, plus a short quote for the day (click its header to collapse it).</td>
           </tr>
           <tr>
             <td><b>Monthly Calendar</b></td>
@@ -1424,26 +1436,40 @@
           </tr>
           <tr>
             <td><b>Future Planning</b></td>
-            <td>A 12-month look-ahead for goals and milestones that are more than a month out.</td>
+            <td>A 12-month look-ahead for goals and milestones that are more than a month out. Items are saved as Google Tasks, so you can also see them in Google Tasks.</td>
+          </tr>
+          <tr>
+            <td><b>Triage</b> <i>(optional)</i></td>
+            <td>A board of the Gmail threads you've labelled with 🎯, showing what the hub did with each one (Done, Error, or Waiting). Appears once the Gmail hub is on.</td>
+          </tr>
+          <tr>
+            <td><b>Meeting Prep</b> <i>(optional)</i></td>
+            <td>Before a recurring meeting, shows how many carry-in items are waiting in its notes Doc, with a link to open it. Appears once the Gmail hub is on.</td>
           </tr>
         </tbody>
       </table>
     </figure>
   </section>
 
-  <section aria-labelledby="heading-guide">
-    <h2 id="heading-guide" class="about-section-heading">4. How To Use It</h2>
+  <section aria-labelledby="heading-tasks">
+    <h2 id="heading-tasks" class="about-section-heading">Tasks</h2>
 
     <section class="cards-stack">
       <article class="guide-card">
         <h3 class="guide-card-title">
-          <span class="material-symbols-outlined">format_list_bulleted</span> Prioritizing Your Tasks & Inline Notes
+          <span class="material-symbols-outlined">format_list_bulleted</span> Priorities and Status
         </h3>
         <p class="guide-card-text">
-          Every task gets a priority letter and number: <b>A</b> for urgent, <b>B</b> for important, <b>C</b> for everything else, then a number for order within that group (type <code>#a</code>, <code>#b</code>, or <code>#c</code> in the input or click the priority selector). Click a task's status box to mark it: Open <span class="material-symbols-outlined icon-16">arrow_forward</span> Completed <span class="material-symbols-outlined icon-16">arrow_forward</span> Forwarded <span class="material-symbols-outlined icon-16">arrow_forward</span> Canceled <span class="material-symbols-outlined icon-16">arrow_forward</span> Delegated.
+          Every task gets a priority letter and number: <b>A</b> for urgent, <b>B</b> for important, <b>C</b> for everything else, then a number for order within that group. Type <code>#a</code>, <code>#b</code>, or <code>#c</code> in the input, or click the priority selector. Click a task's status box to mark it: Open <span class="material-symbols-outlined icon-16">arrow_forward</span> Completed <span class="material-symbols-outlined icon-16">arrow_forward</span> Forwarded <span class="material-symbols-outlined icon-16">arrow_forward</span> Canceled <span class="material-symbols-outlined icon-16">arrow_forward</span> Delegated.
         </p>
+      </article>
+
+      <article class="guide-card">
+        <h3 class="guide-card-title">
+          <span class="material-symbols-outlined">sticky_note_2</span> Adding Details to a Task
+        </h3>
         <p class="guide-card-text">
-          <b>Adding Notes & Details:</b> Use a pipe <code>|</code> in the task description to attach details (e.g. <code>Call vendor | discuss Q3 scope and renewal terms</code>). The title becomes "Call vendor", and the details save straight to Google Tasks details, accessible anytime via the sticky note icon (<span class="material-symbols-outlined icon-16">sticky_note_2</span>).
+          Use a pipe <code>|</code> in the task text to attach details, e.g. <code>Call vendor | discuss Q3 scope and renewal terms</code>. The title becomes "Call vendor", and the details are saved in the Google Task's details. Open them any time with the sticky note icon (<span class="material-symbols-outlined icon-16">sticky_note_2</span>).
         </p>
       </article>
 
@@ -1455,13 +1481,19 @@
           Open <b>Master Tasks</b> to see everything on your longer-term list. When you're ready to work on one, click <b>Move to Today</b> — it's added to today's task list with a priority already assigned, no retyping.
         </p>
       </article>
+    </section>
+  </section>
 
+  <section aria-labelledby="heading-notes">
+    <h2 id="heading-notes" class="about-section-heading">Notes</h2>
+
+    <section class="cards-stack">
       <article class="guide-card">
         <h3 class="guide-card-title">
-          <span class="material-symbols-outlined">history</span> Version History
+          <span class="material-symbols-outlined">view_agenda</span> Note Cards and Categories
         </h3>
         <p class="guide-card-text">
-          Need to review earlier versions of your daily notes or restore deleted thoughts? Click the Version History icon (<span class="material-symbols-outlined icon-16">history</span>) in the Notes column header to inspect hourly revisions, see diffs, and restore any snapshot with one click.
+          Each day's notes are split into cards, one per topic. Tick the category boxes on a card (Work, Personal, Meeting, Decision, Project) to group it, then pick a <b>Category Filter</b> to show only those cards. Everything is saved to that month's notes Doc in your Day Planner folder.
         </p>
       </article>
 
@@ -1470,7 +1502,16 @@
           <span class="material-symbols-outlined">tag</span> Logging a Decision So You Can Find It Later
         </h3>
         <p class="guide-card-text">
-          While typing a note, add a tag like <code>#index [Meeting] Approved the Q3 budget</code>. It automatically shows up in the <b>Monthly Index</b> tab, in date order — a running record of the calls you've made, without any extra filing.
+          Start a note card heading with <code>#index [Topic]</code>, e.g. <code>#index [Budget] Approved the Q3 budget</code>. It shows up in the <b>Monthly Index</b> tab, in date order — a running record of the calls you've made, without any extra filing.
+        </p>
+      </article>
+
+      <article class="guide-card">
+        <h3 class="guide-card-title">
+          <span class="material-symbols-outlined">history</span> Version History
+        </h3>
+        <p class="guide-card-text">
+          Need an earlier version of your daily notes? Click the Version History icon (<span class="material-symbols-outlined icon-16">history</span>) in the Notes column header to see hourly snapshots, compare them, and restore one with a click.
         </p>
       </article>
 
@@ -1479,10 +1520,145 @@
           <span class="material-symbols-outlined">mic</span> Talk Instead of Type
         </h3>
         <p class="guide-card-text">
-          Click the microphone icon on any note to dictate it instead of typing — handy for quick notes on the go. Use <code>Space</code> to start and stop, <code>Esc</code> to close.
+          Click the microphone icon on any note to dictate it instead of typing. Use <code>Space</code> to start and stop, <code>Esc</code> to close.
         </p>
       </article>
+    </section>
+  </section>
 
+  <section aria-labelledby="heading-tags">
+    <h2 id="heading-tags" class="about-section-heading">Tag Reference</h2>
+    <p class="about-paragraph">
+      Tags are short markers you type (or the app adds) that tell Day Planner what to do with a line.
+    </p>
+    <figure class="table-container">
+      <table class="task-table matrix-table about-tag-table">
+        <thead>
+          <tr class="table-header-row">
+            <th scope="col">Tag</th>
+            <th scope="col">Where</th>
+            <th scope="col">What it does</th>
+            <th scope="col">Example</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>#a</code> <code>#b</code> <code>#c</code></td>
+            <td>New task input</td>
+            <td>Sets the task's priority group (A urgent, B important, C everything else).</td>
+            <td><code>Call vendor #a</code></td>
+          </tr>
+          <tr>
+            <td><code>|</code></td>
+            <td>New task input</td>
+            <td>Splits the title from its details. The details go into the Google Task.</td>
+            <td><code>Call vendor | renewal terms</code></td>
+          </tr>
+          <tr>
+            <td><code>#index [Topic]</code></td>
+            <td>Note card heading</td>
+            <td>Logs the card in the Monthly Index under that topic.</td>
+            <td><code>#index [Budget] Approved Q3</code></td>
+          </tr>
+          <tr>
+            <td><code>#task [A1]</code></td>
+            <td>Any note line</td>
+            <td>Links the note card to today's task with that priority code. The card shows <b>→ A1</b>.</td>
+            <td><code>#task [A1] Vendor call notes</code></td>
+          </tr>
+          <tr>
+            <td><code>#category:</code></td>
+            <td>Notes Doc (automatic)</td>
+            <td>Stores the card's ticked categories. Set them with the category boxes rather than typing this line.</td>
+            <td><code>#category: Work, Meeting</code></td>
+          </tr>
+          <tr>
+            <td><code>[Future]</code></td>
+            <td>Google Task details (automatic)</td>
+            <td>Marks a Future Planning item. Leave it in place, or the item drops off the Future Planning tab.</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td><code>[Waiting]</code></td>
+            <td>Google Task details (automatic)</td>
+            <td>Marks something you are waiting on (from the <b>🎯/Waiting</b> Gmail label). Leave it in place.</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td><b>🎯/…</b></td>
+            <td>Gmail labels</td>
+            <td>Turn an email into a task or a meeting carry-in. See Automatic Tasks below.</td>
+            <td><b>🎯/Task</b></td>
+          </tr>
+        </tbody>
+      </table>
+    </figure>
+  </section>
+
+  <section aria-labelledby="heading-auto">
+    <h2 id="heading-auto" class="about-section-heading">Automatic Tasks</h2>
+    <p class="about-paragraph">
+      Some tasks are created for you, so you never retype them.
+    </p>
+    <figure class="table-container">
+      <table class="task-table matrix-table">
+        <thead>
+          <tr class="table-header-row">
+            <th scope="col">When you…</th>
+            <th scope="col">Day Planner creates…</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Mark a task <b>Forwarded</b></td>
+            <td>A copy on the next day. A task from a past day is forwarded to today instead.</td>
+          </tr>
+          <tr>
+            <td>Add a <b>Future Planning</b> item</td>
+            <td>A Google Task due on that date, tagged <code>[Future]</code>.</td>
+          </tr>
+          <tr>
+            <td>Label an email <b>🎯/Task</b></td>
+            <td>A Google Task with no date (shows in Master Tasks), with a link back to the email.</td>
+          </tr>
+          <tr>
+            <td>Label an email <b>🎯/Task-Today</b></td>
+            <td>The same, but due today, so it shows on the Daily tab.</td>
+          </tr>
+          <tr>
+            <td>Label an email <b>🎯/Waiting</b></td>
+            <td>A Google Task tagged <code>[Waiting]</code>, due on its follow-up date.</td>
+          </tr>
+          <tr>
+            <td>Label an email <b>🎯/Meeting/NCMMS-Core</b></td>
+            <td>No task: a link to the email is added under <b>PREP / EMAIL CARRY-INS</b> in the next Core meeting's notes Doc.</td>
+          </tr>
+        </tbody>
+      </table>
+    </figure>
+
+    <section class="cards-stack">
+      <article class="guide-card">
+        <h3 class="guide-card-title">
+          <span class="material-symbols-outlined">mail</span> How the Gmail Hub Works
+        </h3>
+        <p class="guide-card-text">
+          The hub checks your 🎯 labels every few minutes, once its schedule is installed. Each email is handled once, so leaving the label on is safe. Other 🎯 labels (Read, Review, Meeting, NCMMS-Daily) are recognized but don't do anything yet.
+        </p>
+        <p class="guide-card-text">
+          <b>Turning it on:</b> the hub is off by default. Its settings live in the <b>Config</b> tab of the <i>Day Planner Hub Config</i> Sheet in your Day Planner folder. Set <code>GMAIL_ROUTER</code> to TRUE, check the trial run, then set <code>DRY_RUN</code> to FALSE. While <code>DRY_RUN</code> is TRUE, the hub only reports what it <i>would</i> do. Set <code>TRIAGE_BOARD</code> and <code>NCMMS_CORE_PILOT</code> to TRUE to show the Triage and Meeting Prep tabs. The <b>Meeting Registry</b> tab lists your recurring meetings and their notes Docs.
+        </p>
+        <p class="guide-card-text">
+          <b>If something fails:</b> the thread shows <b>Error</b> in Triage. Fix the cause and press <b>Retry</b>; most errors are also retried automatically.
+        </p>
+      </article>
+    </section>
+  </section>
+
+  <section aria-labelledby="heading-sync">
+    <h2 id="heading-sync" class="about-section-heading">Search, Sync &amp; Fixes</h2>
+
+    <section class="cards-stack">
       <article class="guide-card">
         <h3 class="guide-card-title">
           <span class="material-symbols-outlined">search</span> Finding Anything Fast
@@ -1494,10 +1670,19 @@
 
       <article class="guide-card">
         <h3 class="guide-card-title">
-          <span class="material-symbols-outlined">sync</span> Keeping Calendar & Tasks in Sync
+          <span class="material-symbols-outlined">sync</span> Keeping Calendar &amp; Tasks in Sync
         </h3>
         <p class="guide-card-text">
           Click the sync icon in the top bar any time to reconcile your tasks and Google Calendar appointments. This also happens automatically in the background every few minutes, so the two rarely drift apart.
+        </p>
+      </article>
+
+      <article class="guide-card">
+        <h3 class="guide-card-title">
+          <span class="material-symbols-outlined">warning</span> When Something Doesn't Save
+        </h3>
+        <p class="guide-card-text">
+          If a change can't reach Google (for example, you're offline), a <b>Needs attention</b> panel lists it. Click <b>Retry</b> once you're back online, or dismiss it with the close button.
         </p>
       </article>
 
@@ -1509,12 +1694,11 @@
           Click the sun/moon icon in the top bar to switch between light and dark themes. Your choice is remembered on that device.
         </p>
       </article>
-
     </section>
   </section>
 
   <section aria-labelledby="heading-install">
-    <h2 id="heading-install" class="about-section-heading">5. Put It on Your Desktop or Phone</h2>
+    <h2 id="heading-install" class="about-section-heading">Put It on Your Desktop or Phone</h2>
     <p class="about-paragraph">
       Day Planner works in any browser, but you can also install it as its own app window — no browser tabs or address bar, just your planner, one click away from your taskbar, dock, or home screen.
     </p>
@@ -1527,33 +1711,33 @@
     </div>
 
     <section class="cards-stack">
-      <article class="guide-card">
-        <h3 class="guide-card-title">
+      <details class="guide-card about-details">
+        <summary class="guide-card-title">
           <span class="material-symbols-outlined">desktop_windows</span> Google Chrome (Desktop)
-        </h3>
+        </summary>
         <p class="guide-card-text">
           Click the menu icon (<b>⋮</b>) in the top-right corner &rarr; <b>Save and share</b> (or <b>More tools</b>) &rarr; <b>Create shortcut...</b>. Check <b>"Open as window"</b>, then click <b>Create</b>. Pin the shortcut to your Taskbar or Dock for one-click access.
         </p>
-      </article>
+      </details>
 
-      <article class="guide-card">
-        <h3 class="guide-card-title">
+      <details class="guide-card about-details">
+        <summary class="guide-card-title">
           <span class="material-symbols-outlined">laptop_mac</span> Microsoft Edge (Desktop)
-        </h3>
+        </summary>
         <p class="guide-card-text">
           Click the menu icon (<b>…</b>) in the top-right corner &rarr; <b>Apps</b> &rarr; <b>Install this site as an app</b>. Keep the name as <b>Day Planner</b> and click <b>Install</b>. Edge opens it in its own app window from then on.
         </p>
-      </article>
+      </details>
 
-      <article class="guide-card">
-        <h3 class="guide-card-title">
-          <span class="material-symbols-outlined">smartphone</span> Phone or Tablet (iOS & Android)
-        </h3>
+      <details class="guide-card about-details">
+        <summary class="guide-card-title">
+          <span class="material-symbols-outlined">smartphone</span> Phone or Tablet (iOS &amp; Android)
+        </summary>
         <p class="guide-card-text">
           <b>iPhone/iPad (Safari):</b> Tap the <b>Share</b> button, scroll down, and tap <b>Add to Home Screen</b>.<br>
           <b>Android (Chrome):</b> Tap the menu icon (<b>⋮</b>) and choose <b>Add to Home screen</b> or <b>Install app</b>.
         </p>
-      </article>
+      </details>
     </section>
   </section>
 

@@ -21,8 +21,8 @@ Day Planner has two separate Google Apps Script deployments running under differ
 - **Script ID**: `1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq`
 - **Owner Account**: `michael.hoffman@gsa.gov` (Enterprise GSA Workspace)
 - **Dev Endpoint (`@HEAD`)**: `https://script.google.com/a/macros/gsa.gov/s/AKfycbw_OpkC0kTkrhkwI8AipH7jTeZeJfUYS7Xcy9BstG8/dev`
-- **Production Endpoint**: `https://script.google.com/a/macros/gsa.gov/s/AKfycbyLuAiuboGfbMg98PqUt7YQMNyB4Mk4rAUPXT_5FPbbHM2s4B1LP2GzeqOdJu_BhslA/exec`
-- **Active Deployment ID**: `AKfycbyLuAiuboGfbMg98PqUt7YQMNyB4Mk4rAUPXT_5FPbbHM2s4B1LP2GzeqOdJu_BhslA` (@59, deployment named "Day Planner"; the old `9csO`-ending deployment was archived 2026-09-27 as "Untitled")
+- **Production Endpoint**: `https://script.google.com/a/macros/gsa.gov/s/AKfycbzDYvr-YAgJ9pwHHcC7O5jj_gThdr1kc13qy_B_MB0-ohY7SjfAm3osXcXtBOZ428Sh/exec`
+- **Active Deployment ID**: `AKfycbzDYvr-YAgJ9pwHHcC7O5jj_gThdr1kc13qy_B_MB0-ohY7SjfAm3osXcXtBOZ428Sh` (deployment the user set up 2026-10-12; the earlier `BhslA`-ending deployment now 404s)
 - **Script IDE**: `https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit`
 
 ---
