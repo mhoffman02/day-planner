@@ -1,5 +1,15 @@
 # Task History (TODO_HISTORY)
 
+## 2026-10-12 — Phase 30: WORK v132 live, HOME hub trigger, About rewrite
+
+- [x] **WORK promotion**: user added Gmail + Sheets Services and deployed; WORK `/exec` is now `AKfycbzDYvr…` (old
+  `BhslA` deployment 404s; gas-environments rule + promote-to-work updated).
+- [x] **HOME hub trigger**: `installHubTriggers` via rpc, one `hubDispatch` every 5 min. HOME has `GMAIL_ROUTER` on and
+  `DRY_RUN` off, so it acts on real 🎯 labels.
+- [x] **About page**: sticky jump nav, Tag Reference table, Automatic Tasks table, collapsible install steps (`af8ef0f`,
+  `6930454`). Checked in local preview (desktop + phone); HOME `/dev` unreachable in the CDP profile while it is also
+  signed into GSA.
+
 ## 2026-10-10 — Phase 30 release items
 
 - [x] **Consent screen decision** (2026-10-10): stay in Testing. Rerun the rpc login every 7 days (next 2026-10-17).

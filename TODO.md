@@ -10,8 +10,7 @@ Everything here needs the user (GSA account, a release go, or a decision). HOME 
   `@default`; default "Daily Notes" sections for 10-30 and 10-31 in the October notes Doc.
 - [ ] **Watch the 7-day Testing expiry** (gated to 2026-10-17): does the web app or the 5-min sync trigger start failing
   auth weekly now that the script is linked to a Testing-mode GCP project? gas-rpc warns on day 6.
-- [ ] **WORK promotion**: `npm run push:work` done 2026-10-10, WORK **v132** cut. Remaining: `michael.hoffman@gsa.gov` in the WORK IDE: Services (+) Gmail + Sheets, Deploy →
-  Manage deployments → Edit → that version → Deploy. Admin may need to approve `gmail.readonly`.
-- [ ] **WORK Meeting Prep live render** (after promotion): needs a real NCMMS series. On HOME, Prep with the pilot on
-  fails loud "no upcoming occurrence of NCMMS_CORE" (no such calendar there). Check carry-in count equals the Doc.
-- [ ] **Hub trigger**: removed after the L8 check; run `installHubTriggers` when you want the 5-minute queue live.
+- [ ] **WORK Meeting Prep live render**: WORK `/exec` (`AKfycbzDYvr…`) loads, but its Hub Config Sheet has
+  `NCMMS_CORE_PILOT` off and `DRY_RUN` on, so the tab shows "turned off". Set `GMAIL_ROUTER` + `NCMMS_CORE_PILOT`
+  TRUE there, then check a real NCMMS series renders and the carry-in count equals the Doc. WORK has no hub trigger yet
+  (separate install as the GSA user).
