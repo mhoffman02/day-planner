@@ -263,3 +263,7 @@ live-testing catches it by luck.
 ## 2026-10-12 (stash and config cleanup)
 **Worked well:** Before dropping the old stash, diffing its files against the later baseline commit showed they were byte-identical, so the drop was safe.
 **Needs improvement:** Auto mode blocks `git checkout --theirs` and `git stash drop` even after the user says go. For conflict resolution, have the user run it via `!` from the start.
+
+## 2026-10-12 (About rewrite, WORK live)
+**Worked well:** Checking the About copy against the code caught two claims that would have been wrong: a task-side link to its `#task` note, and documenting all eight 🎯 labels when only four do anything.
+**Needs improvement:** `eval-console --iframe` attached to whichever GAS tab came first by URL, so the WORK build looked like HOME's. Also, `scrollIntoView` scrolls every ancestor, so in-pane nav must scroll its own container. And `pkill -f <pattern>` kills the calling shell when the pattern appears in its own command line.
