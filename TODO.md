@@ -10,8 +10,6 @@ Everything here needs the user (GSA account, a release go, or a decision). HOME 
   `@default`; default "Daily Notes" sections for 10-30 and 10-31 in the October notes Doc.
 - [ ] **Watch the 7-day Testing expiry** (gated to 2026-10-17): does the web app or the 5-min sync trigger start failing
   auth weekly now that the script is linked to a Testing-mode GCP project? gas-rpc warns on day 6.
-- [x] **Consent screen decision** (2026-10-10): stay in Testing. Rerun the rpc login every 7 days (next 2026-10-17).
-- [x] **Pinned prod `/exec` deploy** (2026-10-10): HOME prod now @319; prod self-test 12/12 PASS.
 - [ ] **WORK promotion**: `npm run push:work` done 2026-10-10, WORK **v132** cut. Remaining: `michael.hoffman@gsa.gov` in the WORK IDE: Services (+) Gmail + Sheets, Deploy →
   Manage deployments → Edit → that version → Deploy. Admin may need to approve `gmail.readonly`.
 - [ ] **WORK Meeting Prep live render** (after promotion): needs a real NCMMS series. On HOME, Prep with the pilot on

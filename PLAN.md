@@ -36,7 +36,9 @@ the GSA account, a release go, or a consent-screen decision. Checklist in [`TODO
 - [x] **Pinned prod `/exec`** redeployed @319 (2026-10-10), self-test 12/12 PASS.
 - [ ] **WORK promotion**: v132 pushed 2026-10-10; remaining is the WORK-IDE repoint (GSA account; admin may need to approve the scope).
 - [x] **Consent screen**: stay in Testing (decided 2026-10-10); rpc token dies every 7 days, next 2026-10-17.
+- [ ] **7-day Testing expiry watch**: rerun the rpc login on 2026-10-17 and check the web app and sync trigger still authorize.
 - Out of scope: Gemini discovery/actions (Phase 6 build), USAi (Phase 7).
+- **Next agent work:** none queued (as of 2026-10-12). Every open item needs the user; pick the next phase with them.
 
 ---
 

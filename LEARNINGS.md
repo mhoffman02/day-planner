@@ -259,3 +259,7 @@ live-testing catches it by luck.
 ## 2026-10-10 (Drive re-grant, queue outcome)
 **Worked well:** Picker re-grant with `setAppId` restored `drive.file` writes without widening scope; red tests caught both halves of the silent-failure bug (server `ok` and the rpc tool exit code).
 **Needs improvement:** a bare `ok:false` was still unclear to the user; report run outcome in words (`PARTIAL`/`FAILED`, "N of M failed"). Run version-control commands from the worktree root, not `gas-app/`.
+
+## 2026-10-12 (stash and config cleanup)
+**Worked well:** Before dropping the old stash, diffing its files against the later baseline commit showed they were byte-identical, so the drop was safe.
+**Needs improvement:** Auto mode blocks `git checkout --theirs` and `git stash drop` even after the user says go. For conflict resolution, have the user run it via `!` from the start.

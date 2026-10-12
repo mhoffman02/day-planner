@@ -1,5 +1,10 @@
 # Task History (TODO_HISTORY)
 
+## 2026-10-10 — Phase 30 release items
+
+- [x] **Consent screen decision** (2026-10-10): stay in Testing. Rerun the rpc login every 7 days (next 2026-10-17).
+- [x] **Pinned prod `/exec` deploy** (2026-10-10): HOME prod now @319; prod self-test 12/12 PASS.
+
 ## 2026-10-10 — Phases 25 + 28 HOME live checks (gas-rpc @313-318 + CDP on /dev)
 
 - [x] **Phase 25 hover/zoom**: `f641dc3` in `pure-gas-main`; branch `worktree-today-hover-zoom` deleted (locked
