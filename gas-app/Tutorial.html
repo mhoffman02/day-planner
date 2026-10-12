@@ -1,0 +1,413 @@
+<article class="about-container tutorial-container" x-data="{
+    storeKey: 'dp.tutorial.results.v1',
+    results: {},
+    hub: null,
+    hubError: '',
+    copyMsg: '',
+    showReport: false,
+    init() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(this.storeKey) || '{}');
+        this.results = saved &amp;&amp; typeof saved === 'object' ? saved : {};
+      } catch (err) {
+        console.error('Tutorial: saved results could not be read, starting with an empty checklist', err.stack);
+        this.results = {};
+      }
+      this.loadHub();
+    },
+    async loadHub() {
+      this.hubError = '';
+      try {
+        const r = await bridge.getHubStatus();
+        if (!r || r.ok !== true) throw new Error((r &amp;&amp; r.message) || 'No answer from the server');
+        this.hub = r;
+      } catch (err) {
+        console.error('Tutorial: hub status lookup failed, showing the error in the Before you start table', err.stack);
+        this.hub = null;
+        this.hubError = err.message;
+      }
+    },
+    flagOn(name) { return !!(this.hub &amp;&amp; this.hub.flags &amp;&amp; this.hub.flags[name] === true); },
+    today() {
+      const d = new Date();
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    },
+    result(id) { return (this.results[id] &amp;&amp; this.results[id].r) || ''; },
+    note(id) { return (this.results[id] &amp;&amp; this.results[id].note) || ''; },
+    mark(id, r) {
+      const prev = this.results[id] || {};
+      this.results = { ...this.results, [id]: { ...prev, r: prev.r === r ? '' : r, on: this.today() } };
+      this.save();
+    },
+    setNote(id, text) {
+      this.results = { ...this.results, [id]: { ...(this.results[id] || {}), note: String(text || '').trim() } };
+      this.save();
+    },
+    save() {
+      try {
+        localStorage.setItem(this.storeKey, JSON.stringify(this.results));
+      } catch (err) {
+        console.error('Tutorial: results could not be saved in this browser, they last until the page reloads', err.stack);
+        this.copyMsg = 'This browser will not keep your results after a reload. Copy them before you leave.';
+      }
+    },
+    clearAll() { this.results = {}; this.save(); this.copyMsg = ''; },
+    exercises() {
+      return Array.from(this.$root.querySelectorAll('[data-ex]')).map((el) => ({ id: el.dataset.ex, title: el.dataset.title }));
+    },
+    counts() {
+      const all = this.exercises();
+      return { total: all.length, pass: all.filter((e) => this.result(e.id) === 'pass').length, fail: all.filter((e) => this.result(e.id) === 'fail').length };
+    },
+    report() {
+      const head = 'Day Planner acceptance run ' + this.today() + (appBuildNumber ? ' (GH Build ' + appBuildNumber + ')' : '');
+      const rows = this.exercises().map((e) => {
+        const r = this.result(e.id);
+        const n = this.note(e.id);
+        return e.id + '  ' + (r === 'pass' ? 'PASS' : r === 'fail' ? 'FAIL' : 'not run') + '  ' + e.title + (n ? '  (' + n + ')' : '');
+      });
+      return [head].concat(rows).join('\n');
+    },
+    async copyReport() {
+      try {
+        await navigator.clipboard.writeText(this.report());
+        this.copyMsg = 'Copied. Paste it into a note or an issue.';
+      } catch (err) {
+        console.error('Tutorial: clipboard write was blocked, showing the results text to copy by hand', err.stack);
+        this.copyMsg = 'Copying is blocked here. Select the text below and copy it.';
+        this.showReport = true;
+      }
+    }
+  }">
+
+  <header class="about-header">
+    <div>
+      <h1 class="about-title">
+        <span class="material-symbols-outlined icon-32">school</span>
+        Tutorial
+      </h1>
+      <p class="about-subtitle">Short exercises that teach each feature. Each one is also an acceptance test.</p>
+    </div>
+    <button type="button" class="about-action-btn" @click="setView('about')">
+      <span class="material-symbols-outlined icon-18" aria-hidden="true">arrow_back</span> About
+    </button>
+  </header>
+
+  <section aria-labelledby="heading-tut-how">
+    <h2 id="heading-tut-how" class="about-section-heading">How to Use This Page</h2>
+    <p class="about-paragraph">
+      Open an exercise, do what it says, then check the place it points you to. Mark <b>Pass</b> if you saw exactly what <b>Pass if</b> describes, otherwise mark <b>Fail</b> and type what you saw. Your marks stay in this browser. <b>Copy results</b> gives you a dated list to paste into a note or an issue.
+    </p>
+    <ul class="styled-ordered-list">
+      <li>Start every test item with its exercise number, for example <code>DP-T01</code>, so you can find and delete it afterwards.</li>
+      <li>For Gmail exercises, send yourself a <b>new</b> email each time, with a new subject. The hub handles each email thread once, so relabelling an old one does nothing.</li>
+      <li>Do the <b>Clean up</b> step before moving on.</li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="heading-tut-ready">
+    <h2 id="heading-tut-ready" class="about-section-heading">Before You Start</h2>
+    <p class="about-paragraph">
+      Exercises T09 to T14 need the Gmail hub. Change these settings in the Hub Config Sheet (<b>About</b> &rsaquo; <b>Automatic Tasks</b> &rsaquo; <b>Hub settings</b>). If an exercise needs a setting that is off, skip it. That is a setup gap, not a failure.
+    </p>
+    <p class="about-paragraph hub-sheet-link-error" role="alert" x-show="hubError">
+      <span x-text="'Could not read the hub settings: ' + hubError"></span>
+      <button type="button" class="about-action-btn" @click="loadHub()">Try again</button>
+    </p>
+    <figure class="table-container" x-show="hub">
+      <table class="task-table matrix-table about-tag-table">
+        <thead>
+          <tr class="table-header-row">
+            <th scope="col">Setting</th>
+            <th scope="col">Now</th>
+            <th scope="col">Needed for</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>GMAIL_ROUTER</code> (Gmail hub)</td>
+            <td x-text="flagOn('GMAIL_ROUTER') ? 'On' : 'Off'"></td>
+            <td>T09 to T14</td>
+          </tr>
+          <tr>
+            <td><code>DRY_RUN</code> (trial run only)</td>
+            <td x-text="flagOn('DRY_RUN') ? 'On' : 'Off'"></td>
+            <td>On for T10. Off for T11 to T14.</td>
+          </tr>
+          <tr>
+            <td><code>TRIAGE_BOARD</code> (Triage tab)</td>
+            <td x-text="flagOn('TRIAGE_BOARD') ? 'On' : 'Off'"></td>
+            <td>T10 to T13</td>
+          </tr>
+          <tr>
+            <td><code>NCMMS_CORE_PILOT</code> (Meeting Prep tab)</td>
+            <td x-text="flagOn('NCMMS_CORE_PILOT') ? 'On' : 'Off'"></td>
+            <td>T14</td>
+          </tr>
+          <tr>
+            <td>Hub schedule (checks your 🎯 labels every few minutes)</td>
+            <td x-text="hub &amp;&amp; hub.triggers > 0 ? 'Installed' : 'Not installed'"></td>
+            <td>T10 to T14. Without it, labelled emails are never picked up.</td>
+          </tr>
+        </tbody>
+      </table>
+    </figure>
+  </section>
+
+  <section aria-labelledby="heading-tut-plan">
+    <h2 id="heading-tut-plan" class="about-section-heading">Planning Your Day</h2>
+    <section class="cards-stack">
+
+      <details class="guide-card about-details tutorial-ex" data-ex="T01" data-title="Add a priority task" x-data="{ id: 'T01' }">
+        <summary class="guide-card-title"><span class="tutorial-ex-id">T01</span> Add a priority task <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
+        <dl class="tutorial-steps">
+          <dt>Do</dt><dd>On the <b>Daily</b> tab, type <code>DP-T01 Call vendor #a</code> in the new task box and press Enter.</dd>
+          <dt>Look in</dt><dd>Today’s task list on the Daily tab, then Google Tasks.</dd>
+          <dt>Pass if</dt><dd>The task appears in the <b>A</b> group with a code such as <b>A1</b>, its title no longer shows <code>#a</code>, and it is in Google Tasks due today.</dd>
+          <dt>Clean up</dt><dd>Keep it for T03, then delete it in Google Tasks.</dd>
+        </dl>
+        <div class="tutorial-ex-actions">
+          <button type="button" class="about-action-btn" :class="{ 'is-on': result(id) === 'pass' }" :aria-pressed="result(id) === 'pass'" @click="mark(id, 'pass')">Pass</button>
+          <button type="button" class="about-action-btn" :class="{ 'is-on is-fail': result(id) === 'fail' }" :aria-pressed="result(id) === 'fail'" @click="mark(id, 'fail')">Fail</button>
+          <input type="text" class="tutorial-note" aria-label="Note for T01" placeholder="What you saw (optional)" :value="note(id)" @change="setNote(id, $event.target.value)">
+        </div>
+      </details>
+
+      <details class="guide-card about-details tutorial-ex" data-ex="T02" data-title="Add details to a task with |" x-data="{ id: 'T02' }">
+        <summary class="guide-card-title"><span class="tutorial-ex-id">T02</span> Add details to a task <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
+        <dl class="tutorial-steps">
+          <dt>Do</dt><dd>Add the task <code>DP-T02 Renew permit | form 7 due Friday</code>.</dd>
+          <dt>Look in</dt><dd>The task’s sticky note icon, then the task’s details in Google Tasks.</dd>
+          <dt>Pass if</dt><dd>The title reads <b>DP-T02 Renew permit</b>, and both the sticky note and Google Tasks show <b>form 7 due Friday</b>.</dd>
+          <dt>Clean up</dt><dd>Delete the task in Google Tasks.</dd>
+        </dl>
+        <div class="tutorial-ex-actions">
+          <button type="button" class="about-action-btn" :class="{ 'is-on': result(id) === 'pass' }" :aria-pressed="result(id) === 'pass'" @click="mark(id, 'pass')">Pass</button>
+          <button type="button" class="about-action-btn" :class="{ 'is-on is-fail': result(id) === 'fail' }" :aria-pressed="result(id) === 'fail'" @click="mark(id, 'fail')">Fail</button>
+          <input type="text" class="tutorial-note" aria-label="Note for T02" placeholder="What you saw (optional)" :value="note(id)" @change="setNote(id, $event.target.value)">
+        </div>
+      </details>
+
+      <details class="guide-card about-details tutorial-ex" data-ex="T03" data-title="Forward a task to tomorrow" x-data="{ id: 'T03' }">
+        <summary class="guide-card-title"><span class="tutorial-ex-id">T03</span> Forward a task to tomorrow <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
+        <dl class="tutorial-steps">
+          <dt>Do</dt><dd>Click the status box of <b>DP-T01</b> until it shows <b>Forwarded</b>.</dd>
+          <dt>Look in</dt><dd>Tomorrow’s Daily page (use the next-day arrow).</dd>
+          <dt>Pass if</dt><dd>Tomorrow has one copy of <b>DP-T01 Call vendor</b>, and today’s task still shows Forwarded.</dd>
+          <dt>Clean up</dt><dd>Delete both copies in Google Tasks.</dd>
+        </dl>
+        <div class="tutorial-ex-actions">
+          <button type="button" class="about-action-btn" :class="{ 'is-on': result(id) === 'pass' }" :aria-pressed="result(id) === 'pass'" @click="mark(id, 'pass')">Pass</button>
+          <button type="button" class="about-action-btn" :class="{ 'is-on is-fail': result(id) === 'fail' }" :aria-pressed="result(id) === 'fail'" @click="mark(id, 'fail')">Fail</button>
+          <input type="text" class="tutorial-note" aria-label="Note for T03" placeholder="What you saw (optional)" :value="note(id)" @change="setNote(id, $event.target.value)">
+        </div>
+      </details>
+
+      <details class="guide-card about-details tutorial-ex" data-ex="T04" data-title="Move a Master Task to today" x-data="{ id: 'T04' }">
+        <summary class="guide-card-title"><span class="tutorial-ex-id">T04</span> Move a Master Task to today <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
+        <dl class="tutorial-steps">
+          <dt>Do</dt><dd>In Google Tasks, add <code>DP-T04 Plan offsite</code> with <b>no date</b>. Open the <b>Master Tasks</b> tab (reload if it is not there yet) and click <b>Move to Today</b> on it.</dd>
+          <dt>Look in</dt><dd>Today’s task list on the Daily tab.</dd>
+          <dt>Pass if</dt><dd><b>DP-T04 Plan offsite</b> is on today’s list with a priority code, and you did not have to retype it.</dd>
+          <dt>Clean up</dt><dd>Delete it in Google Tasks.</dd>
+        </dl>
+        <div class="tutorial-ex-actions">
+          <button type="button" class="about-action-btn" :class="{ 'is-on': result(id) === 'pass' }" :aria-pressed="result(id) === 'pass'" @click="mark(id, 'pass')">Pass</button>
+          <button type="button" class="about-action-btn" :class="{ 'is-on is-fail': result(id) === 'fail' }" :aria-pressed="result(id) === 'fail'" @click="mark(id, 'fail')">Fail</button>
+          <input type="text" class="tutorial-note" aria-label="Note for T04" placeholder="What you saw (optional)" :value="note(id)" @change="setNote(id, $event.target.value)">
+        </div>
+      </details>
+
+      <details class="guide-card about-details tutorial-ex" data-ex="T05" data-title="Plan something months ahead" x-data="{ id: 'T05' }">
+        <summary class="guide-card-title"><span class="tutorial-ex-id">T05</span> Plan something months ahead <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
+        <dl class="tutorial-steps">
+          <dt>Do</dt><dd>On the <b>Future Planning</b> tab, add <code>DP-T05 Budget review</code> in a month at least two months away.</dd>
+          <dt>Look in</dt><dd>Google Tasks.</dd>
+          <dt>Pass if</dt><dd>There is a Google Task <b>DP-T05 Budget review</b> due on that date, with <code>[Future]</code> in its details.</dd>
+          <dt>Clean up</dt><dd>Delete it in Google Tasks.</dd>
+        </dl>
+        <div class="tutorial-ex-actions">
+          <button type="button" class="about-action-btn" :class="{ 'is-on': result(id) === 'pass' }" :aria-pressed="result(id) === 'pass'" @click="mark(id, 'pass')">Pass</button>
+          <button type="button" class="about-action-btn" :class="{ 'is-on is-fail': result(id) === 'fail' }" :aria-pressed="result(id) === 'fail'" @click="mark(id, 'fail')">Fail</button>
+          <input type="text" class="tutorial-note" aria-label="Note for T05" placeholder="What you saw (optional)" :value="note(id)" @change="setNote(id, $event.target.value)">
+        </div>
+      </details>
+
+    </section>
+  </section>
+
+  <section aria-labelledby="heading-tut-notes">
+    <h2 id="heading-tut-notes" class="about-section-heading">Taking Notes</h2>
+    <section class="cards-stack">
+
+      <details class="guide-card about-details tutorial-ex" data-ex="T06" data-title="Group a note card by category" x-data="{ id: 'T06' }">
+        <summary class="guide-card-title"><span class="tutorial-ex-id">T06</span> Group a note card by category <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
+        <dl class="tutorial-steps">
+          <dt>Do</dt><dd>In today’s notes, add a card <code>DP-T06 test card</code> and tick <b>Work</b> and <b>Meeting</b>. Then set the Category Filter to <b>Meeting</b>.</dd>
+          <dt>Look in</dt><dd>The notes column, then this month’s notes Doc in your Day Planner folder.</dd>
+          <dt>Pass if</dt><dd>The card stays visible under the Meeting filter, and the Doc shows it with <code>#category: Work, Meeting</code>.</dd>
+          <dt>Clean up</dt><dd>Delete the card and clear the filter.</dd>
+        </dl>
+        <div class="tutorial-ex-actions">
+          <button type="button" class="about-action-btn" :class="{ 'is-on': result(id) === 'pass' }" :aria-pressed="result(id) === 'pass'" @click="mark(id, 'pass')">Pass</button>
+          <button type="button" class="about-action-btn" :class="{ 'is-on is-fail': result(id) === 'fail' }" :aria-pressed="result(id) === 'fail'" @click="mark(id, 'fail')">Fail</button>
+          <input type="text" class="tutorial-note" aria-label="Note for T06" placeholder="What you saw (optional)" :value="note(id)" @change="setNote(id, $event.target.value)">
+        </div>
+      </details>
+
+      <details class="guide-card about-details tutorial-ex" data-ex="T07" data-title="Log a decision with #index" x-data="{ id: 'T07' }">
+        <summary class="guide-card-title"><span class="tutorial-ex-id">T07</span> Log a decision with #index <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
+        <dl class="tutorial-steps">
+          <dt>Do</dt><dd>Start a note card heading with <code>#index [DP-T07] Approved the test plan</code>.</dd>
+          <dt>Look in</dt><dd>The <b>Monthly Index</b> tab.</dd>
+          <dt>Pass if</dt><dd>An entry under the topic <b>DP-T07</b> shows today’s date and the text <b>Approved the test plan</b>.</dd>
+          <dt>Clean up</dt><dd>Delete the note card.</dd>
+        </dl>
+        <div class="tutorial-ex-actions">
+          <button type="button" class="about-action-btn" :class="{ 'is-on': result(id) === 'pass' }" :aria-pressed="result(id) === 'pass'" @click="mark(id, 'pass')">Pass</button>
+          <button type="button" class="about-action-btn" :class="{ 'is-on is-fail': result(id) === 'fail' }" :aria-pressed="result(id) === 'fail'" @click="mark(id, 'fail')">Fail</button>
+          <input type="text" class="tutorial-note" aria-label="Note for T07" placeholder="What you saw (optional)" :value="note(id)" @change="setNote(id, $event.target.value)">
+        </div>
+      </details>
+
+      <details class="guide-card about-details tutorial-ex" data-ex="T08" data-title="Link a note to a task with #task" x-data="{ id: 'T08' }">
+        <summary class="guide-card-title"><span class="tutorial-ex-id">T08</span> Link a note to a task with #task <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
+        <dl class="tutorial-steps">
+          <dt>Do</dt><dd>Pick a task code on today’s list, for example <b>A1</b>. In a note card, type <code>#task [A1] DP-T08 vendor call notes</code>.</dd>
+          <dt>Look in</dt><dd>The note card.</dd>
+          <dt>Pass if</dt><dd>The card shows <b>&rarr; A1</b>, linking it to that task.</dd>
+          <dt>Clean up</dt><dd>Delete the note card.</dd>
+        </dl>
+        <div class="tutorial-ex-actions">
+          <button type="button" class="about-action-btn" :class="{ 'is-on': result(id) === 'pass' }" :aria-pressed="result(id) === 'pass'" @click="mark(id, 'pass')">Pass</button>
+          <button type="button" class="about-action-btn" :class="{ 'is-on is-fail': result(id) === 'fail' }" :aria-pressed="result(id) === 'fail'" @click="mark(id, 'fail')">Fail</button>
+          <input type="text" class="tutorial-note" aria-label="Note for T08" placeholder="What you saw (optional)" :value="note(id)" @change="setNote(id, $event.target.value)">
+        </div>
+      </details>
+
+    </section>
+  </section>
+
+  <section aria-labelledby="heading-tut-gmail">
+    <h2 id="heading-tut-gmail" class="about-section-heading">Turning Email into Tasks (Gmail Hub)</h2>
+    <section class="cards-stack">
+
+      <details class="guide-card about-details tutorial-ex" data-ex="T09" data-title="Open the hub settings" x-data="{ id: 'T09' }">
+        <summary class="guide-card-title"><span class="tutorial-ex-id">T09</span> Open the hub settings <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
+        <dl class="tutorial-steps">
+          <dt>Do</dt><dd>Go to <b>About</b> &rsaquo; <b>Automatic Tasks</b> &rsaquo; <b>Hub settings</b>. Click <b>Open Hub Config Sheet</b>, or <b>Set up hub</b> if it is not set up yet.</dd>
+          <dt>Look in</dt><dd>The Sheet that opens in a new tab.</dd>
+          <dt>Pass if</dt><dd>It opens on the <b>Config</b> tab and lists <code>GMAIL_ROUTER</code>, <code>DRY_RUN</code>, <code>TRIAGE_BOARD</code> and <code>NCMMS_CORE_PILOT</code>. Change one, reopen this Tutorial, and the Before You Start table shows the new value.</dd>
+          <dt>Clean up</dt><dd>Set any value you changed back, unless you are setting up for T10 onward.</dd>
+        </dl>
+        <div class="tutorial-ex-actions">
+          <button type="button" class="about-action-btn" :class="{ 'is-on': result(id) === 'pass' }" :aria-pressed="result(id) === 'pass'" @click="mark(id, 'pass')">Pass</button>
+          <button type="button" class="about-action-btn" :class="{ 'is-on is-fail': result(id) === 'fail' }" :aria-pressed="result(id) === 'fail'" @click="mark(id, 'fail')">Fail</button>
+          <input type="text" class="tutorial-note" aria-label="Note for T09" placeholder="What you saw (optional)" :value="note(id)" @change="setNote(id, $event.target.value)">
+        </div>
+      </details>
+
+      <details class="guide-card about-details tutorial-ex" data-ex="T10" data-title="Trial run: label an email, nothing is created" x-data="{ id: 'T10' }">
+        <summary class="guide-card-title"><span class="tutorial-ex-id">T10</span> Trial run: nothing is created <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
+        <dl class="tutorial-steps">
+          <dt>Needs</dt><dd><code>GMAIL_ROUTER</code> on, <code>DRY_RUN</code> on, <code>TRIAGE_BOARD</code> on, schedule installed.</dd>
+          <dt>Do</dt><dd>Send yourself a new email with the subject <code>DP-T10</code> plus today’s date. In Gmail, apply the label <b>🎯/Task</b>. Wait about 10 minutes.</dd>
+          <dt>Look in</dt><dd>The <b>Triage</b> tab, then Google Tasks.</dd>
+          <dt>Pass if</dt><dd>Triage shows the <b>Dry run is ON</b> banner and lists the email with the status <b>Dry run</b>, and <b>no</b> Google Task was created.</dd>
+          <dt>Clean up</dt><dd>Nothing. The email and label can stay.</dd>
+        </dl>
+        <div class="tutorial-ex-actions">
+          <button type="button" class="about-action-btn" :class="{ 'is-on': result(id) === 'pass' }" :aria-pressed="result(id) === 'pass'" @click="mark(id, 'pass')">Pass</button>
+          <button type="button" class="about-action-btn" :class="{ 'is-on is-fail': result(id) === 'fail' }" :aria-pressed="result(id) === 'fail'" @click="mark(id, 'fail')">Fail</button>
+          <input type="text" class="tutorial-note" aria-label="Note for T10" placeholder="What you saw (optional)" :value="note(id)" @change="setNote(id, $event.target.value)">
+        </div>
+      </details>
+
+      <details class="guide-card about-details tutorial-ex" data-ex="T11" data-title="Email to task with 🎯/Task" x-data="{ id: 'T11' }">
+        <summary class="guide-card-title"><span class="tutorial-ex-id">T11</span> Email to task with 🎯/Task <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
+        <dl class="tutorial-steps">
+          <dt>Needs</dt><dd><code>GMAIL_ROUTER</code> on, <code>DRY_RUN</code> <b>off</b>, schedule installed.</dd>
+          <dt>Do</dt><dd>Send yourself a new email with the subject <code>DP-T11</code> plus today’s date and apply <b>🎯/Task</b>. Wait about 10 minutes, then wait another 10.</dd>
+          <dt>Look in</dt><dd>The <b>Master Tasks</b> tab, Google Tasks, and the Triage tab.</dd>
+          <dt>Pass if</dt><dd>Exactly <b>one</b> undated task <b>DP-T11</b> exists, its details hold a Gmail link that opens the email, Triage shows it as Done, and the second wait created no duplicate.</dd>
+          <dt>Clean up</dt><dd>Delete the task in Google Tasks.</dd>
+        </dl>
+        <div class="tutorial-ex-actions">
+          <button type="button" class="about-action-btn" :class="{ 'is-on': result(id) === 'pass' }" :aria-pressed="result(id) === 'pass'" @click="mark(id, 'pass')">Pass</button>
+          <button type="button" class="about-action-btn" :class="{ 'is-on is-fail': result(id) === 'fail' }" :aria-pressed="result(id) === 'fail'" @click="mark(id, 'fail')">Fail</button>
+          <input type="text" class="tutorial-note" aria-label="Note for T11" placeholder="What you saw (optional)" :value="note(id)" @change="setNote(id, $event.target.value)">
+        </div>
+      </details>
+
+      <details class="guide-card about-details tutorial-ex" data-ex="T12" data-title="Email to today with 🎯/Task-Today" x-data="{ id: 'T12' }">
+        <summary class="guide-card-title"><span class="tutorial-ex-id">T12</span> Email to today with 🎯/Task-Today <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
+        <dl class="tutorial-steps">
+          <dt>Needs</dt><dd>Same as T11.</dd>
+          <dt>Do</dt><dd>Send yourself a new email <code>DP-T12</code> plus today’s date and apply <b>🎯/Task-Today</b>. Wait about 10 minutes and reload the app.</dd>
+          <dt>Look in</dt><dd>Today’s task list on the Daily tab.</dd>
+          <dt>Pass if</dt><dd><b>DP-T12</b> is on today’s list, with the Gmail link in its details.</dd>
+          <dt>Clean up</dt><dd>Delete the task in Google Tasks.</dd>
+        </dl>
+        <div class="tutorial-ex-actions">
+          <button type="button" class="about-action-btn" :class="{ 'is-on': result(id) === 'pass' }" :aria-pressed="result(id) === 'pass'" @click="mark(id, 'pass')">Pass</button>
+          <button type="button" class="about-action-btn" :class="{ 'is-on is-fail': result(id) === 'fail' }" :aria-pressed="result(id) === 'fail'" @click="mark(id, 'fail')">Fail</button>
+          <input type="text" class="tutorial-note" aria-label="Note for T12" placeholder="What you saw (optional)" :value="note(id)" @change="setNote(id, $event.target.value)">
+        </div>
+      </details>
+
+      <details class="guide-card about-details tutorial-ex" data-ex="T13" data-title="Track a reply with 🎯/Waiting" x-data="{ id: 'T13' }">
+        <summary class="guide-card-title"><span class="tutorial-ex-id">T13</span> Track a reply with 🎯/Waiting <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
+        <dl class="tutorial-steps">
+          <dt>Needs</dt><dd>Same as T11.</dd>
+          <dt>Do</dt><dd>Send yourself a new email <code>DP-T13</code> plus today’s date and apply <b>🎯/Waiting</b>. Wait about 10 minutes.</dd>
+          <dt>Look in</dt><dd>Google Tasks, and the Daily page on the follow-up date.</dd>
+          <dt>Pass if</dt><dd>A task <b>DP-T13</b> exists with <code>[Waiting]</code> in its details, due on a follow-up date.</dd>
+          <dt>Clean up</dt><dd>Delete the task in Google Tasks.</dd>
+        </dl>
+        <div class="tutorial-ex-actions">
+          <button type="button" class="about-action-btn" :class="{ 'is-on': result(id) === 'pass' }" :aria-pressed="result(id) === 'pass'" @click="mark(id, 'pass')">Pass</button>
+          <button type="button" class="about-action-btn" :class="{ 'is-on is-fail': result(id) === 'fail' }" :aria-pressed="result(id) === 'fail'" @click="mark(id, 'fail')">Fail</button>
+          <input type="text" class="tutorial-note" aria-label="Note for T13" placeholder="What you saw (optional)" :value="note(id)" @change="setNote(id, $event.target.value)">
+        </div>
+      </details>
+
+      <details class="guide-card about-details tutorial-ex" data-ex="T14" data-title="Send an email to the next Core meeting" x-data="{ id: 'T14' }">
+        <summary class="guide-card-title"><span class="tutorial-ex-id">T14</span> Send an email to the next Core meeting <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
+        <dl class="tutorial-steps">
+          <dt>Needs</dt><dd>Same as T11, plus <code>NCMMS_CORE_PILOT</code> on and the Core meeting’s notes Doc in the <b>Meeting Registry</b> tab of the Hub Config Sheet.</dd>
+          <dt>Do</dt><dd>Open <b>Meeting Prep</b> and note the carry-in count. Send yourself a new email <code>DP-T14</code> plus today’s date and apply <b>🎯/Meeting/NCMMS-Core</b>. Wait about 10 minutes, then reopen Meeting Prep.</dd>
+          <dt>Look in</dt><dd>The Meeting Prep tab, then the meeting’s notes Doc (use its link).</dd>
+          <dt>Pass if</dt><dd>The count went up by exactly one, and the Doc lists a link to the email under <b>PREP / EMAIL CARRY-INS</b> for the next meeting. The count matches the number of links there.</dd>
+          <dt>Clean up</dt><dd>Delete the <b>DP-T14</b> line from the notes Doc.</dd>
+        </dl>
+        <div class="tutorial-ex-actions">
+          <button type="button" class="about-action-btn" :class="{ 'is-on': result(id) === 'pass' }" :aria-pressed="result(id) === 'pass'" @click="mark(id, 'pass')">Pass</button>
+          <button type="button" class="about-action-btn" :class="{ 'is-on is-fail': result(id) === 'fail' }" :aria-pressed="result(id) === 'fail'" @click="mark(id, 'fail')">Fail</button>
+          <input type="text" class="tutorial-note" aria-label="Note for T14" placeholder="What you saw (optional)" :value="note(id)" @change="setNote(id, $event.target.value)">
+        </div>
+      </details>
+
+    </section>
+  </section>
+
+  <section aria-labelledby="heading-tut-results">
+    <h2 id="heading-tut-results" class="about-section-heading">Results</h2>
+    <p class="about-paragraph">
+      <b x-text="counts().pass"></b> passed, <b x-text="counts().fail"></b> failed, <b x-text="counts().total - counts().pass - counts().fail"></b> not run yet.
+    </p>
+    <div class="tutorial-ex-actions">
+      <button type="button" class="about-action-btn" @click="copyReport()">
+        <span class="material-symbols-outlined icon-18" aria-hidden="true">content_copy</span> Copy results
+      </button>
+      <button type="button" class="about-action-btn" @click="showReport = !showReport" x-text="showReport ? 'Hide results text' : 'Show results text'"></button>
+      <button type="button" class="about-action-btn" @click="clearAll()">Clear all marks</button>
+    </div>
+    <p class="about-paragraph" role="status" x-show="copyMsg" x-text="copyMsg"></p>
+    <textarea class="tutorial-report" x-show="showReport" readonly rows="16" aria-label="Results text" :value="report()"></textarea>
+  </section>
+
+  <footer class="about-footer">
+    Day Planner &bull; Tutorial and Acceptance Checklist
+  </footer>
+
+</article>

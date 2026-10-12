@@ -158,7 +158,8 @@ export class HubMock {
     this.dismissed = new Set();
     this.carryIns = buildCarryIns();
     this.failNext = new Set();
-    this.lastRun = { at: localIso(-7), status: 'OK', counts: { processed: 2, skipped: 0, errors: 0, quarantined: 0 } };
+    this.sheetProvisioned = opts.sheetProvisioned === undefined ? true : opts.sheetProvisioned;
+    this.lastRun ={ at: localIso(-7), status: 'OK', counts: { processed: 2, skipped: 0, errors: 0, quarantined: 0 } };
     // Fixture ledger rows so every status renders in review.
     this._seedLedger('t-1003', 'DONE');
     this._seedLedger('t-1004', 'ERROR');
@@ -227,6 +228,24 @@ export class HubMock {
     this.ledger.set(key, { status: 'DONE', threadId, targetUrl });
     this.threadOps.set(threadId, { status: 'DONE', operationKey: key });
     return { ok: true, status: 'DONE', message: doneMsg, operationKey: key, sourceUrl, targetUrl };
+  }
+
+  /**
+   * @returns {{ok: boolean, status: string, message: string, provisioned: boolean, url: (string|null), missing: (string|null)}}
+   *   Hub Sheet link (never provisions). sheetProvisioned may be true, false ('never') or 'trashed'/'deleted'.
+   */
+  getHubSheetLink() {
+    if (this.sheetProvisioned === true) {
+      return { ok: true, status: 'OK', message: 'Hub Sheet found', provisioned: true, url: 'https://docs.google.com/spreadsheets/d/mock-hub-sheet/edit#gid=0', missing: null };
+    }
+    const missing = this.sheetProvisioned || 'never';
+    return { ok: true, status: 'OK', message: missing === 'never' ? 'Hub Sheet is not set up yet' : `Hub Sheet was ${missing}`, provisioned: false, url: null, missing };
+  }
+
+  /** @returns {object} Same shape as getHubSheetLink, after creating (or re-creating) the mock Sheet. */
+  setupHub() {
+    this.sheetProvisioned = true;
+    return { ...this.getHubSheetLink(), message: 'Hub Sheet is ready' };
   }
 
   getHubStatus() {

@@ -208,13 +208,19 @@ function makeAdvancedFakes() {
           }
           return { ...f };
         },
+        // Like Drive v2: a permanently deleted file 404s; a trashed one still returns, with labels.trashed.
+        get(fileId) {
+          const f = data.driveFiles.find((x) => x.id === fileId);
+          if (!f) { const e = new Error(`API call to drive.files.get failed with error: File not found: ${fileId}`); e.code = 404; throw e; }
+          return { ...f, labels: { trashed: f.trashed === true } };
+        },
         list(opts = {}) {
           const q = String(opts.q || '');
           const title = (/title = '([^']*)'/.exec(q) || [])[1];
           const mime = (/mimeType = '([^']*)'/.exec(q) || [])[1];
           const parent = (/'([^']*)' in parents/.exec(q) || [])[1];
           const items = data.driveFiles.filter((f) => (!title || f.title === title) && (!mime || f.mimeType === mime)
-            && (!parent || f.parents.some((p) => p.id === parent)));
+            && (!parent || f.parents.some((p) => p.id === parent)) && !(/trashed = false/.test(q) && f.trashed === true));
           return { items: items.map((f) => ({ ...f })) };
         }
       }

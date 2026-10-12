@@ -18,6 +18,7 @@
   </header>
 
   <nav class="about-toc" aria-label="On this page" x-data="{ jump(id) { const el = document.getElementById(id); const box = el &amp;&amp; el.closest('.about-view-container'); if (!box) return; box.scrollTo({ top: box.scrollTop + el.getBoundingClientRect().top - box.getBoundingClientRect().top - 56, behavior: 'smooth' }); } }">
+    <button type="button" class="about-toc-link about-toc-tutorial" @click="setView('tutorial')" title="Hands-on exercises that double as an acceptance checklist">Tutorial &rsaquo;</button>
     <button type="button" class="about-toc-link" @click="jump('heading-purpose')">Overview</button>
     <button type="button" class="about-toc-link" @click="jump('heading-setup')">Setup</button>
     <button type="button" class="about-toc-link" @click="jump('heading-features')">Tabs</button>
@@ -297,6 +298,41 @@
         <p class="guide-card-text">
           <b>Turning it on:</b> the hub is off by default. Its settings live in the <b>Config</b> tab of the <i>Day Planner Hub Config</i> Sheet in your Day Planner folder. Set <code>GMAIL_ROUTER</code> to TRUE, check the trial run, then set <code>DRY_RUN</code> to FALSE. While <code>DRY_RUN</code> is TRUE, the hub only reports what it <i>would</i> do. Set <code>TRIAGE_BOARD</code> and <code>NCMMS_CORE_PILOT</code> to TRUE to show the Triage and Meeting Prep tabs. The <b>Meeting Registry</b> tab lists your recurring meetings and their notes Docs.
         </p>
+        <div class="guide-card-text hub-sheet-link" x-data="{
+            hubLink: { state: 'loading', url: null, error: '' },
+            async loadHubLink(action) {
+              this.hubLink = { state: action === 'setupHub' ? 'working' : 'loading', url: null, error: '' };
+              try {
+                const r = await bridge[action]();
+                if (!r || r.ok !== true) throw new Error((r &amp;&amp; r.message) || 'No answer from the server');
+                this.hubLink = { state: r.provisioned ? 'ready' : 'missing', url: r.url, missing: r.missing, error: '' };
+              } catch (err) {
+                console.error('About: ' + action + ' failed, showing the error with a Try again button', err.stack);
+                this.hubLink = { state: 'error', url: null, error: err.message, retry: action };
+              }
+            }
+          }" x-init="loadHubLink('getHubSheetLink')">
+          <b>Hub settings:</b>
+          <span x-show="hubLink.state === 'loading'">Looking for your Hub Config Sheet&hellip;</span>
+          <span x-show="hubLink.state === 'working'">Creating your Hub Config Sheet&hellip;</span>
+          <a x-show="hubLink.state === 'ready'" :href="hubLink.url" target="_blank" rel="noopener noreferrer" class="hub-sheet-link-anchor">
+            Open Hub Config Sheet <span class="material-symbols-outlined icon-16" aria-hidden="true">open_in_new</span>
+          </a>
+          <span x-show="hubLink.state === 'missing' &amp;&amp; hubLink.missing === 'never'">
+            Not set up yet.
+            <button type="button" class="about-action-btn" @click="loadHubLink('setupHub')">Set up hub</button>
+            <span class="hub-sheet-link-note">Creates the <i>Day Planner Hub Config</i> Sheet in your Day Planner folder. Every hub feature stays off until you turn it on there.</span>
+          </span>
+          <span x-show="hubLink.state === 'missing' &amp;&amp; hubLink.missing !== 'never'">
+            <span x-text="hubLink.missing === 'trashed' ? 'Your Hub Config Sheet is in the Drive trash.' : 'Your Hub Config Sheet was deleted.'"></span>
+            <button type="button" class="about-action-btn" @click="loadHubLink('setupHub')">Re-create hub Sheet</button>
+            <span class="hub-sheet-link-note">A new Sheet starts with every hub feature off. <span x-show="hubLink.missing === 'trashed'">To keep your old settings instead, restore it from the Drive trash and reopen this page.</span></span>
+          </span>
+          <span x-show="hubLink.state === 'error'" role="alert">
+            <span class="hub-sheet-link-error" x-text="'Could not reach the Hub Config Sheet: ' + hubLink.error"></span>
+            <button type="button" class="about-action-btn" @click="loadHubLink(hubLink.retry)">Try again</button>
+          </span>
+        </div>
         <p class="guide-card-text">
           <b>If something fails:</b> the thread shows <b>Error</b> in Triage. Fix the cause and press <b>Retry</b>; most errors are also retried automatically.
         </p>

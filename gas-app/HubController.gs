@@ -472,6 +472,43 @@ function getHubStatus() {
 }
 
 /**
+ * Link to the hub Sheet for About's "Open Hub Config Sheet". Read-only: never creates the Sheet.
+ * @returns {object} {ok, provisioned, url, message} or a failed result.
+ */
+function getHubSheetLink() {
+  var pre = preflight_([]);
+  if (pre.failure) return pre.failure;
+  try {
+    var link = DPConfig.getSheetLink();
+    var msg = link.provisioned ? 'Hub Sheet found' : (link.missing === 'never' ? 'Hub Sheet is not set up yet' : 'Hub Sheet was ' + link.missing);
+    return DPEngines.makeResult({ ok: true, status: 'OK', message: msg, provisioned: link.provisioned, url: link.url, missing: link.missing });
+  } catch (err) {
+    return failFrom_(err);
+  }
+}
+
+/**
+ * About's "Set up hub" / "Re-create hub Sheet" button: creates the hub Sheet in the Day Planner folder if
+ * it was never set up, trashed or deleted (idempotent, DPConfig.ensureSetup) and returns its link. A new
+ * Sheet starts with default flags (all OFF, DRY_RUN on).
+ * @returns {object} {ok, provisioned, url, missing, message} or a failed result.
+ */
+function setupHub() {
+  var pre = preflight_([]);
+  if (pre.failure) return pre.failure;
+  try {
+    var before = DPConfig.getSheetLink();
+    if (before.missing === 'trashed' || before.missing === 'deleted') DPConfig.forgetSheet(DPConfig.getSheetId());
+    DPConfig.ensureSetup();
+    var link = DPConfig.getSheetLink();
+    if (!link.provisioned) return fail_('SETUP_ERROR', 'Hub Sheet was created but cannot be opened (' + link.missing + ')', true);
+    return DPEngines.makeResult({ ok: true, status: 'OK', message: 'Hub Sheet is ready', provisioned: true, url: link.url, missing: null });
+  } catch (err) {
+    return failFrom_(err);
+  }
+}
+
+/**
  * Sets one hub feature flag in the Config tab (DPConfig.setFeature). Lets the agent flip flags via
  * gas-rpc (Execution API) instead of a manual Sheet edit. Hub must already be provisioned.
  * @param {string} name A DPEngines.DEFAULT_FEATURES key.
@@ -565,7 +602,9 @@ global._dismissTriageItemInternal = dismissTriageItem;             // google.scr
 global._discoverMeetingSeriesInternal = discoverMeetingSeries;     // google.script.run
 global._retryFailedOperationInternal = retryFailedOperation;       // google.script.run
 global._getHubStatusInternal = getHubStatus;                       // google.script.run
-global._hubSetFeatureInternal = hubSetFeature;                     // gas-rpc (Execution API) + IDE manual-run
+global._getHubSheetLinkInternal = getHubSheetLink;                 // google.script.run (About hub link)
+global._setupHubInternal = setupHub;                               // google.script.run (About "Set up hub")
+global._hubSetFeatureInternal = hubSetFeature;                    // gas-rpc (Execution API) + IDE manual-run
 global._hubSetTasksListIdInternal = hubSetTasksListId;             // gas-rpc (Execution API) + IDE manual-run
 global._discoverGeminiNotesInternal = discoverGeminiNotes;         // google.script.run (stub, flag gated)
 global._getProposedMeetingActionsInternal = getProposedMeetingActions; // google.script.run (stub, flag gated)

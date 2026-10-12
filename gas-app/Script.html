@@ -1989,6 +1989,8 @@
     }
 
     getHubStatus() { return this.hubRpc('getHubStatus', []); }
+    getHubSheetLink() { return this.hubRpc('getHubSheetLink', []); }
+    setupHub() { return this.hubRpc('setupHub', []); }
     getTriageBoard(filters) { return this.hubRpc('getTriageBoard', [filters || {}]); }
     getUpcomingMeetingChoices(threadId) { return this.hubRpc('getUpcomingMeetingChoices', [threadId]); }
     routeThreadToTask(threadId, opts) { return this.hubRpc('routeThreadToTask', [threadId, opts || {}]); }

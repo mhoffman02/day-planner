@@ -4927,6 +4927,153 @@
   details.about-details[open] > summary {
     margin-bottom: 6px;
   }
+  /* Flat outline action button (About hub link, Tutorial). No pills: 2px radius like .btn-install-app-header. */
+  .about-action-btn {
+    background: transparent;
+    color: var(--binder-teal, #2d6a5a);
+    border: 1px solid var(--binder-teal, #2d6a5a);
+    border-radius: 2px;
+    font-family: var(--font-family-base);
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    transition: background var(--duration-standard) var(--ease-standard);
+  }
+  .about-action-btn:hover,
+  .about-action-btn:focus-visible {
+    background: #eef6f3;
+  }
+  .about-action-btn.is-on {
+    background: var(--binder-teal, #2d6a5a);
+    color: #ffffff;
+  }
+  .about-action-btn.is-on.is-fail {
+    background: #b3261e;
+    border-color: #b3261e;
+  }
+  .hub-sheet-link {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 8px;
+  }
+  .hub-sheet-link-anchor {
+    color: var(--binder-teal, #2d6a5a);
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .hub-sheet-link-note {
+    display: block;
+    flex-basis: 100%;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+  .hub-sheet-link-error {
+    color: #b3261e;
+  }
+  .about-toc-tutorial {
+    color: var(--binder-teal, #2d6a5a);
+    font-weight: 600;
+  }
+  .tutorial-ex-id {
+    font-family: var(--font-family-base);
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    border: 1px solid var(--border-line);
+    border-radius: 2px;
+    padding: 0 4px;
+    margin-right: 6px;
+  }
+  .tutorial-ex-mark {
+    font-size: 0.78rem;
+    font-weight: 700;
+    margin-left: 8px;
+  }
+  .tutorial-ex-mark.is-pass {
+    color: var(--binder-teal, #2d6a5a);
+  }
+  .tutorial-ex-mark.is-fail {
+    color: #b3261e;
+  }
+  dl.tutorial-steps {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 4px 12px;
+    margin: 4px 0 10px 0;
+    font-size: 0.88rem;
+  }
+  dl.tutorial-steps dt {
+    font-weight: 700;
+    color: var(--text-muted);
+  }
+  dl.tutorial-steps dd {
+    margin: 0;
+  }
+  @media (max-width: 640px) {
+    dl.tutorial-steps {
+      grid-template-columns: 1fr;
+    }
+    dl.tutorial-steps dd {
+      margin-bottom: 6px;
+    }
+  }
+  .tutorial-ex-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+  .tutorial-note {
+    flex: 1 1 200px;
+    min-width: 0;
+    font-size: 0.85rem;
+    padding: 3px 6px;
+    border: 1px solid var(--border-line);
+    border-radius: 2px;
+    background: transparent;
+    color: inherit;
+  }
+  textarea.tutorial-report {
+    width: 100%;
+    margin-top: 8px;
+    font-family: ui-monospace, monospace;
+    font-size: 0.8rem;
+    border: 1px solid var(--border-line);
+    border-radius: 2px;
+    background: transparent;
+    color: inherit;
+  }
+  [data-theme="dark"] .about-action-btn,
+  [data-theme="dark"] .hub-sheet-link-anchor,
+  [data-theme="dark"] .about-toc-tutorial,
+  [data-theme="dark"] .tutorial-ex-mark.is-pass {
+    color: #79d6bd;
+    border-color: #79d6bd;
+  }
+  [data-theme="dark"] .about-action-btn:hover,
+  [data-theme="dark"] .about-action-btn:focus-visible {
+    background: #244a3b;
+  }
+  [data-theme="dark"] .about-action-btn.is-on {
+    background: #79d6bd;
+    color: #193328;
+  }
+  [data-theme="dark"] .about-action-btn.is-on.is-fail {
+    background: #f2b8b5;
+    border-color: #f2b8b5;
+    color: #601410;
+  }
+  [data-theme="dark"] .hub-sheet-link-error,
+  [data-theme="dark"] .tutorial-ex-mark.is-fail {
+    color: #f2b8b5;
+  }
   [data-theme="dark"] nav.about-toc {
     background: #193328;
     border-bottom-color: #244a3b;

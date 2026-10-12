@@ -522,6 +522,43 @@ function getSheetUrl() {
   return 'https:' + '/' + '/docs.google.com/spreadsheets/d/' + ensureSetup() + '/edit';
 }
 
+/**
+ * Read-only link to the hub Sheet, opened on its Config tab. Never provisions and never rewrites
+ * properties (About calls this on every open). Users delete things, so a stored id whose Sheet is in
+ * the trash or gone reports missing:'trashed'|'deleted' instead of a dead link; setupHub re-creates it.
+ * @returns {{provisioned: boolean, url: (string|null), missing: (string|null)}} missing is 'never' when no
+ *   Sheet was ever set up.
+ */
+function getSheetLink() {
+  var id = PropertiesService.getUserProperties().getProperty(PROP_SHEET_ID);
+  if (!id) return { provisioned: false, url: null, missing: 'never' };
+  var file;
+  try {
+    file = Drive.Files.get(id);
+  } catch (err) {
+    if (!/\bnot found\b/i.test(String(err && err.message))) throw err;
+    logSafe_('Config: hub Sheet ' + id + ' no longer exists, reporting it missing so the user can re-create it', err);
+    return { provisioned: false, url: null, missing: 'deleted' };
+  }
+  if (file && file.labels && file.labels.trashed === true) return { provisioned: false, url: null, missing: 'trashed' };
+  var meta = sheets_().get(id, { fields: 'sheets.properties(sheetId,title)' });
+  var tab = (meta.sheets || []).map(function (s) { return s.properties; }).filter(function (p) { return p.title === TAB_CONFIG; })[0];
+  if (!tab) throw setupError_('The "' + TAB_CONFIG + '" tab is missing from the ' + SHEET_TITLE + ' sheet');
+  return { provisioned: true, url: 'https:' + '/' + '/docs.google.com/spreadsheets/d/' + id + '/edit#gid=' + tab.sheetId, missing: null };
+}
+
+/**
+ * Drops a stored hub Sheet id that getSheetLink reported trashed/deleted, so the next ensureSetup
+ * creates a fresh Sheet (ensureSetup trusts the stored id and never re-checks Drive).
+ * @param {string} staleId The id getSheetLink found missing; ignored if the stored id has since changed.
+ */
+function forgetSheet(staleId) {
+  var props = PropertiesService.getUserProperties();
+  if (props.getProperty(PROP_SHEET_ID) !== staleId) return;
+  props.deleteProperty(PROP_SHEET_ID);
+  snapshot_ = null;
+}
+
 // used by other .gs files (LedgerRepository, NotesRepository, queue/trigger code); not a google.script.run surface.
 // getSheetId/getFolderId/setRegistryDocId are additive helpers beyond the core contract (used by the repositories).
 global.DPConfig = Object.freeze({
@@ -534,6 +571,8 @@ global.DPConfig = Object.freeze({
   setFeature: setFeature,
   setTasksListId: setTasksListId, // used by HubController.hubSetTasksListId (gas-rpc)
   getSheetUrl: getSheetUrl,
+  getSheetLink: getSheetLink, // used by HubController.getHubSheetLink/setupHub (About link)
+  forgetSheet: forgetSheet, // used by HubController.setupHub (re-create a trashed/deleted Sheet)
   getSheetId: getSheetId,
   getFolderId: getFolderId,
   setRegistryDocId: setRegistryDocId,

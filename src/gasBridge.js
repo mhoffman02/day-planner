@@ -948,6 +948,12 @@ export class GASBridge {
   /** @returns {Promise<{flags: object, dryRun: boolean, lastRun: string|null, counts: object}>} Hub flags and status. */
   getHubStatus() { return this._hubRpc('getHubStatus', []); }
 
+  /** @returns {Promise<{ok: boolean, provisioned: boolean, url: (string|null)}>} Hub Config Sheet link; never creates it. */
+  getHubSheetLink() { return this._hubRpc('getHubSheetLink', []); }
+
+  /** @returns {Promise<{ok: boolean, provisioned: boolean, url: (string|null)}>} Creates the Hub Config Sheet if missing, then its link. */
+  setupHub() { return this._hubRpc('setupHub', []); }
+
   /**
    * @param {object} [filters] Board filters.
    * @returns {Promise<{queues: {directAction: Array, meetingCarryIns: Array, systemExceptions: Array, fyiReading: Array}}>} Triage board.
