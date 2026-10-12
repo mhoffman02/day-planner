@@ -144,9 +144,8 @@ async function run() {
       sendToSession(pageSessionId, 'Page.enable');
     }
 
-    const childIframe = tabs.find(t => t.type === 'iframe' && (
-      t.parentId === page.id || (t.url && t.url.includes('script.googleusercontent.com'))
-    ));
+    // Only this tab's own frame: a URL-only match could pick another GAS tab's iframe.
+    const childIframe = tabs.find(t => t.type === 'iframe' && t.parentId === page.id);
     if (childIframe) {
       const childSessionId = await attachTo(childIframe.id);
       if (childSessionId) {

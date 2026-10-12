@@ -111,9 +111,13 @@ async function run() {
     await send('Target.activateTarget', { targetId: page.id });
 
     // 2. Attach to target (child iframe if targetIframe and available, else page)
-    const childIframe = tabs.find(t => t.type === 'iframe' && (
-      t.parentId === page.id || (t.url && t.url.includes('script.googleusercontent.com'))
-    ));
+    // Only this tab's own frame: with several GAS tabs open, a URL-only match attached to another tab.
+    const childIframe = tabs.find(t => t.type === 'iframe' && t.parentId === page.id);
+    if (targetIframe && !childIframe) {
+      console.error(`❌ No app iframe under tab "${page.title}" (${page.url}) yet; it may still be loading or signed out.`);
+      ws.close();
+      process.exit(1);
+    }
     const targetIdToAttach = (targetIframe && childIframe) ? childIframe.id : page.id;
 
     const attachRes = await send('Target.attachToTarget', { targetId: targetIdToAttach, flatten: false });

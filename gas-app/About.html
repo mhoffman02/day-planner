@@ -17,7 +17,7 @@
     </button>
   </header>
 
-  <nav class="about-toc" aria-label="On this page" x-data="{ jump(id) { const el = document.getElementById(id); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }">
+  <nav class="about-toc" aria-label="On this page" x-data="{ jump(id) { const el = document.getElementById(id); const box = el &amp;&amp; el.closest('.about-view-container'); if (!box) return; box.scrollTo({ top: box.scrollTop + el.getBoundingClientRect().top - box.getBoundingClientRect().top - 56, behavior: 'smooth' }); } }">
     <button type="button" class="about-toc-link" @click="jump('heading-purpose')">Overview</button>
     <button type="button" class="about-toc-link" @click="jump('heading-setup')">Setup</button>
     <button type="button" class="about-toc-link" @click="jump('heading-features')">Tabs</button>

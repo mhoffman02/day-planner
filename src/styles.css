@@ -4855,7 +4855,7 @@
   /* About page: sticky in-page jump strip (flat underline, same idiom as .segment-btn) */
   nav.about-toc {
     position: sticky;
-    top: -12px;
+    top: -10px;
     z-index: 5;
     display: flex;
     flex-wrap: wrap;
@@ -4864,6 +4864,13 @@
     padding: 8px 0 0 0;
     background: #ffffff;
     border-bottom: 1px solid var(--border-line);
+  }
+  @media (max-width: 640px) {
+    nav.about-toc {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
   }
   .about-toc-link {
     background: transparent;
@@ -4886,6 +4893,9 @@
   }
   .about-container .about-section-heading {
     scroll-margin-top: 56px;
+  }
+  .about-container .guide-card-text + .guide-card-text {
+    margin-top: 8px;
   }
   table.about-tag-table code {
     white-space: nowrap;

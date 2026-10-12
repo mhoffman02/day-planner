@@ -123,9 +123,8 @@ async function probe() {
     });
 
     // 4. Check for Apps Script child iframe target
-    const childIframe = tabs.find(t => t.type === 'iframe' && (
-      t.parentId === page.id || (t.url && t.url.includes('script.googleusercontent.com'))
-    ));
+    // Only this tab's own frame: a URL-only match could pick another GAS tab's iframe.
+    const childIframe = tabs.find(t => t.type === 'iframe' && t.parentId === page.id);
 
     // 5. Activate target tab to prevent background timer freeze
     await send('Target.activateTarget', { targetId: page.id });
