@@ -1,3 +1,7 @@
+---
+paths: ["gas-app/**"]
+---
+
 # GAS HtmlService Truncation on Literal `//`, Backticks, and Apostrophes
 
 Google Apps Script's `HtmlService.createHtmlOutputFromFile().getContent()` (used by `include('Script')` and `include('Styles')`) has an AST/lexer bug that silently truncates served HTML/JS files:

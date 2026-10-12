@@ -1,6 +1,6 @@
 ---
 name: esm-rules
-description: ESM-specific rules for Node.js files in this project — entry-point guard pattern (fileURLToPath vs broken file:// concat) and post-edit syntax validation. USE FOR: writing new ESM tools/scripts, editing existing .js files that use import/export, debugging scripts that silently exit 0 with no output. DO NOT USE FOR: CJS files, non-JS files, general coding tasks.
+description: "ESM-specific rules for Node.js files in this project — entry-point guard pattern (fileURLToPath vs broken file:// concat) and post-edit syntax validation. USE FOR: writing new ESM tools/scripts, editing existing .js files that use import/export, debugging scripts that silently exit 0 with no output. DO NOT USE FOR: CJS files, non-JS files, general coding tasks."
 tags: [esm, nodejs, windows, entry-point, syntax-validation, tools]
 version: 1.0.0
 ---

@@ -1,3 +1,7 @@
+---
+paths: ["gas-app/**"]
+---
+
 # GAS IIFE Namespace / Explicit Export Surface
 
 All `.gs` files in `gas-app/` execute in one shared global scope (see

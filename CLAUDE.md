@@ -46,35 +46,7 @@ The **Google Digital Day Planner** is a single-page digital binder application b
 
 ---
 
-## 4. Codebase Structure & Core Engines
-
-### Client Engines ([`src/`](file:///home/mike/projects/day-planner/src/))
-
-- [`src/taskEngine.js`](file:///home/mike/projects/day-planner/src/taskEngine.js): `[A1]`–`[C9]` priority parsing, status cycling (`✓`, `→`, `X`, `D/✓`, `•`), multi-column sorting, star toggles, and master task transfer.
-- [`src/calendarEngine.js`](file:///home/mike/projects/day-planner/src/calendarEngine.js): 07:00–19:00 half-hour appointment schedule grid, event modal payloads with Google Meet links, and monthly calendar matrices.
-- [`src/syncEngine.js`](file:///home/mike/projects/day-planner/src/syncEngine.js): Bidirectional, idempotent Task ↔ Calendar reconciliation tagging events with `gasTaskId`.
-- [`src/futureMatrixEngine.js`](file:///home/mike/projects/day-planner/src/futureMatrixEngine.js): 12-month forward-look planning matrix, quarter aggregation, rolling horizon projections, and multi-quarter milestone tracking.
-- [`src/indexParser.js`](file:///home/mike/projects/day-planner/src/indexParser.js): Extraction of `#index [Topic] Summary` entries from daily notes for chronological decision indexing.
-- [`src/searchEngine.js`](file:///home/mike/projects/day-planner/src/searchEngine.js): Cross-service universal search (Ctrl + K) indexing tasks, calendar appointments, and notes.
-- [`src/binderStore.js`](file:///home/mike/projects/day-planner/src/binderStore.js): View router and local date navigation store.
-- [`src/gasBridge.js`](file:///home/mike/projects/day-planner/src/gasBridge.js): Communication layer abstracting `google.script.run` RPC in production and rich mock datasets in local dev.
-- [`src/app.js`](file:///home/mike/projects/day-planner/src/app.js): Alpine.js binder reactive controller and state orchestration.
-- [`src/styles.css`](file:///home/mike/projects/day-planner/src/styles.css): Complete Day Planner CSS design system (mirrored in [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html)).
-
-### Google Apps Script Backend ([`gas-app/`](file:///home/mike/projects/day-planner/gas-app/))
-
-- [`gas-app/Code.gs`](file:///home/mike/projects/day-planner/gas-app/Code.gs): Server entry (`doGet`), folder setup handler, Google Workspace RPC endpoints, and background 5-minute sync triggers.
-- [`gas-app/Index.html`](file:///home/mike/projects/day-planner/gas-app/Index.html): 5-view digital binder shell markup.
-- [`gas-app/Script.html`](file:///home/mike/projects/day-planner/gas-app/Script.html): Client-side Alpine.js initialization and GAS bridge binding.
-- [`gas-app/Styles.html`](file:///home/mike/projects/day-planner/gas-app/Styles.html): Standalone styling scriptlet included via `<?!= include('Styles'); ?>`.
-- [`gas-app/About.html`](file:///home/mike/projects/day-planner/gas-app/About.html): Built-in user guide, privacy setup, and desktop window installation instructions.
-- [`gas-app/SetupFolder.html`](file:///home/mike/projects/day-planner/gas-app/SetupFolder.html): First-run onboarding to bind the user's dedicated `Day Planner` Drive folder.
-- [`gas-app/UnitTests.gs`](file:///home/mike/projects/day-planner/gas-app/UnitTests.gs): Server-side self-test diagnostics executable via `POST /self-test`.
-- [`gas-app/appsscript.json`](file:///home/mike/projects/day-planner/gas-app/appsscript.json): Manifest declaring minimal OAuth scopes (`drive.file`, `drive.readonly`, `calendar`, `tasks`, `gmail.readonly` for the optional Gmail hub, `script.scriptapp`). The broad `documents` scope was dropped 2026-09-27 — all Google Docs read/write now goes through the Docs Advanced Service (`Docs.Documents.get/batchUpdate/create`), which accepts `drive.file`, instead of the `DocumentApp` built-in service, which only accepts `documents`.
-
----
-
-## 5. Agent Configuration & Cross-CLI Protocol
+## 4. Agent Configuration & Cross-CLI Protocol
 
 - **Single Source of Truth**: Hand-edit configs strictly inside [`.agents/`](file:///home/mike/projects/day-planner/.agents/) (`rules/`, `commands/`, `skills/`). Never edit [`.claude/`](file:///home/mike/projects/day-planner/.claude/) or [`.kilo/`](file:///home/mike/projects/day-planner/.kilo/) directly.
 - **Mirror Sync**: Run `npm run sync:agents` to regenerate tracked real-file mirrors. Pre-commit hooks enforce `npm run sync:agents:check`.
@@ -85,10 +57,11 @@ The **Google Digital Day Planner** is a single-page digital binder application b
 
 ---
 
-## 6. Critical Technical Constraints & Gotchas
+## 5. Critical Technical Constraints & Gotchas
 
 1. **Date Arithmetic**: Always use pure local year/month/day date arithmetic (`new Date(y, m - 1, d + delta)`). Never call `.toISOString()` on local date variables to prevent timezone and UTC day-shift bugs.
 2. **Drive OAuth Scopes**: Keep Drive permissions sandboxed to `drive.file`. Never request broad `drive`.
 3. **Link Attributes**: External links must carry `target="_blank"` and `rel="noopener noreferrer"`.
 4. **String Methods**: Use `slice()`, never deprecated `String.prototype.substr()`.
 5. **Pre-Flight Gates**: Before committing or performing a session handoff, ensure `npm run lint && npm test` runs and passes with zero errors and zero warnings.
+6. **Docs via Advanced Service, not `DocumentApp`**: the broad `documents` scope was dropped 2026-09-27. All Google Docs read/write goes through the Docs Advanced Service (`Docs.Documents.get/batchUpdate/create`), which accepts `drive.file`; `DocumentApp` only accepts `documents`.

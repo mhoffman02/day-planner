@@ -1,3 +1,7 @@
+---
+paths: ["gas-app/**"]
+---
+
 # GAS Shared State: No Global Variables, Only Namespace Objects With Getters/Setters
 
 All `.gs` files in an Apps Script project share one global scope, and `clasp push` loads them in
