@@ -296,7 +296,7 @@
           The hub checks your 🎯 labels every few minutes, once its schedule is installed. Each email is handled once, so leaving the label on is safe. Other 🎯 labels (Read, Review, Meeting, NCMMS-Daily) are recognized but don't do anything yet.
         </p>
         <p class="guide-card-text">
-          <b>Turning it on:</b> the hub is off by default. Its settings live in the <b>Config</b> tab of the <i>Day Planner Hub Config</i> Sheet in your Day Planner folder. Set <code>GMAIL_ROUTER</code> to TRUE, check the trial run, then set <code>DRY_RUN</code> to FALSE. While <code>DRY_RUN</code> is TRUE, the hub only reports what it <i>would</i> do. Set <code>TRIAGE_BOARD</code> and <code>NCMMS_CORE_PILOT</code> to TRUE to show the Triage and Meeting Prep tabs. The <b>Meeting Registry</b> tab lists your recurring meetings and their notes Docs.
+          <b>Turning it on:</b> the first time the app opens, it creates the <i>Day Planner Hub Config</i> Sheet in your Day Planner folder, turns on <code>GMAIL_ROUTER</code> and <code>TRIAGE_BOARD</code> in trial mode (<code>DRY_RUN</code> TRUE), and installs the hub schedule. The settings live in that Sheet’s <b>Config</b> tab. Check the trial run on the Triage tab, then set <code>DRY_RUN</code> to FALSE. While <code>DRY_RUN</code> is TRUE, the hub only reports what it <i>would</i> do. Set <code>NCMMS_CORE_PILOT</code> to TRUE to show the Meeting Prep tab. The <b>Meeting Registry</b> tab lists your recurring meetings and their notes Docs.
         </p>
         <div class="guide-card-text hub-sheet-link" x-data="{
             hubLink: { state: 'loading', url: null, error: '' },
@@ -321,12 +321,12 @@
           <span x-show="hubLink.state === 'missing' &amp;&amp; hubLink.missing === 'never'">
             Not set up yet.
             <button type="button" class="about-action-btn" @click="loadHubLink('setupHub')">Set up hub</button>
-            <span class="hub-sheet-link-note">Creates the <i>Day Planner Hub Config</i> Sheet in your Day Planner folder. Every hub feature stays off until you turn it on there.</span>
+            <span class="hub-sheet-link-note">Creates the <i>Day Planner Hub Config</i> Sheet in your Day Planner folder with Triage on in trial mode, and installs the hub schedule. The app also does this by itself when it opens.</span>
           </span>
           <span x-show="hubLink.state === 'missing' &amp;&amp; hubLink.missing !== 'never'">
             <span x-text="hubLink.missing === 'trashed' ? 'Your Hub Config Sheet is in the Drive trash.' : 'Your Hub Config Sheet was deleted.'"></span>
             <button type="button" class="about-action-btn" @click="loadHubLink('setupHub')">Re-create hub Sheet</button>
-            <span class="hub-sheet-link-note">A new Sheet starts with every hub feature off. <span x-show="hubLink.missing === 'trashed'">To keep your old settings instead, restore it from the Drive trash and reopen this page.</span></span>
+            <span class="hub-sheet-link-note">A new Sheet starts with Triage on in trial mode, so any other settings you changed are reset.<span x-show="hubLink.missing === 'trashed'">To keep your old settings instead, restore it from the Drive trash and reopen this page.</span></span>
           </span>
           <span x-show="hubLink.state === 'error'" role="alert">
             <span class="hub-sheet-link-error" x-text="'Could not reach the Hub Config Sheet: ' + hubLink.error"></span>

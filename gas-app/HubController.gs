@@ -501,10 +501,27 @@ function discoverMeetingSeries() {
  * @returns {object} {ok, flags, dryRun, lastRun, counts, triggers, message}.
  */
 function getHubStatus() {
-  var pre = preflight_([], { fresh: true });
+  // Runs on app load. User decision 2026-10-12: IF the hub Sheet is not present THEN create and configure it
+  // (provisionHub_). Once provisioned this costs nothing extra; before the Day Planner folder is bound it does nothing.
+  var pre;
+  try {
+    if (DPConfig.isFolderBound() && !DPConfig.isProvisioned()) provisionHub_();
+    pre = preflight_([], { fresh: true });
+  } catch (err) {
+    if (!/not found/i.test(String(err && err.message))) return failFrom_(err);
+    // The stored Sheet may have been deleted: re-create it rather than failing on every load.
+    DPQueue.logSafe('HubController: hub Sheet read failed with not-found, checking whether it was deleted', err);
+    try {
+      var gone = DPConfig.getSheetLink().missing;
+      if (gone !== 'deleted' && gone !== 'trashed') return failFrom_(err);
+      provisionHub_();
+      pre = preflight_([], { fresh: true });
+    } catch (err2) {
+      return failFrom_(err2);
+    }
+  }
   if (pre.failure) return pre.failure;
   try {
-    // This runs on app load: with the hub unprovisioned or every flag OFF it must not touch Drive/Sheets.
     var counts = {};
     var anyOn = Object.keys(pre.features).some(function(k) { return k !== 'DRY_RUN' && pre.features[k] === true; });
     if (anyOn && DPConfig.isProvisioned()) {
@@ -540,19 +557,29 @@ function getHubSheetLink() {
 }
 
 /**
- * About's "Set up hub" / "Re-create hub Sheet" button: creates the hub Sheet in the Day Planner folder if
- * it was never set up, trashed or deleted (idempotent, DPConfig.ensureSetup) and returns its link. A new
- * Sheet starts with default flags (all OFF, DRY_RUN on).
+ * Creates the hub Sheet if it was never set up, trashed or deleted, then installs the one hubDispatch
+ * trigger (idempotent). A NEW Sheet is seeded Triage-on in trial mode (DPConfig AUTO_SETUP_FEATURES); a
+ * Sheet adopted from the Day Planner folder keeps its own Config values. Throws on any failure.
+ * @returns {{provisioned: boolean, url: (string|null), missing: (string|null)}} Link to the ready Sheet.
+ */
+function provisionHub_() {
+  var before = DPConfig.getSheetLink();
+  if (before.missing === 'trashed' || before.missing === 'deleted') DPConfig.forgetSheet(DPConfig.getSheetId());
+  DPConfig.ensureSetup({ autoSeed: true });
+  global._installHubTriggersInternal();
+  return DPConfig.getSheetLink();
+}
+
+/**
+ * About's "Set up hub" / "Re-create hub Sheet" button: same path as the automatic setup on app load
+ * (provisionHub_), returning the Sheet link.
  * @returns {object} {ok, provisioned, url, missing, message} or a failed result.
  */
 function setupHub() {
   var pre = preflight_([]);
   if (pre.failure) return pre.failure;
   try {
-    var before = DPConfig.getSheetLink();
-    if (before.missing === 'trashed' || before.missing === 'deleted') DPConfig.forgetSheet(DPConfig.getSheetId());
-    DPConfig.ensureSetup();
-    var link = DPConfig.getSheetLink();
+    var link = provisionHub_();
     if (!link.provisioned) return fail_('SETUP_ERROR', 'Hub Sheet was created but cannot be opened (' + link.missing + ')', true);
     return DPEngines.makeResult({ ok: true, status: 'OK', message: 'Hub Sheet is ready', provisioned: true, url: link.url, missing: null });
   } catch (err) {

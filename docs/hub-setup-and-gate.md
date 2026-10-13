@@ -29,6 +29,12 @@ Missing mandatory keys fail loudly with `SETUP_ERROR: <key> ...`; the app does n
 
 ## 2. Enabling the features (after the gate passes)
 
+**Auto-setup (2026-10-12):** on app load, `getHubStatus` creates a missing hub Sheet (never set up, or deleted)
+once the Day Planner folder is bound. A new Sheet is seeded `GMAIL_ROUTER` + `TRIAGE_BOARD` TRUE with `DRY_RUN`
+TRUE (`AUTO_SETUP_FEATURES` in `Config.gs`), and the one `hubDispatch` trigger is installed. A Sheet adopted from
+the folder keeps its own values. About's "Set up hub" runs the same path (`provisionHub_`). The table below is the
+code default when no Sheet exists.
+
 Flags live in the `Config` tab of the hub Sheet (columns `Key`, `Value`; values `TRUE`/`FALSE`). Edit the Sheet by
 hand, or run `DPConfig.setFeature(name, bool)` from a throwaway IDE function. Defaults:
 

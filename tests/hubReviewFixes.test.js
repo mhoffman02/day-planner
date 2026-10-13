@@ -33,12 +33,12 @@ function configCtx() {
 }
 
 // ---------------------------------------------------------------- #2 flags OFF is a no-op
-test('#2 flags OFF: app-load and every flag-gated RPC create no Sheet and make no Drive/Sheets call', () => {
+// App load (getHubStatus) DOES create the Sheet since 2026-10-12 (user decision; see hubAutoProvision.test.js).
+// Every other entry point must stay a no-op on a cold hub.
+test('#2 flags OFF: every flag-gated RPC and the dispatcher create no Sheet and make no Drive/Sheets call', () => {
   const ctx = makeHubContext({ realStores: 'cold' });
-  const st = call(ctx, 'getHubStatus');
-  assert.equal(st.ok, true);
-  assert.equal(st.dryRun, true);
-  assert.ok(Object.keys(st.flags).every((k) => (k === 'DRY_RUN' ? st.flags[k] === true : st.flags[k] === false)), JSON.stringify(st.flags));
+  const flags = toHost(ctx.DPConfig.getFeatures());
+  assert.ok(Object.keys(flags).every((k) => (k === 'DRY_RUN' ? flags[k] === true : flags[k] === false)), JSON.stringify(flags));
   assert.equal(run(ctx).status, 'NOOP');
   assert.equal(toHost(ctx._hubDispatchInternal()).status, 'NOOP');
   call(ctx, 'getTriageBoard', {});

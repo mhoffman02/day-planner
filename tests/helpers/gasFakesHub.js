@@ -287,6 +287,7 @@ export function makeHubContext(o = {}) {
       getRegistry: () => h.config.registry,
       getSheetId: () => 'sheet1',
       isProvisioned: () => true,
+      isFolderBound: () => true,
       getSheetUrl: () => 'https://example.invalid/sheet',
       beginSnapshot: (extra) => extra.map(() => []),
       endSnapshot: () => {},

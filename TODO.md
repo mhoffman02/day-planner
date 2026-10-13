@@ -10,11 +10,9 @@ Everything here needs the user (GSA account, a release go, or a decision). HOME 
   `@default`; default "Daily Notes" sections for 10-30 and 10-31 in the October notes Doc.
 - [ ] **Watch the 7-day Testing expiry** (gated to 2026-10-17): does the web app or the 5-min sync trigger start failing
   auth weekly now that the script is linked to a Testing-mode GCP project? gas-rpc warns on day 6.
-- [ ] **WORK Meeting Prep live render**: WORK has **no Hub Config Sheet yet** (checked 2026-10-12: GSA Drive search
-  finds none; `getHubStatus` returns code defaults). After WORK is repointed to the build with About's Hub settings,
-  the GSA user clicks About > Automatic Tasks > **Set up hub**, sets `GMAIL_ROUTER` + `NCMMS_CORE_PILOT` TRUE (keep
-  `DRY_RUN` TRUE) and fills the NCMMS-Core notes Doc in Meeting Registry. Then check a real NCMMS series renders and
-  the carry-in count equals the Doc (Tutorial T14). WORK has no hub trigger yet (separate install as the GSA user).
+- [ ] **WORK Meeting Prep live render**: WORK had no Hub Config Sheet (2026-10-12). From the auto-setup build on,
+  opening WORK `/exec` creates it (Triage on, trial mode) and installs the schedule. Then set `NCMMS_CORE_PILOT`
+  TRUE, fill the NCMMS-Core notes Doc in Meeting Registry, and check the carry-in count equals the Doc (Tutorial T14).
 - [ ] **gmail.modify rollout on WORK**: HOME is done (2026-10-12: consent, GCP Data access, rpc re-login, privacy
   page fac809b on master, Tutorial T15 passed live via gas-rpc). WORK v136 = build 467. Close or reload the open WORK
   IDE tab, repoint `/exec`, approve the new Gmail permission as the GSA user. If the .gov org blocks `gmail.modify`,

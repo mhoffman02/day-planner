@@ -46,6 +46,9 @@ var ENABLED_SERIES = ['NCMMS_CORE', 'NCMMS_DAILY', 'NCMMS_AA', 'NCMMS_ACQ', 'TRM
 var CONFIG_READ_RANGE = 'A2:B200';
 var REGISTRY_READ_RANGE = 'A1:M500';
 var DEFAULT_TASKS_LIST_ID = '@default';
+// Seed for a Sheet the app creates by itself (user decision 2026-10-12): Triage tab on, trial mode on.
+// Every other flag keeps its DEFAULT_FEATURES value (OFF).
+var AUTO_SETUP_FEATURES = { GMAIL_ROUTER: true, TRIAGE_BOARD: true, DRY_RUN: true };
 
 function engines_() {
   if (!global.DPEngines) throw setupError_('DPEngines is not loaded (Engines.gs missing)');
@@ -124,6 +127,11 @@ function getFolderId() {
   return id;
 }
 
+/** @returns {boolean} True once the first-run setup has bound the Day Planner folder (no Drive call). */
+function isFolderBound() {
+  return !!PropertiesService.getUserProperties().getProperty(PROP_FOLDER_ID);
+}
+
 /** @returns {string} Hub Sheet id, creating the Sheet on first use. */
 function getSheetId() {
   return ensureSetup();
@@ -152,8 +160,13 @@ function userCalendarTimeZone_() {
   return '';
 }
 
-function buildConfigSeed_() {
+/**
+ * @param {Object<string, boolean>} [featureOverrides] Flag values that replace DEFAULT_FEATURES in the seed.
+ * @returns {Array<Array<string>>} Config tab rows.
+ */
+function buildConfigSeed_(featureOverrides) {
   var E = engines_();
+  var over = featureOverrides || {};
   // A seed the runtime cannot supply stays empty on purpose: getConfig() then fails loudly with
   // SETUP_ERROR naming the key, so the user fills it in the Config tab.
   var tz = userCalendarTimeZone_();
@@ -173,7 +186,8 @@ function buildConfigSeed_() {
     ['ExcludedAiLabels', E.AI_EXCLUDED_LABELS.join(',')]
   ];
   Object.keys(E.DEFAULT_FEATURES).forEach(function (name) {
-    rows.push([name, E.DEFAULT_FEATURES[name] ? 'TRUE' : 'FALSE']);
+    var on = Object.prototype.hasOwnProperty.call(over, name) ? over[name] === true : E.DEFAULT_FEATURES[name];
+    rows.push([name, on ? 'TRUE' : 'FALSE']);
   });
   return rows;
 }
@@ -189,8 +203,12 @@ function buildRegistrySeed_() {
   });
 }
 
-/** Creates missing tabs, writes headers, seeds Config/Registry only when they have no data rows. */
-function populate_(sheetId) {
+/**
+ * Creates missing tabs, writes headers, seeds Config/Registry only when they have no data rows.
+ * @param {string} sheetId Spreadsheet id.
+ * @param {Object<string, boolean>} [seedFeatures] Flag overrides for a fresh Config tab (ignored when it has rows).
+ */
+function populate_(sheetId, seedFeatures) {
   var E = engines_();
   var meta = sheets_().get(sheetId, { fields: 'sheets.properties(sheetId,title)' });
   var existing = (meta.sheets || []).map(function (s) { return s.properties; });
@@ -218,7 +236,7 @@ function populate_(sheetId) {
     { range: engines_().a1Range(TAB_ARCHIVE, 'A1:' + engines_().colLetter(E.LEDGER_COLUMNS.length) + '1'), values: [E.LEDGER_COLUMNS.slice()] }
   ];
   if (configEmpty) {
-    var seed = buildConfigSeed_();
+    var seed = buildConfigSeed_(seedFeatures);
     data.push({ range: engines_().a1Range(TAB_CONFIG, 'A2:B' + (seed.length + 1)), values: seed });
   }
   if (registryEmpty) {
@@ -233,9 +251,11 @@ function populate_(sheetId) {
  * app-created Sheet by name in the Day Planner folder (crash recovery) or creates one, populates
  * tabs/seeds, and records the id last. First-run creation runs under the user lock and re-checks the
  * stored id after acquiring it (concurrent first runs create exactly one Sheet).
+ * @param {{autoSeed?: boolean}} [opts] autoSeed: a NEW Sheet starts with AUTO_SETUP_FEATURES (Triage on,
+ *   trial mode) instead of all OFF. An adopted Sheet that already has Config rows keeps its own values.
  * @returns {string} Spreadsheet id.
  */
-function ensureSetup() {
+function ensureSetup(opts) {
   var props = PropertiesService.getUserProperties();
   var existing = props.getProperty(PROP_SHEET_ID);
   if (existing) return existing;
@@ -251,7 +271,7 @@ function ensureSetup() {
       if (!created || !created.id) throw new Error('Hub Sheet creation returned no id');
       id = created.id;
     }
-    populate_(id);
+    populate_(id, opts && opts.autoSeed === true ? AUTO_SETUP_FEATURES : null);
     props.setProperty(PROP_SHEET_ID, id);
     refreshFlags_();
     return id;
@@ -566,6 +586,7 @@ global.DPConfig = Object.freeze({
   getConfig: getConfig,
   getFeatures: getFeatures,
   isProvisioned: isProvisioned,
+  isFolderBound: isFolderBound, // used by HubController.provisionHub_ (auto-setup on app load)
   tabs: Object.freeze({ LEDGER: TAB_LEDGER, ARCHIVE: TAB_ARCHIVE }), // used by LedgerRepository
   getRegistry: getRegistry,
   setFeature: setFeature,
