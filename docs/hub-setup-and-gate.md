@@ -48,6 +48,13 @@ hand, or run `DPConfig.setFeature(name, bool)` from a throwaway IDE function. De
 | `GMAIL_ROUTER` | FALSE | Master switch for label routing, the queue, Triage and Meeting Prep RPCs |
 | `TRIAGE_BOARD` | FALSE | Triage nav and board (also needs `GMAIL_ROUTER`) |
 | `NCMMS_CORE_PILOT` | FALSE | Meeting Prep nav (also needs `GMAIL_ROUTER`) |
+
+In the app, `DRY_RUN` is called **Trial mode**. While it is TRUE, Triage and Meeting Prep show one shared banner with
+**Review and go live**, which opens a confirmation dialog (what changes, plus the last trial run's counts) and then calls
+`hubSetFeature('DRY_RUN', false)`. A snackbar offers Undo for 10 s; the header's **Switch to trial** turns it back on
+without a dialog. Every Triage write sends `expectDryRun` (the mode on screen); when it differs from the flags the server
+acts on, the RPC fails with `MODE_CHANGED` and writes nothing, so a Sheet edit can never make a "Trial" screen act for
+real. Callers that omit `expectDryRun` (gas-rpc, IDE) are not guarded. Refresh re-reads the Config tab.
 | `GEMINI_DISCOVERY`, `GEMINI_RECONCILIATION`, `USAI_ASSIST` | FALSE | Stubs only in this build; leave OFF |
 
 Recommended order: (1) run discovery and the DRY_RUN smoke with `GMAIL_ROUTER` TRUE and `DRY_RUN` TRUE;

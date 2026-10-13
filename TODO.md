@@ -12,7 +12,10 @@ Everything here needs the user (GSA account, a release go, or a decision). HOME 
   auth weekly now that the script is linked to a Testing-mode GCP project? gas-rpc warns on day 6.
 - [ ] **WORK Meeting Prep live render**: WORK hub Sheet now exists (Triage on, trial mode). Set `NCMMS_CORE_PILOT`
   TRUE, fill the NCMMS-Core notes Doc in Meeting Registry, and check the carry-in count equals the Doc (Tutorial T14).
-- [ ] **WORK trial mode off**: WORK has `DRY_RUN` TRUE; set FALSE in the hub Sheet when ready for real actions.
+- [ ] **WORK trial mode off**: WORK has `DRY_RUN` TRUE. After the next promote, use Triage > **Review and go live**
+  when ready for real actions (or set FALSE in the hub Sheet).
+- [ ] **Live check: trial mode controls on HOME /dev**: banner, Go live dialog, Undo snackbar, Switch to trial; then
+  flip `DRY_RUN` in the Sheet with the tab open and confirm Archive is refused with "Refresh before acting".
 - [ ] **Approval banner after consent redirect**: on WORK the page reloaded after approving and still showed the
   banner; "Check again" cleared it. Optional: re-check automatically when the tab regains focus.
 - [ ] **UAT run (Phase 30)**: work through About > **Tutorial** T01-T15 on HOME, then WORK; paste each run's

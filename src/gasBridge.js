@@ -975,14 +975,21 @@ export class GASBridge {
   /** @returns {Promise<object>} Result contract. */
   routeThreadToMeeting(threadId, occurrenceId, opts = {}) { return this._hubRpc('routeThreadToMeeting', [threadId, occurrenceId, opts]); }
 
-  /** @returns {Promise<object>} Result contract. */
-  dismissTriageItem(threadId) { return this._hubRpc('dismissTriageItem', [threadId]); }
+  /** @param {string} threadId Gmail thread id. @param {{expectDryRun?:boolean}} [opts] Mode on screen. @returns {Promise<object>} Result contract. */
+  dismissTriageItem(threadId, opts = {}) { return this._hubRpc('dismissTriageItem', [threadId, opts]); }
 
-  /** @param {string} threadId Gmail thread id. @returns {Promise<object>} Archives in Gmail (removes INBOX only). */
-  archiveTriageThread(threadId) { return this._hubRpc('archiveTriageThread', [threadId]); }
+  /** @param {string} threadId Gmail thread id. @param {{expectDryRun?:boolean}} [opts] Mode on screen. @returns {Promise<object>} Archives in Gmail (removes INBOX only). */
+  archiveTriageThread(threadId, opts = {}) { return this._hubRpc('archiveTriageThread', [threadId, opts]); }
 
-  /** @param {string} threadId Gmail thread id. @returns {Promise<object>} Moves the thread to Gmail Trash. */
-  trashTriageThread(threadId) { return this._hubRpc('trashTriageThread', [threadId]); }
+  /** @param {string} threadId Gmail thread id. @param {{expectDryRun?:boolean}} [opts] Mode on screen. @returns {Promise<object>} Moves the thread to Gmail Trash. */
+  trashTriageThread(threadId, opts = {}) { return this._hubRpc('trashTriageThread', [threadId, opts]); }
+
+  /**
+   * @param {string} name Hub feature flag (e.g. DRY_RUN).
+   * @param {boolean} value New value.
+   * @returns {Promise<{ok: boolean, flags: object, dryRun: boolean}>} Writes the flag to the Hub Config Sheet.
+   */
+  hubSetFeature(name, value) { return this._hubRpc('hubSetFeature', [name, value]); }
 
   /** @returns {Promise<object>} Result contract. */
   retryFailedOperation(operationKey) { return this._hubRpc('retryFailedOperation', [operationKey]); }

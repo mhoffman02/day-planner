@@ -161,7 +161,7 @@ export class HubMock {
     this.sheetProvisioned = opts.sheetProvisioned === undefined ? true : opts.sheetProvisioned;
     // true: the owner has not approved the current scopes; getHubStatus returns AUTH_REQUIRED until approveAuth().
     this.authRequired = opts.authRequired === true;
-    this.lastRun ={ at: localIso(-7), status: 'OK', counts: { processed: 2, skipped: 0, errors: 0, quarantined: 0 } };
+    this.lastRun = { at: localIso(-7), status: this.dryRun ? 'DRY_RUN' : 'OK', counts: { processed: 2, skipped: 0, errors: 0, quarantined: 0 } };
     // Fixture ledger rows so every status renders in review.
     this._seedLedger('t-1003', 'DONE');
     this._seedLedger('t-1004', 'ERROR');
@@ -192,9 +192,14 @@ export class HubMock {
   }
 
   /** @returns {object|null} FLAG_OFF failure when any needed flag is off (server preflight parity). */
-  _preflight(needed) {
+  _preflight(needed, opts) {
     const off = needed.find((f) => this.flags[f] !== true);
-    return off ? this._fail('FLAG_OFF', `${off} flag is off`) : null;
+    if (off) return this._fail('FLAG_OFF', `${off} flag is off`);
+    const expect = opts && typeof opts === 'object' ? opts.expectDryRun : undefined;
+    if (typeof expect === 'boolean' && expect !== this.dryRun) {
+      return this._fail('MODE_CHANGED', 'Trial mode was changed in the Hub Config Sheet. Refresh before acting.');
+    }
+    return null;
   }
 
   /**
@@ -206,8 +211,8 @@ export class HubMock {
    * @param {string} dryMsg Message in dry run.
    * @returns {object} Result contract.
    */
-  _apply(threadId, key, sideEffect, doneMsg, dryMsg) {
-    const gate = this._preflight(['GMAIL_ROUTER']);
+  _apply(threadId, key, sideEffect, doneMsg, dryMsg, opts) {
+    const gate = this._preflight(['GMAIL_ROUTER'], opts);
     if (gate) return gate;
     const src = this._find(threadId);
     if (!src) return this._fail('NOT_FOUND', 'Thread not found in current triage set');
@@ -337,7 +342,7 @@ export class HubMock {
         priority: (opts && opts.priority) || 'B1'
       });
       return 'https:' + '/' + '/tasks.google.com/mock/' + id;
-    }, today ? 'Task created for today' : 'Task created', 'Would create Task');
+    }, today ? 'Task created for today' : 'Task created', 'Would create Task', opts);
   }
 
   routeThreadToWaiting(threadId, opts = {}) {
@@ -347,7 +352,7 @@ export class HubMock {
       const id = `mock-wait-${this.waiting.length + 1}`;
       this.waiting.push({ id, key, threadId, title: `[Waiting] ${src.subject}`, waitingOn: (opts && opts.waitingOn) || '', nagDate: (opts && opts.nagDate) || null });
       return 'https:' + '/' + '/tasks.google.com/mock/' + id;
-    }, 'Waiting item created', 'Would create Task');
+    }, 'Waiting item created', 'Would create Task', opts);
   }
 
   /**
@@ -366,11 +371,11 @@ export class HubMock {
     return this._apply(threadId, key, () => {
       this.carryIns.push({ threadId });
       return DOCS_BASE + 'mock-notes-doc/edit';
-    }, 'Carry-in appended to meeting notes', 'Would append carry-in to Doc mock...');
+    }, 'Carry-in appended to meeting notes', 'Would append carry-in to Doc mock...', o);
   }
 
-  dismissTriageItem(threadId) {
-    const gate = this._preflight(['GMAIL_ROUTER']);
+  dismissTriageItem(threadId, opts) {
+    const gate = this._preflight(['GMAIL_ROUTER'], opts);
     if (gate) return gate;
     const src = this._find(threadId);
     if (!src) return this._fail('THREAD_NOT_FOUND', 'Gmail thread not found');
@@ -381,8 +386,8 @@ export class HubMock {
   }
 
   /** Triage [Archive] / [Delete]: same gate and result shape as the server; the thread leaves the board. */
-  _gmailWrite(threadId, done, would) {
-    const gate = this._preflight(['GMAIL_ROUTER']);
+  _gmailWrite(threadId, done, would, opts) {
+    const gate = this._preflight(['GMAIL_ROUTER'], opts);
     if (gate) return gate;
     const src = this._find(threadId);
     if (!src) return this._fail('THREAD_NOT_FOUND', 'Gmail thread not found');
@@ -392,9 +397,18 @@ export class HubMock {
     return { ok: true, status: 'DONE', message: done, operationKey, sourceUrl: src.url };
   }
 
-  archiveTriageThread(threadId) { return this._gmailWrite(threadId, 'Archived in Gmail', 'Would archive in Gmail'); }
+  archiveTriageThread(threadId, opts) { return this._gmailWrite(threadId, 'Archived in Gmail', 'Would archive in Gmail', opts); }
 
-  trashTriageThread(threadId) { return this._gmailWrite(threadId, 'Moved to Gmail Trash', 'Would move to Gmail Trash'); }
+  trashTriageThread(threadId, opts) { return this._gmailWrite(threadId, 'Moved to Gmail Trash', 'Would move to Gmail Trash', opts); }
+
+  /** Mirrors HubController hubSetFeature: one flag, real boolean, returns the fresh flags. */
+  hubSetFeature(name, value) {
+    if (typeof name !== 'string' || !Object.prototype.hasOwnProperty.call(DEFAULT_FEATURES, name)) return this._fail('INVALID_INPUT', 'Unknown feature flag');
+    if (typeof value !== 'boolean') return this._fail('INVALID_INPUT', 'Feature flag value must be true or false');
+    this.flags[name] = value;
+    if (name === 'DRY_RUN') this.dryRun = value;
+    return { ok: true, status: 'OK', message: `${name} set to ${value ? 'TRUE' : 'FALSE'}`, flags: { ...this.flags }, dryRun: this.dryRun };
+  }
 
   retryFailedOperation(operationKey) {
     const row = this.ledger.get(operationKey);

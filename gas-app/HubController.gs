@@ -51,7 +51,9 @@ function failFrom_(err) {
 /**
  * Dependency + flag preflight shared by every RPC.
  * @param {string[]} needed Feature flags that must all be true.
- * @param {{fresh?:boolean}} [opts] fresh re-reads the Config tab when the hub Sheet already exists.
+ * @param {{fresh?:boolean, expectDryRun?:boolean}} [opts] fresh re-reads the Config tab when the hub Sheet
+ *   already exists. expectDryRun is the mode the client is showing: when it is a boolean that differs from
+ *   DRY_RUN, the call fails with MODE_CHANGED (the Sheet was edited since the screen loaded).
  * @returns {{failure:(object|null), features:(object|null)}} Either a failed result or the flags.
  */
 function preflight_(needed, opts) {
@@ -63,7 +65,18 @@ function preflight_(needed, opts) {
   for (var i = 0; i < needed.length; i++) {
     if (features[needed[i]] !== true) return { failure: fail_('FLAG_OFF', needed[i] + ' flag is off', true), features: features };
   }
+  if (opts && typeof opts.expectDryRun === 'boolean' && opts.expectDryRun !== (features.DRY_RUN === true)) {
+    return { failure: fail_('MODE_CHANGED', 'Trial mode was changed in the Hub Config Sheet. Refresh before acting.', true), features: features };
+  }
   return { failure: null, features: features };
+}
+
+/**
+ * @param {*} options Client supplied options.
+ * @returns {{expectDryRun:(boolean|undefined)}} preflight_ opts carrying only the client's mode.
+ */
+function modeOpts_(options) {
+  return { expectDryRun: options && typeof options === 'object' ? options.expectDryRun : undefined };
 }
 
 /**
@@ -98,10 +111,11 @@ function locked_(fn) {
  * @param {string} threadId Gmail thread id.
  * @param {object} extra Extra executeRoute spec fields.
  * @param {string[]} flags Flags required.
+ * @param {*} options Client options (expectDryRun is checked by preflight_).
  * @returns {object} Result.
  */
-function route_(kind, threadId, extra, flags) {
-  var pre = preflight_(flags);
+function route_(kind, threadId, extra, flags, options) {
+  var pre = preflight_(flags, modeOpts_(options));
   if (pre.failure) return pre.failure;
   var bad = badThread_(threadId);
   if (bad) return fail_('INVALID_THREAD_ID', bad);
@@ -137,7 +151,7 @@ function routeThreadToTask(threadId, options) {
   var badId = badThread_(threadId);
   if (badId) return fail_('INVALID_THREAD_ID', badId);
   if (o.again === true) extra.opKey = DPEngines.gmailTaskKey(String(threadId) + '~' + new Date().getTime().toString(36), o.today === true);
-  return route_(o.today === true ? 'TASK_TODAY' : 'TASK', threadId, extra, ['GMAIL_ROUTER']);
+  return route_(o.today === true ? 'TASK_TODAY' : 'TASK', threadId, extra, ['GMAIL_ROUTER'], o);
 }
 
 /**
@@ -149,7 +163,7 @@ function routeThreadToTask(threadId, options) {
 function routeThreadToWaiting(threadId, options) {
   var o = opts_(options);
   if (o.nagDate !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(String(o.nagDate))) return fail_('INVALID_INPUT', 'nagDate must be YYYY-MM-DD');
-  return route_('WAITING', threadId, { options: { waitingOn: o.waitingOn ? String(o.waitingOn).slice(0, 120) : undefined, nagDate: o.nagDate, priority: o.priority } }, ['GMAIL_ROUTER']);
+  return route_('WAITING', threadId, { options: { waitingOn: o.waitingOn ? String(o.waitingOn).slice(0, 120) : undefined, nagDate: o.nagDate, priority: o.priority } }, ['GMAIL_ROUTER'], o);
 }
 
 /**
@@ -178,16 +192,17 @@ function routeThreadToMeeting(threadId, occurrenceId, options) {
       return fail_('INVALID_INPUT', 'Unknown mode');
     }
   }
-  return route_('MEETING', threadId, extra, ['GMAIL_ROUTER']);
+  return route_('MEETING', threadId, extra, ['GMAIL_ROUTER'], o);
 }
 
 /**
  * Removes a thread from the planner triage set (ledger only; Gmail is untouched).
  * @param {string} threadId Gmail thread id.
+ * @param {{expectDryRun?:boolean}} [options] The mode the client is showing.
  * @returns {object} makeResult-shaped result.
  */
-function dismissTriageItem(threadId) {
-  var pre = preflight_(['GMAIL_ROUTER']);
+function dismissTriageItem(threadId, options) {
+  var pre = preflight_(['GMAIL_ROUTER'], modeOpts_(options));
   if (pre.failure) return pre.failure;
   var bad = badThread_(threadId);
   if (bad) return fail_('INVALID_THREAD_ID', bad);
@@ -215,10 +230,11 @@ function dismissTriageItem(threadId) {
  * idempotent, so a repeat click is safe. No ERROR rows: a failure goes straight back to the UI.
  * @param {string} threadId Gmail thread id.
  * @param {{write: function(string): void, done: string, would: string}} act Gmail write + messages.
+ * @param {*} options Client options (expectDryRun).
  * @returns {object} makeResult-shaped result.
  */
-function gmailTriageWrite_(threadId, act) {
-  var pre = preflight_(['GMAIL_ROUTER']);
+function gmailTriageWrite_(threadId, act, options) {
+  var pre = preflight_(['GMAIL_ROUTER'], modeOpts_(options));
   if (pre.failure) return pre.failure;
   var bad = badThread_(threadId);
   if (bad) return fail_('INVALID_THREAD_ID', bad);
@@ -245,19 +261,21 @@ function gmailTriageWrite_(threadId, act) {
 /**
  * Triage [Archive]: removes the email from the Gmail Inbox (its 🎯 labels stay) and from the board.
  * @param {string} threadId Gmail thread id.
+ * @param {{expectDryRun?:boolean}} [options] The mode the client is showing.
  * @returns {object} makeResult-shaped result.
  */
-function archiveTriageThread(threadId) {
-  return gmailTriageWrite_(threadId, { write: DPGmailRepo.archiveThread, done: 'Archived in Gmail', would: 'Would archive in Gmail' });
+function archiveTriageThread(threadId, options) {
+  return gmailTriageWrite_(threadId, { write: DPGmailRepo.archiveThread, done: 'Archived in Gmail', would: 'Would archive in Gmail' }, options);
 }
 
 /**
  * Triage [Delete]: moves the email to Gmail Trash (recoverable for 30 days) and off the board.
  * @param {string} threadId Gmail thread id.
+ * @param {{expectDryRun?:boolean}} [options] The mode the client is showing.
  * @returns {object} makeResult-shaped result.
  */
-function trashTriageThread(threadId) {
-  return gmailTriageWrite_(threadId, { write: DPGmailRepo.trashThread, done: 'Moved to Gmail Trash', would: 'Would move to Gmail Trash' });
+function trashTriageThread(threadId, options) {
+  return gmailTriageWrite_(threadId, { write: DPGmailRepo.trashThread, done: 'Moved to Gmail Trash', would: 'Would move to Gmail Trash' }, options);
 }
 
 /**

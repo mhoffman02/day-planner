@@ -285,6 +285,13 @@
       </aside>
     </template>
 
+    <!-- Trial mode (DRY_RUN): one Hub Config flag covers Triage and Meeting Prep -->
+    <aside class="hub-banner hub-banner-dryrun trial-mode-banner" role="status" x-show="hubTrialBannerVisible" x-cloak>
+      <span><strong>Trial mode.</strong> Day Planner shows what it <i>would</i> do. Nothing changes in Gmail, Tasks or Docs.</span>
+      <button type="button" class="btn-primary hub-banner-btn" @click="openGoLive($event)">Review and go live</button>
+      <button type="button" class="hub-link-btn" @click="hideTrialBannerToday()">Hide for today</button>
+    </aside>
+
     <!-- Keyed error tray: one row per failing operation (failures first, then offline notices) -->
     <template x-if="errorTray.length > 0">
       <aside class="error-tray" role="alert" aria-live="assertive">
@@ -1203,16 +1210,16 @@
             <p class="hub-header-meta" x-show="showTriageNav">
               <span x-text="triageItemCount + (triageItemCount === 1 ? ' thread' : ' threads')"></span>
               <span x-show="hubLastRun"> &middot; last run <span x-text="hubLastRun &amp;&amp; hubLastRun.at ? hubLastRun.at.replace('T', ' ').slice(0, 16) : ''"></span></span>
+              <span> &middot; <span x-text="hubDryRun ? 'Trial mode' : 'Live'"></span>
+                <button type="button" class="hub-link-btn" x-show="hubDryRun &amp;&amp; !hubTrialBannerVisible" @click="openGoLive($event)">Go live</button>
+                <button type="button" class="hub-link-btn" x-show="!hubDryRun" @click="switchToTrial()">Switch to trial</button>
+              </span>
               <span x-show="triageReadLater.length > 0"> &middot;
                 <button type="button" class="hub-link-btn" @click="showReadLater = !showReadLater" :aria-pressed="showReadLater" x-text="(showReadLater ? 'Hide' : 'Show') + ' read later (' + triageReadLater.length + ')'"></button>
               </span>
             </p>
-            <button type="button" class="btn-secondary hub-refresh-btn" @click="loadTriageBoard()" :disabled="triageLoading" x-show="showTriageNav">Refresh</button>
+            <button type="button" class="btn-secondary hub-refresh-btn" @click="refreshTriage()" :disabled="triageLoading" x-show="showTriageNav">Refresh</button>
           </header>
-
-          <aside class="hub-banner hub-banner-dryrun" role="status" x-show="hubDryRun &amp;&amp; showTriageNav">
-            <strong>Dry run is ON.</strong> Actions are recorded in the ledger as Dry run and nothing is created in Tasks or Docs.
-          </aside>
 
           <aside class="hub-banner" :class="triageNotice ? 'hub-banner-' + triageNotice.kind : ''" role="status" x-show="triageNotice">
             <span x-text="triageNotice ? triageNotice.text : ''"></span>
@@ -1315,12 +1322,14 @@
               <span class="material-symbols-outlined">event_note</span>
               Meeting Prep
             </h2>
-            <button type="button" class="btn-secondary hub-refresh-btn" @click="loadMeetingPrep()" :disabled="meetingPrepLoading" x-show="showMeetingPrepNav">Refresh</button>
+            <p class="hub-header-meta" x-show="showMeetingPrepNav">
+              <span><span x-text="hubDryRun ? 'Trial mode' : 'Live'"></span>
+                <button type="button" class="hub-link-btn" x-show="hubDryRun &amp;&amp; !hubTrialBannerVisible" @click="openGoLive($event)">Go live</button>
+                <button type="button" class="hub-link-btn" x-show="!hubDryRun" @click="switchToTrial()">Switch to trial</button>
+              </span>
+            </p>
+            <button type="button" class="btn-secondary hub-refresh-btn" @click="refreshMeetingPrep()" :disabled="meetingPrepLoading" x-show="showMeetingPrepNav">Refresh</button>
           </header>
-
-          <aside class="hub-banner hub-banner-dryrun" role="status" x-show="hubDryRun &amp;&amp; showMeetingPrepNav">
-            <strong>Dry run is ON.</strong> Carry-ins are recorded in the ledger but not written to the notes Doc.
-          </aside>
 
           <template x-if="!showMeetingPrepNav">
             <section class="hub-empty" aria-label="Meeting Prep is off">
@@ -1344,7 +1353,7 @@
                 <tbody>
                   <tr><th scope="row">Starts</th><td x-text="(meetingPrep.occurrence.start || '').replace('T', ' ').slice(0, 16)"></td></tr>
                   <tr><th scope="row">Prep cutoff</th><td><span x-text="(meetingPrep.occurrence.cutoffISO || '').replace('T', ' ').slice(0, 16)"></span> <strong class="hub-countdown" x-text="'(' + hubCountdown(meetingPrep.occurrence.cutoffISO) + ')'"></strong></td></tr>
-                  <tr><th scope="row">Status</th><td x-text="meetingPrep.occurrence.deferred ? 'Deferred to the next occurrence' : (hubDryRun ? 'Dry run' : 'Ready')"></td></tr>
+                  <tr><th scope="row">Status</th><td x-text="meetingPrep.occurrence.deferred ? 'Deferred to the next occurrence' : (hubDryRun ? 'Trial mode' : 'Ready')"></td></tr>
                   <tr>
                     <th scope="row">Notes Doc</th>
                     <td>
@@ -1881,6 +1890,38 @@
     <div class="time-machine-toast" x-show="timeMachineToast" x-cloak>
       <span class="material-symbols-outlined icon-18">check_circle</span>
       <span x-text="timeMachineToast"></span>
+    </div>
+
+    <!-- Go live: turn off trial mode (DRY_RUN) after an explicit confirmation -->
+    <dialog class="modal-backdrop" :open="goLive.open" x-show="goLive.open" x-cloak role="alertdialog" aria-modal="true" aria-labelledby="goLiveTitle" aria-describedby="goLiveBody" @click.self="closeGoLive()" @keydown.escape.window="if (goLive.open) closeGoLive()">
+      <article class="modal-card modal-card-form">
+        <header class="modal-header-spaced">
+          <h3 id="goLiveTitle" class="modal-title-with-icon">
+            <span class="material-symbols-outlined">toggle_on</span> Turn off trial mode?
+          </h3>
+        </header>
+        <div id="goLiveBody" class="go-live-body">
+          <p>When trial mode is off:</p>
+          <ul>
+            <li><b>Archive</b> and <b>Delete</b> on Triage cards change your real Gmail. Delete moves mail to Trash.</li>
+            <li>The hub creates Google Tasks for routed email on its schedule.</li>
+            <li x-show="hubFlags &amp;&amp; hubFlags.NCMMS_CORE_PILOT === true">Meeting Prep writes carry-ins to your notes Docs.</li>
+          </ul>
+          <p x-show="hubTrialRun">The last trial run, at <span x-text="hubTrialRun ? hubTrialRun.at : ''"></span>, would have handled <b x-text="hubTrialRun ? hubTrialRun.processed + (hubTrialRun.processed === 1 ? ' email' : ' emails') : ''"></b> and skipped <span x-text="hubTrialRun ? hubTrialRun.skipped : 0"></span>. The first live run will handle about that many.</p>
+          <p x-show="!hubTrialRun">No trial run has finished yet, so the size of the first live run is not known.</p>
+          <p>This turns off trial mode for Triage and Meeting Prep. You can switch back at any time, but that does not undo actions already taken.</p>
+        </div>
+        <footer class="modal-actions">
+          <button type="button" class="btn-primary" @click="confirmGoLive()" :disabled="goLive.busy" :aria-busy="goLive.busy ? 'true' : 'false'" x-text="goLive.busy ? 'Going live...' : 'Go live'"></button>
+          <button type="button" class="btn-secondary" x-ref="goLiveCancel" @click="closeGoLive()" :disabled="goLive.busy">Cancel</button>
+        </footer>
+      </article>
+    </dialog>
+
+    <!-- Trial mode changed: snackbar with Undo -->
+    <div class="hub-mode-snack" role="status" x-show="hubModeSnack" x-cloak>
+      <span x-text="hubModeSnack ? hubModeSnack.text : ''"></span>
+      <button type="button" class="hub-snack-btn" x-show="hubModeSnack &amp;&amp; hubModeSnack.undo" @click="switchToTrial()">Undo</button>
     </div>
 
     <!-- Toast Notification for Task Actions (Forwarding, etc.) -->

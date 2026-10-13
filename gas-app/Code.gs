@@ -434,7 +434,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 473;
+const BUILD_NUMBER_ = 474;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -3752,8 +3752,8 @@ function routeThreadToMeeting(threadId, occurrenceId, options) {
   return (typeof _routeThreadToMeetingInternal === 'function') ? _routeThreadToMeetingInternal(threadId, occurrenceId, options) : (globalThis._routeThreadToMeetingInternal ? globalThis._routeThreadToMeetingInternal(threadId, occurrenceId, options) : null);
 }
 
-function dismissTriageItem(threadId) {
-  return (typeof _dismissTriageItemInternal === 'function') ? _dismissTriageItemInternal(threadId) : (globalThis._dismissTriageItemInternal ? globalThis._dismissTriageItemInternal(threadId) : null);
+function dismissTriageItem(threadId, options) {
+  return (typeof _dismissTriageItemInternal === 'function') ? _dismissTriageItemInternal(threadId, options) : (globalThis._dismissTriageItemInternal ? globalThis._dismissTriageItemInternal(threadId, options) : null);
 }
 
 function processWorkflowQueue() {
@@ -3772,12 +3772,12 @@ function getHubStatus() {
   return (typeof _getHubStatusInternal === 'function') ? _getHubStatusInternal() : (globalThis._getHubStatusInternal ? globalThis._getHubStatusInternal() : null);
 }
 
-function archiveTriageThread(threadId) {
-  return (typeof _archiveTriageThreadInternal === 'function') ? _archiveTriageThreadInternal(threadId) : (globalThis._archiveTriageThreadInternal ? globalThis._archiveTriageThreadInternal(threadId) : null);
+function archiveTriageThread(threadId, options) {
+  return (typeof _archiveTriageThreadInternal === 'function') ? _archiveTriageThreadInternal(threadId, options) : (globalThis._archiveTriageThreadInternal ? globalThis._archiveTriageThreadInternal(threadId, options) : null);
 }
 
-function trashTriageThread(threadId) {
-  return (typeof _trashTriageThreadInternal === 'function') ? _trashTriageThreadInternal(threadId) : (globalThis._trashTriageThreadInternal ? globalThis._trashTriageThreadInternal(threadId) : null);
+function trashTriageThread(threadId, options) {
+  return (typeof _trashTriageThreadInternal === 'function') ? _trashTriageThreadInternal(threadId, options) : (globalThis._trashTriageThreadInternal ? globalThis._trashTriageThreadInternal(threadId, options) : null);
 }
 
 function getHubSheetLink() {

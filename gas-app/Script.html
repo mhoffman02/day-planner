@@ -1996,9 +1996,10 @@
     routeThreadToTask(threadId, opts) { return this.hubRpc('routeThreadToTask', [threadId, opts || {}]); }
     routeThreadToWaiting(threadId, opts) { return this.hubRpc('routeThreadToWaiting', [threadId, opts || {}]); }
     routeThreadToMeeting(threadId, occurrenceId, opts) { return this.hubRpc('routeThreadToMeeting', [threadId, occurrenceId, opts || {}]); }
-    dismissTriageItem(threadId) { return this.hubRpc('dismissTriageItem', [threadId]); }
-    archiveTriageThread(threadId) { return this.hubRpc('archiveTriageThread', [threadId]); }
-    trashTriageThread(threadId) { return this.hubRpc('trashTriageThread', [threadId]); }
+    dismissTriageItem(threadId, opts) { return this.hubRpc('dismissTriageItem', [threadId, opts || {}]); }
+    archiveTriageThread(threadId, opts) { return this.hubRpc('archiveTriageThread', [threadId, opts || {}]); }
+    trashTriageThread(threadId, opts) { return this.hubRpc('trashTriageThread', [threadId, opts || {}]); }
+    hubSetFeature(name, value) { return this.hubRpc('hubSetFeature', [name, value]); }
     retryFailedOperation(operationKey) { return this.hubRpc('retryFailedOperation', [operationKey]); }
     getMeetingPrep(seriesKey, occurrenceId) { return this.hubRpc('getMeetingPrep', [seriesKey, occurrenceId || null]); }
 
@@ -2013,6 +2014,11 @@
       hubFlags: null,
       authApprovalUrl: null,
       hubDryRun: false,
+      // Trial mode controls: the Hub Config Sheet holds DRY_RUN; these only drive the banner, dialog and snackbar.
+      hubTrialHiddenOn: '',
+      goLive: { open: false, busy: false, opener: null },
+      hubModeSnack: null,
+      hubModeSnackTimer: null,
       hubLastRun: null,
       hubCounts: {},
       hubNowMs: Date.now(),
@@ -2727,6 +2733,93 @@
       hubCanRetry(status) { return canRetryLedger(status); },
       hubCountdown(iso) { return formatCutoffCountdown(iso, this.hubNowMs); },
 
+      get hubTrialBannerVisible() {
+        const onHubView = (this.activeView === 'triage' && this.showTriageNav) || (this.activeView === 'meetingPrep' && this.showMeetingPrepNav);
+        return this.hubDryRun && onHubView && this.hubTrialHiddenOn !== getLocalDateStr();
+      },
+
+      get hubTrialRun() {
+        const r = this.hubLastRun;
+        if (!r || r.status !== 'DRY_RUN' || !r.counts) return null;
+        return { at: String(r.at || '').replace('T', ' ').slice(0, 16), processed: r.counts.processed || 0, skipped: r.counts.skipped || 0 };
+      },
+
+      // Sent with every Triage write: the server refuses (MODE_CHANGED) when the Sheet mode differs from the screen.
+      hubModeOpts() { return { expectDryRun: this.hubDryRun }; },
+
+      hideTrialBannerToday() {
+        this.hubTrialHiddenOn = getLocalDateStr();
+        try {
+          localStorage.setItem('dayPlannerTrialBannerHiddenOn', this.hubTrialHiddenOn);
+        } catch (err) {
+          console.error('hideTrialBannerToday: could not save to localStorage, the banner returns on reload:', err.stack);
+        }
+      },
+
+      openGoLive(ev) {
+        this.goLive = { open: true, busy: false, opener: (ev && ev.currentTarget) || null };
+        this.$nextTick(() => { if (this.$refs.goLiveCancel) this.$refs.goLiveCancel.focus(); });
+      },
+
+      closeGoLive() {
+        if (this.goLive.busy) return;
+        const opener = this.goLive.opener;
+        this.goLive = { open: false, busy: false, opener: null };
+        if (opener && opener.isConnected) opener.focus();
+      },
+
+      async setTrialMode(on) {
+        const r = await this.bridge.hubSetFeature('DRY_RUN', on);
+        if (!r || r.ok !== true) throw new Error((r && r.message) || 'The Hub Config Sheet could not be updated');
+        await this.loadHubStatus();
+        if (this.hubDryRun !== on) throw new Error('The Hub Config Sheet still shows the old mode. Refresh and try again.');
+        if (this.activeView === 'triage' && this.showTriageNav) await this.loadTriageBoard();
+      },
+
+      showHubModeSnack(text, undo) {
+        clearTimeout(this.hubModeSnackTimer);
+        this.hubModeSnack = { text, undo: !!undo };
+        this.hubModeSnackTimer = setTimeout(() => { this.hubModeSnack = null; }, 10000);
+      },
+
+      async confirmGoLive() {
+        this.goLive.busy = true;
+        try {
+          await this.setTrialMode(false);
+          this.resolveError('hub-mode');
+          this.showHubModeSnack('Trial mode is off.', true);
+        } catch (err) {
+          console.error('Go live failed, trial mode stays on:', err.stack);
+          this.reportError('hub-mode', 'Could not turn off trial mode: ' + (err.message || err));
+        } finally {
+          this.goLive.busy = false;
+          this.closeGoLive();
+        }
+      },
+
+      async switchToTrial() {
+        clearTimeout(this.hubModeSnackTimer);
+        this.hubModeSnack = null;
+        try {
+          await this.setTrialMode(true);
+          this.resolveError('hub-mode');
+          this.showHubModeSnack('Trial mode is on. Nothing changes in Gmail, Tasks or Docs.', false);
+        } catch (err) {
+          console.error('Switch to trial failed, the hub stays live:', err.stack);
+          this.reportError('hub-mode', 'Could not turn on trial mode: ' + (err.message || err));
+        }
+      },
+
+      async refreshTriage() {
+        await this.loadHubStatus();
+        await this.loadTriageBoard();
+      },
+
+      async refreshMeetingPrep() {
+        await this.loadHubStatus();
+        await this.loadMeetingPrep();
+      },
+
       async loadHubStatus() {
         try {
           const st = await this.bridge.getHubStatus();
@@ -2752,6 +2845,12 @@
           console.error('initHub: Read Later list unreadable from localStorage, starting empty', err.stack);
           this.triageReadLater = [];
         }
+        try {
+          this.hubTrialHiddenOn = localStorage.getItem('dayPlannerTrialBannerHiddenOn') || '';
+        } catch (err) {
+          console.error('initHub: could not read the trial banner hide date from localStorage, showing the banner:', err.stack);
+          this.hubTrialHiddenOn = '';
+        }
         setInterval(() => { this.hubNowMs = Date.now(); }, 60000);
         return this.loadHubStatus();
       },
@@ -2776,6 +2875,7 @@
           const r = await call();
           this.triageNotice = { kind: r.ok ? 'ok' : 'error', text: label + ': ' + r.message, url: r.targetUrl || null };
           if (!r.ok) console.error('Triage action failed:', label, r);
+          if (r.errorCode === 'MODE_CHANGED') await this.loadHubStatus();
           await this.loadTriageBoard();
           return r;
         } catch (err) {
@@ -2787,19 +2887,19 @@
 
       triageTask(item, today) {
         const priority = today ? (item.score >= 8 ? 'A1' : 'B1') : (item.score >= 4 ? 'B1' : 'C1');
-        return this.runTriageAction(today ? 'Task Today' : 'Task Later', () => this.bridge.routeThreadToTask(item.threadId, { today, priority }));
+        return this.runTriageAction(today ? 'Task Today' : 'Task Later', () => this.bridge.routeThreadToTask(item.threadId, { today, priority, ...this.hubModeOpts() }));
       },
 
       dismissTriageEntry(item) {
-        return this.runTriageAction('Dismiss', () => this.bridge.dismissTriageItem(item.threadId));
+        return this.runTriageAction('Dismiss', () => this.bridge.dismissTriageItem(item.threadId, this.hubModeOpts()));
       },
 
       archiveTriageEntry(item) {
-        return this.runTriageAction('Archive', () => this.bridge.archiveTriageThread(item.threadId));
+        return this.runTriageAction('Archive', () => this.bridge.archiveTriageThread(item.threadId, this.hubModeOpts()));
       },
 
       trashTriageEntry(item) {
-        return this.runTriageAction('Delete', () => this.bridge.trashTriageThread(item.threadId));
+        return this.runTriageAction('Delete', () => this.bridge.trashTriageThread(item.threadId, this.hubModeOpts()));
       },
 
       retryTriageItem(item) {
@@ -2839,7 +2939,7 @@
       async confirmWaiting() {
         const f = this.waitingForm;
         this.closeWaitingForm();
-        await this.runTriageAction('Waiting', () => this.bridge.routeThreadToWaiting(f.threadId, { waitingOn: f.waitingOn, nagDate: f.nagDate || null }));
+        await this.runTriageAction('Waiting', () => this.bridge.routeThreadToWaiting(f.threadId, { waitingOn: f.waitingOn, nagDate: f.nagDate || null, ...this.hubModeOpts() }));
       },
 
       async openMeetingPicker(item) {
@@ -2872,7 +2972,7 @@
         this.closeMeetingPicker();
         const backlog = p.selected === '__backlog__';
         const occurrenceId = backlog ? p.backlogSeriesKey : p.selected;
-        await this.runTriageAction('Send to Meeting', () => this.bridge.routeThreadToMeeting(p.threadId, occurrenceId, { framing: p.framing, backlog, seriesKey: p.seriesKey }));
+        await this.runTriageAction('Send to Meeting', () => this.bridge.routeThreadToMeeting(p.threadId, occurrenceId, { framing: p.framing, backlog, seriesKey: p.seriesKey, ...this.hubModeOpts() }));
       },
 
       async loadMeetingPrep() {
