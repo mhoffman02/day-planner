@@ -159,6 +159,8 @@ export class HubMock {
     this.carryIns = buildCarryIns();
     this.failNext = new Set();
     this.sheetProvisioned = opts.sheetProvisioned === undefined ? true : opts.sheetProvisioned;
+    // true: the owner has not approved the current scopes; getHubStatus returns AUTH_REQUIRED until approveAuth().
+    this.authRequired = opts.authRequired === true;
     this.lastRun ={ at: localIso(-7), status: 'OK', counts: { processed: 2, skipped: 0, errors: 0, quarantined: 0 } };
     // Fixture ledger rows so every status renders in review.
     this._seedLedger('t-1003', 'DONE');
@@ -248,7 +250,13 @@ export class HubMock {
     return { ...this.getHubSheetLink(), message: 'Hub Sheet is ready' };
   }
 
+  /** Test hook: the user approved the scopes on the consent page. */
+  approveAuth() { this.authRequired = false; }
+
   getHubStatus() {
+    if (this.authRequired) {
+      return { ok: false, status: 'AUTH_REQUIRED', message: 'Day Planner needs your approval for new Google permissions', authUrl: 'https://example.invalid/authorize' };
+    }
     const counts = {};
     this.ledger.forEach((row) => { counts[row.status] = (counts[row.status] || 0) + 1; });
     return {

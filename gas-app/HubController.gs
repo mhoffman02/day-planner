@@ -504,6 +504,10 @@ function getHubStatus() {
   // Runs on app load. User decision 2026-10-12: IF the hub Sheet is not present THEN create and configure it
   // (provisionHub_), and finish one whose TimeZone/UserEmail seed came out blank (needsRepair: one Config read).
   // Before the Day Planner folder is bound it does nothing.
+  var authUrl = approvalUrl_();
+  if (authUrl) {
+    return DPEngines.makeResult({ ok: false, status: 'AUTH_REQUIRED', message: 'Day Planner needs your approval for new Google permissions', authUrl: authUrl });
+  }
   var pre;
   try {
     if (DPConfig.isFolderBound() && (!DPConfig.isProvisioned() || DPConfig.needsRepair())) provisionHub_();
@@ -563,6 +567,23 @@ function getHubSheetLink() {
  * Sheet adopted from the Day Planner folder keeps its own Config values. Throws on any failure.
  * @returns {{provisioned: boolean, url: (string|null), missing: (string|null)}} Link to the ready Sheet.
  */
+/**
+ * The web app runs as its owner, so a new manifest scope is approved by the owner, not in the browser by default.
+ * Google's consent URL lets the app offer an "Approve access" link instead of a trip to the script editor.
+ * @returns {string|null} Consent URL when the owner has not approved the current scopes, else null.
+ */
+function approvalUrl_() {
+  try {
+    var info = ScriptApp.getAuthorizationInfo(ScriptApp.AuthMode.FULL);
+    if (info.getAuthorizationStatus() !== ScriptApp.AuthorizationStatus.REQUIRED) return null;
+    return info.getAuthorizationUrl() || null;
+  } catch (err) {
+    // A broken check must not block the app: continue, and the real call fails loud if a scope is missing.
+    DPQueue.logSafe('HubController: authorization check failed, continuing without the approval prompt', err);
+    return null;
+  }
+}
+
 function provisionHub_() {
   var before = DPConfig.getSheetLink();
   if (before.missing === 'trashed' || before.missing === 'deleted') DPConfig.forgetSheet(DPConfig.getSheetId());

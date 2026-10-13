@@ -302,6 +302,7 @@ Alpine.data('plannerApp', () => ({
 
       // Gmail / Meeting Hub (Triage + Meeting Prep). Hidden until getHubStatus reports flags ON.
       hubFlags: null,
+      authApprovalUrl: null,
       hubDryRun: false,
       hubLastRun: null,
       hubCounts: {},
@@ -1024,6 +1025,9 @@ Alpine.data('plannerApp', () => ({
       async loadHubStatus() {
         try {
           const st = await this.bridge.getHubStatus();
+          // New Google permissions not yet approved: show the Approve access banner, keep hub views hidden.
+          this.authApprovalUrl = (st && st.status === 'AUTH_REQUIRED' && st.authUrl) || null;
+          if (this.authApprovalUrl) { this.hubFlags = null; return; }
           if (!st || st.ok !== true) throw new Error((st && st.message) || 'Hub status unavailable');
           this.hubFlags = (st && st.flags) || null;
           this.hubDryRun = !!(st && st.dryRun);

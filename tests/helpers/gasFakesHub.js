@@ -172,6 +172,13 @@ function makeTasks(h) {
 
 function makeScriptApp(h) {
   return {
+    AuthMode: { FULL: 'FULL' },
+    AuthorizationStatus: { REQUIRED: 'REQUIRED', NOT_REQUIRED: 'NOT_REQUIRED' },
+    // h.authUrl set = the owner has not approved the current scopes (like WORK after a scope change).
+    getAuthorizationInfo: () => ({
+      getAuthorizationStatus: () => (h.authUrl ? 'REQUIRED' : 'NOT_REQUIRED'),
+      getAuthorizationUrl: () => h.authUrl || null
+    }),
     getProjectTriggers: () => h.triggers.map((t) => ({ getHandlerFunction: () => t.handler, getUniqueId: () => t.id })),
     deleteTrigger(tr) { h.triggers = h.triggers.filter((t) => t.id !== tr.getUniqueId()); },
     newTrigger(handler) {

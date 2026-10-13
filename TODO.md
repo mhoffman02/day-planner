@@ -16,7 +16,8 @@ Everything here needs the user (GSA account, a release go, or a decision). HOME 
 - [ ] **gmail.modify rollout on WORK**: HOME is done (2026-10-12: consent, GCP Data access, rpc re-login, privacy
   page fac809b on master, Tutorial T15 passed live via gas-rpc). WORK: hub Sheet auto-created 2026-10-12 (flags OK),
   but Gmail calls fail "You do not have permission" (gmail.modify not approved by the GSA deployer), so UserEmail is
-  blank and no schedule. Repoint `/exec` to **v138** (build 470), then in the WORK IDE run `Code.gs:setupHub` and
-  approve: it fills UserEmail and installs the schedule. If the .gov org blocks `gmail.modify`, repoint to **v134**.
+  blank and no schedule. Repoint `/exec` to the in-app approval build (WORK v139), open the app, click **Approve
+  access** in the banner, then **Check again**: it fills UserEmail and installs the schedule. If the .gov org blocks
+  `gmail.modify`, repoint to **v134**.
 - [ ] **UAT run (Phase 30)**: work through About > **Tutorial** T01-T14 on HOME, then WORK; paste each run's
   "Copy results" into this file. Failures become TODO items.

@@ -275,6 +275,16 @@
 
     </header>
 
+    <!-- New Google permissions need the owner approval (getHubStatus AUTH_REQUIRED) -->
+    <template x-if="authApprovalUrl">
+      <aside class="hub-banner hub-banner-error auth-approval-banner" role="alert">
+        <strong>Day Planner needs your approval.</strong>
+        An update added Google permissions (Gmail Triage). Approve them, then check again.
+        <a :href="authApprovalUrl" target="_blank" rel="noopener noreferrer" class="hub-notice-link">Approve access</a>
+        <button type="button" class="hub-link-btn" @click="loadHubStatus()">Check again</button>
+      </aside>
+    </template>
+
     <!-- Keyed error tray: one row per failing operation (failures first, then offline notices) -->
     <template x-if="errorTray.length > 0">
       <aside class="error-tray" role="alert" aria-live="assertive">

@@ -6069,6 +6069,10 @@
     border-left-color: #b91c1c;
   }
 
+  .auth-approval-banner {
+    margin: 8px 16px;
+  }
+
   .hub-notice-link {
     color: var(--binder-teal);
   }

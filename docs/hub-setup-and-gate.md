@@ -34,7 +34,10 @@ once the Day Planner folder is bound. A new Sheet is seeded `GMAIL_ROUTER` + `TR
 TRUE (`AUTO_SETUP_FEATURES` in `Config.gs`), and the one `hubDispatch` trigger is installed. A Sheet adopted from
 the folder keeps its own values. About's "Set up hub" runs the same path (`provisionHub_`). If `TimeZone` or
 `UserEmail` came out blank (e.g. Gmail not yet approved, WORK 2026-10-12), each app load retries: `repairSeeds`
-fills only blank cells, then the trigger is installed. The table below is the code default when no Sheet exists.
+fills only blank cells, then the trigger is installed. Before any of that, `getHubStatus` checks
+`ScriptApp.getAuthorizationInfo`: when the owner has not approved the current scopes (e.g. after a scope change) it
+returns `AUTH_REQUIRED` with Google's consent URL, and the app shows an "Approve access" banner with "Check again"
+(no trip to the script editor). The table below is the code default when no Sheet exists.
 
 Flags live in the `Config` tab of the hub Sheet (columns `Key`, `Value`; values `TRUE`/`FALSE`). Edit the Sheet by
 hand, or run `DPConfig.setFeature(name, bool)` from a throwaway IDE function. Defaults:
