@@ -6029,6 +6029,56 @@
     margin-left: auto;
   }
 
+  /* Trial mode / Live: always-visible mode badge plus its switch button, left of Refresh. */
+  .hub-mode-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  .hub-mode-control + .hub-refresh-btn {
+    margin-left: 0;
+  }
+
+  .hub-mode-control,
+  .hub-mode-control + .hub-refresh-btn {
+    align-self: center;
+  }
+
+  .hub-mode-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border: 1px solid currentColor;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  .hub-mode-badge.is-trial {
+    color: #8a5a00;
+    background: #fff6e0;
+  }
+
+  .hub-mode-badge.is-live {
+    color: #2d6a5a;
+    background: #e6f2ee;
+  }
+
+  [data-theme="dark"] .hub-mode-badge.is-trial {
+    color: #f5c26b;
+    background: rgba(245, 194, 107, 0.12);
+  }
+
+  [data-theme="dark"] .hub-mode-badge.is-live {
+    color: #9fdcc9;
+    background: rgba(159, 220, 201, 0.12);
+  }
+
   .hub-link-btn {
     background: transparent;
     border: none;
