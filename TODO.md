@@ -14,8 +14,9 @@ Everything here needs the user (GSA account, a release go, or a decision). HOME 
   opening WORK `/exec` creates it (Triage on, trial mode) and installs the schedule. Then set `NCMMS_CORE_PILOT`
   TRUE, fill the NCMMS-Core notes Doc in Meeting Registry, and check the carry-in count equals the Doc (Tutorial T14).
 - [ ] **gmail.modify rollout on WORK**: HOME is done (2026-10-12: consent, GCP Data access, rpc re-login, privacy
-  page fac809b on master, Tutorial T15 passed live via gas-rpc). WORK v136 = build 467. Close or reload the open WORK
-  IDE tab, repoint `/exec`, approve the new Gmail permission as the GSA user. If the .gov org blocks `gmail.modify`,
-  repoint back to **v134**.
+  page fac809b on master, Tutorial T15 passed live via gas-rpc). WORK: hub Sheet auto-created 2026-10-12 (flags OK),
+  but Gmail calls fail "You do not have permission" (gmail.modify not approved by the GSA deployer), so UserEmail is
+  blank and no schedule. Repoint `/exec` to **v138** (build 470), then in the WORK IDE run `Code.gs:setupHub` and
+  approve: it fills UserEmail and installs the schedule. If the .gov org blocks `gmail.modify`, repoint to **v134**.
 - [ ] **UAT run (Phase 30)**: work through About > **Tutorial** T01-T14 on HOME, then WORK; paste each run's
   "Copy results" into this file. Failures become TODO items.
