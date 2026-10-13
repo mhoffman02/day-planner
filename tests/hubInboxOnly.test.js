@@ -1,9 +1,9 @@
 /**
  * @file hubInboxOnly.test.js
- * @description User 2026-10-12: CCB mail that Gmail filters auto-archive still showed on Triage, because the board
- * listed threads by label regardless of the Inbox. Filter labels (00_AR, FYI_Candidate, VIP) now count only
- * while the thread is in the Inbox (archived means handled). 🎯/ labels, applied on purpose and often while
- * archiving, still show when archived, and so do failed operations (Retry).
+ * @description User 2026-10-12: CCB mail that Gmail filters auto-archive still showed on Triage. Then: "ONLY SEE
+ * ITEMS IN INBOX". Every label listing asks Gmail for label AND INBOX, and a failed operation (Retry) shows only
+ * while its thread is in the Inbox. Archive and Delete are single atomic Gmail calls, so a failed one leaves INBOX
+ * on the thread (see hubArchiveTrash.test.js).
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -23,19 +23,23 @@ function setup() {
   return ctx;
 }
 
-test('filter labels count only while in the Inbox; 🎯/ labels count either way', () => {
+test('only Inbox threads show: archived threads are hidden whatever their labels', () => {
   const b = call(setup(), 'getTriageBoard', {});
   assert.equal(b.ok, true, b.message);
-  assert.deepEqual(ids(b), ['arInbox', 'readInbox', 'review']);
+  assert.deepEqual(ids(b), ['arInbox', 'readInbox']);
 });
 
-test('a failed operation on an archived thread still shows (Retry)', () => {
+test('a failed operation shows only while its thread is in the Inbox', () => {
   const ctx = setup();
-  ctx.__hub.ledger.rows.set('GMAIL|ccb|TASK', { OperationKey: 'GMAIL|ccb|TASK', SourceType: 'GMAIL', SourceId: 'ccb', Status: 'ERROR', ErrorMessage: 'x', UpdatedAt: '2026-10-05T00:00:00.000Z' });
-  assert.ok(ids(call(ctx, 'getTriageBoard', {})).includes('ccb'));
+  const err = (id) => ctx.__hub.ledger.rows.set(`GMAIL|${id}|TASK`, { OperationKey: `GMAIL|${id}|TASK`, SourceType: 'GMAIL', SourceId: id, Status: 'ERROR', ErrorMessage: 'x', UpdatedAt: '2026-10-05T00:00:00.000Z' });
+  err('ccb');
+  err('arInbox');
+  const b = call(ctx, 'getTriageBoard', {});
+  assert.ok(!ids(b).includes('ccb'), 'archived thread with a failed op is hidden');
+  assert.equal(b.queues.systemExceptions.map((r) => r.threadId).join(), 'arInbox', 'Inbox thread with a failed op shows for Retry');
 });
 
-test('filter-label listing asks Gmail for label AND INBOX; 🎯/ listing does not', () => {
+test('every label listing asks Gmail for label AND INBOX', () => {
   const ctx = setup();
   const seen = [];
   const list = ctx.Gmail.Users.Threads.list;
@@ -44,9 +48,5 @@ test('filter-label listing asks Gmail for label AND INBOX; 🎯/ listing does no
   const name = (id) => ctx.__hub.gmail.labels.find((l) => l.id === id).name;
   // Arrays from the GAS sandbox are another realm: compare plain copies.
   const byLabel = JSON.parse(JSON.stringify(Object.fromEntries(seen.map((l) => [name(l[0]), Array.from(l).slice(1).map(name)]))));
-  assert.deepEqual(byLabel['00_AR'], ['INBOX']);
-  assert.deepEqual(byLabel.FYI_Candidate, ['INBOX']);
-  assert.deepEqual(byLabel.VIP, ['INBOX']);
-  assert.deepEqual(byLabel['🎯/Review'], []);
-  assert.deepEqual(byLabel['🎯/Read'], []);
+  for (const label of ['00_AR', 'FYI_Candidate', 'VIP', '🎯/Review', '🎯/Read']) assert.deepEqual(byLabel[label], ['INBOX'], label);
 });

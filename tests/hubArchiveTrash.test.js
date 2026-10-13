@@ -92,6 +92,9 @@ for (const [rpc, would] of [['archiveTriageThread', /Would archive/], ['trashTri
     assert.equal(r.ok, false);
     assert.match(r.message, /insufficient authentication scopes/);
     assert.equal(ctx.__hub.ledger.rows.size, 0);
+    const inbox = ctx.__hub.gmail.labelId('INBOX');
+    const t = ctx.__hub.gmail.threads.a1;
+    assert.ok(t.messages.every((m) => m.labelIds.includes(inbox)) && !t.trashed, 'a failed write leaves the thread in the Inbox');
     assert.equal(onBoard(ctx, 'a1'), true);
   });
 }

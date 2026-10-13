@@ -510,10 +510,8 @@ function getTriageBoard(filters) {
   // countOnly (TRIAGE_REFRESH job): metadata-format reads and a smaller cap, since only queue sizes are wanted.
   var countOnly = f.countOnly === true;
   var limit = Math.min(Math.max(parseInt(f.limit, 10) || HUB_TRIAGE_LIMIT_DEFAULT_, 1), countOnly ? HUB_COUNT_ONLY_LIMIT_ : HUB_TRIAGE_LIMIT_MAX_);
-  // Filter labels (Gmail filters apply them, even to mail they auto-archive) count only while the thread is in the
-  // Inbox: archived means handled (user 2026-10-12, CCB mail). 🎯/ labels are the user's own and count either way.
-  var workflowLabels = [DPEngines.WORKFLOW_LABEL.REVIEW, DPEngines.WORKFLOW_LABEL.MEETING, DPEngines.WORKFLOW_LABEL.READ];
-  var labels = HUB_TRIAGE_LABELS_.concat(workflowLabels);
+  // Triage shows Inbox mail only (user 2026-10-12: "ONLY SEE ITEMS IN INBOX"); archived means handled.
+  var labels = HUB_TRIAGE_LABELS_.concat([DPEngines.WORKFLOW_LABEL.REVIEW, DPEngines.WORKFLOW_LABEL.MEETING, DPEngines.WORKFLOW_LABEL.READ]);
   if (Array.isArray(f.labels) && f.labels.length && f.labels.length <= 10 && f.labels.every(function(l) { return typeof l === 'string' && l.length <= 100; })) labels = f.labels;
   try {
     var E = DPEngines;
@@ -533,7 +531,7 @@ function getTriageBoard(filters) {
     var rateLimited = false;
     for (var li = 0; li < labels.length && !rateLimited; li++) {
       try {
-        var page = DPGmailRepo.listThreadsByLabel(labels[li], { maxResults: limit, inboxOnly: String(labels[li]).indexOf(DPEngines.LABEL_PREFIX) !== 0 });
+        var page = DPGmailRepo.listThreadsByLabel(labels[li], { maxResults: limit, inboxOnly: true });
         page.threadIds.forEach(add);
         Object.keys(page.historyIds || {}).forEach(function(id) { hist[id] = page.historyIds[id]; });
       } catch (listErr) {
@@ -554,6 +552,8 @@ function getTriageBoard(filters) {
       var led = ledgerByThread[id] || null;
       var ledgerFields = { operationKey: led ? led.OperationKey : null, ledgerStatus: led ? led.Status : null, errorMessage: led && led.Status === E.LEDGER_STATUS.ERROR ? led.ErrorMessage : null };
       var hit = cachedRows[id];
+      // Failed-op threads are added by id, not by an Inbox listing: they too show only while in the Inbox.
+      if (hit && hit.labels.indexOf('INBOX') === -1) return false;
       if (hit) {
         var q = E.queueFor({ labels: hit.labels, ledgerStatus: ledgerFields.ledgerStatus }, { band: hit.band });
         queues[HUB_QUEUE_KEYS_[q]].push(Object.assign({ threadId: id }, hit, { queue: q }, ledgerFields));
@@ -561,6 +561,7 @@ function getTriageBoard(filters) {
       }
       try {
         var t = DPGmailRepo.getThreadMeta(id, { withBody: !countOnly, withSnippet: !countOnly });
+        if (t.labels.indexOf('INBOX') === -1) return false;
         var scored = E.scoreThread({ labels: t.labels, userEmail: t.userEmail, messages: t.messages.map(function(m) {
           return { from: m.from, to: m.to, cc: m.cc, date: m.date, bodyText: m.bodyText, isFromUser: m.isFromUser };
         }) });
