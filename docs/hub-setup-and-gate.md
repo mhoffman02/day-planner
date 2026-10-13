@@ -63,7 +63,7 @@ no Processed or Error labels in Gmail.
 `gas-app/appsscript.json` on this branch already contains the new scope and services, so **any `clasp push` of this
 branch includes them**. Do not push without explicit user approval. Do not run `npm run push:work` yet.
 
-New in the manifest: scope `https://www.googleapis.com/auth/gmail.readonly`; Advanced Services `Gmail` (v1) and
+New in the manifest: scope `https://www.googleapis.com/auth/gmail.modify`; Advanced Services `Gmail` (v1) and
 `Sheets` (v4). No broad `spreadsheets`, `documents`, `mail.google.com` or `drive` scope.
 
 Order of operations (HOME first; HOME is the mastercopy):
@@ -76,7 +76,7 @@ Order of operations (HOME first; HOME is the mastercopy):
    (v4, identifier `Sheets`) are listed; add them if not (a manifest entry alone does not enable the underlying
    Cloud API). In the linked Google Cloud project enable the Gmail API and the Sheets API.
 5. Re-consent: as `mhoffman02@gmail.com`, open the `/dev` URL (or run any function from the IDE) and accept the new
-   `gmail.readonly` consent. The web app deploys as the deploying user, so the owner must consent once. Redeploy a
+   `gmail.modify` consent. The web app deploys as the deploying user, so the owner must consent once. Redeploy a
    new version after the scope change so `/exec` uses it.
 6. Nothing is enabled yet: all flags OFF, so the app behaves as before. Open `?view=self-test` and confirm the
    `hub` section: modules present, dispatcher trigger count 0 or 1.
@@ -141,14 +141,14 @@ This worked for Docs; it is unproven for Sheets.
 2. `michael.hoffman@gsa.gov` must, in the WORK IDE: Services (+) add Gmail and Sheets (as in step 4), then
    Deploy > Manage deployments > Edit > Version > Deploy. Per the standing rule, after `push:work` the message is
    just "Update WORK".
-3. Admin approval caveat: WORK is a US federal .gov Workspace. New OAuth scopes (`gmail.readonly`) and enabling the
+3. Admin approval caveat: WORK is a US federal .gov Workspace. New OAuth scopes (`gmail.modify`, a restricted scope) and enabling the
    Gmail/Sheets APIs for the Cloud project may be blocked by org-level API Controls, and unverified apps may need an
    admin to allow them. Treat this as likely-blocked until proven; a failure there is an org policy outcome, not a
    code defect, and HOME remains fully functional. `/dev` is never used on WORK.
 
 ## 7. Known limitations
 
-- Gmail is read-only: no label changes, no archiving. Processed/Error exist only as ledger status.
+- Gmail writes are limited to the two Triage buttons: Archive removes the INBOX label only (🎯 labels stay) and Delete moves the thread to Trash; nothing is deleted permanently, sent, or relabelled. Processed/Error exist only as ledger status.
 - Meeting Prep shows the carry-in **count** only; entries are read in the notes Doc. No agenda, no entry list.
 - Read Later in Triage is client-only `localStorage` (per browser, not synced, not in the ledger).
 - Phase 6 is interface + parser only: Gemini discovery, proposal UI and action creation are not built; those RPCs

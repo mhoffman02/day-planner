@@ -92,7 +92,7 @@ UNCOVERED = deliberately not built or not testable offline (reason given).
 | Every RPC the UI/bridge calls has an IIFE alias and a Code.gs top-level delegator | hubContractParity "(a) ..." |
 | Mock and real server outputs share one shape (`tests/helpers/hubShapes.js`) for getHubStatus, getTriageBoard, getUpcomingMeetingChoices, getMeetingPrep, route*, dismiss, retry, failure/flag-off envelopes, in DRY_RUN on and off | hubContractParity "(b) ..." (4 tests) and "(b) queue keys on the board are exactly the keys the UI renders" |
 | UI flag names and mock flags equal `DEFAULT_FEATURES` | hubContractParity "(c) ..." |
-| `GmailApp` banned; only Advanced Gmail; `gmail.readonly` only; no broad scopes | hubSafety "(l) no GmailApp anywhere..."; hubConfig "(j) own .gs files never reference GmailApp or SpreadsheetApp", "(k) appsscript.json: valid, gmail.readonly present, broad scopes absent, services enabled" |
+| `GmailApp` banned; only Advanced Gmail; `gmail.modify` only (writes: Triage Archive/Delete); no broad scopes | hubSafety "(l) no GmailApp anywhere and no Gmail write calls beyond the two Triage buttons"; hubArchiveTrash (all); hubConfig "(j) own .gs files never reference GmailApp or SpreadsheetApp", "(k) appsscript.json: valid, gmail.modify (not readonly) present, broad scopes absent, services enabled" |
 | One dispatcher trigger; existing 5-minute sync trigger untouched | hubSafety "(m) ..." |
 
 ## Live-only items and the step that covers each

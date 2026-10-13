@@ -1997,6 +1997,8 @@
     routeThreadToWaiting(threadId, opts) { return this.hubRpc('routeThreadToWaiting', [threadId, opts || {}]); }
     routeThreadToMeeting(threadId, occurrenceId, opts) { return this.hubRpc('routeThreadToMeeting', [threadId, occurrenceId, opts || {}]); }
     dismissTriageItem(threadId) { return this.hubRpc('dismissTriageItem', [threadId]); }
+    archiveTriageThread(threadId) { return this.hubRpc('archiveTriageThread', [threadId]); }
+    trashTriageThread(threadId) { return this.hubRpc('trashTriageThread', [threadId]); }
     retryFailedOperation(operationKey) { return this.hubRpc('retryFailedOperation', [operationKey]); }
     getMeetingPrep(seriesKey, occurrenceId) { return this.hubRpc('getMeetingPrep', [seriesKey, occurrenceId || null]); }
 
@@ -2786,6 +2788,14 @@
 
       dismissTriageEntry(item) {
         return this.runTriageAction('Dismiss', () => this.bridge.dismissTriageItem(item.threadId));
+      },
+
+      archiveTriageEntry(item) {
+        return this.runTriageAction('Archive', () => this.bridge.archiveTriageThread(item.threadId));
+      },
+
+      trashTriageEntry(item) {
+        return this.runTriageAction('Delete', () => this.bridge.trashTriageThread(item.threadId));
       },
 
       retryTriageItem(item) {

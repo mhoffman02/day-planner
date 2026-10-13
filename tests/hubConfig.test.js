@@ -139,12 +139,15 @@ test('(j) own .gs files never reference GmailApp or SpreadsheetApp', () => {
   }
 });
 
-test('(k) appsscript.json: valid, gmail.readonly present, broad scopes absent, services enabled', () => {
+// gmail.modify (2026-10-12, user decision) replaces gmail.readonly for Triage Archive/Delete. It covers reads too,
+// so readonly would be redundant. Full mail (mail.google.com, permanent delete) stays banned.
+test('(k) appsscript.json: valid, gmail.modify (not readonly) present, broad scopes absent, services enabled', () => {
   const m = JSON.parse(fs.readFileSync(path.join(gasDir, 'appsscript.json'), 'utf8'));
   const scopes = m.oauthScopes;
-  assert.ok(scopes.includes('https://www.googleapis.com/auth/gmail.readonly'));
+  assert.ok(scopes.includes('https://www.googleapis.com/auth/gmail.modify'));
+  assert.ok(!scopes.includes('https://www.googleapis.com/auth/gmail.readonly'), 'readonly is redundant under modify');
   for (const s of scopes) {
-    assert.doesNotMatch(s, /\/auth\/spreadsheets|\/auth\/documents|mail\.google\.com/, s);
+    assert.doesNotMatch(s, /\/auth\/spreadsheets|\/auth\/documents|mail\.google\.com|gmail\.(compose|send|insert|settings)/, s);
   }
   assert.ok(scopes.includes('https://www.googleapis.com/auth/drive.file'));
   const svc = m.dependencies.enabledAdvancedServices;

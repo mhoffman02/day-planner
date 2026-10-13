@@ -1280,6 +1280,8 @@
                                 <button type="button" class="hub-action-btn" @click="openMeetingPicker(item)" :aria-label="'Send to Meeting: ' + item.subject">Send to Meeting</button>
                                 <button type="button" class="hub-action-btn" @click="readLaterItem(item)" :aria-label="'Read Later: ' + item.subject">Read Later</button>
                                 <button type="button" class="hub-action-btn" @click="dismissTriageEntry(item)" :aria-label="'Dismiss: ' + item.subject">Dismiss</button>
+                                <button type="button" class="hub-action-btn hub-action-icon" @click="archiveTriageEntry(item)" title="Archive in Gmail (removes it from the Inbox; labels stay)" :aria-label="'Archive in Gmail: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">archive</span>Archive</button>
+                                <button type="button" class="hub-action-btn hub-action-icon hub-action-danger" @click="trashTriageEntry(item)" title="Move to Gmail Trash (recoverable for 30 days)" :aria-label="'Delete (move to Gmail Trash): ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">delete</span>Delete</button>
                                 <a class="hub-action-btn hub-action-link" :href="item.url" target="_blank" rel="noopener noreferrer" :aria-label="'Open Gmail: ' + item.subject">Open Gmail</a>
                               </div>
                             </td>

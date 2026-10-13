@@ -30,7 +30,7 @@ the right recurring-meeting occurrence. A Triage board ranks other candidate thr
 next occurrence, its prep cutoff and carry-in count. Every write is idempotent through an Integration Ledger.
 `DRY_RUN` is on by default and all hub features are off until flags are enabled.
 
-Locked decisions: Gmail read-only (`gmail.readonly`, Advanced Gmail service only, `GmailApp` lint-banned);
+Locked decisions: Gmail via `gmail.modify` (was `gmail.readonly` until 2026-10-12; writes limited to the Triage Archive = remove INBOX and Delete = Trash buttons), Advanced Gmail service only, `GmailApp` lint-banned);
 Processed/Error are ledger statuses, not Gmail labels; config/ledger/registry live in an app-created Sheet under
 `drive.file`; notes Docs are app-owned; Gemini/USAi are interface or parser only with flags OFF.
 
@@ -65,7 +65,7 @@ Processed/Error are ledger statuses, not Gmail labels; config/ledger/registry li
 | `Engines.gs` | `DPEngines` | Generated engines |
 | `Config.gs` | `DPConfig` | Hub Sheet (tabs `Config`, `Meeting Registry`, `Integration Ledger`, `Integration Ledger Archive`; dismissals are ledger rows), flags, registry read/write (`getRegistry`, `setRegistryDocId`, `updateRegistryRow`), `SETUP_ERROR` on missing mandatory keys |
 | `LedgerRepository.gs` | `DPLedgerRepo` | Ledger rows: upsert, list, `appendMany` (one write) |
-| `GmailRepository.gs` | `DPGmailRepo` | Read-only Advanced Gmail: label-name to id, thread metadata, `withBody` only in memory |
+| `GmailRepository.gs` | `DPGmailRepo` | Advanced Gmail: label-name to id, thread metadata, `withBody` only in memory; writes only `archiveThread` (remove INBOX) and `trashThread` |
 | `CalendarRepository.gs` | `DPCalendarRepo` | Advanced Calendar reads, occurrences, `discoverSeries` (persists recurring ids via `DPConfig.updateRegistryRow` outside DRY_RUN) |
 | `TaskRepository.gs` | `DPTaskRepo` | Tasks create/find/patch, op-key search before create |
 | `NotesRepository.gs` | `DPNotesRepo` | App-owned `Meeting Notes - <Series>` Docs via Docs API, `applyPlan`, `carryInCount` |
@@ -130,7 +130,7 @@ Gmail (user applies 🎯/ label)                     Calendar (recurring series)
 
 - `gas-app/Code.gs`: delegator block (RPCs, trigger handler names) and the existing 5-minute
   `syncWorkspaceChanges` trigger, which the hub never touches.
-- `gas-app/appsscript.json`: adds the `gmail.readonly` scope and the Gmail and Sheets Advanced Services (the only
+- `gas-app/appsscript.json`: adds the `gmail.modify` scope (was `gmail.readonly`) and the Gmail and Sheets Advanced Services (the only
   manifest change).
 - Task `notes` dp-meta marker: hub keys (`opKey`, `[Waiting]` data) survive star/category edits
   (hubTaskMeta tests); legacy notes encode exactly as before.

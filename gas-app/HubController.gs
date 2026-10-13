@@ -4,7 +4,8 @@
  * returns a DPEngines.makeResult-shaped object (never throws to the client), validates its inputs,
  * checks the feature flags it needs, verifies the Gmail thread / Calendar occurrence still exists,
  * takes the script lock, checks the ledger and only then acts (see QueueProcessor.executeRoute).
- * Gmail is read-only; nothing here writes Gmail. DRY_RUN makes every write a "Would ..." message.
+ * The only Gmail writes are the user-clicked Triage Archive (removes INBOX only) and Delete (Trash),
+ * via DPGmailRepo; routing never writes Gmail. DRY_RUN makes every write a "Would ..." message.
  * Message bodies are used in memory for scoring only and are stripped from every return value.
  *
  * Each RPC is exported as global._xInternal (alias) and needs a matching top-level delegator in
@@ -206,6 +207,57 @@ function dismissTriageItem(threadId) {
   } catch (err) {
     return failFrom_(err);
   }
+}
+
+/**
+ * Shared body of the Triage [Archive] / [Delete] buttons: Gmail write FIRST, then a DISMISS ledger row so
+ * the item leaves the board (ledger first would hide an item Gmail never archived). Both Gmail writes are
+ * idempotent, so a repeat click is safe. No ERROR rows: a failure goes straight back to the UI.
+ * @param {string} threadId Gmail thread id.
+ * @param {{write: function(string): void, done: string, would: string}} act Gmail write + messages.
+ * @returns {object} makeResult-shaped result.
+ */
+function gmailTriageWrite_(threadId, act) {
+  var pre = preflight_(['GMAIL_ROUTER']);
+  if (pre.failure) return pre.failure;
+  var bad = badThread_(threadId);
+  if (bad) return fail_('INVALID_THREAD_ID', bad);
+  try {
+    var E = DPEngines;
+    var opKey = 'GMAIL|' + threadId + '|DISMISS';
+    if (!DPGmailRepo.threadExists(threadId)) return fail_('THREAD_NOT_FOUND', 'Gmail thread not found');
+    if (pre.features.DRY_RUN === true) return E.makeResult({ ok: true, operationKey: opKey, status: 'DRY_RUN', message: act.would });
+    return locked_(function() {
+      act.write(threadId);
+      var existing = DPLedgerRepo.get(opKey);
+      if (!existing || existing.Status !== E.LEDGER_STATUS.DONE) {
+        var now = new Date();
+        var row = E.beginOp({ opKey: opKey, sourceType: 'GMAIL', sourceId: threadId, action: 'DISMISS', targetType: 'PLANNER' }, now);
+        DPLedgerRepo.upsert(E.completeOp(row, now, {}));
+      }
+      return E.makeResult({ ok: true, operationKey: opKey, status: 'DONE', message: act.done, sourceUrl: DPGmailRepo.gmailUrl(threadId) });
+    });
+  } catch (err) {
+    return failFrom_(err);
+  }
+}
+
+/**
+ * Triage [Archive]: removes the email from the Gmail Inbox (its 🎯 labels stay) and from the board.
+ * @param {string} threadId Gmail thread id.
+ * @returns {object} makeResult-shaped result.
+ */
+function archiveTriageThread(threadId) {
+  return gmailTriageWrite_(threadId, { write: DPGmailRepo.archiveThread, done: 'Archived in Gmail', would: 'Would archive in Gmail' });
+}
+
+/**
+ * Triage [Delete]: moves the email to Gmail Trash (recoverable for 30 days) and off the board.
+ * @param {string} threadId Gmail thread id.
+ * @returns {object} makeResult-shaped result.
+ */
+function trashTriageThread(threadId) {
+  return gmailTriageWrite_(threadId, { write: DPGmailRepo.trashThread, done: 'Moved to Gmail Trash', would: 'Would move to Gmail Trash' });
 }
 
 /**
@@ -601,7 +653,9 @@ global._routeThreadToMeetingInternal = routeThreadToMeeting;       // google.scr
 global._dismissTriageItemInternal = dismissTriageItem;             // google.script.run
 global._discoverMeetingSeriesInternal = discoverMeetingSeries;     // google.script.run
 global._retryFailedOperationInternal = retryFailedOperation;       // google.script.run
-global._getHubStatusInternal = getHubStatus;                       // google.script.run
+global._archiveTriageThreadInternal = archiveTriageThread;         // google.script.run (Triage Archive)
+global._trashTriageThreadInternal = trashTriageThread;             // google.script.run (Triage Delete)
+global._getHubStatusInternal = getHubStatus;                      // google.script.run
 global._getHubSheetLinkInternal = getHubSheetLink;                 // google.script.run (About hub link)
 global._setupHubInternal = setupHub;                               // google.script.run (About "Set up hub")
 global._hubSetFeatureInternal = hubSetFeature;                    // gas-rpc (Execution API) + IDE manual-run

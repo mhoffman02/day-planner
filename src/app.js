@@ -1085,6 +1085,14 @@ Alpine.data('plannerApp', () => ({
         return this.runTriageAction('Dismiss', () => this.bridge.dismissTriageItem(item.threadId));
       },
 
+      archiveTriageEntry(item) {
+        return this.runTriageAction('Archive', () => this.bridge.archiveTriageThread(item.threadId));
+      },
+
+      trashTriageEntry(item) {
+        return this.runTriageAction('Delete', () => this.bridge.trashTriageThread(item.threadId));
+      },
+
       retryTriageItem(item) {
         if (!item.operationKey) {
           console.error('Retry impossible, item has no operationKey:', item);

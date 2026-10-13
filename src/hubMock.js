@@ -372,6 +372,22 @@ export class HubMock {
     return { ok: true, status: 'DONE', message: 'Dismissed from triage', operationKey, sourceUrl: src.url };
   }
 
+  /** Triage [Archive] / [Delete]: same gate and result shape as the server; the thread leaves the board. */
+  _gmailWrite(threadId, done, would) {
+    const gate = this._preflight(['GMAIL_ROUTER']);
+    if (gate) return gate;
+    const src = this._find(threadId);
+    if (!src) return this._fail('THREAD_NOT_FOUND', 'Gmail thread not found');
+    const operationKey = `GMAIL|${threadId}|DISMISS`;
+    if (this.dryRun) return { ok: true, status: 'DRY_RUN', message: would, operationKey };
+    this.dismissed.add(threadId);
+    return { ok: true, status: 'DONE', message: done, operationKey, sourceUrl: src.url };
+  }
+
+  archiveTriageThread(threadId) { return this._gmailWrite(threadId, 'Archived in Gmail', 'Would archive in Gmail'); }
+
+  trashTriageThread(threadId) { return this._gmailWrite(threadId, 'Moved to Gmail Trash', 'Would move to Gmail Trash'); }
+
   retryFailedOperation(operationKey) {
     const row = this.ledger.get(operationKey);
     if (!row) return this._fail('NOT_FOUND', 'No ledger row for that operation');

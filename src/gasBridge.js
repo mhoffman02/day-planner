@@ -978,6 +978,12 @@ export class GASBridge {
   /** @returns {Promise<object>} Result contract. */
   dismissTriageItem(threadId) { return this._hubRpc('dismissTriageItem', [threadId]); }
 
+  /** @param {string} threadId Gmail thread id. @returns {Promise<object>} Archives in Gmail (removes INBOX only). */
+  archiveTriageThread(threadId) { return this._hubRpc('archiveTriageThread', [threadId]); }
+
+  /** @param {string} threadId Gmail thread id. @returns {Promise<object>} Moves the thread to Gmail Trash. */
+  trashTriageThread(threadId) { return this._hubRpc('trashTriageThread', [threadId]); }
+
   /** @returns {Promise<object>} Result contract. */
   retryFailedOperation(operationKey) { return this._hubRpc('retryFailedOperation', [operationKey]); }
 

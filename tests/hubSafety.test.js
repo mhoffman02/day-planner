@@ -18,7 +18,8 @@ const call = (ctx, name, ...args) => toHost(ctx[`_${name}Internal`](...args));
 
 const RPC_NAMES = ['getTriageBoard', 'getMeetingPrep', 'getUpcomingMeetingChoices', 'routeThreadToTask', 'routeThreadToWaiting', 'routeThreadToMeeting',
   'dismissTriageItem', 'processWorkflowQueue', 'discoverMeetingSeries', 'retryFailedOperation', 'getHubStatus', 'discoverGeminiNotes',
-  'getProposedMeetingActions', 'confirmMeetingActions', 'installHubTriggers', 'removeHubTriggers', 'hubDispatch', 'hubSetFeature'];
+  'getProposedMeetingActions', 'confirmMeetingActions', 'installHubTriggers', 'removeHubTriggers', 'hubDispatch', 'hubSetFeature', 'archiveTriageThread', 'trashTriageThread',
+  'getHubSheetLink', 'setupHub'];
 
 test('(k) every hub RPC has one implementation, one Code.gs top-level delegator, and an IIFE alias', () => {
   for (const name of RPC_NAMES) {
@@ -44,10 +45,24 @@ test('(k) hub .gs files are IIFE-wrapped with literal-only top-level initializer
   }
 });
 
-test('(l) no GmailApp anywhere and no Gmail write method calls', () => {
+// The only Gmail writes allowed are the Triage Archive/Delete pair (gmail.modify, 2026-10-12), both in
+// GmailRepository.gs: archive removes INBOX and nothing else; delete is Trash, never permanent.
+const ALLOWED_GMAIL_WRITES = [
+  "Gmail.Users.Threads.modify({ removeLabelIds: ['INBOX'] }, GMAIL_ME_, validateThreadId(threadId))",
+  'Gmail.Users.Threads.trash(GMAIL_ME_, validateThreadId(threadId))'
+];
+test('(l) no GmailApp anywhere and no Gmail write calls beyond the two Triage buttons', () => {
+  const WRITE_RE = /Gmail\.Users\.[\w.]*\.(modify|send|trash|untrash|batchModify|insert|import|delete|patch|update|create)\b/g;
   for (const f of gasFiles) {
     assert.ok(!/GmailApp/.test(source[f]), `${f} mentions the banned built-in mail service`);
-    assert.ok(!/Gmail\.Users\.[\w.]*\.(modify|send|trash|untrash|batchModify|insert|import|delete|patch|update|create)\b/.test(source[f]), `${f} calls a Gmail write method`);
+    let rest = source[f];
+    if (f === 'GmailRepository.gs') {
+      for (const ok of ALLOWED_GMAIL_WRITES) {
+        assert.equal(rest.split(ok).length, 2, `GmailRepository.gs must contain exactly one: ${ok}`);
+        rest = rest.replace(ok, '');
+      }
+    }
+    assert.deepEqual(rest.match(WRITE_RE) || [], [], `${f} calls a Gmail write method outside the allowed pair`);
   }
   assert.ok(!/format:\s*'(raw|minimal)'/.test(source['GmailRepository.gs']));
 });

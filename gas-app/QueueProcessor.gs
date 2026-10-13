@@ -1,7 +1,8 @@
 /**
  * @file QueueProcessor.gs
  * @description Workflow queue for the Gmail/Meeting hub (Phase 28). Reads threads carrying the
- * user-applied workflow labels (Gmail is strictly read-only: labels are never removed, so the queue
+ * user-applied workflow labels (the queue never writes Gmail and nothing removes those labels; Triage
+ * Archive removes only INBOX, so the queue
  * is drained by ledger status, not by label state), and performs each operation exactly once:
  *   - the script lock is held by THIS file for a whole operation (the ledger/notes repositories and
  *     every Config function except the one-time DPConfig.ensureSetup take no locks; ensureSetup uses

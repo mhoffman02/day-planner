@@ -50,6 +50,19 @@ test('Tutorial exercises have unique, ordered IDs that each card uses consistent
   });
 });
 
+test('Triage Archive/Delete buttons and handlers exist in both hand-synced copies', () => {
+  for (const page of ['index.html', 'gas-app/Index.html']) {
+    const html = read(page);
+    assert.match(html, /@click="archiveTriageEntry\(item\)"[^>]*>.*>archive<\/span>Archive</, `${page}: Archive button with archive icon`);
+    assert.match(html, /@click="trashTriageEntry\(item\)"[^>]*>.*>delete<\/span>Delete</, `${page}: Delete button with trash icon`);
+  }
+  for (const js of ['src/app.js', 'gas-app/Script.html']) {
+    const src = read(js);
+    assert.match(src, /archiveTriageEntry\(item\) \{\s*return this\.runTriageAction\('Archive', \(\) => this\.bridge\.archiveTriageThread\(item\.threadId\)\)/, `${js}: archive handler`);
+    assert.match(src, /trashTriageEntry\(item\) \{\s*return this\.runTriageAction\('Delete', \(\) => this\.bridge\.trashTriageThread\(item\.threadId\)\)/, `${js}: delete handler`);
+  }
+});
+
 test('GAS-included HTML avoids the HtmlService truncation triggers (no // or backticks)', () => {
   for (const name of ['About', 'Tutorial']) {
     const src = read(`gas-app/${name}.html`);

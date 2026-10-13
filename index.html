@@ -1272,6 +1272,8 @@
                                 <button type="button" class="hub-action-btn" @click="openMeetingPicker(item)" :aria-label="'Send to Meeting: ' + item.subject">Send to Meeting</button>
                                 <button type="button" class="hub-action-btn" @click="readLaterItem(item)" :aria-label="'Read Later: ' + item.subject">Read Later</button>
                                 <button type="button" class="hub-action-btn" @click="dismissTriageEntry(item)" :aria-label="'Dismiss: ' + item.subject">Dismiss</button>
+                                <button type="button" class="hub-action-btn hub-action-icon" @click="archiveTriageEntry(item)" title="Archive in Gmail (removes it from the Inbox; labels stay)" :aria-label="'Archive in Gmail: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">archive</span>Archive</button>
+                                <button type="button" class="hub-action-btn hub-action-icon hub-action-danger" @click="trashTriageEntry(item)" title="Move to Gmail Trash (recoverable for 30 days)" :aria-label="'Delete (move to Gmail Trash): ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">delete</span>Delete</button>
                                 <a class="hub-action-btn hub-action-link" :href="item.url" target="_blank" rel="noopener noreferrer" :aria-label="'Open Gmail: ' + item.subject">Open Gmail</a>
                               </div>
                             </td>
@@ -1395,7 +1397,7 @@
         <span class="material-symbols-outlined">lock</span> Your Privacy
       </h3>
       <p class="callout-text">
-        Day Planner only ever writes inside one folder — the one you create for it below. It <b>cannot change anything else in your Google Drive.</b> If you turn on the optional Gmail hub, it can also <b>read</b> (never send, change, or delete) the emails you label with 🎯. The one exception: when you paste a Google Docs, Sheets, Slides, or Drive link into a note, it briefly reads that file's title (nothing else) so it can show a readable name instead of a raw link.
+        Day Planner only ever writes inside one folder — the one you create for it below. It <b>cannot change anything else in your Google Drive.</b> If you turn on the optional Gmail hub, it can also <b>read</b> the emails you label with 🎯, and it <b>archives</b> or <b>moves to Trash</b> an email only when you click <b>Archive</b> or <b>Delete</b> on the Triage tab. It never sends email, never deletes anything permanently, and never removes your 🎯 labels. The one exception: when you paste a Google Docs, Sheets, Slides, or Drive link into a note, it briefly reads that file's title (nothing else) so it can show a readable name instead of a raw link.
       </p>
       <div class="folder-instructions-box">
         <b>How to set it up:</b>
@@ -1441,7 +1443,7 @@
           </tr>
           <tr>
             <td><b>Triage</b> <i>(optional)</i></td>
-            <td>A board of the Gmail threads you've labelled with 🎯, showing what the hub did with each one (Done, Error, or Waiting). Appears once the Gmail hub is on.</td>
+            <td>A board of the Gmail threads you've labelled with 🎯, showing what the hub did with each one (Done, Error, or Waiting). From each row you can make it a task, send it to a meeting, or <b>Archive</b> it or <b>Delete</b> it (moves it to Gmail Trash). Appears once the Gmail hub is on.</td>
           </tr>
           <tr>
             <td><b>Meeting Prep</b> <i>(optional)</i></td>
@@ -1898,7 +1900,7 @@
   <section aria-labelledby="heading-tut-ready">
     <h2 id="heading-tut-ready" class="about-section-heading">Before You Start</h2>
     <p class="about-paragraph">
-      Exercises T09 to T14 need the Gmail hub. Change these settings in the Hub Config Sheet (<b>About</b> &rsaquo; <b>Automatic Tasks</b> &rsaquo; <b>Hub settings</b>). If an exercise needs a setting that is off, skip it. That is a setup gap, not a failure.
+      Exercises T09 to T15 need the Gmail hub. Change these settings in the Hub Config Sheet (<b>About</b> &rsaquo; <b>Automatic Tasks</b> &rsaquo; <b>Hub settings</b>). If an exercise needs a setting that is off, skip it. That is a setup gap, not a failure.
     </p>
     <p class="about-paragraph hub-sheet-link-error" role="alert" x-show="hubError">
       <span x-text="'Could not read the hub settings: ' + hubError"></span>
@@ -1917,17 +1919,17 @@
           <tr>
             <td><code>GMAIL_ROUTER</code> (Gmail hub)</td>
             <td x-text="flagOn('GMAIL_ROUTER') ? 'On' : 'Off'"></td>
-            <td>T09 to T14</td>
+            <td>T09 to T15</td>
           </tr>
           <tr>
             <td><code>DRY_RUN</code> (trial run only)</td>
             <td x-text="flagOn('DRY_RUN') ? 'On' : 'Off'"></td>
-            <td>On for T10. Off for T11 to T14.</td>
+            <td>On for T10. Off for T11 to T15.</td>
           </tr>
           <tr>
             <td><code>TRIAGE_BOARD</code> (Triage tab)</td>
             <td x-text="flagOn('TRIAGE_BOARD') ? 'On' : 'Off'"></td>
-            <td>T10 to T13</td>
+            <td>T10 to T13, T15</td>
           </tr>
           <tr>
             <td><code>NCMMS_CORE_PILOT</code> (Meeting Prep tab)</td>
@@ -2174,6 +2176,22 @@
           <button type="button" class="about-action-btn" :class="{ 'is-on': result(id) === 'pass' }" :aria-pressed="result(id) === 'pass'" @click="mark(id, 'pass')">Pass</button>
           <button type="button" class="about-action-btn" :class="{ 'is-on is-fail': result(id) === 'fail' }" :aria-pressed="result(id) === 'fail'" @click="mark(id, 'fail')">Fail</button>
           <input type="text" class="tutorial-note" aria-label="Note for T14" placeholder="What you saw (optional)" :value="note(id)" @change="setNote(id, $event.target.value)">
+        </div>
+      </details>
+
+      <details class="guide-card about-details tutorial-ex" data-ex="T15" data-title="Archive and Delete from Triage" x-data="{ id: 'T15' }">
+        <summary class="guide-card-title"><span class="tutorial-ex-id">T15</span> Archive and Delete from Triage <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
+        <dl class="tutorial-steps">
+          <dt>Needs</dt><dd><code>GMAIL_ROUTER</code> and <code>TRIAGE_BOARD</code> on, <code>DRY_RUN</code> <b>off</b>.</dd>
+          <dt>Do</dt><dd>Send yourself two new emails, <code>DP-T15a</code> and <code>DP-T15b</code> plus today’s date, and label both <b>🎯/Read</b>. Open <b>Triage</b>. Click <b>Archive</b> on DP-T15a and <b>Delete</b> on DP-T15b.</dd>
+          <dt>Look in</dt><dd>The Triage tab, then Gmail: the Inbox, the <b>🎯/Read</b> label, and Trash.</dd>
+          <dt>Pass if</dt><dd>Both rows leave the Triage board. DP-T15a is gone from the Inbox but still under <b>🎯/Read</b>. DP-T15b is in Gmail <b>Trash</b>.</dd>
+          <dt>Clean up</dt><dd>Delete DP-T15a in Gmail. Leave DP-T15b in Trash; Gmail empties it after 30 days.</dd>
+        </dl>
+        <div class="tutorial-ex-actions">
+          <button type="button" class="about-action-btn" :class="{ 'is-on': result(id) === 'pass' }" :aria-pressed="result(id) === 'pass'" @click="mark(id, 'pass')">Pass</button>
+          <button type="button" class="about-action-btn" :class="{ 'is-on is-fail': result(id) === 'fail' }" :aria-pressed="result(id) === 'fail'" @click="mark(id, 'fail')">Fail</button>
+          <input type="text" class="tutorial-note" aria-label="Note for T15" placeholder="What you saw (optional)" :value="note(id)" @change="setNote(id, $event.target.value)">
         </div>
       </details>
 

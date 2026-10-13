@@ -6248,6 +6248,31 @@
     background: var(--binder-teal-light);
   }
 
+  /* Triage Archive / Delete: icon + label, same flat 3px-radius chrome as the other actions. */
+  .hub-action-btn.hub-action-icon {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .hub-action-btn.hub-action-danger {
+    border-color: #b3261e;
+    color: #b3261e;
+  }
+
+  .hub-action-btn.hub-action-danger:hover {
+    background: #fbeaea;
+  }
+
+  [data-theme="dark"] .hub-action-btn.hub-action-danger {
+    border-color: #f2b8b5;
+    color: #f2b8b5;
+  }
+
+  [data-theme="dark"] .hub-action-btn.hub-action-danger:hover {
+    background: #3b1f1d;
+  }
+
   .hub-countdown {
     margin-left: 4px;
   }

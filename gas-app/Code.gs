@@ -434,7 +434,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 465;
+const BUILD_NUMBER_ = 466;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -3770,6 +3770,14 @@ function retryFailedOperation(operationKey) {
 
 function getHubStatus() {
   return (typeof _getHubStatusInternal === 'function') ? _getHubStatusInternal() : (globalThis._getHubStatusInternal ? globalThis._getHubStatusInternal() : null);
+}
+
+function archiveTriageThread(threadId) {
+  return (typeof _archiveTriageThreadInternal === 'function') ? _archiveTriageThreadInternal(threadId) : (globalThis._archiveTriageThreadInternal ? globalThis._archiveTriageThreadInternal(threadId) : null);
+}
+
+function trashTriageThread(threadId) {
+  return (typeof _trashTriageThreadInternal === 'function') ? _trashTriageThreadInternal(threadId) : (globalThis._trashTriageThreadInternal ? globalThis._trashTriageThreadInternal(threadId) : null);
 }
 
 function getHubSheetLink() {

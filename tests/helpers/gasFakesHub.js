@@ -76,7 +76,8 @@ function makeGmail(h) {
       Threads: {
         list(userId, opts = {}) {
           h.gmail.calls.push('threads.list');
-          const ids = Object.values(h.gmail.threads).filter((t) => !opts.labelIds || t.messages.some((m) => m.labelIds.some((l) => opts.labelIds.includes(l)))).map((t) => ({ id: t.id }));
+          // Like Gmail: threads in Trash are left out unless includeSpamTrash.
+          const ids = Object.values(h.gmail.threads).filter((t) => (opts.includeSpamTrash || !t.trashed) && (!opts.labelIds || t.messages.some((m) => m.labelIds.some((l) => opts.labelIds.includes(l))))).map((t) => ({ id: t.id }));
           return { threads: ids.slice(0, opts.maxResults || 100) };
         },
         get(userId, id, opts = {}) {
@@ -97,6 +98,25 @@ function makeGmail(h) {
               }
             }))
           };
+        },
+        // Advanced Gmail signature: modify(resource, userId, id). Records the exact label changes.
+        modify(resource, userId, id) {
+          h.gmail.calls.push(`threads.modify:${JSON.stringify(resource)}`);
+          if (h.gmail.failWrite) throw new Error(h.gmail.failWrite);
+          const t = h.gmail.threads[id];
+          if (!t) throw err404('thread');
+          const add = resource.addLabelIds || [];
+          const remove = resource.removeLabelIds || [];
+          t.messages.forEach((m) => { m.labelIds = m.labelIds.filter((l) => !remove.includes(l)).concat(add.filter((l) => !m.labelIds.includes(l))); });
+          return { id };
+        },
+        trash(userId, id) {
+          h.gmail.calls.push('threads.trash');
+          if (h.gmail.failWrite) throw new Error(h.gmail.failWrite);
+          const t = h.gmail.threads[id];
+          if (!t) throw err404('thread');
+          t.trashed = true;
+          return { id };
         }
       }
     }

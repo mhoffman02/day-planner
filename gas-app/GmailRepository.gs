@@ -1,10 +1,12 @@
 /**
  * @file GmailRepository.gs
- * @description Read-only Gmail access for the Gmail/Meeting hub (Phase 28). Uses ONLY the Advanced
- * Gmail service (gmail.readonly): Users.Labels.list, Users.Threads.list, Users.Threads.get with
- * format metadata or full. The built-in mail service is banned (needs the full mail scope; lint
- * enforced). Nothing here writes to Gmail. Message bodies are read in memory for triage scoring,
- * capped, returned only to in-process callers, and NEVER logged or persisted.
+ * @description Gmail access for the Gmail/Meeting hub (Phase 28). Uses ONLY the Advanced Gmail service
+ * (gmail.modify): Users.Labels.list, Users.Threads.list, Users.Threads.get with format metadata or full.
+ * The built-in mail service is banned (needs the full mail scope; lint enforced). The ONLY Gmail writes
+ * are the two Triage buttons: archiveThread (removes the INBOX label and nothing else, so the 🎯 labels
+ * the queue relies on survive) and trashThread (Trash, recoverable; never a permanent delete).
+ * Message bodies are read in memory for triage scoring, capped, returned only to in-process callers,
+ * and NEVER logged or persisted.
  *
  * Label names contain an emoji prefix and slashes, so they are resolved to label IDs through
  * Labels.list and queried via labelIds, never via a q= string.
@@ -273,13 +275,35 @@ function threadExists(threadId) {
   }
 }
 
+/**
+ * Triage [Archive]: removes the INBOX label only. Idempotent (archiving an archived thread is a no-op).
+ * @param {string} threadId Gmail thread id.
+ * @returns {void}
+ */
+function archiveThread(threadId) {
+  requireGmail_();
+  Gmail.Users.Threads.modify({ removeLabelIds: ['INBOX'] }, GMAIL_ME_, validateThreadId(threadId));
+}
+
+/**
+ * Triage [Delete]: moves the thread to Gmail Trash (recoverable for 30 days). Never a permanent delete.
+ * @param {string} threadId Gmail thread id.
+ * @returns {void}
+ */
+function trashThread(threadId) {
+  requireGmail_();
+  Gmail.Users.Threads.trash(GMAIL_ME_, validateThreadId(threadId));
+}
+
 global.DPGmailRepo = Object.freeze({
   validateThreadId: validateThreadId,
   gmailUrl: gmailUrl,
   resolveLabelId: resolveLabelId,
   listThreadsByLabel: listThreadsByLabel,
   getThreadMeta: getThreadMeta,
-  threadExists: threadExists
+  threadExists: threadExists,
+  archiveThread: archiveThread, // HubController.archiveTriageThread only
+  trashThread: trashThread      // HubController.trashTriageThread only
 });   // cross-file only: QueueProcessor.gs, HubController.gs, UnitTests.gs
 
 })(typeof globalThis !== 'undefined' ? globalThis : this);
