@@ -1082,6 +1082,9 @@ Alpine.data('plannerApp', () => ({
           await this.setTrialMode(false);
           this.resolveError('hub-mode');
           this.showHubModeSnack('Trial mode is off.', true);
+          // The banner (the opener) is now hidden, so focus goes to Undo instead.
+          this.goLive.opener = null;
+          this.$nextTick(() => { if (this.$refs.hubModeUndo) this.$refs.hubModeUndo.focus(); });
         } catch (err) {
           console.error('Go live failed, trial mode stays on:', err.stack);
           this.reportError('hub-mode', 'Could not turn off trial mode: ' + (err.message || err));
@@ -1202,7 +1205,7 @@ Alpine.data('plannerApp', () => ({
           this.triageNotice = { kind: 'error', text: 'Retry failed: the server did not supply an operation key for this item.', url: null };
           return null;
         }
-        return this.runTriageAction('Retry', () => this.bridge.retryFailedOperation(item.operationKey));
+        return this.runTriageAction('Retry', () => this.bridge.retryFailedOperation(item.operationKey, this.hubModeOpts()));
       },
 
       readLaterItem(item) {

@@ -35,8 +35,8 @@ test('mock: a Triage write with a stale expectDryRun is refused and changes noth
 for (const file of ['src/app.js', 'gas-app/Script.html']) {
   test(`${file}: every Triage write sends the mode on screen`, () => {
     const src = read(file);
-    const calls = src.match(/this\.bridge\.(routeThreadToTask|routeThreadToWaiting|routeThreadToMeeting|dismissTriageItem|archiveTriageThread|trashTriageThread)\([^\n]*/g) || [];
-    assert.equal(calls.length, 6, calls.join('\n'));
+    const calls = src.match(/this\.bridge\.(routeThreadToTask|routeThreadToWaiting|routeThreadToMeeting|dismissTriageItem|archiveTriageThread|trashTriageThread|retryFailedOperation)\([^\n]*/g) || [];
+    assert.equal(calls.length, 7, calls.join('\n'));
     for (const c of calls) assert.match(c, /hubModeOpts\(\)/, c);
   });
 }

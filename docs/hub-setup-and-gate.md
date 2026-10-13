@@ -53,8 +53,10 @@ In the app, `DRY_RUN` is called **Trial mode**. While it is TRUE, Triage and Mee
 **Review and go live**, which opens a confirmation dialog (what changes, plus the last trial run's counts) and then calls
 `hubSetFeature('DRY_RUN', false)`. A snackbar offers Undo for 10 s; the header's **Switch to trial** turns it back on
 without a dialog. Every Triage write sends `expectDryRun` (the mode on screen); when it differs from the flags the server
-acts on, the RPC fails with `MODE_CHANGED` and writes nothing, so a Sheet edit can never make a "Trial" screen act for
-real. Callers that omit `expectDryRun` (gas-rpc, IDE) are not guarded. Refresh re-reads the Config tab.
+acts on (the `HUB_FLAGS_JSON` mirror), the RPC fails with `MODE_CHANGED` and writes nothing. That covers a mode change
+from another tab, gas-rpc or a refresh while this page was open. A direct Sheet edit only reaches the server mirror on the
+next `getHubStatus` (app load or Refresh), so until then the server and an unrefreshed screen still agree. Callers that
+omit `expectDryRun` (gas-rpc, IDE) are not guarded.
 | `GEMINI_DISCOVERY`, `GEMINI_RECONCILIATION`, `USAI_ASSIST` | FALSE | Stubs only in this build; leave OFF |
 
 Recommended order: (1) run discovery and the DRY_RUN smoke with `GMAIL_ROUTER` TRUE and `DRY_RUN` TRUE;

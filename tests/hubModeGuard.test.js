@@ -56,7 +56,7 @@ for (const [name, run] of RPCS) {
 
 test('Code.gs top-level delegators forward options (google.script.run calls the delegator, not the alias)', () => {
   const src = fs.readFileSync(new URL('../gas-app/Code.gs', import.meta.url), 'utf8');
-  for (const name of ['dismissTriageItem', 'archiveTriageThread', 'trashTriageThread', 'routeThreadToTask', 'routeThreadToWaiting']) {
+  for (const name of ['dismissTriageItem', 'archiveTriageThread', 'trashTriageThread', 'routeThreadToTask', 'routeThreadToWaiting', 'retryFailedOperation']) {
     const m = src.match(new RegExp(`^function ${name}\\(([^)]*)\\) \\{\\n(.*)$`, 'm'));
     assert.ok(m, `${name} delegator missing`);
     assert.match(m[1], /options/, `${name} delegator drops options`);
@@ -69,4 +69,21 @@ test('archiveTriageThread without expectDryRun (gas-rpc, IDE) is not guarded', (
   const r = call(ctx, 'archiveTriageThread', 'a1');
   assert.equal(r.ok, true, JSON.stringify(r));
   assert.equal(r.status, 'DONE');
+});
+
+test('real flag mirror: Go live in another tab (hubSetFeature) makes this tab\'s trial-mode Archive refuse', () => {
+  const ctx = makeHubContext({ realStores: true, features: { GMAIL_ROUTER: true, TRIAGE_BOARD: true, DRY_RUN: true } });
+  addThread(ctx, { id: 'a1', labels: ['INBOX', '00_AR', '🎯/Task'], subject: 'Approval needed' });
+  assert.equal(call(ctx, 'getHubStatus').dryRun, true, 'this tab loads in trial mode');
+  assert.equal(call(ctx, 'hubSetFeature', 'DRY_RUN', false).ok, true, 'other tab goes live');
+  const r = call(ctx, 'archiveTriageThread', 'a1', { expectDryRun: true });
+  assert.equal(r.errorCode, 'MODE_CHANGED', JSON.stringify(r));
+  assert.deepEqual(writes(ctx), []);
+});
+
+test('retryFailedOperation: stale mode is refused before the ledger is read', () => {
+  const ctx = setup(false);
+  const r = call(ctx, 'retryFailedOperation', 'GMAIL|a1|TASK', { expectDryRun: true });
+  assert.equal(r.errorCode, 'MODE_CHANGED', JSON.stringify(r));
+  assert.equal(ctx.__hub.tasks.inserts, 0);
 });

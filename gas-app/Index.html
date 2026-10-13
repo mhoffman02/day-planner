@@ -1921,7 +1921,7 @@
     <!-- Trial mode changed: snackbar with Undo -->
     <div class="hub-mode-snack" role="status" x-show="hubModeSnack" x-cloak>
       <span x-text="hubModeSnack ? hubModeSnack.text : ''"></span>
-      <button type="button" class="hub-snack-btn" x-show="hubModeSnack &amp;&amp; hubModeSnack.undo" @click="switchToTrial()">Undo</button>
+      <button type="button" class="hub-snack-btn" x-ref="hubModeUndo" x-show="hubModeSnack &amp;&amp; hubModeSnack.undo" @click="switchToTrial()">Undo</button>
     </div>
 
     <!-- Toast Notification for Task Actions (Forwarding, etc.) -->

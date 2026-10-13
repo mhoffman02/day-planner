@@ -992,7 +992,7 @@ export class GASBridge {
   hubSetFeature(name, value) { return this._hubRpc('hubSetFeature', [name, value]); }
 
   /** @returns {Promise<object>} Result contract. */
-  retryFailedOperation(operationKey) { return this._hubRpc('retryFailedOperation', [operationKey]); }
+  retryFailedOperation(operationKey, opts = {}) { return this._hubRpc('retryFailedOperation', [operationKey, opts]); }
 
   /**
    * @param {string} seriesKey Meeting series key.

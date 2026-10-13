@@ -53,7 +53,8 @@ function failFrom_(err) {
  * @param {string[]} needed Feature flags that must all be true.
  * @param {{fresh?:boolean, expectDryRun?:boolean}} [opts] fresh re-reads the Config tab when the hub Sheet
  *   already exists. expectDryRun is the mode the client is showing: when it is a boolean that differs from
- *   DRY_RUN, the call fails with MODE_CHANGED (the Sheet was edited since the screen loaded).
+ *   DRY_RUN (the HUB_FLAGS_JSON mirror the write acts on), the call fails with MODE_CHANGED: another tab, gas-rpc
+ *   or a refresh changed the mode since the page loaded.
  * @returns {{failure:(object|null), features:(object|null)}} Either a failed result or the flags.
  */
 function preflight_(needed, opts) {
@@ -66,7 +67,7 @@ function preflight_(needed, opts) {
     if (features[needed[i]] !== true) return { failure: fail_('FLAG_OFF', needed[i] + ' flag is off', true), features: features };
   }
   if (opts && typeof opts.expectDryRun === 'boolean' && opts.expectDryRun !== (features.DRY_RUN === true)) {
-    return { failure: fail_('MODE_CHANGED', 'Trial mode was changed in the Hub Config Sheet. Refresh before acting.', true), features: features };
+    return { failure: fail_('MODE_CHANGED', 'Trial mode changed since this page loaded. Refresh before acting.', true), features: features };
   }
   return { failure: null, features: features };
 }
@@ -281,10 +282,11 @@ function trashTriageThread(threadId, options) {
 /**
  * Re-runs an operation whose ledger row is ERROR.
  * @param {string} operationKey Operation key from the ledger.
+ * @param {{expectDryRun?:boolean}} [options] The mode the client is showing.
  * @returns {object} makeResult-shaped result.
  */
-function retryFailedOperation(operationKey) {
-  var pre = preflight_(['GMAIL_ROUTER']);
+function retryFailedOperation(operationKey, options) {
+  var pre = preflight_(['GMAIL_ROUTER'], modeOpts_(options));
   if (pre.failure) return pre.failure;
   if (typeof operationKey !== 'string' || !HUB_OPKEY_RE_.test(operationKey)) return fail_('INVALID_INPUT', 'Invalid operation key');
   var parts = operationKey.split('|');

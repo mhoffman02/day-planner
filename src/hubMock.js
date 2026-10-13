@@ -197,7 +197,7 @@ export class HubMock {
     if (off) return this._fail('FLAG_OFF', `${off} flag is off`);
     const expect = opts && typeof opts === 'object' ? opts.expectDryRun : undefined;
     if (typeof expect === 'boolean' && expect !== this.dryRun) {
-      return this._fail('MODE_CHANGED', 'Trial mode was changed in the Hub Config Sheet. Refresh before acting.');
+      return this._fail('MODE_CHANGED', 'Trial mode changed since this page loaded. Refresh before acting.');
     }
     return null;
   }
@@ -410,7 +410,9 @@ export class HubMock {
     return { ok: true, status: 'OK', message: `${name} set to ${value ? 'TRUE' : 'FALSE'}`, flags: { ...this.flags }, dryRun: this.dryRun };
   }
 
-  retryFailedOperation(operationKey) {
+  retryFailedOperation(operationKey, opts) {
+    const gate = this._preflight(['GMAIL_ROUTER'], opts);
+    if (gate) return gate;
     const row = this.ledger.get(operationKey);
     if (!row) return this._fail('NOT_FOUND', 'No ledger row for that operation');
     if (row.status !== 'ERROR') return this._fail('NOT_RETRYABLE', 'Operation is not in ERROR status');
