@@ -1,36 +1,35 @@
-<!-- handoff: branch=pure-gas-main worktree=main-checkout base=c5fda9af67d5 written=2026-10-12T09:00:02-07:00 -->
-# Resume: WORK v132 live, HOME hub trigger on, About rewritten; what's left needs the user
+<!-- handoff: branch=worktree-hub-link-tutorial worktree=/home/mike/projects/day-planner/.claude/worktrees/hub-link-tutorial base=6d38b2861d7d written=2026-10-13T07:49:27-07:00 -->
+# Resume: Triage speed, Gmail quota and Inbox-only live on WORK v145; what's left needs the user
 
+> **WARNING: written on branch `worktree-hub-link-tutorial`** (worktree
+> `/home/mike/projects/day-planner/.claude/worktrees/hub-link-tutorial`), not `pure-gas-main`. Every commit was pushed
+> to `origin/pure-gas-main`, but the main checkout (`pure-gas-main` at c6d0df4) is behind until you pull:
+> `git -C /home/mike/projects/day-planner pull --ff-only`
 > `pure-gas-main` is the working branch (CLAUDE.md rule 5). `master` has diverged on purpose, so don't merge into it.
 
 **Verify first:**
 `git fetch -q; git log --branches --remotes -1 --abbrev=12 --format='%h %p %cI' -- HANDOFF.md`
-This prompt is stale if that commit is dated after `2026-10-12T09:00:02-07:00` **and** its parent (2nd field) isn't
-`c5fda9af67d5`, or if `git worktree list` shows a worktree whose `HANDOFF.md` stamp has a later `written=`. If it's
-stale, read `git show <1st field>:HANDOFF.md`, use that instead, and tell the user. Then run
-`git log --oneline c5fda9af67d5..origin/pure-gas-main`. Any commit there besides the handoff commit is work that landed
-after this prompt.
+This prompt is stale if that commit is dated after `2026-10-13T07:49:27-07:00` **and** its parent (2nd field) isn't
+`6d38b2861d7d`, or if `git worktree list` shows a worktree whose `HANDOFF.md` stamp has a later `written=`. If stale,
+read `git show <1st field>:HANDOFF.md` (or that worktree's file), use it instead, and tell the user. Then run
+`git log --oneline 6d38b2861d7d..origin/pure-gas-main`: any commit besides the handoff commit means work landed after
+this prompt, so check it before redoing anything.
 
-**Start by:** asking the user to decide:
-- (a) Are `GMAIL_ROUTER` and `NCMMS_CORE_PILOT` now TRUE in WORK's Hub Config Sheet? If yes, open WORK `/exec`
-  (`AKfycbzDYvr…`) Meeting Prep with `node tools/eval-console.js --tab AKfycbzDYvr --iframe ...` and check the
-  carry-in count matches the Doc.
-- (b) Run `npm run push:work` to ship builds 456–461 (the About rewrite) to WORK? The user then redeploys in the WORK
-  IDE. WORK is on build 455.
-- (c) What should the next phase be? No agent work is queued.
+**Start by:** ask the user to decide what's next. Every open item needs them:
+- **WORK trial mode off**: use Triage > Review and go live on WORK when ready, or keep trial mode.
+- **WORK Meeting Prep**: set `NCMMS_CORE_PILOT` TRUE and fill the NCMMS-Core notes Doc, then the agent checks (T14).
+- **HOME live check of the trial-mode controls** (banner, dialog, Undo, two-tab MODE_CHANGED refusal).
+- **7-day Testing expiry** on 2026-10-17 (rerun the rpc login, check the web app and sync trigger).
+- **UAT T01-T15**, or pick the next phase.
 
-On 2026-10-17, rerun the rpc login (7-day Testing expiry) and check the HOME web app and `hubDispatch` still authorize.
+This session built the in-app trial-mode controls, then sped up Triage after live WORK feedback: Gmail snippet
+preview, an instant board from a saved copy, a Gmail-quota throttle, a server row cache keyed on Gmail `historyId`,
+instant Archive, and Inbox-only listing. WORK v145 (build 483) is live and the user confirmed it ("Looks good!").
 
-**This session:**
-- The user deployed WORK v132. The working `/exec` ID replaced the dead `…BhslA` one in the gas-environments rule and
-  in `tools/promote-to-work.js`.
-- `installHubTriggers` ran on HOME. HOME has `GMAIL_ROUTER` on and `DRY_RUN` off, so it acts on real 🎯 labels.
-- The About page now has a sticky jump nav plus Tag Reference and Automatic Tasks tables; the install steps collapse.
-  This was checked in local preview only. HOME `/dev` returns "Page Not Found" in the CDP Chrome profile while it is
-  also signed into GSA.
-- `eval-console`, `probe-live` and `read-console` now attach only to the target tab's own iframe.
-
-- Closed: [`TODO_HISTORY.md`](file:///home/mike/projects/day-planner/TODO_HISTORY.md) 2026-10-12 entry.
-- Still open: [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) Phase 30. Everything there needs the user:
-  test-data cleanup, the expiry watch, and the WORK Meeting Prep render.
-- Plan: [`PLAN.md`](file:///home/mike/projects/day-planner/PLAN.md) §3 Phase 30.
+- What changed — `TODO_HISTORY.md`'s "2026-10-13 — Hub Triage: trial-mode controls, speed, Gmail quota, Inbox only"
+- Rationale — commit messages `6077c04`, `34d4bee`, `6d38b28`; `docs/hub-architecture.md` safety point 4 (what is
+  stored: snippet in CacheService for 6 h, last board in the tab's sessionStorage, never bodies)
+- Still open — `TODO.md`'s "Phase 30: WORK promotion & user-gated release items", including the new **Gmail quota
+  watch** (the background queue job pages every 🎯/-labelled thread, archived ones too)
+- Push HOME with `cd gas-app && npx clasp --auth ~/.clasprc.home.json push -f`; a push from the repo root uploads
+  files under a `gas-app/` prefix and breaks `include()`.

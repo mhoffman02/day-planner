@@ -267,3 +267,7 @@ live-testing catches it by luck.
 ## 2026-10-12 (About rewrite, WORK live)
 **Worked well:** Checking the About copy against the code caught two claims that would have been wrong: a task-side link to its `#task` note, and documenting all eight 🎯 labels when only four do anything.
 **Needs improvement:** `eval-console --iframe` attached to whichever GAS tab came first by URL, so the WORK build looked like HOME's. Also, `scrollIntoView` scrolls every ancestor, so in-pane nav must scroll its own container. And `pkill -f <pattern>` kills the calling shell when the pattern appears in its own command line.
+
+## 2026-10-13 (Triage speed and Gmail quota)
+**Worked well:** Timing the RPCs live (board 6.5 s, status 2.9 s) before building, and pinning Gmail calls per board in a test, kept the quota fixes measurable.
+**Needs improvement:** The stale-while-revalidate prefetch added a full board to every page load and helped trip the WORK Gmail quota; count API calls per user action before adding background loads. `clasp push` from the repo root uploads files under a `gas-app/` prefix: always push from `gas-app/`.

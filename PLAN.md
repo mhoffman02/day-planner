@@ -38,11 +38,12 @@ the GSA account, a release go, or a consent-screen decision. Checklist in [`TODO
 - [x] **HOME hub trigger** installed 2026-10-12 (`hubDispatch` every 5 min, `DRY_RUN` off).
 - [x] **About page rewrite** 2026-10-12: sticky jump nav, Tag Reference, Automatic Tasks (`af8ef0f`, `6930454`).
 - [ ] **WORK Meeting Prep render**: user sets `GMAIL_ROUTER` + `NCMMS_CORE_PILOT` TRUE in WORK Hub Config, then agent checks.
-- [ ] **WORK catch-up**: WORK shows build 455; `npm run push:work` + IDE redeploy to ship the About rewrite (user go).
+- [x] **WORK catch-up**: WORK v145 (build 483) live 2026-10-13: About rewrite, trial-mode controls, Triage preview,
+  speed, Gmail-quota throttle + historyId row cache, Inbox only (TODO_HISTORY 2026-10-13).
 - [x] **Consent screen**: stay in Testing (decided 2026-10-10); rpc token dies every 7 days, next 2026-10-17.
 - [ ] **7-day Testing expiry watch**: rerun the rpc login on 2026-10-17 and check the web app and sync trigger still authorize.
 - Out of scope: Gemini discovery/actions (Phase 6 build), USAi (Phase 7).
-- **Next agent work:** none queued (as of 2026-10-12, end of session). Every open item needs the user; pick the next phase with them.
+- **Next agent work:** none queued (as of 2026-10-13, end of session). Every open item needs the user; pick the next phase with them.
 
 ---
 

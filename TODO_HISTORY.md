@@ -1,5 +1,23 @@
 # Task History (TODO_HISTORY)
 
+## 2026-10-13 — Hub Triage: trial-mode controls, speed, Gmail quota, Inbox only (WORK v145, build 483)
+
+- [x] **Trial mode controls**: in-app Review and go live dialog, Undo snackbar, Switch to trial, header badge, and a
+  stale-mode guard (MODE_CHANGED) on every Triage write (`3026c11`, `2f28e80`, `9fe6450`).
+- [x] **Message preview**: Gmail snippet of the latest message under the subject, click for 3 lines; sender dark
+  semibold, date and preview muted (`7f0fa22`, `cecc00c`).
+- [x] **Load speed**: last board kept in the tab's sessionStorage and shown at once marked stale, background prefetch
+  (only when the copy is over 5 min old), row actions disabled while stale (`cecc00c`, `6077c04`).
+- [x] **Gmail quota** (WORK hit "Units per minute per user"): board stops at the first quota error (RATE_LIMITED),
+  75 s cooldown shared by all tabs, one debounced reload after actions instead of a rebuild per click, and scored rows
+  reused from CacheService while the Gmail historyId is unchanged (repeat board ~7 calls, was ~46) (`6077c04`,
+  `34d4bee`).
+- [x] **Archive feels instant**: Archive/Delete/Dismiss remove the row at click and restore it on failure; live
+  Archive/Delete no longer read the thread first (`3c9f8ff`).
+- [x] **Inbox only**: every label listing asks Gmail for label AND INBOX; failed ops show only while in the Inbox.
+  Archive/Delete are atomic single Gmail calls, so a failed one leaves INBOX (asserted) (`6ba2c1d`, `6d38b28`).
+  User confirmed on WORK: "Looks good!"
+
 ## 2026-10-12 — Phase 30: gmail.modify + hub auto-setup live on WORK
 
 - [x] **gmail.modify rollout on WORK**: WORK v139 (build 472). Hub Sheet auto-created, user approved via the new
