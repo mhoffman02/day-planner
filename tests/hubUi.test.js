@@ -50,10 +50,25 @@ describe('Hub presentation helpers', () => {
   });
 
   it('labels ledger statuses and only ERROR is retryable', () => {
-    assert.equal(ledgerStatusLabel('DRY_RUN'), 'Dry run');
+    assert.equal(ledgerStatusLabel('DRY_RUN'), 'Trial only, nothing created');
     assert.equal(ledgerStatusLabel(null), '');
     ['DONE', 'DEFERRED', 'DRY_RUN', 'PENDING', null].forEach((s) => assert.equal(canRetryLedger(s), false));
     assert.equal(canRetryLedger('ERROR'), true);
+  });
+
+  it('ledger labels say what the hub did, from the operation key (user 2026-10-13: Done/Skipped confused)', () => {
+    assert.equal(ledgerStatusLabel('DONE', 'GMAIL|t1|TASK_TODAY'), 'Task added for today');
+    assert.equal(ledgerStatusLabel('DONE', 'GMAIL|t1~k3|TASK'), 'Added to Master Tasks');
+    assert.equal(ledgerStatusLabel('DONE', 'GMAIL|t1|WAITING'), 'Waiting item added');
+    assert.equal(ledgerStatusLabel('DONE', 'GMAIL|t1|MEETING|ev9'), 'Added to meeting notes');
+    assert.equal(ledgerStatusLabel('DONE', 'GMAIL|t1|DISMISS'), 'Dismissed');
+    assert.equal(ledgerStatusLabel('DONE', null), 'Done');
+    assert.equal(ledgerStatusLabel('SKIPPED', 'GMAIL|t1|TASK_TODAY'), 'Task already added');
+    assert.equal(ledgerStatusLabel('SKIPPED', 'GMAIL|t1|TASK'), 'Task already added');
+    assert.equal(ledgerStatusLabel('SKIPPED', 'GMAIL|t1|DISMISS'), 'Already dismissed');
+    assert.equal(ledgerStatusLabel('SKIPPED', null), 'Already done');
+    assert.equal(ledgerStatusLabel('ERROR', 'GMAIL|t1|TASK'), 'Failed');
+    assert.equal(ledgerStatusLabel('PENDING', 'GMAIL|t1|TASK'), 'In progress');
   });
 
   it('formats cutoff countdown', () => {
@@ -89,7 +104,9 @@ describe('gas-app/Script.html mirror parity', () => {
     }));
     [12, 8, 7, 4, 3, 0, -1, -4, undefined, NaN].forEach((s) => assert.equal(mirror.scoreBandLabel(s), scoreBandLabel(s)));
     ['DONE', 'ERROR', 'DEFERRED', 'DRY_RUN', 'PENDING', 'SKIPPED', 'WEIRD', null].forEach((s) => {
-      assert.equal(mirror.ledgerStatusLabel(s), ledgerStatusLabel(s));
+      [null, 'GMAIL|t1|TASK_TODAY', 'GMAIL|t1|TASK', 'GMAIL|t1|WAITING', 'GMAIL|t1|MEETING|e', 'GMAIL|t1|DISMISS', 'odd'].forEach((k) => {
+        assert.equal(mirror.ledgerStatusLabel(s, k), ledgerStatusLabel(s, k));
+      });
       assert.equal(mirror.canRetryLedger(s), canRetryLedger(s));
     });
     const now = new Date(2026, 9, 9, 12, 0, 0).getTime();

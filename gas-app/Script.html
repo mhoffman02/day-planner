@@ -1409,7 +1409,11 @@
     systemExceptions: 'System Exceptions',
     fyiReading: 'FYI / Reading'
   };
-  const HUB_LEDGER_LABELS = { DONE: 'Done', ERROR: 'Error', DEFERRED: 'Deferred', DRY_RUN: 'Dry run', PENDING: 'Pending', SKIPPED: 'Skipped' };
+  const HUB_LEDGER_LABELS = { DONE: 'Done', ERROR: 'Failed', DEFERRED: 'Deferred', DRY_RUN: 'Trial only, nothing created', PENDING: 'In progress', SKIPPED: 'Already done' };
+  const HUB_LEDGER_LABELS_BY_KIND = {
+    DONE: { TASK_TODAY: 'Task added for today', TASK: 'Added to Master Tasks', WAITING: 'Waiting item added', MEETING: 'Added to meeting notes', DISMISS: 'Dismissed' },
+    SKIPPED: { TASK_TODAY: 'Task already added', TASK: 'Task already added', WAITING: 'Waiting item already added', MEETING: 'Already in meeting notes', DISMISS: 'Already dismissed' }
+  };
 
   function isHubViewVisible(viewName, flags) {
     if (!flags || flags.GMAIL_ROUTER !== true) return false;
@@ -1426,8 +1430,16 @@
     return 'Noise';
   }
 
-  function ledgerStatusLabel(status) {
+  function ledgerOperationKind(operationKey) {
+    const parts = String(operationKey || '').split('|');
+    return parts[0] === 'GMAIL' ? (parts[2] || '') : '';
+  }
+
+  function ledgerStatusLabel(status, operationKey) {
     if (!status) return '';
+    const byKind = Object.prototype.hasOwnProperty.call(HUB_LEDGER_LABELS_BY_KIND, status) ? HUB_LEDGER_LABELS_BY_KIND[status] : {};
+    const kind = ledgerOperationKind(operationKey);
+    if (Object.prototype.hasOwnProperty.call(byKind, kind)) return byKind[kind];
     return HUB_LEDGER_LABELS[status] || String(status);
   }
 
@@ -2036,6 +2048,8 @@
       triageBoard: { queues: {} },
       triageStale: false,
       triageSavedAt: 0,
+      // A Triage action created or found a Task: the Daily list on screen predates it, so re-fetch on return.
+      dailyNeedsRefresh: false,
       triageLoadPromise: null,
       triageReloadQueued: false,
       triageReloadTimer: null,
@@ -2708,6 +2722,10 @@
 
       async setView(viewName) {
         this.activeView = viewName;
+        if (viewName === 'daily' && this.dailyNeedsRefresh) {
+          this.dailyNeedsRefresh = false;
+          await this.loadDayData();
+        }
         if (viewName === 'monthly-calendar') {
           await this.loadMonthlyCalendarData();
         }
@@ -2766,7 +2784,7 @@
       },
 
       hubBand(score) { return scoreBandLabel(score); },
-      hubLedgerLabel(status) { return ledgerStatusLabel(status); },
+      hubLedgerLabel(status, operationKey) { return ledgerStatusLabel(status, operationKey); },
       hubCanRetry(status) { return canRetryLedger(status); },
       hubCountdown(iso) { return formatCutoffCountdown(iso, this.hubNowMs); },
 
@@ -2985,7 +3003,11 @@
         if (!threadId || !r || r.ok !== true || !r.status || !this.triageBoard || !this.triageBoard.queues) return;
         const queues = this.triageBoard.queues;
         Object.keys(queues).forEach((q) => {
-          queues[q].forEach((i) => { if (i.threadId === threadId) i.ledgerStatus = r.status; });
+          queues[q].forEach((i) => {
+            if (i.threadId !== threadId) return;
+            i.ledgerStatus = r.status;
+            if (r.operationKey) i.operationKey = r.operationKey;
+          });
         });
       },
 
@@ -3057,6 +3079,9 @@
         const taken = remove ? this.takeTriageRow(threadId) : null;
         try {
           const r = await call();
+          if (r.ok && (r.status === 'DONE' || r.status === 'SKIPPED') && ['TASK_TODAY', 'TASK', 'WAITING'].includes(ledgerOperationKind(r.operationKey))) {
+            this.dailyNeedsRefresh = true;
+          }
           this.triageNotice = { kind: r.ok ? 'ok' : 'error', text: label + ': ' + r.message, url: r.targetUrl || null };
           if (!r.ok) {
             console.error('Triage action failed, row restored:', label, r);

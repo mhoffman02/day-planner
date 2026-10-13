@@ -1254,7 +1254,7 @@
                           <th scope="col" class="hub-col-score">Score</th>
                           <th scope="col">Thread</th>
                           <th scope="col" class="hub-col-signals">Signals and labels</th>
-                          <th scope="col" class="hub-col-ledger">Ledger</th>
+                          <th scope="col" class="hub-col-ledger">Result</th>
                           <th scope="col" class="hub-col-actions">Actions</th>
                         </tr>
                       </thead>
@@ -1282,7 +1282,7 @@
                               <span class="hub-labels" x-text="(item.labels || []).join(', ')"></span>
                             </td>
                             <td class="hub-col-ledger">
-                              <span class="hub-ledger" :class="item.ledgerStatus ? 'hub-ledger-' + item.ledgerStatus.toLowerCase().replace('_', '-') : ''" x-text="hubLedgerLabel(item.ledgerStatus) || 'None'"></span>
+                              <span class="hub-ledger" :class="item.ledgerStatus ? 'hub-ledger-' + item.ledgerStatus.toLowerCase().replace('_', '-') : ''" x-text="hubLedgerLabel(item.ledgerStatus, item.operationKey) || 'None'"></span>
                               <template x-if="hubCanRetry(item.ledgerStatus)">
                                 <button type="button" class="hub-action-btn" @click="retryTriageItem(item)" :disabled="triageStale" :aria-label="'Retry failed operation: ' + item.subject">Retry</button>
                               </template>

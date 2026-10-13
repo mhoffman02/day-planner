@@ -46,20 +46,38 @@ export function scoreBandLabel(score) {
 
 const LEDGER_LABELS = {
   DONE: 'Done',
-  ERROR: 'Error',
+  ERROR: 'Failed',
   DEFERRED: 'Deferred',
-  DRY_RUN: 'Dry run',
-  PENDING: 'Pending',
-  SKIPPED: 'Skipped'
+  DRY_RUN: 'Trial only, nothing created',
+  PENDING: 'In progress',
+  SKIPPED: 'Already done'
+};
+const LEDGER_LABELS_BY_KIND = {
+  DONE: { TASK_TODAY: 'Task added for today', TASK: 'Added to Master Tasks', WAITING: 'Waiting item added', MEETING: 'Added to meeting notes', DISMISS: 'Dismissed' },
+  SKIPPED: { TASK_TODAY: 'Task already added', TASK: 'Task already added', WAITING: 'Waiting item already added', MEETING: 'Already in meeting notes', DISMISS: 'Already dismissed' }
 };
 
 /**
- * Display text for a ledger status; empty string when the item has no ledger row.
+ * @param {string|null|undefined} operationKey Ledger key, e.g. GMAIL|threadId|TASK_TODAY.
+ * @returns {string} The operation kind, or '' when the key is not a Gmail operation.
+ */
+export function ledgerOperationKind(operationKey) {
+  const parts = String(operationKey || '').split('|');
+  return parts[0] === 'GMAIL' ? (parts[2] || '') : '';
+}
+
+/**
+ * Display text for a ledger status, saying what the hub did when the operation key tells which action it was;
+ * empty string when the item has no ledger row.
  * @param {string|null|undefined} status Ledger status.
+ * @param {string|null} [operationKey] Ledger key of the row.
  * @returns {string}
  */
-export function ledgerStatusLabel(status) {
+export function ledgerStatusLabel(status, operationKey) {
   if (!status) return '';
+  const byKind = Object.prototype.hasOwnProperty.call(LEDGER_LABELS_BY_KIND, status) ? LEDGER_LABELS_BY_KIND[status] : {};
+  const kind = ledgerOperationKind(operationKey);
+  if (Object.prototype.hasOwnProperty.call(byKind, kind)) return byKind[kind];
   return LEDGER_LABELS[status] || String(status);
 }
 

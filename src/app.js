@@ -2,7 +2,7 @@ import Alpine from 'https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/module.esm.
 import { GASBridge } from './gasBridge.js';
 import { getLocalDateStr } from './binderStore.js';
 import {
-  isHubViewVisible, scoreBandLabel, ledgerStatusLabel, canRetryLedger, formatCutoffCountdown,
+  isHubViewVisible, scoreBandLabel, ledgerStatusLabel, ledgerOperationKind, canRetryLedger, formatCutoffCountdown,
   QUEUE_ORDER, QUEUE_TITLES
 } from './hubUi.js';
 import {
@@ -326,6 +326,8 @@ Alpine.data('plannerApp', () => ({
       triageBoard: { queues: {} },
       triageStale: false,
       triageSavedAt: 0,
+      // A Triage action created or found a Task: the Daily list on screen predates it, so re-fetch on return.
+      dailyNeedsRefresh: false,
       triageLoadPromise: null,
       triageReloadQueued: false,
       triageReloadTimer: null,
@@ -1002,6 +1004,10 @@ Alpine.data('plannerApp', () => ({
 
       async setView(viewName) {
         this.activeView = viewName;
+        if (viewName === 'daily' && this.dailyNeedsRefresh) {
+          this.dailyNeedsRefresh = false;
+          await this.loadDayData();
+        }
         if (viewName === 'monthly-calendar') {
           await this.loadMonthlyCalendarData();
         }
@@ -1060,7 +1066,7 @@ Alpine.data('plannerApp', () => ({
       },
 
       hubBand(score) { return scoreBandLabel(score); },
-      hubLedgerLabel(status) { return ledgerStatusLabel(status); },
+      hubLedgerLabel(status, operationKey) { return ledgerStatusLabel(status, operationKey); },
       hubCanRetry(status) { return canRetryLedger(status); },
       hubCountdown(iso) { return formatCutoffCountdown(iso, this.hubNowMs); },
 
@@ -1279,7 +1285,11 @@ Alpine.data('plannerApp', () => ({
         if (!threadId || !r || r.ok !== true || !r.status || !this.triageBoard || !this.triageBoard.queues) return;
         const queues = this.triageBoard.queues;
         Object.keys(queues).forEach((q) => {
-          queues[q].forEach((i) => { if (i.threadId === threadId) i.ledgerStatus = r.status; });
+          queues[q].forEach((i) => {
+            if (i.threadId !== threadId) return;
+            i.ledgerStatus = r.status;
+            if (r.operationKey) i.operationKey = r.operationKey;
+          });
         });
       },
 
@@ -1351,6 +1361,9 @@ Alpine.data('plannerApp', () => ({
         const taken = remove ? this.takeTriageRow(threadId) : null;
         try {
           const r = await call();
+          if (r.ok && (r.status === 'DONE' || r.status === 'SKIPPED') && ['TASK_TODAY', 'TASK', 'WAITING'].includes(ledgerOperationKind(r.operationKey))) {
+            this.dailyNeedsRefresh = true;
+          }
           this.triageNotice = { kind: r.ok ? 'ok' : 'error', text: label + ': ' + r.message, url: r.targetUrl || null };
           if (!r.ok) {
             console.error('Triage action failed, row restored:', label, r);
