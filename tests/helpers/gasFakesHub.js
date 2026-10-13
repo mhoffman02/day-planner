@@ -78,7 +78,7 @@ function makeGmail(h) {
           h.gmail.calls.push('threads.list');
           if (h.gmail.quotaOnList) throw new Error(QUOTA_MSG('list'));
           // Like Gmail: threads in Trash are left out unless includeSpamTrash.
-          const ids = Object.values(h.gmail.threads).filter((t) => (opts.includeSpamTrash || !t.trashed) && (!opts.labelIds || t.messages.some((m) => m.labelIds.some((l) => opts.labelIds.includes(l))))).map((t) => ({ id: t.id }));
+          const ids = Object.values(h.gmail.threads).filter((t) => (opts.includeSpamTrash || !t.trashed) && (!opts.labelIds || t.messages.some((m) => m.labelIds.some((l) => opts.labelIds.includes(l))))).map((t) => ({ id: t.id, historyId: String(t.historyId) }));
           return { threads: ids.slice(0, opts.maxResults || 100) };
         },
         get(userId, id, opts = {}) {
@@ -89,6 +89,7 @@ function makeGmail(h) {
           if (!t) throw err404('thread');
           return {
             id: t.id,
+            historyId: String(t.historyId),
             messages: t.messages.map((m) => ({
               id: m.id,
               labelIds: m.labelIds,
@@ -111,6 +112,7 @@ function makeGmail(h) {
           const add = resource.addLabelIds || [];
           const remove = resource.removeLabelIds || [];
           t.messages.forEach((m) => { m.labelIds = m.labelIds.filter((l) => !remove.includes(l)).concat(add.filter((l) => !m.labelIds.includes(l))); });
+          t.historyId += 1; // like Gmail: any label change moves the thread historyId
           return { id };
         },
         trash(userId, id) {
@@ -119,6 +121,7 @@ function makeGmail(h) {
           const t = h.gmail.threads[id];
           if (!t) throw err404('thread');
           t.trashed = true;
+          t.historyId += 1;
           return { id };
         }
       }
@@ -264,6 +267,7 @@ export function makeHubContext(o = {}) {
   };
   ctx.__hub = h;
   ctx.LockService = makeLocks();
+  ctx.CacheService = makeUserCache(h);
   ctx.Gmail = makeGmail(h);
   ctx.Calendar = makeCalendar(h);
   ctx.Tasks = makeTasks(h);
@@ -319,6 +323,27 @@ function finishLoad(ctx, o) {
 }
 
 /** Seeds one Gmail thread (single message unless msgs given). */
+/** Persistent CacheService user cache (the shared stub hands out a fresh cache per call). h.cache.failGet throws. */
+function makeUserCache(h) {
+  h.cache = { store: new Map(), ttl: new Map(), failGet: null, calls: [] };
+  const c = h.cache;
+  const cache = {
+    get(k) { c.calls.push('get'); if (c.failGet) throw new Error(c.failGet); return c.store.has(k) ? c.store.get(k) : null; },
+    getAll(keys) {
+      c.calls.push('getAll');
+      if (c.failGet) throw new Error(c.failGet);
+      const out = {};
+      keys.forEach((k) => { if (c.store.has(k)) out[k] = c.store.get(k); });
+      return out;
+    },
+    put(k, v, ttl) { c.store.set(k, String(v)); c.ttl.set(k, ttl); },
+    putAll(obj, ttl) { c.calls.push('putAll'); Object.keys(obj).forEach((k) => { c.store.set(k, String(obj[k])); c.ttl.set(k, ttl); }); },
+    remove(k) { c.store.delete(k); },
+    removeAll(keys) { keys.forEach((k) => c.store.delete(k)); }
+  };
+  return { getUserCache: () => cache, getScriptCache: () => cache };
+}
+
 /** The live WORK error text (2026-10-12), so tests match what Gmail really throws. */
 const QUOTA_MSG = (m) => `API call to gmail.users.threads.${m} failed with error: Quota exceeded for quota metric 'Total Query Cost' and limit 'Units per minute per user' of service 'gmail.googleapis.com' for consumer 'project_number:1'.`;
 
@@ -328,6 +353,7 @@ export function addThread(ctx, t) {
   const msgs = t.messages || [{ from: t.from || 'Pat Example <pat@example.test>', to: t.to || 'me@example.test', subject: t.subject || 'Subject', body: t.body || 'plain body', cc: t.cc, snippet: t.snippet }];
   h.gmail.threads[t.id] = {
     id: t.id,
+    historyId: t.historyId || 100,
     messages: msgs.map((m, i) => ({ id: `${t.id}m${i}`, labelIds: ids, internalDate: Date.parse(t.date || '2026-10-05T20:00:00Z') + i * 60000, from: m.from, to: m.to || 'me@example.test', cc: m.cc, subject: m.subject || t.subject || 'Subject', body: m.body, snippet: m.snippet || '' }))
   };
 }

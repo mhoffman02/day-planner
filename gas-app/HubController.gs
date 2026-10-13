@@ -50,6 +50,48 @@ function isQuotaError_(err) {
   return /quota exceeded|rate limit|ratelimitexceeded|user-rate limit|too many requests/i.test(String((err && err.message) || err));
 }
 
+// Scored Triage rows in the user CacheService, keyed by thread id and valid while the Gmail historyId is unchanged.
+var HUB_ROW_CACHE_PREFIX_ = 'triageRow.v1:';
+var HUB_ROW_CACHE_TTL_S_ = 21600;
+var HUB_ROW_CACHE_FIELDS_ = ['url', 'subject', 'snippet', 'fromName', 'date', 'labels', 'score', 'band', 'signals', 'ticketKey', 'suggestions', 'requireConfirmation', 'humanReviewOnly'];
+
+/**
+ * Cached rows whose historyId still matches. A cache failure is logged and treated as a miss (Gmail is read).
+ * @param {string[]} ids Thread ids.
+ * @param {Object<string,string>} hist historyId per thread id from threads.list.
+ * @returns {Object<string,object>} Display row per thread id.
+ */
+function rowCacheRead_(ids, hist) {
+  var out = {};
+  var keys = ids.filter(function(id) { return hist[id]; }).map(function(id) { return HUB_ROW_CACHE_PREFIX_ + id; });
+  if (!keys.length) return out;
+  try {
+    var got = CacheService.getUserCache().getAll(keys) || {};
+    Object.keys(got).forEach(function(k) {
+      var e = JSON.parse(got[k]);
+      var id = k.slice(HUB_ROW_CACHE_PREFIX_.length);
+      if (e && e.h === hist[id] && e.row) out[id] = e.row;
+    });
+  } catch (err) {
+    DPQueue.logSafe('getTriageBoard row cache read failed, reading every thread from Gmail', err);
+    return {};
+  }
+  return out;
+}
+
+/**
+ * @param {Object<string,string>} entries Cache key to JSON value.
+ * @returns {void}
+ */
+function rowCacheWrite_(entries) {
+  if (!Object.keys(entries).length) return;
+  try {
+    CacheService.getUserCache().putAll(entries, HUB_ROW_CACHE_TTL_S_);
+  } catch (err) {
+    DPQueue.logSafe('getTriageBoard row cache write failed, the next board reads these threads from Gmail again', err);
+  }
+}
+
 var HUB_RATE_LIMITED_MSG_ = 'Gmail is limiting requests right now. Try again in a minute.';
 
 /**
@@ -469,6 +511,7 @@ function getTriageBoard(filters) {
       if (!cur || (r.Status === E.LEDGER_STATUS.ERROR && cur.Status !== E.LEDGER_STATUS.ERROR) || (cur.Status !== E.LEDGER_STATUS.ERROR && String(r.UpdatedAt) > String(cur.UpdatedAt))) ledgerByThread[r.SourceId] = r;
     });
     var ids = [];
+    var hist = {};
     var seen = {};
     var add = function(id) { if (!seen[id] && ids.length < limit) { seen[id] = true; ids.push(id); } };
     // Failed ops first: a 🎯/Task thread carries no triage label, so without this its ERROR has no Retry anywhere.
@@ -476,7 +519,9 @@ function getTriageBoard(filters) {
     var rateLimited = false;
     for (var li = 0; li < labels.length && !rateLimited; li++) {
       try {
-        DPGmailRepo.listThreadsByLabel(labels[li], { maxResults: limit }).threadIds.forEach(add);
+        var page = DPGmailRepo.listThreadsByLabel(labels[li], { maxResults: limit });
+        page.threadIds.forEach(add);
+        Object.keys(page.historyIds || {}).forEach(function(id) { hist[id] = page.historyIds[id]; });
       } catch (listErr) {
         if (!isQuotaError_(listErr)) throw listErr;
         DPQueue.logSafe('getTriageBoard list: Gmail quota hit, no further Gmail calls this build', listErr);
@@ -484,28 +529,43 @@ function getTriageBoard(filters) {
       }
     }
     if (rateLimited) ids = [];
+    var cachedRows = rowCacheRead_(ids, hist);
+    var cacheWrites = {};
     var queues = {};
     Object.keys(E.TRIAGE_QUEUE).forEach(function(k) { queues[HUB_QUEUE_KEYS_[E.TRIAGE_QUEUE[k]]] = []; });
     var errors = 0;
     var itemErrors = [];
     ids.some(function(id) {
       if (dismissed[id] && f.includeDismissed !== true) return false;
+      var led = ledgerByThread[id] || null;
+      var ledgerFields = { operationKey: led ? led.OperationKey : null, ledgerStatus: led ? led.Status : null, errorMessage: led && led.Status === E.LEDGER_STATUS.ERROR ? led.ErrorMessage : null };
+      var hit = cachedRows[id];
+      if (hit) {
+        var q = E.queueFor({ labels: hit.labels, ledgerStatus: ledgerFields.ledgerStatus }, { band: hit.band });
+        queues[HUB_QUEUE_KEYS_[q]].push(Object.assign({ threadId: id }, hit, { queue: q }, ledgerFields));
+        return false;
+      }
       try {
         var t = DPGmailRepo.getThreadMeta(id, { withBody: !countOnly, withSnippet: !countOnly });
         var scored = E.scoreThread({ labels: t.labels, userEmail: t.userEmail, messages: t.messages.map(function(m) {
           return { from: m.from, to: m.to, cc: m.cc, date: m.date, bodyText: m.bodyText, isFromUser: m.isFromUser };
         }) });
-        var led = ledgerByThread[id] || null;
-        var queue = E.queueFor({ labels: t.labels, ledgerStatus: led ? led.Status : null }, scored);
+        var queue = E.queueFor({ labels: t.labels, ledgerStatus: ledgerFields.ledgerStatus }, scored);
         var last = t.messages[t.messages.length - 1];
         var routing = E.suggestDestinations(t.labels);
-        queues[HUB_QUEUE_KEYS_[queue]].push({
-          threadId: id, url: t.url, subject: t.subject, snippet: t.lastSnippet, fromName: last ? last.fromName : '', date: last ? last.date : '', labels: t.labels,
-          score: scored.score, band: scored.band, signals: scored.signals.map(function(s) { return s.id; }), queue: queue,
+        var row = {
+          url: t.url, subject: t.subject, snippet: t.lastSnippet, fromName: last ? last.fromName : '', date: last ? last.date : '', labels: t.labels,
+          score: scored.score, band: scored.band, signals: scored.signals.map(function(s) { return s.id; }),
           ticketKey: E.extractExternalTicketKey(t.subject, last ? last.from : '', null),
-          suggestions: routing.suggestions, requireConfirmation: routing.requireConfirmation, humanReviewOnly: routing.humanReviewOnly,
-          operationKey: led ? led.OperationKey : null, ledgerStatus: led ? led.Status : null, errorMessage: led && led.Status === E.LEDGER_STATUS.ERROR ? led.ErrorMessage : null
-        });
+          suggestions: routing.suggestions, requireConfirmation: routing.requireConfirmation, humanReviewOnly: routing.humanReviewOnly
+        };
+        queues[HUB_QUEUE_KEYS_[queue]].push(Object.assign({ threadId: id }, row, { queue: queue }, ledgerFields));
+        // countOnly rows are scored without bodies, so only full reads are cached.
+        if (!countOnly && hist[id]) {
+          var keep = {};
+          HUB_ROW_CACHE_FIELDS_.forEach(function(k) { keep[k] = row[k]; });
+          cacheWrites[HUB_ROW_CACHE_PREFIX_ + id] = JSON.stringify({ h: hist[id], row: keep });
+        }
       } catch (itemErr) {
         if (isQuotaError_(itemErr)) {
           DPQueue.logSafe('getTriageBoard item: Gmail quota hit, stopping with the rows scored so far', itemErr);
@@ -518,6 +578,7 @@ function getTriageBoard(filters) {
       }
       return false;
     });
+    rowCacheWrite_(cacheWrites);
     Object.keys(queues).forEach(function(q) { queues[q].sort(function(a, b) { return b.score - a.score; }); });
     var total = Object.keys(queues).reduce(function(n, q) { return n + queues[q].length; }, 0);
     if (rateLimited) {

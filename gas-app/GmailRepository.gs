@@ -96,13 +96,17 @@ function resolveLabelId(name) {
 function listThreadsByLabel(labelName, opts) {
   var o = opts || {};
   var labelId = resolveLabelId(labelName);
-  if (!labelId) return { labelFound: false, threadIds: [], nextPageToken: null };
+  if (!labelId) return { labelFound: false, threadIds: [], historyIds: {}, nextPageToken: null };
   var params = { labelIds: [labelId], maxResults: o.maxResults || 50 };
   if (o.pageToken) params.pageToken = o.pageToken;
   var resp = Gmail.Users.Threads.list(GMAIL_ME_, params) || {};
+  // historyId moves on any new message or label change: the Triage row cache keys on it.
+  var historyIds = {};
+  (resp.threads || []).forEach(function(t) { if (t.historyId) historyIds[t.id] = String(t.historyId); });
   return {
     labelFound: true,
     threadIds: (resp.threads || []).map(function(t) { return t.id; }),
+    historyIds: historyIds,
     nextPageToken: resp.nextPageToken || null
   };
 }
