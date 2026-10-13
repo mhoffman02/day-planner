@@ -161,6 +161,65 @@ function userCalendarTimeZone_() {
 }
 
 /**
+ * Config seeds the runtime supplies. Each returns {value, cause}: value '' when unavailable (getConfig then
+ * fails SETUP_ERROR naming the key), cause the reason, for repairSeeds' error message.
+ */
+var RUNTIME_SEEDS_ = Object.freeze({
+  TimeZone: function () {
+    var tz = userCalendarTimeZone_();
+    if (tz) return { value: tz, cause: '' };
+    try { return { value: Session.getScriptTimeZone() || '', cause: '' }; } catch (e) {
+      logSafe_('Config: script time zone unavailable, leaving TimeZone empty (getConfig then fails SETUP_ERROR)', e);
+      return { value: '', cause: e.message };
+    }
+  },
+  // Gmail profile, not Session.getActiveUser: the manifest has no userinfo.email scope.
+  UserEmail: function () {
+    try { return { value: Gmail.Users.getProfile('me').emailAddress || '', cause: '' }; } catch (e) {
+      logSafe_('Config: user email unavailable from Gmail profile, leaving UserEmail empty (getConfig then fails SETUP_ERROR)', e);
+      return { value: '', cause: e.message };
+    }
+  }
+});
+
+/**
+ * @param {Array<Array<string>>} rows Config tab rows from A2.
+ * @returns {Array<{key:string, row:number}>} Runtime-seeded keys whose row exists but is blank (a seed that
+ *   failed at creation), with their 1-based Sheet row.
+ */
+function blankSeeds_(rows) {
+  var out = [];
+  rows.forEach(function (row, i) {
+    var k = cell_(row[0]);
+    if (Object.prototype.hasOwnProperty.call(RUNTIME_SEEDS_, k) && cell_(row[1]) === '') out.push({ key: k, row: i + 2 });
+  });
+  return out;
+}
+
+/** @returns {boolean} True when a provisioned Config tab has a blank runtime seed (TimeZone/UserEmail). */
+function needsRepair() {
+  return isProvisioned() && blankSeeds_(configValues_(getSheetId())).length > 0;
+}
+
+/**
+ * Fills blank TimeZone/UserEmail cells left by a seed that failed at creation (e.g. Gmail not yet approved).
+ * Never overwrites a value the user typed. Fails loud when a value is still unavailable.
+ * @returns {Array<string>} Keys filled.
+ */
+function repairSeeds() {
+  var id = getSheetId();
+  var blank = blankSeeds_(configValues_(id));
+  if (!blank.length) return [];
+  var data = blank.map(function (b) {
+    var got = RUNTIME_SEEDS_[b.key]();
+    if (!got.value) throw setupError_(b.key + ' is empty in the "Config" tab and could not be filled automatically (' + got.cause + '). Type it in the Config tab, or approve the app permissions and try again');
+    return { range: engines_().a1Range(TAB_CONFIG, 'B' + b.row), values: [[got.value]] };
+  });
+  sheets_().Values.batchUpdate({ valueInputOption: 'RAW', data: data }, id);
+  return blank.map(function (b) { return b.key; });
+}
+
+/**
  * @param {Object<string, boolean>} [featureOverrides] Flag values that replace DEFAULT_FEATURES in the seed.
  * @returns {Array<Array<string>>} Config tab rows.
  */
@@ -169,16 +228,9 @@ function buildConfigSeed_(featureOverrides) {
   var over = featureOverrides || {};
   // A seed the runtime cannot supply stays empty on purpose: getConfig() then fails loudly with
   // SETUP_ERROR naming the key, so the user fills it in the Config tab.
-  var tz = userCalendarTimeZone_();
-  var email;
-  if (!tz) { try { tz = Session.getScriptTimeZone(); } catch (e) { logSafe_('Config: script time zone unavailable, leaving TimeZone empty (getConfig then fails SETUP_ERROR)', e); tz = ''; } }
-  // Gmail profile, not Session.getActiveUser: the manifest has no userinfo.email scope.
-  try { email = Gmail.Users.getProfile('me').emailAddress; } catch (e) { logSafe_('Config: user email unavailable from Gmail profile, leaving UserEmail empty (getConfig then fails SETUP_ERROR)', e); email = ''; }
-  tz = tz || '';
-  email = email || '';
   var rows = [
-    ['TimeZone', tz],
-    ['UserEmail', email],
+    ['TimeZone', RUNTIME_SEEDS_.TimeZone().value],
+    ['UserEmail', RUNTIME_SEEDS_.UserEmail().value],
     ['TasksListId', DEFAULT_TASKS_LIST_ID],
     ['BatchSize', '25'],
     ['TriggerMinutes', '5'],
@@ -594,6 +646,8 @@ global.DPConfig = Object.freeze({
   getSheetUrl: getSheetUrl,
   getSheetLink: getSheetLink, // used by HubController.getHubSheetLink/setupHub (About link)
   forgetSheet: forgetSheet, // used by HubController.setupHub (re-create a trashed/deleted Sheet)
+  needsRepair: needsRepair, // used by HubController.getHubStatus (blank TimeZone/UserEmail seed)
+  repairSeeds: repairSeeds, // used by HubController.provisionHub_
   getSheetId: getSheetId,
   getFolderId: getFolderId,
   setRegistryDocId: setRegistryDocId,

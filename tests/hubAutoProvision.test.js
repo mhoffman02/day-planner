@@ -86,3 +86,37 @@ test('a failed auto-create fails loud (logged, failed result) and leaves no half
   assert.equal(ctx.__hub.triggers.length, 0);
   assert.match(ctx.__consoleLines.join('\n'), /disabled/);
 });
+
+test('Gmail not yet approved: first load fails loud naming the cause; the next load after approval repairs UserEmail and installs the schedule', () => {
+  // WORK 2026-10-12: the deployer had not approved gmail.modify, so the seed left UserEmail blank and
+  // installHubTriggers (getConfig) threw; the Sheet stayed half set up and later loads never finished it.
+  const ctx = makeHubContext({ realStores: 'cold' });
+  const realProfile = ctx.Gmail.Users.getProfile;
+  ctx.Gmail.Users.getProfile = () => { throw new Error('You do not have permission to call gmail.users.getProfile'); };
+  const first = call(ctx, 'getHubStatus');
+  assert.equal(first.ok, false);
+  assert.match(first.message, /UserEmail/);
+  assert.match(first.message, /permission/);
+  assert.equal(ctx.__hub.triggers.length, 0);
+  assert.equal(ctx.DPConfig.needsRepair(), true);
+
+  ctx.Gmail.Users.getProfile = realProfile;
+  const st = call(ctx, 'getHubStatus');
+  assert.equal(st.ok, true, JSON.stringify(st));
+  assert.equal(st.triggers, 1);
+  assert.equal(ctx.DPConfig.getConfig().UserEmail, 'Me@Example.test');
+  assert.equal(ctx.DPConfig.needsRepair(), false);
+  assert.equal(sheets(ctx).length, 1, 'repaired in place, not re-created');
+});
+
+test('a UserEmail the user typed is never overwritten by the repair', () => {
+  const ctx = makeHubContext({ realStores: 'cold' });
+  call(ctx, 'getHubStatus');
+  const id = ctx.DPConfig.getSheetId();
+  const rows = ctx.Sheets.Spreadsheets.Values.get(id, "'Config'!A2:B200").values;
+  const r = rows.findIndex((row) => row[0] === 'UserEmail') + 2;
+  ctx.Sheets.Spreadsheets.Values.update({ values: [['typed@example.test']] }, id, `'Config'!B${r}`, { valueInputOption: 'RAW' });
+  assert.equal(ctx.DPConfig.needsRepair(), false);
+  assert.deepEqual(toHost(ctx.DPConfig.repairSeeds()), []);
+  assert.equal(ctx.DPConfig.getConfig().UserEmail, 'typed@example.test');
+});

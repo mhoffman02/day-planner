@@ -288,6 +288,7 @@ export function makeHubContext(o = {}) {
       getSheetId: () => 'sheet1',
       isProvisioned: () => true,
       isFolderBound: () => true,
+      needsRepair: () => false,
       getSheetUrl: () => 'https://example.invalid/sheet',
       beginSnapshot: (extra) => extra.map(() => []),
       endSnapshot: () => {},

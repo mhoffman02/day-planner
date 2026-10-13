@@ -502,10 +502,11 @@ function discoverMeetingSeries() {
  */
 function getHubStatus() {
   // Runs on app load. User decision 2026-10-12: IF the hub Sheet is not present THEN create and configure it
-  // (provisionHub_). Once provisioned this costs nothing extra; before the Day Planner folder is bound it does nothing.
+  // (provisionHub_), and finish one whose TimeZone/UserEmail seed came out blank (needsRepair: one Config read).
+  // Before the Day Planner folder is bound it does nothing.
   var pre;
   try {
-    if (DPConfig.isFolderBound() && !DPConfig.isProvisioned()) provisionHub_();
+    if (DPConfig.isFolderBound() && (!DPConfig.isProvisioned() || DPConfig.needsRepair())) provisionHub_();
     pre = preflight_([], { fresh: true });
   } catch (err) {
     if (!/not found/i.test(String(err && err.message))) return failFrom_(err);
@@ -566,6 +567,7 @@ function provisionHub_() {
   var before = DPConfig.getSheetLink();
   if (before.missing === 'trashed' || before.missing === 'deleted') DPConfig.forgetSheet(DPConfig.getSheetId());
   DPConfig.ensureSetup({ autoSeed: true });
+  DPConfig.repairSeeds(); // a seed that failed at creation (e.g. Gmail not yet approved) blocks getConfig
   global._installHubTriggersInternal();
   return DPConfig.getSheetLink();
 }
