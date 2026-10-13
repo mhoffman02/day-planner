@@ -56,6 +56,12 @@ function buildDateWindow(centerDateStr, radiusDays) {
 // task-delete:<id>). value(task) is what the queue tracks as confirmed/latest, fields(value) maps
 // it back onto a task object, same(a, b) compares two values. Reloads and cache writes consult
 // every kind, so a pending title or star is never overwritten or cached as saved, same as status.
+// Triage board copy in sessionStorage (stale-while-revalidate; see loadTriageBoard).
+const TRIAGE_CACHE_KEY = 'dayPlannerTriageBoard.v1';
+const TRIAGE_FRESH_MS = 120000;
+const TRIAGE_CACHE_FIELDS = ['threadId', 'url', 'subject', 'snippet', 'fromName', 'date', 'labels', 'score', 'band', 'signals', 'queue', 'ticketKey',
+  'suggestions', 'requireConfirmation', 'humanReviewOnly', 'operationKey', 'ledgerStatus', 'errorMessage'];
+
 const TASK_SAVE_KINDS = [
   { prefix: 'task-status', value: t => t.status, fields: v => ({ status: v }), same: (a, b) => a === b },
   {
@@ -314,6 +320,9 @@ Alpine.data('plannerApp', () => ({
       hubCounts: {},
       hubNowMs: Date.now(),
       triageBoard: { queues: {} },
+      triageStale: false,
+      triageSavedAt: 0,
+      triageLoadPromise: null,
       triageLoading: false,
       triageNotice: null,
       triageReadLater: [],
@@ -583,9 +592,11 @@ Alpine.data('plannerApp', () => ({
         this.initUiZoom();
         this.initRecentTopics();
         this.initCategories();
-        this.initHub();
+        const hubReady = this.initHub();
         await this.loadDayData();
         await this.loadMasterTasks();
+        // Triage takes several seconds to build: fetch it in the background once the day view is loaded.
+        hubReady.then(() => this.prefetchTriage());
         this.setupKeyboardShortcuts();
         if (typeof window !== 'undefined') {
           window.addEventListener('beforeinstallprompt', (e) => {
@@ -994,7 +1005,8 @@ Alpine.data('plannerApp', () => ({
           await this.loadMasterTasks();
         }
         if (viewName === 'triage' && this.showTriageNav) {
-          await this.loadTriageBoard();
+          // Board from the background prefetch is fresh for 2 minutes; Refresh always reloads.
+          if (this.triageStale || Date.now() - this.triageSavedAt > TRIAGE_FRESH_MS) await this.loadTriageBoard();
         }
         if (viewName === 'meetingPrep' && this.showMeetingPrepNav) {
           await this.loadMeetingPrep();
@@ -1017,6 +1029,18 @@ Alpine.data('plannerApp', () => ({
           title: QUEUE_TITLES[key],
           items: (queues[key] || []).filter((t) => this.showReadLater || !this.triageReadLater.includes(t.threadId))
         }));
+      },
+
+      get triageStatusText() {
+        const age = this.triageSavedAt ? 'Saved ' + this.hubAgeText(this.triageSavedAt) : '';
+        if (this.triageLoading) return this.triageStale && age ? age + ' · Refreshing…' : (this.triageItemCount ? 'Refreshing…' : 'Loading…');
+        return this.triageStale && age ? age + ' · not updated' : '';
+      },
+
+      hubAgeText(ms) {
+        const min = Math.max(0, Math.floor((this.hubNowMs - ms) / 60000));
+        if (min < 1) return 'just now';
+        return min < 60 ? min + ' min ago' : Math.floor(min / 60) + ' h ago';
       },
 
       get triageItemCount() {
@@ -1127,14 +1151,17 @@ Alpine.data('plannerApp', () => ({
           const st = await this.bridge.getHubStatus();
           // New Google permissions not yet approved: show the Approve access banner, keep hub views hidden.
           this.authApprovalUrl = (st && st.status === 'AUTH_REQUIRED' && st.authUrl) || null;
-          if (this.authApprovalUrl) { this.hubFlags = null; return; }
+          if (this.authApprovalUrl) { this.hubFlags = null; this.clearTriageCache(); return; }
           if (!st || st.ok !== true) throw new Error((st && st.message) || 'Hub status unavailable');
           this.hubFlags = (st && st.flags) || null;
           this.hubDryRun = !!(st && st.dryRun);
           this.hubLastRun = (st && st.lastRun) || null;
           this.hubCounts = (st && st.counts) || {};
+          if (this.showTriageNav) this.hydrateTriageCache();
+          else this.clearTriageCache();
         } catch (err) {
           this.hubFlags = null;
+          this.clearTriageCache();
           console.error('Hub status unavailable, Triage and Meeting Prep stay hidden:', err.stack);
         }
       },
@@ -1157,19 +1184,80 @@ Alpine.data('plannerApp', () => ({
         return this.loadHubStatus();
       },
 
-      async loadTriageBoard() {
+      loadTriageBoard() {
+        // One request at a time: the background prefetch and opening Triage share it.
+        if (this.triageLoadPromise) return this.triageLoadPromise;
         this.triageLoading = true;
+        this.triageLoadPromise = (async () => {
+          try {
+            const board = await this.bridge.getTriageBoard({});
+            if (!board || board.ok !== true) throw new Error((board && board.message) || 'Triage board unavailable');
+            this.triageBoard = board;
+            this.triageStale = false;
+            this.triageSavedAt = Date.now();
+            this.saveTriageCache(board);
+            this.resolveError('load-triage');
+          } catch (err) {
+            console.error('Triage board failed to load, any saved board stays on screen marked stale:', err.stack);
+            this.reportError('load-triage', 'Triage board failed to load: ' + (err.message || err), { retry: () => this.loadTriageBoard() });
+          } finally {
+            this.triageLoading = false;
+            this.triageLoadPromise = null;
+          }
+        })();
+        return this.triageLoadPromise;
+      },
+
+      prefetchTriage() {
+        if (!this.showTriageNav) return null;
+        return this.loadTriageBoard();
+      },
+
+      // Last board, this browser tab only (sessionStorage is cleared when the tab closes). Only the
+      // fields the rows display are kept, so a new server field never lands in storage by accident.
+      saveTriageCache(board) {
         try {
-          const board = await this.bridge.getTriageBoard({});
-          if (!board || board.ok !== true) throw new Error((board && board.message) || 'Triage board unavailable');
-          this.triageBoard = board;
-          this.resolveError('load-triage');
+          const queues = {};
+          Object.keys(board.queues || {}).forEach((q) => {
+            queues[q] = (board.queues[q] || []).map((item) => {
+              const kept = {};
+              TRIAGE_CACHE_FIELDS.forEach((f) => { if (f in item) kept[f] = item[f]; });
+              return kept;
+            });
+          });
+          sessionStorage.setItem(TRIAGE_CACHE_KEY, JSON.stringify({ savedAt: this.triageSavedAt, queues }));
         } catch (err) {
-          console.error('Triage board failed to load:', err.stack);
-          this.reportError('load-triage', 'Triage board failed to load: ' + (err.message || err), { retry: () => this.loadTriageBoard() });
-        } finally {
-          this.triageLoading = false;
+          console.error('saveTriageCache: could not save the Triage board, the next page load waits for the server:', err.stack);
         }
+      },
+
+      hydrateTriageCache() {
+        if (this.triageSavedAt) return;
+        try {
+          const raw = sessionStorage.getItem(TRIAGE_CACHE_KEY);
+          if (!raw) return;
+          const saved = JSON.parse(raw);
+          if (!saved || typeof saved.savedAt !== 'number' || !saved.queues || typeof saved.queues !== 'object' || Array.isArray(saved.queues)) {
+            console.error('hydrateTriageCache: saved Triage board has the wrong shape, ignoring it');
+            return;
+          }
+          this.triageBoard = { ok: true, queues: saved.queues };
+          this.triageSavedAt = saved.savedAt;
+          this.triageStale = true;
+        } catch (err) {
+          console.error('hydrateTriageCache: could not read the saved Triage board, waiting for the server:', err.stack);
+        }
+      },
+
+      clearTriageCache() {
+        try {
+          sessionStorage.removeItem(TRIAGE_CACHE_KEY);
+        } catch (err) {
+          console.error('clearTriageCache: could not remove the saved Triage board:', err.stack);
+        }
+        this.triageBoard = { queues: {} };
+        this.triageStale = false;
+        this.triageSavedAt = 0;
       },
 
       async runTriageAction(label, call) {

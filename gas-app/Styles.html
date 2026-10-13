@@ -6297,6 +6297,12 @@
     font-weight: 600;
   }
 
+  /* Thread cell hierarchy, as in Gmail: subject (bold), sender (dark, semibold) and date (muted), preview (muted). */
+  .hub-from-name {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+
   /* Gmail inbox-style preview of the latest message: one line, click to show three. */
   .hub-snippet {
     display: -webkit-box;
@@ -6305,7 +6311,7 @@
     line-clamp: 1;
     overflow: hidden;
     width: 100%;
-    margin: 2px 0 0;
+    margin: 3px 0 0;
     padding: 0;
     border: 0;
     border-radius: 4px;
@@ -6391,6 +6397,13 @@
 
   .hub-action-btn:hover {
     background: var(--binder-teal-light);
+  }
+
+  /* Saved board on screen (still refreshing): actions wait for fresh data. */
+  .hub-action-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    background: transparent;
   }
 
   /* Triage Archive / Delete: icon + label, same flat 3px-radius chrome as the other actions. */
