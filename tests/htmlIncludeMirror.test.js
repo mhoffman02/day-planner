@@ -58,7 +58,7 @@ test('Triage Archive/Delete buttons and handlers exist in both hand-synced copie
   }
   for (const js of ['src/app.js', 'gas-app/Script.html']) {
     const src = read(js);
-    assert.match(src, /archiveTriageEntry\(item\) \{\s*return this\.runTriageAction\('Archive', \(\) => this\.bridge\.archiveTriageThread\(item\.threadId, this\.hubModeOpts\(\)\), item\.threadId\)/, `${js}: archive handler`);
+    assert.match(src, /archiveTriageEntry\(item\) \{\s*return this\.runTriageAction\('Archive', \(\) => this\.bridge\.archiveTriageThread\(item\.threadId, this\.hubModeOpts\(\)\), item\.threadId, true\)/, `${js}: archive handler`);
     assert.match(src, /trashTriageEntry\(item\) \{\s*return this\.runTriageAction\('Delete', \(\) => this\.bridge\.trashTriageThread\(item\.threadId, this\.hubModeOpts\(\)\), item\.threadId, true\)/, `${js}: delete handler`);
   }
 });

@@ -72,8 +72,17 @@ for (const [rpc, would] of [['archiveTriageThread', /Would archive/], ['trashTri
     assert.equal(call(off, rpc, 'a1').errorCode, 'FLAG_OFF');
     const ctx = setup();
     assert.equal(call(ctx, rpc, 'bad|id').errorCode, 'INVALID_THREAD_ID');
-    assert.equal(call(ctx, rpc, 'nope123').errorCode, 'THREAD_NOT_FOUND');
     assert.deepEqual(writes(off).concat(writes(ctx)), []);
+    // Live path: no separate existence read; Gmail's own 404 on the write maps to THREAD_NOT_FOUND, nothing recorded.
+    assert.equal(call(ctx, rpc, 'nope123').errorCode, 'THREAD_NOT_FOUND');
+    assert.equal(ctx.__hub.ledger.rows.size, 0);
+    assert.equal(call(setup({ ...ON, DRY_RUN: true }), rpc, 'nope123').errorCode, 'THREAD_NOT_FOUND', 'trial mode still checks the thread exists');
+  });
+
+  test(`${rpc}: live write is a single Gmail call (no extra thread read)`, () => {
+    const ctx = setup();
+    assert.equal(call(ctx, rpc, 'a1').ok, true);
+    assert.equal(ctx.__hub.gmail.calls.filter((c) => c.startsWith('threads.get')).length, 0, ctx.__hub.gmail.calls.join(','));
   });
 
   test(`${rpc}: a Gmail write failure fails loud and leaves no DISMISS row (item stays visible)`, () => {

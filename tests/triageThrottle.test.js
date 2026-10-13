@@ -68,10 +68,31 @@ describe('Triage throttling (Gmail quota)', () => {
         await vm.triageTask(b, false);
         await vm.trashTriageEntry(a);
         assert.equal(loads, 0, 'no board rebuild per click');
-        assert.deepEqual(rowIds(vm), ['b'], 'Dismiss and Delete remove their rows at once');
-        assert.equal(vm.triageQueueList[0].items[0].ledgerStatus, 'DRY_RUN', 'the acted row shows its new ledger status');
+        assert.deepEqual(rowIds(vm), [], 'Archive, Dismiss and Delete remove their rows at once');
         await flush();
         assert.equal(loads, 1, 'one debounced reload after the last action');
+      });
+
+      it('Archive removes the row at click; a failed Archive puts it back where it was', async () => {
+        let release;
+        const vm = vmFor(c, { getTriageBoard: async () => board(), archiveTriageThread: () => new Promise((r) => { release = r; }) });
+        vm.triageBoard = board();
+        vm.triageSavedAt = Date.now();
+        const pending = vm.archiveTriageEntry(vm.triageQueueList[0].items[1]);
+        await settle();
+        assert.deepEqual(rowIds(vm), ['a', 'c'], 'row leaves the screen before the server answers');
+        release({ ok: false, errorCode: 'ERROR', message: 'Gmail write failed' });
+        await pending;
+        assert.deepEqual(rowIds(vm), ['a', 'b', 'c'], 'restored at its original position');
+        assert.equal(vm.triageNotice.kind, 'error');
+      });
+
+      it('a thrown Archive also restores the row', async () => {
+        const vm = vmFor(c, { getTriageBoard: async () => board(), archiveTriageThread: async () => { throw new Error('network'); } });
+        vm.triageBoard = board();
+        vm.triageSavedAt = Date.now();
+        await captureConsoleError(() => vm.archiveTriageEntry(vm.triageQueueList[0].items[0]));
+        assert.deepEqual(rowIds(vm), ['a', 'b', 'c']);
       });
 
       it('an action finishing during an in-flight load still gets a reload after it', async () => {

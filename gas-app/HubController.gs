@@ -297,10 +297,21 @@ function gmailTriageWrite_(threadId, act, options) {
   try {
     var E = DPEngines;
     var opKey = 'GMAIL|' + threadId + '|DISMISS';
-    if (!DPGmailRepo.threadExists(threadId)) return fail_('THREAD_NOT_FOUND', 'Gmail thread not found');
-    if (pre.features.DRY_RUN === true) return E.makeResult({ ok: true, operationKey: opKey, status: 'DRY_RUN', message: act.would });
+    if (pre.features.DRY_RUN === true) {
+      if (!DPGmailRepo.threadExists(threadId)) return fail_('THREAD_NOT_FOUND', 'Gmail thread not found');
+      return E.makeResult({ ok: true, operationKey: opKey, status: 'DRY_RUN', message: act.would });
+    }
     return locked_(function() {
-      act.write(threadId);
+      // No separate existence read (Archive felt slow live 2026-10-12): Gmail's own 404 on the write says it.
+      try {
+        act.write(threadId);
+      } catch (writeErr) {
+        if ((writeErr && writeErr.code === 404) || /not found|404/i.test(String((writeErr && writeErr.message) || writeErr))) {
+          DPQueue.logSafe('gmailTriageWrite_: thread not found, nothing written', writeErr);
+          return fail_('THREAD_NOT_FOUND', 'Gmail thread not found');
+        }
+        throw writeErr;
+      }
       var existing = DPLedgerRepo.get(opKey);
       if (!existing || existing.Status !== E.LEDGER_STATUS.DONE) {
         var now = new Date();

@@ -1275,13 +1275,29 @@ Alpine.data('plannerApp', () => ({
         setTimeout(() => { this.hubNowMs = Date.now(); }, GMAIL_COOLDOWN_MS + 100);
       },
 
-      applyTriageResult(threadId, r, remove) {
-        if (!threadId || !r || r.ok !== true || !this.triageBoard || !this.triageBoard.queues) return;
+      applyTriageResult(threadId, r) {
+        if (!threadId || !r || r.ok !== true || !r.status || !this.triageBoard || !this.triageBoard.queues) return;
         const queues = this.triageBoard.queues;
         Object.keys(queues).forEach((q) => {
-          if (remove) queues[q] = queues[q].filter((i) => i.threadId !== threadId);
-          else queues[q].forEach((i) => { if (i.threadId === threadId && r.status) i.ledgerStatus = r.status; });
+          queues[q].forEach((i) => { if (i.threadId === threadId) i.ledgerStatus = r.status; });
         });
+      },
+
+      // Archive, Delete and Dismiss take the row off the screen at click (as Gmail does); a failure puts it back.
+      takeTriageRow(threadId) {
+        const queues = (this.triageBoard && this.triageBoard.queues) || {};
+        for (const q of Object.keys(queues)) {
+          const index = queues[q].findIndex((i) => i.threadId === threadId);
+          if (index !== -1) return { q, index, item: queues[q].splice(index, 1)[0] };
+        }
+        return null;
+      },
+
+      restoreTriageRow(taken) {
+        if (!taken || !this.triageBoard || !this.triageBoard.queues) return;
+        const list = this.triageBoard.queues[taken.q] || (this.triageBoard.queues[taken.q] = []);
+        if (list.some((i) => i.threadId === taken.item.threadId)) return;
+        list.splice(Math.min(taken.index, list.length), 0, taken.item);
       },
 
       // Last board, this browser tab only (sessionStorage is cleared when the tab closes). Only the
@@ -1332,16 +1348,21 @@ Alpine.data('plannerApp', () => ({
       },
 
       async runTriageAction(label, call, threadId, remove) {
+        const taken = remove ? this.takeTriageRow(threadId) : null;
         try {
           const r = await call();
           this.triageNotice = { kind: r.ok ? 'ok' : 'error', text: label + ': ' + r.message, url: r.targetUrl || null };
-          if (!r.ok) console.error('Triage action failed:', label, r);
+          if (!r.ok) {
+            console.error('Triage action failed, row restored:', label, r);
+            this.restoreTriageRow(taken);
+          }
           if (r.errorCode === 'MODE_CHANGED') await this.loadHubStatus();
-          this.applyTriageResult(threadId, r, remove);
+          if (!remove) this.applyTriageResult(threadId, r);
           this.scheduleTriageReload();
           return r;
         } catch (err) {
-          console.error('Triage action threw:', label, err.stack);
+          console.error('Triage action threw, row restored:', label, err.stack);
+          this.restoreTriageRow(taken);
           this.triageNotice = { kind: 'error', text: label + ' failed: ' + (err.message || err), url: null };
           return null;
         }
@@ -1357,7 +1378,7 @@ Alpine.data('plannerApp', () => ({
       },
 
       archiveTriageEntry(item) {
-        return this.runTriageAction('Archive', () => this.bridge.archiveTriageThread(item.threadId, this.hubModeOpts()), item.threadId);
+        return this.runTriageAction('Archive', () => this.bridge.archiveTriageThread(item.threadId, this.hubModeOpts()), item.threadId, true);
       },
 
       trashTriageEntry(item) {
