@@ -90,3 +90,39 @@ export function planBatch(a) {
     done: end >= a.items.length
   };
 }
+
+/** A scheduled dry pass is skipped at most this long; then it runs in full (occurrence cutoffs, retry backoff). */
+export const DRY_PASS_MAX_AGE_MS = 60 * 60 * 1000;
+
+function queuePlannerCanonical(v) {
+  if (Array.isArray(v)) return '[' + v.map(queuePlannerCanonical).join(',') + ']';
+  if (v && typeof v.toJSON === 'function') return JSON.stringify(v); // Date cells in registry rows
+  if (v && typeof v === 'object') {
+    return '{' + Object.keys(v).sort().map((k) => JSON.stringify(k) + ':' + queuePlannerCanonical(v[k])).join(',') + '}';
+  }
+  return JSON.stringify(v === undefined ? null : v);
+}
+
+/**
+ * Everything a dry pass's result depends on, as one order-independent string (hash it before storing).
+ * Items already reflect the ledger (DONE and blocked keys are filtered out) and the selected meeting occurrence.
+ * @param {{items:Array<{opKey:string,threadId:string}>, historyIds:Object<string,string>, features:object, settings:object, registry:Array<object>}} a
+ * @returns {string} Canonical fingerprint source.
+ */
+export function dryPassFingerprintSource(a) {
+  const hist = a.historyIds || {};
+  const rows = (a.items || []).map((it) => it.opKey + '@' + (hist[it.threadId] || '')).sort();
+  return queuePlannerCanonical({ items: rows, features: a.features || {}, settings: a.settings || {}, registry: a.registry || [] });
+}
+
+/**
+ * Trial mode writes no DONE rows, so without this every scheduled tick re-reads Gmail for the same batch.
+ * Only a scheduled dry pass skips, and only when nothing it depends on changed since the last full dry pass.
+ * @param {{scheduled:boolean, dry:boolean, fingerprint:string, last:({fp:string, at:string}|null), nowMs:number, maxAgeMs?:number}} a
+ * @returns {boolean} True to skip the per-thread reads and reuse the last dry result.
+ */
+export function shouldSkipDryPass(a) {
+  if (!a.scheduled || !a.dry || !a.last || a.last.fp !== a.fingerprint) return false;
+  const age = a.nowMs - Date.parse(a.last.at);
+  return age >= 0 && age < (a.maxAgeMs || DRY_PASS_MAX_AGE_MS);
+}

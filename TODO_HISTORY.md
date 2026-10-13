@@ -1,5 +1,12 @@
 # Task History (TODO_HISTORY)
 
+## 2026-10-13 — Queue job: Gmail quota in trial mode
+
+- [x] **Gmail quota watch (WORK)**: archived 🎯/ threads stay in the queue on purpose (label-and-archive files work;
+  DONE ones cost only the list page). The real waste was DRY_RUN: no DONE rows, so every 5-min tick re-read up to
+  25 threads. A scheduled dry tick whose thread historyIds, flags, settings and registry match the last full dry
+  pass (max 1 h) now re-reports it with no per-thread reads; manual runs and CORE_CARRYIN always run in full.
+
 ## 2026-10-13 — Hub Triage: trial-mode controls, speed, Gmail quota, Inbox only (WORK v145, build 483)
 
 - [x] **Trial mode controls**: in-app Review and go live dialog, Undo snackbar, Switch to trial, header badge, and a

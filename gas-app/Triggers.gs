@@ -138,7 +138,7 @@ function hubDispatch() {
     var summary = { queue: null, jobs: {} };
     // CORE_CARRYIN is itself a queue pass; run the regular pass only once per tick.
     var queueOnce = due.indexOf('CORE_CARRYIN') === -1;
-    if (queueOnce) summary.queue = DPQueue.run(false).status;
+    if (queueOnce) summary.queue = DPQueue.run(false, { scheduled: true }).status;
     due.forEach(function(job) {
       try {
         var jobResult = runJob_(job, features, today, settings);

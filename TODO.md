@@ -18,7 +18,5 @@ Everything here needs the user (GSA account, a release go, or a decision). HOME 
   open two tabs, Go live in tab A, then Archive in tab B is refused with "Refresh before acting".
 - [ ] **Approval banner after consent redirect**: on WORK the page reloaded after approving and still showed the
   banner; "Check again" cleared it. Optional: re-check automatically when the tab regains focus.
-- [ ] **Gmail quota watch (WORK)**: Triage is now Inbox-only and cached. If "Gmail is limiting requests" comes back,
-  check the background queue job: it pages through every thread with a 🎯/ action label, archived ones included.
 - [ ] **UAT run (Phase 30)**: work through About > **Tutorial** T01-T15 on HOME, then WORK; paste each run's
   "Copy results" into this file. Failures become TODO items.

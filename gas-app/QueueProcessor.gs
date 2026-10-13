@@ -20,7 +20,10 @@
  *     retryFailedOperation RPC always re-runs;
  *   - quota: one Sheets read of the ledger per run (DPLedgerRepo session, write-through) and one
  *     Tasks list read per run (DPTaskRepo run cache); no new item starts after 4 minutes of
- *     elapsed time, unstarted items stay untouched and the lock is released normally.
+ *     elapsed time, unstarted items stay untouched and the lock is released normally. Archived threads
+ *     with a 🎯/ label are listed on purpose (label-and-archive is a normal way to file work); DRY_RUN
+ *     writes no DONE rows, so a scheduled dry tick whose inputs match the last full dry pass (thread
+ *     historyIds, flags, settings, registry; at most 1 h old) re-reports it without per-thread reads.
  * All flags default OFF, so with the flags off processWorkflowQueue is a no-op that touches no
  * Google service. DRY_RUN performs no Tasks/Docs/Ledger writes and returns the spec strings; its
  * only side effect is the HUB_LAST_RUN_DRY property (never HUB_LAST_RUN).
@@ -34,6 +37,7 @@
 
 var QUEUE_LAST_RUN_PROP_ = 'HUB_LAST_RUN';
 var QUEUE_LAST_RUN_DRY_PROP_ = 'HUB_LAST_RUN_DRY';
+var QUEUE_DRY_FP_PROP_ = 'HUB_DRY_PASS_FP';   // {fp, at} of the last full dry pass (scheduled ticks reuse it)
 var QUEUE_MAX_RUN_MS_ = 4 * 60 * 1000;
 var QUEUE_LOCK_WAIT_MS_ = 500;
 var QUEUE_PAGE_SIZE_ = 100;
@@ -357,6 +361,7 @@ function collectItems_(ctx) {
     do {
       var page = DPGmailRepo.listThreadsByLabel(label, { maxResults: QUEUE_PAGE_SIZE_, pageToken: pageToken });
       ids = ids.concat(page.threadIds);
+      Object.keys(page.historyIds || {}).forEach(function(tid) { ctx.historyIds[tid] = page.historyIds[tid]; });
       pageToken = page.nextPageToken;
       pages += 1;
     } while (pageToken && pages < QUEUE_MAX_PAGES_);
@@ -425,9 +430,10 @@ function collectItems_(ctx) {
  * starting new items after QUEUE_MAX_RUN_MS_.
  * @param {boolean} dry True for DRY_RUN.
  * @param {object} features Feature flags.
+ * @param {{scheduled?:boolean}} [opts] scheduled: trigger tick, may reuse an unchanged dry result.
  * @returns {object} makeResult-shaped summary.
  */
-function runLocked_(dry, features) {
+function runLocked_(dry, features, opts) {
   var E = DPEngines;
   var startMs = Date.now();
   var store = ledgerStore();
@@ -452,7 +458,15 @@ function runLocked_(dry, features) {
       }
     });
     var errors = [];
-    var items = collectItems_({ features: features, settings: settings, registry: registry, doneKeys: doneKeys, blockedKeys: blockedKeys, ledgerRows: ledgerRows, meetingDoneThreads: meetingDoneThreads, errors: errors });
+    var historyIds = {};
+    var items = collectItems_({ features: features, settings: settings, registry: registry, doneKeys: doneKeys, blockedKeys: blockedKeys, ledgerRows: ledgerRows, meetingDoneThreads: meetingDoneThreads, errors: errors, historyIds: historyIds });
+    var fingerprint = null;
+    if (dry) {
+      fingerprint = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,
+        E.dryPassFingerprintSource({ items: items, historyIds: historyIds, features: features, settings: settings, registry: registry }), Utilities.Charset.UTF_8));
+      var skipped = reuseUnchangedDryPass_(!!(opts && opts.scheduled), fingerprint);
+      if (skipped) return skipped;
+    }
     var metaByThread = {};
     var plan = E.planBatch({
       items: items,
@@ -511,7 +525,11 @@ function runLocked_(dry, features) {
     var status = dry ? 'DRY_RUN' : (counts.errors === 0 ? 'DONE' : (succeeded === 0 ? 'FAILED' : 'PARTIAL'));
     var failedLead = counts.errors ? counts.errors + ' of ' + (succeeded + counts.errors) + ' items failed; ' : '';
     // DRY_RUN never touches the live HUB_LAST_RUN record, only its own clearly named property.
-    PropertiesService.getUserProperties().setProperty(dry ? QUEUE_LAST_RUN_DRY_PROP_ : QUEUE_LAST_RUN_PROP_, JSON.stringify({ at: new Date().toISOString(), status: status, counts: counts }));
+    var props = PropertiesService.getUserProperties();
+    var at = new Date().toISOString();
+    props.setProperty(dry ? QUEUE_LAST_RUN_DRY_PROP_ : QUEUE_LAST_RUN_PROP_, JSON.stringify({ at: at, status: status, counts: counts }));
+    // A time-limited pass did not see every item, so it is no baseline for skipping the next tick.
+    if (dry && !timeLimited) props.setProperty(QUEUE_DRY_FP_PROP_, JSON.stringify({ fp: fingerprint, at: at }));
     var done = !timeLimited && items.length <= settings.batchSize;
     return E.makeResult({ ok: counts.errors === 0, status: status,
       message: failedLead + (dry ? 'Dry run: ' : '') + counts.processed + ' processed, ' + counts.skipped + ' skipped, ' + counts.errors + ' errors, ' + counts.quarantined + ' quarantined' +
@@ -525,11 +543,43 @@ function runLocked_(dry, features) {
 }
 
 /**
+ * @param {string} name User property holding JSON.
+ * @returns {object|null} Parsed value, or null when missing or corrupt (logged; the caller then does a full pass).
+ */
+function readJsonProp_(name) {
+  try {
+    return JSON.parse(PropertiesService.getUserProperties().getProperty(name) || 'null');
+  } catch (err) {
+    logSafe_('readJsonProp_ ' + name + ' is corrupt, running a full dry pass', err);
+    return null;
+  }
+}
+
+/**
+ * Trial mode writes no DONE rows, so each tick would re-read Gmail for the same batch. When the scheduled tick's
+ * inputs match the last full dry pass, re-report that pass instead of reading every thread again.
+ * @param {boolean} scheduled True on the trigger tick (manual runs always do a full pass).
+ * @param {string} fingerprint Digest of this tick's inputs.
+ * @returns {object|null} makeResult-shaped DRY_RUN result, or null to run the full pass.
+ */
+function reuseUnchangedDryPass_(scheduled, fingerprint) {
+  var last = readJsonProp_(QUEUE_DRY_FP_PROP_);
+  var prior = readJsonProp_(QUEUE_LAST_RUN_DRY_PROP_);
+  if (!prior || !DPEngines.shouldSkipDryPass({ scheduled: scheduled, dry: true, fingerprint: fingerprint, last: last, nowMs: new Date().getTime() })) return null;
+  var at = new Date().toISOString();
+  PropertiesService.getUserProperties().setProperty(QUEUE_LAST_RUN_DRY_PROP_,
+    JSON.stringify({ at: at, status: 'DRY_RUN', counts: prior.counts, unchangedSince: last.at }));
+  return DPEngines.makeResult({ ok: true, status: 'DRY_RUN', message: 'Dry run: nothing changed since ' + last.at + '; Gmail not re-read',
+    counts: prior.counts, messages: [], errors: [], done: true, unchangedSince: last.at });
+}
+
+/**
  * Shared implementation for the RPC and the dispatcher.
  * @param {boolean} forceDry Only ever forces DRY_RUN on; never turns it off.
+ * @param {{scheduled?:boolean}} [opts] scheduled: the trigger tick (hubDispatch).
  * @returns {object} makeResult-shaped result.
  */
-function runQueue(forceDry) {
+function runQueue(forceDry, opts) {
   var missing = missingDependency_();
   if (missing) return typeof DPEngines === 'undefined' ? { ok: false, message: 'DPEngines is not loaded' } : setupResult_('Missing dependency ' + missing);
   try {
@@ -539,7 +589,7 @@ function runQueue(forceDry) {
       return DPEngines.makeResult({ ok: true, status: 'NOOP', message: 'GMAIL_ROUTER flag is off' });
     }
     var dry = !!forceDry || features.DRY_RUN === true;
-    var locked = withLock(QUEUE_LOCK_WAIT_MS_, function() { return runLocked_(dry, features); });
+    var locked = withLock(QUEUE_LOCK_WAIT_MS_, function() { return runLocked_(dry, features, opts); });
     if (!locked.locked) return DPEngines.makeResult({ ok: true, status: 'LOCK_BUSY', message: 'Another run holds the lock; skipped' });
     return locked.value;
   } catch (err) {
