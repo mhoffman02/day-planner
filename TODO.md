@@ -15,12 +15,9 @@ Everything here needs the user (GSA account, a release go, or a decision). HOME 
   the GSA user clicks About > Automatic Tasks > **Set up hub**, sets `GMAIL_ROUTER` + `NCMMS_CORE_PILOT` TRUE (keep
   `DRY_RUN` TRUE) and fills the NCMMS-Core notes Doc in Meeting Registry. Then check a real NCMMS series renders and
   the carry-in count equals the Doc (Tutorial T14). WORK has no hub trigger yet (separate install as the GSA user).
-- [ ] **gmail.modify rollout (Triage Archive/Delete, build 466)**: HOME `/dev` pushed 2026-10-12 with the new scope.
-  User: (1) open HOME `/dev` once and accept the new Gmail permission. The HOME hub trigger fails auth until then.
-  (2) GCP Google Auth Platform > Data access: add `gmail.modify`. (3) Redo the rpc login (`--use-project-scopes`)
-  so gas-rpc picks up the new scope. (4) The public privacy page (master/gas-removal branch, 931afe3) still says
-  "read-only Gmail" and must say archive/trash before the WORK repoint. (5) WORK v135 = this build; close or reload
-  the open WORK IDE tab before repointing. If the .gov org blocks `gmail.modify` at consent, repoint WORK back to
-  **v134**. Then run Tutorial T15 live.
+- [ ] **gmail.modify rollout on WORK**: HOME is done (2026-10-12: consent, GCP Data access, rpc re-login, privacy
+  page fac809b on master, Tutorial T15 passed live via gas-rpc). WORK v136 = build 467. Close or reload the open WORK
+  IDE tab, repoint `/exec`, approve the new Gmail permission as the GSA user. If the .gov org blocks `gmail.modify`,
+  repoint back to **v134**.
 - [ ] **UAT run (Phase 30)**: work through About > **Tutorial** T01-T14 on HOME, then WORK; paste each run's
   "Copy results" into this file. Failures become TODO items.
