@@ -309,6 +309,7 @@ Alpine.data('plannerApp', () => ({
       goLive: { open: false, busy: false, opener: null },
       hubModeSnack: null,
       hubModeSnackTimer: null,
+      hubSnippetOpenId: '',
       hubLastRun: null,
       hubCounts: {},
       hubNowMs: Date.now(),
@@ -1040,6 +1041,10 @@ Alpine.data('plannerApp', () => ({
 
       // Sent with every Triage write: the server refuses (MODE_CHANGED) when the Sheet mode differs from the screen.
       hubModeOpts() { return { expectDryRun: this.hubDryRun }; },
+
+      toggleSnippet(threadId) {
+        this.hubSnippetOpenId = this.hubSnippetOpenId === threadId ? '' : threadId;
+      },
 
       hideTrialBannerToday() {
         this.hubTrialHiddenOn = getLocalDateStr();

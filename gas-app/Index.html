@@ -1275,6 +1275,7 @@
                             <td>
                               <span class="hub-subject" x-text="item.subject"></span>
                               <span class="hub-from" x-text="item.fromName + ' · ' + (item.date || '').replace('T', ' ').slice(0, 16)"></span>
+                              <button type="button" class="hub-snippet" x-show="item.snippet" :class="hubSnippetOpenId === item.threadId ? 'is-open' : ''" :aria-expanded="hubSnippetOpenId === item.threadId" @click="toggleSnippet(item.threadId)" :title="hubSnippetOpenId === item.threadId ? 'Show less' : 'Show more of the latest message'" x-text="item.snippet"></button>
                               <template x-if="item.suggestions &amp;&amp; item.suggestions.length > 0">
                                 <span class="hub-suggest">Suggested:
                                   <template x-for="d in item.suggestions" :key="d.seriesKey">

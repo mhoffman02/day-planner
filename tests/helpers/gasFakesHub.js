@@ -90,6 +90,7 @@ function makeGmail(h) {
             messages: t.messages.map((m) => ({
               id: m.id,
               labelIds: m.labelIds,
+              snippet: m.snippet,
               internalDate: String(m.internalDate),
               payload: {
                 headers: [{ name: 'From', value: m.from }, { name: 'To', value: m.to }, { name: 'Cc', value: m.cc || '' }, { name: 'Subject', value: m.subject }, { name: 'Date', value: new Date(m.internalDate).toUTCString() }],
@@ -319,10 +320,10 @@ function finishLoad(ctx, o) {
 export function addThread(ctx, t) {
   const h = ctx.__hub;
   const ids = (t.labels || []).map((n) => h.gmail.labelId(n));
-  const msgs = t.messages || [{ from: t.from || 'Pat Example <pat@example.test>', to: t.to || 'me@example.test', subject: t.subject || 'Subject', body: t.body || 'plain body', cc: t.cc }];
+  const msgs = t.messages || [{ from: t.from || 'Pat Example <pat@example.test>', to: t.to || 'me@example.test', subject: t.subject || 'Subject', body: t.body || 'plain body', cc: t.cc, snippet: t.snippet }];
   h.gmail.threads[t.id] = {
     id: t.id,
-    messages: msgs.map((m, i) => ({ id: `${t.id}m${i}`, labelIds: ids, internalDate: Date.parse(t.date || '2026-10-05T20:00:00Z') + i * 60000, from: m.from, to: m.to || 'me@example.test', cc: m.cc, subject: m.subject || t.subject || 'Subject', body: m.body }))
+    messages: msgs.map((m, i) => ({ id: `${t.id}m${i}`, labelIds: ids, internalDate: Date.parse(t.date || '2026-10-05T20:00:00Z') + i * 60000, from: m.from, to: m.to || 'me@example.test', cc: m.cc, subject: m.subject || t.subject || 'Subject', body: m.body, snippet: m.snippet || '' }))
   };
 }
 

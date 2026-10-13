@@ -432,7 +432,8 @@ function getMeetingPrep(seriesKey, occurrenceId) {
 
 /**
  * Builds the triage board: deterministic score, queue, destination suggestions and ledger status
- * per candidate thread. Bodies are scored in memory and never returned.
+ * per candidate thread. Bodies are scored in memory and never returned; each item carries Gmail's snippet of the
+ * latest message (the inbox preview line) for display only, never logged or stored.
  * @param {{labels?:string[], limit?:number, includeDismissed?:boolean}} [filters] Board filters.
  * @returns {object} makeResult-shaped result with queues.
  */
@@ -469,7 +470,7 @@ function getTriageBoard(filters) {
     ids.forEach(function(id) {
       if (dismissed[id] && f.includeDismissed !== true) return;
       try {
-        var t = DPGmailRepo.getThreadMeta(id, { withBody: !countOnly });
+        var t = DPGmailRepo.getThreadMeta(id, { withBody: !countOnly, withSnippet: !countOnly });
         var scored = E.scoreThread({ labels: t.labels, userEmail: t.userEmail, messages: t.messages.map(function(m) {
           return { from: m.from, to: m.to, cc: m.cc, date: m.date, bodyText: m.bodyText, isFromUser: m.isFromUser };
         }) });
@@ -478,7 +479,7 @@ function getTriageBoard(filters) {
         var last = t.messages[t.messages.length - 1];
         var routing = E.suggestDestinations(t.labels);
         queues[HUB_QUEUE_KEYS_[queue]].push({
-          threadId: id, url: t.url, subject: t.subject, fromName: last ? last.fromName : '', date: last ? last.date : '', labels: t.labels,
+          threadId: id, url: t.url, subject: t.subject, snippet: t.lastSnippet, fromName: last ? last.fromName : '', date: last ? last.date : '', labels: t.labels,
           score: scored.score, band: scored.band, signals: scored.signals.map(function(s) { return s.id; }), queue: queue,
           ticketKey: E.extractExternalTicketKey(t.subject, last ? last.from : '', null),
           suggestions: routing.suggestions, requireConfirmation: routing.requireConfirmation, humanReviewOnly: routing.humanReviewOnly,

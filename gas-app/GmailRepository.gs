@@ -22,6 +22,8 @@ var GMAIL_ME_ = 'me';
 var GMAIL_URL_BASE_ = 'https://mail.google.com/mail/#all/';
 var GMAIL_THREAD_ID_RE_ = /^[A-Za-z0-9_-]{1,64}$/;
 var GMAIL_BODY_CAP_ = 4000;
+// Triage row preview: Gmail's own snippet of the latest message (Gmail sends about 200 chars).
+var GMAIL_SNIPPET_CAP_ = 300;
 var GMAIL_META_HEADERS_ = ['From', 'To', 'Cc', 'Subject', 'Date'];
 var gmailLabelCache_ = null;
 
@@ -186,6 +188,23 @@ function bodyText_(payload) {
   return out.join('\n').slice(0, GMAIL_BODY_CAP_);
 }
 
+/**
+ * Gmail snippets arrive HTML-escaped (&#39; &amp; ...). Decoded to plain text for x-text display.
+ * @param {string} s Raw Gmail snippet.
+ * @returns {string} Plain text, capped.
+ */
+function decodeSnippet_(s) {
+  var named = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
+  return String(s || '').replace(/&(#x[0-9a-f]+|#[0-9]+|[a-z]+);/gi, function(all, code) {
+    if (code.charAt(0) === '#') {
+      var n = code.charAt(1).toLowerCase() === 'x' ? parseInt(code.slice(2), 16) : parseInt(code.slice(1), 10);
+      return n > 0 && n < 0x110000 ? String.fromCodePoint(n) : all;
+    }
+    var v = named[code.toLowerCase()];
+    return v === undefined ? all : v;
+  }).slice(0, GMAIL_SNIPPET_CAP_);
+}
+
 var userEmailMemo_ = null;
 
 /**
@@ -201,8 +220,9 @@ function userEmail_() {
 /**
  * Reads a thread and normalizes it. Throws with code THREAD_NOT_FOUND (retryable false) on 404.
  * @param {string} threadId Gmail thread id.
- * @param {{withBody?:boolean}} [opts] withBody reads format full (bodies kept in memory only).
- * @returns {{threadId:string,url:string,subject:string,labels:string[],userEmail:string,lastMessageId:string,
+ * @param {{withBody?:boolean, withSnippet?:boolean}} [opts] withBody reads format full (bodies kept in memory only);
+ *   withSnippet adds lastSnippet, Gmail's preview of the latest message (Triage board only).
+ * @returns {{threadId:string,url:string,subject:string,labels:string[],userEmail:string,lastMessageId:string,lastSnippet:string,
  *   messages:Array<{id:string,from:string,fromName:string,to:string[],cc:string[],date:string,isFromUser:boolean,bodyText:string}>}}
  *   Normalized thread. bodyText is empty unless withBody.
  */
@@ -257,6 +277,7 @@ function getThreadMeta(threadId, opts) {
     labels: labels,
     userEmail: me,
     lastMessageId: messages.length ? messages[messages.length - 1].id : '',
+    lastSnippet: opts && opts.withSnippet && thread.messages && thread.messages.length ? decodeSnippet_(thread.messages[thread.messages.length - 1].snippet) : '',
     messages: messages
   };
 }

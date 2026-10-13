@@ -6296,6 +6296,40 @@
     font-weight: 600;
   }
 
+  /* Gmail inbox-style preview of the latest message: one line, click to show three. */
+  .hub-snippet {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+    overflow: hidden;
+    width: 100%;
+    margin: 2px 0 0;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: none;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.8rem;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .hub-snippet.is-open {
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+  }
+
+  .hub-snippet:hover {
+    color: var(--text-primary);
+  }
+
+  .hub-snippet:focus-visible {
+    outline: 2px solid var(--binder-teal);
+    outline-offset: 2px;
+  }
+
   .hub-from,
   .hub-suggest,
   .hub-signals,

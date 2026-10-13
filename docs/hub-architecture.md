@@ -121,7 +121,7 @@ Gmail (user applies 🎯/ label)                     Calendar (recurring series)
 3. **Meeting routing**: `selectOccurrence` picks the occurrence; if the prep cutoff has passed the item defers to the
    next one (override available). The carry-in line is inserted once into the occurrence block, with a Gmail link;
    the dedupe signature rides in the link, so editing the visible text does not cause a duplicate.
-4. **Safety**: bodies are read in memory for scoring only, never logged, stored, or returned; `GmailApp` is banned;
+4. **Safety**: bodies are read in memory for scoring only, never logged, stored, or returned (the Triage board returns only Gmail's own `snippet` of the latest message, the inbox preview line, for display; it is never logged or stored); `GmailApp` is banned;
    sensitive labels block every AI path; `DRY_RUN` makes each write a "Would ..." message.
 5. **Concurrency**: one script lock around the action; hub writes assume the caller holds it (Config/Ledger take no
    lock of their own because Apps Script locks are not re-entrant).

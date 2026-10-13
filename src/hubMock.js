@@ -29,12 +29,31 @@ function bandFor(score) {
   return TRIAGE_BAND.NOISE;
 }
 
+/** Gmail snippet of the latest message per mock thread (server: getThreadMeta lastSnippet). */
+const MOCK_SNIPPETS = {
+  't-1001': 'Hi, please approve the COR designation for the TRM task order by Friday so contracting can issue the mod. The signed form is attached.',
+  't-1002': 'Quick check before the Q3 review: who owns the elevator data feed now that Sam moved teams? Can you confirm by Wednesday?',
+  't-1003': 'Thanks for the draft. My comments on the SOW are inline; section 4.2 still needs the performance standards.',
+  't-1004': 'The facilities tech survey closed with 212 responses. Summary deck attached; could you review the recommendations?',
+  't-2001': 'Three open items on the cutover schedule: data freeze date, rollback owner, and the training window.',
+  't-2002': 'The vendor invoice for September is 8% over the ceiling. Do we hold payment until the Core meeting?',
+  't-2003': 'Work order sync failed for 14 records overnight. Retry did not clear them. Ticket NCS-2231.',
+  't-3001': '6 issues changed state: NCMMS-412 Done, NCMMS-418 In Review, NCMMS-420 Blocked...',
+  't-3002': 'INC0045122 has been assigned to your group. Priority 3. Short description: badge reader offline.',
+  't-3003': 'Your script Day Planner has recently failed to finish successfully. A summary of the failures is shown below.',
+  't-3004': 'Unit 3 at 1800 F St is out of service as of 07:40. Estimated return: tomorrow noon.',
+  't-4001': 'This week: OMB AI guidance, agency cloud budgets, and a look at modernization funding.',
+  't-4002': 'Starting Monday the C-level garage requires the new permit. Old hang tags expire Oct 31.',
+  't-4003': 'Your monthly usage report for September is ready. No action is needed.'
+};
+
 /** Server shape of one triage item (see HubController.getTriageBoard); ledger fields are filled at read time. */
 function thread(id, subject, from, ageMin, score, signals, labels, suggestions) {
   return {
     threadId: id,
     url: GMAIL_BASE + id,
     subject,
+    snippet: MOCK_SNIPPETS[id] || '',
     fromName: from,
     date: localIso(-ageMin),
     labels,
