@@ -59,6 +59,10 @@ function buildDateWindow(centerDateStr, radiusDays) {
 // Triage board copy in sessionStorage (stale-while-revalidate; see loadTriageBoard).
 const TRIAGE_CACHE_KEY = 'dayPlannerTriageBoard.v1';
 const TRIAGE_FRESH_MS = 120000;
+const TRIAGE_PREFETCH_MIN_AGE_MS = 300000;
+const TRIAGE_RELOAD_DEBOUNCE_MS = 15000;
+const GMAIL_COOLDOWN_KEY = 'dayPlannerGmailCooldownUntil';
+const GMAIL_COOLDOWN_MS = 75000;
 const TRIAGE_CACHE_FIELDS = ['threadId', 'url', 'subject', 'snippet', 'fromName', 'date', 'labels', 'score', 'band', 'signals', 'queue', 'ticketKey',
   'suggestions', 'requireConfirmation', 'humanReviewOnly', 'operationKey', 'ledgerStatus', 'errorMessage'];
 
@@ -323,6 +327,9 @@ Alpine.data('plannerApp', () => ({
       triageStale: false,
       triageSavedAt: 0,
       triageLoadPromise: null,
+      triageReloadQueued: false,
+      triageReloadTimer: null,
+      gmailCooldownUntil: 0,
       triageLoading: false,
       triageNotice: null,
       triageReadLater: [],
@@ -1031,7 +1038,12 @@ Alpine.data('plannerApp', () => ({
         }));
       },
 
+      get gmailCoolingDown() {
+        return this.gmailCooldownUntil > this.hubNowMs;
+      },
+
       get triageStatusText() {
+        if (this.gmailCoolingDown && !this.triageLoading) return 'Gmail is limiting requests. Try again in a minute.';
         const age = this.triageSavedAt ? 'Saved ' + this.hubAgeText(this.triageSavedAt) : '';
         if (this.triageLoading) return this.triageStale && age ? age + ' · Refreshing…' : (this.triageItemCount ? 'Refreshing…' : 'Loading…');
         return this.triageStale && age ? age + ' · not updated' : '';
@@ -1138,7 +1150,7 @@ Alpine.data('plannerApp', () => ({
 
       async refreshTriage() {
         await this.loadHubStatus();
-        await this.loadTriageBoard();
+        await this.loadTriageBoard({ after: true });
       },
 
       async refreshMeetingPrep() {
@@ -1184,13 +1196,24 @@ Alpine.data('plannerApp', () => ({
         return this.loadHubStatus();
       },
 
-      loadTriageBoard() {
-        // One request at a time: the background prefetch and opening Triage share it.
-        if (this.triageLoadPromise) return this.triageLoadPromise;
+      loadTriageBoard(opts) {
+        // One request at a time: the background prefetch and opening Triage share it. A caller that needs
+        // data from after now (a finished action) queues one more load behind the request in flight.
+        if (this.triageLoadPromise) {
+          if (opts && opts.after) this.triageReloadQueued = true;
+          return this.triageLoadPromise;
+        }
+        if (this.readGmailCooldown() > Date.now()) return Promise.resolve();
         this.triageLoading = true;
         this.triageLoadPromise = (async () => {
           try {
             const board = await this.bridge.getTriageBoard({});
+            if (board && board.errorCode === 'RATE_LIMITED') {
+              this.startGmailCooldown();
+              console.error('Triage board: Gmail quota hit, saved rows stay and loads pause for', GMAIL_COOLDOWN_MS, 'ms', board.message);
+              this.reportError('load-triage', board.message || 'Gmail is limiting requests. Try again in a minute.', { retry: () => this.loadTriageBoard() });
+              return;
+            }
             if (!board || board.ok !== true) throw new Error((board && board.message) || 'Triage board unavailable');
             this.triageBoard = board;
             this.triageStale = false;
@@ -1203,14 +1226,62 @@ Alpine.data('plannerApp', () => ({
           } finally {
             this.triageLoading = false;
             this.triageLoadPromise = null;
+            if (this.triageReloadQueued) {
+              this.triageReloadQueued = false;
+              this.loadTriageBoard();
+            }
           }
         })();
         return this.triageLoadPromise;
       },
 
+      // Startup prefetch: only when the saved board is old enough to be worth a Gmail read.
       prefetchTriage() {
         if (!this.showTriageNav) return null;
+        if (this.triageSavedAt && Date.now() - this.triageSavedAt < TRIAGE_PREFETCH_MIN_AGE_MS) return null;
         return this.loadTriageBoard();
+      },
+
+      // After row actions: one board reload once the clicking stops, not a full Gmail rebuild per click.
+      scheduleTriageReload() {
+        if (this.triageReloadTimer) clearTimeout(this.triageReloadTimer);
+        this.triageReloadTimer = setTimeout(() => {
+          this.triageReloadTimer = null;
+          this.loadTriageBoard({ after: true });
+        }, TRIAGE_RELOAD_DEBOUNCE_MS);
+      },
+
+      // Cooldown after Gmail RATE_LIMITED, shared by every tab (a timestamp only, no email content).
+      readGmailCooldown() {
+        try {
+          const until = Number(localStorage.getItem(GMAIL_COOLDOWN_KEY)) || 0;
+          this.gmailCooldownUntil = until;
+          return until;
+        } catch (err) {
+          console.error('readGmailCooldown: could not read the Gmail cooldown, loading anyway:', err.stack);
+          return 0;
+        }
+      },
+
+      startGmailCooldown() {
+        const until = Date.now() + GMAIL_COOLDOWN_MS;
+        this.gmailCooldownUntil = until;
+        this.hubNowMs = Date.now();
+        try {
+          localStorage.setItem(GMAIL_COOLDOWN_KEY, String(until));
+        } catch (err) {
+          console.error('startGmailCooldown: could not share the cooldown with other tabs:', err.stack);
+        }
+        setTimeout(() => { this.hubNowMs = Date.now(); }, GMAIL_COOLDOWN_MS + 100);
+      },
+
+      applyTriageResult(threadId, r, remove) {
+        if (!threadId || !r || r.ok !== true || !this.triageBoard || !this.triageBoard.queues) return;
+        const queues = this.triageBoard.queues;
+        Object.keys(queues).forEach((q) => {
+          if (remove) queues[q] = queues[q].filter((i) => i.threadId !== threadId);
+          else queues[q].forEach((i) => { if (i.threadId === threadId && r.status) i.ledgerStatus = r.status; });
+        });
       },
 
       // Last board, this browser tab only (sessionStorage is cleared when the tab closes). Only the
@@ -1260,13 +1331,14 @@ Alpine.data('plannerApp', () => ({
         this.triageSavedAt = 0;
       },
 
-      async runTriageAction(label, call) {
+      async runTriageAction(label, call, threadId, remove) {
         try {
           const r = await call();
           this.triageNotice = { kind: r.ok ? 'ok' : 'error', text: label + ': ' + r.message, url: r.targetUrl || null };
           if (!r.ok) console.error('Triage action failed:', label, r);
           if (r.errorCode === 'MODE_CHANGED') await this.loadHubStatus();
-          await this.loadTriageBoard();
+          this.applyTriageResult(threadId, r, remove);
+          this.scheduleTriageReload();
           return r;
         } catch (err) {
           console.error('Triage action threw:', label, err.stack);
@@ -1277,19 +1349,19 @@ Alpine.data('plannerApp', () => ({
 
       triageTask(item, today) {
         const priority = today ? (item.score >= 8 ? 'A1' : 'B1') : (item.score >= 4 ? 'B1' : 'C1');
-        return this.runTriageAction(today ? 'Task Today' : 'Task Later', () => this.bridge.routeThreadToTask(item.threadId, { today, priority, ...this.hubModeOpts() }));
+        return this.runTriageAction(today ? 'Task Today' : 'Task Later', () => this.bridge.routeThreadToTask(item.threadId, { today, priority, ...this.hubModeOpts() }), item.threadId);
       },
 
       dismissTriageEntry(item) {
-        return this.runTriageAction('Dismiss', () => this.bridge.dismissTriageItem(item.threadId, this.hubModeOpts()));
+        return this.runTriageAction('Dismiss', () => this.bridge.dismissTriageItem(item.threadId, this.hubModeOpts()), item.threadId, true);
       },
 
       archiveTriageEntry(item) {
-        return this.runTriageAction('Archive', () => this.bridge.archiveTriageThread(item.threadId, this.hubModeOpts()));
+        return this.runTriageAction('Archive', () => this.bridge.archiveTriageThread(item.threadId, this.hubModeOpts()), item.threadId);
       },
 
       trashTriageEntry(item) {
-        return this.runTriageAction('Delete', () => this.bridge.trashTriageThread(item.threadId, this.hubModeOpts()));
+        return this.runTriageAction('Delete', () => this.bridge.trashTriageThread(item.threadId, this.hubModeOpts()), item.threadId, true);
       },
 
       retryTriageItem(item) {
@@ -1298,7 +1370,7 @@ Alpine.data('plannerApp', () => ({
           this.triageNotice = { kind: 'error', text: 'Retry failed: the server did not supply an operation key for this item.', url: null };
           return null;
         }
-        return this.runTriageAction('Retry', () => this.bridge.retryFailedOperation(item.operationKey, this.hubModeOpts()));
+        return this.runTriageAction('Retry', () => this.bridge.retryFailedOperation(item.operationKey, this.hubModeOpts()), item.threadId);
       },
 
       readLaterItem(item) {
@@ -1329,7 +1401,7 @@ Alpine.data('plannerApp', () => ({
       async confirmWaiting() {
         const f = this.waitingForm;
         this.closeWaitingForm();
-        await this.runTriageAction('Waiting', () => this.bridge.routeThreadToWaiting(f.threadId, { waitingOn: f.waitingOn, nagDate: f.nagDate || null, ...this.hubModeOpts() }));
+        await this.runTriageAction('Waiting', () => this.bridge.routeThreadToWaiting(f.threadId, { waitingOn: f.waitingOn, nagDate: f.nagDate || null, ...this.hubModeOpts() }), f.threadId);
       },
 
       async openMeetingPicker(item) {
@@ -1362,7 +1434,7 @@ Alpine.data('plannerApp', () => ({
         this.closeMeetingPicker();
         const backlog = p.selected === '__backlog__';
         const occurrenceId = backlog ? p.backlogSeriesKey : p.selected;
-        await this.runTriageAction('Send to Meeting', () => this.bridge.routeThreadToMeeting(p.threadId, occurrenceId, { framing: p.framing, backlog, seriesKey: p.seriesKey, ...this.hubModeOpts() }));
+        await this.runTriageAction('Send to Meeting', () => this.bridge.routeThreadToMeeting(p.threadId, occurrenceId, { framing: p.framing, backlog, seriesKey: p.seriesKey, ...this.hubModeOpts() }), p.threadId);
       },
 
       async loadMeetingPrep() {

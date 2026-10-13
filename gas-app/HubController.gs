@@ -40,6 +40,19 @@ function fail_(code, message, literal) {
 }
 
 /**
+ * Gmail per-user quota ("Quota exceeded for quota metric 'Total Query Cost'", HTTP 429, rate limit). Seen live
+ * on WORK 2026-10-12; every further call in the same minute fails too, so callers stop instead of continuing.
+ * @param {*} err Thrown value.
+ * @returns {boolean} True for a Gmail quota or rate-limit error.
+ */
+function isQuotaError_(err) {
+  if (err && (err.code === 429 || err.code === '429')) return true;
+  return /quota exceeded|rate limit|ratelimitexceeded|user-rate limit|too many requests/i.test(String((err && err.message) || err));
+}
+
+var HUB_RATE_LIMITED_MSG_ = 'Gmail is limiting requests right now. Try again in a minute.';
+
+/**
  * @param {*} err Thrown value.
  * @returns {object} Failed result with a sanitized message (logged without bodies).
  */
@@ -460,15 +473,23 @@ function getTriageBoard(filters) {
     var add = function(id) { if (!seen[id] && ids.length < limit) { seen[id] = true; ids.push(id); } };
     // Failed ops first: a 🎯/Task thread carries no triage label, so without this its ERROR has no Retry anywhere.
     Object.keys(ledgerByThread).forEach(function(id) { if (ledgerByThread[id].Status === E.LEDGER_STATUS.ERROR) add(id); });
-    labels.forEach(function(label) {
-      DPGmailRepo.listThreadsByLabel(label, { maxResults: limit }).threadIds.forEach(add);
-    });
+    var rateLimited = false;
+    for (var li = 0; li < labels.length && !rateLimited; li++) {
+      try {
+        DPGmailRepo.listThreadsByLabel(labels[li], { maxResults: limit }).threadIds.forEach(add);
+      } catch (listErr) {
+        if (!isQuotaError_(listErr)) throw listErr;
+        DPQueue.logSafe('getTriageBoard list: Gmail quota hit, no further Gmail calls this build', listErr);
+        rateLimited = true;
+      }
+    }
+    if (rateLimited) ids = [];
     var queues = {};
     Object.keys(E.TRIAGE_QUEUE).forEach(function(k) { queues[HUB_QUEUE_KEYS_[E.TRIAGE_QUEUE[k]]] = []; });
     var errors = 0;
     var itemErrors = [];
-    ids.forEach(function(id) {
-      if (dismissed[id] && f.includeDismissed !== true) return;
+    ids.some(function(id) {
+      if (dismissed[id] && f.includeDismissed !== true) return false;
       try {
         var t = DPGmailRepo.getThreadMeta(id, { withBody: !countOnly, withSnippet: !countOnly });
         var scored = E.scoreThread({ labels: t.labels, userEmail: t.userEmail, messages: t.messages.map(function(m) {
@@ -486,13 +507,22 @@ function getTriageBoard(filters) {
           operationKey: led ? led.OperationKey : null, ledgerStatus: led ? led.Status : null, errorMessage: led && led.Status === E.LEDGER_STATUS.ERROR ? led.ErrorMessage : null
         });
       } catch (itemErr) {
+        if (isQuotaError_(itemErr)) {
+          DPQueue.logSafe('getTriageBoard item: Gmail quota hit, stopping with the rows scored so far', itemErr);
+          rateLimited = true;
+          return true;
+        }
         errors += 1;
         itemErrors.push({ threadId: id, message: E.sanitizeError(itemErr) });
         DPQueue.logSafe('getTriageBoard item', itemErr);
       }
+      return false;
     });
     Object.keys(queues).forEach(function(q) { queues[q].sort(function(a, b) { return b.score - a.score; }); });
     var total = Object.keys(queues).reduce(function(n, q) { return n + queues[q].length; }, 0);
+    if (rateLimited) {
+      return E.makeResult({ ok: false, status: 'ERROR', errorCode: 'RATE_LIMITED', retryable: true, message: HUB_RATE_LIMITED_MSG_, queues: queues, errors: errors, itemErrors: itemErrors, dryRun: pre.features.DRY_RUN === true });
+    }
     return E.makeResult({ ok: true, status: 'OK', message: total + ' thread(s) triaged', queues: queues, errors: errors, itemErrors: itemErrors, dryRun: pre.features.DRY_RUN === true });
   } catch (err) {
     return failFrom_(err);

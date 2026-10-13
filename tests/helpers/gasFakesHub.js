@@ -76,12 +76,14 @@ function makeGmail(h) {
       Threads: {
         list(userId, opts = {}) {
           h.gmail.calls.push('threads.list');
+          if (h.gmail.quotaOnList) throw new Error(QUOTA_MSG('list'));
           // Like Gmail: threads in Trash are left out unless includeSpamTrash.
           const ids = Object.values(h.gmail.threads).filter((t) => (opts.includeSpamTrash || !t.trashed) && (!opts.labelIds || t.messages.some((m) => m.labelIds.some((l) => opts.labelIds.includes(l))))).map((t) => ({ id: t.id }));
           return { threads: ids.slice(0, opts.maxResults || 100) };
         },
         get(userId, id, opts = {}) {
           h.gmail.calls.push(`threads.get:${opts.format}`);
+          if (typeof h.gmail.quotaAfterGets === 'number' && h.gmail.calls.filter((c) => c.startsWith('threads.get')).length > h.gmail.quotaAfterGets) throw new Error(QUOTA_MSG('get'));
           if (opts.format !== 'metadata' && opts.format !== 'full') throw new Error(`unexpected Gmail format ${opts.format}`);
           const t = h.gmail.threads[id];
           if (!t) throw err404('thread');
@@ -317,6 +319,9 @@ function finishLoad(ctx, o) {
 }
 
 /** Seeds one Gmail thread (single message unless msgs given). */
+/** The live WORK error text (2026-10-12), so tests match what Gmail really throws. */
+const QUOTA_MSG = (m) => `API call to gmail.users.threads.${m} failed with error: Quota exceeded for quota metric 'Total Query Cost' and limit 'Units per minute per user' of service 'gmail.googleapis.com' for consumer 'project_number:1'.`;
+
 export function addThread(ctx, t) {
   const h = ctx.__hub;
   const ids = (t.labels || []).map((n) => h.gmail.labelId(n));

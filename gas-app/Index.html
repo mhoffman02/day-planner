@@ -1223,7 +1223,7 @@
               <button type="button" class="btn-secondary hub-mode-btn" x-show="hubDryRun &amp;&amp; !hubTrialBannerVisible" @click="openGoLive($event)">Go live</button>
               <button type="button" class="btn-secondary hub-mode-btn" x-show="!hubDryRun" @click="switchToTrial()">Switch to trial</button>
             </div>
-            <button type="button" class="btn-secondary hub-refresh-btn" @click="refreshTriage()" :disabled="triageLoading" x-show="showTriageNav">Refresh</button>
+            <button type="button" class="btn-secondary hub-refresh-btn" @click="refreshTriage()" :disabled="triageLoading || gmailCoolingDown" x-show="showTriageNav">Refresh</button>
           </header>
 
           <aside class="hub-banner" :class="triageNotice ? 'hub-banner-' + triageNotice.kind : ''" role="status" x-show="triageNotice">
