@@ -10,14 +10,10 @@ Everything here needs the user (GSA account, a release go, or a decision). HOME 
   `@default`; default "Daily Notes" sections for 10-30 and 10-31 in the October notes Doc.
 - [ ] **Watch the 7-day Testing expiry** (gated to 2026-10-17): does the web app or the 5-min sync trigger start failing
   auth weekly now that the script is linked to a Testing-mode GCP project? gas-rpc warns on day 6.
-- [ ] **WORK Meeting Prep live render**: WORK had no Hub Config Sheet (2026-10-12). From the auto-setup build on,
-  opening WORK `/exec` creates it (Triage on, trial mode) and installs the schedule. Then set `NCMMS_CORE_PILOT`
+- [ ] **WORK Meeting Prep live render**: WORK hub Sheet now exists (Triage on, trial mode). Set `NCMMS_CORE_PILOT`
   TRUE, fill the NCMMS-Core notes Doc in Meeting Registry, and check the carry-in count equals the Doc (Tutorial T14).
-- [ ] **gmail.modify rollout on WORK**: HOME is done (2026-10-12: consent, GCP Data access, rpc re-login, privacy
-  page fac809b on master, Tutorial T15 passed live via gas-rpc). WORK: hub Sheet auto-created 2026-10-12 (flags OK),
-  but Gmail calls fail "You do not have permission" (gmail.modify not approved by the GSA deployer), so UserEmail is
-  blank and no schedule. Repoint `/exec` to the in-app approval build (WORK v139), open the app, click **Approve
-  access** in the banner, then **Check again**: it fills UserEmail and installs the schedule. If the .gov org blocks
-  `gmail.modify`, repoint to **v134**.
-- [ ] **UAT run (Phase 30)**: work through About > **Tutorial** T01-T14 on HOME, then WORK; paste each run's
+- [ ] **WORK trial mode off**: WORK has `DRY_RUN` TRUE; set FALSE in the hub Sheet when ready for real actions.
+- [ ] **Approval banner after consent redirect**: on WORK the page reloaded after approving and still showed the
+  banner; "Check again" cleared it. Optional: re-check automatically when the tab regains focus.
+- [ ] **UAT run (Phase 30)**: work through About > **Tutorial** T01-T15 on HOME, then WORK; paste each run's
   "Copy results" into this file. Failures become TODO items.

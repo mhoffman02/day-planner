@@ -1,5 +1,11 @@
 # Task History (TODO_HISTORY)
 
+## 2026-10-12 — Phase 30: gmail.modify + hub auto-setup live on WORK
+
+- [x] **gmail.modify rollout on WORK**: WORK v139 (build 472). Hub Sheet auto-created, user approved via the new
+  in-app "Approve access" banner (no script editor), "Check again" finished setup: one `hubDispatch` trigger,
+  `GMAIL_ROUTER` + `TRIAGE_BOARD` on, `DRY_RUN` on; Triage board loaded 14 real threads. GSA allows `gmail.modify`.
+
 ## 2026-10-12 — Phase 30: WORK v132 live, HOME hub trigger, About rewrite
 
 - [x] **WORK promotion**: user added Gmail + Sheets Services and deployed; WORK `/exec` is now `AKfycbzDYvr…` (old
