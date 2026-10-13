@@ -510,7 +510,10 @@ function getTriageBoard(filters) {
   // countOnly (TRIAGE_REFRESH job): metadata-format reads and a smaller cap, since only queue sizes are wanted.
   var countOnly = f.countOnly === true;
   var limit = Math.min(Math.max(parseInt(f.limit, 10) || HUB_TRIAGE_LIMIT_DEFAULT_, 1), countOnly ? HUB_COUNT_ONLY_LIMIT_ : HUB_TRIAGE_LIMIT_MAX_);
-  var labels = HUB_TRIAGE_LABELS_.concat([DPEngines.WORKFLOW_LABEL.REVIEW, DPEngines.WORKFLOW_LABEL.MEETING, DPEngines.WORKFLOW_LABEL.READ]);
+  // Filter labels (Gmail filters apply them, even to mail they auto-archive) count only while the thread is in the
+  // Inbox: archived means handled (user 2026-10-12, CCB mail). 🎯/ labels are the user's own and count either way.
+  var workflowLabels = [DPEngines.WORKFLOW_LABEL.REVIEW, DPEngines.WORKFLOW_LABEL.MEETING, DPEngines.WORKFLOW_LABEL.READ];
+  var labels = HUB_TRIAGE_LABELS_.concat(workflowLabels);
   if (Array.isArray(f.labels) && f.labels.length && f.labels.length <= 10 && f.labels.every(function(l) { return typeof l === 'string' && l.length <= 100; })) labels = f.labels;
   try {
     var E = DPEngines;
@@ -530,7 +533,7 @@ function getTriageBoard(filters) {
     var rateLimited = false;
     for (var li = 0; li < labels.length && !rateLimited; li++) {
       try {
-        var page = DPGmailRepo.listThreadsByLabel(labels[li], { maxResults: limit });
+        var page = DPGmailRepo.listThreadsByLabel(labels[li], { maxResults: limit, inboxOnly: String(labels[li]).indexOf(DPEngines.LABEL_PREFIX) !== 0 });
         page.threadIds.forEach(add);
         Object.keys(page.historyIds || {}).forEach(function(id) { hist[id] = page.historyIds[id]; });
       } catch (listErr) {

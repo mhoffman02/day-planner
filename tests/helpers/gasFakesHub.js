@@ -77,8 +77,8 @@ function makeGmail(h) {
         list(userId, opts = {}) {
           h.gmail.calls.push('threads.list');
           if (h.gmail.quotaOnList) throw new Error(QUOTA_MSG('list'));
-          // Like Gmail: threads in Trash are left out unless includeSpamTrash.
-          const ids = Object.values(h.gmail.threads).filter((t) => (opts.includeSpamTrash || !t.trashed) && (!opts.labelIds || t.messages.some((m) => m.labelIds.some((l) => opts.labelIds.includes(l))))).map((t) => ({ id: t.id, historyId: String(t.historyId) }));
+          // Like Gmail: threads in Trash are left out unless includeSpamTrash; several labelIds must ALL match.
+          const ids = Object.values(h.gmail.threads).filter((t) => (opts.includeSpamTrash || !t.trashed) && (!opts.labelIds || opts.labelIds.every((l) => t.messages.some((m) => m.labelIds.includes(l))))).map((t) => ({ id: t.id, historyId: String(t.historyId) }));
           return { threads: ids.slice(0, opts.maxResults || 100) };
         },
         get(userId, id, opts = {}) {
@@ -349,7 +349,9 @@ const QUOTA_MSG = (m) => `API call to gmail.users.threads.${m} failed with error
 
 export function addThread(ctx, t) {
   const h = ctx.__hub;
-  const ids = (t.labels || []).map((n) => h.gmail.labelId(n));
+  // Threads are Inbox mail unless archived: true (Triage filter labels count only in the Inbox).
+  const names = t.labels || [];
+  const ids = (t.archived || names.includes('INBOX') ? names : ['INBOX', ...names]).map((n) => h.gmail.labelId(n));
   const msgs = t.messages || [{ from: t.from || 'Pat Example <pat@example.test>', to: t.to || 'me@example.test', subject: t.subject || 'Subject', body: t.body || 'plain body', cc: t.cc, snippet: t.snippet }];
   h.gmail.threads[t.id] = {
     id: t.id,
