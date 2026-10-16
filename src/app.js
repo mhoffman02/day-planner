@@ -357,6 +357,7 @@ Alpine.data('plannerApp', () => ({
       statusOptions: STATUS_OPTIONS,
       forwardPickTaskId: null,
       forwardPickDate: '',
+      forwardConfirm: null,
       dailyTaskSort: { column: null, direction: 'asc' },
       openNotesPopoverTaskId: null,
       notesPopoverCloseTimer: null,
@@ -470,6 +471,8 @@ Alpine.data('plannerApp', () => ({
       selectedRevisionIndex: 0,
       timeMachineToast: null,
       taskToast: null,
+      taskToastUndo: null,
+      taskToastTimer: null,
 
       // Themed Day Calendar Picker state
       dayPickerOpen: false,
@@ -4359,7 +4362,10 @@ Alpine.data('plannerApp', () => ({
 
       openStatusMenu(taskId, event) {
         clearTimeout(this.statusMenuCloseTimer);
-        if (this.openStatusMenuTaskId !== taskId) this.forwardPickTaskId = null;
+        if (this.openStatusMenuTaskId !== taskId) {
+          this.forwardPickTaskId = null;
+          this.forwardConfirm = null;
+        }
         this.openStatusMenuTaskId = taskId;
         if (event && (event.currentTarget || event.target)) {
           const el = event.currentTarget || event.target;
@@ -4389,8 +4395,9 @@ Alpine.data('plannerApp', () => ({
         clearTimeout(this.statusMenuCloseTimer);
         this.statusMenuCloseTimer = setTimeout(() => {
           // The native calendar popup is outside the page, so moving the mouse into it must not
-          // close a menu whose date field is open.
-          if (this.openStatusMenuTaskId === taskId && this.forwardPickTaskId !== taskId) this.openStatusMenuTaskId = null;
+          // close a menu whose date field is open. A pending re-forward confirm also stays open.
+          const confirming = this.forwardConfirm && this.forwardConfirm.taskId === taskId;
+          if (this.openStatusMenuTaskId === taskId && this.forwardPickTaskId !== taskId && !confirming) this.openStatusMenuTaskId = null;
         }, 250);
       },
 
@@ -4398,6 +4405,7 @@ Alpine.data('plannerApp', () => ({
         clearTimeout(this.statusMenuCloseTimer);
         this.openStatusMenuTaskId = null;
         this.forwardPickTaskId = null;
+        this.forwardConfirm = null;
         await this.setTaskStatus(task, newStatus, forwardDate);
       },
 
@@ -4410,6 +4418,7 @@ Alpine.data('plannerApp', () => ({
       // default target, which is also the earliest allowed date.
       openForwardPicker(task) {
         clearTimeout(this.statusMenuCloseTimer);
+        this.forwardConfirm = null;
         this.forwardPickTaskId = task.id;
         this.forwardPickDate = this.forwardTargetDate(this.selectedDate);
       },
@@ -4422,7 +4431,40 @@ Alpine.data('plannerApp', () => ({
 
       async submitForwardPick(task) {
         if (!this.isForwardPickValid()) return;
-        await this.selectTaskStatus(task, '→', this.forwardPickDate);
+        await this.requestForward(task, this.forwardPickDate);
+      },
+
+      // "Next week" preset: the Monday after the source day (today for a past day), like Gmail
+      // snooze. Null when that Monday is already the one-click target, so the menu hides it.
+      forwardNextWeekDate() {
+        const todayStr = getLocalDateStr();
+        const base = this.selectedDate < todayStr ? todayStr : this.selectedDate;
+        const [y, m, d] = base.split('-').map(Number);
+        const day = new Date(y, m - 1, d).getDay();
+        const next = new Date(y, m - 1, d + (((8 - day) % 7) || 7));
+        const mm = String(next.getMonth() + 1).padStart(2, '0');
+        const dd = String(next.getDate()).padStart(2, '0');
+        const date = `${next.getFullYear()}-${mm}-${dd}`;
+        return date === this.forwardTargetDate(this.selectedDate) ? null : date;
+      },
+
+      // Every forward choice in the daily menu goes through here. A task that is already
+      // forwarded asks first, since a second forward makes a second copy.
+      async requestForward(task, date = null) {
+        const target = date || this.forwardTargetDate(this.selectedDate);
+        if (task.status === '→') {
+          clearTimeout(this.statusMenuCloseTimer);
+          this.forwardPickTaskId = null;
+          this.forwardConfirm = { taskId: task.id, date: target };
+          return;
+        }
+        await this.selectTaskStatus(task, '→', target);
+      },
+
+      async confirmForward(task) {
+        const pending = this.forwardConfirm;
+        if (!pending || pending.taskId !== task.id) throw new Error(`confirmForward: no pending forward for task ${task.id}`);
+        await this.selectTaskStatus(task, '→', pending.date);
       },
 
       async setTaskStatus(task, newStatus, forwardDate = null) {
@@ -4444,7 +4486,7 @@ Alpine.data('plannerApp', () => ({
         return this.saveQueue.submit(key, {
           value: newStatus,
           baseline,
-          write: (status) => this.writeTaskStatus(task, status, isMaster, dateStr, targetDate),
+          write: (status) => this.writeTaskStatus(task, status, isMaster, dateStr, targetDate, baseline),
           onSaved: async (status, result, hasNewer) => {
             this.resolveError(key);
             if (hasNewer) return; // the live status is a newer, unconfirmed pick: do not cache it yet
@@ -4462,14 +4504,14 @@ Alpine.data('plannerApp', () => ({
         return [task, linkedMaster, linkedDaily].filter(Boolean);
       },
 
-      async writeTaskStatus(task, status, isMaster, dateStr, targetDate) {
+      async writeTaskStatus(task, status, isMaster, dateStr, targetDate, prevStatus) {
         if (isMaster) {
           return requireSaved(await callBridge(this.bridge, [
             ['updateMasterTask', [task.id, { title: task.title, status, category: task.category }]],
             ['updateDailyTask', ['', task.id, { title: task.title, status }]]
           ], 'task status'), 'task status');
         }
-        if (status === '→') return this.forwardDailyTask(task, targetDate, dateStr);
+        if (status === '→') return this.forwardDailyTask(task, targetDate, dateStr, prevStatus);
         return requireSaved(await callBridge(this.bridge, [
           ['updateDailyTask', [dateStr, task.id, { title: task.title, status, dueDate: task.dueDate }]]
         ], 'task status'), 'task status');
@@ -4563,13 +4605,59 @@ Alpine.data('plannerApp', () => ({
         }
       },
 
-      showTaskToast(msg) {
+      // A toast with an undo stays longer (8s) so there is time to reach its Undo button.
+      showTaskToast(msg, undo = null) {
+        clearTimeout(this.taskToastTimer);
         this.taskToast = msg;
-        setTimeout(() => {
-          if (this.taskToast === msg) {
-            this.taskToast = null;
+        this.taskToastUndo = undo;
+        this.taskToastTimer = setTimeout(() => {
+          this.taskToast = null;
+          this.taskToastUndo = null;
+        }, undo ? 8000 : 4000);
+      },
+
+      // Undo from the forward toast: deletes the copy on the target day first (a failure leaves
+      // the forward in place), then puts the source back to its status before the forward. A
+      // source that was already forwarded keeps its arrow; only the extra copy goes.
+      async undoForward(undo) {
+        clearTimeout(this.taskToastTimer);
+        this.taskToast = null;
+        this.taskToastUndo = null;
+        const { sourceId, sourceDate, copyId, targetDate, prevStatus } = undo;
+        const key = `task-undo-forward:${sourceId}`;
+        try {
+          await callBridge(this.bridge, [['deleteDailyTask', [targetDate, copyId]]], 'forward undo');
+        } catch (err) {
+          console.error(`🔥 undoForward: could not delete copy ${copyId} on ${targetDate}; the forward stays in place:`, err.stack);
+          this.reportError(key, `Could not undo forward: ${err.message || err.toString()}`, { retry: () => this.undoForward(undo) });
+          return;
+        }
+        this.resolveError(key);
+        if (targetDate === this.selectedDate) {
+          this.dailyTasks = this.dailyTasks.filter(t => t.id !== copyId);
+          this.syncDailyCacheFromLiveState();
+        } else {
+          invalidateCached(targetDate);
+        }
+        const restoreTo = prevStatus || '•';
+        if (restoreTo !== '→') {
+          const live = sourceDate === this.selectedDate ? this.dailyTasks.find(t => t.id === sourceId) : null;
+          if (live) {
+            // A status picked after the forward is newer than the undo: leave it.
+            if (live.status === '→') await this.setTaskStatus(live, restoreTo);
+          } else {
+            try {
+              requireSaved(await callBridge(this.bridge, [['updateDailyTask', [sourceDate, sourceId, { status: restoreTo }]]], 'forward undo'), 'forward undo');
+            } catch (err) {
+              console.error(`🔥 undoForward: removed copy ${copyId}, but could not reset task ${sourceId} on ${sourceDate}; it still shows as forwarded:`, err.stack);
+              this.reportError(key, `Removed the forwarded copy, but could not reset the original task status: ${err.message || err.toString()}`);
+              invalidateCached(sourceDate);
+              return;
+            }
+            invalidateCached(sourceDate);
           }
-        }, 4000);
+        }
+        this.showTaskToast('Forward undone');
       },
 
       // "today", "tomorrow", or "Wed, Oct 21" for a YYYY-MM-DD date, relative to the real today.
@@ -4594,7 +4682,7 @@ Alpine.data('plannerApp', () => ({
 
       // Throws on failure (no catch here): its caller setTaskStatus owns the rollback and the
       // user-facing error, so a failed forward can never be cached or toasted as done.
-      async forwardDailyTask(task, explicitTargetDate = null, sourceDate = this.selectedDate) {
+      async forwardDailyTask(task, explicitTargetDate = null, sourceDate = this.selectedDate, prevStatus = null) {
         if (!task || !task.id) throw new Error('Not saved: no task to forward.');
         const targetDate = explicitTargetDate || this.forwardTargetDate(sourceDate);
 
@@ -4610,7 +4698,8 @@ Alpine.data('plannerApp', () => ({
         }
         const parsed = this.parseTask(task.title);
         const cleanTitle = parsed.cleanTitle || task.title;
-        this.showTaskToast(`Forwarded "${cleanTitle}" to ${this.relativeDayLabel(targetDate)}`);
+        this.showTaskToast(`Forwarded "${cleanTitle}" to ${this.relativeDayLabel(targetDate)}`,
+          { sourceId: task.id, sourceDate, copyId: res.forwardedTask.id, targetDate, prevStatus });
       },
 
       async toggleTaskStatus(task) {

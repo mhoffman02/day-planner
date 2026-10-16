@@ -392,13 +392,20 @@
                               <div class="status-menu-group" role="none">
                                 <button type="button" class="status-menu-item" role="menuitem"
                                         :class="{ 'is-active': (task.status || '•') === opt.value }"
-                                        @click="selectTaskStatus(task, opt.value)"
+                                        @click="opt.value === '→' ? requestForward(task) : selectTaskStatus(task, opt.value)"
                                         :aria-label="'Set status: ' + (opt.value === '→' ? forwardMenuLabel() : opt.label)">
                                   <span class="status-menu-item-glyph" x-text="opt.value"></span>
                                   <span x-text="opt.value === '→' ? forwardMenuLabel() : opt.label"></span>
                                 </button>
                                 <template x-if="opt.value === '→'">
                                   <div class="status-menu-group" role="none">
+                                    <button type="button" class="status-menu-item" role="menuitem" x-show="forwardNextWeekDate()"
+                                            @click="requestForward(task, forwardNextWeekDate())"
+                                            :aria-label="'Forward to next week, ' + relativeDayLabel(forwardNextWeekDate() || selectedDate)">
+                                      <span class="status-menu-item-glyph"><span class="material-symbols-outlined icon-14">date_range</span></span>
+                                      <span>Forward to next week</span>
+                                      <span class="status-menu-item-hint" x-text="forwardNextWeekDate() ? relativeDayLabel(forwardNextWeekDate()) : ''"></span>
+                                    </button>
                                     <button type="button" class="status-menu-item" role="menuitem"
                                             :class="{ 'is-active': forwardPickTaskId === task.id }"
                                             @click="openForwardPicker(task); $nextTick(() => $el.parentElement.querySelector('.forward-pick-input').focus())"
@@ -411,6 +418,10 @@
                                       <input type="date" class="master-task-date-input forward-pick-input" x-model="forwardPickDate" :min="forwardTargetDate(selectedDate)"
                                              aria-label="Forward date" @keydown.enter.prevent="submitForwardPick(task)">
                                       <button type="button" class="forward-pick-btn" :disabled="!isForwardPickValid()" @click="submitForwardPick(task)">Forward</button>
+                                    </div>
+                                    <div class="forward-confirm" role="alert" x-show="forwardConfirm && forwardConfirm.taskId === task.id">
+                                      <span x-text="forwardConfirm ? ('Already forwarded. Add another copy on ' + relativeDayLabel(forwardConfirm.date) + '?') : ''"></span>
+                                      <button type="button" class="forward-pick-btn" @click="confirmForward(task)">Forward again</button>
                                     </div>
                                   </div>
                                 </template>
@@ -1952,9 +1963,10 @@
     </div>
 
     <!-- Toast Notification for Task Actions (Forwarding, etc.) -->
-    <div class="task-toast" x-show="taskToast" x-cloak>
+    <div class="task-toast" role="status" x-show="taskToast" x-cloak>
       <span class="material-symbols-outlined icon-18">arrow_forward</span>
       <span x-text="taskToast"></span>
+      <button type="button" class="hub-snack-btn task-toast-btn" x-show="taskToastUndo" @click="undoForward(taskToastUndo)">Undo</button>
     </div>
 
     <!-- Global Autocomplete Category Suggestions Datalist -->

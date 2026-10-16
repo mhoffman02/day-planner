@@ -1813,6 +1813,32 @@
     cursor: not-allowed;
   }
 
+  /* Muted date on the right of a forward preset, e.g. "Mon, Oct 19". */
+  .status-menu-item-hint {
+    margin-left: auto;
+    padding-left: 12px;
+    color: #5f6b68;
+    font-size: 0.74rem;
+  }
+
+  /* Asked before forwarding a task that is already forwarded. */
+  .forward-confirm {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    max-width: 230px;
+    padding: 2px 8px 6px 36px;
+    color: #1c2826;
+    font-size: 0.76rem;
+  }
+
+  .task-toast-btn {
+    margin-left: 8px;
+    color: #ffffff;
+    text-decoration: underline;
+  }
+
   .status-menu-item-delete:hover .status-menu-item-glyph-delete {
     background: #fee2e2;
     border-color: #b91c1c;
@@ -5531,6 +5557,14 @@
     background: #2d1515 !important;
     color: #f87171 !important;
     border-color: #7f1d1d !important;
+  }
+
+  [data-theme="dark"] .status-menu-item-hint {
+    color: #9fb5ad !important;
+  }
+
+  [data-theme="dark"] .forward-confirm {
+    color: #e2f2ec !important;
   }
 
   [data-theme="dark"] .forward-pick-btn {

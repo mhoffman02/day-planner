@@ -384,13 +384,20 @@
                               <div class="status-menu-group" role="none">
                                 <button type="button" class="status-menu-item" role="menuitem"
                                         :class="{ 'is-active': (task.status || '•') === opt.value }"
-                                        @click="selectTaskStatus(task, opt.value)"
+                                        @click="opt.value === '→' ? requestForward(task) : selectTaskStatus(task, opt.value)"
                                         :aria-label="'Set status: ' + (opt.value === '→' ? forwardMenuLabel() : opt.label)">
                                   <span class="status-menu-item-glyph" x-text="opt.value"></span>
                                   <span x-text="opt.value === '→' ? forwardMenuLabel() : opt.label"></span>
                                 </button>
                                 <template x-if="opt.value === '→'">
                                   <div class="status-menu-group" role="none">
+                                    <button type="button" class="status-menu-item" role="menuitem" x-show="forwardNextWeekDate()"
+                                            @click="requestForward(task, forwardNextWeekDate())"
+                                            :aria-label="'Forward to next week, ' + relativeDayLabel(forwardNextWeekDate() || selectedDate)">
+                                      <span class="status-menu-item-glyph"><span class="material-symbols-outlined icon-14">date_range</span></span>
+                                      <span>Forward to next week</span>
+                                      <span class="status-menu-item-hint" x-text="forwardNextWeekDate() ? relativeDayLabel(forwardNextWeekDate()) : ''"></span>
+                                    </button>
                                     <button type="button" class="status-menu-item" role="menuitem"
                                             :class="{ 'is-active': forwardPickTaskId === task.id }"
                                             @click="openForwardPicker(task); $nextTick(() => $el.parentElement.querySelector('.forward-pick-input').focus())"
@@ -403,6 +410,10 @@
                                       <input type="date" class="master-task-date-input forward-pick-input" x-model="forwardPickDate" :min="forwardTargetDate(selectedDate)"
                                              aria-label="Forward date" @keydown.enter.prevent="submitForwardPick(task)">
                                       <button type="button" class="forward-pick-btn" :disabled="!isForwardPickValid()" @click="submitForwardPick(task)">Forward</button>
+                                    </div>
+                                    <div class="forward-confirm" role="alert" x-show="forwardConfirm && forwardConfirm.taskId === task.id">
+                                      <span x-text="forwardConfirm ? ('Already forwarded. Add another copy on ' + relativeDayLabel(forwardConfirm.date) + '?') : ''"></span>
+                                      <button type="button" class="forward-pick-btn" @click="confirmForward(task)">Forward again</button>
                                     </div>
                                   </div>
                                 </template>
@@ -1509,7 +1520,7 @@
           <span class="material-symbols-outlined">format_list_bulleted</span> Priorities and Status
         </h3>
         <p class="guide-card-text">
-          Every task gets a priority letter and number: <b>A</b> for urgent, <b>B</b> for important, <b>C</b> for everything else, then a number for order within that group. Type <code>#a</code>, <code>#b</code>, or <code>#c</code> in the input, or click the priority selector. Click a task's status box to mark it: Open <span class="material-symbols-outlined icon-16">arrow_forward</span> Completed <span class="material-symbols-outlined icon-16">arrow_forward</span> Forwarded <span class="material-symbols-outlined icon-16">arrow_forward</span> Canceled <span class="material-symbols-outlined icon-16">arrow_forward</span> Delegated.
+          Every task gets a priority letter and number: <b>A</b> for urgent, <b>B</b> for important, <b>C</b> for everything else, then a number for order within that group. Type <code>#a</code>, <code>#b</code>, or <code>#c</code> in the input, or click the priority selector. Hover over or click a task's status box to open its menu, then pick Open, In Progress, Done, Forwarded, Canceled, or Delegated.
         </p>
       </article>
 
@@ -1660,7 +1671,7 @@
         <tbody>
           <tr>
             <td>Mark a task <b>Forwarded</b></td>
-            <td>A copy on the next day (a task from a past day goes to today). Pick <b>Forward to date…</b> in the status menu to choose a later day.</td>
+            <td>A copy on the next day (a task from a past day goes to today). The status menu also offers <b>Forward to next week</b> (the next Monday) and <b>Forward to date…</b> for any later day. Click <b>Undo</b> on the confirmation to take a forward back. A task that is already forwarded asks before it makes a second copy.</td>
           </tr>
           <tr>
             <td>Add a <b>Future Planning</b> item</td>
@@ -2804,9 +2815,10 @@
     </div>
 
     <!-- Toast Notification for Task Actions (Forwarding, etc.) -->
-    <div class="task-toast" x-show="taskToast" x-cloak>
+    <div class="task-toast" role="status" x-show="taskToast" x-cloak>
       <span class="material-symbols-outlined icon-18">arrow_forward</span>
       <span x-text="taskToast"></span>
+      <button type="button" class="hub-snack-btn task-toast-btn" x-show="taskToastUndo" @click="undoForward(taskToastUndo)">Undo</button>
     </div>
 
     <!-- Global Autocomplete Category Suggestions Datalist -->
