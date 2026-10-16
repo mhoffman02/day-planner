@@ -294,7 +294,7 @@ export class HubMock {
     if (!j) return { ok: true, status: 'IDLE', phase: 'idle', running: false, message: '' };
     if (j.running && !noAdvance) j.read = Math.min(j.total, j.read + 100);
     if (j.running && j.read >= j.total && !noAdvance) j.running = false;
-    if (j.running) return { ok: true, status: 'LEARNING', phase: 'read', running: true, read: j.read, total: j.total, message: `Reading your mail: ${j.read} of ${j.total}` };
+    if (j.running) return { ok: true, status: 'LEARNING', phase: 'read', running: true, read: j.read, total: j.total, etaMin: Math.ceil((j.total - j.read) / 125) + 2, message: `Reading your mail: ${j.read} of ${j.total}, about ${Math.ceil((j.total - j.read) / 125) + 2} minutes to go` };
     return { ok: true, status: 'OK', phase: 'done', running: false, read: j.total, total: j.total, url: 'https://docs.google.com/spreadsheets/d/mock-hub-sheet/edit',
       message: 'Filter Suggestions: 2 new, 1 existing, from 300 emails. Tick Create? on the rows you want, then Create checked filters.' };
   }

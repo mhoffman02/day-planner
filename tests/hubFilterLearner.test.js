@@ -152,3 +152,18 @@ test('a slow Gmail cannot stretch a tick past 50 s: the tick stops on time and t
   for (const ms of perTick) assert.ok(ms <= 52000, `tick ran ${ms} ms`);
   assert.match(ctx.__consoleLines.join('\n'), /stopping this minute at read \(time\)/);
 });
+
+test('the progress message says about how many minutes are left, from the pace each tick actually reached', () => {
+  const ctx = bigCtx(200);
+  const first = call(ctx, 'hubSuggestFilters');
+  // 206 emails at 125 per minute (2,500 units / 20) is 2 minutes, plus about 2 to learn and check the filters.
+  assert.equal(first.message, 'Reading your mail: 0 of 206, about 4 minutes to go');
+  assert.equal(first.etaMin, 4);
+  call(ctx, 'hubFilterLearnTick');
+  const mid = call(ctx, 'hubFilterLearnStatus');
+  const left = Math.ceil((206 - mid.read) / mid.read) + 2;
+  assert.equal(mid.message, `Reading your mail: ${mid.read} of 206, ${left <= 1 ? 'about a minute' : `about ${left} minutes`} to go`);
+  const done = runFilterLearner(ctx);
+  assert.equal(done.etaMin, undefined);
+  assert.doesNotMatch(done.message, /to go/);
+});

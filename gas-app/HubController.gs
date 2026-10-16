@@ -902,20 +902,48 @@ function readChunks_(st, prefix, count) {
   return out;
 }
 
+/**
+ * Minutes left, from the emails each reading tick actually managed (ticks run once a minute), plus about a minute
+ * each to learn and to check the filters. Null while listing (the total is not known yet).
+ * @param {object} st Learner state.
+ * @returns {?number} Whole minutes, at least 1.
+ */
+function learnEtaMin_(st) {
+  var u = DPGmailRepo.units();
+  if (st.phase === 'read') {
+    var perTick = st.readTicks && st.read ? st.read / st.readTicks : Math.floor(HUB_LEARN_TICK_UNITS_ / u.messagesGet);
+    return Math.ceil((st.total - st.read) / perTick) + 2;
+  }
+  if (st.phase === 'learn') return 2;
+  if (st.phase === 'measure') return Math.max(1, Math.ceil(((st.rowCount || 0) - (st.measured || 0)) * 2 * u.threadsList / HUB_LEARN_TICK_UNITS_));
+  return null;
+}
+
+/**
+ * @param {?number} min Minutes left.
+ * @returns {string} ", about N minutes to go", or empty when unknown.
+ */
+function learnEtaText_(min) {
+  if (min === null) return '';
+  return min <= 1 ? ', about a minute to go' : ', about ' + min + ' minutes to go';
+}
+
 function learnStatus_(st) {
   if (!st) return DPEngines.makeResult({ ok: true, status: 'IDLE', phase: 'idle', running: false, message: '' });
   var running = HUB_LEARN_RUNNING_.indexOf(st.phase) >= 0;
+  var eta = running ? learnEtaMin_(st) : null;
   var text = {
     list: 'Finding your mail from the last 20 business days…',
     read: 'Reading your mail: ' + st.read + ' of ' + st.total,
-    learn: 'Learning from your labeled mail…',
+    learn: 'Learning from your labeled mail',
     measure: 'Checking each filter: ' + (st.measured || 0) + ' of ' + (st.rowCount || 0)
   }[st.phase];
   return DPEngines.makeResult({
     ok: st.phase !== 'error', status: running ? 'LEARNING' : (st.phase === 'done' ? (st.partial ? 'PARTIAL' : 'OK') : 'ERROR'),
     errorCode: st.phase === 'error' ? (st.errorCode || 'LEARN_FAILED') : undefined,
     phase: st.phase, running: running, read: st.read || 0, total: st.total || 0, measured: st.measured || 0, rowCount: st.rowCount || 0,
-    message: running ? text : (st.message || ''), url: st.phase === 'done' ? st.url : undefined, authUrl: st.authUrl || undefined,
+    etaMin: eta === null ? undefined : eta,
+    message: running ? text + learnEtaText_(eta) : (st.message || ''), url: st.phase === 'done' ? st.url : undefined, authUrl: st.authUrl || undefined,
     result: st.phase === 'done' ? st.result : undefined
   });
 }
@@ -948,6 +976,7 @@ function learnList_(st, meter) {
 function learnRead_(st, meter) {
   var ids = readChunks_(st, 'ids:', st.idChunks);
   var batch = [];
+  st.readTicks = (st.readTicks || 0) + 1;
   try {
     while (st.read < st.total) {
       var id = ids[st.read];
