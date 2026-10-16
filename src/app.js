@@ -61,6 +61,13 @@ const TRIAGE_CACHE_KEY = 'dayPlannerTriageBoard.v1';
 const TRIAGE_FRESH_MS = 120000;
 const TRIAGE_PREFETCH_MIN_AGE_MS = 300000;
 const TRIAGE_RELOAD_DEBOUNCE_MS = 15000;
+// Master Tasks: rows drawn at first paint, rows added per background tick, and the delay after
+// startup before the hidden view is pre-built (so it never competes with the Daily page load).
+const MASTER_FIRST_ROWS = 20;
+const MASTER_ROWS_PER_TICK = 20;
+const MASTER_PREBUILD_DELAY_MS = 1500;
+// One shared formatter: toLocaleDateString per row was the costliest call in a Master render.
+const MASTER_DATE_FORMAT = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 const GMAIL_COOLDOWN_KEY = 'dayPlannerGmailCooldownUntil';
 const GMAIL_COOLDOWN_MS = 75000;
 const TRIAGE_CACHE_FIELDS = ['threadId', 'url', 'subject', 'snippet', 'fromName', 'date', 'labels', 'score', 'band', 'signals', 'queue', 'ticketKey',
@@ -375,6 +382,11 @@ Alpine.data('plannerApp', () => ({
       newMasterTaskPriorityGroup: 'A',
       addingMasterTask: false,
       masterTaskSort: { column: null, direction: 'asc' },
+      // Master Tasks draws its first rows at once and adds the rest in the background, and stays
+      // built after first use (hidden, not torn down), so the tab opens fast at any list size.
+      masterRenderLimit: MASTER_FIRST_ROWS,
+      masterViewBuilt: false,
+      masterGrowTimer: null,
       masterTaskStatusFilter: ['•', '○', '✓', '→', 'X', 'Ⓓ'],
       masterTaskDateFilter: 'all',
       dailyDocUrl: '',
@@ -554,6 +566,10 @@ Alpine.data('plannerApp', () => ({
         });
       },
 
+      get masterRowsShown() {
+        return this.sortedTasks(this.filteredMasterTasks, this.masterTaskSort).slice(0, this.masterRenderLimit);
+      },
+
       get filteredMasterTasks() {
         const byStatus = filterTasksByStatus(this.masterTasks || [], this.masterTaskStatusFilter);
         return filterTasksByDateHorizon(byStatus, this.masterTaskDateFilter, getLocalDateStr());
@@ -612,8 +628,8 @@ Alpine.data('plannerApp', () => ({
         this.initRecentTopics();
         this.initCategories();
         const hubReady = this.initHub();
-        await this.loadDayData();
-        await this.loadMasterTasks();
+        await this.loadStartupData();
+        setTimeout(() => this.prebuildMasterView(), MASTER_PREBUILD_DELAY_MS);
         // Triage takes several seconds to build: fetch it in the background once the day view is loaded.
         hubReady.then(() => this.prefetchTriage());
         this.setupKeyboardShortcuts();
@@ -1025,6 +1041,11 @@ Alpine.data('plannerApp', () => ({
           await this.loadFutureMatrix();
         }
         if (viewName === 'master-tasks') {
+          if (!this.masterViewBuilt) {
+            this.masterViewBuilt = true;
+            this.masterRenderLimit = MASTER_FIRST_ROWS;
+          }
+          this.growMasterRows();
           await this.loadMasterTasks();
         }
         if (viewName === 'triage' && this.showTriageNav) {
@@ -3861,7 +3882,34 @@ Alpine.data('plannerApp', () => ({
       formatMasterTaskDate(dateStr) {
         if (!dateStr) return '';
         const [y, m, d] = dateStr.split('-').map(Number);
-        return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        return MASTER_DATE_FORMAT.format(new Date(y, m - 1, d));
+      },
+
+      // Adds the next batch of Master rows on a later tick until every row is drawn. Then the
+      // limit lifts, so rows added later (refresh, new task, forward copy) show at once.
+      growMasterRows() {
+        clearTimeout(this.masterGrowTimer);
+        if (this.masterRenderLimit >= this.filteredMasterTasks.length) {
+          this.masterRenderLimit = Infinity;
+          return;
+        }
+        this.masterGrowTimer = setTimeout(() => {
+          this.masterRenderLimit += MASTER_ROWS_PER_TICK;
+          this.growMasterRows();
+        }, 16);
+      },
+
+      // After startup: build the Master view hidden in the background, so its first open is instant.
+      prebuildMasterView() {
+        if (this.masterViewBuilt) return;
+        this.masterViewBuilt = true;
+        this.masterRenderLimit = MASTER_FIRST_ROWS;
+        this.growMasterRows();
+      },
+
+      // Day and Master data load side by side at startup; neither waits for the other.
+      async loadStartupData() {
+        await Promise.all([this.loadDayData(), this.loadMasterTasks()]);
       },
 
       formatMovedDate(dateStr) {

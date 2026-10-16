@@ -874,8 +874,8 @@
       </template>
 
       <!-- View 3: Master Tasks / Undated Task Backlog Page -->
-      <template x-if="activeView === 'master-tasks'">
-        <section class="view-container" aria-label="Master Tasks">
+      <template x-if="activeView === 'master-tasks' || masterViewBuilt">
+        <section class="view-container" aria-label="Master Tasks" x-show="activeView === 'master-tasks'">
           <header class="master-tasks-header">
             <h2 class="view-title">
               <span class="material-symbols-outlined">checklist</span>
@@ -1014,7 +1014,7 @@
                 </tr>
               </thead>
               <tbody>
-                <template x-for="mTask in sortedTasks(filteredMasterTasks, masterTaskSort)" :key="mTask.id">
+                <template x-for="mTask in masterRowsShown" :key="mTask.id">
                   <tr :class="{ 'row-just-added': mTask._isNew }">
                     <td>
                       <span class="priority-badge" :class="parseTask(mTask.title).priorityGroup || 'A'" x-text="parseTask(mTask.title).priorityCode || 'A1'"></span>
