@@ -1,5 +1,28 @@
 # Task History (TODO_HISTORY)
 
+## 2026-10-16 — Forward/Delegate menus, Master parity, quiet Live mark, Master speed (WORK v149 pushed, build 495)
+
+- [x] **Forward menu** (Daily): Forward to tomorrow / next week / date…, toast Undo, "Forward again" confirm
+  (`8e35a92`, `cd942be`). WORK v147 confirmed by the user ("I see the new forward options").
+- [x] **Delegate with check-back**: Delegate… asks who (optional) and when to check back (tomorrow, next week,
+  date); an open "[X1] Check back: <title> (<owner>)" task lands on that day, the source shows Ⓓ with hidden
+  waitingOn/nagDate meta; server `delegateDailyTask` shares the compensated two-step write with forward
+  (`copyThenMarkSource_`) (`abc1c1d`). Undo restores a plain status, never a new forward/delegate (`9cbe8b8`).
+- [x] **Master Tasks parity** (user: "I should be able to do all the verbs / actions on master tasks I can do on
+  daily tasks"): same status menu as Daily; undated masters forward via new compensated `forwardMasterTask`
+  (Undo: `undoMasterForward`); scheduled pairs and dated rows act on their daily task from its day; Move to Date
+  uses the same path (`2b2d712`, `9f85119`).
+- [x] **Bug fixed**: a Daily row whose id was also in the Master list (every open dated task, confirmed on HOME via
+  rpc) took the plain master write, so Forward/Delegate on WORK ≤ v148 set the glyph without making a copy
+  (`2b2d712`). Forwards made on WORK before v149 may have no copy on the later day.
+- [x] **Quiet Live mark** (UX option 1): when live, headers show only a small square light + "Live"; Switch to trial
+  moved to a quiet row at the top of About; trial mode stays loud (`12fce63`). WORK v148.
+- [x] **Master tab speed** (user: 7 s): every row built a hidden status menu (worse since `2b2d712`). Menus now
+  build only for the open row (`4f51059`); Master draws 20 rows first, rest in background, stays built, pre-builds
+  1.5 s after startup; shared date formatter; startup loads Day + Master in parallel (`02252e8`).
+  Local 200 rows cold: 5.6 s (v148) → 1.7 s → 0.12 s first rows. GAS HOME: data on screen ≤ 2.5-3.6 s (server
+  response 2.9-3.5 s), every tab visible in 10-50 ms; refresh Month ~2.6 s, Master ~1.6 s, Future ~1.1 s.
+
 ## 2026-10-13 — Queue job: Gmail quota in trial mode
 
 - [x] **Gmail quota watch (WORK)**: archived 🎯/ threads stay in the queue on purpose (label-and-archive files work;

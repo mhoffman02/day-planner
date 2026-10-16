@@ -43,7 +43,10 @@ the GSA account, a release go, or a consent-screen decision. Checklist in [`TODO
 - [x] **Consent screen**: stay in Testing (decided 2026-10-10); rpc token dies every 7 days, next 2026-10-17.
 - [ ] **7-day Testing expiry watch**: rerun the rpc login on 2026-10-17 and check the web app and sync trigger still authorize.
 - Out of scope: Gemini discovery/actions (Phase 6 build), USAi (Phase 7).
-- **Next agent work:** none queued (as of 2026-10-13, end of session). Every open item needs the user; pick the next phase with them.
+- [x] **Task verbs + Master parity + speed** (2026-10-16): Forward menu, Delegate with check-back, Master Tasks get
+  every Daily verb, Daily forward routing fix, quiet Live mark, Master tab speed (TODO_HISTORY 2026-10-16).
+- [ ] **WORK v149**: pushed 2026-10-16; user repoints `/exec`.
+- **Next agent work:** HOME `/dev` live check of Forward/Delegate on Daily and Master (TODO.md); then pick the next phase with the user.
 
 ---
 
