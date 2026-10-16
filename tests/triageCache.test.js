@@ -104,6 +104,21 @@ describe('Triage board cache (stale-while-revalidate)', () => {
         assert.equal(vm.triageItemCount, 0);
       });
 
+      // User 2026-10-16: approved on Google, pressed Check again, "seemingly does nothing". Never silent.
+      it('Check again while still unapproved says so; once approved the note and banner clear', async () => {
+        let approved = false;
+        const vm = vmFor(c, { getHubStatus: async () => (approved ? { ok: true, status: 'OK', flags: {} }
+          : { ok: false, status: 'AUTH_REQUIRED', authUrl: 'https://example.test/auth', missingScopes: ['https://www.googleapis.com/auth/gmail.modify'] }) });
+        const logged = await captureConsoleError(() => vm.recheckApproval());
+        assert.equal(vm.authRechecking, false);
+        assert.match(vm.authRecheckNote, /still shows these permissions as not approved/);
+        assert.match(logged.join('\n'), /gmail\.modify/);
+        approved = true;
+        await vm.recheckApproval();
+        assert.equal(vm.authApprovalUrl, null);
+        assert.equal(vm.authRecheckNote, '');
+      });
+
       it('status text: loading with no board, refreshing over a saved board, none when fresh', async () => {
         const vm = vmFor(c);
         vm.triageBoard = null;

@@ -6338,6 +6338,11 @@
     align-items: center;
   }
 
+  .auth-recheck-note {
+    flex-basis: 100%;
+    font-weight: 600;
+  }
+
   /* The one action that unblocks the app: a solid gold button, hard to miss (user missed a plain link). */
   .auth-approve-btn {
     display: inline-flex;

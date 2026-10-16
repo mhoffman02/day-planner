@@ -320,6 +320,8 @@ Alpine.data('plannerApp', () => ({
       // Gmail / Meeting Hub (Triage + Meeting Prep). Hidden until getHubStatus reports flags ON.
       hubFlags: null,
       authApprovalUrl: null,
+      authRechecking: false,
+      authRecheckNote: '',
       hubDryRun: false,
       // Trial mode controls: the Hub Config Sheet holds DRY_RUN; these only drive the banner, dialog and snackbar.
       hubTrialHiddenOn: '',
@@ -1195,12 +1197,32 @@ Alpine.data('plannerApp', () => ({
         await this.loadMeetingPrep();
       },
 
+      // Check again after approving: never silent. A still-missing approval says so in the banner.
+      async recheckApproval() {
+        this.authRechecking = true;
+        this.authRecheckNote = '';
+        try {
+          await this.loadHubStatus();
+        } finally {
+          this.authRechecking = false;
+        }
+        if (this.authApprovalUrl) {
+          this.authRecheckNote = 'Google still shows these permissions as not approved. On the Google screen, tick every box (or Select all) before Continue, and use the same Google account as this app.';
+        }
+      },
+
       async loadHubStatus() {
         try {
           const st = await this.bridge.getHubStatus();
           // New Google permissions not yet approved: show the Approve access banner, keep hub views hidden.
           this.authApprovalUrl = (st && st.status === 'AUTH_REQUIRED' && st.authUrl) || null;
-          if (this.authApprovalUrl) { this.hubFlags = null; this.clearTriageCache(); return; }
+          if (this.authApprovalUrl) {
+            console.error('loadHubStatus: Google permissions not approved yet, missing scopes:', (st.missingScopes || []).join(', ') || '(not reported)');
+            this.hubFlags = null;
+            this.clearTriageCache();
+            return;
+          }
+          this.authRecheckNote = '';
           if (!st || st.ok !== true) throw new Error((st && st.message) || 'Hub status unavailable');
           this.hubFlags = (st && st.flags) || null;
           this.hubDryRun = !!(st && st.dryRun);

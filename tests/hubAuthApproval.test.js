@@ -7,6 +7,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { toHost } from './helpers/gasRuntimeStubs.js';
 import { makeHubContext } from './helpers/gasFakesHub.js';
 
@@ -41,4 +42,42 @@ test('the authorization check itself failing is logged and does not block the ap
   const st = call(ctx, 'getHubStatus');
   assert.equal(st.ok, true, JSON.stringify(st));
   assert.match(ctx.__consoleLines.join('\n'), /auth info unavailable/);
+});
+
+// User 2026-10-16 (WORK v152): approved on Google's screen, "Check again" did nothing and the banner stayed. Google's
+// consent screen has one checkbox per scope, and an org can block one scope. The optional Gmail-filter scope
+// (used only by the About filter buttons) must not hold Triage and Meeting Prep hostage.
+const SETTINGS = 'https://www.googleapis.com/auth/gmail.settings.basic';
+const MODIFY = 'https://www.googleapis.com/auth/gmail.modify';
+
+test('only the Gmail filter scope ungranted: the hub runs, no approval banner', () => {
+  const ctx = makeHubContext({ realStores: 'cold' });
+  ctx.__hub.ungranted = [SETTINGS];
+  const st = call(ctx, 'getHubStatus');
+  assert.equal(st.ok, true, JSON.stringify(st));
+  assert.equal(st.authUrl, undefined);
+});
+
+test('a core scope ungranted: AUTH_REQUIRED names the missing scopes', () => {
+  const ctx = makeHubContext({ realStores: 'cold' });
+  ctx.__hub.ungranted = [MODIFY, SETTINGS];
+  const st = call(ctx, 'getHubStatus');
+  assert.equal(st.status, 'AUTH_REQUIRED');
+  assert.deepEqual(st.missingScopes, [MODIFY]);
+});
+
+test('filter buttons without the filter scope offer Google\'s approval link', () => {
+  const ctx = makeHubContext({ realStores: true, features: { GMAIL_ROUTER: true } });
+  ctx.__hub.ungranted = [SETTINGS];
+  ctx.__hub.gmail.filtersBlocked = true;
+  const r = call(ctx, 'hubSuggestFilters');
+  assert.equal(r.errorCode, 'SCOPE_BLOCKED');
+  assert.equal(r.authUrl, 'https://consent.example/authorize');
+  assert.match(r.message, /tick every box/i);
+});
+
+test('the core scope list is the manifest minus the optional filter scope', () => {
+  const ctx = makeHubContext({ realStores: 'cold' });
+  const manifest = JSON.parse(fs.readFileSync(new globalThis.URL('../gas-app/appsscript.json', import.meta.url), 'utf8')).oauthScopes;
+  assert.deepEqual(toHost(ctx._hubCoreScopesInternal()).slice().sort(), manifest.filter((s) => s !== SETTINGS).sort());
 });

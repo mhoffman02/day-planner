@@ -11,6 +11,7 @@
  * "caller must hold the lock". Gmail writes are only the Triage archive/trash, label create, and filter create (all recorded in calls).
  * Never put real email content in fakes; message bodies here are synthetic canaries.
  */
+import fs from 'node:fs';
 import vm from 'node:vm';
 import { makeGasContext, loadGasFile, loadEngines } from './gasRuntimeStubs.js';
 
@@ -206,15 +207,26 @@ function makeTasks(h) {
   };
 }
 
+const MANIFEST_SCOPES = JSON.parse(fs.readFileSync(new URL('../../gas-app/appsscript.json', import.meta.url), 'utf8')).oauthScopes;
+
 function makeScriptApp(h) {
   return {
     AuthMode: { FULL: 'FULL' },
     AuthorizationStatus: { REQUIRED: 'REQUIRED', NOT_REQUIRED: 'NOT_REQUIRED' },
     // h.authUrl set = the owner has not approved the current scopes (like WORK after a scope change).
-    getAuthorizationInfo: () => ({
-      getAuthorizationStatus: () => (h.authUrl ? 'REQUIRED' : 'NOT_REQUIRED'),
-      getAuthorizationUrl: () => h.authUrl || null
-    }),
+    // h.ungranted = the scopes left unticked on Google's per-scope consent screen (default: all when authUrl is set).
+    // Like the real API, a scoped check throws on a scope the manifest does not list.
+    getAuthorizationInfo: (mode, scopes) => {
+      (scopes || []).forEach((sc) => { if (!MANIFEST_SCOPES.includes(sc)) throw new Error(`Invalid scope: ${sc}`); });
+      const missing = h.ungranted || (h.authUrl ? MANIFEST_SCOPES : []);
+      const asked = scopes || MANIFEST_SCOPES;
+      const required = asked.some((sc) => missing.includes(sc));
+      return {
+        getAuthorizationStatus: () => (required ? 'REQUIRED' : 'NOT_REQUIRED'),
+        getAuthorizationUrl: () => (required ? (h.authUrl || 'https://consent.example/authorize') : null),
+        getAuthorizedScopes: () => asked.filter((sc) => !missing.includes(sc))
+      };
+    },
     getProjectTriggers: () => h.triggers.map((t) => ({ getHandlerFunction: () => t.handler, getUniqueId: () => t.id })),
     deleteTrigger(tr) { h.triggers = h.triggers.filter((t) => t.id !== tr.getUniqueId()); },
     newTrigger(handler) {

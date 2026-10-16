@@ -631,9 +631,9 @@ function getHubStatus() {
   // Runs on app load. User decision 2026-10-12: IF the hub Sheet is not present THEN create and configure it
   // (provisionHub_), and finish one whose TimeZone/UserEmail seed came out blank (needsRepair: one Config read).
   // Before the Day Planner folder is bound it does nothing.
-  var authUrl = approvalUrl_();
-  if (authUrl) {
-    return DPEngines.makeResult({ ok: false, status: 'AUTH_REQUIRED', message: 'Day Planner needs your approval for new Google permissions', authUrl: authUrl });
+  var approval = approvalNeeded_(hubCoreScopes());
+  if (approval) {
+    return DPEngines.makeResult({ ok: false, status: 'AUTH_REQUIRED', message: 'Day Planner needs your approval for new Google permissions', authUrl: approval.url, missingScopes: approval.missing });
   }
   var pre;
   try {
@@ -697,13 +697,19 @@ function getHubSheetLink() {
 /**
  * The web app runs as its owner, so a new manifest scope is approved by the owner, not in the browser by default.
  * Google's consent URL lets the app offer an "Approve access" link instead of a trip to the script editor.
- * @returns {string|null} Consent URL when the owner has not approved the current scopes, else null.
+ * Google's consent screen has a checkbox per scope (granular consent) and an org can block one scope, so the check
+ * is per scope: the app is gated on the scopes it needs to run, not on the optional Gmail-filter scope.
+ * @param {string[]} scopes Scopes to check (must all be in appsscript.json).
+ * @returns {{url: string, missing: string[]}|null} Consent URL and the ungranted scopes, or null when approved.
  */
-function approvalUrl_() {
+function approvalNeeded_(scopes) {
   try {
-    var info = ScriptApp.getAuthorizationInfo(ScriptApp.AuthMode.FULL);
+    var info = ScriptApp.getAuthorizationInfo(ScriptApp.AuthMode.FULL, scopes);
     if (info.getAuthorizationStatus() !== ScriptApp.AuthorizationStatus.REQUIRED) return null;
-    return info.getAuthorizationUrl() || null;
+    var url = info.getAuthorizationUrl();
+    if (!url) return null;
+    var granted = info.getAuthorizedScopes() || [];
+    return { url: url, missing: scopes.filter(function(sc) { return granted.indexOf(sc) < 0; }) };
   } catch (err) {
     // A broken check must not block the app: continue, and the real call fails loud if a scope is missing.
     DPQueue.logSafe('HubController: authorization check failed, continuing without the approval prompt', err);
@@ -749,7 +755,28 @@ var HUB_FILTER_SAMPLE_PER_LABEL_ = 60;
 var HUB_FILTER_SAMPLE_INBOX_ = 200;
 var HUB_FILTER_MEASURE_CAP_ = 300;
 var HUB_FILTER_QUERY_MAX_ = 500;
-var HUB_SCOPE_BLOCKED_MSG_ = 'Gmail filter access (gmail.settings.basic) is not approved, or is blocked for this account.';
+var HUB_SCOPE_BLOCKED_MSG_ = 'Gmail filter access is not approved. Use Approve filter access and tick every box on Google\'s screen. If your organization blocks it, the labels still work and you can make filters in Gmail settings.';
+
+/** Optional scope: only the About filter buttons use it, so leaving it unticked must not block the app. */
+var HUB_OPTIONAL_SCOPES_ = ['https://www.googleapis.com/auth/gmail.settings.basic'];
+
+/** Scopes the app needs to run. tests/hubAuthApproval.test.js checks this equals appsscript.json minus HUB_OPTIONAL_SCOPES_. */
+function hubCoreScopes() {
+  return [
+    'https://www.googleapis.com/auth/drive.file',
+    'https://www.googleapis.com/auth/drive.readonly',
+    'https://www.googleapis.com/auth/calendar',
+    'https://www.googleapis.com/auth/tasks',
+    'https://www.googleapis.com/auth/gmail.modify',
+    'https://www.googleapis.com/auth/script.scriptapp'
+  ];
+}
+
+/** SCOPE_BLOCKED result carrying Google's consent link for the filter scope, when Google offers one. */
+function filterScopeBlocked_() {
+  var approval = approvalNeeded_(HUB_OPTIONAL_SCOPES_);
+  return DPEngines.makeResult({ ok: false, status: 'ERROR', errorCode: 'SCOPE_BLOCKED', message: HUB_SCOPE_BLOCKED_MSG_, authUrl: approval ? approval.url : null });
+}
 
 /**
  * @param {*} err Thrown value.
@@ -810,7 +837,7 @@ function hubSuggestFilters() {
     } catch (err) {
       if (!isScopeError_(err)) throw err;
       DPQueue.logSafe('hubSuggestFilters: Gmail filters could not be read (scope)', err);
-      return fail_('SCOPE_BLOCKED', HUB_SCOPE_BLOCKED_MSG_, true);
+      return filterScopeBlocked_();
     }
     var names = DPGmailRepo.labelNamesById();
     var idOf = {};
@@ -927,7 +954,7 @@ function hubCreateSelectedFilters() {
     } catch (err) {
       if (!isScopeError_(err)) throw err;
       DPQueue.logSafe('hubCreateSelectedFilters: Gmail filters could not be read (scope)', err);
-      return fail_('SCOPE_BLOCKED', HUB_SCOPE_BLOCKED_MSG_, true);
+      return filterScopeBlocked_();
     }
     var names = DPGmailRepo.labelNamesById();
     var idOf = {};
@@ -1064,6 +1091,7 @@ global._discoverMeetingSeriesInternal = discoverMeetingSeries;     // google.scr
 global._retryFailedOperationInternal = retryFailedOperation;       // google.script.run
 global._archiveTriageThreadInternal = archiveTriageThread;         // google.script.run (Triage Archive)
 global._trashTriageThreadInternal = trashTriageThread;             // google.script.run (Triage Delete)
+global._hubCoreScopesInternal = hubCoreScopes;                    // tests only (manifest drift check)
 global._getHubStatusInternal = getHubStatus;                      // google.script.run
 global._getHubSheetLinkInternal = getHubSheetLink;                 // google.script.run (About hub link)
 global._setupHubInternal = setupHub;                               // google.script.run (About "Set up hub")
