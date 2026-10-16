@@ -279,8 +279,8 @@
     <template x-if="authApprovalUrl">
       <aside class="hub-banner hub-banner-error auth-approval-banner" role="alert">
         <strong>Day Planner needs your approval.</strong>
-        An update added Google permissions (Gmail Triage). Approve them, then check again.
-        <a :href="authApprovalUrl" target="_blank" rel="noopener noreferrer" class="hub-notice-link">Approve access</a>
+        An update added Google permissions (Gmail Triage and Gmail filters). Approve them, then check again.
+        <a :href="authApprovalUrl" target="_blank" rel="noopener noreferrer" class="auth-approve-btn"><span class="material-symbols-outlined icon-18" aria-hidden="true">key</span>Approve access</a>
         <button type="button" class="hub-link-btn" @click="loadHubStatus()">Check again</button>
       </aside>
     </template>

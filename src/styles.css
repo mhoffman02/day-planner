@@ -6335,6 +6335,30 @@
 
   .auth-approval-banner {
     margin: 8px 16px;
+    align-items: center;
+  }
+
+  /* The one action that unblocks the app: a solid gold button, hard to miss (user missed a plain link). */
+  .auth-approve-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border: 2px solid #b8860b;
+    border-radius: 4px;
+    background: #f5b301;
+    color: #1c1400;
+    font-weight: 700;
+    font-size: 0.92rem;
+    text-decoration: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  }
+
+  .auth-approve-btn:hover,
+  .auth-approve-btn:focus-visible {
+    background: #ffc72c;
+    outline: 2px solid #1c1400;
+    outline-offset: 2px;
   }
 
   .trial-mode-banner {
@@ -6585,6 +6609,16 @@
   [data-theme="dark"] .hub-ledger-dry-run { color: #8cc0f5; }
   [data-theme="dark"] .hub-banner-dryrun { border-left-color: #f5c26b; }
   [data-theme="dark"] .hub-banner-error { border-left-color: #fca5a5; }
+  [data-theme="dark"] .auth-approve-btn {
+    background: rgba(255, 213, 74, 0.14) !important;
+    border-color: #ffd54a !important;
+    color: #ffd54a !important;
+  }
+  [data-theme="dark"] .auth-approve-btn:hover,
+  [data-theme="dark"] .auth-approve-btn:focus-visible {
+    background: rgba(255, 213, 74, 0.26) !important;
+    outline-color: #ffd54a !important;
+  }
 
   .hub-actions {
     display: flex;
