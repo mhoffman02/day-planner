@@ -73,49 +73,80 @@ export function coveringFilter(ids, existing) {
 /** Thresholds: a rule must catch at least minCaught labelled threads at minPrecision or better. */
 export const FILTER_SUGGEST_DEFAULTS = Object.freeze({ minCaught: 3, minPrecision: 0.9, maxPerLabel: 5, minNew: 2 });
 
-const KIND_RANK = Object.freeze({ from: 0, list: 1, domain: 2, domainSubject: 3, subject: 4 });
+const KIND_RANK = Object.freeze({ from: 0, list: 1, domain: 2, domainSubject: 3, subject: 4, body: 5 });
 
-const STOPWORDS =new Set(['the', 'and', 'for', 'you', 'your', 'with', 'from', 'this', 'that', 'are', 'was', 'our', 'have', 'has', 'not', 'all', 'can', 'will', 'please', 'fwd', 'fw', 're']);
+// Common words plus greetings and sign-offs: a phrase made of them says nothing about the label.
+const STOPWORDS = new Set(['the', 'and', 'for', 'you', 'your', 'with', 'from', 'this', 'that', 'are', 'was', 'our', 'have', 'has', 'not', 'all', 'can', 'will', 'please', 'fwd', 'fw', 're',
+  'hello', 'hey', 'dear', 'team', 'thanks', 'thank', 'regards', 'best', 'cheers', 'sincerely', 'morning', 'afternoon', 'good']);
 
 /**
- * @param {string} subject Raw subject.
- * @returns {string[]} Lower-case word tokens without reply/forward prefixes or stopwords.
+ * @param {string} text Raw subject or body text.
+ * @returns {string[]} Lower-case words in order (reply/forward prefixes dropped). Stopwords stay so phrases
+ *   built from them are real adjacent words, which is how Gmail matches a quoted phrase.
  */
-export function subjectWords(subject) {
-  const s = String(subject || '').toLowerCase().replace(/^((re|fw|fwd)\s*:\s*)+/g, '');
-  return (s.match(/[a-z0-9][a-z0-9&-]{2,}/g) || []).filter((w) => !STOPWORDS.has(w));
+export function subjectWords(text) {
+  const s = String(text || '').toLowerCase().replace(/^((re|fw|fwd)\s*:\s*)+/g, '');
+  return s.match(/[a-z0-9][a-z0-9&-]*/g) || [];
+}
+
+const BODY_WORD_CAP = 300;
+
+/**
+ * @param {string[]} words Words in order.
+ * @param {number} min Shortest phrase length.
+ * @param {number} max Longest phrase length.
+ * @returns {Set<string>} Adjacent-word phrases with no stopword, no bare number and no 1-2 letter word.
+ */
+function phraseSet(words, min, max) {
+  const out = new Set();
+  const ok = (w) => w.length > 2 && !STOPWORDS.has(w) && !/^\d+$/.test(w);
+  for (let n = min; n <= max; n++) {
+    for (let i = 0; i + n <= words.length; i++) {
+      const p = words.slice(i, i + n);
+      if (p.every(ok)) out.add(p.join(' '));
+    }
+  }
+  return out;
 }
 
 /**
- * @param {{from?:string, listId?:string, subject?:string}} t Thread headers (first message).
- * @returns {{from:string, domain:string, listId:string, words:string[]}} Match features.
+ * @param {{from?:string, listId?:string, subject?:string, body?:string}} t Thread headers (first message) and,
+ *   server-side only, the first message body (used for phrases in memory, never stored or returned).
+ * @returns {{from:string, domain:string, listId:string, words:string[], subjectPhrases:Set<string>, bodyPhrases:Set<string>}}
  */
 export function threadFeatures(t) {
   const m = String(t.from || '').toLowerCase().match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/);
   const from = m ? m[0] : '';
   const lm = String(t.listId || '').toLowerCase().match(/<([^>]+)>/);
-  return { from, domain: from ? from.split('@')[1] : '', listId: lm ? lm[1] : String(t.listId || '').toLowerCase().trim(), words: subjectWords(t.subject) };
+  const words = subjectWords(t.subject);
+  return {
+    from,
+    domain: from ? from.split('@')[1] : '',
+    listId: lm ? lm[1] : String(t.listId || '').toLowerCase().trim(),
+    words,
+    subjectPhrases: phraseSet(words, 1, 3),
+    bodyPhrases: t.body ? phraseSet(subjectWords(t.body).slice(0, BODY_WORD_CAP), 2, 3) : new Set()
+  };
 }
 
-function hasPhrase(words, phrase) {
-  const p = phrase.split(' ');
-  for (let i = 0; i + p.length <= words.length; i++) {
-    if (p.every((w, j) => words[i + j] === w)) return true;
-  }
-  return false;
-}
+// More words in a phrase = more specific (a tie between phrases goes to the longer one).
+const phraseWords = (rule) => String(rule.phrase || (rule.kind === 'subject' || rule.kind === 'body' ? rule.value : '')).split(' ').filter(Boolean).length;
+
+const sameDomain = (f, d) => f.domain === d || f.domain.endsWith('.' + d);
 
 /**
  * @param {{kind:string, value:string, phrase?:string}} rule Candidate rule.
- * @param {{from:string, domain:string, listId:string, words:string[]}} f Thread features.
+ * @param {{from:string, domain:string, listId:string, subjectPhrases:Set<string>, bodyPhrases:Set<string>}} f Thread features.
  * @returns {boolean} True when Gmail would match this thread.
  */
 export function ruleMatches(rule, f) {
   if (rule.kind === 'from') return f.from === rule.value;
-  if (rule.kind === 'domain') return f.domain === rule.value || f.domain.endsWith('.' + rule.value);
+  if (rule.kind === 'domain') return sameDomain(f, rule.value);
   if (rule.kind === 'list') return !!f.listId && f.listId === rule.value;
-  if (rule.kind === 'subject') return hasPhrase(f.words, rule.value);
-  if (rule.kind === 'domainSubject') return (f.domain === rule.value || f.domain.endsWith('.' + rule.value)) && hasPhrase(f.words, rule.phrase);
+  if (rule.kind === 'subject') return f.subjectPhrases.has(rule.value);
+  if (rule.kind === 'domainSubject') return sameDomain(f, rule.value) && f.subjectPhrases.has(rule.phrase);
+  // A quoted phrase with no field searches the whole message: subject or body.
+  if (rule.kind === 'body') return f.bodyPhrases.has(rule.value) || f.subjectPhrases.has(rule.value);
   return false;
 }
 
@@ -128,35 +159,39 @@ export function ruleQuery(rule) {
   if (rule.kind === 'domain') return `from:(@${rule.value})`;
   if (rule.kind === 'list') return `list:(${rule.value})`;
   if (rule.kind === 'subject') return `subject:("${rule.value}")`;
+  if (rule.kind === 'body') return `"${rule.value}"`;
   return `from:(@${rule.value}) subject:("${rule.phrase}")`;
 }
 
-function phrases(words) {
-  const out = new Set();
-  for (let n = 1; n <= 3; n++) {
-    for (let i = 0; i + n <= words.length; i++) out.add(words.slice(i, i + n).join(' '));
-  }
-  return [...out];
-}
-
-function candidates(pos) {
-  const count = new Map();
-  const add = (rule) => { const k = ruleQuery(rule); if (!count.has(k)) count.set(k, rule); };
+/**
+ * Rules seen in at least minCaught labelled threads (cheap pre-filter: only these are measured).
+ * @param {Array<{f:object}>} pos Labelled rows.
+ * @param {number} minCaught Threshold.
+ * @returns {Array<object>} Candidate rules.
+ */
+function candidates(pos, minCaught) {
+  const seen = new Map();
+  const bump = (rule) => {
+    const k = ruleQuery(rule);
+    const e = seen.get(k);
+    if (e) e.n += 1; else seen.set(k, { rule, n: 1 });
+  };
   pos.forEach(({ f }) => {
-    if (f.from) add({ kind: 'from', value: f.from });
-    if (f.domain) add({ kind: 'domain', value: f.domain });
-    if (f.listId) add({ kind: 'list', value: f.listId });
-    phrases(f.words).forEach((p) => {
-      add({ kind: 'subject', value: p });
-      if (f.domain) add({ kind: 'domainSubject', value: f.domain, phrase: p });
+    if (f.from) bump({ kind: 'from', value: f.from });
+    if (f.domain) bump({ kind: 'domain', value: f.domain });
+    if (f.listId) bump({ kind: 'list', value: f.listId });
+    f.subjectPhrases.forEach((p) => {
+      bump({ kind: 'subject', value: p });
+      if (f.domain) bump({ kind: 'domainSubject', value: f.domain, phrase: p });
     });
+    f.bodyPhrases.forEach((p) => { if (!f.subjectPhrases.has(p)) bump({ kind: 'body', value: p }); });
   });
-  return [...count.values()];
+  return [...seen.values()].filter((e) => e.n >= minCaught).map((e) => e.rule);
 }
 
 /**
  * Suggests filters per 🎯/ label.
- * @param {{threads:Array<{id:string, labels:string[], from?:string, listId?:string, subject?:string}>,
+ * @param {{threads:Array<{id:string, labels:string[], from?:string, listId?:string, subject?:string, body?:string}>,
  *   targetLabels:string[], excludedLabels?:string[], existingFilters?:Array<{id:string, label:string, rule:(object|null), query:string}>,
  *   options?:object}} input threads: labelled threads and unlabelled Inbox threads (labels [] or no target label).
  * @returns {{suggestions:Array<{label:string, query:string, caught:number, wrong:number, precision:number, coveredBy:string}>,
@@ -190,11 +225,12 @@ export function suggestFilters(input) {
   const suggestions = [];
   (input.targetLabels || []).forEach((label) => {
     const pos = rows.filter((r) => r.labels.indexOf(label) !== -1);
-    const scored = candidates(pos).map((rule) => ({ rule, ...measure(rule, label) }))
+    const scored = candidates(pos, o.minCaught).map((rule) => ({ rule, ...measure(rule, label) }))
       .filter((c) => c.caught >= o.minCaught && c.precision >= o.minPrecision)
       // Ties go to the sturdier rule: a sender or list outlasts a subject word.
       .sort((a, b) => (b.caught - a.caught) || (b.precision - a.precision) ||
-        (KIND_RANK[a.rule.kind] - KIND_RANK[b.rule.kind]) || (ruleQuery(a.rule).length - ruleQuery(b.rule).length));
+        (KIND_RANK[a.rule.kind] - KIND_RANK[b.rule.kind]) || (phraseWords(b.rule) - phraseWords(a.rule)) ||
+        (ruleQuery(a.rule).length - ruleQuery(b.rule).length));
     const covered = new Set();
     let picked = 0;
     for (const c of scored) {

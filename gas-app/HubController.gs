@@ -779,14 +779,16 @@ function hubSetupLabels() {
 }
 
 /**
- * Header-only sample of a thread for the recommender (never bodies).
+ * Sample of a thread for the recommender: headers plus the first message body (user choice 2026-10-16:
+ * server-side body phrases). The body stays in this execution's memory: only a learned query and its counts
+ * reach the Sheet, and the sample is never logged, cached or returned.
  * @param {string} id Thread id.
- * @returns {{id:string, labels:string[], from:string, subject:string, listId:string}} Sample.
+ * @returns {{id:string, labels:string[], from:string, subject:string, listId:string, body:string}} Sample.
  */
 function filterSample_(id) {
-  var t = DPGmailRepo.getThreadMeta(id, null);
+  var t = DPGmailRepo.getThreadMeta(id, { withBody: true });
   var first = t.messages[0] || {};
-  return { id: id, labels: t.labels, from: first.from || '', subject: t.subject, listId: first.listId || '' };
+  return { id: id, labels: t.labels, from: first.from || '', subject: t.subject, listId: first.listId || '', body: first.bodyText || '' };
 }
 
 /**

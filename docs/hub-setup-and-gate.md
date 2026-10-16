@@ -75,7 +75,8 @@ parents first, never renames or deletes). The names are exact (the target emoji 
 Apply them by hand, or let Gmail filters do it. **Filter recommender** (scope `gmail.settings.basic`):
 `hubSuggestFilters` (About > **Suggest filters**) writes a **Filter Suggestions** tab in the Hub Config Sheet with
 (a) the user's filters that add a 🎯 label, (b) new suggestions learned from labelled threads (sender, domain,
-list, subject phrase; headers only, never bodies; AI-excluded labels skipped), and (c) any rows the user pasted
+list, subject phrase, and quoted body phrases: the first message body is read in server memory only, as Triage
+does; only the resulting query and counts are written; AI-excluded labels skipped), and (c) any rows the user pasted
 (for example Gemini-in-Gmail queries; any Source text other than `Suggested` / `Existing filter` is kept).
 Every row is measured with Gmail search over the last 90 days: Caught = matches that carry the label, Wrong =
 matches without it, Precision, and Covered by filter (an existing filter that already catches 90%). Suggestions

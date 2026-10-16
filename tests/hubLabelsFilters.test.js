@@ -87,6 +87,26 @@ test('suggest: existing 🎯 filters, a learned suggestion and pasted rows, each
   assert.ok(ctx.__fakes.sheetsCalls.some((c) => c.method === 'setDataValidation' && c.type === 'BOOLEAN'), 'Create? is a checkbox column');
 });
 
+test('suggest learns a body phrase on the server; the body itself never reaches the Sheet or logs', () => {
+  const ctx = filterCtx();
+  const subjects = ['Quick note', 'Status today', 'Attached files', 'Weekly check'];
+  for (let i = 1; i <= 4; i++) {
+    addThread(ctx, { id: `rev${i}`, archived: true, labels: ['🎯/Review'], from: `p${i}@agency${i}.gov`, subject: subjects[i - 1],
+      body: `The container scan results are attached. Private marker CANARY${i}ZZ.` });
+  }
+  ctx.__hub.gmail.queryHits['"container scan results"'] = ['rev1', 'rev2', 'rev3', 'rev4'];
+  const r = call(ctx, 'hubSuggestFilters');
+  assert.equal(r.ok, true, JSON.stringify(r));
+  const rows = rowsOf(ctx);
+  const body = rows.find((x) => x['Gmail query'] === '"container scan results"');
+  assert.ok(body, JSON.stringify(rows.map((x) => x['Gmail query'])));
+  assert.equal(body['Caught (90 days)'], '4');
+  const sheetText = JSON.stringify(Object.values(ctx.__fakes.sheets));
+  assert.doesNotMatch(sheetText, /CANARY/i, 'no body text in the Sheet');
+  assert.doesNotMatch(ctx.__consoleLines.join('\n'), /CANARY/i, 'no body text in logs');
+  assert.doesNotMatch(JSON.stringify(r), /CANARY/i, 'no body text in the result');
+});
+
 test('suggest without the filter scope says so and writes nothing', () => {
   const ctx = filterCtx();
   ctx.__hub.gmail.filtersBlocked = true;
