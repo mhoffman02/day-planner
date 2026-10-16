@@ -95,7 +95,7 @@ try {
   });
   console.log('\n  -> Creating version on WORK...');
   try {
-    const versionOutput = execSync(`npx clasp ${authFlag} --project "${WORK_CONFIG}" version "v1.0-pure-gas update"`, {
+    const versionOutput = execSync(`npx clasp ${authFlag} --project "${WORK_CONFIG}" version "Day Planner v1"`, {
       cwd: GAS_APP_DIR,
       stdio: 'pipe'
     }).toString().trim();
