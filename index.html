@@ -1574,7 +1574,7 @@
         <span class="material-symbols-outlined">lock</span> Your Privacy
       </h3>
       <p class="callout-text">
-        Day Planner only ever writes inside one folder — the one you create for it below. It <b>cannot change anything else in your Google Drive.</b> If you turn on the optional Gmail hub, it can also <b>read</b> the emails you label with 🎯, and it <b>archives</b> or <b>moves to Trash</b> an email only when you click <b>Archive</b> or <b>Delete</b> on the Triage tab. It never sends email, never deletes anything permanently, and never removes your 🎯 labels. The one exception: when you paste a Google Docs, Sheets, Slides, or Drive link into a note, it briefly reads that file's title (nothing else) so it can show a readable name instead of a raw link.
+        Day Planner only ever writes inside one folder — the one you create for it below. It <b>cannot change anything else in your Google Drive.</b> If you turn on the optional Gmail hub, it can also <b>read</b> the emails you label with 🎯, and it <b>archives</b> or <b>moves to Trash</b> an email only when you click <b>Archive</b> or <b>Delete</b> on the Triage tab. When you press <b>Suggest filters</b>, it also reads the sender, subject and mailing-list name of about your last 20 business days of mail, and the text of up to 100 of your 🎯-labeled emails, to suggest Gmail filters; nothing is changed until you tick a suggestion and press <b>Create checked filters</b>. It never sends email, never deletes anything permanently, and never removes your 🎯 labels. The one exception: when you paste a Google Docs, Sheets, Slides, or Drive link into a note, it briefly reads that file's title (nothing else) so it can show a readable name instead of a raw link.
       </p>
       <div class="folder-instructions-box">
         <b>How to set it up:</b>
@@ -1582,6 +1582,12 @@
           <li>In Google Drive, create a folder named <b><code>Day Planner</code></b>.</li>
           <li>Link that folder to the app when prompted (a one-time step).</li>
           <li>From then on, your daily notes and monthly records are kept there automatically — nothing to save manually.</li>
+        </ol>
+        <b>Optional, for the Gmail hub (Triage tab):</b>
+        <ol class="styled-ordered-list">
+          <li>Under <b>Automatic Tasks</b> below, in <b>Gmail labels and filters</b>, press <b>Create Gmail labels</b> to add the 🎯 labels.</li>
+          <li>Press <b>Suggest filters</b>. It reads about 20 business days of your mail in the background (about 20 minutes; a progress bar shows how far it is, and you can close the page).</li>
+          <li>Open the <b>Filter Suggestions</b> tab it links to, tick <b>Create?</b> on the filters you want, then press <b>Create checked filters</b>. New mail then gets its 🎯 label automatically.</li>
         </ol>
       </div>
     </aside>
@@ -1867,31 +1873,59 @@
             <button type="button" class="about-action-btn" @click="loadHubLink(hubLink.retry)">Try again</button>
           </span>
         </div>
-        <div class="guide-card-text hub-sheet-link" x-data="{
-            tool: { state: 'idle', message: '', url: null, authUrl: null, failed: false },
+        <div id="gmail-labels-filters" class="guide-card-text hub-sheet-link" x-data="{
+            tool: { busy: null, message: '', url: null, authUrl: null, failed: false },
+            learn: null,
+            pollTimer: null,
+            init() { this.checkLearning(); },
+            destroy() { clearInterval(this.pollTimer); },
             async run(action) {
-              this.tool = { state: 'working', message: '', url: null, authUrl: null, failed: false };
+              this.tool = { busy: action, message: '', url: null, authUrl: null, failed: false };
               try {
                 const r = await bridge[action]();
                 if (!r) throw new Error('No answer from the server');
-                this.tool = { state: 'done', message: r.message || '', url: r.url || null, authUrl: r.authUrl || null, failed: r.ok !== true };
+                this.show(r);
               } catch (err) {
                 console.error('About: ' + action + ' failed, showing the error', err.stack);
-                this.tool = { state: 'done', message: err.message, url: null, authUrl: null, failed: true };
+                this.tool = { busy: null, message: err.message, url: null, authUrl: null, failed: true };
+              }
+            },
+            show(r) {
+              this.tool = { busy: null, message: r.running ? '' : (r.message || ''), url: r.url || null, authUrl: r.authUrl || null, failed: r.ok !== true };
+              this.learn = r.running ? { label: r.message || '', pct: this.percent(r) } : null;
+              clearInterval(this.pollTimer);
+              if (r.running) this.pollTimer = setInterval(() => this.checkLearning(), 10000);
+            },
+            percent(r) {
+              if (r.phase === 'read') return 5 + Math.round(80 * (r.read || 0) / Math.max(1, r.total || 0));
+              if (r.phase === 'learn') return 88;
+              if (r.phase === 'measure') return 90 + Math.round(10 * (r.measured || 0) / Math.max(1, r.rowCount || 0));
+              return 2;
+            },
+            async checkLearning() {
+              try {
+                const r = await bridge.hubFilterLearnStatus();
+                if (!r) throw new Error('No answer from the server');
+                if (r.running || this.learn) this.show(r);
+              } catch (err) {
+                console.error('About: filter learning status failed, keeping the last progress shown', err.stack);
               }
             }
           }">
           <b>Gmail labels and filters:</b>
-          <button type="button" class="about-action-btn" :disabled="tool.state === 'working'" @click="run('hubSetupLabels')">Create Gmail labels</button>
-          <button type="button" class="about-action-btn" :disabled="tool.state === 'working'" @click="run('hubSuggestFilters')">Suggest filters</button>
-          <button type="button" class="about-action-btn" :disabled="tool.state === 'working'" @click="run('hubCreateSelectedFilters')">Create checked filters</button>
-          <span x-show="tool.state === 'working'">Working&hellip;</span>
-          <span x-show="tool.state === 'done'" :role="tool.failed ? 'alert' : 'status'" :class="{ 'hub-sheet-link-error': tool.failed }" x-text="tool.message"></span>
+          <button type="button" class="about-action-btn" :disabled="tool.busy !== null" :aria-busy="tool.busy === 'hubSetupLabels'" @click="run('hubSetupLabels')"><span x-show="tool.busy === 'hubSetupLabels'" class="material-symbols-outlined icon-16 btn-spinner" aria-hidden="true">progress_activity</span>Create Gmail labels</button>
+          <button type="button" class="about-action-btn" :disabled="tool.busy !== null || learn !== null" :aria-busy="tool.busy === 'hubSuggestFilters' || learn !== null" @click="run('hubSuggestFilters')"><span x-show="tool.busy === 'hubSuggestFilters' || learn !== null" class="material-symbols-outlined icon-16 btn-spinner" aria-hidden="true">progress_activity</span>Suggest filters</button>
+          <button type="button" class="about-action-btn" :disabled="tool.busy !== null" :aria-busy="tool.busy === 'hubCreateSelectedFilters'" @click="run('hubCreateSelectedFilters')"><span x-show="tool.busy === 'hubCreateSelectedFilters'" class="material-symbols-outlined icon-16 btn-spinner" aria-hidden="true">progress_activity</span>Create checked filters</button>
+          <span x-show="learn" class="learn-progress-wrap">
+            <span class="learn-progress" role="progressbar" aria-label="Suggest filters progress" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="learn ? learn.pct : 0"><span class="learn-progress-fill" :style="'width:' + (learn ? learn.pct : 0) + '%'"></span></span>
+            <span class="learn-progress-label" role="status" x-text="learn ? learn.label + ' (runs in the background; you can close this page)' : ''"></span>
+          </span>
+          <span x-show="tool.message" :role="tool.failed ? 'alert' : 'status'" :class="{ 'hub-sheet-link-error': tool.failed }" x-text="tool.message"></span>
           <a x-show="tool.url" :href="tool.url" target="_blank" rel="noopener noreferrer" class="hub-sheet-link-anchor">
             Open the Filter Suggestions tab <span class="material-symbols-outlined icon-16" aria-hidden="true">open_in_new</span>
           </a>
           <a x-show="tool.authUrl" :href="tool.authUrl" target="_blank" rel="noopener noreferrer" class="auth-approve-btn"><span class="material-symbols-outlined icon-18" aria-hidden="true">key</span>Approve filter access</a>
-          <span class="hub-sheet-link-note"><b>Create Gmail labels</b> adds any missing 🎯 labels (it never renames or deletes; the hub also does this when it sets itself up). <b>Suggest filters</b> fills the <b>Filter Suggestions</b> tab of the Hub Config Sheet: your filters that add a 🎯 label, new ones learned from the emails you already labeled (sender, subject and phrases in the message; the reading happens inside Google and only the suggested search is saved), and any rows you paste in yourself (for example, queries from Gemini in Gmail). Each row shows how many of your labeled emails from the last 90 days it catches and how many other emails it would wrongly catch. Tick <b>Create?</b> on the rows you want, then <b>Create checked filters</b>: each filter only adds its label. Task-Today, Waiting and Meeting are left for you to apply by hand.</span>
+          <span class="hub-sheet-link-note"><b>Create Gmail labels</b> adds any missing 🎯 labels (it never renames or deletes; the hub also does this when it sets itself up). <b>Suggest filters</b> reads about the last 20 business days of your mail in the background (about 20 minutes for a few thousand emails, paced so Triage keeps working; you can close this page), then fills the <b>Filter Suggestions</b> tab of the Hub Config Sheet: your filters that add a 🎯 label, new ones learned from your mail (sender, subject, mailing list, and phrases in up to 100 of your 🎯-labeled emails), and any rows you paste in yourself (for example, queries from Gemini in Gmail). The reading happens inside Google: senders, subjects and mailing-list names are kept in a temporary Google cache for up to 6 hours (so running it again only rechecks, without rereading), message text is never kept, and only the suggested searches and their counts are saved. Each row shows how many of your labeled emails from the last 90 days it catches and how many other emails it would wrongly catch. Tick <b>Create?</b> on the rows you want, then <b>Create checked filters</b>: each filter only adds its label. Task-Today, Waiting and Meeting are left for you to apply by hand.</span>
         </div>
         <p class="guide-card-text">
           <b>If something fails:</b> the thread shows <b>Error</b> in Triage. Fix the cause and press <b>Retry</b>; most errors are also retried automatically.
@@ -2479,9 +2513,9 @@
       <details class="guide-card about-details tutorial-ex" data-ex="T20" data-title="Suggest and create a filter" x-data="{ id: 'T20' }">
         <summary class="guide-card-title"><span class="tutorial-ex-id">T20</span> Suggest and create a filter <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
         <dl class="tutorial-steps">
-          <dt>Do</dt><dd>Click <b>Suggest filters</b>, then <b>Open the Filter Suggestions tab</b>. Tick <b>Create?</b> on one row with high Precision, then click <b>Create checked filters</b>.</dd>
+          <dt>Do</dt><dd>Click <b>Suggest filters</b>. Its button turns and a progress bar shows how much mail has been read (about 20 minutes; you can leave and come back). When it finishes, click <b>Open the Filter Suggestions tab</b>. Tick <b>Create?</b> on one row with high Precision, then click <b>Create checked filters</b>.</dd>
           <dt>Look in</dt><dd>The Filter Suggestions tab, then Gmail Settings &rsaquo; Filters and Blocked Addresses.</dd>
-          <dt>Pass if</dt><dd>The tab lists your existing 🎯 filters and new suggestions with Caught and Wrong counts; the ticked row shows <b>Created</b> and a Filter id; Gmail has a new filter whose only action is applying that 🎯 label.</dd>
+          <dt>Pass if</dt><dd>The progress bar moves without a Gmail limit error; the finished message says how many emails were read and how many Gmail filters and 🎯 labels were found; the tab lists your existing 🎯 filters and new suggestions with Caught and Wrong counts; the ticked row shows <b>Created</b> and a Filter id; Gmail has a new filter whose only action is applying that 🎯 label.</dd>
           <dt>Clean up</dt><dd>Delete the new filter in Gmail settings if you do not want it.</dd>
         </dl>
         <div class="tutorial-ex-actions">

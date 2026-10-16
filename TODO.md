@@ -22,6 +22,10 @@ Most items need the user (GSA account, a release go, or a decision). HOME live c
   Switch to trial (now on About); then two tabs: Go live in tab A, Archive in tab B is refused with "Refresh before acting".
 - [ ] **Approval banner after consent redirect**: on WORK the page reloaded after approving and still showed the
   banner; "Check again" cleared it. Optional: re-check automatically when the tab regains focus.
+- [ ] **WORK: Suggest filters in the background (2026-10-16)**: after Update WORK, press Suggest filters once; the
+  progress bar should move for about 20 minutes and finish without a Gmail limit error. Then paste the Filter
+  Suggestions tab here for the numbered review. The finished message says how many Gmail filters add a 🎯 label
+  (WORK showed "0 existing").
 - [ ] **WORK v152 approval loop (2026-10-16)**: approved, Check again, banner stayed. Fixed so the optional
   `gmail.settings.basic` scope no longer gates the app; confirm on WORK. If the banner still shows, the console line
   `loadHubStatus: ... missing scopes:` names the scope; if the filter scope is the only one missing, the GSA org

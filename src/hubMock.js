@@ -279,10 +279,24 @@ export class HubMock {
     return { ok: true, status: 'OK', message: 'All Day Planner Gmail labels already exist', created: [], existing: [] };
   }
 
-  /** @returns {object} Mock filter suggestions (local preview has no Gmail). */
+  /** @returns {object} Mock filter learner start: the job then advances 100 emails per status check. */
   hubSuggestFilters() {
-    return { ok: true, status: 'OK', rows: 3, suggested: 2, existing: 1, pasted: 0, url: 'https://docs.google.com/spreadsheets/d/mock-hub-sheet/edit',
-      message: 'Filter Suggestions: 2 new, 1 existing. Tick Create? on the rows you want, then Create checked filters.' };
+    if (!this.learnJob || !this.learnJob.running) this.learnJob = { running: true, read: 0, total: 300 };
+    return this.hubFilterLearnStatus(true);
+  }
+
+  /**
+   * @param {boolean} [noAdvance] True for the start call (no progress yet).
+   * @returns {object} Mock filter learner status (local preview has no Gmail).
+   */
+  hubFilterLearnStatus(noAdvance) {
+    const j = this.learnJob;
+    if (!j) return { ok: true, status: 'IDLE', phase: 'idle', running: false, message: '' };
+    if (j.running && !noAdvance) j.read = Math.min(j.total, j.read + 100);
+    if (j.running && j.read >= j.total && !noAdvance) j.running = false;
+    if (j.running) return { ok: true, status: 'LEARNING', phase: 'read', running: true, read: j.read, total: j.total, message: `Reading your mail: ${j.read} of ${j.total}` };
+    return { ok: true, status: 'OK', phase: 'done', running: false, read: j.total, total: j.total, url: 'https://docs.google.com/spreadsheets/d/mock-hub-sheet/edit',
+      message: 'Filter Suggestions: 2 new, 1 existing, from 300 emails. Tick Create? on the rows you want, then Create checked filters.' };
   }
 
   /** @returns {object} Mock filter creation. */

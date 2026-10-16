@@ -6338,6 +6338,47 @@
     align-items: center;
   }
 
+  /* Busy buttons: a turning Material icon, not a CSS ring (no circles, see no-pills). */
+  .btn-spinner {
+    display: inline-block;
+    margin-right: 4px;
+    vertical-align: -3px;
+    animation: btn-spin 1s linear infinite;
+  }
+
+  @keyframes btn-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .btn-spinner { animation: none; }
+  }
+
+  .learn-progress-wrap {
+    display: flex;
+    flex-basis: 100%;
+    flex-direction: column;
+    gap: 4px;
+    margin: 6px 0;
+  }
+
+  .learn-progress {
+    display: block;
+    width: 100%;
+    max-width: 420px;
+    height: 8px;
+    border: 1px solid var(--binder-teal);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .learn-progress-fill {
+    display: block;
+    height: 100%;
+    background: var(--binder-teal);
+    transition: width 0.4s ease;
+  }
+
   .auth-recheck-note {
     flex-basis: 100%;
     font-weight: 600;

@@ -1045,6 +1045,9 @@ export class GASBridge {
   /** @returns {Promise<{ok: boolean, rows: number, url: string, message: string}>} Fills the Filter Suggestions tab. */
   hubSuggestFilters() { return this._hubRpc('hubSuggestFilters', []); }
 
+  /** @returns {Promise<{ok: boolean, running: boolean, phase: string, read: number, total: number, message: string}>} Filter learner progress. */
+  hubFilterLearnStatus() { return this._hubRpc('hubFilterLearnStatus', []); }
+
   /** @returns {Promise<{ok: boolean, created: number, skipped: number, failed: number, message: string}>} Creates ticked filters. */
   hubCreateSelectedFilters() { return this._hubRpc('hubCreateSelectedFilters', []); }
 

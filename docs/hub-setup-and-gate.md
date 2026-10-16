@@ -77,10 +77,20 @@ parents first, never renames or deletes). The names are exact (the target emoji 
 `🎯/Read`, `🎯/Review`.
 
 Apply them by hand, or let Gmail filters do it. **Filter recommender** (scope `gmail.settings.basic`):
-`hubSuggestFilters` (About > **Suggest filters**) writes a **Filter Suggestions** tab in the Hub Config Sheet with
-(a) the user's filters that add a 🎯 label, (b) new suggestions learned from labelled threads (sender, domain,
-list, subject phrase, and quoted body phrases: the first message body is read in server memory only, as Triage
-does; only the resulting query and counts are written; AI-excluded labels skipped), and (c) any rows the user pasted
+`hubSuggestFilters` (About > **Suggest filters**) starts a background job that writes a **Filter Suggestions** tab in
+the Hub Config Sheet. Gmail allows 6,000 quota units per user per minute (May 2026; `messages.get` 20, `threads.get`
+40, `messages.list` 5, `threads.list` 10), shared with Triage, so a one-minute `hubFilterLearnTick` trigger does the
+work in steps, each spending at most 2,500 units with paced calls: **list** (one message per thread: up to 150 per 🎯
+label over 90 days, then up to 4,000 threads from the last 28 days, about 20 business days, without sent, chats or
+drafts), **read** (From, Subject, List-Id and label names per message), **learn** (bodies of up to 100 🎯-labelled
+messages read in memory only, then the engine), **measure** (two searches per row), then the tab. A quota stop ends a
+tick and the next resumes; any other error, an expired cache, or a job older than 3 hours stops it with a message and
+removes the trigger. Header features live in the user cache for 6 h (never the Sheet or properties); a second run in
+that time reuses them and only re-learns and re-measures. A click while a job runs reports progress instead of
+restarting. `hubFilterLearnStatus` (no Gmail calls) feeds the About progress bar, and the finished message reports
+how many Gmail filters exist, how many add a 🎯 label, and how many 🎯 labels Gmail has. The tab holds
+(a) the user's filters that add a 🎯 label, (b) new suggestions learned from the sample (sender, domain,
+list, subject phrase, and quoted body phrases; AI-excluded labels skipped), and (c) any rows the user pasted
 (for example Gemini-in-Gmail queries; any Source text other than `Suggested` / `Existing filter` is kept).
 Every row is measured with Gmail search over the last 90 days: Caught = matches that carry the label, Wrong =
 matches without it, Precision, and Covered by filter (an existing filter that already catches 90%). Suggestions
