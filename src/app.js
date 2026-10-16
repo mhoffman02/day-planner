@@ -4708,6 +4708,10 @@ Alpine.data('plannerApp', () => ({
         }
         this.resolveError(key);
         this.dropCopyRow(copyId, targetDate);
+        if (undo.droppedRow && !this.masterTasks.some(t => t.id === undo.droppedRow.id)) {
+          this.masterTasks.push(undo.droppedRow);
+          this.syncMasterTasksCacheFromLiveState();
+        }
         const restoreTo = prevStatus || '•';
         if (restoreTo !== status) {
           // The source on screen: the Daily row on its open day, else its Master row (the same
@@ -4855,10 +4859,18 @@ Alpine.data('plannerApp', () => ({
           throw new Error(`Not saved: no check-back task was made on ${targetDate} (the server returned none).`);
         }
         this.addCopyRow(res.followUpTask, targetDate, sourceDate);
+        // Google stores Ⓓ as completed, and a completed dated task with no master link is not on
+        // the Master list on reload, so its row leaves now. Undo puts it back.
+        const dropped = this.masterTasks.find(t => t.id === id && !t.movedTaskId && t.dueDate);
+        if (dropped) {
+          this.masterTasks = this.masterTasks.filter(t => t !== dropped);
+          this.syncMasterTasksCacheFromLiveState();
+        }
         const parsed = this.parseTask(task.title);
         const cleanTitle = parsed.cleanTitle || task.title;
-        this.showTaskToast(`Delegated "${cleanTitle}"${owner ? ` to ${owner}` : ''}. Check back ${this.relativeDayLabel(targetDate)}.`,
-          { status: 'Ⓓ', sourceId: id, sourceDate, copyId: res.followUpTask.id, targetDate, prevStatus });
+        const undo = { status: 'Ⓓ', sourceId: id, sourceDate, copyId: res.followUpTask.id, targetDate, prevStatus };
+        if (dropped) undo.droppedRow = dropped;
+        this.showTaskToast(`Delegated "${cleanTitle}"${owner ? ` to ${owner}` : ''}. Check back ${this.relativeDayLabel(targetDate)}.`, undo);
       },
 
       async toggleTaskStatus(task) {

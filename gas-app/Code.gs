@@ -434,7 +434,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 491;
+const BUILD_NUMBER_ = 492;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -2657,13 +2657,16 @@ function updateDailyTask(dateStr, taskId, updates, serverMeta) {
       patch.notes = encodeTaskMeta(notesBaseMeta, serverMeta);
     }
 
+    // Links as they were BEFORE this write: a link this write adds (forwardMasterTask records
+    // movedTaskId) must not mirror the source status onto the copy it just made.
+    const linkMeta = (updates && updates.status !== undefined && ensureCurrent()) ? decodeTaskMeta(ensureCurrent().notes) : null;
+
     const updated = Tasks.Tasks.patch(patch, '@default', taskId);
 
     // Mirror a status change back onto source master task or moved daily task
     if (updates && updates.status !== undefined) {
-      const cur = ensureCurrent();
-      if (cur) {
-        const meta = decodeTaskMeta(cur.notes);
+      if (linkMeta) {
+        const meta = linkMeta;
         if (meta.sourceMasterId) {
           try {
             const masterCurrent = Tasks.Tasks.get('@default', meta.sourceMasterId);

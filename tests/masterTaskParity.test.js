@@ -163,6 +163,37 @@ for (const c of await bothClients()) {
       assert.deepEqual(calls[0], ['delegate', SRC, 'c1', TGT, '']);
     });
 
+    it('dated task listed in Master: once delegated it leaves the list (as on reload); Undo brings it back', async () => {
+      const { calls, bridge } = recorder();
+      const t = { id: 't7', title: '[B1] Call vendor', status: '•', dueDate: SRC, movedTo: null, movedTaskId: null };
+      const vm = vmWith(c, { master: [t], bridge });
+      const toasts = captureToasts(vm);
+      vm.selectedDate = '2031-04-01';
+      await vm.selectTaskStatus(t, 'Ⓓ', PICK, '');
+      await settle();
+      assert.deepEqual(calls[0], ['delegate', SRC, 't7', PICK, '']);
+      assert.ok(!vm.masterTasks.some((r) => r.id === 't7'), 'source row left the list');
+      assert.ok(vm.masterTasks.some((r) => r.id === 'k1'), 'check-back row listed');
+      await vm.undoForward(toasts[0].undo);
+      await settle();
+      const back = vm.masterTasks.find((r) => r.id === 't7');
+      assert.ok(back, 'source row is back');
+      assert.equal(back.status, '•');
+      assert.ok(!vm.masterTasks.some((r) => r.id === 'k1'));
+    });
+
+    it('Daily row delegate: its same-id Master row leaves the list too', async () => {
+      const { bridge } = recorder();
+      const daily = { id: 't1', title: '[B1] Call vendor', status: '•' };
+      const listed = { id: 't1', title: '[B1] Call vendor', status: '•', dueDate: SRC, movedTo: null, movedTaskId: null };
+      const vm = vmWith(c, { daily: [daily], master: [listed], bridge });
+      captureToasts(vm);
+      await vm.selectTaskStatus(daily, 'Ⓓ', TGT, '');
+      await settle();
+      assert.equal(daily.status, 'Ⓓ');
+      assert.ok(!vm.masterTasks.some((r) => r.id === 't1'));
+    });
+
     it('the delegate picker on a Master row starts at that row default day', () => {
       const m = { id: 'm1', title: 'a', status: '•', dueDate: SRC, movedTo: null, movedTaskId: null };
       const vm = vmWith(c, { master: [m] });

@@ -387,7 +387,7 @@ export function buildMasterTasksClearinghouse(rawTasks = []) {
     const movedTaskId = t.movedTaskId || null;
     const sourceMasterId = t.sourceMasterId || null;
     const status = t.status || '•';
-    const isCompleted = status === '✓' || status === 'X' || t.status === 'completed';
+    const isCompleted = status === '✓' || status === 'X' || t.status === 'completed' || t.statusRaw === 'completed';
 
     return {
       id: t.id,

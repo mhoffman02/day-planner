@@ -1,71 +1,84 @@
 /**
  * @file masterParityClearinghouse.test.js
- * @description What the Master Tasks list shows after a forward or delegate from a Master row, by
- * running the Google state each write leaves through buildMasterTasksClearinghouse (the same
- * function the server and the reload use). The client sets these same end states on screen right
- * after a write, so a reload never changes what the row shows.
+ * @description What the Master Tasks list shows on reload after a forward or delegate, end to end:
+ * the REAL gas-app/Code.gs write (forwardMasterTask, forwardDailyTask, delegateDailyTask) runs
+ * against faked Google Tasks, then the REAL getMasterTasks reads the list back. The client sets
+ * these same end states on screen right after a write (see masterTaskParity.test.js), so a reload
+ * never changes what a row shows.
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildMasterTasksClearinghouse } from '../src/taskEngine.js';
+import { makeGasContext, loadGasFile, toHost } from './helpers/gasRuntimeStubs.js';
 
-const D0 = '2031-03-12';
-const D1 = '2031-03-13';
+const D0 = '2026-10-09';
+const D1 = '2026-10-12';
 
-// Decoded task shape that getMasterTasks hands to the clearinghouse.
-function g(id, fields = {}) {
-  return { id, title: fields.title || '[B1] Call vendor', category: 'Work', status: '•', starred: false, notes: '', due: null, movedTo: null, movedTaskId: null, sourceMasterId: null, statusRaw: 'needsAction', ...fields };
+function ctxWith(tasks) {
+  const ctx = makeGasContext();
+  ctx.Utilities.formatDate = () => '2026-10-09 12:00:00';
+  loadGasFile(ctx, 'Code.gs');
+  ctx.Tasks.Tasks.remove = (list, id) => {
+    const i = ctx.__fakes.tasks.findIndex((t) => t.id === id);
+    if (i >= 0) ctx.__fakes.tasks.splice(i, 1);
+  };
+  tasks.forEach((t) => ctx.__fakes.tasks.push({ status: 'needsAction', notes: '', ...t }));
+  return ctx;
 }
-const row = (list, id) => list.find((r) => r.id === id);
 
-describe('Master row end states after forward and delegate', () => {
+const list = (ctx) => toHost(ctx.getMasterTasks(''));
+const row = (rows, id) => rows.find((r) => r.id === id);
+
+describe('Master list on reload after forward and delegate (real server)', () => {
   it('undated master, forwarded: one row on the new day, open (the copy is the live task)', () => {
-    const out = buildMasterTasksClearinghouse([
-      g('M', { status: '→', movedTo: D1, movedTaskId: 'C' }),
-      g('C', { due: D1 + 'T00:00:00.000Z', sourceMasterId: 'M' })
-    ]);
-    assert.equal(out.length, 1);
-    assert.deepEqual({ id: out[0].id, status: out[0].status, dueDate: out[0].dueDate, movedTaskId: out[0].movedTaskId }, { id: 'M', status: '•', dueDate: D1, movedTaskId: 'C' });
+    const ctx = ctxWith([{ id: 'M', title: '[B1] Call vendor', notes: '[Master]' }]);
+    const fwd = toHost(ctx.forwardMasterTask('M', D1));
+    const rows = list(ctx);
+    assert.equal(rows.length, 1);
+    assert.deepEqual({ id: rows[0].id, status: rows[0].status, dueDate: rows[0].dueDate, movedTaskId: rows[0].movedTaskId },
+      { id: 'M', status: '•', dueDate: D1, movedTaskId: fwd.forwardedTask.id });
   });
 
-  it('undated master, delegated: the master shows Ⓓ (undated stays listed) plus an open check-back row', () => {
-    const out = buildMasterTasksClearinghouse([
-      g('M', { status: 'Ⓓ', statusRaw: 'completed' }),
-      g('K', { title: '[B1] Check back: Call vendor (Pat)', due: D1 + 'T00:00:00.000Z' })
-    ]);
-    assert.equal(row(out, 'M').status, 'Ⓓ');
-    assert.equal(row(out, 'M').dueDate, null);
-    assert.equal(row(out, 'K').status, '•');
-    assert.equal(row(out, 'K').dueDate, D1);
+  it('undated master, delegated: the master stays as Ⓓ, plus an open check-back row', () => {
+    const ctx = ctxWith([{ id: 'M', title: '[B1] Call vendor', notes: '[Master]' }]);
+    const del = toHost(ctx.delegateDailyTask('', 'M', D1, 'Pat'));
+    const rows = list(ctx);
+    assert.equal(row(rows, 'M').status, 'Ⓓ');
+    assert.equal(row(rows, del.followUpTask.id).status, '•');
+    assert.equal(row(rows, del.followUpTask.id).dueDate, D1);
   });
 
-  it('scheduled pair, forwarded: the pair shows → on its old day, plus the new copy as its own row', () => {
-    const out = buildMasterTasksClearinghouse([
-      g('M', { status: '→', movedTo: D0, movedTaskId: 'C' }),
-      g('C', { status: '→', due: D0 + 'T00:00:00.000Z', sourceMasterId: 'M' }),
-      g('C1', { due: D1 + 'T00:00:00.000Z' })
-    ]);
-    assert.equal(out.length, 2);
-    assert.deepEqual({ status: row(out, 'M').status, dueDate: row(out, 'M').dueDate }, { status: '→', dueDate: D0 });
-    assert.equal(row(out, 'C1').dueDate, D1);
+  it('scheduled pair, forwarded: the pair shows → on its old day, plus the new copy', () => {
+    const ctx = ctxWith([{ id: 'M', title: '[B1] Call vendor', notes: '[Master]' }]);
+    const first = toHost(ctx.forwardMasterTask('M', D0));
+    const fwd = toHost(ctx.forwardDailyTask(D0, first.forwardedTask.id, D1));
+    const rows = list(ctx);
+    assert.equal(rows.length, 2);
+    assert.deepEqual({ status: row(rows, 'M').status, dueDate: row(rows, 'M').dueDate }, { status: '→', dueDate: D0 });
+    assert.equal(row(rows, fwd.forwardedTask.id).dueDate, D1);
   });
 
   it('scheduled pair, delegated: the pair shows Ⓓ, plus an open check-back row', () => {
-    const out = buildMasterTasksClearinghouse([
-      g('M', { status: 'Ⓓ', statusRaw: 'completed', movedTo: D0, movedTaskId: 'C' }),
-      g('C', { status: 'Ⓓ', statusRaw: 'completed', due: D0 + 'T00:00:00.000Z', sourceMasterId: 'M' }),
-      g('K', { due: D1 + 'T00:00:00.000Z' })
-    ]);
-    assert.equal(row(out, 'M').status, 'Ⓓ');
-    assert.equal(row(out, 'K').status, '•');
+    const ctx = ctxWith([{ id: 'M', title: '[B1] Call vendor', notes: '[Master]' }]);
+    const first = toHost(ctx.forwardMasterTask('M', D0));
+    const del = toHost(ctx.delegateDailyTask(D0, first.forwardedTask.id, D1, ''));
+    const rows = list(ctx);
+    assert.equal(row(rows, 'M').status, 'Ⓓ');
+    assert.equal(row(rows, del.followUpTask.id).status, '•');
   });
 
-  it('dated task with no master, forwarded or delegated: stays listed with its glyph, new row added', () => {
-    const fwd = buildMasterTasksClearinghouse([g('T', { status: '→', due: D0 + 'T00:00:00.000Z' }), g('C1', { due: D1 + 'T00:00:00.000Z' })]);
-    assert.equal(row(fwd, 'T').status, '→');
-    assert.ok(row(fwd, 'C1'));
-    const del = buildMasterTasksClearinghouse([g('T', { status: 'Ⓓ', statusRaw: 'completed', due: D0 + 'T00:00:00.000Z' }), g('K', { due: D1 + 'T00:00:00.000Z' })]);
-    assert.equal(row(del, 'T').status, 'Ⓓ');
-    assert.ok(row(del, 'K'));
+  it('dated task with no master, forwarded: stays listed as →, plus the new copy', () => {
+    const ctx = ctxWith([{ id: 'T', title: '[B1] Call vendor', due: D0 + 'T00:00:00.000Z' }]);
+    const fwd = toHost(ctx.forwardDailyTask(D0, 'T', D1));
+    const rows = list(ctx);
+    assert.equal(row(rows, 'T').status, '→');
+    assert.ok(row(rows, fwd.forwardedTask.id));
+  });
+
+  it('dated task with no master, delegated: it leaves the list (completed in Google), the check-back row stays', () => {
+    const ctx = ctxWith([{ id: 'T', title: '[B1] Call vendor', due: D0 + 'T00:00:00.000Z' }]);
+    const del = toHost(ctx.delegateDailyTask(D0, 'T', D1, ''));
+    const rows = list(ctx);
+    assert.equal(row(rows, 'T'), undefined);
+    assert.equal(row(rows, del.followUpTask.id).status, '•');
   });
 });
