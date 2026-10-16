@@ -146,8 +146,11 @@ test('(k) appsscript.json: valid, gmail.modify (not readonly) present, broad sco
   const scopes = m.oauthScopes;
   assert.ok(scopes.includes('https://www.googleapis.com/auth/gmail.modify'));
   assert.ok(!scopes.includes('https://www.googleapis.com/auth/gmail.readonly'), 'readonly is redundant under modify');
+  // gmail.settings.basic (2026-10-16, user decision): read filters and create add-label-only filters the user
+  // ticks. settings.sharing (forwarding, delegates) stays out.
+  assert.ok(scopes.includes('https://www.googleapis.com/auth/gmail.settings.basic'));
   for (const s of scopes) {
-    assert.doesNotMatch(s, /\/auth\/spreadsheets|\/auth\/documents|mail\.google\.com|gmail\.(compose|send|insert|settings)/, s);
+    assert.doesNotMatch(s, /\/auth\/spreadsheets|\/auth\/documents|mail\.google\.com|gmail\.(compose|send|insert|settings\.sharing)/, s);
   }
   assert.ok(scopes.includes('https://www.googleapis.com/auth/drive.file'));
   const svc = m.dependencies.enabledAdvancedServices;

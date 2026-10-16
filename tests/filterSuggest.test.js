@@ -5,7 +5,27 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { threadFeatures, ruleMatches, ruleQuery, suggestFilters, subjectWords } from '../src/integration/filterSuggest.js';
+import {
+  threadFeatures, ruleMatches, ruleQuery, suggestFilters, subjectWords,
+  FILTER_TARGET_LABELS, workflowLabelNames, filterCriteriaQuery, precisionOf, coveringFilter
+} from '../src/integration/filterSuggest.js';
+
+describe('filter tab helpers', () => {
+  it('targets the five automatable labels, never Task-Today, Waiting or Meeting', () => {
+    assert.deepEqual([...FILTER_TARGET_LABELS], ['🎯/Task', '🎯/Meeting/NCMMS-Core', '🎯/Meeting/NCMMS-Daily', '🎯/Read', '🎯/Review']);
+  });
+  it('lists all eight workflow labels for setup', () => assert.equal(workflowLabelNames().length, 8));
+  it('reads filter criteria as one Gmail query', () => {
+    assert.equal(filterCriteriaQuery({ from: 'a@b.gov', subject: 'Notes:', hasAttachment: true }), 'from:(a@b.gov) subject:(Notes:) has:attachment');
+    assert.equal(filterCriteriaQuery({ query: 'list:(x)' }), 'list:(x)');
+  });
+  it('precision and coverage', () => {
+    assert.equal(precisionOf(9, 1), 0.9);
+    assert.equal(precisionOf(0, 0), 0);
+    assert.equal(coveringFilter(['a', 'b'], [{ filterId: 'F', ids: ['a', 'b', 'c'] }]), 'F');
+    assert.equal(coveringFilter(['a', 'b'], [{ filterId: 'F', ids: ['a'] }]), '');
+  });
+});
 
 const TASK = '🎯/Task';
 const t = (id, labels, from, subject, listId = '') => ({ id, labels, from, subject, listId });

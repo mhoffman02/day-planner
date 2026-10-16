@@ -8,7 +8,7 @@
  * exported makeGasContext/loadGasFile/loadEngines/toHost of gasRuntimeStubs.js.
  *
  * Contract enforcement: the ledger fake throws when written without the lock held, mirroring
- * "caller must hold the lock". Gmail has no write methods at all, so any attempt throws TypeError.
+ * "caller must hold the lock". Gmail writes are only the Triage archive/trash, label create, and filter create (all recorded in calls).
  * Never put real email content in fakes; message bodies here are synthetic canaries.
  */
 import vm from 'node:vm';
@@ -72,13 +72,43 @@ function makeGmail(h) {
   return {
     Users: {
       getProfile(userId) { h.gmail.calls.push('getProfile'); return { emailAddress: 'Me@Example.test' }; },
-      Labels: { list() { h.gmail.calls.push('labels.list'); return { labels: h.gmail.labels.map((l) => ({ ...l })) }; } },
+      Labels: {
+        list() { h.gmail.calls.push('labels.list'); return { labels: h.gmail.labels.map((l) => ({ ...l })) }; },
+        // Advanced Gmail signature: create(resource, userId).
+        create(resource) {
+          h.gmail.calls.push(`labels.create:${resource.name}`);
+          if (h.gmail.failLabelCreate) throw new Error(h.gmail.failLabelCreate);
+          return { id: labelId(resource.name), name: resource.name };
+        }
+      },
+      Settings: {
+        Filters: {
+          list() {
+            h.gmail.calls.push('filters.list');
+            if (h.gmail.filtersBlocked) { const e = new Error('Request had insufficient authentication scopes.'); e.code = 403; throw e; }
+            return { filter: h.gmail.filters.map((x) => ({ ...x })) };
+          },
+          // Advanced Gmail signature: create(resource, userId).
+          create(resource) {
+            h.gmail.calls.push(`filters.create:${JSON.stringify(resource)}`);
+            if (h.gmail.failFilterCreate) throw new Error(h.gmail.failFilterCreate);
+            const made = { id: `F${h.gmail.filters.length + 1}`, ...resource };
+            h.gmail.filters.push(made);
+            return made;
+          }
+        }
+      },
       Threads: {
         list(userId, opts = {}) {
           h.gmail.calls.push('threads.list');
           if (h.gmail.quotaOnList) throw new Error(QUOTA_MSG('list'));
+          // q search: tests map each query (without the newer_than window) to thread ids in h.gmail.queryHits;
+          // in:inbox means every Inbox thread.
+          const q = opts.q ? String(opts.q).replace(/ newer_than:\d+d$/, '') : null;
+          const qSet = q === null ? null : (q === 'in:inbox' ? null : new Set(h.gmail.queryHits[q] || []));
+          const inboxOnlyQ = q === 'in:inbox';
           // Like Gmail: threads in Trash are left out unless includeSpamTrash; several labelIds must ALL match.
-          const ids = Object.values(h.gmail.threads).filter((t) => (opts.includeSpamTrash || !t.trashed) && (!opts.labelIds || opts.labelIds.every((l) => t.messages.some((m) => m.labelIds.includes(l))))).map((t) => ({ id: t.id, historyId: String(t.historyId) }));
+          const ids = Object.values(h.gmail.threads).filter((t) => (!qSet || qSet.has(t.id)) && (!inboxOnlyQ || t.messages.some((m) => m.labelIds.includes('INBOX')))).filter((t) => (opts.includeSpamTrash || !t.trashed) && (!opts.labelIds || opts.labelIds.every((l) => t.messages.some((m) => m.labelIds.includes(l))))).map((t) => ({ id: t.id, historyId: String(t.historyId) }));
           return { threads: ids.slice(0, opts.maxResults || 100) };
         },
         get(userId, id, opts = {}) {
@@ -256,7 +286,7 @@ export function makeHubContext(o = {}) {
   const ctx = makeGasContext();
   installClock(ctx, o.now || '2026-10-05T22:00:00Z');
   const h = {
-    gmail: { labels: [{ id: 'INBOX', name: 'INBOX' }], threads: {}, calls: [] },
+    gmail: { labels: [{ id: 'INBOX', name: 'INBOX' }], threads: {}, calls: [], filters: [], queryHits: {} },
     calendar: { events: [], calls: [] },
     tasks: { items: [], inserts: 0, patches: 0, calls: [], onInsert: null, failInsert: false },
     ledger: { rows: new Map(), writes: [], failUpsert: null },

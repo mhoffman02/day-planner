@@ -2,9 +2,11 @@
  * @file GmailRepository.gs
  * @description Gmail access for the Gmail/Meeting hub (Phase 28). Uses ONLY the Advanced Gmail service
  * (gmail.modify): Users.Labels.list, Users.Threads.list, Users.Threads.get with format metadata or full.
- * The built-in mail service is banned (needs the full mail scope; lint enforced). The ONLY Gmail writes
+ * The built-in mail service is banned (needs the full mail scope; lint enforced). The only thread writes
  * are the two Triage buttons: archiveThread (removes the INBOX label and nothing else, so the 🎯 labels
  * the queue relies on survive) and trashThread (Trash, recoverable; never a permanent delete).
+ * Setup writes: ensureLabels creates missing 🎯/ labels (never renames or deletes), and createFilter
+ * adds a filter whose only action is adding one label (gmail.settings.basic; the user ticks each one).
  * Message bodies are read in memory for triage scoring, capped, returned only to in-process callers,
  * and NEVER logged or persisted.
  *
@@ -24,7 +26,7 @@ var GMAIL_THREAD_ID_RE_ = /^[A-Za-z0-9_-]{1,64}$/;
 var GMAIL_BODY_CAP_ = 4000;
 // Triage row preview: Gmail's own snippet of the latest message (Gmail sends about 200 chars).
 var GMAIL_SNIPPET_CAP_ = 300;
-var GMAIL_META_HEADERS_ = ['From', 'To', 'Cc', 'Subject', 'Date'];
+var GMAIL_META_HEADERS_ = ['From', 'To', 'Cc', 'Subject', 'Date', 'List-Id'];
 var gmailLabelCache_ = null;
 
 /**
@@ -270,6 +272,7 @@ function getThreadMeta(threadId, opts) {
       date: dateIso,
       isFromUser: !!me && address_(from) === me,
       subject: header_(h, 'Subject'),
+      listId: header_(h, 'List-Id'),
       bodyText: withBody ? bodyText_(m.payload) : ''
     };
   });
@@ -321,6 +324,108 @@ function trashThread(threadId) {
   Gmail.Users.Threads.trash(GMAIL_ME_, validateThreadId(threadId));
 }
 
+/**
+ * Creates every missing label, parents first (the 🎯 parent before 🎯/Task), so Gmail nests them.
+ * Exact name match; existing labels are never renamed or deleted.
+ * @param {string[]} names Label names.
+ * @returns {{created:string[], existing:string[]}} What was created and what was already there.
+ */
+function ensureLabels(names) {
+  requireGmail_();
+  var want = [];
+  (names || []).forEach(function(n) {
+    var parts = String(n).split('/');
+    for (var i = 1; i <= parts.length; i++) {
+      var p = parts.slice(0, i).join('/');
+      if (p && want.indexOf(p) === -1) want.push(p);
+    }
+  });
+  var have = {};
+  listLabels_().forEach(function(l) { have[l.name] = true; });
+  var created = [];
+  var existing = [];
+  try {
+    want.forEach(function(name) {
+      if (have[name]) {
+        existing.push(name);
+        return;
+      }
+      Gmail.Users.Labels.create({ name: name, labelListVisibility: 'labelShow', messageListVisibility: 'show' }, GMAIL_ME_);
+      created.push(name);
+      have[name] = true;
+    });
+  } finally {
+    gmailLabelCache_ = null; // the next lookup sees the new labels
+  }
+  return { created: created, existing: existing };
+}
+
+/** @returns {Object<string,string>} Label name per label id. */
+function labelNamesById() {
+  var out = {};
+  listLabels_().forEach(function(l) { out[l.id] = l.name; });
+  return out;
+}
+
+/**
+ * @returns {void}
+ * @throws {Error} When the Gmail filter API is not available.
+ */
+function requireFilters_() {
+  requireGmail_();
+  if (!Gmail.Users.Settings || !Gmail.Users.Settings.Filters) {
+    var err = new Error('Gmail filter settings are not available in this Advanced Gmail service');
+    err.code = 'GMAIL_SERVICE_MISSING';
+    throw err;
+  }
+}
+
+/**
+ * Reads the user Gmail filters (needs gmail.settings.basic).
+ * @returns {Array<{id:string, criteria:object, action:object}>} Filters.
+ */
+function listFilters() {
+  requireFilters_();
+  var resp = Gmail.Users.Settings.Filters.list(GMAIL_ME_) || {};
+  return (resp.filter || []).map(function(f) { return { id: f.id, criteria: f.criteria || {}, action: f.action || {} }; });
+}
+
+/**
+ * Creates a filter whose ONLY action is adding one label (no archive, no skip inbox, no delete).
+ * @param {string} query Gmail search query.
+ * @param {string} labelId Label id to add.
+ * @returns {string} New filter id.
+ */
+function createFilter(query, labelId) {
+  requireFilters_();
+  var f = Gmail.Users.Settings.Filters.create({ criteria: { query: query }, action: { addLabelIds: [labelId] } }, GMAIL_ME_);
+  return f && f.id ? f.id : '';
+}
+
+/**
+ * Thread ids matching a Gmail search, optionally only those with one label (labelIds, never a label: term,
+ * since emoji names do not search reliably). Stops at cap.
+ * @param {string} query Gmail search query.
+ * @param {{labelId?:string, cap?:number}} [opts] Options.
+ * @returns {{ids:string[], capped:boolean}} Matching ids and whether more exist.
+ */
+function searchThreadIds(query, opts) {
+  requireGmail_();
+  var o = opts || {};
+  var cap = o.cap || 300;
+  var ids = [];
+  var token = null;
+  do {
+    var params = { q: query, maxResults: Math.min(100, cap - ids.length) };
+    if (o.labelId) params.labelIds = [o.labelId];
+    if (token) params.pageToken = token;
+    var resp = Gmail.Users.Threads.list(GMAIL_ME_, params) || {};
+    (resp.threads || []).forEach(function(t) { ids.push(t.id); });
+    token = resp.nextPageToken || null;
+  } while (token && ids.length < cap);
+  return { ids: ids, capped: !!token };
+}
+
 global.DPGmailRepo = Object.freeze({
   validateThreadId: validateThreadId,
   gmailUrl: gmailUrl,
@@ -329,7 +434,12 @@ global.DPGmailRepo = Object.freeze({
   getThreadMeta: getThreadMeta,
   threadExists: threadExists,
   archiveThread: archiveThread, // HubController.archiveTriageThread only
-  trashThread: trashThread      // HubController.trashTriageThread only
+  trashThread: trashThread,     // HubController.trashTriageThread only
+  ensureLabels: ensureLabels,   // HubController.hubSetupLabels / provisionHub_
+  labelNamesById: labelNamesById, // HubController filter suggestions
+  listFilters: listFilters,     // HubController filter suggestions (gmail.settings.basic)
+  createFilter: createFilter,   // HubController.hubCreateSelectedFilters only
+  searchThreadIds: searchThreadIds // HubController filter measuring
 });   // cross-file only: QueueProcessor.gs, HubController.gs, UnitTests.gs
 
 })(typeof globalThis !== 'undefined' ? globalThis : this);

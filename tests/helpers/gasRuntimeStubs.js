@@ -418,6 +418,8 @@ function makeSheetsFake(data) {
             const t = sp.tabs.find((x) => x.sheetId === p.sheetId);
             if (!t) throw new Error('fake Sheets: unknown sheetId');
             if (String(r.updateSheetProperties.fields).includes('title')) t.title = p.title;
+          } else if (r.setDataValidation) {
+            log('setDataValidation', { range: r.setDataValidation.range, type: r.setDataValidation.rule.condition.type });
           } else throw new Error(`fake Sheets: unsupported request ${Object.keys(r).join(',')}`);
         }
         return { spreadsheetId: sid };

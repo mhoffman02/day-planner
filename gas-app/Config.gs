@@ -39,6 +39,9 @@ var TAB_LEDGER = 'Integration Ledger';
 var TAB_ARCHIVE = 'Integration Ledger Archive';
 var ALL_TABS = ['Config', 'Meeting Registry', 'Integration Ledger', 'Integration Ledger Archive'];
 var CONFIG_HEADER = ['Key', 'Value'];
+// Made on demand by the filter recommender (not part of ALL_TABS: a Sheet without it is still complete).
+var TAB_FILTERS = 'Filter Suggestions';
+var FILTER_READ_RANGE = 'A1:J500';
 var PROP_FLAGS = 'HUB_FLAGS_JSON';
 var SETUP_LOCK_WAIT_MS = 30000;
 var MANDATORY_KEYS = ['TimeZone', 'UserEmail', 'TasksListId'];
@@ -633,6 +636,106 @@ function forgetSheet(staleId) {
 
 // used by other .gs files (LedgerRepository, NotesRepository, queue/trigger code); not a google.script.run surface.
 // getSheetId/getFolderId/setRegistryDocId are additive helpers beyond the core contract (used by the repositories).
+/**
+ * @param {string} id Spreadsheet id.
+ * @returns {{sheetId:number, title:string}|null} The Filter Suggestions tab, or null when absent.
+ */
+function filterTab_(id) {
+  var meta = sheets_().get(id, { fields: 'sheets.properties(sheetId,title)' });
+  var hit = (meta.sheets || []).map(function (x) { return x.properties; }).filter(function (p) { return p.title === TAB_FILTERS; });
+  return hit.length ? hit[0] : null;
+}
+
+/**
+ * Rows of the Filter Suggestions tab (empty when the hub or the tab does not exist yet).
+ * @returns {Array<{row:number, label:string, query:string, source:string, create:boolean, status:string, filterId:string}>}
+ *   row is the 1-based Sheet row.
+ */
+function readFilterRows() {
+  if (!isProvisioned()) return [];
+  var id = getSheetId();
+  if (!filterTab_(id)) return [];
+  var E = engines_();
+  var values = sheets_().Values.get(id, E.a1Range(TAB_FILTERS, FILTER_READ_RANGE)).values || [];
+  var header = (values[0] || []).map(cell_);
+  var col = function (name) { return header.indexOf(name); };
+  var c = { label: col('Label'), query: col('Gmail query'), source: col('Source'), create: col('Create?'), status: col('Status'), filterId: col('Filter id') };
+  if (c.label < 0 || c.query < 0) throw setupError_('Filter Suggestions tab lacks the Label or Gmail query column');
+  var out = [];
+  for (var r = 1; r < values.length; r++) {
+    var v = values[r] || [];
+    var label = cell_(v[c.label]);
+    var query = cell_(v[c.query]);
+    if (!label && !query) continue;
+    out.push({
+      row: r + 1,
+      label: label,
+      query: query,
+      source: c.source < 0 ? '' : cell_(v[c.source]),
+      create: c.create >= 0 && /^true$/i.test(cell_(v[c.create])),
+      status: c.status < 0 ? '' : cell_(v[c.status]),
+      filterId: c.filterId < 0 ? '' : cell_(v[c.filterId])
+    });
+  }
+  return out;
+}
+
+/**
+ * Rewrites the Filter Suggestions tab (creating it if needed): header, one line per row, blank lines over any
+ * older extra rows, and the Create? column as checkboxes.
+ * @param {Array<{label:string, query:string, source:string, caught:(number|string), wrong:(number|string),
+ *   precision:(number|string), coveredBy:string, create:boolean, status:string, filterId:string}>} rows Rows.
+ * @returns {void}
+ */
+function writeFilterRows(rows) {
+  var E = engines_();
+  var id = ensureSetup();
+  var tab = filterTab_(id);
+  var prevCount = 0;
+  if (!tab) {
+    sheets_().batchUpdate({ requests: [{ addSheet: { properties: { title: TAB_FILTERS } } }] }, id);
+    tab = filterTab_(id);
+    if (!tab) throw setupError_('Could not add the ' + TAB_FILTERS + ' tab');
+  } else {
+    prevCount = (sheets_().Values.get(id, E.a1Range(TAB_FILTERS, 'A1:A500')).values || []).length;
+  }
+  var cols = E.FILTER_TAB_COLUMNS;
+  var blank = function (v) { return v === undefined || v === null ? '' : v; };
+  var out = [cols.slice()].concat((rows || []).map(function (r) {
+    return [r.label, r.query, blank(r.source), blank(r.caught), blank(r.wrong), blank(r.precision), blank(r.coveredBy),
+      r.create === true, blank(r.status), blank(r.filterId)];
+  }));
+  while (out.length < prevCount) out.push(cols.map(function () { return ''; }));
+  sheets_().Values.update({ values: out }, id, E.a1Range(TAB_FILTERS, 'A1:' + E.colLetter(cols.length) + out.length), { valueInputOption: 'RAW' });
+  if (rows && rows.length) {
+    var createCol = cols.indexOf('Create?');
+    sheets_().batchUpdate({ requests: [{ setDataValidation: {
+      range: { sheetId: tab.sheetId, startRowIndex: 1, endRowIndex: rows.length + 1, startColumnIndex: createCol, endColumnIndex: createCol + 1 },
+      rule: { condition: { type: 'BOOLEAN' }, strict: true }
+    } }] }, id);
+  }
+}
+
+/**
+ * Writes Status and Filter id for rows of the Filter Suggestions tab (one batch write).
+ * @param {Array<{row:number, status:string, filterId:string}>} updates 1-based Sheet rows.
+ * @returns {void}
+ */
+function updateFilterRows(updates) {
+  if (!updates || !updates.length) return;
+  var E = engines_();
+  var id = getSheetId();
+  var cols = E.FILTER_TAB_COLUMNS;
+  var sc = E.colLetter(cols.indexOf('Status') + 1);
+  var fc = E.colLetter(cols.indexOf('Filter id') + 1);
+  var data = updates.map(function (u) {
+    return { range: E.a1Range(TAB_FILTERS, sc + u.row + ':' + fc + u.row), values: [[u.status || '', u.filterId || '']] };
+  });
+  E.chunkValueRanges(data).forEach(function (chunk) {
+    sheets_().Values.batchUpdate({ valueInputOption: 'RAW', data: chunk }, id);
+  });
+}
+
 global.DPConfig = Object.freeze({
   ensureSetup: ensureSetup,
   getConfig: getConfig,
@@ -644,6 +747,9 @@ global.DPConfig = Object.freeze({
   setFeature: setFeature,
   setTasksListId: setTasksListId, // used by HubController.hubSetTasksListId (gas-rpc)
   getSheetUrl: getSheetUrl,
+  readFilterRows: readFilterRows, // used by HubController filter suggestions
+  writeFilterRows: writeFilterRows, // used by HubController.hubSuggestFilters
+  updateFilterRows: updateFilterRows, // used by HubController.hubCreateSelectedFilters
   getSheetLink: getSheetLink, // used by HubController.getHubSheetLink/setupHub (About link)
   forgetSheet: forgetSheet, // used by HubController.setupHub (re-create a trashed/deleted Sheet)
   needsRepair: needsRepair, // used by HubController.getHubStatus (blank TimeZone/UserEmail seed)

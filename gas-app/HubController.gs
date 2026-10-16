@@ -717,6 +717,12 @@ function provisionHub_() {
   DPConfig.ensureSetup({ autoSeed: true });
   DPConfig.repairSeeds(); // a seed that failed at creation (e.g. Gmail not yet approved) blocks getConfig
   global._installHubTriggersInternal();
+  try {
+    DPGmailRepo.ensureLabels(DPEngines.workflowLabelNames());
+  } catch (err) {
+    // Labels are a convenience: the Sheet and triggers are set up either way, and About has a retry button.
+    DPQueue.logSafe('provisionHub_: could not create the Day Planner Gmail labels; use About > Create Gmail labels', err);
+  }
   return DPConfig.getSheetLink();
 }
 
@@ -732,6 +738,230 @@ function setupHub() {
     var link = provisionHub_();
     if (!link.provisioned) return fail_('SETUP_ERROR', 'Hub Sheet was created but cannot be opened (' + link.missing + ')', true);
     return DPEngines.makeResult({ ok: true, status: 'OK', message: 'Hub Sheet is ready', provisioned: true, url: link.url, missing: null });
+  } catch (err) {
+    return failFrom_(err);
+  }
+}
+
+// Filter recommender: how far back Gmail is searched, sample sizes, and the cap per measured query.
+var HUB_FILTER_WINDOW_ = ' newer_than:90d';
+var HUB_FILTER_SAMPLE_PER_LABEL_ = 60;
+var HUB_FILTER_SAMPLE_INBOX_ = 200;
+var HUB_FILTER_MEASURE_CAP_ = 300;
+var HUB_FILTER_QUERY_MAX_ = 500;
+var HUB_SCOPE_BLOCKED_MSG_ = 'Gmail filter access (gmail.settings.basic) is not approved, or is blocked for this account.';
+
+/**
+ * @param {*} err Thrown value.
+ * @returns {boolean} True when Gmail refused for a missing or blocked scope.
+ */
+function isScopeError_(err) {
+  if (err && (err.code === 403 || err.code === '403')) return true;
+  return /insufficient|permission|scope|forbidden|not authorized|access denied/i.test(String((err && err.message) || err));
+}
+
+/**
+ * Creates the eight 🎯/ workflow labels that are missing (parents first). Never renames or deletes.
+ * IDE manual-run, gas-rpc, and About "Create Gmail labels". Also runs inside provisionHub_.
+ * @returns {object} {ok, created, existing, message} or a failed result.
+ */
+function hubSetupLabels() {
+  var pre = preflight_([]);
+  if (pre.failure) return pre.failure;
+  try {
+    var r = DPGmailRepo.ensureLabels(DPEngines.workflowLabelNames());
+    var msg = r.created.length ? 'Created ' + r.created.length + ' Gmail label' + (r.created.length === 1 ? '' : 's') + ': ' + r.created.join(', ')
+      : 'All Day Planner Gmail labels already exist';
+    return DPEngines.makeResult({ ok: true, status: 'OK', message: msg, created: r.created, existing: r.existing });
+  } catch (err) {
+    return failFrom_(err);
+  }
+}
+
+/**
+ * Header-only sample of a thread for the recommender (never bodies).
+ * @param {string} id Thread id.
+ * @returns {{id:string, labels:string[], from:string, subject:string, listId:string}} Sample.
+ */
+function filterSample_(id) {
+  var t = DPGmailRepo.getThreadMeta(id, null);
+  var first = t.messages[0] || {};
+  return { id: id, labels: t.labels, from: first.from || '', subject: t.subject, listId: first.listId || '' };
+}
+
+/**
+ * Builds the Filter Suggestions tab: the user filters that add a 🎯/ label, new suggestions learned from
+ * labelled threads, and any rows the user pasted (e.g. Gemini queries). Every row is measured with Gmail
+ * search over the last 90 days: Caught = matches that carry the label, Wrong = matches that do not.
+ * Header-only reads; nothing is created. IDE manual-run, gas-rpc, and About "Suggest filters".
+ * @returns {object} {ok, rows, suggested, existing, pasted, partial, url, message} or a failed result.
+ */
+function hubSuggestFilters() {
+  var pre = preflight_([]);
+  if (pre.failure) return pre.failure;
+  var E = DPEngines;
+  try {
+    if (!DPConfig.isProvisioned()) return fail_('SETUP_ERROR', 'Hub Sheet is not set up yet', true);
+    var filters;
+    try {
+      filters = DPGmailRepo.listFilters();
+    } catch (err) {
+      if (!isScopeError_(err)) throw err;
+      DPQueue.logSafe('hubSuggestFilters: Gmail filters could not be read (scope)', err);
+      return fail_('SCOPE_BLOCKED', HUB_SCOPE_BLOCKED_MSG_, true);
+    }
+    var names = DPGmailRepo.labelNamesById();
+    var idOf = {};
+    Object.keys(names).forEach(function(id) { idOf[names[id]] = id; });
+    var excluded = E.AI_EXCLUDED_LABELS.concat(DPConfig.getConfig().ExcludedAiLabels || []);
+    var partial = false;
+
+    // 1. Learn: labelled threads per target label plus unlabelled recent Inbox threads (headers only).
+    var threads = [];
+    var seen = {};
+    var take = function(id) { if (!seen[id]) { seen[id] = true; threads.push(filterSample_(id)); } };
+    try {
+      E.FILTER_TARGET_LABELS.forEach(function(label) {
+        DPGmailRepo.listThreadsByLabel(label, { maxResults: HUB_FILTER_SAMPLE_PER_LABEL_ }).threadIds.forEach(take);
+      });
+      DPGmailRepo.searchThreadIds('in:inbox' + HUB_FILTER_WINDOW_, { cap: HUB_FILTER_SAMPLE_INBOX_ }).ids.forEach(take);
+    } catch (err) {
+      if (!isQuotaError_(err)) throw err;
+      DPQueue.logSafe('hubSuggestFilters: Gmail quota reached while sampling; suggesting from the threads read so far', err);
+      partial = true;
+    }
+    var learned = E.suggestFilters({ threads: threads, targetLabels: E.FILTER_TARGET_LABELS, excludedLabels: excluded });
+
+    // 2. Rows: existing 🎯/ filters, then suggestions, then the user own rows (kept with their ticks and status).
+    var prior = DPConfig.readFilterRows();
+    var priorByKey = {};
+    prior.forEach(function(p) { priorByKey[p.label + '\u0000' + p.query] = p; });
+    var rows = [];
+    var keys = {};
+    var add = function(r) {
+      var k = r.label + '\u0000' + r.query;
+      if (!r.label || !r.query || keys[k]) return;
+      keys[k] = true;
+      var p = priorByKey[k];
+      if (p && r.source !== 'Existing filter') { r.create = p.create; r.status = p.status; r.filterId = r.filterId || p.filterId; }
+      rows.push(r);
+    };
+    filters.forEach(function(f) {
+      (f.action.addLabelIds || []).forEach(function(lid) {
+        var n = names[lid];
+        if (n && n.indexOf(E.LABEL_PREFIX) === 0) add({ label: n, query: E.filterCriteriaQuery(f.criteria), source: 'Existing filter', filterId: f.id, status: 'In Gmail' });
+      });
+    });
+    learned.suggestions.forEach(function(x) { add({ label: x.label, query: x.query, source: 'Suggested' }); });
+    prior.forEach(function(p) {
+      if (p.source === 'Existing filter' || p.source === 'Suggested') return;
+      add({ label: p.label, query: p.query, source: p.source || 'Pasted', create: p.create, status: p.status, filterId: p.filterId });
+    });
+
+    // 3. Measure every row with Gmail search (90 days). Stops measuring at a quota error.
+    var stop = false;
+    rows.forEach(function(r) {
+      if (stop) { r.status = r.status || 'Not measured (Gmail limit); run again in a minute'; return; }
+      var lid = idOf[r.label];
+      if (!lid) { r.status = 'No such label: create it first'; return; }
+      if (r.query.length > HUB_FILTER_QUERY_MAX_) { r.status = 'Query too long'; return; }
+      try {
+        var all = DPGmailRepo.searchThreadIds(r.query + HUB_FILTER_WINDOW_, { cap: HUB_FILTER_MEASURE_CAP_ });
+        var hit = DPGmailRepo.searchThreadIds(r.query + HUB_FILTER_WINDOW_, { cap: HUB_FILTER_MEASURE_CAP_, labelId: lid });
+        r.ids = hit.ids;
+        r.caught = hit.ids.length + (hit.capped ? '+' : '');
+        r.wrong = Math.max(0, all.ids.length - hit.ids.length) + (all.capped ? '+' : '');
+        r.precision = E.precisionOf(hit.ids.length, Math.max(0, all.ids.length - hit.ids.length));
+      } catch (err) {
+        if (isQuotaError_(err)) {
+          DPQueue.logSafe('hubSuggestFilters: Gmail quota reached while measuring; the rest are marked not measured', err);
+          stop = true;
+          partial = true;
+          r.status = 'Not measured (Gmail limit); run again in a minute';
+          return;
+        }
+        DPQueue.logSafe('hubSuggestFilters: measuring one query failed; the row shows the error', err);
+        r.status = 'Gmail search failed: ' + E.sanitizeError(err);
+      }
+    });
+    var existingRows = rows.filter(function(r) { return r.source === 'Existing filter'; });
+    rows.forEach(function(r) {
+      if (r.source === 'Existing filter') return;
+      r.coveredBy = E.coveringFilter(r.ids, existingRows.filter(function(e) { return e.label === r.label; }).map(function(e) { return { filterId: e.filterId, ids: e.ids }; }));
+    });
+    rows.forEach(function(r) { delete r.ids; });
+    DPConfig.writeFilterRows(rows);
+    var count = function(src) { return rows.filter(function(r) { return r.source === src; }).length; };
+    return DPEngines.makeResult({
+      ok: true, status: partial ? 'PARTIAL' : 'OK', partial: partial, rows: rows.length,
+      suggested: count('Suggested'), existing: count('Existing filter'), pasted: rows.length - count('Suggested') - count('Existing filter'),
+      skipped: learned.skipped, url: DPConfig.getSheetUrl(),
+      message: 'Filter Suggestions: ' + count('Suggested') + ' new, ' + count('Existing filter') + ' existing' + (partial ? ' (Gmail limit reached; run again for the rest)' : '') +
+        '. Tick Create? on the rows you want, then Create checked filters.'
+    });
+  } catch (err) {
+    return failFrom_(err);
+  }
+}
+
+/**
+ * Creates a Gmail filter for every ticked Filter Suggestions row that has no Filter id yet. The filter only
+ * adds the row label (never archives, skips the Inbox or deletes). Skips rows whose label is not a 🎯/ workflow
+ * label, and rows that already match an existing filter. Writes Status and Filter id back to the tab.
+ * IDE manual-run, gas-rpc, and About "Create checked filters".
+ * @returns {object} {ok, created, skipped, failed, message} or a failed result.
+ */
+function hubCreateSelectedFilters() {
+  var pre = preflight_([]);
+  if (pre.failure) return pre.failure;
+  var E = DPEngines;
+  try {
+    if (!DPConfig.isProvisioned()) return fail_('SETUP_ERROR', 'Hub Sheet is not set up yet', true);
+    var rows = DPConfig.readFilterRows().filter(function(r) { return r.create && !r.filterId && r.source !== 'Existing filter'; });
+    if (!rows.length) return DPEngines.makeResult({ ok: true, status: 'OK', created: 0, skipped: 0, failed: 0, message: 'No ticked rows to create' });
+    var filters;
+    try {
+      filters = DPGmailRepo.listFilters();
+    } catch (err) {
+      if (!isScopeError_(err)) throw err;
+      DPQueue.logSafe('hubCreateSelectedFilters: Gmail filters could not be read (scope)', err);
+      return fail_('SCOPE_BLOCKED', HUB_SCOPE_BLOCKED_MSG_, true);
+    }
+    var names = DPGmailRepo.labelNamesById();
+    var idOf = {};
+    Object.keys(names).forEach(function(id) { idOf[names[id]] = id; });
+    var allowed = E.workflowLabelNames();
+    var updates = [];
+    var created = 0;
+    var skipped = 0;
+    var failed = 0;
+    var stop = false;
+    rows.forEach(function(r) {
+      if (stop) return;
+      var lid = idOf[r.label];
+      if (allowed.indexOf(r.label) === -1) { skipped += 1; updates.push({ row: r.row, status: 'Skipped: not a Day Planner label', filterId: '' }); return; }
+      if (!lid) { skipped += 1; updates.push({ row: r.row, status: 'Skipped: label missing; Create Gmail labels first', filterId: '' }); return; }
+      if (!r.query || r.query.length > HUB_FILTER_QUERY_MAX_) { skipped += 1; updates.push({ row: r.row, status: 'Skipped: empty or too long query', filterId: '' }); return; }
+      var dup = filters.filter(function(f) { return E.filterCriteriaQuery(f.criteria) === r.query && (f.action.addLabelIds || []).indexOf(lid) !== -1; })[0];
+      if (dup) { skipped += 1; updates.push({ row: r.row, status: 'Already a Gmail filter', filterId: dup.id }); return; }
+      try {
+        var fid = DPGmailRepo.createFilter(r.query, lid);
+        if (!fid) throw new Error('Gmail returned no filter id');
+        created += 1;
+        updates.push({ row: r.row, status: 'Created ' + new Date().toISOString().slice(0, 10), filterId: fid });
+      } catch (err) {
+        DPQueue.logSafe('hubCreateSelectedFilters: creating one filter failed; the row shows the error', err);
+        failed += 1;
+        if (isScopeError_(err)) { stop = true; updates.push({ row: r.row, status: 'Blocked: ' + HUB_SCOPE_BLOCKED_MSG_, filterId: '' }); return; }
+        if (isQuotaError_(err)) { stop = true; updates.push({ row: r.row, status: 'Not created (Gmail limit); run again in a minute', filterId: '' }); return; }
+        updates.push({ row: r.row, status: 'Failed: ' + E.sanitizeError(err), filterId: '' });
+      }
+    });
+    DPConfig.updateFilterRows(updates);
+    return DPEngines.makeResult({
+      ok: failed === 0, status: failed ? 'PARTIAL' : 'OK', created: created, skipped: skipped, failed: failed,
+      message: 'Created ' + created + ' filter' + (created === 1 ? '' : 's') + (skipped ? ', skipped ' + skipped : '') + (failed ? ', ' + failed + ' failed (see Status)' : '')
+    });
   } catch (err) {
     return failFrom_(err);
   }
@@ -836,6 +1066,9 @@ global._getHubStatusInternal = getHubStatus;                      // google.scri
 global._getHubSheetLinkInternal = getHubSheetLink;                 // google.script.run (About hub link)
 global._setupHubInternal = setupHub;                               // google.script.run (About "Set up hub")
 global._hubSetFeatureInternal = hubSetFeature;                    // gas-rpc (Execution API) + IDE manual-run
+global._hubSetupLabelsInternal = hubSetupLabels;                   // google.script.run (About) + gas-rpc + IDE manual-run
+global._hubSuggestFiltersInternal = hubSuggestFilters;             // google.script.run (About) + gas-rpc + IDE manual-run
+global._hubCreateSelectedFiltersInternal = hubCreateSelectedFilters; // google.script.run (About) + gas-rpc + IDE manual-run
 global._hubSetTasksListIdInternal = hubSetTasksListId;             // gas-rpc (Execution API) + IDE manual-run
 global._discoverGeminiNotesInternal = discoverGeminiNotes;         // google.script.run (stub, flag gated)
 global._getProposedMeetingActionsInternal = getProposedMeetingActions; // google.script.run (stub, flag gated)

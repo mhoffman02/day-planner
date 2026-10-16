@@ -16,7 +16,7 @@ const gasFiles = fs.readdirSync(gasDir).filter((f) => f.endsWith('.gs'));
 const source = Object.fromEntries(gasFiles.map((f) => [f, fs.readFileSync(path.join(gasDir, f), 'utf8')]));
 const call = (ctx, name, ...args) => toHost(ctx[`_${name}Internal`](...args));
 
-const RPC_NAMES = ['getTriageBoard', 'getMeetingPrep', 'getUpcomingMeetingChoices', 'routeThreadToTask', 'routeThreadToWaiting', 'routeThreadToMeeting',
+const RPC_NAMES = ['hubSetupLabels', 'hubSuggestFilters', 'hubCreateSelectedFilters', 'getTriageBoard', 'getMeetingPrep', 'getUpcomingMeetingChoices', 'routeThreadToTask', 'routeThreadToWaiting', 'routeThreadToMeeting',
   'dismissTriageItem', 'processWorkflowQueue', 'discoverMeetingSeries', 'retryFailedOperation', 'getHubStatus', 'discoverGeminiNotes',
   'getProposedMeetingActions', 'confirmMeetingActions', 'installHubTriggers', 'removeHubTriggers', 'hubDispatch', 'hubSetFeature', 'archiveTriageThread', 'trashTriageThread',
   'getHubSheetLink', 'setupHub'];
@@ -45,13 +45,16 @@ test('(k) hub .gs files are IIFE-wrapped with literal-only top-level initializer
   }
 });
 
-// The only Gmail writes allowed are the Triage Archive/Delete pair (gmail.modify, 2026-10-12), both in
-// GmailRepository.gs: archive removes INBOX and nothing else; delete is Trash, never permanent.
+// The only Gmail writes allowed, all in GmailRepository.gs: the Triage Archive/Delete pair (gmail.modify,
+// 2026-10-12: archive removes INBOX and nothing else; delete is Trash, never permanent), creating a missing
+// label, and creating a filter whose only action is adding one label (2026-10-16, user-ticked rows only).
 const ALLOWED_GMAIL_WRITES = [
   "Gmail.Users.Threads.modify({ removeLabelIds: ['INBOX'] }, GMAIL_ME_, validateThreadId(threadId))",
-  'Gmail.Users.Threads.trash(GMAIL_ME_, validateThreadId(threadId))'
+  'Gmail.Users.Threads.trash(GMAIL_ME_, validateThreadId(threadId))',
+  "Gmail.Users.Labels.create({ name: name, labelListVisibility: 'labelShow', messageListVisibility: 'show' }, GMAIL_ME_)",
+  'Gmail.Users.Settings.Filters.create({ criteria: { query: query }, action: { addLabelIds: [labelId] } }, GMAIL_ME_)'
 ];
-test('(l) no GmailApp anywhere and no Gmail write calls beyond the two Triage buttons', () => {
+test('(l) no GmailApp anywhere and no Gmail write calls beyond Triage archive/trash, label create and add-label filters', () => {
   const WRITE_RE = /Gmail\.Users\.[\w.]*\.(modify|send|trash|untrash|batchModify|insert|import|delete|patch|update|create)\b/g;
   for (const f of gasFiles) {
     assert.ok(!/GmailApp/.test(source[f]), `${f} mentions the banned built-in mail service`);

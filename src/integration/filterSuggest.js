@@ -6,6 +6,70 @@
  * threads they catch and how many other threads they would wrongly catch. Headers only, never bodies.
  */
 
+import { WORKFLOW_LABEL } from './contracts.js';
+
+/**
+ * Labels that get filter suggestions. Task-Today, Waiting and Meeting stay manual: they depend on judgment
+ * or on who owes a reply, which a Gmail filter cannot see (Gemini review, 2026-10-16).
+ */
+export const FILTER_TARGET_LABELS = Object.freeze([
+  WORKFLOW_LABEL.TASK,
+  WORKFLOW_LABEL.MEETING_NCMMS_CORE,
+  WORKFLOW_LABEL.MEETING_NCMMS_DAILY,
+  WORKFLOW_LABEL.READ,
+  WORKFLOW_LABEL.REVIEW
+]);
+
+/** Columns of the hub Sheet Filter Suggestions tab. */
+export const FILTER_TAB_COLUMNS = Object.freeze([
+  'Label', 'Gmail query', 'Source', 'Caught (90 days)', 'Wrong (90 days)', 'Precision', 'Covered by filter',
+  'Create?', 'Status', 'Filter id'
+]);
+
+/** @returns {string[]} Every 🎯/ workflow label name (the labels setup creates). */
+export function workflowLabelNames() {
+  return Object.keys(WORKFLOW_LABEL).map((k) => WORKFLOW_LABEL[k]);
+}
+
+/**
+ * Gmail filter criteria as one search query (how the filter reads in Gmail search).
+ * @param {{from?:string,to?:string,subject?:string,query?:string,negatedQuery?:string,hasAttachment?:boolean}} c Criteria.
+ * @returns {string} Query text.
+ */
+export function filterCriteriaQuery(c) {
+  const k = c || {};
+  const parts = [];
+  if (k.from) parts.push(`from:(${k.from})`);
+  if (k.to) parts.push(`to:(${k.to})`);
+  if (k.subject) parts.push(`subject:(${k.subject})`);
+  if (k.query) parts.push(k.query);
+  if (k.negatedQuery) parts.push(`-{${k.negatedQuery}}`);
+  if (k.hasAttachment) parts.push('has:attachment');
+  return parts.join(' ').trim();
+}
+
+/**
+ * @param {number} caught Labelled threads matched.
+ * @param {number} wrong Other threads matched.
+ * @returns {number} caught / (caught + wrong), two decimals; 0 when nothing matched.
+ */
+export function precisionOf(caught, wrong) {
+  const n = caught + wrong;
+  return n ? Math.round((caught / n) * 100) / 100 : 0;
+}
+
+/**
+ * The existing filter (same label) that already catches at least 90% of a rule's labelled threads.
+ * @param {string[]} ids Labelled thread ids the rule catches.
+ * @param {Array<{filterId:string, ids:string[]}>} existing Existing filters for the same label.
+ * @returns {string} Filter id, or '' when none covers it.
+ */
+export function coveringFilter(ids, existing) {
+  if (!ids || !ids.length) return '';
+  const hit = (existing || []).find((e) => ids.filter((id) => (e.ids || []).indexOf(id) !== -1).length >= 0.9 * ids.length);
+  return hit ? hit.filterId : '';
+}
+
 /** Thresholds: a rule must catch at least minCaught labelled threads at minPrecision or better. */
 export const FILTER_SUGGEST_DEFAULTS = Object.freeze({ minCaught: 3, minPrecision: 0.9, maxPerLabel: 5, minNew: 2 });
 
@@ -143,5 +207,5 @@ export function suggestFilters(input) {
       picked += 1;
     }
   });
-  return { suggestions, existing: existing.map(({ ids, ...e }) => e), skipped };
+  return { suggestions, existing: existing.map((e) => ({ id: e.id, label: e.label, query: e.query, caught: e.caught, wrong: e.wrong })), skipped };
 }
