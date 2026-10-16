@@ -174,6 +174,40 @@ for (const c of await bothClients()) {
     });
   });
 
+  describe(`undo restores a plain status, never a new forward or delegate [${c.label}]`, () => {
+    function undoVm(c2, status) {
+      const calls = [];
+      const task = { id: 't1', title: 'a', status };
+      const vm = dailyVm(c2, {
+        tasks: [task],
+        bridge: {
+          deleteDailyTask: async () => { calls.push('delete'); return true; },
+          updateDailyTask: async (d, id, u) => { calls.push('update:' + u.status); return { id, ...u }; },
+          forwardDailyTask: async () => { calls.push('forward'); return { forwardedTask: { id: 'x' } }; },
+          delegateDailyTask: async () => { calls.push('delegate'); return { followUpTask: { id: 'y' } }; }
+        }
+      });
+      captureToasts(vm);
+      return { vm, calls, task };
+    }
+
+    it('forward of a Ⓓ task, then Undo: back to Ⓓ without a new check-back task', async () => {
+      const { vm, calls, task } = undoVm(c, '→');
+      await vm.undoForward({ sourceId: 't1', sourceDate: SRC, copyId: 'c1', targetDate: TGT, prevStatus: 'Ⓓ' });
+      await settle();
+      assert.deepEqual(calls, ['delete', 'update:Ⓓ']);
+      assert.equal(task.status, 'Ⓓ');
+    });
+
+    it('delegate of a → task, then Undo: back to → without a new forward copy', async () => {
+      const { vm, calls, task } = undoVm(c, 'Ⓓ');
+      await vm.undoForward({ status: 'Ⓓ', sourceId: 't1', sourceDate: SRC, copyId: 'f1', targetDate: TGT, prevStatus: '→' });
+      await settle();
+      assert.deepEqual(calls, ['delete', 'update:→']);
+      assert.equal(task.status, '→');
+    });
+  });
+
   describe(`failed delegate [${c.label}]`, () => {
     it('rolls back, re-reads the day, and retries with the same date and owner', async () => {
       const calls = [];
