@@ -63,7 +63,8 @@ To achieve the closest possible PWA-like experience without a service worker:
   3. Column 3: Modular Daily Notes Panel.
 - **Prioritized Daily Task List (A1-C9)**:
   - Task priority groups (`A`, `B`, `C`) and sequences (`1` through `9`).
-  - Status cycling and direct dropdown: Open (` `), In-Progress (`•`), Completed (`✓`), Forwarded (`→`), Delegated (`D/✓`), Canceled (`X`).
+  - Status menu: Open (`•`), In Progress (`○`), Done (`✓`), Forward (`→`: to tomorrow, next week (Monday) or a picked date, with Undo; a re-forward asks first), Delegated (`Ⓓ`: optional owner plus a check-back day that creates an open "Check back: <title> (<owner>)" task, with Undo), Canceled (`X`).
+  - Live mode indicator: once the Gmail hub is live, headers show only a quiet "Live" mark; Switch to trial is on About.
   - Star toggle for high-priority highlighting.
   - Per-column sorting (Priority, Status, Title, Category) with persistent order.
   - Quick-add task bar with automatic priority sequencing.
@@ -83,7 +84,8 @@ To achieve the closest possible PWA-like experience without a service worker:
 ### 4.2 Monthly Master Tasks
 - High-level undated task management categorized by Work, Personal, Financial, Projects.
 - Dedicated Google Tasks list or Drive JSON archive persistence.
-- "Move to Today" action with date picker to transfer tasks to the active day list.
+- "Move to Date" action with date picker to transfer tasks to a day's list.
+- The same status menu as Daily tasks (Forward presets, Delegate with check-back, Undo); a forwarded master shows its scheduled day with Jump to Day.
 - Inline status tracking ("Moved to YYYY-MM-DD").
 
 ### 4.3 Full-Screen Monthly Overview Calendar

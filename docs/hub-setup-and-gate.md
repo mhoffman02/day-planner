@@ -51,8 +51,8 @@ hand, or run `DPConfig.setFeature(name, bool)` from a throwaway IDE function. De
 
 In the app, `DRY_RUN` is called **Trial mode**. While it is TRUE, Triage and Meeting Prep show one shared banner with
 **Review and go live**, which opens a confirmation dialog (what changes, plus the last trial run's counts) and then calls
-`hubSetFeature('DRY_RUN', false)`. A snackbar offers Undo for 10 s; the header's **Switch to trial** turns it back on
-without a dialog. Every Triage write sends `expectDryRun` (the mode on screen); when it differs from the flags the server
+`hubSetFeature('DRY_RUN', false)`. A snackbar offers Undo for 10 s. Once live, the Triage and Meeting Prep headers show only a quiet **Live**
+mark; **Switch to trial** at the top of the About page turns trial mode back on without a dialog. Every Triage write sends `expectDryRun` (the mode on screen); when it differs from the flags the server
 acts on (the `HUB_FLAGS_JSON` mirror), the RPC fails with `MODE_CHANGED` and writes nothing. That covers a mode change
 from another tab, gas-rpc or a refresh while this page was open. A direct Sheet edit only reaches the server mirror on the
 next `getHubStatus` (app load or Refresh), so until then the server and an unrefreshed screen still agree. Callers that

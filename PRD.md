@@ -45,7 +45,7 @@ The application implements a complete suite of Day Planner page views accessible
 
 ### 4.1 Daily View (Daily 3-Column View / "Today" / 2-Page Spread)
 * **Left Column: Prioritized Daily Task List**:
-  * Prioritized task grid: Priority (A, B, C), Sequence (1..9), Title, status code (`✓` complete, `→` forwarded, `X` canceled, `D/✓` delegated, `•` in-process).
+  * Prioritized task grid: Priority (A, B, C), Sequence (1..9), Title, status code (`•` open, `○` in progress, `✓` done, `→` forwarded, `Ⓓ` delegated with a check-back task, `X` canceled).
   * Auto-syncs with Google Tasks using `[A1]` title prefixes.
   * Drag-and-drop or button re-ordering.
 * **Center Column: Appointment Schedule (07:00 AM – 07:00 PM)**:
@@ -60,8 +60,9 @@ The application implements a complete suite of Day Planner page views accessible
 ### 4.2 Monthly Master Task List & Task Transfer Workflow
 * **Separate Monthly Task Lists**: Managed via dedicated Google Task Lists (e.g., `August 2026 Master Tasks`).
 * **Categorization**: Grouped into Work, Personal, Financial, and Projects.
-* **"Move to Today" Action**:
-  * Clicking the **"Move to Today"** button on any monthly task assigns it an `[A1-C9]` priority code, moves it to the active Daily Task List, and sets the due date to Today.
+* **"Move to Date" Action**:
+  * Clicking **"Move to Date"** on any master task (date picker, default today) copies it to that day's Daily Task List with its priority group kept, and links the two.
+* **Same verbs as Daily**: the master status menu offers Forward (today, next week, a date), Delegate with a check-back day, and Undo.
 
 ### 4.3 Full-Screen Monthly Calendar Page
 * Full-width grid showing all days of the selected month.

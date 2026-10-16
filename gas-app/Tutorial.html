@@ -406,6 +406,58 @@
     </section>
   </section>
 
+  <section aria-labelledby="heading-tut-handoff">
+    <h2 id="heading-tut-handoff" class="about-section-heading">Handing Off and Following Up</h2>
+    <section class="cards-stack">
+
+      <details class="guide-card about-details tutorial-ex" data-ex="T16" data-title="Forward to next week, then Undo" x-data="{ id: 'T16' }">
+        <summary class="guide-card-title"><span class="tutorial-ex-id">T16</span> Forward to next week, then Undo <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
+        <dl class="tutorial-steps">
+          <dt>Do</dt><dd>Add the task <code>DP-T16 Draft memo</code>. Click its status box, pick <b>Forward to next week</b>, then click <b>Undo</b> on the message at the bottom of the screen.</dd>
+          <dt>Look in</dt><dd>Today’s task list, then next Monday’s Daily page.</dd>
+          <dt>Pass if</dt><dd>Today’s <b>DP-T16 Draft memo</b> is back to Open, and next Monday has no copy of it.</dd>
+          <dt>Clean up</dt><dd>Delete it in Google Tasks.</dd>
+        </dl>
+        <div class="tutorial-ex-actions">
+          <button type="button" class="about-action-btn" :class="{ 'is-on': result(id) === 'pass' }" :aria-pressed="result(id) === 'pass'" @click="mark(id, 'pass')">Pass</button>
+          <button type="button" class="about-action-btn" :class="{ 'is-on is-fail': result(id) === 'fail' }" :aria-pressed="result(id) === 'fail'" @click="mark(id, 'fail')">Fail</button>
+          <input type="text" class="tutorial-note" aria-label="Note for T16" placeholder="What you saw (optional)" :value="note(id)" @change="setNote(id, $event.target.value)">
+        </div>
+      </details>
+
+      <details class="guide-card about-details tutorial-ex" data-ex="T17" data-title="Delegate a task with a check-back day" x-data="{ id: 'T17' }">
+        <summary class="guide-card-title"><span class="tutorial-ex-id">T17</span> Delegate with a check-back day <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
+        <dl class="tutorial-steps">
+          <dt>Do</dt><dd>Add the task <code>DP-T17 Collect timesheets</code>. Click its status box, pick <b>Delegate…</b>, type <code>Pat</code>, and click the <b>tomorrow</b> button.</dd>
+          <dt>Look in</dt><dd>Today’s task list, then tomorrow’s Daily page.</dd>
+          <dt>Pass if</dt><dd>Today’s task shows <b>Ⓓ</b> and is not crossed out, and tomorrow has an open task <b>Check back: DP-T17 Collect timesheets (Pat)</b>.</dd>
+          <dt>Clean up</dt><dd>Delete both in Google Tasks.</dd>
+        </dl>
+        <div class="tutorial-ex-actions">
+          <button type="button" class="about-action-btn" :class="{ 'is-on': result(id) === 'pass' }" :aria-pressed="result(id) === 'pass'" @click="mark(id, 'pass')">Pass</button>
+          <button type="button" class="about-action-btn" :class="{ 'is-on is-fail': result(id) === 'fail' }" :aria-pressed="result(id) === 'fail'" @click="mark(id, 'fail')">Fail</button>
+          <input type="text" class="tutorial-note" aria-label="Note for T17" placeholder="What you saw (optional)" :value="note(id)" @change="setNote(id, $event.target.value)">
+        </div>
+      </details>
+
+      <details class="guide-card about-details tutorial-ex" data-ex="T18" data-title="Forward a Master Task from its status menu" x-data="{ id: 'T18' }">
+        <summary class="guide-card-title"><span class="tutorial-ex-id">T18</span> Forward a Master Task <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
+        <dl class="tutorial-steps">
+          <dt>Do</dt><dd>In Google Tasks, add <code>DP-T18 Plan offsite</code> with <b>no date</b>. On the <b>Master Tasks</b> tab, click its status box and pick <b>Forward to next week</b>.</dd>
+          <dt>Look in</dt><dd>Its row on Master Tasks, then next Monday’s Daily page.</dd>
+          <dt>Pass if</dt><dd>The row shows next Monday’s date with <b>Jump to Day</b>, and next Monday has <b>DP-T18 Plan offsite</b> with a priority code.</dd>
+          <dt>Clean up</dt><dd>Delete both in Google Tasks.</dd>
+        </dl>
+        <div class="tutorial-ex-actions">
+          <button type="button" class="about-action-btn" :class="{ 'is-on': result(id) === 'pass' }" :aria-pressed="result(id) === 'pass'" @click="mark(id, 'pass')">Pass</button>
+          <button type="button" class="about-action-btn" :class="{ 'is-on is-fail': result(id) === 'fail' }" :aria-pressed="result(id) === 'fail'" @click="mark(id, 'fail')">Fail</button>
+          <input type="text" class="tutorial-note" aria-label="Note for T18" placeholder="What you saw (optional)" :value="note(id)" @change="setNote(id, $event.target.value)">
+        </div>
+      </details>
+
+    </section>
+  </section>
+
   <section aria-labelledby="heading-tut-results">
     <h2 id="heading-tut-results" class="about-section-heading">Results</h2>
     <p class="about-paragraph">

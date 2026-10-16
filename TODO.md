@@ -24,7 +24,7 @@ Most items need the user (GSA account, a release go, or a decision). HOME live c
   Switch to trial (now on About); then two tabs: Go live in tab A, Archive in tab B is refused with "Refresh before acting".
 - [ ] **Approval banner after consent redirect**: on WORK the page reloaded after approving and still showed the
   banner; "Check again" cleared it. Optional: re-check automatically when the tab regains focus.
-- [ ] **UAT run (Phase 30)**: work through About > **Tutorial** T01-T15 on HOME, then WORK; paste each run's
+- [ ] **UAT run (Phase 30)**: work through About > **Tutorial** T01-T18 on HOME, then WORK; paste each run's
   "Copy results" into this file. Failures become TODO items.
 - [ ] **Optional speed follow-ups** (ranked list from 2026-10-16): time each server step on HOME (folder check, page
   assembly, `Tasks.list`) before deciding on minify-at-push or a shell + cached bundle; `completedMin` on
