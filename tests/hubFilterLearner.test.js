@@ -133,3 +133,22 @@ test('the learner RPCs and trigger handler have IIFE aliases and top-level deleg
   }
   assert.match(hub, /HUB_LEARN_TRIGGER_ = 'hubFilterLearnTick'/);
 });
+
+test('a slow Gmail cannot stretch a tick past 50 s: the tick stops on time and the next one continues', () => {
+  const ctx = bigCtx(300);
+  const h = ctx.__hub;
+  // Each paced call takes 1 s of fake time, so the unit budget alone would allow a 125 s tick.
+  let clock = Date.now();
+  ctx.Date.now = () => clock;
+  const sleep = ctx.Utilities.sleep;
+  ctx.Utilities.sleep = function (ms) { clock += 1000; return sleep.call(this, ms); };
+  const perTick = [];
+  let start = clock;
+  h.beforeLearnTick = () => { perTick.push(clock - start); clock += 60000; start = clock; };
+  const st = runFilterLearner(ctx);
+  perTick.push(clock - start);
+  assert.equal(st.status, 'OK', JSON.stringify(st));
+  assert.equal(st.result.sampled, 306);
+  for (const ms of perTick) assert.ok(ms <= 52000, `tick ran ${ms} ms`);
+  assert.match(ctx.__consoleLines.join('\n'), /stopping this minute at read \(time\)/);
+});

@@ -80,7 +80,7 @@ Apply them by hand, or let Gmail filters do it. **Filter recommender** (scope `g
 `hubSuggestFilters` (About > **Suggest filters**) starts a background job that writes a **Filter Suggestions** tab in
 the Hub Config Sheet. Gmail allows 6,000 quota units per user per minute (May 2026; `messages.get` 20, `threads.get`
 40, `messages.list` 5, `threads.list` 10), shared with Triage, so a one-minute `hubFilterLearnTick` trigger does the
-work in steps, each spending at most 2,500 units with paced calls: **list** (one message per thread: up to 150 per 🎯
+work in steps, each spending at most 2,500 units or 50 seconds (a slow Gmail) with paced calls: **list** (one message per thread: up to 150 per 🎯
 label over 90 days, then up to 4,000 threads from the last 28 days, about 20 business days, without sent, chats or
 drafts), **read** (From, Subject, List-Id and label names per message), **learn** (bodies of up to 100 🎯-labelled
 messages read in memory only, then the engine), **measure** (two searches per row), then the tab. A quota stop ends a

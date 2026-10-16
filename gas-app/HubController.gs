@@ -831,19 +831,24 @@ var HUB_LEARN_IDS_PER_CHUNK_ = 2000;
 // A job older than 3 hours stops.
 var HUB_LEARN_MAX_AGE_MS_ = 10800000;
 var HUB_LEARN_LEASE_MS_ = 70000;
+// A tick stops after this long even with budget left (slow Gmail), well inside the lease.
+var HUB_LEARN_TICK_MS_ = 50000;
 var HUB_LEARN_RUNNING_ = ['list', 'read', 'learn', 'measure'];
 
 /**
  * Budget for one tick: charged before every Gmail call; throws code BUDGET when the next call would go over.
  * @param {number} budget Units.
+ * @param {number} [deadline] Epoch ms after which the next call stops the tick (a slow Gmail).
  * @returns {function(number)} Meter with left().
  */
-function makeMeter_(budget) {
+function makeMeter_(budget, deadline) {
   var used = 0;
   var meter = function(units) {
-    if (used + units > budget) {
-      var e = new Error('Gmail budget for this minute used; the next tick continues');
+    var late = deadline && Date.now() >= deadline;
+    if (late || used + units > budget) {
+      var e = new Error(late ? 'Time for this minute used; the next tick continues' : 'Gmail budget for this minute used; the next tick continues');
       e.code = 'BUDGET';
+      e.late = !!late;
       throw e;
     }
     used += units;
@@ -1124,7 +1129,7 @@ function learnTick_(opts) {
   st.leaseUntil = now + HUB_LEARN_LEASE_MS_;
   st.ticks = (st.ticks || 0) + 1;
   saveLearnState_(st);
-  var meter = makeMeter_(HUB_LEARN_TICK_UNITS_);
+  var meter = makeMeter_(HUB_LEARN_TICK_UNITS_, now + HUB_LEARN_TICK_MS_);
   try {
     while (HUB_LEARN_RUNNING_.indexOf(st.phase) >= 0) {
       if (st.phase === 'list') { learnList_(st, meter); if (opts && opts.listOnly) break; }
@@ -1134,7 +1139,7 @@ function learnTick_(opts) {
     }
   } catch (err) {
     if (err.code === 'BUDGET' || isQuotaError_(err)) {
-      DPQueue.logSafe('filter learner: stopping this minute at ' + st.phase + ' (' + (err.code === 'BUDGET' ? 'budget' : 'Gmail quota') + '); the next tick continues', err);
+      DPQueue.logSafe('filter learner: stopping this minute at ' + st.phase + ' (' + (err.code === 'BUDGET' ? (err.late ? 'time' : 'budget') : 'Gmail quota') + '); the next tick continues', err);
     } else {
       DPQueue.logSafe('filter learner: failed at ' + st.phase + '; the job stops and About shows the error', err);
       st.phase = 'error';
