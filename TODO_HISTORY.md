@@ -1,5 +1,23 @@
 # Task History (TODO_HISTORY)
 
+## 2026-10-16 (later) — Gmail 🎯 labels, filter recommender, background learner (HOME @332, WORK v160 pushed)
+
+- [x] **Create Gmail labels**: `hubSetupLabels` creates the 🎯 parent then the eight 🎯/ labels, idempotent; hub
+  auto-setup calls it too (`fbb6841`).
+- [x] **Filter recommender**: pure engine `src/integration/filterSuggest.js` (`a4dc944`); Suggest filters writes a
+  "Filter Suggestions" Sheet tab (learned, existing, pasted rows, each measured with Gmail search); Create checked
+  filters makes add-label-only filters (`fbb6841`); body phrases learned server-side, bodies never stored
+  (`8ae2a4e`); About buttons + Tutorial T19-T20 (`5d77556`).
+- [x] **Optional filter scope** no longer holds the approval banner; Check again is never silent (`21b9619`).
+- [x] **Background learner** (WORK hit the Gmail per-minute limit on every one-shot run): 1-minute trigger job
+  list → read → learn → measure, state in UserProperties, header features in the 6 h user cache (`aa2f00a`);
+  spinners + progress bar on About (`a6d3d95`); each tick also stops at 50 s (`949c70d`); progress says "about N
+  minutes to go" (`9f9e29c`); 4,000 units a tick (200 emails/min, 2,000 units/min left for Triage) (`8f75e4a`).
+  HOME live: 1,053 emails, no limit error, 0 suggestions (only ~11 labeled test threads). WORK ran 1,234 emails.
+- [x] **Declined**: learn only new threads across runs (storing headers for weeks is a GSA retention change;
+  labels go stale; saves ~6 min of a background job). Recency is already built in (28 days, newest first).
+- [x] **Deploy rule**: every push updates "Day Planner v1" on HOME (`clasp deploy -i`) and WORK (`push:work`) (`339e8e7`).
+
 ## 2026-10-16 — Forward/Delegate menus, Master parity, quiet Live mark, Master speed (WORK v149 pushed, build 495)
 
 - [x] **Forward menu** (Daily): Forward to tomorrow / next week / date…, toast Undo, "Forward again" confirm

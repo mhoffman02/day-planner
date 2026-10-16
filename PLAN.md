@@ -45,7 +45,9 @@ the GSA account, a release go, or a consent-screen decision. Checklist in [`TODO
 - Out of scope: Gemini discovery/actions (Phase 6 build), USAi (Phase 7).
 - [x] **Task verbs + Master parity + speed** (2026-10-16): Forward menu, Delegate with check-back, Master Tasks get
   every Daily verb, Daily forward routing fix, quiet Live mark, Master tab speed (TODO_HISTORY 2026-10-16).
-- [ ] **WORK v149**: pushed 2026-10-16; user repoints `/exec`.
+- [x] **Gmail 🎯 labels + filter recommender** (2026-10-16): Create labels, Suggest filters as a paced background
+  job, Create checked filters; HOME live 1,053 emails OK, WORK ran 1,234 (TODO_HISTORY 2026-10-16 later).
+- [ ] **WORK v160**: pushed 2026-10-16; user repoints `/exec`, then pastes the Filter Suggestions tab for review.
 - **Next agent work:** HOME `/dev` live check of Forward/Delegate on Daily and Master (TODO.md); then pick the next phase with the user.
 
 ---
