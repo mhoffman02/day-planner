@@ -358,6 +358,9 @@ Alpine.data('plannerApp', () => ({
       forwardPickTaskId: null,
       forwardPickDate: '',
       forwardConfirm: null,
+      delegatePickTaskId: null,
+      delegatePickDate: '',
+      delegateOwner: '',
       dailyTaskSort: { column: null, direction: 'asc' },
       openNotesPopoverTaskId: null,
       notesPopoverCloseTimer: null,
@@ -4365,6 +4368,7 @@ Alpine.data('plannerApp', () => ({
         if (this.openStatusMenuTaskId !== taskId) {
           this.forwardPickTaskId = null;
           this.forwardConfirm = null;
+          this.delegatePickTaskId = null;
         }
         this.openStatusMenuTaskId = taskId;
         if (event && (event.currentTarget || event.target)) {
@@ -4395,18 +4399,22 @@ Alpine.data('plannerApp', () => ({
         clearTimeout(this.statusMenuCloseTimer);
         this.statusMenuCloseTimer = setTimeout(() => {
           // The native calendar popup is outside the page, so moving the mouse into it must not
-          // close a menu whose date field is open. A pending re-forward confirm also stays open.
+          // close a menu whose date field is open. A pending re-forward confirm and an open
+          // delegate picker (its owner field and date) also keep the menu open.
           const confirming = this.forwardConfirm && this.forwardConfirm.taskId === taskId;
-          if (this.openStatusMenuTaskId === taskId && this.forwardPickTaskId !== taskId && !confirming) this.openStatusMenuTaskId = null;
+          const picking = this.forwardPickTaskId === taskId || this.delegatePickTaskId === taskId;
+          if (this.openStatusMenuTaskId === taskId && !picking && !confirming) this.openStatusMenuTaskId = null;
         }, 250);
       },
 
-      async selectTaskStatus(task, newStatus, forwardDate = null) {
+      // targetDate is the forward day or the delegate check-back day; owner is for a delegate.
+      async selectTaskStatus(task, newStatus, targetDate = null, owner = '') {
         clearTimeout(this.statusMenuCloseTimer);
         this.openStatusMenuTaskId = null;
         this.forwardPickTaskId = null;
         this.forwardConfirm = null;
-        await this.setTaskStatus(task, newStatus, forwardDate);
+        this.delegatePickTaskId = null;
+        await this.setTaskStatus(task, newStatus, targetDate, owner);
       },
 
       // Label for the one-click Forward item in the daily status menu, naming its real target.
@@ -4419,6 +4427,7 @@ Alpine.data('plannerApp', () => ({
       openForwardPicker(task) {
         clearTimeout(this.statusMenuCloseTimer);
         this.forwardConfirm = null;
+        this.delegatePickTaskId = null;
         this.forwardPickTaskId = task.id;
         this.forwardPickDate = this.forwardTargetDate(this.selectedDate);
       },
@@ -4467,7 +4476,35 @@ Alpine.data('plannerApp', () => ({
         await this.selectTaskStatus(task, '→', pending.date);
       },
 
-      async setTaskStatus(task, newStatus, forwardDate = null) {
+      // "Delegated" in the daily status menu opens a picker: who has it (optional) and when to
+      // check back. The check-back day defaults to the one-click forward day, also the earliest.
+      openDelegatePicker(task) {
+        clearTimeout(this.statusMenuCloseTimer);
+        this.forwardPickTaskId = null;
+        this.forwardConfirm = null;
+        this.delegatePickTaskId = task.id;
+        this.delegateOwner = '';
+        this.delegatePickDate = this.forwardTargetDate(this.selectedDate);
+      },
+
+      isDelegatePickValid(date = this.delegatePickDate) {
+        const d = date || '';
+        return /^\d{4}-\d{2}-\d{2}$/.test(d) && d >= this.forwardTargetDate(this.selectedDate);
+      },
+
+      // Square brackets are stripped because task titles and note tags use them as markers.
+      cleanDelegateOwner(owner) {
+        return String(owner || '').replace(/[[\]]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60);
+      },
+
+      // date: a preset (tomorrow, next week) or, when omitted, the picked date.
+      async submitDelegate(task, date = null) {
+        const target = date || this.delegatePickDate;
+        if (!this.isDelegatePickValid(target)) return;
+        await this.selectTaskStatus(task, 'Ⓓ', target, this.cleanDelegateOwner(this.delegateOwner));
+      },
+
+      async setTaskStatus(task, newStatus, pickedDate = null, owner = '') {
         if (!isValidStatus(newStatus)) {
           console.error(`🔥 setTaskStatus: ignoring invalid status "${newStatus}"`);
           return;
@@ -4479,21 +4516,25 @@ Alpine.data('plannerApp', () => ({
         // A linked master/daily pair mirrors status either direction, so every copy moves (and
         // rolls back) together.
         this.statusCopies(task, isMaster).forEach(t => { t.status = newStatus; });
-        const targetDate = (!isMaster && newStatus === '→') ? (forwardDate || this.forwardTargetDate(dateStr)) : null;
+        // Forward and delegate on a daily task each make an open copy on another day: the forward
+        // copy, or the check-back task. Any route that sets one gets a default day.
+        const twoStep = !isMaster && (newStatus === '→' || newStatus === 'Ⓓ');
+        const targetDate = twoStep ? (pickedDate || this.forwardTargetDate(dateStr)) : null;
+        const delegateTo = (twoStep && newStatus === 'Ⓓ') ? (owner || '') : '';
         // Serialized per task (key task-status:<id>): one write in flight; a status picked
         // meanwhile replaces the queued one. A failure rolls back to the last value Google
         // confirmed, never to an earlier unconfirmed pick. Caches only ever get confirmed values.
         return this.saveQueue.submit(key, {
           value: newStatus,
           baseline,
-          write: (status) => this.writeTaskStatus(task, status, isMaster, dateStr, targetDate, baseline),
+          write: (status) => this.writeTaskStatus(task, status, isMaster, dateStr, targetDate, baseline, delegateTo),
           onSaved: async (status, result, hasNewer) => {
             this.resolveError(key);
             if (hasNewer) return; // the live status is a newer, unconfirmed pick: do not cache it yet
             this.cacheTaskStatusState(dateStr);
             await this.trigger2WaySync();
           },
-          onFailed: (err, confirmed) => this.rollbackTaskStatus({ task, isMaster, dateStr, key, attempted: newStatus, confirmed, err, targetDate })
+          onFailed: (err, confirmed) => this.rollbackTaskStatus({ task, isMaster, dateStr, key, attempted: newStatus, confirmed, err, targetDate, owner: delegateTo })
         });
       },
 
@@ -4504,7 +4545,7 @@ Alpine.data('plannerApp', () => ({
         return [task, linkedMaster, linkedDaily].filter(Boolean);
       },
 
-      async writeTaskStatus(task, status, isMaster, dateStr, targetDate, prevStatus) {
+      async writeTaskStatus(task, status, isMaster, dateStr, targetDate, prevStatus, owner = '') {
         if (isMaster) {
           return requireSaved(await callBridge(this.bridge, [
             ['updateMasterTask', [task.id, { title: task.title, status, category: task.category }]],
@@ -4512,6 +4553,7 @@ Alpine.data('plannerApp', () => ({
           ], 'task status'), 'task status');
         }
         if (status === '→') return this.forwardDailyTask(task, targetDate, dateStr, prevStatus);
+        if (status === 'Ⓓ') return this.delegateDailyTask(task, targetDate || this.forwardTargetDate(dateStr), dateStr, prevStatus, owner);
         return requireSaved(await callBridge(this.bridge, [
           ['updateDailyTask', [dateStr, task.id, { title: task.title, status, dueDate: task.dueDate }]]
         ], 'task status'), 'task status');
@@ -4529,7 +4571,7 @@ Alpine.data('plannerApp', () => ({
         this.syncMasterTasksCacheFromLiveState();
       },
 
-      async rollbackTaskStatus({ task, isMaster, dateStr, key, attempted, confirmed, err, targetDate }) {
+      async rollbackTaskStatus({ task, isMaster, dateStr, key, attempted, confirmed, err, targetDate, owner = '' }) {
         console.error(`🔥 setTaskStatus failed for ${task.id}; status rolled back to the last confirmed value "${confirmed}":`, err.stack);
         // A reload during the save may have put a different object for this task on screen:
         // roll back that one (and its linked copy) too, never only the detached original.
@@ -4540,12 +4582,15 @@ Alpine.data('plannerApp', () => ({
         if (onScreen && !copies.has(onScreen)) this.statusCopies(onScreen, isMaster).forEach(t => copies.add(t));
         copies.forEach(t => { restoreIfUnchanged(t, 'status', attempted, confirmed); });
         this.cacheTaskStatusState(dateStr);
+        // Forward and delegate are both two-step writes (copy on the target day, then the source).
         const isForward = !isMaster && attempted === '→';
-        let message = `${isForward ? 'Could not forward task' : 'Could not save task status'}: ${err.message || err.toString()}`;
-        // A forward that may have left a copy on the target day must not be retried blindly:
-        // a second forward would create another copy. The user checks the target day instead.
-        const duplicated = isForward && /may be duplicated/i.test(err.message || '');
-        if (isForward) {
+        const isTwoStep = isForward || (!isMaster && attempted === 'Ⓓ');
+        const verb = isForward ? 'Could not forward task' : (isTwoStep ? 'Could not delegate task' : 'Could not save task status');
+        let message = `${verb}: ${err.message || err.toString()}`;
+        // A two-step write that may have left a copy on the target day must not be retried
+        // blindly: a retry would create another copy. The user checks the target day instead.
+        const duplicated = isTwoStep && /may be duplicated/i.test(err.message || '');
+        if (isTwoStep) {
           // The server writes the target copy first and compensates on failure, so the real end
           // state is unknown here: re-read Google as the truth instead of assuming the rollback.
           const days = [dateStr];
@@ -4554,24 +4599,25 @@ Alpine.data('plannerApp', () => ({
             try {
               await this.refetchDayFromServer(day);
             } catch (refetchErr) {
-              console.error(`🔥 forward rollback: could not re-read ${day} from Google; showing the rolled-back state, which may not match Google:`, refetchErr.stack);
+              console.error(`🔥 ${isForward ? 'forward' : 'delegate'} rollback: could not re-read ${day} from Google; showing the rolled-back state, which may not match Google:`, refetchErr.stack);
               message += ` Could not re-check ${day} from Google (${refetchErr.message || refetchErr.toString()}); reload to verify.`;
             }
           }
         }
-        this.reportError(key, message, { retry: duplicated ? null : () => this.retryTaskStatus(task.id, dateStr, key, targetDate) });
+        this.reportError(key, message, { retry: duplicated ? null : () => this.retryTaskStatus(task.id, dateStr, key, targetDate, owner) });
       },
 
       // Re-sends the latest status submitted for the task (looked up by id in the live lists),
-      // to the same forward date when that status is Forward.
-      retryTaskStatus(taskId, dateStr, key, targetDate = null) {
+      // to the same day when that status is Forward, and the same owner too for Delegated.
+      retryTaskStatus(taskId, dateStr, key, targetDate = null, owner = '') {
         const status = this.saveQueue.latest(key);
         const task = this.masterTasks.find(t => t.id === taskId) ||
           (dateStr === this.selectedDate ? this.dailyTasks.find(t => t.id === taskId) : null);
         if (!task || !isValidStatus(status)) {
           throw new Error(`that task is not on the open page; open ${dateStr} and set its status again.`);
         }
-        return this.setTaskStatus(task, status, status === '→' ? targetDate : null);
+        const twoStep = status === '→' || status === 'Ⓓ';
+        return this.setTaskStatus(task, status, twoStep ? targetDate : null, status === 'Ⓓ' ? owner : '');
       },
 
       // Re-reads one day from Google as the source of truth after a failed multi-step write.
@@ -4616,20 +4662,22 @@ Alpine.data('plannerApp', () => ({
         }, undo ? 8000 : 4000);
       },
 
-      // Undo from the forward toast: deletes the copy on the target day first (a failure leaves
-      // the forward in place), then puts the source back to its status before the forward. A
-      // source that was already forwarded keeps its arrow; only the extra copy goes.
+      // Undo from the forward or delegate toast: deletes the copy (or check-back task) on the
+      // target day first (a failure leaves it in place), then puts the source back to its status
+      // before. A source that already had that status keeps it; only the extra copy goes.
       async undoForward(undo) {
         clearTimeout(this.taskToastTimer);
         this.taskToast = null;
         this.taskToastUndo = null;
         const { sourceId, sourceDate, copyId, targetDate, prevStatus } = undo;
+        const status = undo.status || '→';
+        const what = status === 'Ⓓ' ? 'delegation' : 'forward';
         const key = `task-undo-forward:${sourceId}`;
         try {
           await callBridge(this.bridge, [['deleteDailyTask', [targetDate, copyId]]], 'forward undo');
         } catch (err) {
-          console.error(`🔥 undoForward: could not delete copy ${copyId} on ${targetDate}; the forward stays in place:`, err.stack);
-          this.reportError(key, `Could not undo forward: ${err.message || err.toString()}`, { retry: () => this.undoForward(undo) });
+          console.error(`🔥 undoForward: could not delete copy ${copyId} on ${targetDate}; the ${what} stays in place:`, err.stack);
+          this.reportError(key, `Could not undo ${what}: ${err.message || err.toString()}`, { retry: () => this.undoForward(undo) });
           return;
         }
         this.resolveError(key);
@@ -4640,24 +4688,24 @@ Alpine.data('plannerApp', () => ({
           invalidateCached(targetDate);
         }
         const restoreTo = prevStatus || '•';
-        if (restoreTo !== '→') {
+        if (restoreTo !== status) {
           const live = sourceDate === this.selectedDate ? this.dailyTasks.find(t => t.id === sourceId) : null;
           if (live) {
-            // A status picked after the forward is newer than the undo: leave it.
-            if (live.status === '→') await this.setTaskStatus(live, restoreTo);
+            // A status picked after the forward or delegate is newer than the undo: leave it.
+            if (live.status === status) await this.setTaskStatus(live, restoreTo);
           } else {
             try {
               requireSaved(await callBridge(this.bridge, [['updateDailyTask', [sourceDate, sourceId, { status: restoreTo }]]], 'forward undo'), 'forward undo');
             } catch (err) {
-              console.error(`🔥 undoForward: removed copy ${copyId}, but could not reset task ${sourceId} on ${sourceDate}; it still shows as forwarded:`, err.stack);
-              this.reportError(key, `Removed the forwarded copy, but could not reset the original task status: ${err.message || err.toString()}`);
+              console.error(`🔥 undoForward: removed copy ${copyId}, but could not reset task ${sourceId} on ${sourceDate}; it still shows as ${status === 'Ⓓ' ? 'delegated' : 'forwarded'}:`, err.stack);
+              this.reportError(key, `Removed the ${status === 'Ⓓ' ? 'check-back task' : 'forwarded copy'}, but could not reset the original task status: ${err.message || err.toString()}`);
               invalidateCached(sourceDate);
               return;
             }
             invalidateCached(sourceDate);
           }
         }
-        this.showTaskToast('Forward undone');
+        this.showTaskToast(status === 'Ⓓ' ? 'Delegation undone' : 'Forward undone');
       },
 
       // "today", "tomorrow", or "Wed, Oct 21" for a YYYY-MM-DD date, relative to the real today.
@@ -4700,6 +4748,27 @@ Alpine.data('plannerApp', () => ({
         const cleanTitle = parsed.cleanTitle || task.title;
         this.showTaskToast(`Forwarded "${cleanTitle}" to ${this.relativeDayLabel(targetDate)}`,
           { sourceId: task.id, sourceDate, copyId: res.forwardedTask.id, targetDate, prevStatus });
+      },
+
+      // Delegate: the server makes an open Check back task on targetDate (owner in its title)
+      // and marks the source Ⓓ. Throws on failure like forwardDailyTask, so its caller
+      // setTaskStatus owns the rollback and the error.
+      async delegateDailyTask(task, targetDate, sourceDate = this.selectedDate, prevStatus = null, owner = '') {
+        if (!task || !task.id) throw new Error('Not saved: no task to delegate.');
+        const res = await callBridge(this.bridge, [['delegateDailyTask', [sourceDate, task.id, targetDate, owner]]], 'task delegate');
+        if (!res || !res.followUpTask) {
+          throw new Error(`Not saved: no check-back task was made on ${targetDate} (the server returned none).`);
+        }
+        if (targetDate === this.selectedDate) {
+          this.dailyTasks.push(res.followUpTask);
+          this.syncDailyCacheFromLiveState();
+        } else {
+          invalidateCached(targetDate);
+        }
+        const parsed = this.parseTask(task.title);
+        const cleanTitle = parsed.cleanTitle || task.title;
+        this.showTaskToast(`Delegated "${cleanTitle}"${owner ? ` to ${owner}` : ''}. Check back ${this.relativeDayLabel(targetDate)}.`,
+          { status: 'Ⓓ', sourceId: task.id, sourceDate, copyId: res.followUpTask.id, targetDate, prevStatus });
       },
 
       async toggleTaskStatus(task) {

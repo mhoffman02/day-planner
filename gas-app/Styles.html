@@ -1834,6 +1834,60 @@
     font-size: 0.76rem;
   }
 
+  /* "Delegate…" in the daily status menu: optional owner, then a check-back day. */
+  .delegate-pick {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    max-width: 260px;
+    padding: 2px 8px 8px 36px;
+  }
+
+  input.delegate-owner-input {
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    width: 100%;
+    height: 26px;
+    padding: 2px 6px;
+    font-family: inherit;
+    font-size: 0.76rem;
+    background-color: var(--bg-card, #ffffff);
+    color: var(--text-primary);
+    border: 1px solid var(--border-line);
+    border-radius: 2px;
+    outline: none;
+  }
+
+  input.delegate-owner-input:focus {
+    border-color: var(--binder-teal);
+    box-shadow: 0 0 0 1px var(--binder-teal);
+  }
+
+  [data-theme="dark"] input.delegate-owner-input {
+    background-color: #11241c !important;
+    color: #e2f2ec !important;
+  }
+
+  .delegate-pick-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .delegate-pick-label,
+  .delegate-pick-note {
+    color: #5f6b68;
+    font-size: 0.74rem;
+  }
+
+  .forward-pick-btn.is-secondary {
+    background: transparent;
+    color: var(--binder-teal, #2d6a5a);
+    border: 1px solid var(--binder-teal, #2d6a5a);
+  }
+
   .task-toast-btn {
     margin-left: 8px;
     color: #ffffff;
@@ -5571,6 +5625,17 @@
   [data-theme="dark"] .forward-pick-btn {
     background: #79d6bd !important;
     color: #11241c !important;
+  }
+
+  [data-theme="dark"] .forward-pick-btn.is-secondary {
+    background: transparent !important;
+    color: #79d6bd !important;
+    border-color: #79d6bd !important;
+  }
+
+  [data-theme="dark"] .delegate-pick-label,
+  [data-theme="dark"] .delegate-pick-note {
+    color: #9fb5ad !important;
   }
 
   [data-theme="dark"] .notes-popover {

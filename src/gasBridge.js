@@ -4,7 +4,7 @@
  * Bridges client requests to Google Apps Script backend `google.script.run` or local mock state.
  */
 
-import { transferMasterTaskToToday, buildMasterTasksClearinghouse, forwardTaskToDate } from './taskEngine.js';
+import { transferMasterTaskToToday, buildMasterTasksClearinghouse, forwardTaskToDate, parseTaskTitle } from './taskEngine.js';
 import { createFutureItem, nextMonthKey, emptyYearMatrix } from './futureMatrixEngine.js';
 import { HubMock } from './hubMock.js';
 
@@ -501,6 +501,39 @@ export class GASBridge {
         .withSuccessHandler(resolve)
         .withFailureHandler(reject)
         .forwardDailyTask(sourceDateStr, taskId, targetDateStr);
+    });
+  }
+
+  /**
+   * Delegates a daily task: an open "Check back" task on checkBackDateStr, the source marked Ⓓ.
+   * @param {string} sourceDateStr Source date in YYYY-MM-DD format.
+   * @param {string} taskId Task identifier.
+   * @param {string} checkBackDateStr Check-back date in YYYY-MM-DD format.
+   * @param {string} [owner] Who has the task (optional).
+   * @returns {Promise<{originalTask: object, followUpTask: object}|null>}
+   */
+  async delegateDailyTask(sourceDateStr, taskId, checkBackDateStr, owner = '') {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      const sourceTasks = this.mockData.dailyTasks[sourceDateStr] || this.mockData.dailyTasks['2026-08-15'] || [];
+      const task = sourceTasks.find(t => t.id === taskId);
+      if (!task) return null;
+
+      task.status = 'Ⓓ';
+      if (!this.mockData.dailyTasks[checkBackDateStr]) {
+        this.mockData.dailyTasks[checkBackDateStr] = [];
+      }
+      const followUp = forwardTaskToDate(task, this.mockData.dailyTasks[checkBackDateStr], checkBackDateStr);
+      const parsed = parseTaskTitle(followUp.title);
+      followUp.title = `[${parsed.priorityGroup || 'A'}${parsed.sequence || 1}] Check back: ${parsed.cleanTitle}${owner ? ` (${owner})` : ''}`;
+      this.mockData.dailyTasks[checkBackDateStr].push(followUp);
+      return { originalTask: task, followUpTask: followUp };
+    }
+
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .delegateDailyTask(sourceDateStr, taskId, checkBackDateStr, owner);
     });
   }
 

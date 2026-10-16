@@ -534,14 +534,14 @@ for (const c of clients) {
       const first = vm.setTaskStatus(task, '✓');
       await settle(2);
       await vm.setTaskStatus(task, 'X');
-      await vm.setTaskStatus(task, 'Ⓓ');
+      await vm.setTaskStatus(task, '○');
       g.gates[0].resolve({ id: 't1', status: '✓' });
       await settle(2);
-      g.gates[1].resolve({ id: 't1', status: 'Ⓓ' });
+      g.gates[1].resolve({ id: 't1', status: '○' });
       await first;
       await settle();
-      assert.deepEqual(g.calls, ['✓', 'Ⓓ']);
-      assert.equal(task.status, 'Ⓓ');
+      assert.deepEqual(g.calls, ['✓', '○']);
+      assert.equal(task.status, '○');
     });
 
     it('note saves for the same date never overlap and the latest text wins', async () => {

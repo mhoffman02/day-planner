@@ -434,7 +434,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 488;
+const BUILD_NUMBER_ = 489;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -2606,9 +2606,11 @@ function addDailyTask(dateStr, title, category, sourceMasterId, notes) {
  * @param {string} dateStr Target date string in YYYY-MM-DD format.
  * @param {string} taskId Google Task id.
  * @param {object} updates Fields to update: { title, status, category, dueDate, starred, notes }.
+ * @param {object} [serverMeta] Hidden meta keys to merge (server callers only: the google.script.run
+ *   delegator passes three arguments, so a client can never set it).
  * @returns {object|null} Updated task object, or null if the task no longer exists.
  */
-function updateDailyTask(dateStr, taskId, updates) {
+function updateDailyTask(dateStr, taskId, updates, serverMeta) {
   try {
     if (typeof Tasks === 'undefined') {
       return {
@@ -2649,6 +2651,10 @@ function updateDailyTask(dateStr, taskId, updates) {
     }
     if (updates && updates.dueDate !== undefined) {
       patch.due = updates.dueDate + 'T00:00:00.000Z';
+    }
+    if (serverMeta) {
+      const notesBaseMeta = patch.notes !== undefined ? patch.notes : ensureCurrent().notes;
+      patch.notes = encodeTaskMeta(notesBaseMeta, serverMeta);
     }
 
     const updated = Tasks.Tasks.patch(patch, '@default', taskId);
@@ -2735,7 +2741,52 @@ function deleteDailyTask(taskId) {
  * @returns {{originalTask: object, forwardedTask: object}} Resulting task objects.
  */
 function forwardDailyTask(sourceDateStr, taskId, targetDateStr) {
-  let forwardedTask;
+  const out = copyThenMarkSource_(sourceDateStr, taskId, targetDateStr, {
+    fn: 'forwardDailyTask', status: '→', verb: 'forward', pastVerb: 'forwarded', noun: 'copy',
+    copyTitle: function(group, cleanTitle) { return '[' + group + '1] ' + cleanTitle; }
+  });
+  return { originalTask: out.originalTask, forwardedTask: out.copy };
+}
+
+/**
+ * Delegates a daily task with a check-back day, as the same compensating two-step write as
+ * forwardDailyTask: an open "Check back: <title> (<owner>)" task is created on checkBackDateStr
+ * FIRST, then the source is marked Ⓓ with the owner and day kept as hidden waitingOn/nagDate meta.
+ * A failed mark deletes the follow-up; if that also fails, the error says it may be duplicated.
+ * @param {string} sourceDateStr Source date in YYYY-MM-DD format.
+ * @param {string} taskId Google Task ID.
+ * @param {string} checkBackDateStr Check-back date in YYYY-MM-DD format.
+ * @param {string} [owner] Who the task was handed to (optional).
+ * @returns {{originalTask: object, followUpTask: object}} Resulting task objects.
+ */
+function delegateDailyTask(sourceDateStr, taskId, checkBackDateStr, owner) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(checkBackDateStr || ''))) {
+    throw new Error('Nothing was delegated: the check-back date must be YYYY-MM-DD (got "' + checkBackDateStr + '").');
+  }
+  // Brackets mark priority and note tags, so they never come through from user text.
+  const who = String(owner || '').replace(/[[\]]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  const meta = { nagDate: checkBackDateStr };
+  if (who) meta.waitingOn = who;
+  const out = copyThenMarkSource_(sourceDateStr, taskId, checkBackDateStr, {
+    fn: 'delegateDailyTask', status: 'Ⓓ', verb: 'delegate', pastVerb: 'delegated', noun: 'check-back task', meta: meta,
+    copyTitle: function(group, cleanTitle) { return '[' + group + '1] Check back: ' + cleanTitle + (who ? ' (' + who + ')' : ''); }
+  });
+  return { originalTask: out.originalTask, followUpTask: out.copy };
+}
+
+/**
+ * Shared compensating two-step write for forward and delegate: create the open task on
+ * targetDateStr first (a failure changes nothing), then set the source status (and any hidden
+ * meta). If that fails, delete the new task; if the delete fails too, the error says the task may
+ * be duplicated on targetDateStr. Never reports a partial write as success.
+ * @param {string} sourceDateStr Source date in YYYY-MM-DD format.
+ * @param {string} taskId Google Task ID of the source.
+ * @param {string} targetDateStr Date for the new open task.
+ * @param {{fn:string, status:string, verb:string, pastVerb:string, noun:string, meta:(object|undefined), copyTitle:function(string,string):string}} op
+ * @returns {{originalTask: object, copy: object}} Resulting task objects.
+ */
+function copyThenMarkSource_(sourceDateStr, taskId, targetDateStr, op) {
+  let copy;
   try {
     const cur = (typeof Tasks !== 'undefined') ? Tasks.Tasks.get('@default', taskId) : null;
     const title = cur ? cur.title : '';
@@ -2745,38 +2796,34 @@ function forwardDailyTask(sourceDateStr, taskId, targetDateStr) {
     const match = (title || '').match(/^\[([A-C])[1-9]\]\s*(.*)$/i);
     const priorityGroup = match ? match[1].toUpperCase() : 'A';
     const cleanTitle = match ? match[2].trim() : (title || 'Untitled Task').trim();
-    const formattedTitle = '[' + priorityGroup + '1] ' + cleanTitle;
 
-    // 1. Create the open copy on the target date first: a failure here changes nothing.
-    forwardedTask = addDailyTask(targetDateStr, formattedTitle, category);
+    // 1. Create the open task on the target date first: a failure here changes nothing.
+    copy = addDailyTask(targetDateStr, op.copyTitle(priorityGroup, cleanTitle), category);
   } catch (err) {
-    logError('forwardDailyTask(' + taskId + '): reading the source or creating the copy on ' + targetDateStr + ' failed; nothing changed', err);
+    logError(op.fn + '(' + taskId + '): reading the source or creating the ' + op.noun + ' on ' + targetDateStr + ' failed; nothing changed', err);
     throw err;
   }
 
-  // 2. Mark the original forwarded. updateDailyTask returns null (no throw) on a 404, so a source
-  // deleted mid-forward is a failure here too, never a success with originalTask: null.
+  // 2. Mark the original. updateDailyTask returns null (no throw) on a 404, so a source deleted
+  // mid-write is a failure here too, never a success with originalTask: null.
   let originalTask;
   try {
-    originalTask = updateDailyTask(sourceDateStr, taskId, { status: '→' });
+    originalTask = updateDailyTask(sourceDateStr, taskId, { status: op.status }, op.meta);
     if (!originalTask) throw new Error('the original task no longer exists');
   } catch (markErr) {
-    logError('forwardDailyTask(' + taskId + '): marking the source forwarded failed; deleting the new copy ' + forwardedTask.id + ' on ' + targetDateStr, markErr);
+    logError(op.fn + '(' + taskId + '): marking the source ' + op.pastVerb + ' failed; deleting the new ' + op.noun + ' ' + copy.id + ' on ' + targetDateStr, markErr);
     try {
-      deleteDailyTask(forwardedTask.id);
-      console.error('forwardDailyTask(' + taskId + '): rolled back; deleted copy ' + forwardedTask.id + ' on ' + targetDateStr + ', nothing was forwarded');
+      deleteDailyTask(copy.id);
+      console.error(op.fn + '(' + taskId + '): rolled back; deleted ' + op.noun + ' ' + copy.id + ' on ' + targetDateStr + ', nothing was ' + op.pastVerb);
     } catch (rollbackErr) {
-      logError('forwardDailyTask(' + taskId + '): compensating delete of copy ' + forwardedTask.id + ' on ' + targetDateStr + ' failed; task is now duplicated', rollbackErr);
-      throw new Error('Forward failed: could not mark the original task as forwarded (' + (markErr.message || markErr) +
-        ') and could not remove the new copy (' + (rollbackErr.message || rollbackErr) + '). The task may be duplicated on ' + targetDateStr + '.', { cause: rollbackErr });
+      logError(op.fn + '(' + taskId + '): compensating delete of ' + op.noun + ' ' + copy.id + ' on ' + targetDateStr + ' failed; task is now duplicated', rollbackErr);
+      throw new Error(op.verb.charAt(0).toUpperCase() + op.verb.slice(1) + ' failed: could not mark the original task as ' + op.pastVerb + ' (' + (markErr.message || markErr) +
+        ') and could not remove the new ' + op.noun + ' (' + (rollbackErr.message || rollbackErr) + '). The task may be duplicated on ' + targetDateStr + '.', { cause: rollbackErr });
     }
-    throw new Error('Nothing was forwarded: could not mark the original task as forwarded (' + (markErr.message || markErr) + ').', { cause: markErr });
+    throw new Error('Nothing was ' + op.pastVerb + ': could not mark the original task as ' + op.pastVerb + ' (' + (markErr.message || markErr) + ').', { cause: markErr });
   }
 
-  return {
-    originalTask: originalTask,
-    forwardedTask: forwardedTask
-  };
+  return { originalTask: originalTask, copy: copy };
 }
 
 /**
@@ -3475,6 +3522,7 @@ global.ensure2WaySyncTriggerInstalled = ensure2WaySyncTriggerInstalled; // IDE m
 global.setup2WaySyncTrigger = setup2WaySyncTrigger;          // IDE manual-run
 global.searchArchiveNotes = searchArchiveNotes;              // google.script.run: Script.html
 global.forwardDailyTask = forwardDailyTask;                  // google.script.run: Script.html
+global.delegateDailyTask = delegateDailyTask;                // google.script.run: Script.html
 global.createCalendarEvent = createCalendarEvent;            // google.script.run: Script.html
 
 // Cross-file only (not reachable from any client/template/trigger/IDE surface above, but needed
@@ -3510,6 +3558,7 @@ global._addDailyTaskInternal = addDailyTask;
 global._updateDailyTaskInternal = updateDailyTask;
 global._deleteDailyTaskInternal = deleteDailyTask;
 global._forwardDailyTaskInternal = forwardDailyTask;
+global._delegateDailyTaskInternal = delegateDailyTask;
 global._createCalendarEventInternal = createCalendarEvent;
 global._addMasterTaskInternal = addMasterTask;
 global._updateMasterTaskInternal = updateMasterTask;
@@ -3630,6 +3679,10 @@ function deleteDailyTask(taskId) {
 
 function forwardDailyTask(sourceDateStr, taskId, targetDateStr) {
   return (typeof _forwardDailyTaskInternal === 'function') ? _forwardDailyTaskInternal(sourceDateStr, taskId, targetDateStr) : (globalThis._forwardDailyTaskInternal ? globalThis._forwardDailyTaskInternal(sourceDateStr, taskId, targetDateStr) : null);
+}
+
+function delegateDailyTask(sourceDateStr, taskId, checkBackDateStr, owner) {
+  return (typeof _delegateDailyTaskInternal === 'function') ? _delegateDailyTaskInternal(sourceDateStr, taskId, checkBackDateStr, owner) : (globalThis._delegateDailyTaskInternal ? globalThis._delegateDailyTaskInternal(sourceDateStr, taskId, checkBackDateStr, owner) : null);
 }
 
 function createCalendarEvent(payload) {
