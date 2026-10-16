@@ -2059,6 +2059,9 @@
     getHubStatus() { return this.hubRpc('getHubStatus', []); }
     getHubSheetLink() { return this.hubRpc('getHubSheetLink', []); }
     setupHub() { return this.hubRpc('setupHub', []); }
+    hubSetupLabels() { return this.hubRpc('hubSetupLabels', []); }
+    hubSuggestFilters() { return this.hubRpc('hubSuggestFilters', []); }
+    hubCreateSelectedFilters() { return this.hubRpc('hubCreateSelectedFilters', []); }
     getTriageBoard(filters) { return this.hubRpc('getTriageBoard', [filters || {}]); }
     getUpcomingMeetingChoices(threadId) { return this.hubRpc('getUpcomingMeetingChoices', [threadId]); }
     routeThreadToTask(threadId, opts) { return this.hubRpc('routeThreadToTask', [threadId, opts || {}]); }

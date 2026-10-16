@@ -1866,6 +1866,31 @@
             <button type="button" class="about-action-btn" @click="loadHubLink(hubLink.retry)">Try again</button>
           </span>
         </div>
+        <div class="guide-card-text hub-sheet-link" x-data="{
+            tool: { state: 'idle', message: '', url: null, failed: false },
+            async run(action) {
+              this.tool = { state: 'working', message: '', url: null, failed: false };
+              try {
+                const r = await bridge[action]();
+                if (!r) throw new Error('No answer from the server');
+                this.tool = { state: 'done', message: r.message || '', url: r.url || null, failed: r.ok !== true };
+              } catch (err) {
+                console.error('About: ' + action + ' failed, showing the error', err.stack);
+                this.tool = { state: 'done', message: err.message, url: null, failed: true };
+              }
+            }
+          }">
+          <b>Gmail labels and filters:</b>
+          <button type="button" class="about-action-btn" :disabled="tool.state === 'working'" @click="run('hubSetupLabels')">Create Gmail labels</button>
+          <button type="button" class="about-action-btn" :disabled="tool.state === 'working'" @click="run('hubSuggestFilters')">Suggest filters</button>
+          <button type="button" class="about-action-btn" :disabled="tool.state === 'working'" @click="run('hubCreateSelectedFilters')">Create checked filters</button>
+          <span x-show="tool.state === 'working'">Working&hellip;</span>
+          <span x-show="tool.state === 'done'" :role="tool.failed ? 'alert' : 'status'" :class="{ 'hub-sheet-link-error': tool.failed }" x-text="tool.message"></span>
+          <a x-show="tool.url" :href="tool.url" target="_blank" rel="noopener noreferrer" class="hub-sheet-link-anchor">
+            Open the Filter Suggestions tab <span class="material-symbols-outlined icon-16" aria-hidden="true">open_in_new</span>
+          </a>
+          <span class="hub-sheet-link-note"><b>Create Gmail labels</b> adds any missing 🎯 labels (it never renames or deletes; the hub also does this when it sets itself up). <b>Suggest filters</b> fills the <b>Filter Suggestions</b> tab of the Hub Config Sheet: your filters that add a 🎯 label, new ones learned from the emails you already labeled, and any rows you paste in yourself (for example, queries from Gemini in Gmail). Each row shows how many of your labeled emails from the last 90 days it catches and how many other emails it would wrongly catch. Tick <b>Create?</b> on the rows you want, then <b>Create checked filters</b>: each filter only adds its label. Task-Today, Waiting and Meeting are left for you to apply by hand.</span>
+        </div>
         <p class="guide-card-text">
           <b>If something fails:</b> the thread shows <b>Error</b> in Triage. Fix the cause and press <b>Retry</b>; most errors are also retried automatically.
         </p>
@@ -2424,6 +2449,43 @@
           <button type="button" class="about-action-btn" :class="{ 'is-on': result(id) === 'pass' }" :aria-pressed="result(id) === 'pass'" @click="mark(id, 'pass')">Pass</button>
           <button type="button" class="about-action-btn" :class="{ 'is-on is-fail': result(id) === 'fail' }" :aria-pressed="result(id) === 'fail'" @click="mark(id, 'fail')">Fail</button>
           <input type="text" class="tutorial-note" aria-label="Note for T18" placeholder="What you saw (optional)" :value="note(id)" @change="setNote(id, $event.target.value)">
+        </div>
+      </details>
+
+    </section>
+  </section>
+
+  <section aria-labelledby="heading-tut-filters">
+    <h2 id="heading-tut-filters" class="about-section-heading">Gmail Labels and Filters</h2>
+    <section class="cards-stack">
+
+      <details class="guide-card about-details tutorial-ex" data-ex="T19" data-title="Create the Gmail labels" x-data="{ id: 'T19' }">
+        <summary class="guide-card-title"><span class="tutorial-ex-id">T19</span> Create the Gmail labels <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
+        <dl class="tutorial-steps">
+          <dt>Do</dt><dd>On <b>About</b>, under <b>Automatic Tasks</b>, click <b>Create Gmail labels</b>.</dd>
+          <dt>Look in</dt><dd>The message next to the buttons, then the label list in Gmail (left side).</dd>
+          <dt>Pass if</dt><dd>The message names what was created (or says all labels already exist), and Gmail shows <b>🎯</b> with Task, Task-Today, Waiting, Meeting (with NCMMS-Core and NCMMS-Daily under it), Read and Review.</dd>
+          <dt>Clean up</dt><dd>Nothing to clean up; running it again creates nothing new.</dd>
+        </dl>
+        <div class="tutorial-ex-actions">
+          <button type="button" class="about-action-btn" :class="{ 'is-on': result(id) === 'pass' }" :aria-pressed="result(id) === 'pass'" @click="mark(id, 'pass')">Pass</button>
+          <button type="button" class="about-action-btn" :class="{ 'is-on is-fail': result(id) === 'fail' }" :aria-pressed="result(id) === 'fail'" @click="mark(id, 'fail')">Fail</button>
+          <input type="text" class="tutorial-note" aria-label="Note for T19" placeholder="What you saw (optional)" :value="note(id)" @change="setNote(id, $event.target.value)">
+        </div>
+      </details>
+
+      <details class="guide-card about-details tutorial-ex" data-ex="T20" data-title="Suggest and create a filter" x-data="{ id: 'T20' }">
+        <summary class="guide-card-title"><span class="tutorial-ex-id">T20</span> Suggest and create a filter <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
+        <dl class="tutorial-steps">
+          <dt>Do</dt><dd>Click <b>Suggest filters</b>, then <b>Open the Filter Suggestions tab</b>. Tick <b>Create?</b> on one row with high Precision, then click <b>Create checked filters</b>.</dd>
+          <dt>Look in</dt><dd>The Filter Suggestions tab, then Gmail Settings &rsaquo; Filters and Blocked Addresses.</dd>
+          <dt>Pass if</dt><dd>The tab lists your existing 🎯 filters and new suggestions with Caught and Wrong counts; the ticked row shows <b>Created</b> and a Filter id; Gmail has a new filter whose only action is applying that 🎯 label.</dd>
+          <dt>Clean up</dt><dd>Delete the new filter in Gmail settings if you do not want it.</dd>
+        </dl>
+        <div class="tutorial-ex-actions">
+          <button type="button" class="about-action-btn" :class="{ 'is-on': result(id) === 'pass' }" :aria-pressed="result(id) === 'pass'" @click="mark(id, 'pass')">Pass</button>
+          <button type="button" class="about-action-btn" :class="{ 'is-on is-fail': result(id) === 'fail' }" :aria-pressed="result(id) === 'fail'" @click="mark(id, 'fail')">Fail</button>
+          <input type="text" class="tutorial-note" aria-label="Note for T20" placeholder="What you saw (optional)" :value="note(id)" @change="setNote(id, $event.target.value)">
         </div>
       </details>
 

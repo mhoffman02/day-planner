@@ -274,6 +274,22 @@ export class HubMock {
     return { ...this.getHubSheetLink(), message: 'Hub Sheet is ready' };
   }
 
+  /** @returns {object} Mock label setup: every 🎯 label already exists. */
+  hubSetupLabels() {
+    return { ok: true, status: 'OK', message: 'All Day Planner Gmail labels already exist', created: [], existing: [] };
+  }
+
+  /** @returns {object} Mock filter suggestions (local preview has no Gmail). */
+  hubSuggestFilters() {
+    return { ok: true, status: 'OK', rows: 3, suggested: 2, existing: 1, pasted: 0, url: 'https://docs.google.com/spreadsheets/d/mock-hub-sheet/edit',
+      message: 'Filter Suggestions: 2 new, 1 existing. Tick Create? on the rows you want, then Create checked filters.' };
+  }
+
+  /** @returns {object} Mock filter creation. */
+  hubCreateSelectedFilters() {
+    return { ok: true, status: 'OK', created: 0, skipped: 0, failed: 0, message: 'No ticked rows to create' };
+  }
+
   /** Test hook: the user approved the scopes on the consent page. */
   approveAuth() { this.authRequired = false; }
 

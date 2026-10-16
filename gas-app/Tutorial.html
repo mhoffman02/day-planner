@@ -458,6 +458,43 @@
     </section>
   </section>
 
+  <section aria-labelledby="heading-tut-filters">
+    <h2 id="heading-tut-filters" class="about-section-heading">Gmail Labels and Filters</h2>
+    <section class="cards-stack">
+
+      <details class="guide-card about-details tutorial-ex" data-ex="T19" data-title="Create the Gmail labels" x-data="{ id: 'T19' }">
+        <summary class="guide-card-title"><span class="tutorial-ex-id">T19</span> Create the Gmail labels <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
+        <dl class="tutorial-steps">
+          <dt>Do</dt><dd>On <b>About</b>, under <b>Automatic Tasks</b>, click <b>Create Gmail labels</b>.</dd>
+          <dt>Look in</dt><dd>The message next to the buttons, then the label list in Gmail (left side).</dd>
+          <dt>Pass if</dt><dd>The message names what was created (or says all labels already exist), and Gmail shows <b>🎯</b> with Task, Task-Today, Waiting, Meeting (with NCMMS-Core and NCMMS-Daily under it), Read and Review.</dd>
+          <dt>Clean up</dt><dd>Nothing to clean up; running it again creates nothing new.</dd>
+        </dl>
+        <div class="tutorial-ex-actions">
+          <button type="button" class="about-action-btn" :class="{ 'is-on': result(id) === 'pass' }" :aria-pressed="result(id) === 'pass'" @click="mark(id, 'pass')">Pass</button>
+          <button type="button" class="about-action-btn" :class="{ 'is-on is-fail': result(id) === 'fail' }" :aria-pressed="result(id) === 'fail'" @click="mark(id, 'fail')">Fail</button>
+          <input type="text" class="tutorial-note" aria-label="Note for T19" placeholder="What you saw (optional)" :value="note(id)" @change="setNote(id, $event.target.value)">
+        </div>
+      </details>
+
+      <details class="guide-card about-details tutorial-ex" data-ex="T20" data-title="Suggest and create a filter" x-data="{ id: 'T20' }">
+        <summary class="guide-card-title"><span class="tutorial-ex-id">T20</span> Suggest and create a filter <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
+        <dl class="tutorial-steps">
+          <dt>Do</dt><dd>Click <b>Suggest filters</b>, then <b>Open the Filter Suggestions tab</b>. Tick <b>Create?</b> on one row with high Precision, then click <b>Create checked filters</b>.</dd>
+          <dt>Look in</dt><dd>The Filter Suggestions tab, then Gmail Settings &rsaquo; Filters and Blocked Addresses.</dd>
+          <dt>Pass if</dt><dd>The tab lists your existing 🎯 filters and new suggestions with Caught and Wrong counts; the ticked row shows <b>Created</b> and a Filter id; Gmail has a new filter whose only action is applying that 🎯 label.</dd>
+          <dt>Clean up</dt><dd>Delete the new filter in Gmail settings if you do not want it.</dd>
+        </dl>
+        <div class="tutorial-ex-actions">
+          <button type="button" class="about-action-btn" :class="{ 'is-on': result(id) === 'pass' }" :aria-pressed="result(id) === 'pass'" @click="mark(id, 'pass')">Pass</button>
+          <button type="button" class="about-action-btn" :class="{ 'is-on is-fail': result(id) === 'fail' }" :aria-pressed="result(id) === 'fail'" @click="mark(id, 'fail')">Fail</button>
+          <input type="text" class="tutorial-note" aria-label="Note for T20" placeholder="What you saw (optional)" :value="note(id)" @change="setNote(id, $event.target.value)">
+        </div>
+      </details>
+
+    </section>
+  </section>
+
   <section aria-labelledby="heading-tut-results">
     <h2 id="heading-tut-results" class="about-section-heading">Results</h2>
     <p class="about-paragraph">

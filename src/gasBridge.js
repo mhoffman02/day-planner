@@ -1039,6 +1039,15 @@ export class GASBridge {
   /** @returns {Promise<{ok: boolean, provisioned: boolean, url: (string|null)}>} Creates the Hub Config Sheet if missing, then its link. */
   setupHub() { return this._hubRpc('setupHub', []); }
 
+  /** @returns {Promise<{ok: boolean, created: string[], existing: string[], message: string}>} Creates missing 🎯 Gmail labels. */
+  hubSetupLabels() { return this._hubRpc('hubSetupLabels', []); }
+
+  /** @returns {Promise<{ok: boolean, rows: number, url: string, message: string}>} Fills the Filter Suggestions tab. */
+  hubSuggestFilters() { return this._hubRpc('hubSuggestFilters', []); }
+
+  /** @returns {Promise<{ok: boolean, created: number, skipped: number, failed: number, message: string}>} Creates ticked filters. */
+  hubCreateSelectedFilters() { return this._hubRpc('hubCreateSelectedFilters', []); }
+
   /**
    * @param {object} [filters] Board filters.
    * @returns {Promise<{queues: {directAction: Array, meetingCarryIns: Array, systemExceptions: Array, fyiReading: Array}}>} Triage board.

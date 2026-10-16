@@ -66,11 +66,23 @@ Recommended order: (1) run discovery and the DRY_RUN smoke with `GMAIL_ROUTER` T
 
 ## 3. Labelling threads in Gmail
 
-The app never writes Gmail. Create these labels once, with exactly these names (the target emoji is U+1F3AF; type
-it with the OS emoji picker; slashes make nested labels), and apply them by hand:
+The hub creates these labels when it sets itself up (`hubSetupLabels`, also About > **Create Gmail labels**;
+parents first, never renames or deletes). The names are exact (the target emoji is U+1F3AF; slashes nest):
 
 `🎯/Task`, `🎯/Task-Today`, `🎯/Waiting`, `🎯/Meeting`, `🎯/Meeting/NCMMS-Core`, `🎯/Meeting/NCMMS-Daily`,
 `🎯/Read`, `🎯/Review`.
+
+Apply them by hand, or let Gmail filters do it. **Filter recommender** (scope `gmail.settings.basic`):
+`hubSuggestFilters` (About > **Suggest filters**) writes a **Filter Suggestions** tab in the Hub Config Sheet with
+(a) the user's filters that add a 🎯 label, (b) new suggestions learned from labelled threads (sender, domain,
+list, subject phrase; headers only, never bodies; AI-excluded labels skipped), and (c) any rows the user pasted
+(for example Gemini-in-Gmail queries; any Source text other than `Suggested` / `Existing filter` is kept).
+Every row is measured with Gmail search over the last 90 days: Caught = matches that carry the label, Wrong =
+matches without it, Precision, and Covered by filter (an existing filter that already catches 90%). Suggestions
+target Task, NCMMS-Core, NCMMS-Daily, Read and Review; Task-Today, Waiting and Meeting stay manual (judgment or
+reply state that a filter cannot see). `hubCreateSelectedFilters` (About > **Create checked filters**) creates one
+filter per ticked row whose only action is adding that 🎯 label, skips non-🎯 labels and duplicates, and writes
+Status + Filter id back. Without the scope (or if the org blocks it) both return `SCOPE_BLOCKED`; labels still work.
 
 Acted on in v1: `🎯/Task`, `🎯/Task-Today`, `🎯/Waiting`, `🎯/Meeting/NCMMS-Core`. The rest are recognized and
 inert (they feed Triage candidates). Leaving a label on a processed thread is safe: the ledger prevents a second
