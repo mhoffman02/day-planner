@@ -514,8 +514,9 @@ export class GASBridge {
    */
   async delegateDailyTask(sourceDateStr, taskId, checkBackDateStr, owner = '') {
     if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      // A Master row may be an undated master task, so look there too.
       const sourceTasks = this.mockData.dailyTasks[sourceDateStr] || this.mockData.dailyTasks['2026-08-15'] || [];
-      const task = sourceTasks.find(t => t.id === taskId);
+      const task = sourceTasks.find(t => t.id === taskId) || (this.mockData.masterTasks || []).find(t => t.id === taskId);
       if (!task) return null;
 
       task.status = 'Ⓓ';
@@ -620,6 +621,57 @@ export class GASBridge {
 
     const { title, category } = transferMasterTaskToToday(masterTask, [], priorityGroup, dateStr);
     return this.addDailyTask(dateStr, title, category, masterTaskId);
+  }
+
+  /**
+   * Forwards an undated master task to a day: a linked daily copy, the master marked → and moved.
+   * @param {string} masterTaskId Master task identifier.
+   * @param {string} targetDateStr Target date in YYYY-MM-DD format.
+   * @returns {Promise<{originalTask: object, forwardedTask: object}|null>}
+   */
+  async forwardMasterTask(masterTaskId, targetDateStr) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      const master = (this.mockData.masterTasks || []).find(m => m.id === masterTaskId);
+      if (!master) return null;
+      if (!this.mockData.dailyTasks[targetDateStr]) this.mockData.dailyTasks[targetDateStr] = [];
+      const copy = forwardTaskToDate(master, [], targetDateStr);
+      copy.sourceMasterId = masterTaskId;
+      this.mockData.dailyTasks[targetDateStr].push(copy);
+      Object.assign(master, { status: '→', movedTo: targetDateStr, movedTaskId: copy.id });
+      return { originalTask: master, forwardedTask: copy };
+    }
+
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .forwardMasterTask(masterTaskId, targetDateStr);
+    });
+  }
+
+  /**
+   * Undoes forwardMasterTask: deletes the copy, then clears the move and restores the status.
+   * @param {string} masterTaskId Master task identifier.
+   * @param {string} copyTaskId Daily copy made by the forward.
+   * @param {string} prevStatus Status glyph to restore.
+   * @returns {Promise<{id: string, status: string, movedTo: null, movedTaskId: null}>}
+   */
+  async undoMasterForward(masterTaskId, copyTaskId, prevStatus) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      Object.keys(this.mockData.dailyTasks).forEach((d) => {
+        this.mockData.dailyTasks[d] = this.mockData.dailyTasks[d].filter(t => t.id !== copyTaskId);
+      });
+      const master = (this.mockData.masterTasks || []).find(m => m.id === masterTaskId);
+      if (master) Object.assign(master, { status: prevStatus, movedTo: null, movedTaskId: null });
+      return { id: masterTaskId, status: prevStatus, movedTo: null, movedTaskId: null };
+    }
+
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .undoMasterForward(masterTaskId, copyTaskId, prevStatus);
+    });
   }
 
   /**

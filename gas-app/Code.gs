@@ -434,7 +434,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 490;
+const BUILD_NUMBER_ = 491;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -2775,6 +2775,53 @@ function delegateDailyTask(sourceDateStr, taskId, checkBackDateStr, owner) {
 }
 
 /**
+ * Forwards an undated master task to a day, as the same compensating two-step write: the daily copy
+ * (linked back by sourceMasterId, keeping the master priority group) is created FIRST, then the
+ * master is marked → with movedTo/movedTaskId. A failed mark deletes the copy.
+ * @param {string} masterTaskId Master task Google Task ID.
+ * @param {string} targetDateStr Target date in YYYY-MM-DD format.
+ * @returns {{originalTask: object, forwardedTask: object}} Resulting task objects.
+ */
+function forwardMasterTask(masterTaskId, targetDateStr) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(targetDateStr || ''))) {
+    throw new Error('Nothing was forwarded: the date must be YYYY-MM-DD (got "' + targetDateStr + '").');
+  }
+  const out = copyThenMarkSource_('', masterTaskId, targetDateStr, {
+    fn: 'forwardMasterTask', status: '→', verb: 'forward', pastVerb: 'forwarded', noun: 'copy', linkSource: true,
+    meta: function(copy) { return { movedTo: targetDateStr, movedTaskId: copy.id }; },
+    copyTitle: function(group, cleanTitle) { return '[' + group + '1] ' + cleanTitle; }
+  });
+  return { originalTask: out.originalTask, forwardedTask: out.copy };
+}
+
+/**
+ * Undoes forwardMasterTask: deletes the daily copy FIRST (a failure throws and leaves the forward in
+ * place), then clears movedTo/movedTaskId on the master and restores its earlier status.
+ * @param {string} masterTaskId Master task Google Task ID.
+ * @param {string} copyTaskId Daily copy made by the forward.
+ * @param {string} prevStatus Status glyph to restore.
+ * @returns {{id: string, status: string, movedTo: null, movedTaskId: null}} Restored master state.
+ */
+function undoMasterForward(masterTaskId, copyTaskId, prevStatus) {
+  const status = String(prevStatus || '•');
+  if (['•', '○', '✓', '→', 'X', 'Ⓓ'].indexOf(status) === -1) {
+    throw new Error('Forward not undone: unknown status "' + status + '".');
+  }
+  deleteDailyTask(copyTaskId);
+  try {
+    if (typeof Tasks === 'undefined') return { id: masterTaskId, status: status, movedTo: null, movedTaskId: null };
+    const current = Tasks.Tasks.get('@default', masterTaskId);
+    const notes = encodeTaskStatusNotes(status, encodeTaskMeta(current.notes, { movedTo: null, movedTaskId: null }));
+    const updated = Tasks.Tasks.patch({ notes: notes, status: (status === '✓' || status === 'Ⓓ') ? 'completed' : 'needsAction' }, '@default', masterTaskId);
+    const meta = decodeTaskMeta(updated.notes);
+    return { id: updated.id, status: deriveTaskStatus(updated), movedTo: meta.movedTo || null, movedTaskId: meta.movedTaskId || null };
+  } catch (err) {
+    logError('undoMasterForward(' + masterTaskId + '): deleted copy ' + copyTaskId + ' but could not reset the master; it still shows as moved', err);
+    throw new Error('Removed the forwarded copy, but could not reset the master task (' + (err.message || err) + ').', { cause: err });
+  }
+}
+
+/**
  * Shared compensating two-step write for forward and delegate: create the open task on
  * targetDateStr first (a failure changes nothing), then set the source status (and any hidden
  * meta). If that fails, delete the new task; if the delete fails too, the error says the task may
@@ -2782,7 +2829,8 @@ function delegateDailyTask(sourceDateStr, taskId, checkBackDateStr, owner) {
  * @param {string} sourceDateStr Source date in YYYY-MM-DD format.
  * @param {string} taskId Google Task ID of the source.
  * @param {string} targetDateStr Date for the new open task.
- * @param {{fn:string, status:string, verb:string, pastVerb:string, noun:string, meta:(object|undefined), copyTitle:function(string,string):string}} op
+ * @param {{fn:string, status:string, verb:string, pastVerb:string, noun:string, linkSource:(boolean|undefined), meta:(object|function(object):object|undefined), copyTitle:function(string,string):string}} op
+ *   linkSource sets the copy sourceMasterId to the source; a meta function gets the created copy.
  * @returns {{originalTask: object, copy: object}} Resulting task objects.
  */
 function copyThenMarkSource_(sourceDateStr, taskId, targetDateStr, op) {
@@ -2798,7 +2846,7 @@ function copyThenMarkSource_(sourceDateStr, taskId, targetDateStr, op) {
     const cleanTitle = match ? match[2].trim() : (title || 'Untitled Task').trim();
 
     // 1. Create the open task on the target date first: a failure here changes nothing.
-    copy = addDailyTask(targetDateStr, op.copyTitle(priorityGroup, cleanTitle), category);
+    copy = addDailyTask(targetDateStr, op.copyTitle(priorityGroup, cleanTitle), category, op.linkSource ? taskId : undefined);
   } catch (err) {
     logError(op.fn + '(' + taskId + '): reading the source or creating the ' + op.noun + ' on ' + targetDateStr + ' failed; nothing changed', err);
     throw err;
@@ -2808,7 +2856,8 @@ function copyThenMarkSource_(sourceDateStr, taskId, targetDateStr, op) {
   // mid-write is a failure here too, never a success with originalTask: null.
   let originalTask;
   try {
-    originalTask = updateDailyTask(sourceDateStr, taskId, { status: op.status }, op.meta);
+    const meta = typeof op.meta === 'function' ? op.meta(copy) : op.meta;
+    originalTask = updateDailyTask(sourceDateStr, taskId, { status: op.status }, meta);
     if (!originalTask) throw new Error('the original task no longer exists');
   } catch (markErr) {
     logError(op.fn + '(' + taskId + '): marking the source ' + op.pastVerb + ' failed; deleting the new ' + op.noun + ' ' + copy.id + ' on ' + targetDateStr, markErr);
@@ -3523,6 +3572,8 @@ global.setup2WaySyncTrigger = setup2WaySyncTrigger;          // IDE manual-run
 global.searchArchiveNotes = searchArchiveNotes;              // google.script.run: Script.html
 global.forwardDailyTask = forwardDailyTask;                  // google.script.run: Script.html
 global.delegateDailyTask = delegateDailyTask;                // google.script.run: Script.html
+global.forwardMasterTask = forwardMasterTask;                // google.script.run: Script.html
+global.undoMasterForward = undoMasterForward;                // google.script.run: Script.html
 global.createCalendarEvent = createCalendarEvent;            // google.script.run: Script.html
 
 // Cross-file only (not reachable from any client/template/trigger/IDE surface above, but needed
@@ -3559,6 +3610,8 @@ global._updateDailyTaskInternal = updateDailyTask;
 global._deleteDailyTaskInternal = deleteDailyTask;
 global._forwardDailyTaskInternal = forwardDailyTask;
 global._delegateDailyTaskInternal = delegateDailyTask;
+global._forwardMasterTaskInternal = forwardMasterTask;
+global._undoMasterForwardInternal = undoMasterForward;
 global._createCalendarEventInternal = createCalendarEvent;
 global._addMasterTaskInternal = addMasterTask;
 global._updateMasterTaskInternal = updateMasterTask;
@@ -3683,6 +3736,14 @@ function forwardDailyTask(sourceDateStr, taskId, targetDateStr) {
 
 function delegateDailyTask(sourceDateStr, taskId, checkBackDateStr, owner) {
   return (typeof _delegateDailyTaskInternal === 'function') ? _delegateDailyTaskInternal(sourceDateStr, taskId, checkBackDateStr, owner) : (globalThis._delegateDailyTaskInternal ? globalThis._delegateDailyTaskInternal(sourceDateStr, taskId, checkBackDateStr, owner) : null);
+}
+
+function forwardMasterTask(masterTaskId, targetDateStr) {
+  return (typeof _forwardMasterTaskInternal === 'function') ? _forwardMasterTaskInternal(masterTaskId, targetDateStr) : (globalThis._forwardMasterTaskInternal ? globalThis._forwardMasterTaskInternal(masterTaskId, targetDateStr) : null);
+}
+
+function undoMasterForward(masterTaskId, copyTaskId, prevStatus) {
+  return (typeof _undoMasterForwardInternal === 'function') ? _undoMasterForwardInternal(masterTaskId, copyTaskId, prevStatus) : (globalThis._undoMasterForwardInternal ? globalThis._undoMasterForwardInternal(masterTaskId, copyTaskId, prevStatus) : null);
 }
 
 function createCalendarEvent(payload) {

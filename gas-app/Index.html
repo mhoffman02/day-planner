@@ -394,9 +394,9 @@
                                         :class="{ 'is-active': (task.status || '•') === opt.value }"
                                         @click="opt.value === '→' ? requestForward(task) : (opt.value === 'Ⓓ' ? (openDelegatePicker(task), $nextTick(() => $el.parentElement.querySelector('.delegate-owner-input').focus())) : selectTaskStatus(task, opt.value))"
                                         :aria-expanded="opt.value === 'Ⓓ' ? String(delegatePickTaskId === task.id) : null"
-                                        :aria-label="'Set status: ' + (opt.value === '→' ? forwardMenuLabel() : (opt.value === 'Ⓓ' ? 'Delegate, choose who and when to check back' : opt.label))">
+                                        :aria-label="'Set status: ' + (opt.value === '→' ? forwardMenuLabel(task) : (opt.value === 'Ⓓ' ? 'Delegate, choose who and when to check back' : opt.label))">
                                   <span class="status-menu-item-glyph" x-text="opt.value"></span>
-                                  <span x-text="opt.value === '→' ? forwardMenuLabel() : (opt.value === 'Ⓓ' ? 'Delegate…' : opt.label)"></span>
+                                  <span x-text="opt.value === '→' ? forwardMenuLabel(task) : (opt.value === 'Ⓓ' ? 'Delegate…' : opt.label)"></span>
                                 </button>
                                 <template x-if="opt.value === 'Ⓓ'">
                                   <div class="delegate-pick" role="group" aria-label="Delegate and check back" x-show="delegatePickTaskId === task.id">
@@ -405,13 +405,13 @@
                                            placeholder="Who has it? (optional)" aria-label="Delegated to" @keydown.enter.prevent="submitDelegate(task)">
                                     <div class="delegate-pick-row">
                                       <span class="delegate-pick-label">Check back</span>
-                                      <button type="button" class="forward-pick-btn is-secondary" @click="submitDelegate(task, forwardTargetDate(selectedDate))"
-                                              x-text="relativeDayLabel(forwardTargetDate(selectedDate))"></button>
-                                      <button type="button" class="forward-pick-btn is-secondary" x-show="forwardNextWeekDate()"
-                                              @click="submitDelegate(task, forwardNextWeekDate())" :aria-label="'Next week, ' + relativeDayLabel(forwardNextWeekDate() || selectedDate)">Next week</button>
+                                      <button type="button" class="forward-pick-btn is-secondary" @click="submitDelegate(task, defaultForwardDate(task))"
+                                              x-text="relativeDayLabel(defaultForwardDate(task))"></button>
+                                      <button type="button" class="forward-pick-btn is-secondary" x-show="forwardNextWeekDate(task)"
+                                              @click="submitDelegate(task, forwardNextWeekDate(task))" :aria-label="'Next week, ' + relativeDayLabel(forwardNextWeekDate(task) || selectedDate)">Next week</button>
                                     </div>
                                     <div class="delegate-pick-row">
-                                      <input type="date" class="master-task-date-input" x-model="delegatePickDate" :min="forwardTargetDate(selectedDate)"
+                                      <input type="date" class="master-task-date-input" x-model="delegatePickDate" :min="pickMinDate"
                                              aria-label="Check-back date" @keydown.enter.prevent="submitDelegate(task)">
                                       <button type="button" class="forward-pick-btn" :disabled="!isDelegatePickValid()" @click="submitDelegate(task)">Delegate</button>
                                     </div>
@@ -419,12 +419,12 @@
                                 </template>
                                 <template x-if="opt.value === '→'">
                                   <div class="status-menu-group" role="none">
-                                    <button type="button" class="status-menu-item" role="menuitem" x-show="forwardNextWeekDate()"
-                                            @click="requestForward(task, forwardNextWeekDate())"
-                                            :aria-label="'Forward to next week, ' + relativeDayLabel(forwardNextWeekDate() || selectedDate)">
+                                    <button type="button" class="status-menu-item" role="menuitem" x-show="forwardNextWeekDate(task)"
+                                            @click="requestForward(task, forwardNextWeekDate(task))"
+                                            :aria-label="'Forward to next week, ' + relativeDayLabel(forwardNextWeekDate(task) || selectedDate)">
                                       <span class="status-menu-item-glyph"><span class="material-symbols-outlined icon-14">date_range</span></span>
                                       <span>Forward to next week</span>
-                                      <span class="status-menu-item-hint" x-text="forwardNextWeekDate() ? relativeDayLabel(forwardNextWeekDate()) : ''"></span>
+                                      <span class="status-menu-item-hint" x-text="forwardNextWeekDate(task) ? relativeDayLabel(forwardNextWeekDate(task)) : ''"></span>
                                     </button>
                                     <button type="button" class="status-menu-item" role="menuitem"
                                             :class="{ 'is-active': forwardPickTaskId === task.id }"
@@ -435,7 +435,7 @@
                                       <span>Forward to date…</span>
                                     </button>
                                     <div class="forward-pick" role="group" aria-label="Forward to date" x-show="forwardPickTaskId === task.id">
-                                      <input type="date" class="master-task-date-input forward-pick-input" x-model="forwardPickDate" :min="forwardTargetDate(selectedDate)"
+                                      <input type="date" class="master-task-date-input forward-pick-input" x-model="forwardPickDate" :min="pickMinDate"
                                              aria-label="Forward date" @keydown.enter.prevent="submitForwardPick(task)">
                                       <button type="button" class="forward-pick-btn" :disabled="!isForwardPickValid()" @click="submitForwardPick(task)">Forward</button>
                                     </div>
@@ -1032,13 +1032,63 @@
                         <div class="status-menu" :class="{ 'dropup': statusMenuDropUp, 'dropdown-down': !statusMenuDropUp }" role="menu" x-cloak
                              :style="statusMenuStyle(mTask.id)">
                           <template x-for="opt in statusOptions" :key="opt.value">
-                            <button type="button" class="status-menu-item" role="menuitem"
-                                    :class="{ 'is-active': (mTask.status || '•') === opt.value }"
-                                    @click="selectTaskStatus(mTask, opt.value)"
-                                    :aria-label="'Set status: ' + opt.label">
-                              <span class="status-menu-item-glyph" x-text="opt.value"></span>
-                              <span x-text="opt.label"></span>
-                            </button>
+                            <div class="status-menu-group" role="none">
+                              <button type="button" class="status-menu-item" role="menuitem"
+                                      :class="{ 'is-active': (mTask.status || '•') === opt.value }"
+                                      @click="opt.value === '→' ? requestForward(mTask) : (opt.value === 'Ⓓ' ? (openDelegatePicker(mTask), $nextTick(() => $el.parentElement.querySelector('.delegate-owner-input').focus())) : selectTaskStatus(mTask, opt.value))"
+                                      :aria-expanded="opt.value === 'Ⓓ' ? String(delegatePickTaskId === mTask.id) : null"
+                                      :aria-label="'Set status: ' + (opt.value === '→' ? forwardMenuLabel(mTask) : (opt.value === 'Ⓓ' ? 'Delegate, choose who and when to check back' : opt.label))">
+                                <span class="status-menu-item-glyph" x-text="opt.value"></span>
+                                <span x-text="opt.value === '→' ? forwardMenuLabel(mTask) : (opt.value === 'Ⓓ' ? 'Delegate…' : opt.label)"></span>
+                              </button>
+                              <template x-if="opt.value === 'Ⓓ'">
+                                <div class="delegate-pick" role="group" aria-label="Delegate and check back" x-show="delegatePickTaskId === mTask.id">
+                                  <span class="delegate-pick-note" x-show="mTask.status === 'Ⓓ'">Already delegated. This adds another check-back.</span>
+                                  <input type="text" class="delegate-owner-input" x-model="delegateOwner" maxlength="60"
+                                         placeholder="Who has it? (optional)" aria-label="Delegated to" @keydown.enter.prevent="submitDelegate(mTask)">
+                                  <div class="delegate-pick-row">
+                                    <span class="delegate-pick-label">Check back</span>
+                                    <button type="button" class="forward-pick-btn is-secondary" @click="submitDelegate(mTask, defaultForwardDate(mTask))"
+                                            x-text="relativeDayLabel(defaultForwardDate(mTask))"></button>
+                                    <button type="button" class="forward-pick-btn is-secondary" x-show="forwardNextWeekDate(mTask)"
+                                            @click="submitDelegate(mTask, forwardNextWeekDate(mTask))" :aria-label="'Next week, ' + relativeDayLabel(forwardNextWeekDate(mTask) || selectedDate)">Next week</button>
+                                  </div>
+                                  <div class="delegate-pick-row">
+                                    <input type="date" class="master-mTask-date-input" x-model="delegatePickDate" :min="pickMinDate"
+                                           aria-label="Check-back date" @keydown.enter.prevent="submitDelegate(mTask)">
+                                    <button type="button" class="forward-pick-btn" :disabled="!isDelegatePickValid()" @click="submitDelegate(mTask)">Delegate</button>
+                                  </div>
+                                </div>
+                              </template>
+                              <template x-if="opt.value === '→'">
+                                <div class="status-menu-group" role="none">
+                                  <button type="button" class="status-menu-item" role="menuitem" x-show="forwardNextWeekDate(mTask)"
+                                          @click="requestForward(mTask, forwardNextWeekDate(mTask))"
+                                          :aria-label="'Forward to next week, ' + relativeDayLabel(forwardNextWeekDate(mTask) || selectedDate)">
+                                    <span class="status-menu-item-glyph"><span class="material-symbols-outlined icon-14">date_range</span></span>
+                                    <span>Forward to next week</span>
+                                    <span class="status-menu-item-hint" x-text="forwardNextWeekDate(mTask) ? relativeDayLabel(forwardNextWeekDate(mTask)) : ''"></span>
+                                  </button>
+                                  <button type="button" class="status-menu-item" role="menuitem"
+                                          :class="{ 'is-active': forwardPickTaskId === mTask.id }"
+                                          @click="openForwardPicker(mTask); $nextTick(() => $el.parentElement.querySelector('.forward-pick-input').focus())"
+                                          :aria-expanded="forwardPickTaskId === mTask.id"
+                                          aria-label="Forward to a date you choose">
+                                    <span class="status-menu-item-glyph"><span class="material-symbols-outlined icon-14">event</span></span>
+                                    <span>Forward to date…</span>
+                                  </button>
+                                  <div class="forward-pick" role="group" aria-label="Forward to date" x-show="forwardPickTaskId === mTask.id">
+                                    <input type="date" class="master-mTask-date-input forward-pick-input" x-model="forwardPickDate" :min="pickMinDate"
+                                           aria-label="Forward date" @keydown.enter.prevent="submitForwardPick(mTask)">
+                                    <button type="button" class="forward-pick-btn" :disabled="!isForwardPickValid()" @click="submitForwardPick(mTask)">Forward</button>
+                                  </div>
+                                  <div class="forward-confirm" role="alert" x-show="forwardConfirm && forwardConfirm.taskId === mTask.id">
+                                    <span x-text="forwardConfirm ? ('Already forwarded. Add another copy on ' + relativeDayLabel(forwardConfirm.date) + '?') : ''"></span>
+                                    <button type="button" class="forward-pick-btn" @click="confirmForward(mTask)">Forward again</button>
+                                  </div>
+                                </div>
+                              </template>
+                            </div>
                           </template>
                           <div class="status-menu-separator" role="separator"></div>
                           <button type="button" class="status-menu-item status-menu-item-delete" role="menuitem"

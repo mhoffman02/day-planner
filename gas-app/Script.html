@@ -1770,6 +1770,32 @@
       });
     }
 
+    async forwardMasterTask(masterTaskId, targetDateStr) {
+      if (this.useMock || typeof window === 'undefined' || !window.google || !window.google.script || !window.google.script.run) {
+        return { success: false, error: 'Bridge unavailable.' };
+      }
+
+      return new Promise((resolve, reject) => {
+        window.google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .forwardMasterTask(masterTaskId, targetDateStr);
+      });
+    }
+
+    async undoMasterForward(masterTaskId, copyTaskId, prevStatus) {
+      if (this.useMock || typeof window === 'undefined' || !window.google || !window.google.script || !window.google.script.run) {
+        return { success: false, error: 'Bridge unavailable.' };
+      }
+
+      return new Promise((resolve, reject) => {
+        window.google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .undoMasterForward(masterTaskId, copyTaskId, prevStatus);
+      });
+    }
+
     async updateMasterTask(taskId, updates = {}) {
       if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
         const taskIndex = this.mockData.masterTasks.findIndex(t => t.id === taskId);
@@ -2096,6 +2122,7 @@
       delegatePickTaskId: null,
       delegatePickDate: '',
       delegateOwner: '',
+      pickMinDate: '',
       dailyTaskSort: { column: null, direction: 'asc' },
       openNotesPopoverTaskId: null,
       notesPopoverCloseTimer: null,
@@ -5623,36 +5650,14 @@
         return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
       },
 
+      // "Move to Date" in the Action column is the Master forward: same server write, toast,
+      // and Undo as the status menu.
       async moveMasterTaskToDate(mTask) {
         if (mTask._moving) return;
         if (mTask.movedTo) return;
         mTask._moving = true;
-        const targetDate = mTask._moveDate || getLocalDateStr();
         try {
-          const transferred = await this.bridge.transferMasterTask(mTask, targetDate, 'A');
-          if (transferred) {
-            if (targetDate === this.selectedDate) {
-              this.dailyTasks.push(transferred);
-              this.syncDailyCacheFromLiveState();
-            } else {
-              // Forwarding onto a date that is not currently open touches that day’s task list
-              // without us having its full live state here -- invalidate rather than guess, so
-              // the next visit (or a background prefetch) re-fetches instead of reading stale data.
-              dpInvalidateCached(targetDate);
-            }
-            const updatedMaster = await this.bridge.markMasterTaskMoved(mTask.id, targetDate, transferred.id);
-            if (updatedMaster) {
-              mTask.movedTo = updatedMaster.movedTo;
-              mTask.movedTaskId = updatedMaster.movedTaskId;
-              mTask.status = updatedMaster.status || '→';
-              mTask.dueDate = updatedMaster.movedTo || targetDate;
-            }
-            this.syncMasterTasksCacheFromLiveState();
-            await this.trigger2WaySync();
-          }
-        } catch (err) {
-          console.error('🔥 moveMasterTaskToDate error:', err.stack);
-          this.reportError(`master-move:${mTask.id}`, `Error moving master task: ${err.message || err.toString()}`);
+          await this.selectTaskStatus(mTask, '→', mTask._moveDate || getLocalDateStr());
         } finally {
           mTask._moving = false;
         }
@@ -6206,25 +6211,46 @@
         await this.setTaskStatus(task, newStatus, targetDate, owner);
       },
 
-      // Label for the one-click Forward item in the daily status menu, naming its real target.
-      forwardMenuLabel() {
-        return `Forward to ${this.relativeDayLabel(this.forwardTargetDate(this.selectedDate))}`;
+      // Where a status write on this row really lands. A Daily row is a task on the open day. A
+      // Master row is an undated master task, a master paired with its scheduled daily copy (the
+      // copy is the live task), or a dated task listed in Master. The same id can be on both
+      // lists, so the row object, not the id, decides which.
+      taskSource(task) {
+        if (!task || this.dailyTasks.includes(task) || !this.masterTasks.includes(task)) {
+          return { kind: 'daily', id: task && task.id, date: this.selectedDate };
+        }
+        if (task.movedTaskId) return { kind: 'pair', id: task.movedTaskId, date: task.dueDate || task.movedTo || null };
+        if (task.dueDate) return { kind: 'dated', id: task.id, date: task.dueDate };
+        return { kind: 'undated', id: task.id, date: null };
       },
 
-      // "Forward to date…" shows a date field in the daily status menu, prefilled with the
+      // Default forward or check-back day for a row: the day after its day (today for a past day),
+      // or today for an undated master task. Also the earliest day the pickers allow.
+      defaultForwardDate(task = null) {
+        const date = task ? this.taskSource(task).date : this.selectedDate;
+        return date ? this.forwardTargetDate(date) : getLocalDateStr();
+      },
+
+      // Label for the one-click Forward item in a status menu, naming its real target.
+      forwardMenuLabel(task = null) {
+        return `Forward to ${this.relativeDayLabel(this.defaultForwardDate(task))}`;
+      },
+
+      // "Forward to date…" shows a date field in the status menu, prefilled with the
       // default target, which is also the earliest allowed date.
       openForwardPicker(task) {
         clearTimeout(this.statusMenuCloseTimer);
         this.forwardConfirm = null;
         this.delegatePickTaskId = null;
         this.forwardPickTaskId = task.id;
-        this.forwardPickDate = this.forwardTargetDate(this.selectedDate);
+        this.pickMinDate = this.defaultForwardDate(task);
+        this.forwardPickDate = this.pickMinDate;
       },
 
       // A typed date can bypass the input min, so the submit checks it again.
       isForwardPickValid() {
         const date = this.forwardPickDate || '';
-        return /^\d{4}-\d{2}-\d{2}$/.test(date) && date >= this.forwardTargetDate(this.selectedDate);
+        return /^\d{4}-\d{2}-\d{2}$/.test(date) && date >= (this.pickMinDate || this.defaultForwardDate());
       },
 
       async submitForwardPick(task) {
@@ -6234,22 +6260,23 @@
 
       // "Next week" preset: the Monday after the source day (today for a past day), like Gmail
       // snooze. Null when that Monday is already the one-click target, so the menu hides it.
-      forwardNextWeekDate() {
+      forwardNextWeekDate(task = null) {
         const todayStr = getLocalDateStr();
-        const base = this.selectedDate < todayStr ? todayStr : this.selectedDate;
+        const source = (task ? this.taskSource(task).date : this.selectedDate) || todayStr;
+        const base = source < todayStr ? todayStr : source;
         const [y, m, d] = base.split('-').map(Number);
         const day = new Date(y, m - 1, d).getDay();
         const next = new Date(y, m - 1, d + (((8 - day) % 7) || 7));
         const mm = String(next.getMonth() + 1).padStart(2, '0');
         const dd = String(next.getDate()).padStart(2, '0');
         const date = `${next.getFullYear()}-${mm}-${dd}`;
-        return date === this.forwardTargetDate(this.selectedDate) ? null : date;
+        return date === this.defaultForwardDate(task) ? null : date;
       },
 
       // Every forward choice in the daily menu goes through here. A task that is already
       // forwarded asks first, since a second forward makes a second copy.
       async requestForward(task, date = null) {
-        const target = date || this.forwardTargetDate(this.selectedDate);
+        const target = date || this.defaultForwardDate(task);
         if (task.status === '→') {
           clearTimeout(this.statusMenuCloseTimer);
           this.forwardPickTaskId = null;
@@ -6273,12 +6300,13 @@
         this.forwardConfirm = null;
         this.delegatePickTaskId = task.id;
         this.delegateOwner = '';
-        this.delegatePickDate = this.forwardTargetDate(this.selectedDate);
+        this.pickMinDate = this.defaultForwardDate(task);
+        this.delegatePickDate = this.pickMinDate;
       },
 
       isDelegatePickValid(date = this.delegatePickDate) {
         const d = date || '';
-        return /^\d{4}-\d{2}-\d{2}$/.test(d) && d >= this.forwardTargetDate(this.selectedDate);
+        return /^\d{4}-\d{2}-\d{2}$/.test(d) && d >= (this.pickMinDate || this.defaultForwardDate());
       },
 
       // Square brackets are stripped because task titles and note tags use them as markers.
@@ -6299,17 +6327,18 @@
           console.error(`🔥 setTaskStatus: ignoring invalid status "${newStatus}"`);
           return;
         }
-        const isMaster = this.masterTasks.some(m => m.id === task.id);
+        const src = this.taskSource(task);
+        const isMaster = src.kind !== 'daily';
         const dateStr = this.selectedDate;
         const key = `task-status:${task.id}`;
         const baseline = task.status;
         // A linked master/daily pair mirrors status either direction, so every copy moves (and
         // rolls back) together.
         this.statusCopies(task, isMaster).forEach(t => { t.status = newStatus; });
-        // Forward and delegate on a daily task each make an open copy on another day: the forward
-        // copy, or the check-back task. Any route that sets one gets a default day.
-        const twoStep = !opts.plain && !isMaster && (newStatus === '→' || newStatus === 'Ⓓ');
-        const targetDate = twoStep ? (pickedDate || this.forwardTargetDate(dateStr)) : null;
+        // Forward and delegate on any row (Daily or Master) each make an open copy on another
+        // day: the forward copy, or the check-back task. Any route that sets one gets a default day.
+        const twoStep = !opts.plain && (newStatus === '→' || newStatus === 'Ⓓ');
+        const targetDate = twoStep ? (pickedDate || this.defaultForwardDate(task)) : null;
         const delegateTo = (twoStep && newStatus === 'Ⓓ') ? (owner || '') : '';
         // Serialized per task (key task-status:<id>): one write in flight; a status picked
         // meanwhile replaces the queued one. A failure rolls back to the last value Google
@@ -6317,7 +6346,7 @@
         return this.saveQueue.submit(key, {
           value: newStatus,
           baseline,
-          write: (status) => this.writeTaskStatus(task, status, isMaster, dateStr, targetDate, baseline, delegateTo, Boolean(opts.plain)),
+          write: (status) => this.writeTaskStatus(task, status, src, dateStr, targetDate, baseline, delegateTo, Boolean(opts.plain)),
           onSaved: async (status, result, hasNewer) => {
             this.resolveError(key);
             if (hasNewer) return; // the live status is a newer, unconfirmed pick: do not cache it yet
@@ -6328,22 +6357,30 @@
         });
       },
 
-      // The task plus its linked master/daily copy (if any) currently in the live lists.
+      // The task plus every on-screen copy of it: the same task on the other list, and its
+      // linked master/daily partner (a master row paired with its scheduled daily copy).
       statusCopies(task, isMaster) {
-        const linkedMaster = !isMaster ? this.masterTasks.find(m => m.movedTaskId === task.id) : null;
-        const linkedDaily = (isMaster && task.movedTaskId) ? this.dailyTasks.find(d => d.id === task.movedTaskId) : null;
-        return [task, linkedMaster, linkedDaily].filter(Boolean);
+        const ids = new Set([task.id]);
+        if (isMaster && task.movedTaskId) ids.add(task.movedTaskId);
+        const out = new Set([task]);
+        this.dailyTasks.forEach(t => { if (ids.has(t.id)) out.add(t); });
+        this.masterTasks.forEach(t => { if (ids.has(t.id) || t.movedTaskId === task.id) out.add(t); });
+        return [...out];
       },
 
-      async writeTaskStatus(task, status, isMaster, dateStr, targetDate, prevStatus, owner = '', plain = false) {
+      async writeTaskStatus(task, status, src, dateStr, targetDate, prevStatus, owner = '', plain = false) {
+        const isMaster = src.kind !== 'daily';
+        if (status === '→' && !plain) {
+          if (src.kind === 'undated') return this.forwardMasterRow(task, targetDate, prevStatus);
+          return this.forwardDailyTask(task, targetDate, src.date, prevStatus, src.id);
+        }
+        if (status === 'Ⓓ' && !plain) return this.delegateDailyTask(task, targetDate || this.defaultForwardDate(task), src.date || '', prevStatus, owner, src.id);
         if (isMaster) {
           return dpRequireSaved(await dpCallBridge(this.bridge, [
             ['updateMasterTask', [task.id, { title: task.title, status, category: task.category }]],
             ['updateDailyTask', ['', task.id, { title: task.title, status }]]
           ], 'task status'), 'task status');
         }
-        if (status === '→' && !plain) return this.forwardDailyTask(task, targetDate, dateStr, prevStatus);
-        if (status === 'Ⓓ' && !plain) return this.delegateDailyTask(task, targetDate || this.forwardTargetDate(dateStr), dateStr, prevStatus, owner);
         return dpRequireSaved(await dpCallBridge(this.bridge, [
           ['updateDailyTask', [dateStr, task.id, { title: task.title, status, dueDate: task.dueDate }]]
         ], 'task status'), 'task status');
@@ -6373,14 +6410,23 @@
         copies.forEach(t => { dpRestoreIfUnchanged(t, 'status', attempted, confirmed); });
         this.cacheTaskStatusState(dateStr);
         // Forward and delegate are both two-step writes (copy on the target day, then the source).
-        const isForward = !plain && !isMaster && attempted === '→';
-        const isTwoStep = isForward || (!plain && !isMaster && attempted === 'Ⓓ');
+        const isForward = !plain && attempted === '→';
+        const isTwoStep = isForward || (!plain && attempted === 'Ⓓ');
         const verb = isForward ? 'Could not forward task' : (isTwoStep ? 'Could not delegate task' : 'Could not save task status');
         let message = `${verb}: ${err.message || err.toString()}`;
         // A two-step write that may have left a copy on the target day must not be retried
         // blindly: a retry would create another copy. The user checks the target day instead.
         const duplicated = isTwoStep && /may be duplicated/i.test(err.message || '');
-        if (isTwoStep) {
+        if (isTwoStep && isMaster) {
+          // Same unknown end state from a Master row: re-read the Master list, drop the target day.
+          if (targetDate) dpInvalidateCached(targetDate);
+          try {
+            await this.loadMasterTasks();
+          } catch (reloadErr) {
+            console.error('🔥 master forward/delegate rollback: could not re-read Master Tasks from Google; showing the rolled-back state, which may not match Google:', reloadErr.stack);
+            message += ` Could not re-check Master Tasks from Google (${reloadErr.message || reloadErr.toString()}); reload to verify.`;
+          }
+        } else if (isTwoStep) {
           // The server writes the target copy first and compensates on failure, so the real end
           // state is unknown here: re-read Google as the truth instead of assuming the rollback.
           const days = [dateStr];
@@ -6394,15 +6440,16 @@
             }
           }
         }
-        this.reportError(key, message, { retry: duplicated ? null : () => this.retryTaskStatus(task.id, dateStr, key, targetDate, owner, plain) });
+        this.reportError(key, message, { retry: duplicated ? null : () => this.retryTaskStatus(task.id, dateStr, key, targetDate, owner, plain, isMaster) });
       },
 
       // Re-sends the latest status submitted for the task (looked up by id in the live lists),
       // to the same day when that status is Forward, and the same owner too for Delegated.
-      retryTaskStatus(taskId, dateStr, key, targetDate = null, owner = '', plain = false) {
+      retryTaskStatus(taskId, dateStr, key, targetDate = null, owner = '', plain = false, fromMaster = true) {
         const status = this.saveQueue.latest(key);
-        const task = this.masterTasks.find(t => t.id === taskId) ||
-          (dateStr === this.selectedDate ? this.dailyTasks.find(t => t.id === taskId) : null);
+        const fromDaily = dateStr === this.selectedDate ? this.dailyTasks.find(t => t.id === taskId) : null;
+        const fromMasterList = this.masterTasks.find(t => t.id === taskId);
+        const task = fromMaster ? (fromMasterList || fromDaily) : (fromDaily || fromMasterList);
         if (!task || !isValidStatus(status)) {
           throw new Error(`that task is not on the open page; open ${dateStr} and set its status again.`);
         }
@@ -6463,6 +6510,10 @@
         const status = undo.status || '→';
         const what = status === 'Ⓓ' ? 'delegation' : 'forward';
         const key = `task-undo-forward:${sourceId}`;
+        if (undo.master) {
+          await this.undoMasterRowForward(undo, key);
+          return;
+        }
         try {
           await dpCallBridge(this.bridge, [['deleteDailyTask', [targetDate, copyId]]], 'forward undo');
         } catch (err) {
@@ -6471,15 +6522,13 @@
           return;
         }
         this.resolveError(key);
-        if (targetDate === this.selectedDate) {
-          this.dailyTasks = this.dailyTasks.filter(t => t.id !== copyId);
-          this.syncDailyCacheFromLiveState();
-        } else {
-          dpInvalidateCached(targetDate);
-        }
+        this.dropCopyRow(copyId, targetDate);
         const restoreTo = prevStatus || '•';
         if (restoreTo !== status) {
-          const live = sourceDate === this.selectedDate ? this.dailyTasks.find(t => t.id === sourceId) : null;
+          // The source on screen: the Daily row on its open day, else its Master row (the same
+          // task, or the master paired with it).
+          const live = (sourceDate === this.selectedDate ? this.dailyTasks.find(t => t.id === sourceId) : null) ||
+            this.masterTasks.find(t => t.id === sourceId || t.movedTaskId === sourceId);
           if (live) {
             // A status picked after the forward or delegate is newer than the undo: leave it.
             if (live.status === status) await this.setTaskStatus(live, restoreTo, null, '', { plain: true });
@@ -6496,6 +6545,57 @@
           }
         }
         this.showTaskToast(status === 'Ⓓ' ? 'Delegation undone' : 'Forward undone');
+      },
+
+      // Undo of an undated master forward: one server call deletes the copy, then clears the
+      // move and restores the status. A failure leaves the forward in place, with Retry.
+      async undoMasterRowForward(undo, key) {
+        const { sourceId, copyId, targetDate, prevStatus } = undo;
+        let restored;
+        try {
+          restored = await dpCallBridge(this.bridge, [['undoMasterForward', [sourceId, copyId, prevStatus || '•']]], 'forward undo');
+          if (!restored || !restored.id) throw new Error('the server returned no restored task');
+        } catch (err) {
+          console.error(`🔥 undoMasterRowForward: could not undo the forward of master ${sourceId} (copy ${copyId} on ${targetDate}):`, err.stack);
+          this.reportError(key, `Could not undo forward: ${err.message || err.toString()}`, { retry: () => this.undoForward(undo) });
+          return;
+        }
+        this.resolveError(key);
+        this.dropCopyRow(copyId, targetDate);
+        const live = this.masterTasks.find(t => t.id === sourceId);
+        if (live) Object.assign(live, { status: restored.status || prevStatus || '•', movedTo: null, movedTaskId: null, dueDate: null });
+        this.syncMasterTasksCacheFromLiveState();
+        this.showTaskToast('Forward undone');
+      },
+
+      // Removes a forward copy or check-back task from the on-screen lists and their caches.
+      dropCopyRow(copyId, targetDate) {
+        if (targetDate === this.selectedDate) {
+          this.dailyTasks = this.dailyTasks.filter(t => t.id !== copyId);
+          this.syncDailyCacheFromLiveState();
+        } else {
+          dpInvalidateCached(targetDate);
+        }
+        if (this.masterTasks.some(t => t.id === copyId)) {
+          this.masterTasks = this.masterTasks.filter(t => t.id !== copyId);
+          this.syncMasterTasksCacheFromLiveState();
+        }
+      },
+
+      // A new open dated task (forward copy or check-back task) also belongs on the Master list,
+      // as getMasterTasks lists every open dated task.
+      addCopyRow(copy, targetDate, sourceDate) {
+        if (targetDate === this.selectedDate) {
+          this.dailyTasks.push(copy);
+          this.syncDailyCacheFromLiveState();
+        } else {
+          dpInvalidateCached(targetDate);
+        }
+        if (sourceDate && sourceDate !== this.selectedDate) dpInvalidateCached(sourceDate);
+        if (!this.masterTasks.some(t => t.id === copy.id)) {
+          this.masterTasks.push({ ...copy, status: copy.status || '•', dueDate: targetDate, movedTo: null, movedTaskId: null });
+          this.syncMasterTasksCacheFromLiveState();
+        }
       },
 
       // "today", "tomorrow", or "Wed, Oct 21" for a YYYY-MM-DD date, relative to the real today.
@@ -6520,45 +6620,60 @@
 
       // Throws on failure (no catch here): its caller setTaskStatus owns the rollback and the
       // user-facing error, so a failed forward can never be cached or toasted as done.
-      async forwardDailyTask(task, explicitTargetDate = null, sourceDate = this.selectedDate, prevStatus = null) {
+      // sourceId: the task actually forwarded (a Master row passes its scheduled daily copy).
+      async forwardDailyTask(task, explicitTargetDate = null, sourceDate = this.selectedDate, prevStatus = null, sourceId = null) {
         if (!task || !task.id) throw new Error('Not saved: no task to forward.');
+        const id = sourceId || task.id;
         const targetDate = explicitTargetDate || this.forwardTargetDate(sourceDate);
 
-        const res = await dpCallBridge(this.bridge, [['forwardDailyTask', [sourceDate, task.id, targetDate]]], 'task forward');
+        const res = await dpCallBridge(this.bridge, [['forwardDailyTask', [sourceDate, id, targetDate]]], 'task forward');
         if (!res || !res.forwardedTask) {
           throw new Error(`Not saved: task was not forwarded to ${targetDate} (the server returned no forwarded task).`);
         }
+        this.addCopyRow(res.forwardedTask, targetDate, sourceDate);
+        const parsed = this.parseTask(task.title);
+        const cleanTitle = parsed.cleanTitle || task.title;
+        this.showTaskToast(`Forwarded "${cleanTitle}" to ${this.relativeDayLabel(targetDate)}`,
+          { sourceId: id, sourceDate, copyId: res.forwardedTask.id, targetDate, prevStatus });
+      },
+
+      // Forward of an undated master task: the server makes the linked daily copy and records the
+      // move, so the row becomes the scheduled pair (status and day of the copy, as on reload).
+      async forwardMasterRow(task, targetDate, prevStatus = null) {
+        if (!task || !task.id) throw new Error('Not saved: no task to forward.');
+        const res = await dpCallBridge(this.bridge, [['forwardMasterTask', [task.id, targetDate]]], 'task forward');
+        if (!res || !res.forwardedTask) {
+          throw new Error(`Not saved: task was not forwarded to ${targetDate} (the server returned no forwarded task).`);
+        }
+        const copy = res.forwardedTask;
         if (targetDate === this.selectedDate) {
-          this.dailyTasks.push(res.forwardedTask);
+          this.dailyTasks.push(copy);
           this.syncDailyCacheFromLiveState();
         } else {
           dpInvalidateCached(targetDate);
         }
+        Object.assign(task, { status: copy.status || '•', dueDate: targetDate, movedTo: targetDate, movedTaskId: copy.id });
         const parsed = this.parseTask(task.title);
         const cleanTitle = parsed.cleanTitle || task.title;
         this.showTaskToast(`Forwarded "${cleanTitle}" to ${this.relativeDayLabel(targetDate)}`,
-          { sourceId: task.id, sourceDate, copyId: res.forwardedTask.id, targetDate, prevStatus });
+          { master: true, sourceId: task.id, sourceDate: null, copyId: copy.id, targetDate, prevStatus });
       },
 
       // Delegate: the server makes an open Check back task on targetDate (owner in its title)
       // and marks the source Ⓓ. Throws on failure like forwardDailyTask, so its caller
       // setTaskStatus owns the rollback and the error.
-      async delegateDailyTask(task, targetDate, sourceDate = this.selectedDate, prevStatus = null, owner = '') {
+      async delegateDailyTask(task, targetDate, sourceDate = this.selectedDate, prevStatus = null, owner = '', sourceId = null) {
         if (!task || !task.id) throw new Error('Not saved: no task to delegate.');
-        const res = await dpCallBridge(this.bridge, [['delegateDailyTask', [sourceDate, task.id, targetDate, owner]]], 'task delegate');
+        const id = sourceId || task.id;
+        const res = await dpCallBridge(this.bridge, [['delegateDailyTask', [sourceDate, id, targetDate, owner]]], 'task delegate');
         if (!res || !res.followUpTask) {
           throw new Error(`Not saved: no check-back task was made on ${targetDate} (the server returned none).`);
         }
-        if (targetDate === this.selectedDate) {
-          this.dailyTasks.push(res.followUpTask);
-          this.syncDailyCacheFromLiveState();
-        } else {
-          dpInvalidateCached(targetDate);
-        }
+        this.addCopyRow(res.followUpTask, targetDate, sourceDate);
         const parsed = this.parseTask(task.title);
         const cleanTitle = parsed.cleanTitle || task.title;
         this.showTaskToast(`Delegated "${cleanTitle}"${owner ? ` to ${owner}` : ''}. Check back ${this.relativeDayLabel(targetDate)}.`,
-          { status: 'Ⓓ', sourceId: task.id, sourceDate, copyId: res.followUpTask.id, targetDate, prevStatus });
+          { status: 'Ⓓ', sourceId: id, sourceDate, copyId: res.followUpTask.id, targetDate, prevStatus });
       },
 
       async toggleTaskStatus(task) {

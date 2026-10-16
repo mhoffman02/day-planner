@@ -107,23 +107,6 @@ for (const c of await bothClients()) {
       await settle();
       assert.deepEqual(calls, [[SRC, 't1', TGT, '']]);
     });
-
-    it('a master task Ⓓ stays a plain status write', async () => {
-      const calls = [];
-      const mTask = { id: 'm1', title: 'a', status: '•', category: 'General' };
-      const vm = dailyVm(c, {
-        bridge: {
-          updateMasterTask: async (id, u) => { calls.push(['master', id, u.status]); return { id, ...u }; },
-          updateDailyTask: async (d, id, u) => { calls.push(['daily', id, u.status]); return { id, ...u }; },
-          delegateDailyTask: async () => { calls.push(['delegate']); return { followUpTask: { id: 'x' } }; }
-        }
-      });
-      vm.masterTasks = [mTask];
-      await vm.setTaskStatus(mTask, 'Ⓓ');
-      await settle();
-      assert.deepEqual(calls[0], ['master', 'm1', 'Ⓓ']);
-      assert.ok(!calls.some((call) => call[0] === 'delegate'), 'no check-back task for a master task');
-    });
   });
 
   describe(`delegate result and Undo [${c.label}]`, () => {
