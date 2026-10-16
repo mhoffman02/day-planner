@@ -4,8 +4,6 @@
 
 Most items need the user (GSA account, a release go, or a decision). HOME live checks are done (TODO_HISTORY 2026-10-10).
 
-- [ ] **Repoint WORK `/exec` to v149** (user, IDE as michael.hoffman@gsa.gov): carries Master parity, the Daily
-  forward fix, quiet Live mark and Master speed (TODO_HISTORY 2026-10-16). Then reload the installed app.
 - [ ] **Re-check WORK forwards made before v149**: Forward/Delegate on a Daily row set the glyph without making a
   copy (fixed in `2b2d712`). Tasks forwarded on WORK ≤ v148 may be missing from their later day; re-add any.
 - [ ] **Live check on HOME `/dev`** (agent; the ensure-chrome profile is signed in as of 2026-10-16): Daily Forward

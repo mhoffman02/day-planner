@@ -22,6 +22,7 @@
   1.5 s after startup; shared date formatter; startup loads Day + Master in parallel (`02252e8`).
   Local 200 rows cold: 5.6 s (v148) → 1.7 s → 0.12 s first rows. GAS HOME: data on screen ≤ 2.5-3.6 s (server
   response 2.9-3.5 s), every tab visible in 10-50 ms; refresh Month ~2.6 s, Master ~1.6 s, Future ~1.1 s.
+- [x] **WORK v150 live** (adds the doc updates `449f542`): user repointed `/exec`; "Loads fast. Good work".
 
 ## 2026-10-13 — Queue job: Gmail quota in trial mode
 
