@@ -533,10 +533,28 @@
                   <time class="schedule-time" x-text="slot.displayTime"></time>
                   <div class="schedule-content">
                     <template x-for="(evt, evtIdx) in slot.events" :key="evt.id || ('evt_' + evtIdx)">
-                      <button type="button" class="event-pill" @click.stop="openEventModal(evt)" title="View appointment details">
-                        <span class="material-symbols-outlined icon-14">event</span>
-                        <span class="event-pill-text" x-text="evt.title"></span>
-                      </button>
+                      <div class="event-pill-row">
+                        <button type="button" class="event-pill" @click.stop="openEventModal(evt)" title="View appointment details">
+                          <span class="material-symbols-outlined icon-14">event</span>
+                          <span class="event-pill-text" x-text="evt.title"></span>
+                        </button>
+                        <!-- Note icon like Tasks: hover shows what the appointment popup shows (eventDetails). -->
+                        <span class="notes-indicator-wrap" x-show="hasEventDetails(evt)" @mouseenter="openNotesPopover(eventPopoverKey(evt), $event)" @mouseleave="scheduleNotesPopoverClose(eventPopoverKey(evt))">
+                          <button type="button" class="notes-indicator" @click.stop="toggleNotesPopover(eventPopoverKey(evt), $event)"
+                                  aria-label="Appointment details" aria-haspopup="true" :aria-expanded="openNotesPopoverTaskId === eventPopoverKey(evt)">
+                            <span class="material-symbols-outlined icon-14">sticky_note_2</span>
+                          </button>
+                          <template x-if="openNotesPopoverTaskId === eventPopoverKey(evt)">
+                            <div class="notes-popover event-notes-popover" :class="{ 'dropup': notesPopoverDropUp, 'dropdown-down': !notesPopoverDropUp }" :style="notesPopoverStyle(eventPopoverKey(evt))" role="tooltip">
+                              <p class="event-note-title" x-text="evt.title"></p>
+                              <p class="event-note-row"><span class="material-symbols-outlined icon-14" aria-hidden="true">schedule</span><span x-text="eventDetails(evt).formattedTime"></span></p>
+                              <p class="event-note-row"><span class="material-symbols-outlined icon-14" aria-hidden="true">location_on</span><span x-text="eventDetails(evt).locationLabel"></span></p>
+                              <p class="event-note-row" x-show="eventDetails(evt).meetLink"><span class="material-symbols-outlined icon-14" aria-hidden="true">videocam</span><span x-text="eventDetails(evt).meetLink"></span></p>
+                              <div class="event-note-description" x-html="evt.description ? formatEventDescription(evt.description) : 'No description'"></div>
+                            </div>
+                          </template>
+                        </span>
+                      </div>
                     </template>
                   </div>
                 </div>
@@ -1605,7 +1623,7 @@
             <span class="material-symbols-outlined icon-18">schedule</span> <span x-text="formatEventTime(selectedEvent)"></span>
           </p>
           <p class="modal-detail-row">
-            <span class="material-symbols-outlined icon-18">location_on</span> <span x-text="selectedEvent?.location ? (selectedEvent.location.includes('meet.google.com') ? 'Google Meet' : selectedEvent.location) : 'No location set'"></span>
+            <span class="material-symbols-outlined icon-18">location_on</span> <span x-text="selectedEvent?.locationLabel || 'No location set'"></span>
           </p>
           <template x-if="selectedEvent?.meetLink">
             <p class="modal-detail-row modal-meet-row">

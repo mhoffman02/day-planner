@@ -4933,16 +4933,36 @@ Alpine.data('plannerApp', () => ({
 
       openEventModal(evt) {
         if (!evt) return;
+        this.selectedEvent = this.eventDetails(evt);
+        this.eventModalOpen = true;
+      },
+
+      eventGCalLink(evt) {
         const dateStr = (evt.startTime ? evt.startTime.slice(0, 10) : this.selectedDate) || new Date().toISOString().slice(0, 10);
-        const gCalLink = evt.gCalLink || evt.htmlLink || `https://calendar.google.com/calendar/r/day/${dateStr.replace(/-/g, '/')}`;
+        return evt.gCalLink || evt.htmlLink || `https://calendar.google.com/calendar/r/day/${dateStr.replace(/-/g, '/')}`;
+      },
+
+      // What the appointment popup and the hover note both show, built in one place so they match.
+      eventDetails(evt) {
         const meetLink = this.extractMeetLink(evt);
-        this.selectedEvent = {
+        const location = evt.location || '';
+        return {
           ...evt,
           meetLink,
-          gCalLink,
-          formattedTime: this.formatEventTime(evt)
+          gCalLink: this.eventGCalLink(evt),
+          formattedTime: this.formatEventTime(evt),
+          locationLabel: location ? (location.includes('meet.google.com') ? 'Google Meet' : location) : 'No location set'
         };
-        this.eventModalOpen = true;
+      },
+
+      // The note icon shows only when there is more than the title, like the Tasks note icon.
+      hasEventDetails(evt) {
+        return Boolean(evt && ((evt.description && String(evt.description).trim()) || evt.location || this.extractMeetLink(evt)));
+      },
+
+      // Popover key: kept apart from task ids, unique per appointment even without an id.
+      eventPopoverKey(evt) {
+        return 'evt:' + (evt.id || ((evt.startTime || '') + '|' + (evt.title || '')));
       },
 
       extractMeetLink(evt) {

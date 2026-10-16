@@ -2032,6 +2032,38 @@
     display: block;
   }
 
+  /* An appointment and its note icon share the slot width the pill used to take alone. */
+  .event-pill-row {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Hover note for an appointment: the same details as its popup, in the Tasks note style. */
+  .event-notes-popover {
+    white-space: normal;
+    min-width: 220px;
+  }
+
+  .event-note-title {
+    margin: 0 0 6px;
+    font-weight: 700;
+  }
+
+  .event-note-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 4px;
+  }
+
+  .event-note-description {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid #e3ece8;
+  }
+
   /* Notes Column Panel */
   article.notes-column-panel {
     background-color: var(--bg-card, #ffffff);
@@ -4491,14 +4523,16 @@
     line-height: 1.4;
     color: var(--text-main);
   }
-  .modal-description pre {
+  .modal-description pre,
+  .event-note-description pre {
     font-family: inherit;
     font-size: inherit;
     white-space: pre-wrap;
     word-break: break-word;
     margin: 0;
   }
-  .modal-description a {
+  .modal-description a,
+  .event-note-description a {
     color: var(--binder-teal);
     text-decoration: underline;
   }
@@ -5641,6 +5675,10 @@
     background: #183329 !important;
     border-color: #244a3b !important;
     color: #e2f2ec !important;
+  }
+
+  [data-theme="dark"] .event-note-description {
+    border-top-color: #244a3b !important;
   }
 
   [data-theme="dark"] .star-toggle {
