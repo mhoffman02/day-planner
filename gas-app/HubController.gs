@@ -818,12 +818,12 @@ var HUB_LEARN_LABEL_QUERY_ = 'newer_than:90d';
 // Threads read from the window, and per 🎯 label.
 var HUB_LEARN_CAP_ = 4000;
 var HUB_LEARN_PER_LABEL_ = 150;
-// Units one tick may spend: the rest of the 6,000 per minute is left to Triage.
-var HUB_LEARN_TICK_UNITS_ = 2500;
+// Units one tick may spend (200 emails): the other 2,000 of the 6,000 per minute are left to Triage.
+var HUB_LEARN_TICK_UNITS_ = 4000;
 // Bodies read while learning (20 units each): all must fit one tick.
 var HUB_LEARN_BODY_PER_LABEL_ = 20;
 var HUB_LEARN_BODY_MAX_ = 100;
-var HUB_LEARN_PACE_MS_ = 150;
+var HUB_LEARN_PACE_MS_ = 50;
 // CacheService maximum: 6 hours.
 var HUB_LEARN_CACHE_TTL_S_ = 21600;
 // Ids per cache value, well under the 100 KB value limit.

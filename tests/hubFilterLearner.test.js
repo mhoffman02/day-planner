@@ -3,7 +3,7 @@
  * @description User 2026-10-16 (WORK): Suggest filters said "Gmail limit reached; run again" three times in a row,
  * because one call read ~500 threads (40 units each) against Gmail's 6,000 units per user per minute, and a rerun
  * started over. The user wants about 20 business days of mail sampled. The learner now runs as a one-minute
- * trigger: each tick spends at most 2,500 units, resumes where it stopped, and stores only header features.
+ * trigger: each tick spends at most 4,000 units, resumes where it stopped, and stores only header features.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -25,7 +25,7 @@ function bigCtx(inbox = 300) {
 }
 
 test('every tick, and the click itself, stays inside the per-minute budget; the job reads everything and finishes', () => {
-  const ctx = bigCtx(300);
+  const ctx = bigCtx(500);
   const h = ctx.__hub;
   const perTick = [];
   let before = 0;
@@ -34,10 +34,10 @@ test('every tick, and the click itself, stays inside the per-minute budget; the 
   perTick.push(h.gmail.units - before);
   assert.equal(st.status, 'OK', JSON.stringify(st));
   assert.ok(st.ticks >= 3, `paced over several minutes, took ${st.ticks}`);
-  for (const u of perTick) assert.ok(u <= 2500, `tick spent ${u} units`);
-  assert.equal(st.result.sampled, 306);
-  assert.match(st.message, /from 306 emails/);
-  assert.ok(ctx.Utilities.sleeps.length > 300, 'calls are paced');
+  for (const u of perTick) assert.ok(u <= 4000, `tick spent ${u} units`);
+  assert.equal(st.result.sampled, 506);
+  assert.match(st.message, /from 506 emails/);
+  assert.ok(ctx.Utilities.sleeps.length > 500, 'calls are paced');
   assert.equal(learnTriggers(ctx), 0, 'trigger removed when done');
 });
 
@@ -63,7 +63,7 @@ test('a Gmail quota error in the middle of a tick is resumed by the next tick, n
   let tick = -1;
   h.beforeLearnTick = (n) => { tick = n; };
   let gets = 0;
-  h.gmail.quotaOnMessages = () => tick === 1 && (gets += 1) === 30;
+  h.gmail.quotaOnMessages = () => tick === 0 && (gets += 1) === 30;
   const st = runFilterLearner(ctx);
   assert.equal(st.status, 'OK', JSON.stringify(st));
   assert.equal(st.result.sampled, 206);
@@ -137,7 +137,7 @@ test('the learner RPCs and trigger handler have IIFE aliases and top-level deleg
 test('a slow Gmail cannot stretch a tick past 50 s: the tick stops on time and the next one continues', () => {
   const ctx = bigCtx(300);
   const h = ctx.__hub;
-  // Each paced call takes 1 s of fake time, so the unit budget alone would allow a 125 s tick.
+  // Each paced call takes 1 s of fake time, so the unit budget alone would allow a 200 s tick.
   let clock = Date.now();
   ctx.Date.now = () => clock;
   const sleep = ctx.Utilities.sleep;
@@ -156,7 +156,7 @@ test('a slow Gmail cannot stretch a tick past 50 s: the tick stops on time and t
 test('the progress message says about how many minutes are left, from the pace each tick actually reached', () => {
   const ctx = bigCtx(200);
   const first = call(ctx, 'hubSuggestFilters');
-  // 206 emails at 125 per minute (2,500 units / 20) is 2 minutes, plus about 2 to learn and check the filters.
+  // 206 emails at 200 per minute (4,000 units / 20) is 2 minutes, plus about 2 to learn and check the filters.
   assert.equal(first.message, 'Reading your mail: 0 of 206, about 4 minutes to go');
   assert.equal(first.etaMin, 4);
   call(ctx, 'hubFilterLearnTick');
