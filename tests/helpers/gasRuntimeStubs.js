@@ -79,7 +79,10 @@ function makeUtilities() {
     base64Encode(value) { return gasBytes(value).toString('base64'); },
     base64EncodeWebSafe(value) { return gasBytes(value).toString('base64').replace(/\+/g, '-').replace(/\//g, '_'); },
     base64Decode(str) { return Array.from(Buffer.from(String(str), 'base64'), (b) => (b > 127 ? b - 256 : b)); },
-    getUuid() { return crypto.randomUUID(); }
+    getUuid() { return crypto.randomUUID(); },
+    // Pacing only: tests do not wait. Count the calls so a test can see the code paced itself.
+    sleeps: [],
+    sleep(ms) { this.sleeps.push(ms); }
   };
 }
 

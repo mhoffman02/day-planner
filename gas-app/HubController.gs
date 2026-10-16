@@ -751,8 +751,6 @@ function setupHub() {
 
 // Filter recommender: how far back Gmail is searched, sample sizes, and the cap per measured query.
 var HUB_FILTER_WINDOW_ = ' newer_than:90d';
-var HUB_FILTER_SAMPLE_PER_LABEL_ = 60;
-var HUB_FILTER_SAMPLE_INBOX_ = 200;
 var HUB_FILTER_MEASURE_CAP_ = 300;
 var HUB_FILTER_QUERY_MAX_ = 500;
 var HUB_SCOPE_BLOCKED_MSG_ = 'Gmail filter access is not approved. Use Approve filter access and tick every box on Google\'s screen. If your organization blocks it, the labels still work and you can make filters in Gmail settings.';
@@ -805,132 +803,413 @@ function hubSetupLabels() {
   }
 }
 
+// ---- Filter learner (user 2026-10-16: "20 business days of samples"; WORK hit the Gmail limit on every run) ----
+// Gmail allows 6,000 quota units per user per minute, shared with Triage, so a full read of 20 business days
+// (2,000-4,000 emails at 20 units each) cannot fit one call. A one-minute trigger works through it in steps
+// (list ids, read headers, learn, measure), each tick spending at most HUB_LEARN_TICK_UNITS_ and pacing its calls.
+// Only header features (sender, subject, List-Id, label names) are kept between ticks, in the user cache (6 h);
+// bodies are read during the learn step and never stored.
+var HUB_LEARN_TRIGGER_ = 'hubFilterLearnTick';
+var HUB_LEARN_STATE_KEY_ = 'DP_FILTER_LEARN_V1';
+// About 20 business days. Sent mail, chats and drafts are not filter candidates.
+var HUB_LEARN_QUERY_ = '-in:sent -in:chats -in:drafts newer_than:28d';
+// Labeled mail is rarer, so look further back for it.
+var HUB_LEARN_LABEL_QUERY_ = 'newer_than:90d';
+// Threads read from the window, and per 🎯 label.
+var HUB_LEARN_CAP_ = 4000;
+var HUB_LEARN_PER_LABEL_ = 150;
+// Units one tick may spend: the rest of the 6,000 per minute is left to Triage.
+var HUB_LEARN_TICK_UNITS_ = 2500;
+// Bodies read while learning (20 units each): all must fit one tick.
+var HUB_LEARN_BODY_PER_LABEL_ = 20;
+var HUB_LEARN_BODY_MAX_ = 100;
+var HUB_LEARN_PACE_MS_ = 150;
+// CacheService maximum: 6 hours.
+var HUB_LEARN_CACHE_TTL_S_ = 21600;
+// Ids per cache value, well under the 100 KB value limit.
+var HUB_LEARN_IDS_PER_CHUNK_ = 2000;
+// A job older than 3 hours stops.
+var HUB_LEARN_MAX_AGE_MS_ = 10800000;
+var HUB_LEARN_LEASE_MS_ = 70000;
+var HUB_LEARN_RUNNING_ = ['list', 'read', 'learn', 'measure'];
+
 /**
- * Sample of a thread for the recommender: headers plus the first message body (user choice 2026-10-16:
- * server-side body phrases). The body stays in this execution's memory: only a learned query and its counts
- * reach the Sheet, and the sample is never logged, cached or returned.
- * @param {string} id Thread id.
- * @returns {{id:string, labels:string[], from:string, subject:string, listId:string, body:string}} Sample.
+ * Budget for one tick: charged before every Gmail call; throws code BUDGET when the next call would go over.
+ * @param {number} budget Units.
+ * @returns {function(number)} Meter with left().
  */
-function filterSample_(id) {
-  var t = DPGmailRepo.getThreadMeta(id, { withBody: true });
-  var first = t.messages[0] || {};
-  return { id: id, labels: t.labels, from: first.from || '', subject: t.subject, listId: first.listId || '', body: first.bodyText || '' };
+function makeMeter_(budget) {
+  var used = 0;
+  var meter = function(units) {
+    if (used + units > budget) {
+      var e = new Error('Gmail budget for this minute used; the next tick continues');
+      e.code = 'BUDGET';
+      throw e;
+    }
+    used += units;
+  };
+  meter.left = function() { return budget - used; };
+  return meter;
+}
+
+function learnState_() {
+  var raw = PropertiesService.getUserProperties().getProperty(HUB_LEARN_STATE_KEY_);
+  return raw ? JSON.parse(raw) : null;
+}
+
+function saveLearnState_(st) {
+  PropertiesService.getUserProperties().setProperty(HUB_LEARN_STATE_KEY_, JSON.stringify(st));
+}
+
+function learnKey_(st, part) { return 'dpfl:' + st.sampleId + ':' + part; }
+
+function removeLearnTriggers_() {
+  ScriptApp.getProjectTriggers().forEach(function(t) {
+    if (t.getHandlerFunction() === HUB_LEARN_TRIGGER_) ScriptApp.deleteTrigger(t);
+  });
+}
+
+function installLearnTrigger_() {
+  removeLearnTriggers_();
+  ScriptApp.newTrigger(HUB_LEARN_TRIGGER_).timeBased().everyMinutes(1).create();
 }
 
 /**
- * Builds the Filter Suggestions tab: the user filters that add a 🎯/ label, new suggestions learned from
- * labelled threads, and any rows the user pasted (e.g. Gemini queries). Every row is measured with Gmail
- * search over the last 90 days: Caught = matches that carry the label, Wrong = matches that do not.
- * Header-only reads; nothing is created. IDE manual-run, gas-rpc, and About "Suggest filters".
- * @returns {object} {ok, rows, suggested, existing, pasted, partial, url, message} or a failed result.
+ * @param {object} st Learner state.
+ * @param {string} prefix Cache part prefix.
+ * @param {number} count Chunk count.
+ * @returns {Array} Concatenated chunks; throws SAMPLE_EXPIRED when the cache dropped one.
+ */
+function readChunks_(st, prefix, count) {
+  var keys = [];
+  for (var i = 0; i < count; i++) keys.push(learnKey_(st, prefix + i));
+  if (!keys.length) return [];
+  var got = CacheService.getUserCache().getAll(keys) || {};
+  var out = [];
+  keys.forEach(function(k) {
+    if (got[k] == null) {
+      var e = new Error('The saved mail sample expired before it was used. Press Suggest filters to start again.');
+      e.code = 'SAMPLE_EXPIRED';
+      throw e;
+    }
+    out = out.concat(JSON.parse(got[k]));
+  });
+  return out;
+}
+
+function learnStatus_(st) {
+  if (!st) return DPEngines.makeResult({ ok: true, status: 'IDLE', phase: 'idle', running: false, message: '' });
+  var running = HUB_LEARN_RUNNING_.indexOf(st.phase) >= 0;
+  var text = {
+    list: 'Finding your mail from the last 20 business days…',
+    read: 'Reading your mail: ' + st.read + ' of ' + st.total,
+    learn: 'Learning from your labeled mail…',
+    measure: 'Checking each filter: ' + (st.measured || 0) + ' of ' + (st.rowCount || 0)
+  }[st.phase];
+  return DPEngines.makeResult({
+    ok: st.phase !== 'error', status: running ? 'LEARNING' : (st.phase === 'done' ? (st.partial ? 'PARTIAL' : 'OK') : 'ERROR'),
+    errorCode: st.phase === 'error' ? (st.errorCode || 'LEARN_FAILED') : undefined,
+    phase: st.phase, running: running, read: st.read || 0, total: st.total || 0, measured: st.measured || 0, rowCount: st.rowCount || 0,
+    message: running ? text : (st.message || ''), url: st.phase === 'done' ? st.url : undefined, authUrl: st.authUrl || undefined,
+    result: st.phase === 'done' ? st.result : undefined
+  });
+}
+
+/** Step 1: message ids, one per thread: labeled mail first, then the 20-business-day window. */
+function learnList_(st, meter) {
+  var E = DPEngines;
+  var seen = {};
+  var ids = [];
+  var push = function(r) { if (!seen[r.threadId]) { seen[r.threadId] = true; ids.push(r.id); } };
+  E.FILTER_TARGET_LABELS.forEach(function(label) {
+    var lid = DPGmailRepo.resolveLabelId(label);
+    if (lid) DPGmailRepo.listMessageRefs(HUB_LEARN_LABEL_QUERY_, { labelId: lid, cap: HUB_LEARN_PER_LABEL_, meter: meter }).refs.forEach(push);
+  });
+  var recent = DPGmailRepo.listMessageRefs(HUB_LEARN_QUERY_, { cap: HUB_LEARN_CAP_, meter: meter });
+  recent.refs.forEach(push);
+  var entries = {};
+  var chunks = 0;
+  for (var i = 0; i < ids.length; i += HUB_LEARN_IDS_PER_CHUNK_) entries[learnKey_(st, 'ids:' + chunks++)] = JSON.stringify(ids.slice(i, i + HUB_LEARN_IDS_PER_CHUNK_));
+  if (chunks) CacheService.getUserCache().putAll(entries, HUB_LEARN_CACHE_TTL_S_);
+  st.idChunks = chunks;
+  st.total = ids.length;
+  st.read = 0;
+  st.chunks = 0;
+  st.capped = recent.capped;
+  st.phase = st.total ? 'read' : 'learn';
+}
+
+/** Step 2: headers of each message, paced; each tick's batch is one cache chunk. */
+function learnRead_(st, meter) {
+  var ids = readChunks_(st, 'ids:', st.idChunks);
+  var batch = [];
+  try {
+    while (st.read < st.total) {
+      var id = ids[st.read];
+      try {
+        var s = DPGmailRepo.getMessageSample(id, { meter: meter });
+        batch.push([s.id, s.labels, s.from, s.subject, s.listId]);
+      } catch (err) {
+        if (err.code === 'BUDGET' || isQuotaError_(err) || !/not found|404/i.test(String(err.message || err))) throw err;
+        DPQueue.logSafe('filter learner: a message was deleted before it was read; skipping it', err);
+      }
+      st.read += 1;
+      Utilities.sleep(HUB_LEARN_PACE_MS_);
+    }
+    st.phase = 'learn';
+  } finally {
+    if (batch.length) {
+      CacheService.getUserCache().put(learnKey_(st, 's:' + st.chunks), JSON.stringify(batch), HUB_LEARN_CACHE_TTL_S_);
+      st.chunks += 1;
+    }
+  }
+}
+
+/** Step 3: bodies of up to HUB_LEARN_BODY_MAX_ labeled messages (memory only), the engine, and the row list. */
+function learnLearn_(st, meter) {
+  var E = DPEngines;
+  var samples = readChunks_(st, 's:', st.chunks).map(function(a) { return { id: a[0], labels: a[1], from: a[2], subject: a[3], listId: a[4], body: '' }; });
+  var filters;
+  try {
+    filters = DPGmailRepo.listFilters();
+  } catch (err) {
+    if (!isScopeError_(err)) throw err;
+    DPQueue.logSafe('filter learner: Gmail filters could not be read (scope)', err);
+    var blocked = filterScopeBlocked_();
+    var e = new Error(blocked.message);
+    e.code = 'SCOPE_BLOCKED';
+    e.authUrl = blocked.authUrl;
+    throw e;
+  }
+  var names = DPGmailRepo.labelNamesById();
+  var excluded = E.AI_EXCLUDED_LABELS.concat(DPConfig.getConfig().ExcludedAiLabels || []);
+  var perLabel = {};
+  var withBody = samples.filter(function(s) {
+    if (s.labels.some(function(l) { return excluded.some(function(x) { return l === x || l.indexOf(x) === 0; }); })) return false;
+    var target = E.FILTER_TARGET_LABELS.filter(function(l) { return s.labels.indexOf(l) >= 0; })[0];
+    if (!target || (perLabel[target] || 0) >= HUB_LEARN_BODY_PER_LABEL_) return false;
+    perLabel[target] = (perLabel[target] || 0) + 1;
+    return true;
+  }).slice(0, HUB_LEARN_BODY_MAX_);
+  // Bodies all in this tick, or none: a body read cannot be saved for the next tick.
+  if (meter.left() < withBody.length * DPGmailRepo.units().messagesGet) meter(meter.left() + 1);
+  withBody.forEach(function(s) {
+    s.body = DPGmailRepo.getMessageSample(s.id, { withBody: true, meter: meter }).body;
+    Utilities.sleep(HUB_LEARN_PACE_MS_);
+  });
+  var learned = E.suggestFilters({ threads: samples, targetLabels: E.FILTER_TARGET_LABELS, excludedLabels: excluded });
+  samples.forEach(function(s) { s.body = ''; });
+
+  // Rows: existing 🎯/ filters, then suggestions, then the user own rows (kept with their ticks and status).
+  var prior = DPConfig.readFilterRows();
+  var priorByKey = {};
+  prior.forEach(function(p) { priorByKey[p.label + '\u0000' + p.query] = p; });
+  var rows = [];
+  var keys = {};
+  var add = function(r) {
+    var k = r.label + '\u0000' + r.query;
+    if (!r.label || !r.query || keys[k]) return;
+    keys[k] = true;
+    var p = priorByKey[k];
+    if (p && r.source !== 'Existing filter') { r.create = p.create; r.status = p.status; r.filterId = r.filterId || p.filterId; }
+    rows.push(r);
+  };
+  var addingTarget = 0;
+  filters.forEach(function(f) {
+    var counted = false;
+    (f.action.addLabelIds || []).forEach(function(lid) {
+      var n = names[lid];
+      if (n && n.indexOf(E.LABEL_PREFIX) === 0) {
+        if (!counted) { addingTarget += 1; counted = true; }
+        add({ label: n, query: E.filterCriteriaQuery(f.criteria), source: 'Existing filter', filterId: f.id, status: 'In Gmail' });
+      }
+    });
+  });
+  learned.suggestions.forEach(function(x) { add({ label: x.label, query: x.query, source: 'Suggested' }); });
+  prior.forEach(function(p) {
+    if (p.source === 'Existing filter' || p.source === 'Suggested') return;
+    add({ label: p.label, query: p.query, source: p.source || 'Pasted', create: p.create, status: p.status, filterId: p.filterId });
+  });
+  var targetNames = Object.keys(names).map(function(id) { return names[id]; }).filter(function(n) { return n.indexOf(E.LABEL_PREFIX) === 0; });
+  // "0 existing" on WORK 2026-10-16: say how many filters there are and which 🎯 labels Gmail has.
+  console.log('filter learner: ' + filters.length + ' Gmail filters, ' + addingTarget + ' add a 🎯 label; 🎯 labels in Gmail: ' + targetNames.join(', '));
+  st.diag = { filters: filters.length, addingTarget: addingTarget, targetLabels: targetNames.length, sampled: samples.length, skipped: learned.skipped };
+  CacheService.getUserCache().put(learnKey_(st, 'rows'), JSON.stringify(rows), HUB_LEARN_CACHE_TTL_S_);
+  st.rowCount = rows.length;
+  st.measured = 0;
+  st.phase = 'measure';
+}
+
+/** Step 4: Caught and Wrong for each row with two Gmail searches (90 days), then the Sheet tab. */
+function learnMeasure_(st, meter) {
+  var E = DPEngines;
+  var cache = CacheService.getUserCache();
+  var rowsRaw = cache.get(learnKey_(st, 'rows'));
+  if (rowsRaw == null) {
+    var ex = new Error('The saved filter list expired before it was checked. Press Suggest filters to start again.');
+    ex.code = 'SAMPLE_EXPIRED';
+    throw ex;
+  }
+  var rows = JSON.parse(rowsRaw);
+  var idOf = {};
+  var names = DPGmailRepo.labelNamesById();
+  Object.keys(names).forEach(function(id) { idOf[names[id]] = id; });
+  try {
+    while (st.measured < rows.length) {
+      var r = rows[st.measured];
+      var lid = idOf[r.label];
+      var hitIds = [];
+      if (!lid) r.status = 'No such label: create it first';
+      else if (r.query.length > HUB_FILTER_QUERY_MAX_) r.status = 'Query too long';
+      else {
+        try {
+          var all = DPGmailRepo.searchThreadIds(r.query + HUB_FILTER_WINDOW_, { cap: HUB_FILTER_MEASURE_CAP_, meter: meter });
+          var hit = DPGmailRepo.searchThreadIds(r.query + HUB_FILTER_WINDOW_, { cap: HUB_FILTER_MEASURE_CAP_, labelId: lid, meter: meter });
+          hitIds = hit.ids;
+          r.caught = hit.ids.length + (hit.capped ? '+' : '');
+          r.wrong = Math.max(0, all.ids.length - hit.ids.length) + (all.capped ? '+' : '');
+          r.precision = E.precisionOf(hit.ids.length, Math.max(0, all.ids.length - hit.ids.length));
+        } catch (err) {
+          if (err.code === 'BUDGET' || isQuotaError_(err)) throw err;
+          DPQueue.logSafe('filter learner: measuring one query failed; the row shows the error', err);
+          r.status = 'Gmail search failed: ' + E.sanitizeError(err);
+        }
+      }
+      if (r.source === 'Existing filter' || hitIds.length) cache.put(learnKey_(st, 'm:' + st.measured), JSON.stringify(hitIds), HUB_LEARN_CACHE_TTL_S_);
+      st.measured += 1;
+    }
+  } finally {
+    cache.put(learnKey_(st, 'rows'), JSON.stringify(rows), HUB_LEARN_CACHE_TTL_S_);
+  }
+  var idKeys = rows.map(function(r, i) { return learnKey_(st, 'm:' + i); });
+  var ids = cache.getAll(idKeys) || {};
+  var idsOf = function(i) { return ids[idKeys[i]] ? JSON.parse(ids[idKeys[i]]) : []; };
+  var existing = [];
+  rows.forEach(function(r, i) { if (r.source === 'Existing filter') existing.push({ label: r.label, filterId: r.filterId, ids: idsOf(i) }); });
+  rows.forEach(function(r, i) {
+    if (r.source === 'Existing filter') return;
+    r.coveredBy = E.coveringFilter(idsOf(i), existing.filter(function(e) { return e.label === r.label; }).map(function(e) { return { filterId: e.filterId, ids: e.ids }; }));
+  });
+  DPConfig.writeFilterRows(rows);
+  var count = function(src) { return rows.filter(function(x) { return x.source === src; }).length; };
+  var d = st.diag || {};
+  st.url = DPConfig.getSheetUrl();
+  st.result = { rows: rows.length, suggested: count('Suggested'), existing: count('Existing filter'), pasted: rows.length - count('Suggested') - count('Existing filter'), sampled: d.sampled || 0, skipped: d.skipped || 0 };
+  st.message = 'Filter Suggestions: ' + st.result.suggested + ' new, ' + st.result.existing + ' existing, from ' + (d.sampled || 0) + ' emails' +
+    (st.capped ? ' (the most recent ' + HUB_LEARN_CAP_ + ' threads)' : '') + '. Gmail has ' + (d.filters || 0) + ' filters (' + (d.addingTarget || 0) +
+    ' add a 🎯 label) and ' + (d.targetLabels || 0) + ' 🎯 labels. Tick Create? on the rows you want, then Create checked filters.';
+  st.phase = 'done';
+}
+
+/**
+ * One learner step: runs phases until this tick's Gmail budget is used. Quota or budget stops end the tick and the
+ * next tick resumes; anything else ends the job with an error the status shows. Removes its trigger when finished.
+ * @param {{listOnly?:boolean}} [opts] listOnly: the first, inline step from the Suggest filters click.
+ * @returns {object} Learner state.
+ */
+function learnTick_(opts) {
+  var st = learnState_();
+  if (!st || HUB_LEARN_RUNNING_.indexOf(st.phase) < 0) { removeLearnTriggers_(); return st; }
+  var now = Date.now();
+  if (now - st.startedAt > HUB_LEARN_MAX_AGE_MS_) {
+    st.phase = 'error';
+    st.errorCode = 'TOO_SLOW';
+    st.message = 'Reading your mail took more than 3 hours, so it stopped. Press Suggest filters to start again.';
+    saveLearnState_(st);
+    removeLearnTriggers_();
+    return st;
+  }
+  // A lease, not LockService: a tick runs up to a minute and must not hold the lock Triage writes wait on.
+  if (st.leaseUntil && st.leaseUntil > now) return st;
+  st.leaseUntil = now + HUB_LEARN_LEASE_MS_;
+  st.ticks = (st.ticks || 0) + 1;
+  saveLearnState_(st);
+  var meter = makeMeter_(HUB_LEARN_TICK_UNITS_);
+  try {
+    while (HUB_LEARN_RUNNING_.indexOf(st.phase) >= 0) {
+      if (st.phase === 'list') { learnList_(st, meter); if (opts && opts.listOnly) break; }
+      else if (st.phase === 'read') learnRead_(st, meter);
+      else if (st.phase === 'learn') learnLearn_(st, meter);
+      else learnMeasure_(st, meter);
+    }
+  } catch (err) {
+    if (err.code === 'BUDGET' || isQuotaError_(err)) {
+      DPQueue.logSafe('filter learner: stopping this minute at ' + st.phase + ' (' + (err.code === 'BUDGET' ? 'budget' : 'Gmail quota') + '); the next tick continues', err);
+    } else {
+      DPQueue.logSafe('filter learner: failed at ' + st.phase + '; the job stops and About shows the error', err);
+      st.phase = 'error';
+      st.errorCode = err.code === 'SCOPE_BLOCKED' || err.code === 'SAMPLE_EXPIRED' ? err.code : 'LEARN_FAILED';
+      st.message = err.code ? String(err.message) : DPEngines.sanitizeError(err);
+      st.authUrl = err.authUrl || null;
+    }
+  } finally {
+    st.leaseUntil = 0;
+    saveLearnState_(st);
+  }
+  if (HUB_LEARN_RUNNING_.indexOf(st.phase) < 0) removeLearnTriggers_();
+  return st;
+}
+
+/**
+ * Builds the Filter Suggestions tab in the background: the user filters that add a 🎯/ label, new suggestions
+ * learned from about 20 business days of mail, and any rows the user pasted (e.g. Gemini queries), each measured
+ * with Gmail search over 90 days (Caught = matches with the label, Wrong = matches without). Starts the job and
+ * returns its status; a job already running is reported, not restarted. A sample from a finished job (kept 6 h)
+ * is reused, so a second run only re-learns and re-measures. Nothing is created in Gmail.
+ * IDE manual-run, gas-rpc, and About "Suggest filters".
+ * @returns {object} Learner status (see hubFilterLearnStatus) or a failed result.
  */
 function hubSuggestFilters() {
   var pre = preflight_([]);
   if (pre.failure) return pre.failure;
-  var E = DPEngines;
   try {
     if (!DPConfig.isProvisioned()) return fail_('SETUP_ERROR', 'Hub Sheet is not set up yet', true);
-    var filters;
-    try {
-      filters = DPGmailRepo.listFilters();
-    } catch (err) {
-      if (!isScopeError_(err)) throw err;
-      DPQueue.logSafe('hubSuggestFilters: Gmail filters could not be read (scope)', err);
-      return filterScopeBlocked_();
-    }
-    var names = DPGmailRepo.labelNamesById();
-    var idOf = {};
-    Object.keys(names).forEach(function(id) { idOf[names[id]] = id; });
-    var excluded = E.AI_EXCLUDED_LABELS.concat(DPConfig.getConfig().ExcludedAiLabels || []);
-    var partial = false;
-
-    // 1. Learn: labelled threads per target label plus unlabelled recent Inbox threads (headers only).
-    var threads = [];
-    var seen = {};
-    var take = function(id) { if (!seen[id]) { seen[id] = true; threads.push(filterSample_(id)); } };
-    try {
-      E.FILTER_TARGET_LABELS.forEach(function(label) {
-        DPGmailRepo.listThreadsByLabel(label, { maxResults: HUB_FILTER_SAMPLE_PER_LABEL_ }).threadIds.forEach(take);
-      });
-      DPGmailRepo.searchThreadIds('in:inbox' + HUB_FILTER_WINDOW_, { cap: HUB_FILTER_SAMPLE_INBOX_ }).ids.forEach(take);
-    } catch (err) {
-      if (!isQuotaError_(err)) throw err;
-      DPQueue.logSafe('hubSuggestFilters: Gmail quota reached while sampling; suggesting from the threads read so far', err);
-      partial = true;
-    }
-    var learned = E.suggestFilters({ threads: threads, targetLabels: E.FILTER_TARGET_LABELS, excludedLabels: excluded });
-
-    // 2. Rows: existing 🎯/ filters, then suggestions, then the user own rows (kept with their ticks and status).
-    var prior = DPConfig.readFilterRows();
-    var priorByKey = {};
-    prior.forEach(function(p) { priorByKey[p.label + '\u0000' + p.query] = p; });
-    var rows = [];
-    var keys = {};
-    var add = function(r) {
-      var k = r.label + '\u0000' + r.query;
-      if (!r.label || !r.query || keys[k]) return;
-      keys[k] = true;
-      var p = priorByKey[k];
-      if (p && r.source !== 'Existing filter') { r.create = p.create; r.status = p.status; r.filterId = r.filterId || p.filterId; }
-      rows.push(r);
-    };
-    filters.forEach(function(f) {
-      (f.action.addLabelIds || []).forEach(function(lid) {
-        var n = names[lid];
-        if (n && n.indexOf(E.LABEL_PREFIX) === 0) add({ label: n, query: E.filterCriteriaQuery(f.criteria), source: 'Existing filter', filterId: f.id, status: 'In Gmail' });
-      });
-    });
-    learned.suggestions.forEach(function(x) { add({ label: x.label, query: x.query, source: 'Suggested' }); });
-    prior.forEach(function(p) {
-      if (p.source === 'Existing filter' || p.source === 'Suggested') return;
-      add({ label: p.label, query: p.query, source: p.source || 'Pasted', create: p.create, status: p.status, filterId: p.filterId });
-    });
-
-    // 3. Measure every row with Gmail search (90 days). Stops measuring at a quota error.
-    var stop = false;
-    rows.forEach(function(r) {
-      if (stop) { r.status = r.status || 'Not measured (Gmail limit); run again in a minute'; return; }
-      var lid = idOf[r.label];
-      if (!lid) { r.status = 'No such label: create it first'; return; }
-      if (r.query.length > HUB_FILTER_QUERY_MAX_) { r.status = 'Query too long'; return; }
+    var old = learnState_();
+    if (old && HUB_LEARN_RUNNING_.indexOf(old.phase) >= 0 && Date.now() - old.startedAt <= HUB_LEARN_MAX_AGE_MS_) return learnStatus_(old);
+    var st = { startedAt: Date.now(), ticks: 0, phase: 'list', sampleId: Utilities.getUuid().slice(0, 8), read: 0, total: 0, chunks: 0, idChunks: 0 };
+    if (old && old.phase === 'done' && old.sampleId && Date.now() - old.sampledAt < HUB_LEARN_CACHE_TTL_S_ * 1000 - 600000) {
       try {
-        var all = DPGmailRepo.searchThreadIds(r.query + HUB_FILTER_WINDOW_, { cap: HUB_FILTER_MEASURE_CAP_ });
-        var hit = DPGmailRepo.searchThreadIds(r.query + HUB_FILTER_WINDOW_, { cap: HUB_FILTER_MEASURE_CAP_, labelId: lid });
-        r.ids = hit.ids;
-        r.caught = hit.ids.length + (hit.capped ? '+' : '');
-        r.wrong = Math.max(0, all.ids.length - hit.ids.length) + (all.capped ? '+' : '');
-        r.precision = E.precisionOf(hit.ids.length, Math.max(0, all.ids.length - hit.ids.length));
+        readChunks_(old, 's:', old.chunks);
+        st.sampleId = old.sampleId;
+        st.chunks = old.chunks;
+        st.total = old.total;
+        st.read = old.read;
+        st.sampledAt = old.sampledAt;
+        st.phase = 'learn';
       } catch (err) {
-        if (isQuotaError_(err)) {
-          DPQueue.logSafe('hubSuggestFilters: Gmail quota reached while measuring; the rest are marked not measured', err);
-          stop = true;
-          partial = true;
-          r.status = 'Not measured (Gmail limit); run again in a minute';
-          return;
-        }
-        DPQueue.logSafe('hubSuggestFilters: measuring one query failed; the row shows the error', err);
-        r.status = 'Gmail search failed: ' + E.sanitizeError(err);
+        if (err.code !== 'SAMPLE_EXPIRED') throw err;
+        DPQueue.logSafe('hubSuggestFilters: the earlier mail sample expired; reading mail again', err);
       }
-    });
-    var existingRows = rows.filter(function(r) { return r.source === 'Existing filter'; });
-    rows.forEach(function(r) {
-      if (r.source === 'Existing filter') return;
-      r.coveredBy = E.coveringFilter(r.ids, existingRows.filter(function(e) { return e.label === r.label; }).map(function(e) { return { filterId: e.filterId, ids: e.ids }; }));
-    });
-    rows.forEach(function(r) { delete r.ids; });
-    DPConfig.writeFilterRows(rows);
-    var count = function(src) { return rows.filter(function(r) { return r.source === src; }).length; };
-    return DPEngines.makeResult({
-      ok: true, status: partial ? 'PARTIAL' : 'OK', partial: partial, rows: rows.length,
-      suggested: count('Suggested'), existing: count('Existing filter'), pasted: rows.length - count('Suggested') - count('Existing filter'),
-      skipped: learned.skipped, url: DPConfig.getSheetUrl(),
-      message: 'Filter Suggestions: ' + count('Suggested') + ' new, ' + count('Existing filter') + ' existing' + (partial ? ' (Gmail limit reached; run again for the rest)' : '') +
-        '. Tick Create? on the rows you want, then Create checked filters.'
-    });
+    }
+    st.sampledAt = st.sampledAt || st.startedAt;
+    saveLearnState_(st);
+    installLearnTrigger_();
+    return learnStatus_(learnTick_({ listOnly: true }));
   } catch (err) {
     return failFrom_(err);
   }
+}
+
+/**
+ * Status of the filter learner for About progress (no Gmail calls). google.script.run (About) + gas-rpc.
+ * @returns {object} {ok, status, phase, running, read, total, measured, rowCount, message, url, authUrl, result}.
+ */
+function hubFilterLearnStatus() {
+  try {
+    return learnStatus_(learnState_());
+  } catch (err) {
+    return failFrom_(err);
+  }
+}
+
+/** Time-driven trigger handler (every minute while a job runs). */
+function hubFilterLearnTick() {
+  var pre = preflight_([]);
+  if (pre.failure) {
+    console.error('hubFilterLearnTick: preflight failed, skipping this tick: ' + JSON.stringify(pre.failure));
+    return pre.failure;
+  }
+  return learnStatus_(learnTick_());
 }
 
 /**
@@ -1097,6 +1376,8 @@ global._getHubSheetLinkInternal = getHubSheetLink;                 // google.scr
 global._setupHubInternal = setupHub;                               // google.script.run (About "Set up hub")
 global._hubSetFeatureInternal = hubSetFeature;                    // gas-rpc (Execution API) + IDE manual-run
 global._hubSetupLabelsInternal = hubSetupLabels;                   // google.script.run (About) + gas-rpc + IDE manual-run
+global._hubFilterLearnStatusInternal = hubFilterLearnStatus;       // google.script.run (About progress) + gas-rpc
+global._hubFilterLearnTickInternal = hubFilterLearnTick;           // time-driven trigger (every minute while learning)
 global._hubSuggestFiltersInternal = hubSuggestFilters;             // google.script.run (About) + gas-rpc + IDE manual-run
 global._hubCreateSelectedFiltersInternal = hubCreateSelectedFilters; // google.script.run (About) + gas-rpc + IDE manual-run
 global._hubSetTasksListIdInternal = hubSetTasksListId;             // gas-rpc (Execution API) + IDE manual-run

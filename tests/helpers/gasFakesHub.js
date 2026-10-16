@@ -13,7 +13,7 @@
  */
 import fs from 'node:fs';
 import vm from 'node:vm';
-import { makeGasContext, loadGasFile, loadEngines } from './gasRuntimeStubs.js';
+import { makeGasContext, loadGasFile, loadEngines, toHost } from './gasRuntimeStubs.js';
 
 export const TZ = 'America/Los_Angeles';
 export const HUB_FILES = ['GmailRepository.gs', 'CalendarRepository.gs', 'TaskRepository.gs', 'QueueProcessor.gs', 'HubController.gs', 'Triggers.gs'];
@@ -70,6 +70,34 @@ function makeGmail(h) {
     return l.id;
   };
   h.gmail.labelId = labelId;
+  // Gmail quota units per call (docs, May 2026). h.gmail.units is the running total, h.gmail.spent the per-call log.
+  const COST = { 'messages.list': 5, 'messages.get': 20, 'threads.list': 10, 'threads.get': 40 };
+  h.gmail.units = 0;
+  h.gmail.spent = [];
+  const spend = (m) => { h.gmail.units += COST[m]; h.gmail.spent.push(COST[m]); };
+  // q search: tests map each query (without the newer_than window) to thread ids in h.gmail.queryHits;
+  // in:inbox means every Inbox thread; a query of only -in: exclusions (or only a window) means all mail.
+  const matchingThreads = (opts) => {
+    const q = opts.q ? String(opts.q).replace(/\s*newer_than:\d+d$/, '') : null;
+    const allMail = q === null || q === '' || /^(-in:\w+\s*)+$/.test(q);
+    const inboxOnlyQ = q === 'in:inbox';
+    const qSet = allMail || inboxOnlyQ ? null : new Set(h.gmail.queryHits[q] || []);
+    // Like Gmail: threads in Trash are left out unless includeSpamTrash; several labelIds must ALL match.
+    return Object.values(h.gmail.threads).filter((t) => (!qSet || qSet.has(t.id)) && (!inboxOnlyQ || t.messages.some((m) => m.labelIds.includes('INBOX'))))
+      .filter((t) => (opts.includeSpamTrash || !t.trashed) && (!opts.labelIds || opts.labelIds.every((l) => t.messages.some((m) => m.labelIds.includes(l)))));
+  };
+  const rawMessage = (m, format) => ({
+    id: m.id,
+    labelIds: m.labelIds,
+    snippet: m.snippet,
+    internalDate: String(m.internalDate),
+    payload: {
+      headers: [{ name: 'From', value: m.from }, { name: 'To', value: m.to }, { name: 'Cc', value: m.cc || '' }, { name: 'Subject', value: m.subject }, { name: 'Date', value: new Date(m.internalDate).toUTCString() }]
+        .concat(m.listId ? [{ name: 'List-Id', value: m.listId }] : []),
+      mimeType: 'text/plain',
+      body: format === 'full' ? { data: gasBodyBytes(m.body || '') } : {}
+    }
+  });
   return {
     Users: {
       getProfile(userId) { h.gmail.calls.push('getProfile'); return { emailAddress: 'Me@Example.test' }; },
@@ -99,21 +127,40 @@ function makeGmail(h) {
           }
         }
       },
+      Messages: {
+        list(userId, opts = {}) {
+          h.gmail.calls.push('messages.list');
+          spend('messages.list');
+          if (h.gmail.quotaOnMessages && h.gmail.quotaOnMessages()) throw new Error(QUOTA_MSG('list', 'messages'));
+          const msgs = [];
+          matchingThreads(opts).forEach((t) => t.messages.forEach((m) => msgs.push({ id: m.id, threadId: t.id })));
+          // Pages like Gmail: pageToken is the offset of the next page.
+          const from = Number(opts.pageToken || 0);
+          const size = opts.maxResults || 100;
+          const next = from + size < msgs.length ? String(from + size) : undefined;
+          return { messages: msgs.slice(from, from + size), nextPageToken: next };
+        },
+        get(userId, id, opts = {}) {
+          h.gmail.calls.push(`messages.get:${opts.format}`);
+          spend('messages.get');
+          if (h.gmail.quotaOnMessages && h.gmail.quotaOnMessages()) throw new Error(QUOTA_MSG('get', 'messages'));
+          if (opts.format !== 'metadata' && opts.format !== 'full') throw new Error(`unexpected Gmail format ${opts.format}`);
+          const t = Object.values(h.gmail.threads).find((x) => x.messages.some((m) => m.id === id));
+          if (!t) throw err404('message');
+          return rawMessage(t.messages.find((m) => m.id === id), opts.format);
+        }
+      },
       Threads: {
         list(userId, opts = {}) {
           h.gmail.calls.push('threads.list');
+          spend('threads.list');
           if (h.gmail.quotaOnList) throw new Error(QUOTA_MSG('list'));
-          // q search: tests map each query (without the newer_than window) to thread ids in h.gmail.queryHits;
-          // in:inbox means every Inbox thread.
-          const q = opts.q ? String(opts.q).replace(/ newer_than:\d+d$/, '') : null;
-          const qSet = q === null ? null : (q === 'in:inbox' ? null : new Set(h.gmail.queryHits[q] || []));
-          const inboxOnlyQ = q === 'in:inbox';
-          // Like Gmail: threads in Trash are left out unless includeSpamTrash; several labelIds must ALL match.
-          const ids = Object.values(h.gmail.threads).filter((t) => (!qSet || qSet.has(t.id)) && (!inboxOnlyQ || t.messages.some((m) => m.labelIds.includes('INBOX')))).filter((t) => (opts.includeSpamTrash || !t.trashed) && (!opts.labelIds || opts.labelIds.every((l) => t.messages.some((m) => m.labelIds.includes(l))))).map((t) => ({ id: t.id, historyId: String(t.historyId) }));
+          const ids = matchingThreads(opts).map((t) => ({ id: t.id, historyId: String(t.historyId) }));
           return { threads: ids.slice(0, opts.maxResults || 100) };
         },
         get(userId, id, opts = {}) {
           h.gmail.calls.push(`threads.get:${opts.format}`);
+          spend('threads.get');
           if (typeof h.gmail.quotaAfterGets === 'number' && h.gmail.calls.filter((c) => c.startsWith('threads.get')).length > h.gmail.quotaAfterGets) throw new Error(QUOTA_MSG('get'));
           if (opts.format !== 'metadata' && opts.format !== 'full') throw new Error(`unexpected Gmail format ${opts.format}`);
           const t = h.gmail.threads[id];
@@ -121,17 +168,7 @@ function makeGmail(h) {
           return {
             id: t.id,
             historyId: String(t.historyId),
-            messages: t.messages.map((m) => ({
-              id: m.id,
-              labelIds: m.labelIds,
-              snippet: m.snippet,
-              internalDate: String(m.internalDate),
-              payload: {
-                headers: [{ name: 'From', value: m.from }, { name: 'To', value: m.to }, { name: 'Cc', value: m.cc || '' }, { name: 'Subject', value: m.subject }, { name: 'Date', value: new Date(m.internalDate).toUTCString() }],
-                mimeType: 'text/plain',
-                body: opts.format === 'full' ? { data: gasBodyBytes(m.body || '') } : {}
-              }
-            }))
+            messages: t.messages.map((m) => rawMessage(m, opts.format))
           };
         },
         // Advanced Gmail signature: modify(resource, userId, id). Records the exact label changes.
@@ -387,7 +424,7 @@ function makeUserCache(h) {
 }
 
 /** The live WORK error text (2026-10-12), so tests match what Gmail really throws. */
-const QUOTA_MSG = (m) => `API call to gmail.users.threads.${m} failed with error: Quota exceeded for quota metric 'Total Query Cost' and limit 'Units per minute per user' of service 'gmail.googleapis.com' for consumer 'project_number:1'.`;
+const QUOTA_MSG = (m, kind = 'threads') => `API call to gmail.users.${kind}.${m} failed with error: Quota exceeded for quota metric 'Total Query Cost' and limit 'Units per minute per user' of service 'gmail.googleapis.com' for consumer 'project_number:1'.`;
 
 export function addThread(ctx, t) {
   const h = ctx.__hub;
@@ -398,7 +435,7 @@ export function addThread(ctx, t) {
   h.gmail.threads[t.id] = {
     id: t.id,
     historyId: t.historyId || 100,
-    messages: msgs.map((m, i) => ({ id: `${t.id}m${i}`, labelIds: ids, internalDate: Date.parse(t.date || '2026-10-05T20:00:00Z') + i * 60000, from: m.from, to: m.to || 'me@example.test', cc: m.cc, subject: m.subject || t.subject || 'Subject', body: m.body, snippet: m.snippet || '' }))
+    messages: msgs.map((m, i) => ({ id: `${t.id}m${i}`, labelIds: ids, internalDate: Date.parse(t.date || '2026-10-05T20:00:00Z') + i * 60000, from: m.from, to: m.to || 'me@example.test', cc: m.cc, subject: m.subject || t.subject || 'Subject', body: m.body, snippet: m.snippet || '', listId: m.listId || t.listId || '' }))
   };
 }
 
@@ -413,3 +450,21 @@ export function addCoreOccurrences(ctx, dates = ['2026-10-06', '2026-10-13']) {
 }
 
 export function lines(ctx) { return ctx.__consoleLines.join('\n'); }
+
+/**
+ * Presses Suggest filters, then runs the one-minute learner trigger until the job ends (each tick is a fresh Gmail
+ * minute). h.beforeLearnTick(n) can change the fakes between ticks. Returns the final status plus .ticks and .first
+ * (what the click itself returned).
+ */
+export function runFilterLearner(ctx, maxTicks = 60) {
+  const h = ctx.__hub;
+  const first = toHost(ctx._hubSuggestFiltersInternal());
+  let st = first;
+  let ticks = 0;
+  while (st && st.running && ticks < maxTicks) {
+    if (h.beforeLearnTick) h.beforeLearnTick(ticks);
+    st = toHost(ctx._hubFilterLearnTickInternal());
+    ticks += 1;
+  }
+  return { ...st, ticks, first };
+}

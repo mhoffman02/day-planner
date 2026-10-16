@@ -434,7 +434,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 506;
+const BUILD_NUMBER_ = 507;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -3911,6 +3911,14 @@ function hubSetupLabels() {
 
 function hubSuggestFilters() {
   return (typeof _hubSuggestFiltersInternal === 'function') ? _hubSuggestFiltersInternal() : (globalThis._hubSuggestFiltersInternal ? globalThis._hubSuggestFiltersInternal() : null);
+}
+
+function hubFilterLearnStatus() {
+  return (typeof _hubFilterLearnStatusInternal === 'function') ? _hubFilterLearnStatusInternal() : (globalThis._hubFilterLearnStatusInternal ? globalThis._hubFilterLearnStatusInternal() : null);
+}
+
+function hubFilterLearnTick() {
+  return (typeof _hubFilterLearnTickInternal === 'function') ? _hubFilterLearnTickInternal() : (globalThis._hubFilterLearnTickInternal ? globalThis._hubFilterLearnTickInternal() : null);
 }
 
 function hubCreateSelectedFilters() {

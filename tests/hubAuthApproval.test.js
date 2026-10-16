@@ -9,7 +9,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { toHost } from './helpers/gasRuntimeStubs.js';
-import { makeHubContext } from './helpers/gasFakesHub.js';
+import { makeHubContext, runFilterLearner } from './helpers/gasFakesHub.js';
 
 const call = (ctx, name, ...args) => toHost(ctx[`_${name}Internal`](...args));
 const URL = 'https://script.google.com/macros/d/abc/authorize';
@@ -70,7 +70,7 @@ test('filter buttons without the filter scope offer Google\'s approval link', ()
   const ctx = makeHubContext({ realStores: true, features: { GMAIL_ROUTER: true } });
   ctx.__hub.ungranted = [SETTINGS];
   ctx.__hub.gmail.filtersBlocked = true;
-  const r = call(ctx, 'hubSuggestFilters');
+  const r = runFilterLearner(ctx);
   assert.equal(r.errorCode, 'SCOPE_BLOCKED');
   assert.equal(r.authUrl, 'https://consent.example/authorize');
   assert.match(r.message, /tick every box/i);

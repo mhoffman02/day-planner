@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { toHost } from './helpers/gasRuntimeStubs.js';
-import { makeHubContext, addThread } from './helpers/gasFakesHub.js';
+import { makeHubContext, addThread, runFilterLearner } from './helpers/gasFakesHub.js';
 
 const call = (ctx, name, ...args) => toHost(ctx[`_${name}Internal`](...args));
 const EIGHT = ['🎯/Task', '🎯/Task-Today', '🎯/Waiting', '🎯/Meeting', '🎯/Meeting/NCMMS-Core', '🎯/Meeting/NCMMS-Daily', '🎯/Read', '🎯/Review'];
@@ -71,9 +71,9 @@ const rowsOf = (ctx) => {
 test('suggest: existing 🎯 filters, a learned suggestion and pasted rows, each measured with Gmail search', () => {
   const ctx = filterCtx();
   // The user pasted a Gemini query into the tab before running.
-  call(ctx, 'hubSuggestFilters');
+  runFilterLearner(ctx);
   tab(ctx).rows.push(['🎯/Task', 'subject:"assigned to you"', 'Gemini', '', '', '', '', false, '', '']);
-  const r = call(ctx, 'hubSuggestFilters');
+  const r = runFilterLearner(ctx);
   assert.equal(r.ok, true, JSON.stringify(r));
   const rows = rowsOf(ctx);
   const existing = rows.find((x) => x.Source === 'Existing filter');
@@ -95,7 +95,7 @@ test('suggest learns a body phrase on the server; the body itself never reaches 
       body: `The container scan results are attached. Private marker CANARY${i}ZZ.` });
   }
   ctx.__hub.gmail.queryHits['"container scan results"'] = ['rev1', 'rev2', 'rev3', 'rev4'];
-  const r = call(ctx, 'hubSuggestFilters');
+  const r = runFilterLearner(ctx);
   assert.equal(r.ok, true, JSON.stringify(r));
   const rows = rowsOf(ctx);
   const body = rows.find((x) => x['Gmail query'] === '"container scan results"');
@@ -110,7 +110,7 @@ test('suggest learns a body phrase on the server; the body itself never reaches 
 test('suggest without the filter scope says so and writes nothing', () => {
   const ctx = filterCtx();
   ctx.__hub.gmail.filtersBlocked = true;
-  const r = call(ctx, 'hubSuggestFilters');
+  const r = runFilterLearner(ctx);
   assert.equal(r.ok, false);
   assert.equal(r.errorCode, 'SCOPE_BLOCKED');
   assert.equal(tab(ctx), undefined);
@@ -118,7 +118,7 @@ test('suggest without the filter scope says so and writes nothing', () => {
 
 test('create: only ticked rows, only add-label filters, written back, and a rerun creates nothing new', () => {
   const ctx = filterCtx();
-  call(ctx, 'hubSuggestFilters');
+  runFilterLearner(ctx);
   const t = tab(ctx);
   const head = t.rows[0];
   const qi = head.indexOf('Gmail query');

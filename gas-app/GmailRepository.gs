@@ -27,6 +27,9 @@ var GMAIL_BODY_CAP_ = 4000;
 // Triage row preview: Gmail's own snippet of the latest message (Gmail sends about 200 chars).
 var GMAIL_SNIPPET_CAP_ = 300;
 var GMAIL_META_HEADERS_ = ['From', 'To', 'Cc', 'Subject', 'Date', 'List-Id'];
+// Gmail quota units per call (Gmail API usage limits, May 2026: 6,000 units per user per minute, shared by
+// everything this app does). Callers that read in bulk charge a meter with these before each call.
+var GMAIL_UNITS_ = { messagesList: 5, messagesGet: 20, threadsList: 10, threadsGet: 40 };
 var gmailLabelCache_ = null;
 
 /**
@@ -416,6 +419,7 @@ function searchThreadIds(query, opts) {
   var ids = [];
   var token = null;
   do {
+    if (o.meter) o.meter(GMAIL_UNITS_.threadsList);
     var params = { q: query, maxResults: Math.min(100, cap - ids.length) };
     if (o.labelId) params.labelIds = [o.labelId];
     if (token) params.pageToken = token;
@@ -426,7 +430,67 @@ function searchThreadIds(query, opts) {
   return { ids: ids, capped: !!token };
 }
 
+/**
+ * Message ids for a search, one per thread (the oldest listed: usually the message that started it, which is the
+ * one a filter would have caught). Ids only, no content.
+ * @param {string} query Gmail search.
+ * @param {{labelId?:string, cap?:number, meter?:function(number)}} [opts] cap counts threads; meter is charged per page.
+ * @returns {{refs:Array<{id:string, threadId:string}>, capped:boolean}} Refs.
+ */
+function listMessageRefs(query, opts) {
+  requireGmail_();
+  var o = opts || {};
+  var cap = o.cap || 500;
+  var byThread = {};
+  var order = [];
+  var token = null;
+  do {
+    if (o.meter) o.meter(GMAIL_UNITS_.messagesList);
+    var params = { q: query, maxResults: 100 };
+    if (o.labelId) params.labelIds = [o.labelId];
+    if (token) params.pageToken = token;
+    var resp = Gmail.Users.Messages.list(GMAIL_ME_, params) || {};
+    (resp.messages || []).forEach(function(m) {
+      if (!byThread[m.threadId]) order.push(m.threadId);
+      byThread[m.threadId] = m.id;
+    });
+    token = resp.nextPageToken || null;
+  } while (token && order.length < cap);
+  return { refs: order.slice(0, cap).map(function(t) { return { id: byThread[t], threadId: t }; }), capped: !!token || order.length > cap };
+}
+
+/**
+ * One message for the filter recommender: label names and the From, Subject and List-Id headers; the body only
+ * when withBody (kept in memory by the caller, never stored).
+ * @param {string} id Message id.
+ * @param {{withBody?:boolean, meter?:function(number)}} [opts] Options.
+ * @returns {{id:string, labels:string[], from:string, subject:string, listId:string, body:string}} Sample.
+ */
+function getMessageSample(id, opts) {
+  validateThreadId(id);
+  requireGmail_();
+  var o = opts || {};
+  if (o.meter) o.meter(GMAIL_UNITS_.messagesGet);
+  var m = o.withBody
+    ? Gmail.Users.Messages.get(GMAIL_ME_, id, { format: 'full' })
+    : Gmail.Users.Messages.get(GMAIL_ME_, id, { format: 'metadata', metadataHeaders: ['From', 'Subject', 'List-Id'] });
+  var idToName = {};
+  listLabels_().forEach(function(l) { idToName[l.id] = l.name; });
+  var h = (m.payload && m.payload.headers) || [];
+  return {
+    id: id,
+    labels: (m.labelIds || []).map(function(lid) { return idToName[lid] || lid; }),
+    from: header_(h, 'From'),
+    subject: header_(h, 'Subject'),
+    listId: header_(h, 'List-Id'),
+    body: o.withBody ? bodyText_(m.payload) : ''
+  };
+}
+
 global.DPGmailRepo = Object.freeze({
+  units: function() { return Object.freeze(Object.assign({}, GMAIL_UNITS_)); }, // HubController filter learner budget
+  listMessageRefs: listMessageRefs,     // HubController filter learner
+  getMessageSample: getMessageSample,   // HubController filter learner
   validateThreadId: validateThreadId,
   gmailUrl: gmailUrl,
   resolveLabelId: resolveLabelId,
