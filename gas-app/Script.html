@@ -2077,6 +2077,8 @@
       statusMenuDropUp: false,
       statusMenuPos: { top: null, bottom: null, left: null },
       statusOptions: STATUS_OPTIONS,
+      forwardPickTaskId: null,
+      forwardPickDate: '',
       dailyTaskSort: { column: null, direction: 'asc' },
       openNotesPopoverTaskId: null,
       notesPopoverCloseTimer: null,
@@ -6133,6 +6135,7 @@
 
       openStatusMenu(taskId, event) {
         clearTimeout(this.statusMenuCloseTimer);
+        if (this.openStatusMenuTaskId !== taskId) this.forwardPickTaskId = null;
         this.openStatusMenuTaskId = taskId;
         if (event && (event.currentTarget || event.target)) {
           var el = event.currentTarget || event.target;
@@ -6161,17 +6164,44 @@
       scheduleStatusMenuClose(taskId) {
         clearTimeout(this.statusMenuCloseTimer);
         this.statusMenuCloseTimer = setTimeout(() => {
-          if (this.openStatusMenuTaskId === taskId) this.openStatusMenuTaskId = null;
+          // The native calendar popup is outside the page, so moving the mouse into it must not
+          // close a menu whose date field is open.
+          if (this.openStatusMenuTaskId === taskId && this.forwardPickTaskId !== taskId) this.openStatusMenuTaskId = null;
         }, 250);
       },
 
-      async selectTaskStatus(task, newStatus) {
+      async selectTaskStatus(task, newStatus, forwardDate = null) {
         clearTimeout(this.statusMenuCloseTimer);
         this.openStatusMenuTaskId = null;
-        await this.setTaskStatus(task, newStatus);
+        this.forwardPickTaskId = null;
+        await this.setTaskStatus(task, newStatus, forwardDate);
       },
 
-      async setTaskStatus(task, newStatus) {
+      // Label for the one-click Forward item in the daily status menu, naming its real target.
+      forwardMenuLabel() {
+        return `Forward to ${this.relativeDayLabel(this.forwardTargetDate(this.selectedDate))}`;
+      },
+
+      // "Forward to date…" shows a date field in the daily status menu, prefilled with the
+      // default target, which is also the earliest allowed date.
+      openForwardPicker(task) {
+        clearTimeout(this.statusMenuCloseTimer);
+        this.forwardPickTaskId = task.id;
+        this.forwardPickDate = this.forwardTargetDate(this.selectedDate);
+      },
+
+      // A typed date can bypass the input min, so the submit checks it again.
+      isForwardPickValid() {
+        const date = this.forwardPickDate || '';
+        return /^\d{4}-\d{2}-\d{2}$/.test(date) && date >= this.forwardTargetDate(this.selectedDate);
+      },
+
+      async submitForwardPick(task) {
+        if (!this.isForwardPickValid()) return;
+        await this.selectTaskStatus(task, '→', this.forwardPickDate);
+      },
+
+      async setTaskStatus(task, newStatus, forwardDate = null) {
         if (!isValidStatus(newStatus)) {
           console.error(`🔥 setTaskStatus: ignoring invalid status "${newStatus}"`);
           return;
@@ -6183,7 +6213,7 @@
         // A linked master/daily pair mirrors status either direction, so every copy moves (and
         // rolls back) together.
         this.statusCopies(task, isMaster).forEach(t => { t.status = newStatus; });
-        const targetDate = (!isMaster && newStatus === '→') ? this.forwardTargetDate(dateStr) : null;
+        const targetDate = (!isMaster && newStatus === '→') ? (forwardDate || this.forwardTargetDate(dateStr)) : null;
         // Serialized per task (key task-status:<id>): one write in flight; a status picked
         // meanwhile replaces the queued one. A failure rolls back to the last value Google
         // confirmed, never to an earlier unconfirmed pick. Caches only ever get confirmed values.
@@ -6263,18 +6293,19 @@
             }
           }
         }
-        this.reportError(key, message, { retry: duplicated ? null : () => this.retryTaskStatus(task.id, dateStr, key) });
+        this.reportError(key, message, { retry: duplicated ? null : () => this.retryTaskStatus(task.id, dateStr, key, targetDate) });
       },
 
-      // Re-sends the latest status submitted for the task (looked up by id in the live lists).
-      retryTaskStatus(taskId, dateStr, key) {
+      // Re-sends the latest status submitted for the task (looked up by id in the live lists),
+      // to the same forward date when that status is Forward.
+      retryTaskStatus(taskId, dateStr, key, targetDate = null) {
         const status = this.saveQueue.latest(key);
         const task = this.masterTasks.find(t => t.id === taskId) ||
           (dateStr === this.selectedDate ? this.dailyTasks.find(t => t.id === taskId) : null);
         if (!task || !isValidStatus(status)) {
           throw new Error(`that task is not on the open page; open ${dateStr} and set its status again.`);
         }
-        return this.setTaskStatus(task, status);
+        return this.setTaskStatus(task, status, status === '→' ? targetDate : null);
       },
 
       // Re-reads one day from Google as the source of truth after a failed multi-step write.
@@ -6317,6 +6348,15 @@
         }, 4000);
       },
 
+      // "today", "tomorrow", or "Wed, Oct 21" for a YYYY-MM-DD date, relative to the real today.
+      relativeDayLabel(dateStr) {
+        const todayStr = getLocalDateStr();
+        if (dateStr === todayStr) return 'today';
+        if (dateStr === this.forwardTargetDate(todayStr)) return 'tomorrow';
+        const [y, m, d] = dateStr.split('-').map(Number);
+        return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      },
+
       // Past days forward to today; today and later forward to the next day.
       forwardTargetDate(sourceDate) {
         const todayStr = getLocalDateStr();
@@ -6332,7 +6372,6 @@
       // user-facing error, so a failed forward can never be cached or toasted as done.
       async forwardDailyTask(task, explicitTargetDate = null, sourceDate = this.selectedDate) {
         if (!task || !task.id) throw new Error('Not saved: no task to forward.');
-        const todayStr = getLocalDateStr();
         const targetDate = explicitTargetDate || this.forwardTargetDate(sourceDate);
 
         const res = await dpCallBridge(this.bridge, [['forwardDailyTask', [sourceDate, task.id, targetDate]]], 'task forward');
@@ -6347,8 +6386,7 @@
         }
         const parsed = this.parseTask(task.title);
         const cleanTitle = parsed.cleanTitle || task.title;
-        const displayDest = targetDate === todayStr ? 'Today' : targetDate;
-        this.showTaskToast(`Forwarded "${cleanTitle}" to ${displayDest}`);
+        this.showTaskToast(`Forwarded "${cleanTitle}" to ${this.relativeDayLabel(targetDate)}`);
       },
 
       async toggleTaskStatus(task) {

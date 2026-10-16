@@ -1784,6 +1784,36 @@
     background: #fff5f5;
   }
 
+  /* "Forward to date…" in the daily status menu: the date field and its confirm button. */
+  .status-menu-group {
+    display: contents;
+  }
+
+  .forward-pick {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px 6px 36px;
+  }
+
+  .forward-pick-btn {
+    height: 26px;
+    padding: 0 10px;
+    border: none;
+    border-radius: 4px;
+    background: var(--binder-teal, #2d6a5a);
+    color: #ffffff;
+    font-family: inherit;
+    font-size: 0.76rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .forward-pick-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
   .status-menu-item-delete:hover .status-menu-item-glyph-delete {
     background: #fee2e2;
     border-color: #b91c1c;
@@ -5502,6 +5532,11 @@
     background: #2d1515 !important;
     color: #f87171 !important;
     border-color: #7f1d1d !important;
+  }
+
+  [data-theme="dark"] .forward-pick-btn {
+    background: #79d6bd !important;
+    color: #11241c !important;
   }
 
   [data-theme="dark"] .notes-popover {

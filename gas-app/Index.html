@@ -389,13 +389,32 @@
                           <div class="status-menu" :class="{ 'dropup': statusMenuDropUp, 'dropdown-down': !statusMenuDropUp }" role="menu" x-cloak
                                :style="statusMenuStyle(task.id)">
                             <template x-for="opt in statusOptions" :key="opt.value">
-                              <button type="button" class="status-menu-item" role="menuitem"
-                                      :class="{ 'is-active': (task.status || '•') === opt.value }"
-                                      @click="selectTaskStatus(task, opt.value)"
-                                      :aria-label="'Set status: ' + opt.label">
-                                <span class="status-menu-item-glyph" x-text="opt.value"></span>
-                                <span x-text="opt.label"></span>
-                              </button>
+                              <div class="status-menu-group" role="none">
+                                <button type="button" class="status-menu-item" role="menuitem"
+                                        :class="{ 'is-active': (task.status || '•') === opt.value }"
+                                        @click="selectTaskStatus(task, opt.value)"
+                                        :aria-label="'Set status: ' + (opt.value === '→' ? forwardMenuLabel() : opt.label)">
+                                  <span class="status-menu-item-glyph" x-text="opt.value"></span>
+                                  <span x-text="opt.value === '→' ? forwardMenuLabel() : opt.label"></span>
+                                </button>
+                                <template x-if="opt.value === '→'">
+                                  <div class="status-menu-group" role="none">
+                                    <button type="button" class="status-menu-item" role="menuitem"
+                                            :class="{ 'is-active': forwardPickTaskId === task.id }"
+                                            @click="openForwardPicker(task); $nextTick(() => $el.parentElement.querySelector('.forward-pick-input').focus())"
+                                            :aria-expanded="forwardPickTaskId === task.id"
+                                            aria-label="Forward to a date you choose">
+                                      <span class="status-menu-item-glyph"><span class="material-symbols-outlined icon-14">event</span></span>
+                                      <span>Forward to date…</span>
+                                    </button>
+                                    <div class="forward-pick" role="group" aria-label="Forward to date" x-show="forwardPickTaskId === task.id">
+                                      <input type="date" class="master-task-date-input forward-pick-input" x-model="forwardPickDate" :min="forwardTargetDate(selectedDate)"
+                                             aria-label="Forward date" @keydown.enter.prevent="submitForwardPick(task)">
+                                      <button type="button" class="forward-pick-btn" :disabled="!isForwardPickValid()" @click="submitForwardPick(task)">Forward</button>
+                                    </div>
+                                  </div>
+                                </template>
+                              </div>
                             </template>
                             <div class="status-menu-separator" role="separator"></div>
                             <button type="button" class="status-menu-item status-menu-item-delete" role="menuitem"
