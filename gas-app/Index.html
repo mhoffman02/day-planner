@@ -1316,12 +1316,17 @@
               </span>
             </p>
             <div class="hub-mode-control" x-show="showTriageNav">
-              <span class="hub-mode-badge" :class="hubDryRun ? 'is-trial' : 'is-live'" :title="hubDryRun ? 'Trial mode: nothing changes in Gmail, Tasks or Docs' : 'Live: Triage actions change your real Gmail, Tasks and Docs'">
-                <span class="material-symbols-outlined icon-18" aria-hidden="true" x-text="hubDryRun ? 'science' : 'bolt'"></span>
-                <span x-text="hubDryRun ? 'Trial mode' : 'Live'"></span>
+              <span class="hub-mode-badge is-trial" x-show="hubDryRun" title="Trial mode: nothing changes in Gmail, Tasks or Docs">
+                <span class="material-symbols-outlined icon-18" aria-hidden="true">science</span>
+                <span>Trial mode</span>
               </span>
               <button type="button" class="btn-secondary hub-mode-btn" x-show="hubDryRun &amp;&amp; !hubTrialBannerVisible" @click="openGoLive($event)">Go live</button>
-              <button type="button" class="btn-secondary hub-mode-btn" x-show="!hubDryRun" @click="switchToTrial()">Switch to trial</button>
+              <span class="hub-live-quiet" x-show="!hubDryRun" tabindex="0" role="status"
+                    title="Planner is live. Triage actions change your real Gmail, Tasks and Docs. Switch to trial on the About page."
+                    @click="hubLiveInfo = !hubLiveInfo" @keydown.enter.prevent="hubLiveInfo = !hubLiveInfo" @blur="hubLiveInfo = false">
+                <span class="hub-live-dot" aria-hidden="true"></span>
+                <span x-text="hubLiveInfo ? 'Planner is live. Switch to trial on the About page.' : 'Live'"></span>
+              </span>
             </div>
             <button type="button" class="btn-secondary hub-refresh-btn" @click="refreshTriage()" :disabled="triageLoading || gmailCoolingDown" x-show="showTriageNav">Refresh</button>
           </header>
@@ -1429,12 +1434,17 @@
               Meeting Prep
             </h2>
             <div class="hub-mode-control" x-show="showMeetingPrepNav">
-              <span class="hub-mode-badge" :class="hubDryRun ? 'is-trial' : 'is-live'" :title="hubDryRun ? 'Trial mode: nothing changes in Gmail, Tasks or Docs' : 'Live: Triage actions change your real Gmail, Tasks and Docs'">
-                <span class="material-symbols-outlined icon-18" aria-hidden="true" x-text="hubDryRun ? 'science' : 'bolt'"></span>
-                <span x-text="hubDryRun ? 'Trial mode' : 'Live'"></span>
+              <span class="hub-mode-badge is-trial" x-show="hubDryRun" title="Trial mode: nothing changes in Gmail, Tasks or Docs">
+                <span class="material-symbols-outlined icon-18" aria-hidden="true">science</span>
+                <span>Trial mode</span>
               </span>
               <button type="button" class="btn-secondary hub-mode-btn" x-show="hubDryRun &amp;&amp; !hubTrialBannerVisible" @click="openGoLive($event)">Go live</button>
-              <button type="button" class="btn-secondary hub-mode-btn" x-show="!hubDryRun" @click="switchToTrial()">Switch to trial</button>
+              <span class="hub-live-quiet" x-show="!hubDryRun" tabindex="0" role="status"
+                    title="Planner is live. Triage actions change your real Gmail, Tasks and Docs. Switch to trial on the About page."
+                    @click="hubLiveInfo = !hubLiveInfo" @keydown.enter.prevent="hubLiveInfo = !hubLiveInfo" @blur="hubLiveInfo = false">
+                <span class="hub-live-dot" aria-hidden="true"></span>
+                <span x-text="hubLiveInfo ? 'Planner is live. Switch to trial on the About page.' : 'Live'"></span>
+              </span>
             </div>
             <button type="button" class="btn-secondary hub-refresh-btn" @click="refreshMeetingPrep()" :disabled="meetingPrepLoading" x-show="showMeetingPrepNav">Refresh</button>
           </header>

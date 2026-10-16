@@ -1308,12 +1308,17 @@
               </span>
             </p>
             <div class="hub-mode-control" x-show="showTriageNav">
-              <span class="hub-mode-badge" :class="hubDryRun ? 'is-trial' : 'is-live'" :title="hubDryRun ? 'Trial mode: nothing changes in Gmail, Tasks or Docs' : 'Live: Triage actions change your real Gmail, Tasks and Docs'">
-                <span class="material-symbols-outlined icon-18" aria-hidden="true" x-text="hubDryRun ? 'science' : 'bolt'"></span>
-                <span x-text="hubDryRun ? 'Trial mode' : 'Live'"></span>
+              <span class="hub-mode-badge is-trial" x-show="hubDryRun" title="Trial mode: nothing changes in Gmail, Tasks or Docs">
+                <span class="material-symbols-outlined icon-18" aria-hidden="true">science</span>
+                <span>Trial mode</span>
               </span>
               <button type="button" class="btn-secondary hub-mode-btn" x-show="hubDryRun &amp;&amp; !hubTrialBannerVisible" @click="openGoLive($event)">Go live</button>
-              <button type="button" class="btn-secondary hub-mode-btn" x-show="!hubDryRun" @click="switchToTrial()">Switch to trial</button>
+              <span class="hub-live-quiet" x-show="!hubDryRun" tabindex="0" role="status"
+                    title="Planner is live. Triage actions change your real Gmail, Tasks and Docs. Switch to trial on the About page."
+                    @click="hubLiveInfo = !hubLiveInfo" @keydown.enter.prevent="hubLiveInfo = !hubLiveInfo" @blur="hubLiveInfo = false">
+                <span class="hub-live-dot" aria-hidden="true"></span>
+                <span x-text="hubLiveInfo ? 'Planner is live. Switch to trial on the About page.' : 'Live'"></span>
+              </span>
             </div>
             <button type="button" class="btn-secondary hub-refresh-btn" @click="refreshTriage()" :disabled="triageLoading || gmailCoolingDown" x-show="showTriageNav">Refresh</button>
           </header>
@@ -1421,12 +1426,17 @@
               Meeting Prep
             </h2>
             <div class="hub-mode-control" x-show="showMeetingPrepNav">
-              <span class="hub-mode-badge" :class="hubDryRun ? 'is-trial' : 'is-live'" :title="hubDryRun ? 'Trial mode: nothing changes in Gmail, Tasks or Docs' : 'Live: Triage actions change your real Gmail, Tasks and Docs'">
-                <span class="material-symbols-outlined icon-18" aria-hidden="true" x-text="hubDryRun ? 'science' : 'bolt'"></span>
-                <span x-text="hubDryRun ? 'Trial mode' : 'Live'"></span>
+              <span class="hub-mode-badge is-trial" x-show="hubDryRun" title="Trial mode: nothing changes in Gmail, Tasks or Docs">
+                <span class="material-symbols-outlined icon-18" aria-hidden="true">science</span>
+                <span>Trial mode</span>
               </span>
               <button type="button" class="btn-secondary hub-mode-btn" x-show="hubDryRun &amp;&amp; !hubTrialBannerVisible" @click="openGoLive($event)">Go live</button>
-              <button type="button" class="btn-secondary hub-mode-btn" x-show="!hubDryRun" @click="switchToTrial()">Switch to trial</button>
+              <span class="hub-live-quiet" x-show="!hubDryRun" tabindex="0" role="status"
+                    title="Planner is live. Triage actions change your real Gmail, Tasks and Docs. Switch to trial on the About page."
+                    @click="hubLiveInfo = !hubLiveInfo" @keydown.enter.prevent="hubLiveInfo = !hubLiveInfo" @blur="hubLiveInfo = false">
+                <span class="hub-live-dot" aria-hidden="true"></span>
+                <span x-text="hubLiveInfo ? 'Planner is live. Switch to trial on the About page.' : 'Live'"></span>
+              </span>
             </div>
             <button type="button" class="btn-secondary hub-refresh-btn" @click="refreshMeetingPrep()" :disabled="meetingPrepLoading" x-show="showMeetingPrepNav">Refresh</button>
           </header>
@@ -1496,6 +1506,18 @@
       <span class="install-btn-text">Install Day Planner</span>
     </button>
   </header>
+
+  <section class="about-mode-row" aria-label="Triage mode" x-show="showTriageNav || showMeetingPrepNav" x-cloak>
+    <p x-show="!hubDryRun">
+      <span class="hub-live-dot" aria-hidden="true"></span>
+      Planner is live. Triage actions change your real Gmail, Tasks and Docs.
+      <button type="button" class="hub-link-btn" @click="switchToTrial()">Switch to trial</button>
+    </p>
+    <p x-show="hubDryRun">
+      Trial mode: nothing changes in Gmail, Tasks or Docs.
+      <button type="button" class="hub-link-btn" @click="openGoLive($event)">Go live</button>
+    </p>
+  </section>
 
   <nav class="about-toc" aria-label="On this page" x-data="{ jump(id) { const el = document.getElementById(id); const box = el &amp;&amp; el.closest('.about-view-container'); if (!box) return; box.scrollTo({ top: box.scrollTop + el.getBoundingClientRect().top - box.getBoundingClientRect().top - 56, behavior: 'smooth' }); } }">
     <button type="button" class="about-toc-link about-toc-tutorial" @click="setView('tutorial')" title="Hands-on exercises that double as an acceptance checklist">Tutorial &rsaquo;</button>
@@ -1780,7 +1802,7 @@
           The hub checks your 🎯 labels every few minutes, once its schedule is installed. Each email is handled once, so leaving the label on is safe. Other 🎯 labels (Read, Review, Meeting, NCMMS-Daily) are recognized but don't do anything yet.
         </p>
         <p class="guide-card-text">
-          <b>Turning it on:</b> the first time the app opens, it creates the <i>Day Planner Hub Config</i> Sheet in your Day Planner folder, turns on <code>GMAIL_ROUTER</code> and <code>TRIAGE_BOARD</code> in trial mode (<code>DRY_RUN</code> TRUE), and installs the hub schedule. The settings live in that Sheet’s <b>Config</b> tab. Check the trial run on the Triage tab, then click <b>Review and go live</b> in the Trial mode banner (or set <code>DRY_RUN</code> to FALSE in the Sheet). <b>Switch to trial</b> in the Triage header turns it back on. While <code>DRY_RUN</code> is TRUE, the hub only reports what it <i>would</i> do. Set <code>NCMMS_CORE_PILOT</code> to TRUE to show the Meeting Prep tab. The <b>Meeting Registry</b> tab lists your recurring meetings and their notes Docs.
+          <b>Turning it on:</b> the first time the app opens, it creates the <i>Day Planner Hub Config</i> Sheet in your Day Planner folder, turns on <code>GMAIL_ROUTER</code> and <code>TRIAGE_BOARD</code> in trial mode (<code>DRY_RUN</code> TRUE), and installs the hub schedule. The settings live in that Sheet’s <b>Config</b> tab. Check the trial run on the Triage tab, then click <b>Review and go live</b> in the Trial mode banner (or set <code>DRY_RUN</code> to FALSE in the Sheet). Once live, the Triage and Meeting Prep headers show only a quiet <b>Live</b> mark; <b>Switch to trial</b> at the top of this About page turns trial mode back on. While <code>DRY_RUN</code> is TRUE, the hub only reports what it <i>would</i> do. Set <code>NCMMS_CORE_PILOT</code> to TRUE to show the Meeting Prep tab. The <b>Meeting Registry</b> tab lists your recurring meetings and their notes Docs.
         </p>
         <div class="guide-card-text hub-sheet-link" x-data="{
             hubLink: { state: 'loading', url: null, error: '' },

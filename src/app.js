@@ -318,6 +318,7 @@ Alpine.data('plannerApp', () => ({
       hubTrialHiddenOn: '',
       goLive: { open: false, busy: false, opener: null },
       hubModeSnack: null,
+      hubLiveInfo: false,
       hubModeSnackTimer: null,
       hubSnippetOpenId: '',
       hubLastRun: null,

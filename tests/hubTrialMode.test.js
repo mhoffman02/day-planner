@@ -50,6 +50,22 @@ for (const file of ['index.html', 'gas-app/Index.html']) {
     assert.match(html, /role="alertdialog"[^>]*aria-labelledby="goLiveTitle"/);
     assert.match(html, /x-ref="goLiveCancel"/);
     assert.match(html, /@click="switchToTrial\(\)">Undo</);
-    assert.equal((html.match(/@click="switchToTrial\(\)">Switch to trial</g) || []).length, 2, 'Triage and Meeting Prep headers');
+    // Live is the normal state: the headers show a quiet mark, never a loud badge or a switch.
+    assert.equal((html.match(/class="hub-live-quiet"/g) || []).length, 2, 'quiet live mark in Triage and Meeting Prep headers');
+    const headers = html.match(/<div class="hub-mode-control"[\s\S]*?<\/div>/g) || [];
+    assert.equal(headers.length, 2);
+    for (const h of headers) {
+      assert.doesNotMatch(h, /switchToTrial\(\)/, 'no Switch to trial in a header');
+      assert.match(h, /x-show="hubDryRun"/, 'the loud badge shows in trial mode only');
+    }
   });
 }
+
+test('About carries the one Switch to trial, in a quiet Triage mode row', () => {
+  for (const file of ['gas-app/About.html', 'index.html']) {
+    const html = read(file);
+    assert.equal((html.match(/@click="switchToTrial\(\)">Switch to trial</g) || []).length, 1, file);
+    assert.match(html, /class="about-mode-row"/, file);
+  }
+  assert.doesNotMatch(read('gas-app/Index.html'), /@click="switchToTrial\(\)">Switch to trial</);
+});

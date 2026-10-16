@@ -6199,9 +6199,47 @@
     background: #fff6e0;
   }
 
-  .hub-mode-badge.is-live {
-    color: #2d6a5a;
-    background: #e6f2ee;
+  /* Live is the normal state: a quiet mark, no box. Tap or focus shows the full sentence. */
+  .hub-live-quiet {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #5f6b68;
+    font-size: 0.78rem;
+    cursor: default;
+    border-radius: 4px;
+    padding: 2px 4px;
+  }
+
+  .hub-live-quiet:focus-visible {
+    outline: 2px solid var(--binder-teal, #2d6a5a);
+    outline-offset: 2px;
+  }
+
+  /* Status light: a small square, per the no-pills rule (no circles). */
+  .hub-live-dot {
+    display: inline-block;
+    flex: 0 0 auto;
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    background: #2e9d6f;
+  }
+
+  .about-mode-row {
+    margin: 0 0 12px;
+    padding: 8px 12px;
+    border-left: 3px solid var(--binder-teal, #2d6a5a);
+    color: #5f6b68;
+    font-size: 0.85rem;
+  }
+
+  .about-mode-row p {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
   }
 
   [data-theme="dark"] .hub-mode-badge.is-trial {
@@ -6209,9 +6247,13 @@
     background: rgba(245, 194, 107, 0.12);
   }
 
-  [data-theme="dark"] .hub-mode-badge.is-live {
-    color: #9fdcc9;
-    background: rgba(159, 220, 201, 0.12);
+  [data-theme="dark"] .hub-live-quiet,
+  [data-theme="dark"] .about-mode-row {
+    color: #9fb5ad !important;
+  }
+
+  [data-theme="dark"] .hub-live-dot {
+    background: #5fd3a5 !important;
   }
 
   .hub-link-btn {
