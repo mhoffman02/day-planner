@@ -24,8 +24,8 @@ Most items need the user (GSA account, a release go, or a decision). HOME live c
 - [ ] **Live check on HOME `/dev`** (agent; the ensure-chrome profile is signed in as of 2026-10-16): Daily Forward
   makes a copy; Delegate… with owner + tomorrow makes the "Check back:" task; Master undated Forward to next week
   then Undo; Master Delegate; Undo on each. Use a throwaway task, delete it after.
-- [ ] **OVERDUE (was due 2026-10-17): 7-day Testing expiry** (agent probes first): run `npm run rpc -- runSelfTest
-  --deploy`; if the token is dead, the user reruns the rpc login. Then check the web app and the 5-min sync trigger.
+- [ ] **OVERDUE (was due 2026-10-17): 7-day Testing expiry** (agent probes first): run `npm run rpc -- runSelfTest`
+  (no `--deploy`, which pushes and repoints); if the token is dead, the user reruns the rpc login. Then check the web app and the 5-min sync trigger.
 - [ ] **Delete the test appointment** "Day Planner e2e test - safe to delete" (HOME calendar, 2026-10-30 14:00, has a
   Meet link). The app has no event-delete RPC, so it was left for you.
 - [ ] **Other test data you may want to clear**: the "Hub L6 forced-failure test" email and the Task it created in
