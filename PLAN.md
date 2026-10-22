@@ -41,7 +41,7 @@ the GSA account, a release go, or a consent-screen decision. Checklist in [`TODO
 - [x] **WORK catch-up**: WORK v145 (build 483) live 2026-10-13: About rewrite, trial-mode controls, Triage preview,
   speed, Gmail-quota throttle + historyId row cache, Inbox only (TODO_HISTORY 2026-10-13).
 - [x] **Consent screen**: stay in Testing (decided 2026-10-10); rpc token dies every 7 days, next 2026-10-17.
-- [ ] **7-day Testing expiry watch**: rerun the rpc login on 2026-10-17 and check the web app and sync trigger still authorize.
+- [ ] **7-day Testing expiry watch (OVERDUE, was 2026-10-17)**: probe with `npm run rpc`; if dead, the user reruns the rpc login, then check the web app and sync trigger.
 - Out of scope: Gemini discovery/actions (Phase 6 build), USAi (Phase 7).
 - [x] **Task verbs + Master parity + speed** (2026-10-16): Forward menu, Delegate with check-back, Master Tasks get
   every Daily verb, Daily forward routing fix, quiet Live mark, Master tab speed (TODO_HISTORY 2026-10-16).
@@ -53,10 +53,11 @@ the GSA account, a release go, or a consent-screen decision. Checklist in [`TODO
 
 ### Phase 31: Search polish (In progress)
 User-requested follow-ups from the 2026-10-22 search work. Checklist in [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md).
-- [ ] `/` hotkey for the Master Tasks filter box.
+- [ ] `/` hotkey for the Master Tasks filter box (needs a user decision: `/` already opens universal search).
 - [ ] Status and due date in universal search task results.
 - [ ] Dedupe task results that appear in both Today and Master.
-- **Next agent work:** Phase 31 in order; then the HOME `/dev` live check of Forward/Delegate (Phase 30, TODO.md).
+- **Next agent work:** ask the user about `/`; Phase 31 items 2 and 3 (item 1 once decided); then the overdue rpc
+  expiry probe and the HOME `/dev` live checks of Forward/Delegate and trial-mode controls (Phase 30, TODO.md).
 
 ---
 

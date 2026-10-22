@@ -6,11 +6,14 @@ User asked for these three next (2026-10-22), in this order. Shared matcher: `ma
 `src/searchEngine.js` + its mirror in `gas-app/Script.html`; Master filter state in both clients.
 
 - [ ] **`/` focuses the Master Tasks filter box** (Gmail convention) when Master Tasks is the active view and focus
-  is not already in an input. First grep every keydown handler for the universal-search hotkey and any `/` use.
+  is not already in an input. **Ask the user first:** `/` already opens universal search in both clients
+  (`setupKeyboardShortcuts`: `src/app.js` ~line 924, `gas-app/Script.html` ~line 2713). Proposed default: on Master
+  Tasks only, `/` focuses the filter box; Ctrl+K and Ctrl+Shift+F still open universal search everywhere.
 - [ ] **Status and due date in universal search task results**: the snippet shows the status glyph and a due date
   (or "Undated") so similar titles can be told apart before clicking.
 - [ ] **Dedupe task results** when the same task id comes back from both `dailyTasks` and `masterTasks`: one result
-  per id. Dedupe only; never route by id membership (see memory on Master/Daily same ids).
+  per id. Keep the first copy (Daily is searched first); its `targetView` still comes from the task's own fields
+  (`!dueDate || master`), never from which list it came from or id membership (see memory on Master/Daily same ids).
 
 ## Phase 30: WORK promotion & user-gated release items
 
@@ -21,8 +24,8 @@ Most items need the user (GSA account, a release go, or a decision). HOME live c
 - [ ] **Live check on HOME `/dev`** (agent; the ensure-chrome profile is signed in as of 2026-10-16): Daily Forward
   makes a copy; Delegate… with owner + tomorrow makes the "Check back:" task; Master undated Forward to next week
   then Undo; Master Delegate; Undo on each. Use a throwaway task, delete it after.
-- [ ] **Watch the 7-day Testing expiry** (2026-10-17): rerun the rpc login, check the web app and the 5-min sync
-  trigger still authorize.
+- [ ] **OVERDUE (was due 2026-10-17): 7-day Testing expiry** (agent probes first): run `npm run rpc -- runSelfTest
+  --deploy`; if the token is dead, the user reruns the rpc login. Then check the web app and the 5-min sync trigger.
 - [ ] **Delete the test appointment** "Day Planner e2e test - safe to delete" (HOME calendar, 2026-10-30 14:00, has a
   Meet link). The app has no event-delete RPC, so it was left for you.
 - [ ] **Other test data you may want to clear**: the "Hub L6 forced-failure test" email and the Task it created in

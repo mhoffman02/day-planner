@@ -1,5 +1,5 @@
-<!-- handoff: branch=worktree-meet-link-hover worktree=/home/mike/projects/day-planner/.claude/worktrees/meet-link-hover base=22d409a2675e written=2026-10-22T07:54:57-07:00 -->
-# Resume: Phase 31 search polish (`/` hotkey, status + due in results, dedupe); appointments + search shipped, WORK v165 verified
+<!-- handoff: branch=worktree-meet-link-hover worktree=/home/mike/projects/day-planner/.claude/worktrees/meet-link-hover base=e622d6bc8578 written=2026-10-22T08:37:36-07:00 -->
+# Resume: Phase 31 search polish (`/` decision, status + due in results, dedupe); appointments + search shipped, WORK v165 verified
 
 > **WARNING: written on branch `worktree-meet-link-hover`** (worktree
 > `/home/mike/projects/day-planner/.claude/worktrees/meet-link-hover`), not `pure-gas-main`. The handoff commit is
@@ -7,12 +7,15 @@
 > `pure-gas-main` is the working branch (CLAUDE.md rule 5). `master` has diverged on purpose; don't merge into it.
 
 **Verify first:** `git fetch -q; git log --branches --remotes -1 --abbrev=12 --format='%h %p %cI' -- HANDOFF.md`.
-Stale if that commit is dated after `2026-10-22T07:54:57-07:00` **and** its parent isn't `22d409a2675e`; then read
-that commit's `HANDOFF.md` instead and tell the user. `git log --oneline 22d409a2675e..origin/pure-gas-main` shows
-anything that landed after this prompt (only the handoff commit is expected).
+Stale if that commit is dated after `2026-10-22T08:37:36-07:00` **and** its parent isn't `e622d6bc8578`; then read
+that commit's `HANDOFF.md` instead and tell the user. `git log --oneline e622d6bc8578..origin/pure-gas-main` shows
+anything that landed after this prompt (only the handoff-fix commit is expected).
 
-**Start by:** grep every keydown handler in `src/app.js` and `gas-app/Script.html` for the universal-search hotkey and
-any `/` binding, then build Phase 31 item 1 (`/` focuses the Master Tasks filter box) red test first, in both clients.
+**Start by:** ask the user to decide Phase 31 item 1: `/` **already opens universal search** in both clients
+(`setupKeyboardShortcuts`: [`src/app.js:924`](file:///home/mike/projects/day-planner/src/app.js#L924),
+[`gas-app/Script.html:2713`](file:///home/mike/projects/day-planner/gas-app/Script.html#L2713)). Proposed default: on
+Master Tasks only, `/` focuses the filter box; Ctrl+K and Ctrl+Shift+F still open universal search everywhere. While
+waiting, build item 2 red test first, in both clients.
 
 This session shipped, all verified by the user on WORK v165 and live on HOME @336: the appointment hover note's Meet
 link is a clickable "Google Meet" link; RSVP read + write (Going? Yes / No / Maybe in the popup and hover note,
@@ -22,12 +25,18 @@ searches, shown as small radio toggles.
 
 - What changed: `TODO_HISTORY.md`, 2026-10-22 entry.
 - Still open, Phase 31 in `TODO.md` (in order, user-requested):
-  1. `/` focuses the Master Tasks filter box when Master is active and focus is not in an input.
-  2. Status glyph + due date (or "Undated") in universal search task result snippets.
-  3. Dedupe task results by id when a task comes from both `dailyTasks` and `masterTasks` (dedupe only, never route
-     by id membership).
+  1. `/` focuses the Master Tasks filter box: **user decision first** (see Start by).
+  2. Status glyph + due date (or "Undated") in universal search task result snippets (task block of
+     `executeUniversalSearch`, [`src/searchEngine.js:142`](file:///home/mike/projects/day-planner/src/searchEngine.js#L142)).
+  3. Dedupe task results by id when a task comes from both `dailyTasks` and `masterTasks`. Keep the first copy (Daily
+     is searched first); `targetView` still comes from the task's own fields (`!dueDate || master`), never from which
+     list it came from or id membership.
+- Then agent work in Phase 30 (`TODO.md`):
+  - **Overdue since 2026-10-17:** the 7-day rpc token. Probe with `npm run rpc -- runSelfTest --deploy`; if it is dead,
+    the user reruns the rpc login.
+  - HOME `/dev` live checks: Forward/Delegate (Daily + Master, Undo), and trial-mode controls.
+- User-gated Phase 30 items: Filter Suggestions paste, WORK Meeting Prep, WORK trial mode off, UAT run, test data cleanup.
 - Key code: `matchesSearchQuery` / `executeUniversalSearch` in `src/searchEngine.js`, mirrored in `gas-app/Script.html`;
   tests in `tests/searchMatchMode.test.js` (both clients + both Index copies).
 - Every gas-app push: `clasp push --force` + `clasp deploy -i <HOME id> -d "Day Planner v1"`, then `npm run push:work`
   once, then tell the user "Update WORK". Stop test servers by background task id, never `pkill`.
-- User-gated Phase 30 items remain in `TODO.md` (Filter Suggestions paste, WORK Meeting Prep, UAT run).
