@@ -1,4 +1,4 @@
-<!-- handoff: branch=worktree-meet-link-hover worktree=/home/mike/projects/day-planner/.claude/worktrees/meet-link-hover base=a99d8240668a written=2026-10-22T09:12:39-07:00 -->
+<!-- handoff: branch=worktree-meet-link-hover worktree=/home/mike/projects/day-planner/.claude/worktrees/meet-link-hover base=3bd0e13b6ac9 written=2026-10-22T09:16:29-07:00 -->
 # Resume: Phase 31 search polish (`/` decision, status + due in results, dedupe); appointments + search shipped, WORK v165 verified
 
 > **WARNING: written on branch `worktree-meet-link-hover`** (worktree
@@ -7,8 +7,8 @@
 > `pure-gas-main` is the working branch (CLAUDE.md rule 5). `master` has diverged on purpose; don't merge into it.
 
 **Verify first:** `git fetch -q; git log --branches --remotes -1 --abbrev=12 --format='%h %p %cI' -- HANDOFF.md`.
-Stale if that commit is dated after `2026-10-22T09:12:39-07:00` **and** its parent isn't `a99d8240668a`; then read
-that commit's `HANDOFF.md` instead and tell the user. `git log --oneline a99d8240668a..origin/pure-gas-main` shows
+Stale if that commit is dated after `2026-10-22T09:16:29-07:00` **and** its parent isn't `3bd0e13b6ac9`; then read
+that commit's `HANDOFF.md` instead and tell the user. `git log --oneline 3bd0e13b6ac9..origin/pure-gas-main` shows
 anything that landed after this prompt (only this restamp commit is expected).
 
 **Start by:** ask the user to decide Phase 31 item 1: `/` **already opens universal search** in both clients
