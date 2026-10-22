@@ -24,28 +24,24 @@ Do not wait for re-invocation between iterations. Stop only per "When to stop".
 
 ## 2. TIER
 
-Follow [[subagent-model-cost]] (`.agents/rules/subagent-model-cost.md`). Pick the cheapest tier expected to pass the first time; set model AND effort explicitly, never inherit.
-
-| Tier | Model / effort | Use |
-| :--- | :--- | :--- |
-| `lite` | haiku / low | grep sweeps, summaries, stale-marker fixes, doc pointer checks, simple renames |
-| `worker` | sonnet / medium | lint/catch sweeps, tests to a clear spec, wiring, bounded bug fixes |
-| `deep` | opus / high | architecture, OAuth/security, adversarial review, subtle data-loss/concurrency |
-
-- Spawn with `subagent_type: "lite" | "worker" | "deep"` when those agents exist (they pin model + effort). Else fall back to `general-purpose` with explicit `model` (`haiku`/`sonnet`/`opus`) and say effort in the prompt.
-- State tier and a one-line reason at each dispatch.
-- Retry one tier up ONLY when the exit test fails. Do not start high "to be safe".
+Per [[subagent-model-cost]] (always loaded): spawn `subagent_type: "lite" | "worker" | "deep"` (they pin model and
+effort; never `general-purpose` with only a model while they exist). Tier agents missing → `general-purpose`
+with an explicit `model` and the effort stated in the prompt. Cheapest tier expected to pass first time; state tier and a
+one-line reason at each dispatch; retry one tier up ONLY when the exit test fails.
 
 ## 3. DISPATCH
 
-Gather what the subagent needs first: file paths, line numbers, why, what was tried, what not to touch, and the rules that apply (name them; a fresh agent does not inherit your context). Do not forward a raw bullet as the prompt.
+Gather what the subagent needs first: file paths, line numbers, why, what was tried, what not to touch, and the
+rules that apply by name (a fresh agent does not inherit your context). Never forward a raw bullet as the prompt.
 
 Every prompt MUST contain:
-- **Exit criteria**: concrete commands plus expected results (task-specific check, then `npm run lint && npm test`). The agent reports evidence lines, not "done".
-- **TDD** per [[test-before-fix]] (`.agents/rules/test-before-fix.md`): red test first in the matching `tests/*.test.js`, confirm it fails for the diagnosed reason, then fix, then green, then full suite. Never weaken a test. If genuinely not unit-testable, fall back to `tools/e2e/smoke-test.js` via `tools/ensure-chrome.js` and say so.
-- **Fail loud** per [[fail-loud-catch]] (`.agents/rules/fail-loud-catch.md`): no bare `catch {}`; every catch rethrows or `console.error`s context plus `err.stack`; never fail open. Checked by `npm run check:catches` (inside lint).
-- Constraints: no commit unless told; no `clasp push`; never edit `.claude/` or `.kilo/` mirrors (edit `.agents/`, then `npm run sync:agents`); never touch `gas-app/.clasp.json`; no `.toISOString()` on local dates; no `substr()`.
-- Browser checks only through `tools/ensure-chrome.js` + `tools/e2e/*`, never generic browser tools.
+- **Exit criteria**: the task-specific check, then `npm run lint && npm test`, with expected results. The agent
+  reports evidence lines, not "done".
+- **TDD** per [[test-before-fix]] and **fail loud** per [[fail-loud-catch]]. Not unit-testable → `tools/e2e/smoke-test.js`
+  via `tools/ensure-chrome.js`, and say so.
+- Constraints: no commit unless told; no `clasp push`; edit `.agents/` then `npm run sync:agents`, never the
+  `.claude/`/`.kilo/` mirrors; never touch `gas-app/.clasp.json`; no `.toISOString()` on local dates; no `substr()`;
+  browser checks only through `tools/ensure-chrome.js` + `tools/e2e/*`.
 
 ## 4. VERIFY (never trust a self-report)
 

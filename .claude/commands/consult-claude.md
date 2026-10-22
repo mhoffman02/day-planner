@@ -21,7 +21,14 @@ commit in this session).
 claude --safe-mode -p "<scoped task description, with relevant file paths and constraints inlined>" --permission-mode acceptEdits --allowedTools "<scoped list: e.g. Read or Read,Edit,Bash>" --add-dir /home/mike/projects/day-planner
 ```
 
-*(Note: Use `--safe-mode` instead of `--bare` when relying on Claude Code's web/OAuth login credentials, as `--bare` disables keychain credential reads).*
+- `--permission-mode acceptEdits` (or `auto` with `--permission-prompts none`) is **mandatory**: without it headless
+  Claude Code hangs forever waiting for an approval no one is present to give.
+- `--safe-mode` skips CLAUDE.md/skills/plugins/hooks but keeps the OAuth login, so inline the context the task needs
+  (file paths, the constraint that matters). Do not use `--bare`: it skips keychain reads and fails with
+  `Not logged in · Please run /login` unless `ANTHROPIC_API_KEY` is set.
+- Scope `--allowedTools` to the task (`"Read"` for inspection, `"Read,Edit,Bash"` for a scoped fix).
+- Stuck or needing deep design advice: ask the Opus advisor read-only:
+  `claude --safe-mode --model opus --effort medium -p "<task>" --permission-mode acceptEdits --allowedTools "Read" --add-dir <repo-root>`
 
 Then:
 1. Read back `claude`'s output/diff before trusting it — same bar as reviewing any subagent's work.

@@ -21,6 +21,12 @@ commit in this session).
 agy -p "<scoped task description, with relevant file paths inlined>" --dangerously-skip-permissions
 ```
 
+- `--dangerously-skip-permissions` is **mandatory**: without it headless AGY auto-denies any tool call needing
+  confirmation and exits with `jetski: no output produced — a tool required the "command" permission that headless
+  mode cannot prompt for, so it was auto-denied`. `--mode accept-edits` covers file edits only, not commands.
+- `--model <model>` picks the tier (flash for rapid worker loops); `--add-dir <repo-root>` when calling from
+  outside the repo.
+
 Then:
 1. Read back `agy`'s output/diff before trusting it — same bar as reviewing any subagent's work.
 2. Run this repo's normal checks (`npm test`, `npm run lint`, `node tools/check-esm-imports.js`

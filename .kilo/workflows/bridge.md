@@ -20,3 +20,7 @@ Inter-harness bridge commands:
    ```bash
    node tools/agent-bridge.js prompt --for <claude|agy>
    ```
+
+**Full interactive switch** (only when the user wants to keep driving in the other CLI; one-shot work uses
+`/consult-agy` or `/consult-claude`): run `/handoff`, send a `task` or `review` message as in 3, then tell the user
+to start the other CLI (`claude` or `agy`) and resume with `node tools/agent-bridge.js read --for <claude|agy>`.

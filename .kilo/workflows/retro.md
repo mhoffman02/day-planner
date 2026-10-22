@@ -2,7 +2,8 @@
 description: Record a retrospective entry in LEARNINGS.md
 ---
 
-Generate a retrospective and append it to `LEARNINGS.md`.
+Generate a retrospective and append it to `LEARNINGS.md`. In agy, a `flash_lite` subagent
+(`invoke_subagent(Model="flash_lite", Role="Retro Chronicler", Prompt="...")`) may draft Step 1 from the git log.
 
 **Do NOT run `node tools/retro.js` without flags** — it will fail without content. Synthesize
 the session's content yourself first, then pass it via CLI flags.

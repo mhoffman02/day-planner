@@ -49,4 +49,5 @@ node tools/gemini-delegate.js --force --raw \
 | `reference/web-app-patterns.md` | doGet/doPost event objects, `google.script.run`, `/exec` vs `/dev`, manifest `webapp` settings, CORS |
 | `reference/triggers.md` | ScriptApp trigger builders, one-shot trigger with self-delete |
 | `reference/gotchas.md` | Scope minimization, automation reading doGet, URL length, identity mismatches |
+| `reference/environments.md` | HOME/WORK script IDs, `/dev` and `/exec` URLs, deployment IDs, IDE links |
 | `reference/v8-guide-patterns.md` | Architecture/performance patterns: adopt, skip, or superseded here |

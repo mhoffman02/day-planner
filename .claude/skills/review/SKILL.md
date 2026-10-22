@@ -1,44 +1,37 @@
 ---
 name: review
-description: Perform code quality, safety, and synchronization review on day-planner uncommitted changes or specific files.
+description: Review day-planner uncommitted changes or named files - runs the generic review-uncommitted steps plus this repo's lint, ESM, OAuth-scope, date and link checks. Use before committing or when asked to review changes.
 tags: [review, code-review, quality, esm, day-planner]
-version: 2.3.0
+version: 3.0.0
 ---
 
-# Day Planner Code Review Skill
+# Day Planner review
 
-Default scope: uncommitted changes (`git diff`/`git status`) or specific files named in the
-request. Only sweep the full codebase when explicitly asked for a full-tree pass.
+Follow the user-level `review-uncommitted` skill (scope, mechanical pass, semantic pass, BLOCKER/HIGH/MEDIUM/LOW
+report). This file adds only what is specific to this repo. Agy has no user skill: the same steps are scope =
+`git status`/`git diff`/`git diff --staged` (never the full tree unless asked), mechanical pass below, then a
+correctness/safety/test-coverage read of the diff.
 
-## 2-Stage Review Execution
+## Mechanical pass (run directly)
 
-### Stage 1: Mechanical Hygiene & Lint (Tier 3 / Local)
-Run locally before any LLM semantic audit:
-1. **ESM Import Specifiers**: Ensure relative imports in `src/`, `tests/`, and `tools/` use explicit `.js` extensions:
-   ```bash
-   node tools/check-esm-imports.js
-   ```
-2. **Lint & JSDoc**: Run ESLint and verify `@file` headers:
-   ```bash
-   npm run lint
-   ```
-3. **Unit Tests**: Ensure all unit tests pass:
-   ```bash
-   npm test
-   ```
+```bash
+node tools/check-esm-imports.js   # relative imports carry .js
+npm run lint                      # ESLint, safe-char, catch-logging, Engines.gs build check
+npm test
+```
 
-### Stage 2: Semantic & Security Audit (Tier 1)
-Targeting:
-- **Google OAuth / Storage Scoping**: Verify `drive.file` restriction is intact; no widening to full `drive`.
-- **Date Arithmetic Safety**: Check that no local dates use `.toISOString()` (prevents UTC day-shift bugs).
-- **DOM Injection & External Links**: Check that all dynamic HTML is escaped and `target="_blank"` carries `rel="noopener noreferrer"`.
-- **Harness Routing**:
-  - In **Antigravity CLI**: Dispatch `invoke_subagent(Model="pro", Role="Security Reviewer", Prompt="...")` for a first pass. For a deep pre-merge audit, run `/consult-claude` to delegate it to Claude Code headlessly in this same session (per [[cross-cli-headless-invocation]]). Only fall back to posting a review request to the bridge (`node tools/agent-bridge.js send --from agy --to claude --type review "..."`) and prompting the user to switch to **Claude Code CLI** if a full interactive handoff is what's actually wanted.
-  - In **Claude Code CLI**: For a non-trivial diff, first dispatch `scout`
-    (`.claude/agents/scout.md`, Haiku, read-only) to gather a digest of the changed code and its
-    call sites — add `web-scout` (`.claude/agents/web-scout.md`, Haiku, read-only) too if the
-    change touches Google API/OAuth behavior that may have shifted since the code was written.
-    Then dispatch `deep-reviewer` (`.claude/agents/deep-reviewer.md`, Opus, read-only) for the
-    Stage 2 semantic/security audit via the Agent tool, with the digest(s) included in its prompt.
-    Stage 1 mechanical checks above still run directly, not through any subagent. For a small,
-    localized diff, skip straight to `deep-reviewer` — the scout hop isn't worth it.
+New or edited `.js` files carry a JSDoc `@file` header.
+
+## Semantic pass: also check
+
+- `drive.file` stays the only Drive scope; no `documents` scope, no `DocumentApp` (CLAUDE.md gotchas 2 and 6).
+- No `.toISOString()` on local dates.
+- Dynamic HTML escaped; external links carry `target="_blank"` + `rel="noopener noreferrer"`.
+- Catches follow [fail-loud-catch](../../rules/fail-loud-catch.md); `gas-app/` follows the `gas-*` rules.
+
+## Who reviews
+
+- **Claude**: small, local diff → review inline. Non-trivial or OAuth/security → spawn the `deep` agent
+  (opus/high, read-only prompt); a `lite` agent can first gather a digest of changed code and call sites.
+- **Agy**: `invoke_subagent(Model="pro", Role="Security Reviewer", Prompt="...")` for a first pass; a deep
+  pre-merge audit goes to `/consult-claude` ([[cross-cli-headless-invocation]]).
