@@ -61,5 +61,7 @@ test('both Index copies put a note icon with a details popover on each appointme
     assert.match(block, /class="notes-popover event-notes-popover"/, `${page}: popover`);
     assert.match(block, /eventDetails\(evt\)\.locationLabel/, `${page}: same location text as the popup`);
     assert.match(block, /formatEventDescription\(/, `${page}: same description formatting as the popup`);
+    assert.match(block, /<a :href="eventDetails\(evt\)\.meetLink" target="_blank" rel="noopener noreferrer"[^>]*>Google Meet<\/a>/,
+      `${page}: Meet link is a clickable "Google Meet" hyperlink, not the raw URL`);
   }
 });
