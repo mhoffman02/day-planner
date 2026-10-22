@@ -8,7 +8,8 @@ User asked for these three next (2026-10-22), in this order. Shared matcher: `ma
 - [ ] **`/` focuses the Master Tasks filter box** (Gmail convention) when Master Tasks is the active view and focus
   is not already in an input. **Ask the user first:** `/` already opens universal search in both clients
   (`setupKeyboardShortcuts`: `src/app.js` ~line 924, `gas-app/Script.html` ~line 2713). Proposed default: on Master
-  Tasks only, `/` focuses the filter box; Ctrl+K and Ctrl+Shift+F still open universal search everywhere.
+  Tasks only, `/` focuses the filter box; Ctrl+Shift+F (anywhere) and Ctrl+K (outside text inputs) still open
+  universal search.
 - [ ] **Status and due date in universal search task results**: the snippet shows the status glyph and a due date
   (or "Undated") so similar titles can be told apart before clicking.
 - [ ] **Dedupe task results** when the same task id comes back from both `dailyTasks` and `masterTasks`: one result

@@ -1,4 +1,4 @@
-<!-- handoff: branch=worktree-meet-link-hover worktree=/home/mike/projects/day-planner/.claude/worktrees/meet-link-hover base=c81972bdc5c1 written=2026-10-22T08:43:00-07:00 -->
+<!-- handoff: branch=worktree-meet-link-hover worktree=/home/mike/projects/day-planner/.claude/worktrees/meet-link-hover base=89ad545412d5 written=2026-10-22T08:59:17-07:00 -->
 # Resume: Phase 31 search polish (`/` decision, status + due in results, dedupe); appointments + search shipped, WORK v165 verified
 
 > **WARNING: written on branch `worktree-meet-link-hover`** (worktree
@@ -7,14 +7,15 @@
 > `pure-gas-main` is the working branch (CLAUDE.md rule 5). `master` has diverged on purpose; don't merge into it.
 
 **Verify first:** `git fetch -q; git log --branches --remotes -1 --abbrev=12 --format='%h %p %cI' -- HANDOFF.md`.
-Stale if that commit is dated after `2026-10-22T08:43:00-07:00` **and** its parent isn't `c81972bdc5c1`; then read
-that commit's `HANDOFF.md` instead and tell the user. `git log --oneline c81972bdc5c1..origin/pure-gas-main` shows
+Stale if that commit is dated after `2026-10-22T08:59:17-07:00` **and** its parent isn't `89ad545412d5`; then read
+that commit's `HANDOFF.md` instead and tell the user. `git log --oneline 89ad545412d5..origin/pure-gas-main` shows
 anything that landed after this prompt (only this restamp commit is expected).
 
 **Start by:** ask the user to decide Phase 31 item 1: `/` **already opens universal search** in both clients
 (`setupKeyboardShortcuts`: [`src/app.js:924`](file:///home/mike/projects/day-planner/src/app.js#L924),
 [`gas-app/Script.html:2713`](file:///home/mike/projects/day-planner/gas-app/Script.html#L2713)). Proposed default: on
-Master Tasks only, `/` focuses the filter box; Ctrl+K and Ctrl+Shift+F still open universal search everywhere. While
+Master Tasks only, `/` focuses the filter box; Ctrl+Shift+F (anywhere) and Ctrl+K (outside text inputs) still open
+universal search. While
 waiting, build item 2 red test first, in both clients.
 
 This session shipped, all verified by the user on WORK v165 and live on HOME @336: the appointment hover note's Meet

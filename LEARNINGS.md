@@ -1,5 +1,14 @@
 # Learnings
 
+## 2026-10-22 — Handoff validation
+
+**Worked well:** The user asked "is it CORRECT and COMPLETE?" and a check against code, git and the trackers found
+four real gaps: `/` was already bound, agent work was labeled user-gated, an overdue item was dropped, and the dedupe
+rule was unstated. The advisor then caught a "probe" that would have deployed (`--deploy`).
+**Needs improvement:** The author checked their own handoff and missed all four. Now `npm run check:handoff` plus a
+fresh-eyes `lite` agent run on every handoff. Editing a skill after the handoff commit forced three re-stamp commits;
+commit everything first, stamp last.
+
 ## 2026-10-22 — Search Deep Link and Match Toggles
 
 **Worked well:** A live mock-mode check through `ensure-chrome` + `eval-console` exercised the batched Master render
