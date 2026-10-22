@@ -47,8 +47,16 @@ the GSA account, a release go, or a consent-screen decision. Checklist in [`TODO
   every Daily verb, Daily forward routing fix, quiet Live mark, Master tab speed (TODO_HISTORY 2026-10-16).
 - [x] **Gmail 🎯 labels + filter recommender** (2026-10-16): Create labels, Suggest filters as a paced background
   job, Create checked filters; HOME live 1,053 emails OK, WORK ran 1,234 (TODO_HISTORY 2026-10-16 later).
-- [ ] **WORK v160**: pushed 2026-10-16; user repoints `/exec`, then pastes the Filter Suggestions tab for review.
-- **Next agent work:** HOME `/dev` live check of Forward/Delegate on Daily and Master (TODO.md); then pick the next phase with the user.
+- [x] **WORK v165** live, verified by the user 2026-10-22 (includes v160). Still open: paste the Filter Suggestions tab for review.
+- [x] **Appointments + search** (2026-10-22): Meet link, RSVP read/write, search deep link, Master filter text,
+  All/Any/Phrase toggles (TODO_HISTORY 2026-10-22).
+
+### Phase 31: Search polish (In progress)
+User-requested follow-ups from the 2026-10-22 search work. Checklist in [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md).
+- [ ] `/` hotkey for the Master Tasks filter box.
+- [ ] Status and due date in universal search task results.
+- [ ] Dedupe task results that appear in both Today and Master.
+- **Next agent work:** Phase 31 in order; then the HOME `/dev` live check of Forward/Delegate (Phase 30, TODO.md).
 
 ---
 

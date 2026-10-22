@@ -1,5 +1,18 @@
 # Task History (TODO_HISTORY)
 
+## 2026-10-22 — Appointment Meet link + RSVP, search deep link, Master filter text (HOME @336, WORK v165 verified)
+
+- [x] **Meet link in the appointment hover note** is a clickable "Google Meet" link, not the raw URL (`4cf03a4`).
+- [x] **RSVP read + write**: events carry `myResponse` (self attendee); `setEventRsvp` RPC patches the full guest
+  list with only my entry changed, `sendUpdates: 'none'`; Going? Yes / No / Maybe in the popup and hover note,
+  optimistic with rollback + error tray (`b5f9792`).
+- [x] **Search deep link + Master filter text**: task results open their view filtered to the query, reset a hiding
+  status/date filter, scroll/focus/highlight the row (view-prefixed row ids); debounced Master filter box with clear,
+  Showing N of M, hidden-by-filters notice + Show all; shared All/Any/Exact matcher (`886c53f`). Live-checked in
+  mock mode with 88 tasks.
+- [x] **Match: [All] [Any] [Phrase] radio toggles** replace the drop-down, per advisor (`22d409a`). User verified
+  all of the above on WORK 2026-10-22.
+
 ## 2026-10-16 (later) — Gmail 🎯 labels, filter recommender, background learner (HOME @332, WORK v160 pushed)
 
 - [x] **Create Gmail labels**: `hubSetupLabels` creates the 🎯 parent then the eight 🎯/ labels, idempotent; hub

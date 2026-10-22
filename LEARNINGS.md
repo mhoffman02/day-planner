@@ -1,5 +1,14 @@
 # Learnings
 
+## 2026-10-22 — Search Deep Link and Match Toggles
+
+**Worked well:** A live mock-mode check through `ensure-chrome` + `eval-console` exercised the batched Master render
+with 88 tasks; the fail-loud "could not find that task" path fired correctly on a bad seed (tasks pushed into state
+were wiped by the view reload) before the real check passed.
+**Needs improvement:** `pkill -f "node server.js"` would have killed the user dev server too; stop test servers by
+background task id. Grepping `push:work` output for errors cut off the success line, so a second run made a spare
+WORK version; read the tail instead.
+
 ## 2026-10-01 — Deployed-But-Unmerged Worktree Branch
 
 **Worked well:** Checking `git merge-base --is-ancestor` per worktree branch before pruning

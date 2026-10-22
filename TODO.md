@@ -1,5 +1,17 @@
 # Active Tasks (TODO)
 
+## Phase 31: Search polish (in progress)
+
+User asked for these three next (2026-10-22), in this order. Shared matcher: `matchesSearchQuery` in
+`src/searchEngine.js` + its mirror in `gas-app/Script.html`; Master filter state in both clients.
+
+- [ ] **`/` focuses the Master Tasks filter box** (Gmail convention) when Master Tasks is the active view and focus
+  is not already in an input. First grep every keydown handler for the universal-search hotkey and any `/` use.
+- [ ] **Status and due date in universal search task results**: the snippet shows the status glyph and a due date
+  (or "Undated") so similar titles can be told apart before clicking.
+- [ ] **Dedupe task results** when the same task id comes back from both `dailyTasks` and `masterTasks`: one result
+  per id. Dedupe only; never route by id membership (see memory on Master/Daily same ids).
+
 ## Phase 30: WORK promotion & user-gated release items
 
 Most items need the user (GSA account, a release go, or a decision). HOME live checks are done (TODO_HISTORY 2026-10-10).
@@ -22,8 +34,8 @@ Most items need the user (GSA account, a release go, or a decision). HOME live c
   Switch to trial (now on About); then two tabs: Go live in tab A, Archive in tab B is refused with "Refresh before acting".
 - [ ] **Approval banner after consent redirect**: on WORK the page reloaded after approving and still showed the
   banner; "Check again" cleared it. Optional: re-check automatically when the tab regains focus.
-- [ ] **WORK: Filter Suggestions review (2026-10-16)**: WORK's background run read 1,234 emails. Update WORK to v160
-  (200 emails/min, "about N minutes to go"), then paste the Filter Suggestions tab here for the numbered review.
+- [ ] **WORK: Filter Suggestions review (2026-10-16)**: WORK's background run read 1,234 emails. WORK is on v165
+  (verified 2026-10-22, includes v160's 200 emails/min); paste the Filter Suggestions tab here for the numbered review.
 - [ ] **WORK v152 approval loop (2026-10-16)**: approved, Check again, banner stayed. Fixed so the optional
   `gmail.settings.basic` scope no longer gates the app; confirm on WORK. If the banner still shows, the console line
   `loadHubStatus: ... missing scopes:` names the scope; if the filter scope is the only one missing, the GSA org
