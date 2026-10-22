@@ -40,6 +40,15 @@ Execute these steps in strict sequence:
    - **`OPEN THREADS (THE 3 MOST IMPORTANT TASKS)`** — the top 3 ranked next tasks matching [**`TODO.md`**](file:///home/mike/projects/day-planner/TODO.md) with exact file links and line numbers
    - **`IMMEDIATE NEXT STEP`** — the first concrete command or code edit the new instance should execute (do NOT instruct running tests/lint as step 1; pre-flight verification in step 1 already confirmed zero regressions in the current session)
 
+6.5. **Validate every claim before committing** (MUST; see the user-level `handoff` skill, Step 5.2). Check against
+   code, git, the trackers and today's date, then fix `HANDOFF.md` and the trackers:
+   - Each queued task conflicts with nothing that already exists (grep its key, route, function or setting). A conflict
+     → a user decision with `file:line` and a proposed default; `IMMEDIATE NEXT STEP` asks it first.
+   - Every choice the implementer must make (which duplicate wins, which view, ordering) is stated, or is a decision.
+   - Group labels ("rest are user-gated") are true of each item; agent-doable items are listed separately.
+   - Open items dated before today are marked OVERDUE, with the first agent action.
+   - Every `file:line`, symbol and command named exists.
+
 7. **Commit & Print**:
    - Commit all updated documents:
      ```bash
