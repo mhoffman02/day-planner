@@ -38,6 +38,9 @@ Three MUST NOTs, each from a real repeated failure:
   **Main checkout:** first entry of `git worktree list`.
 - **Off-default:** written on another branch or from a linked worktree; the
   main checkout's resume prompt is stale until merged.
+- **Branch stamp:** first line of the resume prompt (5.0). `base` is HEAD
+  before the handoff commit, never the handoff commit's own SHA, which a file
+  can't contain.
 
 ## Step 0 — Find the tracker docs
 
@@ -105,6 +108,7 @@ Append to the retro doc (none → create `LEARNINGS.md`):
 **Worked well:** <1-2 lines>
 **Needs improvement:** <1-2 lines, only if real>
 ```
+Keep it short: a running log, not a report.
 
 ## Step 5 — Write the resume prompt
 
@@ -147,7 +151,8 @@ Overwrite the resume-prompt doc (default `HANDOFF.md`). Verify is step zero;
 `git fetch -q; git log --branches --remotes -1 --abbrev=12 --format='%h %p %cI' -- HANDOFF.md`
 Stale if that commit is dated after `<written>` **and** its parent isn't
 `<base>`, or a worktree's `HANDOFF.md` has a later `written=`. Then read that
-copy instead and tell the user. `git log --oneline <base>..<branch>`: any
+copy instead and tell the user. `git log --oneline <base>..<branch>` (branch
+gone → `origin/<branch>` or `<default>`): any
 commit besides the handoff commit landed after this prompt; check it first.
 
 **Start by:** <the literal next action>
@@ -170,7 +175,8 @@ in `src/app.js` (~L924), since any edit above shifts a bare line number.
 **"Start by" must be doable by the resuming session.** At least one open item
 is agent work → Start by = that item, with user-gated items listed separately.
 All need the user → Start by = "ask the user to decide: <each decision + its
-proposed default>". Never give a user-gated item an action verb ("finish",
+proposed default>", answerable at once without re-deriving them from other
+files. Never give a user-gated item an action verb ("finish",
 "resolve") that implies the agent can do it alone.
 
 ### 5.2 Validate every claim (MUST, before copying, printing or committing)
@@ -201,7 +207,7 @@ trackers, not just mentioning it.
 and the stamp; fix every failure. No script → do them by hand.
 
 **Then fresh eyes (MUST).** Spawn the cheapest capable read-only reviewer
-(Step 3.0's order) with only the repo and this question:
+(Step 3.0's order) with only the resume prompt, the repo and this question:
 
 > You are the next session. Using only HANDOFF.md and the repo, could you
 > start the "Start by" item right now without asking anything? List each
@@ -223,7 +229,9 @@ stale until you merge (command in the prompt)." Several projects touched →
 
 `git rev-parse --short=12 HEAD` must still equal `base`; else re-stamp. Stage
 only the tracker docs and resume prompt this skill wrote, by real name, and
-commit `docs(handoff): <summary>`. Push if there's a remote. Report any other
+commit `docs(handoff): <summary>`. Push to the tracked remote unless the user
+asked to keep it local. Off-default this pushes the branch only; the default
+branch still holds the old prompt. Report any other
 uncommitted file; never absorb it.
 
 ## Step 7 — Cleanup report (report-only)

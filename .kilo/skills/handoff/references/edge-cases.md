@@ -39,7 +39,8 @@ Only when the session-log doc's own header says it is current-sprint-only.
 Unclear → don't flush. This is the only sub-step that deletes content.
 
 - Routine closed item → drop it; a one-line status note on the plan doc's
-  macro-task is enough, git log holds the rest.
+  macro-task is enough, git log holds the rest. Moving the detail into the
+  plan doc just relocates the bloat.
 - Durable (a decision, gotcha or tradeoff) → promote it to the decisions doc
   first, then drop it.
 - Never flush detail no commit captured: commit first (Step 2).
