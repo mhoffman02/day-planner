@@ -122,13 +122,24 @@ test('both Index copies: Master filter box, shared mode control, and view-prefix
     const master = (html.match(/aria-label="Master Tasks"[\s\S]*?<\/section>/) || [''])[0];
     assert.match(master, /<input[^>]*type="search"[^>]*:value="masterTaskSearchInput"[^>]*@input="onMasterSearchInput\(\$event\.target\.value\)"/, `${page}: filter box`);
     assert.match(master, /@click="clearMasterSearch\(\)"/, `${page}: clear button`);
-    assert.match(master, /x-model="searchMatchMode"/, `${page}: Master match mode`);
+    assertMatchToggles(master, `${page} Master`);
     assert.match(master, /:id="'master-row-' \+ mTask\.id"/, `${page}: Master row id`);
     assert.match(master, /'search-hit': searchHitTaskId === mTask\.id/, `${page}: Master row highlight`);
     assert.match(master, /@click="showAllMasterFilters\(\)"/, `${page}: show all when filters hide matches`);
     assert.match(html, /:id="'daily-row-' \+ task\.id"/, `${page}: Daily row id`);
     assert.match(html, /'search-hit': searchHitTaskId === task\.id/, `${page}: Daily row highlight`);
     const modal = (html.match(/class="search-input-field"[\s\S]*?<\/dialog>/) || [''])[0];
-    assert.match(modal, /x-model="searchMatchMode"/, `${page}: universal search match mode`);
+    assertMatchToggles(modal, `${page} universal search`);
   }
 });
+
+// Small radio toggles, not a drop-down: Match: [All] [Any] [Phrase], hovers name the mode.
+function assertMatchToggles(block, where) {
+  const group = (block.match(/<span class="match-mode-group" role="radiogroup"[\s\S]*?<\/label><\/span>/) || [''])[0];
+  assert.ok(group, `${where}: match mode radiogroup`);
+  assert.doesNotMatch(block, /<select[^>]*searchMatchMode/, `${where}: no drop-down`);
+  assert.match(group, />Match:</, `${where}: Match: label`);
+  for (const [value, label, hover] of [['all', 'All', 'All words'], ['any', 'Any', 'Any words'], ['exact', 'Phrase', 'Exact phrase']]) {
+    assert.match(group, new RegExp(`<label class="match-mode-opt" title="${hover}"><input type="radio"[^>]*value="${value}" x-model="searchMatchMode"[^>]*><span>${label}</span></label>`), `${where}: ${label} toggle`);
+  }
+}

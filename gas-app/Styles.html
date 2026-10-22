@@ -4600,14 +4600,54 @@
     outline: 2px solid var(--binder-teal);
     outline-offset: -1px;
   }
-  .search-mode-select {
-    font: inherit;
-    font-size: 0.85em;
-    padding: 4px 6px;
+  /* Match: [All] [Any] [Phrase] - native radios behind flat segmented labels (arrow keys, one tab stop) */
+  .match-mode-group {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+  .match-mode-group .task-filter-label {
+    margin-right: 4px;
+  }
+  .match-mode-opt {
+    position: relative;
+    cursor: pointer;
+  }
+  .match-mode-opt input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+  }
+  .match-mode-opt span {
+    display: inline-block;
+    font-size: 0.8em;
+    padding: 2px 8px;
     border: 1px solid var(--border-line);
-    border-radius: 4px;
+    margin-left: -1px;
     background: var(--bg-card, #ffffff);
-    color: inherit;
+    color: var(--binder-teal);
+  }
+  .match-mode-opt:first-of-type span {
+    margin-left: 0;
+    border-radius: 4px 0 0 4px;
+  }
+  .match-mode-opt:last-of-type span {
+    border-radius: 0 4px 4px 0;
+  }
+  .match-mode-opt:hover span {
+    border-color: var(--binder-teal);
+  }
+  .match-mode-opt input:checked + span {
+    background: var(--binder-teal);
+    border-color: var(--binder-teal);
+    color: #ffffff;
+  }
+  .match-mode-opt input:focus-visible + span {
+    outline: 2px solid var(--binder-teal);
+    outline-offset: 1px;
   }
   .master-search-count,
   .master-search-hidden {
@@ -4628,10 +4668,6 @@
     align-items: center;
     gap: 6px;
     margin: 6px 0 2px;
-  }
-  .search-mode-label {
-    font-size: 0.85em;
-    color: var(--text-muted);
   }
   /* The task row a search result jumped to: a teal tint that fades */
   tr.search-hit > td {
