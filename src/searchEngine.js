@@ -58,13 +58,50 @@ export function flattenSearchResults(results = {}) {
   ];
 }
 
+/** Search match modes, in the order the controls show them. */
+export const SEARCH_MATCH_MODES = ['all', 'any', 'exact'];
+
+/**
+ * True when the query matches the text fields. all: every word, any order, across the fields; any: at least
+ * one word; exact: the whole query as one phrase inside a single field. Case-insensitive; an empty query matches.
+ * @param {Array<string>|string} fields Text fields of one item.
+ * @param {string} query Search text.
+ * @param {string} [mode='all'] One of SEARCH_MATCH_MODES.
+ * @returns {boolean} Whether the item matches.
+ * @throws {Error} On an unknown mode.
+ */
+export function matchesSearchQuery(fields, query, mode = 'all') {
+  if (!SEARCH_MATCH_MODES.includes(mode)) throw new Error(`Unknown search match mode "${mode}"`);
+  const phrase = String(query || '').trim().toLowerCase();
+  if (!phrase) return true;
+  const texts = (Array.isArray(fields) ? fields : [fields]).map(f => String(f || '').toLowerCase());
+  if (mode === 'exact') return texts.some(t => t.includes(phrase));
+  const all = texts.join('\n');
+  const words = phrase.split(/\s+/);
+  return mode === 'any' ? words.some(w => all.includes(w)) : words.every(w => all.includes(w));
+}
+
+/**
+ * Where the first query match starts in text, for snippets: the phrase, else the first word found.
+ * @param {string} text Lowercased text.
+ * @param {string} cleanQuery Lowercased trimmed query.
+ * @returns {number} Index, or -1.
+ */
+function firstMatchIndex(text, cleanQuery) {
+  const at = text.indexOf(cleanQuery);
+  if (at !== -1) return at;
+  const hits = cleanQuery.split(/\s+/).map(w => text.indexOf(w)).filter(i => i !== -1);
+  return hits.length ? Math.min(...hits) : -1;
+}
+
 /**
  * Executes cross-service universal search query across calendar, tasks, notes, and index entries.
  * @param {string} [query=''] Search query string.
  * @param {{calendarEvents?: (Array<object>|object), dailyTasks?: (Array<object>|object), masterTasks?: Array<object>, dailyNotes?: (Array<object>|object), indexEntries?: Array<object>, archiveNotes?: Array<object>}} [store={}] Data store containing entities to search.
+ * @param {string} [mode='all'] Match mode, see matchesSearchQuery.
  * @returns {{totalMatches: number, calendar: Array<object>, tasks: Array<object>, notes: Array<object>, index: Array<object>, archive: Array<object>}} Grouped search result object.
  */
-export function executeUniversalSearch(query = '', store = {}) {
+export function executeUniversalSearch(query = '', store = {}, mode = 'all') {
   const cleanQuery = query.trim().toLowerCase();
   const results = {
     totalMatches: 0,
@@ -88,11 +125,7 @@ export function executeUniversalSearch(query = '', store = {}) {
 
   // 1. Search Calendar Events
   normalizeCollection(calendarEvents).forEach(evt => {
-    const titleMatch = (evt.title || '').toLowerCase().includes(cleanQuery);
-    const locMatch = (evt.location || '').toLowerCase().includes(cleanQuery);
-    const descMatch = (evt.description || '').toLowerCase().includes(cleanQuery);
-
-    if (titleMatch || locMatch || descMatch) {
+    if (matchesSearchQuery([evt.title, evt.location, evt.description], cleanQuery, mode)) {
       const evtDate = evt.date || extractLocalDateStr(evt.startTime);
       results.calendar.push({
         type: 'calendar',
@@ -109,11 +142,7 @@ export function executeUniversalSearch(query = '', store = {}) {
   // 2. Search Tasks (Daily & Master)
   const allTasks = [...normalizeCollection(dailyTasks), ...normalizeCollection(masterTasks)];
   allTasks.forEach(task => {
-    const titleMatch = (task.title || '').toLowerCase().includes(cleanQuery);
-    const catMatch = (task.category || '').toLowerCase().includes(cleanQuery);
-    const notesMatch = (task.notes || '').toLowerCase().includes(cleanQuery);
-
-    if (titleMatch || catMatch || notesMatch) {
+    if (matchesSearchQuery([task.title, task.category, task.notes], cleanQuery, mode)) {
       const isMaster = !task.dueDate || task.master;
       results.tasks.push({
         type: 'task',
@@ -144,8 +173,8 @@ export function executeUniversalSearch(query = '', store = {}) {
   normalizedNotes.forEach(note => {
     // Strip [[link:URL]]display text[[/link]] hyperlink markup down to display text before matching/snippeting
     const text = (note.content || '').replace(/\[\[link:[^\]]+\]\]([\s\S]*?)\[\[\/link\]\]/g, '$1');
-    if (text.toLowerCase().includes(cleanQuery)) {
-      const idx = text.toLowerCase().indexOf(cleanQuery);
+    if (matchesSearchQuery([text], cleanQuery, mode)) {
+      const idx = Math.max(0, firstMatchIndex(text.toLowerCase(), cleanQuery));
       const start = Math.max(0, idx - 20);
       const end = Math.min(text.length, idx + cleanQuery.length + 40);
       const snippet = '...' + text.substring(start, end).replace(/\n/g, ' ') + '...';
@@ -166,10 +195,7 @@ export function executeUniversalSearch(query = '', store = {}) {
   normalizeCollection(indexEntries).forEach(idx => {
     const cleanTopic = (idx.topic || 'General').replace(/^###\s*/, '');
     const cleanSummary = (idx.summary || '').replace(/^###\s*/, '');
-    const topicMatch = cleanTopic.toLowerCase().includes(cleanQuery);
-    const summaryMatch = cleanSummary.toLowerCase().includes(cleanQuery);
-
-    if (topicMatch || summaryMatch) {
+    if (matchesSearchQuery([cleanTopic, cleanSummary], cleanQuery, mode)) {
       results.index.push({
         type: 'index',
         title: `[${cleanTopic}] ${cleanSummary}`,
@@ -189,7 +215,7 @@ export function executeUniversalSearch(query = '', store = {}) {
     const title = arch.title || '';
     const heading = arch.heading || '';
 
-    if (text.toLowerCase().includes(cleanQuery) || title.toLowerCase().includes(cleanQuery) || heading.toLowerCase().includes(cleanQuery)) {
+    if (matchesSearchQuery([text, title, heading], cleanQuery, mode)) {
       const dateStr = arch.date || parseArchiveNoteHeading(heading || title, arch.docName || '');
       const snippet = arch.snippet || extractSearchSnippet(text, cleanQuery);
 

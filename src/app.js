@@ -18,7 +18,7 @@ import {
   filterTasksByStatus,
   filterTasksByDateHorizon
 } from './taskEngine.js';
-import { executeUniversalSearch, flattenSearchResults, mergeArchiveSearchResults } from './searchEngine.js';
+import { executeUniversalSearch, flattenSearchResults, mergeArchiveSearchResults, matchesSearchQuery } from './searchEngine.js';
 import { formatEventDescriptionHtml, extractMeetLink } from './calendarEngine.js';
 import { parseIndexEntriesFromNote } from './indexParser.js';
 import { getQuoteForDateStr } from './quotesEngine.js';
@@ -391,6 +391,16 @@ Alpine.data('plannerApp', () => ({
       masterGrowTimer: null,
       masterTaskStatusFilter: ['•', '○', '✓', '→', 'X', 'Ⓓ'],
       masterTaskDateFilter: 'all',
+      // Master filter text: Input follows the box, Search is applied after a typing pause.
+      masterTaskSearchInput: '',
+      masterTaskSearch: '',
+      masterSearchTimer: null,
+      // Match mode shared by universal search and the Master filter: all, any or exact.
+      searchMatchMode: 'all',
+      // Task row a search result jumped to (highlighted for a moment), and which view it is in.
+      searchHitTaskId: null,
+      searchHitView: 'daily',
+      searchHitTimer: null,
       dailyDocUrl: '',
       monthPickerOpen: false,
       monthPickerYear: new Date().getFullYear(),
@@ -576,7 +586,14 @@ Alpine.data('plannerApp', () => ({
 
       get filteredMasterTasks() {
         const byStatus = filterTasksByStatus(this.masterTasks || [], this.masterTaskStatusFilter);
-        return filterTasksByDateHorizon(byStatus, this.masterTaskDateFilter, getLocalDateStr());
+        const byDate = filterTasksByDateHorizon(byStatus, this.masterTaskDateFilter, getLocalDateStr());
+        return this.masterTaskSearch ? byDate.filter(t => this.masterTaskMatches(t)) : byDate;
+      },
+
+      // Tasks that match the filter text but are hidden by the status or date filters.
+      get masterSearchHiddenCount() {
+        if (!this.masterTaskSearch) return 0;
+        return (this.masterTasks || []).filter(t => this.masterTaskMatches(t)).length - this.filteredMasterTasks.length;
       },
 
       // Newest message in the tray (failures before stale notices), or null when empty. The
@@ -3899,6 +3916,85 @@ Alpine.data('plannerApp', () => ({
         this.masterTaskDateFilter = horizon;
       },
 
+      masterTaskMatches(task) {
+        return matchesSearchQuery([task.title, task.category, task.notes], this.masterTaskSearch, this.searchMatchMode);
+      },
+
+      // Filter box input: the box shows each keystroke, the list filters after a 200 ms pause.
+      onMasterSearchInput(text) {
+        this.masterTaskSearchInput = text;
+        clearTimeout(this.masterSearchTimer);
+        this.masterSearchTimer = setTimeout(() => this.applyMasterSearch(this.masterTaskSearchInput), 200);
+      },
+
+      applyMasterSearch(text) {
+        const next = String(text || '').trim();
+        if (next === this.masterTaskSearch) return;
+        this.masterTaskSearch = next;
+        this.restartMasterRows();
+      },
+
+      clearMasterSearch() {
+        clearTimeout(this.masterSearchTimer);
+        this.masterTaskSearchInput = '';
+        this.applyMasterSearch('');
+      },
+
+      showAllMasterFilters() {
+        this.masterTaskStatusFilter = this.statusOptions.map(opt => opt.value);
+        this.masterTaskDateFilter = 'all';
+        this.restartMasterRows();
+      },
+
+      // Draws the Master list in batches again, so a long list never lands in one frame.
+      restartMasterRows() {
+        this.masterRenderLimit = MASTER_FIRST_ROWS;
+        this.growMasterRows();
+      },
+
+      // Search result to task row: marks the row, and for Master filters the list to the query (un-hiding
+      // the task if the status or date filters would hide it) so the row is short to find and draw.
+      prepareTaskReveal(item, query) {
+        const task = item && item.item;
+        if (!task || !task.id) return;
+        this.searchHitTaskId = task.id;
+        this.searchHitView = item.targetView === 'master-tasks' ? 'master' : 'daily';
+        if (this.searchHitView !== 'master') return;
+        clearTimeout(this.masterSearchTimer);
+        this.masterTaskSearchInput = query;
+        this.masterTaskSearch = String(query || '').trim();
+        if (!this.filteredMasterTasks.some(t => t.id === task.id)) {
+          this.masterTaskStatusFilter = this.statusOptions.map(opt => opt.value);
+          this.masterTaskDateFilter = 'all';
+        }
+        this.restartMasterRows();
+      },
+
+      searchHitRowId() {
+        return (this.searchHitView === 'master' ? 'master-row-' : 'daily-row-') + this.searchHitTaskId;
+      },
+
+      // Scrolls to the marked row once it is drawn (a visible one: both views stay in the page), focuses it,
+      // and lets the highlight fade. Retries for about 2 s, then says the row was not found.
+      revealSearchHit(attempt = 0) {
+        if (!this.searchHitTaskId || typeof document === 'undefined') return;
+        const el = document.getElementById(this.searchHitRowId());
+        if (el && el.offsetParent !== null) {
+          el.scrollIntoView({ block: 'center' });
+          el.focus({ preventScroll: true });
+          clearTimeout(this.searchHitTimer);
+          this.searchHitTimer = setTimeout(() => { this.searchHitTaskId = null; }, 2500);
+          return;
+        }
+        if (attempt >= 40) {
+          console.error(`revealSearchHit: row ${this.searchHitRowId()} never appeared; the view is open without the jump`);
+          this.reportError('search-hit', 'Opened the list, but could not find that task in it. It may have been changed or removed.');
+          this.searchHitTaskId = null;
+          return;
+        }
+        setTimeout(() => this.revealSearchHit(attempt + 1), 50);
+      },
+
       isMasterTaskOverdue(mTask) {
         return Boolean(mTask && mTask.dueDate && mTask.dueDate < getLocalDateStr());
       },
@@ -5211,7 +5307,7 @@ Alpine.data('plannerApp', () => ({
             : this.indexRecords) || []
         };
 
-        const localResults = executeUniversalSearch(q, store);
+        const localResults = executeUniversalSearch(q, store, this.searchMatchMode);
         if (this.searchResults?.archive && this.archiveSearchQuery === q) {
           localResults.archive = this.searchResults.archive;
           localResults.totalMatches += localResults.archive.length;
@@ -5300,7 +5396,9 @@ Alpine.data('plannerApp', () => ({
 
       async selectSearchResult(item) {
         if (!item) return;
+        const query = this.searchQuery.trim();
         this.closeSearchModal();
+        if (item.type === 'task') this.prepareTaskReveal(item, query);
 
         const targetDate = item.date;
         const targetView = item.targetView || 'daily';
@@ -5317,6 +5415,7 @@ Alpine.data('plannerApp', () => ({
         if (targetView === 'daily' || targetDate) {
           await this.loadDayData();
         }
+        if (item.type === 'task') this.$nextTick(() => this.revealSearchHit());
       },
 
       openInstallModal() {

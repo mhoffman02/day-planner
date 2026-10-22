@@ -370,7 +370,7 @@
                 </thead>
                 <tbody>
                   <template x-for="task in sortedTasks(dailyTasks, dailyTaskSort)" :key="task.id">
-                    <tr>
+                    <tr :id="'daily-row-' + task.id" tabindex="-1" :class="{ 'search-hit': searchHitTaskId === task.id }">
                       <td>
                         <span class="priority-badge" :class="parseTask(task.title).priorityGroup || 'A'" x-text="parseTask(task.title).priorityCode || 'A1'"></span>
                       </td>
@@ -953,6 +953,14 @@
               </div>
             </div>
           </header>
+          <div class="master-search-bar" role="search" aria-label="Find in Master Tasks">
+            <span class="material-symbols-outlined icon-18 master-search-icon" aria-hidden="true">search</span>
+            <input type="search" class="master-search-input" :value="masterTaskSearchInput" @input="onMasterSearchInput($event.target.value)" @keydown.escape.stop="clearMasterSearch()" placeholder="Find in Master Tasks: title, notes, category..." aria-label="Find in Master Tasks">
+            <button type="button" class="btn-icon-subtle master-search-clear" x-show="masterTaskSearchInput" @click="clearMasterSearch()" title="Clear filter (Esc)" aria-label="Clear filter"><span class="material-symbols-outlined icon-16">close</span></button>
+            <select class="search-mode-select" x-model="searchMatchMode" @change="restartMasterRows()" aria-label="How the words must match" title="How the words must match"><option value="all">All words</option><option value="any">Any word</option><option value="exact">Exact phrase</option></select>
+            <span class="master-search-count" x-show="masterTaskSearch" x-text="filteredMasterTasks.length ? ('Showing ' + filteredMasterTasks.length + ' of ' + (masterTasks || []).length) : 'No tasks match.'"></span>
+            <span class="master-search-hidden" x-show="masterSearchHiddenCount > 0"><span x-text="masterSearchHiddenCount + (masterSearchHiddenCount === 1 ? ' more match is hidden' : ' more matches are hidden') + ' by the filters above.'"></span> <button type="button" class="master-search-showall" @click="showAllMasterFilters()">Show all</button></span>
+          </div>
           <form @submit.prevent="addMasterTask()" role="group" class="task-quick-add-bar master-task-add-bar" aria-label="Add Master Task to Backlog">
             <span class="quick-add-section-label" title="Add Master Task to Backlog">
               <span class="material-symbols-outlined icon-16">add_task</span>
@@ -1035,7 +1043,7 @@
               </thead>
               <tbody>
                 <template x-for="mTask in masterRowsShown" :key="mTask.id">
-                  <tr :class="{ 'row-just-added': mTask._isNew }">
+                  <tr :id="'master-row-' + mTask.id" tabindex="-1" :class="{ 'row-just-added': mTask._isNew, 'search-hit': searchHitTaskId === mTask.id }">
                     <td>
                       <span class="priority-badge" :class="parseTask(mTask.title).priorityGroup || 'A'" x-text="parseTask(mTask.title).priorityCode || 'A1'"></span>
                     </td>
@@ -2904,6 +2912,10 @@
             class="search-input-field"
             aria-label="Universal Search Input"
           >
+          <div class="search-mode-row">
+            <label class="search-mode-label" for="searchMatchModeSelect">Match</label>
+            <select id="searchMatchModeSelect" class="search-mode-select" x-model="searchMatchMode" @change="runSearch(); $refs.searchInput.focus()"><option value="all">All words</option><option value="any">Any word</option><option value="exact">Exact phrase</option></select>
+          </div>
           
           <div class="search-results-container" role="listbox">
             <template x-if="searchResults.totalMatches === 0 && searchQuery">

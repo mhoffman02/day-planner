@@ -4574,6 +4574,84 @@
   .modal-rsvp {
     margin: 4px 0 10px;
   }
+  /* Master Tasks filter text and the shared All words / Any word / Exact phrase control */
+  .master-search-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 8px;
+    margin: 0 0 8px;
+  }
+  .master-search-icon {
+    color: var(--text-muted);
+  }
+  .master-search-input {
+    flex: 1 1 220px;
+    min-width: 0;
+    font: inherit;
+    padding: 5px 8px;
+    border: 1px solid var(--border-line);
+    border-radius: 4px;
+    background: var(--bg-card, #ffffff);
+    color: inherit;
+  }
+  .master-search-input:focus {
+    outline: 2px solid var(--binder-teal);
+    outline-offset: -1px;
+  }
+  .search-mode-select {
+    font: inherit;
+    font-size: 0.85em;
+    padding: 4px 6px;
+    border: 1px solid var(--border-line);
+    border-radius: 4px;
+    background: var(--bg-card, #ffffff);
+    color: inherit;
+  }
+  .master-search-count,
+  .master-search-hidden {
+    font-size: 0.85em;
+    color: var(--text-muted);
+  }
+  .master-search-showall {
+    font: inherit;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--binder-teal);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  .search-mode-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 6px 0 2px;
+  }
+  .search-mode-label {
+    font-size: 0.85em;
+    color: var(--text-muted);
+  }
+  /* The task row a search result jumped to: a teal tint that fades */
+  tr.search-hit > td {
+    animation: search-hit-fade 2.5s ease-out;
+  }
+  tr[tabindex="-1"]:focus {
+    outline: none;
+  }
+  @keyframes search-hit-fade {
+    0%, 40% { background-color: rgba(45, 106, 90, 0.22); }
+    100% { background-color: transparent; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    tr.search-hit > td {
+      animation: none;
+    }
+    tr.search-hit {
+      outline: 2px solid var(--binder-teal);
+      outline-offset: -2px;
+    }
+  }
   /* Appointment Event Details Modal (33% wider and taller) */
   article.modal-card-event {
     max-width: 735px;
