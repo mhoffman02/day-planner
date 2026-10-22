@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 import { makeGasContext, loadGasFile, toHost } from './helpers/gasRuntimeStubs.js';
 
 const TZ = 'America/Chicago';
-const EVENT_KEYS = ['description', 'endTime', 'htmlLink', 'id', 'location', 'meetLink', 'startTime', 'syncTaskId', 'title'];
+const EVENT_KEYS = ['description', 'endTime', 'htmlLink', 'id', 'location', 'meetLink', 'myResponse', 'startTime', 'syncTaskId', 'title'];
 
 function calCtx(o = {}) {
   const ctx = makeGasContext(); // real zone-aware Utilities.formatDate stub (getDailyData needs it)
@@ -71,7 +71,8 @@ test('creates the event on the primary calendar with wall-clock times in the cal
     description: 'Agenda',
     meetLink: null,
     htmlLink: 'https:' + '//calendar.google.com/event?eid=x1',
-    syncTaskId: null
+    syncTaskId: null,
+    myResponse: null
   });
 });
 

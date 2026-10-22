@@ -543,6 +543,7 @@
                               <p class="event-note-row"><span class="material-symbols-outlined icon-14" aria-hidden="true">schedule</span><span x-text="eventDetails(evt).formattedTime"></span></p>
                               <p class="event-note-row"><span class="material-symbols-outlined icon-14" aria-hidden="true">location_on</span><span x-text="eventDetails(evt).locationLabel"></span></p>
                               <p class="event-note-row" x-show="eventDetails(evt).meetLink"><span class="material-symbols-outlined icon-14" aria-hidden="true">videocam</span><a :href="eventDetails(evt).meetLink" target="_blank" rel="noopener noreferrer" class="event-note-meet-link" @click.stop>Google Meet</a></p>
+                              <div class="event-rsvp" x-show="evt.myResponse" role="group" aria-label="RSVP"><span class="event-rsvp-label">Going?</span><button type="button" class="event-rsvp-btn" :aria-pressed="evt.myResponse === 'accepted'" :disabled="isRsvpSaving(evt)" @click.stop="setRsvp(evt, 'accepted')">Yes</button><button type="button" class="event-rsvp-btn" :aria-pressed="evt.myResponse === 'declined'" :disabled="isRsvpSaving(evt)" @click.stop="setRsvp(evt, 'declined')">No</button><button type="button" class="event-rsvp-btn" :aria-pressed="evt.myResponse === 'tentative'" :disabled="isRsvpSaving(evt)" @click.stop="setRsvp(evt, 'tentative')">Maybe</button></div>
                               <div class="event-note-description" x-html="evt.description ? formatEventDescription(evt.description) : 'No description'"></div>
                             </div>
                           </template>
@@ -2649,6 +2650,7 @@
               <a :href="selectedEvent.meetLink" target="_blank" rel="noopener noreferrer" class="modal-meet-link" x-text="selectedEvent.meetLink"></a>
             </p>
           </template>
+          <div class="event-rsvp modal-rsvp" x-show="selectedEvent?.myResponse" role="group" aria-label="RSVP"><span class="event-rsvp-label">Going?</span><button type="button" class="event-rsvp-btn" :aria-pressed="selectedEvent?.myResponse === 'accepted'" :disabled="isRsvpSaving(selectedEvent)" @click="setRsvp(selectedEvent, 'accepted')">Yes</button><button type="button" class="event-rsvp-btn" :aria-pressed="selectedEvent?.myResponse === 'declined'" :disabled="isRsvpSaving(selectedEvent)" @click="setRsvp(selectedEvent, 'declined')">No</button><button type="button" class="event-rsvp-btn" :aria-pressed="selectedEvent?.myResponse === 'tentative'" :disabled="isRsvpSaving(selectedEvent)" @click="setRsvp(selectedEvent, 'tentative')">Maybe</button></div>
           <div class="modal-description" x-html="selectedEvent?.description ? formatEventDescription(selectedEvent.description) : 'No description'"></div>
         </div>
         <footer class="modal-actions">

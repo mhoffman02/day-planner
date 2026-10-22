@@ -829,7 +829,7 @@ describe('createCalendarEvent bridges', () => {
       title: 'Dentist', dateStr: '2026-11-02', startTime: '09:00', endTime: '10:30', location: 'Room 2', addMeet: true
     });
     assert.deepEqual(Object.keys(evt).sort(),
-      ['description', 'endTime', 'htmlLink', 'id', 'location', 'meetLink', 'startTime', 'syncTaskId', 'title']);
+      ['description', 'endTime', 'htmlLink', 'id', 'location', 'meetLink', 'myResponse', 'startTime', 'syncTaskId', 'title']);
     assert.equal(typeof evt.id, 'string');
     assert.equal(evt.title, 'Dentist');
     assert.match(evt.startTime, /^2026-11-02T09:00:00[+-]\d{2}:\d{2}$/);

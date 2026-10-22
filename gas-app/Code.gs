@@ -434,7 +434,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 513;
+const BUILD_NUMBER_ = 514;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -1190,8 +1190,71 @@ function mapCalendarApiEvent_(evt) {
     description: evt.description || '',
     meetLink: extractMeetLinkFromEvent_(evt),
     htmlLink: evt.htmlLink || null,
-    syncTaskId: (evt.extendedProperties && evt.extendedProperties.shared && evt.extendedProperties.shared.gasTaskId) || null
+    syncTaskId: (evt.extendedProperties && evt.extendedProperties.shared && evt.extendedProperties.shared.gasTaskId) || null,
+    myResponse: selfResponseStatus_(evt.attendees)
   };
+}
+
+/**
+ * My RSVP on an event: the responseStatus of the attendee marked self.
+ * @param {Array<object>=} attendees Calendar API attendees.
+ * @returns {(string|null)} accepted, declined, tentative or needsAction; null when I am not a guest.
+ */
+function selfResponseStatus_(attendees) {
+  const me = (attendees || []).find(function(a) { return a && a.self; });
+  return (me && me.responseStatus) || null;
+}
+
+/**
+ * My RSVP on a CalendarApp event, in Calendar API terms so both getDailyData paths match.
+ * @param {object} evt CalendarApp CalendarEvent.
+ * @returns {(string|null)} accepted, declined, tentative or needsAction; null for my own event.
+ */
+function calendarAppMyResponse_(evt) {
+  const map = { YES: 'accepted', NO: 'declined', MAYBE: 'tentative', INVITED: 'needsAction' };
+  return map[String(evt.getMyStatus())] || null;
+}
+
+/**
+ * Sends no RSVP email; a Google-hosted organizer still sees the answer in the guest list.
+ * @returns {string} Calendar API sendUpdates value used by setEventRsvp.
+ */
+function rsvpSendUpdates_() {
+  return 'none';
+}
+
+/**
+ * Sets my RSVP ("Going? Yes / No / Maybe") on an event in my primary calendar.
+ * A patch replaces the whole attendees array, so the full list is sent back with only the self entry changed.
+ * @param {string} eventId Calendar event id (an occurrence id for a recurring event).
+ * @param {string} response accepted, declined or tentative.
+ * @returns {{id: string, myResponse: string}} The saved response, read back from Calendar.
+ * @throws {Error} 'Invalid RSVP: ...' for bad input; a friendly message when I am not a guest or Calendar fails.
+ */
+function setEventRsvp(eventId, response) {
+  if (typeof eventId !== 'string' || !eventId.trim()) throw new Error('Invalid RSVP: an event id is required.');
+  if (['accepted', 'declined', 'tentative'].indexOf(response) === -1) {
+    throw new Error('Invalid RSVP: the answer must be accepted, declined or tentative.');
+  }
+  if (typeof Calendar === 'undefined' || !Calendar.Events) {
+    throw new Error('Google Calendar is not available, so your RSVP was not saved.');
+  }
+  let saved;
+  try {
+    const current = Calendar.Events.get('primary', eventId);
+    const attendees = (current && current.attendees) || [];
+    const me = attendees.find(function(a) { return a && a.self; });
+    if (!me) throw new Error('You are not a guest on this event, so there is no RSVP to set.');
+    me.responseStatus = response;
+    const patched = Calendar.Events.patch({ attendees: attendees }, 'primary', eventId, { sendUpdates: rsvpSendUpdates_() });
+    saved = selfResponseStatus_(patched && patched.attendees);
+    if (saved !== response) throw new Error('Calendar kept "' + saved + '" instead of "' + response + '"');
+  } catch (err) {
+    logError('setEventRsvp(' + eventId + ', ' + response + ')', err);
+    if (/not a guest/.test(err.message || '')) throw err;
+    throw new Error('Your RSVP was not saved (' + (err.message || err) + ').', { cause: err });
+  }
+  return { id: eventId, myResponse: saved };
 }
 
 /**
@@ -1222,7 +1285,7 @@ function getDailyData(dateStr) {
           singleEvents: true,
           maxResults: 250,
           conferenceDataVersion: 1,
-          fields: 'items(id,summary,start,end,location,description,hangoutLink,conferenceData,htmlLink,extendedProperties)'
+          fields: 'items(id,summary,start,end,location,description,hangoutLink,conferenceData,htmlLink,extendedProperties,attendees(self,responseStatus))'
         });
         result.calendarEvents = (dayResp.items || []).map(mapCalendarApiEvent_);
       } catch (calErr) {
@@ -1249,7 +1312,8 @@ function getDailyData(dateStr) {
             meetLink: meetLink,
             htmlLink: 'https:' + '/' + '/calendar.google.com/calendar/event?eid=' +
               Utilities.base64EncodeWebSafe(bareId + ' ' + defaultCalId).replace(/=+$/, ''),
-            syncTaskId: evt.getTag('gasTaskId') || null
+            syncTaskId: evt.getTag('gasTaskId') || null,
+            myResponse: calendarAppMyResponse_(evt)
           };
         });
       } catch (calErr) {
@@ -1690,7 +1754,7 @@ function getDailyDataRange(startDateStr, endDateStr) {
         singleEvents: true,
         maxResults: 250,
         conferenceDataVersion: 1,
-        fields: 'items(id,summary,start,end,location,description,hangoutLink,conferenceData,htmlLink,extendedProperties),nextPageToken'
+        fields: 'items(id,summary,start,end,location,description,hangoutLink,conferenceData,htmlLink,extendedProperties,attendees(self,responseStatus)),nextPageToken'
       };
       if (calPageToken) calParams.pageToken = calPageToken;
       const calResp = Calendar.Events.list('primary', calParams);
@@ -3578,6 +3642,7 @@ global.delegateDailyTask = delegateDailyTask;                // google.script.ru
 global.forwardMasterTask = forwardMasterTask;                // google.script.run: Script.html
 global.undoMasterForward = undoMasterForward;                // google.script.run: Script.html
 global.createCalendarEvent = createCalendarEvent;            // google.script.run: Script.html
+global.setEventRsvp = setEventRsvp;                          // google.script.run: Script.html
 
 // Cross-file only (not reachable from any client/template/trigger/IDE surface above, but needed
 // by other .gs files' own IIFEs since GAS has no import statement -- this global object is the
@@ -3616,6 +3681,7 @@ global._delegateDailyTaskInternal = delegateDailyTask;
 global._forwardMasterTaskInternal = forwardMasterTask;
 global._undoMasterForwardInternal = undoMasterForward;
 global._createCalendarEventInternal = createCalendarEvent;
+global._setEventRsvpInternal = setEventRsvp;
 global._addMasterTaskInternal = addMasterTask;
 global._updateMasterTaskInternal = updateMasterTask;
 global._deleteMasterTaskInternal = deleteMasterTask;
@@ -3751,6 +3817,10 @@ function undoMasterForward(masterTaskId, copyTaskId, prevStatus) {
 
 function createCalendarEvent(payload) {
   return (typeof _createCalendarEventInternal === 'function') ? _createCalendarEventInternal(payload) : (globalThis._createCalendarEventInternal ? globalThis._createCalendarEventInternal(payload) : null);
+}
+
+function setEventRsvp(eventId, response) {
+  return (typeof _setEventRsvpInternal === 'function') ? _setEventRsvpInternal(eventId, response) : (globalThis._setEventRsvpInternal ? globalThis._setEventRsvpInternal(eventId, response) : null);
 }
 
 function addMasterTask(title, category, dueDate, notes) {

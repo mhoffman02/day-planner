@@ -55,7 +55,8 @@ export class GASBridge {
             endTime: '2026-08-15T08:30:00',
             location: 'Conference Room 1',
             description: 'Daily executive updates and Q3 metrics review.',
-            meetLink: 'https://meet.google.com/abc-defg-hij'
+            meetLink: 'https://meet.google.com/abc-defg-hij',
+            myResponse: 'accepted'
           },
           {
             id: 'e2',
@@ -64,7 +65,8 @@ export class GASBridge {
             endTime: '2026-08-15T11:30:00',
             location: 'Google Meet',
             description: 'Reviewing Day Planner UI binder layout and Alpine.js state bridge.',
-            meetLink: 'https://meet.google.com/xyz-uvwx-rst'
+            meetLink: 'https://meet.google.com/xyz-uvwx-rst',
+            myResponse: 'needsAction'
           },
           {
             id: 'e3',
@@ -84,7 +86,8 @@ export class GASBridge {
             endTime: '2026-09-25T08:30:00',
             location: 'Conference Room 1',
             description: 'Daily executive updates and Q3 metrics review.',
-            meetLink: 'https:' + '/' + '/meet.google.com/abc-defg-hij'
+            meetLink: 'https:' + '/' + '/meet.google.com/abc-defg-hij',
+            myResponse: 'tentative'
           },
           {
             id: 'e_sep25_2',
@@ -93,7 +96,8 @@ export class GASBridge {
             endTime: '2026-09-25T09:30:00',
             location: 'Google Meet',
             description: 'Engineering daily standup and blocker check.',
-            meetLink: 'https:' + '/' + '/meet.google.com/xyz-uvwx-rst'
+            meetLink: 'https:' + '/' + '/meet.google.com/xyz-uvwx-rst',
+            myResponse: 'needsAction'
           },
           {
             id: 'e_sep25_3',
@@ -441,7 +445,8 @@ export class GASBridge {
         description: p.description || '',
         meetLink: null,
         htmlLink: 'https:' + '/' + `/calendar.google.com/calendar/event?eid=${id}`,
-        syncTaskId: null
+        syncTaskId: null,
+        myResponse: null
       };
       if (p.addMeet === true && !this.mockMeetError) {
         const letters = (n) => Array.from({ length: n }, (_, i) => String.fromCharCode(97 + ((this.mockEventSeq * 7 + i * 3) % 26))).join('');
@@ -465,6 +470,30 @@ export class GASBridge {
         .withSuccessHandler(resolve)
         .withFailureHandler(reject)
         .createCalendarEvent(payload);
+    });
+  }
+
+  /**
+   * Sets my RSVP on a calendar event (RPC setEventRsvp).
+   * @param {string} eventId Calendar event id.
+   * @param {string} response accepted, declined or tentative.
+   * @returns {Promise<{id: string, myResponse: string}>} The saved answer.
+   * @throws {Error} 'Invalid RSVP: ...' on bad input, or the server/API failure.
+   */
+  async setEventRsvp(eventId, response) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      if (!['accepted', 'declined', 'tentative'].includes(response)) throw new Error('Invalid RSVP: the answer must be accepted, declined or tentative.');
+      const evt = Object.values(this.mockData.calendarEvents).flat().find(e => e.id === eventId);
+      if (!evt || !evt.myResponse) throw new Error('You are not a guest on this event, so there is no RSVP to set.');
+      evt.myResponse = response;
+      return { id: eventId, myResponse: response };
+    }
+
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .setEventRsvp(eventId, response);
     });
   }
 

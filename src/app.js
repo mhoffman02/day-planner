@@ -457,6 +457,8 @@ Alpine.data('plannerApp', () => ({
       createEventError: null,
       // True while createCalendarEvent is in flight (a double submit would create a duplicate).
       createEventSaving: false,
+      // Event ids with an RSVP save in flight (a second click waits for the first answer).
+      rsvpSaving: {},
       archiveSearchError: null,
       archiveSearchWarning: null,
       timeMachineError: null,
@@ -4979,7 +4981,42 @@ Alpine.data('plannerApp', () => ({
 
       // The note icon shows only when there is more than the title, like the Tasks note icon.
       hasEventDetails(evt) {
-        return Boolean(evt && ((evt.description && String(evt.description).trim()) || evt.location || this.extractMeetLink(evt)));
+        return Boolean(evt && ((evt.description && String(evt.description).trim()) || evt.location || this.extractMeetLink(evt) || evt.myResponse));
+      },
+
+      isRsvpSaving(evt) {
+        return Boolean(evt && this.rsvpSaving[evt.id]);
+      },
+
+      // Going? Yes / No / Maybe. Shows the answer at once in the list, the open popup and the day cache, then
+      // saves it to Google Calendar (setEventRsvp RPC); on failure puts the old answer back and says so.
+      async setRsvp(evt, response) {
+        if (!evt || !evt.id || evt.myResponse === response || this.isRsvpSaving(evt)) return;
+        const id = evt.id;
+        const dateStr = this.selectedDate;
+        const previous = evt.myResponse;
+        const show = (value) => {
+          const listed = (this.calendarEvents || []).find(e => e.id === id);
+          if (listed) listed.myResponse = value;
+          evt.myResponse = value;
+          if (this.selectedEvent && this.selectedEvent.id === id) this.selectedEvent.myResponse = value;
+          if (dateStr === this.selectedDate) this.syncDailyCacheFromLiveState(dateStr);
+        };
+        this.rsvpSaving = { ...this.rsvpSaving, [id]: true };
+        show(response);
+        try {
+          const saved = await callBridge(this.bridge, [['setEventRsvp', [id, response]]], 'RSVP');
+          if (!saved || saved.myResponse !== response) throw new Error('Not saved: Google Calendar did not confirm the RSVP.');
+          this.resolveError(`rsvp:${id}`);
+        } catch (err) {
+          console.error(`🔥 setRsvp: RSVP ${response} for event ${id} failed; the previous answer is shown again:`, err.stack);
+          if (evt.myResponse === response) show(previous);
+          this.reportError(`rsvp:${id}`, `RSVP for "${evt.title || 'appointment'}" not saved: ${err.message || err}`);
+        } finally {
+          const rest = { ...this.rsvpSaving };
+          delete rest[id];
+          this.rsvpSaving = rest;
+        }
       },
 
       // Popover key: kept apart from task ids, unique per appointment even without an id.

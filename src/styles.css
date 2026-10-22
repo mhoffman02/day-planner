@@ -4537,6 +4537,43 @@
     color: var(--binder-teal);
     text-decoration: underline;
   }
+  /* Going? Yes / No / Maybe: flat segmented buttons, the current answer filled teal */
+  .event-rsvp {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: 6px 0;
+  }
+  .event-rsvp-label {
+    font-size: 0.85em;
+    color: var(--text-muted);
+    margin-right: 4px;
+  }
+  .event-rsvp-btn {
+    font: inherit;
+    font-size: 0.85em;
+    padding: 2px 10px;
+    border: 1px solid var(--border-line);
+    border-radius: 4px;
+    background: var(--bg-card, #ffffff);
+    color: var(--binder-teal);
+    cursor: pointer;
+  }
+  .event-rsvp-btn:hover:not(:disabled) {
+    border-color: var(--binder-teal);
+  }
+  .event-rsvp-btn[aria-pressed="true"] {
+    background: var(--binder-teal);
+    border-color: var(--binder-teal);
+    color: #ffffff;
+  }
+  .event-rsvp-btn:disabled {
+    cursor: progress;
+    opacity: 0.6;
+  }
+  .modal-rsvp {
+    margin: 4px 0 10px;
+  }
   /* Appointment Event Details Modal (33% wider and taller) */
   article.modal-card-event {
     max-width: 735px;
