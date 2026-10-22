@@ -55,7 +55,8 @@ Every prompt MUST contain:
 
 ## 5. RECORD (single writer: direct Edit)
 
-- PLAN.md: flip the exact line `[ ]` -> `[x]`, or `[~]` with dated blocker reason.
+- PLAN.md: flip the exact line `[ ]` -> `[x]`, or `[~]` with dated blocker reason, written `(blocked YYYY-MM-DD: reason)`.
+  Deadlines on new items are `due YYYY-MM-DD` (see `.agents/rules/tracker-dates.md`).
 - TODO.md: follow its existing conventions; completed items archive to `TODO_HISTORY.md` (and finished PLAN phases to `PLAN-HISTORY.md`) at handoff.
 - Keep no running narrative; the checklist is the record. After context compaction, re-run the SELECT grep to rebuild state.
 

@@ -7,7 +7,7 @@
 // Usage:
 //   node tools/sync-handoff-skill.js          # regenerate
 //   node tools/sync-handoff-skill.js --check  # exit 1 if the project copy is out of date
-// Env HANDOFF_USER_SKILL overrides the user skill path. With no user skill on this machine, --check skips (exit 0).
+// The user skill's references/*.md are copied alongside. Env HANDOFF_USER_SKILL_DIR overrides the user skill dir. With no user skill on this machine, --check skips (exit 0).
 
 import fs from 'fs';
 import os from 'os';
@@ -15,9 +15,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-export const USER_SKILL = process.env.HANDOFF_USER_SKILL || path.join(os.homedir(), '.claude', 'skills', 'handoff', 'SKILL.md');
-export const ADDENDUM = path.join(root, '.agents', 'skills', 'handoff', 'project.md');
-export const PROJECT_SKILL = path.join(root, '.agents', 'skills', 'handoff', 'SKILL.md');
+export const USER_DIR = process.env.HANDOFF_USER_SKILL_DIR || path.join(os.homedir(), '.claude', 'skills', 'handoff');
+export const PROJECT_DIR = path.join(root, '.agents', 'skills', 'handoff');
 
 /** Generated project skill: user frontmatter, generated note, pointer to the addendum, user body, addendum. */
 export function buildProjectSkill(userSkill, addendum) {
@@ -29,24 +28,42 @@ export function buildProjectSkill(userSkill, addendum) {
   return `${m[1]}${note}${m[2].replace(/\n*$/, '\n\n')}${addendum.replace(/\n*$/, '\n')}`;
 }
 
+/** Every file the project skill dir should hold: the generated SKILL.md plus a copy of each user references/*.md. */
+export function planSync(userDir, projectDir) {
+  const read = (p) => fs.readFileSync(p, 'utf8');
+  const files = [{ dest: path.join(projectDir, 'SKILL.md'),
+    content: buildProjectSkill(read(path.join(userDir, 'SKILL.md')), read(path.join(projectDir, 'project.md'))) }];
+  const refs = path.join(userDir, 'references');
+  if (fs.existsSync(refs)) {
+    for (const name of fs.readdirSync(refs).filter((n) => n.endsWith('.md')).sort()) {
+      files.push({ dest: path.join(projectDir, 'references', name), content: read(path.join(refs, name)) });
+    }
+  }
+  return files;
+}
+
 /** 0 = up to date (or written), 1 = drift found in --check mode. */
 export function run({ check = false } = {}) {
-  if (!fs.existsSync(USER_SKILL)) {
+  if (!fs.existsSync(path.join(USER_DIR, 'SKILL.md'))) {
     if (check) {
-      console.log(`sync-handoff-skill: no user skill at ${USER_SKILL}; skipping check.`);
+      console.log(`sync-handoff-skill: no user skill in ${USER_DIR}; skipping check.`);
       return 0;
     }
-    throw new Error(`sync-handoff-skill: user skill not found at ${USER_SKILL}`);
+    throw new Error(`sync-handoff-skill: user skill not found in ${USER_DIR}`);
   }
-  const want = buildProjectSkill(fs.readFileSync(USER_SKILL, 'utf8'), fs.readFileSync(ADDENDUM, 'utf8'));
-  const have = fs.existsSync(PROJECT_SKILL) ? fs.readFileSync(PROJECT_SKILL, 'utf8') : '';
-  if (want === have) return 0;
+  const stale = planSync(USER_DIR, PROJECT_DIR)
+    .filter((f) => !fs.existsSync(f.dest) || fs.readFileSync(f.dest, 'utf8') !== f.content);
+  if (!stale.length) return 0;
+  const names = stale.map((f) => path.relative(root, f.dest)).join(', ');
   if (check) {
-    console.error('❌ .agents/skills/handoff/SKILL.md is out of date: run node tools/sync-handoff-skill.js && npm run sync:agents');
+    console.error(`❌ out of date: ${names}. Run node tools/sync-handoff-skill.js && npm run sync:agents`);
     return 1;
   }
-  fs.writeFileSync(PROJECT_SKILL, want);
-  console.log('✓ regenerated .agents/skills/handoff/SKILL.md; now run npm run sync:agents');
+  for (const f of stale) {
+    fs.mkdirSync(path.dirname(f.dest), { recursive: true });
+    fs.writeFileSync(f.dest, f.content);
+  }
+  console.log(`✓ regenerated ${names}; now run npm run sync:agents`);
   return 0;
 }
 

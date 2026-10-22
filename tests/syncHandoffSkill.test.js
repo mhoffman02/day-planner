@@ -2,7 +2,10 @@
 // is generated from the user-level skill plus a day-planner addendum, so the two can never drift apart.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildProjectSkill } from '../tools/sync-handoff-skill.js';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import { buildProjectSkill, planSync } from '../tools/sync-handoff-skill.js';
 
 const userSkill = '---\nname: handoff\ndescription: Generic handoff.\n---\n\n# handoff\n\nStep 0 ...\n';
 const addendum = '## Project addendum (day-planner)\n\n- Archive to TODO_HISTORY.md.\n';
@@ -18,4 +21,16 @@ test('keeps the user frontmatter, marks the file generated, points at the addend
 
 test('fails loud on a user skill without frontmatter', () => {
   assert.throws(() => buildProjectSkill('# no frontmatter', addendum), /frontmatter/);
+});
+
+test('the plan also copies every references/*.md file of the user skill into the project skill', () => {
+  const user = fs.mkdtempSync(path.join(os.tmpdir(), 'hs-user-'));
+  const proj = fs.mkdtempSync(path.join(os.tmpdir(), 'hs-proj-'));
+  fs.writeFileSync(path.join(user, 'SKILL.md'), userSkill);
+  fs.mkdirSync(path.join(user, 'references'));
+  fs.writeFileSync(path.join(user, 'references', 'edge-cases.md'), '# Edge cases\n');
+  fs.writeFileSync(path.join(proj, 'project.md'), addendum);
+  const files = planSync(user, proj);
+  assert.deepEqual(files.map((f) => path.relative(proj, f.dest)).sort(), ['SKILL.md', path.join('references', 'edge-cases.md')]);
+  assert.equal(files.find((f) => f.dest.endsWith('edge-cases.md')).content, '# Edge cases\n');
 });

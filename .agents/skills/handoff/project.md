@@ -12,7 +12,8 @@ These override or add to the generic steps above, for this repo only.
 - **Step 3, archive (CLAUDE.md rule 3):** move completed `TODO.md` items to `TODO_HISTORY.md` under a dated entry with
   commit refs, then delete them from `TODO.md`. Move any fully checked `PLAN.md` phase to `PLAN-HISTORY.md`. `PLAN.md`
   keeps the overview, stack table, standing verification criteria and the current or next phase only.
-- **Deadlines** in tracker items are written `due YYYY-MM-DD`, so the checker below can find them.
+- **Dates** follow `.agents/rules/tracker-dates.md`: deadlines are `due YYYY-MM-DD`; other dates never follow a
+  deadline word, so the checker below can tell them apart.
 - **Step 5.2 script:** `npm run check:handoff` (`tools/check-handoff.js`). It also fails when this generated skill is
   older than the user skill.
 - **Step 5.2 fresh-eyes check:** from Claude, spawn the `lite` agent (haiku/low, per `.agents/rules/subagent-model-cost.md`);

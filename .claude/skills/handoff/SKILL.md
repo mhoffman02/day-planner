@@ -8,506 +8,248 @@ description: Generate an end-of-session handoff for any project — lint + tests
 
 # handoff
 
-MUST DO: Run Step 0 through Step 7, in order, now. Every step detects
-what the project actually has and skips gracefully when it's absent —
-don't assume any one project's exact file names, and don't skip a step
-just because a filename below doesn't exist verbatim (see the
-glossary).
+Run Steps 0-7 in order, now. Each step detects what the project has and skips
+what's absent. Rare cases live in
+[`references/edge-cases.md`](references/edge-cases.md); read a section there
+only when SKILL.md sends you to it.
 
-MUST NOT: Skip **Step 3.4 — forward-flow**, for any reason, including
-"this was just a small fix." It is the entire reason this skill exists:
-stale trackers (a plan doc that doesn't say what's next, a session-log
-doc that's empty or stuck on a finished task) are a recurring,
-explicitly-flagged pain point for this user across projects.
+Given a resume prompt to **act on** instead of write? Run only **Read side**.
 
-MUST NOT: Write a resume prompt without Step 5.0's branch stamp and Verify
-line. The other recurring cross-project failure: the handoff lands on a
-worktree/feature branch, the user later reads the default branch's older
-`HANDOFF.md`, and the next session redoes finished work.
+Three MUST NOTs, each from a real repeated failure:
 
-MUST NOT: Copy, print or commit a resume prompt that hasn't passed **Step
-5.2 — validate every claim**. A prompt can be fresh and still wrong: on
-2026-10-22 one queued "`/` focuses the filter box" when `/` was already bound,
-called agent work "user-gated", skipped an overdue dated item, and left an
-implementer's choice (which duplicate wins) unstated. The user caught all four
-by asking "is it CORRECT and COMPLETE?". That question is Step 5.2's job.
+- MUST NOT skip **Step 3 forward-flow**, even after a small fix. Trackers that
+  don't say what's next are this user's top complaint across projects.
+- MUST NOT write a resume prompt without **Step 5.0's stamp and Verify line**.
+  Otherwise the handoff lands on a worktree branch, the user reads the default
+  branch's older copy, and the next session redoes finished work.
+- MUST NOT copy, print or commit a resume prompt that hasn't passed **Step
+  5.2**. A fresh prompt can still be wrong: on 2026-10-22 one queued a key
+  that was already bound, called agent work "user-gated", skipped an overdue
+  item and left "which duplicate wins" unstated.
 
-Given a resume prompt to **act on** (not asked to write one)? Run only the
-**Read side** section at the end, not Steps 0-7.
+## Terms
 
-## Glossary — pin these terms before reading further
+- **Tracker docs:** plan doc (macro-tasks, `PLAN.md`/`ROADMAP.md`),
+  session-log doc (current open/closed checklist, `TODO.md`), decisions doc
+  (`PROJECT_DECISIONS.md`), retro doc (`LEARNINGS.md`/`RETRO.md`),
+  resume-prompt doc (`HANDOFF.md`). A project may have some, none, or other
+  names.
+- **Default branch:** the branch the user reads (Step 5.0 detects it).
+  **Main checkout:** first entry of `git worktree list`.
+- **Off-default:** written on another branch or from a linked worktree; the
+  main checkout's resume prompt is stale until merged.
 
-- **Tracker doc** — umbrella term for any doc Step 3 touches.
-- **Plan doc** — macro-task list, one line per big effort. Typically `PLAN.md`/`ROADMAP.md`.
-- **Session-log doc** — current-sprint open/closed checklist, session-level detail. Typically `TODO.md`. (Not the retro doc below — a common misread.)
-- **Decisions doc** — durable rationale/architecture record. Typically `PROJECT_DECISIONS.md`.
-- **Retro doc** — Step 4 only: a dated Worked-well/Needs-improvement log. Typically `LEARNINGS.md`/`RETRO.md`.
-- **Resume-prompt doc** — the file Step 5 writes. Typically `HANDOFF.md`/`RESUME_PROMPT.md`.
-- **Default branch** — the branch the user reads by default (`main`/`master`), as Step 5.0 detects it.
-- **Main checkout** — the first entry of `git worktree list`; where the user usually opens files.
-- **Off-default** — the handoff is written on a branch other than the default branch, or from a linked worktree. The main checkout's resume-prompt doc is then stale until merged.
-- **Branch stamp** — the first line of the resume-prompt doc (Step 5.0): branch, worktree, `base` (HEAD *before* the handoff commit) and `written` timestamp. Never the handoff commit's own SHA, which a file can't contain.
+## Step 0 — Find the tracker docs
 
-A project may have all, some, or none of these, may combine plan+session-log
-into one file, or use different names entirely — Steps 3 and 5 each give you
-the fallback for that. What a project actually has is decided in Step 0, not
-guessed later.
+Use the project's `CLAUDE.md`/`README.md` pointers plus a root `*.md` glob.
+Any candidate that is renamed, prefixed (`FROZEN-`, `ARCHIVED-`), marked frozen
+in its first lines, or competing with another directory → follow
+**edge-cases.md, "Frozen, renamed or competing"** before writing anything.
 
-## Step 0 — Reconnaissance (before touching anything)
+Note each doc's own marker legend from its header. No legend → plain
+`- [ ]`/`- [x]`. Never import this skill's `[🔵]`/`[✔️]`/`[❌]` into a project
+that doesn't use them.
 
-1. Read the project's root `CLAUDE.md`/`README.md` for an explicit pointer to
-   its tracker docs. If one names a canonical location, treat it as a
-   candidate and continue to step 3 below — a pointer can itself be stale
-   and name a doc that's since been frozen, so it still needs the
-   frozen-marker check, not a bypass of it.
-2. Also glob the project root (and one level into an obvious docs directory) for
-   `*.md` and match case-insensitively against `*PLAN*`, `*TODO*`,
-   `*ROADMAP*`, `*DECISION*`, `*LEARN*`, `*RETRO*`, `*HANDOFF*`, `*RESUME*` —
-   including `FROZEN-`/`ARCHIVED-`/similar prefixes. Don't test only the
-   literal names `PLAN.md`/`TODO.md`: a renamed or prefixed file is still a
-   candidate, and skipping it here means it never gets the frozen-doc check
-   in step 3 below — it just silently looks like "no tracker doc exists."
-3. For every candidate found, open it and check its first ~10 lines for a
-   frozen/archived marker ("❄️ FROZEN", "ARCHIVED", or similar).
-   - Frozen **with** a named canonical replacement → use the replacement for
-     the rest of this skill; the frozen copy is not touched again.
-   - Frozen **with no** named replacement → **stop the whole handoff and ask
-     the user** which doc is canonical before writing anything else this
-     session. This is different from "no tracker doc exists" (Step 3's
-     create-fresh fallback) — a doc *does* exist here, it's just frozen, so
-     don't create a second one yourself.
-4. More than one directory could plausibly hold canonical tracker docs (a
-   pivot's old/new repo, a monorepo, a sibling worktree)? Don't default to
-   whichever matches the current working directory. Run step 3 on each
-   candidate; if more than one is un-frozen and looks live, stop and ask the
-   user which is canonical.
-5. For each tracker doc that survived steps 3-4, note its own state-marker
-   legend from its header (e.g. `` `[ ]` open, `[🔵]` in progress, `[✔️]`
-   done, `[❌]` canceled ``). **No legend line at all → the convention is
-   plain `- [ ]`/`- [x]`.** Never import this skill's own
-   `[🔵]`/`[✔️]`/`[❌]` markers into a project that never used them.
+## Step 1 — Lint and tests
 
-## Step 1 — Lint & tests
+Run the project's `lint` and `test` scripts (npm/pnpm/yarn per lockfile) if
+defined. Fix errors and failures first. Neither defined → skip; don't invent one.
 
-Detect the package manager (`pnpm-lock.yaml` / `yarn.lock` / default `npm`)
-and run `lint` and `test` if `package.json` defines them:
-```bash
-npm run lint   # or pnpm/yarn equivalent, if defined
-npm test       # or the project's actual test command
-```
-Fix errors and failing tests before proceeding. Warnings are informational
-only. Neither script defined → skip this step, don't invent a command the
-project doesn't have.
+## Step 2 — Review and commit code first
 
-## Step 2 — Review uncommitted changes
+Uncommitted changes → run the project's own review command/skill if any, else
+`review-uncommitted`. Fix BLOCKER/HIGH findings.
 
-Uncommitted working-tree changes exist? Look first for a project-defined
-review command (a `.claude/commands/review*` file, or a `/review`-named
-skill under the project's own `.claude/skills/`) and run that; otherwise run
-the `review-uncommitted` skill. Address BLOCKER/HIGH findings before
-committing.
+MUST commit code, test, config, skill and rule changes in their own truthful
+conventional commits (`feat(...)`, `fix(...)`), with the *why* for anything
+non-obvious. The handoff commit (Step 6) holds only the files this skill writes.
 
-> [!IMPORTANT]
-> MUST DO: Commit code changes first, separately, before the handoff
-> commit. Code/test/config changes get a truthful conventional-commit
-> message (`feat(...)`, `fix(...)`, `test(...)`) in their own commit.
-> MUST NOT: Bury code changes inside the handoff commit (Step 6) — that
-> commit stages only the files this skill writes.
->
-> MUST DO: Write commit messages that capture the key action and, for
-> anything non-obvious, *why*. Step 3.7's flush step trusts commit
-> messages as the durable record for routine completed work once
-> session-log detail is pruned — a vague message here becomes a real gap
-> later.
+## Step 3 — Sync the tracker docs
 
-## Step 3 — Sync this session's work into the tracker docs Step 0 found
+**3.0 Digest.** ~10+ commits since the last `docs(handoff)` commit → write
+`git log --oneline --stat <that commit>..HEAD` to a temp file and delegate the
+summary, cheapest first: project `tools/gemini-delegate.js`, `agy`, a Haiku
+agent, a Sonnet agent. Ask for done work by area, started-but-unfinished work,
+and commits that imply a decision. It's a memory aid: never let it add a claim
+you can't verify.
 
-Don't re-search for tracker docs here — use what Step 0 already found and
-classified.
+Then, in **each** tracker doc, in its own lane and with its own markers:
 
-### Step 3.0 — Delegate the commit digest first
+1. Done → its "done" marker and dating convention. Partly done → say so; the
+   marker must not overclaim the prose.
+2. Dropped or superseded → its "canceled" marker.
+3. New follow-ups → "open" items under the nearest section. A deadline is
+   written `due YYYY-MM-DD`; any other date never follows "due", "by", "on",
+   "before", "until" or "deadline" (so a script can tell them apart).
+4. **Forward-flow (MUST, every session).** Pick the next macro-task: the one
+   in progress, else the first open one after what this session closed, else
+   the first open one. Mark it in progress in the plan doc and write its
+   breakdown as open items in the session-log doc (one combined doc → a
+   sub-list under it). Each queued item must be actionable as written: run
+   Step 5.2 checks 1-2 on it now. A conflict or open choice becomes a user
+   decision with a proposed default, written into the item. Nothing next →
+   say so explicitly.
+5. A decision or architecture change → record it in every doc that would
+   otherwise mislead. Resolving a "TBD"/"deferred" → delete that phrase in
+   the same edit.
 
-MUST DO: Before writing any tracker update, build a digest of what actually
-landed this session — `git log --stat <last handoff commit>..HEAD` — and
-**delegate the summarizing** rather than re-deriving it from memory. A long
-session's early work is exactly what gets forgotten, and a commit log is bulk,
-mechanical, low-judgment text: the delegation case.
-
-```bash
-git log --oneline --stat "$(git log -1 --format=%H --grep='docs(handoff)')..HEAD" > /tmp/session-log.txt
-```
-
-MUST DO: Route it in this order, taking the first that's available — a
-project-local `tools/gemini-delegate.js` (pass `--input-file /tmp/session-log.txt`
-and a task naming the sections you need), then `agy` directly, then a Haiku
-subagent, then a Sonnet subagent. Do it inline only if none are available.
-
-MUST DO: Ask the delegation for exactly what Steps 3 and 5 consume: completed
-work grouped by area, anything the commits show as started-but-unfinished, and
-any commit whose message implies a decision (so Step 3.5 can check the
-decisions doc records it).
-
-MUST NOT: Trust the digest as the record. It is a memory aid over commits you
-made — reconcile it against what you know happened, and never let it introduce
-a claim you cannot verify. Fewer than ~10 commits since the last handoff →
-skip the delegation, the overhead exceeds the benefit.
-
-### Steps 3.1–3.7 — Sync each tracker doc
-
-**Always (every project that has a tracker doc):**
-
-Run items 1-3 against **each** tracker doc Step 0 found, in its own lane — a
-project that keeps `PLAN.md` for macro-tasks, `TODO.md` for session detail,
-and `PROJECT_DECISIONS.md` for rationale means that split is intentional;
-update every one of them, not just whichever file happens to be shortest.
-
-1. Completed items → flip to that doc's own "done" marker (from Step 0.5),
-   keeping its dating convention. Only *partially* done or genuinely
-   uncertain → say so in the entry instead of marking it fully done; don't
-   let the marker overclaim what the prose admits.
-2. Dropped/superseded items → that doc's own "canceled" marker — don't leave
-   something that isn't being worked looking merely "open."
-3. New pending follow-up → new entries in that doc's own "open" marker,
-   under the nearest relevant section.
-4. **Forward-flow the next macro-task. Mandatory, every session, no
-   exceptions — run this even if nothing else in Step 3 applies.**
-   - Two-doc project (plan doc + session-log doc): identify the next
-     macro-task — the one already "in progress," else the first "open" one
-     after whatever this session just closed, else (if this session closed
-     nothing) the first "open" task listed. Mark it "in progress" in the
-     plan doc even if no code against it happened yet. Write/refresh its
-     session-level breakdown as "open" items in the session-log doc, so the
-     next session opens to a concrete checklist, not an empty file or a
-     stale one from a prior task.
-   - Each item you queue must be actionable as written: check it against
-     the code now (Step 5.2 checks 1-2), not "grep first" left for the next
-     session. A conflict or an open choice becomes a user decision with a
-     proposed default, written into the item.
-   - One combined doc (no plan/session-log split): do the same thing inside
-     that doc — mark the next macro-task "in progress" and add its
-     breakdown as a sub-list under it. Don't invent a second file just to
-     satisfy this step.
-   - No obvious "next" task (everything done, or a pivot redirected work) →
-     say so explicitly in the doc(s), rather than leaving a stale
-     "in progress" or an unexplained silence.
-5. Record any major decision/architecture change in **every** tracker doc
-   that would otherwise mislead a reader about it — not just one. If a pivot
-   produced a sibling repo, add a pointer in the old repo's docs and confirm
-   the new repo's docs agree (same IDs/URLs, same "what's next," no
-   contradictions). When an edit resolves something previously flagged
-   "TBD"/"deferred," delete that phrase in the same edit — re-read the
-   paragraph afterward to confirm the old claim is actually gone, not just
-   sitting next to the new one.
-
-**Conditional — check the doc's own header before running these:**
-
-6. A doc's entry summarizes another doc's list and points there (e.g. "see
-   `FORM_DESIGN.md`'s Still-open section")? Re-verify the two still agree
-   after any edit above — this drifts easily.
-7. The session-log doc's own header says it's a **current-sprint-only**
-   scratchpad (check the header — don't assume it)? Triage-then-flush its
-   closed items now:
-   - Routine ("did the task, worked, nothing surprising") → drop it from the
-     session-log doc; a one-line status note on the plan doc's matching
-     macro-task is enough, trust git log for the rest.
-   - Durable (a real decision/gotcha/tradeoff a future session needs) →
-     promote the rationale into the decisions doc as its own entry, *then*
-     drop it here.
-   - **This is the only sub-step that deletes content.** If the convention
-     is unclear or the header doesn't say current-sprint-only, don't flush —
-     leave closed items in place.
-   - This depends on frequent, descriptive commits actually having captured
-     what happened — don't flush detail that was never committed anywhere;
-     commit first (Step 2), then flush. Moving the detail into the plan doc
-     instead of dropping it just relocates the bloat — that's not the goal.
-   - After flushing, sweep for pointers the flush just broke — the remaining
-     tracker docs, both subprojects' `README.md`s, and the sibling repo (if a
-     pivot is in play) — and fix every one found.
-     MUST DO: **Delegate this sweep** (same routing order as Step 3.0:
-     project-local `gemini-delegate`, then `agy`, then Haiku, then Sonnet).
-     Reading several docs to find references to deleted headings is bulk
-     pattern-matching over a lot of text, and it is the step most often
-     skipped when the session is long. Give the delegation the exact headings
-     and phrases that were removed, and ask for file + line + quoted context
-     for each hit.
-     MUST NOT: Let the delegation edit anything. It reports hits; you decide
-     what each broken pointer should now say, and you make the edit. A
-     dangling pointer fixed by guesswork is worse than one left visible.
-
-**No tracker doc survived Step 0 at all**, and this session was more than a
-one-line fix: create `TODO.md` now, and `PLAN.md` too once there's more than
-one independent macro-track — don't ask first, these are standard low-risk
-docs. Use the `[ ]`/`[🔵]`/`[✔️]`/`[❌]` convention unless a doc you're
-creating already picked a different one.
+Cross-doc summaries, sibling repos, or a session-log header that says
+"current sprint only" → **edge-cases.md, "Cross-doc summaries" and
+"Current-sprint flush"**. No tracker doc at all → **"No tracker doc"**.
 
 ## Step 4 — Retro entry
 
-Look for a retro doc (`LEARNINGS.md`, `RETRO.md`, `NOTES.md`). Append a dated
-entry:
+Append to the retro doc (none → create `LEARNINGS.md`):
 ```markdown
 ## YYYY-MM-DD
 **Worked well:** <1-2 lines>
-**Needs improvement:** <1-2 lines, only if there's something real>
+**Needs improvement:** <1-2 lines, only if real>
 ```
-Keep it short — a running log, not a report. None exists → create
-`LEARNINGS.md` and start it, don't ask first.
 
 ## Step 5 — Write the resume prompt
 
-### Step 5.0 — Branch stamp (before writing)
+### 5.0 Stamp
 
-MUST DO: Commit every non-handoff change first: code, tests, config, and
-also skill, rule or other meta-file edits made while writing the handoff.
-Stamp last. A change that must land after the stamp goes in the handoff
-commit itself (re-stamp `base` in that same commit), never in a follow-up
-commit. One follow-up commit makes the fresh copy look stale. (2026-10-22:
-three re-stamp commits in a row.)
-
-Run after every commit Step 2 made, so `base` is the handoff commit's parent.
-Plain one-line commands, run separately: read each output off directly (shell
-variables don't survive between calls, and worktree-isolated sessions refuse
-compound git scripts):
+Every other change is committed (Step 2), so `base` is the handoff commit's
+parent. A change that must land later goes in the handoff commit itself, with
+`base` re-stamped; never a follow-up commit, which makes the fresh copy look
+stale. Run each command separately (worktree sessions refuse compound git):
 
 | Value | Command |
 | :--- | :--- |
-| `branch` | `git branch --show-current` (empty → detached HEAD: say so in the warning) |
-| `default` | `git symbolic-ref --short -q refs/remotes/origin/HEAD` minus `origin/`; empty → `main` if `git rev-parse -q --verify refs/heads/main` succeeds, else `master` |
+| `branch` | `git branch --show-current` (empty → detached HEAD, say so) |
+| `default` | `git symbolic-ref --short -q refs/remotes/origin/HEAD` minus `origin/`; empty → `main` if `git rev-parse -q --verify refs/heads/main`, else `master` |
 | `base` | `git rev-parse --short=12 HEAD` |
-| `written` | `date -Iseconds` (full timestamp: several handoffs a day happen) |
+| `written` | `date -Iseconds` |
 | `main_checkout` | first `worktree` line of `git worktree list --porcelain` |
 | `top` | `git rev-parse --show-toplevel` |
-| `in_worktree` | `git rev-parse --path-format=absolute --git-dir --git-common-dir`: two different lines → yes |
+| `in_worktree` | `git rev-parse --path-format=absolute --git-dir --git-common-dir` differ → yes |
 
-Off-default = `branch` ≠ `default`, or `in_worktree` = yes.
+Off-default = `branch` ≠ `default` or `in_worktree`. MUST NOT copy the file into
+the main checkout or push to the default branch to "fix" that; make it loud and
+give the merge command.
 
-MUST NOT: Copy the resume-prompt doc into the main checkout, or push to the
-default branch, to "fix" staleness. That dirties the user's checkout or skips
-their merge. Make the staleness loud and give the merge command instead.
+### 5.1 Write it
 
-### Step 5.1 — Write it
-
-Write/overwrite the resume-prompt doc Step 0 found, or default to
-`HANDOFF.md`. **The resuming session must be able to act at once:** the
-Verify line is step zero, and the very next line, "Start by," is the next
-action as an imperative, not a status summary to extract an action from.
-Use this skeleton, adapting each pointer to the doc's *actual* section
-names (the labels below are illustrative, not literal requirements):
+Overwrite the resume-prompt doc (default `HANDOFF.md`). Verify is step zero;
+"Start by" is the next action as an imperative.
 
 ```markdown
-<!-- handoff: branch=<branch> worktree=<top, or main-checkout> base=<base> written=<written> -->
+<!-- handoff: branch=<branch> worktree=<top> base=<base> written=<written> -->
 # Resume: <one-line orientation>
 
 > **WARNING: written on branch `<branch>`** (worktree `<top>`), not
-> `<default>`. Until merged, `<default>`'s copy of this file is stale. Merge:
+> `<default>`. Until merged, `<default>`'s copy is stale. Merge:
 > `git -C <main_checkout> pull --ff-only && git -C <main_checkout> merge --ff-only <branch>`
-<!-- ^ off-default only; delete the blockquote when on the default branch in the main checkout -->
+<!-- ^ off-default only -->
 
 **Verify first:**
 `git fetch -q; git log --branches --remotes -1 --abbrev=12 --format='%h %p %cI' -- HANDOFF.md`
-This prompt is stale if that commit is dated after `<written>` **and** its
-parent (2nd field) isn't `<base>`, or if `git worktree list` shows a worktree
-whose `HANDOFF.md` stamp has a later `written=`. If stale, read
-`git show <1st field>:HANDOFF.md` (or that worktree's file), use it instead,
-and tell the user. Then run `git log --oneline <base>..<branch>` (branch gone →
-`origin/<branch>` or `<default>`): any commit besides the handoff commit means
-work landed after this prompt, so check it before redoing anything.
+Stale if that commit is dated after `<written>` **and** its parent isn't
+`<base>`, or a worktree's `HANDOFF.md` has a later `written=`. Then read that
+copy instead and tell the user. `git log --oneline <base>..<branch>`: any
+commit besides the handoff commit landed after this prompt; check it first.
 
-**Start by:** <the literal next command/action — or see the rule below if
-every open item needs the user>
+**Start by:** <the literal next action>
 
-<2-4 sentences: what this session accomplished, enough to orient>
+<2-4 sentences: what this session did>
 
-- What changed — `TODO.md`'s <actual "Closed" section name>
-- Rationale — `PROJECT_DECISIONS.md`'s <actual section name>
-- Still open — `TODO.md`'s <actual "Open" section name> (inline the list
-  instead, verbatim, only if it's ≤3 items)
-- Blockers/decisions the next session needs that aren't captured elsewhere
-- Tried and rejected — <approach: why it failed or was dropped>. Carry
-  forward lines from the previous resume prompt that still apply; omit the
-  bullet when there are none
+- What changed: <tracker doc + section>
+- Still open: <section pointer; inline if ≤3 items>
+- Blockers and decisions not captured elsewhere
+- Tried and rejected, or traps hit: <approach or trap: why>. Carry forward
+  lines that still apply; put lasting traps in memory or the retro doc too.
+  Omit when empty.
 ```
 
-**Pointers name the symbol; line numbers are only hints.** Write
-`setupKeyboardShortcuts` in `src/app.js` (~L924), not just `src/app.js:924`:
-the first edit above that line makes a bare line number wrong, and a symbol
-can be grepped.
+Fill every `<...>` with 5.0's values; swap `HANDOFF.md` for the real name. Use
+`--branches --remotes`, never `--all` (that includes the shared `refs/stash`).
+**Pointers name the symbol**, with the line as a hint: `setupKeyboardShortcuts`
+in `src/app.js` (~L924), since any edit above shifts a bare line number.
 
-Swap `HANDOFF.md` in the Verify line for the real resume-file name, and fill
-every `<...>` with Step 5.0's literal values. Use `--branches --remotes`, never
-`--all`: `--all` includes `refs/stash`, which worktrees share, so a WIP stash
-that touched the file would show up as the "newest handoff."
+**"Start by" must be doable by the resuming session.** At least one open item
+is agent work → Start by = that item, with user-gated items listed separately.
+All need the user → Start by = "ask the user to decide: <each decision + its
+proposed default>". Never give a user-gated item an action verb ("finish",
+"resolve") that implies the agent can do it alone.
 
-> [!IMPORTANT]
-> **"Start by" must be something the resuming session can actually do.** If
-> every open item needs the user (a decision only they can make, a physical
-> or device test only they can run), "Start by" = "ask the user to decide:
-> <name each decision + its proposed default/options, pulled from the
-> tracker doc>" — resolved immediately, not after re-deriving them from
-> three other files. Never phrase a user-blocked item with an action verb
-> ("close out", "finish", "resolve") that implies the resuming session can
-> do it solo. If at least one open item is independent agent work, "Start
-> by" = that item, with user-blocked items listed separately underneath so
-> they aren't mistaken for something to start on.
+### 5.2 Validate every claim (MUST, before copying, printing or committing)
 
-### Step 5.2 — Validate every claim (before copying, printing or committing)
+Check each claim against a primary source (code, git, the tracker text,
+`date +%F`), not memory. A failure means fixing the prompt **and** the
+trackers, not just mentioning it.
 
-MUST DO, every handoff, even a small one. Check each claim against a primary
-source (code, git, the tracker's own text, `date +%F`), not memory. A failed
-check means **fix the resume prompt and the tracker docs**, not just mention
-it in chat.
+1. **Conflicts.** Grep what each queued item touches (key, route, function,
+   setting, label). Already exists → user decision with `file:line` and a
+   proposed default, routed through the Start by rule.
+2. **Open choices.** Name every choice the implementer would face (which
+   duplicate wins, which view, order, empty/error behavior). State the rule
+   or make it a user decision.
+3. **Scope labels.** "The rest are user-gated", "all verified" must hold for
+   each item. List agent work separately from user-gated work.
+4. **Dates.** Every open item due before today → mark OVERDUE in tracker and
+   prompt, with its first agent action (often a probe). New deadlines use
+   `due YYYY-MM-DD`.
+5. **Pointers and commands.** Each symbol still exists and its line hint is
+   close. Each command does what the prompt says (read its source or
+   `--help`: a "probe" must not push, deploy or write). Verify runs clean.
+6. **Completeness.** Every open tracker item appears, inline or by pointer.
+7. **No secrets.** No tokens, keys, passwords or private-key blocks; replace
+   with `[REDACTED]` and say where the value lives.
 
-1. **Conflicts with code that already exists.** For each queued item, grep
-   what it touches: the key, route, command, function, setting or UI label
-   it adds or changes. Already used, already bound or already built → the
-   item needs a user decision. Write the conflict with `file:line` and a
-   proposed default into the item, and route it through the "Start by" rule
-   above: ask first, and name agent work to do while waiting.
-2. **Underspecified choices.** Name every choice the implementer would have
-   to make (which duplicate wins, which view or record, ordering, empty or
-   error behavior). State the rule in the item, or turn it into a user
-   decision. "Dedupe by id" without saying which copy is kept fails.
-3. **Scope labels.** A summary that covers several items ("the rest are
-   user-gated", "only X remains", "all verified") must be true of each one.
-   Re-read every open item's own owner/marker and list agent-doable items
-   separately from user-gated ones.
-4. **Dates.** Every open item with a date before today → mark it OVERDUE in
-   the tracker and the resume prompt, with its first agent action (often a
-   probe that shows whether the user is needed). Write new deadlines as
-   `due YYYY-MM-DD` so a script can tell them from "added on" dates.
-5. **Pointers.** Every symbol named still exists (grep it), its line hint
-   is close, and every command does what the prompt says (read its
-   `--help` or source: a "probe" must not push, deploy or write). The
-   Verify line runs and reports not stale.
-6. **Completeness.** Every open item in the tracker docs appears in the
-   resume prompt, inline or by a section pointer. None is silently dropped.
-7. **No secrets.** The resume prompt and tracker docs hold no tokens, keys,
-   passwords or private-key blocks. Replace any found with `[REDACTED]` and
-   a pointer to where the real value lives.
+**Script first:** a project checker (e.g. `npm run check:handoff`) covers 4-7
+and the stamp; fix every failure. No script → do them by hand.
 
-**Mechanical checks by script first.** If the project has a handoff checker
-(e.g. `tools/check-handoff.js`, `npm run check:handoff`), run it and fix
-every failure. It covers checks 4-7 and the stamp. With no script, do them
-by hand.
-
-**Then a fresh-eyes check, every handoff (MUST).** The author misses their
-own gaps: the 2026-10-22 author thought "grep first" was enough. Spawn the
-cheapest capable reviewer (Step 3.0's routing order: `agy` flash-lite, a
-Haiku/`lite` agent, else Sonnet), read-only, with only the resume prompt
-and the repo, and this question:
+**Then fresh eyes (MUST).** Spawn the cheapest capable read-only reviewer
+(Step 3.0's order) with only the repo and this question:
 
 > You are the next session. Using only HANDOFF.md and the repo, could you
 > start the "Start by" item right now without asking anything? List each
 > claim that is false, missing, ambiguous or conflicts with existing code,
 > with file + line evidence. Do not edit anything.
 
-It reports; you fix (re-run the script after fixing). Skip it only when no
-subagent or CLI route exists, and say so in the reply.
+It reports; you fix and re-run the script. No subagent route → say so.
 
-### Step 5.3 — Copy and print
+### 5.3 Copy and print
 
-Copy it to the clipboard, trying tools in this order and silently moving on
-to the next if one isn't on PATH — no error output at this stage, no asking
-the user which one to use:
-```bash
-if command -v pbcopy >/dev/null 2>&1; then
-  pbcopy < HANDOFF.md
-elif command -v clip.exe >/dev/null 2>&1; then
-  clip.exe < HANDOFF.md   # WSL / Windows
-elif command -v wl-copy >/dev/null 2>&1; then
-  wl-copy < HANDOFF.md    # Wayland
-elif command -v xclip >/dev/null 2>&1; then
-  xclip -selection clipboard < HANDOFF.md   # X11
-elif command -v xsel >/dev/null 2>&1; then
-  xsel --clipboard --input < HANDOFF.md     # X11, xclip alternative
-fi
-```
-(Swap `HANDOFF.md` for whichever resume-file name this project actually
-uses.) Only if **none** of these are on PATH, say so in one short line in
-the chat reply ("no clipboard tool found, printing below only") — that plus
-the printed prompt below is the only output this step ever produces.
-
-**Print the resume prompt's full text in the chat reply, every time, no
-exceptions** — the content itself, no filename header, no "## HANDOFF.md"
-caption, no code-fence-and-caption ceremony, just the markdown as the user
-will actually read and reuse it. This holds even on a repeat handoff in the
-same session with similar-looking content. Off-default → precede it with one
-plain line: "Handoff is on branch `<branch>`, not `<default>`. The main
-checkout's copy is stale until you merge (command in the prompt)."
-
-Session touched more than one project (e.g. a pivot that produced a sibling
-repo)? Write a resume-prompt doc in **each** one regardless, but print only
-the active one by default — the project whose docs actually have the next
-work queued. Print more than one only if the user asks, or there's
-genuinely no single active project (two equally-live parallel efforts).
+Copy the file to the clipboard (`clip.exe`, `pbcopy`, `wl-copy`, `xclip`,
+`xsel`: **edge-cases.md, "Clipboard"**). Print the prompt's full text in the
+reply every time, with no caption or fence. Off-default → precede it with:
+"Handoff is on branch `<branch>`, not `<default>`. The main checkout's copy is
+stale until you merge (command in the prompt)." Several projects touched →
+**edge-cases.md, "Several projects"**.
 
 ## Step 6 — Commit the handoff
 
-MUST DO: First confirm `git rev-parse --short=12 HEAD` still equals the
-stamp's `base`. Anything committed since Step 5.0 → re-stamp the header
-before committing, or the fresh copy will flag itself as stale.
+`git rev-parse --short=12 HEAD` must still equal `base`; else re-stamp. Stage
+only the tracker docs and resume prompt this skill wrote, by real name, and
+commit `docs(handoff): <summary>`. Push if there's a remote. Report any other
+uncommitted file; never absorb it.
 
-Stage and commit only the files this skill wrote this session (per Step 2's
-rule — never the code changes), by their real on-disk names:
-```bash
-git add PLAN.md TODO.md PROJECT_DECISIONS.md LEARNINGS.md HANDOFF.md   # only the ones that actually changed, real filenames
-git commit -m "docs(handoff): session summary and resume notes"
-```
-Push to the tracked remote if one exists and the user hasn't asked to keep
-this local-only. Off-default, this pushes the branch only. The default branch
-still holds the old resume prompt (Step 5.0's MUST NOT applies). Report any
-other leftover uncommitted files so they can be
-committed separately with their own truthful message — never absorb them
-here silently.
+## Step 7 — Cleanup report (report-only)
 
-## Step 7 — Branch/worktree cleanup (report-only)
-
-Run both — independent, no ordering needed:
-```bash
-git branch --merged <default>   # Step 5.0's detected default branch
-git worktree list
-```
-Report merged branches/worktrees left over from finished sessions and
-whether the local default branch is behind its remote. Report only — don't
-delete anything without being asked.
-
-Off-default → the **last line of the reply** repeats it: "Not on `<default>` yet:
+Run `git branch --merged <default>` and `git worktree list`; report leftovers
+and whether the local default branch is behind. Delete nothing unasked.
+Off-default → the reply's **last line** repeats: "Not on `<default>` yet:
 `git -C <main_checkout> pull --ff-only && git -C <main_checkout> merge --ff-only <branch>`".
-The user reads the end of the reply. A warning buried
-mid-report is how the stale copy gets pasted.
 
-## Read side — acting on a pasted resume prompt
+## Read side — acting on a resume prompt
 
-Before acting on any resume prompt (pasted, or read from a resume-prompt doc):
+1. `git fetch -q`, then run its Verify line. A local default branch behind
+   its remote is stale too.
+2. No stamp → `git log --branches --remotes -3 --format='%h %cI %D %s' -- HANDOFF.md`
+   and `git worktree list`; a newer copy elsewhere is the candidate.
+3. Newer handoff found → use it and tell the user in one line where it came
+   from. Don't merge or copy it unasked.
+4. "Start by" work already landed (git log) → say so, go to the next item.
+5. Print `| Claim | Handoff said | Repo now |`, one row per claim the plan
+   rests on (branch/HEAD, live versions, items done, the Start by target's
+   code), each checked by a command now. Mismatch → say what changed, adjust.
+6. Before coding the Start by item, run 5.2 checks 1-2 on it. A missed
+   conflict or open choice → ask the user, with a proposed default.
 
-1. `git fetch -q`, then run its **Verify first** line. A local default branch
-   that's just behind its remote counts as stale too.
-2. No stamp (a pre-stamp prompt)? Fall back to
-   `git log --branches --remotes -3 --format='%h %cI %D %s' -- HANDOFF.md`
-   and `git worktree list`. Treat
-   any newer copy on another branch or worktree as the candidate.
-3. A newer handoff exists → use it, and tell the user in one line which
-   branch/worktree it came from and that the pasted one was stale. Don't merge
-   or copy it anywhere unless asked.
-4. "Start by" names work the git log shows already landed → say so and skip
-   to the next open item. Don't redo it.
-5. Before acting, print a short **claimed vs now** table, one row per claim
-   the plan rests on (branch/HEAD, versions live, items done, the "Start by"
-   target's current code), each checked by a command this session:
-   `| Claim | Handoff said | Repo now |`. A mismatch → say what changed and
-   adjust before acting.
-6. Before writing code for the "Start by" item, run Step 5.2 checks 1-2 on
-   it. A conflict or open choice the prompt missed → stop and ask the user,
-   with a proposed default. Don't pick silently.
-
-## Variants
-
-Only when the user asks for one by name — never inferred from repo state:
-
-- **Read-only**: generate and display the resume prompt without writing
-  files or committing.
-- **Preflight**: `git status --short` clean? Still run Step 3.4
-  (forward-flow) — it doesn't depend on working-tree changes. Report
-  "nothing to hand off" only if there's also no forward-flow update to make.
+Variants (read-only, preflight) → **edge-cases.md, "Variants"**, only when
+the user names one.
 
 ## Project addendum (day-planner)
 
@@ -523,7 +265,8 @@ These override or add to the generic steps above, for this repo only.
 - **Step 3, archive (CLAUDE.md rule 3):** move completed `TODO.md` items to `TODO_HISTORY.md` under a dated entry with
   commit refs, then delete them from `TODO.md`. Move any fully checked `PLAN.md` phase to `PLAN-HISTORY.md`. `PLAN.md`
   keeps the overview, stack table, standing verification criteria and the current or next phase only.
-- **Deadlines** in tracker items are written `due YYYY-MM-DD`, so the checker below can find them.
+- **Dates** follow `.agents/rules/tracker-dates.md`: deadlines are `due YYYY-MM-DD`; other dates never follow a
+  deadline word, so the checker below can tell them apart.
 - **Step 5.2 script:** `npm run check:handoff` (`tools/check-handoff.js`). It also fails when this generated skill is
   older than the user skill.
 - **Step 5.2 fresh-eyes check:** from Claude, spawn the `lite` agent (haiku/low, per `.agents/rules/subagent-model-cost.md`);
