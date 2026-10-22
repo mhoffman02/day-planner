@@ -10,6 +10,8 @@
     "build:engines": "node tools/build-gas-engines.js",
     "check:engines": "node tools/build-gas-engines.js --check",
     "check:gas-safe-chars": "node tools/check-gas-script-html-safe-chars.js",
+    "check:handoff": "node tools/check-handoff.js",
+    "sync:handoff-skill": "node tools/sync-handoff-skill.js",
     "start": "node server.js",
     "probe": "node tools/probe-live.js",
     "rpc": "node tools/gas-rpc.js",
