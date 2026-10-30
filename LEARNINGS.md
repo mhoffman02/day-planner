@@ -293,3 +293,7 @@ live-testing catches it by luck.
 ## 2026-10-30 (safe note saves, Decisions)
 **Worked well:** The advisor asked for a round-trip test with real card content before stacking more on the conflict check; it found a pre-existing bug where a typed `## ` line split the day section and duplicated text on every save.
 **Needs improvement:** `git add -A` swept a background agent's half-written doc into a fix commit; stage by name while an agent is writing. `npm run push:work` fails with a misleading permission error when run from `gas-app/`; run it from the repo root.
+
+## 2026-10-30 (Solid Code gates)
+**Worked well:** The live /dev gate and gas-app html linting catch what 1288 green unit tests missed (@337-@340 never loaded). Sonnet workers with exit criteria delivered both 1A and the skill update in one pass.
+**Needs improvement:** ESLint flat config replaces rule options per block, so shared `no-restricted-syntax` entries must be repeated in each block; a worker ran a heredoc despite the no-heredoc instruction.

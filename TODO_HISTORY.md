@@ -1,5 +1,18 @@
 # Task History (TODO_HISTORY)
 
+## 2026-10-30 — Solid Code gates (HOME @346, WORK pushed, repoint pending)
+
+- [x] **@337-@340 never loaded**: HTML comment markers in Script.html (`6368c04`); HOME v1 now moves only after a live
+  `/dev` load (`npm run deploy:home`, `ae51fc5`), which also refuses an uncommitted gas-app tree (`0bbb14b`).
+- [x] **Gates**: commit-msg `Red-run:`/`Escaped-because:`/`Guard-added:` (+ `Measured:` on perf), coverage ratchet,
+  CI (`75a24d7`, `981d18e`); fast-check property tests (`0790ccc`); HTML/a11y ratchet, Stryker config, ADRs 0001-0006
+  (`ba96ab2`); `v_` boundary validator (`a71abf3`).
+- [x] **ESLint 2T** everywhere incl. gas-app html scripts, legacy `var` suppressed (`1301208`, `e2a90ef`); GAS
+  globals, unbounded loops, `substr`, coercion (`d3467e5`); RPC-guard (46) and mirror (107) ratchets (`e2a90ef`).
+- [x] **UTC day keys** fixed at 12 `toISOString().slice` sites + ESLint ban (`07950f0`).
+- [x] **Stack out of UI** (1A): `logError` and the doGet failure page carry the message only; lint fails `.stack`
+  outside loggers (`da66a4f`). `~/.claude/skills/solid-code` updated (2T; outside the repo).
+
 ## 2026-10-30 — Day rollover, smart paste, safe note saves, Decisions (HOME @340, WORK pushed, repoint pending)
 
 - [x] **Today rollover + stale reload**: a view on the old today moves to the new day; a tab hidden >15 min

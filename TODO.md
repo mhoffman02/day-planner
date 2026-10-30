@@ -7,7 +7,7 @@ split a day, `🎯/Decision` label -> undated `Decision: <subject>` Task (manual
 note badge, completing a `Decision:` task adds `#decision <what>` to the last note card of today. User picks: 1A 2A
 3A 4A, 5 = "a decision is a Task whose title or notes lead with `Decision:`" (no register view), 6A, 7T.
 
-- [ ] **Live check on HOME** (@340+): edit a day in the notes Doc, then type in the app: a save error says
+- [ ] **Live check on HOME** (@346; Retry is in the error tray): edit a day in the notes Doc, then type in the app: a save error says
   "changed in Google Docs", Retry overwrites; label an email `🎯/Decision` and wait a tick; complete a `Decision:` task with Today open.
 - [ ] **Notes portal decisions** (`docs/notes-portal-eval.md`, user to answer): 1A no iframe, run probe P1 only;
   2T read-only Docs API render as the panel Doc view; 3T "Open this day in Docs" link; 4A defer per-day tabs;
@@ -23,6 +23,12 @@ note badge, completing a `Decision:` task adds `#decision <what>` to the last no
 - [ ] **Shrink `mirror-baseline.json`** (107 drifted `src/*.js` vs `gas-app/Script.html` functions: app.js 86,
   binderStore 9, taskEngine 5, hubUi 3, futureMatrixEngine 2, quotesEngine 1, searchEngine 1): reconcile each pair,
   or generate the `Script.html` engines from `src` like `Engines.gs`; then run `node tools/check-mirror.js --update`.
+- [ ] **Shrink `html-baseline.json`** (a11y findings in `index.html` + `gas-app/Index.html`, mostly
+  `prefer-native-element`): fix both copies, then `node tools/check-html.js --update`.
+- [ ] **Run `npm run test:mutation`** (Stryker, `stryker.config.json`) before the next big phase; each surviving
+  mutant becomes a test.
+- [ ] **Shrink legacy `var` suppressions** in `eslint-suppressions.json` (gas-app `.gs` and html scripts): convert a
+  file at a time to `const`/`let`, then `npx eslint --prune-suppressions`.
 
 ## Phase 31: Search polish (in progress)
 
