@@ -56,8 +56,17 @@ User-requested follow-ups from the 2026-10-22 search work. Checklist in [`TODO.m
 - [ ] `/` hotkey for the Master Tasks filter box (needs a user decision: `/` already opens universal search).
 - [ ] Status and due date in universal search task results.
 - [ ] Dedupe task results that appear in both Today and Master.
-- **Next agent work:** ask the user about `/`; Phase 31 items 2 and 3 (item 1 once decided); then the overdue rpc
-  expiry probe and the HOME `/dev` live checks of Forward/Delegate and trial-mode controls (Phase 30, TODO.md).
+- **Next agent work:** after the Phase 32 HOME live check, Phase 31 items 2 and 3 (item 1 once decided); then the
+  overdue rpc expiry probe and the HOME `/dev` live checks of Forward/Delegate and trial-mode controls (Phase 30).
+
+### Phase 32: Notes Doc safety + Decisions (In progress)
+Checklist in [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md). Evals: `docs/notes-doc-embed-eval.md`,
+`docs/notes-portal-eval.md`, `docs/key-decisions-eval.md`.
+- [x] Today rollover + smart paste (HOME @337), About Hub Config Drive-search link (@338).
+- [x] Revision-safe day saves, typed `## ` lines no longer split a day (@339/@340).
+- [x] Decisions: `🎯/Decision` -> `Decision:` Task, `#decision` badge, completion logs `#decision` (@340).
+- [ ] HOME live check of the above (agent, ensure-chrome).
+- [ ] Notes portal: user answers the six decisions in `docs/notes-portal-eval.md`.
 
 ---
 

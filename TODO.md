@@ -7,8 +7,8 @@ split a day, `🎯/Decision` label -> undated `Decision: <subject>` Task (manual
 note badge, completing a `Decision:` task adds `#decision <what>` to the last note card of today. User picks: 1A 2A
 3A 4A, 5 = "a decision is a Task whose title or notes lead with `Decision:`" (no register view), 6A, 7T.
 
-- [ ] **Live check on HOME** (@340+): edit a day in the notes Doc, then type in the app: the conflict banner
-  appears, Retry overwrites; label an email `🎯/Decision` and wait a tick; complete a `Decision:` task with Today open.
+- [ ] **Live check on HOME** (@340+): edit a day in the notes Doc, then type in the app: a save error says
+  "changed in Google Docs", Retry overwrites; label an email `🎯/Decision` and wait a tick; complete a `Decision:` task with Today open.
 - [ ] **Notes portal decisions** (`docs/notes-portal-eval.md`, user to answer): 1A no iframe, run probe P1 only;
   2T read-only Docs API render as the panel Doc view; 3T "Open this day in Docs" link; 4A defer per-day tabs;
   5T fail loud when a notes Doc has more than one tab (latent data-loss path); 6T keep publish-to-web rejected.

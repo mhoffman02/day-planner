@@ -289,3 +289,7 @@ live-testing catches it by luck.
 ## 2026-10-13 (Triage speed and Gmail quota)
 **Worked well:** Timing the RPCs live (board 6.5 s, status 2.9 s) before building, and pinning Gmail calls per board in a test, kept the quota fixes measurable.
 **Needs improvement:** The stale-while-revalidate prefetch added a full board to every page load and helped trip the WORK Gmail quota; count API calls per user action before adding background loads. `clasp push` from the repo root uploads files under a `gas-app/` prefix: always push from `gas-app/`.
+
+## 2026-10-30 (safe note saves, Decisions)
+**Worked well:** The advisor asked for a round-trip test with real card content before stacking more on the conflict check; it found a pre-existing bug where a typed `## ` line split the day section and duplicated text on every save.
+**Needs improvement:** `git add -A` swept a background agent's half-written doc into a fix commit; stage by name while an agent is writing. `npm run push:work` fails with a misleading permission error when run from `gas-app/`; run it from the repo root.

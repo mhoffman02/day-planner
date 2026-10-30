@@ -1,5 +1,19 @@
 # Task History (TODO_HISTORY)
 
+## 2026-10-30 — Day rollover, smart paste, safe note saves, Decisions (HOME @340, WORK pushed, repoint pending)
+
+- [x] **Today rollover + stale reload**: a view on the old today moves to the new day; a tab hidden >15 min
+  reloads its day (`1da3fcf`).
+- [x] **Smart paste** from Gmail, Docs, Gemini: one card line per paragraph, formatting mapped (`1da3fcf`).
+- [x] **About**: the Hub Config Sheet name links to a Drive title search, so duplicates show (`f2e5d2a`).
+- [x] **Phase 32 data-loss fix**: `saveDailyDocCards` refuses a write when the day section changed in Google Docs
+  since the baseline the client sends (conflict banner, Retry overwrites by choice) and pins the write with
+  `writeControl` (`e2046dc`). Typed `## ` / `Day Planner - ` lines no longer split a day section, which had duplicated
+  text on every save; saves typed before the server read use the synced cache text as baseline (`14546fb`).
+- [x] **Decisions** (user picks 1A 2A 3A 4A 5=Task 6A 7T): `🎯/Decision` creates an undated `Decision: <subject>`
+  Task, manual only, not a filter target (`364ead4`); `#decision [Topic]` badge; completing a `Decision:` task adds
+  `#decision <what>` to the last note card of today (`172ed4b`).
+
 ## 2026-10-22 — Appointment Meet link + RSVP, search deep link, Master filter text (HOME @336, WORK v165 verified)
 
 - [x] **Meet link in the appointment hover note** is a clickable "Google Meet" link, not the raw URL (`4cf03a4`).
