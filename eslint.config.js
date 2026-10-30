@@ -7,6 +7,13 @@
  */
 import js from '@eslint/js';
 
+// `toISOString().slice(0, 10)` is the UTC day: after 20:00 EDT it is tomorrow (2331533, 12 sites
+// on 2026-10-30). Flat config replaces rule options per block, so the gas-app block repeats it.
+const UTC_DAY_KEY = {
+  selector: "CallExpression[callee.property.name=/^(slice|substring|split)$/][callee.object.callee.property.name='toISOString']",
+  message: 'UTC day shift: use a local date (getLocalDateStr, taskPlannerLocalDate, toLocaleDateString("en-CA")).'
+};
+
 const gasGlobals = {
   SpreadsheetApp: 'readonly',
   DriveApp: 'readonly',
@@ -45,7 +52,8 @@ export default [
       'no-eval': 'error',
       'no-implied-eval': 'error',
       'no-new-func': 'error',
-      'no-throw-literal': 'error'
+      'no-throw-literal': 'error',
+      'no-restricted-syntax': ['error', UTC_DAY_KEY]
     }
   },
   {
@@ -141,7 +149,8 @@ export default [
       // Phase 28: GmailApp needs the full mail.google.com scope. Use the Advanced Gmail
       // service (gmail.readonly). (Legacy SpreadsheetApp use in Code.gs predates this rule.)
       'no-restricted-syntax': ['error',
-        { selector: "Identifier[name='GmailApp']", message: 'GmailApp requires the full mail scope. Use the Advanced Gmail service (gmail.readonly).' }
+        { selector: "Identifier[name='GmailApp']", message: 'GmailApp requires the full mail scope. Use the Advanced Gmail service (gmail.readonly).' },
+        UTC_DAY_KEY
       ],
       // GAS concatenates all .gs files into one shared global scope at
       // runtime, so cross-file function refs are false positives here.

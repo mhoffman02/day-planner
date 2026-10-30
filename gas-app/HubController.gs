@@ -1290,7 +1290,7 @@ function hubCreateSelectedFilters() {
         var fid = DPGmailRepo.createFilter(r.query, lid);
         if (!fid) throw new Error('Gmail returned no filter id');
         created += 1;
-        updates.push({ row: r.row, status: 'Created ' + new Date().toISOString().slice(0, 10), filterId: fid });
+        updates.push({ row: r.row, status: 'Created ' + E.taskPlannerLocalDate(new Date(), Session.getScriptTimeZone()), filterId: fid });
       } catch (err) {
         DPQueue.logSafe('hubCreateSelectedFilters: creating one filter failed; the row shows the error', err);
         failed += 1;

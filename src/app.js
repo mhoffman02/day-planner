@@ -5197,7 +5197,7 @@ Alpine.data('plannerApp', () => ({
       },
 
       eventGCalLink(evt) {
-        const dateStr = (evt.startTime ? evt.startTime.slice(0, 10) : this.selectedDate) || new Date().toISOString().slice(0, 10);
+        const dateStr = (evt.startTime ? evt.startTime.slice(0, 10) : this.selectedDate) || getLocalDateStr();
         return evt.gCalLink || evt.htmlLink || `https://calendar.google.com/calendar/r/day/${dateStr.replace(/-/g, '/')}`;
       },
 
@@ -5308,7 +5308,7 @@ Alpine.data('plannerApp', () => ({
         const location = encodeURIComponent(this.newEventData.location || '');
         const details = encodeURIComponent(this.newEventData.description || '');
 
-        const dateFormatted = (this.selectedDate || new Date().toISOString().slice(0, 10)).replace(/-/g, '');
+        const dateFormatted = (this.selectedDate || getLocalDateStr()).replace(/-/g, '');
         const startH = (this.newEventData.startTime || '09:00').replace(':', '') + '00';
         const endH = (this.newEventData.endTime || '10:00').replace(':', '') + '00';
         const dates = `${dateFormatted}T${startH}/${dateFormatted}T${endH}`;

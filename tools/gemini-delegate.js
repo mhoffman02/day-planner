@@ -99,6 +99,7 @@ function truncate(str, max) {
 }
 
 function formatLogLine({ status, inputDesc, outputDesc, task }) {
+  // eslint-disable-next-line no-restricted-syntax -- a UTC log timestamp, not a day key
   const ts = new Date().toISOString().slice(5, 16) // "MM-DDTHH:MM", no embedded space — keeps the line one token-parseable per field
   const prefix = `${ts} ${status.padEnd(4)} in=${inputDesc} out=${outputDesc} :: `
   const taskBudget = Math.max(0, 80 - prefix.length)

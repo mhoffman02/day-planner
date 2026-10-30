@@ -275,7 +275,7 @@ test('checkTokenAge: first sight records fingerprint, no warning, never stores t
 
 test('checkTokenAge: warns from day 6 with the expiry date and login command', () => {
   const state = tmpFile('state.json');
-  const t0 = Date.UTC(2026, 9, 10);
+  const t0 = new Date(2026, 9, 10).getTime(); // local midnight: the expiry shown is a local date
   checkTokenAge(SECRET_TOKEN, t0, state);
   const msg = checkTokenAge(SECRET_TOKEN, t0 + 6 * DAY + 1, state);
   assert.match(msg, /6 days old/);

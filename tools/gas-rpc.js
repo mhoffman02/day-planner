@@ -123,7 +123,7 @@ export function checkTokenAge(refreshToken, nowMs, statePath) {
   }
   const ageDays = Math.floor((nowMs - state.firstSeenMs) / DAY_MS);
   if (ageDays < WARN_AT_DAYS) return null;
-  const expires = new Date(state.firstSeenMs + TESTING_TOKEN_LIFE_DAYS * DAY_MS).toISOString().slice(0, 10);
+  const expires = new Date(state.firstSeenMs + TESTING_TOKEN_LIFE_DAYS * DAY_MS).toLocaleDateString('en-CA');
   return `gas-rpc: rpc login is ${ageDays} days old; Testing-mode tokens expire ~${expires}. ${LOGIN_HINT}`;
 }
 

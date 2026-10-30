@@ -5,6 +5,7 @@
  */
 
 import { parseTaskTitle, formatTaskTitle, TASK_STATUSES } from './taskEngine.js';
+import { getLocalDateStr } from './binderStore.js';
 
 /**
  * Creates or updates cross-reference metadata link between a Task and a Calendar Event.
@@ -41,7 +42,7 @@ export function syncTaskToCalendar(task, calendarEvents = []) {
     evt.syncTaskId === task.id || (evt.extendedProperties && evt.extendedProperties.private?.gasTaskId === task.id)
   );
 
-  const startTime = task.scheduledTime || `${task.dueDate || new Date().toISOString().slice(0, 10)}T09:00:00Z`;
+  const startTime = task.scheduledTime || `${task.dueDate || getLocalDateStr()}T09:00:00Z`;
   const endTime = `${startTime.substring(0, 11)}10:00:00Z`;
 
   if (existingEvent) {

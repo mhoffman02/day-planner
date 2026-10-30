@@ -40,7 +40,7 @@ function list(items) {
   return rendered || '- (none)';
 }
 
-const date = new Date().toISOString().slice(0, 10);
+const date = new Date().toLocaleDateString('en-CA') // en-CA = local YYYY-MM-DD (tracker-dates rule: never UTC);
 const entry = [
   `## ${date} — ${label}`,
   '',
