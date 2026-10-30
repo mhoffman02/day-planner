@@ -110,7 +110,7 @@ function notePasteTidy(lines) {
 
 function notePasteHtmlToLines(html) {
   const cleaned = html
-    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<!-{2}[\s\S]*?-{2}>/g, '')
     .replace(/<(script|style|head|title|template)\b[\s\S]*?<\/\1\s*>/gi, '');
   const lines = [];
   const stack = [];

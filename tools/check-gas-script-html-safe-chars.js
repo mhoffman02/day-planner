@@ -63,6 +63,15 @@ for (const c of comments) {
   }
 }
 
+// HTML comment markers anywhere in the script (a regex literal included) broke the served page on
+// 2026-10-30: @337 added /<!--[\s\S]*?-->/ and the page never loaded (blank tab, then out of
+// memory). Write them as <!-{2} and -{2}> in a regex instead.
+code.split('\n').forEach((text, n) => {
+  if (text.includes('<!--') || text.includes('-->')) {
+    violations.push({ line: linesBeforeCode + n + 1, kind: 'HTML comment marker <!-- or -->', snippet: text.trim().slice(0, 60) });
+  }
+});
+
 if (violations.length > 0) {
   violations.sort((a, b) => a.line - b.line);
   console.error(`${file}: ${violations.length} violation(s)`);
