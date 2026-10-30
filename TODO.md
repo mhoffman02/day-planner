@@ -15,6 +15,15 @@ note badge, completing a `Decision:` task adds `#decision <what>` to the last no
 - [ ] **Live check smart paste + day rollover** (HOME @337, `1da3fcf`): paste from Gmail, Docs and Gemini into a
   card line; leave the tab open past midnight.
 
+## Solid Code ratchets: shrink the baselines (2026-10-30, user decision 3T)
+
+- [ ] **Shrink `rpc-guard-baseline.json`** (46 unguarded RPC entry points): add
+  `DPEngines.v_.guard(arguments, '<name>')...done()` (see `src/integration/v_.js`) as the first statement of each
+  `_xInternal` impl, highest-traffic first; then run `node tools/check-rpc-guards.js --update`.
+- [ ] **Shrink `mirror-baseline.json`** (107 drifted `src/*.js` vs `gas-app/Script.html` functions: app.js 86,
+  binderStore 9, taskEngine 5, hubUi 3, futureMatrixEngine 2, quotesEngine 1, searchEngine 1): reconcile each pair,
+  or generate the `Script.html` engines from `src` like `Engines.gs`; then run `node tools/check-mirror.js --update`.
+
 ## Phase 31: Search polish (in progress)
 
 User asked for these three next (2026-10-22), in this order. Shared matcher: `matchesSearchQuery` in

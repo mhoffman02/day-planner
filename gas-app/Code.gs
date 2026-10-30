@@ -389,7 +389,8 @@ function clearRecentServerLogs() {
  * and records to the in-app execution log ring buffer.
  * @param {string} context Descriptive name or operation context where the error occurred.
  * @param {Error|object|string} err The thrown Error object or error message.
- * @returns {{success: boolean, error: string, stack: string|null, context: string}} Standardized error payload.
+ * @returns {{success: boolean, error: string, context: string}} Standardized error payload. The stack is
+ * never returned (it reaches console.error and the dev log ring buffer only).
  */
 function logError(context, err) {
   const errorMsg = '🔥 ' + context + ': ' + (err ? (err.message || err.toString()) : 'Unknown error');
@@ -399,7 +400,6 @@ function logError(context, err) {
   return {
     success: false,
     error: errorMsg,
-    stack: stack,
     context: context
   };
 }
@@ -442,7 +442,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 554;
+const BUILD_NUMBER_ = 555;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -545,7 +545,7 @@ function doGet_original(e) {
     if (isFolderError) {
       return renderSetupFolderPage();
     }
-    const errOutput = HtmlService.createHtmlOutput('<h3>🔥 Day Planner Render Failure</h3><p><b>' + escapeHtml_(fail.error) + '</b></p><pre>' + escapeHtml_(fail.stack || '') + '</pre>')
+    const errOutput = HtmlService.createHtmlOutput('<h3>🔥 Day Planner Render Failure</h3><p><b>' + escapeHtml_(fail.error) + '</b></p>')
       .setTitle('Day Planner - Render Failure')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1.0');
 

@@ -2,7 +2,7 @@
 // neither rethrows nor console.errors the stack, and pass compliant ones.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { checkSource, htmlScripts } from '../tools/check-catch-logging.js';
+import { checkSource, checkStackSource, htmlScripts } from '../tools/check-catch-logging.js';
 
 const flagged = (src) => checkSource(src).map((v) => v.reason);
 
@@ -35,4 +35,29 @@ test('html script blocks are extracted with line offsets and scriptlets blanked'
   const v = checkSource(blocks[0].body, { lineOffset: blocks[0].lineOffset });
   assert.equal(v.length, 1);
   assert.equal(v[0].line, 5);
+});
+
+// User decision 1A (2026-10-30): a stack never reaches UI text; only logs and the dev log viewer.
+const stackSites = (src, file = 'gas-app/Foo.gs') => checkStackSource(src, { file }).map((v) => v.reason);
+
+test('.stack returned or stored in a payload is flagged', () => {
+  assert.equal(stackSites('function f(e) { return { msg: e.message, stack: e.stack }; }').length, 1);
+  assert.equal(stackSites('function f(e) { el.textContent = e.stack; }').length, 1);
+});
+
+test('.stack inside console.* args or a stack-logger call is allowed', () => {
+  assert.deepEqual(stackSites('function f(e) { console.error("x", e.stack); }'), []);
+  assert.deepEqual(stackSites('function f(e) { console.warn("x\\n" + (e && e.stack)); }'), []);
+  assert.deepEqual(stackSites('function f(e) { logSafe_("x", e.stack); }'), []);
+});
+
+test('.stack inside the body of a stack-logger function is allowed', () => {
+  assert.deepEqual(stackSites('function logError(c, e) { const s = e.stack; return { s: 1 }; }'), []);
+  assert.deepEqual(stackSites('function recordServerLog(a) { return a.stack; }'), []);
+});
+
+test('.stack in UnitTests.gs and in the allowlisted function is allowed; elsewhere in the same file is not', () => {
+  assert.deepEqual(stackSites('function f(e) { return e.stack; }', 'gas-app/UnitTests.gs'), []);
+  assert.deepEqual(stackSites('function getRecentServerLogs(e) { return [{ stack: e.stack }]; }', 'gas-app/Code.gs'), []);
+  assert.equal(stackSites('function other(e) { return [{ stack: e.stack }]; }', 'gas-app/Code.gs').length, 1);
 });

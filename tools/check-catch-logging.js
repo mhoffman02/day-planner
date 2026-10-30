@@ -84,6 +84,75 @@ export function checkSource(text, { sourceType = 'script', lineOffset = 0 } = {}
   return out;
 }
 
+/**
+ * Functions that sink a stack into logs: the approved loggers, the log ring buffer writer, and
+ * formatSafeError (builds the PII-safe string that Config.gs and QueueProcessor.gs only console.error).
+ */
+export const STACK_SINK_FUNCTIONS = new Set([...STACK_LOGGERS, 'recordServerLog', 'formatSafeError']);
+
+/** Files whose stacks are dev self-test output, never end-user UI. */
+const STACK_EXEMPT_FILES = new Set(['gas-app/UnitTests.gs']);
+
+/** `file:enclosing-function` sites allowed to expose a stack, each with its reason. */
+export const STACK_TO_UI_ALLOWED = new Map([
+  ['gas-app/Code.gs:getRecentServerLogs', 'dev log viewer, user decision 1A 2026-10-30']
+]);
+
+function isConsoleCall(callee) {
+  return callee.type === 'MemberExpression' && callee.object.type === 'Identifier' &&
+    callee.object.name === 'console' && !callee.computed &&
+    ['error', 'warn', 'log', 'info'].includes(callee.property.name);
+}
+
+/** Name of a function node: declaration id, or the variable/property it is assigned to. */
+function functionName(fn, parent) {
+  if (fn.id) return fn.id.name;
+  if (parent && parent.type === 'VariableDeclarator' && parent.id.type === 'Identifier') return parent.id.name;
+  if (parent && parent.type === 'AssignmentExpression' && parent.left.type === 'Identifier') return parent.left.name;
+  if (parent && (parent.type === 'Property' || parent.type === 'MethodDefinition') && !parent.computed && parent.key.name) return parent.key.name;
+  return null;
+}
+
+/**
+ * Flags every `.stack` read that is not inside a console.* / stack-logger call's arguments, a
+ * stack-sink function body, an exempt file, or an allowlisted file:function. A stack in a returned
+ * payload or UI text would reach end users (fail-loud-catch.md: end users see err.message only).
+ * @returns {Array<{line:number, reason:string}>}
+ */
+export function checkStackSource(text, { sourceType = 'script', lineOffset = 0, file = '' } = {}) {
+  if (STACK_EXEMPT_FILES.has(file)) return [];
+  const ast = acorn.parse(text, { ecmaVersion: 'latest', sourceType, locations: true, allowHashBang: true });
+  const out = [];
+  const visit = (node, ancestors) => {
+    if (!node || typeof node.type !== 'string') return;
+    if (node.type === 'MemberExpression' && !node.computed && node.property.name === 'stack') {
+      let allowed = false;
+      let enclosing = null;
+      for (let i = ancestors.length - 1; i >= 0; i--) {
+        const a = ancestors[i];
+        if (a.type === 'CallExpression' && (isConsoleCall(a.callee) || STACK_LOGGERS.has(calleeName(a.callee)))) allowed = true;
+        if (FUNCTION_TYPES.has(a.type)) {
+          const name = functionName(a, ancestors[i - 1]);
+          if (name && STACK_SINK_FUNCTIONS.has(name)) allowed = true;
+          if (name && !enclosing) enclosing = name;
+        }
+      }
+      if (!allowed && !STACK_TO_UI_ALLOWED.has(`${file}:${enclosing}`)) {
+        out.push({ line: node.loc.start.line + lineOffset, reason: `.stack outside console.*/stack-logger args (${enclosing || 'top level'}); stacks must not reach UI or return payloads` });
+      }
+    }
+    const next = [...ancestors, node];
+    for (const key of Object.keys(node)) {
+      if (key === 'loc' || key === 'start' || key === 'end') continue;
+      const v = node[key];
+      if (Array.isArray(v)) v.forEach((c) => visit(c, next));
+      else if (v && typeof v.type === 'string') visit(v, next);
+    }
+  };
+  visit(ast, []);
+  return out;
+}
+
 /** Inline <script> bodies of an HtmlService file; GAS scriptlets are blanked to keep offsets. */
 export function htmlScripts(html) {
   const blocks = [];
@@ -119,9 +188,13 @@ export function run() {
   const violations = [];
   for (const { rel, kind } of listFiles()) {
     const text = fs.readFileSync(path.join(root, rel), 'utf8');
+    const sourceType = kind === 'module' ? 'module' : 'script';
     const found = kind === 'html'
-      ? htmlScripts(text).flatMap((b) => checkSource(b.body, { lineOffset: b.lineOffset }))
-      : checkSource(text, { sourceType: kind === 'module' ? 'module' : 'script' });
+      ? htmlScripts(text).flatMap((b) => [
+        ...checkSource(b.body, { lineOffset: b.lineOffset }),
+        ...checkStackSource(b.body, { lineOffset: b.lineOffset, file: rel })
+      ])
+      : [...checkSource(text, { sourceType }), ...checkStackSource(text, { sourceType, file: rel })];
     found.forEach((v) => violations.push(`${rel}:${v.line}: ${v.reason}`));
   }
   return violations;
