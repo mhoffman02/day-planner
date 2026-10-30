@@ -257,15 +257,15 @@ export class HubMock {
   }
 
   /**
-   * @returns {{ok: boolean, status: string, message: string, provisioned: boolean, url: (string|null), missing: (string|null)}}
+   * @returns {{ok: boolean, status: string, message: string, provisioned: boolean, url: (string|null), missing: (string|null), searchUrl: string}}
    *   Hub Sheet link (never provisions). sheetProvisioned may be true, false ('never') or 'trashed'/'deleted'.
    */
   getHubSheetLink() {
     if (this.sheetProvisioned === true) {
-      return { ok: true, status: 'OK', message: 'Hub Sheet found', provisioned: true, url: 'https://docs.google.com/spreadsheets/d/mock-hub-sheet/edit#gid=0', missing: null };
+      return { ok: true, status: 'OK', message: 'Hub Sheet found', provisioned: true, url: 'https://docs.google.com/spreadsheets/d/mock-hub-sheet/edit#gid=0', missing: null, searchUrl: 'https://drive.google.com/drive/search?q=' + encodeURIComponent('title:"Day Planner Hub Config" type:spreadsheet') };
     }
     const missing = this.sheetProvisioned || 'never';
-    return { ok: true, status: 'OK', message: missing === 'never' ? 'Hub Sheet is not set up yet' : `Hub Sheet was ${missing}`, provisioned: false, url: null, missing };
+    return { ok: true, status: 'OK', message: missing === 'never' ? 'Hub Sheet is not set up yet' : `Hub Sheet was ${missing}`, provisioned: false, url: null, missing, searchUrl: 'https://drive.google.com/drive/search?q=' + encodeURIComponent('title:"Day Planner Hub Config" type:spreadsheet') };
   }
 
   /** @returns {object} Same shape as getHubSheetLink, after creating (or re-creating) the mock Sheet. */

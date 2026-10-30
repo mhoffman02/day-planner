@@ -682,7 +682,7 @@ function getHubSheetLink() {
   try {
     var link = DPConfig.getSheetLink();
     var msg = link.provisioned ? 'Hub Sheet found' : (link.missing === 'never' ? 'Hub Sheet is not set up yet' : 'Hub Sheet was ' + link.missing);
-    return DPEngines.makeResult({ ok: true, status: 'OK', message: msg, provisioned: link.provisioned, url: link.url, missing: link.missing });
+    return DPEngines.makeResult({ ok: true, status: 'OK', message: msg, provisioned: link.provisioned, url: link.url, missing: link.missing, searchUrl: DPConfig.getSheetSearchUrl() });
   } catch (err) {
     return failFrom_(err);
   }
@@ -735,7 +735,7 @@ function provisionHub_() {
 /**
  * About's "Set up hub" / "Re-create hub Sheet" button: same path as the automatic setup on app load
  * (provisionHub_), returning the Sheet link.
- * @returns {object} {ok, provisioned, url, missing, message} or a failed result.
+ * @returns {object} {ok, provisioned, url, missing, searchUrl, message} or a failed result.
  */
 function setupHub() {
   var pre = preflight_([]);
@@ -743,7 +743,7 @@ function setupHub() {
   try {
     var link = provisionHub_();
     if (!link.provisioned) return fail_('SETUP_ERROR', 'Hub Sheet was created but cannot be opened (' + link.missing + ')', true);
-    return DPEngines.makeResult({ ok: true, status: 'OK', message: 'Hub Sheet is ready', provisioned: true, url: link.url, missing: null });
+    return DPEngines.makeResult({ ok: true, status: 'OK', message: 'Hub Sheet is ready', provisioned: true, url: link.url, missing: null, searchUrl: DPConfig.getSheetSearchUrl() });
   } catch (err) {
     return failFrom_(err);
   }

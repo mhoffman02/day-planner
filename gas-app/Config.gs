@@ -598,6 +598,15 @@ function getSheetUrl() {
 }
 
 /**
+ * Drive search for the hub Sheet by title, so About can show every copy (there should be one; a second
+ * one is a stray to delete). Works whether or not the stored id still resolves.
+ * @returns {string} Drive web search URL.
+ */
+function getSheetSearchUrl() {
+  return 'https:' + '/' + '/drive.google.com/drive/search?q=' + encodeURIComponent('title:"' + SHEET_TITLE + '" type:spreadsheet');
+}
+
+/**
  * Read-only link to the hub Sheet, opened on its Config tab. Never provisions and never rewrites
  * properties (About calls this on every open). Users delete things, so a stored id whose Sheet is in
  * the trash or gone reports missing:'trashed'|'deleted' instead of a dead link; setupHub re-creates it.
@@ -751,6 +760,7 @@ global.DPConfig = Object.freeze({
   writeFilterRows: writeFilterRows, // used by HubController.hubSuggestFilters
   updateFilterRows: updateFilterRows, // used by HubController.hubCreateSelectedFilters
   getSheetLink: getSheetLink, // used by HubController.getHubSheetLink/setupHub (About link)
+  getSheetSearchUrl: getSheetSearchUrl, // used by HubController.getHubSheetLink (About Drive search link)
   forgetSheet: forgetSheet, // used by HubController.setupHub (re-create a trashed/deleted Sheet)
   needsRepair: needsRepair, // used by HubController.getHubStatus (blank TimeZone/UserEmail seed)
   repairSeeds: repairSeeds, // used by HubController.provisionHub_

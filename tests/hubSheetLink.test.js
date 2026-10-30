@@ -32,6 +32,15 @@ test('getHubSheetLink on a provisioned hub links straight to the Config tab', ()
   assert.equal(r.url, `https://docs.google.com/spreadsheets/d/${id}/edit#gid=${gid}`);
 });
 
+test('getHubSheetLink returns a Drive search link for the Sheet title, set up or not (finds duplicates too)', () => {
+  const want = 'https://drive.google.com/drive/search?q=' + encodeURIComponent('title:"Day Planner Hub Config" type:spreadsheet');
+  for (const realStores of ['cold', true]) {
+    const r = call(makeHubContext({ realStores }), 'getHubSheetLink');
+    assert.equal(r.ok, true, JSON.stringify(r));
+    assert.equal(r.searchUrl, want);
+  }
+});
+
 test('setupHub creates the Sheet once and returns its link; rerun reuses it', () => {
   const ctx = makeHubContext({ realStores: 'cold' });
   const r = call(ctx, 'setupHub');
