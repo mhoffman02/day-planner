@@ -27,6 +27,8 @@ note badge, completing a `Decision:` task adds `#decision <what>` to the last no
   `prefer-native-element`): fix both copies, then `node tools/check-html.js --update`.
 - [ ] **Run `npm run test:mutation`** (Stryker, `stryker.config.json`) before the next big phase; each surviving
   mutant becomes a test.
+- [ ] **Gap 10: cdp-step debugger** (not started): a step-through CDP debugging tool alongside `tools/e2e/*`; scope
+  to be proposed to the user before building.
 - [ ] **Shrink legacy `var` suppressions** in `eslint-suppressions.json` (gas-app `.gs` and html scripts): convert a
   file at a time to `const`/`let`, then `npx eslint --prune-suppressions`.
 
