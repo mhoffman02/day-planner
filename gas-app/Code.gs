@@ -442,7 +442,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 536;
+const BUILD_NUMBER_ = 537;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -1911,7 +1911,7 @@ function isDayHeadingElement_(element, dateStr, dayFormatted) {
   if (!element) return false;
   const heading = docsElementHeading_(element);
   const text = docsElementText_(element).trim();
-  if (heading === 'HEADING_2' || text.indexOf('Day Planner - ') === 0 || text.indexOf('## ') === 0) {
+  if (heading === 'HEADING_2' || isPlainDayHeadingText_(text)) {
     if (text.indexOf(dateStr) !== -1 || (dayFormatted && text.indexOf(dayFormatted) !== -1)) {
       return true;
     }
@@ -1929,8 +1929,19 @@ function isAnyDayHeadingElement_(element) {
   const heading = docsElementHeading_(element);
   const text = docsElementText_(element).trim();
   if (heading === 'HEADING_2') return true;
-  if (text.indexOf('Day Planner - ') === 0 || text.indexOf('## ') === 0) return true;
-  return false;
+  return isPlainDayHeadingText_(text);
+}
+
+/**
+ * Legacy plain-text day heading: the WHOLE line is "Day Planner - " or "## " plus a date
+ * ("2026-10-29" or "Thursday, October 29, 2026"). A note line that merely starts with "## " or
+ * mentions a day heading is body text: treating it as a boundary cut the section short on read
+ * and duplicated the rest of it on every save.
+ * @param {string} text Trimmed paragraph text.
+ * @returns {boolean}
+ */
+function isPlainDayHeadingText_(text) {
+  return /^(Day Planner - |## )(\d{4}-\d{2}-\d{2}|[A-Z][a-z]+day, [A-Z][a-z]+ \d{1,2}, \d{4})$/.test(text);
 }
 
 /**

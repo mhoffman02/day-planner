@@ -4250,6 +4250,12 @@
         }
         if (cached) {
           this.applyDailyData(cached);
+          // Baseline for a save typed before the server read lands: the synced cached text. If it
+          // is stale the server reports a conflict, never a silent overwrite of the Doc.
+          if (cached.syncedAt && typeof cached.noteContent === 'string'
+            && !Object.prototype.hasOwnProperty.call(this.savedNoteByDate, dateStr)) {
+            this.savedNoteByDate[dateStr] = cached.noteContent;
+          }
         }
         this.dailyLoading = !cached;
         const seqAtFetchStart = this.dailyEditSeq[dateStr] || 0;

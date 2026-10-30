@@ -185,6 +185,23 @@ for (const c of clients) {
         assert.deepEqual(calls, [[DATE, 'v2', 'saved v1'], [DATE, 'v3', 'v2']]);
       });
 
+      it('typing before the server read lands still sends a baseline (the synced cached text), never none', async () => {
+        const calls = [];
+        const vm = dailyVm(c, {
+          bridge: {
+            getDailyData: () => new Promise(() => {}), // slow server read that never lands here
+            saveDailyDocCards: async (...args) => { calls.push(args); return { success: true }; }
+          }
+        });
+        c.cache.setCached(DATE, { tasks: [], calendarEvents: [], noteContent: 'cached v1', docUrl: '' }, { synced: true });
+        vm.loadDayData();
+        await settle();
+        vm.dailyNote = 'typed on cached view';
+        vm.scheduleDailyNoteSave();
+        await settle();
+        assert.deepEqual(calls, [[DATE, 'typed on cached view', 'cached v1']]);
+      });
+
       it('a Doc-edit conflict keeps the editor text, says so, and Retry overwrites only by choice', async () => {
         const calls = [];
         const vm = dailyVm(c, {

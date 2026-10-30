@@ -50,6 +50,35 @@ test('control: the fake Doc round-trips a saved day section exactly', () => {
   assert.equal(read(ctx, DAY), V1);
 });
 
+test('real card content round-trips, so the next save is never a false conflict', () => {
+  const ctx = codeCtx();
+  const real = [
+    '### #index [Work] **Plan** for 2026-10-29',
+    '#category: Work',
+    '- **bold** and *italic* and [[link:https://example.com/a?b=1]]a link[[/link]]',
+    '☐ open checkbox',
+    '☒ done checkbox',
+    '1. numbered',
+    '#task [A1] Call vendor',
+    '#decision [Budget] Approve GCP why: cost by: Mike',
+    '   indented line',
+    'Day Planner - Thursday, October 29, 2026 mentioned inline',
+    '- '
+  ].join('\n');
+  assert.equal(save(ctx, DAY, real).success, true);
+  const r = save(ctx, DAY, real + '\n- next', real);
+  assert.equal(r.success, true, `false conflict; Doc read back:\n${r.currentContent}`);
+});
+
+test('a typed "## heading" line is body text: repeated saves never duplicate the text below it', () => {
+  const ctx = codeCtx();
+  const text = 'intro\n## my own heading\n- under it';
+  save(ctx, DAY, text);
+  save(ctx, DAY, text, text);
+  save(ctx, DAY, text, text);
+  assert.equal(read(ctx, DAY), text);
+});
+
 test('a save whose baseline still matches the Doc section is written', () => {
   const ctx = codeCtx();
   save(ctx, DAY, V1);
