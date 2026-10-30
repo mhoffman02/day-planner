@@ -3448,7 +3448,8 @@ Alpine.data('plannerApp', () => ({
         }
 
         text = this.normalizeLeadingListMarker(text);
-        text = text.replace(/^#+\s*/, '');
+        // Heading hashes go; a line-leading #decision tag stays (it renders as a badge).
+        text = text.replace(/^#+\s*(?!decision\b)/i, '');
 
         const escapeHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
@@ -3456,6 +3457,7 @@ Alpine.data('plannerApp', () => ({
           let html = escapeHtml(line);
           html = html.replace(/#index\s+\[([^\]]+)\]/gi, '<span class="doc-preview-topic-badge">$1</span>');
           html = html.replace(/#task\s+\[([A-C]\d)\]/gi, '<span class="priority-badge">[$1]</span>');
+          html = html.replace(/#decision\b(?:\s+\[([^\]]+)\])?/gi, (_m, topic) => `<span class="decision-badge">Decision${topic ? ': ' + topic : ''}</span>`);
           html = html.replace(/\[\[color:(teal|red|green|blue)\]\](.+?)\[\[\/color\]\]/g, '<span class="note-render-color-$1">$2</span>');
 
           // 1. Bracket syntax: [[link:url]]linkText[[/link]]
@@ -4826,10 +4828,28 @@ Alpine.data('plannerApp', () => ({
             this.resolveError(key);
             if (hasNewer) return; // the live status is a newer, unconfirmed pick: do not cache it yet
             this.cacheTaskStatusState(dateStr);
+            if (status === '✓' && baseline !== '✓') this.logCompletedDecision(task);
             await this.trigger2WaySync();
           },
           onFailed: (err, confirmed) => this.rollbackTaskStatus({ task, isMaster, dateStr, key, attempted: newStatus, confirmed, err, targetDate, owner: delegateTo, plain: Boolean(opts.plain) })
         });
+      },
+
+      // A completed "Decision: what" task (priority code allowed) pre-fills "#decision what" as the
+      // last line of the last note card of today, through the normal guarded note save. Only when
+      // today is the open day: the notes of any other day are never written from here.
+      logCompletedDecision(task) {
+        const m = /^decision:\s*(.+)$/i.exec(parseTaskTitle(task.title || '').cleanTitle);
+        if (!m) return;
+        const cards = this.noteCards || [];
+        if (this.selectedDate !== this.todayStr || cards.length === 0) {
+          console.info('Decision completed while today has no open note card; no #decision line added:', m[1]);
+          return;
+        }
+        const card = cards[cards.length - 1];
+        const body = (card.content || '').replace(/\n+$/, '');
+        card.content = (body ? body + '\n' : '') + '#decision ' + m[1].trim();
+        this.syncCardsToDailyNote();
       },
 
       // The task plus every on-screen copy of it: the same task on the other list, and its

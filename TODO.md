@@ -1,15 +1,19 @@
 # Active Tasks (TODO)
 
-## Phase 32: Notes Doc view (from docs/notes-doc-embed-eval.md, 2026-10-30)
+## Phase 32: Notes Doc view + Decisions (2026-10-30)
 
-- [ ] **Data-loss risk: make `saveDailyDocCards` revision-safe** (`gas-app/Code.gs` ~2088). It replaces the whole
-  day section with no `writeControl`, so edits made directly in the Doc are overwritten on the next app save. Keep
-  the revisionId from load, refuse the write on mismatch, and reload. Red test first. Must land before any
-  "Open in Docs at heading" link.
-- [ ] **User decisions 1-5 in `docs/notes-doc-embed-eval.md`** (read-only Docs API render in the "doc" view mode,
-  per-card heading link, 15-min signed-in iframe probe on HOME).
+Shipped (2026-10-30): revision-safe day saves (conflict on Doc edits, `writeControl`), typed `## ` lines no longer
+split a day, `🎯/Decision` label -> undated `Decision: <subject>` Task (manual only, no filters), `#decision`
+note badge, completing a `Decision:` task adds `#decision <what>` to the last note card of today. User picks: 1A 2A
+3A 4A, 5 = "a decision is a Task whose title or notes lead with `Decision:`" (no register view), 6A, 7T.
+
+- [ ] **Live check on HOME** (@340+): edit a day in the notes Doc, then type in the app: the conflict banner
+  appears, Retry overwrites; label an email `🎯/Decision` and wait a tick; complete a `Decision:` task with Today open.
+- [ ] **Notes portal decisions** (`docs/notes-portal-eval.md`, user to answer): 1A no iframe, run probe P1 only;
+  2T read-only Docs API render as the panel Doc view; 3T "Open this day in Docs" link; 4A defer per-day tabs;
+  5T fail loud when a notes Doc has more than one tab (latent data-loss path); 6T keep publish-to-web rejected.
 - [ ] **Live check smart paste + day rollover** (HOME @337, `1da3fcf`): paste from Gmail, Docs and Gemini into a
-  card line; leave the tab open past midnight. WORK version pushed, pending repoint.
+  card line; leave the tab open past midnight.
 
 ## Phase 31: Search polish (in progress)
 

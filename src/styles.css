@@ -2994,6 +2994,16 @@
     text-transform: uppercase;
   }
 
+  .decision-badge {
+    font-size: 0.75rem;
+    font-family: var(--font-family-base);
+    font-weight: 700;
+    color: var(--binder-teal);
+    border: 1px solid var(--binder-teal);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
   .note-card-textarea {
     width: 100%;
     min-height: 90px;
