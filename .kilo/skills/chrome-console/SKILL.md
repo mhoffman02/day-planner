@@ -1,6 +1,6 @@
 ---
 name: chrome-console
-description: Probe and debug the live Day Planner Chrome tab over CDP - one-shot health check (tab, GAS iframe, plannerApp, view, counts, console errors), stream console logs, evaluate JS or inspect state. Use for live debugging, "probe", or verifying a deploy without temporary UI.
+description: Debug the live Day Planner Chrome tab over CDP - evaluate JS, inspect plannerApp state inside the GAS iframe, stream console logs. Use for live debugging beyond the one-shot probe-live health check.
 tags: [chrome, cdp, console, probe, debug, day-planner]
 version: 2.0.0
 ---
@@ -11,25 +11,10 @@ Zero-dependency CDP tools on port 9222 (`--port` or `CDP_PORT` to change). Chrom
 `node tools/ensure-chrome.js` ([live-google-auth-browser-tool](../../rules/live-google-auth-browser-tool.md)).
 Debug output goes to the console only, never to temporary UI ([debug-logging-no-temp-ui](../../rules/debug-logging-no-temp-ui.md)).
 
-## 1. Probe first: `tools/probe-live.js`
+## 1. Probe first
 
-```bash
-npm run probe                      # human-readable
-node tools/probe-live.js --json    # for agents; exit 0 = PASS, 1 = FAIL/WARN
-node tools/probe-live.js --tail 5  # listen 5 s for console errors (default 2)
-```
-
-Checks: CDP reachable, Day Planner tab found and activated, Drive/auth error pages (404, expired session,
-wrong account), `#userHtmlFrame` (GAS) or top window (local), Alpine + `plannerApp` initialized, active view (`daily`, `master-tasks`, `monthly-calendar`, `monthly-index`,
-`future-matrix`),
-task/note counts, header/nav/cards present, uncaught errors.
-
-Reading the JSON:
-- `status === "FAIL"` and `outerPage.title === "Page Not Found"` → session expired or wrong deployment URL.
-- `errors` non-empty → read the stack and file/line.
-- `checks.appState.loaded === false` → DOM structure or iframe barrier.
-
-Loop: probe → diagnose → minimal fix in `src/` or `gas-app/` → `npm test` → probe again until PASS.
+Run the global `probe-live` skill (`node tools/probe-live.js --json`) for the one-shot health check, then use
+the tools below to dig in.
 
 ## 2. Evaluate: `tools/eval-console.js`
 
