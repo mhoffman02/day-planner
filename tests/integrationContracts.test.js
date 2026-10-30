@@ -2,14 +2,21 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   EVENT_TYPE, WORKFLOW_LABEL, ACTIVE_LABELS, LEDGER_COLUMNS, REGISTRY_COLUMNS,
-  DEFAULT_FEATURES, gmailTaskKey, gmailMeetingKey, makeResult
+  DEFAULT_FEATURES, gmailTaskKey, gmailMeetingKey, gmailDecisionKey, makeResult
 } from '../src/integration/contracts.js';
 import { buildEngines } from '../tools/build-gas-engines.js';
 import fs from 'node:fs';
 
-test('labels use the bullseye prefix and active set is the v1 four', () => {
+test('labels use the bullseye prefix and active set is the v1 four plus Decision', () => {
   assert.equal(WORKFLOW_LABEL.TASK, '🎯/Task');
-  assert.deepEqual([...ACTIVE_LABELS], ['🎯/Task', '🎯/Task-Today', '🎯/Waiting', '🎯/Meeting/NCMMS-Core']);
+  assert.equal(WORKFLOW_LABEL.DECISION, '🎯/Decision');
+  assert.deepEqual([...ACTIVE_LABELS], ['🎯/Task', '🎯/Task-Today', '🎯/Waiting', '🎯/Meeting/NCMMS-Core', '🎯/Decision']);
+});
+
+test('gmailDecisionKey is its own idempotency identity per thread', () => {
+  assert.equal(gmailDecisionKey('t1'), 'GMAIL|t1|DECISION');
+  assert.notEqual(gmailDecisionKey('t1'), gmailTaskKey('t1'));
+  assert.throws(() => gmailDecisionKey(''), /threadId/);
 });
 
 test('event types, ledger and registry columns match the spec', () => {

@@ -9,8 +9,9 @@
 import { WORKFLOW_LABEL } from './contracts.js';
 
 /**
- * Labels that get filter suggestions. Task-Today, Waiting and Meeting stay manual: they depend on judgment
- * or on who owes a reply, which a Gmail filter cannot see (Gemini review, 2026-10-16).
+ * Labels that get filter suggestions. Task-Today, Waiting, Meeting and Decision stay manual: they depend on
+ * judgment or on who owes a reply, which a Gmail filter cannot see (Gemini review, 2026-10-16; Decision
+ * added 2026-10-30).
  */
 export const FILTER_TARGET_LABELS = Object.freeze([
   WORKFLOW_LABEL.TASK,

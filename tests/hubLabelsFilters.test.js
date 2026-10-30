@@ -14,7 +14,7 @@ const call = (ctx, name, ...args) => toHost(ctx[`_${name}Internal`](...args));
 const EIGHT = ['🎯/Task', '🎯/Task-Today', '🎯/Waiting', '🎯/Meeting', '🎯/Meeting/NCMMS-Core', '🎯/Meeting/NCMMS-Daily', '🎯/Read', '🎯/Review'];
 const created = (ctx) => ctx.__hub.gmail.calls.filter((c) => c.startsWith('labels.create:')).map((c) => c.slice('labels.create:'.length));
 
-test('label setup creates the 🎯 parent first, then all eight labels', () => {
+test('label setup creates the 🎯 parent first, then all nine labels', () => {
   const ctx = makeHubContext({ features: { GMAIL_ROUTER: true } });
   const r = call(ctx, 'hubSetupLabels');
   assert.equal(r.ok, true, JSON.stringify(r));
@@ -22,14 +22,15 @@ test('label setup creates the 🎯 parent first, then all eight labels', () => {
   assert.equal(names[0], '🎯');
   assert.ok(names.indexOf('🎯/Meeting') < names.indexOf('🎯/Meeting/NCMMS-Core'), 'Meeting parent before its children');
   for (const n of EIGHT) assert.ok(names.includes(n), n);
-  assert.equal(names.length, 9);
+  assert.ok(names.includes('🎯/Decision'));
+  assert.equal(names.length, 10);
 });
 
 test('label setup is idempotent and never touches labels that exist', () => {
   const ctx = makeHubContext({ features: { GMAIL_ROUTER: true } });
   ['🎯', '🎯/Task', '🎯/Read'].forEach((n) => ctx.__hub.gmail.labelId(n));
   const r = call(ctx, 'hubSetupLabels');
-  assert.equal(created(ctx).length, 6);
+  assert.equal(created(ctx).length, 7);
   assert.deepEqual(r.existing.slice().sort(), ['🎯', '🎯/Read', '🎯/Task'].sort());
   const again = call(ctx, 'hubSetupLabels');
   assert.equal(again.created.length, 0);

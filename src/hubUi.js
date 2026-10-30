@@ -53,8 +53,8 @@ const LEDGER_LABELS = {
   SKIPPED: 'Already done'
 };
 const LEDGER_LABELS_BY_KIND = {
-  DONE: { TASK_TODAY: 'Task added for today', TASK: 'Added to Master Tasks', WAITING: 'Waiting item added', MEETING: 'Added to meeting notes', DISMISS: 'Dismissed' },
-  SKIPPED: { TASK_TODAY: 'Task already added', TASK: 'Task already added', WAITING: 'Waiting item already added', MEETING: 'Already in meeting notes', DISMISS: 'Already dismissed' }
+  DONE: { TASK_TODAY: 'Task added for today', TASK: 'Added to Master Tasks', DECISION: 'Decision added to Master Tasks', WAITING: 'Waiting item added', MEETING: 'Added to meeting notes', DISMISS: 'Dismissed' },
+  SKIPPED: { TASK_TODAY: 'Task already added', TASK: 'Task already added', DECISION: 'Decision already added', WAITING: 'Waiting item already added', MEETING: 'Already in meeting notes', DISMISS: 'Already dismissed' }
 };
 
 /**

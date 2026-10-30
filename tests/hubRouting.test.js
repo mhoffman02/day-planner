@@ -297,3 +297,26 @@ test('waiting items are Tasks tagged [Waiting] with person and nag date', () => 
   assert.equal(meta.nagDate, '2026-10-12');
   assert.equal(t.due, '2026-10-12T00:00:00.000Z');
 });
+
+test('a 🎯/Decision thread yields one undated "Decision:" Task in Master; rerun creates none; Triage Retry accepts it', () => {
+  const ctx = makeHubContext({ features: LIVE });
+  addThread(ctx, { id: 't1', labels: ['🎯/Decision'], subject: 'Pick the hosting vendor' });
+  assert.equal(run(ctx).ok, true);
+  assert.equal(ctx.__hub.tasks.items.length, 1);
+  const task = ctx.__hub.tasks.items[0];
+  assert.equal(task.title, 'Decision: Pick the hosting vendor');
+  assert.ok(!task.due, 'undated');
+  assert.equal(ctx.__hub.ledger.rows.get('GMAIL|t1|DECISION').Status, 'DONE');
+  run(ctx);
+  assert.equal(ctx.__hub.tasks.items.length, 1);
+  ctx.__hub.ledger.rows.get('GMAIL|t1|DECISION').Status = 'ERROR';
+  const retry = call(ctx, 'retryFailedOperation', 'GMAIL|t1|DECISION', {});
+  assert.notEqual(retry.errorCode, 'INVALID_INPUT', JSON.stringify(retry));
+});
+
+test('a thread with both 🎯/Task and 🎯/Decision becomes one Decision Task, not two Tasks', () => {
+  const ctx = makeHubContext({ features: LIVE });
+  addThread(ctx, { id: 't1', labels: ['🎯/Task', '🎯/Decision'], subject: 'Approve the budget' });
+  run(ctx);
+  assert.deepEqual(ctx.__hub.tasks.items.map((x) => x.title), ['Decision: Approve the budget']);
+});

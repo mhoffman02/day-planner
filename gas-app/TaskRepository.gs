@@ -102,6 +102,7 @@ function createFromThread(a) {
   var plan = DPEngines.planTaskFromThread({
     thread: { threadId: a.thread.threadId, subject: a.thread.subject, url: a.thread.url },
     today: !!a.today,
+    decision: !!a.decision,
     priority: a.priority,
     existingTasks: existingTasks_(a.listId),
     opKey: a.opKey,

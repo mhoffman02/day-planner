@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { gmailTaskKey, gmailWaitingKey } from '../src/integration/contracts.js';
+import { gmailTaskKey, gmailWaitingKey, gmailDecisionKey } from '../src/integration/contracts.js';
 import { formatTaskTitle, parseTaskTitle } from '../src/taskEngine.js';
 import {
   planTaskFromThread, findExistingByOpKey, planWaiting, taskPlannerLocalDate, taskPlannerReadMeta
@@ -105,4 +105,16 @@ test('planWaiting: [Waiting] tag + dp-meta {waitingOn, nagDate, gmailLink}', () 
   assert.equal(again.task.id, 'w1');
   assert.throws(() => planWaiting({ thread, nagDate: '2026-10-13', opKey: key, existingTasks: [], now: NOW, timeZone: TZ }), /waitingOn/);
   assert.throws(() => planWaiting({ thread, waitingOn: 'x', nagDate: '10/13', opKey: key, existingTasks: [], now: NOW, timeZone: TZ }), /nagDate/);
+});
+
+test('decision: an undated Task titled "Decision: <subject>" after any priority code', () => {
+  const key = gmailDecisionKey('thr1');
+  const plan = planTaskFromThread({ thread, decision: true, priority: 'A1', opKey: key, existingTasks: [], now: NOW, timeZone: TZ });
+  assert.equal(plan.action, 'CREATE');
+  assert.equal(plan.task.title, '[A1] Decision: Budget review');
+  assert.equal(plan.task.due, undefined, 'a pending decision lives in Master Tasks until dated');
+  assert.equal(taskPlannerReadMeta(plan.task.notes).opKey, key);
+  const again = planTaskFromThread({ thread, decision: true, opKey: key, existingTasks: [{ id: 'd1', ...plan.task }], now: NOW, timeZone: TZ });
+  assert.equal(again.action, 'EXISTS');
+  assert.throws(() => planTaskFromThread({ thread, decision: true, today: true, opKey: key, existingTasks: [], now: NOW, timeZone: TZ }), /decision/);
 });

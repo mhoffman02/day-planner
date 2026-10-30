@@ -145,7 +145,7 @@ function docUrl_(docId) {
   return 'https://docs.google.com/document/d/' + docId + '/edit';
 }
 
-var ROUTE_ACTIONS_ = { TASK: 'CREATE_TASK', TASK_TODAY: 'CREATE_TASK', WAITING: 'CREATE_WAITING', MEETING: 'ROUTE_MEETING' };
+var ROUTE_ACTIONS_ = { TASK: 'CREATE_TASK', TASK_TODAY: 'CREATE_TASK', DECISION: 'CREATE_TASK', WAITING: 'CREATE_WAITING', MEETING: 'ROUTE_MEETING' };
 
 /**
  * Best-effort PENDING to ERROR so the failure is recorded (attempt counter, backoff or permanent
@@ -207,7 +207,7 @@ function resolveMeetingTarget_(spec, now) {
  * returned as {ok:false} (and recorded as a sanitized ERROR ledger row once the op was claimed).
  * @param {{kind:string, threadId:string, thread?:object, seriesKey?:string, occurrenceId?:string,
  *   occurrenceInfo?:object, override?:object, options?:object, dryRun:boolean, settings:object,
- *   registry?:Array<object>, opKey?:string}} spec kind is TASK, TASK_TODAY, WAITING or MEETING.
+ *   registry?:Array<object>, opKey?:string}} spec kind is TASK, TASK_TODAY, DECISION, WAITING or MEETING.
  * @returns {object} DPEngines.makeResult-shaped result.
  */
 function executeRoute(spec) {
@@ -231,6 +231,13 @@ function executeRoute(spec) {
       work = function() {
         var out = DPTaskRepo.createFromThread({ thread: thread, today: isToday, priority: o.priority, opKey: opKey, now: now, timeZone: spec.settings.timeZone, listId: spec.settings.tasksListId });
         return { targetId: out.task.id, targetType: 'TASK', metadata: { created: out.created, due: out.task.due || '' } };
+      };
+    } else if (spec.kind === 'DECISION') {
+      opKey = opKey || E.gmailDecisionKey(spec.threadId);
+      op = { opKey: opKey, sourceType: 'GMAIL', sourceId: spec.threadId, sourceVersion: thread.lastMessageId, action: 'CREATE_TASK', targetType: 'TASK' };
+      work = function() {
+        var out = DPTaskRepo.createFromThread({ thread: thread, decision: true, priority: o.priority, opKey: opKey, now: now, timeZone: spec.settings.timeZone, listId: spec.settings.tasksListId });
+        return { targetId: out.task.id, targetType: 'TASK', metadata: { created: out.created, due: '' } };
       };
     } else if (spec.kind === 'WAITING') {
       opKey = opKey || E.gmailWaitingKey(spec.threadId);
@@ -373,12 +380,19 @@ function collectItems_(ctx) {
     items.push(item);
   }
 
+  // A thread labelled Decision is a pending decision; any Task/Task-Today label on it is not a second Task.
+  var decisionThreads = {};
+  pagedThreadIds(W.DECISION).forEach(function(tid) {
+    decisionThreads[tid] = true;
+    push({ opKey: E.gmailDecisionKey(tid), threadId: tid, kind: 'DECISION', action: 'CREATE_TASK' });
+  });
   pagedThreadIds(W.TASK_TODAY).forEach(function(tid) {
+    if (decisionThreads[tid]) return;
     todayThreads[tid] = true;
     push({ opKey: E.gmailTaskKey(tid, true), threadId: tid, kind: 'TASK_TODAY', action: 'CREATE_TASK' });
   });
   pagedThreadIds(W.TASK).forEach(function(tid) {
-    if (todayThreads[tid]) return;
+    if (todayThreads[tid] || decisionThreads[tid]) return;
     push({ opKey: E.gmailTaskKey(tid, false), threadId: tid, kind: 'TASK', action: 'CREATE_TASK' });
   });
   pagedThreadIds(W.WAITING).forEach(function(tid) {

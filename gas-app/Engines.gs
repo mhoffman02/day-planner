@@ -38,7 +38,8 @@ const WORKFLOW_LABEL = Object.freeze({
   MEETING_NCMMS_CORE: LABEL_PREFIX + 'Meeting/NCMMS-Core',
   MEETING_NCMMS_DAILY: LABEL_PREFIX + 'Meeting/NCMMS-Daily',
   READ: LABEL_PREFIX + 'Read',
-  REVIEW: LABEL_PREFIX + 'Review'
+  REVIEW: LABEL_PREFIX + 'Review',
+  DECISION: LABEL_PREFIX + 'Decision'
 });
 
 /** Labels the router acts on in v1 (others are recognized but inert). */
@@ -46,7 +47,8 @@ const ACTIVE_LABELS = Object.freeze([
   WORKFLOW_LABEL.TASK,
   WORKFLOW_LABEL.TASK_TODAY,
   WORKFLOW_LABEL.WAITING,
-  WORKFLOW_LABEL.MEETING_NCMMS_CORE
+  WORKFLOW_LABEL.MEETING_NCMMS_CORE,
+  WORKFLOW_LABEL.DECISION
 ]);
 
 /** Ledger statuses (replace the spec's _DP/Processed and _DP/Error Gmail labels). */
@@ -96,6 +98,9 @@ function gmailTaskKey(threadId, today = false) {
 }
 function gmailWaitingKey(threadId) {
   return `GMAIL|${requirePart(threadId, 'threadId')}|WAITING`;
+}
+function gmailDecisionKey(threadId) {
+  return `GMAIL|${requirePart(threadId, 'threadId')}|DECISION`;
 }
 function gmailMeetingKey(threadId, occurrenceEventId) {
   return `GMAIL|${requirePart(threadId, 'threadId')}|MEETING|${requirePart(occurrenceEventId, 'occurrenceEventId')}`;
@@ -371,8 +376,9 @@ function extractExternalTicketKey(subject, from, bodyText) {
 
 
 /**
- * Labels that get filter suggestions. Task-Today, Waiting and Meeting stay manual: they depend on judgment
- * or on who owes a reply, which a Gmail filter cannot see (Gemini review, 2026-10-16).
+ * Labels that get filter suggestions. Task-Today, Waiting, Meeting and Decision stay manual: they depend on
+ * judgment or on who owes a reply, which a Gmail filter cannot see (Gemini review, 2026-10-16; Decision
+ * added 2026-10-30).
  */
 const FILTER_TARGET_LABELS = Object.freeze([
   WORKFLOW_LABEL.TASK,
@@ -2074,8 +2080,9 @@ function findExistingByOpKey(tasks, opKey) {
 }
 
 /**
- * Plans a Task from a labeled Gmail thread.
- * @param {{thread:{threadId:string, subject:string, url:string}, today?:boolean, priority?:string|{group:string,sequence:number}, existingTasks:Array<object>, opKey:string, now:Date, timeZone?:string}} a
+ * Plans a Task from a labeled Gmail thread. `decision` makes a pending decision: an undated Task
+ * whose title leads with "Decision: " (after any priority code), so it lives in Master Tasks.
+ * @param {{thread:{threadId:string, subject:string, url:string}, today?:boolean, decision?:boolean, priority?:string|{group:string,sequence:number}, existingTasks:Array<object>, opKey:string, now:Date, timeZone?:string}} a
  * @returns {{action:'CREATE', task:object}|{action:'EXISTS', task:object}}
  */
 function planTaskFromThread(a) {
@@ -2083,8 +2090,9 @@ function planTaskFromThread(a) {
   taskPlannerRequire(a.thread && a.thread.threadId, 'thread.threadId');
   const existing = findExistingByOpKey(a.existingTasks, a.opKey);
   if (existing) return { action: 'EXISTS', task: existing };
+  if (a.decision && a.today) throw new Error('taskPlanner: a decision Task is undated; today and decision cannot both be set');
   const task = {
-    title: taskPlannerTitle(a.thread, a.priority, ''),
+    title: taskPlannerTitle(a.thread, a.priority, a.decision ? 'Decision: ' : ''),
     notes: taskPlannerBuildNotes(a.thread, a.now, { opKey: a.opKey, gmailThreadId: a.thread.threadId }, '')
   };
   if (a.today) task.due = taskPlannerDue(taskPlannerLocalDate(a.now, a.timeZone));
@@ -2367,6 +2375,7 @@ global.DPEngines = Object.freeze({
   AI_EXCLUDED_LABELS: AI_EXCLUDED_LABELS,
   gmailTaskKey: gmailTaskKey,
   gmailWaitingKey: gmailWaitingKey,
+  gmailDecisionKey: gmailDecisionKey,
   gmailMeetingKey: gmailMeetingKey,
   geminiProposeKey: geminiProposeKey,
   meetingTaskKey: meetingTaskKey,

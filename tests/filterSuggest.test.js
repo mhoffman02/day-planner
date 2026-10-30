@@ -11,10 +11,14 @@ import {
 } from '../src/integration/filterSuggest.js';
 
 describe('filter tab helpers', () => {
+  it('never suggests filters for Decision (a filter cannot tell that a decision is needed)', () => {
+    assert.ok(!FILTER_TARGET_LABELS.includes('🎯/Decision'));
+    assert.ok(workflowLabelNames().includes('🎯/Decision'), 'setup still creates the label');
+  });
   it('targets the five automatable labels, never Task-Today, Waiting or Meeting', () => {
     assert.deepEqual([...FILTER_TARGET_LABELS], ['🎯/Task', '🎯/Meeting/NCMMS-Core', '🎯/Meeting/NCMMS-Daily', '🎯/Read', '🎯/Review']);
   });
-  it('lists all eight workflow labels for setup', () => assert.equal(workflowLabelNames().length, 8));
+  it('lists all nine workflow labels for setup', () => assert.equal(workflowLabelNames().length, 9));
   it('reads filter criteria as one Gmail query', () => {
     assert.equal(filterCriteriaQuery({ from: 'a@b.gov', subject: 'Notes:', hasAttachment: true }), 'from:(a@b.gov) subject:(Notes:) has:attachment');
     assert.equal(filterCriteriaQuery({ query: 'list:(x)' }), 'list:(x)');

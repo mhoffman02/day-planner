@@ -118,8 +118,9 @@ export function findExistingByOpKey(tasks, opKey) {
 }
 
 /**
- * Plans a Task from a labeled Gmail thread.
- * @param {{thread:{threadId:string, subject:string, url:string}, today?:boolean, priority?:string|{group:string,sequence:number}, existingTasks:Array<object>, opKey:string, now:Date, timeZone?:string}} a
+ * Plans a Task from a labeled Gmail thread. `decision` makes a pending decision: an undated Task
+ * whose title leads with "Decision: " (after any priority code), so it lives in Master Tasks.
+ * @param {{thread:{threadId:string, subject:string, url:string}, today?:boolean, decision?:boolean, priority?:string|{group:string,sequence:number}, existingTasks:Array<object>, opKey:string, now:Date, timeZone?:string}} a
  * @returns {{action:'CREATE', task:object}|{action:'EXISTS', task:object}}
  */
 export function planTaskFromThread(a) {
@@ -127,8 +128,9 @@ export function planTaskFromThread(a) {
   taskPlannerRequire(a.thread && a.thread.threadId, 'thread.threadId');
   const existing = findExistingByOpKey(a.existingTasks, a.opKey);
   if (existing) return { action: 'EXISTS', task: existing };
+  if (a.decision && a.today) throw new Error('taskPlanner: a decision Task is undated; today and decision cannot both be set');
   const task = {
-    title: taskPlannerTitle(a.thread, a.priority, ''),
+    title: taskPlannerTitle(a.thread, a.priority, a.decision ? 'Decision: ' : ''),
     notes: taskPlannerBuildNotes(a.thread, a.now, { opKey: a.opKey, gmailThreadId: a.thread.threadId }, '')
   };
   if (a.today) task.due = taskPlannerDue(taskPlannerLocalDate(a.now, a.timeZone));

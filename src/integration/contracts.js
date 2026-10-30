@@ -28,7 +28,8 @@ export const WORKFLOW_LABEL = Object.freeze({
   MEETING_NCMMS_CORE: LABEL_PREFIX + 'Meeting/NCMMS-Core',
   MEETING_NCMMS_DAILY: LABEL_PREFIX + 'Meeting/NCMMS-Daily',
   READ: LABEL_PREFIX + 'Read',
-  REVIEW: LABEL_PREFIX + 'Review'
+  REVIEW: LABEL_PREFIX + 'Review',
+  DECISION: LABEL_PREFIX + 'Decision'
 });
 
 /** Labels the router acts on in v1 (others are recognized but inert). */
@@ -36,7 +37,8 @@ export const ACTIVE_LABELS = Object.freeze([
   WORKFLOW_LABEL.TASK,
   WORKFLOW_LABEL.TASK_TODAY,
   WORKFLOW_LABEL.WAITING,
-  WORKFLOW_LABEL.MEETING_NCMMS_CORE
+  WORKFLOW_LABEL.MEETING_NCMMS_CORE,
+  WORKFLOW_LABEL.DECISION
 ]);
 
 /** Ledger statuses (replace the spec's _DP/Processed and _DP/Error Gmail labels). */
@@ -86,6 +88,9 @@ export function gmailTaskKey(threadId, today = false) {
 }
 export function gmailWaitingKey(threadId) {
   return `GMAIL|${requirePart(threadId, 'threadId')}|WAITING`;
+}
+export function gmailDecisionKey(threadId) {
+  return `GMAIL|${requirePart(threadId, 'threadId')}|DECISION`;
 }
 export function gmailMeetingKey(threadId, occurrenceEventId) {
   return `GMAIL|${requirePart(threadId, 'threadId')}|MEETING|${requirePart(occurrenceEventId, 'occurrenceEventId')}`;

@@ -1439,7 +1439,7 @@ Alpine.data('plannerApp', () => ({
         const taken = remove ? this.takeTriageRow(threadId) : null;
         try {
           const r = await call();
-          if (r.ok && (r.status === 'DONE' || r.status === 'SKIPPED') && ['TASK_TODAY', 'TASK', 'WAITING'].includes(ledgerOperationKind(r.operationKey))) {
+          if (r.ok && (r.status === 'DONE' || r.status === 'SKIPPED') && ['TASK_TODAY', 'TASK', 'DECISION', 'WAITING'].includes(ledgerOperationKind(r.operationKey))) {
             this.dailyNeedsRefresh = true;
           }
           this.triageNotice = { kind: r.ok ? 'ok' : 'error', text: label + ': ' + r.message, url: r.targetUrl || null };

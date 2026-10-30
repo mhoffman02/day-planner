@@ -356,7 +356,7 @@ function retryFailedOperation(operationKey, options) {
   if (pre.failure) return pre.failure;
   if (typeof operationKey !== 'string' || !HUB_OPKEY_RE_.test(operationKey)) return fail_('INVALID_INPUT', 'Invalid operation key');
   var parts = operationKey.split('|');
-  var kinds = { TASK: 'TASK', TASK_TODAY: 'TASK_TODAY', WAITING: 'WAITING', MEETING: 'MEETING' };
+  var kinds = { TASK: 'TASK', TASK_TODAY: 'TASK_TODAY', DECISION: 'DECISION', WAITING: 'WAITING', MEETING: 'MEETING' };
   if (parts[0] !== 'GMAIL' || !parts[1] || !kinds[parts[2]]) return fail_('INVALID_INPUT', 'Operation is not retryable');
   var threadId = parts[1].split('~')[0];
   var bad = badThread_(threadId);
