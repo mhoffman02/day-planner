@@ -1,0 +1,8 @@
+{
+  "lines": 90.2,
+  "branches": 80.6,
+  "functions": 88.5,
+  "unmeasured": [
+    "src/app.js"
+  ]
+}

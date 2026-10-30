@@ -23,7 +23,9 @@
     "push:work": "node tools/promote-to-work.js",
     "deploy:home": "node tools/deploy-home.js",
     "login:work": "npx clasp --auth ~/.clasprc.work.json login",
-    "login:home": "npx clasp --auth ~/.clasprc.home.json login"
+    "login:home": "npx clasp --auth ~/.clasprc.home.json login",
+    "test:coverage": "node tools/check-coverage.js",
+    "check:commit-msg": "node tools/check-commit-msg.js"
   },
   "keywords": [
     "day-planner",
@@ -34,6 +36,7 @@
   "license": "MIT",
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "eslint": "^10.9.1"
+    "eslint": "^10.9.1",
+    "acorn": "^8.18.0"
   }
 }

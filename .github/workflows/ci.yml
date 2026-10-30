@@ -1,0 +1,18 @@
+# CI gate: the same checks as .githooks/pre-commit plus the coverage ratchet, run where --no-verify cannot
+# skip them. Live gates (deploy:home over CDP, gas-rpc) need a signed-in Google session and stay local.
+name: ci
+on:
+  push:
+  pull_request:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm install --no-audit --no-fund
+      - run: npm run sync:agents:check
+      - run: npm run lint
+      - run: npm run test:coverage
