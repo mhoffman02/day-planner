@@ -12,7 +12,7 @@ them.
 
 ## Strict Invariants
 
-0. **Every push updates "Day Planner v1" on both** (user, 2026-10-16): after a gas-app commit, `clasp push --force` + `clasp deploy -i AKfycbzZW7LNOkWUhz_SQd4Ka2LCKvT9zwajFGGAHmDXtpG_W0YR28mPFEKwbtDLWyX13xn7YA -d "Day Planner v1"` on HOME, and `npm run push:work` on WORK (creates a version labelled "Day Planner v1"; the user repoints it in the WORK IDE, see invariant 3).
+0. **Every push updates "Day Planner v1" on both** (user, 2026-10-16): after a gas-app commit, `npm run deploy:home` on HOME (pushes @HEAD, loads `/dev` over CDP, moves "Day Planner v1" only if the app initializes; never a bare `clasp deploy`), and only after it passes, `npm run push:work` on WORK (creates a version labelled "Day Planner v1"; the user repoints it in the WORK IDE, see invariant 3).
 
 1. **Active Focus & Mastercopy**: Current active development target is **HOME** (`1XUrbUS55yQf_UDuNRou3WVn62SFQ2Qsdr9ITjO7Z3FisDVVhW58ksj-W`), configured in `gas-app/.clasp.json`.
 2. **Never Swap clasp target implicitly**: Never modify `gas-app/.clasp.json` to the WORK script ID. Keep HOME permanently configured there.

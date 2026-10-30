@@ -21,6 +21,7 @@
     "sync:agents:check": "node tools/sync-agent-config.js --check",
     "stamp-build": "node tools/stamp-build-number.js",
     "push:work": "node tools/promote-to-work.js",
+    "deploy:home": "node tools/deploy-home.js",
     "login:work": "npx clasp --auth ~/.clasprc.work.json login",
     "login:home": "npx clasp --auth ~/.clasprc.home.json login"
   },

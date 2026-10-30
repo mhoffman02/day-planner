@@ -11,6 +11,7 @@
  *   node tools/probe-live.js --json       # Machine-readable JSON for agents/models
  *   node tools/probe-live.js --tail 5     # Listen to console for 5 seconds during probe
  *   node tools/probe-live.js --port 9222  # Custom CDP port
+ *   node tools/probe-live.js --target <id> # Probe this tab id only (used by the deploy gate)
  */
 
 const args = process.argv.slice(2);
@@ -19,6 +20,8 @@ const tailIdx = args.indexOf('--tail');
 const tailSec = tailIdx !== -1 ? parseInt(args[tailIdx + 1], 10) : 2;
 const portIdx = args.indexOf('--port');
 const port = portIdx !== -1 ? args[portIdx + 1] : (process.env.CDP_PORT || '9222');
+const targetIdx = args.indexOf('--target');
+const targetId = targetIdx !== -1 ? args[targetIdx + 1] : null;
 
 async function probe() {
   const result = {
@@ -53,7 +56,8 @@ async function probe() {
     result.checks.cdpConnected = true;
 
     // 2. Identify Day Planner page tab
-    const page = tabs.find(t => t.type === 'page' && t.title === 'Day Planner') ||
+    const page = targetId ? tabs.find(t => t.id === targetId) :
+      tabs.find(t => t.type === 'page' && t.title === 'Day Planner') ||
       tabs.find(t => t.type === 'page' && (
         t.url && (t.url.includes('/macros/s/') || t.url.includes('/exec') || t.url.includes('localhost:3000'))
       )) ||
