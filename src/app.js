@@ -3753,10 +3753,18 @@ Alpine.data('plannerApp', () => ({
           value: noteContent,
           baseline: this.savedNoteByDate[dateStr],
           write: async (text) => {
-            const result = await callBridge(this.bridge, [['saveDailyDocCards', [dateStr, text]]], `daily note for ${dateStr}`);
+            // Baseline = the day text Google last confirmed; the server refuses the write if the Doc
+            // section no longer matches it (edited directly in Google Docs), see saveDailyDocCards.
+            const baseline = this.savedNoteByDate[dateStr];
+            const result = await callBridge(this.bridge, [['saveDailyDocCards', [dateStr, text, baseline]]], `daily note for ${dateStr}`);
             // Code.gs reports Drive/Docs failures as a resolved { success: false, error }.
             if (!result || result.success !== true) {
-              throw new Error((result && result.error) || 'the server did not confirm the save');
+              const err = new Error((result && result.error) || 'the server did not confirm the save');
+              if (result && result.conflict) {
+                err.conflict = true;
+                err.currentContent = typeof result.currentContent === 'string' ? result.currentContent : '';
+              }
+              throw err;
             }
             return result;
           },
@@ -3768,6 +3776,17 @@ Alpine.data('plannerApp', () => ({
           onFailed: (err) => {
             console.error(`🔥 saveDailyDocCards failed for ${dateStr}; note NOT saved, cache rolled back to last saved text, editor text kept:`, err.stack);
             this.rollbackUnsavedNoteCache(dateStr, noteContent);
+            if (err.conflict) {
+              // Overwriting the Doc version must be a choice: Retry adopts the Doc text as the
+              // baseline, so the next write replaces it with the editor text.
+              this.reportError(key, `${err.message}. Your text was NOT saved and is still in the editor. Retry replaces the Google Docs version with yours; to keep the Docs version instead, copy your text and reload the day.`, {
+                retry: () => {
+                  this.adoptDocNoteBaseline(dateStr, err.currentContent);
+                  return this.retryDailyNoteSave(dateStr);
+                }
+              });
+              return;
+            }
             this.reportError(key, `Daily note for ${dateStr} NOT saved: ${err.message || err.toString()}. Your text is still in the editor; press Retry or edit again, or copy it before leaving this day.`, {
               retry: () => this.retryDailyNoteSave(dateStr)
             });
@@ -3794,6 +3813,15 @@ Alpine.data('plannerApp', () => ({
       // cache still holds the text this failed save attempted (a newer edit owns it otherwise,
       // and its own pending save will commit or roll back). Unknown saved text: drop the entry
       // so the next visit refetches from Google instead of trusting the cache.
+      // After a Doc-edit conflict the user chose to keep their text: the Docs text becomes the
+      // last saved text (cache included, when it still held the old one), so the retried write
+      // replaces exactly what is in Google Docs now.
+      adoptDocNoteBaseline(dateStr, docText) {
+        const entry = getCached(dateStr);
+        if (entry && entry.noteContent === this.savedNoteByDate[dateStr]) setCached(dateStr, { ...entry, noteContent: docText });
+        this.savedNoteByDate[dateStr] = docText;
+      },
+
       rollbackUnsavedNoteCache(dateStr, attemptedContent) {
         const entry = getCached(dateStr);
         if (!entry || entry.noteContent !== attemptedContent) return;

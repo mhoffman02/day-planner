@@ -98,11 +98,19 @@ function recordServerLogUnguarded_(level, context, message, stack) {
  * @returns {Array<Object>} Paragraph structural elements, each with startIndex/endIndex/paragraph.
  */
 function docsGetBodyElements_(documentId) {
+  return docsGetBody_(documentId).elements;
+}
+
+/** @returns {{revisionId: string, elements: Array<Object>}} Paragraph elements plus the revision they were read at. */
+function docsGetBody_(documentId) {
   const doc = Docs.Documents.get(documentId, {
-    fields: 'body.content(startIndex,endIndex,paragraph(paragraphStyle.namedStyleType,bullet,elements(textRun.content,pageBreak)))'
+    fields: 'revisionId,body.content(startIndex,endIndex,paragraph(paragraphStyle.namedStyleType,bullet,elements(textRun.content,pageBreak)))'
   });
   const content = (doc.body && doc.body.content) || [];
-  return content.filter(function (el) { return !!el.paragraph; });
+  return {
+    revisionId: doc.revisionId || '',
+    elements: content.filter(function (el) { return !!el.paragraph; })
+  };
 }
 
 /** @returns {string} Plain text of a paragraph structural element, trailing newline stripped. */
@@ -434,7 +442,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 534;
+const BUILD_NUMBER_ = 535;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -1967,6 +1975,18 @@ function extractDaySectionText_(elements, dateStr) {
 }
 
 /**
+ * Day text as the Doc stores it: the save writes one paragraph per non-blank line and drops blank
+ * lines, so two texts that differ only in blank lines are the same section.
+ * @param {string} text Day note text.
+ * @returns {string} Comparison key.
+ */
+function docSectionKey_(text) {
+  return String(text).split('\n').filter(function (line) {
+    return line.trim() || line.indexOf('### ') === 0 || line.indexOf('- ') === 0;
+  }).join('\n');
+}
+
+/**
  * Gets or creates the Monthly Note Google Doc (12 per year) and extracts/appends daily note content.
  * Script-efficient and formatted for human readability & printing.
  * @param {string} dateStr Target date string in YYYY-MM-DD format.
@@ -2009,11 +2029,19 @@ function getOrCreateDailyDocContent(dateStr, knownDocId) {
  * Idempotently replaces existing day section in-place to prevent duplication, via a single
  * Docs Advanced Service batchUpdate (delete the old section's character range, insert the new
  * one, then apply heading/bullet style requests) rather than DocumentApp's per-element tree API.
+ *
+ * Revision-safe (Phase 32): `baselineContent` is the day text the client last loaded or saved.
+ * If that day section in the Doc no longer matches it (someone edited the Doc directly), the
+ * write is refused with `conflict: true` and the Doc text in `currentContent`. The write is also
+ * pinned to the revision read here (writeControl), so a Doc edit landing between this read and
+ * the write fails the save instead of being overwritten. Comparison is per day section, so
+ * edits to other days or meeting notes in the same month Doc never block this day.
  * @param {string} dateStr Target date in YYYY-MM-DD format.
  * @param {string} noteContent Markdown/card note content to persist.
- * @returns {{success: boolean, docName: string}} Result status.
+ * @param {string} [baselineContent] Day text the client last loaded/saved; omitted = no check.
+ * @returns {{success: boolean, docName?: string, conflict?: boolean, currentContent?: string, error?: string}} Result status.
  */
-function saveDailyDocCards(dateStr, noteContent) {
+function saveDailyDocCards(dateStr, noteContent, baselineContent) {
   if (typeof DriveApp === 'undefined' || typeof Docs === 'undefined') {
     return { success: true, docName: 'Local Dev Mock Doc' };
   }
@@ -2034,7 +2062,19 @@ function saveDailyDocCards(dateStr, noteContent) {
     const dayHeadingText = 'Day Planner - ' + dayFormatted;
     const lines = (noteContent || '').split('\n');
 
-    const elements = docsGetBodyElements_(docId);
+    const body = docsGetBody_(docId);
+    const elements = body.elements;
+    if (typeof baselineContent === 'string') {
+      const current = extractDaySectionText_(elements, dateStr);
+      if (current !== null && docSectionKey_(current) !== docSectionKey_(baselineContent)) {
+        return {
+          success: false,
+          conflict: true,
+          currentContent: current,
+          error: 'Notes for ' + dateStr + ' were changed in Google Docs since you opened them'
+        };
+      }
+    }
     let dayHeadingIndex = -1;
     for (let i = 0; i < elements.length; i++) {
       if (isDayHeadingElement_(elements[i], dateStr, dayFormatted)) {
@@ -2085,7 +2125,9 @@ function saveDailyDocCards(dateStr, noteContent) {
       requests = requests.concat(newPlan.styleRequests);
     }
 
-    Docs.Documents.batchUpdate({ requests: requests }, docId);
+    const update = { requests: requests };
+    if (body.revisionId) update.writeControl = { requiredRevisionId: body.revisionId };
+    Docs.Documents.batchUpdate(update, docId);
     return { success: true, docName: docName };
   } catch (err) {
     logError('saveDailyDocCards(' + dateStr + ')', err);
@@ -3839,8 +3881,8 @@ function markMasterTaskMoved(masterTaskId, targetDateStr, movedTaskId) {
   return (typeof _markMasterTaskMovedInternal === 'function') ? _markMasterTaskMovedInternal(masterTaskId, targetDateStr, movedTaskId) : (globalThis._markMasterTaskMovedInternal ? globalThis._markMasterTaskMovedInternal(masterTaskId, targetDateStr, movedTaskId) : null);
 }
 
-function saveDailyDocCards(dateStr, noteContent) {
-  return (typeof _saveDailyDocCardsInternal === 'function') ? _saveDailyDocCardsInternal(dateStr, noteContent) : (globalThis._saveDailyDocCardsInternal ? globalThis._saveDailyDocCardsInternal(dateStr, noteContent) : null);
+function saveDailyDocCards(dateStr, noteContent, baselineContent) {
+  return (typeof _saveDailyDocCardsInternal === 'function') ? _saveDailyDocCardsInternal(dateStr, noteContent, baselineContent) : (globalThis._saveDailyDocCardsInternal ? globalThis._saveDailyDocCardsInternal(dateStr, noteContent, baselineContent) : null);
 }
 
 function createDictationScratchDoc() {

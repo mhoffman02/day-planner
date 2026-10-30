@@ -167,6 +167,52 @@ for (const c of clients) {
         assert.match(vm.errorMessage || '', /unavailable/i);
       });
 
+      it('sends the last saved day text as the baseline, so the server can refuse to overwrite Doc edits', async () => {
+        const calls = [];
+        const vm = dailyVm(c, {
+          bridge: {
+            getDailyData: async () => ({ tasks: [], calendarEvents: [], noteContent: 'saved v1', docUrl: '' }),
+            saveDailyDocCards: async (...args) => { calls.push(args); return { success: true }; }
+          }
+        });
+        await vm.loadDayData();
+        vm.dailyNote = 'v2';
+        vm.scheduleDailyNoteSave();
+        await settle();
+        vm.dailyNote = 'v3';
+        vm.scheduleDailyNoteSave();
+        await settle();
+        assert.deepEqual(calls, [[DATE, 'v2', 'saved v1'], [DATE, 'v3', 'v2']]);
+      });
+
+      it('a Doc-edit conflict keeps the editor text, says so, and Retry overwrites only by choice', async () => {
+        const calls = [];
+        const vm = dailyVm(c, {
+          bridge: {
+            getDailyData: async () => ({ tasks: [], calendarEvents: [], noteContent: 'saved v1', docUrl: '' }),
+            saveDailyDocCards: async (...args) => {
+              calls.push(args);
+              if (calls.length === 1) {
+                return { success: false, conflict: true, currentContent: 'edited in Docs', error: `Notes for ${DATE} were changed in Google Docs since you opened them` };
+              }
+              return { success: true };
+            }
+          }
+        });
+        await vm.loadDayData();
+        vm.dailyNote = 'typed in app';
+        await captureConsoleError(async () => { vm.scheduleDailyNoteSave(); await settle(); });
+        assert.equal(vm.dailyNote, 'typed in app');
+        const entry = vm.errorTray.find((e) => e.key === `save-note:${DATE}`);
+        assert.match(entry.message, /changed in Google Docs/);
+        assert.match(entry.message, /Retry replaces/);
+        assert.equal(calls.length, 1, 'no automatic overwrite');
+        await vm.retryError(`save-note:${DATE}`);
+        await settle();
+        assert.deepEqual(calls[1], [DATE, 'typed in app', 'edited in Docs']);
+        assert.equal(c.cache.getCached(DATE).noteContent, 'typed in app');
+      });
+
       it('commits the saved text to the cache once saveDailyDocCards succeeds', async () => {
         const vm = dailyVm(c, {
           bridge: {

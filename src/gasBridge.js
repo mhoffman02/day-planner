@@ -871,7 +871,7 @@ export class GASBridge {
    * @param {string} noteContent Card note content.
    * @returns {Promise<{success: boolean, docName?: string}>} Promise of save result.
    */
-  async saveDailyDocCards(dateStr, noteContent) {
+  async saveDailyDocCards(dateStr, noteContent, baselineContent) {
     if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
       this.mockData.dailyNotes[dateStr] = noteContent;
       return { success: true, docName: `Day Planner Notes - Mock ${dateStr}` };
@@ -881,7 +881,7 @@ export class GASBridge {
       window.google.script.run
         .withSuccessHandler(resolve)
         .withFailureHandler(reject)
-        .saveDailyDocCards(dateStr, noteContent);
+        .saveDailyDocCards(dateStr, noteContent, baselineContent);
     });
   }
 

@@ -255,14 +255,21 @@ function docToApi(doc) {
     const elements = [];
     let k = i;
     while (k <= j) {
+      if (doc.chars[k].pageBreak) {
+        elements.push({ startIndex: k + 1, endIndex: k + 2, pageBreak: {} });
+        k += 1;
+        continue;
+      }
       const link = doc.chars[k].link;
       let m = k;
-      while (m + 1 <= j && doc.chars[m + 1].link === link) m += 1;
+      while (m + 1 <= j && !doc.chars[m + 1].pageBreak && doc.chars[m + 1].link === link) m += 1;
       const text = doc.chars.slice(k, m + 1).map((c) => c.ch).join('');
       elements.push({ startIndex: k + 1, endIndex: m + 2, textRun: { content: text, textStyle: link ? { link: { url: link } } : {} } });
       k = m + 1;
     }
-    content.push({ startIndex: i + 1, endIndex: j + 2, paragraph: { elements, paragraphStyle: { namedStyleType: doc.chars[j].pstyle } } });
+    const paragraph = { elements, paragraphStyle: { namedStyleType: doc.chars[j].pstyle } };
+    if (doc.chars[j].bullet) paragraph.bullet = { listId: 'list1' };
+    content.push({ startIndex: i + 1, endIndex: j + 2, paragraph });
     i = j + 1;
   }
   return { documentId: doc.documentId, title: doc.title, revisionId: doc.revisionId, body: { content } };
@@ -270,7 +277,21 @@ function docToApi(doc) {
 
 function docBad(msg) { const e = new Error(msg); e.code = 400; return e; }
 
-/** Applies one Docs request (insertText, updateParagraphStyle, updateTextStyle, deleteContentRange, deleteParagraphBullets). */
+/** Paragraph-end (newline) indices of every paragraph overlapping [startIndex, endIndex). */
+function paragraphEnds(doc, startIndex, endIndex) {
+  const ends = new Set();
+  for (let p = startIndex - 1; p < endIndex - 1; p += 1) {
+    let q = p;
+    while (doc.chars[q].ch !== '\n') q += 1;
+    ends.add(q);
+  }
+  return [...ends];
+}
+
+/**
+ * Applies one Docs request (insertText, insertPageBreak, updateParagraphStyle, updateTextStyle,
+ * deleteContentRange, createParagraphBullets, deleteParagraphBullets).
+ */
 function applyDocRequest(doc, r) {
   const n = doc.chars.length;
   if (r.insertText) {
@@ -281,11 +302,12 @@ function applyDocRequest(doc, r) {
     let nl = index - 1;
     while (doc.chars[nl].ch !== '\n') nl += 1;
     const pstyle = doc.chars[nl].pstyle;
+    const bullet = doc.chars[nl].bullet;
     const inheritLink = index >= 2 ? doc.chars[index - 2].link : null;
     const units = [];
     for (let u = 0; u < r.insertText.text.length; u += 1) {
       const ch = r.insertText.text[u]; // UTF-16 unit, matching Docs index arithmetic
-      units.push({ ch, link: inheritLink, pstyle: ch === '\n' ? pstyle : undefined });
+      units.push({ ch, link: inheritLink, pstyle: ch === '\n' ? pstyle : undefined, bullet: ch === '\n' ? bullet : undefined });
     }
     doc.chars.splice(index - 1, 0, ...units);
   } else if (r.updateParagraphStyle) {
@@ -309,7 +331,17 @@ function applyDocRequest(doc, r) {
     const { startIndex, endIndex } = r.deleteContentRange.range;
     if (startIndex < 1 || endIndex > n || startIndex >= endIndex) throw docBad('deleteContentRange range invalid');
     doc.chars.splice(startIndex - 1, endIndex - startIndex);
-  } else if (!r.deleteParagraphBullets) {
+  } else if (r.insertPageBreak) {
+    // Real Docs: a page break is one index unit inside the paragraph it lands in.
+    const { index } = r.insertPageBreak.location;
+    if (index < 1 || index > n) throw docBad(`insertPageBreak index ${index} out of range 1..${n}`);
+    doc.chars.splice(index - 1, 0, { ch: '\f', link: null, pageBreak: true });
+  } else if (r.createParagraphBullets || r.deleteParagraphBullets) {
+    const req = r.createParagraphBullets || r.deleteParagraphBullets;
+    const { startIndex, endIndex } = req.range;
+    if (startIndex < 1 || endIndex > n + 1 || startIndex > endIndex) throw docBad('paragraph bullets range invalid');
+    for (const q of paragraphEnds(doc, startIndex, Math.max(endIndex, startIndex + 1))) doc.chars[q].bullet = !!r.createParagraphBullets;
+  } else {
     throw docBad(`unsupported fake Docs request: ${Object.keys(r).join(',')}`);
   }
 }
