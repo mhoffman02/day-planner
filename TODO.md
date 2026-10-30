@@ -1,5 +1,16 @@
 # Active Tasks (TODO)
 
+## Phase 32: Notes Doc view (from docs/notes-doc-embed-eval.md, 2026-10-30)
+
+- [ ] **Data-loss risk: make `saveDailyDocCards` revision-safe** (`gas-app/Code.gs` ~2088). It replaces the whole
+  day section with no `writeControl`, so edits made directly in the Doc are overwritten on the next app save. Keep
+  the revisionId from load, refuse the write on mismatch, and reload. Red test first. Must land before any
+  "Open in Docs at heading" link.
+- [ ] **User decisions 1-5 in `docs/notes-doc-embed-eval.md`** (read-only Docs API render in the "doc" view mode,
+  per-card heading link, 15-min signed-in iframe probe on HOME).
+- [ ] **Live check smart paste + day rollover** (HOME @337, `1da3fcf`): paste from Gmail, Docs and Gemini into a
+  card line; leave the tab open past midnight. WORK version pushed, pending repoint.
+
 ## Phase 31: Search polish (in progress)
 
 User asked for these three next (2026-10-22), in this order. Shared matcher: `matchesSearchQuery` in
