@@ -15,7 +15,7 @@ const EXEMPT_SUBJECT_RE = /^(Merge |Revert |fixup! |squash! |amend! )/;
 const REQUIRED = {
   fix: ['Red-run', 'Escaped-because', 'Guard-added'],
   feat: ['Red-run'],
-  perf: ['Red-run'],
+  perf: ['Red-run', 'Measured'],   // measure before optimizing: 3 of 7 past perf commits had no timing
 };
 
 export function checkCommitMessage(message, stagedFiles) {

@@ -13,11 +13,47 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { HtmlValidate } from 'html-validate';
+import * as acorn from 'acorn';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FILES = ['index.html', 'gas-app/Index.html'];
 const BASELINE_FILE = path.join(ROOT, 'html-baseline.json');
 const KEPT_BINDINGS = /^(href|src|alt|title|aria-[\w-]+|role|placeholder|label)$/;
+// Hard rules (0 today, so no baseline): dynamic HTML is escaped at output by these two only (6f25dc2),
+// and no stadium/circle radius (no-pills.md; c957ba2, 7f8e432).
+const HARD_RULE_FILES = [...FILES, 'src/styles.css', 'gas-app/Styles.html'];
+const SANITIZERS = new Set(['formatEventDescription', 'renderCardLine']);
+const PILL_RADIUS_RE = /border-radius:\s*(50%|\d{3,}px|99px)/g;
+
+/** @returns {boolean} The x-html expression yields only sanitizer output or string literals. */
+function isSanitized(node) {
+  if (node.type === 'Literal') return typeof node.value === 'string';
+  if (node.type === 'ConditionalExpression') return isSanitized(node.consequent) && isSanitized(node.alternate);
+  return node.type === 'CallExpression' && node.callee.type === 'Identifier' && SANITIZERS.has(node.callee.name);
+}
+
+/**
+ * @param {string} file Name used in messages.
+ * @param {string} text File content.
+ * @returns {string[]} `file:line: reason` for each x-html bypass or pill radius.
+ */
+export function hardRuleViolations(file, text) {
+  const out = [];
+  const lineOf = (index) => text.slice(0, index).split('\n').length;
+  for (const m of text.matchAll(/x-html="([^"]*)"/g)) {
+    let ok = false;
+    try {
+      ok = isSanitized(acorn.parseExpressionAt(m[1].replace(/&#39;|&apos;/g, "'"), 0, { ecmaVersion: 'latest' }));
+    } catch (err) {
+      console.error(`check-html: ${file}:${lineOf(m.index)} x-html is not a parseable expression, reported as unsanitized\n${err.stack}`);
+    }
+    if (!ok) out.push(`${file}:${lineOf(m.index)}: x-html="${m[1]}" must go through formatEventDescription/renderCardLine (escape at output)`);
+  }
+  for (const m of text.matchAll(PILL_RADIUS_RE)) {
+    out.push(`${file}:${lineOf(m.index)}: border-radius ${m[1]} is a pill/circle (no-pills.md)`);
+  }
+  return out;
+}
 
 export function alpineToStatic(html) {
   return html
@@ -48,7 +84,10 @@ export function compareToBaseline(file, counts, baseline) {
 
 async function main() {
   const { ok } = await runCheck({ root: ROOT, files: FILES, baselineFile: BASELINE_FILE, update: process.argv.includes('--update') });
-  if (!ok) process.exit(1);
+  const hard = HARD_RULE_FILES.flatMap((f) => hardRuleViolations(f, fs.readFileSync(path.join(ROOT, f), 'utf8')));
+  if (hard.length) console.error(`❌ ${hard.join('\n❌ ')}`);
+  else console.log(`✅ x-html only via sanitizers, no pill radii in ${HARD_RULE_FILES.join(', ')}`);
+  if (!ok || hard.length) process.exit(1);
 }
 
 /**

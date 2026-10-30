@@ -22,10 +22,15 @@ test('fix with all three trailers passes', () => {
   assert.deepEqual(checkCommitMessage(`fix(gas): blank page\n\n${RED}\n${ESCAPED}\n${GUARD}\n`, CODE), []);
 });
 
-test('feat and perf touching code need only Red-run', () => {
+test('feat touching code needs only Red-run', () => {
   assert.equal(checkCommitMessage('feat(notes): x', CODE).length, 1);
   assert.deepEqual(checkCommitMessage(`feat(notes): x\n\n${RED}`, CODE), []);
-  assert.equal(checkCommitMessage('perf: x', ['gas-app/Code.gs']).length, 1);
+});
+
+test('perf touching code needs Red-run and a Measured timing (measure before optimizing)', () => {
+  assert.equal(checkCommitMessage('perf: x', ['gas-app/Code.gs']).length, 2);
+  assert.deepEqual(checkCommitMessage(`perf: x\n\n${RED}`, CODE), ['perf commit touching code needs a "Measured: ..." line in the body']);
+  assert.deepEqual(checkCommitMessage(`perf: x\n\n${RED}\nMeasured: render 27 ms -> 4 ms per row (CDP bench)`, CODE), []);
 });
 
 test('an empty trailer value does not count', () => {

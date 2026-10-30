@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { alpineToStatic, countFindings, compareToBaseline, runCheck } from '../tools/check-html.js';
+import { alpineToStatic, countFindings, compareToBaseline, runCheck, hardRuleViolations } from '../tools/check-html.js';
 
 test('a11y-relevant bindings become static attributes, others are dropped', () => {
   assert.equal(alpineToStatic('<a :href="u" :class="c">x</a>'), '<a href="x">x</a>');
@@ -55,4 +55,23 @@ test('runCheck: a rise fails, an update only lowers counts and never admits a ne
   await runCheck({ ...opts, update: true });
   assert.deepEqual(readBase(), { 'p.html': { 'text-content': 1 } });
   assert.equal((await runCheck(opts)).ok, false);
+});
+
+test('x-html only renders through a sanitizer or a string literal', () => {
+  const ok = '<p x-html="evt.description ? formatEventDescription(evt.description) : \'No description\'"></p>\n<p x-html="renderCardLine(idx.summary, false)"></p>';
+  assert.deepEqual(hardRuleViolations('a.html', ok), []);
+  const bad = '<p>x</p>\n<p x-html="evt.description"></p>\n<p x-html="ok ? renderCardLine(a) : raw"></p>';
+  assert.deepEqual(hardRuleViolations('a.html', bad), [
+    'a.html:2: x-html="evt.description" must go through formatEventDescription/renderCardLine (escape at output)',
+    'a.html:3: x-html="ok ? renderCardLine(a) : raw" must go through formatEventDescription/renderCardLine (escape at output)'
+  ]);
+});
+
+test('a pill or circle border-radius fails; small radii pass (no-pills)', () => {
+  assert.deepEqual(hardRuleViolations('s.css', '.a { border-radius: 6px; }\n.b { border-radius: 4px 4px 0 0; }'), []);
+  assert.deepEqual(hardRuleViolations('s.css', '.a {\n  border-radius: 50%;\n}\n.b { border-radius: 999px; }\n.c { border-radius:100px }'), [
+    's.css:2: border-radius 50% is a pill/circle (no-pills.md)',
+    's.css:4: border-radius 999px is a pill/circle (no-pills.md)',
+    's.css:5: border-radius 100px is a pill/circle (no-pills.md)'
+  ]);
 });
