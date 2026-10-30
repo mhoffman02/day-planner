@@ -13,6 +13,16 @@ const UTC_DAY_KEY = {
   selector: "CallExpression[callee.property.name=/^(slice|substring|split)$/][callee.object.callee.property.name='toISOString']",
   message: 'UTC day shift: use a local date (getLocalDateStr, taskPlannerLocalDate, toLocaleDateString("en-CA")).'
 };
+// External-API loops need a page cap and a time budget (6077c04, Gmail quota).
+const UNBOUNDED_LOOP = {
+  selector: "WhileStatement[test.raw='true'], DoWhileStatement[test.raw='true'], ForStatement[test=null]",
+  message: 'Unbounded loop: give it a counter cap or a time budget.'
+};
+// clasp loads .gs files alphabetically, so a top-level value can be read before it is set.
+const GAS_GLOBALS = [
+  { selector: 'Program > VariableDeclaration', message: 'No GAS globals: put it inside the file IIFE namespace (gas-namespace-iife.md).' },
+  { selector: "AssignmentExpression[left.object.name='global'][right.type=/^(Literal|ArrayExpression|ObjectExpression|TemplateLiteral|NewExpression)$/]", message: 'global.X gets functions or frozen namespaces only, never a value (gas-global-init-order.md).' }
+];
 
 const gasGlobals = {
   SpreadsheetApp: 'readonly',
@@ -53,7 +63,9 @@ export default [
       'no-implied-eval': 'error',
       'no-new-func': 'error',
       'no-throw-literal': 'error',
-      'no-restricted-syntax': ['error', UTC_DAY_KEY]
+      'no-restricted-syntax': ['error', UTC_DAY_KEY, UNBOUNDED_LOOP],
+      'no-restricted-properties': ['error', { property: 'substr', message: 'Deprecated: use slice().' }],
+      'no-implicit-coercion': ['error', { boolean: false }]
     }
   },
   {
@@ -150,7 +162,9 @@ export default [
       // service (gmail.readonly). (Legacy SpreadsheetApp use in Code.gs predates this rule.)
       'no-restricted-syntax': ['error',
         { selector: "Identifier[name='GmailApp']", message: 'GmailApp requires the full mail scope. Use the Advanced Gmail service (gmail.readonly).' },
-        UTC_DAY_KEY
+        UTC_DAY_KEY,
+        UNBOUNDED_LOOP,
+        ...GAS_GLOBALS
       ],
       // GAS concatenates all .gs files into one shared global scope at
       // runtime, so cross-file function refs are false positives here.
