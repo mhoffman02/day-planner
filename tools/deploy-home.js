@@ -15,6 +15,7 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ensureChrome } from './ensure-chrome.js';
+import { assertCleanGasApp } from './clean-tree.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const GAS_DIR = path.join(ROOT, 'gas-app');
@@ -46,6 +47,7 @@ function probe(tabId) {
 async function main() {
   const checkOnly = process.argv.includes('--check');
 
+  assertCleanGasApp(ROOT);
   console.log('1/3 clasp push --force (HOME @HEAD)');
   run('npx', ['clasp', 'push', '--force'], GAS_DIR);
 

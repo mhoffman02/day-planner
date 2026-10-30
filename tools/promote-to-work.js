@@ -14,6 +14,7 @@ import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertCleanGasApp } from './clean-tree.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,7 +36,13 @@ if (!fs.existsSync(WORK_CONFIG)) {
   process.exit(1);
 }
 
-// 2. Pre-flight checks
+// 2. Pre-flight checks: the push must be exactly a commit (clasp pushes the working tree).
+try {
+  assertCleanGasApp(ROOT_DIR);
+} catch (err) {
+  console.error(`❌ ${err.message}`);
+  process.exit(1);
+}
 console.log('\n[1/3] Running pre-flight quality checks...');
 try {
   console.log('  -> Running linter & safe-character guard...');
