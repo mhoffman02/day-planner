@@ -2008,8 +2008,7 @@ Alpine.data('plannerApp', () => ({
       },
 
       selectMasterTaskDueDate(dateStr) {
-        if (dateStr === 'today') dateStr = getLocalDateStr();
-        this.newMasterTaskDueDate = dateStr;
+        this.newMasterTaskDueDate = dateStr === 'today' ? getLocalDateStr() : dateStr;
         this.closeMasterTaskDuePicker();
       },
 
@@ -3442,14 +3441,13 @@ Alpine.data('plannerApp', () => ({
         return listMatch[0] + wrapperMatch[0] + rest.slice(listMatch[0].length);
       },
 
-      renderCardLine(text, isPlaceholder) {
+      renderCardLine(rawText, isPlaceholder) {
         if (isPlaceholder) {
           return '<span class="note-card-empty-placeholder">Click to add notes for this topic&hellip;</span>';
         }
 
-        text = this.normalizeLeadingListMarker(text);
         // Heading hashes go; a line-leading #decision tag stays (it renders as a badge).
-        text = text.replace(/^#+\s*(?!decision\b)/i, '');
+        const text = this.normalizeLeadingListMarker(rawText).replace(/^#+\s*(?!decision\b)/i, '');
 
         const escapeHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 

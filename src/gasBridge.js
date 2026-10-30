@@ -217,7 +217,7 @@ export class GASBridge {
   async getDailyDataRange(startDateStr, endDateStr) {
     if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
       const days = {};
-      let cursor = new Date(`${startDateStr}T00:00:00`);
+      const cursor = new Date(`${startDateStr}T00:00:00`);
       const end = new Date(`${endDateStr}T00:00:00`);
       while (cursor <= end) {
         const y = cursor.getFullYear();

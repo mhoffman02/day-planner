@@ -33,6 +33,22 @@ export default [
     ignores: ['node_modules/**', 'gas-app/vendor/**', 'src/vendor/**']
   },
   {
+    // Solid Code 2.0 decision 2T (2026-10-30). GAS V8 has let/const, so no-var covers gas-app too; its
+    // legacy vars are grandfathered in eslint-suppressions.json, which only shrinks (--prune-suppressions).
+    files: ['**/*.js', '**/*.gs'],
+    rules: {
+      // `x == null` is the one idiom kept: it tests null and undefined together.
+      eqeqeq: ['error', 'always', { null: 'ignore' }],
+      'prefer-const': 'error',
+      'no-var': 'error',
+      'no-param-reassign': 'error',
+      'no-eval': 'error',
+      'no-implied-eval': 'error',
+      'no-new-func': 'error',
+      'no-throw-literal': 'error'
+    }
+  },
+  {
     files: ['src/**/*.js'],
     languageOptions: {
       ecmaVersion: 'latest',

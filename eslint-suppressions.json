@@ -1,0 +1,57 @@
+{
+  "gas-app/CalendarRepository.gs": {
+    "no-var": {
+      "count": 40
+    }
+  },
+  "gas-app/Code.gs": {
+    "no-var": {
+      "count": 1
+    }
+  },
+  "gas-app/Config.gs": {
+    "no-var": {
+      "count": 139
+    }
+  },
+  "gas-app/GmailRepository.gs": {
+    "no-var": {
+      "count": 73
+    }
+  },
+  "gas-app/HubController.gs": {
+    "no-var": {
+      "count": 261
+    }
+  },
+  "gas-app/LedgerRepository.gs": {
+    "no-var": {
+      "count": 40
+    }
+  },
+  "gas-app/NotesRepository.gs": {
+    "no-var": {
+      "count": 39
+    }
+  },
+  "gas-app/QueueProcessor.gs": {
+    "no-var": {
+      "count": 126
+    }
+  },
+  "gas-app/TaskRepository.gs": {
+    "no-var": {
+      "count": 14
+    }
+  },
+  "gas-app/Triggers.gs": {
+    "no-var": {
+      "count": 29
+    }
+  },
+  "gas-app/UnitTests.gs": {
+    "no-var": {
+      "count": 59
+    }
+  }
+}
