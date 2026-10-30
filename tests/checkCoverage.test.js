@@ -2,7 +2,10 @@
 // that no test loads fails (node only measures files a test imports, so an untested file is invisible).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseLcov, totals, evaluateCoverage, raiseBaseline } from '../tools/check-coverage.js';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { parseLcov, totals, evaluateCoverage, raiseBaseline, listSrc, ratchet } from '../tools/check-coverage.js';
 
 const ROOT = '/repo';
 const LCOV = [
@@ -38,6 +41,32 @@ test('a src file no test loads fails unless listed as known unmeasured', () => {
   const errs = evaluateCoverage({ lines: 95, branches: 80, functions: 75 }, ['src/a.js'], ['src/a.js', 'src/new.js', 'src/app.js'], BASE);
   assert.equal(errs.length, 1);
   assert.match(errs[0], /src\/new\.js/);
+});
+
+test('listSrc finds .js files recursively, repo-relative', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dp-src-'));
+  fs.mkdirSync(path.join(dir, 'src', 'integration'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'src', 'a.js'), '');
+  fs.writeFileSync(path.join(dir, 'src', 'styles.css'), '');
+  fs.writeFileSync(path.join(dir, 'src', 'integration', 'b.js'), '');
+  assert.deepEqual(listSrc(dir, 'src').sort(), ['src/a.js', 'src/integration/b.js']);
+});
+
+test('ratchet: check fails below baseline, update raises it and writes the file', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dp-rat-'));
+  const baselineFile = path.join(dir, 'base.json');
+  const writeBase = (lines) => fs.writeFileSync(baselineFile, JSON.stringify({ lines, branches: 80, functions: 75, unmeasured: [] }));
+  const opts = { lcovText: LCOV.replaceAll('/repo', dir), root: dir, baselineFile, srcFiles: ['src/a.js', 'src/integration/b.js'], log: () => {} };
+
+  writeBase(96);
+  const failed = ratchet(opts);
+  assert.equal(failed.ok, false);
+  assert.match(failed.errors[0], /lines 95% < baseline 96%/);
+
+  writeBase(90);
+  assert.equal(ratchet(opts).ok, true);
+  assert.equal(ratchet({ ...opts, update: true }).ok, true);
+  assert.equal(JSON.parse(fs.readFileSync(baselineFile, 'utf8')).lines, 95);
 });
 
 test('raiseBaseline only ratchets up, floors to 0.1, and drops unmeasured files that are now measured', () => {

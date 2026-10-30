@@ -2,7 +2,10 @@
 // html-validate sees them, and findings may only fall below html-baseline.json, never rise.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { alpineToStatic, countFindings, compareToBaseline } from '../tools/check-html.js';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { alpineToStatic, countFindings, compareToBaseline, runCheck } from '../tools/check-html.js';
 
 test('a11y-relevant bindings become static attributes, others are dropped', () => {
   assert.equal(alpineToStatic('<a :href="u" :class="c">x</a>'), '<a href="x">x</a>');
@@ -29,4 +32,27 @@ test('only a rise over the baseline fails', () => {
   assert.deepEqual(compareToBaseline('a.html', { 'text-content': 2 }, base), []);
   assert.deepEqual(compareToBaseline('a.html', { 'text-content': 1 }, base), []);
   assert.match(compareToBaseline('a.html', { 'text-content': 3, 'no-dup-id': 1 }, base).join('|'), /text-content 3 > baseline 2\|a\.html: no-dup-id 1 > baseline 0/);
+});
+
+test('runCheck: a rise fails, an update only lowers counts and never admits a new rule', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dp-html-'));
+  const page = (body) => `<!DOCTYPE html><html lang="en"><head><title>t</title></head><body>${body}</body></html>`;
+  const write = (body) => fs.writeFileSync(path.join(dir, 'p.html'), page(body));
+  const baselineFile = path.join(dir, 'base.json');
+  const readBase = () => JSON.parse(fs.readFileSync(baselineFile, 'utf8'));
+  const opts = { root: dir, files: ['p.html'], baselineFile, log: () => {} };
+
+  write('<button type="button"></button><button type="button"></button>');
+  assert.equal((await runCheck({ ...opts, update: true })).ok, true);
+  assert.deepEqual(readBase(), { 'p.html': { 'text-content': 2 } });
+  assert.equal((await runCheck(opts)).ok, true);
+
+  write('<button type="button"></button><h3></h3>');
+  const res = await runCheck(opts);
+  assert.equal(res.ok, false);
+  assert.match(res.errors.join('|'), /empty-heading 1 > baseline 0/);
+
+  await runCheck({ ...opts, update: true });
+  assert.deepEqual(readBase(), { 'p.html': { 'text-content': 1 } });
+  assert.equal((await runCheck(opts)).ok, false);
 });

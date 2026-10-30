@@ -47,34 +47,48 @@ export function compareToBaseline(file, counts, baseline) {
 }
 
 async function main() {
-  const update = process.argv.includes('--update');
-  const baseline = fs.existsSync(BASELINE_FILE) ? JSON.parse(fs.readFileSync(BASELINE_FILE, 'utf8')) : {};
+  const { ok } = await runCheck({ root: ROOT, files: FILES, baselineFile: BASELINE_FILE, update: process.argv.includes('--update') });
+  if (!ok) process.exit(1);
+}
+
+/**
+ * Checks `files` against the baseline. With `update`, writes the baseline: an existing file only
+ * lowers counts, and a rule it does not list is never admitted (only a missing baseline is seeded).
+ */
+export async function runCheck({ root, files, baselineFile, update = false, log = console.log }) {
+  const seeding = !fs.existsSync(baselineFile);
+  const baseline = seeding ? {} : JSON.parse(fs.readFileSync(baselineFile, 'utf8'));
   const next = {};
   const errors = [];
-  for (const file of FILES) {
-    const { counts, messages } = await countFindings(fs.readFileSync(path.join(ROOT, file), 'utf8'), file);
+  for (const file of files) {
+    const { counts, messages } = await countFindings(fs.readFileSync(path.join(root, file), 'utf8'), file);
     next[file] = counts;
     const rises = compareToBaseline(file, counts, baseline);
     errors.push(...rises);
     for (const rule of rises.map((r) => r.split(' ')[1])) {
-      for (const m of messages.filter((x) => x.ruleId === rule)) console.error(`  ${file}:${m.line}:${m.column} [${rule}] ${m.message}`);
+      for (const m of messages.filter((x) => x.ruleId === rule)) log(`  ${file}:${m.line}:${m.column} [${rule}] ${m.message}`);
     }
   }
   if (update) {
     const lowered = {};
-    for (const file of FILES) {
+    for (const file of files) {
       lowered[file] = {};
-      for (const [rule, n] of Object.entries(next[file])) lowered[file][rule] = Math.min(n, (baseline[file] || {})[rule] ?? n);
+      for (const [rule, n] of Object.entries(next[file])) {
+        const base = (baseline[file] || {})[rule];
+        if (seeding) lowered[file][rule] = n;
+        else if (base !== undefined) lowered[file][rule] = Math.min(n, base);
+      }
     }
-    fs.writeFileSync(BASELINE_FILE, `${JSON.stringify(lowered, null, 2)}\n`);
-    console.log('✅ html-baseline.json updated (counts only go down)');
-    return;
+    fs.writeFileSync(baselineFile, `${JSON.stringify(lowered, null, 2)}\n`);
+    log(`✅ ${path.basename(baselineFile)} updated (counts only go down)`);
+    return { ok: true, errors };
   }
   if (errors.length) {
-    console.error(`❌ new HTML/a11y findings:\n❌ ${errors.join('\n❌ ')}`);
-    process.exit(1);
+    log(`❌ new HTML/a11y findings:\n❌ ${errors.join('\n❌ ')}`);
+    return { ok: false, errors };
   }
-  console.log(`✅ HTML/a11y: no new findings in ${FILES.join(', ')}`);
+  log(`✅ HTML/a11y: no new findings in ${files.join(', ')}`);
+  return { ok: true, errors };
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

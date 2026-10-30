@@ -44,7 +44,7 @@ export function totals(files) {
 export function evaluateCoverage(current, measured, allSrc, baseline) {
   const errors = METRICS
     .filter((m) => current[m] < baseline[m])
-    .map((m) => `${m} ${current[m]}% < baseline ${baseline[m]}%`);
+    .map((m) => `${m} ${Number(current[m].toFixed(2))}% < baseline ${baseline[m]}%`);
   for (const file of allSrc) {
     if (!measured.includes(file) && !baseline.unmeasured.includes(file)) {
       errors.push(`${file} is loaded by no test: add tests/<name>.test.js that imports it`);
@@ -60,12 +60,35 @@ export function raiseBaseline(current, measured, baseline) {
   return next;
 }
 
-function listSrc(dir) {
-  return fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true }).flatMap((e) => {
+export function listSrc(root, dir) {
+  return fs.readdirSync(path.join(root, dir), { withFileTypes: true }).flatMap((e) => {
     const rel = `${dir}/${e.name}`;
-    if (e.isDirectory()) return listSrc(rel);
+    if (e.isDirectory()) return listSrc(root, rel);
     return e.name.endsWith('.js') ? [rel] : [];
   });
+}
+
+/** Evaluates an lcov report against the baseline file; with `update`, ratchets the file up instead. */
+export function ratchet({ lcovText, root, baselineFile, srcFiles, update = false, log = console.log }) {
+  const files = parseLcov(lcovText, root);
+  const current = totals(files);
+  const measured = Object.keys(files);
+  const baseline = JSON.parse(fs.readFileSync(baselineFile, 'utf8'));
+  const shown = METRICS.map((m) => `${m} ${current[m].toFixed(2)}% (baseline ${baseline[m]}%)`).join(', ');
+
+  if (update) {
+    const next = raiseBaseline(current, measured, baseline);
+    fs.writeFileSync(baselineFile, `${JSON.stringify(next, null, 2)}\n`);
+    log(`✅ baseline ratcheted: ${JSON.stringify(next)}`);
+    return { ok: true, errors: [] };
+  }
+  const errors = evaluateCoverage(current, measured, srcFiles, baseline);
+  if (errors.length) {
+    log(`❌ coverage ratchet: ${shown}\n❌ ${errors.join('\n❌ ')}`);
+    return { ok: false, errors };
+  }
+  log(`✅ coverage: ${shown}`);
+  return { ok: true, errors };
 }
 
 function main() {
@@ -82,24 +105,11 @@ function main() {
     process.exit(1);
   }
 
-  const files = parseLcov(fs.readFileSync(lcovFile, 'utf8'), ROOT);
-  const current = totals(files);
-  const measured = Object.keys(files);
-  const baseline = JSON.parse(fs.readFileSync(BASELINE_FILE, 'utf8'));
-  const shown = METRICS.map((m) => `${m} ${current[m].toFixed(2)}% (baseline ${baseline[m]}%)`).join(', ');
-
-  if (process.argv.includes('--update')) {
-    const next = raiseBaseline(current, measured, baseline);
-    fs.writeFileSync(BASELINE_FILE, `${JSON.stringify(next, null, 2)}\n`);
-    console.log(`✅ baseline ratcheted: ${JSON.stringify(next)}`);
-    return;
-  }
-  const errors = evaluateCoverage(current, measured, listSrc('src'), baseline);
-  if (errors.length) {
-    console.error(`❌ coverage ratchet: ${shown}\n❌ ${errors.join('\n❌ ')}`);
-    process.exit(1);
-  }
-  console.log(`✅ coverage: ${shown}`);
+  const { ok } = ratchet({
+    lcovText: fs.readFileSync(lcovFile, 'utf8'), root: ROOT, baselineFile: BASELINE_FILE,
+    srcFiles: listSrc(ROOT, 'src'), update: process.argv.includes('--update'),
+  });
+  if (!ok) process.exit(1);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) main();
