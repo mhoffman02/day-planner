@@ -28,6 +28,9 @@ New or edited `.js` files carry a JSDoc `@file` header.
 - No `.toISOString()` on local dates.
 - Dynamic HTML escaped; external links carry `target="_blank"` + `rel="noopener noreferrer"`.
 - Catches follow [fail-loud-catch](../../rules/fail-loud-catch.md); `gas-app/` follows the `gas-*` rules.
+- Comments say *why* (constraint, incident, rejected alternative), not *what* the next line does. A comment
+  that restates the code: flag it. A non-obvious branch, magic value or workaround with no why: flag it.
+- A change that reverses or bends a decision in `docs/adr/` either cites the ADR or adds a superseding one.
 
 ## Who reviews
 

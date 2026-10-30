@@ -11,3 +11,5 @@ output/
 screen-shots/
 /*.png
 !icons/apple-touch-icon.png
+.stryker-tmp/
+reports/

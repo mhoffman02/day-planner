@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.js",
-    "lint": "eslint src gas-app/*.gs tools server.js && node tools/check-gas-script-html-safe-chars.js && node tools/check-catch-logging.js && node tools/build-gas-engines.js --check",
+    "lint": "eslint src gas-app/*.gs tools server.js && node tools/check-gas-script-html-safe-chars.js && node tools/check-catch-logging.js && node tools/build-gas-engines.js --check && node tools/check-html.js",
     "check:catches": "node tools/check-catch-logging.js",
     "build:engines": "node tools/build-gas-engines.js",
     "check:engines": "node tools/build-gas-engines.js --check",
@@ -25,7 +25,9 @@
     "login:work": "npx clasp --auth ~/.clasprc.work.json login",
     "login:home": "npx clasp --auth ~/.clasprc.home.json login",
     "test:coverage": "node tools/check-coverage.js",
-    "check:commit-msg": "node tools/check-commit-msg.js"
+    "check:commit-msg": "node tools/check-commit-msg.js",
+    "check:html": "node tools/check-html.js",
+    "test:mutation": "stryker run"
   },
   "keywords": [
     "day-planner",
@@ -36,8 +38,10 @@
   "license": "MIT",
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@stryker-mutator/core": "^8.7.1",
     "acorn": "^8.18.0",
     "eslint": "^10.9.1",
-    "fast-check": "^3.23.2"
+    "fast-check": "^3.23.2",
+    "html-validate": "^9.7.1"
   }
 }

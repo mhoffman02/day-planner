@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "Mutation testing (solid-code item 6): run on demand (npm run test:mutation) before big phases, not in CI. A surviving mutant is a code change no test notices. Scope: pure engines; widen mutate + the test command together.",
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "node --test tests/taskEngine.test.js tests/taskInlineEdit.test.js tests/futureMatrixEngine.test.js tests/properties.test.js"
+  },
+  "mutate": ["src/taskEngine.js", "src/futureMatrixEngine.js"],
+  "coverageAnalysis": "off",
+  "reporters": ["clear-text", "progress", "html"],
+  "htmlReporter": { "fileName": "reports/mutation/index.html" },
+  "tempDirName": ".stryker-tmp",
+  "concurrency": 4,
+  "thresholds": { "high": 80, "low": 60, "break": null }
+}
