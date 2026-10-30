@@ -24,6 +24,11 @@
       "count": 261
     }
   },
+  "gas-app/Index.html": {
+    "no-var": {
+      "count": 6
+    }
+  },
   "gas-app/LedgerRepository.gs": {
     "no-var": {
       "count": 40
@@ -37,6 +42,21 @@
   "gas-app/QueueProcessor.gs": {
     "no-var": {
       "count": 126
+    }
+  },
+  "gas-app/Regrant.html": {
+    "no-var": {
+      "count": 10
+    }
+  },
+  "gas-app/Script.html": {
+    "no-var": {
+      "count": 35
+    }
+  },
+  "gas-app/SetupFolder.html": {
+    "no-var": {
+      "count": 5
     }
   },
   "gas-app/TaskRepository.gs": {

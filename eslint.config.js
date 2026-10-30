@@ -24,6 +24,29 @@ const GAS_GLOBALS = [
   { selector: "AssignmentExpression[left.object.name='global'][right.type=/^(Literal|ArrayExpression|ObjectExpression|TemplateLiteral|NewExpression)$/]", message: 'global.X gets functions or frozen namespaces only, never a value (gas-global-init-order.md).' }
 ];
 
+// gas-app/*.html: lint every inline <script> body as one script with the file's own line and column
+// numbers (everything else, src= scripts and GAS scriptlets become spaces; a scriptlet becomes `0`).
+// Before 2026-10-30 these 7.7k lines were never linted.
+const gasHtmlProcessor = {
+  meta: { name: 'gas-html-scripts' },
+  preprocess(text) {
+    const blank = (s) => s.replace(/[^\n]/g, ' ');
+    let out = '';
+    let last = 0;
+    const re = /<script(\s[^>]*)?>([\s\S]*?)<\/script>/gi;
+    for (let m = re.exec(text); m !== null; m = re.exec(text)) {
+      const bodyStart = m.index + m[0].length - m[2].length - '</script>'.length;
+      out += blank(text.slice(last, bodyStart));
+      const body = /\ssrc\s*=/i.test(m[1] || '') ? blank(m[2]) : m[2].replace(/<\?[\s\S]*?\?>/g, (s) => '0' + blank(s).slice(1));
+      out += body;
+      last = bodyStart + m[2].length;
+    }
+    return [out + blank(text.slice(last))];
+  },
+  postprocess: (messages) => messages.flat(),
+  supportsAutofix: false
+};
+
 const gasGlobals = {
   SpreadsheetApp: 'readonly',
   DriveApp: 'readonly',
@@ -52,7 +75,7 @@ export default [
   {
     // Solid Code 2.0 decision 2T (2026-10-30). GAS V8 has let/const, so no-var covers gas-app too; its
     // legacy vars are grandfathered in eslint-suppressions.json, which only shrinks (--prune-suppressions).
-    files: ['**/*.js', '**/*.gs'],
+    files: ['**/*.js', '**/*.gs', 'gas-app/**/*.html'],
     rules: {
       // `x == null` is the one idiom kept: it tests null and undefined together.
       eqeqeq: ['error', 'always', { null: 'ignore' }],
@@ -169,6 +192,17 @@ export default [
       // GAS concatenates all .gs files into one shared global scope at
       // runtime, so cross-file function refs are false positives here.
       'no-undef': 'off'
+    }
+  },
+  {
+    // Browser scripts in the HtmlService page share one global scope across blocks and files, so
+    // no-undef/no-unused-vars cannot judge them; the 2T rules and the date/loop bans still apply.
+    files: ['gas-app/**/*.html'],
+    processor: gasHtmlProcessor,
+    languageOptions: { ecmaVersion: 'latest', sourceType: 'script' },
+    rules: {
+      'no-undef': 'off',
+      'no-unused-vars': 'off'
     }
   }
 ];

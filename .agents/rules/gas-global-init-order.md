@@ -35,3 +35,6 @@ See [[single-source-of-truth-constants]] for the related rule about not duplicat
 **Why:** the user, 2026-10-10: "NO GLOBAL variables -- wrap them all in a 'g' type global object to
 avoid races." The older version of this rule allowed literal-only top-level globals and cited a
 checker script (`tools/check-gas-global-init-order.js`) that no longer exists.
+
+Enforced (2026-10-30) by ESLint `no-restricted-syntax` in the gas-app block of `eslint.config.js`
+(`GAS_GLOBALS`): a top-level `var`/`let`/`const`, or `global.X = <literal/array/object/new>`, fails lint.

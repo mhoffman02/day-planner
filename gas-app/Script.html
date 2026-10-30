@@ -1276,10 +1276,10 @@
   const DP_CACHE_MASTER_TASKS_KEY = 'all';
   const DP_CACHE_IDB_OPEN_TIMEOUT_MS = 2000;
 
-  let dpCacheMemory = new Map();
+  const dpCacheMemory = new Map();
   let dpMasterTasksMemory = null;
-  let dpFutureMatrixMemory = new Map();
-  let dpNoteRevisionsMemory = new Map();
+  const dpFutureMatrixMemory = new Map();
+  const dpNoteRevisionsMemory = new Map();
   let dpCacheDbPromise = null;
 
   function dpCacheCloneForStorage(value) {
@@ -1817,7 +1817,7 @@
     async getDailyDataRange(startDateStr, endDateStr) {
       if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
         const days = {};
-        let cursor = new Date(startDateStr + 'T00:00:00');
+        const cursor = new Date(startDateStr + 'T00:00:00');
         const end = new Date(endDateStr + 'T00:00:00');
         while (cursor <= end) {
           const y = cursor.getFullYear();
@@ -2548,7 +2548,6 @@
       theme: 'light',
 
       // Topic & Category LRU state (20 items max, persistent)
-      recentTopics: [],
       recentCategories: ['General', 'Work', 'Personal', 'Financial', 'Projects', 'Health', 'Meeting', 'Decision'],
 
       get availableCategories() {
@@ -7336,10 +7335,10 @@
         var loc = (typeof evt.getLocation === 'function' ? evt.getLocation() : '') || evt.location || '';
         var desc = (typeof evt.getDescription === 'function' ? evt.getDescription() : '') || evt.description || '';
         var text = title + ' ' + loc + ' ' + desc;
-        var match = text.match(/(?:https?:[\/]{2})?meet\.google\.com\/[a-z0-9_-]+(?:\?[^\s"'<>]*)?/i);
+        var match = text.match(/(?:https?:[/]{2})?meet\.google\.com\/[a-z0-9_-]+(?:\?[^\s"'<>]*)?/i);
         if (match) {
           var link = match[0];
-          if (!/^https?:[\/]{2}/i.test(link)) {
+          if (!/^https?:[/]{2}/i.test(link)) {
             link = 'https:' + '/' + '/' + link;
           }
           return link;
