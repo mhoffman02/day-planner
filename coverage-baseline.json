@@ -1,7 +1,7 @@
 {
-  "lines": 90.2,
-  "branches": 80.6,
-  "functions": 88.5,
+  "lines": 91.1,
+  "branches": 84.1,
+  "functions": 90.6,
   "unmeasured": [
     "src/app.js"
   ]
