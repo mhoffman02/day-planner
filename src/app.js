@@ -22,6 +22,7 @@ import { executeUniversalSearch, flattenSearchResults, mergeArchiveSearchResults
 import { formatEventDescriptionHtml, extractMeetLink } from './calendarEngine.js';
 import { parseIndexEntriesFromNote } from './indexParser.js';
 import { getQuoteForDateStr } from './quotesEngine.js';
+import { clipboardToNoteLines, isNoteListLine } from './notePaste.js';
 import {
   getCached, setCached, invalidateCached, primeFromRange, hydrateFromIdb, getCachedRange,
   getCachedMasterTasks, setCachedMasterTasks, hydrateMasterTasksFromIdb,
@@ -66,6 +67,8 @@ const TRIAGE_RELOAD_DEBOUNCE_MS = 15000;
 const MASTER_FIRST_ROWS = 20;
 const MASTER_ROWS_PER_TICK = 20;
 const MASTER_PREBUILD_DELAY_MS = 1500;
+const DAY_ROLLOVER_CHECK_MS = 60 * 1000;
+const DAY_STALE_RELOAD_MS = 15 * 60 * 1000;
 // One shared formatter: toLocaleDateString per row was the costliest call in a Master render.
 const MASTER_DATE_FORMAT = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 const GMAIL_COOLDOWN_KEY = 'dayPlannerGmailCooldownUntil';
@@ -352,6 +355,8 @@ Alpine.data('plannerApp', () => ({
       meetingPrepLoading: false,
       meetingPrepSeries: 'NCMMS_CORE',
       selectedDate: getLocalDateStr(),
+      todayStr: getLocalDateStr(),
+      dayRolloverBusy: false,
       selectedYear: new Date().getFullYear(),
       selectedMonth: new Date().getMonth() + 1,
       appBuildNumber: null,
@@ -654,6 +659,7 @@ Alpine.data('plannerApp', () => ({
         // Triage takes several seconds to build: fetch it in the background once the day view is loaded.
         hubReady.then(() => this.prefetchTriage());
         this.setupKeyboardShortcuts();
+        this.setupDayRolloverWatch();
         if (typeof window !== 'undefined') {
           window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
@@ -1738,11 +1744,58 @@ Alpine.data('plannerApp', () => ({
       },
 
       isOffToday() {
-        return this.selectedDate !== getLocalDateStr();
+        return this.selectedDate !== this.todayStr;
+      },
+
+      /* Day rollover and stale-tab refresh. A view left on the old today moves to the new day; a
+         deliberately chosen other day stays put (the Today button then shows). A tab hidden longer
+         than DAY_STALE_RELOAD_MS reloads its day so edits made elsewhere show up. */
+      async checkDayRollover({ now = new Date(), hiddenMs = 0 } = {}) {
+        if (this.dayRolloverBusy) return;
+        this.dayRolloverBusy = true;
+        try {
+          const current = getLocalDateStr(now);
+          if (current !== this.todayStr) {
+            const wasOnToday = this.selectedDate === this.todayStr;
+            this.todayStr = current;
+            if (wasOnToday) {
+              const [y, m] = current.split('-').map(Number);
+              this.selectedDate = current;
+              this.selectedYear = y;
+              this.selectedMonth = m;
+              await this.loadDayData();
+            }
+          } else if (hiddenMs > DAY_STALE_RELOAD_MS) {
+            await this.loadDayData();
+          }
+        } finally {
+          this.dayRolloverBusy = false;
+        }
+      },
+
+      setupDayRolloverWatch() {
+        let hiddenAt = null;
+        const check = (hiddenMs) => {
+          this.checkDayRollover({ hiddenMs }).catch((err) => {
+            console.error('Day rollover check failed, the view may show a stale day until the next check:', err.stack);
+          });
+        };
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'hidden') {
+            hiddenAt = Date.now();
+            return;
+          }
+          const hiddenMs = hiddenAt === null ? 0 : Date.now() - hiddenAt;
+          hiddenAt = null;
+          check(hiddenMs);
+        });
+        window.addEventListener('focus', () => check(0));
+        setInterval(() => check(0), DAY_ROLLOVER_CHECK_MS);
       },
 
       async jumpToToday() {
-        this.selectedDate = getLocalDateStr();
+        this.todayStr = getLocalDateStr();
+        this.selectedDate = this.todayStr;
         const [y, m] = this.selectedDate.split('-').map(Number);
         this.selectedYear = y;
         this.selectedMonth = m;
@@ -2978,7 +3031,10 @@ Alpine.data('plannerApp', () => ({
         const clipboard = e.clipboardData || window.clipboardData;
         const pasted = clipboard ? clipboard.getData('text/plain') : '';
         const trimmed = (pasted || '').trim();
-        if (!trimmed || /\s/.test(trimmed) || !this.isGoogleDriveDocUrl(trimmed)) return;
+        if (!trimmed || /\s/.test(trimmed) || !this.isGoogleDriveDocUrl(trimmed)) {
+          this.pasteNoteLines(e, clipboard, pasted, card, idx);
+          return;
+        }
 
         e.preventDefault();
         const el = document.getElementById(`card-line-${card.id}-${idx}`);
@@ -3009,6 +3065,37 @@ Alpine.data('plannerApp', () => ({
 
         const caretPos = before.length + wrapped.length;
         this.$nextTick(() => { if (el) { el.focus(); el.setSelectionRange(caretPos, caretPos); } });
+      },
+
+      /* Multi-line or formatted paste (Gmail, Google Docs, Gemini): one card line per paragraph,
+         formatting mapped to the card line markup. A single plain line is left to the browser. */
+      pasteNoteLines(e, clipboard, pasted, card, idx) {
+        const html = clipboard ? clipboard.getData('text/html') : '';
+        const pastedLines = clipboardToNoteLines({ html, text: pasted || '' });
+        if (!pastedLines) return;
+        const lines = this.cardLines(card);
+        if (idx >= lines.length) return;
+        e.preventDefault();
+        const el = document.getElementById('card-line-' + card.id + '-' + idx);
+        const text = lines[idx] || '';
+        const before = text.slice(0, el ? el.selectionStart : text.length);
+        const after = text.slice(el ? el.selectionEnd : text.length);
+        const inserted = pastedLines.slice();
+        const lead = [];
+        if (before.trim() && isNoteListLine(inserted[0])) lead.push(before.replace(/\s+$/, ''));
+        else if (before.trim()) inserted[0] = before + inserted[0];
+        const last = inserted.length - 1;
+        const caretPos = inserted[last].length;
+        inserted[last] += after;
+        lines.splice(idx, 1, ...lead, ...inserted);
+        card.content = lines.join('\n');
+        this.syncCardsToDailyNote();
+        const targetIdx = idx + lead.length + last;
+        card._activeLineIndex = targetIdx;
+        this.$nextTick(() => {
+          const target = document.getElementById('card-line-' + card.id + '-' + targetIdx);
+          if (target) { target.focus(); target.setSelectionRange(caretPos, caretPos); }
+        });
       },
 
       applyRangeFormat(card, formatType) {

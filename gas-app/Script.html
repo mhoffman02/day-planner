@@ -381,6 +381,8 @@
   const MASTER_FIRST_ROWS = 20;
   const MASTER_ROWS_PER_TICK = 20;
   const MASTER_PREBUILD_DELAY_MS = 1500;
+  const DAY_ROLLOVER_CHECK_MS = 60 * 1000;
+  const DAY_STALE_RELOAD_MS = 15 * 60 * 1000;
   // One shared formatter: toLocaleDateString per row was the costliest call in a Master render.
   const MASTER_DATE_FORMAT = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   const GMAIL_COOLDOWN_KEY = 'dayPlannerGmailCooldownUntil';
@@ -535,6 +537,209 @@
         return cmp * dir;
       })
       .map(({ task }) => task);
+  }
+
+  /* Smart paste for Notes card lines, mirrored verbatim from src/notePaste.js (tests/notePaste.test.js runs both copies). */
+  const NOTE_PASTE_BLOCK_TAGS = new Set([
+    'p', 'div', 'li', 'ul', 'ol', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'tr', 'table',
+    'blockquote', 'pre', 'section', 'article', 'header', 'footer', 'dt', 'dd', 'hr'
+  ]);
+  const NOTE_PASTE_VOID_TAGS = new Set(['br', 'img', 'meta', 'link', 'hr', 'input', 'col', 'wbr']);
+  const NOTE_PASTE_SAFE_HREF = /^(?:https?|mailto):[^\s\]]+$/i;
+  const NOTE_PASTE_LIST_LINE = /^(?:- |\d+\. |[☐☒☑] )/;
+
+  function notePasteDecode(s) {
+    const named = { amp: '&', lt: '<', gt: '>', quot: '"', apos: '\u0027', nbsp: ' ' };
+    return s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, ent) => {
+      if (ent[0] === '#') {
+        const code = ent[1] === 'x' || ent[1] === 'X' ? parseInt(ent.slice(2), 16) : parseInt(ent.slice(1), 10);
+        if (!Number.isFinite(code) || code <= 0 || code > 0x10ffff) return m;
+        return code === 160 ? ' ' : String.fromCodePoint(code);
+      }
+      const v = named[ent.toLowerCase()];
+      return v === undefined ? m : v;
+    });
+  }
+
+  function notePasteAttr(attrs, name) {
+    const re = new RegExp('(?:^|\\s)' + name + '\\s*=\\s*(?:"([^"]*)"|\u0027([^\u0027]*)\u0027|([^\\s>]+))', 'i');
+    const m = re.exec(attrs || '');
+    if (!m) return null;
+    return notePasteDecode(m[1] !== undefined ? m[1] : (m[2] !== undefined ? m[2] : m[3]));
+  }
+
+  /* Formatting flags an element sets (true/false) or leaves inherited (undefined). */
+  function notePasteElementFormat(tag, attrs) {
+    const f = {};
+    if (tag === 'b' || tag === 'strong') f.b = true;
+    if (tag === 'i' || tag === 'em') f.i = true;
+    if (tag === 'u' || tag === 'ins') f.u = true;
+    if (tag === 's' || tag === 'strike' || tag === 'del') f.s = true;
+    if (/^h[1-6]$/.test(tag)) f.b = true;
+    const style = (notePasteAttr(attrs, 'style') || '').toLowerCase();
+    if (style) {
+      const fw = /font-weight\s*:\s*([a-z0-9]+)/.exec(style);
+      if (fw) f.b = fw[1] === 'bold' || fw[1] === 'bolder' || (/^\d+$/.test(fw[1]) && parseInt(fw[1], 10) >= 600);
+      const fs = /font-style\s*:\s*([a-z]+)/.exec(style);
+      if (fs) f.i = fs[1] === 'italic' || fs[1] === 'oblique';
+      const td = /text-decoration(?:-line)?\s*:\s*([^;]+)/.exec(style);
+      if (td) {
+        if (/underline/.test(td[1])) f.u = true;
+        if (/line-through/.test(td[1])) f.s = true;
+      }
+    }
+    if (tag === 'a') {
+      const href = (notePasteAttr(attrs, 'href') || '').trim();
+      f.href = NOTE_PASTE_SAFE_HREF.test(href) ? href : null;
+    }
+    return f;
+  }
+
+  /* Wraps one run of same-format text in markers, keeping edge spaces outside the markers. */
+  function notePasteWrapRun(run) {
+    const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(run.text);
+    let core = m[2];
+    if (!core) return run.text;
+    if (run.href) core = core === run.href ? core : '[[link:' + run.href + ']]' + core + '[[/link]]';
+    if (run.s) core = '~~' + core + '~~';
+    if (run.u) core = '__' + core + '__';
+    if (run.i) core = '*' + core + '*';
+    if (run.b) core = '**' + core + '**';
+    return m[1] + core + m[3];
+  }
+
+  function notePasteRunsToLine(runs) {
+    const merged = [];
+    for (const r of runs) {
+      const last = merged[merged.length - 1];
+      if (last && last.b === r.b && last.i === r.i && last.u === r.u && last.s === r.s && last.href === r.href) {
+        last.text += r.text;
+      } else {
+        merged.push({ ...r });
+      }
+    }
+    return merged.map(notePasteWrapRun).join('').replace(/\s+/g, ' ').trim();
+  }
+
+  /* A pasted markdown heading would become a new topic card (###) or be stripped; make it bold. */
+  function notePasteNormalizeLine(line) {
+    const h = /^#{1,6}\s+(.*)$/.exec(line);
+    if (h) return h[1].trim() ? '**' + h[1].trim().replace(/^\*\*(.*)\*\*$/, '$1') + '**' : '';
+    return line;
+  }
+
+  function notePasteTidy(lines) {
+    const out = [];
+    for (const raw of lines) {
+      const line = notePasteNormalizeLine(raw.replace(/\s+$/, ''));
+      if (!line.trim() && (out.length === 0 || !out[out.length - 1].trim())) continue;
+      out.push(line);
+    }
+    while (out.length && !out[out.length - 1].trim()) out.pop();
+    return out;
+  }
+
+  function notePasteHtmlToLines(html) {
+    const cleaned = html
+      .replace(/<!--[\s\S]*?-->/g, '')
+      .replace(/<(script|style|head|title|template)\b[\s\S]*?<\/\1\s*>/gi, '');
+    const lines = [];
+    const stack = [];
+    const lists = [];
+    let runs = [];
+    let prefix = '';
+
+    const current = () => {
+      const f = { b: false, i: false, u: false, s: false, href: null };
+      for (const el of stack) {
+        for (const k of ['b', 'i', 'u', 's', 'href']) if (el.f[k] !== undefined) f[k] = el.f[k];
+      }
+      return f;
+    };
+    const flush = (force) => {
+      const text = notePasteRunsToLine(runs);
+      runs = [];
+      if (text) {
+        lines.push(prefix + text);
+        prefix = '';
+      } else if (force) {
+        lines.push('');
+      }
+    };
+    const inPre = () => stack.some((el) => el.tag === 'pre');
+    const addText = (text) => {
+      if (!text) return;
+      const f = current();
+      runs.push({ text: text.replace(/\[\[|\]\]/g, ''), b: f.b, i: f.i, u: f.u, s: f.s, href: f.href });
+    };
+
+    const tokenRe = /<(\/?)([a-zA-Z][a-zA-Z0-9]*)([^>]*)>|([^<]+)/g;
+    let t;
+    while ((t = tokenRe.exec(cleaned)) !== null) {
+      if (t[4] !== undefined) {
+        const text = notePasteDecode(t[4]);
+        if (inPre()) {
+          const parts = text.split(/\r?\n/);
+          parts.forEach((p, n) => { if (n > 0) flush(true); addText(p); });
+        } else {
+          addText(text.replace(/\s+/g, ' '));
+        }
+        continue;
+      }
+      const closing = t[1] === '/';
+      const tag = t[2].toLowerCase();
+      const attrs = t[3];
+      if (tag === 'br') { flush(true); continue; }
+      if (tag === 'td' || tag === 'th') { if (!closing && runs.length) addText(' '); continue; }
+      const isBlock = NOTE_PASTE_BLOCK_TAGS.has(tag);
+      if (closing) {
+        if (isBlock) flush(false);
+        for (let n = stack.length - 1; n >= 0; n--) {
+          if (stack[n].tag === tag) { stack.length = n; break; }
+        }
+        if ((tag === 'ul' || tag === 'ol') && lists.length) lists.pop();
+        continue;
+      }
+      if (isBlock) flush(false);
+      if (tag === 'ul' || tag === 'ol') lists.push({ ordered: tag === 'ol', n: 0 });
+      if (tag === 'li') {
+        const checked = notePasteAttr(attrs, 'aria-checked');
+        const list = lists[lists.length - 1];
+        if (checked === 'true' || checked === 'mixed') prefix = '☒ ';
+        else if (checked === 'false') prefix = '☐ ';
+        else if (list && list.ordered) { list.n += 1; prefix = list.n + '. '; }
+        else prefix = '- ';
+      }
+      if (NOTE_PASTE_VOID_TAGS.has(tag) || /\/\s*$/.test(attrs)) continue;
+      stack.push({ tag, f: notePasteElementFormat(tag, attrs) });
+    }
+    flush(false);
+    return notePasteTidy(lines);
+  }
+
+  function notePastePlainToLines(text) {
+    return notePasteTidy(text.replace(/\r\n?/g, '\n').split('\n').map((line) => {
+      const bullet = /^\s*[*+\u2022\u25cf-]\s+(.*)$/.exec(line);
+      if (bullet && !/^\s*\*\*/.test(line)) return '- ' + bullet[1];
+      return line.replace(/^\s+(?=\d+\.\s)/, '');
+    }));
+  }
+
+  /**
+   * @param {{html?: string, text?: string}} clip clipboard text/html and text/plain payloads
+   * @returns {string[]|null} note lines to insert, or null when the paste is a single plain line
+   *   the browser should handle natively (keeps its own undo history).
+   */
+  function clipboardToNoteLines({ html = '', text = '' } = {}) {
+    const fromHtml = html && /<[a-z][\s\S]*>/i.test(html) ? notePasteHtmlToLines(html) : [];
+    const lines = fromHtml.length ? fromHtml : notePastePlainToLines(text || '');
+    if (lines.length === 0) return null;
+    if (lines.length === 1 && lines[0] === (text || '').trim()) return null;
+    return lines;
+  }
+
+  function isNoteListLine(line) {
+    return NOTE_PASTE_LIST_LINE.test(line || '');
   }
 
   function getLocalDateStr(date = new Date()) {
@@ -2145,6 +2350,8 @@
       meetingPrepLoading: false,
       meetingPrepSeries: 'NCMMS_CORE',
       selectedDate: getLocalDateStr(),
+      todayStr: getLocalDateStr(),
+      dayRolloverBusy: false,
       selectedYear: new Date().getFullYear(),
       selectedMonth: new Date().getMonth() + 1,
       appBuildNumber: null,
@@ -2445,6 +2652,7 @@
         // Triage takes several seconds to build: fetch it in the background once the day view is loaded.
         hubReady.then(() => this.prefetchTriage());
         this.setupKeyboardShortcuts();
+        this.setupDayRolloverWatch();
         window.addEventListener('beforeinstallprompt', (e) => {
           e.preventDefault();
           window.deferredInstallPrompt = e;
@@ -3527,11 +3735,58 @@
       },
 
       isOffToday() {
-        return this.selectedDate !== getLocalDateStr();
+        return this.selectedDate !== this.todayStr;
+      },
+
+      /* Day rollover and stale-tab refresh. A view left on the old today moves to the new day; a
+         deliberately chosen other day stays put (the Today button then shows). A tab hidden longer
+         than DAY_STALE_RELOAD_MS reloads its day so edits made elsewhere show up. */
+      async checkDayRollover({ now = new Date(), hiddenMs = 0 } = {}) {
+        if (this.dayRolloverBusy) return;
+        this.dayRolloverBusy = true;
+        try {
+          const current = getLocalDateStr(now);
+          if (current !== this.todayStr) {
+            const wasOnToday = this.selectedDate === this.todayStr;
+            this.todayStr = current;
+            if (wasOnToday) {
+              const [y, m] = current.split('-').map(Number);
+              this.selectedDate = current;
+              this.selectedYear = y;
+              this.selectedMonth = m;
+              await this.loadDayData();
+            }
+          } else if (hiddenMs > DAY_STALE_RELOAD_MS) {
+            await this.loadDayData();
+          }
+        } finally {
+          this.dayRolloverBusy = false;
+        }
+      },
+
+      setupDayRolloverWatch() {
+        let hiddenAt = null;
+        const check = (hiddenMs) => {
+          this.checkDayRollover({ hiddenMs }).catch((err) => {
+            console.error('Day rollover check failed, the view may show a stale day until the next check:', err.stack);
+          });
+        };
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'hidden') {
+            hiddenAt = Date.now();
+            return;
+          }
+          const hiddenMs = hiddenAt === null ? 0 : Date.now() - hiddenAt;
+          hiddenAt = null;
+          check(hiddenMs);
+        });
+        window.addEventListener('focus', () => check(0));
+        setInterval(() => check(0), DAY_ROLLOVER_CHECK_MS);
       },
 
       async jumpToToday() {
-        this.selectedDate = getLocalDateStr();
+        this.todayStr = getLocalDateStr();
+        this.selectedDate = this.todayStr;
         const [y, m] = this.selectedDate.split('-').map(Number);
         this.selectedYear = y;
         this.selectedMonth = m;
@@ -4767,7 +5022,10 @@
         const clipboard = e.clipboardData || window.clipboardData;
         const pasted = clipboard ? clipboard.getData('text/plain') : '';
         const trimmed = (pasted || '').trim();
-        if (!trimmed || /\s/.test(trimmed) || !this.isGoogleDriveDocUrl(trimmed)) return;
+        if (!trimmed || /\s/.test(trimmed) || !this.isGoogleDriveDocUrl(trimmed)) {
+          this.pasteNoteLines(e, clipboard, pasted, card, idx);
+          return;
+        }
 
         e.preventDefault();
         const el = document.getElementById(`card-line-${card.id}-${idx}`);
@@ -4798,6 +5056,37 @@
 
         const caretPos = before.length + wrapped.length;
         this.$nextTick(() => { if (el) { el.focus(); el.setSelectionRange(caretPos, caretPos); } });
+      },
+
+      /* Multi-line or formatted paste (Gmail, Google Docs, Gemini): one card line per paragraph,
+         formatting mapped to the card line markup. A single plain line is left to the browser. */
+      pasteNoteLines(e, clipboard, pasted, card, idx) {
+        const html = clipboard ? clipboard.getData('text/html') : '';
+        const pastedLines = clipboardToNoteLines({ html, text: pasted || '' });
+        if (!pastedLines) return;
+        const lines = this.cardLines(card);
+        if (idx >= lines.length) return;
+        e.preventDefault();
+        const el = document.getElementById('card-line-' + card.id + '-' + idx);
+        const text = lines[idx] || '';
+        const before = text.slice(0, el ? el.selectionStart : text.length);
+        const after = text.slice(el ? el.selectionEnd : text.length);
+        const inserted = pastedLines.slice();
+        const lead = [];
+        if (before.trim() && isNoteListLine(inserted[0])) lead.push(before.replace(/\s+$/, ''));
+        else if (before.trim()) inserted[0] = before + inserted[0];
+        const last = inserted.length - 1;
+        const caretPos = inserted[last].length;
+        inserted[last] += after;
+        lines.splice(idx, 1, ...lead, ...inserted);
+        card.content = lines.join('\n');
+        this.syncCardsToDailyNote();
+        const targetIdx = idx + lead.length + last;
+        card._activeLineIndex = targetIdx;
+        this.$nextTick(() => {
+          const target = document.getElementById('card-line-' + card.id + '-' + targetIdx);
+          if (target) { target.focus(); target.setSelectionRange(caretPos, caretPos); }
+        });
       },
 
       applyRangeFormat(card, formatType) {
