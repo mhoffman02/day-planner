@@ -27,6 +27,11 @@ note badge, completing a `Decision:` task adds `#decision <what>` to the last no
   `prefer-native-element`): fix both copies, then `node tools/check-html.js --update`.
 - [ ] **Run `npm run test:mutation`** (Stryker, `stryker.config.json`) before the next big phase; each surviving
   mutant becomes a test.
+- [ ] **axe a11y in the live gate** (user picks 1T 2A 3F, 2026-10-30): add `axe-core` as a devDependency and, in
+  `tools/deploy-home.js` after the `/dev` load, inject it into the GAS iframe over CDP (as `tools/eval-console.js
+  --iframe` does) and run it on Today, Master Tasks, Notes and the Search modal. Ratchet the results with a
+  shrink-only per-view baseline (`axe-baseline.json`, like `html-baseline.json`): a new finding fails the deploy.
+  No mock-mode run. Red test first on the baseline compare logic.
 - [ ] **Gap 10: cdp-step debugger** (not started): a step-through CDP debugging tool alongside `tools/e2e/*`; scope
   to be proposed to the user before building.
 - [ ] **Shrink legacy `var` suppressions** in `eslint-suppressions.json` (gas-app `.gs` and html scripts): convert a
