@@ -887,14 +887,22 @@
     });
 
     // 2. Search Tasks (Daily & Master)
+    // The same task id can arrive from both lists (Master holds every open dated task); Daily is first, so it wins.
+    const seenTaskIds = new Set();
     const allTasks = [...normalizeCollection(dailyTasks), ...normalizeCollection(masterTasks)];
     allTasks.forEach(task => {
+      if (task.id) {
+        if (seenTaskIds.has(task.id)) return;
+        seenTaskIds.add(task.id);
+      }
       if (matchesSearchQuery([task.title, task.category, task.notes], cleanQuery, mode)) {
         const isMaster = !task.dueDate || task.master;
+        const lead = `${task.status || '•'} ${task.dueDate || 'Undated'}`;
+        const detail = task.category ? `Category: ${task.category}` : (task.notes ? `Notes: ${task.notes}` : '');
         results.tasks.push({
           type: 'task',
           title: task.title || 'Untitled Task',
-          snippet: task.category ? `Category: ${task.category}` : (task.notes ? `Notes: ${task.notes}` : `Status: ${task.status || 'Open'}`),
+          snippet: detail ? `${lead} · ${detail}` : lead,
           date: task.dueDate || '',
           targetView: isMaster ? 'master-tasks' : 'daily',
           item: task

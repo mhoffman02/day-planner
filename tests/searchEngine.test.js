@@ -97,6 +97,43 @@ describe('Universal Search Engine Unit Tests', () => {
     assert.equal(masterRes.tasks[0].targetView, 'master-tasks');
   });
 
+  it('task snippet leads with status glyph and due date (or Undated), then category/notes', () => {
+    const store = {
+      dailyTasks: [
+        { id: 'a', title: 'Ship report', status: '○', dueDate: '2026-08-15', category: 'Work' },
+        { id: 'b', title: 'Ship report draft', dueDate: '2026-08-16' }
+      ],
+      masterTasks: [
+        { id: 'c', title: 'Ship report later', status: '✓', notes: 'someday' }
+      ]
+    };
+    const res = executeUniversalSearch('ship report', store);
+    const byId = Object.fromEntries(res.tasks.map(t => [t.item.id, t.snippet]));
+    assert.equal(byId.a, '○ 2026-08-15 · Category: Work');
+    assert.equal(byId.b, '• 2026-08-16');
+    assert.equal(byId.c, '✓ Undated · Notes: someday');
+  });
+
+  it('dedupes a task id present in both dailyTasks and masterTasks, keeping the Daily copy', () => {
+    const store = {
+      dailyTasks: [{ id: 'x1', title: 'Pay invoice', dueDate: '2026-08-15' }],
+      masterTasks: [{ id: 'x1', title: 'Pay invoice', dueDate: '2026-08-15' }, { id: 'x2', title: 'Pay rent' }]
+    };
+    const res = executeUniversalSearch('pay', store);
+    assert.equal(res.tasks.length, 2);
+    assert.equal(res.totalMatches, 2);
+    assert.equal(res.tasks[0].item.id, 'x1');
+    assert.equal(res.tasks[0].targetView, 'daily');
+    assert.equal(res.tasks[1].item.id, 'x2');
+  });
+
+  it('does not dedupe tasks that lack an id', () => {
+    const store = {
+      dailyTasks: [{ title: 'Pay a' }, { title: 'Pay a' }]
+    };
+    assert.equal(executeUniversalSearch('pay', store).tasks.length, 2);
+  });
+
   it('should support object-keyed collections in store', () => {
     const objStore = {
       dailyTasks: {
