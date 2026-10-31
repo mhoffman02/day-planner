@@ -297,3 +297,7 @@ live-testing catches it by luck.
 ## 2026-10-30 (Solid Code gates)
 **Worked well:** The live /dev gate and gas-app html linting catch what 1288 green unit tests missed (@337-@340 never loaded). Sonnet workers with exit criteria delivered both 1A and the skill update in one pass.
 **Needs improvement:** ESLint flat config replaces rule options per block, so shared `no-restricted-syntax` entries must be repeated in each block; a worker ran a heredoc despite the no-heredoc instruction.
+
+## 2026-10-30 (live conflict check)
+**Worked well:** The bridge reaches the live app state from eval-console (`document.querySelector("[x-data]")._x_dataStack[0]`, then `.bridge` and `.errorTray`), so a conflict flow can be driven end to end on a throwaway day without a second browser tab.
+**Needs improvement:** `plannerApp` is not a window global in the GAS iframe; probe-live already shows the x-data lookup, so check it before guessing a global.

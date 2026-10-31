@@ -1,6 +1,63 @@
 # Active Tasks (TODO)
 
-## Phase 32: Notes Doc view + Decisions (2026-10-30)
+Order (2026-10-30, user): autonomous agent work first, in the order listed (items A1-A3); everything that needs the
+user is in the last section, "For the session after next" (items B1-B4). An agent session works only A1-A3.
+
+## Agent work: next session (no user needed)
+
+### A1. Phase 31: Search polish (in progress)
+
+User asked for these in this order (2026-10-22). Shared matcher: `matchesSearchQuery` in `src/searchEngine.js` + its
+mirror in `gas-app/Script.html`; both clients, red test first, then `npm run deploy:home` (live gate), then
+`npm run push:work` and tell the user "Update WORK".
+
+- [ ] **Status and due date in universal search task results**: in `executeUniversalSearch` (`src/searchEngine.js`
+  L104, task snippet ~L150) the task snippet shows the status glyph and the due date (or "Undated") so similar titles
+  can be told apart before clicking; keep the category/notes text after it. No glyph helper exists: use the glyphs
+  the Daily task row renders, extracting one shared `taskStatusGlyph` into `src/taskEngine.js` if they are inline.
+  Mirror in `gas-app/Script.html` (`executeUniversalSearch` ~L851).
+- [ ] **Dedupe task results** when the same task id comes back from both `dailyTasks` and `masterTasks`
+  (`allTasks`, ~L143): one result per id. Keep the first copy (Daily is searched first); its `targetView` still comes
+  from the task's own fields (`!dueDate || master`), never from which list it came from or id membership (see memory
+  on Master/Daily same ids). Mirror in `gas-app/Script.html`.
+
+### A2. Phase 30: rpc token probe (agent only; the token may need the user)
+
+- [ ] **OVERDUE (was due 2026-10-17): 7-day Testing expiry** (agent probes first): run `npm run rpc -- runSelfTest`
+  (no `--deploy`, which pushes and repoints). If it passes, check the web app and the 5-min sync trigger. If the token
+  is dead (`invalid_grant`), do not retry: list "rerun the rpc login" under section B and move on.
+- [ ] **Live check on HOME `/dev`** (agent; the ensure-chrome profile is signed in as of 2026-10-16): Daily Forward
+  makes a copy; Delegate… with owner + tomorrow makes the "Check back:" task; Master undated Forward to next week
+  then Undo; Master Delegate; Undo on each. Use a throwaway task, delete it after.
+
+### A3. Solid Code ratchets: shrink the baselines (user decision 3T, 2026-10-30)
+
+Do them as `worker` agents (Sonnet/medium), one baseline per agent, each with its checker as the exit test. Order:
+
+- [ ] **Shrink `rpc-guard-baseline.json`** (46 unguarded RPC entry points): add
+  `DPEngines.v_.guard(arguments, '<name>')...done()` (see `src/integration/v_.js`) as the first statement of each
+  `_xInternal` impl, highest-traffic first; then run `node tools/check-rpc-guards.js --update`.
+- [ ] **Shrink `html-baseline.json`** (a11y findings in `index.html` + `gas-app/Index.html`, mostly
+  `prefer-native-element`): fix both copies, then `node tools/check-html.js --update`.
+- [ ] **axe a11y in the live gate** (user picks 1T 2A 3F, 2026-10-30): add `axe-core` as a devDependency and, in
+  `tools/deploy-home.js` after the `/dev` load, inject it into the GAS iframe over CDP (as `tools/eval-console.js
+  --iframe` does) and run it on Today, Master Tasks, Notes and the Search modal. Ratchet the results with a
+  shrink-only per-view baseline (`axe-baseline.json`, like `html-baseline.json`): a new finding fails the deploy.
+  No mock-mode run. Red test first on the baseline compare logic.
+- [ ] **Run `npm run test:mutation`** (Stryker, `stryker.config.json`) before the next big phase; each surviving
+  mutant becomes a test.
+- [ ] **Shrink `mirror-baseline.json`** (107 drifted `src/*.js` vs `gas-app/Script.html` functions: app.js 86,
+  binderStore 9, taskEngine 5, hubUi 3, futureMatrixEngine 2, quotesEngine 1, searchEngine 1): reconcile each pair,
+  or generate the `Script.html` engines from `src` like `Engines.gs`; then run `node tools/check-mirror.js --update`.
+  Escalate to `deep` only if a pair needs a decision about which copy is right.
+- [ ] **Shrink legacy `var` suppressions** in `eslint-suppressions.json` (gas-app `.gs` and html scripts): convert a
+  file at a time to `const`/`let`, then `npx eslint --prune-suppressions`.
+
+## For the session after next: needs the user (interactive / HITL)
+
+Do not start these in an agent-only session; ask the user to be present.
+
+### B1. Phase 32: Notes Doc view + Decisions (2026-10-30)
 
 Shipped (2026-10-30): revision-safe day saves (conflict on Doc edits, `writeControl`), typed `## ` lines no longer
 split a day, `🎯/Decision` label -> undated `Decision: <subject>` Task (manual only, no filters), `#decision`
@@ -9,63 +66,36 @@ note badge, completing a `Decision:` task adds `#decision <what>` to the last no
 
 - [ ] **Live check on HOME** (@346; Retry is in the error tray). Conflict flow verified (2026-10-30, through the bridge
   on throwaway day 2026-01-15, the Doc edit simulated by a no-baseline write): the stale baseline was refused, the error
-  tray said "changed in Google Docs", Retry overwrote and cleared the tray. Still open: label an email `🎯/Decision` and
-  wait a tick; complete a `Decision:` task with Today open. Optional (user): one real typed edit in the Doc.
+  tray said "changed in Google Docs", Retry overwrote and cleared the tray. Still open: label an email `🎯/Decision`
+  and wait a tick; complete a `Decision:` task with Today open. Optional: one real typed edit in the Doc. Delete the
+  leftover 2026-01-15 section ("phase32 line A / phase32 line APP") in the "Day Planner Notes - January 2026" Doc.
 - [ ] **Notes portal decisions** (`docs/notes-portal-eval.md`, user to answer): 1A no iframe, run probe P1 only;
   2T read-only Docs API render as the panel Doc view; 3T "Open this day in Docs" link; 4A defer per-day tabs;
   5T fail loud when a notes Doc has more than one tab (latent data-loss path); 6T keep publish-to-web rejected.
 - [ ] **Live check smart paste + day rollover** (HOME @337, `1da3fcf`): paste from Gmail, Docs and Gemini into a
   card line; leave the tab open past midnight.
 
-## Solid Code ratchets: shrink the baselines (2026-10-30, user decision 3T)
-
-- [ ] **Shrink `rpc-guard-baseline.json`** (46 unguarded RPC entry points): add
-  `DPEngines.v_.guard(arguments, '<name>')...done()` (see `src/integration/v_.js`) as the first statement of each
-  `_xInternal` impl, highest-traffic first; then run `node tools/check-rpc-guards.js --update`.
-- [ ] **Shrink `mirror-baseline.json`** (107 drifted `src/*.js` vs `gas-app/Script.html` functions: app.js 86,
-  binderStore 9, taskEngine 5, hubUi 3, futureMatrixEngine 2, quotesEngine 1, searchEngine 1): reconcile each pair,
-  or generate the `Script.html` engines from `src` like `Engines.gs`; then run `node tools/check-mirror.js --update`.
-- [ ] **Shrink `html-baseline.json`** (a11y findings in `index.html` + `gas-app/Index.html`, mostly
-  `prefer-native-element`): fix both copies, then `node tools/check-html.js --update`.
-- [ ] **Run `npm run test:mutation`** (Stryker, `stryker.config.json`) before the next big phase; each surviving
-  mutant becomes a test.
-- [ ] **axe a11y in the live gate** (user picks 1T 2A 3F, 2026-10-30): add `axe-core` as a devDependency and, in
-  `tools/deploy-home.js` after the `/dev` load, inject it into the GAS iframe over CDP (as `tools/eval-console.js
-  --iframe` does) and run it on Today, Master Tasks, Notes and the Search modal. Ratchet the results with a
-  shrink-only per-view baseline (`axe-baseline.json`, like `html-baseline.json`): a new finding fails the deploy.
-  No mock-mode run. Red test first on the baseline compare logic.
-- [ ] **Gap 10: cdp-step debugger** (not started): a step-through CDP debugging tool alongside `tools/e2e/*`; scope
-  to be proposed to the user before building.
-- [ ] **Shrink legacy `var` suppressions** in `eslint-suppressions.json` (gas-app `.gs` and html scripts): convert a
-  file at a time to `const`/`let`, then `npx eslint --prune-suppressions`.
-
-## Phase 31: Search polish (in progress)
-
-User asked for these three next (2026-10-22), in this order. Shared matcher: `matchesSearchQuery` in
-`src/searchEngine.js` + its mirror in `gas-app/Script.html`; Master filter state in both clients.
+### B2. Phase 31 item 1 (needs a user decision)
 
 - [ ] **`/` focuses the Master Tasks filter box** (Gmail convention) when Master Tasks is the active view and focus
   is not already in an input. **Ask the user first:** `/` already opens universal search in both clients
   (`setupKeyboardShortcuts`: `src/app.js` ~line 924, `gas-app/Script.html` ~line 2713). Proposed default: on Master
   Tasks only, `/` focuses the filter box; Ctrl+Shift+F (anywhere) and Ctrl+K (outside text inputs) still open
   universal search.
-- [ ] **Status and due date in universal search task results**: the snippet shows the status glyph and a due date
-  (or "Undated") so similar titles can be told apart before clicking.
-- [ ] **Dedupe task results** when the same task id comes back from both `dailyTasks` and `masterTasks`: one result
-  per id. Keep the first copy (Daily is searched first); its `targetView` still comes from the task's own fields
-  (`!dueDate || master`), never from which list it came from or id membership (see memory on Master/Daily same ids).
 
-## Phase 30: WORK promotion & user-gated release items
+### B3. Gap 10: cdp-step debugger (not started)
+
+- [ ] **Gap 10: cdp-step debugger**: a step-through CDP debugging tool alongside `tools/e2e/*`; the agent proposes a
+  scope to the user before building.
+
+### B4. Phase 30: WORK promotion and user-gated release items
 
 Most items need the user (GSA account, a release go, or a decision). HOME live checks are done (TODO_HISTORY 2026-10-10).
 
+- [ ] **Update WORK** whenever `npm run push:work` has run (the user repoints "Day Planner v1" in the WORK IDE).
+- [ ] **rpc login** (only if the section A2 probe finds the token dead): the user reruns the rpc login.
 - [ ] **Re-check WORK forwards made before v149**: Forward/Delegate on a Daily row set the glyph without making a
   copy (fixed in `2b2d712`). Tasks forwarded on WORK ≤ v148 may be missing from their later day; re-add any.
-- [ ] **Live check on HOME `/dev`** (agent; the ensure-chrome profile is signed in as of 2026-10-16): Daily Forward
-  makes a copy; Delegate… with owner + tomorrow makes the "Check back:" task; Master undated Forward to next week
-  then Undo; Master Delegate; Undo on each. Use a throwaway task, delete it after.
-- [ ] **OVERDUE (was due 2026-10-17): 7-day Testing expiry** (agent probes first): run `npm run rpc -- runSelfTest`
-  (no `--deploy`, which pushes and repoints); if the token is dead, the user reruns the rpc login. Then check the web app and the 5-min sync trigger.
 - [ ] **Delete the test appointment** "Day Planner e2e test - safe to delete" (HOME calendar, 2026-10-30 14:00, has a
   Meet link). The app has no event-delete RPC, so it was left for you.
 - [ ] **Other test data you may want to clear**: the "Hub L6 forced-failure test" email and the Task it created in
@@ -78,7 +108,8 @@ Most items need the user (GSA account, a release go, or a decision). HOME live c
 - [ ] **Approval banner after consent redirect**: on WORK the page reloaded after approving and still showed the
   banner; "Check again" cleared it. Optional: re-check automatically when the tab regains focus.
 - [ ] **WORK: Filter Suggestions review (2026-10-16)**: WORK's background run read 1,234 emails. WORK is on v165
-  (verified 2026-10-22, includes v160's 200 emails/min); paste the Filter Suggestions tab here for the numbered review.
+  (verified 2026-10-22, includes v160's 200 emails/min); run About > **Suggest filters** and paste the Filter
+  Suggestions tab here for the numbered review.
 - [ ] **WORK v152 approval loop (2026-10-16)**: approved, Check again, banner stayed. Fixed so the optional
   `gmail.settings.basic` scope no longer gates the app; confirm on WORK. If the banner still shows, the console line
   `loadHubStatus: ... missing scopes:` names the scope; if the filter scope is the only one missing, the GSA org
