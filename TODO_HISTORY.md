@@ -1,5 +1,10 @@
 # Task History (TODO_HISTORY)
 
+## 2026-10-30 — Phase 31 items 2-3 (HOME @347, WORK pushed, repoint pending)
+
+- [x] **Search task results**: snippet leads with status glyph + due date (or Undated); one result per task id across
+  Daily + Master, Daily copy kept (`d0a239d`).
+
 ## 2026-10-30 — Solid Code gates (HOME @346, WORK pushed, repoint pending)
 
 - [x] **@337-@340 never loaded**: HTML comment markers in Script.html (`6368c04`); HOME v1 now moves only after a live

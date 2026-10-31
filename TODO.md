@@ -11,21 +11,11 @@ User asked for these in this order (2026-10-22). Shared matcher: `matchesSearchQ
 mirror in `gas-app/Script.html`; both clients, red test first, then `npm run deploy:home` (live gate), then
 `npm run push:work` and tell the user "Update WORK".
 
-- [ ] **Status and due date in universal search task results**: in `executeUniversalSearch` (`src/searchEngine.js`
-  L104, task snippet ~L150) the task snippet shows the status glyph and the due date (or "Undated") so similar titles
-  can be told apart before clicking; keep the category/notes text after it. No glyph helper exists: use the glyphs
-  the Daily task row renders, extracting one shared `taskStatusGlyph` into `src/taskEngine.js` if they are inline.
-  Mirror in `gas-app/Script.html` (`executeUniversalSearch` ~L851).
-- [ ] **Dedupe task results** when the same task id comes back from both `dailyTasks` and `masterTasks`
-  (`allTasks`, ~L143): one result per id. Keep the first copy (Daily is searched first); its `targetView` still comes
-  from the task's own fields (`!dueDate || master`), never from which list it came from or id membership (see memory
-  on Master/Daily same ids). Mirror in `gas-app/Script.html`.
+- [ ] **Item 1 (`/` focus)** stays in B2 (needs a user decision). Items 2 and 3 shipped (see TODO_HISTORY).
 
 ### A2. Phase 30: rpc token probe (agent only; the token may need the user)
 
-- [ ] **OVERDUE (was due 2026-10-17): 7-day Testing expiry** (agent probes first): run `npm run rpc -- runSelfTest`
-  (no `--deploy`, which pushes and repoints). If it passes, check the web app and the 5-min sync trigger. If the token
-  is dead (`invalid_grant`), do not retry: list "rerun the rpc login" under section B and move on.
+- [x] rpc token probe: `runSelfTest` passed 7/7 (2026-10-30); the token still works past its warned expiry, so B4 rpc login is not needed yet.
 - [ ] **Live check on HOME `/dev`** (agent; the ensure-chrome profile is signed in as of 2026-10-16): Daily Forward
   makes a copy; Delegate… with owner + tomorrow makes the "Check back:" task; Master undated Forward to next week
   then Undo; Master Delegate; Undo on each. Use a throwaway task, delete it after.
