@@ -74,9 +74,9 @@ test('setEventRsvp patches the full guest list with only my response changed', (
 test('setEventRsvp rejects a bad response or event id without calling Calendar', () => {
   const { ctx, patches } = rsvpCtx();
   for (const bad of ['needsAction', 'yes', '', null]) {
-    assert.throws(() => ctx.setEventRsvp('ev1', bad), /Invalid RSVP/);
+    assert.throws(() => ctx.setEventRsvp('ev1', bad), /Invalid RSVP|setEventRsvp/);
   }
-  assert.throws(() => ctx.setEventRsvp('', 'accepted'), /Invalid RSVP/);
+  assert.throws(() => ctx.setEventRsvp('', 'accepted'), /Invalid RSVP|setEventRsvp/);
   assert.equal(patches.length, 0);
 });
 

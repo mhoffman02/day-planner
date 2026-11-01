@@ -519,6 +519,8 @@ export function makeGasContext() {
 
 /** Runs gas-app/<fileName> in the context. */
 export function loadGasFile(context, fileName) {
+  // Production always has Engines.gs in the project; RPC guards in Code.gs read DPEngines.v_ at call time.
+  if (fileName !== 'Engines.gs' && context.DPEngines === undefined) loadGasFile(context, 'Engines.gs');
   const source = fs.readFileSync(path.join(GAS_APP_DIR, fileName), 'utf8');
   vm.runInContext(source, context, { filename: fileName });
   return context;

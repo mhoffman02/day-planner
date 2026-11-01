@@ -56,7 +56,7 @@ test('forwardMasterTask: a failed mark deletes the copy and says nothing was for
 
 test('forwardMasterTask: a bad date is rejected before anything is written', () => {
   const { ctx, calls } = masterCtx();
-  assert.throws(() => ctx.forwardMasterTask('M1', 'tomorrow'), /YYYY-MM-DD/);
+  assert.throws(() => ctx.forwardMasterTask('M1', 'tomorrow'), /YYYY-MM-DD|forwardMasterTask/);
   assert.deepEqual(calls, []);
 });
 

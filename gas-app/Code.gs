@@ -442,7 +442,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 562;
+const BUILD_NUMBER_ = 563;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -1240,6 +1240,7 @@ function rsvpSendUpdates_() {
  * @throws {Error} 'Invalid RSVP: ...' for bad input; a friendly message when I am not a guest or Calendar fails.
  */
 function setEventRsvp(eventId, response) {
+  DPEngines.v_.guard(arguments, 'setEventRsvp').param('eventId').string().param('response').string().oneOf('accepted', 'declined', 'tentative').done();
   if (typeof eventId !== 'string' || !eventId.trim()) throw new Error('Invalid RSVP: an event id is required.');
   if (['accepted', 'declined', 'tentative'].indexOf(response) === -1) {
     throw new Error('Invalid RSVP: the answer must be accepted, declined or tentative.');
@@ -1271,6 +1272,7 @@ function setEventRsvp(eventId, response) {
  * @returns {{date: string, tasks: Array<object>, calendarEvents: Array<object>, noteContent: string, warnings: Array<string>}|object} Daily planner dataset or error payload.
  */
 function getDailyData(dateStr) {
+  DPEngines.v_.guard(arguments, 'getDailyData').param('dateStr').string().matches(/^\d{4}-\d{2}-\d{2}$/).done();
   const result = {
     date: dateStr,
     tasks: [],
@@ -1731,6 +1733,7 @@ function eventOverlapDateKeys_(evt, dateKeys, tz) {
  * @returns {{days: Object<string, Object>, warnings: Array<string>}} Per-date payloads keyed by date.
  */
 function getDailyDataRange(startDateStr, endDateStr) {
+  DPEngines.v_.guard(arguments, 'getDailyDataRange').param('startDateStr').string().matches(/^\d{4}-\d{2}-\d{2}$/).param('endDateStr').string().matches(/^\d{4}-\d{2}-\d{2}$/).done();
   const warnings = [];
   const dateKeys = enumerateDateRange_(startDateStr, endDateStr);
   const days = {};
@@ -2053,6 +2056,7 @@ function getOrCreateDailyDocContent(dateStr, knownDocId) {
  * @returns {{success: boolean, docName?: string, conflict?: boolean, currentContent?: string, error?: string}} Result status.
  */
 function saveDailyDocCards(dateStr, noteContent, baselineContent) {
+  DPEngines.v_.guard(arguments, 'saveDailyDocCards').param('dateStr').string().matches(/^\d{4}-\d{2}-\d{2}$/).param('noteContent').string().param('baselineContent').string().optional().nullable().done();
   if (typeof DriveApp === 'undefined' || typeof Docs === 'undefined') {
     return { success: true, docName: 'Local Dev Mock Doc' };
   }
@@ -2526,6 +2530,7 @@ function buildMasterTasksClearinghouse(rawTasks) {
  * @returns {Array<{id: string, title: string, category: string, status: string, starred: boolean, notes: string, dueDate: (string|null), movedTo: (string|null), movedTaskId: (string|null)}>} Array of master task items.
  */
 function getMasterTasks(monthYearStr) {
+  DPEngines.v_.guard(arguments, 'getMasterTasks').param('monthYearStr').string().optional().nullable().done();
   try {
     if (typeof Tasks === 'undefined') {
       return [
@@ -2575,6 +2580,7 @@ function getMasterTasks(monthYearStr) {
  * @returns {{id: string, title: string, category: string, status: string, starred: boolean, notes: string, dueDate: string|null, movedTo: null, movedTaskId: null}} Created master task object.
  */
 function addMasterTask(title, category, dueDate, notes) {
+  DPEngines.v_.guard(arguments, 'addMasterTask').param('title').string().param('category').string().optional().nullable().param('dueDate').string().optional().nullable().param('notes').string().optional().nullable().done();
   try {
     if (typeof Tasks === 'undefined') {
       return {
@@ -2621,6 +2627,7 @@ function addMasterTask(title, category, dueDate, notes) {
  * @returns {boolean} True if deleted successfully.
  */
 function deleteMasterTask(taskId) {
+  DPEngines.v_.guard(arguments, 'deleteMasterTask').param('taskId').string().length(1, 512).done();
   return deleteDailyTask(taskId);
 }
 
@@ -2631,6 +2638,7 @@ function deleteMasterTask(taskId) {
  * @returns {object|null} Updated task object, or null if the task no longer exists.
  */
 function updateMasterTask(taskId, updates) {
+  DPEngines.v_.guard(arguments, 'updateMasterTask').param('taskId').string().length(1, 512).param('updates').object().done();
   return updateDailyTask('', taskId, updates);
 }
 
@@ -2642,6 +2650,7 @@ function updateMasterTask(taskId, updates) {
  * @returns {{id: string, title: string, category: string, status: string, movedTo: string, movedTaskId: string}} Updated master task object.
  */
 function markMasterTaskMoved(masterTaskId, targetDateStr, movedTaskId) {
+  DPEngines.v_.guard(arguments, 'markMasterTaskMoved').param('masterTaskId').string().length(1, 512).param('targetDateStr').string().param('movedTaskId').string().optional().nullable().done();
   try {
     if (typeof Tasks === 'undefined') {
       return {
@@ -2681,6 +2690,7 @@ function markMasterTaskMoved(masterTaskId, targetDateStr, movedTaskId) {
  * @returns {{id: string, title: string, status: string, category: string, dueDate: string, starred: boolean, notes: string, sourceMasterId: (string|null)}} Created task object.
  */
 function addDailyTask(dateStr, title, category, sourceMasterId, notes) {
+  DPEngines.v_.guard(arguments, 'addDailyTask').param('dateStr').string().matches(/^\d{4}-\d{2}-\d{2}$/).param('title').string().param('category').string().optional().nullable().param('sourceMasterId').string().optional().nullable().param('notes').string().optional().nullable().done();
   try {
     if (typeof Tasks !== 'undefined') {
       const metaPatch = { category: category || 'General' };
@@ -2728,6 +2738,7 @@ function addDailyTask(dateStr, title, category, sourceMasterId, notes) {
  * @returns {object|null} Updated task object, or null if the task no longer exists.
  */
 function updateDailyTask(dateStr, taskId, updates, serverMeta) {
+  DPEngines.v_.guard(arguments, 'updateDailyTask').param('dateStr').string().param('taskId').string().length(1, 512).param('updates').object().param('serverMeta').any().optional().nullable().done();
   try {
     if (typeof Tasks === 'undefined') {
       return {
@@ -2834,6 +2845,7 @@ function updateDailyTask(dateStr, taskId, updates, serverMeta) {
  * @returns {boolean} True if deleted successfully.
  */
 function deleteDailyTask(taskId) {
+  DPEngines.v_.guard(arguments, 'deleteDailyTask').param('taskId').string().length(1, 512).done();
   try {
     if (typeof Tasks === 'undefined') {
       return true;
@@ -2861,6 +2873,7 @@ function deleteDailyTask(taskId) {
  * @returns {{originalTask: object, forwardedTask: object}} Resulting task objects.
  */
 function forwardDailyTask(sourceDateStr, taskId, targetDateStr) {
+  DPEngines.v_.guard(arguments, 'forwardDailyTask').param('sourceDateStr').string().param('taskId').string().length(1, 512).param('targetDateStr').string().matches(/^\d{4}-\d{2}-\d{2}$/).done();
   const out = copyThenMarkSource_(sourceDateStr, taskId, targetDateStr, {
     fn: 'forwardDailyTask', status: '→', verb: 'forward', pastVerb: 'forwarded', noun: 'copy',
     copyTitle: function(group, cleanTitle) { return '[' + group + '1] ' + cleanTitle; }
@@ -2880,6 +2893,7 @@ function forwardDailyTask(sourceDateStr, taskId, targetDateStr) {
  * @returns {{originalTask: object, followUpTask: object}} Resulting task objects.
  */
 function delegateDailyTask(sourceDateStr, taskId, checkBackDateStr, owner) {
+  DPEngines.v_.guard(arguments, 'delegateDailyTask').param('sourceDateStr').string().param('taskId').string().length(1, 512).param('checkBackDateStr').string().param('owner').string().optional().nullable().done();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(checkBackDateStr || ''))) {
     throw new Error('Nothing was delegated: the check-back date must be YYYY-MM-DD (got "' + checkBackDateStr + '").');
   }
@@ -2903,6 +2917,7 @@ function delegateDailyTask(sourceDateStr, taskId, checkBackDateStr, owner) {
  * @returns {{originalTask: object, forwardedTask: object}} Resulting task objects.
  */
 function forwardMasterTask(masterTaskId, targetDateStr) {
+  DPEngines.v_.guard(arguments, 'forwardMasterTask').param('masterTaskId').string().length(1, 512).param('targetDateStr').string().matches(/^\d{4}-\d{2}-\d{2}$/).done();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(targetDateStr || ''))) {
     throw new Error('Nothing was forwarded: the date must be YYYY-MM-DD (got "' + targetDateStr + '").');
   }
@@ -2923,6 +2938,7 @@ function forwardMasterTask(masterTaskId, targetDateStr) {
  * @returns {{id: string, status: string, movedTo: null, movedTaskId: null}} Restored master state.
  */
 function undoMasterForward(masterTaskId, copyTaskId, prevStatus) {
+  DPEngines.v_.guard(arguments, 'undoMasterForward').param('masterTaskId').string().length(1, 512).param('copyTaskId').string().length(1, 512).param('prevStatus').string().optional().nullable().done();
   const status = String(prevStatus || '•');
   if (['•', '○', '✓', '→', 'X', 'Ⓓ'].indexOf(status) === -1) {
     throw new Error('Forward not undone: unknown status "' + status + '".');
@@ -3272,6 +3288,7 @@ function deleteFutureItem(year, monthKey, itemId) {
  * @returns {Array<{docName: string, docId: string, docUrl: string, matches: Array<{heading: string, snippet: string}>}>} Match results.
  */
 function searchAcrossAllMonthlyDocs(query) {
+  DPEngines.v_.guard(arguments, 'searchAcrossAllMonthlyDocs').param('query').string().optional().nullable().done();
   const cleanQuery = (query || '').trim().toLowerCase();
   if (!cleanQuery) return [];
 
@@ -3494,6 +3511,7 @@ function parseArchiveNoteHeading_(heading, docTitle) {
  * @throws {Error} When the search could not run or failed with no matches to show.
  */
 function searchArchiveNotes(query) {
+  DPEngines.v_.guard(arguments, 'searchArchiveNotes').param('query').string().optional().nullable().done();
   const cleanQuery = (query || '').trim();
   if (!cleanQuery || cleanQuery.length < 2) return [];
 
