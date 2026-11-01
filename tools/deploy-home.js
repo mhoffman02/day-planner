@@ -9,6 +9,10 @@
  * Usage:
  *   npm run deploy:home               # push, live-check /dev, then deploy Day Planner v1
  *   npm run deploy:home -- --check    # push and live-check only; v1 is left alone
+ *   npm run deploy:home -- --update-axe  # also lower (or seed) axe-baseline.json from the live counts
+ *
+ * After the load passes, axe-core runs in the app iframe; per-rule violation counts must not exceed
+ * axe-baseline.json (new rule ids or higher counts fail the gate).
  */
 
 import { spawnSync } from 'node:child_process';
@@ -16,6 +20,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ensureChrome } from './ensure-chrome.js';
 import { assertCleanGasApp } from './clean-tree.js';
+import { runAxeInTab, ratchetAxe } from './lib/axe-live.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const GAS_DIR = path.join(ROOT, 'gas-app');
@@ -46,6 +51,8 @@ function probe(tabId) {
 
 async function main() {
   const checkOnly = process.argv.includes('--check');
+  const updateAxe = process.argv.includes('--update-axe');
+  let axeCounts = null;
 
   assertCleanGasApp(ROOT);
   console.log('1/3 clasp push --force (HOME @HEAD)');
@@ -70,6 +77,7 @@ async function main() {
       last = probe(tab.id);
       if (last.status === 'PASS') break;
     }
+    if (last && last.status === 'PASS') axeCounts = (await runAxeInTab(PORT, tab.id)).counts;
   } finally {
     await fetch(`http://127.0.0.1:${PORT}/json/close/${tab.id}`).catch((err) => {
       console.error(`Could not close the probe tab ${tab.id}; close it by hand:`, err.stack);
@@ -83,6 +91,15 @@ async function main() {
     process.exit(1);
   }
   console.log(`✅ /dev loaded: ${last.diagnosis}`);
+
+  const axe = ratchetAxe(ROOT, axeCounts, updateAxe);
+  if (!axe.ok) {
+    console.error('❌ axe-core accessibility ratchet failed:\n  ' + axe.failures.join('\n  '));
+    console.error('Day Planner v1 was NOT moved. Fix the violations (counts only go down).');
+    process.exit(1);
+  }
+  console.log(`✅ axe-core ratchet ok: ${JSON.stringify(axeCounts)}${axe.seeded ? ' (axe-baseline.json seeded)' : ''}`);
+  if (axe.improvements.length) console.log(`   improved (rerun with --update-axe to lock in): ${axe.improvements.join('; ')}`);
 
   if (checkOnly) {
     console.log('3/3 skipped (--check): Day Planner v1 left as is.');
