@@ -35,11 +35,22 @@ function walk(node, visit) {
   }
 }
 
-/** @returns {string[]} Top-level functions of Code.gs text that take parameters and delegate to `_<name>Internal`. */
-export function findRpcEntries(codeText) {
+// Called by the platform (simple triggers, web app requests), never by google.script.run.
+const PLATFORM_HANDLERS = new Set(['onOpen', 'onInstall', 'onEdit', 'onSelectionChange', 'onFormSubmit', 'doGet', 'doPost']);
+const TRIGGER_RE = /(?:newTrigger|forFunction)\(\s*(['"])(\w+)\1/g;
+
+/** @returns {Set<string>} Platform handler names plus every function the texts wire via ScriptApp.newTrigger/forFunction. */
+export function triggerHandlers(...texts) {
+  const out = new Set(PLATFORM_HANDLERS);
+  for (const t of texts) for (const m of t.matchAll(TRIGGER_RE)) out.add(m[2]);
+  return out;
+}
+
+/** @returns {string[]} Top-level functions of Code.gs text that take parameters and delegate to `_<name>Internal`, minus trigger handlers. */
+export function findRpcEntries(codeText, handlers = triggerHandlers(codeText)) {
   const ast = parse(codeText, 'Code.gs');
   return ast.body
-    .filter((n) => n.type === 'FunctionDeclaration' && n.params.length > 0 && codeText.slice(n.start, n.end).includes(`_${n.id.name}Internal`))
+    .filter((n) => n.type === 'FunctionDeclaration' && !handlers.has(n.id.name) && n.params.length > 0 && codeText.slice(n.start, n.end).includes(`_${n.id.name}Internal`))
     .map((n) => n.id.name);
 }
 
@@ -91,7 +102,7 @@ export function unguardedRpc(codeText, otherTexts) {
   otherTexts.forEach((t, i) => {
     for (const [name, fn] of findImplementations(t, `gas file #${i}`)) if (!impls.has(name)) impls.set(name, fn);
   });
-  return findRpcEntries(codeText)
+  return findRpcEntries(codeText, triggerHandlers(codeText, ...otherTexts))
     .filter((name) => !impls.has(name) || !isGuarded(impls.get(name)))
     .sort();
 }

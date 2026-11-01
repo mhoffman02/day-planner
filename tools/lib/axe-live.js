@@ -33,14 +33,28 @@ function cdpEval(wsUrl, expression) {
   });
 }
 
+/**
+ * Expression run in the first-level GAS frame (Google's sandbox wrapper, which has no title, lang, main or h1).
+ * The app document lives in the nested #userHtmlFrame, so axe is injected into and run against that window.
+ */
+export function buildAxeExpression(axeSource) {
+  return `(async () => {
+  const frameEl = document.getElementById('userHtmlFrame');
+  if (!frameEl || !frameEl.contentWindow) throw new Error('axe: #userHtmlFrame (app document) not found in sandbox frame');
+  const w = frameEl.contentWindow;
+  w.eval(${JSON.stringify(axeSource)});
+  const r = await w.axe.run(w.document);
+  return { violations: r.violations.map(v => ({ id: v.id, nodes: v.nodes.map(() => 0) })) };
+})()`;
+}
+
 /** Returns {counts}. Throws if the app iframe target is missing or axe fails. */
 export async function runAxeInTab(port, tabId) {
   const targets = await (await fetch(`http://127.0.0.1:${port}/json`)).json();
   const frame = targets.find((t) => t.type === 'iframe' && t.parentId === tabId);
   if (!frame) throw new Error(`axe: no app iframe target under tab ${tabId}`);
   const axeSource = fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
-  const expression = `(async () => { ${axeSource}\n const r = await window.axe.run(document); return { violations: r.violations.map(v => ({ id: v.id, nodes: v.nodes.map(() => 0) })) }; })()`;
-  const out = await cdpEval(frame.webSocketDebuggerUrl, expression);
+  const out = await cdpEval(frame.webSocketDebuggerUrl, buildAxeExpression(axeSource));
   return { counts: countByRule(out.violations) };
 }
 

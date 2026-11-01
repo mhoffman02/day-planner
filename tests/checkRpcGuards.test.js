@@ -95,3 +95,14 @@ test('runCheck: seeds once, fails on a new unguarded RPC, update only removes', 
   assert.equal(runCheck({ root: dir, baselineFile, update: true, log }).ok, true);
   assert.deepEqual(JSON.parse(fs.readFileSync(baselineFile, 'utf8')), []);
 });
+
+test('trigger handlers (onOpen/doGet/... and ScriptApp.newTrigger targets) are not RPC entries', () => {
+  const code = `${CODE}
+function onOpen(e) { return _onOpenInternal(e); }
+function doGet(e) { return _doGetInternal(e); }
+function tick(e) { return _tickInternal(e); }
+function setup() { ScriptApp.newTrigger('tick').timeBased().create(); ScriptApp.newTrigger('x').forFunction('tock'); }
+function tock(e) { return _tockInternal(e); }`;
+  assert.deepEqual(findRpcEntries(code), ['addThing', 'safeThing']);
+  assert.deepEqual(unguardedRpc(code, []), ['addThing']);
+});
