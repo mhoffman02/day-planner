@@ -305,3 +305,17 @@ live-testing catches it by luck.
 ## 2026-11-01 (A3 baseline shrinks)
 **Worked well:** One `worker` per baseline with its checker as the exit test shipped six ratchets in one session; `eslint --fix` plus `--prune-suppressions` shrank `var` safely with no hand edits.
 **Needs improvement:** A deploy reloads the live tab and kills in-flight eval writes (lost the Master Delegate Undo check); run live checks with no deploy mid-run. `push:work` twice burned a WORK version (IDE at 180/200).
+
+## 2026-11-01 — Refresh fix, Decision styling, A3 shrinks
+
+**Worked well:**
+- A cheap live probe (server-side add, click, poll) proved the Refresh fix and caught that earlier probes ran on a stale tab
+- Advisor review caught a no-op Refresh risk and the old-pinned-API trap before WORK was pushed
+- One worker per baseline with its checker as exit test shipped six ratchets
+
+**Needs improvement:**
+- A deploy does not reload the CDP tab, so two probes tested old code: check typeof a.refreshAll first
+- npm run rpc without --deploy runs the pinned API version, which misled the Decision-label diagnosis
+- pkill -f matching its own shell and eval-console timeouts left probe tasks to clean up
+
+---
