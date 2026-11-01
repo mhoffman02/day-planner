@@ -4,29 +4,9 @@
       "count": 1
     }
   },
-  "gas-app/Config.gs": {
-    "no-var": {
-      "count": 139
-    }
-  },
-  "gas-app/GmailRepository.gs": {
-    "no-var": {
-      "count": 73
-    }
-  },
-  "gas-app/HubController.gs": {
-    "no-var": {
-      "count": 261
-    }
-  },
   "gas-app/Index.html": {
     "no-var": {
       "count": 6
-    }
-  },
-  "gas-app/QueueProcessor.gs": {
-    "no-var": {
-      "count": 126
     }
   },
   "gas-app/Regrant.html": {
@@ -42,11 +22,6 @@
   "gas-app/SetupFolder.html": {
     "no-var": {
       "count": 5
-    }
-  },
-  "gas-app/UnitTests.gs": {
-    "no-var": {
-      "count": 59
     }
   }
 }

@@ -19,18 +19,18 @@
  */
 (function(global) {
 
-var GMAIL_ME_ = 'me';
+const GMAIL_ME_ = 'me';
 // Account-agnostic permalink (no /u/0/ account index): Gmail resolves it in whichever signed-in account owns the thread.
-var GMAIL_URL_BASE_ = 'https://mail.google.com/mail/#all/';
-var GMAIL_THREAD_ID_RE_ = /^[A-Za-z0-9_-]{1,64}$/;
-var GMAIL_BODY_CAP_ = 4000;
+const GMAIL_URL_BASE_ = 'https://mail.google.com/mail/#all/';
+const GMAIL_THREAD_ID_RE_ = /^[A-Za-z0-9_-]{1,64}$/;
+const GMAIL_BODY_CAP_ = 4000;
 // Triage row preview: Gmail's own snippet of the latest message (Gmail sends about 200 chars).
-var GMAIL_SNIPPET_CAP_ = 300;
-var GMAIL_META_HEADERS_ = ['From', 'To', 'Cc', 'Subject', 'Date', 'List-Id'];
+const GMAIL_SNIPPET_CAP_ = 300;
+const GMAIL_META_HEADERS_ = ['From', 'To', 'Cc', 'Subject', 'Date', 'List-Id'];
 // Gmail quota units per call (Gmail API usage limits, May 2026: 6,000 units per user per minute, shared by
 // everything this app does). Callers that read in bulk charge a meter with these before each call.
-var GMAIL_UNITS_ = { messagesList: 5, messagesGet: 20, threadsList: 10, threadsGet: 40 };
-var gmailLabelCache_ = null;
+const GMAIL_UNITS_ = { messagesList: 5, messagesGet: 20, threadsList: 10, threadsGet: 40 };
+let gmailLabelCache_ = null;
 
 /**
  * @returns {void}
@@ -38,7 +38,7 @@ var gmailLabelCache_ = null;
  */
 function requireGmail_() {
   if (typeof Gmail === 'undefined' || !Gmail.Users || !Gmail.Users.Threads || !Gmail.Users.Labels) {
-    var err = new Error('Advanced Gmail service is not enabled for this project');
+    const err = new Error('Advanced Gmail service is not enabled for this project');
     err.code = 'GMAIL_SERVICE_MISSING';
     throw err;
   }
@@ -51,7 +51,7 @@ function requireGmail_() {
  */
 function validateThreadId(threadId) {
   if (typeof threadId !== 'string' || !GMAIL_THREAD_ID_RE_.test(threadId)) {
-    var err = new Error('Invalid Gmail thread id');
+    const err = new Error('Invalid Gmail thread id');
     err.code = 'INVALID_THREAD_ID';
     err.retryable = false;
     throw err;
@@ -74,7 +74,7 @@ function gmailUrl(threadId) {
 function listLabels_() {
   if (gmailLabelCache_) return gmailLabelCache_;
   requireGmail_();
-  var resp = Gmail.Users.Labels.list(GMAIL_ME_) || {};
+  const resp = Gmail.Users.Labels.list(GMAIL_ME_) || {};
   gmailLabelCache_ = (resp.labels || []).map(function(l) { return { id: l.id, name: l.name }; });
   return gmailLabelCache_;
 }
@@ -85,8 +85,8 @@ function listLabels_() {
  * @returns {string|null} Label id or null when the user has no such label.
  */
 function resolveLabelId(name) {
-  var labels = listLabels_();
-  for (var i = 0; i < labels.length; i++) {
+  const labels = listLabels_();
+  for (let i = 0; i < labels.length; i++) {
     if (labels[i].name === name) return labels[i].id;
   }
   return null;
@@ -99,15 +99,15 @@ function resolveLabelId(name) {
  * @returns {{labelFound:boolean, threadIds:string[], nextPageToken:(string|null)}} Page of ids.
  */
 function listThreadsByLabel(labelName, opts) {
-  var o = opts || {};
-  var labelId = resolveLabelId(labelName);
+  const o = opts || {};
+  const labelId = resolveLabelId(labelName);
   if (!labelId) return { labelFound: false, threadIds: [], historyIds: {}, nextPageToken: null };
   // inboxOnly: Gmail ANDs labelIds, so this lists threads with the label that are still in the Inbox.
-  var params = { labelIds: o.inboxOnly ? [labelId, 'INBOX'] : [labelId], maxResults: o.maxResults || 50 };
+  const params = { labelIds: o.inboxOnly ? [labelId, 'INBOX'] : [labelId], maxResults: o.maxResults || 50 };
   if (o.pageToken) params.pageToken = o.pageToken;
-  var resp = Gmail.Users.Threads.list(GMAIL_ME_, params) || {};
+  const resp = Gmail.Users.Threads.list(GMAIL_ME_, params) || {};
   // historyId moves on any new message or label change: the Triage row cache keys on it.
-  var historyIds = {};
+  const historyIds = {};
   (resp.threads || []).forEach(function(t) { if (t.historyId) historyIds[t.id] = String(t.historyId); });
   return {
     labelFound: true,
@@ -123,8 +123,8 @@ function listThreadsByLabel(labelName, opts) {
  * @returns {string} Header value or empty string.
  */
 function header_(headers, name) {
-  var lower = name.toLowerCase();
-  for (var i = 0; i < (headers || []).length; i++) {
+  const lower = name.toLowerCase();
+  for (let i = 0; i < (headers || []).length; i++) {
     if (String(headers[i].name).toLowerCase() === lower) return String(headers[i].value || '');
   }
   return '';
@@ -136,7 +136,7 @@ function header_(headers, name) {
  */
 function isoOrEmpty_(value) {
   if (value === '' || value === undefined || value === null) return '';
-  var d = new Date(value);
+  const d = new Date(value);
   return isNaN(d.getTime()) ? '' : d.toISOString();
 }
 
@@ -153,7 +153,7 @@ function splitAddresses_(list) {
  * @returns {string} Display name (or the address when no display name).
  */
 function displayName_(from) {
-  var m = String(from || '').match(/^\s*"?([^"<]*?)"?\s*<[^>]+>\s*$/);
+  const m = String(from || '').match(/^\s*"?([^"<]*?)"?\s*<[^>]+>\s*$/);
   return m && m[1].trim() ? m[1].trim() : String(from || '').replace(/[<>]/g, '').trim();
 }
 
@@ -162,7 +162,7 @@ function displayName_(from) {
  * @returns {string} Lower-cased bare address.
  */
 function address_(from) {
-  var m = String(from || '').match(/<([^>]+)>/);
+  const m = String(from || '').match(/<([^>]+)>/);
   return (m ? m[1] : String(from || '')).trim().toLowerCase();
 }
 
@@ -174,7 +174,7 @@ function address_(from) {
  */
 function bodyBytes_(data) {
   if (typeof data !== 'string') return data;
-  var s = data;
+  let s = data;
   while (s.length % 4 !== 0) s += '=';
   return Utilities.base64DecodeWebSafe(s);
 }
@@ -185,10 +185,10 @@ function bodyBytes_(data) {
  * @returns {string} Up to the cap of plain text.
  */
 function bodyText_(payload) {
-  var out = [];
-  var stack = [payload];
+  const out = [];
+  const stack = [payload];
   while (stack.length && out.join('').length < GMAIL_BODY_CAP_) {
-    var part = stack.shift();
+    const part = stack.shift();
     if (!part) continue;
     if (part.mimeType === 'text/plain' && part.body && part.body.data) {
       out.push(Utilities.newBlob(bodyBytes_(part.body.data)).getDataAsString());
@@ -204,18 +204,18 @@ function bodyText_(payload) {
  * @returns {string} Plain text, capped.
  */
 function decodeSnippet_(s) {
-  var named = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
+  const named = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
   return String(s || '').replace(/&(#x[0-9a-f]+|#[0-9]+|[a-z]+);/gi, function(all, code) {
     if (code.charAt(0) === '#') {
-      var n = code.charAt(1).toLowerCase() === 'x' ? parseInt(code.slice(2), 16) : parseInt(code.slice(1), 10);
+      const n = code.charAt(1).toLowerCase() === 'x' ? parseInt(code.slice(2), 16) : parseInt(code.slice(1), 10);
       return n > 0 && n < 0x110000 ? String.fromCodePoint(n) : all;
     }
-    var v = named[code.toLowerCase()];
+    const v = named[code.toLowerCase()];
     return v === undefined ? all : v;
   }).slice(0, GMAIL_SNIPPET_CAP_);
 }
 
-var userEmailMemo_ = null;
+let userEmailMemo_ = null;
 
 /**
  * Config tab UserEmail (seeded from the Gmail profile), read once per execution. Not
@@ -239,33 +239,33 @@ function userEmail_() {
 function getThreadMeta(threadId, opts) {
   validateThreadId(threadId);
   requireGmail_();
-  var withBody = !!(opts && opts.withBody);
-  var thread;
+  const withBody = !!(opts && opts.withBody);
+  let thread;
   try {
     thread = withBody
       ? Gmail.Users.Threads.get(GMAIL_ME_, threadId, { format: 'full' })
       : Gmail.Users.Threads.get(GMAIL_ME_, threadId, { format: 'metadata', metadataHeaders: GMAIL_META_HEADERS_ });
   } catch (err) {
-    var text = String((err && err.message) || err);
+    const text = String((err && err.message) || err);
     if ((err && err.code === 404) || /not found|404/i.test(text)) {
-      var nf = new Error('Gmail thread not found');
+      const nf = new Error('Gmail thread not found');
       nf.code = 'THREAD_NOT_FOUND';
       nf.retryable = false;
       throw nf;
     }
     throw err;
   }
-  var me = userEmail_();
-  var idToName = {};
+  const me = userEmail_();
+  const idToName = {};
   listLabels_().forEach(function(l) { idToName[l.id] = l.name; });
-  var labelIds = {};
-  var messages = (thread.messages || []).map(function(m) {
+  const labelIds = {};
+  const messages = (thread.messages || []).map(function(m) {
     (m.labelIds || []).forEach(function(id) { labelIds[id] = true; });
-    var h = (m.payload && m.payload.headers) || [];
-    var from = header_(h, 'From');
-    var dateHeader = header_(h, 'Date');
+    const h = (m.payload && m.payload.headers) || [];
+    const from = header_(h, 'From');
+    const dateHeader = header_(h, 'Date');
     // internalDate first, the Date header as fallback; an unparseable value yields '' instead of throwing for the whole thread.
-    var dateIso = isoOrEmpty_(m.internalDate ? Number(m.internalDate) : NaN) || isoOrEmpty_(dateHeader);
+    const dateIso = isoOrEmpty_(m.internalDate ? Number(m.internalDate) : NaN) || isoOrEmpty_(dateHeader);
     return {
       id: m.id,
       from: from,
@@ -279,8 +279,8 @@ function getThreadMeta(threadId, opts) {
       bodyText: withBody ? bodyText_(m.payload) : ''
     };
   });
-  var first = messages[0] || { subject: '' };
-  var labels = Object.keys(labelIds).map(function(id) { return idToName[id] || id; });
+  const first = messages[0] || { subject: '' };
+  const labels = Object.keys(labelIds).map(function(id) { return idToName[id] || id; });
   return {
     threadId: threadId,
     url: gmailUrl(threadId),
@@ -335,18 +335,18 @@ function trashThread(threadId) {
  */
 function ensureLabels(names) {
   requireGmail_();
-  var want = [];
+  const want = [];
   (names || []).forEach(function(n) {
-    var parts = String(n).split('/');
-    for (var i = 1; i <= parts.length; i++) {
-      var p = parts.slice(0, i).join('/');
+    const parts = String(n).split('/');
+    for (let i = 1; i <= parts.length; i++) {
+      const p = parts.slice(0, i).join('/');
       if (p && want.indexOf(p) === -1) want.push(p);
     }
   });
-  var have = {};
+  const have = {};
   listLabels_().forEach(function(l) { have[l.name] = true; });
-  var created = [];
-  var existing = [];
+  const created = [];
+  const existing = [];
   try {
     want.forEach(function(name) {
       if (have[name]) {
@@ -365,7 +365,7 @@ function ensureLabels(names) {
 
 /** @returns {Object<string,string>} Label name per label id. */
 function labelNamesById() {
-  var out = {};
+  const out = {};
   listLabels_().forEach(function(l) { out[l.id] = l.name; });
   return out;
 }
@@ -377,7 +377,7 @@ function labelNamesById() {
 function requireFilters_() {
   requireGmail_();
   if (!Gmail.Users.Settings || !Gmail.Users.Settings.Filters) {
-    var err = new Error('Gmail filter settings are not available in this Advanced Gmail service');
+    const err = new Error('Gmail filter settings are not available in this Advanced Gmail service');
     err.code = 'GMAIL_SERVICE_MISSING';
     throw err;
   }
@@ -389,7 +389,7 @@ function requireFilters_() {
  */
 function listFilters() {
   requireFilters_();
-  var resp = Gmail.Users.Settings.Filters.list(GMAIL_ME_) || {};
+  const resp = Gmail.Users.Settings.Filters.list(GMAIL_ME_) || {};
   return (resp.filter || []).map(function(f) { return { id: f.id, criteria: f.criteria || {}, action: f.action || {} }; });
 }
 
@@ -401,7 +401,7 @@ function listFilters() {
  */
 function createFilter(query, labelId) {
   requireFilters_();
-  var f = Gmail.Users.Settings.Filters.create({ criteria: { query: query }, action: { addLabelIds: [labelId] } }, GMAIL_ME_);
+  const f = Gmail.Users.Settings.Filters.create({ criteria: { query: query }, action: { addLabelIds: [labelId] } }, GMAIL_ME_);
   return f && f.id ? f.id : '';
 }
 
@@ -414,16 +414,16 @@ function createFilter(query, labelId) {
  */
 function searchThreadIds(query, opts) {
   requireGmail_();
-  var o = opts || {};
-  var cap = o.cap || 300;
-  var ids = [];
-  var token = null;
+  const o = opts || {};
+  const cap = o.cap || 300;
+  const ids = [];
+  let token = null;
   do {
     if (o.meter) o.meter(GMAIL_UNITS_.threadsList);
-    var params = { q: query, maxResults: Math.min(100, cap - ids.length) };
+    const params = { q: query, maxResults: Math.min(100, cap - ids.length) };
     if (o.labelId) params.labelIds = [o.labelId];
     if (token) params.pageToken = token;
-    var resp = Gmail.Users.Threads.list(GMAIL_ME_, params) || {};
+    const resp = Gmail.Users.Threads.list(GMAIL_ME_, params) || {};
     (resp.threads || []).forEach(function(t) { ids.push(t.id); });
     token = resp.nextPageToken || null;
   } while (token && ids.length < cap);
@@ -439,17 +439,17 @@ function searchThreadIds(query, opts) {
  */
 function listMessageRefs(query, opts) {
   requireGmail_();
-  var o = opts || {};
-  var cap = o.cap || 500;
-  var byThread = {};
-  var order = [];
-  var token = null;
+  const o = opts || {};
+  const cap = o.cap || 500;
+  const byThread = {};
+  const order = [];
+  let token = null;
   do {
     if (o.meter) o.meter(GMAIL_UNITS_.messagesList);
-    var params = { q: query, maxResults: 100 };
+    const params = { q: query, maxResults: 100 };
     if (o.labelId) params.labelIds = [o.labelId];
     if (token) params.pageToken = token;
-    var resp = Gmail.Users.Messages.list(GMAIL_ME_, params) || {};
+    const resp = Gmail.Users.Messages.list(GMAIL_ME_, params) || {};
     (resp.messages || []).forEach(function(m) {
       if (!byThread[m.threadId]) order.push(m.threadId);
       byThread[m.threadId] = m.id;
@@ -469,14 +469,14 @@ function listMessageRefs(query, opts) {
 function getMessageSample(id, opts) {
   validateThreadId(id);
   requireGmail_();
-  var o = opts || {};
+  const o = opts || {};
   if (o.meter) o.meter(GMAIL_UNITS_.messagesGet);
-  var m = o.withBody
+  const m = o.withBody
     ? Gmail.Users.Messages.get(GMAIL_ME_, id, { format: 'full' })
     : Gmail.Users.Messages.get(GMAIL_ME_, id, { format: 'metadata', metadataHeaders: ['From', 'Subject', 'List-Id'] });
-  var idToName = {};
+  const idToName = {};
   listLabels_().forEach(function(l) { idToName[l.id] = l.name; });
-  var h = (m.payload && m.payload.headers) || [];
+  const h = (m.payload && m.payload.headers) || [];
   return {
     id: id,
     labels: (m.labelIds || []).map(function(lid) { return idToName[lid] || lid; }),

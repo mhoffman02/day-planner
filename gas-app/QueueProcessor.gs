@@ -35,17 +35,17 @@
  */
 (function(global) {
 
-var QUEUE_LAST_RUN_PROP_ = 'HUB_LAST_RUN';
-var QUEUE_LAST_RUN_DRY_PROP_ = 'HUB_LAST_RUN_DRY';
-var QUEUE_DRY_FP_PROP_ = 'HUB_DRY_PASS_FP';   // {fp, at} of the last full dry pass (scheduled ticks reuse it)
-var QUEUE_MAX_RUN_MS_ = 4 * 60 * 1000;
-var QUEUE_LOCK_WAIT_MS_ = 500;
-var QUEUE_PAGE_SIZE_ = 100;
-var QUEUE_MAX_PAGES_ = 3;
-var QUEUE_MAX_MESSAGES_ = 50;
-var QUEUE_NAG_DAYS_ = 7;
-var QUEUE_DEFAULT_KIND_ = 'Decision/Input needed';
-var QUEUE_CORE_SERIES_ = 'NCMMS_CORE';
+const QUEUE_LAST_RUN_PROP_ = 'HUB_LAST_RUN';
+const QUEUE_LAST_RUN_DRY_PROP_ = 'HUB_LAST_RUN_DRY';
+const QUEUE_DRY_FP_PROP_ = 'HUB_DRY_PASS_FP';   // {fp, at} of the last full dry pass (scheduled ticks reuse it)
+const QUEUE_MAX_RUN_MS_ = 4 * 60 * 1000;
+const QUEUE_LOCK_WAIT_MS_ = 500;
+const QUEUE_PAGE_SIZE_ = 100;
+const QUEUE_MAX_PAGES_ = 3;
+const QUEUE_MAX_MESSAGES_ = 50;
+const QUEUE_NAG_DAYS_ = 7;
+const QUEUE_DEFAULT_KIND_ = 'Decision/Input needed';
+const QUEUE_CORE_SERIES_ = 'NCMMS_CORE';
 
 /**
  * @param {string} message Setup problem.
@@ -59,8 +59,8 @@ function setupResult_(message) {
  * @returns {string|null} Name of a missing cross-file dependency, else null.
  */
 function missingDependency_() {
-  var names = ['DPEngines', 'DPConfig', 'DPLedgerRepo', 'DPNotesRepo', 'DPGmailRepo', 'DPCalendarRepo', 'DPTaskRepo'];
-  for (var i = 0; i < names.length; i++) {
+  const names = ['DPEngines', 'DPConfig', 'DPLedgerRepo', 'DPNotesRepo', 'DPGmailRepo', 'DPCalendarRepo', 'DPTaskRepo'];
+  for (let i = 0; i < names.length; i++) {
     if (typeof global[names[i]] === 'undefined') return names[i];
   }
   return null;
@@ -89,7 +89,7 @@ function getFeatures(opts) {
  * @throws {Error} SETUP_ERROR from DPConfig when mandatory values are missing.
  */
 function getSettings() {
-  var cfg = DPConfig.getConfig();
+  const cfg = DPConfig.getConfig();
   return {
     timeZone: cfg.TimeZone,
     batchSize: cfg.BatchSize,
@@ -106,7 +106,7 @@ function getSettings() {
  * @returns {{locked:boolean, value:*}} locked false when another run holds the lock.
  */
 function withLock(waitMs, fn) {
-  var lock = LockService.getScriptLock();
+  const lock = LockService.getScriptLock();
   if (!lock.tryLock(waitMs)) return { locked: false, value: null };
   try {
     return { locked: true, value: fn() };
@@ -131,9 +131,9 @@ function ledgerStore() {
  * @returns {string} Shifted date (pure y/m/d arithmetic).
  */
 function addDays_(ymd, n) {
-  var p = ymd.split('-');
-  var d = new Date(Date.UTC(Number(p[0]), Number(p[1]) - 1, Number(p[2]) + n));
-  var pad = function(x) { return (x < 10 ? '0' : '') + x; };
+  const p = ymd.split('-');
+  const d = new Date(Date.UTC(Number(p[0]), Number(p[1]) - 1, Number(p[2]) + n));
+  const pad = function(x) { return (x < 10 ? '0' : '') + x; };
   return d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate());
 }
 
@@ -145,7 +145,7 @@ function docUrl_(docId) {
   return 'https://docs.google.com/document/d/' + docId + '/edit';
 }
 
-var ROUTE_ACTIONS_ = { TASK: 'CREATE_TASK', TASK_TODAY: 'CREATE_TASK', DECISION: 'CREATE_TASK', WAITING: 'CREATE_WAITING', MEETING: 'ROUTE_MEETING' };
+const ROUTE_ACTIONS_ = { TASK: 'CREATE_TASK', TASK_TODAY: 'CREATE_TASK', DECISION: 'CREATE_TASK', WAITING: 'CREATE_WAITING', MEETING: 'ROUTE_MEETING' };
 
 /**
  * Best-effort PENDING to ERROR so the failure is recorded (attempt counter, backoff or permanent
@@ -157,15 +157,15 @@ var ROUTE_ACTIONS_ = { TASK: 'CREATE_TASK', TASK_TODAY: 'CREATE_TASK', DECISION:
  */
 function markError_(opKey, err, spec) {
   try {
-    var E = DPEngines;
-    var store = ledgerStore();
-    var row = store.get(opKey);
+    const E = DPEngines;
+    const store = ledgerStore();
+    const row = store.get(opKey);
     if (row && row.Status === E.LEDGER_STATUS.PENDING) {
       store.put(E.failOp(row, new Date(), err));
     } else if (!row && spec && !spec.dryRun && spec.threadId && ROUTE_ACTIONS_[spec.kind]) {
-      var now = new Date();
+      const now = new Date();
       // A MEETING row always records its series so a later retry never has to guess it.
-      var meta = spec.kind === 'MEETING' && typeof spec.seriesKey === 'string' && spec.seriesKey ? { seriesKey: spec.seriesKey } : undefined;
+      const meta = spec.kind === 'MEETING' && typeof spec.seriesKey === 'string' && spec.seriesKey ? { seriesKey: spec.seriesKey } : undefined;
       store.put(E.failOp(E.beginOp({ opKey: opKey, sourceType: 'GMAIL', sourceId: spec.threadId, action: ROUTE_ACTIONS_[spec.kind], targetType: spec.kind === 'MEETING' ? 'DOC' : 'TASK', metadata: meta }, now), now, err));
     }
   } catch (secondary) {
@@ -180,10 +180,10 @@ function markError_(opKey, err, spec) {
  * @returns {{series:object,occurrenceId:(string|null),start:(string|null),deferred:boolean,backlog:boolean,reason:string}} Target.
  */
 function resolveMeetingTarget_(spec, now) {
-  var registry = spec.registry || DPConfig.getRegistry();
-  var series = registry.filter(function(r) { return r.SeriesKey === spec.seriesKey && r.Enabled !== false; })[0];
+  const registry = spec.registry || DPConfig.getRegistry();
+  const series = registry.filter(function(r) { return r.SeriesKey === spec.seriesKey && r.Enabled !== false; })[0];
   if (!series) {
-    var nf = new Error('Meeting series is not configured or not enabled');
+    const nf = new Error('Meeting series is not configured or not enabled');
     nf.code = 'SERIES_NOT_FOUND';
     nf.retryable = false;
     throw nf;
@@ -192,13 +192,13 @@ function resolveMeetingTarget_(spec, now) {
     return { series: series, occurrenceId: spec.occurrenceInfo.id, start: spec.occurrenceInfo.start, deferred: !!spec.occurrenceInfo.deferred, backlog: false, reason: spec.occurrenceInfo.reason || '' };
   }
   if (spec.occurrenceId) {
-    var evt = DPCalendarRepo.getOccurrence(series, spec.occurrenceId, registry);
+    const evt = DPCalendarRepo.getOccurrence(series, spec.occurrenceId, registry);
     return { series: series, occurrenceId: evt.id, start: evt.start, deferred: false, backlog: false, reason: 'explicit occurrence' };
   }
-  var occs = DPCalendarRepo.listOccurrences(series, registry, now);
-  var sel = DPEngines.selectOccurrence({ occurrences: occs, series: series, now: now, timeZone: spec.settings.timeZone, override: spec.override });
+  const occs = DPCalendarRepo.listOccurrences(series, registry, now);
+  const sel = DPEngines.selectOccurrence({ occurrences: occs, series: series, now: now, timeZone: spec.settings.timeZone, override: spec.override });
   if (sel.backlog) return { series: series, occurrenceId: null, start: null, deferred: false, backlog: true, reason: sel.reason };
-  var hit = occs.filter(function(o) { return o.id === sel.occurrenceId; })[0];
+  const hit = occs.filter(function(o) { return o.id === sel.occurrenceId; })[0];
   return { series: series, occurrenceId: sel.occurrenceId, start: hit ? hit.start : null, deferred: !!sel.deferred, backlog: false, reason: sel.reason };
 }
 
@@ -211,46 +211,46 @@ function resolveMeetingTarget_(spec, now) {
  * @returns {object} DPEngines.makeResult-shaped result.
  */
 function executeRoute(spec) {
-  var E = DPEngines;
-  var opKey = spec.opKey || null;
+  const E = DPEngines;
+  let opKey = spec.opKey || null;
   try {
-    var now = new Date();
-    var o = spec.options || {};
-    var thread = spec.thread || DPGmailRepo.getThreadMeta(spec.threadId, null);
-    var store = ledgerStore();
-    var op;
-    var target = null;
-    var nolock = { tryLock: function() { return true; }, releaseLock: function() {} };
-    var work;
-    var today = E.taskPlannerLocalDate(now, spec.settings.timeZone);
+    const now = new Date();
+    const o = spec.options || {};
+    const thread = spec.thread || DPGmailRepo.getThreadMeta(spec.threadId, null);
+    const store = ledgerStore();
+    let op;
+    let target = null;
+    const nolock = { tryLock: function() { return true; }, releaseLock: function() {} };
+    let work;
+    const today = E.taskPlannerLocalDate(now, spec.settings.timeZone);
 
     if (spec.kind === 'TASK' || spec.kind === 'TASK_TODAY') {
-      var isToday = spec.kind === 'TASK_TODAY';
+      const isToday = spec.kind === 'TASK_TODAY';
       opKey = opKey || E.gmailTaskKey(spec.threadId, isToday);
       op = { opKey: opKey, sourceType: 'GMAIL', sourceId: spec.threadId, sourceVersion: thread.lastMessageId, action: 'CREATE_TASK', targetType: 'TASK' };
       work = function() {
-        var out = DPTaskRepo.createFromThread({ thread: thread, today: isToday, priority: o.priority, opKey: opKey, now: now, timeZone: spec.settings.timeZone, listId: spec.settings.tasksListId });
+        const out = DPTaskRepo.createFromThread({ thread: thread, today: isToday, priority: o.priority, opKey: opKey, now: now, timeZone: spec.settings.timeZone, listId: spec.settings.tasksListId });
         return { targetId: out.task.id, targetType: 'TASK', metadata: { created: out.created, due: out.task.due || '' } };
       };
     } else if (spec.kind === 'DECISION') {
       opKey = opKey || E.gmailDecisionKey(spec.threadId);
       op = { opKey: opKey, sourceType: 'GMAIL', sourceId: spec.threadId, sourceVersion: thread.lastMessageId, action: 'CREATE_TASK', targetType: 'TASK' };
       work = function() {
-        var out = DPTaskRepo.createFromThread({ thread: thread, decision: true, priority: o.priority, opKey: opKey, now: now, timeZone: spec.settings.timeZone, listId: spec.settings.tasksListId });
+        const out = DPTaskRepo.createFromThread({ thread: thread, decision: true, priority: o.priority, opKey: opKey, now: now, timeZone: spec.settings.timeZone, listId: spec.settings.tasksListId });
         return { targetId: out.task.id, targetType: 'TASK', metadata: { created: out.created, due: '' } };
       };
     } else if (spec.kind === 'WAITING') {
       opKey = opKey || E.gmailWaitingKey(spec.threadId);
       op = { opKey: opKey, sourceType: 'GMAIL', sourceId: spec.threadId, sourceVersion: thread.lastMessageId, action: 'CREATE_WAITING', targetType: 'TASK' };
       work = function() {
-        var other = thread.messages.filter(function(m) { return !m.isFromUser; });
-        var waitingOn = o.waitingOn || (other.length ? other[other.length - 1].fromName : '') || 'Unspecified';
-        var out = DPTaskRepo.createWaiting({ thread: thread, waitingOn: waitingOn, nagDate: o.nagDate || addDays_(today, QUEUE_NAG_DAYS_), priority: o.priority, opKey: opKey, now: now, listId: spec.settings.tasksListId });
+        const other = thread.messages.filter(function(m) { return !m.isFromUser; });
+        const waitingOn = o.waitingOn || (other.length ? other[other.length - 1].fromName : '') || 'Unspecified';
+        const out = DPTaskRepo.createWaiting({ thread: thread, waitingOn: waitingOn, nagDate: o.nagDate || addDays_(today, QUEUE_NAG_DAYS_), priority: o.priority, opKey: opKey, now: now, listId: spec.settings.tasksListId });
         return { targetId: out.task.id, targetType: 'TASK', metadata: { created: out.created } };
       };
     } else if (spec.kind === 'MEETING') {
       target = resolveMeetingTarget_(spec, now);
-      var occKey = target.backlog ? 'BACKLOG-' + target.series.SeriesKey : target.occurrenceId;
+      const occKey = target.backlog ? 'BACKLOG-' + target.series.SeriesKey : target.occurrenceId;
       opKey = opKey || E.gmailMeetingKey(spec.threadId, occKey);
       op = { opKey: opKey, sourceType: 'GMAIL', sourceId: spec.threadId, sourceVersion: thread.lastMessageId, action: 'ROUTE_MEETING', targetType: target.backlog ? 'BACKLOG' : 'DOC',
         kind: 'MEETING', occurrenceId: target.occurrenceId || occKey, docId: target.series.HumanNotesDocId || 'new', metadata: { seriesKey: target.series.SeriesKey, start: target.start || '' } };
@@ -260,14 +260,14 @@ function executeRoute(spec) {
     }
 
     if (spec.dryRun) {
-      var dry = E.claimOperation({ store: store, lock: nolock, clock: function() { return now; }, op: op, dryRun: true });
-      var messages = dry.messages.slice();
+      const dry = E.claimOperation({ store: store, lock: nolock, clock: function() { return now; }, op: op, dryRun: true });
+      let messages = dry.messages.slice();
       if (target && target.deferred) messages.push(E.dryRunMessage('DEFER_CUTOFF'));
       if (target && target.backlog) messages = ['Would park in series backlog'];
       return E.makeResult({ ok: true, operationKey: opKey, status: 'DRY_RUN', sourceUrl: thread.url, message: messages.join('; ') || dry.reason, messages: messages, deferred: !!(target && target.deferred) });
     }
 
-    var r = E.runOperation({ store: store, lock: nolock, clock: function() { return new Date(); }, op: op, work: work });
+    const r = E.runOperation({ store: store, lock: nolock, clock: function() { return new Date(); }, op: op, work: work });
     return mapOutcome_(r, opKey, thread, target, spec.settings.timeZone);
   } catch (err) {
     if (opKey) markError_(opKey, err, spec);
@@ -285,16 +285,16 @@ function executeRoute(spec) {
  * @returns {{targetId:string,targetType:string,metadata:object}} Work result.
  */
 function carryIn_(spec, thread, target, now) {
-  var E = DPEngines;
-  var o = spec.options || {};
+  const E = DPEngines;
+  const o = spec.options || {};
   if (target.backlog) return { targetId: 'BACKLOG-' + target.series.SeriesKey, targetType: 'BACKLOG', metadata: { backlog: true, seriesKey: target.series.SeriesKey } };
-  var tz = spec.settings.timeZone;
-  var docId = DPNotesRepo.ensureNotesDoc(target.series.SeriesKey);
-  var model = DPNotesRepo.readDocModel(docId);
-  var occ = { occurrenceId: target.occurrenceId, date: E.taskPlannerLocalDate(new Date(Date.parse(target.start)), tz), displayName: target.series.DisplayName };
-  var other = thread.messages.filter(function(m) { return !m.isFromUser; });
-  var last = other.length ? other[other.length - 1] : thread.messages[thread.messages.length - 1];
-  var plan = E.planCarryIn(model, occ, {
+  const tz = spec.settings.timeZone;
+  const docId = DPNotesRepo.ensureNotesDoc(target.series.SeriesKey);
+  const model = DPNotesRepo.readDocModel(docId);
+  const occ = { occurrenceId: target.occurrenceId, date: E.taskPlannerLocalDate(new Date(Date.parse(target.start)), tz), displayName: target.series.DisplayName };
+  const other = thread.messages.filter(function(m) { return !m.isFromUser; });
+  const last = other.length ? other[other.length - 1] : thread.messages[thread.messages.length - 1];
+  const plan = E.planCarryIn(model, occ, {
     threadId: thread.threadId,
     subject: thread.subject,
     gmailUrl: thread.url,
@@ -318,10 +318,10 @@ function carryIn_(spec, thread, target, now) {
  * @returns {object} makeResult-shaped result.
  */
 function mapOutcome_(r, opKey, thread, target, tz) {
-  var E = DPEngines;
-  var base = { operationKey: opKey, sourceUrl: thread.url };
+  const E = DPEngines;
+  const base = { operationKey: opKey, sourceUrl: thread.url };
   if (r.action === 'SKIP_DONE') {
-    var row = r.row || {};
+    const row = r.row || {};
     return E.makeResult(Object.assign(base, { ok: true, status: 'SKIPPED', message: 'Already processed', targetUrl: targetUrlOf_(row.TargetType, row.TargetId) }));
   }
   if (r.action === 'WAIT_IN_FLIGHT') {
@@ -330,8 +330,8 @@ function mapOutcome_(r, opKey, thread, target, tz) {
   if (r.action === 'ERROR' || !r.ok) {
     return E.makeResult(Object.assign(base, { ok: false, status: 'ERROR', errorCode: r.errorCode || 'ERROR', message: r.reason || 'Operation failed', retryable: r.retryable !== false }));
   }
-  var done = r.row || {};
-  var message = target && !target.backlog
+  const done = r.row || {};
+  const message = target && !target.backlog
     ? 'Added to ' + target.series.DisplayName + ' on ' + E.taskPlannerLocalDate(new Date(Date.parse(target.start)), tz)
     : (done.TargetType === 'BACKLOG' ? 'Parked in series backlog' : 'Task created');
   return E.makeResult(Object.assign(base, { ok: true, status: 'DONE', message: message, targetUrl: targetUrlOf_(done.TargetType, done.TargetId), deferred: !!(target && target.deferred) }));
@@ -355,18 +355,18 @@ function targetUrlOf_(type, id) {
  * @returns {Array<object>} Items {opKey, threadId, kind, action, ...}.
  */
 function collectItems_(ctx) {
-  var E = DPEngines;
-  var W = E.WORKFLOW_LABEL;
-  var items = [];
-  var seen = {};
-  var todayThreads = {};
+  const E = DPEngines;
+  const W = E.WORKFLOW_LABEL;
+  const items = [];
+  const seen = {};
+  const todayThreads = {};
 
   function pagedThreadIds(label) {
-    var ids = [];
-    var pageToken = null;
-    var pages = 0;
+    let ids = [];
+    let pageToken = null;
+    let pages = 0;
     do {
-      var page = DPGmailRepo.listThreadsByLabel(label, { maxResults: QUEUE_PAGE_SIZE_, pageToken: pageToken });
+      const page = DPGmailRepo.listThreadsByLabel(label, { maxResults: QUEUE_PAGE_SIZE_, pageToken: pageToken });
       ids = ids.concat(page.threadIds);
       Object.keys(page.historyIds || {}).forEach(function(tid) { ctx.historyIds[tid] = page.historyIds[tid]; });
       pageToken = page.nextPageToken;
@@ -381,7 +381,7 @@ function collectItems_(ctx) {
   }
 
   // A thread labelled Decision is a pending decision; any Task/Task-Today label on it is not a second Task.
-  var decisionThreads = {};
+  const decisionThreads = {};
   pagedThreadIds(W.DECISION).forEach(function(tid) {
     decisionThreads[tid] = true;
     push({ opKey: E.gmailDecisionKey(tid), threadId: tid, kind: 'DECISION', action: 'CREATE_TASK' });
@@ -400,27 +400,27 @@ function collectItems_(ctx) {
   });
 
   if (ctx.features.NCMMS_CORE_PILOT === true) {
-    var coreIds = pagedThreadIds(W.MEETING_NCMMS_CORE).filter(function(tid) { return !ctx.meetingDoneThreads[tid]; });
+    const coreIds = pagedThreadIds(W.MEETING_NCMMS_CORE).filter(function(tid) { return !ctx.meetingDoneThreads[tid]; });
     if (coreIds.length) {
       try {
-        var now = new Date();
-        var series = ctx.registry.filter(function(r) { return r.SeriesKey === QUEUE_CORE_SERIES_ && r.Enabled !== false; })[0];
+        const now = new Date();
+        const series = ctx.registry.filter(function(r) { return r.SeriesKey === QUEUE_CORE_SERIES_ && r.Enabled !== false; })[0];
         if (!series) throw new Error('NCMMS_CORE is not enabled in the Meeting Registry');
-        var occs = DPCalendarRepo.listOccurrences(series, ctx.registry, now);
-        var sel = E.selectOccurrence({ occurrences: occs, series: series, now: now, timeZone: ctx.settings.timeZone });
-        var hit = occs.filter(function(x) { return x.id === sel.occurrenceId; })[0];
+        const occs = DPCalendarRepo.listOccurrences(series, ctx.registry, now);
+        const sel = E.selectOccurrence({ occurrences: occs, series: series, now: now, timeZone: ctx.settings.timeZone });
+        const hit = occs.filter(function(x) { return x.id === sel.occurrenceId; })[0];
         coreIds.forEach(function(tid) {
           // Carry-in idempotency must not depend on the freshly selected occurrence alone: a PENDING row
           // left by a crash after the Doc write is resumed on ITS occurrence even if the cutoff has since
           // rolled over to the next one (the Doc signature then makes it a no-op that just records DONE).
-          var active = E.findActiveMeetingRow(ctx.ledgerRows, { threadId: tid, seriesKey: QUEUE_CORE_SERIES_, now: now });
+          const active = E.findActiveMeetingRow(ctx.ledgerRows, { threadId: tid, seriesKey: QUEUE_CORE_SERIES_, now: now });
           if (active) {
-            var occId = active.OperationKey.split('|')[3];
+            const occId = active.OperationKey.split('|')[3];
             // findActiveMeetingRow never returns a row with corrupt metadata; if that invariant breaks,
             // this throws and the whole selection is recorded as SELECTION_FAILED (never resumed blind).
-            var meta = JSON.parse(active.MetadataJson || '{}');
-            var prior = occs.filter(function(x) { return x.id === occId; })[0];
-            var start = prior ? prior.start : (meta.start || null);
+            const meta = JSON.parse(active.MetadataJson || '{}');
+            const prior = occs.filter(function(x) { return x.id === occId; })[0];
+            const start = prior ? prior.start : (meta.start || null);
             if (start) {
               push({ opKey: active.OperationKey, threadId: tid, kind: 'MEETING', action: 'ROUTE_MEETING', seriesKey: QUEUE_CORE_SERIES_,
                 occurrenceInfo: { id: occId, start: start, deferred: false, reason: 'resumed earlier routing' } });
@@ -448,41 +448,41 @@ function collectItems_(ctx) {
  * @returns {object} makeResult-shaped summary.
  */
 function runLocked_(dry, features, opts) {
-  var E = DPEngines;
-  var startMs = Date.now();
-  var store = ledgerStore();
+  const E = DPEngines;
+  const startMs = Date.now();
+  const store = ledgerStore();
   try {
     // ONE Sheets read for the run: Config + Registry + Ledger in a single batchGet.
     DPLedgerRepo.beginSession(DPConfig.beginSnapshot([DPLedgerRepo.readRange()])[0]);
-    var settings = getSettings();
-    var registry = DPConfig.getRegistry();
+    const settings = getSettings();
+    const registry = DPConfig.getRegistry();
     DPTaskRepo.beginRun(settings.tasksListId);
-    var now0 = new Date();
-    var doneKeys = {};
-    var blockedKeys = {};
-    var meetingDoneThreads = {};
-    var ledgerRows = DPLedgerRepo.list({ sourceType: 'GMAIL' });
+    const now0 = new Date();
+    const doneKeys = {};
+    const blockedKeys = {};
+    const meetingDoneThreads = {};
+    const ledgerRows = DPLedgerRepo.list({ sourceType: 'GMAIL' });
     ledgerRows.forEach(function(r) {
       if (r.Status === E.LEDGER_STATUS.DONE) {
         doneKeys[r.OperationKey] = true;
-        var m = /^GMAIL\|([^|]+)\|MEETING\|/.exec(r.OperationKey);
+        const m = /^GMAIL\|([^|]+)\|MEETING\|/.exec(r.OperationKey);
         if (m) meetingDoneThreads[m[1]] = true;
       } else if (r.Status === E.LEDGER_STATUS.ERROR && !E.retryDecision(r, now0).retry) {
         blockedKeys[r.OperationKey] = true; // permanent, backing off, or out of attempts: manual retry only
       }
     });
-    var errors = [];
-    var historyIds = {};
-    var items = collectItems_({ features: features, settings: settings, registry: registry, doneKeys: doneKeys, blockedKeys: blockedKeys, ledgerRows: ledgerRows, meetingDoneThreads: meetingDoneThreads, errors: errors, historyIds: historyIds });
-    var fingerprint = null;
+    const errors = [];
+    const historyIds = {};
+    const items = collectItems_({ features: features, settings: settings, registry: registry, doneKeys: doneKeys, blockedKeys: blockedKeys, ledgerRows: ledgerRows, meetingDoneThreads: meetingDoneThreads, errors: errors, historyIds: historyIds });
+    let fingerprint = null;
     if (dry) {
       fingerprint = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,
         E.dryPassFingerprintSource({ items: items, historyIds: historyIds, features: features, settings: settings, registry: registry }), Utilities.Charset.UTF_8));
-      var skipped = reuseUnchangedDryPass_(!!(opts && opts.scheduled), fingerprint);
+      const skipped = reuseUnchangedDryPass_(!!(opts && opts.scheduled), fingerprint);
       if (skipped) return skipped;
     }
-    var metaByThread = {};
-    var plan = E.planBatch({
+    const metaByThread = {};
+    const plan = E.planBatch({
       items: items,
       cursor: 0,
       batchSize: settings.batchSize,
@@ -500,23 +500,23 @@ function runLocked_(dry, features, opts) {
         }
       }
     });
-    var counts = { candidates: items.length, processed: 0, skipped: 0, inFlight: 0, errors: 0, quarantined: plan.quarantined.length, deferred: 0, notStarted: 0, dryRun: dry };
-    var messages = [];
+    const counts = { candidates: items.length, processed: 0, skipped: 0, inFlight: 0, errors: 0, quarantined: plan.quarantined.length, deferred: 0, notStarted: 0, dryRun: dry };
+    const messages = [];
     if (!dry) {
       plan.quarantined.forEach(function(q) { if (q.ledgerRow) store.put(q.ledgerRow); });
     } else {
       plan.quarantined.forEach(function(q) { messages.push('Would quarantine: ' + q.errorMessage); });
     }
-    var collectErrors = errors.length; // selection failures; item failures are counted in the loop
-    var timeLimited = false;
-    for (var i = 0; i < plan.toProcess.length; i++) {
+    const collectErrors = errors.length; // selection failures; item failures are counted in the loop
+    let timeLimited = false;
+    for (let i = 0; i < plan.toProcess.length; i++) {
       if (Date.now() - startMs >= QUEUE_MAX_RUN_MS_) {
         timeLimited = true;
         counts.notStarted = plan.toProcess.length - i;
         break;
       }
-      var item = plan.toProcess[i];
-      var r = executeRoute({ kind: item.kind, threadId: item.threadId, thread: metaByThread[item.threadId], seriesKey: item.seriesKey, occurrenceInfo: item.occurrenceInfo,
+      const item = plan.toProcess[i];
+      const r = executeRoute({ kind: item.kind, threadId: item.threadId, thread: metaByThread[item.threadId], seriesKey: item.seriesKey, occurrenceInfo: item.occurrenceInfo,
         dryRun: dry, settings: settings, registry: registry, opKey: item.opKey });
       if (!r.ok) {
         counts.errors += 1;
@@ -531,20 +531,20 @@ function runLocked_(dry, features, opts) {
     counts.errors += collectErrors;
     counts.timeLimited = timeLimited;
     DPLedgerRepo.flush(); // queued completions; throws (fail loud) before the run reports success
-    var meter = DPConfig.sheetsMeter(); // since the reset at the top of runQueue
+    const meter = DPConfig.sheetsMeter(); // since the reset at the top of runQueue
     counts.sheetsReads = meter.reads;
     counts.sheetsWrites = meter.writes;
     // Outcome in words, not just ok: FAILED = nothing succeeded, PARTIAL = some items failed.
-    var succeeded = counts.processed + counts.skipped + counts.inFlight;
-    var status = dry ? 'DRY_RUN' : (counts.errors === 0 ? 'DONE' : (succeeded === 0 ? 'FAILED' : 'PARTIAL'));
-    var failedLead = counts.errors ? counts.errors + ' of ' + (succeeded + counts.errors) + ' items failed; ' : '';
+    const succeeded = counts.processed + counts.skipped + counts.inFlight;
+    const status = dry ? 'DRY_RUN' : (counts.errors === 0 ? 'DONE' : (succeeded === 0 ? 'FAILED' : 'PARTIAL'));
+    const failedLead = counts.errors ? counts.errors + ' of ' + (succeeded + counts.errors) + ' items failed; ' : '';
     // DRY_RUN never touches the live HUB_LAST_RUN record, only its own clearly named property.
-    var props = PropertiesService.getUserProperties();
-    var at = new Date().toISOString();
+    const props = PropertiesService.getUserProperties();
+    const at = new Date().toISOString();
     props.setProperty(dry ? QUEUE_LAST_RUN_DRY_PROP_ : QUEUE_LAST_RUN_PROP_, JSON.stringify({ at: at, status: status, counts: counts }));
     // A time-limited pass did not see every item, so it is no baseline for skipping the next tick.
     if (dry && !timeLimited) props.setProperty(QUEUE_DRY_FP_PROP_, JSON.stringify({ fp: fingerprint, at: at }));
-    var done = !timeLimited && items.length <= settings.batchSize;
+    const done = !timeLimited && items.length <= settings.batchSize;
     return E.makeResult({ ok: counts.errors === 0, status: status,
       message: failedLead + (dry ? 'Dry run: ' : '') + counts.processed + ' processed, ' + counts.skipped + ' skipped, ' + counts.errors + ' errors, ' + counts.quarantined + ' quarantined' +
         (timeLimited ? ', stopped at the ' + (QUEUE_MAX_RUN_MS_ / 60000) + ' minute time limit (' + counts.notStarted + ' not started; they resume next run)' : ''),
@@ -577,10 +577,10 @@ function readJsonProp_(name) {
  * @returns {object|null} makeResult-shaped DRY_RUN result, or null to run the full pass.
  */
 function reuseUnchangedDryPass_(scheduled, fingerprint) {
-  var last = readJsonProp_(QUEUE_DRY_FP_PROP_);
-  var prior = readJsonProp_(QUEUE_LAST_RUN_DRY_PROP_);
+  const last = readJsonProp_(QUEUE_DRY_FP_PROP_);
+  const prior = readJsonProp_(QUEUE_LAST_RUN_DRY_PROP_);
   if (!prior || !DPEngines.shouldSkipDryPass({ scheduled: scheduled, dry: true, fingerprint: fingerprint, last: last, nowMs: new Date().getTime() })) return null;
-  var at = new Date().toISOString();
+  const at = new Date().toISOString();
   PropertiesService.getUserProperties().setProperty(QUEUE_LAST_RUN_DRY_PROP_,
     JSON.stringify({ at: at, status: 'DRY_RUN', counts: prior.counts, unchangedSince: last.at }));
   return DPEngines.makeResult({ ok: true, status: 'DRY_RUN', message: 'Dry run: nothing changed since ' + last.at + '; Gmail not re-read',
@@ -594,16 +594,16 @@ function reuseUnchangedDryPass_(scheduled, fingerprint) {
  * @returns {object} makeResult-shaped result.
  */
 function runQueue(forceDry, opts) {
-  var missing = missingDependency_();
+  const missing = missingDependency_();
   if (missing) return typeof DPEngines === 'undefined' ? { ok: false, message: 'DPEngines is not loaded' } : setupResult_('Missing dependency ' + missing);
   try {
     DPConfig.resetSheetsMeter();
-    var features = getFeatures();
+    const features = getFeatures();
     if (features.GMAIL_ROUTER !== true) {
       return DPEngines.makeResult({ ok: true, status: 'NOOP', message: 'GMAIL_ROUTER flag is off' });
     }
-    var dry = !!forceDry || features.DRY_RUN === true;
-    var locked = withLock(QUEUE_LOCK_WAIT_MS_, function() { return runLocked_(dry, features, opts); });
+    const dry = !!forceDry || features.DRY_RUN === true;
+    const locked = withLock(QUEUE_LOCK_WAIT_MS_, function() { return runLocked_(dry, features, opts); });
     if (!locked.locked) return DPEngines.makeResult({ ok: true, status: 'LOCK_BUSY', message: 'Another run holds the lock; skipped' });
     return locked.value;
   } catch (err) {

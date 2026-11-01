@@ -14,20 +14,20 @@
  */
 (function(global) {
 
-var HUB_LOCK_WAIT_MS_ = 10000;
-var HUB_TRIAGE_LIMIT_DEFAULT_ = 40;
-var HUB_TRIAGE_LIMIT_MAX_ = 100;
-var HUB_EVENT_ID_RE_ = /^[A-Za-z0-9_.-]{1,128}$/;
-var HUB_SERIES_KEY_RE_ = /^[A-Z0-9_]{1,40}$/;
-var HUB_OPKEY_RE_ = /^[A-Za-z0-9_.~|-]{1,300}$/;
-var HUB_UPCOMING_COUNT_ = 5;
-var HUB_TRIAGE_LABELS_ = ['00_AR', 'FYI_Candidate', 'VIP'];
-var HUB_LAST_RUN_PROP_ = 'HUB_LAST_RUN';
-var HUB_LAST_RUN_DRY_PROP_ = 'HUB_LAST_RUN_DRY';
-var HUB_COUNT_ONLY_LIMIT_ = 20;
-var HUB_TRIGGER_HANDLER_ = 'hubDispatch';
+const HUB_LOCK_WAIT_MS_ = 10000;
+const HUB_TRIAGE_LIMIT_DEFAULT_ = 40;
+const HUB_TRIAGE_LIMIT_MAX_ = 100;
+const HUB_EVENT_ID_RE_ = /^[A-Za-z0-9_.-]{1,128}$/;
+const HUB_SERIES_KEY_RE_ = /^[A-Z0-9_]{1,40}$/;
+const HUB_OPKEY_RE_ = /^[A-Za-z0-9_.~|-]{1,300}$/;
+const HUB_UPCOMING_COUNT_ = 5;
+const HUB_TRIAGE_LABELS_ = ['00_AR', 'FYI_Candidate', 'VIP'];
+const HUB_LAST_RUN_PROP_ = 'HUB_LAST_RUN';
+const HUB_LAST_RUN_DRY_PROP_ = 'HUB_LAST_RUN_DRY';
+const HUB_COUNT_ONLY_LIMIT_ = 20;
+const HUB_TRIGGER_HANDLER_ = 'hubDispatch';
 // Stable client keys for the four triage queues (DPEngines.TRIAGE_QUEUE values are display names).
-var HUB_QUEUE_KEYS_ = { 'Direct Action': 'directAction', 'Meeting Carry-ins': 'meetingCarryIns', 'System Exceptions': 'systemExceptions', 'FYI/Reading': 'fyiReading' };
+const HUB_QUEUE_KEYS_ = { 'Direct Action': 'directAction', 'Meeting Carry-ins': 'meetingCarryIns', 'System Exceptions': 'systemExceptions', 'FYI/Reading': 'fyiReading' };
 
 /**
  * @param {string} code Error code.
@@ -51,9 +51,9 @@ function isQuotaError_(err) {
 }
 
 // Scored Triage rows in the user CacheService, keyed by thread id and valid while the Gmail historyId is unchanged.
-var HUB_ROW_CACHE_PREFIX_ = 'triageRow.v1:';
-var HUB_ROW_CACHE_TTL_S_ = 21600;
-var HUB_ROW_CACHE_FIELDS_ = ['url', 'subject', 'snippet', 'fromName', 'date', 'labels', 'score', 'band', 'signals', 'ticketKey', 'suggestions', 'requireConfirmation', 'humanReviewOnly'];
+const HUB_ROW_CACHE_PREFIX_ = 'triageRow.v1:';
+const HUB_ROW_CACHE_TTL_S_ = 21600;
+const HUB_ROW_CACHE_FIELDS_ = ['url', 'subject', 'snippet', 'fromName', 'date', 'labels', 'score', 'band', 'signals', 'ticketKey', 'suggestions', 'requireConfirmation', 'humanReviewOnly'];
 
 /**
  * Cached rows whose historyId still matches. A cache failure is logged and treated as a miss (Gmail is read).
@@ -62,14 +62,14 @@ var HUB_ROW_CACHE_FIELDS_ = ['url', 'subject', 'snippet', 'fromName', 'date', 'l
  * @returns {Object<string,object>} Display row per thread id.
  */
 function rowCacheRead_(ids, hist) {
-  var out = {};
-  var keys = ids.filter(function(id) { return hist[id]; }).map(function(id) { return HUB_ROW_CACHE_PREFIX_ + id; });
+  const out = {};
+  const keys = ids.filter(function(id) { return hist[id]; }).map(function(id) { return HUB_ROW_CACHE_PREFIX_ + id; });
   if (!keys.length) return out;
   try {
-    var got = CacheService.getUserCache().getAll(keys) || {};
+    const got = CacheService.getUserCache().getAll(keys) || {};
     Object.keys(got).forEach(function(k) {
-      var e = JSON.parse(got[k]);
-      var id = k.slice(HUB_ROW_CACHE_PREFIX_.length);
+      const e = JSON.parse(got[k]);
+      const id = k.slice(HUB_ROW_CACHE_PREFIX_.length);
       if (e && e.h === hist[id] && e.row) out[id] = e.row;
     });
   } catch (err) {
@@ -92,7 +92,7 @@ function rowCacheWrite_(entries) {
   }
 }
 
-var HUB_RATE_LIMITED_MSG_ = 'Gmail is limiting requests right now. Try again in a minute.';
+const HUB_RATE_LIMITED_MSG_ = 'Gmail is limiting requests right now. Try again in a minute.';
 
 /**
  * @param {*} err Thrown value.
@@ -115,10 +115,10 @@ function failFrom_(err) {
 function preflight_(needed, opts) {
   if (typeof DPEngines === 'undefined') return { failure: { ok: false, status: 'ERROR', errorCode: 'SETUP_ERROR', message: 'DPEngines is not loaded' }, features: null };
   if (typeof DPQueue === 'undefined') return { failure: fail_('SETUP_ERROR', 'QueueProcessor is not loaded'), features: null };
-  var missing = DPQueue.missingDependency();
+  const missing = DPQueue.missingDependency();
   if (missing) return { failure: DPQueue.setupResult('Missing dependency ' + missing), features: null };
-  var features = DPQueue.getFeatures(opts);
-  for (var i = 0; i < needed.length; i++) {
+  const features = DPQueue.getFeatures(opts);
+  for (let i = 0; i < needed.length; i++) {
     if (features[needed[i]] !== true) return { failure: fail_('FLAG_OFF', needed[i] + ' flag is off', true), features: features };
   }
   if (opts && typeof opts.expectDryRun === 'boolean' && opts.expectDryRun !== (features.DRY_RUN === true)) {
@@ -156,7 +156,7 @@ function badThread_(id) {
  * @returns {object} Action result, or a LOCK_BUSY result.
  */
 function locked_(fn) {
-  var out = DPQueue.withLock(HUB_LOCK_WAIT_MS_, fn);
+  const out = DPQueue.withLock(HUB_LOCK_WAIT_MS_, fn);
   if (!out.locked) return DPEngines.makeResult({ ok: false, status: 'LOCK_BUSY', errorCode: 'LOCK_BUSY', message: 'Another operation is running; try again shortly' });
   return out.value;
 }
@@ -171,14 +171,14 @@ function locked_(fn) {
  * @returns {object} Result.
  */
 function route_(kind, threadId, extra, flags, options) {
-  var pre = preflight_(flags, modeOpts_(options));
+  const pre = preflight_(flags, modeOpts_(options));
   if (pre.failure) return pre.failure;
-  var bad = badThread_(threadId);
+  const bad = badThread_(threadId);
   if (bad) return fail_('INVALID_THREAD_ID', bad);
   try {
-    var settings = DPQueue.getSettings();
+    const settings = DPQueue.getSettings();
     return locked_(function() {
-      var spec = { kind: kind, threadId: threadId, dryRun: pre.features.DRY_RUN === true, settings: settings };
+      const spec = { kind: kind, threadId: threadId, dryRun: pre.features.DRY_RUN === true, settings: settings };
       Object.keys(extra).forEach(function(k) { spec[k] = extra[k]; });
       return DPQueue.executeRoute(spec);
     });
@@ -202,9 +202,9 @@ function opts_(options) {
  * @returns {object} makeResult-shaped result.
  */
 function routeThreadToTask(threadId, options) {
-  var o = opts_(options);
-  var extra = { options: { priority: o.priority } };
-  var badId = badThread_(threadId);
+  const o = opts_(options);
+  const extra = { options: { priority: o.priority } };
+  const badId = badThread_(threadId);
   if (badId) return fail_('INVALID_THREAD_ID', badId);
   if (o.again === true) extra.opKey = DPEngines.gmailTaskKey(String(threadId) + '~' + new Date().getTime().toString(36), o.today === true);
   return route_(o.today === true ? 'TASK_TODAY' : 'TASK', threadId, extra, ['GMAIL_ROUTER'], o);
@@ -217,7 +217,7 @@ function routeThreadToTask(threadId, options) {
  * @returns {object} makeResult-shaped result.
  */
 function routeThreadToWaiting(threadId, options) {
-  var o = opts_(options);
+  const o = opts_(options);
   if (o.nagDate !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(String(o.nagDate))) return fail_('INVALID_INPUT', 'nagDate must be YYYY-MM-DD');
   return route_('WAITING', threadId, { options: { waitingOn: o.waitingOn ? String(o.waitingOn).slice(0, 120) : undefined, nagDate: o.nagDate, priority: o.priority } }, ['GMAIL_ROUTER'], o);
 }
@@ -230,8 +230,8 @@ function routeThreadToWaiting(threadId, options) {
  * @returns {object} makeResult-shaped result.
  */
 function routeThreadToMeeting(threadId, occurrenceId, options) {
-  var o = opts_(options);
-  var extra = { options: { framing: o.framing ? String(o.framing).slice(0, 300) : undefined, kind: o.kind ? String(o.kind).slice(0, 60) : undefined } };
+  const o = opts_(options);
+  const extra = { options: { framing: o.framing ? String(o.framing).slice(0, 300) : undefined, kind: o.kind ? String(o.kind).slice(0, 60) : undefined } };
   if (o.backlog === true) {
     if (typeof occurrenceId !== 'string' || !HUB_SERIES_KEY_RE_.test(occurrenceId)) return fail_('INVALID_INPUT', 'A series key is required for backlog routing');
     extra.seriesKey = occurrenceId;
@@ -258,20 +258,20 @@ function routeThreadToMeeting(threadId, occurrenceId, options) {
  * @returns {object} makeResult-shaped result.
  */
 function dismissTriageItem(threadId, options) {
-  var pre = preflight_(['GMAIL_ROUTER'], modeOpts_(options));
+  const pre = preflight_(['GMAIL_ROUTER'], modeOpts_(options));
   if (pre.failure) return pre.failure;
-  var bad = badThread_(threadId);
+  const bad = badThread_(threadId);
   if (bad) return fail_('INVALID_THREAD_ID', bad);
   try {
-    var E = DPEngines;
-    var opKey = 'GMAIL|' + threadId + '|DISMISS';
+    const E = DPEngines;
+    const opKey = 'GMAIL|' + threadId + '|DISMISS';
     if (!DPGmailRepo.threadExists(threadId)) return fail_('THREAD_NOT_FOUND', 'Gmail thread not found');
     return locked_(function() {
-      var existing = DPLedgerRepo.get(opKey);
+      const existing = DPLedgerRepo.get(opKey);
       if (existing && existing.Status === E.LEDGER_STATUS.DONE) return E.makeResult({ ok: true, operationKey: opKey, status: 'SKIPPED', message: 'Already dismissed' });
       if (pre.features.DRY_RUN === true) return E.makeResult({ ok: true, operationKey: opKey, status: 'DRY_RUN', message: 'Would dismiss from triage' });
-      var now = new Date();
-      var row = E.beginOp({ opKey: opKey, sourceType: 'GMAIL', sourceId: threadId, action: 'DISMISS', targetType: 'PLANNER' }, now);
+      const now = new Date();
+      const row = E.beginOp({ opKey: opKey, sourceType: 'GMAIL', sourceId: threadId, action: 'DISMISS', targetType: 'PLANNER' }, now);
       DPLedgerRepo.upsert(E.completeOp(row, now, {}));
       return E.makeResult({ ok: true, operationKey: opKey, status: 'DONE', message: 'Dismissed from triage', sourceUrl: DPGmailRepo.gmailUrl(threadId) });
     });
@@ -290,13 +290,13 @@ function dismissTriageItem(threadId, options) {
  * @returns {object} makeResult-shaped result.
  */
 function gmailTriageWrite_(threadId, act, options) {
-  var pre = preflight_(['GMAIL_ROUTER'], modeOpts_(options));
+  const pre = preflight_(['GMAIL_ROUTER'], modeOpts_(options));
   if (pre.failure) return pre.failure;
-  var bad = badThread_(threadId);
+  const bad = badThread_(threadId);
   if (bad) return fail_('INVALID_THREAD_ID', bad);
   try {
-    var E = DPEngines;
-    var opKey = 'GMAIL|' + threadId + '|DISMISS';
+    const E = DPEngines;
+    const opKey = 'GMAIL|' + threadId + '|DISMISS';
     if (pre.features.DRY_RUN === true) {
       if (!DPGmailRepo.threadExists(threadId)) return fail_('THREAD_NOT_FOUND', 'Gmail thread not found');
       return E.makeResult({ ok: true, operationKey: opKey, status: 'DRY_RUN', message: act.would });
@@ -312,10 +312,10 @@ function gmailTriageWrite_(threadId, act, options) {
         }
         throw writeErr;
       }
-      var existing = DPLedgerRepo.get(opKey);
+      const existing = DPLedgerRepo.get(opKey);
       if (!existing || existing.Status !== E.LEDGER_STATUS.DONE) {
-        var now = new Date();
-        var row = E.beginOp({ opKey: opKey, sourceType: 'GMAIL', sourceId: threadId, action: 'DISMISS', targetType: 'PLANNER' }, now);
+        const now = new Date();
+        const row = E.beginOp({ opKey: opKey, sourceType: 'GMAIL', sourceId: threadId, action: 'DISMISS', targetType: 'PLANNER' }, now);
         DPLedgerRepo.upsert(E.completeOp(row, now, {}));
       }
       return E.makeResult({ ok: true, operationKey: opKey, status: 'DONE', message: act.done, sourceUrl: DPGmailRepo.gmailUrl(threadId) });
@@ -352,26 +352,26 @@ function trashTriageThread(threadId, options) {
  * @returns {object} makeResult-shaped result.
  */
 function retryFailedOperation(operationKey, options) {
-  var pre = preflight_(['GMAIL_ROUTER'], modeOpts_(options));
+  const pre = preflight_(['GMAIL_ROUTER'], modeOpts_(options));
   if (pre.failure) return pre.failure;
   if (typeof operationKey !== 'string' || !HUB_OPKEY_RE_.test(operationKey)) return fail_('INVALID_INPUT', 'Invalid operation key');
-  var parts = operationKey.split('|');
-  var kinds = { TASK: 'TASK', TASK_TODAY: 'TASK_TODAY', DECISION: 'DECISION', WAITING: 'WAITING', MEETING: 'MEETING' };
+  const parts = operationKey.split('|');
+  const kinds = { TASK: 'TASK', TASK_TODAY: 'TASK_TODAY', DECISION: 'DECISION', WAITING: 'WAITING', MEETING: 'MEETING' };
   if (parts[0] !== 'GMAIL' || !parts[1] || !kinds[parts[2]]) return fail_('INVALID_INPUT', 'Operation is not retryable');
-  var threadId = parts[1].split('~')[0];
-  var bad = badThread_(threadId);
+  const threadId = parts[1].split('~')[0];
+  const bad = badThread_(threadId);
   if (bad) return fail_('INVALID_THREAD_ID', bad);
   try {
-    var settings = DPQueue.getSettings();
+    const settings = DPQueue.getSettings();
     return locked_(function() {
-      var row = DPLedgerRepo.get(operationKey);
+      const row = DPLedgerRepo.get(operationKey);
       if (!row) return fail_('NOT_FOUND', 'No ledger row for that operation');
       if (row.Status !== DPEngines.LEDGER_STATUS.ERROR) return fail_('NOT_RETRYABLE', 'Operation is not in ERROR status');
-      var spec = { kind: kinds[parts[2]], threadId: threadId, opKey: operationKey, dryRun: pre.features.DRY_RUN === true, settings: settings, options: {} };
+      const spec = { kind: kinds[parts[2]], threadId: threadId, opKey: operationKey, dryRun: pre.features.DRY_RUN === true, settings: settings, options: {} };
       if (parts[2] === 'MEETING') {
         // Never guess the destination series: it must be recorded in the row (metadata seriesKey
         // or a BACKLOG-<series> op key). Otherwise fail and leave the ERROR row exactly as is.
-        var series = DPEngines.meetingRowSeries(row);
+        const series = DPEngines.meetingRowSeries(row);
         if (series.reason === 'CORRUPT_METADATA') {
           DPQueue.logSafe('HubController: corrupt MetadataJson on a MEETING retry, refusing to guess the series (retry failed, nothing written)', new Error('corrupt MetadataJson'));
           return fail_('CORRUPT_METADATA', 'Cannot retry: this operation\'s saved routing metadata is corrupt. Route the thread again from the triage board.', true);
@@ -406,12 +406,12 @@ function retryFailedOperation(operationKey, options) {
  * @returns {Array<object>} Up to a few upcoming occurrences with cutoffs.
  */
 function describeUpcoming_(series, occs, now, tz) {
-  var E = DPEngines;
+  const E = DPEngines;
   return occs.filter(function(o) { return Date.parse(o.end || o.start) > now.getTime(); })
     .sort(function(a, b) { return Date.parse(a.start) - Date.parse(b.start); })
     .slice(0, HUB_UPCOMING_COUNT_)
     .map(function(o) {
-      var sel = E.selectOccurrence({ occurrences: occs, series: series, now: now, timeZone: tz, override: { mode: 'specific', occurrenceId: o.id } });
+      const sel = E.selectOccurrence({ occurrences: occs, series: series, now: now, timeZone: tz, override: { mode: 'specific', occurrenceId: o.id } });
       return { occurrenceId: o.id, start: o.start, end: o.end, cutoffISO: sel.cutoffISO, date: E.taskPlannerLocalDate(new Date(Date.parse(o.start)), tz), summary: o.summary };
     });
 }
@@ -422,22 +422,22 @@ function describeUpcoming_(series, occs, now, tz) {
  * @returns {object} makeResult-shaped result with data in choices.
  */
 function getUpcomingMeetingChoices(threadId) {
-  var pre = preflight_(['GMAIL_ROUTER']);
+  const pre = preflight_(['GMAIL_ROUTER']);
   if (pre.failure) return pre.failure;
-  var bad = badThread_(threadId);
+  const bad = badThread_(threadId);
   if (bad) return fail_('INVALID_THREAD_ID', bad);
   try {
-    var E = DPEngines;
-    var settings = DPQueue.getSettings();
-    var thread = DPGmailRepo.getThreadMeta(threadId, null);
-    var routing = E.suggestDestinations(thread.labels);
-    var registry = DPConfig.getRegistry();
-    var now = new Date();
-    var choices = routing.suggestions.map(function(s) {
-      var series = registry.filter(function(r) { return r.SeriesKey === s.seriesKey && r.Enabled !== false; })[0];
+    const E = DPEngines;
+    const settings = DPQueue.getSettings();
+    const thread = DPGmailRepo.getThreadMeta(threadId, null);
+    const routing = E.suggestDestinations(thread.labels);
+    const registry = DPConfig.getRegistry();
+    const now = new Date();
+    const choices = routing.suggestions.map(function(s) {
+      const series = registry.filter(function(r) { return r.SeriesKey === s.seriesKey && r.Enabled !== false; })[0];
       if (!series) return { seriesKey: s.seriesKey, reason: s.reason, unavailable: true };
-      var occs = DPCalendarRepo.listOccurrences(series, registry, now);
-      var entry = { seriesKey: s.seriesKey, displayName: series.DisplayName, reason: s.reason, upcoming: describeUpcoming_(series, occs, now, settings.timeZone), recommended: null };
+      const occs = DPCalendarRepo.listOccurrences(series, registry, now);
+      const entry = { seriesKey: s.seriesKey, displayName: series.DisplayName, reason: s.reason, upcoming: describeUpcoming_(series, occs, now, settings.timeZone), recommended: null };
       try {
         entry.recommended = E.selectOccurrence({ occurrences: occs, series: series, now: now, timeZone: settings.timeZone });
       } catch (selErr) {
@@ -460,24 +460,24 @@ function getUpcomingMeetingChoices(threadId) {
  * @returns {object} makeResult-shaped result.
  */
 function getMeetingPrep(seriesKey, occurrenceId) {
-  var pre = preflight_(['GMAIL_ROUTER', 'NCMMS_CORE_PILOT']);
+  const pre = preflight_(['GMAIL_ROUTER', 'NCMMS_CORE_PILOT']);
   if (pre.failure) return pre.failure;
   if (typeof seriesKey !== 'string' || !HUB_SERIES_KEY_RE_.test(seriesKey)) return fail_('INVALID_INPUT', 'Invalid series key');
   if (occurrenceId !== null && occurrenceId !== undefined && (typeof occurrenceId !== 'string' || !HUB_EVENT_ID_RE_.test(occurrenceId))) return fail_('INVALID_INPUT', 'Invalid occurrence id');
   try {
-    var E = DPEngines;
-    var settings = DPQueue.getSettings();
-    var registry = DPConfig.getRegistry();
-    var series = registry.filter(function(r) { return r.SeriesKey === seriesKey && r.Enabled !== false; })[0];
+    const E = DPEngines;
+    const settings = DPQueue.getSettings();
+    const registry = DPConfig.getRegistry();
+    const series = registry.filter(function(r) { return r.SeriesKey === seriesKey && r.Enabled !== false; })[0];
     if (!series) return fail_('SERIES_NOT_FOUND', 'Meeting series is not configured or not enabled');
-    var now = new Date();
-    var occs = DPCalendarRepo.listOccurrences(series, registry, now);
-    var sel = E.selectOccurrence({ occurrences: occs, series: series, now: now, timeZone: settings.timeZone,
+    const now = new Date();
+    const occs = DPCalendarRepo.listOccurrences(series, registry, now);
+    const sel = E.selectOccurrence({ occurrences: occs, series: series, now: now, timeZone: settings.timeZone,
       override: occurrenceId ? { mode: 'specific', occurrenceId: occurrenceId } : undefined });
-    var hit = occs.filter(function(o) { return o.id === sel.occurrenceId; })[0];
-    var date = E.taskPlannerLocalDate(new Date(Date.parse(hit.start)), settings.timeZone);
-    var count = null;
-    var warning = null;
+    const hit = occs.filter(function(o) { return o.id === sel.occurrenceId; })[0];
+    const date = E.taskPlannerLocalDate(new Date(Date.parse(hit.start)), settings.timeZone);
+    let count = null;
+    let warning = null;
     if (series.HumanNotesDocId) {
       try {
         count = DPNotesRepo.carryInCount(series.HumanNotesDocId, { date: date, displayName: series.DisplayName });
@@ -504,34 +504,34 @@ function getMeetingPrep(seriesKey, occurrenceId) {
  * @returns {object} makeResult-shaped result with queues.
  */
 function getTriageBoard(filters) {
-  var pre = preflight_(['GMAIL_ROUTER', 'TRIAGE_BOARD']);
+  const pre = preflight_(['GMAIL_ROUTER', 'TRIAGE_BOARD']);
   if (pre.failure) return pre.failure;
-  var f = opts_(filters);
+  const f = opts_(filters);
   // countOnly (TRIAGE_REFRESH job): metadata-format reads and a smaller cap, since only queue sizes are wanted.
-  var countOnly = f.countOnly === true;
-  var limit = Math.min(Math.max(parseInt(f.limit, 10) || HUB_TRIAGE_LIMIT_DEFAULT_, 1), countOnly ? HUB_COUNT_ONLY_LIMIT_ : HUB_TRIAGE_LIMIT_MAX_);
+  const countOnly = f.countOnly === true;
+  const limit = Math.min(Math.max(parseInt(f.limit, 10) || HUB_TRIAGE_LIMIT_DEFAULT_, 1), countOnly ? HUB_COUNT_ONLY_LIMIT_ : HUB_TRIAGE_LIMIT_MAX_);
   // Triage shows Inbox mail only (user 2026-10-12: "ONLY SEE ITEMS IN INBOX"); archived means handled.
-  var labels = HUB_TRIAGE_LABELS_.concat([DPEngines.WORKFLOW_LABEL.REVIEW, DPEngines.WORKFLOW_LABEL.MEETING, DPEngines.WORKFLOW_LABEL.READ]);
+  let labels = HUB_TRIAGE_LABELS_.concat([DPEngines.WORKFLOW_LABEL.REVIEW, DPEngines.WORKFLOW_LABEL.MEETING, DPEngines.WORKFLOW_LABEL.READ]);
   if (Array.isArray(f.labels) && f.labels.length && f.labels.length <= 10 && f.labels.every(function(l) { return typeof l === 'string' && l.length <= 100; })) labels = f.labels;
   try {
-    var E = DPEngines;
-    var ledgerByThread = {};
-    var dismissed = {};
+    const E = DPEngines;
+    const ledgerByThread = {};
+    const dismissed = {};
     DPLedgerRepo.list({ sourceType: 'GMAIL' }).forEach(function(r) {
       if (/\|DISMISS$/.test(r.OperationKey)) { if (r.Status === E.LEDGER_STATUS.DONE) dismissed[r.SourceId] = true; return; }
-      var cur = ledgerByThread[r.SourceId];
+      const cur = ledgerByThread[r.SourceId];
       if (!cur || (r.Status === E.LEDGER_STATUS.ERROR && cur.Status !== E.LEDGER_STATUS.ERROR) || (cur.Status !== E.LEDGER_STATUS.ERROR && String(r.UpdatedAt) > String(cur.UpdatedAt))) ledgerByThread[r.SourceId] = r;
     });
-    var ids = [];
-    var hist = {};
-    var seen = {};
-    var add = function(id) { if (!seen[id] && ids.length < limit) { seen[id] = true; ids.push(id); } };
+    let ids = [];
+    const hist = {};
+    const seen = {};
+    const add = function(id) { if (!seen[id] && ids.length < limit) { seen[id] = true; ids.push(id); } };
     // Failed ops first: a 🎯/Task thread carries no triage label, so without this its ERROR has no Retry anywhere.
     Object.keys(ledgerByThread).forEach(function(id) { if (ledgerByThread[id].Status === E.LEDGER_STATUS.ERROR) add(id); });
-    var rateLimited = false;
-    for (var li = 0; li < labels.length && !rateLimited; li++) {
+    let rateLimited = false;
+    for (let li = 0; li < labels.length && !rateLimited; li++) {
       try {
-        var page = DPGmailRepo.listThreadsByLabel(labels[li], { maxResults: limit, inboxOnly: true });
+        const page = DPGmailRepo.listThreadsByLabel(labels[li], { maxResults: limit, inboxOnly: true });
         page.threadIds.forEach(add);
         Object.keys(page.historyIds || {}).forEach(function(id) { hist[id] = page.historyIds[id]; });
       } catch (listErr) {
@@ -541,34 +541,34 @@ function getTriageBoard(filters) {
       }
     }
     if (rateLimited) ids = [];
-    var cachedRows = rowCacheRead_(ids, hist);
-    var cacheWrites = {};
-    var queues = {};
+    const cachedRows = rowCacheRead_(ids, hist);
+    const cacheWrites = {};
+    const queues = {};
     Object.keys(E.TRIAGE_QUEUE).forEach(function(k) { queues[HUB_QUEUE_KEYS_[E.TRIAGE_QUEUE[k]]] = []; });
-    var errors = 0;
-    var itemErrors = [];
+    let errors = 0;
+    const itemErrors = [];
     ids.some(function(id) {
       if (dismissed[id] && f.includeDismissed !== true) return false;
-      var led = ledgerByThread[id] || null;
-      var ledgerFields = { operationKey: led ? led.OperationKey : null, ledgerStatus: led ? led.Status : null, errorMessage: led && led.Status === E.LEDGER_STATUS.ERROR ? led.ErrorMessage : null };
-      var hit = cachedRows[id];
+      const led = ledgerByThread[id] || null;
+      const ledgerFields = { operationKey: led ? led.OperationKey : null, ledgerStatus: led ? led.Status : null, errorMessage: led && led.Status === E.LEDGER_STATUS.ERROR ? led.ErrorMessage : null };
+      const hit = cachedRows[id];
       // Failed-op threads are added by id, not by an Inbox listing: they too show only while in the Inbox.
       if (hit && hit.labels.indexOf('INBOX') === -1) return false;
       if (hit) {
-        var q = E.queueFor({ labels: hit.labels, ledgerStatus: ledgerFields.ledgerStatus }, { band: hit.band });
+        const q = E.queueFor({ labels: hit.labels, ledgerStatus: ledgerFields.ledgerStatus }, { band: hit.band });
         queues[HUB_QUEUE_KEYS_[q]].push(Object.assign({ threadId: id }, hit, { queue: q }, ledgerFields));
         return false;
       }
       try {
-        var t = DPGmailRepo.getThreadMeta(id, { withBody: !countOnly, withSnippet: !countOnly });
+        const t = DPGmailRepo.getThreadMeta(id, { withBody: !countOnly, withSnippet: !countOnly });
         if (t.labels.indexOf('INBOX') === -1) return false;
-        var scored = E.scoreThread({ labels: t.labels, userEmail: t.userEmail, messages: t.messages.map(function(m) {
+        const scored = E.scoreThread({ labels: t.labels, userEmail: t.userEmail, messages: t.messages.map(function(m) {
           return { from: m.from, to: m.to, cc: m.cc, date: m.date, bodyText: m.bodyText, isFromUser: m.isFromUser };
         }) });
-        var queue = E.queueFor({ labels: t.labels, ledgerStatus: ledgerFields.ledgerStatus }, scored);
-        var last = t.messages[t.messages.length - 1];
-        var routing = E.suggestDestinations(t.labels);
-        var row = {
+        const queue = E.queueFor({ labels: t.labels, ledgerStatus: ledgerFields.ledgerStatus }, scored);
+        const last = t.messages[t.messages.length - 1];
+        const routing = E.suggestDestinations(t.labels);
+        const row = {
           url: t.url, subject: t.subject, snippet: t.lastSnippet, fromName: last ? last.fromName : '', date: last ? last.date : '', labels: t.labels,
           score: scored.score, band: scored.band, signals: scored.signals.map(function(s) { return s.id; }),
           ticketKey: E.extractExternalTicketKey(t.subject, last ? last.from : '', null),
@@ -577,7 +577,7 @@ function getTriageBoard(filters) {
         queues[HUB_QUEUE_KEYS_[queue]].push(Object.assign({ threadId: id }, row, { queue: queue }, ledgerFields));
         // countOnly rows are scored without bodies, so only full reads are cached.
         if (!countOnly && hist[id]) {
-          var keep = {};
+          const keep = {};
           HUB_ROW_CACHE_FIELDS_.forEach(function(k) { keep[k] = row[k]; });
           cacheWrites[HUB_ROW_CACHE_PREFIX_ + id] = JSON.stringify({ h: hist[id], row: keep });
         }
@@ -595,7 +595,7 @@ function getTriageBoard(filters) {
     });
     rowCacheWrite_(cacheWrites);
     Object.keys(queues).forEach(function(q) { queues[q].sort(function(a, b) { return b.score - a.score; }); });
-    var total = Object.keys(queues).reduce(function(n, q) { return n + queues[q].length; }, 0);
+    const total = Object.keys(queues).reduce(function(n, q) { return n + queues[q].length; }, 0);
     if (rateLimited) {
       return E.makeResult({ ok: false, status: 'ERROR', errorCode: 'RATE_LIMITED', retryable: true, message: HUB_RATE_LIMITED_MSG_, queues: queues, errors: errors, itemErrors: itemErrors, dryRun: pre.features.DRY_RUN === true });
     }
@@ -611,12 +611,12 @@ function getTriageBoard(filters) {
  * @returns {object} makeResult-shaped result.
  */
 function discoverMeetingSeries() {
-  var pre = preflight_([]);
+  const pre = preflight_([]);
   if (pre.failure) return pre.failure;
   try {
-    var dry = pre.features.DRY_RUN === true;
-    var out = DPCalendarRepo.discoverSeries(DPConfig.getRegistry(), new Date(), { persist: !dry });
-    var message = out.discovered.length + ' series matched' + (dry ? ' (dry run, not saved)' : (out.persisted ? ', recurring ids saved' : '')) + (out.persistGap ? '; ' + out.persistGap : '');
+    const dry = pre.features.DRY_RUN === true;
+    const out = DPCalendarRepo.discoverSeries(DPConfig.getRegistry(), new Date(), { persist: !dry });
+    const message = out.discovered.length + ' series matched' + (dry ? ' (dry run, not saved)' : (out.persisted ? ', recurring ids saved' : '')) + (out.persistGap ? '; ' + out.persistGap : '');
     return DPEngines.makeResult({ ok: true, status: dry ? 'DRY_RUN' : 'OK', message: message, discovered: out.discovered, stale: out.stale, persisted: out.persisted });
   } catch (err) {
     return failFrom_(err);
@@ -631,11 +631,11 @@ function getHubStatus() {
   // Runs on app load. User decision 2026-10-12: IF the hub Sheet is not present THEN create and configure it
   // (provisionHub_), and finish one whose TimeZone/UserEmail seed came out blank (needsRepair: one Config read).
   // Before the Day Planner folder is bound it does nothing.
-  var approval = approvalNeeded_(hubCoreScopes());
+  const approval = approvalNeeded_(hubCoreScopes());
   if (approval) {
     return DPEngines.makeResult({ ok: false, status: 'AUTH_REQUIRED', message: 'Day Planner needs your approval for new Google permissions', authUrl: approval.url, missingScopes: approval.missing });
   }
-  var pre;
+  let pre;
   try {
     if (DPConfig.isFolderBound() && (!DPConfig.isProvisioned() || DPConfig.needsRepair())) provisionHub_();
     pre = preflight_([], { fresh: true });
@@ -644,7 +644,7 @@ function getHubStatus() {
     // The stored Sheet may have been deleted: re-create it rather than failing on every load.
     DPQueue.logSafe('HubController: hub Sheet read failed with not-found, checking whether it was deleted', err);
     try {
-      var gone = DPConfig.getSheetLink().missing;
+      const gone = DPConfig.getSheetLink().missing;
       if (gone !== 'deleted' && gone !== 'trashed') return failFrom_(err);
       provisionHub_();
       pre = preflight_([], { fresh: true });
@@ -654,18 +654,18 @@ function getHubStatus() {
   }
   if (pre.failure) return pre.failure;
   try {
-    var counts = {};
-    var anyOn = Object.keys(pre.features).some(function(k) { return k !== 'DRY_RUN' && pre.features[k] === true; });
+    const counts = {};
+    const anyOn = Object.keys(pre.features).some(function(k) { return k !== 'DRY_RUN' && pre.features[k] === true; });
     if (anyOn && DPConfig.isProvisioned()) {
       DPLedgerRepo.list({ sourceType: 'GMAIL' }).forEach(function(r) { counts[r.Status] = (counts[r.Status] || 0) + 1; });
     }
-    var props = PropertiesService.getUserProperties();
-    var lastRun = null;
-    var lastDry = null;
+    const props = PropertiesService.getUserProperties();
+    let lastRun = null;
+    let lastDry = null;
     try { lastRun = JSON.parse(props.getProperty(HUB_LAST_RUN_PROP_) || 'null'); } catch (e) { DPQueue.logSafe('HubController: corrupt last-run property, reporting no last run', e); lastRun = null; }
     try { lastDry = JSON.parse(props.getProperty(HUB_LAST_RUN_DRY_PROP_) || 'null'); } catch (e) { DPQueue.logSafe('HubController: corrupt last-dry-run property, reporting no last dry run', e); lastDry = null; }
     if (lastDry && (!lastRun || String(lastDry.at) > String(lastRun.at))) lastRun = lastDry;
-    var triggers = ScriptApp.getProjectTriggers().filter(function(t) { return t.getHandlerFunction() === HUB_TRIGGER_HANDLER_; }).length;
+    const triggers = ScriptApp.getProjectTriggers().filter(function(t) { return t.getHandlerFunction() === HUB_TRIGGER_HANDLER_; }).length;
     return DPEngines.makeResult({ ok: true, status: 'OK', message: 'Hub status', flags: pre.features, dryRun: pre.features.DRY_RUN === true, lastRun: lastRun, counts: counts, triggers: triggers });
   } catch (err) {
     return failFrom_(err);
@@ -677,11 +677,11 @@ function getHubStatus() {
  * @returns {object} {ok, provisioned, url, message} or a failed result.
  */
 function getHubSheetLink() {
-  var pre = preflight_([]);
+  const pre = preflight_([]);
   if (pre.failure) return pre.failure;
   try {
-    var link = DPConfig.getSheetLink();
-    var msg = link.provisioned ? 'Hub Sheet found' : (link.missing === 'never' ? 'Hub Sheet is not set up yet' : 'Hub Sheet was ' + link.missing);
+    const link = DPConfig.getSheetLink();
+    const msg = link.provisioned ? 'Hub Sheet found' : (link.missing === 'never' ? 'Hub Sheet is not set up yet' : 'Hub Sheet was ' + link.missing);
     return DPEngines.makeResult({ ok: true, status: 'OK', message: msg, provisioned: link.provisioned, url: link.url, missing: link.missing, searchUrl: DPConfig.getSheetSearchUrl() });
   } catch (err) {
     return failFrom_(err);
@@ -704,11 +704,11 @@ function getHubSheetLink() {
  */
 function approvalNeeded_(scopes) {
   try {
-    var info = ScriptApp.getAuthorizationInfo(ScriptApp.AuthMode.FULL, scopes);
+    const info = ScriptApp.getAuthorizationInfo(ScriptApp.AuthMode.FULL, scopes);
     if (info.getAuthorizationStatus() !== ScriptApp.AuthorizationStatus.REQUIRED) return null;
-    var url = info.getAuthorizationUrl();
+    const url = info.getAuthorizationUrl();
     if (!url) return null;
-    var granted = info.getAuthorizedScopes() || [];
+    const granted = info.getAuthorizedScopes() || [];
     return { url: url, missing: scopes.filter(function(sc) { return granted.indexOf(sc) < 0; }) };
   } catch (err) {
     // A broken check must not block the app: continue, and the real call fails loud if a scope is missing.
@@ -718,7 +718,7 @@ function approvalNeeded_(scopes) {
 }
 
 function provisionHub_() {
-  var before = DPConfig.getSheetLink();
+  const before = DPConfig.getSheetLink();
   if (before.missing === 'trashed' || before.missing === 'deleted') DPConfig.forgetSheet(DPConfig.getSheetId());
   DPConfig.ensureSetup({ autoSeed: true });
   DPConfig.repairSeeds(); // a seed that failed at creation (e.g. Gmail not yet approved) blocks getConfig
@@ -738,10 +738,10 @@ function provisionHub_() {
  * @returns {object} {ok, provisioned, url, missing, searchUrl, message} or a failed result.
  */
 function setupHub() {
-  var pre = preflight_([]);
+  const pre = preflight_([]);
   if (pre.failure) return pre.failure;
   try {
-    var link = provisionHub_();
+    const link = provisionHub_();
     if (!link.provisioned) return fail_('SETUP_ERROR', 'Hub Sheet was created but cannot be opened (' + link.missing + ')', true);
     return DPEngines.makeResult({ ok: true, status: 'OK', message: 'Hub Sheet is ready', provisioned: true, url: link.url, missing: null, searchUrl: DPConfig.getSheetSearchUrl() });
   } catch (err) {
@@ -750,13 +750,13 @@ function setupHub() {
 }
 
 // Filter recommender: how far back Gmail is searched, sample sizes, and the cap per measured query.
-var HUB_FILTER_WINDOW_ = ' newer_than:90d';
-var HUB_FILTER_MEASURE_CAP_ = 300;
-var HUB_FILTER_QUERY_MAX_ = 500;
-var HUB_SCOPE_BLOCKED_MSG_ = 'Gmail filter access is not approved. Use Approve filter access and tick every box on Google\'s screen. If your organization blocks it, the labels still work and you can make filters in Gmail settings.';
+const HUB_FILTER_WINDOW_ = ' newer_than:90d';
+const HUB_FILTER_MEASURE_CAP_ = 300;
+const HUB_FILTER_QUERY_MAX_ = 500;
+const HUB_SCOPE_BLOCKED_MSG_ = 'Gmail filter access is not approved. Use Approve filter access and tick every box on Google\'s screen. If your organization blocks it, the labels still work and you can make filters in Gmail settings.';
 
 /** Optional scope: only the About filter buttons use it, so leaving it unticked must not block the app. */
-var HUB_OPTIONAL_SCOPES_ = ['https://www.googleapis.com/auth/gmail.settings.basic'];
+const HUB_OPTIONAL_SCOPES_ = ['https://www.googleapis.com/auth/gmail.settings.basic'];
 
 /** Scopes the app needs to run. tests/hubAuthApproval.test.js checks this equals appsscript.json minus HUB_OPTIONAL_SCOPES_. */
 function hubCoreScopes() {
@@ -772,7 +772,7 @@ function hubCoreScopes() {
 
 /** SCOPE_BLOCKED result carrying Google's consent link for the filter scope, when Google offers one. */
 function filterScopeBlocked_() {
-  var approval = approvalNeeded_(HUB_OPTIONAL_SCOPES_);
+  const approval = approvalNeeded_(HUB_OPTIONAL_SCOPES_);
   return DPEngines.makeResult({ ok: false, status: 'ERROR', errorCode: 'SCOPE_BLOCKED', message: HUB_SCOPE_BLOCKED_MSG_, authUrl: approval ? approval.url : null });
 }
 
@@ -791,11 +791,11 @@ function isScopeError_(err) {
  * @returns {object} {ok, created, existing, message} or a failed result.
  */
 function hubSetupLabels() {
-  var pre = preflight_([]);
+  const pre = preflight_([]);
   if (pre.failure) return pre.failure;
   try {
-    var r = DPGmailRepo.ensureLabels(DPEngines.workflowLabelNames());
-    var msg = r.created.length ? 'Created ' + r.created.length + ' Gmail label' + (r.created.length === 1 ? '' : 's') + ': ' + r.created.join(', ')
+    const r = DPGmailRepo.ensureLabels(DPEngines.workflowLabelNames());
+    const msg = r.created.length ? 'Created ' + r.created.length + ' Gmail label' + (r.created.length === 1 ? '' : 's') + ': ' + r.created.join(', ')
       : 'All Day Planner Gmail labels already exist';
     return DPEngines.makeResult({ ok: true, status: 'OK', message: msg, created: r.created, existing: r.existing });
   } catch (err) {
@@ -809,31 +809,31 @@ function hubSetupLabels() {
 // (list ids, read headers, learn, measure), each tick spending at most HUB_LEARN_TICK_UNITS_ and pacing its calls.
 // Only header features (sender, subject, List-Id, label names) are kept between ticks, in the user cache (6 h);
 // bodies are read during the learn step and never stored.
-var HUB_LEARN_TRIGGER_ = 'hubFilterLearnTick';
-var HUB_LEARN_STATE_KEY_ = 'DP_FILTER_LEARN_V1';
+const HUB_LEARN_TRIGGER_ = 'hubFilterLearnTick';
+const HUB_LEARN_STATE_KEY_ = 'DP_FILTER_LEARN_V1';
 // About 20 business days. Sent mail, chats and drafts are not filter candidates.
-var HUB_LEARN_QUERY_ = '-in:sent -in:chats -in:drafts newer_than:28d';
+const HUB_LEARN_QUERY_ = '-in:sent -in:chats -in:drafts newer_than:28d';
 // Labeled mail is rarer, so look further back for it.
-var HUB_LEARN_LABEL_QUERY_ = 'newer_than:90d';
+const HUB_LEARN_LABEL_QUERY_ = 'newer_than:90d';
 // Threads read from the window, and per 🎯 label.
-var HUB_LEARN_CAP_ = 4000;
-var HUB_LEARN_PER_LABEL_ = 150;
+const HUB_LEARN_CAP_ = 4000;
+const HUB_LEARN_PER_LABEL_ = 150;
 // Units one tick may spend (200 emails): the other 2,000 of the 6,000 per minute are left to Triage.
-var HUB_LEARN_TICK_UNITS_ = 4000;
+const HUB_LEARN_TICK_UNITS_ = 4000;
 // Bodies read while learning (20 units each): all must fit one tick.
-var HUB_LEARN_BODY_PER_LABEL_ = 20;
-var HUB_LEARN_BODY_MAX_ = 100;
-var HUB_LEARN_PACE_MS_ = 50;
+const HUB_LEARN_BODY_PER_LABEL_ = 20;
+const HUB_LEARN_BODY_MAX_ = 100;
+const HUB_LEARN_PACE_MS_ = 50;
 // CacheService maximum: 6 hours.
-var HUB_LEARN_CACHE_TTL_S_ = 21600;
+const HUB_LEARN_CACHE_TTL_S_ = 21600;
 // Ids per cache value, well under the 100 KB value limit.
-var HUB_LEARN_IDS_PER_CHUNK_ = 2000;
+const HUB_LEARN_IDS_PER_CHUNK_ = 2000;
 // A job older than 3 hours stops.
-var HUB_LEARN_MAX_AGE_MS_ = 10800000;
-var HUB_LEARN_LEASE_MS_ = 70000;
+const HUB_LEARN_MAX_AGE_MS_ = 10800000;
+const HUB_LEARN_LEASE_MS_ = 70000;
 // A tick stops after this long even with budget left (slow Gmail), well inside the lease.
-var HUB_LEARN_TICK_MS_ = 50000;
-var HUB_LEARN_RUNNING_ = ['list', 'read', 'learn', 'measure'];
+const HUB_LEARN_TICK_MS_ = 50000;
+const HUB_LEARN_RUNNING_ = ['list', 'read', 'learn', 'measure'];
 
 /**
  * Budget for one tick: charged before every Gmail call; throws code BUDGET when the next call would go over.
@@ -842,11 +842,11 @@ var HUB_LEARN_RUNNING_ = ['list', 'read', 'learn', 'measure'];
  * @returns {function(number)} Meter with left().
  */
 function makeMeter_(budget, deadline) {
-  var used = 0;
-  var meter = function(units) {
-    var late = deadline && Date.now() >= deadline;
+  let used = 0;
+  const meter = function(units) {
+    const late = deadline && Date.now() >= deadline;
     if (late || used + units > budget) {
-      var e = new Error(late ? 'Time for this minute used; the next tick continues' : 'Gmail budget for this minute used; the next tick continues');
+      const e = new Error(late ? 'Time for this minute used; the next tick continues' : 'Gmail budget for this minute used; the next tick continues');
       e.code = 'BUDGET';
       e.late = !!late;
       throw e;
@@ -858,7 +858,7 @@ function makeMeter_(budget, deadline) {
 }
 
 function learnState_() {
-  var raw = PropertiesService.getUserProperties().getProperty(HUB_LEARN_STATE_KEY_);
+  const raw = PropertiesService.getUserProperties().getProperty(HUB_LEARN_STATE_KEY_);
   return raw ? JSON.parse(raw) : null;
 }
 
@@ -886,14 +886,14 @@ function installLearnTrigger_() {
  * @returns {Array} Concatenated chunks; throws SAMPLE_EXPIRED when the cache dropped one.
  */
 function readChunks_(st, prefix, count) {
-  var keys = [];
-  for (var i = 0; i < count; i++) keys.push(learnKey_(st, prefix + i));
+  const keys = [];
+  for (let i = 0; i < count; i++) keys.push(learnKey_(st, prefix + i));
   if (!keys.length) return [];
-  var got = CacheService.getUserCache().getAll(keys) || {};
-  var out = [];
+  const got = CacheService.getUserCache().getAll(keys) || {};
+  let out = [];
   keys.forEach(function(k) {
     if (got[k] == null) {
-      var e = new Error('The saved mail sample expired before it was used. Press Suggest filters to start again.');
+      const e = new Error('The saved mail sample expired before it was used. Press Suggest filters to start again.');
       e.code = 'SAMPLE_EXPIRED';
       throw e;
     }
@@ -909,9 +909,9 @@ function readChunks_(st, prefix, count) {
  * @returns {?number} Whole minutes, at least 1.
  */
 function learnEtaMin_(st) {
-  var u = DPGmailRepo.units();
+  const u = DPGmailRepo.units();
   if (st.phase === 'read') {
-    var perTick = st.readTicks && st.read ? st.read / st.readTicks : Math.floor(HUB_LEARN_TICK_UNITS_ / u.messagesGet);
+    const perTick = st.readTicks && st.read ? st.read / st.readTicks : Math.floor(HUB_LEARN_TICK_UNITS_ / u.messagesGet);
     return Math.ceil((st.total - st.read) / perTick) + 2;
   }
   if (st.phase === 'learn') return 2;
@@ -930,9 +930,9 @@ function learnEtaText_(min) {
 
 function learnStatus_(st) {
   if (!st) return DPEngines.makeResult({ ok: true, status: 'IDLE', phase: 'idle', running: false, message: '' });
-  var running = HUB_LEARN_RUNNING_.indexOf(st.phase) >= 0;
-  var eta = running ? learnEtaMin_(st) : null;
-  var text = {
+  const running = HUB_LEARN_RUNNING_.indexOf(st.phase) >= 0;
+  const eta = running ? learnEtaMin_(st) : null;
+  const text = {
     list: 'Finding your mail from the last 20 business days…',
     read: 'Reading your mail: ' + st.read + ' of ' + st.total,
     learn: 'Learning from your labeled mail',
@@ -950,19 +950,19 @@ function learnStatus_(st) {
 
 /** Step 1: message ids, one per thread: labeled mail first, then the 20-business-day window. */
 function learnList_(st, meter) {
-  var E = DPEngines;
-  var seen = {};
-  var ids = [];
-  var push = function(r) { if (!seen[r.threadId]) { seen[r.threadId] = true; ids.push(r.id); } };
+  const E = DPEngines;
+  const seen = {};
+  const ids = [];
+  const push = function(r) { if (!seen[r.threadId]) { seen[r.threadId] = true; ids.push(r.id); } };
   E.FILTER_TARGET_LABELS.forEach(function(label) {
-    var lid = DPGmailRepo.resolveLabelId(label);
+    const lid = DPGmailRepo.resolveLabelId(label);
     if (lid) DPGmailRepo.listMessageRefs(HUB_LEARN_LABEL_QUERY_, { labelId: lid, cap: HUB_LEARN_PER_LABEL_, meter: meter }).refs.forEach(push);
   });
-  var recent = DPGmailRepo.listMessageRefs(HUB_LEARN_QUERY_, { cap: HUB_LEARN_CAP_, meter: meter });
+  const recent = DPGmailRepo.listMessageRefs(HUB_LEARN_QUERY_, { cap: HUB_LEARN_CAP_, meter: meter });
   recent.refs.forEach(push);
-  var entries = {};
-  var chunks = 0;
-  for (var i = 0; i < ids.length; i += HUB_LEARN_IDS_PER_CHUNK_) entries[learnKey_(st, 'ids:' + chunks++)] = JSON.stringify(ids.slice(i, i + HUB_LEARN_IDS_PER_CHUNK_));
+  const entries = {};
+  let chunks = 0;
+  for (let i = 0; i < ids.length; i += HUB_LEARN_IDS_PER_CHUNK_) entries[learnKey_(st, 'ids:' + chunks++)] = JSON.stringify(ids.slice(i, i + HUB_LEARN_IDS_PER_CHUNK_));
   if (chunks) CacheService.getUserCache().putAll(entries, HUB_LEARN_CACHE_TTL_S_);
   st.idChunks = chunks;
   st.total = ids.length;
@@ -974,14 +974,14 @@ function learnList_(st, meter) {
 
 /** Step 2: headers of each message, paced; each tick's batch is one cache chunk. */
 function learnRead_(st, meter) {
-  var ids = readChunks_(st, 'ids:', st.idChunks);
-  var batch = [];
+  const ids = readChunks_(st, 'ids:', st.idChunks);
+  const batch = [];
   st.readTicks = (st.readTicks || 0) + 1;
   try {
     while (st.read < st.total) {
-      var id = ids[st.read];
+      const id = ids[st.read];
       try {
-        var s = DPGmailRepo.getMessageSample(id, { meter: meter });
+        const s = DPGmailRepo.getMessageSample(id, { meter: meter });
         batch.push([s.id, s.labels, s.from, s.subject, s.listId]);
       } catch (err) {
         if (err.code === 'BUDGET' || isQuotaError_(err) || !/not found|404/i.test(String(err.message || err))) throw err;
@@ -1001,26 +1001,26 @@ function learnRead_(st, meter) {
 
 /** Step 3: bodies of up to HUB_LEARN_BODY_MAX_ labeled messages (memory only), the engine, and the row list. */
 function learnLearn_(st, meter) {
-  var E = DPEngines;
-  var samples = readChunks_(st, 's:', st.chunks).map(function(a) { return { id: a[0], labels: a[1], from: a[2], subject: a[3], listId: a[4], body: '' }; });
-  var filters;
+  const E = DPEngines;
+  const samples = readChunks_(st, 's:', st.chunks).map(function(a) { return { id: a[0], labels: a[1], from: a[2], subject: a[3], listId: a[4], body: '' }; });
+  let filters;
   try {
     filters = DPGmailRepo.listFilters();
   } catch (err) {
     if (!isScopeError_(err)) throw err;
     DPQueue.logSafe('filter learner: Gmail filters could not be read (scope)', err);
-    var blocked = filterScopeBlocked_();
-    var e = new Error(blocked.message);
+    const blocked = filterScopeBlocked_();
+    const e = new Error(blocked.message);
     e.code = 'SCOPE_BLOCKED';
     e.authUrl = blocked.authUrl;
     throw e;
   }
-  var names = DPGmailRepo.labelNamesById();
-  var excluded = E.AI_EXCLUDED_LABELS.concat(DPConfig.getConfig().ExcludedAiLabels || []);
-  var perLabel = {};
-  var withBody = samples.filter(function(s) {
+  const names = DPGmailRepo.labelNamesById();
+  const excluded = E.AI_EXCLUDED_LABELS.concat(DPConfig.getConfig().ExcludedAiLabels || []);
+  const perLabel = {};
+  const withBody = samples.filter(function(s) {
     if (s.labels.some(function(l) { return excluded.some(function(x) { return l === x || l.indexOf(x) === 0; }); })) return false;
-    var target = E.FILTER_TARGET_LABELS.filter(function(l) { return s.labels.indexOf(l) >= 0; })[0];
+    const target = E.FILTER_TARGET_LABELS.filter(function(l) { return s.labels.indexOf(l) >= 0; })[0];
     if (!target || (perLabel[target] || 0) >= HUB_LEARN_BODY_PER_LABEL_) return false;
     perLabel[target] = (perLabel[target] || 0) + 1;
     return true;
@@ -1031,28 +1031,28 @@ function learnLearn_(st, meter) {
     s.body = DPGmailRepo.getMessageSample(s.id, { withBody: true, meter: meter }).body;
     Utilities.sleep(HUB_LEARN_PACE_MS_);
   });
-  var learned = E.suggestFilters({ threads: samples, targetLabels: E.FILTER_TARGET_LABELS, excludedLabels: excluded });
+  const learned = E.suggestFilters({ threads: samples, targetLabels: E.FILTER_TARGET_LABELS, excludedLabels: excluded });
   samples.forEach(function(s) { s.body = ''; });
 
   // Rows: existing 🎯/ filters, then suggestions, then the user own rows (kept with their ticks and status).
-  var prior = DPConfig.readFilterRows();
-  var priorByKey = {};
+  const prior = DPConfig.readFilterRows();
+  const priorByKey = {};
   prior.forEach(function(p) { priorByKey[p.label + '\u0000' + p.query] = p; });
-  var rows = [];
-  var keys = {};
-  var add = function(r) {
-    var k = r.label + '\u0000' + r.query;
+  const rows = [];
+  const keys = {};
+  const add = function(r) {
+    const k = r.label + '\u0000' + r.query;
     if (!r.label || !r.query || keys[k]) return;
     keys[k] = true;
-    var p = priorByKey[k];
+    const p = priorByKey[k];
     if (p && r.source !== 'Existing filter') { r.create = p.create; r.status = p.status; r.filterId = r.filterId || p.filterId; }
     rows.push(r);
   };
-  var addingTarget = 0;
+  let addingTarget = 0;
   filters.forEach(function(f) {
-    var counted = false;
+    let counted = false;
     (f.action.addLabelIds || []).forEach(function(lid) {
-      var n = names[lid];
+      const n = names[lid];
       if (n && n.indexOf(E.LABEL_PREFIX) === 0) {
         if (!counted) { addingTarget += 1; counted = true; }
         add({ label: n, query: E.filterCriteriaQuery(f.criteria), source: 'Existing filter', filterId: f.id, status: 'In Gmail' });
@@ -1064,7 +1064,7 @@ function learnLearn_(st, meter) {
     if (p.source === 'Existing filter' || p.source === 'Suggested') return;
     add({ label: p.label, query: p.query, source: p.source || 'Pasted', create: p.create, status: p.status, filterId: p.filterId });
   });
-  var targetNames = Object.keys(names).map(function(id) { return names[id]; }).filter(function(n) { return n.indexOf(E.LABEL_PREFIX) === 0; });
+  const targetNames = Object.keys(names).map(function(id) { return names[id]; }).filter(function(n) { return n.indexOf(E.LABEL_PREFIX) === 0; });
   // "0 existing" on WORK 2026-10-16: say how many filters there are and which 🎯 labels Gmail has.
   console.log('filter learner: ' + filters.length + ' Gmail filters, ' + addingTarget + ' add a 🎯 label; 🎯 labels in Gmail: ' + targetNames.join(', '));
   st.diag = { filters: filters.length, addingTarget: addingTarget, targetLabels: targetNames.length, sampled: samples.length, skipped: learned.skipped };
@@ -1076,29 +1076,29 @@ function learnLearn_(st, meter) {
 
 /** Step 4: Caught and Wrong for each row with two Gmail searches (90 days), then the Sheet tab. */
 function learnMeasure_(st, meter) {
-  var E = DPEngines;
-  var cache = CacheService.getUserCache();
-  var rowsRaw = cache.get(learnKey_(st, 'rows'));
+  const E = DPEngines;
+  const cache = CacheService.getUserCache();
+  const rowsRaw = cache.get(learnKey_(st, 'rows'));
   if (rowsRaw == null) {
-    var ex = new Error('The saved filter list expired before it was checked. Press Suggest filters to start again.');
+    const ex = new Error('The saved filter list expired before it was checked. Press Suggest filters to start again.');
     ex.code = 'SAMPLE_EXPIRED';
     throw ex;
   }
-  var rows = JSON.parse(rowsRaw);
-  var idOf = {};
-  var names = DPGmailRepo.labelNamesById();
+  const rows = JSON.parse(rowsRaw);
+  const idOf = {};
+  const names = DPGmailRepo.labelNamesById();
   Object.keys(names).forEach(function(id) { idOf[names[id]] = id; });
   try {
     while (st.measured < rows.length) {
-      var r = rows[st.measured];
-      var lid = idOf[r.label];
-      var hitIds = [];
+      const r = rows[st.measured];
+      const lid = idOf[r.label];
+      let hitIds = [];
       if (!lid) r.status = 'No such label: create it first';
       else if (r.query.length > HUB_FILTER_QUERY_MAX_) r.status = 'Query too long';
       else {
         try {
-          var all = DPGmailRepo.searchThreadIds(r.query + HUB_FILTER_WINDOW_, { cap: HUB_FILTER_MEASURE_CAP_, meter: meter });
-          var hit = DPGmailRepo.searchThreadIds(r.query + HUB_FILTER_WINDOW_, { cap: HUB_FILTER_MEASURE_CAP_, labelId: lid, meter: meter });
+          const all = DPGmailRepo.searchThreadIds(r.query + HUB_FILTER_WINDOW_, { cap: HUB_FILTER_MEASURE_CAP_, meter: meter });
+          const hit = DPGmailRepo.searchThreadIds(r.query + HUB_FILTER_WINDOW_, { cap: HUB_FILTER_MEASURE_CAP_, labelId: lid, meter: meter });
           hitIds = hit.ids;
           r.caught = hit.ids.length + (hit.capped ? '+' : '');
           r.wrong = Math.max(0, all.ids.length - hit.ids.length) + (all.capped ? '+' : '');
@@ -1115,18 +1115,18 @@ function learnMeasure_(st, meter) {
   } finally {
     cache.put(learnKey_(st, 'rows'), JSON.stringify(rows), HUB_LEARN_CACHE_TTL_S_);
   }
-  var idKeys = rows.map(function(r, i) { return learnKey_(st, 'm:' + i); });
-  var ids = cache.getAll(idKeys) || {};
-  var idsOf = function(i) { return ids[idKeys[i]] ? JSON.parse(ids[idKeys[i]]) : []; };
-  var existing = [];
+  const idKeys = rows.map(function(r, i) { return learnKey_(st, 'm:' + i); });
+  const ids = cache.getAll(idKeys) || {};
+  const idsOf = function(i) { return ids[idKeys[i]] ? JSON.parse(ids[idKeys[i]]) : []; };
+  const existing = [];
   rows.forEach(function(r, i) { if (r.source === 'Existing filter') existing.push({ label: r.label, filterId: r.filterId, ids: idsOf(i) }); });
   rows.forEach(function(r, i) {
     if (r.source === 'Existing filter') return;
     r.coveredBy = E.coveringFilter(idsOf(i), existing.filter(function(e) { return e.label === r.label; }).map(function(e) { return { filterId: e.filterId, ids: e.ids }; }));
   });
   DPConfig.writeFilterRows(rows);
-  var count = function(src) { return rows.filter(function(x) { return x.source === src; }).length; };
-  var d = st.diag || {};
+  const count = function(src) { return rows.filter(function(x) { return x.source === src; }).length; };
+  const d = st.diag || {};
   st.url = DPConfig.getSheetUrl();
   st.result = { rows: rows.length, suggested: count('Suggested'), existing: count('Existing filter'), pasted: rows.length - count('Suggested') - count('Existing filter'), sampled: d.sampled || 0, skipped: d.skipped || 0 };
   st.message = 'Filter Suggestions: ' + st.result.suggested + ' new, ' + st.result.existing + ' existing, from ' + (d.sampled || 0) + ' emails' +
@@ -1142,9 +1142,9 @@ function learnMeasure_(st, meter) {
  * @returns {object} Learner state.
  */
 function learnTick_(opts) {
-  var st = learnState_();
+  const st = learnState_();
   if (!st || HUB_LEARN_RUNNING_.indexOf(st.phase) < 0) { removeLearnTriggers_(); return st; }
-  var now = Date.now();
+  const now = Date.now();
   if (now - st.startedAt > HUB_LEARN_MAX_AGE_MS_) {
     st.phase = 'error';
     st.errorCode = 'TOO_SLOW';
@@ -1158,7 +1158,7 @@ function learnTick_(opts) {
   st.leaseUntil = now + HUB_LEARN_LEASE_MS_;
   st.ticks = (st.ticks || 0) + 1;
   saveLearnState_(st);
-  var meter = makeMeter_(HUB_LEARN_TICK_UNITS_, now + HUB_LEARN_TICK_MS_);
+  const meter = makeMeter_(HUB_LEARN_TICK_UNITS_, now + HUB_LEARN_TICK_MS_);
   try {
     while (HUB_LEARN_RUNNING_.indexOf(st.phase) >= 0) {
       if (st.phase === 'list') { learnList_(st, meter); if (opts && opts.listOnly) break; }
@@ -1194,13 +1194,13 @@ function learnTick_(opts) {
  * @returns {object} Learner status (see hubFilterLearnStatus) or a failed result.
  */
 function hubSuggestFilters() {
-  var pre = preflight_([]);
+  const pre = preflight_([]);
   if (pre.failure) return pre.failure;
   try {
     if (!DPConfig.isProvisioned()) return fail_('SETUP_ERROR', 'Hub Sheet is not set up yet', true);
-    var old = learnState_();
+    const old = learnState_();
     if (old && HUB_LEARN_RUNNING_.indexOf(old.phase) >= 0 && Date.now() - old.startedAt <= HUB_LEARN_MAX_AGE_MS_) return learnStatus_(old);
-    var st = { startedAt: Date.now(), ticks: 0, phase: 'list', sampleId: Utilities.getUuid().slice(0, 8), read: 0, total: 0, chunks: 0, idChunks: 0 };
+    const st = { startedAt: Date.now(), ticks: 0, phase: 'list', sampleId: Utilities.getUuid().slice(0, 8), read: 0, total: 0, chunks: 0, idChunks: 0 };
     if (old && old.phase === 'done' && old.sampleId && Date.now() - old.sampledAt < HUB_LEARN_CACHE_TTL_S_ * 1000 - 600000) {
       try {
         readChunks_(old, 's:', old.chunks);
@@ -1238,7 +1238,7 @@ function hubFilterLearnStatus() {
 
 /** Time-driven trigger handler (every minute while a job runs). */
 function hubFilterLearnTick() {
-  var pre = preflight_([]);
+  const pre = preflight_([]);
   if (pre.failure) {
     console.error('hubFilterLearnTick: preflight failed, skipping this tick: ' + JSON.stringify(pre.failure));
     return pre.failure;
@@ -1254,14 +1254,14 @@ function hubFilterLearnTick() {
  * @returns {object} {ok, created, skipped, failed, message} or a failed result.
  */
 function hubCreateSelectedFilters() {
-  var pre = preflight_([]);
+  const pre = preflight_([]);
   if (pre.failure) return pre.failure;
-  var E = DPEngines;
+  const E = DPEngines;
   try {
     if (!DPConfig.isProvisioned()) return fail_('SETUP_ERROR', 'Hub Sheet is not set up yet', true);
-    var rows = DPConfig.readFilterRows().filter(function(r) { return r.create && !r.filterId && r.source !== 'Existing filter'; });
+    const rows = DPConfig.readFilterRows().filter(function(r) { return r.create && !r.filterId && r.source !== 'Existing filter'; });
     if (!rows.length) return DPEngines.makeResult({ ok: true, status: 'OK', created: 0, skipped: 0, failed: 0, message: 'No ticked rows to create' });
-    var filters;
+    let filters;
     try {
       filters = DPGmailRepo.listFilters();
     } catch (err) {
@@ -1269,25 +1269,25 @@ function hubCreateSelectedFilters() {
       DPQueue.logSafe('hubCreateSelectedFilters: Gmail filters could not be read (scope)', err);
       return filterScopeBlocked_();
     }
-    var names = DPGmailRepo.labelNamesById();
-    var idOf = {};
+    const names = DPGmailRepo.labelNamesById();
+    const idOf = {};
     Object.keys(names).forEach(function(id) { idOf[names[id]] = id; });
-    var allowed = E.workflowLabelNames();
-    var updates = [];
-    var created = 0;
-    var skipped = 0;
-    var failed = 0;
-    var stop = false;
+    const allowed = E.workflowLabelNames();
+    const updates = [];
+    let created = 0;
+    let skipped = 0;
+    let failed = 0;
+    let stop = false;
     rows.forEach(function(r) {
       if (stop) return;
-      var lid = idOf[r.label];
+      const lid = idOf[r.label];
       if (allowed.indexOf(r.label) === -1) { skipped += 1; updates.push({ row: r.row, status: 'Skipped: not a Day Planner label', filterId: '' }); return; }
       if (!lid) { skipped += 1; updates.push({ row: r.row, status: 'Skipped: label missing; Create Gmail labels first', filterId: '' }); return; }
       if (!r.query || r.query.length > HUB_FILTER_QUERY_MAX_) { skipped += 1; updates.push({ row: r.row, status: 'Skipped: empty or too long query', filterId: '' }); return; }
-      var dup = filters.filter(function(f) { return E.filterCriteriaQuery(f.criteria) === r.query && (f.action.addLabelIds || []).indexOf(lid) !== -1; })[0];
+      const dup = filters.filter(function(f) { return E.filterCriteriaQuery(f.criteria) === r.query && (f.action.addLabelIds || []).indexOf(lid) !== -1; })[0];
       if (dup) { skipped += 1; updates.push({ row: r.row, status: 'Already a Gmail filter', filterId: dup.id }); return; }
       try {
-        var fid = DPGmailRepo.createFilter(r.query, lid);
+        const fid = DPGmailRepo.createFilter(r.query, lid);
         if (!fid) throw new Error('Gmail returned no filter id');
         created += 1;
         updates.push({ row: r.row, status: 'Created ' + E.taskPlannerLocalDate(new Date(), Session.getScriptTimeZone()), filterId: fid });
@@ -1317,13 +1317,13 @@ function hubCreateSelectedFilters() {
  * @returns {object} {ok, flags, dryRun, message} or a failed result.
  */
 function hubSetFeature(name, value) {
-  var pre = preflight_([]);
+  const pre = preflight_([]);
   if (pre.failure) return pre.failure;
   if (typeof name !== 'string' || !Object.prototype.hasOwnProperty.call(DPEngines.DEFAULT_FEATURES, name)) return fail_('INVALID_INPUT', 'Unknown feature flag', true);
   if (typeof value !== 'boolean') return fail_('INVALID_INPUT', 'Feature flag value must be true or false', true);
   try {
     if (!DPConfig.isProvisioned()) return fail_('SETUP_ERROR', 'Hub Sheet is not set up yet', true);
-    var flags = DPConfig.setFeature(name, value);
+    const flags = DPConfig.setFeature(name, value);
     return DPEngines.makeResult({ ok: true, status: 'OK', message: name + ' set to ' + (value ? 'TRUE' : 'FALSE'), flags: flags, dryRun: flags.DRY_RUN === true });
   } catch (err) {
     return failFrom_(err);
@@ -1337,13 +1337,13 @@ function hubSetFeature(name, value) {
  * @returns {object} {ok, previous, tasksListId, message} or a failed result.
  */
 function hubSetTasksListId(listId) {
-  var pre = preflight_([]);
+  const pre = preflight_([]);
   if (pre.failure) return pre.failure;
   if (typeof listId !== 'string' || !/^[A-Za-z0-9@_-]{1,200}$/.test(listId)) return fail_('INVALID_INPUT', 'Tasks list id must be 1-200 letters, digits, @, _ or -', true);
   try {
     if (!DPConfig.isProvisioned()) return fail_('SETUP_ERROR', 'Hub Sheet is not set up yet', true);
-    var previous = DPConfig.getConfig().TasksListId;
-    var now = DPConfig.setTasksListId(listId);
+    const previous = DPConfig.getConfig().TasksListId;
+    const now = DPConfig.setTasksListId(listId);
     return DPEngines.makeResult({ ok: true, status: 'OK', message: 'TasksListId set', previous: previous, tasksListId: now });
   } catch (err) {
     return failFrom_(err);
@@ -1357,7 +1357,7 @@ function hubSetTasksListId(listId) {
  * @returns {object} Failed result: gated off, or not implemented in this build.
  */
 function geminiStub_(flag, occurrenceId, selectedItems) {
-  var pre = preflight_([]);
+  const pre = preflight_([]);
   if (pre.failure) return pre.failure;
   if (typeof occurrenceId !== 'string' || !HUB_EVENT_ID_RE_.test(occurrenceId)) return fail_('INVALID_INPUT', 'Invalid occurrence id');
   if (selectedItems !== undefined && !Array.isArray(selectedItems)) return fail_('INVALID_INPUT', 'selectedItems must be an array');

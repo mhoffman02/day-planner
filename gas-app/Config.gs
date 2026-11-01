@@ -29,29 +29,29 @@
  */
 (function(global) {
 
-var PROP_SHEET_ID = 'DP_HUB_SHEET_ID';
-var PROP_FOLDER_ID = 'DAY_PLANNER_ROOT_FOLDER_ID';
-var SHEET_TITLE = 'Day Planner Hub Config';
-var MIME_SHEET = 'application/vnd.google-apps.spreadsheet';
-var TAB_CONFIG = 'Config';
-var TAB_REGISTRY = 'Meeting Registry';
-var TAB_LEDGER = 'Integration Ledger';
-var TAB_ARCHIVE = 'Integration Ledger Archive';
-var ALL_TABS = ['Config', 'Meeting Registry', 'Integration Ledger', 'Integration Ledger Archive'];
-var CONFIG_HEADER = ['Key', 'Value'];
+const PROP_SHEET_ID = 'DP_HUB_SHEET_ID';
+const PROP_FOLDER_ID = 'DAY_PLANNER_ROOT_FOLDER_ID';
+const SHEET_TITLE = 'Day Planner Hub Config';
+const MIME_SHEET = 'application/vnd.google-apps.spreadsheet';
+const TAB_CONFIG = 'Config';
+const TAB_REGISTRY = 'Meeting Registry';
+const TAB_LEDGER = 'Integration Ledger';
+const TAB_ARCHIVE = 'Integration Ledger Archive';
+const ALL_TABS = ['Config', 'Meeting Registry', 'Integration Ledger', 'Integration Ledger Archive'];
+const CONFIG_HEADER = ['Key', 'Value'];
 // Made on demand by the filter recommender (not part of ALL_TABS: a Sheet without it is still complete).
-var TAB_FILTERS = 'Filter Suggestions';
-var FILTER_READ_RANGE = 'A1:J500';
-var PROP_FLAGS = 'HUB_FLAGS_JSON';
-var SETUP_LOCK_WAIT_MS = 30000;
-var MANDATORY_KEYS = ['TimeZone', 'UserEmail', 'TasksListId'];
-var ENABLED_SERIES = ['NCMMS_CORE', 'NCMMS_DAILY', 'NCMMS_AA', 'NCMMS_ACQ', 'TRM_PM'];
-var CONFIG_READ_RANGE = 'A2:B200';
-var REGISTRY_READ_RANGE = 'A1:M500';
-var DEFAULT_TASKS_LIST_ID = '@default';
+const TAB_FILTERS = 'Filter Suggestions';
+const FILTER_READ_RANGE = 'A1:J500';
+const PROP_FLAGS = 'HUB_FLAGS_JSON';
+const SETUP_LOCK_WAIT_MS = 30000;
+const MANDATORY_KEYS = ['TimeZone', 'UserEmail', 'TasksListId'];
+const ENABLED_SERIES = ['NCMMS_CORE', 'NCMMS_DAILY', 'NCMMS_AA', 'NCMMS_ACQ', 'TRM_PM'];
+const CONFIG_READ_RANGE = 'A2:B200';
+const REGISTRY_READ_RANGE = 'A1:M500';
+const DEFAULT_TASKS_LIST_ID = '@default';
 // Seed for a Sheet the app creates by itself (user decision 2026-10-12): Triage tab on, trial mode on.
 // Every other flag keeps its DEFAULT_FEATURES value (OFF).
-var AUTO_SETUP_FEATURES = { GMAIL_ROUTER: true, TRIAGE_BOARD: true, DRY_RUN: true };
+const AUTO_SETUP_FEATURES = { GMAIL_ROUTER: true, TRIAGE_BOARD: true, DRY_RUN: true };
 
 function engines_() {
   if (!global.DPEngines) throw setupError_('DPEngines is not loaded (Engines.gs missing)');
@@ -68,8 +68,8 @@ function logSafe_(context, err) {
   console.error(engines_().formatSafeError(context, err));
 }
 
-var sheetsMeter_ = { reads: 0, writes: 0 };
-var sheetsApi_ = null;
+const sheetsMeter_ = { reads: 0, writes: 0 };
+let sheetsApi_ = null;
 
 /**
  * Metered stand-in for Sheets.Spreadsheets: every hub Sheets call goes through it so a queue run can
@@ -79,15 +79,15 @@ var sheetsApi_ = null;
  */
 function sheets_() {
   if (sheetsApi_) return sheetsApi_;
-  var call = function (kind, owner, name) {
+  const call = function (kind, owner, name) {
     return function () {
       sheetsMeter_[kind] += 1;
-      var o = owner();
+      const o = owner();
       return o[name].apply(o, arguments);
     };
   };
-  var top = function () { return Sheets.Spreadsheets; };
-  var values = function () { return Sheets.Spreadsheets.Values; };
+  const top = function () { return Sheets.Spreadsheets; };
+  const values = function () { return Sheets.Spreadsheets.Values; };
   sheetsApi_ = {
     get: call('reads', top, 'get'),
     batchUpdate: call('writes', top, 'batchUpdate'),
@@ -114,7 +114,7 @@ function sheetsMeter() {
 }
 
 function setupError_(message) {
-  var e = new Error('SETUP_ERROR: ' + message);
+  const e = new Error('SETUP_ERROR: ' + message);
   e.code = 'SETUP_ERROR';
   return e;
 }
@@ -125,7 +125,7 @@ function cell_(v) {
 
 /** @returns {string} Drive folder id of the Day Planner root folder (bound by the first-run setup). */
 function getFolderId() {
-  var id = PropertiesService.getUserProperties().getProperty(PROP_FOLDER_ID);
+  const id = PropertiesService.getUserProperties().getProperty(PROP_FOLDER_ID);
   if (!id) throw setupError_(PROP_FOLDER_ID + ' is not set; open the Day Planner app once to bind the Day Planner folder');
   return id;
 }
@@ -141,8 +141,8 @@ function getSheetId() {
 }
 
 function findHubSheetInFolder_(folderId) {
-  var q = "title = '" + SHEET_TITLE + "' and mimeType = '" + MIME_SHEET + "' and '" + folderId + "' in parents and trashed = false";
-  var res = Drive.Files.list({ q: q, maxResults: 1 });
+  const q = "title = '" + SHEET_TITLE + "' and mimeType = '" + MIME_SHEET + "' and '" + folderId + "' in parents and trashed = false";
+  const res = Drive.Files.list({ q: q, maxResults: 1 });
   return res && res.items && res.items.length ? res.items[0].id : null;
 }
 
@@ -150,13 +150,13 @@ function findHubSheetInFolder_(folderId) {
 function userCalendarTimeZone_() {
   try {
     if (typeof Calendar !== 'undefined' && Calendar.Settings && Calendar.Settings.get) {
-      var setting = Calendar.Settings.get('timezone');
+      const setting = Calendar.Settings.get('timezone');
       if (setting && setting.value) return String(setting.value);
     }
   } catch (e) { logSafe_('Config: Calendar timezone setting unavailable, trying primary calendar', e); }
   try {
     if (typeof Calendar !== 'undefined' && Calendar.Calendars && Calendar.Calendars.get) {
-      var primary = Calendar.Calendars.get('primary');
+      const primary = Calendar.Calendars.get('primary');
       if (primary && primary.timeZone) return String(primary.timeZone);
     }
   } catch (e) { logSafe_('Config: primary calendar timezone unavailable, using script time zone', e); }
@@ -167,9 +167,9 @@ function userCalendarTimeZone_() {
  * Config seeds the runtime supplies. Each returns {value, cause}: value '' when unavailable (getConfig then
  * fails SETUP_ERROR naming the key), cause the reason, for repairSeeds' error message.
  */
-var RUNTIME_SEEDS_ = Object.freeze({
+const RUNTIME_SEEDS_ = Object.freeze({
   TimeZone: function () {
-    var tz = userCalendarTimeZone_();
+    const tz = userCalendarTimeZone_();
     if (tz) return { value: tz, cause: '' };
     try { return { value: Session.getScriptTimeZone() || '', cause: '' }; } catch (e) {
       logSafe_('Config: script time zone unavailable, leaving TimeZone empty (getConfig then fails SETUP_ERROR)', e);
@@ -191,9 +191,9 @@ var RUNTIME_SEEDS_ = Object.freeze({
  *   failed at creation), with their 1-based Sheet row.
  */
 function blankSeeds_(rows) {
-  var out = [];
+  const out = [];
   rows.forEach(function (row, i) {
-    var k = cell_(row[0]);
+    const k = cell_(row[0]);
     if (Object.prototype.hasOwnProperty.call(RUNTIME_SEEDS_, k) && cell_(row[1]) === '') out.push({ key: k, row: i + 2 });
   });
   return out;
@@ -210,11 +210,11 @@ function needsRepair() {
  * @returns {Array<string>} Keys filled.
  */
 function repairSeeds() {
-  var id = getSheetId();
-  var blank = blankSeeds_(configValues_(id));
+  const id = getSheetId();
+  const blank = blankSeeds_(configValues_(id));
   if (!blank.length) return [];
-  var data = blank.map(function (b) {
-    var got = RUNTIME_SEEDS_[b.key]();
+  const data = blank.map(function (b) {
+    const got = RUNTIME_SEEDS_[b.key]();
     if (!got.value) throw setupError_(b.key + ' is empty in the "Config" tab and could not be filled automatically (' + got.cause + '). Type it in the Config tab, or approve the app permissions and try again');
     return { range: engines_().a1Range(TAB_CONFIG, 'B' + b.row), values: [[got.value]] };
   });
@@ -227,11 +227,11 @@ function repairSeeds() {
  * @returns {Array<Array<string>>} Config tab rows.
  */
 function buildConfigSeed_(featureOverrides) {
-  var E = engines_();
-  var over = featureOverrides || {};
+  const E = engines_();
+  const over = featureOverrides || {};
   // A seed the runtime cannot supply stays empty on purpose: getConfig() then fails loudly with
   // SETUP_ERROR naming the key, so the user fills it in the Config tab.
-  var rows = [
+  const rows = [
     ['TimeZone', RUNTIME_SEEDS_.TimeZone().value],
     ['UserEmail', RUNTIME_SEEDS_.UserEmail().value],
     ['TasksListId', DEFAULT_TASKS_LIST_ID],
@@ -241,14 +241,14 @@ function buildConfigSeed_(featureOverrides) {
     ['ExcludedAiLabels', E.AI_EXCLUDED_LABELS.join(',')]
   ];
   Object.keys(E.DEFAULT_FEATURES).forEach(function (name) {
-    var on = Object.prototype.hasOwnProperty.call(over, name) ? over[name] === true : E.DEFAULT_FEATURES[name];
+    const on = Object.prototype.hasOwnProperty.call(over, name) ? over[name] === true : E.DEFAULT_FEATURES[name];
     rows.push([name, on ? 'TRUE' : 'FALSE']);
   });
   return rows;
 }
 
 function buildRegistrySeed_() {
-  var E = engines_();
+  const E = engines_();
   return E.DEFAULT_SERIES.map(function (s) {
     return E.REGISTRY_COLUMNS.map(function (col) {
       if (col === 'Enabled') return ENABLED_SERIES.indexOf(s.SeriesKey) !== -1 ? 'TRUE' : 'FALSE';
@@ -264,12 +264,12 @@ function buildRegistrySeed_() {
  * @param {Object<string, boolean>} [seedFeatures] Flag overrides for a fresh Config tab (ignored when it has rows).
  */
 function populate_(sheetId, seedFeatures) {
-  var E = engines_();
-  var meta = sheets_().get(sheetId, { fields: 'sheets.properties(sheetId,title)' });
-  var existing = (meta.sheets || []).map(function (s) { return s.properties; });
-  var have = existing.map(function (p) { return p.title; });
-  var missing = ALL_TABS.filter(function (t) { return have.indexOf(t) === -1; });
-  var requests = [];
+  const E = engines_();
+  const meta = sheets_().get(sheetId, { fields: 'sheets.properties(sheetId,title)' });
+  const existing = (meta.sheets || []).map(function (s) { return s.properties; });
+  const have = existing.map(function (p) { return p.title; });
+  let missing = ALL_TABS.filter(function (t) { return have.indexOf(t) === -1; });
+  const requests = [];
   if (missing.length && existing.length === 1 && existing[0].title === 'Sheet1') {
     requests.push({ updateSheetProperties: { properties: { sheetId: existing[0].sheetId, title: missing[0] }, fields: 'title' } });
     missing = missing.slice(1);
@@ -277,25 +277,25 @@ function populate_(sheetId, seedFeatures) {
   missing.forEach(function (t) { requests.push({ addSheet: { properties: { title: t } } }); });
   if (requests.length) sheets_().batchUpdate({ requests: requests }, sheetId);
 
-  var probe = sheets_().Values.batchGet(sheetId, {
+  const probe = sheets_().Values.batchGet(sheetId, {
     ranges: [engines_().a1Range(TAB_CONFIG, 'A2:A2'), engines_().a1Range(TAB_REGISTRY, 'A2:A2')]
   });
-  var vr = probe.valueRanges || [];
-  var configEmpty = !(vr[0] && vr[0].values && vr[0].values.length);
-  var registryEmpty = !(vr[1] && vr[1].values && vr[1].values.length);
+  const vr = probe.valueRanges || [];
+  const configEmpty = !(vr[0] && vr[0].values && vr[0].values.length);
+  const registryEmpty = !(vr[1] && vr[1].values && vr[1].values.length);
 
-  var data = [
+  const data = [
     { range: engines_().a1Range(TAB_CONFIG, 'A1:B1'), values: [CONFIG_HEADER] },
     { range: engines_().a1Range(TAB_REGISTRY, 'A1:' + engines_().colLetter(E.REGISTRY_COLUMNS.length) + '1'), values: [E.REGISTRY_COLUMNS.slice()] },
     { range: engines_().a1Range(TAB_LEDGER, 'A1:' + engines_().colLetter(E.LEDGER_COLUMNS.length) + '1'), values: [E.LEDGER_COLUMNS.slice()] },
     { range: engines_().a1Range(TAB_ARCHIVE, 'A1:' + engines_().colLetter(E.LEDGER_COLUMNS.length) + '1'), values: [E.LEDGER_COLUMNS.slice()] }
   ];
   if (configEmpty) {
-    var seed = buildConfigSeed_(seedFeatures);
+    const seed = buildConfigSeed_(seedFeatures);
     data.push({ range: engines_().a1Range(TAB_CONFIG, 'A2:B' + (seed.length + 1)), values: seed });
   }
   if (registryEmpty) {
-    var reg = buildRegistrySeed_();
+    const reg = buildRegistrySeed_();
     data.push({ range: engines_().a1Range(TAB_REGISTRY, 'A2:' + engines_().colLetter(E.REGISTRY_COLUMNS.length) + (reg.length + 1)), values: reg });
   }
   sheets_().Values.batchUpdate({ valueInputOption: 'RAW', data: data }, sheetId);
@@ -311,18 +311,18 @@ function populate_(sheetId, seedFeatures) {
  * @returns {string} Spreadsheet id.
  */
 function ensureSetup(opts) {
-  var props = PropertiesService.getUserProperties();
-  var existing = props.getProperty(PROP_SHEET_ID);
+  const props = PropertiesService.getUserProperties();
+  let existing = props.getProperty(PROP_SHEET_ID);
   if (existing) return existing;
-  var lock = LockService.getUserLock();
+  const lock = LockService.getUserLock();
   lock.waitLock(SETUP_LOCK_WAIT_MS); // throws on timeout: fail loud rather than create a second Sheet
   try {
     existing = props.getProperty(PROP_SHEET_ID);
     if (existing) return existing;
-    var folderId = getFolderId();
-    var id = findHubSheetInFolder_(folderId);
+    const folderId = getFolderId();
+    let id = findHubSheetInFolder_(folderId);
     if (!id) {
-      var created = Drive.Files.insert({ title: SHEET_TITLE, mimeType: MIME_SHEET, parents: [{ id: folderId }] });
+      const created = Drive.Files.insert({ title: SHEET_TITLE, mimeType: MIME_SHEET, parents: [{ id: folderId }] });
       if (!created || !created.id) throw new Error('Hub Sheet creation returned no id');
       id = created.id;
     }
@@ -340,7 +340,7 @@ function isProvisioned() {
   return !!PropertiesService.getUserProperties().getProperty(PROP_SHEET_ID);
 }
 
-var snapshot_ = null;
+let snapshot_ = null;
 
 /**
  * Opens a run snapshot: ONE Values.batchGet of the Config and Registry tabs plus extraRanges.
@@ -351,11 +351,11 @@ var snapshot_ = null;
  */
 function beginSnapshot(extraRanges) {
   if (!Array.isArray(extraRanges)) throw new Error('beginSnapshot requires an array of ranges');
-  var id = ensureSetup();
-  var ranges = [engines_().a1Range(TAB_CONFIG, CONFIG_READ_RANGE), engines_().a1Range(TAB_REGISTRY, REGISTRY_READ_RANGE)].concat(extraRanges);
-  var got = sheets_().Values.batchGet(id, { ranges: ranges }).valueRanges || [];
+  const id = ensureSetup();
+  const ranges = [engines_().a1Range(TAB_CONFIG, CONFIG_READ_RANGE), engines_().a1Range(TAB_REGISTRY, REGISTRY_READ_RANGE)].concat(extraRanges);
+  const got = sheets_().Values.batchGet(id, { ranges: ranges }).valueRanges || [];
   if (got.length !== ranges.length) throw new Error('Sheets batchGet returned ' + got.length + ' ranges, expected ' + ranges.length);
-  var vals = got.map(function (vr) { return vr.values || []; });
+  const vals = got.map(function (vr) { return vr.values || []; });
   snapshot_ = { config: vals[0], registry: vals[1] };
   return vals.slice(2);
 }
@@ -385,9 +385,9 @@ function patchSnapshot_(rows, r, c, value) {
 }
 
 function readConfigMap_() {
-  var map = {};
+  const map = {};
   configValues_(ensureSetup()).forEach(function (row) {
-    var k = cell_(row[0]);
+    const k = cell_(row[0]);
     if (k) map[k] = cell_(row[1]);
   });
   return map;
@@ -395,7 +395,7 @@ function readConfigMap_() {
 
 function parseBool_(key, raw, fallback) {
   if (raw === undefined || raw === '') return fallback;
-  var u = raw.toUpperCase();
+  const u = raw.toUpperCase();
   if (u === 'TRUE') return true;
   if (u === 'FALSE') return false;
   throw setupError_(key + ' must be TRUE or FALSE, got ' + JSON.stringify(raw));
@@ -408,8 +408,8 @@ function parsePositiveInt_(key, raw, fallback) {
 }
 
 function featuresFromMap_(map) {
-  var defaults = engines_().DEFAULT_FEATURES;
-  var out = {};
+  const defaults = engines_().DEFAULT_FEATURES;
+  const out = {};
   Object.keys(defaults).forEach(function (name) { out[name] = parseBool_(name, map[name], defaults[name]); });
   return Object.freeze(out);
 }
@@ -419,12 +419,12 @@ function featuresFromMap_(map) {
  *   MaxExcerptChars, ExcludedAiLabels (array), features. Throws SETUP_ERROR naming a missing key.
  */
 function getConfig() {
-  var map = readConfigMap_();
+  const map = readConfigMap_();
   PropertiesService.getUserProperties().setProperty(PROP_FLAGS, JSON.stringify(featuresFromMap_(map)));
   MANDATORY_KEYS.forEach(function (k) {
     if (!map[k]) throw setupError_(k + ' is missing or empty in the "Config" tab of the Day Planner Hub Config sheet');
   });
-  var excluded = map.ExcludedAiLabels === undefined || map.ExcludedAiLabels === ''
+  const excluded = map.ExcludedAiLabels === undefined || map.ExcludedAiLabels === ''
     ? engines_().AI_EXCLUDED_LABELS.slice()
     : map.ExcludedAiLabels.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
   return Object.freeze({
@@ -440,8 +440,8 @@ function getConfig() {
 }
 
 function flagsFromStored_(stored) {
-  var defaults = engines_().DEFAULT_FEATURES;
-  var out = {};
+  const defaults = engines_().DEFAULT_FEATURES;
+  const out = {};
   Object.keys(defaults).forEach(function (name) {
     out[name] = stored && typeof stored[name] === 'boolean' ? stored[name] : defaults[name];
   });
@@ -450,7 +450,7 @@ function flagsFromStored_(stored) {
 
 /** Re-reads the Config tab and mirrors the flags into HUB_FLAGS_JSON. Needs the Sheet to exist. */
 function refreshFlags_() {
-  var flags = featuresFromMap_(readConfigMap_());
+  const flags = featuresFromMap_(readConfigMap_());
   PropertiesService.getUserProperties().setProperty(PROP_FLAGS, JSON.stringify(flags));
   return flags;
 }
@@ -462,8 +462,8 @@ function refreshFlags_() {
  */
 function getFeatures(opts) {
   if (opts && opts.fresh === true && isProvisioned()) return refreshFlags_();
-  var raw = PropertiesService.getUserProperties().getProperty(PROP_FLAGS);
-  var stored = null;
+  const raw = PropertiesService.getUserProperties().getProperty(PROP_FLAGS);
+  let stored = null;
   if (raw) {
     try { stored = JSON.parse(raw); } catch (e) { logSafe_('Config: HUB_FLAGS_JSON is corrupt, treating flags as defaults (OFF)', e); }
   }
@@ -477,7 +477,7 @@ function getFeatures(opts) {
  * @returns {Object} Updated frozen feature flags.
  */
 function setFeature(name, value) {
-  var defaults = engines_().DEFAULT_FEATURES;
+  const defaults = engines_().DEFAULT_FEATURES;
   if (!Object.prototype.hasOwnProperty.call(defaults, name)) throw new Error('Unknown feature flag: ' + String(name));
   if (typeof value !== 'boolean') throw new Error('Feature flag value must be boolean for ' + name);
   writeConfigRow_(name, value ? 'TRUE' : 'FALSE');
@@ -501,13 +501,13 @@ function setTasksListId(listId) {
  * @param {string} cellValue Raw value for column B.
  */
 function writeConfigRow_(name, cellValue) {
-  var id = ensureSetup();
-  var keys = snapshot_ ? snapshot_.config : sheets_().Values.get(id, engines_().a1Range(TAB_CONFIG, CONFIG_READ_RANGE.replace('B200', 'A200'))).values || [];
-  var row = -1;
-  for (var i = 0; i < keys.length; i++) {
+  const id = ensureSetup();
+  const keys = snapshot_ ? snapshot_.config : sheets_().Values.get(id, engines_().a1Range(TAB_CONFIG, CONFIG_READ_RANGE.replace('B200', 'A200'))).values || [];
+  let row = -1;
+  for (let i = 0; i < keys.length; i++) {
     if (cell_(keys[i][0]) === name) { row = i + 2; break; }
   }
-  var payload = { values: [[name, cellValue]] };
+  const payload = { values: [[name, cellValue]] };
   if (row > 0) {
     sheets_().Values.update(payload, id, engines_().a1Range(TAB_CONFIG, 'A' + row + ':B' + row), { valueInputOption: 'RAW' });
     if (snapshot_) patchSnapshot_(snapshot_.config, row - 2, 1, payload.values[0][1]);
@@ -528,15 +528,15 @@ function getRegistry() {
  * @param {string} docId
  */
 function setRegistryDocId(seriesKey, docId) {
-  var id = ensureSetup();
-  var values = registryValues_(id);
-  var header = (values[0] || []).map(cell_);
-  var keyCol = header.indexOf('SeriesKey');
-  var docCol = header.indexOf('HumanNotesDocId');
+  const id = ensureSetup();
+  const values = registryValues_(id);
+  const header = (values[0] || []).map(cell_);
+  const keyCol = header.indexOf('SeriesKey');
+  const docCol = header.indexOf('HumanNotesDocId');
   if (keyCol < 0 || docCol < 0) throw setupError_('Meeting Registry header lacks SeriesKey/HumanNotesDocId');
-  for (var r = 1; r < values.length; r++) {
+  for (let r = 1; r < values.length; r++) {
     if (cell_(values[r][keyCol]) === seriesKey) {
-      var a1 = engines_().colLetter(docCol + 1) + (r + 1);
+      const a1 = engines_().colLetter(docCol + 1) + (r + 1);
       sheets_().Values.update({ values: [[docId]] }, id, engines_().a1Range(TAB_REGISTRY, a1 + ':' + a1), { valueInputOption: 'RAW' });
       if (snapshot_) patchSnapshot_(snapshot_.registry, r, docCol, docId);
       return;
@@ -552,38 +552,38 @@ function setRegistryDocId(seriesKey, docId) {
  * @param {Array<{seriesKey:string, fields:Object}>} updates fields maps REGISTRY_COLUMNS name to value.
  */
 function updateRegistryRows(updates) {
-  var E = engines_();
+  const E = engines_();
   if (!Array.isArray(updates)) throw new Error('updateRegistryRows requires an array of {seriesKey, fields}');
   if (!updates.length) return;
   updates.forEach(function (u) {
-    var names = u && u.fields && typeof u.fields === 'object' ? Object.keys(u.fields) : [];
+    const names = u && u.fields && typeof u.fields === 'object' ? Object.keys(u.fields) : [];
     if (!names.length) throw new Error('updateRegistryRows requires a non-empty fields object');
     names.forEach(function (n) {
       if (n === 'SeriesKey') throw new Error('updateRegistryRows cannot change SeriesKey');
       if (E.REGISTRY_COLUMNS.indexOf(n) === -1) throw new Error('Unknown Meeting Registry column: ' + n);
     });
   });
-  var id = ensureSetup();
-  var values = registryValues_(id);
-  var header = (values[0] || []).map(cell_);
-  var keyCol = header.indexOf('SeriesKey');
+  const id = ensureSetup();
+  const values = registryValues_(id);
+  const header = (values[0] || []).map(cell_);
+  const keyCol = header.indexOf('SeriesKey');
   if (keyCol < 0) throw setupError_('Meeting Registry header lacks SeriesKey');
-  var cells = [];
+  const cells = [];
   updates.forEach(function (u) {
-    var r = -1;
-    for (var i = 1; i < values.length; i++) {
+    let r = -1;
+    for (let i = 1; i < values.length; i++) {
       if (cell_(values[i][keyCol]) === u.seriesKey) { r = i; break; }
     }
     if (r < 0) throw setupError_('SeriesKey ' + u.seriesKey + ' not found in the Meeting Registry tab');
     Object.keys(u.fields).forEach(function (n) {
-      var c = header.indexOf(n);
+      const c = header.indexOf(n);
       if (c < 0) throw setupError_('Meeting Registry header lacks ' + n);
-      var v = u.fields[n] === undefined || u.fields[n] === null ? '' : String(u.fields[n]);
+      const v = u.fields[n] === undefined || u.fields[n] === null ? '' : String(u.fields[n]);
       cells.push({ r: r, c: c, v: v });
     });
   });
-  var data = cells.map(function (x) {
-    var a1 = E.colLetter(x.c + 1) + (x.r + 1);
+  const data = cells.map(function (x) {
+    const a1 = E.colLetter(x.c + 1) + (x.r + 1);
     return { range: E.a1Range(TAB_REGISTRY, a1 + ':' + a1), values: [[x.v]] };
   });
   E.chunkValueRanges(data).forEach(function (chunk) {
@@ -614,9 +614,9 @@ function getSheetSearchUrl() {
  *   Sheet was ever set up.
  */
 function getSheetLink() {
-  var id = PropertiesService.getUserProperties().getProperty(PROP_SHEET_ID);
+  const id = PropertiesService.getUserProperties().getProperty(PROP_SHEET_ID);
   if (!id) return { provisioned: false, url: null, missing: 'never' };
-  var file;
+  let file;
   try {
     file = Drive.Files.get(id);
   } catch (err) {
@@ -625,8 +625,8 @@ function getSheetLink() {
     return { provisioned: false, url: null, missing: 'deleted' };
   }
   if (file && file.labels && file.labels.trashed === true) return { provisioned: false, url: null, missing: 'trashed' };
-  var meta = sheets_().get(id, { fields: 'sheets.properties(sheetId,title)' });
-  var tab = (meta.sheets || []).map(function (s) { return s.properties; }).filter(function (p) { return p.title === TAB_CONFIG; })[0];
+  const meta = sheets_().get(id, { fields: 'sheets.properties(sheetId,title)' });
+  const tab = (meta.sheets || []).map(function (s) { return s.properties; }).filter(function (p) { return p.title === TAB_CONFIG; })[0];
   if (!tab) throw setupError_('The "' + TAB_CONFIG + '" tab is missing from the ' + SHEET_TITLE + ' sheet');
   return { provisioned: true, url: 'https:' + '/' + '/docs.google.com/spreadsheets/d/' + id + '/edit#gid=' + tab.sheetId, missing: null };
 }
@@ -637,7 +637,7 @@ function getSheetLink() {
  * @param {string} staleId The id getSheetLink found missing; ignored if the stored id has since changed.
  */
 function forgetSheet(staleId) {
-  var props = PropertiesService.getUserProperties();
+  const props = PropertiesService.getUserProperties();
   if (props.getProperty(PROP_SHEET_ID) !== staleId) return;
   props.deleteProperty(PROP_SHEET_ID);
   snapshot_ = null;
@@ -650,8 +650,8 @@ function forgetSheet(staleId) {
  * @returns {{sheetId:number, title:string}|null} The Filter Suggestions tab, or null when absent.
  */
 function filterTab_(id) {
-  var meta = sheets_().get(id, { fields: 'sheets.properties(sheetId,title)' });
-  var hit = (meta.sheets || []).map(function (x) { return x.properties; }).filter(function (p) { return p.title === TAB_FILTERS; });
+  const meta = sheets_().get(id, { fields: 'sheets.properties(sheetId,title)' });
+  const hit = (meta.sheets || []).map(function (x) { return x.properties; }).filter(function (p) { return p.title === TAB_FILTERS; });
   return hit.length ? hit[0] : null;
 }
 
@@ -662,19 +662,19 @@ function filterTab_(id) {
  */
 function readFilterRows() {
   if (!isProvisioned()) return [];
-  var id = getSheetId();
+  const id = getSheetId();
   if (!filterTab_(id)) return [];
-  var E = engines_();
-  var values = sheets_().Values.get(id, E.a1Range(TAB_FILTERS, FILTER_READ_RANGE)).values || [];
-  var header = (values[0] || []).map(cell_);
-  var col = function (name) { return header.indexOf(name); };
-  var c = { label: col('Label'), query: col('Gmail query'), source: col('Source'), create: col('Create?'), status: col('Status'), filterId: col('Filter id') };
+  const E = engines_();
+  const values = sheets_().Values.get(id, E.a1Range(TAB_FILTERS, FILTER_READ_RANGE)).values || [];
+  const header = (values[0] || []).map(cell_);
+  const col = function (name) { return header.indexOf(name); };
+  const c = { label: col('Label'), query: col('Gmail query'), source: col('Source'), create: col('Create?'), status: col('Status'), filterId: col('Filter id') };
   if (c.label < 0 || c.query < 0) throw setupError_('Filter Suggestions tab lacks the Label or Gmail query column');
-  var out = [];
-  for (var r = 1; r < values.length; r++) {
-    var v = values[r] || [];
-    var label = cell_(v[c.label]);
-    var query = cell_(v[c.query]);
+  const out = [];
+  for (let r = 1; r < values.length; r++) {
+    const v = values[r] || [];
+    const label = cell_(v[c.label]);
+    const query = cell_(v[c.query]);
     if (!label && !query) continue;
     out.push({
       row: r + 1,
@@ -697,10 +697,10 @@ function readFilterRows() {
  * @returns {void}
  */
 function writeFilterRows(rows) {
-  var E = engines_();
-  var id = ensureSetup();
-  var tab = filterTab_(id);
-  var prevCount = 0;
+  const E = engines_();
+  const id = ensureSetup();
+  let tab = filterTab_(id);
+  let prevCount = 0;
   if (!tab) {
     sheets_().batchUpdate({ requests: [{ addSheet: { properties: { title: TAB_FILTERS } } }] }, id);
     tab = filterTab_(id);
@@ -708,16 +708,16 @@ function writeFilterRows(rows) {
   } else {
     prevCount = (sheets_().Values.get(id, E.a1Range(TAB_FILTERS, 'A1:A500')).values || []).length;
   }
-  var cols = E.FILTER_TAB_COLUMNS;
-  var blank = function (v) { return v === undefined || v === null ? '' : v; };
-  var out = [cols.slice()].concat((rows || []).map(function (r) {
+  const cols = E.FILTER_TAB_COLUMNS;
+  const blank = function (v) { return v === undefined || v === null ? '' : v; };
+  const out = [cols.slice()].concat((rows || []).map(function (r) {
     return [r.label, r.query, blank(r.source), blank(r.caught), blank(r.wrong), blank(r.precision), blank(r.coveredBy),
       r.create === true, blank(r.status), blank(r.filterId)];
   }));
   while (out.length < prevCount) out.push(cols.map(function () { return ''; }));
   sheets_().Values.update({ values: out }, id, E.a1Range(TAB_FILTERS, 'A1:' + E.colLetter(cols.length) + out.length), { valueInputOption: 'RAW' });
   if (rows && rows.length) {
-    var createCol = cols.indexOf('Create?');
+    const createCol = cols.indexOf('Create?');
     sheets_().batchUpdate({ requests: [{ setDataValidation: {
       range: { sheetId: tab.sheetId, startRowIndex: 1, endRowIndex: rows.length + 1, startColumnIndex: createCol, endColumnIndex: createCol + 1 },
       rule: { condition: { type: 'BOOLEAN' }, strict: true }
@@ -732,12 +732,12 @@ function writeFilterRows(rows) {
  */
 function updateFilterRows(updates) {
   if (!updates || !updates.length) return;
-  var E = engines_();
-  var id = getSheetId();
-  var cols = E.FILTER_TAB_COLUMNS;
-  var sc = E.colLetter(cols.indexOf('Status') + 1);
-  var fc = E.colLetter(cols.indexOf('Filter id') + 1);
-  var data = updates.map(function (u) {
+  const E = engines_();
+  const id = getSheetId();
+  const cols = E.FILTER_TAB_COLUMNS;
+  const sc = E.colLetter(cols.indexOf('Status') + 1);
+  const fc = E.colLetter(cols.indexOf('Filter id') + 1);
+  const data = updates.map(function (u) {
     return { range: E.a1Range(TAB_FILTERS, sc + u.row + ':' + fc + u.row), values: [[u.status || '', u.filterId || '']] };
   });
   E.chunkValueRanges(data).forEach(function (chunk) {

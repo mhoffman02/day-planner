@@ -22,20 +22,20 @@
  * @returns {Array<{test: string, status: string, details: string}>} Hub check results.
  */
 function runHubSelfChecks() {
-  var out = [];
-  var add = function(test, status, details) { out.push({ test: 'H. ' + test, status: status, details: details }); };
+  const out = [];
+  const add = function(test, status, details) { out.push({ test: 'H. ' + test, status: status, details: details }); };
   try {
     if (typeof DPEngines === 'undefined') {
       add('Hub engines', 'FAIL', 'DPEngines is not loaded (Engines.gs missing from the deployment)');
       return out;
     }
-    var names = ['DPConfig', 'DPLedgerRepo', 'DPNotesRepo', 'DPGmailRepo', 'DPCalendarRepo', 'DPTaskRepo', 'DPQueue', 'DPTriggers'];
-    var missing = names.filter(function(n) { return typeof global[n] === 'undefined'; });
+    const names = ['DPConfig', 'DPLedgerRepo', 'DPNotesRepo', 'DPGmailRepo', 'DPCalendarRepo', 'DPTaskRepo', 'DPQueue', 'DPTriggers'];
+    const missing = names.filter(function(n) { return typeof global[n] === 'undefined'; });
     add('Hub modules loaded', missing.length ? 'FAIL' : 'PASS', missing.length ? 'Missing: ' + missing.join(', ') : 'All hub modules present');
-    var plan = DPEngines.planTaskFromThread({ thread: { threadId: 'selftest', subject: 'Self-test', url: 'https://example.invalid/t' }, today: true,
+    const plan = DPEngines.planTaskFromThread({ thread: { threadId: 'selftest', subject: 'Self-test', url: 'https://example.invalid/t' }, today: true,
       existingTasks: [], opKey: DPEngines.gmailTaskKey('selftest', true), now: new Date(), timeZone: Session.getScriptTimeZone() });
     add('Task planner dry plan', plan.action === 'CREATE' && /^\d{4}-\d{2}-\d{2}T/.test(plan.task.due) ? 'PASS' : 'FAIL', 'Planned ' + plan.action + ' (nothing written)');
-    var triggers = ScriptApp.getProjectTriggers().filter(function(t) { return t.getHandlerFunction() === 'hubDispatch'; }).length;
+    const triggers = ScriptApp.getProjectTriggers().filter(function(t) { return t.getHandlerFunction() === 'hubDispatch'; }).length;
     add('Dispatcher trigger count', triggers <= 1 ? 'PASS' : 'FAIL', triggers + ' hubDispatch trigger(s) installed');
     add('Advanced Gmail service', typeof Gmail === 'undefined' ? 'SKIP' : 'PASS', typeof Gmail === 'undefined' ? 'Gmail advanced service not enabled (scope gate not passed)' : 'Advanced Gmail service enabled');
   } catch (err) {
@@ -50,9 +50,9 @@ function runHubSelfChecks() {
  * @returns {{overallStatus: string, passedCount: number, totalTests: number, timestamp: string, results: Array<{test: string, status: string, details: string}>}} Diagnostic summary object.
  */
 function runSelfTest() {
-  var results = [];
-  var passedCount = 0;
-  var totalTests = 7;
+  const results = [];
+  let passedCount = 0;
+  const totalTests = 7;
 
   Logger.log('====================================================');
   Logger.log('  DAY PLANNER AUTOMATED SELF-TEST DIAGNOSTICS ');
@@ -60,7 +60,7 @@ function runSelfTest() {
 
   // Test 1: Drive Root & Folder Hierarchy Access
   try {
-    var rootFolder = getFolderByNameOrCreate(null, 'Day Planner');
+    const rootFolder = getFolderByNameOrCreate(null, 'Day Planner');
     if (!rootFolder) {
       results.push({
         test: '1. Google Drive & Folder Hierarchy',
@@ -68,7 +68,7 @@ function runSelfTest() {
         details: 'Day Planner root folder is not yet initialized or connected in UserProperties.'
       });
     } else {
-      var yearFolder = getFolderByNameOrCreate(rootFolder, new Date().getFullYear().toString());
+      const yearFolder = getFolderByNameOrCreate(rootFolder, new Date().getFullYear().toString());
       if (!yearFolder) {
         results.push({
           test: '1. Google Drive & Folder Hierarchy',
@@ -96,7 +96,7 @@ function runSelfTest() {
   // Test 2: Google Tasks API Connection
   try {
     if (typeof Tasks !== 'undefined') {
-      var taskList = Tasks.Tasks.list('@default');
+      const taskList = Tasks.Tasks.list('@default');
       results.push({
         test: '2. Google Tasks API (v1)',
         status: 'PASS',
@@ -122,8 +122,8 @@ function runSelfTest() {
   // Test 3: Google Calendar Integration & Tagging
   try {
     if (typeof CalendarApp !== 'undefined') {
-      var cal = CalendarApp.getDefaultCalendar();
-      var calName = cal.getName();
+      const cal = CalendarApp.getDefaultCalendar();
+      const calName = cal.getName();
       results.push({
         test: '3. Google Calendar Integration',
         status: 'PASS',
@@ -148,8 +148,8 @@ function runSelfTest() {
 
   // Test 4: Google Docs Daily Notes Provider
   try {
-    var todayStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
-    var noteText = getOrCreateDailyDocContent(todayStr);
+    const todayStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    const noteText = getOrCreateDailyDocContent(todayStr);
     results.push({
       test: '4. Google Docs Daily Notes Provider',
       status: 'PASS',
@@ -168,9 +168,9 @@ function runSelfTest() {
   // Test 5: 2-Way Sync Engine & Trigger Health
   try {
     syncWorkspaceChanges();
-    var triggers = ScriptApp.getProjectTriggers();
-    var hasSyncTrigger = false;
-    for (var i = 0; i < triggers.length; i++) {
+    const triggers = ScriptApp.getProjectTriggers();
+    let hasSyncTrigger = false;
+    for (let i = 0; i < triggers.length; i++) {
       if (triggers[i].getHandlerFunction() === 'syncWorkspaceChanges') {
         hasSyncTrigger = true;
         break;
@@ -206,25 +206,25 @@ function runSelfTest() {
         details: 'Docs or Drive Advanced Service is not defined in manifest dependencies.'
       });
     } else {
-      var probeFolder = getFolderByNameOrCreate(null, 'Day Planner');
-      var probeResource = {
+      const probeFolder = getFolderByNameOrCreate(null, 'Day Planner');
+      const probeResource = {
         title: 'Day Planner - Scope Probe (safe to delete)',
         mimeType: 'application/vnd.google-apps.document',
         parents: probeFolder ? [{ id: probeFolder.getId() }] : undefined
       };
-      var probeFile = Drive.Files.insert(probeResource);
-      var probeMarker = 'scope-probe-' + new Date().getTime();
+      const probeFile = Drive.Files.insert(probeResource);
+      const probeMarker = 'scope-probe-' + new Date().getTime();
       Docs.Documents.batchUpdate({
         requests: [{ insertText: { location: { index: 1 }, text: probeMarker } }]
       }, probeFile.id);
-      var probeDoc = Docs.Documents.get(probeFile.id);
-      var probeText = (probeDoc.body.content || []).map(function (el) {
+      const probeDoc = Docs.Documents.get(probeFile.id);
+      const probeText = (probeDoc.body.content || []).map(function (el) {
         if (!el.paragraph) return '';
         return el.paragraph.elements.map(function (pe) {
           return (pe.textRun && pe.textRun.content) || '';
         }).join('');
       }).join('');
-      var roundTripOk = probeText.indexOf(probeMarker) !== -1;
+      const roundTripOk = probeText.indexOf(probeMarker) !== -1;
       Drive.Files.remove(probeFile.id);
       if (roundTripOk) {
         results.push({
@@ -257,26 +257,26 @@ function runSelfTest() {
   // throwaway "Day Planner Notes - March 1901" doc it creates can never collide with real notes,
   // and deletes that doc via Drive (drive.file covers it, since this test created it) when done.
   try {
-    var dateX = '1901-03-15';
-    var dateY = '1901-03-16';
+    const dateX = '1901-03-15';
+    const dateY = '1901-03-16';
     saveDailyDocCards(dateX, '### #index [Test] First Topic\nplain line\n- bullet one\n- bullet two');
     saveDailyDocCards(dateY, '### #index [Test] Second Topic\nY content, should stay untouched');
     saveDailyDocCards(dateX, '### #index [Test] Replaced Topic\n- replaced bullet');
 
-    var xContent = getOrCreateDailyDocContent(dateX);
-    var yContent = getOrCreateDailyDocContent(dateY);
+    const xContent = getOrCreateDailyDocContent(dateX);
+    const yContent = getOrCreateDailyDocContent(dateY);
 
-    var probeFolder7 = getFolderByNameOrCreate(null, 'Day Planner');
-    var testDocId = getOrCreateMonthlyNotesDoc_(probeFolder7, 'Day Planner Notes - March 1901', 'March', 1901);
-    var testElements = docsGetBodyElements_(testDocId);
-    var xHeadingCount = testElements.filter(function (el) {
+    const probeFolder7 = getFolderByNameOrCreate(null, 'Day Planner');
+    const testDocId = getOrCreateMonthlyNotesDoc_(probeFolder7, 'Day Planner Notes - March 1901', 'March', 1901);
+    const testElements = docsGetBodyElements_(testDocId);
+    const xHeadingCount = testElements.filter(function (el) {
       return docsElementHeading_(el) === 'HEADING_2' && docsElementText_(el).indexOf('March 15, 1901') !== -1;
     }).length;
 
-    var xReplaced = xContent.indexOf('Replaced Topic') !== -1 && xContent.indexOf('First Topic') === -1;
-    var yIntact = yContent.indexOf('Second Topic') !== -1;
-    var bulletOk = xContent.indexOf('- replaced bullet') !== -1;
-    var singleHeading = xHeadingCount === 1;
+    const xReplaced = xContent.indexOf('Replaced Topic') !== -1 && xContent.indexOf('First Topic') === -1;
+    const yIntact = yContent.indexOf('Second Topic') !== -1;
+    const bulletOk = xContent.indexOf('- replaced bullet') !== -1;
+    const singleHeading = xHeadingCount === 1;
 
     // Clean up: this doc only ever holds throwaway 1901 test data, safe to permanently delete.
     try {
@@ -309,7 +309,7 @@ function runSelfTest() {
   }
 
   // Print Summary
-  var overallStatus = passedCount === totalTests ? 'HEALTHY (100% PASS)' : (passedCount > 0 ? 'DEGRADED' : 'CRITICAL');
+  const overallStatus = passedCount === totalTests ? 'HEALTHY (100% PASS)' : (passedCount > 0 ? 'DEGRADED' : 'CRITICAL');
 
   results.forEach(function(r) {
     Logger.log('[' + r.status + '] ' + r.test + ' -> ' + r.details);
@@ -342,7 +342,7 @@ function runPowerOnSelfTest() {
  * @returns {GoogleAppsScript.HTML.HtmlOutput} Rendered HTML response from doGet.
  */
 function testDoGetInIDE() {
-  var mockEvent = {
+  const mockEvent = {
     pathInfo: 'self-test',
     queryString: 'view=self-test',
     parameter: { view: 'self-test' },
@@ -350,7 +350,7 @@ function testDoGetInIDE() {
     contextPath: ''
   };
   Logger.log('Executing doGet(mockEvent)...');
-  var output = doGet(mockEvent);
+  const output = doGet(mockEvent);
   Logger.log('doGet Output Length: ' + output.getContent().length);
   return output;
 }
@@ -361,24 +361,24 @@ function testDoGetInIDE() {
  * @returns {GoogleAppsScript.HTML.HtmlOutput|GoogleAppsScript.Content.TextOutput} Report.
  */
 function renderSelfTestDiagnosticReport(e) {
-  var testResult = runSelfTest();
+  const testResult = runSelfTest();
   if (e && e.parameter && e.parameter.format === 'json') {
     return ContentService.createTextOutput(JSON.stringify(testResult, null, 2)).setMimeType(ContentService.MimeType.JSON);
   }
-  var isHealthy = testResult.passedCount === testResult.totalTests;
-  var badgeColor = isHealthy ? '#2e7d32' : '#c62828';
-  var badgeBg = isHealthy ? '#e8f5e9' : '#ffebee';
+  const isHealthy = testResult.passedCount === testResult.totalTests;
+  const badgeColor = isHealthy ? '#2e7d32' : '#c62828';
+  const badgeBg = isHealthy ? '#e8f5e9' : '#ffebee';
 
-  var serverLogs = (typeof getRecentServerLogs === 'function') ? getRecentServerLogs() : (global.getRecentServerLogs ? global.getRecentServerLogs() : []);
+  const serverLogs = (typeof getRecentServerLogs === 'function') ? getRecentServerLogs() : (global.getRecentServerLogs ? global.getRecentServerLogs() : []);
 
-  var escape = function(s) {
+  const escape = function(s) {
     if (!s) return '';
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   };
 
-  var runLogDocUrl = (typeof getRunLogDocUrl === 'function') ? getRunLogDocUrl() : (global.getRunLogDocUrl ? global.getRunLogDocUrl() : null);
+  const runLogDocUrl = (typeof getRunLogDocUrl === 'function') ? getRunLogDocUrl() : (global.getRunLogDocUrl ? global.getRunLogDocUrl() : null);
 
-  var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Day Planner Self-Test Diagnostics</title>' +
+  let html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Day Planner Self-Test Diagnostics</title>' +
     '<style>' +
     'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #fcfbfa; color: #1c2826; padding: 30px; max-width: 900px; margin: 0 auto; }' +
     '.card { background: #ffffff; border: 1px solid #c8ded7; border-radius: 4px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }' +
@@ -409,7 +409,7 @@ function renderSelfTestDiagnosticReport(e) {
     '<table><thead><tr><th>Test Suite</th><th>Result</th><th>Diagnostic Details</th></tr></thead><tbody>';
 
   testResult.results.concat(testResult.hub || []).forEach(function(r) {
-    var cls = r.status === 'PASS' ? 'status-pass' : (r.status === 'SKIP' ? '' : 'status-fail');
+    const cls = r.status === 'PASS' ? 'status-pass' : (r.status === 'SKIP' ? '' : 'status-fail');
     html += '<tr><td><b>' + escape(r.test) + '</b></td><td class="' + cls + '">' + escape(r.status) + '</td><td>' + escape(r.details) + '</td></tr>';
   });
 
@@ -428,9 +428,9 @@ function renderSelfTestDiagnosticReport(e) {
   } else {
     html += '<table><thead><tr><th style="width:140px;">Time</th><th style="width:70px;">Level</th><th style="width:160px;">Context</th><th>Message / Stack</th></tr></thead><tbody>';
     serverLogs.forEach(function(l) {
-      var lvl = escape(l.level || 'INFO');
-      var timeFormatted = l.timestamp ? l.timestamp.replace('T', ' ').substring(0, 19) : 'N/A';
-      var stackHtml = l.stack ? '<details style="margin-top:4px;"><summary style="cursor:pointer; color:#2d6a5a; font-size:0.75rem;">View Stack Trace</summary><pre class="stack-box">' + escape(l.stack) + '</pre></details>' : '';
+      const lvl = escape(l.level || 'INFO');
+      const timeFormatted = l.timestamp ? l.timestamp.replace('T', ' ').substring(0, 19) : 'N/A';
+      const stackHtml = l.stack ? '<details style="margin-top:4px;"><summary style="cursor:pointer; color:#2d6a5a; font-size:0.75rem;">View Stack Trace</summary><pre class="stack-box">' + escape(l.stack) + '</pre></details>' : '';
       html += '<tr>' +
         '<td style="color:#5c6b66; font-size:0.8rem;">' + escape(timeFormatted) + '</td>' +
         '<td><span class="log-level log-' + lvl + '">' + lvl + '</span></td>' +
@@ -446,7 +446,7 @@ function renderSelfTestDiagnosticReport(e) {
     '<a href="?" class="btn-return">Return to Day Planner App &rarr;</a>' +
     '</div></div></body></html>';
 
-  var diagOutput = HtmlService.createHtmlOutput(html)
+  const diagOutput = HtmlService.createHtmlOutput(html)
     .setTitle('Day Planner Self-Test Diagnostics')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
@@ -467,22 +467,22 @@ function renderSelfTestDiagnosticReport(e) {
  * @returns {object} {ok, sheetUrl, tabs, discovery}.
  */
 function hubSpike() {
-  var out = { ok: false };
-  var current = '';
+  const out = { ok: false };
+  let current = '';
   function step(name, fn) {
     current = name;
-    var v = fn();
+    const v = fn();
     console.log('[hubSpike] ' + name + ': ' + (typeof v === 'string' ? v : JSON.stringify(v)));
     return v;
   }
   try {
-    var id = step('Sheet id', function() { return DPConfig.ensureSetup(); });
+    const id = step('Sheet id', function() { return DPConfig.ensureSetup(); });
     out.sheetUrl = step('Sheet', function() { return DPConfig.getSheetUrl(); });
     out.tabs = step('Tabs', function() {
       return (Sheets.Spreadsheets.get(id, { fields: 'sheets.properties.title' }).sheets || []).map(function(s) { return s.properties.title; });
     });
     step('Config', function() {
-      var c = DPConfig.getConfig();
+      const c = DPConfig.getConfig();
       return { TimeZone: c.TimeZone, UserEmail: c.UserEmail, TasksListId: c.TasksListId, features: c.features };
     });
     step('Registry rows', function() { return DPConfig.getRegistry().length; });
