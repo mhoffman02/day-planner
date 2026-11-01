@@ -15,3 +15,11 @@ at trust boundaries (RPC responses).
 **Consequences:** Type errors surface at the boundary, at runtime and in tests, not at compile time. One
 spec serves as docs, runtime check and test contract. Each call pays a small validation cost, so `v_` is
 not used in hot internal loops.
+
+**Addendum (2026-11-01), RPC boundaries:** validation is uniform: every `google.script.run` entry point guards
+its arguments first through `v_`. Error transport stays per family and is never mixed within one: Code.gs RPCs
+throw the `ValidationError`; hub RPCs (`HubController.gs`, `rejectInvalid_`) return the `makeResult` envelope
+`{ok:false, errorCode:'INVALID_INPUT'}` and never throw; friendly RPCs (`resolveDriveFileTitle`,
+`pullDictationScratchText`, `validateAndSaveFolderUrl`; `friendlyInvalid_`) return their own
+`{success:false, error}` shape. Both wrappers catch only `ValidationError` and rethrow everything else.
+`rpc-guard-baseline.json` is now `[]`; `tools/check-rpc-guards.js` fails any new unguarded RPC.

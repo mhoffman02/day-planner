@@ -162,7 +162,6 @@ test('addMeet true and the insert itself fails -> throws as before, nothing clai
 });
 
 const INVALID = [
-  ['non-object payload', null, /payload/i],
   ['missing title', good({ title: undefined }), /title/i],
   ['whitespace title', good({ title: '   ' }), /title/i],
   ['non-string title', good({ title: 42 }), /title/i],
@@ -191,6 +190,14 @@ for (const [name, payload, reason] of INVALID) {
     assert.equal(inserts.length, 0);
   });
 }
+
+test('non-object payload is rejected by the v_ boundary guard (ValidationError on payload), nothing inserted', () => {
+  const { ctx, inserts } = calCtx();
+  for (const bad of [null, [], 'x']) {
+    assert.throws(() => ctx.createCalendarEvent(bad), (err) => err.name === 'ValidationError' && err.param === 'payload');
+  }
+  assert.equal(inserts.length, 0);
+});
 
 test('title of exactly 500 chars is accepted', () => {
   const { ctx, inserts } = calCtx();

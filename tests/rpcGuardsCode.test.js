@@ -78,3 +78,54 @@ test('valid and optional/null args still pass the guards', () => {
   passesGuard(() => c.delegateDailyTask('2026-11-01', 't1', '2026-11-02', null));
   passesGuard(() => c.saveDailyDocCards('2026-11-01', '', null));
 });
+
+// ── createCalendarEvent / include (throw like their siblings) ─────────────────
+for (const bad of [null, 5, 'x', []]) {
+  test(`createCalendarEvent rejects non-object payload ${JSON.stringify(bad)} with a ValidationError`, () => {
+    const c = ctx();
+    assert.throws(() => c.createCalendarEvent(bad), (err) => err.name === 'ValidationError' && err.param === 'payload' && err.fnName === 'createCalendarEvent');
+  });
+}
+
+for (const bad of ['Nope', '../Code', '', 7, null, undefined]) {
+  test(`include rejects ${JSON.stringify(bad)} (not a known template)`, () => {
+    const c = ctx();
+    assert.throws(() => c.include(bad), (err) => err.name === 'ValidationError' && err.param === 'filename' && err.fnName === 'include');
+  });
+}
+
+test('include accepts every template name Index.html passes', () => {
+  const c = ctx();
+  for (const name of ['Styles', 'Script', 'About', 'Tutorial']) passesGuard(() => c.include(name));
+});
+
+// ── friendly {success,error} RPCs keep their return shape (never throw on bad type) ─────────────
+const FRIENDLY = [
+  ['resolveDriveFileTitle', [5]],
+  ['resolveDriveFileTitle', [{}]],
+  ['pullDictationScratchText', [5]],
+  ['pullDictationScratchText', [{}]],
+  ['validateAndSaveFolderUrl', [5]],
+  ['validateAndSaveFolderUrl', [{}]],
+];
+for (const [rpc, args] of FRIENDLY) {
+  test(`${rpc} ${JSON.stringify(args)} returns {success:false,error} instead of throwing`, () => {
+    const c = ctx();
+    let r;
+    assert.doesNotThrow(() => { r = JSON.parse(JSON.stringify(c[rpc](...args))); });
+    assert.equal(r.success, false);
+    assert.equal(typeof r.error, 'string');
+    assert.ok(!r.error.startsWith(`${rpc}(`), 'friendly message, not the raw guard text');
+  });
+}
+
+test('friendly RPCs still take the empty/undefined/null inputs the clients send', () => {
+  const c = ctx();
+  for (const rpc of ['resolveDriveFileTitle', 'pullDictationScratchText', 'validateAndSaveFolderUrl']) {
+    for (const v of ['', undefined, null]) {
+      const r = JSON.parse(JSON.stringify(c[rpc](v)));
+      assert.equal(r.success, false, `${rpc}(${String(v)})`);
+      assert.equal(typeof r.error, 'string');
+    }
+  }
+});

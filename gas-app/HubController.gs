@@ -40,6 +40,23 @@ function fail_(code, message, literal) {
 }
 
 /**
+ * Boundary validation for the hub RPCs. Hub contract: never throws to the client, so a v_ ValidationError becomes
+ * the INVALID_INPUT result envelope (validation is uniform via v_; this family's error transport is the envelope).
+ * Any other error is a bug, not bad input, and is rethrown.
+ * @param {function(): *} check Runs a v_.guard(...).done() chain.
+ * @returns {object|null} Failed result for a ValidationError, else null.
+ */
+function rejectInvalid_(check) {
+  try {
+    check();
+    return null;
+  } catch (err) {
+    if (err && err.name === 'ValidationError') return fail_('INVALID_INPUT', err.message, true);
+    throw err;
+  }
+}
+
+/**
  * Gmail per-user quota ("Quota exceeded for quota metric 'Total Query Cost'", HTTP 429, rate limit). Seen live
  * on WORK 2026-10-12; every further call in the same minute fails too, so callers stop instead of continuing.
  * @param {*} err Thrown value.
@@ -202,6 +219,8 @@ function opts_(options) {
  * @returns {object} makeResult-shaped result.
  */
 function routeThreadToTask(threadId, options) {
+  const invalid = rejectInvalid_(() => DPEngines.v_.guard(arguments, 'routeThreadToTask').param('threadId').string().param('options').object().optional().nullable().done());
+  if (invalid) return invalid;
   const o = opts_(options);
   const extra = { options: { priority: o.priority } };
   const badId = badThread_(threadId);
@@ -217,6 +236,8 @@ function routeThreadToTask(threadId, options) {
  * @returns {object} makeResult-shaped result.
  */
 function routeThreadToWaiting(threadId, options) {
+  const invalid = rejectInvalid_(() => DPEngines.v_.guard(arguments, 'routeThreadToWaiting').param('threadId').string().param('options').object().optional().nullable().done());
+  if (invalid) return invalid;
   const o = opts_(options);
   if (o.nagDate !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(String(o.nagDate))) return fail_('INVALID_INPUT', 'nagDate must be YYYY-MM-DD');
   return route_('WAITING', threadId, { options: { waitingOn: o.waitingOn ? String(o.waitingOn).slice(0, 120) : undefined, nagDate: o.nagDate, priority: o.priority } }, ['GMAIL_ROUTER'], o);
@@ -230,6 +251,8 @@ function routeThreadToWaiting(threadId, options) {
  * @returns {object} makeResult-shaped result.
  */
 function routeThreadToMeeting(threadId, occurrenceId, options) {
+  const invalid = rejectInvalid_(() => DPEngines.v_.guard(arguments, 'routeThreadToMeeting').param('threadId').string().param('occurrenceId').string().optional().nullable().param('options').object().optional().nullable().done());
+  if (invalid) return invalid;
   const o = opts_(options);
   const extra = { options: { framing: o.framing ? String(o.framing).slice(0, 300) : undefined, kind: o.kind ? String(o.kind).slice(0, 60) : undefined } };
   if (o.backlog === true) {
@@ -258,6 +281,8 @@ function routeThreadToMeeting(threadId, occurrenceId, options) {
  * @returns {object} makeResult-shaped result.
  */
 function dismissTriageItem(threadId, options) {
+  const invalid = rejectInvalid_(() => DPEngines.v_.guard(arguments, 'dismissTriageItem').param('threadId').string().param('options').object().optional().nullable().done());
+  if (invalid) return invalid;
   const pre = preflight_(['GMAIL_ROUTER'], modeOpts_(options));
   if (pre.failure) return pre.failure;
   const bad = badThread_(threadId);
@@ -332,6 +357,8 @@ function gmailTriageWrite_(threadId, act, options) {
  * @returns {object} makeResult-shaped result.
  */
 function archiveTriageThread(threadId, options) {
+  const invalid = rejectInvalid_(() => DPEngines.v_.guard(arguments, 'archiveTriageThread').param('threadId').string().param('options').object().optional().nullable().done());
+  if (invalid) return invalid;
   return gmailTriageWrite_(threadId, { write: DPGmailRepo.archiveThread, done: 'Archived in Gmail', would: 'Would archive in Gmail' }, options);
 }
 
@@ -342,6 +369,8 @@ function archiveTriageThread(threadId, options) {
  * @returns {object} makeResult-shaped result.
  */
 function trashTriageThread(threadId, options) {
+  const invalid = rejectInvalid_(() => DPEngines.v_.guard(arguments, 'trashTriageThread').param('threadId').string().param('options').object().optional().nullable().done());
+  if (invalid) return invalid;
   return gmailTriageWrite_(threadId, { write: DPGmailRepo.trashThread, done: 'Moved to Gmail Trash', would: 'Would move to Gmail Trash' }, options);
 }
 
@@ -352,6 +381,8 @@ function trashTriageThread(threadId, options) {
  * @returns {object} makeResult-shaped result.
  */
 function retryFailedOperation(operationKey, options) {
+  const invalid = rejectInvalid_(() => DPEngines.v_.guard(arguments, 'retryFailedOperation').param('operationKey').string().param('options').object().optional().nullable().done());
+  if (invalid) return invalid;
   const pre = preflight_(['GMAIL_ROUTER'], modeOpts_(options));
   if (pre.failure) return pre.failure;
   if (typeof operationKey !== 'string' || !HUB_OPKEY_RE_.test(operationKey)) return fail_('INVALID_INPUT', 'Invalid operation key');
@@ -422,6 +453,8 @@ function describeUpcoming_(series, occs, now, tz) {
  * @returns {object} makeResult-shaped result with data in choices.
  */
 function getUpcomingMeetingChoices(threadId) {
+  const invalid = rejectInvalid_(() => DPEngines.v_.guard(arguments, 'getUpcomingMeetingChoices').param('threadId').string().done());
+  if (invalid) return invalid;
   const pre = preflight_(['GMAIL_ROUTER']);
   if (pre.failure) return pre.failure;
   const bad = badThread_(threadId);
@@ -460,6 +493,8 @@ function getUpcomingMeetingChoices(threadId) {
  * @returns {object} makeResult-shaped result.
  */
 function getMeetingPrep(seriesKey, occurrenceId) {
+  const invalid = rejectInvalid_(() => DPEngines.v_.guard(arguments, 'getMeetingPrep').param('seriesKey').string().param('occurrenceId').string().optional().nullable().done());
+  if (invalid) return invalid;
   const pre = preflight_(['GMAIL_ROUTER', 'NCMMS_CORE_PILOT']);
   if (pre.failure) return pre.failure;
   if (typeof seriesKey !== 'string' || !HUB_SERIES_KEY_RE_.test(seriesKey)) return fail_('INVALID_INPUT', 'Invalid series key');
@@ -504,6 +539,8 @@ function getMeetingPrep(seriesKey, occurrenceId) {
  * @returns {object} makeResult-shaped result with queues.
  */
 function getTriageBoard(filters) {
+  const invalid = rejectInvalid_(() => DPEngines.v_.guard(arguments, 'getTriageBoard').param('filters').object().optional().nullable().done());
+  if (invalid) return invalid;
   const pre = preflight_(['GMAIL_ROUTER', 'TRIAGE_BOARD']);
   if (pre.failure) return pre.failure;
   const f = opts_(filters);
@@ -1317,6 +1354,8 @@ function hubCreateSelectedFilters() {
  * @returns {object} {ok, flags, dryRun, message} or a failed result.
  */
 function hubSetFeature(name, value) {
+  const invalid = rejectInvalid_(() => DPEngines.v_.guard(arguments, 'hubSetFeature').param('name').string().param('value').any().optional().nullable().done());
+  if (invalid) return invalid;
   const pre = preflight_([]);
   if (pre.failure) return pre.failure;
   if (typeof name !== 'string' || !Object.prototype.hasOwnProperty.call(DPEngines.DEFAULT_FEATURES, name)) return fail_('INVALID_INPUT', 'Unknown feature flag', true);
@@ -1337,6 +1376,8 @@ function hubSetFeature(name, value) {
  * @returns {object} {ok, previous, tasksListId, message} or a failed result.
  */
 function hubSetTasksListId(listId) {
+  const invalid = rejectInvalid_(() => DPEngines.v_.guard(arguments, 'hubSetTasksListId').param('listId').string().done());
+  if (invalid) return invalid;
   const pre = preflight_([]);
   if (pre.failure) return pre.failure;
   if (typeof listId !== 'string' || !/^[A-Za-z0-9@_-]{1,200}$/.test(listId)) return fail_('INVALID_INPUT', 'Tasks list id must be 1-200 letters, digits, @, _ or -', true);
@@ -1370,6 +1411,8 @@ function geminiStub_(flag, occurrenceId, selectedItems) {
  * @returns {object} ok:false unless GEMINI_DISCOVERY is on (and not implemented yet).
  */
 function discoverGeminiNotes(occurrenceId) {
+  const invalid = rejectInvalid_(() => DPEngines.v_.guard(arguments, 'discoverGeminiNotes').param('occurrenceId').string().done());
+  if (invalid) return invalid;
   return geminiStub_('GEMINI_DISCOVERY', occurrenceId);
 }
 
@@ -1378,6 +1421,8 @@ function discoverGeminiNotes(occurrenceId) {
  * @returns {object} ok:false unless GEMINI_RECONCILIATION is on (and not implemented yet).
  */
 function getProposedMeetingActions(occurrenceId) {
+  const invalid = rejectInvalid_(() => DPEngines.v_.guard(arguments, 'getProposedMeetingActions').param('occurrenceId').string().done());
+  if (invalid) return invalid;
   return geminiStub_('GEMINI_RECONCILIATION', occurrenceId);
 }
 
@@ -1387,6 +1432,8 @@ function getProposedMeetingActions(occurrenceId) {
  * @returns {object} ok:false unless GEMINI_RECONCILIATION is on (and not implemented yet).
  */
 function confirmMeetingActions(occurrenceId, selectedItems) {
+  const invalid = rejectInvalid_(() => DPEngines.v_.guard(arguments, 'confirmMeetingActions').param('occurrenceId').string().param('selectedItems').array().optional().nullable().done());
+  if (invalid) return invalid;
   return geminiStub_('GEMINI_RECONCILIATION', occurrenceId, selectedItems || []);
 }
 

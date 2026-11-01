@@ -405,6 +405,24 @@ function logError(context, err) {
 }
 
 /**
+ * Boundary validation for the friendly {success, error} RPCs. Their transport is the returned failure shape, so a
+ * v_ ValidationError becomes that shape (validation is uniform via v_; Code.gs siblings throw instead). Any other
+ * error is a bug, not bad input, and is rethrown.
+ * @param {function(): *} check Runs a v_.guard(...).done() chain.
+ * @param {object} failure The function's existing failure result.
+ * @returns {object|null} The failure for a ValidationError, else null.
+ */
+function friendlyInvalid_(check, failure) {
+  try {
+    check();
+    return null;
+  } catch (err) {
+    if (err && err.name === 'ValidationError') return failure;
+    throw err;
+  }
+}
+
+/**
  * Warning logging helper. Logs to console.warn and records to the in-app execution log ring buffer.
  * @param {string} context Descriptive context or operation name.
  * @param {string} message Warning message.
@@ -442,7 +460,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 585;
+const BUILD_NUMBER_ = 586;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -801,6 +819,9 @@ function getValidatedRootFolder() {
  * @returns {{success: boolean, folderId?: string, folderName?: string, error?: string}} Validation result.
  */
 function validateAndSaveFolderUrl(inputUrl) {
+  const invalid = friendlyInvalid_(() => DPEngines.v_.guard(arguments, 'validateAndSaveFolderUrl').param('inputUrl').string().optional().nullable().done(),
+    { success: false, error: 'Please enter a valid Google Drive folder web link or folder ID.' });
+  if (invalid) return invalid;
   if (!inputUrl || typeof inputUrl !== 'string') {
     return { success: false, error: 'Please enter a valid Google Drive folder web link or folder ID.' };
   }
@@ -863,6 +884,7 @@ function validateAndSaveFolderUrl(inputUrl) {
  * @returns {string} Evaluated file text content.
  */
 function include(filename) {
+  DPEngines.v_.guard(arguments, 'include').param('filename').string().oneOf('Styles', 'Script', 'About', 'Tutorial').done();
   try {
     return HtmlService.createHtmlOutputFromFile(filename).getContent();
   } catch (err) {
@@ -1549,6 +1571,7 @@ function shiftDateKey_(dateKey, n) {
  * @throws {Error} 'Invalid event: ...' for bad input; a friendly message when Calendar fails.
  */
 function createCalendarEvent(payload) {
+  DPEngines.v_.guard(arguments, 'createCalendarEvent').param('payload').object().done();
   const ev = validateCalendarEventPayload_(payload);
   if (typeof Calendar === 'undefined' || !Calendar.Events || !Calendar.Calendars) {
     throw new Error('Google Calendar is not available, so the event was not created.');
@@ -2194,6 +2217,9 @@ function createDictationScratchDoc() {
  * @returns {{success: boolean, text?: string, cleared?: boolean, clearError?: string, error?: string}} Pull result.
  */
 function pullDictationScratchText(docId) {
+  const invalid = friendlyInvalid_(() => DPEngines.v_.guard(arguments, 'pullDictationScratchText').param('docId').string().optional().nullable().done(),
+    { success: false, error: 'No scratch doc id provided.' });
+  if (invalid) return invalid;
   if (typeof Docs === 'undefined') {
     return { success: true, text: 'Mock voice-typed text from local dev scratch doc.', cleared: true };
   }
@@ -2239,6 +2265,9 @@ function pullDictationScratchText(docId) {
  * @returns {{success: boolean, title?: string, fileId?: string, error?: string}} Resolution result.
  */
 function resolveDriveFileTitle(url) {
+  const invalid = friendlyInvalid_(() => DPEngines.v_.guard(arguments, 'resolveDriveFileTitle').param('url').string().optional().nullable().done(),
+    { success: false, error: 'No URL provided.' });
+  if (invalid) return invalid;
   if (!url || typeof url !== 'string') {
     return { success: false, error: 'No URL provided.' };
   }

@@ -7,13 +7,13 @@ Order (2026-10-30, user): autonomous agent work first (item A3); everything that
 
 ### A3. Solid Code ratchets: remaining shrinks (2026-11-01; shipped items in TODO_HISTORY)
 
-Phase 33. Done 2026-11-01: rpc-guard 46 -> 26, html 21 -> 12 per page, axe 0 (`axe-baseline.json` is `{}`), mutation 67% -> 91%, mirror 107 -> 72, `var` suppressions 858 -> 1 (HOME @357, WORK v186 pushed). Master Delegate Undo verified, no bug.
+Phase 33. Done 2026-11-01: rpc-guard 46 -> 0, html 21 -> 12 per page, axe 0 (`axe-baseline.json` is `{}`), mutation 67% -> 91%, mirror 107 -> 72, `var` suppressions 858 -> 1 (HOME @357, WORK v186 pushed). Master Delegate Undo verified, no bug.
 
 Order for the next agent session (all agent work, `worker` per item, its checker as the exit test):
 
 - [ ] **`var` 1 left**: `primaryTzMemo_` in `gas-app/Code.gs` (~L1461, a top-level global; `let` would stay global, so move it behind a frozen IIFE namespace getter per `.agents/rules/gas-global-init-order.md`). Red test first; then `npm run deploy:home`.
 - [ ] **mutation 96 survivors** (taskEngine 74, futureMatrixEngine 22); add `src/searchEngine.js` etc. to `stryker.config.json` scope, turn survivors into tests.
-- [ ] **rpc-guard 26 left**: decided 2026-11-01 (user, 2A): keep friendly messages, guard with `v_` only the non-user-facing args (hub, Future-matrix, friendly-error RPCs). Baseline shrinks via `node tools/check-rpc-guards.js --update`.
+- [x] **rpc-guard 0 left** (2026-11-01): all 20 remaining RPCs guarded via `v_` (hub `rejectInvalid_` envelope, friendly `friendlyInvalid_` shape, Code.gs throws); `rpc-guard-baseline.json` is `[]`, ADR 0005 addendum records the transport rule. Not yet deployed (HOME/WORK push pending commit).
 - [ ] **html 12 left per page** (user 2026-11-01: leave): role=radio priority buttons, listboxes, progressbar, event-pill button, dictation label; each changes markup/CSS/Alpine.
 - [ ] **mirror 72 left** (user 2026-11-01, 3A: the GAS copy wins; leave baselined, no more mirror work unless a drifted function is edited): ~30 `dp*` helper-name diffs, 4 URL builders using `'https:'+'/'+'/'`, diverged logic (addDailyTask, addMasterTask, parseDailyNoteToCards, toggleDictation popup size), binderStore shape, 25 `styles.css` entries unexamined.
 
