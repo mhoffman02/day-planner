@@ -442,7 +442,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 584;
+const BUILD_NUMBER_ = 585;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -3115,6 +3115,7 @@ function getFutureMatrixData_(year) {
  * @returns {{year: string, months: Object<string, Array<object>>}}
  */
 function getFutureMatrix(year) {
+  DPEngines.v_.guard(arguments, 'getFutureMatrix').param('year').union(DPEngines.v_.string(), DPEngines.v_.integer()).done();
   try {
     if (typeof Tasks === 'undefined') {
       const mockYear = String(year);
@@ -3141,6 +3142,7 @@ function getFutureMatrix(year) {
  * @returns {{id: string, title: string, category: string, status: string, dueDate: string}} Created future item.
  */
 function addFutureItem(year, monthKey, title, category, day) {
+  DPEngines.v_.guard(arguments, 'addFutureItem').param('year').union(DPEngines.v_.string(), DPEngines.v_.integer()).param('monthKey').string().matches(/^\d{4}-\d{2}$/).param('title').string().param('category').string().optional().nullable().param('day').number().optional().nullable().done();
   try {
     if (typeof Tasks === 'undefined') {
       return {
@@ -3181,6 +3183,7 @@ function addFutureItem(year, monthKey, title, category, day) {
  * @returns {object|null} Updated future item, or null if not found.
  */
 function updateFutureItemStatus(year, monthKey, itemId, status) {
+  DPEngines.v_.guard(arguments, 'updateFutureItemStatus').param('year').union(DPEngines.v_.string(), DPEngines.v_.integer()).param('monthKey').string().matches(/^\d{4}-\d{2}$/).param('itemId').string().param('status').string().done();
   try {
     if (typeof Tasks === 'undefined') {
       return { id: itemId, title: '', category: 'General', status: status };
@@ -3207,6 +3210,7 @@ function updateFutureItemStatus(year, monthKey, itemId, status) {
  * @returns {object|null} Updated daily task object, or null if item not found.
  */
 function transferFutureItem(year, monthKey, itemId, dateStr, priorityGroup) {
+  DPEngines.v_.guard(arguments, 'transferFutureItem').param('year').union(DPEngines.v_.string(), DPEngines.v_.integer()).param('monthKey').string().matches(/^\d{4}-\d{2}$/).param('itemId').string().param('dateStr').string().matches(/^\d{4}-\d{2}-\d{2}$/).param('priorityGroup').string().matches(/^[A-Ca-c]$/).optional().nullable().done();
   try {
     if (typeof Tasks === 'undefined') {
       return { id: itemId, title: '', status: '•', category: 'General', dueDate: dateStr };
@@ -3247,6 +3251,7 @@ function transferFutureItem(year, monthKey, itemId, dateStr, priorityGroup) {
  * @returns {object|null} The carried-forward item, or null if not found.
  */
 function pushFutureItemToNextMonth(year, monthKey, itemId) {
+  DPEngines.v_.guard(arguments, 'pushFutureItemToNextMonth').param('year').union(DPEngines.v_.string(), DPEngines.v_.integer()).param('monthKey').string().matches(/^\d{4}-\d{2}$/).param('itemId').string().done();
   try {
     const nextKey = nextMonthKeyStr_(monthKey);
     if (typeof Tasks === 'undefined') {
@@ -3279,6 +3284,7 @@ function pushFutureItemToNextMonth(year, monthKey, itemId) {
  * @returns {boolean} True if deleted, false if not found.
  */
 function deleteFutureItem(year, monthKey, itemId) {
+  DPEngines.v_.guard(arguments, 'deleteFutureItem').param('year').union(DPEngines.v_.string(), DPEngines.v_.integer()).param('monthKey').string().matches(/^\d{4}-\d{2}$/).param('itemId').string().done();
   return deleteDailyTask(itemId);
 }
 

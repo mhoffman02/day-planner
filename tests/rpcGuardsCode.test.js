@@ -34,6 +34,17 @@ const BAD = [
   ['setEventRsvp', ['e1', 'maybe'], 'response'],
   ['searchArchiveNotes', [{}], 'query'],
   ['searchAcrossAllMonthlyDocs', [{}], 'query'],
+  ['addFutureItem', [2026, 'Nov', 'T'], 'monthKey'],
+  ['addFutureItem', [2026, '2026-11', 7], 'title'],
+  ['addFutureItem', [2026, '2026-11', 'T', 5], 'category'],
+  ['addFutureItem', [2026, '2026-11', 'T', 'General', 'x'], 'day'],
+  ['updateFutureItemStatus', [2026, '2026-11', 7, '•'], 'itemId'],
+  ['updateFutureItemStatus', [2026, '2026-11', 'f1', {}], 'status'],
+  ['transferFutureItem', [2026, '2026-11', 'f1', 'soon'], 'dateStr'],
+  ['transferFutureItem', [2026, '2026-11', 'f1', '2026-11-02', 'Z'], 'priorityGroup'],
+  ['pushFutureItemToNextMonth', [2026, 'bad', 'f1'], 'monthKey'],
+  ['deleteFutureItem', [2026, '2026-11', null], 'itemId'],
+  ['getFutureMatrix', [{}], 'year'],
 ];
 
 for (const [rpc, args, param] of BAD) {
@@ -55,6 +66,9 @@ function passesGuard(fn) {
 test('valid and optional/null args still pass the guards', () => {
   const c = ctx();
   passesGuard(() => c.getDailyData('2026-11-01'));
+  passesGuard(() => c.getFutureMatrix(2026));
+  passesGuard(() => c.addFutureItem('2026', '2026-11', 'T', null, undefined));
+  passesGuard(() => c.transferFutureItem(2026, '2026-11', 'f1', '2026-11-02', 'b'));
   passesGuard(() => c.addDailyTask('2026-11-01', 'T', null, null, undefined));
   passesGuard(() => c.updateDailyTask('', 't1', { starred: true }));
   passesGuard(() => c.addMasterTask('T', undefined, null, undefined));

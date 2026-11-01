@@ -1,12 +1,9 @@
 [
-  "addFutureItem",
   "archiveTriageThread",
   "confirmMeetingActions",
   "createCalendarEvent",
-  "deleteFutureItem",
   "discoverGeminiNotes",
   "dismissTriageItem",
-  "getFutureMatrix",
   "getMeetingPrep",
   "getProposedMeetingActions",
   "getTriageBoard",
@@ -15,14 +12,11 @@
   "hubSetTasksListId",
   "include",
   "pullDictationScratchText",
-  "pushFutureItemToNextMonth",
   "resolveDriveFileTitle",
   "retryFailedOperation",
   "routeThreadToMeeting",
   "routeThreadToTask",
   "routeThreadToWaiting",
-  "transferFutureItem",
   "trashTriageThread",
-  "updateFutureItemStatus",
   "validateAndSaveFolderUrl"
 ]
