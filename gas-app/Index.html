@@ -37,14 +37,14 @@
   <script>
     (function() {
       try {
-        var mEl = document.getElementById('manifest-link');
+        const mEl = document.getElementById('manifest-link');
         if (mEl && typeof window !== 'undefined' && window.location && window.location.href) {
-          var raw = mEl.getAttribute('href');
-          var prefix = 'data:application/manifest+json,';
+          const raw = mEl.getAttribute('href');
+          const prefix ='data:application/manifest+json,';
           if (raw && raw.indexOf(prefix) === 0) {
-            var m = JSON.parse(decodeURIComponent(raw.slice(prefix.length)));
+            const m = JSON.parse(decodeURIComponent(raw.slice(prefix.length)));
             m.start_url = window.location.href;
-            var blob = new Blob([JSON.stringify(m)], { type: 'application/manifest+json' });
+            const blob = new Blob([JSON.stringify(m)], { type: 'application/manifest+json' });
             mEl.href = URL.createObjectURL(blob);
           }
         }
@@ -56,7 +56,7 @@
   <script>
     (function() {
       try {
-        var saved = localStorage.getItem('dayPlannerTheme');
+        const saved = localStorage.getItem('dayPlannerTheme');
         if (saved) {
           document.documentElement.setAttribute('data-theme', saved);
           document.documentElement.style.colorScheme = saved;

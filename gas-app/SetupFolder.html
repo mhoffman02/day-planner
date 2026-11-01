@@ -7,7 +7,7 @@
   <script>
     (function() {
       try {
-        var saved = localStorage.getItem('dayPlannerTheme');
+        const saved = localStorage.getItem('dayPlannerTheme');
         if (saved) {
           document.documentElement.setAttribute('data-theme', saved);
         } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
@@ -72,10 +72,10 @@
 
   <script>
     function submitFolderUrl() {
-      var input = document.getElementById('folderUrlInput').value.trim();
-      var statusBox = document.getElementById('statusBox');
-      var submitBtn = document.getElementById('submitBtn');
-      var ackContainer = document.getElementById('ackContainer');
+      const input = document.getElementById('folderUrlInput').value.trim();
+      const statusBox = document.getElementById('statusBox');
+      const submitBtn = document.getElementById('submitBtn');
+      const ackContainer = document.getElementById('ackContainer');
 
       if (!input) {
         statusBox.className = 'status-box error';

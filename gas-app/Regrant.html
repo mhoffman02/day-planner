@@ -38,11 +38,11 @@
   </main>
   <script src="https://apis.google.com/js/api.js"></script>
   <script>
-    var PICKER_ORIGIN = 'https:' + '/' + '/script.google.com';
-    var cfg = null;
+    const PICKER_ORIGIN = 'https:' + '/' + '/script.google.com';
+    let cfg = null;
 
     function setStatus(text, isError) {
-      var el = document.getElementById('status');
+      const el = document.getElementById('status');
       el.textContent = text;
       el.className = isError ? 'error' : '';
     }
@@ -59,25 +59,25 @@
     }
 
     function shortType(mimeType) {
-      var parts = String(mimeType || '').split(/[./]/);
+      const parts = String(mimeType || '').split(/[./]/);
       return parts[parts.length - 1];
     }
 
     function renderReport(report) {
-      var body = document.getElementById('rows');
+      const body = document.getElementById('rows');
       body.textContent = '';
       [report.folder].concat(report.files).forEach(function(item, i) {
-        var tr = document.createElement('tr');
+        const tr = document.createElement('tr');
         [i === 0 ? item.title + ' (folder itself)' : item.title, shortType(item.mimeType), item.appCanWrite ? 'Yes' : 'No']
           .forEach(function(text, col) {
-            var td = document.createElement('td');
+            const td = document.createElement('td');
             td.textContent = text;
             if (col === 2 && !item.appCanWrite) td.className = 'no';
             tr.appendChild(td);
           });
         body.appendChild(tr);
       });
-      var left = report.unwritable.length;
+      const left = report.unwritable.length;
       setStatus(left === 0 ? 'All items writable. You can close this page.' : left + ' item(s) still need access.', false);
     }
 
@@ -93,13 +93,13 @@
     }
 
     function openPicker() {
-      var inFolder = new google.picker.DocsView(google.picker.ViewId.DOCS)
+      const inFolder =new google.picker.DocsView(google.picker.ViewId.DOCS)
         .setParent(cfg.folderId)
         .setIncludeFolders(true)
         .setSelectFolderEnabled(true)
         .setMode(google.picker.DocsViewMode.LIST)
         .setLabel('Day Planner folder');
-      var folders = new google.picker.DocsView(google.picker.ViewId.FOLDERS)
+      const folders =new google.picker.DocsView(google.picker.ViewId.FOLDERS)
         .setSelectFolderEnabled(true)
         .setMode(google.picker.DocsViewMode.LIST);
       new google.picker.PickerBuilder()

@@ -127,14 +127,14 @@
   }));
 
   function dayOfYearFromParts(year, month, day) {
-    var start = Date.UTC(year, 0, 1);
-    var target = Date.UTC(year, month - 1, day);
+    const start = Date.UTC(year, 0, 1);
+    const target = Date.UTC(year, month - 1, day);
     return Math.round((target - start) / 86400000) + 1;
   }
 
   function getQuoteForDateStr(dateStr) {
-    var parts = dateStr.split('-').map(Number);
-    var idx = (dayOfYearFromParts(parts[0], parts[1], parts[2]) - 1) % ALL_QUOTE_ENTRIES.length;
+    const parts = dateStr.split('-').map(Number);
+    const idx = (dayOfYearFromParts(parts[0], parts[1], parts[2]) - 1) % ALL_QUOTE_ENTRIES.length;
     return ALL_QUOTE_ENTRIES[idx];
   }
 
@@ -7357,7 +7357,7 @@
       },
 
       eventGCalLink(evt) {
-        var dateStr = (evt.startTime ? evt.startTime.slice(0, 10) : this.selectedDate) || getLocalDateStr();
+        const dateStr = (evt.startTime ? evt.startTime.slice(0, 10) : this.selectedDate) || getLocalDateStr();
         return evt.gCalLink || evt.htmlLink || ('https:' + '/' + '/calendar.google.com/calendar/r/day/' + dateStr.replace(/-/g, '/'));
       },
 
@@ -7429,27 +7429,27 @@
         }
         if (typeof evt.getHangoutLink === 'function') {
           try {
-            var hl = evt.getHangoutLink();
+            const hl = evt.getHangoutLink();
             if (hl && typeof hl === 'string' && hl.trim()) return hl.trim();
           } catch (err) {
             console.error('extractMeetLink: getHangoutLink threw, trying conferenceData and text fallbacks', err.stack);
           }
         }
         if (evt.conferenceData && Array.isArray(evt.conferenceData.entryPoints)) {
-          for (var c = 0; c < evt.conferenceData.entryPoints.length; c++) {
-            var ep = evt.conferenceData.entryPoints[c];
+          for (let c = 0; c < evt.conferenceData.entryPoints.length; c++) {
+            const ep = evt.conferenceData.entryPoints[c];
             if (ep && (ep.entryPointType === 'video' || (ep.uri && ep.uri.indexOf('meet.google.com') !== -1))) {
               if (ep.uri && typeof ep.uri === 'string' && ep.uri.trim()) return ep.uri.trim();
             }
           }
         }
-        var title = (typeof evt.getTitle === 'function' ? evt.getTitle() : '') || evt.title || evt.summary || '';
-        var loc = (typeof evt.getLocation === 'function' ? evt.getLocation() : '') || evt.location || '';
-        var desc = (typeof evt.getDescription === 'function' ? evt.getDescription() : '') || evt.description || '';
-        var text = title + ' ' + loc + ' ' + desc;
-        var match = text.match(/(?:https?:[/]{2})?meet\.google\.com\/[a-z0-9_-]+(?:\?[^\s"'<>]*)?/i);
+        const title = (typeof evt.getTitle === 'function' ? evt.getTitle() : '') || evt.title || evt.summary || '';
+        const loc = (typeof evt.getLocation === 'function' ? evt.getLocation() : '') || evt.location || '';
+        const desc = (typeof evt.getDescription === 'function' ? evt.getDescription() : '') || evt.description || '';
+        const text = title + ' ' + loc + ' ' + desc;
+        const match = text.match(/(?:https?:[/]{2})?meet\.google\.com\/[a-z0-9_-]+(?:\?[^\s"'<>]*)?/i);
         if (match) {
-          var link = match[0];
+          let link = match[0];
           if (!/^https?:[/]{2}/i.test(link)) {
             link = 'https:' + '/' + '/' + link;
           }
@@ -7460,7 +7460,7 @@
 
       formatEventDescription(description) {
         if (!description) return '';
-        var htmlTagPattern = /<[a-z][\s\S]*?>/i;
+        const htmlTagPattern = /<[a-z][\s\S]*?>/i;
         if (htmlTagPattern.test(description)) {
           return description
             .replace(/<script[\s\S]*?<\/script>/gi, '')
@@ -7469,7 +7469,7 @@
             .replace(/(href|src)\s*=\s*("|')\s*(?:javascript|data):[^"']*\2/gi, '$1="#"')
             .replace(/<a(?![^>]*\btarget=)([^>]*?)>/gi, '<a target="_blank" rel="noopener noreferrer"$1>');
         }
-        var escaped = description
+        const escaped = description
           .replace(/&/g, '&amp;')
           .replace(/</g, '&lt;')
           .replace(/>/g, '&gt;')
