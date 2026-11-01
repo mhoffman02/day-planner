@@ -404,22 +404,35 @@
   }
 
   function parseTaskTitle(rawTitle = '') {
-    if (!rawTitle) return { priorityGroup: null, sequence: null, priorityCode: null, cleanTitle: '' };
+    if (!rawTitle) {
+      return { priorityGroup: null, sequence: null, priorityCode: null, cleanTitle: '' };
+    }
+    
     const match = rawTitle.match(/^\[([A-C])([1-9])\]\s*(.*)$/i);
     if (match) {
+      const priorityGroup = match[1].toUpperCase();
+      const sequence = parseInt(match[2], 10);
       return {
-        priorityGroup: match[1].toUpperCase(),
-        sequence: parseInt(match[2], 10),
-        priorityCode: `${match[1].toUpperCase()}${match[2]}`,
+        priorityGroup,
+        sequence,
+        priorityCode: `${priorityGroup}${sequence}`,
         cleanTitle: match[3].trim()
       };
     }
-    return { priorityGroup: null, sequence: null, priorityCode: null, cleanTitle: rawTitle.trim() };
+  
+    return {
+      priorityGroup: null,
+      sequence: null,
+      priorityCode: null,
+      cleanTitle: rawTitle.trim()
+    };
   }
 
   function formatTaskTitle(priorityGroup, sequence, cleanTitle) {
     const trimmed = (cleanTitle || '').trim();
-    if (priorityGroup && sequence) return `[${priorityGroup.toUpperCase()}${sequence}] ${trimmed}`;
+    if (priorityGroup && sequence) {
+      return `[${priorityGroup.toUpperCase()}${sequence}] ${trimmed}`;
+    }
     return trimmed;
   }
 
@@ -430,7 +443,7 @@
     return formatTaskTitle(parsed.priorityGroup, parsed.sequence, trimmed);
   }
 
-  function extractTaskDetails(input) {
+  function extractTaskDetails(input = '') {
     if (!input || typeof input !== 'string') return { rawTitle: '', notes: '' };
     const pipeIndex = input.indexOf('|');
     if (pipeIndex === -1) {
@@ -442,9 +455,8 @@
     };
   }
 
-  function extractInlinePriority(input, defaultPriority) {
-    const fallback = defaultPriority || 'A';
-    if (!input) return { priorityGroup: fallback, cleanTitle: '' };
+  function extractInlinePriority(input = '', defaultPriority = 'A') {
+    if (!input) return { priorityGroup: defaultPriority, cleanTitle: '' };
     const trimmed = input.trim();
     const match = trimmed.match(/^#([abcABC])(?:\s*[:-]\s*|\s+|$)(.*)$/);
     if (match) {
@@ -454,14 +466,16 @@
       };
     }
     return {
-      priorityGroup: fallback,
+      priorityGroup: defaultPriority,
       cleanTitle: trimmed
     };
   }
 
-  function getNextStatus(curr) {
-    const idx = STATUS_LIST.indexOf(curr);
-    if (idx === -1 || idx === STATUS_LIST.length - 1) return STATUS_LIST[0];
+  function getNextStatus(currentStatus) {
+    const idx = STATUS_LIST.indexOf(currentStatus);
+    if (idx === -1 || idx === STATUS_LIST.length - 1) {
+      return STATUS_LIST[0];
+    }
     return STATUS_LIST[idx + 1];
   }
 
@@ -2681,33 +2695,33 @@
 
       initRecentTopics() {
         try {
-          var saved = localStorage.getItem('dayPlannerRecentTopics');
+          const saved = localStorage.getItem('dayPlannerRecentTopics');
           if (saved) {
-            var parsed = JSON.parse(saved);
+            const parsed = JSON.parse(saved);
             if (Array.isArray(parsed) && parsed.length > 0) {
               this.recentTopics = parsed.slice(0, 20);
               return;
             }
           }
-        } catch (e) {
-          console.error('initRecentTopics: localStorage read/parse failed, using default topics', e.stack);
+        } catch (err) {
+          console.error('initRecentTopics: could not read saved topics from localStorage, using defaults:', err.stack);
         }
         this.recentTopics = ['Sprint', '1:1', 'Standup', 'Planning', 'Admin', 'Architecture', 'Bug Triage', 'Personal', 'Review', 'General'];
       },
 
       initCategories() {
-        var defaultCategories = ['General', 'Work', 'Personal', 'Financial', 'Projects', 'Health', 'Meeting', 'Decision'];
+        const defaultCategories = ['General', 'Work', 'Personal', 'Financial', 'Projects', 'Health', 'Meeting', 'Decision'];
         try {
-          var saved = localStorage.getItem('dayPlannerCategories');
+          const saved = localStorage.getItem('dayPlannerCategories');
           if (saved) {
-            var parsed = JSON.parse(saved);
+            const parsed = JSON.parse(saved);
             if (Array.isArray(parsed) && parsed.length > 0) {
-              this.recentCategories = parsed.filter(function(c) { return typeof c === 'string' && c.trim(); }).slice(0, 20);
+              this.recentCategories = parsed.filter(c => typeof c === 'string' && c.trim()).slice(0, 20);
               return;
             }
           }
-        } catch (e) {
-          console.error('initCategories: localStorage read/parse failed, using default categories', e.stack);
+        } catch (err) {
+          console.error('initCategories: could not read saved categories from localStorage, using defaults:', err.stack);
         }
         this.recentCategories = defaultCategories;
       },
@@ -2717,7 +2731,7 @@
           const saved = parseInt(localStorage.getItem('dayPlannerUiZoom'), 10);
           if (saved >= 80 && saved <= 150) this.uiZoom = saved;
         } catch (e) {
-          console.error('initUiZoom: could not load saved UI zoom, keeping default', e.stack);
+          console.error('Could not load saved UI zoom:', e.stack);
         }
       },
 
@@ -2735,7 +2749,7 @@
         try {
           localStorage.setItem('dayPlannerUiZoom', String(this.uiZoom));
         } catch (e) {
-          console.error('setUiZoom: could not persist UI zoom, applied for this session only', e.stack);
+          console.error('Could not save UI zoom:', e.stack);
         }
       },
 
@@ -2750,7 +2764,7 @@
             }
           }
         } catch (e) {
-          console.error('initColumnWidths: could not load saved column widths, keeping defaults', e.stack);
+          console.error('Could not load saved column widths:', e.stack);
         }
       },
 
@@ -2758,8 +2772,8 @@
         this.colWidths = [33.33, 33.33, 33.34];
         try {
           localStorage.removeItem('dayPlannerColumnWidths');
-        } catch (e) {
-          console.error('resetColumnWidths: could not clear saved widths, old widths may return on reload', e.stack);
+        } catch (err) {
+          console.error('resetColumnWidths: could not clear saved column widths from localStorage:', err.stack);
         }
       },
 
@@ -2837,8 +2851,8 @@
 
           try {
             localStorage.setItem('dayPlannerColumnWidths', JSON.stringify(this.colWidths));
-          } catch (e) {
-            console.error('initResize: could not persist column widths, applied for this session only', e.stack);
+          } catch (err) {
+            console.error('column resize: could not persist column widths to localStorage (quota/disabled):', err.stack);
           }
         };
 
@@ -2858,8 +2872,8 @@
           } else {
             this.theme = 'light';
           }
-        } catch (e) {
-          console.error('initTheme: theme lookup failed, falling back to light theme', e.stack);
+        } catch (err) {
+          console.error('initTheme: could not read saved theme from localStorage, using light:', err.stack);
           this.theme = 'light';
         }
         this.applyTheme();
@@ -2869,8 +2883,8 @@
         this.theme = this.theme === 'dark' ? 'light' : 'dark';
         try {
           localStorage.setItem('dayPlannerTheme', this.theme);
-        } catch (e) {
-          console.error('toggleTheme: could not persist theme, applied for this session only', e.stack);
+        } catch (err) {
+          console.error('toggleTheme: could not persist theme to localStorage (quota/disabled):', err.stack);
         }
         this.applyTheme();
       },
@@ -3256,7 +3270,7 @@
         } catch (err) {
           this.hubFlags = null;
           this.clearTriageCache();
-          console.error('loadHubStatus: hub status unavailable, Triage and Meeting Prep stay hidden', err.stack);
+          console.error('Hub status unavailable, Triage and Meeting Prep stay hidden:', err.stack);
         }
       },
 
@@ -3265,7 +3279,7 @@
           const saved = JSON.parse(localStorage.getItem('dayPlannerHubReadLater') || '[]');
           if (Array.isArray(saved)) this.triageReadLater = saved.filter((x) => typeof x === 'string');
         } catch (err) {
-          console.error('initHub: Read Later list unreadable from localStorage, starting empty', err.stack);
+          console.error('initHub: could not read Read Later list from localStorage, starting empty:', err.stack);
           this.triageReadLater = [];
         }
         try {
@@ -3493,7 +3507,7 @@
         try {
           localStorage.setItem('dayPlannerHubReadLater', JSON.stringify(this.triageReadLater));
         } catch (err) {
-          console.error('Read Later could not be persisted, kept for this session only:', err.stack);
+          console.error('Read Later could not be persisted:', err.stack);
         }
       },
 
@@ -3802,14 +3816,14 @@
 
       formatSelectedDateDisplay(dateStr) {
         if (!dateStr) return '';
-        const d = new Date(dateStr + 'T00:00:00');
+        const d = new Date(`${dateStr}T00:00:00`);
         if (isNaN(d.getTime())) return dateStr;
         return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
       },
 
       formatIndexDate(dateStr) {
         if (!dateStr) return '';
-        const d = new Date(dateStr + 'T00:00:00');
+        const d = new Date(`${dateStr}T00:00:00`);
         if (isNaN(d.getTime())) return dateStr;
         return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       },
@@ -3851,7 +3865,7 @@
         const m = this.dayPickerMonth || (new Date().getMonth() + 1);
         const y = this.dayPickerYear || new Date().getFullYear();
         const name = MONTH_NAMES[m - 1] || '';
-        return name + ' ' + y;
+        return `${name} ${y}`;
       },
 
       dayPickerCells() {
@@ -3869,10 +3883,10 @@
           const day = prevMonthLastDay - i;
           const prevM = m === 1 ? 12 : m - 1;
           const prevY = m === 1 ? y - 1 : y;
-          const dateStr = prevY + '-' + String(prevM).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+          const dateStr = `${prevY}-${String(prevM).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           cells.push({
             dayNum: day,
-            dateStr: dateStr,
+            dateStr,
             isCurrentMonth: false,
             isToday: dateStr === todayStr,
             isSelected: dateStr === this.selectedDate
@@ -3880,10 +3894,10 @@
         }
 
         for (let day = 1; day <= totalDays; day++) {
-          const dateStr = y + '-' + String(m).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+          const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           cells.push({
             dayNum: day,
-            dateStr: dateStr,
+            dateStr,
             isCurrentMonth: true,
             isToday: dateStr === todayStr,
             isSelected: dateStr === this.selectedDate
@@ -3894,10 +3908,10 @@
         const nextM = m === 12 ? 1 : m + 1;
         const nextY = m === 12 ? y + 1 : y;
         while (cells.length % 7 !== 0 || cells.length < 35) {
-          const dateStr = nextY + '-' + String(nextM).padStart(2, '0') + '-' + String(nextDay).padStart(2, '0');
+          const dateStr = `${nextY}-${String(nextM).padStart(2, '0')}-${String(nextDay).padStart(2, '0')}`;
           cells.push({
             dayNum: nextDay,
-            dateStr: dateStr,
+            dateStr,
             isCurrentMonth: false,
             isToday: dateStr === todayStr,
             isSelected: dateStr === this.selectedDate
@@ -3948,7 +3962,7 @@
       masterTaskDuePickerMonthLabel() {
         const m = this.masterTaskDuePickerMonth || (new Date().getMonth() + 1);
         const y = this.masterTaskDuePickerYear || new Date().getFullYear();
-        return (MONTH_NAMES[m - 1] || '') + ' ' + y;
+        return `${MONTH_NAMES[m - 1] || ''} ${y}`;
       },
 
       masterTaskDuePickerCells() {
@@ -3966,10 +3980,10 @@
           const day = prevMonthLastDay - i;
           const prevM = m === 1 ? 12 : m - 1;
           const prevY = m === 1 ? y - 1 : y;
-          const dateStr = prevY + '-' + String(prevM).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+          const dateStr = `${prevY}-${String(prevM).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           cells.push({
             dayNum: day,
-            dateStr: dateStr,
+            dateStr,
             isCurrentMonth: false,
             isToday: dateStr === todayStr,
             isSelected: dateStr === this.newMasterTaskDueDate
@@ -3977,10 +3991,10 @@
         }
 
         for (let day = 1; day <= totalDays; day++) {
-          const dateStr = y + '-' + String(m).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+          const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           cells.push({
             dayNum: day,
-            dateStr: dateStr,
+            dateStr,
             isCurrentMonth: true,
             isToday: dateStr === todayStr,
             isSelected: dateStr === this.newMasterTaskDueDate
@@ -3991,10 +4005,10 @@
         const nextM = m === 12 ? 1 : m + 1;
         const nextY = m === 12 ? y + 1 : y;
         while (cells.length % 7 !== 0 || cells.length < 35) {
-          const dateStr = nextY + '-' + String(nextM).padStart(2, '0') + '-' + String(nextDay).padStart(2, '0');
+          const dateStr = `${nextY}-${String(nextM).padStart(2, '0')}-${String(nextDay).padStart(2, '0')}`;
           cells.push({
             dayNum: nextDay,
-            dateStr: dateStr,
+            dateStr,
             isCurrentMonth: false,
             isToday: dateStr === todayStr,
             isSelected: dateStr === this.newMasterTaskDueDate
@@ -4022,7 +4036,7 @@
 
       async jumpToDate(targetDateStr) {
         if (!targetDateStr) return;
-        const d = new Date(targetDateStr + 'T00:00:00');
+        const d = new Date(`${targetDateStr}T00:00:00`);
         if (isNaN(d.getTime())) return;
         this.selectedDate = targetDateStr;
         this.selectedYear = d.getFullYear();
@@ -4429,8 +4443,8 @@
         this.recentCategories = list.slice(0, 20);
         try {
           localStorage.setItem('dayPlannerCategories', JSON.stringify(this.recentCategories));
-        } catch (e) {
-          console.error('recordCategory: could not persist categories, kept for this session only', e.stack);
+        } catch (err) {
+          console.error('recordCategory: could not persist categories to localStorage:', err.stack);
         }
         this.recordRecentTopic(clean);
       },
@@ -4444,8 +4458,8 @@
         this.recentTopics = list.slice(0, 20);
         try {
           localStorage.setItem('dayPlannerRecentTopics', JSON.stringify(this.recentTopics));
-        } catch (e) {
-          console.error('recordRecentTopic: could not persist recent topics, kept for this session only', e.stack);
+        } catch (err) {
+          console.error('recordRecentTopic: could not persist recent topics to localStorage:', err.stack);
         }
       },
 
@@ -4458,8 +4472,8 @@
         this.recentTopics = (this.recentTopics || []).filter(t => t.toLowerCase() !== topicToRemove.toLowerCase());
         try {
           localStorage.setItem('dayPlannerRecentTopics', JSON.stringify(this.recentTopics));
-        } catch (e) {
-          console.error('removeRecentTopic: could not persist removal, topic may return on reload', e.stack);
+        } catch (err) {
+          console.error('removeRecentTopic: could not persist recent topics to localStorage:', err.stack);
         }
       },
 
@@ -4748,7 +4762,7 @@
               const el = document.getElementById(`card-line-${card.id}-${idx + 1}`);
               if (el) {
                 el.focus();
-                try { el.setSelectionRange(caretPos, caretPos); } catch (_err) { console.error('handleLineKeydown: caret placement failed after split, caret left at default', _err.stack); }
+                try { el.setSelectionRange(caretPos, caretPos); } catch (err) { console.error('Enter: could not restore caret in new card line:', err.stack); }
               }
             }, 40);
             return;
@@ -4766,7 +4780,7 @@
             const el = document.getElementById(`card-line-${card.id}-${idx + 1}`);
             if (el) {
               el.focus();
-              try { el.setSelectionRange(el.value.length, el.value.length); } catch (_err) { console.error('handleLineKeydown: caret placement failed on new line, caret left at default', _err.stack); }
+              try { el.setSelectionRange(el.value.length, el.value.length); } catch (err) { console.error('Enter: could not move caret to end of new card line:', err.stack); }
             }
           }, 40);
           return;
@@ -4954,7 +4968,7 @@
         } catch (err) {
           const errMsg = err?.message || String(err);
           this.linkModalError = errMsg;
-          console.error('Google Drive title lookup error, using default link text:', err.stack);
+          console.error('Google Drive title lookup error:', err.stack);
           if (!this.linkModalText) {
             this.linkModalText = this.getDefaultLinkText(candidate);
           }
@@ -4995,14 +5009,14 @@
               this.linkModalText = res.title;
             }
           } catch (err) {
-            console.error('Google Drive title lookup failed on submit, using default link text:', err.stack);
+            console.error('Google Drive title lookup failed on submit:', err.stack);
           } finally {
             this.linkModalResolving = false;
           }
         }
 
         const displayText = (this.linkModalText || '').trim() || this.getDefaultLinkText(url);
-        const wrapped = '[[link:' + url + ']]' + displayText + '[[/link]]';
+        const wrapped = `[[link:${url}]]${displayText}[[/link]]`;
 
         const lines = this.cardLines(card);
         const lineText = lines[idx] || '';
@@ -5015,7 +5029,7 @@
           const after = lineText.slice(selEnd);
           lines[idx] = before + wrapped + after;
         } else {
-          lines[idx] = lineText ? (lineText + ' ' + wrapped) : wrapped;
+          lines[idx] = lineText ? `${lineText} ${wrapped}` : wrapped;
         }
 
         card.content = lines.join('\n');
@@ -5226,7 +5240,7 @@
           el.value = dictationPopupBaseValue.slice(0, dictationPopupSelStart)
             + (data.text || '')
             + dictationPopupBaseValue.slice(dictationPopupSelEnd);
-          el.dispatchEvent(new Event('input', { bubbles: true }));
+          el.dispatchEvent(new window.Event('input', { bubbles: true }));
           if (data.closed) {
             this.sttListening = false;
             dictationPopupWin = null;
@@ -5249,7 +5263,7 @@
         const selStart = el.selectionStart ?? baseValue.length;
         const selEnd = el.selectionEnd ?? baseValue.length;
         el.value = baseValue.slice(0, selStart) + text + baseValue.slice(selEnd);
-        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new window.Event('input', { bubbles: true }));
         el.focus();
         const newPos = selStart + text.length;
         el.setSelectionRange(newPos, newPos);
@@ -5937,7 +5951,7 @@
       },
 
       triggerInstallApp() {
-        if (window.deferredInstallPrompt) {
+        if (typeof window !== 'undefined' && window.deferredInstallPrompt) {
           window.deferredInstallPrompt.prompt();
           if (window.deferredInstallPrompt.userChoice) {
             window.deferredInstallPrompt.userChoice.then((choiceResult) => {
@@ -6643,23 +6657,23 @@
         clearTimeout(this.notesPopoverCloseTimer);
         this.openNotesPopoverTaskId = taskId;
         if (event && (event.currentTarget || event.target)) {
-          var el = event.currentTarget || event.target;
-          var btn = el.closest ? (el.closest('.notes-indicator') || el) : el;
-          var rect = this.zoomedRect(btn);
-          var spaceBelow = this.zoomedViewport().h - rect.bottom;
-          var spaceAbove = rect.top;
-          var dropUp = (spaceBelow < 275 && spaceAbove > spaceBelow) || spaceBelow < 160;
+          const el = event.currentTarget || event.target;
+          const btn = el.closest ? (el.closest('.notes-indicator') || el) : el;
+          const rect = this.zoomedRect(btn);
+          const spaceBelow = this.zoomedViewport().h - rect.bottom;
+          const spaceAbove = rect.top;
+          const dropUp = (spaceBelow < 275 && spaceAbove > spaceBelow) || spaceBelow < 160;
           this.notesPopoverDropUp = dropUp;
 
-          var left = Math.round(rect.left);
-          var popoverWidth = 280;
+          let left = Math.round(rect.left);
+          const popoverWidth = 280;
           if (left + popoverWidth > this.zoomedViewport().w - 16) {
             left = Math.max(16, this.zoomedViewport().w - popoverWidth - 16);
           }
           this.notesPopoverPos = {
-            top: dropUp ? null : (Math.round(rect.bottom) + 'px'),
-            bottom: dropUp ? (Math.round(this.zoomedViewport().h - rect.top + 4) + 'px') : null,
-            left: left + 'px'
+            top: dropUp ? null : `${Math.round(rect.bottom)}px`,
+            bottom: dropUp ? `${Math.round(this.zoomedViewport().h - rect.top + 4)}px` : null,
+            left: `${left}px`
           };
         }
       },
@@ -6697,17 +6711,17 @@
         }
         this.openStatusMenuTaskId = taskId;
         if (event && (event.currentTarget || event.target)) {
-          var el = event.currentTarget || event.target;
-          var btn = el.closest ? (el.closest('.status-btn') || el) : el;
-          var rect = this.zoomedRect(btn);
-          var spaceBelow = this.zoomedViewport().h - rect.bottom;
-          var spaceAbove = rect.top;
-          var dropUp = (spaceBelow < 275 && spaceAbove > spaceBelow) || spaceBelow < 160;
+          const el = event.currentTarget || event.target;
+          const btn = el.closest ? (el.closest('.status-btn') || el) : el;
+          const rect = this.zoomedRect(btn);
+          const spaceBelow = this.zoomedViewport().h - rect.bottom;
+          const spaceAbove = rect.top;
+          const dropUp = (spaceBelow < 275 && spaceAbove > spaceBelow) || spaceBelow < 160;
           this.statusMenuDropUp = dropUp;
           this.statusMenuPos = {
-            top: dropUp ? null : Math.round(rect.bottom + 2) + 'px',
-            bottom: dropUp ? Math.round(this.zoomedViewport().h - rect.top + 2) + 'px' : null,
-            left: Math.round(rect.left) + 'px'
+            top: dropUp ? null : `${Math.round(rect.bottom + 2)}px`,
+            bottom: dropUp ? `${Math.round(this.zoomedViewport().h - rect.top + 2)}px` : null,
+            left: `${Math.round(rect.left)}px`
           };
         }
       },
