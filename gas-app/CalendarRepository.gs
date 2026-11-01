@@ -12,19 +12,19 @@
  */
 (function(global) {
 
-var CAL_FIELDS_ = 'items(id,summary,status,start,end,eventType,transparency,recurringEventId,htmlLink,hangoutLink,' +
+const CAL_FIELDS_ = 'items(id,summary,status,start,end,eventType,transparency,recurringEventId,htmlLink,hangoutLink,' +
   'attendees(email),conferenceData(entryPoints),attachments(fileUrl,fileId,title,mimeType),' +
   'extendedProperties(shared)),nextPageToken';
-var CAL_PAGE_SIZE_ = 250;
-var CAL_MAX_PAGES_ = 8;
-var CAL_DAY_MS_ = 24 * 60 * 60 * 1000;
+const CAL_PAGE_SIZE_ = 250;
+const CAL_MAX_PAGES_ = 8;
+const CAL_DAY_MS_ = 24 * 60 * 60 * 1000;
 
 /**
  * @throws {Error} When the Advanced Calendar service is not enabled.
  */
 function requireCalendar_() {
   if (typeof Calendar === 'undefined' || !Calendar.Events) {
-    var err = new Error('Advanced Calendar service is not enabled for this project');
+    const err = new Error('Advanced Calendar service is not enabled for this project');
     err.code = 'CALENDAR_SERVICE_MISSING';
     throw err;
   }
@@ -37,7 +37,7 @@ function requireCalendar_() {
  * @returns {object} Normalized event.
  */
 function normalizeEvent_(raw, calendarId) {
-  var start = raw.start || {};
+  const start = raw.start || {};
   return {
     id: raw.id,
     calendarId: calendarId,
@@ -70,12 +70,12 @@ function normalizeEvent_(raw, calendarId) {
  */
 function loadEvents(calendarId, timeMin, timeMax, registry) {
   requireCalendar_();
-  var cal = calendarId || 'primary';
-  var out = [];
-  var pageToken = null;
-  var pages = 0;
+  const cal = calendarId || 'primary';
+  const out = [];
+  let pageToken = null;
+  let pages = 0;
   do {
-    var params = {
+    const params = {
       timeMin: timeMin.toISOString(),
       timeMax: timeMax.toISOString(),
       singleEvents: true,
@@ -85,10 +85,10 @@ function loadEvents(calendarId, timeMin, timeMax, registry) {
       fields: CAL_FIELDS_
     };
     if (pageToken) params.pageToken = pageToken;
-    var resp = Calendar.Events.list(cal, params) || {};
+    const resp = Calendar.Events.list(cal, params) || {};
     (resp.items || []).forEach(function(raw) {
-      var evt = normalizeEvent_(raw, cal);
-      var c = DPEngines.classifyEventDetailed(evt, registry);
+      const evt = normalizeEvent_(raw, cal);
+      const c = DPEngines.classifyEventDetailed(evt, registry);
       evt.type = c.type;
       evt.importable = c.importable;
       evt.typeReason = c.reason;
@@ -98,7 +98,7 @@ function loadEvents(calendarId, timeMin, timeMax, registry) {
     pages += 1;
   } while (pageToken && pages < CAL_MAX_PAGES_);
   if (pageToken) {
-    var tooMany = new Error('Calendar window has more events than the bounded page limit');
+    const tooMany = new Error('Calendar window has more events than the bounded page limit');
     tooMany.code = 'CALENDAR_WINDOW_TOO_LARGE';
     throw tooMany;
   }
@@ -111,7 +111,7 @@ function loadEvents(calendarId, timeMin, timeMax, registry) {
  * @returns {boolean} True when this event is a legitimate meeting destination.
  */
 function isDestination_(evt) {
-  var shared = evt.extendedProperties && evt.extendedProperties.shared;
+  const shared = evt.extendedProperties && evt.extendedProperties.shared;
   if (shared && shared.gasTaskId) return false;
   if (evt.status === 'cancelled') return false;
   return DPEngines.isMeetingDestination(evt.type);
@@ -133,17 +133,17 @@ function prepKey_(text) {
  * @returns {Array<{id:string,start:string,end:string,status:string,prepStart?:string,summary:string,htmlLink:(string|null)}>} Occurrences.
  */
 function occurrencesForSeries(seriesRow, events) {
-  var resolved = DPEngines.resolveSeries([seriesRow], events);
+  const resolved = DPEngines.resolveSeries([seriesRow], events);
   if (!resolved.length || !resolved[0].events.length) return [];
-  var key = prepKey_(seriesRow.TitleFallback || seriesRow.DisplayName);
-  var preps = events.filter(function(e) {
+  const key = prepKey_(seriesRow.TitleFallback || seriesRow.DisplayName);
+  const preps = events.filter(function(e) {
     return e.type === DPEngines.EVENT_TYPE.PREP && key !== '' && DPEngines.normalizeEventTitle(e.summary).indexOf(key) !== -1;
   });
   return resolved[0].events.filter(isDestination_).map(function(e) {
-    var meetingMs = Date.parse(e.start);
-    var occ = { id: e.id, start: e.start, end: e.end || e.start, status: e.status, summary: e.summary, htmlLink: e.htmlLink };
-    var prep = preps.filter(function(p) {
-      var ps = Date.parse(p.start);
+    const meetingMs = Date.parse(e.start);
+    const occ = { id: e.id, start: e.start, end: e.end || e.start, status: e.status, summary: e.summary, htmlLink: e.htmlLink };
+    const prep = preps.filter(function(p) {
+      const ps = Date.parse(p.start);
       return ps <= meetingMs && meetingMs - ps < CAL_DAY_MS_;
     }).sort(function(a, b) { return Date.parse(b.start) - Date.parse(a.start); })[0];
     if (prep) occ.prepStart = prep.start;
@@ -160,8 +160,8 @@ function occurrencesForSeries(seriesRow, events) {
  * @returns {Array<object>} Occurrences (see occurrencesForSeries).
  */
 function listOccurrences(seriesRow, registry, now, horizonDays) {
-  var days = horizonDays || 21;
-  var events = loadEvents(seriesRow.CalendarId || 'primary', new Date(now.getTime() - CAL_DAY_MS_), new Date(now.getTime() + days * CAL_DAY_MS_), registry);
+  const days = horizonDays || 21;
+  const events = loadEvents(seriesRow.CalendarId || 'primary', new Date(now.getTime() - CAL_DAY_MS_), new Date(now.getTime() + days * CAL_DAY_MS_), registry);
   return occurrencesForSeries(seriesRow, events);
 }
 
@@ -171,7 +171,7 @@ function listOccurrences(seriesRow, registry, now, horizonDays) {
  */
 function isNotFound_(err) {
   if (err && (err.code === 404 || err.code === 410)) return true;
-  var text = String((err && err.message) || err);
+  const text = String((err && err.message) || err);
   return /\b(404|410)\b|not ?found|\bgone\b|deleted/i.test(text) && !/rate limit|quota|backend|unavailable|timeout|internal/i.test(text);
 }
 
@@ -187,31 +187,31 @@ function isNotFound_(err) {
  */
 function getOccurrence(seriesRow, occurrenceId, registry) {
   requireCalendar_();
-  var raw;
+  let raw;
   try {
     raw = Calendar.Events.get(seriesRow.CalendarId || 'primary', occurrenceId, { fields: 'id,summary,status,start,end,eventType,transparency,recurringEventId,htmlLink,hangoutLink,extendedProperties(shared)' });
   } catch (err) {
     if (!isNotFound_(err)) throw err;
-    var nf = new Error('Calendar occurrence not found');
+    const nf = new Error('Calendar occurrence not found');
     nf.code = 'OCCURRENCE_NOT_FOUND';
     nf.retryable = false;
     nf.cause = err;
     throw nf;
   }
-  var evt = normalizeEvent_(raw, seriesRow.CalendarId || 'primary');
-  var c = DPEngines.classifyEventDetailed(evt, registry);
+  const evt = normalizeEvent_(raw, seriesRow.CalendarId || 'primary');
+  const c = DPEngines.classifyEventDetailed(evt, registry);
   evt.type = c.type;
   evt.importable = c.importable;
   // The id is client supplied: it must belong to the requested series (recurringEventId, else title match).
-  var owned = DPEngines.resolveSeries([seriesRow], [evt]);
+  const owned = DPEngines.resolveSeries([seriesRow], [evt]);
   if (!owned.length || !owned[0].events.length) {
-    var foreign = new Error('Calendar event does not belong to the requested meeting series');
+    const foreign = new Error('Calendar event does not belong to the requested meeting series');
     foreign.code = 'OCCURRENCE_NOT_IN_SERIES';
     foreign.retryable = false;
     throw foreign;
   }
   if (!isDestination_(evt)) {
-    var bad = new Error('Calendar event is not a meeting destination');
+    const bad = new Error('Calendar event is not a meeting destination');
     bad.code = 'OCCURRENCE_NOT_DESTINATION';
     bad.retryable = false;
     throw bad;
@@ -229,16 +229,16 @@ function getOccurrence(seriesRow, occurrenceId, registry) {
  *   stale:string[], persisted:boolean, persistGap:(string|null)}} Discovery report.
  */
 function discoverSeries(registry, now, opts) {
-  var byCalendar = {};
+  const byCalendar = {};
   registry.filter(function(r) { return r.Enabled !== false; }).forEach(function(r) {
-    var cal = r.CalendarId || 'primary';
+    const cal = r.CalendarId || 'primary';
     if (!byCalendar[cal]) byCalendar[cal] = [];
     byCalendar[cal].push(r);
   });
-  var discovered = [];
-  var stale = [];
+  const discovered = [];
+  const stale = [];
   Object.keys(byCalendar).forEach(function(cal) {
-    var events = loadEvents(cal, new Date(now.getTime() - 14 * CAL_DAY_MS_), new Date(now.getTime() + 60 * CAL_DAY_MS_), registry);
+    const events = loadEvents(cal, new Date(now.getTime() - 14 * CAL_DAY_MS_), new Date(now.getTime() + 60 * CAL_DAY_MS_), registry);
     DPEngines.resolveSeries(byCalendar[cal], events).forEach(function(s) {
       if (s.staleRecurringEventId) stale.push(s.seriesKey);
       if (s.discovery && s.discoveredRecurringEventId) {
@@ -246,8 +246,8 @@ function discoverSeries(registry, now, opts) {
       }
     });
   });
-  var persisted = false;
-  var persistGap = null;
+  let persisted = false;
+  let persistGap = null;
   if (opts && opts.persist && discovered.length) {
     if (typeof DPConfig !== 'undefined' && DPConfig && typeof DPConfig.updateRegistryRows === 'function') {
       DPConfig.updateRegistryRows(discovered.map(function(d) { return { seriesKey: d.seriesKey, fields: { RecurringEventId: d.recurringEventId, CalendarId: d.calendarId } }; }));

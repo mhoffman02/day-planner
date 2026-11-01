@@ -12,11 +12,11 @@
  */
 (function(global) {
 
-var TASKS_PAGE_SIZE_ = 100;
-var TASKS_MAX_PAGES_ = 50;
-var TASKS_DEFAULT_LIST_ = '@default';
-var WAITING_TAG_RE_ = /\[Waiting\]/;
-var run_ = null;
+const TASKS_PAGE_SIZE_ = 100;
+const TASKS_MAX_PAGES_ = 50;
+const TASKS_DEFAULT_LIST_ = '@default';
+const WAITING_TAG_RE_ = /\[Waiting\]/;
+let run_ = null;
 
 /**
  * @param {string} [listId] Tasks list id from config.
@@ -33,13 +33,13 @@ function listId_(listId) {
  */
 function listAllTasks(listId) {
   if (typeof Tasks === 'undefined' || !Tasks.Tasks) throw new Error('Advanced Tasks service is not enabled for this project');
-  var out = [];
-  var pageToken = null;
-  var pages = 0;
+  const out = [];
+  let pageToken = null;
+  let pages = 0;
   do {
-    var params = { maxResults: TASKS_PAGE_SIZE_, showCompleted: true, showHidden: true };
+    const params = { maxResults: TASKS_PAGE_SIZE_, showCompleted: true, showHidden: true };
     if (pageToken) params.pageToken = pageToken;
-    var resp = Tasks.Tasks.list(listId_(listId), params) || {};
+    const resp = Tasks.Tasks.list(listId_(listId), params) || {};
     (resp.items || []).forEach(function(t) { out.push(t); });
     pageToken = resp.nextPageToken || null;
     pages += 1;
@@ -88,7 +88,7 @@ function findExistingByOpKey(opKey, listId) {
  */
 function createFromPlan_(plan, listId) {
   if (plan.action === 'EXISTS') return { created: false, task: plan.task };
-  var task = Tasks.Tasks.insert(plan.task, listId_(listId));
+  const task = Tasks.Tasks.insert(plan.task, listId_(listId));
   if (run_ && run_.tasks && run_.listId === listId_(listId)) run_.tasks.push(task);
   return { created: true, task: task };
 }
@@ -99,7 +99,7 @@ function createFromPlan_(plan, listId) {
  * @returns {{created:boolean, task:object}} Outcome.
  */
 function createFromThread(a) {
-  var plan = DPEngines.planTaskFromThread({
+  const plan = DPEngines.planTaskFromThread({
     thread: { threadId: a.thread.threadId, subject: a.thread.subject, url: a.thread.url },
     today: !!a.today,
     decision: !!a.decision,
@@ -118,7 +118,7 @@ function createFromThread(a) {
  * @returns {{created:boolean, task:object}} Outcome.
  */
 function createWaiting(a) {
-  var plan = DPEngines.planWaiting({
+  const plan = DPEngines.planWaiting({
     thread: { threadId: a.thread.threadId, subject: a.thread.subject, url: a.thread.url },
     waitingOn: a.waitingOn,
     nagDate: a.nagDate,
@@ -140,7 +140,7 @@ function listWaitingDue(today, listId) {
   return listAllTasks(listId).filter(function(t) {
     return t.status !== 'completed' && WAITING_TAG_RE_.test(t.notes || '');
   }).map(function(t) {
-    var meta = DPEngines.taskPlannerReadMeta(t.notes);
+    const meta = DPEngines.taskPlannerReadMeta(t.notes);
     return { id: t.id, title: t.title || '', nagDate: meta.nagDate || '', waitingOn: meta.waitingOn || '' };
   }).filter(function(w) { return w.nagDate && w.nagDate <= today; });
 }

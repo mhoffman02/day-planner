@@ -13,19 +13,19 @@
  */
 (function(global) {
 
-var HUB_HANDLER_ = 'hubDispatch';
-var HUB_ALLOWED_MINUTES_ = [1, 5, 10, 15, 30];
-var HUB_JOB_PROP_PREFIX_ = 'HUB_JOB_';
-var HUB_SCHEDULE_PROP_ = 'HUB_SCHEDULE_JSON';
-var HUB_SUMMARY_PROP_ = 'HUB_JOB_SUMMARY';
-var HUB_DEFAULT_SCHEDULE_ = { DAILY_REFRESH: '06:55', CORE_CARRYIN: '07:20', TRIAGE_REFRESH: '12:00', EOD_RECONCILE: '17:00' };
+const HUB_HANDLER_ = 'hubDispatch';
+const HUB_ALLOWED_MINUTES_ = [1, 5, 10, 15, 30];
+const HUB_JOB_PROP_PREFIX_ = 'HUB_JOB_';
+const HUB_SCHEDULE_PROP_ = 'HUB_SCHEDULE_JSON';
+const HUB_SUMMARY_PROP_ = 'HUB_JOB_SUMMARY';
+const HUB_DEFAULT_SCHEDULE_ = { DAILY_REFRESH: '06:55', CORE_CARRYIN: '07:20', TRIAGE_REFRESH: '12:00', EOD_RECONCILE: '17:00' };
 
 /**
  * @param {string} hm Time as HH:mm.
  * @returns {number} Minutes since midnight.
  */
 function minutesOf_(hm) {
-  var m = /^(\d{1,2}):(\d{2})$/.exec(String(hm));
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(hm));
   if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) throw new Error('Invalid schedule time ' + JSON.stringify(hm) + ' (expected HH:mm)');
   return Number(m[1]) * 60 + Number(m[2]);
 }
@@ -40,9 +40,9 @@ function minutesOf_(hm) {
  * @returns {string[]} Job names due now.
  */
 function dueJobs(nowHm, today, schedule, tickMinutes, lastRun) {
-  var now = minutesOf_(nowHm);
+  const now = minutesOf_(nowHm);
   return Object.keys(schedule).filter(function(job) {
-    var start = minutesOf_(schedule[job]);
+    const start = minutesOf_(schedule[job]);
     return now >= start && now < start + 2 * tickMinutes && lastRun[job] !== today;
   });
 }
@@ -51,7 +51,7 @@ function dueJobs(nowHm, today, schedule, tickMinutes, lastRun) {
  * @returns {string[]} Delete every existing hubDispatch trigger; returns how many were removed count as array length.
  */
 function deleteHubTriggers_() {
-  var removed = [];
+  const removed = [];
   ScriptApp.getProjectTriggers().forEach(function(t) {
     if (t.getHandlerFunction() === HUB_HANDLER_) {
       ScriptApp.deleteTrigger(t);
@@ -66,7 +66,7 @@ function deleteHubTriggers_() {
  * @returns {object} makeResult-shaped result.
  */
 function installHubTriggers() {
-  var minutes = DPConfig.getConfig().TriggerMinutes;
+  const minutes = DPConfig.getConfig().TriggerMinutes;
   if (HUB_ALLOWED_MINUTES_.indexOf(minutes) === -1) {
     throw new Error('TriggerMinutes must be one of ' + HUB_ALLOWED_MINUTES_.join('/') + ', got ' + JSON.stringify(minutes));
   }
@@ -80,7 +80,7 @@ function installHubTriggers() {
  * @returns {object} makeResult-shaped result.
  */
 function removeHubTriggers() {
-  var removed = deleteHubTriggers_();
+  const removed = deleteHubTriggers_();
   return DPEngines.makeResult({ ok: true, status: 'OK', message: 'Removed ' + removed.length + ' ' + HUB_HANDLER_ + ' trigger(s)', removed: removed.length });
 }
 
@@ -93,17 +93,17 @@ function removeHubTriggers() {
  */
 function runJob_(job, features, today, settings) {
   if (job === 'CORE_CARRYIN') {
-    var q = DPQueue.run(false);
+    const q = DPQueue.run(false);
     return { status: q.status };
   }
   if (job === 'DAILY_REFRESH') {
-    var d = DPCalendarRepo.discoverSeries(DPConfig.getRegistry(), new Date(), { persist: false });
+    const d = DPCalendarRepo.discoverSeries(DPConfig.getRegistry(), new Date(), { persist: false });
     return { matched: d.discovered.length, stale: d.stale.length };
   }
   if (job === 'TRIAGE_REFRESH') {
     if (features.TRIAGE_BOARD !== true) return { skipped: 'TRIAGE_BOARD off' };
-    var board = global._getTriageBoardInternal ? global._getTriageBoardInternal({ countOnly: true }) : null;
-    var sizes = {};
+    const board = global._getTriageBoardInternal ? global._getTriageBoardInternal({ countOnly: true }) : null;
+    const sizes = {};
     if (board && board.queues) Object.keys(board.queues).forEach(function(k) { sizes[k] = board.queues[k].length; });
     return { queues: sizes };
   }
@@ -123,29 +123,29 @@ function hubDispatch() {
     return { ok: false, status: 'ERROR', message: 'Hub modules are not loaded' };
   }
   try {
-    var features = DPConfig.getFeatures({ fresh: true });
+    const features = DPConfig.getFeatures({ fresh: true });
     if (features.GMAIL_ROUTER !== true) return DPEngines.makeResult({ ok: true, status: 'NOOP', message: 'GMAIL_ROUTER flag is off' });
-    var settings = DPQueue.getSettings();
-    var props = PropertiesService.getUserProperties();
-    var now = new Date();
-    var today = DPEngines.taskPlannerLocalDate(now, settings.timeZone);
-    var schedule = HUB_DEFAULT_SCHEDULE_;
-    var override = props.getProperty(HUB_SCHEDULE_PROP_);
+    const settings = DPQueue.getSettings();
+    const props = PropertiesService.getUserProperties();
+    const now = new Date();
+    const today = DPEngines.taskPlannerLocalDate(now, settings.timeZone);
+    let schedule = HUB_DEFAULT_SCHEDULE_;
+    const override = props.getProperty(HUB_SCHEDULE_PROP_);
     if (override) schedule = JSON.parse(override);
-    var lastRun = {};
+    const lastRun = {};
     Object.keys(schedule).forEach(function(j) { lastRun[j] = props.getProperty(HUB_JOB_PROP_PREFIX_ + j); });
-    var due = dueJobs(Utilities.formatDate(now, settings.timeZone, 'HH:mm'), today, schedule, settings.triggerMinutes, lastRun);
-    var summary = { queue: null, jobs: {} };
+    const due = dueJobs(Utilities.formatDate(now, settings.timeZone, 'HH:mm'), today, schedule, settings.triggerMinutes, lastRun);
+    const summary = { queue: null, jobs: {} };
     // CORE_CARRYIN is itself a queue pass; run the regular pass only once per tick.
-    var queueOnce = due.indexOf('CORE_CARRYIN') === -1;
+    const queueOnce = due.indexOf('CORE_CARRYIN') === -1;
     if (queueOnce) summary.queue = DPQueue.run(false, { scheduled: true }).status;
     due.forEach(function(job) {
       try {
-        var jobResult = runJob_(job, features, today, settings);
+        const jobResult = runJob_(job, features, today, settings);
         summary.jobs[job] = jobResult;
         if (job === 'CORE_CARRYIN') summary.queue = jobResult.status;
         // A busy lock or a failed pass did not do the day's work: leave the job unmarked so the next tick retries.
-        var transient = jobResult.status === 'LOCK_BUSY' || jobResult.status === 'ERROR';
+        const transient = jobResult.status === 'LOCK_BUSY' || jobResult.status === 'ERROR';
         if (features.DRY_RUN !== true && !transient) props.setProperty(HUB_JOB_PROP_PREFIX_ + job, today);
       } catch (jobErr) {
         DPQueue.logSafe('hubDispatch job ' + job, jobErr);

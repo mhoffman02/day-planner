@@ -17,12 +17,12 @@
  */
 (function(global) {
 
-var MIME_DOC = 'application/vnd.google-apps.document';
-var NOTES_TITLE_PREFIX = 'Meeting Notes – ';
-var READ_FIELDS = 'revisionId,body.content(startIndex,endIndex,paragraph(paragraphStyle.namedStyleType,elements(startIndex,endIndex,textRun(content,textStyle.link.url))))';
+const MIME_DOC = 'application/vnd.google-apps.document';
+const NOTES_TITLE_PREFIX = 'Meeting Notes – ';
+const READ_FIELDS = 'revisionId,body.content(startIndex,endIndex,paragraph(paragraphStyle.namedStyleType,elements(startIndex,endIndex,textRun(content,textStyle.link.url))))';
 
 function docError_(code, message, retryable, cause) {
-  var e = new Error(message);
+  const e = new Error(message);
   e.code = code;
   e.retryable = retryable;
   if (cause) e.cause = cause;
@@ -30,7 +30,7 @@ function docError_(code, message, retryable, cause) {
 }
 
 function isAccessError_(err) {
-  var c = err && (err.code || (err.details && err.details.code));
+  const c = err && (err.code || (err.details && err.details.code));
   if (c === 403 || c === 404) return true;
   return /permission|not found|forbidden|404|403/i.test(String(err && err.message));
 }
@@ -49,21 +49,21 @@ function styleIn_(style) { return style === 'NORMAL' || !style ? 'NORMAL_TEXT' :
 
 /** Converts a Docs resource into the planner model (+ start/end indices and revisionId). */
 function toModel_(docId, doc) {
-  var content = (doc.body && doc.body.content) || [];
-  var paragraphs = [];
+  const content = (doc.body && doc.body.content) || [];
+  const paragraphs = [];
   content.forEach(function (el) {
     if (!el.paragraph) return;
-    var text = '';
-    var links = [];
+    let text = '';
+    const links = [];
     (el.paragraph.elements || []).forEach(function (pe) {
       if (!pe.textRun) return;
-      var chunk = String(pe.textRun.content || '');
-      var url = pe.textRun.textStyle && pe.textRun.textStyle.link && pe.textRun.textStyle.link.url;
-      var chunkNoNl = chunk.replace(/\n$/, '');
+      const chunk = String(pe.textRun.content || '');
+      const url = pe.textRun.textStyle && pe.textRun.textStyle.link && pe.textRun.textStyle.link.url;
+      const chunkNoNl = chunk.replace(/\n$/, '');
       if (url && chunkNoNl.length) links.push({ start: text.length, end: text.length + chunkNoNl.length, url: url });
       text += chunkNoNl;
     });
-    var p = { text: text, style: styleOut_(el.paragraph.paragraphStyle && el.paragraph.paragraphStyle.namedStyleType), start: el.startIndex, end: el.endIndex };
+    const p = { text: text, style: styleOut_(el.paragraph.paragraphStyle && el.paragraph.paragraphStyle.namedStyleType), start: el.startIndex, end: el.endIndex };
     if (links.length) p.links = links;
     paragraphs.push(p);
   });
@@ -87,18 +87,18 @@ function readDocModel(docId) {
  * paragraph goes before the final newline, as "\n" + joined text, so the document stays valid.
  */
 function translate_(model, requests) {
-  var tracked = model.paragraphs.map(function (p) { return { start: p.start, len: p.text.length }; });
-  var out = [];
+  const tracked = model.paragraphs.map(function (p) { return { start: p.start, len: p.text.length }; });
+  const out = [];
   requests.forEach(function (req) {
     if (req.type !== 'INSERT_PARAGRAPHS') throw new Error('NotesRepository: unsupported planner request ' + String(req.type));
-    var n = tracked.length;
-    var k = req.beforeIndex;
-    var paras = req.paragraphs;
+    const n = tracked.length;
+    const k = req.beforeIndex;
+    const paras = req.paragraphs;
     if (!paras.length) return;
     if (k < 0 || k > n || n === 0) throw new Error('NotesRepository: beforeIndex ' + k + ' out of range 0..' + n);
-    var at;
-    var text;
-    var firstStart;
+    let at;
+    let text;
+    let firstStart;
     if (k < n) {
       at = tracked[k].start;
       text = paras.map(function (p) { return p.text + '\n'; }).join('');
@@ -110,16 +110,16 @@ function translate_(model, requests) {
     }
     out.push({ insertText: { location: { index: at }, text: text } });
 
-    var added = [];
-    var cursor = firstStart;
+    const added = [];
+    let cursor = firstStart;
     paras.forEach(function (p) {
       added.push({ start: cursor, len: p.text.length, para: p });
       cursor += p.text.length + 1;
     });
     // Explicit reset on every inserted paragraph: Docs lets new text inherit the neighbouring
     // paragraph style, bullets and character style (incl. links).
-    var rangeStart = added[0].start;
-    var rangeEnd = added[added.length - 1].start + added[added.length - 1].len + 1;
+    const rangeStart = added[0].start;
+    const rangeEnd = added[added.length - 1].start + added[added.length - 1].len + 1;
     out.push({ deleteParagraphBullets: { range: { startIndex: rangeStart, endIndex: rangeEnd } } });
     added.forEach(function (a) {
       out.push({
@@ -145,10 +145,10 @@ function translate_(model, requests) {
       });
     });
 
-    var inserted = text.length;
-    var insertedTracked = added.map(function (a) { return { start: a.start, len: a.len }; });
+    const inserted = text.length;
+    const insertedTracked = added.map(function (a) { return { start: a.start, len: a.len }; });
     if (k < n) {
-      for (var i = k; i < n; i++) tracked[i].start += inserted;
+      for (let i = k; i < n; i++) tracked[i].start += inserted;
       tracked.splice.apply(tracked, [k, 0].concat(insertedTracked));
     } else {
       tracked.push.apply(tracked, insertedTracked);
@@ -166,14 +166,14 @@ function translate_(model, requests) {
  * @returns {{applied:number, revisionId:string}} Number of Docs requests sent.
  */
 function applyPlan(docId, plan) {
-  var requests = Array.isArray(plan) ? plan : (plan && plan.requests) || [];
-  var fresh = fetchDoc_(docId);
+  const requests = Array.isArray(plan) ? plan : (plan && plan.requests) || [];
+  const fresh = fetchDoc_(docId);
   if (!requests.length) return { applied: 0, revisionId: fresh.revisionId || '' };
   if (plan && plan.baseRevisionId && fresh.revisionId && plan.baseRevisionId !== fresh.revisionId) {
     throw docError_('DOC_CONFLICT', 'Notes Doc changed since the plan was made; re-read and re-plan', true);
   }
-  var docsRequests = translate_(toModel_(docId, fresh), requests);
-  var body = { requests: docsRequests };
+  const docsRequests = translate_(toModel_(docId, fresh), requests);
+  const body = { requests: docsRequests };
   if (fresh.revisionId) body.writeControl = { requiredRevisionId: fresh.revisionId };
   try {
     Docs.Documents.batchUpdate(body, docId);
@@ -199,8 +199,8 @@ function carryInCount(docId, occurrence) {
 }
 
 function findNotesDocInFolder_(folderId, title) {
-  var q = "title = '" + title.replace(/'/g, "\\'") + "' and mimeType = '" + MIME_DOC + "' and '" + folderId + "' in parents and trashed = false";
-  var res = Drive.Files.list({ q: q, maxResults: 1 });
+  const q = "title = '" + title.replace(/'/g, "\\'") + "' and mimeType = '" + MIME_DOC + "' and '" + folderId + "' in parents and trashed = false";
+  const res = Drive.Files.list({ q: q, maxResults: 1 });
   return res && res.items && res.items.length ? res.items[0].id : null;
 }
 
@@ -213,14 +213,14 @@ function findNotesDocInFolder_(folderId, title) {
  * @returns {string} Doc id.
  */
 function ensureNotesDoc(seriesKey) {
-  var series = global.DPConfig.getRegistry().filter(function (r) { return r.SeriesKey === seriesKey; })[0];
+  const series = global.DPConfig.getRegistry().filter(function (r) { return r.SeriesKey === seriesKey; })[0];
   if (!series) throw new Error('SETUP_ERROR: SeriesKey ' + String(seriesKey) + ' not found in the Meeting Registry tab');
   if (series.HumanNotesDocId) return series.HumanNotesDocId;
-  var folderId = global.DPConfig.getFolderId();
-  var title = NOTES_TITLE_PREFIX + series.DisplayName;
-  var docId = findNotesDocInFolder_(folderId, title);
+  const folderId = global.DPConfig.getFolderId();
+  const title = NOTES_TITLE_PREFIX + series.DisplayName;
+  let docId = findNotesDocInFolder_(folderId, title);
   if (!docId) {
-    var created = Drive.Files.insert({ title: title, mimeType: MIME_DOC, parents: [{ id: folderId }] });
+    const created = Drive.Files.insert({ title: title, mimeType: MIME_DOC, parents: [{ id: folderId }] });
     if (!created || !created.id) throw new Error('Notes Doc creation returned no id');
     docId = created.id;
   }

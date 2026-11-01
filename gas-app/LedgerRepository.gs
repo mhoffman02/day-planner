@@ -30,10 +30,10 @@
  */
 (function(global) {
 
-var MAX_ROWS = 5000;
-var MAX_CELL_CHARS = 40000;
-var ARCHIVE_AFTER_DAYS = 90;
-var session_ = null;
+const MAX_ROWS = 5000;
+const MAX_CELL_CHARS = 40000;
+const ARCHIVE_AFTER_DAYS = 90;
+let session_ = null;
 
 function cols_() { return global.DPEngines.LEDGER_COLUMNS; }
 
@@ -46,7 +46,7 @@ function rangeFor_(a1) { return global.DPEngines.a1Range(tabs_().LEDGER, a1); }
 function nowIso_() { return new Date().toISOString(); }
 
 function cellText_(v) {
-  var s = v === undefined || v === null ? '' : (typeof v === 'object' ? JSON.stringify(v) : String(v));
+  const s = v === undefined || v === null ? '' : (typeof v === 'object' ? JSON.stringify(v) : String(v));
   if (s.length > MAX_CELL_CHARS) throw new Error('LEDGER_CELL_TOO_LARGE: a ledger value exceeds ' + MAX_CELL_CHARS + ' characters');
   return s;
 }
@@ -54,7 +54,7 @@ function cellText_(v) {
 function toArray_(row) { return cols_().map(function(c) { return cellText_(row[c]); }); }
 
 function toObject_(arr) {
-  var o = {};
+  const o = {};
   cols_().forEach(function(c, i) { o[c] = arr[i] === undefined ? '' : arr[i]; });
   return o;
 }
@@ -71,8 +71,8 @@ function fullError_() {
 
 /** Creates the archive tab (with header) when an older Sheet lacks it. */
 function ensureArchiveTab_(sheetId) {
-  var meta = global.DPConfig.sheets().get(sheetId, { fields: 'sheets.properties(sheetId,title)' });
-  var have = (meta.sheets || []).some(function(s) { return s.properties.title === tabs_().ARCHIVE; });
+  const meta = global.DPConfig.sheets().get(sheetId, { fields: 'sheets.properties(sheetId,title)' });
+  const have = (meta.sheets || []).some(function(s) { return s.properties.title === tabs_().ARCHIVE; });
   if (have) return;
   global.DPConfig.sheets().batchUpdate({ requests: [{ addSheet: { properties: { title: tabs_().ARCHIVE } } }] }, sheetId);
   global.DPConfig.sheets().Values.update({ values: [cols_().slice()] }, sheetId, global.DPEngines.a1Range(tabs_().ARCHIVE, 'A1:' + lastCol_() + '1'), { valueInputOption: 'RAW' });
@@ -87,22 +87,22 @@ function ensureArchiveTab_(sheetId) {
  * @returns {Array<Array<string>>|null} The kept rows (now contiguous from row 2), or null when nothing was archivable.
  */
 function archiveOldDone_(sheetId, values) {
-  var statusCol = cols_().indexOf('Status');
-  var updatedCol = cols_().indexOf('UpdatedAt');
-  var cutoff = Date.now() - ARCHIVE_AFTER_DAYS * 86400000;
-  var archived = [];
-  var kept = [];
+  const statusCol = cols_().indexOf('Status');
+  const updatedCol = cols_().indexOf('UpdatedAt');
+  const cutoff = Date.now() - ARCHIVE_AFTER_DAYS * 86400000;
+  const archived = [];
+  const kept = [];
   values.forEach(function(arr) {
-    var at = Date.parse(arr[updatedCol] || '');
+    const at = Date.parse(arr[updatedCol] || '');
     if (arr[statusCol] === 'DONE' && !isNaN(at) && at < cutoff) archived.push(arr);
     else kept.push(arr);
   });
   if (!archived.length) return null;
   ensureArchiveTab_(sheetId);
   global.DPConfig.sheets().Values.append({ values: archived }, sheetId, global.DPEngines.a1Range(tabs_().ARCHIVE, 'A1'), { valueInputOption: 'RAW', insertDataOption: 'INSERT_ROWS' });
-  var blank = [];
-  for (var i = kept.length; i < values.length; i++) blank.push(cols_().map(function() { return ''; }));
-  var data = [];
+  const blank = [];
+  for (let i = kept.length; i < values.length; i++) blank.push(cols_().map(function() { return ''; }));
+  const data = [];
   if (kept.length) data.push({ range: rangeFor_('A2:' + lastCol_() + (kept.length + 1)), values: kept });
   data.push({ range: rangeFor_('A' + (kept.length + 2) + ':' + lastCol_() + (values.length + 1)), values: blank });
   global.DPConfig.sheets().Values.batchUpdate({ valueInputOption: 'RAW', data: data }, sheetId);
@@ -117,9 +117,9 @@ function readRange() { return rangeFor_('A2:' + lastCol_() + (MAX_ROWS + 1)); }
  * when the cap is hit.
  */
 function readValues_(sheetId, prefetched) {
-  var values = prefetched || global.DPConfig.sheets().Values.get(sheetId, readRange()).values || [];
+  let values = prefetched || global.DPConfig.sheets().Values.get(sheetId, readRange()).values || [];
   if (values.length >= MAX_ROWS) {
-    var kept = archiveOldDone_(sheetId, values);
+    const kept = archiveOldDone_(sheetId, values);
     if (!kept || kept.length >= MAX_ROWS) throw fullError_();
     values = kept;
   }
@@ -128,10 +128,10 @@ function readValues_(sheetId, prefetched) {
 
 /** @returns {{sheetId:string, rows:Array<{rowNumber:number,row:Object}>, byKey:Object, next:number}} Index of the ledger. */
 function buildIndex_(sheetId, prefetched) {
-  var values = readValues_(sheetId, prefetched);
-  var idx = { sheetId: sheetId, rows: [], byKey: {}, next: values.length + 2, queue: [] };
+  const values = readValues_(sheetId, prefetched);
+  const idx = { sheetId: sheetId, rows: [], byKey: {}, next: values.length + 2, queue: [] };
   values.forEach(function(arr, i) {
-    var entry = { rowNumber: i + 2, row: toObject_(arr) };
+    const entry = { rowNumber: i + 2, row: toObject_(arr) };
     idx.rows.push(entry);
     if (!idx.byKey[entry.row.OperationKey]) idx.byKey[entry.row.OperationKey] = entry;
   });
@@ -157,7 +157,7 @@ function beginSession(prefetched) {
  * A later write to the same range replaces the queued one.
  */
 function writeRow_(idx, a1, arr, isClaim) {
-  var range = rangeFor_(a1);
+  const range = rangeFor_(a1);
   idx.queue = idx.queue.filter(function(w) { return w.range !== range; });
   idx.queue.push({ range: range, values: [arr] });
   if (isClaim) flush();
@@ -169,7 +169,7 @@ function writeRow_(idx, a1, arr, isClaim) {
  */
 function flush() {
   if (!session_ || !session_.queue.length) return;
-  var data = session_.queue;
+  const data = session_.queue;
   session_.queue = [];
   global.DPEngines.chunkValueRanges(data).forEach(function(chunk) {
     global.DPConfig.sheets().Values.batchUpdate({ valueInputOption: 'RAW', data: chunk }, session_.sheetId);
@@ -196,12 +196,12 @@ function endSession() {
 /** @returns {Object|null} Ledger row for opKey, or null. */
 function get(opKey) {
   if (typeof opKey !== 'string' || opKey === '') throw new Error('opKey is required');
-  var found = index_().byKey[opKey];
+  const found = index_().byKey[opKey];
   return found ? Object.assign({}, found.row) : null;
 }
 
 function definedFields_(row) {
-  var out = {};
+  const out = {};
   cols_().forEach(function(c) { if (row[c] !== undefined && row[c] !== null) out[c] = row[c]; });
   return out;
 }
@@ -219,19 +219,19 @@ function track_(idx, entry) {
  */
 function upsert(row) {
   requireKey_(row);
-  var idx = index_();
-  var now = nowIso_();
-  var found = idx.byKey[row.OperationKey] || null;
-  var merged = found ? Object.assign({}, found.row, definedFields_(row)) : Object.assign(toObject_([]), definedFields_(row));
+  const idx = index_();
+  const now = nowIso_();
+  const found = idx.byKey[row.OperationKey] || null;
+  const merged = found ? Object.assign({}, found.row, definedFields_(row)) : Object.assign(toObject_([]), definedFields_(row));
   merged.CreatedAt = found ? (found.row.CreatedAt || now) : (row.CreatedAt || now);
   merged.UpdatedAt = row.UpdatedAt || now;
-  var payload = { values: [toArray_(merged)] };
-  var isClaim = merged.Status === global.DPEngines.LEDGER_STATUS.PENDING;
+  const payload = { values: [toArray_(merged)] };
+  const isClaim = merged.Status === global.DPEngines.LEDGER_STATUS.PENDING;
   if (session_ && found) {
     writeRow_(idx, 'A' + found.rowNumber + ':' + lastCol_() + found.rowNumber, payload.values[0], isClaim);
     found.row = merged;
   } else if (found) {
-    var a1 = 'A' + found.rowNumber + ':' + lastCol_() + found.rowNumber;
+    const a1 = 'A' + found.rowNumber + ':' + lastCol_() + found.rowNumber;
     global.DPConfig.sheets().Values.update(payload, idx.sheetId, rangeFor_(a1), { valueInputOption: 'RAW' });
     found.row = merged;
   } else if (session_) {
@@ -250,7 +250,7 @@ function upsert(row) {
  * @returns {Array<Object>} Matching rows in sheet order.
  */
 function list(filter) {
-  var f = filter || {};
+  const f = filter || {};
   return index_().rows.map(function(x) { return Object.assign({}, x.row); }).filter(function(r) {
     return (!f.status || r.Status === f.status) && (!f.sourceType || r.SourceType === f.sourceType);
   });
@@ -265,16 +265,16 @@ function list(filter) {
 function appendMany(rows) {
   if (!Array.isArray(rows)) throw new Error('appendMany requires an array');
   if (rows.length === 0) return 0;
-  var idx = index_();
-  var seen = {};
+  const idx = index_();
+  const seen = {};
   Object.keys(idx.byKey).forEach(function(k) { seen[k] = true; });
-  var now = nowIso_();
-  var objects = [];
-  var values = rows.map(function(r) {
+  const now = nowIso_();
+  const objects = [];
+  const values = rows.map(function(r) {
     requireKey_(r);
     if (seen[r.OperationKey]) throw new Error('LEDGER_DUPLICATE_KEY: ' + r.OperationKey);
     seen[r.OperationKey] = true;
-    var full = Object.assign(toObject_([]), definedFields_(r));
+    const full = Object.assign(toObject_([]), definedFields_(r));
     full.CreatedAt = r.CreatedAt || now;
     full.UpdatedAt = r.UpdatedAt || now;
     objects.push(full);
