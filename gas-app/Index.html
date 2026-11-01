@@ -486,7 +486,7 @@
                                   aria-label="View notes" aria-haspopup="true" :aria-expanded="openNotesPopoverTaskId === task.id">
                             <span class="material-symbols-outlined icon-14">sticky_note_2</span>
                           </button>
-                          <div class="notes-popover" :class="{ 'dropup': notesPopoverDropUp, 'dropdown-down': !notesPopoverDropUp }" :style="notesPopoverStyle(task.id)" role="tooltip" x-cloak x-text="task.notes"></div>
+                          <span class="notes-popover" :class="{ 'dropup': notesPopoverDropUp, 'dropdown-down': !notesPopoverDropUp }" :style="notesPopoverStyle(task.id)" role="tooltip" x-cloak x-text="task.notes"></span>
                         </span>
                       </td>
                       <td class="td-category" x-text="task.category || 'Work'"></td>
@@ -599,7 +599,7 @@
                   </button>
                   
                   <div class="dropdown-menu notes-filter-menu" x-show="noteFilterMenuOpen" @click.outside="noteFilterMenuOpen = false" x-cloak>
-                    <div class="dropdown-header">Filter & Search Cards</div>
+                    <div class="dropdown-header">Filter &amp; Search Cards</div>
                     <div class="dropdown-item-group">
                       <input type="search" x-model="noteCardSearchQuery" placeholder="Search card heading, notes..." class="dropdown-search-input">
                     </div>
@@ -836,7 +836,7 @@
               </template>
 
               <template x-if="dailyLoading">
-                <div class="note-card-item note-card-skeleton" aria-label="Loading notes">
+                <div class="note-card-item note-card-skeleton" role="status" aria-label="Loading notes">
                   <span class="material-symbols-outlined spin">progress_activity</span>
                 </div>
               </template>
@@ -1159,7 +1159,7 @@
                                 aria-label="View notes" aria-haspopup="true" :aria-expanded="openNotesPopoverTaskId === mTask.id">
                           <span class="material-symbols-outlined icon-14">sticky_note_2</span>
                         </button>
-                        <div class="notes-popover" :class="{ 'dropup': notesPopoverDropUp, 'dropdown-down': !notesPopoverDropUp }" :style="notesPopoverStyle(mTask.id)" role="tooltip" x-cloak x-text="mTask.notes"></div>
+                        <span class="notes-popover" :class="{ 'dropup': notesPopoverDropUp, 'dropdown-down': !notesPopoverDropUp }" :style="notesPopoverStyle(mTask.id)" role="tooltip" x-cloak x-text="mTask.notes"></span>
                       </span>
                     </td>
                     <td class="td-category" x-text="mTask.category || 'General'"></td>
@@ -1646,11 +1646,11 @@
         </div>
         <footer class="modal-actions">
           <template x-if="selectedEvent?.meetLink">
-            <a :href="selectedEvent.meetLink" target="_blank" rel="noopener noreferrer" class="btn-primary btn-meet" role="button">
+            <a :href="selectedEvent.meetLink" target="_blank" rel="noopener noreferrer" class="btn-primary btn-meet">
               <span class="material-symbols-outlined">videocam</span> Join Google Meet
             </a>
           </template>
-          <a :href="selectedEvent?.gCalLink" target="_blank" rel="noopener noreferrer" class="btn-primary" role="button">
+          <a :href="selectedEvent?.gCalLink" target="_blank" rel="noopener noreferrer" class="btn-primary">
             <span class="material-symbols-outlined">calendar_today</span> Open in gCal
           </a>
           <button type="button" class="btn-secondary" @click="closeEventModal()">Close</button>
@@ -1734,7 +1734,7 @@
           </div>
 
           <div class="form-group">
-            <label for="evtAddMeetInput" class="form-check-label">
+            <label class="form-check-label">
               <input type="checkbox" id="evtAddMeetInput" x-model="newEventData.addMeet" class="form-check-input">
               <span class="material-symbols-outlined icon-16" aria-hidden="true">videocam</span> Add Google Meet
             </label>

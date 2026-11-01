@@ -1,20 +1,12 @@
 {
   "index.html": {
-    "text-content": 1,
-    "prefer-native-element": 12,
-    "element-permitted-content": 2,
-    "no-raw-characters": 1,
-    "aria-label-misuse": 2,
-    "no-redundant-for": 1,
+    "prefer-native-element": 10,
+    "aria-label-misuse": 1,
     "multiple-labeled-controls": 1
   },
   "gas-app/Index.html": {
-    "text-content": 1,
-    "prefer-native-element": 11,
-    "element-permitted-content": 2,
-    "no-raw-characters": 1,
-    "aria-label-misuse": 2,
-    "no-redundant-for": 1,
+    "prefer-native-element": 9,
+    "aria-label-misuse": 1,
     "multiple-labeled-controls": 1
   }
 }

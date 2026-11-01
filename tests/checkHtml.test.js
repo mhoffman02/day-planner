@@ -75,3 +75,19 @@ test('a pill or circle border-radius fails; small radii pass (no-pills)', () => 
     's.css:5: border-radius 100px is a pill/circle (no-pills.md)'
   ]);
 });
+
+test('x-text on a button whose other attribute contains > still gets placeholder text', () => {
+  const src = '<button x-show="a > 3"\n  x-text="b"></button>';
+  assert.equal(alpineToStatic(src), '<button x-show="a > 3"\n  x-text="b">x</button>');
+});
+
+test('fixed rules stay at zero in both page shells', async () => {
+  for (const file of ['index.html', 'gas-app/Index.html']) {
+    const { counts } = await countFindings(fs.readFileSync(new URL('../' + file, import.meta.url), 'utf8'), file);
+    for (const rule of ['text-content', 'element-permitted-content', 'no-raw-characters', 'no-redundant-for']) {
+      assert.equal(counts[rule], undefined, file + ': ' + rule);
+    }
+    assert.ok((counts['aria-label-misuse'] || 0) <= 1, file + ': aria-label-misuse');
+    assert.ok((counts['prefer-native-element'] || 0) <= (file === 'index.html' ? 10 : 9), file + ': prefer-native-element');
+  }
+});

@@ -59,7 +59,7 @@ export function alpineToStatic(html) {
   return html
     .replace(/(\s)(?::|x-bind:)([a-zA-Z][\w-]*)="[^"]*"/g,
       (all, space, name) => (KEPT_BINDINGS.test(name) ? `${space}${name}="x"` : ''))
-    .replace(/(<([a-z][\w-]*)\b[^>]*\sx-(?:text|html)="[^"]*"[^>]*>)(\s*<\/\2>)/g, '$1x$3');
+    .replace(/(<([a-z][\w-]*)\b(?:[^>"]|"[^"]*")*?\sx-(?:text|html)="[^"]*"(?:[^>"]|"[^"]*")*>)(\s*<\/\2>)/g, '$1x$3');
 }
 
 export async function countFindings(html, name) {
