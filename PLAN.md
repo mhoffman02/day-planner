@@ -53,12 +53,12 @@ the GSA account, a release go, or a consent-screen decision. Checklist in [`TODO
 
 ### Phase 31: Search polish (In progress)
 User-requested follow-ups from the 2026-10-22 search work. Checklist in [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md).
-- [ ] `/` hotkey for the Master Tasks filter box (needs a user decision: `/` already opens universal search).
+- [x] `/` hotkey for the Master Tasks filter box (2026-11-01).
 - [ ] Status and due date in universal search task results.
 - [ ] Dedupe task results that appear in both Today and Master.
 - **Next agent work** (TODO.md "Agent work", A1-A3): Phase 31 items 2-3 shipped. Left: retest Master Delegate Undo (A2),
   then the remaining baseline shrinks in A3 (rpc-guard 28, html 12, axe 4, mutation 96, mirror 72, `var` 696), several
-  of which need a user decision. Item 1 waits for the user (TODO.md "For the session after next", B2).
+  of which need a user decision. Item 1 (`/` focus) shipped 2026-11-01.
 
 ### Phase 32: Notes Doc safety + Decisions (In progress)
 Checklist in [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md). Evals: `docs/notes-doc-embed-eval.md`,

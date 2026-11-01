@@ -18,7 +18,7 @@ import {
   filterTasksByStatus,
   filterTasksByDateHorizon
 } from './taskEngine.js';
-import { executeUniversalSearch, flattenSearchResults, mergeArchiveSearchResults, matchesSearchQuery } from './searchEngine.js';
+import { executeUniversalSearch, flattenSearchResults, mergeArchiveSearchResults, matchesSearchQuery, resolveSlashKeyAction } from './searchEngine.js';
 import { formatEventDescriptionHtml, extractMeetLink } from './calendarEngine.js';
 import { parseIndexEntriesFromNote } from './indexParser.js';
 import { getQuoteForDateStr } from './quotesEngine.js';
@@ -903,6 +903,15 @@ Alpine.data('plannerApp', () => ({
           }
 
           const isInputFocused = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable);
+          const slashAction = resolveSlashKeyAction({
+            view: this.activeView,
+            activeTag: e.target && e.target.tagName,
+            isContentEditable: !!(e.target && e.target.isContentEditable),
+            key: e.key,
+            ctrl: e.ctrlKey,
+            meta: e.metaKey,
+            alt: e.altKey
+          });
 
           if ((e.ctrlKey || e.metaKey) && e.altKey && keyLower === 's') {
             e.preventDefault();
@@ -927,9 +936,14 @@ Alpine.data('plannerApp', () => ({
           } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && keyLower === 'f') {
             e.preventDefault();
             this.toggleSearchModal();
-          } else if ((e.key === '/' || ((e.ctrlKey || e.metaKey) && e.key === '/')) && !isInputFocused) {
+          } else if (slashAction) {
             e.preventDefault();
-            this.toggleSearchModal();
+            if (slashAction === 'focus-master-filter') {
+              const filterInput = document.querySelector('.master-search-input');
+              if (filterInput) filterInput.focus();
+            } else {
+              this.toggleSearchModal();
+            }
           } else if (keyLower === 't' && !e.ctrlKey && !e.metaKey && !e.altKey && !isInputFocused && !this.isMonthlyView && this.activeView !== 'master-tasks') {
             e.preventDefault();
             this.jumpToToday();

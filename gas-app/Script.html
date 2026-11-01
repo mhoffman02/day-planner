@@ -1109,6 +1109,13 @@
     return merged;
   }
 
+  function resolveSlashKeyAction({ view, activeTag, isContentEditable, key, ctrl, meta, alt }) {
+    if (key !== '/') return null;
+    if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || isContentEditable) return null;
+    if (view === 'master-tasks' && !ctrl && !meta && !alt) return 'focus-master-filter';
+    return 'open-search';
+  }
+
   // Fail-closed save helpers, mirrored from src/saveGuard.js. Keep both copies in sync
   // (tests/failClosedSaves.test.js runs every caller against both client copies).
   // A missing bridge method is a failed save; a null update result means nothing was written;
@@ -2915,6 +2922,15 @@
           }
 
           const isInputFocused = e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable);
+          const slashAction = resolveSlashKeyAction({
+            view: this.activeView,
+            activeTag: e.target && e.target.tagName,
+            isContentEditable: !!(e.target && e.target.isContentEditable),
+            key: e.key,
+            ctrl: e.ctrlKey,
+            meta: e.metaKey,
+            alt: e.altKey
+          });
 
           if ((e.ctrlKey || e.metaKey) && e.altKey && keyLower === 's') {
             e.preventDefault();
@@ -2939,9 +2955,14 @@
           } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && keyLower === 'f') {
             e.preventDefault();
             this.toggleSearchModal();
-          } else if ((e.key === '/' || ((e.ctrlKey || e.metaKey) && e.key === '/')) && !isInputFocused) {
+          } else if (slashAction) {
             e.preventDefault();
-            this.toggleSearchModal();
+            if (slashAction === 'focus-master-filter') {
+              const filterInput = document.querySelector('.master-search-input');
+              if (filterInput) filterInput.focus();
+            } else {
+              this.toggleSearchModal();
+            }
           } else if (keyLower === 't' && !e.ctrlKey && !e.metaKey && !e.altKey && !isInputFocused && !this.isMonthlyView && this.activeView !== 'master-tasks') {
             e.preventDefault();
             this.jumpToToday();

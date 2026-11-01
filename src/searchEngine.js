@@ -375,3 +375,15 @@ export function mergeArchiveSearchResults(searchResults = {}, archiveItems = [])
   return merged;
 }
 
+/**
+ * Decides what a slash keydown does. Master Tasks focuses its own filter box; every other view opens
+ * universal search; typing in a text field is left alone.
+ * @returns {'focus-master-filter'|'open-search'|null}
+ */
+export function resolveSlashKeyAction({ view, activeTag, isContentEditable, key, ctrl, meta, alt }) {
+  if (key !== '/') return null;
+  if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || isContentEditable) return null;
+  if (view === 'master-tasks' && !ctrl && !meta && !alt) return 'focus-master-filter';
+  return 'open-search';
+}
+

@@ -1,7 +1,7 @@
 # Active Tasks (TODO)
 
 Order (2026-10-30, user): autonomous agent work first, in the order listed (items A1-A3); everything that needs the
-user is in the last section, "For the session after next" (items B1-B4). An agent session works only A1-A3.
+user is in the last section, "For the session after next" (items B1, B3, B4). An agent session works only A1-A3.
 
 ## Agent work: next session (no user needed)
 
@@ -11,7 +11,7 @@ User asked for these in this order (2026-10-22). Shared matcher: `matchesSearchQ
 mirror in `gas-app/Script.html`; both clients, red test first, then `npm run deploy:home` (live gate), then
 `npm run push:work` and tell the user "Update WORK".
 
-- [ ] **Item 1 (`/` focus)** stays in B2 (needs a user decision). Items 2 and 3 shipped (see TODO_HISTORY).
+- [x] Phase 31 items 1-3 shipped (see TODO_HISTORY).
 
 ### A2. Phase 30: rpc token probe (agent only; the token may need the user)
 
@@ -23,11 +23,11 @@ mirror in `gas-app/Script.html`; both clients, red test first, then `npm run dep
 
 Shipped 2026-11-01: rpc-guard 46 -> 28, html 21 -> 12 per page, axe gate (`axe-baseline.json`, 4 violations), mutation 67% -> 91%, mirror 107 -> 72, `var` suppressions 858 -> 696 (HOME @351, WORK pushed).
 
-- [ ] **rpc-guard 28 left**: hub, Future-matrix and friendly-error RPCs need a decision on error style (v_ throws vs friendly message). Trigger handlers (`onOpen(e)`) should be excluded from the checker.
-- [ ] **html 12 left per page**: role=radio priority buttons, listboxes, progressbar, event-pill button, dictation label; each changes markup/CSS/Alpine.
+- [ ] **rpc-guard 28 left**: decided 2026-11-01 (user, 2A): keep friendly messages, guard with `v_` only the non-user-facing args. Trigger handlers (`onOpen(e)`) should be excluded from the checker.
+- [ ] **html 12 left per page** (user 2026-11-01: leave): role=radio priority buttons, listboxes, progressbar, event-pill button, dictation label; each changes markup/CSS/Alpine.
 - [ ] **axe 4 violations**: fix `document-title`, `html-has-lang`, `landmark-one-main`, `page-has-heading-one`, then `npm run deploy:home -- --check --update-axe`.
 - [ ] **mutation 96 survivors** (taskEngine 74, futureMatrixEngine 22); add `src/searchEngine.js` etc. to `stryker.config.json` scope.
-- [ ] **mirror 72 left**: ~30 `dp*` helper-name diffs, 4 URL builders using `'https:'+'/'+'/'`, diverged logic (addDailyTask, addMasterTask, parseDailyNoteToCards, toggleDictation popup size), binderStore shape, 25 `styles.css` entries unexamined. Needs a decision which copy is right.
+- [ ] **mirror 72 left**: ~30 `dp*` helper-name diffs, 4 URL builders using `'https:'+'/'+'/'`, diverged logic (addDailyTask, addMasterTask, parseDailyNoteToCards, toggleDictation popup size), binderStore shape, 25 `styles.css` entries unexamined. Decided 2026-11-01 (user, 3A): the GAS copy wins; leave them baselined, no more mirror work unless a drifted function is edited.
 - [ ] **`var` suppressions 696 left**: HubController 261, Config 139, QueueProcessor 126, GmailRepository 73, UnitTests 59, Script.html 16, Regrant 10, Index 6, SetupFolder 5, Code 1; autofix refused some, hand review.
 
 ## For the session after next: needs the user (interactive / HITL)
@@ -46,24 +46,19 @@ note badge, completing a `Decision:` task adds `#decision <what>` to the last no
   tray said "changed in Google Docs", Retry overwrote and cleared the tray. Still open: label an email `🎯/Decision`
   and wait a tick; complete a `Decision:` task with Today open. Optional: one real typed edit in the Doc. Delete the
   leftover 2026-01-15 section ("phase32 line A / phase32 line APP") in the "Day Planner Notes - January 2026" Doc.
-- [ ] **Notes portal decisions** (`docs/notes-portal-eval.md`, user to answer): 1A no iframe, run probe P1 only;
+- [ ] **Notes portal decisions** (`docs/notes-portal-eval.md`; user accepted all defaults 2026-11-01, so agent work: P1 probe, Docs API read-only render, "Open this day in Docs" link, fail loud on multi-tab Docs): 1A no iframe, run probe P1 only;
   2T read-only Docs API render as the panel Doc view; 3T "Open this day in Docs" link; 4A defer per-day tabs;
   5T fail loud when a notes Doc has more than one tab (latent data-loss path); 6T keep publish-to-web rejected.
 - [ ] **Live check smart paste + day rollover** (HOME @337, `1da3fcf`): paste from Gmail, Docs and Gemini into a
   card line; leave the tab open past midnight.
 
-### B2. Phase 31 item 1 (needs a user decision)
-
-- [ ] **`/` focuses the Master Tasks filter box** (Gmail convention) when Master Tasks is the active view and focus
-  is not already in an input. **Ask the user first:** `/` already opens universal search in both clients
-  (`setupKeyboardShortcuts`: `src/app.js` ~line 924, `gas-app/Script.html` ~line 2713). Proposed default: on Master
-  Tasks only, `/` focuses the filter box; Ctrl+Shift+F (anywhere) and Ctrl+K (outside text inputs) still open
-  universal search.
-
 ### B3. Gap 10: cdp-step debugger (not started)
 
-- [ ] **Gap 10: cdp-step debugger**: a step-through CDP debugging tool alongside `tools/e2e/*`; the agent proposes a
-  scope to the user before building.
+- [ ] **Gap 10: cdp-step debugger** (user approved asking for scope, 2026-11-01). Proposed scope, awaiting a yes: `tools/cdp-step.js`,
+  attaches to the app iframe target like `tools/eval-console.js`; `--break <function>` pauses on the next call
+  (`Debugger.setBreakpointOnFunctionCall`); JSON-line commands on stdin (`over`, `into`, `out`, `locals`, `eval <js>`,
+  `resume`) so an agent can drive it; prints the frame location + locals each step. Out of scope: GAS server code, source
+  maps, multi-tab. Red test first on the command parser; live part is manual. Note: rules mention `tools/e2e/*` but that directory does not exist (fix those rule refs).
 
 ### B4. Phase 30: WORK promotion and user-gated release items
 

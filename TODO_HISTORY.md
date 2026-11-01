@@ -1,5 +1,9 @@
 # Task History (TODO_HISTORY)
 
+## 2026-11-01 — Phase 31 item 1
+
+- [x] **`/` focuses the Master Tasks filter** when Master Tasks is active and no input has focus; elsewhere `/` still opens search. `resolveSlashKeyAction` in `src/searchEngine.js` + mirror.
+
 ## 2026-11-01 — Phase 30 A2 + Solid Code shrinks (HOME @351, WORK pushed, repoint pending)
 
 - [x] **rpc probe** `runSelfTest` 7/7; HOME `/dev` Daily Forward/Delegate/Undo live-verified, throwaways deleted.
