@@ -1,4 +1,4 @@
-<!-- handoff: branch=worktree-today-rollover-smart-paste worktree=/home/mike/projects/day-planner/.claude/worktrees/today-rollover-smart-paste base=8a6327a11cc5 written=2026-11-01T10:58:52-08:00 -->
+<!-- handoff: branch=worktree-today-rollover-smart-paste worktree=/home/mike/projects/day-planner/.claude/worktrees/today-rollover-smart-paste base=d001892cc81f written=2026-11-01T11:19:25-08:00 -->
 # Resume: A2 retest + remaining Solid Code shrinks (agent); user-gated items B1-B4 are last
 
 > **WARNING: written on branch `worktree-today-rollover-smart-paste`** (worktree
@@ -9,9 +9,9 @@
 
 **Verify first:**
 `git fetch -q; git log --branches --remotes -1 --abbrev=12 --format='%h %p %cI' -- HANDOFF.md`
-Stale if that commit is dated after `2026-11-01T10:58:52-08:00` **and** its parent isn't `8a6327a11cc5`, or a
+Stale if that commit is dated after `2026-11-01T11:19:25-08:00` **and** its parent isn't `d001892cc81f`, or a
 worktree's `HANDOFF.md` has a later `written=`. Then read that copy instead and tell the user.
-`git log --oneline 8a6327a11cc5..origin/pure-gas-main`: anything besides the handoff commit landed after this prompt;
+`git log --oneline d001892cc81f..origin/pure-gas-main`: anything besides the handoff commit landed after this prompt;
 check it first.
 
 **Start by (agent work, no user needed):** `TODO.md` section A2, "Master Delegate Undo": on HOME `/dev`, with a
@@ -22,7 +22,7 @@ Undo, wait for `saveQueue.busy('task-status:<id>')` to clear, then read `getMast
 fix the 4 axe violations (`document-title`, `html-has-lang`, `landmark-one-main`, `page-has-heading-one`; then
 `npm run deploy:home -- --check --update-axe`), exclude trigger handlers (`onOpen(e)`) from `tools/check-rpc-guards.js`,
 and `eslint --fix` the remaining `var` files. Each as a `worker` agent with its checker as exit test. Gas-app change
-→ `npm run deploy:home`, then once at the end `npm run push:work` (ONE push per session: IDE is at ~182/200 versions)
+→ `npm run deploy:home`, then once at the end `npm run push:work` (ONE push per session; IDE is at 68 versions after the user cleaned up)
 and tell the user "Update WORK".
 
 **Needs a user decision before an agent can do it (A3 leftovers):** rpc-guard 28 (hub, Future-matrix, friendly-error
@@ -30,11 +30,11 @@ RPCs: v_ throw vs friendly message; default: keep friendly messages, guard with 
 mirror 72 (which copy wins for `dp*` helper names and diverged logic like `parseDailyNoteToCards`; default: GAS side wins,
 leave them baselined); html 12 per page (radio/listbox/progressbar restructure; default: leave).
 
-**For the session after next (needs the user; do not start in an agent-only session):** `TODO.md` items B1-B4.
+**For the session after next (needs the user; do not start in an agent-only session):** `TODO.md` items B1, B3, B4 (B2 shipped).
 1. B1: Phase 32 live checks (label an email `🎯/Decision` + a hub tick; complete a `Decision:` task with Today open;
    delete the leftover 2026-01-15 section in the "Day Planner Notes - January 2026" Doc); six portal decisions in
    `docs/notes-portal-eval.md` (defaults 1A 2T 3T 4A 5T 6T); smart paste + midnight rollover check.
-2. B2: `/` focuses the filter only on Master Tasks (default).
+2. B2 (`/` focus) shipped, HOME @352.
 3. B3: Gap 10 cdp-step scope (the agent proposes).
 4. B4: Update WORK (repoint to the newest version, delete old versions: IDE near the 200 cap); delete the "Day Planner
    e2e test - safe to delete" calendar event and the Hub L6 test email/task; WORK live checks; UAT T01-T20; WORK Suggest
@@ -42,7 +42,7 @@ leave them baselined); html 12 per page (radio/listbox/progressbar restructure; 
 
 This session: shipped Phase 31 items 2-3, A2 live checks (Daily verified; Master Delegate Undo open), and six
 Solid Code shrinks: rpc-guard 46→28, html 21→12/page, axe gate in `deploy:home`, mutation 67%→91%, mirror 107→72,
-`var` 858→696. HOME @351; WORK pushed (twice earlier, once more now), repoint pending.
+`var` 858→696. HOME @352 (also `/` focuses the Master filter); WORK pushed, repoint pending. User decisions 2-6 recorded in TODO.md; Gap 10 scope proposed there, awaiting "build it".
 
 - What changed: `TODO.md` A2/A3 rewritten to what is left; `TODO_HISTORY.md` 2026-11-01 entry; `PLAN.md` Phase 31 pointer.
 - Traps:
