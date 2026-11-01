@@ -1,7 +1,7 @@
 /**
  * @file mutationKillers.test.js
  * @description Behavior tests written from Stryker survivors (npm run test:mutation) for
- * taskEngine.js and futureMatrixEngine.js: boundaries, defaults, status transitions and merge rules.
+ * taskEngine.js, futureMatrixEngine.js and searchEngine.js: boundaries, defaults, status transitions and merge rules.
  */
 
 import { describe, it } from 'node:test';
@@ -19,6 +19,10 @@ import {
   groupItemsByQuarter, trackMultiQuarterMilestones, generateRollingHorizon, projectRollingHorizon,
   rollForwardPendingItems
 } from '../src/futureMatrixEngine.js';
+import {
+  executeUniversalSearch, flattenSearchResults, matchesSearchQuery, parseArchiveNoteHeading,
+  extractSearchSnippet, mergeArchiveSearchResults
+} from '../src/searchEngine.js';
 
 describe('taskEngine survivors', () => {
   it('exposes the exact status glyphs and labels', () => {
@@ -492,5 +496,312 @@ describe('futureMatrixEngine survivors', () => {
     assert.ok(!Number.isNaN(Date.parse(r.forwardedItems[0].createdAt)));
     assert.notEqual(r.updatedSourceItems[1], items[1]);
     assert.deepEqual(rollForwardPendingItems('a', 'b'), { forwardedItems: [], updatedSourceItems: [] });
+  });
+});
+
+describe('searchEngine survivors', () => {
+  const calDate = startTime => executeUniversalSearch('ev', { calendarEvents: [{ title: 'ev', startTime }] }).calendar[0].date;
+
+  it('derives the calendar date from startTime without a UTC shift', () => {
+    assert.equal(calDate('2026-03-04T10:00:00'), '2026-03-04');
+    assert.equal(calDate('2026-03-04 trailing junk'), '2026-03-04');
+    assert.equal(calDate('20a6-03-04 x'), '');
+    assert.equal(calDate('2026-0a-04 x'), '');
+    assert.equal(calDate('2026-03-0a x'), '');
+    assert.equal(calDate('12026-03-04 x'), '');
+    assert.equal(calDate('January 5, 2026 10:00'), '2026-01-05');
+    assert.equal(calDate('nonsense'), '');
+    assert.equal(calDate(new Date(2026, 0, 9, 23, 59)), '2026-01-09');
+    assert.equal(calDate(new Date(NaN)), '');
+    assert.equal(calDate(12345), '');
+    assert.equal(calDate(undefined), '');
+    assert.equal(calDate(''), '');
+  });
+
+  it('reads calendar events from arrays or date-keyed objects and builds exact rows', () => {
+    const a = { title: 'Standup', location: 'Room 1', description: 'daily sync', date: '2026-05-01', startTime: '2026-05-02' };
+    const b = { location: 'Hall', description: 'x', startTime: '2026-05-03' };
+    const c = { title: 'Standup call', description: 'daily sync' };
+    const d = { description: 'standup only' };
+    const r = executeUniversalSearch('stand', { calendarEvents: { k1: [a, c], k2: [d] } });
+    assert.deepEqual(r.calendar, [
+      { type: 'calendar', title: 'Standup', snippet: 'Location: Room 1', date: '2026-05-01', targetView: 'daily', item: a },
+      { type: 'calendar', title: 'Standup call', snippet: 'daily sync', date: '', targetView: 'daily', item: c },
+      { type: 'calendar', title: 'Untitled Event', snippet: 'standup only', date: '', targetView: 'daily', item: d }
+    ]);
+    const e = executeUniversalSearch('hall', { calendarEvents: [b] }).calendar[0];
+    assert.equal(e.title, 'Untitled Event');
+    assert.equal(e.date, '2026-05-03');
+    const f = executeUniversalSearch('zed', { calendarEvents: [{ title: 'zed' }] }).calendar[0];
+    assert.equal(f.snippet, 'Calendar Event');
+    assert.equal(executeUniversalSearch('x', { calendarEvents: 'xx' }).totalMatches, 0);
+    assert.equal(executeUniversalSearch('x', { calendarEvents: null }).totalMatches, 0);
+  });
+
+  it('flattens grouped results in order and tolerates missing groups', () => {
+    assert.deepEqual(flattenSearchResults(), []);
+    assert.deepEqual(flattenSearchResults(null), []);
+    assert.deepEqual(flattenSearchResults({ archive: [5] }), [5]);
+    assert.deepEqual(flattenSearchResults({ calendar: [1] }), [1]);
+    assert.deepEqual(flattenSearchResults({ tasks: [2] }), [2]);
+    assert.deepEqual(flattenSearchResults({ notes: [3] }), [3]);
+    assert.deepEqual(flattenSearchResults({ index: [4] }), [4]);
+    assert.deepEqual(flattenSearchResults({ calendar: [1], tasks: [2], notes: [3], index: [4], archive: [5] }), [1, 2, 3, 4, 5]);
+  });
+
+  it('matchesSearchQuery: default mode, blank queries, string fields, field boundaries, word splitting', () => {
+    assert.equal(matchesSearchQuery(['foo bar'], 'bar foo'), true);
+    assert.equal(matchesSearchQuery(['foo'], 'foo zzz'), false);
+    assert.equal(matchesSearchQuery(['x'], undefined), true);
+    assert.equal(matchesSearchQuery(['x'], null), true);
+    assert.equal(matchesSearchQuery(['x'], '   '), true);
+    assert.equal(matchesSearchQuery(['abc'], '  abc ', 'exact'), true);
+    assert.equal(matchesSearchQuery('hello world', 'hello'), true);
+    assert.equal(matchesSearchQuery('hello world', 'zzz'), false);
+    assert.equal(matchesSearchQuery(['ab', 'cd'], 'bc'), false);
+    assert.equal(matchesSearchQuery(['ab', 'cd'], 'ab cd'), true);
+    assert.equal(matchesSearchQuery(['hello'], 'x  y', 'any'), false);
+    assert.equal(matchesSearchQuery(['hello'], 'x\t y', 'any'), false);
+    assert.equal(matchesSearchQuery(['hello'], 'x\ty', 'any'), false);
+    assert.equal(matchesSearchQuery([null, undefined, 'Hello'], 'HELLO', 'exact'), true);
+    assert.throws(() => matchesSearchQuery(['a'], 'a', 'bogus'), /Unknown search match mode "bogus"/);
+  });
+
+  it('builds task rows: dedup by id, master routing, lead, detail and fallbacks', () => {
+    const t1 = { id: '1', title: 'Pay rent', dueDate: '2026-06-01', status: 'X', category: 'Home', notes: 'n1' };
+    const t1b = { id: '1', title: 'Pay rent again', dueDate: '2026-06-02' };
+    const t2 = { title: 'Pay bill', notes: 'by card' };
+    const t3 = { title: 'Pay tax', dueDate: '2026-07-01', master: true };
+    const t4 = { category: 'Pay stuff', dueDate: '2026-07-02' };
+    const t5 = { title: 'Pay dues' };
+    const r = executeUniversalSearch('pay', { dailyTasks: { d: [t1] }, masterTasks: [t1b, t2, t3, t4, t5] });
+    assert.deepEqual(r.tasks, [
+      { type: 'task', title: 'Pay rent', snippet: 'X 2026-06-01 · Category: Home', date: '2026-06-01', targetView: 'daily', item: t1 },
+      { type: 'task', title: 'Pay bill', snippet: '• Undated · Notes: by card', date: '', targetView: 'master-tasks', item: t2 },
+      { type: 'task', title: 'Pay tax', snippet: '• 2026-07-01', date: '2026-07-01', targetView: 'master-tasks', item: t3 },
+      { type: 'task', title: 'Untitled Task', snippet: '• 2026-07-02 · Category: Pay stuff', date: '2026-07-02', targetView: 'daily', item: t4 },
+      { type: 'task', title: 'Pay dues', snippet: '• Undated', date: '', targetView: 'master-tasks', item: t5 }
+    ]);
+    const twin = executeUniversalSearch('same', { dailyTasks: [{ title: 'same' }, { title: 'same' }] });
+    assert.equal(twin.tasks.length, 2);
+    assert.equal(r.totalMatches, 5);
+  });
+
+  it('builds note rows from arrays and keyed objects with link markup stripped', () => {
+    const arr = executeUniversalSearch('hello', { dailyNotes: [
+      { date: '2026-01-01', content: 'say hello' }, { noteContent: 'hello alt' }, { date: '2026-01-03' }
+    ] });
+    assert.deepEqual(arr.notes.map(n => [n.title, n.date, n.snippet, n.type, n.targetView]), [
+      ['Daily Note (2026-01-01)', '2026-01-01', '...say hello...', 'note', 'daily'],
+      ['Daily Note (Undated)', '', '...hello alt...', 'note', 'daily']
+    ]);
+    const obj = executeUniversalSearch('hello', { dailyNotes: {
+      '2026-02-01': 'hello a', '2026-02-02': { content: 'hello b' }, '2026-02-03': { noteContent: 'hello c' },
+      '2026-02-04': null, '2026-02-05': {}, '2026-02-06': 42
+    } });
+    assert.deepEqual(obj.notes.map(n => [n.date, n.snippet]), [
+      ['2026-02-01', '...hello a...'], ['2026-02-02', '...hello b...'], ['2026-02-03', '...hello c...']
+    ]);
+    assert.equal(executeUniversalSearch('a', { dailyNotes: 'abc' }).totalMatches, 0);
+    const link = executeUniversalSearch('big doc', { dailyNotes: [{ date: 'd', content: 'see [[link:http://x.y/z]]Big\nDoc[[/link]] now [[link:http://q.r]]Other[[/link]]' }] });
+    assert.equal(link.notes[0].snippet, '...see Big Doc now Other...');
+    assert.equal(executeUniversalSearch('see', { dailyNotes: [{ date: 'd', content: '[[link:http://x]]Big Doc[[/link]] see' }] }).notes[0].snippet, '...Big Doc see...');
+  });
+
+  it('centres note snippets 20 before and 40 after the first match', () => {
+    const content = 'A'.repeat(30) + 'Line\nbreak ' + 'B'.repeat(20) + 'NeEdLe' + 'c'.repeat(100);
+    const idx = content.indexOf('NeEdLe');
+    const want = '...' + content.slice(idx - 20, idx + 6 + 40).replace(/\n/g, ' ') + '...';
+    for (const q of ['needle', ' NEEDLE ']) {
+      assert.equal(executeUniversalSearch(q, { dailyNotes: [{ date: 'd', content }] }).notes[0].snippet, want);
+    }
+    const nl = 'x'.repeat(25) + 'a\nb' + 'needle' + 'y'.repeat(50);
+    assert.equal(executeUniversalSearch('needle', { dailyNotes: [{ date: 'd', content: nl }] }).notes[0].snippet.includes('a b'), true);
+  });
+
+  it('anchors the snippet on the first word hit when the phrase is absent', () => {
+    const content = 'alpha ' + 'x'.repeat(100) + ' delta';
+    const r = executeUniversalSearch('delta alpha', { dailyNotes: [{ date: 'd', content }] });
+    assert.equal(r.notes[0].snippet, '...' + content.slice(0, 51) + '...');
+    const r2 = executeUniversalSearch('zzz delta', { dailyNotes: [{ date: 'd', content }] }, 'any');
+    const idx = content.indexOf('delta');
+    assert.equal(r2.notes[0].snippet, '...' + content.slice(idx - 20, idx + 9 + 40) + '...');
+    const phraseLater = 'foo ' + 'y'.repeat(100) + ' foo bar ' + 'z'.repeat(100);
+    const r3 = executeUniversalSearch('foo bar', { dailyNotes: [{ date: 'd', content: phraseLater }] });
+    const p = phraseLater.indexOf('foo bar');
+    assert.equal(r3.notes[0].snippet, '...' + phraseLater.slice(p - 20, p + 7 + 40) + '...');
+    const c4 = 'bab b' + 'y'.repeat(60);
+    const r4 = executeUniversalSearch('ab b', { dailyNotes: [{ date: 'd', content: c4 }] });
+    assert.equal(r4.notes[0].snippet, '...' + c4.slice(0, 1 + 4 + 40) + '...');
+  });
+
+  it('builds index rows and strips ### prefixes', () => {
+    const i1 = { topic: '### Finance', summary: '### Budget plan', date: '2026-03-01' };
+    const i2 = { summary: 'budget only' };
+    const i3 = { topic: 'Budget' };
+    const r = executeUniversalSearch('budget', { indexEntries: [i1, i2, i3] });
+    assert.deepEqual(r.index, [
+      { type: 'index', title: '[Finance] Budget plan', snippet: 'Topic: Finance', date: '2026-03-01', targetView: 'monthly-index', item: i1 },
+      { type: 'index', title: '[General] budget only', snippet: 'Topic: General', date: '', targetView: 'monthly-index', item: i2 },
+      { type: 'index', title: '[Budget] ', snippet: 'Topic: Budget', date: '', targetView: 'monthly-index', item: i3 }
+    ]);
+    const spaced = executeUniversalSearch('x', { indexEntries: [{ topic: '###   Tx', summary: '###  Sx' }] }).index[0];
+    assert.equal(spaced.title, '[Tx] Sx');
+    assert.equal(executeUniversalSearch('   ', { calendarEvents: [{ title: 'a' }], dailyTasks: [{ title: 'a' }] }).totalMatches, 0);
+  });
+
+  it('builds archive rows with date, title, snippet and doc fallbacks', () => {
+    const a1 = { content: 'Launch [[link:http://l.m]]the plan[[/link]] notes', heading: 'Sunday, August 16, 2026', docName: 'D', docUrl: 'http://u' };
+    const a2 = { snippet: 'launch snippet', date: '2026-01-02', title: 'T2' };
+    const a3 = { title: 'August 3, 2026 launch' };
+    const a4 = { content: 'launch', docName: 'Day Planner Notes - May 2026' };
+    const a5 = { content: 'launch' };
+    const r = executeUniversalSearch('launch', { archiveNotes: [a1, a2, a3, a4, a5] });
+    assert.deepEqual(r.archive, [
+      { type: 'archive', title: 'Archive: Daily Note (2026-08-16)', snippet: 'Launch the plan notes', date: '2026-08-16', targetView: 'daily', docName: 'D', docUrl: 'http://u', item: a1 },
+      { type: 'archive', title: 'T2', snippet: 'launch snippet', date: '2026-01-02', targetView: 'daily', docName: '', docUrl: '', item: a2 },
+      { type: 'archive', title: 'August 3, 2026 launch', snippet: '', date: '2026-08-03', targetView: 'daily', docName: '', docUrl: '', item: a3 },
+      { type: 'archive', title: 'Archive: Daily Note (2026-05-01)', snippet: 'launch', date: '2026-05-01', targetView: 'daily', docName: 'Day Planner Notes - May 2026', docUrl: '', item: a4 },
+      { type: 'archive', title: 'Archive: Daily Note (Undated)', snippet: 'launch', date: '', targetView: 'daily', docName: '', docUrl: '', item: a5 }
+    ]);
+    const viaHeading = executeUniversalSearch('x', { archiveNotes: [{ content: 'x', heading: 'August 9, 2026', title: 'July 1, 2026' }] }).archive[0];
+    assert.equal(viaHeading.date, '2026-08-09');
+    const multi = executeUniversalSearch('see doc', { archiveNotes: [{ content: 'see [[link:http://x]]My\nDoc[[/link]]' }] }).archive[0];
+    assert.equal(multi.snippet, 'see My Doc');
+    const snipOnly = executeUniversalSearch('foo', { archiveNotes: [{ snippet: 'a foo b' }] }).archive[0];
+    assert.equal(snipOnly.snippet, 'a foo b');
+    const heads = executeUniversalSearch('zz', { archiveNotes: [{ heading: 'zz' }] }).archive[0];
+    assert.equal(heads.snippet, '');
+    assert.equal(r.totalMatches, 5);
+    const all = executeUniversalSearch('q', {
+      calendarEvents: [{ title: 'q' }], dailyTasks: [{ title: 'q' }], dailyNotes: [{ date: 'd', content: 'q' }],
+      indexEntries: [{ topic: 'q' }], archiveNotes: [{ content: 'q' }]
+    });
+    assert.equal(all.totalMatches, 5);
+  });
+
+  it('parseArchiveNoteHeading handles every month, spacing, bad names and null inputs', () => {
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    months.forEach((m, i) => {
+      const mm = String(i + 1).padStart(2, '0');
+      assert.equal(parseArchiveNoteHeading(`${m} 7, 2026`), `2026-${mm}-07`);
+      assert.equal(parseArchiveNoteHeading('', `Notes - ${m} 2026`), `2026-${mm}-01`);
+    });
+    assert.equal(parseArchiveNoteHeading('AUGUST  16,  2026'), '2026-08-16');
+    assert.equal(parseArchiveNoteHeading('August 16,2026'), '2026-08-16');
+    assert.equal(parseArchiveNoteHeading('Foo 5, 2026'), '');
+    assert.equal(parseArchiveNoteHeading('', 'Foo 2026'), '');
+    assert.equal(parseArchiveNoteHeading('', 'Notes  August  2026'), '2026-08-01');
+    assert.equal(parseArchiveNoteHeading(null, null), '');
+    assert.equal(parseArchiveNoteHeading(), '');
+    assert.equal(parseArchiveNoteHeading('', '2026-09'), '2026-09-01');
+    assert.equal(parseArchiveNoteHeading('  2026-03-04 x '), '2026-03-04');
+  });
+
+  it('extractSearchSnippet truncates, highlights and trims exactly', () => {
+    assert.equal(extractSearchSnippet(), '');
+    assert.equal(extractSearchSnippet(''), '');
+    assert.equal(extractSearchSnippet('a\nb'), 'a b');
+    assert.equal(extractSearchSnippet('x'.repeat(80)), 'x'.repeat(80));
+    assert.equal(extractSearchSnippet('x'.repeat(81)), 'x'.repeat(80) + '...');
+    assert.equal(extractSearchSnippet('a\n' + 'x'.repeat(100)), 'a ' + 'x'.repeat(78) + '...');
+    assert.equal(extractSearchSnippet('abcdefghij', '', 5), 'abcde...');
+    assert.equal(extractSearchSnippet('abcde', '', 5), 'abcde');
+    assert.equal(extractSearchSnippet('a\nb' + 'x'.repeat(100), 'zzz'), 'a b' + 'x'.repeat(77) + '...');
+    assert.equal(extractSearchSnippet('x'.repeat(80), 'zzz'), 'x'.repeat(80));
+    assert.equal(extractSearchSnippet('x\ny', 'zzz'), 'x y');
+    assert.equal(extractSearchSnippet('x'.repeat(81), 'zzz'), 'x'.repeat(80) + '...');
+    assert.equal(extractSearchSnippet('abcdefghij', 'zzz', 5), 'abcde...');
+    assert.equal(extractSearchSnippet('abcde', 'zzz', 5), 'abcde');
+    assert.equal(extractSearchSnippet('[[link:http://a.b]]Hello big world[[/link]] x', 'big'), 'Hello big world x');
+    assert.equal(extractSearchSnippet('[[link:http://a.b]]Hello world[[/link]] x', 'zzz'), 'Hello world x');
+
+    const text = 'a'.repeat(50) + 'Needle' + 'b'.repeat(100);
+    assert.equal(extractSearchSnippet(text, 'needle'), '...' + text.slice(25, 50 + 6 + 45) + '...');
+    assert.equal(extractSearchSnippet(text, 'NEEDLE'), '...' + text.slice(25, 50 + 6 + 45) + '...');
+    const t25 = 'a'.repeat(25) + 'needle' + 'b'.repeat(100);
+    assert.equal(extractSearchSnippet(t25, 'needle'), t25.slice(0, 25 + 6 + 45) + '...');
+    const t26 = 'a'.repeat(26) + 'needle' + 'b'.repeat(100);
+    assert.equal(extractSearchSnippet(t26, 'needle'), '...' + t26.slice(1, 26 + 6 + 45) + '...');
+    const tEnd = 'a'.repeat(30) + 'needle' + 'b'.repeat(45);
+    assert.equal(tEnd.length, 30 + 6 + 45);
+    assert.equal(extractSearchSnippet(tEnd, 'needle'), '...' + tEnd.slice(5));
+    const tEnd1 = tEnd + 'c';
+    assert.equal(extractSearchSnippet(tEnd1, 'needle'), '...' + tEnd1.slice(5, 30 + 6 + 45) + '...');
+    assert.equal(extractSearchSnippet('   needle ok', 'needle'), 'needle ok');
+    assert.equal(extractSearchSnippet('x'.repeat(30) + 'a\nb needle ' + 'y'.repeat(5), 'needle'), '...' + 'x'.repeat(21) + 'a b needle ' + 'y'.repeat(5));
+  });
+
+  it('mergeArchiveSearchResults fills defaults, dedups and totals every group', () => {
+    assert.deepEqual(mergeArchiveSearchResults(), { calendar: [], tasks: [], notes: [], index: [], archive: [], totalMatches: 0 });
+    assert.deepEqual(mergeArchiveSearchResults({}, null), { calendar: [], tasks: [], notes: [], index: [], archive: [], totalMatches: 0 });
+    const only = key => mergeArchiveSearchResults({ [key]: [1, 2] }, []);
+    assert.equal(only('calendar').totalMatches, 2);
+    assert.equal(only('tasks').totalMatches, 2);
+    assert.equal(only('notes').totalMatches, 2);
+    assert.equal(only('index').totalMatches, 2);
+    assert.deepEqual(only('calendar').tasks, []);
+    assert.deepEqual(only('tasks').calendar, []);
+    assert.deepEqual(only('notes').index, []);
+    assert.deepEqual(only('index').notes, []);
+
+    const full = { id: 'f' };
+    const items = [
+      null,
+      { date: '2026-01-01', snippet: 'dup of local note' },
+      { date: '2026-02-01', snippet: 's', title: 'T', targetView: 'master', docName: 'N', docUrl: 'U' },
+      { date: '2026-02-01', snippet: 's' },
+      { date: '2026-02-01', snippet: 's2' },
+      { date: '2026-02-02', snippet: 's' },
+      { snippet: 's' },
+      { date: '2026-03-03' },
+      full
+    ];
+    const r = mergeArchiveSearchResults({ calendar: [1], tasks: [2], notes: [{ date: '2026-01-01' }, { date: '' }], index: [3] }, items);
+    assert.deepEqual(r.archive, [
+      { type: 'archive', title: 'T', snippet: 's', date: '2026-02-01', targetView: 'master', docName: 'N', docUrl: 'U', item: items[2] },
+      { type: 'archive', title: 'Archive: Daily Note (2026-02-01)', snippet: 's2', date: '2026-02-01', targetView: 'daily', docName: '', docUrl: '', item: items[4] },
+      { type: 'archive', title: 'Archive: Daily Note (2026-02-02)', snippet: 's', date: '2026-02-02', targetView: 'daily', docName: '', docUrl: '', item: items[5] },
+      { type: 'archive', title: 'Archive: Daily Note (Undated)', snippet: 's', date: '', targetView: 'daily', docName: '', docUrl: '', item: items[6] },
+      { type: 'archive', title: 'Archive: Daily Note (2026-03-03)', snippet: '', date: '2026-03-03', targetView: 'daily', docName: '', docUrl: '', item: items[7] },
+      { type: 'archive', title: 'Archive: Daily Note (Undated)', snippet: '', date: '', targetView: 'daily', docName: '', docUrl: '', item: full }
+    ]);
+    assert.equal(r.totalMatches, 1 + 1 + 2 + 1 + 6);
+  });
+});
+
+describe('searchEngine survivors, round two', () => {
+  it('never invents text for empty or missing fields', () => {
+    assert.equal(matchesSearchQuery([null, ''], 'here'), false);
+    assert.equal(executeUniversalSearch('stryker', { dailyNotes: [{ date: 'd' }] }).totalMatches, 0);
+    assert.equal(executeUniversalSearch('stryker', { dailyNotes: { a: null, b: {} } }).totalMatches, 0);
+    assert.equal(executeUniversalSearch('stryker', { archiveNotes: [{ content: 'x' }] }).totalMatches, 0);
+    assert.equal(executeUniversalSearch('qqq', { archiveNotes: [{ content: 'zzz' }] }).archive.length, 0);
+    assert.equal(extractSearchSnippet(null), '');
+  });
+
+  it('anchors on the first word when the query has repeated whitespace', () => {
+    const content = 'alpha ' + 'x'.repeat(100) + ' delta';
+    const idx = content.indexOf('delta');
+    const r = executeUniversalSearch('zzz  delta', { dailyNotes: [{ date: 'd', content }] }, 'any');
+    assert.equal(r.notes[0].snippet, '...' + content.slice(idx - 20, idx + 10 + 40) + '...');
+  });
+
+  it('strips only a leading ### from index topic and summary', () => {
+    const r = executeUniversalSearch('x', { indexEntries: [{ topic: 'x ### y', summary: 'x ### z' }] });
+    assert.equal(r.index[0].title, '[x ### y] x ### z');
+  });
+
+  it('matches archive text after link markup is stripped, not the markup', () => {
+    const item = { content: 'Launch [[link:http://l.m]]the plan[[/link]] notes' };
+    assert.equal(executeUniversalSearch('http', { archiveNotes: [item] }).archive.length, 0);
+    assert.equal(executeUniversalSearch('the plan notes', { archiveNotes: [item] }, 'exact').archive.length, 1);
+  });
+
+  it('keeps archive items whose key parts differ only by a missing date or snippet', () => {
+    const r = mergeArchiveSearchResults({}, [
+      { snippet: 'x' }, { date: 'Stryker was here!', snippet: 'x' }, { date: 'd' }, { date: 'd', snippet: 'Stryker was here!' }
+    ]);
+    assert.equal(r.archive.length, 4);
   });
 });

@@ -12,7 +12,7 @@ Phase 33. Done 2026-11-01: rpc-guard 46 -> 0, html 21 -> 12 per page, axe 0 (`ax
 Order for the next agent session (all agent work, `worker` per item, its checker as the exit test):
 
 - [ ] **`var` 1 left**: `primaryTzMemo_` in `gas-app/Code.gs` (~L1461, a top-level global; `let` would stay global, so move it behind a frozen IIFE namespace getter per `.agents/rules/gas-global-init-order.md`). Red test first; then `npm run deploy:home`.
-- [ ] **mutation 96 survivors** (taskEngine 74, futureMatrixEngine 22); add `src/searchEngine.js` etc. to `stryker.config.json` scope, turn survivors into tests.
+- [ ] **mutation 96 survivors** (taskEngine 74, futureMatrixEngine 22); `src/searchEngine.js` added to `stryker.config.json` (2026-11-01: 360 -> 20 survivors, all equivalent: defaults and dead guards); add `src/calendarEngine.js` etc., turn survivors into tests.
 - [x] **rpc-guard 0 left** (2026-11-01): all 20 remaining RPCs guarded via `v_` (hub `rejectInvalid_` envelope, friendly `friendlyInvalid_` shape, Code.gs throws); `rpc-guard-baseline.json` is `[]`, ADR 0005 addendum records the transport rule. Not yet deployed (HOME/WORK push pending commit).
 - [ ] **html 12 left per page** (user 2026-11-01: leave): role=radio priority buttons, listboxes, progressbar, event-pill button, dictation label; each changes markup/CSS/Alpine.
 - [ ] **mirror 72 left** (user 2026-11-01, 3A: the GAS copy wins; leave baselined, no more mirror work unless a drifted function is edited): ~30 `dp*` helper-name diffs, 4 URL builders using `'https:'+'/'+'/'`, diverged logic (addDailyTask, addMasterTask, parseDailyNoteToCards, toggleDictation popup size), binderStore shape, 25 `styles.css` entries unexamined.
