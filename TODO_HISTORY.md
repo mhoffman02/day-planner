@@ -1,5 +1,10 @@
 # Task History (TODO_HISTORY)
 
+## 2026-11-01 — Refresh + Decision styling (HOME @355, WORK v185 pushed, repoint pending)
+
+- [x] **Header Refresh** now calls `refreshAll()` (day, Master, month, Future, hub views; skips views with unsaved writes): it only rebuilt the grid before, so a hub-created task needed a page reload (`13d3fb2`). Live: a server-side add appeared in 4 s, a delete vanished.
+- [x] **Decision notes**: filled blue tag + blue left rule/tint on the line (`cd19fe6`, user option 1B).
+
 ## 2026-11-01 — Phase 31 item 1
 
 - [x] **`/` focuses the Master Tasks filter** when Master Tasks is active and no input has focus; elsewhere `/` still opens search. `resolveSlashKeyAction` in `src/searchEngine.js` + mirror.

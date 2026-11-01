@@ -43,8 +43,7 @@ note badge, completing a `Decision:` task adds `#decision <what>` to the last no
 
 - [ ] **Live check on HOME** (@346; Retry is in the error tray). Conflict flow verified (2026-10-30, through the bridge
   on throwaway day 2026-01-15, the Doc edit simulated by a no-baseline write): the stale baseline was refused, the error
-  tray said "changed in Google Docs", Retry overwrote and cleared the tray. Still open: label an email `🎯/Decision`
-  and wait a tick; complete a `Decision:` task with Today open. Optional: one real typed edit in the Doc. Delete the
+  tray said "changed in Google Docs", Retry overwrote and cleared the tray. Verified live on HOME (2026-11-01, user): a labeled `🎯/Decision` email became a `Decision:` task; completing it added the note card line (now a filled blue tag + blue left rule, HOME @355). Still open: confirm a SCHEDULED tick (no forced dispatch) creates the task. Optional: one real typed edit in the Doc. Delete the
   leftover 2026-01-15 section ("phase32 line A / phase32 line APP") in the "Day Planner Notes - January 2026" Doc.
 - [ ] **Notes portal decisions** (`docs/notes-portal-eval.md`; user accepted all defaults 2026-11-01, so agent work: P1 probe, Docs API read-only render, "Open this day in Docs" link, fail loud on multi-tab Docs): 1A no iframe, run probe P1 only;
   2T read-only Docs API render as the panel Doc view; 3T "Open this day in Docs" link; 4A defer per-day tabs;
