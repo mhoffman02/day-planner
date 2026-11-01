@@ -56,9 +56,9 @@ User-requested follow-ups from the 2026-10-22 search work. Checklist in [`TODO.m
 - [ ] `/` hotkey for the Master Tasks filter box (needs a user decision: `/` already opens universal search).
 - [ ] Status and due date in universal search task results.
 - [ ] Dedupe task results that appear in both Today and Master.
-- **Next agent work** (TODO.md "Agent work", A1-A3): Phase 31 items 2 and 3, then the overdue rpc expiry probe and the HOME
-  `/dev` Forward/Delegate check (Phase 30), then the Solid Code baseline shrinks and axe. Item 1 waits for the user
-  (TODO.md "For the session after next", B2).
+- **Next agent work** (TODO.md "Agent work", A1-A3): Phase 31 items 2-3 shipped. Left: retest Master Delegate Undo (A2),
+  then the remaining baseline shrinks in A3 (rpc-guard 28, html 12, axe 4, mutation 96, mirror 72, `var` 696), several
+  of which need a user decision. Item 1 waits for the user (TODO.md "For the session after next", B2).
 
 ### Phase 32: Notes Doc safety + Decisions (In progress)
 Checklist in [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md). Evals: `docs/notes-doc-embed-eval.md`,

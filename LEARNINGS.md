@@ -301,3 +301,7 @@ live-testing catches it by luck.
 ## 2026-10-30 (live conflict check)
 **Worked well:** The bridge reaches the live app state from eval-console (`document.querySelector("[x-data]")._x_dataStack[0]`, then `.bridge` and `.errorTray`), so a conflict flow can be driven end to end on a throwaway day without a second browser tab.
 **Needs improvement:** `plannerApp` is not a window global in the GAS iframe; probe-live already shows the x-data lookup, so check it before guessing a global.
+
+## 2026-11-01 (A3 baseline shrinks)
+**Worked well:** One `worker` per baseline with its checker as the exit test shipped six ratchets in one session; `eslint --fix` plus `--prune-suppressions` shrank `var` safely with no hand edits.
+**Needs improvement:** A deploy reloads the live tab and kills in-flight eval writes (lost the Master Delegate Undo check); run live checks with no deploy mid-run. `push:work` twice burned a WORK version (IDE at 180/200).

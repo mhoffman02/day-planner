@@ -1,5 +1,14 @@
 # Task History (TODO_HISTORY)
 
+## 2026-11-01 — Phase 30 A2 + Solid Code shrinks (HOME @351, WORK pushed, repoint pending)
+
+- [x] **rpc probe** `runSelfTest` 7/7; HOME `/dev` Daily Forward/Delegate/Undo live-verified, throwaways deleted.
+- [x] **RPC guards** 46 -> 28: 18 Code.gs RPCs validate args with `v_` (`9d73c7b`).
+- [x] **HTML/a11y** 21 -> 12 findings per page; checker `text-content` false positive fixed (HOME @349).
+- [x] **axe gate** in `deploy:home`, `axe-baseline.json` (4 violations), `axe-core` 4.10.2 devDependency.
+- [x] **Mutation** score 67% -> 91% on taskEngine/futureMatrixEngine (`b68b33a`, 35 tests).
+- [x] **Mirror** 107 -> 72 (`cc5f9b4`); **`var` suppressions** 858 -> 696 (`8a6327a`, HOME @351).
+
 ## 2026-10-30 — Phase 31 items 2-3 (HOME @347, WORK pushed, repoint pending)
 
 - [x] **Search task results**: snippet leads with status glyph + due date (or Undated); one result per task id across

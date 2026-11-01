@@ -16,32 +16,19 @@ mirror in `gas-app/Script.html`; both clients, red test first, then `npm run dep
 ### A2. Phase 30: rpc token probe (agent only; the token may need the user)
 
 - [x] rpc token probe: `runSelfTest` passed 7/7 (2026-10-30); the token still works past its warned expiry, so B4 rpc login is not needed yet.
-- [ ] **Live check on HOME `/dev`** (agent; the ensure-chrome profile is signed in as of 2026-10-16): Daily Forward
-  makes a copy; Delegate… with owner + tomorrow makes the "Check back:" task; Master undated Forward to next week
-  then Undo; Master Delegate; Undo on each. Use a throwaway task, delete it after.
+- [x] Live check on HOME `/dev` (2026-11-01): Daily Forward/Delegate/Undo correct; throwaways deleted.
+- [ ] **Master Delegate Undo** left the master at Ⓓ in two runs (the write may have been killed by a deploy reload; unconfirmed). Retest with no deploy mid-run; if it still ends Ⓓ, it is a bug: red test first.
 
-### A3. Solid Code ratchets: shrink the baselines (user decision 3T, 2026-10-30)
+### A3. Solid Code ratchets: remaining shrinks (2026-11-01; shipped items in TODO_HISTORY)
 
-Do them as `worker` agents (Sonnet/medium), one baseline per agent, each with its checker as the exit test. Order:
+Shipped 2026-11-01: rpc-guard 46 -> 28, html 21 -> 12 per page, axe gate (`axe-baseline.json`, 4 violations), mutation 67% -> 91%, mirror 107 -> 72, `var` suppressions 858 -> 696 (HOME @351, WORK pushed).
 
-- [ ] **Shrink `rpc-guard-baseline.json`** (46 unguarded RPC entry points): add
-  `DPEngines.v_.guard(arguments, '<name>')...done()` (see `src/integration/v_.js`) as the first statement of each
-  `_xInternal` impl, highest-traffic first; then run `node tools/check-rpc-guards.js --update`.
-- [ ] **Shrink `html-baseline.json`** (a11y findings in `index.html` + `gas-app/Index.html`, mostly
-  `prefer-native-element`): fix both copies, then `node tools/check-html.js --update`.
-- [ ] **axe a11y in the live gate** (user picks 1T 2A 3F, 2026-10-30): add `axe-core` as a devDependency and, in
-  `tools/deploy-home.js` after the `/dev` load, inject it into the GAS iframe over CDP (as `tools/eval-console.js
-  --iframe` does) and run it on Today, Master Tasks, Notes and the Search modal. Ratchet the results with a
-  shrink-only per-view baseline (`axe-baseline.json`, like `html-baseline.json`): a new finding fails the deploy.
-  No mock-mode run. Red test first on the baseline compare logic.
-- [ ] **Run `npm run test:mutation`** (Stryker, `stryker.config.json`) before the next big phase; each surviving
-  mutant becomes a test.
-- [ ] **Shrink `mirror-baseline.json`** (107 drifted `src/*.js` vs `gas-app/Script.html` functions: app.js 86,
-  binderStore 9, taskEngine 5, hubUi 3, futureMatrixEngine 2, quotesEngine 1, searchEngine 1): reconcile each pair,
-  or generate the `Script.html` engines from `src` like `Engines.gs`; then run `node tools/check-mirror.js --update`.
-  Escalate to `deep` only if a pair needs a decision about which copy is right.
-- [ ] **Shrink legacy `var` suppressions** in `eslint-suppressions.json` (gas-app `.gs` and html scripts): convert a
-  file at a time to `const`/`let`, then `npx eslint --prune-suppressions`.
+- [ ] **rpc-guard 28 left**: hub, Future-matrix and friendly-error RPCs need a decision on error style (v_ throws vs friendly message). Trigger handlers (`onOpen(e)`) should be excluded from the checker.
+- [ ] **html 12 left per page**: role=radio priority buttons, listboxes, progressbar, event-pill button, dictation label; each changes markup/CSS/Alpine.
+- [ ] **axe 4 violations**: fix `document-title`, `html-has-lang`, `landmark-one-main`, `page-has-heading-one`, then `npm run deploy:home -- --check --update-axe`.
+- [ ] **mutation 96 survivors** (taskEngine 74, futureMatrixEngine 22); add `src/searchEngine.js` etc. to `stryker.config.json` scope.
+- [ ] **mirror 72 left**: ~30 `dp*` helper-name diffs, 4 URL builders using `'https:'+'/'+'/'`, diverged logic (addDailyTask, addMasterTask, parseDailyNoteToCards, toggleDictation popup size), binderStore shape, 25 `styles.css` entries unexamined. Needs a decision which copy is right.
+- [ ] **`var` suppressions 696 left**: HubController 261, Config 139, QueueProcessor 126, GmailRepository 73, UnitTests 59, Script.html 16, Regrant 10, Index 6, SetupFolder 5, Code 1; autofix refused some, hand review.
 
 ## For the session after next: needs the user (interactive / HITL)
 

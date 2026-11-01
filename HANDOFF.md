@@ -1,5 +1,5 @@
-<!-- handoff: branch=worktree-today-rollover-smart-paste worktree=/home/mike/projects/day-planner/.claude/worktrees/today-rollover-smart-paste base=025172fedd30 written=2026-10-30T19:09:19-07:00 -->
-# Resume: autonomous agent queue (Phase 31 items 2-3, then Solid Code shrinks); user-gated items are last
+<!-- handoff: branch=worktree-today-rollover-smart-paste worktree=/home/mike/projects/day-planner/.claude/worktrees/today-rollover-smart-paste base=8a6327a11cc5 written=2026-11-01T10:58:52-08:00 -->
+# Resume: A2 retest + remaining Solid Code shrinks (agent); user-gated items B1-B4 are last
 
 > **WARNING: written on branch `worktree-today-rollover-smart-paste`** (worktree
 > `/home/mike/projects/day-planner/.claude/worktrees/today-rollover-smart-paste`), not `pure-gas-main`. Every commit
@@ -9,50 +9,48 @@
 
 **Verify first:**
 `git fetch -q; git log --branches --remotes -1 --abbrev=12 --format='%h %p %cI' -- HANDOFF.md`
-Stale if that commit is dated after `2026-10-30T19:09:19-07:00` **and** its parent isn't `025172fedd30`, or a
+Stale if that commit is dated after `2026-11-01T10:58:52-08:00` **and** its parent isn't `8a6327a11cc5`, or a
 worktree's `HANDOFF.md` has a later `written=`. Then read that copy instead and tell the user.
-`git log --oneline 025172fedd30..origin/pure-gas-main`: anything besides the handoff commit landed after this prompt;
+`git log --oneline 8a6327a11cc5..origin/pure-gas-main`: anything besides the handoff commit landed after this prompt;
 check it first.
 
-**Start by (agent work, no user needed):** Phase 31 items 2 and 3 in `TODO.md` section A1, red test first, both
-clients. In `executeUniversalSearch` (`src/searchEngine.js` L104; task block ~L143-152): (2) the task snippet shows
-the status glyph and the due date or "Undated" (no glyph helper exists yet: take the glyphs the Daily task row
-renders, and if they are inline, extract one `taskStatusGlyph` into `src/taskEngine.js` and mirror it); (3) one result per task id across `dailyTasks` + `masterTasks`, keep the first (Daily) copy, and
-`targetView` still comes from the task's own fields. Mirror each change in `gas-app/Script.html` (the
-`searchEngine` mirror already drifts by one function in `mirror-baseline.json`; do not let the count grow). Then
-`npm run deploy:home` (live `/dev` gate), `npm run push:work`, and tell the user "Update WORK".
+**Start by (agent work, no user needed):** `TODO.md` section A2, "Master Delegate Undo": on HOME `/dev`, with a
+throwaway Master task and NO deploy during the run (a deploy reloads the tab and kills in-flight writes), Delegate then
+Undo, wait for `saveQueue.busy('task-status:<id>')` to clear, then read `getMasterTasks()`. Two earlier runs ended at
+Ⓓ (unconfirmed, probably killed writes). If it still ends Ⓓ, it is a bug: red test first in `undoForward`
+(`src/app.js` / `gas-app/Script.html`), both clients. Delete the throwaway. Then the A3 items that need no decision:
+fix the 4 axe violations (`document-title`, `html-has-lang`, `landmark-one-main`, `page-has-heading-one`; then
+`npm run deploy:home -- --check --update-axe`), exclude trigger handlers (`onOpen(e)`) from `tools/check-rpc-guards.js`,
+and `eslint --fix` the remaining `var` files. Each as a `worker` agent with its checker as exit test. Gas-app change
+→ `npm run deploy:home`, then once at the end `npm run push:work` (ONE push per session: IDE is at ~182/200 versions)
+and tell the user "Update WORK".
 
-Queue after that, `TODO.md` under "Agent work" (items A1-A3), all agent-only:
-1. A2: `npm run rpc -- runSelfTest` (no `--deploy`). The 7-day rpc token is OVERDUE (was due 2026-10-17; last
-   session returned `invalid_grant`). If dead, do not retry; leave "rerun the rpc login" for the user (section B4)
-   and go on. Then the HOME `/dev` Forward/Delegate live check with a throwaway task.
-2. A3, one `worker` agent per baseline, checker as exit test: shrink `rpc-guard-baseline.json` (46), then
-   `html-baseline.json`, then add axe to `deploy:home` (picks 1T 2A 3F, red test first), then `npm run test:mutation`,
-   then `mirror-baseline.json` (107), then the legacy `var` suppressions.
+**Needs a user decision before an agent can do it (A3 leftovers):** rpc-guard 28 (hub, Future-matrix, friendly-error
+RPCs: v_ throw vs friendly message; default: keep friendly messages, guard with `v_` only on non-user-facing args);
+mirror 72 (which copy wins for `dp*` helper names and diverged logic like `parseDailyNoteToCards`; default: GAS side wins,
+leave them baselined); html 12 per page (radio/listbox/progressbar restructure; default: leave).
 
-**For the session after next (needs the user; do not start in an agent-only session):** `TODO.md` under "For the session after next" (items B1-B4).
-1. Phase 32 `Decision:` live checks (a labeled `🎯/Decision` email plus a hub tick; completing a `Decision:` task
-   with Today open) and the smart paste + day rollover check.
-2. The six portal decisions in `docs/notes-portal-eval.md` (defaults 1A, 2T, 3T, 4A, 5T, 6T).
-3. Phase 31 item 1 (`/` already opens universal search; default: `/` focuses the filter only on Master Tasks).
-4. Gap 10 cdp-step: the agent proposes a scope before building.
-5. Update WORK (repoint after each `push:work`), the rpc login if the token is dead, and the WORK Suggest filters paste.
-6. The rest of Phase 30 (test data to delete, WORK live renders, UAT run).
+**For the session after next (needs the user; do not start in an agent-only session):** `TODO.md` items B1-B4.
+1. B1: Phase 32 live checks (label an email `🎯/Decision` + a hub tick; complete a `Decision:` task with Today open;
+   delete the leftover 2026-01-15 section in the "Day Planner Notes - January 2026" Doc); six portal decisions in
+   `docs/notes-portal-eval.md` (defaults 1A 2T 3T 4A 5T 6T); smart paste + midnight rollover check.
+2. B2: `/` focuses the filter only on Master Tasks (default).
+3. B3: Gap 10 cdp-step scope (the agent proposes).
+4. B4: Update WORK (repoint to the newest version, delete old versions: IDE near the 200 cap); delete the "Day Planner
+   e2e test - safe to delete" calendar event and the Hub L6 test email/task; WORK live checks; UAT T01-T20; WORK Suggest
+   filters paste; WORK forwards made before v149. rpc login not needed (token alive).
 
-This session: added the Solid Code gates and the stack-out-of-UI fix (HOME @346), queued axe and Gap 10 in
-`TODO.md`, and live-verified the Phase 32 conflict flow on HOME @346 through the bridge (throwaway day 2026-01-15; a
-leftover section remains in the January notes Doc). `TODO.md` was reordered: "Agent work" first, "For the session
-after next" (user-gated) last.
+This session: shipped Phase 31 items 2-3, A2 live checks (Daily verified; Master Delegate Undo open), and six
+Solid Code shrinks: rpc-guard 46→28, html 21→12/page, axe gate in `deploy:home`, mutation 67%→91%, mirror 107→72,
+`var` 858→696. HOME @351; WORK pushed (twice earlier, once more now), repoint pending.
 
-- What changed: `TODO.md` (both new sections), `PLAN.md` Phase 31/32 pointers, `LEARNINGS.md`.
+- What changed: `TODO.md` A2/A3 rewritten to what is left; `TODO_HISTORY.md` 2026-11-01 entry; `PLAN.md` Phase 31 pointer.
 - Traps:
-  - Run `npm run push:work` from the repo root; run `clasp push` from `gas-app/`.
-  - Stage files by name while a background agent writes.
-  - Worktree bash refuses compound commands, `cd`, `$VAR` and heredocs: one command per call, absolute paths,
-    `git commit -F <file>`.
-  - ESLint flat config replaces `no-restricted-syntax` options per block: repeat shared selectors (`UTC_DAY_KEY`,
-    `UNBOUNDED_LOOP`) in the gas-app block of `eslint.config.js`.
-  - Live app state from eval-console: `document.querySelector('[x-data]')._x_dataStack[0]` (no `plannerApp` global);
-    `.bridge`, `.errorTray`, `.savedNoteByDate` are on it.
-  - `saveDailyDocCards` appears twice in `gas-app/Code.gs` by design (IIFE impl ~L2055 plus top-level delegator
-    ~L3895).
+  - A deploy reloads the live tab: never deploy during an eval-console live check.
+  - Run `npm run push:work` once per session; it creates a WORK version each time.
+  - Worktree bash refuses compound commands, `cd`, `$VAR` and heredocs in some forms: one command per call, absolute
+    paths, `git commit -F <file>`.
+  - Live app state: `document.querySelector('[x-data]')._x_dataStack[0]` (`.bridge`, `.saveQueue`); slow eval calls need
+    `run_in_background`.
+  - Stryker scope is only `taskEngine.js` + `futureMatrixEngine.js` (`stryker.config.json`).
+  - `saveDailyDocCards` appears twice in `gas-app/Code.gs` by design (IIFE impl plus top-level delegator).
