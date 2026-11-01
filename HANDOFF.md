@@ -1,4 +1,4 @@
-<!-- handoff: branch=worktree-today-rollover-smart-paste worktree=/home/mike/projects/day-planner/.claude/worktrees/today-rollover-smart-paste base=cd19fe6d7f58 written=2026-11-01T13:14:24-08:00 -->
+<!-- handoff: branch=worktree-today-rollover-smart-paste worktree=/home/mike/projects/day-planner/.claude/worktrees/today-rollover-smart-paste base=46c7c6c521c6 written=2026-11-01T13:16:46-08:00 -->
 # Resume: A2 retest + remaining Solid Code shrinks (agent); user-gated items B1-B4 are last
 
 > **WARNING: written on branch `worktree-today-rollover-smart-paste`** (worktree
@@ -9,9 +9,9 @@
 
 **Verify first:**
 `git fetch -q; git log --branches --remotes -1 --abbrev=12 --format='%h %p %cI' -- HANDOFF.md`
-Stale if that commit is dated after `2026-11-01T13:14:24-08:00` **and** its parent isn't `cd19fe6d7f58`, or a
+Stale if that commit is dated after `2026-11-01T13:16:46-08:00` **and** its parent isn't `46c7c6c521c6`, or a
 worktree's `HANDOFF.md` has a later `written=`. Then read that copy instead and tell the user.
-`git log --oneline cd19fe6d7f58..origin/pure-gas-main`: anything besides the handoff commit landed after this prompt;
+`git log --oneline 46c7c6c521c6..origin/pure-gas-main`: anything besides the handoff commit landed after this prompt;
 check it first.
 
 **Start by (agent work, no user needed):** `TODO.md` section A2, "Master Delegate Undo": on HOME `/dev`, with a
