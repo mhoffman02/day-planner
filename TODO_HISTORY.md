@@ -1,5 +1,11 @@
 # Task History (TODO_HISTORY)
 
+## 2026-11-01 (last) — var 0, rpc-guard 0, searchEngine mutation (HOME @360, WORK v187 pushed, repoint pending)
+
+- [x] **`var` 1 -> 0**: `primaryTzMemo_` was already IIFE-private, so a plain `let` (`607b572`); `eslint-suppressions.json` is `{}`.
+- [x] **rpc-guard 26 -> 0**: 6 Future-matrix RPCs (`d00b2e0`), then the last 20 (`34d4fb4`). One `v_` validator everywhere; transport per family (Code.gs throws, hub `rejectInvalid_` returns `INVALID_INPUT`, friendly RPCs `friendlyInvalid_` keep `{success,error}`); `include` allowlists Styles/Script/About/Tutorial. `createCalendarEvent` null payload now throws `ValidationError`. ADR 0005 addendum.
+- [x] **mutation**: `src/searchEngine.js` in Stryker, 360 -> 20 survivors, all equivalent (`8c878c4`).
+
 ## 2026-11-01 (later) — axe real-frame fix + var sweep (HOME @357, WORK v186 pushed, repoint pending)
 
 - [x] **Master Delegate Undo** retested on HOME `/dev` with no deploy mid-run: ends at • (no bug); earlier Ⓓ results were deploy-killed writes.

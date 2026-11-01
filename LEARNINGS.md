@@ -1,5 +1,9 @@
 # Learnings
 
+## 2026-11-01 (rpc-guard 0)
+**Worked well:** Asking the architect before a cross-family decision (throw vs envelope) gave one validator with per-family transport; two parallel worker agents on disjoint files (mutation tests, RPC guards) finished while I did the Future-matrix guards.
+**Needs improvement:** The handoff claimed `primaryTzMemo_` was a real global without checking; read the code before scoping a task from a note. Positional `v_` guards bit twice (undeclared `year` arg); declare every arg.
+
 ## 2026-10-22 — Handoff validation
 
 **Worked well:** The user asked "is it CORRECT and COMPLETE?" and a check against code, git and the trackers found
