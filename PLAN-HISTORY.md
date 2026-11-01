@@ -4,6 +4,10 @@ Archived completed phases from [`PLAN.md`](file:///home/mike/projects/day-planne
 
 ---
 
+### Phase 31: Search polish (Done 2026-11-01)
+`/` focuses the Master Tasks filter (`resolveSlashKeyAction`, `src/searchEngine.js` + mirror); search task results lead
+with status glyph and due date; one result per task id across Daily + Master. Details in `TODO_HISTORY.md` 2026-10-30 and 2026-11-01.
+
 ### Phase 25: WORK Repoint & Post-Removal Verification (Done 2026-10-10; WORK repoint moved to Phase 30)
 Phase 24 (AI Assist/Thesaurus removal), Phase 26 (`var`->`const`/`let`), and Phase 27 ("GH Build N"
 prefix) are archived in `PLAN-HISTORY.md`. HOME is at `@294`, Build 378 — includes the Version

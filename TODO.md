@@ -1,34 +1,21 @@
 # Active Tasks (TODO)
 
-Order (2026-10-30, user): autonomous agent work first, in the order listed (items A1-A3); everything that needs the
-user is in the last section, "For the session after next" (items B1, B3, B4). An agent session works only A1-A3.
+Order (2026-10-30, user): autonomous agent work first (item A3); everything that needs the user is in the last section,
+"For the session after next" (items B1, B3, B4). An agent session works only A3.
 
 ## Agent work: next session (no user needed)
 
-### A1. Phase 31: Search polish (in progress)
-
-User asked for these in this order (2026-10-22). Shared matcher: `matchesSearchQuery` in `src/searchEngine.js` + its
-mirror in `gas-app/Script.html`; both clients, red test first, then `npm run deploy:home` (live gate), then
-`npm run push:work` and tell the user "Update WORK".
-
-- [x] Phase 31 items 1-3 shipped (see TODO_HISTORY).
-
-### A2. Phase 30: rpc token probe (agent only; the token may need the user)
-
-- [x] rpc token probe: `runSelfTest` passed 7/7 (2026-10-30); the token still works past its warned expiry, so B4 rpc login is not needed yet.
-- [x] Live check on HOME `/dev` (2026-11-01): Daily Forward/Delegate/Undo correct; throwaways deleted.
-- [x] Master Delegate Undo retested on HOME /dev (2026-11-01, no deploy mid-run): ends at • (correct); throwaways deleted. The earlier Ⓓ runs were deploy-killed writes.
-
 ### A3. Solid Code ratchets: remaining shrinks (2026-11-01; shipped items in TODO_HISTORY)
 
-Shipped 2026-11-01: rpc-guard 46 -> 28, html 21 -> 12 per page, axe gate (`axe-baseline.json`, 4 violations), mutation 67% -> 91%, mirror 107 -> 72, `var` suppressions 858 -> 696 (HOME @351, WORK pushed).
+Phase 33. Done 2026-11-01: rpc-guard 46 -> 26, html 21 -> 12 per page, axe 0 (`axe-baseline.json` is `{}`), mutation 67% -> 91%, mirror 107 -> 72, `var` suppressions 858 -> 1 (HOME @357, WORK v186 pushed). Master Delegate Undo verified, no bug.
 
-- [ ] **rpc-guard 28 left**: decided 2026-11-01 (user, 2A): keep friendly messages, guard with `v_` only the non-user-facing args. Trigger handlers (`onOpen(e)`) should be excluded from the checker.
+Order for the next agent session (all agent work, `worker` per item, its checker as the exit test):
+
+- [ ] **`var` 1 left**: `primaryTzMemo_` in `gas-app/Code.gs` (~L1461, a top-level global; `let` would stay global, so move it behind a frozen IIFE namespace getter per `.agents/rules/gas-global-init-order.md`). Red test first; then `npm run deploy:home`.
+- [ ] **mutation 96 survivors** (taskEngine 74, futureMatrixEngine 22); add `src/searchEngine.js` etc. to `stryker.config.json` scope, turn survivors into tests.
+- [ ] **rpc-guard 26 left**: decided 2026-11-01 (user, 2A): keep friendly messages, guard with `v_` only the non-user-facing args (hub, Future-matrix, friendly-error RPCs). Baseline shrinks via `node tools/check-rpc-guards.js --update`.
 - [ ] **html 12 left per page** (user 2026-11-01: leave): role=radio priority buttons, listboxes, progressbar, event-pill button, dictation label; each changes markup/CSS/Alpine.
-- [ ] **mutation 96 survivors** (taskEngine 74, futureMatrixEngine 22); add `src/searchEngine.js` etc. to `stryker.config.json` scope.
-- [ ] **mirror 72 left**: ~30 `dp*` helper-name diffs, 4 URL builders using `'https:'+'/'+'/'`, diverged logic (addDailyTask, addMasterTask, parseDailyNoteToCards, toggleDictation popup size), binderStore shape, 25 `styles.css` entries unexamined. Decided 2026-11-01 (user, 3A): the GAS copy wins; leave them baselined, no more mirror work unless a drifted function is edited.
-- [x] **axe**: real app frame now 0 violations, `axe-baseline.json` is `{}` (HOME @356, 2026-11-01).
-- [ ] **`var` suppressions 38 left** (was 696; five .gs files done 2026-11-01): Script.html 16, Regrant 10, Index 6, SetupFolder 5, Code.gs 1 (`primaryTzMemo_`, a top-level global; needs a namespace-object refactor, not `let`). Script.html is mirrored from `src/*.js`, so change both copies.
+- [ ] **mirror 72 left** (user 2026-11-01, 3A: the GAS copy wins; leave baselined, no more mirror work unless a drifted function is edited): ~30 `dp*` helper-name diffs, 4 URL builders using `'https:'+'/'+'/'`, diverged logic (addDailyTask, addMasterTask, parseDailyNoteToCards, toggleDictation popup size), binderStore shape, 25 `styles.css` entries unexamined.
 
 ## For the session after next: needs the user (interactive / HITL)
 
@@ -64,7 +51,7 @@ note badge, completing a `Decision:` task adds `#decision <what>` to the last no
 Most items need the user (GSA account, a release go, or a decision). HOME live checks are done (TODO_HISTORY 2026-10-10).
 
 - [ ] **Update WORK** whenever `npm run push:work` has run (the user repoints "Day Planner v1" in the WORK IDE).
-- [ ] **rpc login** (only if the section A2 probe finds the token dead): the user reruns the rpc login.
+- [ ] **rpc login** (only if an `npm run rpc` `runSelfTest` probe finds the token dead): the user reruns the rpc login.
 - [ ] **Re-check WORK forwards made before v149**: Forward/Delegate on a Daily row set the glyph without making a
   copy (fixed in `2b2d712`). Tasks forwarded on WORK ≤ v148 may be missing from their later day; re-add any.
 - [ ] **Delete the test appointment** "Day Planner e2e test - safe to delete" (HOME calendar, 2026-10-30 14:00, has a

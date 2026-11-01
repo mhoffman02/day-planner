@@ -1,5 +1,13 @@
 # Task History (TODO_HISTORY)
 
+## 2026-11-01 (later) — axe real-frame fix + var sweep (HOME @357, WORK v186 pushed, repoint pending)
+
+- [x] **Master Delegate Undo** retested on HOME `/dev` with no deploy mid-run: ends at • (no bug); earlier Ⓓ results were deploy-killed writes.
+- [x] **axe** audited Google's wrapper frame, not `#userHtmlFrame` (`db132de`). Real app had 5 violations; all fixed (`tests/a11yMarkup.test.js`); `axe-baseline.json` is `{}`.
+- [x] **rpc-guard** 28 -> 26: trigger handlers (`onOpen`, `doGet`, trigger-wired) are not RPC entries (`db132de`).
+- [x] **`var` suppressions** 696 -> 1: five .gs files and four HTML scripts via Haiku agents; TDZ and loop-closure checked with `no-use-before-define` + `no-loop-func`. Left: `primaryTzMemo_` in `gas-app/Code.gs`.
+- [x] **`/kontinue`** skill created as an alias for `/do-handoff` (`~/.claude/skills/kontinue`).
+
 ## 2026-11-01 — Refresh + Decision styling (HOME @355, WORK v185 pushed, repoint pending)
 
 - [x] **Header Refresh** now calls `refreshAll()` (day, Master, month, Future, hub views; skips views with unsaved writes): it only rebuilt the grid before, so a hub-created task needed a page reload (`13d3fb2`). Live: a server-side add appeared in 4 s, a delete vanished.

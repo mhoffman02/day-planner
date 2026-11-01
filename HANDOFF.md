@@ -1,5 +1,5 @@
-<!-- handoff: branch=worktree-today-rollover-smart-paste worktree=/home/mike/projects/day-planner/.claude/worktrees/today-rollover-smart-paste base=46c7c6c521c6 written=2026-11-01T13:16:46-08:00 -->
-# Resume: A2 retest + remaining Solid Code shrinks (agent); user-gated items B1-B4 are last
+<!-- handoff: branch=worktree-today-rollover-smart-paste worktree=/home/mike/projects/day-planner/.claude/worktrees/today-rollover-smart-paste base=098b12831f64 written=2026-11-01T13:57:36-08:00 -->
+# Resume: Phase 33 Solid Code shrinks, last agent items (var 1, mutation, rpc-guard); user-gated B1-B4 are last
 
 > **WARNING: written on branch `worktree-today-rollover-smart-paste`** (worktree
 > `/home/mike/projects/day-planner/.claude/worktrees/today-rollover-smart-paste`), not `pure-gas-main`. Every commit
@@ -9,50 +9,36 @@
 
 **Verify first:**
 `git fetch -q; git log --branches --remotes -1 --abbrev=12 --format='%h %p %cI' -- HANDOFF.md`
-Stale if that commit is dated after `2026-11-01T13:16:46-08:00` **and** its parent isn't `46c7c6c521c6`, or a
+Stale if that commit is dated after `2026-11-01T13:57:36-08:00` **and** its parent isn't `098b12831f64`, or a
 worktree's `HANDOFF.md` has a later `written=`. Then read that copy instead and tell the user.
-`git log --oneline 46c7c6c521c6..origin/pure-gas-main`: anything besides the handoff commit landed after this prompt;
+`git log --oneline 098b12831f64..origin/pure-gas-main`: anything besides the handoff commit landed after this prompt;
 check it first.
 
-**Start by (agent work, no user needed):** `TODO.md` section A2, "Master Delegate Undo": on HOME `/dev`, with a
-throwaway Master task and NO deploy during the run (a deploy reloads the tab and kills in-flight writes), Delegate then
-Undo, wait for `saveQueue.busy('task-status:<id>')` to clear, then read `getMasterTasks()`. Two earlier runs ended at
-Ⓓ (unconfirmed, probably killed writes). If it still ends Ⓓ, it is a bug: red test first in `undoForward`
-(`src/app.js` / `gas-app/Script.html`), both clients. Delete the throwaway. Then the A3 items that need no decision:
-fix the 4 axe violations (`document-title`, `html-has-lang`, `landmark-one-main`, `page-has-heading-one`; then
-`npm run deploy:home -- --check --update-axe`), exclude trigger handlers (`onOpen(e)`) from `tools/check-rpc-guards.js`,
-and `eslint --fix` the remaining `var` files. Each as a `worker` agent with its checker as exit test. Gas-app change
-→ `npm run deploy:home`, then once at the end `npm run push:work` (ONE push per session)
-and tell the user "Update WORK".
+**Start by (agent work, no user needed):** `TODO.md` A3, in order, one `worker` agent per item with its checker as the
+exit test: (1) the last `var`: `primaryTzMemo_` in `gas-app/Code.gs` (~L1461, read by `primaryCalendarTimeZone_` at ~L1472):
+it sits OUTSIDE the file's IIFE (the top-level delegator block), so it is a real global; move it inside the IIFE as a
+private `let` with `primaryCalendarTimeZone_` there (`.agents/rules/gas-global-init-order.md`), red test first, then
+`npx eslint --prune-suppressions gas-app/Code.gs` (used successfully this session); (2) mutation 96 survivors: widen
+`stryker.config.json` (add `src/searchEngine.js` to `mutate` AND `tests/searchEngine.test.js` to the `commandRunner` test
+list, line ~6), turn survivors into tests; (3) rpc-guard 26: `v_` only on non-user-facing args, then
+`node tools/check-rpc-guards.js --update`. Gas-app change → `npm run deploy:home` (never during a live eval-console
+check), then once at the end `npm run push:work` (ONE push per session) and tell the user "Update WORK".
 
-**Needs a user decision before an agent can do it (A3 leftovers):** rpc-guard 28 (hub, Future-matrix, friendly-error
-RPCs: v_ throw vs friendly message; default: keep friendly messages, guard with `v_` only on non-user-facing args);
-mirror 72 (which copy wins for `dp*` helper names and diverged logic like `parseDailyNoteToCards`; default: GAS side wins,
-leave them baselined); html 12 per page (radio/listbox/progressbar restructure; default: leave).
+This session: verified Master Delegate Undo live (no bug); found the axe gate audited Google's wrapper frame, not the app
+(`db132de`), fixed the 5 real violations (`31b0a8a`, `tests/a11yMarkup.test.js`), `axe-baseline.json` is now `{}`;
+rpc-guard 28 → 26 (trigger handlers excluded); Haiku agents removed 695 of 696 legacy `var` (`52c827f`, `098b128`).
+HOME @357, WORK v186 pushed, repoint pending. Created the `/kontinue` skill (alias for `/do-handoff`).
 
-**For the session after next (needs the user; do not start in an agent-only session):** `TODO.md` items B1, B3, B4 (B2 shipped).
-1. B1: Phase 32 live checks (label an email `🎯/Decision` + a hub tick; complete a `Decision:` task with Today open;
-   delete the leftover 2026-01-15 section in the "Day Planner Notes - January 2026" Doc); six portal decisions in
-   `docs/notes-portal-eval.md` (defaults 1A 2T 3T 4A 5T 6T); smart paste + midnight rollover check.
-2. B2 (`/` focus) shipped, HOME @352.
-3. B3: Gap 10 cdp-step scope (the agent proposes).
-4. B4: Update WORK (repoint to the newest version, delete old versions: IDE near the 200 cap); delete the "Day Planner
-   e2e test - safe to delete" calendar event and the Hub L6 test email/task; WORK live checks; UAT T01-T20; WORK Suggest
-   filters paste; WORK forwards made before v149. rpc login not needed (token alive).
-
-This session: shipped Phase 31 items 2-3, A2 live checks (Daily verified; Master Delegate Undo open), and six
-Solid Code shrinks: rpc-guard 46→28, html 21→12/page, axe gate in `deploy:home`, mutation 67%→91%, mirror 107→72,
-`var` 858→696. HOME @355: `/` focuses the Master filter, header Refresh reloads all views (`refreshAll`), Decision notes are a blue tag + left rule; WORK v185 pushed, repoint pending. User decisions 2-6 recorded in TODO.md; Gap 10 scope proposed there, awaiting "build it".
-
-- What changed: `TODO.md` A2/A3 rewritten to what is left; `TODO_HISTORY.md` 2026-11-01 entry; `PLAN.md` Phase 31 pointer.
+- What changed: `TODO.md` A3 rewritten (A1/A2 archived to `TODO_HISTORY.md`); `PLAN.md` Phase 31 archived, Phase 33 added.
+- Still open (agent): A3 above plus html 12/page and mirror 72, both decided to leave (user 2026-11-01).
+- Still open (user), `TODO.md` section "For the session after next": B1 (Phase 32 live checks, notes-portal agent work already approved), B3 (Gap 10 "build it"?),
+  B4 (Update WORK repoint: IDE near the 200-version cap; test data cleanup; WORK live checks; UAT T01-T20).
 - Traps:
-  - `npm run rpc` without `--deploy` runs the PINNED API version (old code); pass `--deploy` to test current code. A deploy does not reload the CDP tab: run eval-console with `location.reload()` first, then check `typeof a.refreshAll`.
-  - Never `pkill -f eval-console` from a command that mentions it (kills its own shell).
-  - A deploy reloads the live tab: never deploy during an eval-console live check.
-  - Run `npm run push:work` once per session; it creates a WORK version each time.
-  - Worktree bash refuses compound commands, `cd`, `$VAR` and heredocs in some forms: one command per call, absolute
-    paths, `git commit -F <file>`.
-  - Live app state: `document.querySelector('[x-data]')._x_dataStack[0]` (`.bridge`, `.saveQueue`); slow eval calls need
-    `run_in_background`.
+  - `var` removal changed top-level `var` to `const`/`let` in `.gs`; the deploy gate loads only the main app, so Regrant and SetupFolder pages are not exercised by it. Spot-check them in the browser when convenient.
+  - A lite agent cannot find live-only axe violations; print node targets first (`axe.run` results, one-off CDP script).
+  - `npm run rpc` without `--deploy` runs the PINNED API version (old code). A deploy does not reload the CDP tab: run eval-console with `location.reload()` first.
+  - Never `pkill -f eval-console` from a command that mentions it. A deploy reloads the live tab: never deploy during a live check.
+  - Worktree bash refuses compound commands, `cd`, `$VAR` and heredocs in some forms: one command per call, absolute paths, `git commit -F <file>`.
+  - Live app state: `document.querySelector('[x-data]')._x_dataStack[0]` (`.bridge`, `.saveQueue`).
   - Stryker scope is only `taskEngine.js` + `futureMatrixEngine.js` (`stryker.config.json`).
   - `saveDailyDocCards` appears twice in `gas-app/Code.gs` by design (IIFE impl plus top-level delegator).

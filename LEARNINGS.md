@@ -318,4 +318,8 @@ live-testing catches it by luck.
 - npm run rpc without --deploy runs the pinned API version, which misled the Decision-label diagnosis
 - pkill -f matching its own shell and eval-console timeouts left probe tasks to clean up
 
+## 2026-11-01 (axe real frame, var sweep)
+**Worked well:** Haiku agents running `eslint --fix` on disjoint files, then `no-use-before-define` + `no-loop-func` as a TDZ check, cleared 695 `var` with the suite green. A throwaway CDP script that prints axe node targets located the 4 violations Haiku could not find from source.
+**Needs improvement:** A ratchet that only compares counts to its own baseline hid that axe audited the wrong frame for a whole session; check what a gate measures, not just that it passes. A lite agent cannot find live-only violations; give it the node targets up front.
+
 ---

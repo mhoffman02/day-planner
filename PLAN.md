@@ -51,14 +51,11 @@ the GSA account, a release go, or a consent-screen decision. Checklist in [`TODO
 - [x] **Appointments + search** (2026-10-22): Meet link, RSVP read/write, search deep link, Master filter text,
   All/Any/Phrase toggles (TODO_HISTORY 2026-10-22).
 
-### Phase 31: Search polish (In progress)
-User-requested follow-ups from the 2026-10-22 search work. Checklist in [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md).
-- [x] `/` hotkey for the Master Tasks filter box (2026-11-01).
-- [ ] Status and due date in universal search task results.
-- [ ] Dedupe task results that appear in both Today and Master.
-- **Next agent work** (TODO.md "Agent work", A1-A3): Phase 31 items 2-3 shipped. Left: retest Master Delegate Undo (A2),
-  then the remaining baseline shrinks in A3 (rpc-guard 28, html 12, axe 4, mutation 96, mirror 72, `var` 696), several
-  of which need a user decision. Item 1 (`/` focus) shipped 2026-11-01.
+### Phase 33: Solid Code ratchet shrinks (In progress)
+Phase 31 (search polish) shipped and is archived in `PLAN-HISTORY.md`. Checklist in [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) A3.
+- **Next agent work** (TODO.md A3): `var` 1 left (`primaryTzMemo_` in `gas-app/Code.gs`), mutation 96 survivors
+  (widen `stryker.config.json`), rpc-guard 26 (`v_` on non-user-facing args). Decided to leave: html 12, mirror 72.
+  axe is at 0 (baseline `{}`).
 
 ### Phase 32: Notes Doc safety + Decisions (In progress)
 Checklist in [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md). Evals: `docs/notes-doc-embed-eval.md`,
