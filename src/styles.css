@@ -41,6 +41,11 @@
     --note-color-green: #2b8a3e;
     --note-color-blue: #1d5fa8;
 
+    --decision-bg: #1d5fa8;
+    --decision-text: #ffffff;
+    --decision-rule: #1d5fa8;
+    --decision-tint: rgba(29, 95, 168, 0.06);
+
     /* Subtle, Thematic Scrollbar Tokens (Light Mode - Parchment Cream & Slate Teal) */
     color-scheme: light;
     --scrollbar-thumb: rgba(45, 106, 90, 0.28);
@@ -2998,10 +3003,20 @@
     font-size: 0.75rem;
     font-family: var(--font-family-base);
     font-weight: 700;
-    color: var(--binder-teal);
-    border: 1px solid var(--binder-teal);
+    color: var(--decision-text);
+    background: var(--decision-bg);
+    border: 1px solid var(--decision-bg);
     padding: 1px 5px;
     border-radius: 3px;
+  }
+
+  /* Margin-annotation look for a decision line; render-time only, nothing is written to the note. */
+  .note-card-line-row:has(.note-line-decision) {
+    border-left: 3px solid var(--decision-rule);
+    border-radius: 0 3px 3px 0;
+  }
+  .note-card-line-row:has(.note-line-decision):not(.note-line-selected) {
+    background: var(--decision-tint);
   }
 
   .note-card-textarea {
@@ -5575,6 +5590,11 @@
     --note-color-red: #f87171 !important;
     --note-color-green: #4ade80 !important;
     --note-color-blue: #60a5fa !important;
+
+    --decision-bg: #2b72c4 !important;
+    --decision-text: #ffffff !important;
+    --decision-rule: #60a5fa !important;
+    --decision-tint: rgba(96, 165, 250, 0.10) !important;
 
     --priority-a: #2b72c4 !important;
     --priority-b: #7c4d8a !important;

@@ -5,6 +5,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { bothClients, makeVm } from './helpers/plannerHarness.js';
 
 const clients = await bothClients();
@@ -26,6 +27,18 @@ for (const c of clients) {
     it('leaves #decisions and #index alone', () => {
       assert.doesNotMatch(vm.renderCardLine('talked about #decisions', false), /decision-badge/);
       assert.doesNotMatch(vm.renderCardLine('#index [Work] Plan', false), /decision-badge/);
+    });
+
+    it('marks a decision line with note-line-decision on every line shape', () => {
+      for (const raw of ['#decision [Budget] Approve', '- #decision Ship', '1. #decision Ship', '[ ] #decision Ship']) {
+        assert.match(vm.renderCardLine(raw, false), /class="[^"]*\bnote-line-decision\b/, raw);
+      }
+    });
+
+    it('does not mark non-decision lines', () => {
+      for (const raw of ['plain', '- talked about #decisions', '#index [Work] Plan']) {
+        assert.doesNotMatch(vm.renderCardLine(raw, false), /note-line-decision/, raw);
+      }
     });
 
     it('escapes the topic', () => {
@@ -103,3 +116,36 @@ for (const c of clients) {
     });
   });
 }
+
+const lum = (hex) => {
+  const ch = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+    .map((x) => (x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+};
+const contrast = (a, b) => {
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
+const tokens = (file, name) => [...fs.readFileSync(file, 'utf8').matchAll(new RegExp(`${name}:\\s*([^;!]+?)\\s*(?:!important)?;`, 'g'))].map((m) => m[1]);
+
+describe('decision tag tokens', () => {
+  const css = new URL('../src/styles.css', import.meta.url);
+  const html = new URL('../gas-app/Styles.html', import.meta.url);
+  for (const name of ['--decision-bg', '--decision-text', '--decision-rule', '--decision-tint']) {
+    it(`${name} is defined for light and dark, identically in both stylesheets`, () => {
+      const a = tokens(css, name);
+      assert.equal(a.length, 2, `${name} needs a light and a dark value`);
+      assert.deepEqual(tokens(html, name), a);
+    });
+  }
+  it('badge text on badge background is >= 4.5:1 in light and dark', () => {
+    const bg = tokens(css, '--decision-bg');
+    const fg = tokens(css, '--decision-text');
+    for (let i = 0; i < 2; i += 1) assert.ok(contrast(bg[i], fg[i]) >= 4.5, `${i ? 'dark' : 'light'}: ${contrast(bg[i], fg[i])}`);
+  });
+  it('the badge is a filled rectangle, not a pill', () => {
+    const rule = /\.decision-badge\s*\{([^}]*)\}/.exec(fs.readFileSync(css, 'utf8'))[1];
+    assert.match(rule, /background:\s*var\(--decision-bg\)/);
+    assert.match(rule, /border-radius:\s*3px/);
+  });
+});

@@ -5588,23 +5588,24 @@
           return html;
         };
 
+        const decisionClass = /#decision\b/i.test(text) ? ' note-line-decision' : '';
         const orderedRe = /^\d+\.\s/;
         if (/^[☐☒☑]\s/.test(text) || /^-\s\[[ xX]?\]\s/.test(text) || /^\[[ xX]?\]\s/.test(text)) {
           const isChecked = /^[☒☑]\s/.test(text) || /^-\s\[[xX]\]\s/.test(text) || /^\[[xX]\]\s/.test(text);
           const glyph = isChecked ? '☒' : '☐';
           const checkedClass = isChecked ? ' note-checkbox-glyph-checked' : ' note-checkbox-glyph-open';
-          const lineClass = isChecked ? ' note-line-checked' : '';
+          const lineClass = (isChecked ? ' note-line-checked' : '') + decisionClass;
           const bodyText = text.replace(/^[☐☒☑]\s/, '').replace(/^-\s\[[ xX]?\]\s/, '').replace(/^\[[ xX]?\]\s/, '');
           return `<div class="note-render-line${lineClass}"><span class="note-checkbox-glyph${checkedClass}">${glyph}</span> ${renderInline(bodyText) || '&nbsp;'}</div>`;
         }
         if (text.startsWith('- ')) {
-          return `<ul class="note-render-list"><li>${renderInline(text.slice(2))}</li></ul>`;
+          return `<ul class="note-render-list${decisionClass}"><li>${renderInline(text.slice(2))}</li></ul>`;
         }
         if (orderedRe.test(text)) {
           const num = parseInt(orderedRe.exec(text)[0], 10);
-          return `<ol class="note-render-list"><li value="${num}">${renderInline(text.replace(orderedRe, ''))}</li></ol>`;
+          return `<ol class="note-render-list${decisionClass}"><li value="${num}">${renderInline(text.replace(orderedRe, ''))}</li></ol>`;
         }
-        return `<div class="note-render-line">${renderInline(text) || '&nbsp;'}</div>`;
+        return `<div class="note-render-line${decisionClass}">${renderInline(text) || '&nbsp;'}</div>`;
       },
 
       renderDailyNotePreview() {
