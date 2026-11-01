@@ -25,10 +25,10 @@ Shipped 2026-11-01: rpc-guard 46 -> 28, html 21 -> 12 per page, axe gate (`axe-b
 
 - [ ] **rpc-guard 28 left**: decided 2026-11-01 (user, 2A): keep friendly messages, guard with `v_` only the non-user-facing args. Trigger handlers (`onOpen(e)`) should be excluded from the checker.
 - [ ] **html 12 left per page** (user 2026-11-01: leave): role=radio priority buttons, listboxes, progressbar, event-pill button, dictation label; each changes markup/CSS/Alpine.
-- [ ] **axe**: the 4 baselined violations were Google's wrapper frame (db132de now audits `#userHtmlFrame`). The real app shows 5 rules: aria-allowed-role 1, aria-prohibited-attr 1, color-contrast 2, heading-order 1, scrollable-region-focusable 1. Fix them, then `npm run deploy:home -- --check --update-axe`. `deploy:home` did not move "Day Planner v1" (gate failed).
 - [ ] **mutation 96 survivors** (taskEngine 74, futureMatrixEngine 22); add `src/searchEngine.js` etc. to `stryker.config.json` scope.
 - [ ] **mirror 72 left**: ~30 `dp*` helper-name diffs, 4 URL builders using `'https:'+'/'+'/'`, diverged logic (addDailyTask, addMasterTask, parseDailyNoteToCards, toggleDictation popup size), binderStore shape, 25 `styles.css` entries unexamined. Decided 2026-11-01 (user, 3A): the GAS copy wins; leave them baselined, no more mirror work unless a drifted function is edited.
-- [ ] **`var` suppressions 696 left**: HubController 261, Config 139, QueueProcessor 126, GmailRepository 73, UnitTests 59, Script.html 16, Regrant 10, Index 6, SetupFolder 5, Code 1; autofix refused some, hand review.
+- [x] **axe**: real app frame now 0 violations, `axe-baseline.json` is `{}` (HOME @356, 2026-11-01).
+- [ ] **`var` suppressions 38 left** (was 696; five .gs files done 2026-11-01): Script.html 16, Regrant 10, Index 6, SetupFolder 5, Code.gs 1 (`primaryTzMemo_`, a top-level global; needs a namespace-object refactor, not `let`). Script.html is mirrored from `src/*.js`, so change both copies.
 
 ## For the session after next: needs the user (interactive / HITL)
 
