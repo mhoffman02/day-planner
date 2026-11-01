@@ -1906,11 +1906,11 @@
 
   .task-done {
     text-decoration: line-through;
-    opacity: 0.55;
+    opacity: 0.75;
   }
 
   .task-canceled {
-    opacity: 0.5;
+    opacity: 0.75;
     text-decoration: line-through;
   }
 
