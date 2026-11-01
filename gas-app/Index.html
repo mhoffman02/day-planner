@@ -245,7 +245,7 @@
                 <button type="button" class="search-trigger-compact" @click.stop="toggleSearchModal()" title="Search (/ or Ctrl+K)" aria-label="Search">
           <span class="material-symbols-outlined icon-18">search</span>
         </button>
-        <button type="button" class="sync-btn-compact" @click="trigger2WaySync()" :disabled="isSyncing" title="Sync with Google Calendar &amp; Tasks" aria-label="Sync">
+        <button type="button" class="sync-btn-compact" @click="refreshAll()" :disabled="isSyncing" title="Refresh all views from Google Calendar &amp; Tasks" aria-label="Sync">
           <span class="material-symbols-outlined icon-18" :class="{ 'spin': isSyncing }">sync</span>
         </button>
         <div class="view-options-wrap" @click.outside="viewOptionsOpen = false">

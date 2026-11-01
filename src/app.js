@@ -413,6 +413,7 @@ Alpine.data('plannerApp', () => ({
       MONTH_NAMES_SHORT: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
       futureMatrix: { year: String(new Date().getFullYear()), months: {} },
       futureMatrixYear: new Date().getFullYear(),
+      futureMatrixLoaded: false,
       newFutureItemTitle: {},
       FUTURE_MONTH_LABELS: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
       calendarEvents: [],
@@ -1042,6 +1043,72 @@ Alpine.data('plannerApp', () => ({
         this.reportError(key, staleNoticeText(label, cachedEntry && cachedEntry.syncedAt, err), { kind: 'stale' });
       },
 
+      // Option A: Tasks remain strictly in Tasks; only update existing linked calendar events.
+      relinkSyncedEvents() {
+        this.dailyTasks.forEach(task => {
+          const isDone = task.status === '✓' || task.status === 'Ⓓ';
+          const matchEvt = this.calendarEvents.find(e => e.syncTaskId === task.id);
+          if (matchEvt) {
+            matchEvt.title = isDone ? `[✓] ${parseTaskTitle(task.title).cleanTitle}` : task.title;
+          }
+        });
+        this.buildScheduleGrid();
+      },
+
+      // Resolves the light-sync entries (sync, sync-*) but NOT sync:<view> entries, which belong to
+      // refreshAll: a write followed by trigger2WaySync must not hide a failed view refresh.
+      resolveLegacySyncErrors() {
+        const isLegacy = e => e.key.startsWith('sync') && !e.key.startsWith('sync:');
+        if (!(this.errorTray || []).some(isLegacy)) return;
+        this.errorTray = this.errorTray.filter(e => !isLegacy(e));
+      },
+
+      // Header Refresh button: re-fetch every view from Google. The loaders already merge unsaved
+      // local edits (saveQueue mark/reconcile), so this only skips the task views outright while a
+      // write is still unsaved, with an informational sync:pending tray entry. One failing view
+      // files its own sync:<view> entry (with Retry) and never stops the others.
+      async refreshAll() {
+        this.isSyncing = true;
+        try {
+          const jobs = [];
+          const add = (view, run) => jobs.push({ view, run });
+          if (this.saveQueue.anyUnsaved()) {
+            this.reportError('sync:pending', 'Unsaved changes are still saving, so tasks and the calendar were not reloaded. Press Refresh again once they finish.', { kind: 'stale' });
+          } else {
+            this.resolveError('sync:pending');
+            add('day', () => this.loadDayData({ strict: true }));
+            add('master', () => this.loadMasterTasks({ strict: true }));
+            add('month', () => this.loadMonthlyCalendarData({ strict: true }));
+          }
+          if (this.futureMatrixLoaded) add('future', () => this.loadFutureMatrix({ strict: true }));
+          add('hub', async () => {
+            await this.loadHubStatus();
+            const hubJobs = [];
+            if (this.showTriageNav && !this.gmailCoolingDown) hubJobs.push(this.loadTriageBoard({ after: true }));
+            if (this.showMeetingPrepNav) hubJobs.push(this.loadMeetingPrep());
+            await Promise.all(hubJobs);
+          });
+          const results = await Promise.allSettled(jobs.map(j => j.run()));
+          results.forEach((res, i) => {
+            const key = `sync:${jobs[i].view}`;
+            if (res.status === 'fulfilled') {
+              this.resolveError(key);
+              return;
+            }
+            const err = res.reason;
+            console.error(`🔥 refreshAll: ${jobs[i].view} refresh failed:`, (err && err.stack) || String(err));
+            this.reportError(key, `Could not refresh ${jobs[i].view}: ${(err && err.message) || String(err)}`, { retry: () => this.refreshAll() });
+          });
+          this.relinkSyncedEvents();
+          this.resolveLegacySyncErrors();
+        } catch (err) {
+          console.error('🔥 refreshAll error:', err.stack);
+          this.reportError('sync', `Refresh failed: ${err.message || err.toString()}`, { retry: () => this.refreshAll() });
+        } finally {
+          this.isSyncing = false;
+        }
+      },
+
       async trigger2WaySync() {
         this.isSyncing = true;
         // A sync success resolves only sync* tray entries: callers run this right after a write,
@@ -1050,17 +1117,8 @@ Alpine.data('plannerApp', () => ({
         try {
           await new Promise(r => setTimeout(r, 400)); // Visual indicator
 
-          // Option A: Tasks remain strictly in Tasks; only update existing linked calendar events
-          this.dailyTasks.forEach(task => {
-            const isDone = task.status === '✓' || task.status === 'Ⓓ';
-            const matchEvt = this.calendarEvents.find(e => e.syncTaskId === task.id);
-            if (matchEvt) {
-              matchEvt.title = isDone ? `[✓] ${parseTaskTitle(task.title).cleanTitle}` : task.title;
-            }
-          });
-
-          this.buildScheduleGrid();
-          this.resolveErrorsWithPrefix('sync');
+          this.relinkSyncedEvents();
+          this.resolveLegacySyncErrors();
         } catch (err) {
           console.error('🔥 trigger2WaySync error:', err.stack);
           this.reportError('sync', `2-Way Sync Warning: ${err.message || err.toString()}`, { retry: () => this.trigger2WaySync() });
@@ -1606,8 +1664,9 @@ Alpine.data('plannerApp', () => ({
       },
 
       // Stale-while-revalidate + IndexedDB hydration, same pattern as loadDayData/loadMasterTasks.
-      async loadFutureMatrix() {
+      async loadFutureMatrix(opts = {}) {
         const year = this.futureMatrixYear;
+        this.futureMatrixLoaded = true;
         const cached = getCachedFutureMatrix(year) || await hydrateFutureMatrixFromIdb(year);
         if (cached) this.applyFutureMatrix(cached);
         const seqAtFetchStart = this.futureMatrixEditSeq[year] || 0;
@@ -1620,6 +1679,7 @@ Alpine.data('plannerApp', () => ({
           this.resolveError(`load-future:${year}`);
         } catch (err) {
           console.error('loadFutureMatrix: refresh failed; showing cached matrix (if any) with a stale notice:', err.stack);
+          if (opts.strict) throw err; // refreshAll files its own sync:future entry
           if (year !== this.futureMatrixYear) return;
           if (cached) {
             this.showStaleNotice(`load-future:${year}`, `Future Planning ${year}`, cached, err);
@@ -2263,7 +2323,7 @@ Alpine.data('plannerApp', () => ({
       // of order), AND against a local edit (note typing, task mutation) landing while the fetch
       // was in flight -- otherwise a slow revalidation response overwrites newer local state with
       // stale server data, and the user's in-progress edit is silently reverted mid-keystroke.
-      async loadDayData() {
+      async loadDayData(opts = {}) {
         const dateStr = this.selectedDate;
         this.resolveStaleDayNotices(dateStr);
         let cached = getCached(dateStr);
@@ -2308,6 +2368,7 @@ Alpine.data('plannerApp', () => ({
           this.applyDailyData({ ...data, noteContent: note.text }, mark);
         } catch (err) {
           console.error('🔥 loadDayData: refresh failed; showing cached day (if any) with a stale notice:', err.stack);
+          if (opts.strict) throw err; // refreshAll files its own sync:day entry
           if (dateStr === this.selectedDate) {
             if (cached) {
               this.showStaleNotice(`load-day:${dateStr}`, `Daily page ${dateStr}`, cached, err);
@@ -3873,7 +3934,7 @@ Alpine.data('plannerApp', () => ({
       // instantly from whatever's cached (memory, then IndexedDB), then always revalidate in the
       // background, dropping the response instead of applying/caching it if a local mutation
       // (add/delete/star/status/move) landed while the fetch was in flight.
-      async loadMasterTasks() {
+      async loadMasterTasks(opts = {}) {
         const cached = getCachedMasterTasks() || await hydrateMasterTasksFromIdb();
         if (cached) this.applyMasterTasks(this.reconcileReloadedTasks(cached.tasks, this.masterTasks, null).live);
         const seqAtFetchStart = this.masterTasksEditSeq;
@@ -3888,6 +3949,7 @@ Alpine.data('plannerApp', () => ({
           this.resolveError('load-master');
         } catch (err) {
           console.error('🔥 loadMasterTasks: refresh failed; showing cached list (if any) with a stale notice:', err.stack);
+          if (opts.strict) throw err; // refreshAll files its own sync:master entry
           if (cached) {
             this.showStaleNotice('load-master', 'Master Tasks', cached, err);
           } else {
@@ -4324,7 +4386,7 @@ Alpine.data('plannerApp', () => ({
       // background to both fill in missing days and refresh stale ones. No separate monthOverview
       // IndexedDB store -- see the header comment in dailyDataCache.js for why (reuses the
       // per-date dailyData store getDailyDataRange already batches for this exact case).
-      async loadMonthlyCalendarData() {
+      async loadMonthlyCalendarData(opts = {}) {
         this.buildMonthlyGrid();
         if (this.bridge?.useMock || typeof this.bridge.getDailyDataRange !== 'function') return;
         const mm = this.selectedMonth.toString().padStart(2, '0');
@@ -4342,6 +4404,7 @@ Alpine.data('plannerApp', () => ({
           if (this.activeView === 'monthly-calendar') this.buildMonthlyGrid();
         } catch (err) {
           console.error('🔥 loadMonthlyCalendarData failed; month grid shows only already-cached days:', err.stack);
+          if (opts.strict) throw err; // refreshAll files its own sync:month entry
           if (requestedYear !== this.selectedYear || requestedMonth !== this.selectedMonth) return;
           this.reportError(`load-month:${requestedYear}-${requestedMonth}`, `Could not refresh ${MONTH_NAMES[requestedMonth - 1]} ${requestedYear}; the calendar shows only days already cached (others may look empty): ${err.message || err.toString()}`, { retry: () => this.loadMonthlyCalendarData() });
         }

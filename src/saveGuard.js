@@ -161,6 +161,11 @@ export function createSaveQueue() {
       const item = items.get(key);
       return Boolean(item && (item.pending || item.writing));
     },
+    /** @returns {boolean} True while ANY key has a value queued or being written. */
+    anyUnsaved() {
+      for (const item of items.values()) if (item.pending || item.writing) return true;
+      return false;
+    },
     /** @returns {*} The last value the server confirmed for key (undefined if never submitted). */
     confirmed(key) {
       const item = items.get(key);
