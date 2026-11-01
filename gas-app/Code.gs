@@ -442,7 +442,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 583;
+const BUILD_NUMBER_ = 584;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -1457,8 +1457,8 @@ function validateCalendarEventPayload_(payload) {
   };
 }
 
-// Per-execution memo of the primary calendar zone. Literal initializer only (gas-global-init-order).
-var primaryTzMemo_ = null;
+// Per-execution memo of the primary calendar zone.
+let primaryTzMemo_ = null;
 
 /**
  * Resolves the primary calendar's IANA time zone. Fails closed: no fallback to the script time
