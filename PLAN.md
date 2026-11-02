@@ -54,8 +54,8 @@ the GSA account, a release go, or a consent-screen decision. Checklist in [`TODO
 ### Phase 33: Solid Code ratchet shrinks (In progress)
 Phase 31 (search polish) shipped and is archived in `PLAN-HISTORY.md`. Checklist in [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) A3.
 - [x] `var` 0, rpc-guard 0 (one `v_` validator, transport per family; ADR 0005 addendum), axe 0, searchEngine mutation 20 equivalent survivors (HOME @360, WORK v187).
-- **Next agent work** (TODO.md A3): mutation survivors in taskEngine 74 / futureMatrixEngine 22, then widen to
-  `src/calendarEngine.js`. Decided to leave: html 12, mirror 72.
+- **Mutation survivors done** (2026-11-02): taskEngine 24, futureMatrixEngine 10, calendarEngine 6, searchEngine 20, all equivalent. Nothing
+  agent-doable remains in Phase 33: html 12 and mirror 72 are left baselined by user decision.
 
 ### Phase 32: Notes Doc safety + Decisions (In progress)
 Checklist in [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md). Evals: `docs/notes-doc-embed-eval.md`,

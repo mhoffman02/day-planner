@@ -340,3 +340,12 @@ live-testing catches it by luck.
 - I told the user to run prune themselves before trying it from the worktree; try the allowed route first
 
 ---
+
+## 2026-11-02
+**Worked well:**
+- Split Stryker survivor chasing per file across parallel tier agents with distinct tempDirNames and disjoint test files; a survivor chase found a real sanitizer bug (`data-target`).
+- Required each worker to hand-apply a mutant to a scratch copy for red evidence.
+
+**Needs improvement:**
+- A first ordering test stayed green under the mutant (V8 only calls the comparator as later, earlier); check the test against the mutant before trusting it.
+- Parallel Stryker runs pushed one past the 600 s foreground cap; run per file in the background.

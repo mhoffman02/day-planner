@@ -1,5 +1,10 @@
 # Task History (TODO_HISTORY)
 
+## 2026-11-02 — Stryker survivors chased (pushed to pure-gas-main; no deploy, no gas-app change)
+
+- [x] **mutation**: taskEngine 74 -> 24, futureMatrixEngine 22 -> 10 (`67fe9d1`, `f643796`); `src/calendarEngine.js` added to Stryker, 134 -> 6. Every survivor left is argued equivalent.
+- [x] **fix(calendar)**: `sanitizeDescriptionHtml` skipped `target=_blank rel=noopener` on anchors carrying `data-target` (`44d87db`), found by the survivor chase.
+
 ## 2026-11-01 (last) — var 0, rpc-guard 0, searchEngine mutation (HOME @360, WORK v187 pushed, repoint pending)
 
 - [x] **`var` 1 -> 0**: `primaryTzMemo_` was already IIFE-private, so a plain `let` (`607b572`); `eslint-suppressions.json` is `{}`.

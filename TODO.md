@@ -7,13 +7,12 @@ Order (2026-10-30, user): autonomous agent work first (item A3); everything that
 
 ### A3. Solid Code ratchets: remaining shrinks (2026-11-01; shipped items in TODO_HISTORY)
 
-Phase 33. Done 2026-11-01 (shipped items in TODO_HISTORY): rpc-guard 46 -> 0, html 21 -> 12 per page, axe 0 (`axe-baseline.json` is `{}`), mirror 107 -> 72, `var` suppressions 858 -> 0, searchEngine mutation 360 -> 20 survivors (HOME @360, WORK v187 pushed, repoint pending).
+Phase 33. Done 2026-11-01 (shipped items in TODO_HISTORY): rpc-guard 46 -> 0, html 21 -> 12 per page, axe 0 (`axe-baseline.json` is `{}`), mirror 107 -> 72, `var` suppressions 858 -> 0, mutation survivors: searchEngine 360 -> 20, taskEngine 74 -> 24, futureMatrixEngine 22 -> 10, calendarEngine 134 -> 6 (all left equivalent; shipped items in TODO_HISTORY).
 
-Order for the next agent session (all agent work, `worker` per item, its checker as the exit test):
+No agent work remains here; the two items below are user decisions to leave baselined:
 
-- [ ] **mutation: 96 survivors left** (taskEngine 74, futureMatrixEngine 22; searchEngine's 20 are equivalent: defaults and dead guards). Turn those into tests, then add `src/calendarEngine.js` to `stryker.config.json` (`mutate` and the `commandRunner` test list). The run takes ~10 min: run it in the background (foreground cap is 600 s).
-- [ ] **html 12 left per page** (user 2026-11-01: leave): role=radio priority buttons, listboxes, progressbar, event-pill button, dictation label; each changes markup/CSS/Alpine.
-- [ ] **mirror 72 left** (user 2026-11-01, 3A: the GAS copy wins; leave baselined, no more mirror work unless a drifted function is edited): ~30 `dp*` helper-name diffs, 4 URL builders using `'https:'+'/'+'/'`, diverged logic (addDailyTask, addMasterTask, parseDailyNoteToCards, toggleDictation popup size), binderStore shape, 25 `styles.css` entries unexamined.
+- Left baselined: **html 12 per page** (user 2026-11-01: leave): role=radio priority buttons, listboxes, progressbar, event-pill button, dictation label; each changes markup/CSS/Alpine.
+- Left baselined: **mirror 72** (user 2026-11-01, 3A: the GAS copy wins; leave baselined, no more mirror work unless a drifted function is edited): ~30 `dp*` helper-name diffs, 4 URL builders using `'https:'+'/'+'/'`, diverged logic (addDailyTask, addMasterTask, parseDailyNoteToCards, toggleDictation popup size), binderStore shape, 25 `styles.css` entries unexamined.
 
 ## For the session after next: needs the user (interactive / HITL)
 
