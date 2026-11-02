@@ -1,4 +1,4 @@
-<!-- handoff: branch=worktree-today-rollover-smart-paste worktree=/home/mike/projects/day-planner/.claude/worktrees/today-rollover-smart-paste base=f6437960baad written=2026-11-02T07:54:36-08:00 -->
+<!-- handoff: branch=worktree-today-rollover-smart-paste worktree=/home/mike/projects/day-planner/.claude/worktrees/today-rollover-smart-paste base=f1ab9d32be59 written=2026-11-02T08:54:55-08:00 -->
 # Resume: Phase 33 mutation survivors done; nothing agent-doable left, ask the user to decide
 
 > **WARNING: written on branch `worktree-today-rollover-smart-paste`** (a linked worktree), pushed to `pure-gas-main`. The main checkout is stale until:
@@ -6,9 +6,9 @@
 
 **Verify first:**
 `git fetch -q; git log --branches --remotes -1 --abbrev=12 --format='%h %p %cI' -- HANDOFF.md`
-Stale if that commit is dated after `2026-11-02T07:54:36-08:00` **and** its parent isn't `f6437960baad`, or a worktree's `HANDOFF.md` has a later `written=`. Then read that copy instead and tell the user. `git log --oneline f6437960baad..origin/pure-gas-main`: any commit besides the handoff commit landed after this prompt; check it first.
+Stale if that commit is dated after `2026-11-02T08:54:55-08:00` **and** its parent isn't `f1ab9d32be59`, or a worktree's `HANDOFF.md` has a later `written=`. Then read that copy instead and tell the user. `git log --oneline f1ab9d32be59..origin/pure-gas-main`: any commit besides the handoff commit landed after this prompt; check it first.
 
-**Start by:** ask the user to decide: (1) where the global skills in `~/.claude/skills` (solid-code, init-project; not a git repo) get pushed: a new private `claude-skills` repo rooted there (recommended), inside the day-planner repo, or nowhere; do not create a repo or push before the answer. (2) Whether to start B1/B3/B4 (TODO.md "For the session after next") with the user present.
+**Start by:** nothing agent-doable is queued. Tell the user so and ask which user-gated item (B1, B3, B4 in TODO.md "For the session after next") to start with them present (user chose interactive, 2026-11-02). Global skills are already pushed (private `mhoffman02/claude-skills`, `5716c12`); nothing to do there.
 
 This session: chased Stryker survivors with tier agents. taskEngine 74 -> 24, futureMatrixEngine 22 -> 10, calendarEngine added to Stryker 134 -> 6; every survivor left is argued equivalent (`67fe9d1`, `f643796`). The chase found a real bug, fixed test-first: `sanitizeDescriptionHtml` skipped `target`/`rel` on anchors with `data-target` (`44d87db`). Local-only skill edits: solid-code step 12 "Rules" plus `templates/rules/*`, a survivor-chase note in step 7, and init-project runs solid-code by default (GAS rules offered as an optional ask).
 
