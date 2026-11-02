@@ -1051,3 +1051,80 @@ describe('futureMatrixEngine survivors, round 2', () => {
     assert.deepEqual(r.horizon[0].milestones, []);
   });
 });
+
+describe('clearinghouse link-order and tie-order survivors', () => {
+  const ids = rows => rows.map(r => r.id);
+
+  it('a merged pair is emitted where its master appears when the master carries movedTaskId', () => {
+    const rows = buildMasterTasksClearinghouse([
+      { id: 'm2', title: 'M2', movedTaskId: 'd2', movedTo: '2026-03-02' },
+      { id: 'd1', title: 'D1', dueDate: '2026-03-01', sourceMasterId: 'm1' },
+      { id: 'm1', title: 'M1' },
+      { id: 'd2', title: 'D2', dueDate: '2026-03-02' }
+    ]);
+    assert.deepEqual(ids(rows), ['m2', 'm1']);
+  });
+
+  it('a merged pair is emitted where its daily appears when the daily carries sourceMasterId', () => {
+    const rows = buildMasterTasksClearinghouse([
+      { id: 'd2', title: 'D2', dueDate: '2026-03-02', sourceMasterId: 'm2' },
+      { id: 'm1', title: 'M1', movedTaskId: 'd1', movedTo: '2026-03-01' },
+      { id: 'd1', title: 'D1', dueDate: '2026-03-01' },
+      { id: 'm2', title: 'M2' }
+    ]);
+    assert.deepEqual(ids(rows), ['m2', 'm1']);
+  });
+
+  it('a master found only by a daily sourceMasterId link is paired at the master turn', () => {
+    const rows = buildMasterTasksClearinghouse([
+      { id: 'm1', title: 'M1' },
+      { id: 'd2', title: 'D2', dueDate: '2026-03-02', sourceMasterId: 'm2' },
+      { id: 'd1', title: 'D1', dueDate: '2026-03-01', sourceMasterId: 'm1' },
+      { id: 'm2', title: 'M2' }
+    ]);
+    assert.deepEqual(ids(rows), ['m1', 'm2']);
+  });
+
+  it('a daily found only by a master movedTaskId link is paired at the daily turn', () => {
+    const rows = buildMasterTasksClearinghouse([
+      { id: 'd1', title: 'D1', dueDate: '2026-03-01' },
+      { id: 'm2', title: 'M2', movedTaskId: 'd2', movedTo: '2026-03-02' },
+      { id: 'm1', title: 'M1', movedTaskId: 'd1', movedTo: '2026-03-01' },
+      { id: 'd2', title: 'D2', dueDate: '2026-03-02' }
+    ]);
+    assert.deepEqual(ids(rows), ['m1', 'm2']);
+  });
+
+  it('sortTasksByColumn keeps tie order in both directions', () => {
+    const tasks = ['a', 'b', 'c', 'd'].map(id => ({ id, title: id, category: 'same' }));
+    assert.deepEqual(sortTasksByColumn(tasks, 'category', 'asc').map(t => t.id), ['a', 'b', 'c', 'd']);
+    assert.deepEqual(sortTasksByColumn(tasks, 'category', 'desc').map(t => t.id), ['a', 'b', 'c', 'd']);
+  });
+
+  it('sortTasksByColumn comparator is antisymmetric on ties (engine-independent stability)', () => {
+    // V8 only ever calls comparator(later, earlier), so the output alone cannot show a wrong
+    // sign for (earlier, later); capture the comparator and call it both ways.
+    const realSort = Array.prototype.sort;
+    let captured = null;
+    Array.prototype.sort = function patchedSort(cmp) {
+      captured = cmp;
+      return realSort.call(this, cmp);
+    };
+    try {
+      sortTasksByColumn([{ category: 'x' }, { category: 'x' }], 'category');
+    } finally {
+      Array.prototype.sort = realSort;
+    }
+    const first = { task: { category: 'x' }, index: 0 };
+    const second = { task: { category: 'x' }, index: 1 };
+    assert.ok(captured(first, second) < 0, 'earlier tie must sort before later');
+    assert.ok(captured(second, first) > 0, 'later tie must sort after earlier');
+  });
+});
+
+describe('futureMatrix quarter-label survivors', () => {
+  it('getMonthsForQuarter only strips a leading Q; an unparseable label falls back to Q1', () => {
+    assert.deepEqual(getMonthsForQuarter(2026, ' Q3'), ['2026-01', '2026-02', '2026-03']);
+    assert.deepEqual(getMonthsForQuarter(2026, 'Q3'), ['2026-07', '2026-08', '2026-09']);
+  });
+});
