@@ -16,5 +16,5 @@ This session: `var` 1 -> 0 (`607b572`), rpc-guard 26 -> 0 with one `v_` validato
 - Still open, agent work: the mutation item above. html 12 and mirror 72 are baselined by user decision (leave).
 - Still open, user-gated (TODO.md section "For the session after next"; do not start in an agent-only session): B1 (Phase 32 live checks, Notes portal), B3 (cdp-step debugger, awaiting scope yes), B4 (Phase 30 WORK items).
 - **Update WORK**: WORK v187 awaits the user's repoint of "Day Planner v1" in the WORK IDE.
-- Unverified live: the Future-matrix RPC (`npm run rpc` timed out, exit 143, not retried) and the Regrant and SetupFolder pages (the deploy gate loads only the main app). Probe them if touching those areas.
+- Unverified live: only that the new `getFutureMatrix` guard rejects a bad arg (valid-year call works; the bad-arg `npm run rpc` probe hit Execution API 429 twice on 2026-11-01, retry once quota resets, `--deploy` if the API deployment is stale). Regrant and SetupFolder pages verified live on HOME /dev (2026-11-01): scripts run, 18 rows writable.
 - Traps: `v_` guards are positional, so declare every argument (`year` bit twice). Bad-typed hub args now return `INVALID_INPUT` before the flag check. Run each git command separately in a worktree.
