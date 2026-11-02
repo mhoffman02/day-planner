@@ -25,7 +25,7 @@ Spec: [`specs/gmail-meeting-hub.md`](specs/gmail-meeting-hub.md) (reconciled). O
 ## 2. What the hub adds
 
 A deterministic workflow: the user applies `🎯/` labels in Gmail by hand, the app reads (never writes) Gmail and
-turns labelled threads into Google Tasks, Waiting items, or carry-in entries in an app-owned meeting-notes Doc for
+turns labelled threads into Google Tasks, Waiting items, or carry-in entries (Integration Ledger rows, no Doc write) for
 the right recurring-meeting occurrence. A Triage board ranks other candidate threads; a Meeting Prep view shows the
 next occurrence, its prep cutoff and carry-in count. Every write is idempotent through an Integration Ledger.
 `DRY_RUN` is on by default and all hub features are off until flags are enabled.
@@ -119,8 +119,9 @@ Gmail (user applies 🎯/ label)                     Calendar (recurring series)
    PENDING or ERROR retries. The op key is embedded in Task notes (dp-meta) so a crash between Tasks create and the
    ledger write is recovered by searching before create.
 3. **Meeting routing**: `selectOccurrence` picks the occurrence; if the prep cutoff has passed the item defers to the
-   next one (override available). The carry-in line is inserted once into the occurrence block, with a Gmail link;
-   the dedupe signature rides in the link, so editing the visible text does not cause a duplicate.
+   next one (override available). The carry-in is stored once as a ledger row (TargetType CARRY_IN, display fields in MetadataJson, keyed by the
+   operation key) and listed on Meeting Prep with a Gmail link and a copy-ready bullet list; no Google Doc is written
+   (drive.file refuses writes to a user-owned Doc).
 4. **Safety**: bodies are read in memory for scoring only, never logged, stored, or returned (the Triage board returns only Gmail's own `snippet` of the latest message, the inbox preview line, for display; it is never logged; to spare the Gmail per-user quota the server keeps each scored display row (subject, sender, snippet, labels, score, no body) in the user's `CacheService` for up to 6 h, reused only while the thread's Gmail `historyId` is unchanged; the client keeps the last board, allowlisted row fields only, in the tab's `sessionStorage` so Triage opens instantly, and that copy is cleared when the tab closes or the hub turns off); `GmailApp` is banned;
    sensitive labels block every AI path; `DRY_RUN` makes each write a "Would ..." message.
 5. **Concurrency**: one script lock around the action; hub writes assume the caller holds it (Config/Ledger take no

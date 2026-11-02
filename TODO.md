@@ -32,8 +32,8 @@ note badge, completing a `Decision:` task adds `#decision <what>` to the last no
 - [ ] **Notes portal decisions** (`docs/notes-portal-eval.md`; user accepted all defaults 2026-11-01, so agent work: P1 probe, Docs API read-only render, "Open this day in Docs" link, fail loud on multi-tab Docs): 1A no iframe, run probe P1 only;
   2T read-only Docs API render as the panel Doc view; 3T "Open this day in Docs" link; 4A defer per-day tabs;
   5T fail loud when a notes Doc has more than one tab (latent data-loss path); 6T keep publish-to-web rejected.
-- [ ] **Live check smart paste + day rollover** (HOME @337, `1da3fcf`): paste from Gmail, Docs and Gemini into a
-  card line; leave the tab open past midnight.
+- [ ] **Live check day rollover** (HOME @337, `1da3fcf`): leave the tab open past midnight. Smart paste verified on WORK
+  (2026-11-02, user): Gmail, Docs and Gemini all pass; headings paste as bold by design (user 1A, no heading size).
 
 ### B3. Gap 10: cdp-step debugger (not started)
 
@@ -56,7 +56,14 @@ Most items need the user (GSA account, a release go, or a decision). HOME live c
 - [ ] **Other test data you may want to clear**: the "Hub L6 forced-failure test" email and the Task it created in
   `@default`; default "Daily Notes" sections for 10-30 and 10-31 in the October notes Doc.
 - [ ] **WORK Meeting Prep live render**: WORK hub Sheet exists (Triage on, trial mode). Set `NCMMS_CORE_PILOT`
-  TRUE, fill the NCMMS-Core notes Doc in Meeting Registry, and check the carry-in count equals the Doc (Tutorial T14).
+  TRUE and run Tutorial T14 (carry-ins are ledger rows on Meeting Prep; no notes Doc id is needed).
+- [ ] **T14 FAIL on WORK (2026-11-02, user):** count stayed 0; Integration Ledger row 51 error "Notes Doc is inaccessible:
+  batchUpdate failed" (permission; the weekly Doc was not made by the app, so `drive.file` refuses the write). Requirement
+  change proposed by the user: do not write the user's weekly agenda Doc; show a 1-2 line carry-in summary plus an email
+  link on the Meeting Prep page. Decided 2026-11-02: carry-ins are Integration Ledger rows (TargetType CARRY_IN) listed on Meeting Prep as collapsible items plus a copy-ready bullet list; no Doc write. Fix built, awaiting WORK re-test with a new DP-T14b email.
+- [ ] **Gemini meeting notes (user, 2026-11-02): important for Core Team and other meetings.** Not built: PLAN.md
+  puts Gemini discovery/actions out of scope (Phase 6 build); only the registry column `GeminiExpected` exists. Decide
+  scope with the user: how Gemini notes should reach Meeting Prep carry-ins.
 - [ ] **WORK trial mode off**: if WORK still has `DRY_RUN` TRUE, use Triage > **Review and go live** when ready.
 - [ ] **Live check: trial mode controls on HOME /dev**: banner, Go live dialog, Undo snackbar, quiet Live mark, and
   Switch to trial (now on About); then two tabs: Go live in tab A, Archive in tab B is refused with "Refresh before acting".

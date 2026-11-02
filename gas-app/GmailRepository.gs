@@ -276,6 +276,7 @@ function getThreadMeta(threadId, opts) {
       isFromUser: !!me && address_(from) === me,
       subject: header_(h, 'Subject'),
       listId: header_(h, 'List-Id'),
+      snippet: decodeSnippet_(m.snippet),
       bodyText: withBody ? bodyText_(m.payload) : ''
     };
   });

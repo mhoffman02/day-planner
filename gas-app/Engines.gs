@@ -964,7 +964,7 @@ function formatSafeError(context, err) {
 
 /**
  * Human-readable DRY_RUN text per spec section 22.
- * @param {'CREATE_TASK'|'ROUTE_MEETING'|'APPEND_CARRY_IN'|'SKIP_DONE'|'DEFER_CUTOFF'} kind
+ * @param {'CREATE_TASK'|'ROUTE_MEETING'|'RECORD_CARRY_IN'|'APPEND_CARRY_IN'|'SKIP_DONE'|'DEFER_CUTOFF'} kind
  * @param {{occurrenceId?:string, docId?:string}} [ctx]
  * @returns {string}
  */
@@ -972,6 +972,7 @@ function dryRunMessage(kind, ctx = {}) {
   switch (kind) {
     case 'CREATE_TASK': return 'Would create Task';
     case 'ROUTE_MEETING': return `Would route to NCMMS Core occurrence ${ledgerRequire(ctx.occurrenceId, 'occurrenceId')}`;
+    case 'RECORD_CARRY_IN': return 'Would record carry-in on the Meeting Prep page';
     case 'APPEND_CARRY_IN': return `Would append carry-in to Doc ${maskId(ledgerRequire(ctx.docId, 'docId'))}`;
     case 'SKIP_DONE': return 'Would skip because already processed';
     case 'DEFER_CUTOFF': return 'Would defer because cutoff passed';
@@ -1093,7 +1094,7 @@ function ledgerDryMessages(op, action) {
   if (action === 'WOULD_PROCEED' || action === 'WOULD_RETRY') {
     if (op.deferReason) return [dryRunMessage('DEFER_CUTOFF')];
     if (op.kind === 'MEETING') {
-      return [dryRunMessage('ROUTE_MEETING', op), dryRunMessage('APPEND_CARRY_IN', op)];
+      return [dryRunMessage('ROUTE_MEETING', op), dryRunMessage('RECORD_CARRY_IN')];
     }
     return [dryRunMessage('CREATE_TASK')];
   }
@@ -1415,6 +1416,30 @@ function carryInCount(docModel, occurrence) {
     if (String(docModel.paragraphs[i].text).startsWith('•')) n += 1;
   }
   return n;
+}
+
+const NOTES_PLANNER_LIST_SNIPPET = 140;
+
+/**
+ * Plain-text bullet list of Meeting Prep carry-ins, for pasting into the user's own meeting notes.
+ * One line per item; each bullet stands alone: subject, framing, quoted snippet start, a short
+ * provenance tag [Email, sender, received date, kind] and the Gmail link last. Empty pieces are omitted.
+ * @param {Array<{subject?:string, fromName?:string, receivedDate?:string, gmailUrl?:string, snippet?:string, kind?:string, framing?:string}>} carryIns
+ * @param {string} [meetingLabel] Meeting name; reserved for a heading line, not printed per bullet.
+ * @returns {string} Newline-joined bullets; '' for no carry-ins.
+ */
+function formatCarryInsList(carryIns, meetingLabel = '') {
+  void meetingLabel;
+  if (!Array.isArray(carryIns) || carryIns.length === 0) return '';
+  return carryIns.map((c) => {
+    const subject = notesPlannerOneLine(c.subject, NOTES_PLANNER_MAX_LINE) || '(no subject)';
+    const framing = notesPlannerOneLine(c.framing, NOTES_PLANNER_MAX_LINE);
+    const snippet = notesPlannerOneLine(c.snippet, NOTES_PLANNER_LIST_SNIPPET);
+    const detail = [framing ? (/[.!?]$/.test(framing) ? framing : `${framing}.`) : '', snippet ? `"${snippet}"` : ''].filter(Boolean).join(' ');
+    const tag = ['Email', notesPlannerOneLine(c.fromName, 80), notesPlannerOneLine(c.receivedDate, 40), notesPlannerOneLine(c.kind, 60)].filter(Boolean).join(', ');
+    const link = notesPlannerOneLine(c.gmailUrl, 400);
+    return ['•', detail ? `${subject}: ${detail}` : subject, `[${tag}]`, link].filter(Boolean).join(' ');
+  }).join('\n');
 }
 
 // ---- occurrenceSelector.js ----
@@ -3250,6 +3275,7 @@ global.DPEngines = Object.freeze({
   suggestFilters: suggestFilters,
   parseGeminiNotes: parseGeminiNotes,
   MeetingNotesProvider: MeetingNotesProvider,
+  ledgerReadMeta: ledgerReadMeta,
   ledgerAttemptsOf: ledgerAttemptsOf,
   retryBackoffMinutes: retryBackoffMinutes,
   retryDecision: retryDecision,
@@ -3273,6 +3299,7 @@ global.DPEngines = Object.freeze({
   planOccurrenceSection: planOccurrenceSection,
   planCarryIn: planCarryIn,
   carryInCount: carryInCount,
+  formatCarryInsList: formatCarryInsList,
   selectOccurrence: selectOccurrence,
   resolveSeries: resolveSeries,
   planBatch: planBatch,

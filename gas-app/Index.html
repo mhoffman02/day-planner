@@ -1521,10 +1521,29 @@
                 </tbody>
               </table>
 
-              <h4 class="hub-queue-title" id="hubCarryInsTitle" x-text="'Carry-ins (' + (meetingPrep.carryInCount === null ? 'unknown' : meetingPrep.carryInCount) + ')'"></h4>
               <p class="hub-queue-empty" x-show="meetingPrep.carryInCount === 0">No carry-ins yet.</p>
               <p class="hub-queue-empty" x-show="meetingPrep.warning" x-text="meetingPrep.warning"></p>
-              <p class="hub-queue-empty">Carry-in entries are listed in the meeting notes Doc under this occurrence.</p>
+              <details class="hub-carryins" aria-labelledby="hubCarryInsTitle" :open="meetingPrep.carryInCount > 0 &amp;&amp; meetingPrep.carryInCount &lt;= 5">
+                <summary class="hub-carryins-summary"><span class="hub-queue-title" id="hubCarryInsTitle" x-text="'Carry-ins (' + meetingPrep.carryInCount + ')'"></span></summary>
+                <template x-for="(c, ci) in (meetingPrep.carryIns || [])" :key="ci">
+                  <details class="hub-carryin-item">
+                    <summary class="hub-carryin-item-summary"><a class="hub-subject" :href="c.gmailUrl" target="_blank" rel="noopener noreferrer" x-text="c.subject || '(no subject)'"></a> <span class="hub-from"><span class="hub-from-name" x-text="c.fromName"></span> <span class="hub-from-date" x-text="'· ' + c.receivedDate"></span></span></summary>
+                    <dl class="hub-carryin-body">
+                      <dt x-show="c.framing">Framing</dt><dd x-show="c.framing" x-text="c.framing"></dd>
+                      <dt x-show="c.snippet">Snippet</dt><dd x-show="c.snippet" x-text="c.snippet"></dd>
+                      <dt x-show="c.kind">Kind</dt><dd x-show="c.kind" x-text="c.kind"></dd>
+                    </dl>
+                  </details>
+                </template>
+                <template x-if="(meetingPrep.carryIns || []).length > 0">
+                  <div class="hub-carryin-copy">
+                    <label class="hub-queue-empty" for="hubCarryInText">Copy-ready bullet list for your own meeting notes (each bullet stands alone)</label>
+                    <textarea id="hubCarryInText" class="hub-carryin-text" readonly rows="4" x-ref="carryInText" :value="meetingPrep.carryInsText"></textarea>
+                    <button type="button" class="hub-action-btn" @click="copyCarryIns()">Copy</button>
+                    <span class="hub-queue-empty" role="status" x-show="carryInCopyMsg" x-text="carryInCopyMsg"></span>
+                  </div>
+                </template>
+              </details>
             </article>
           </template>
         </section>

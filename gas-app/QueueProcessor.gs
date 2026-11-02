@@ -166,7 +166,7 @@ function markError_(opKey, err, spec) {
       const now = new Date();
       // A MEETING row always records its series so a later retry never has to guess it.
       const meta = spec.kind === 'MEETING' && typeof spec.seriesKey === 'string' && spec.seriesKey ? { seriesKey: spec.seriesKey } : undefined;
-      store.put(E.failOp(E.beginOp({ opKey: opKey, sourceType: 'GMAIL', sourceId: spec.threadId, action: ROUTE_ACTIONS_[spec.kind], targetType: spec.kind === 'MEETING' ? 'DOC' : 'TASK', metadata: meta }, now), now, err));
+      store.put(E.failOp(E.beginOp({ opKey: opKey, sourceType: 'GMAIL', sourceId: spec.threadId, action: ROUTE_ACTIONS_[spec.kind], targetType: spec.kind === 'MEETING' ? 'CARRY_IN' : 'TASK', metadata: meta }, now), now, err));
     }
   } catch (secondary) {
     logSafe_('markError_ could not persist ERROR (row stays PENDING and goes stale)', secondary);
@@ -252,8 +252,8 @@ function executeRoute(spec) {
       target = resolveMeetingTarget_(spec, now);
       const occKey = target.backlog ? 'BACKLOG-' + target.series.SeriesKey : target.occurrenceId;
       opKey = opKey || E.gmailMeetingKey(spec.threadId, occKey);
-      op = { opKey: opKey, sourceType: 'GMAIL', sourceId: spec.threadId, sourceVersion: thread.lastMessageId, action: 'ROUTE_MEETING', targetType: target.backlog ? 'BACKLOG' : 'DOC',
-        kind: 'MEETING', occurrenceId: target.occurrenceId || occKey, docId: target.series.HumanNotesDocId || 'new', metadata: { seriesKey: target.series.SeriesKey, start: target.start || '' } };
+      op = { opKey: opKey, sourceType: 'GMAIL', sourceId: spec.threadId, sourceVersion: thread.lastMessageId, action: 'ROUTE_MEETING', targetType: target.backlog ? 'BACKLOG' : 'CARRY_IN',
+        kind: 'MEETING', occurrenceId: target.occurrenceId || occKey, metadata: { seriesKey: target.series.SeriesKey, start: target.start || '' } };
       work = function() { return carryIn_(spec, thread, target, now); };
     } else {
       throw new Error('Unknown route kind');
@@ -277,7 +277,9 @@ function executeRoute(spec) {
 }
 
 /**
- * Appends the pointer-only carry-in to the app-owned notes Doc (idempotent via signature).
+ * Records the pointer-only carry-in as the ledger row metadata (idempotent via the ledger operation key).
+ * No Google Doc is read or written: drive.file refuses writes to a user-owned notes Doc, so Meeting Prep
+ * lists these rows. completeOp REPLACES MetadataJson with this metadata, so seriesKey and start are re-included.
  * @param {object} spec Route spec.
  * @param {object} thread Thread meta.
  * @param {object} target Resolved meeting target.
@@ -289,25 +291,25 @@ function carryIn_(spec, thread, target, now) {
   const o = spec.options || {};
   if (target.backlog) return { targetId: 'BACKLOG-' + target.series.SeriesKey, targetType: 'BACKLOG', metadata: { backlog: true, seriesKey: target.series.SeriesKey } };
   const tz = spec.settings.timeZone;
-  const docId = DPNotesRepo.ensureNotesDoc(target.series.SeriesKey);
-  const model = DPNotesRepo.readDocModel(docId);
-  const occ = { occurrenceId: target.occurrenceId, date: E.taskPlannerLocalDate(new Date(Date.parse(target.start)), tz), displayName: target.series.DisplayName };
   const other = thread.messages.filter(function(m) { return !m.isFromUser; });
   const last = other.length ? other[other.length - 1] : thread.messages[thread.messages.length - 1];
-  const plan = E.planCarryIn(model, occ, {
-    threadId: thread.threadId,
-    subject: thread.subject,
-    gmailUrl: thread.url,
-    kind: o.kind || QUEUE_DEFAULT_KIND_,
-    framing: o.framing,
-    fromName: last ? last.fromName : '',
-    receivedDate: last && last.date ? E.taskPlannerLocalDate(new Date(Date.parse(last.date)), tz) : ''
-  }, { maxExcerpt: spec.settings.maxExcerpt });
-  if (plan.action === 'APPEND') {
-    DPNotesRepo.applyPlan(docId, { requests: plan.requests, baseRevisionId: model.revisionId });
-  }
   void now;
-  return { targetId: docId, targetType: 'DOC', metadata: { seriesKey: target.series.SeriesKey, occurrenceId: target.occurrenceId, signature: plan.signature, planAction: plan.action } };
+  return {
+    targetId: target.occurrenceId,
+    targetType: 'CARRY_IN',
+    metadata: {
+      seriesKey: target.series.SeriesKey,
+      start: target.start || '',
+      occurrenceId: target.occurrenceId,
+      subject: thread.subject,
+      fromName: last ? last.fromName : '',
+      receivedDate: last && last.date ? E.taskPlannerLocalDate(new Date(Date.parse(last.date)), tz) : '',
+      gmailUrl: thread.url,
+      snippet: last && last.snippet ? String(last.snippet).slice(0, spec.settings.maxExcerpt) : '',
+      kind: o.kind || QUEUE_DEFAULT_KIND_,
+      framing: o.framing || ''
+    }
+  };
 }
 
 /**

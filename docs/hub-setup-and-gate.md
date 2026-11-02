@@ -195,7 +195,7 @@ This worked for Docs; it is unproven for Sheets.
 ## 7. Known limitations
 
 - Gmail writes are limited to the two Triage buttons: Archive removes the INBOX label only (🎯 labels stay) and Delete moves the thread to Trash; nothing is deleted permanently, sent, or relabelled. Processed/Error exist only as ledger status.
-- Meeting Prep shows the carry-in **count** only; entries are read in the notes Doc. No agenda, no entry list.
+- Meeting Prep lists each carry-in (subject linked to the email, sender, date, snippet) from the ledger plus a copy-ready bullet list; no notes Doc is read or written. No agenda.
 - Read Later in Triage is client-only `localStorage` (per browser, not synced, not in the ledger).
 - Phase 6 is interface + parser only: Gemini discovery, proposal UI and action creation are not built; those RPCs
   return `NOT_IMPLEMENTED` behind flags. No USAi, no broad auto-classification, no Gmail filter changes.

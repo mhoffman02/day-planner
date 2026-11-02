@@ -54,6 +54,7 @@ test('(g) DRY_RUN yields the spec strings and mutates nothing', () => {
   assert.equal(dryRunMessage('CREATE_TASK'), 'Would create Task');
   assert.equal(dryRunMessage('ROUTE_MEETING', { occurrenceId: 'EV1' }), 'Would route to NCMMS Core occurrence EV1');
   assert.equal(dryRunMessage('APPEND_CARRY_IN', { docId: '1AbCdEfGhIjKlMnOp' }), `Would append carry-in to Doc ${maskId('1AbCdEfGhIjKlMnOp')}`);
+  assert.equal(dryRunMessage('RECORD_CARRY_IN'), 'Would record carry-in on the Meeting Prep page');
   assert.equal(dryRunMessage('SKIP_DONE'), 'Would skip because already processed');
   assert.equal(dryRunMessage('DEFER_CUTOFF'), 'Would defer because cutoff passed');
   assert.throws(() => dryRunMessage('NOPE'), /Unknown/);
@@ -65,7 +66,7 @@ test('(g) DRY_RUN yields the spec strings and mutates nothing', () => {
   assert.equal(r.action, 'WOULD_PROCEED');
   assert.deepEqual(r.messages, ['Would create Task']);
   const m = claimOperation({ store, lock, clock: () => T0, op: { ...op, kind: 'MEETING', occurrenceId: 'EV1', docId: 'DOC123456789' }, dryRun: true });
-  assert.deepEqual(m.messages, ['Would route to NCMMS Core occurrence EV1', `Would append carry-in to Doc ${maskId('DOC123456789')}`]);
+  assert.deepEqual(m.messages, ['Would route to NCMMS Core occurrence EV1', 'Would record carry-in on the Meeting Prep page']);
   const dfr = claimOperation({ store, lock, clock: () => T0, op: { ...op, deferReason: 'CUTOFF_PASSED' }, dryRun: true });
   assert.equal(dfr.action, 'WOULD_DEFER');
   assert.deepEqual(dfr.messages, ['Would defer because cutoff passed']);

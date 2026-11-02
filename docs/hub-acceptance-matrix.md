@@ -118,7 +118,7 @@ L8 timeout/trigger behavior, L9 WORK scope approval, L10 Gemini sample (deferred
 | 4 Permanent errors / backoff / attempt cap | COVERED | "#4 pure ...", "#4 queue: a permanent failure ...", "#4 queue: retryable errors back off ..." |
 | 5 Ledger/Tasks reads per run, elapsed-time guard | COVERED | "#5 a 25-item batch ...", "#5 elapsed-time guard ..." |
 | 6 getOccurrence ownership and 404-only mapping | COVERED | "#6 getOccurrence rejects ...", "#6 getOccurrence maps only HTTP 404 ..." |
-| 8 Carry-in idempotency across cutoff rollover | COVERED | "#8 crash after the Doc write then cutoff rollover ..." |
+| 8 Carry-in idempotency across cutoff rollover | COVERED | "#8 crash before the DONE write then cutoff rollover ..." (ledger rows) |
 | 9 TimeZone seeded from Calendar | COVERED | "#9 TimeZone seed ..." |
 | 10 aiGuard HR labels and ExcludedAiLabels | COVERED | "#10 aiGuard excludes HR labels ..." (config key is passed as `excludedLabels`; no production call site feeds an AI provider yet) |
 | 11 Invalid Date header; account-agnostic Gmail URL | COVERED | "#11 ..." (both) |

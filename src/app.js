@@ -353,6 +353,7 @@ Alpine.data('plannerApp', () => ({
       waitingForm: { open: false, threadId: null, subject: '', waitingOn: '', nagDate: '' },
       meetingPrep: null,
       meetingPrepLoading: false,
+      carryInCopyMsg: '',
       meetingPrepSeries: 'NCMMS_CORE',
       selectedDate: getLocalDateStr(),
       todayStr: getLocalDateStr(),
@@ -1634,6 +1635,34 @@ Alpine.data('plannerApp', () => ({
           this.reportError('load-meeting-prep', 'Meeting prep failed to load: ' + (err.message || err), { retry: () => this.loadMeetingPrep() });
         } finally {
           this.meetingPrepLoading = false;
+        }
+      },
+
+      async copyCarryIns() {
+        const text = this.meetingPrep && this.meetingPrep.carryInsText ? this.meetingPrep.carryInsText : '';
+        const box = this.$refs.carryInText;
+        if (box) {
+          box.focus();
+          box.select();
+        }
+        try {
+          if (!navigator.clipboard || !navigator.clipboard.writeText) throw new Error('Clipboard API unavailable');
+          await navigator.clipboard.writeText(text);
+          this.carryInCopyMsg = 'Copied.';
+        } catch (clipErr) {
+          console.error('Carry-in copy: clipboard API failed, falling back to execCommand copy\n' + clipErr.stack);
+          let copied = false;
+          try {
+            copied = document.execCommand('copy');
+          } catch (err) {
+            console.error('Carry-in copy: execCommand copy threw\n' + err.stack);
+          }
+          if (copied) {
+            this.carryInCopyMsg = 'Copied.';
+          } else {
+            console.error('Carry-in copy failed, asking the user to press Ctrl+C\n' + new Error('execCommand copy returned false').stack);
+            this.carryInCopyMsg = 'Copy was blocked here. The list is selected: press Ctrl+C.';
+          }
         }
       },
 

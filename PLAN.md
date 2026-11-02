@@ -37,7 +37,7 @@ the GSA account, a release go, or a consent-screen decision. Checklist in [`TODO
 - [x] **WORK promotion**: v132 live 2026-10-12 on `/exec` `AKfycbzDYvr…` (user added Gmail + Sheets Services and deployed).
 - [x] **HOME hub trigger** installed 2026-10-12 (`hubDispatch` every 5 min, `DRY_RUN` off).
 - [x] **About page rewrite** 2026-10-12: sticky jump nav, Tag Reference, Automatic Tasks (`af8ef0f`, `6930454`).
-- [ ] **WORK Meeting Prep render**: user sets `GMAIL_ROUTER` + `NCMMS_CORE_PILOT` TRUE in WORK Hub Config, then agent checks.
+- [ ] **WORK Meeting Prep render**: user sets `GMAIL_ROUTER` + `NCMMS_CORE_PILOT` TRUE in WORK Hub Config, then agent checks. Carry-ins are ledger rows shown on Meeting Prep (no Doc write, 2026-11-02); fix built, awaiting WORK re-test (Tutorial T14 with a new DP-T14b email).
 - [x] **WORK catch-up**: WORK v145 (build 483) live 2026-10-13: About rewrite, trial-mode controls, Triage preview,
   speed, Gmail-quota throttle + historyId row cache, Inbox only (TODO_HISTORY 2026-10-13).
 - [x] **Consent screen**: stay in Testing (decided 2026-10-10); rpc token dies every 7 days (last expiry 2026-10-17, OVERDUE probe in `TODO.md` Phase 30).

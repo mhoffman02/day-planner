@@ -47,7 +47,7 @@ function ledgerJson(metadata) {
  * @param {object|null} row Ledger row.
  * @returns {{meta:object, corrupt:boolean}}
  */
-function ledgerReadMeta(row, fallback = 'treating the row as retry-exhausted (no auto-retry)') {
+export function ledgerReadMeta(row, fallback = 'treating the row as retry-exhausted (no auto-retry)') {
   const raw = row ? row.MetadataJson : '';
   if (raw === undefined || raw === null || raw === '') return { meta: {}, corrupt: false };
   let parsed;
@@ -215,7 +215,7 @@ export function formatSafeError(context, err) {
 
 /**
  * Human-readable DRY_RUN text per spec section 22.
- * @param {'CREATE_TASK'|'ROUTE_MEETING'|'APPEND_CARRY_IN'|'SKIP_DONE'|'DEFER_CUTOFF'} kind
+ * @param {'CREATE_TASK'|'ROUTE_MEETING'|'RECORD_CARRY_IN'|'APPEND_CARRY_IN'|'SKIP_DONE'|'DEFER_CUTOFF'} kind
  * @param {{occurrenceId?:string, docId?:string}} [ctx]
  * @returns {string}
  */
@@ -223,6 +223,7 @@ export function dryRunMessage(kind, ctx = {}) {
   switch (kind) {
     case 'CREATE_TASK': return 'Would create Task';
     case 'ROUTE_MEETING': return `Would route to NCMMS Core occurrence ${ledgerRequire(ctx.occurrenceId, 'occurrenceId')}`;
+    case 'RECORD_CARRY_IN': return 'Would record carry-in on the Meeting Prep page';
     case 'APPEND_CARRY_IN': return `Would append carry-in to Doc ${maskId(ledgerRequire(ctx.docId, 'docId'))}`;
     case 'SKIP_DONE': return 'Would skip because already processed';
     case 'DEFER_CUTOFF': return 'Would defer because cutoff passed';
@@ -344,7 +345,7 @@ function ledgerDryMessages(op, action) {
   if (action === 'WOULD_PROCEED' || action === 'WOULD_RETRY') {
     if (op.deferReason) return [dryRunMessage('DEFER_CUTOFF')];
     if (op.kind === 'MEETING') {
-      return [dryRunMessage('ROUTE_MEETING', op), dryRunMessage('APPEND_CARRY_IN', op)];
+      return [dryRunMessage('ROUTE_MEETING', op), dryRunMessage('RECORD_CARRY_IN')];
     }
     return [dryRunMessage('CREATE_TASK')];
   }

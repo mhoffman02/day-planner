@@ -264,6 +264,7 @@ function makeScriptApp(h) {
         getAuthorizedScopes: () => asked.filter((sc) => !missing.includes(sc))
       };
     },
+    getService: () => ({ getUrl: () => (h.webAppUrl === undefined ? 'https://script.google.com/macros/s/FAKE_DEPLOYMENT/exec' : h.webAppUrl) }),
     getProjectTriggers: () => h.triggers.map((t) => ({ getHandlerFunction: () => t.handler, getUniqueId: () => t.id })),
     deleteTrigger(tr) { h.triggers = h.triggers.filter((t) => t.id !== tr.getUniqueId()); },
     newTrigger(handler) {

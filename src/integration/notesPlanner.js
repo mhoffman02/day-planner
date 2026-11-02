@@ -239,3 +239,27 @@ export function carryInCount(docModel, occurrence) {
   }
   return n;
 }
+
+const NOTES_PLANNER_LIST_SNIPPET = 140;
+
+/**
+ * Plain-text bullet list of Meeting Prep carry-ins, for pasting into the user's own meeting notes.
+ * One line per item; each bullet stands alone: subject, framing, quoted snippet start, a short
+ * provenance tag [Email, sender, received date, kind] and the Gmail link last. Empty pieces are omitted.
+ * @param {Array<{subject?:string, fromName?:string, receivedDate?:string, gmailUrl?:string, snippet?:string, kind?:string, framing?:string}>} carryIns
+ * @param {string} [meetingLabel] Meeting name; reserved for a heading line, not printed per bullet.
+ * @returns {string} Newline-joined bullets; '' for no carry-ins.
+ */
+export function formatCarryInsList(carryIns, meetingLabel = '') {
+  void meetingLabel;
+  if (!Array.isArray(carryIns) || carryIns.length === 0) return '';
+  return carryIns.map((c) => {
+    const subject = notesPlannerOneLine(c.subject, NOTES_PLANNER_MAX_LINE) || '(no subject)';
+    const framing = notesPlannerOneLine(c.framing, NOTES_PLANNER_MAX_LINE);
+    const snippet = notesPlannerOneLine(c.snippet, NOTES_PLANNER_LIST_SNIPPET);
+    const detail = [framing ? (/[.!?]$/.test(framing) ? framing : `${framing}.`) : '', snippet ? `"${snippet}"` : ''].filter(Boolean).join(' ');
+    const tag = ['Email', notesPlannerOneLine(c.fromName, 80), notesPlannerOneLine(c.receivedDate, 40), notesPlannerOneLine(c.kind, 60)].filter(Boolean).join(', ');
+    const link = notesPlannerOneLine(c.gmailUrl, 400);
+    return ['•', detail ? `${subject}: ${detail}` : subject, `[${tag}]`, link].filter(Boolean).join(' ');
+  }).join('\n');
+}

@@ -511,21 +511,20 @@ function getMeetingPrep(seriesKey, occurrenceId) {
       override: occurrenceId ? { mode: 'specific', occurrenceId: occurrenceId } : undefined });
     const hit = occs.filter(function(o) { return o.id === sel.occurrenceId; })[0];
     const date = E.taskPlannerLocalDate(new Date(Date.parse(hit.start)), settings.timeZone);
-    let count = null;
-    let warning = null;
-    if (series.HumanNotesDocId) {
-      try {
-        count = DPNotesRepo.carryInCount(series.HumanNotesDocId, { date: date, displayName: series.DisplayName });
-      } catch (docErr) {
-        DPQueue.logSafe('HubController: carry-in count unavailable, returning meeting prep with a warning', docErr);
-        warning = E.sanitizeError(docErr);
-      }
-    } else {
-      count = 0;
-    }
+    // Carry-ins are ledger rows (no Doc or Gmail call): drive.file cannot write the user's own notes Doc.
+    const carryIns = [];
+    DPLedgerRepo.list({ sourceType: 'GMAIL', status: E.LEDGER_STATUS.DONE }).forEach(function(row) {
+      if (row.TargetType !== 'CARRY_IN') return;
+      const m = E.ledgerReadMeta(row, 'skipping this carry-in on Meeting Prep').meta;
+      if (m.seriesKey !== series.SeriesKey || m.occurrenceId !== sel.occurrenceId) return;
+      carryIns.push({ subject: m.subject || '', fromName: m.fromName || '', receivedDate: m.receivedDate || '', gmailUrl: m.gmailUrl || '', snippet: m.snippet || '', kind: m.kind || '', framing: m.framing || '' });
+    });
+    carryIns.sort(function(a, b) {
+      return a.receivedDate < b.receivedDate ? -1 : a.receivedDate > b.receivedDate ? 1 : (a.subject < b.subject ? -1 : a.subject > b.subject ? 1 : 0);
+    });
     return E.makeResult({ ok: true, status: 'OK', message: series.DisplayName + ' on ' + date, series: { seriesKey: series.SeriesKey, displayName: series.DisplayName, prepMinutes: series.PrepMinutes },
       occurrence: { occurrenceId: sel.occurrenceId, start: hit.start, end: hit.end, date: date, cutoffISO: sel.cutoffISO, reason: sel.reason, deferred: !!sel.deferred, htmlLink: hit.htmlLink || null },
-      upcoming: describeUpcoming_(series, occs, now, settings.timeZone), carryInCount: count, notesDocUrl: series.HumanNotesDocId ? 'https://docs.google.com/document/d/' + series.HumanNotesDocId + '/edit' : null, warning: warning });
+      upcoming: describeUpcoming_(series, occs, now, settings.timeZone), carryIns: carryIns, carryInsText: E.formatCarryInsList(carryIns, series.DisplayName), carryInCount: carryIns.length, notesDocUrl: series.HumanNotesDocId ? 'https://docs.google.com/document/d/' + series.HumanNotesDocId + '/edit' : null, warning: null });
   } catch (err) {
     return failFrom_(err);
   }
@@ -719,7 +718,9 @@ function getHubSheetLink() {
   try {
     const link = DPConfig.getSheetLink();
     const msg = link.provisioned ? 'Hub Sheet found' : (link.missing === 'never' ? 'Hub Sheet is not set up yet' : 'Hub Sheet was ' + link.missing);
-    return DPEngines.makeResult({ ok: true, status: 'OK', message: msg, provisioned: link.provisioned, url: link.url, missing: link.missing, searchUrl: DPConfig.getSheetSearchUrl() });
+    const base = ScriptApp.getService().getUrl();
+    const regrantUrl = base ? base + (base.indexOf('?') < 0 ? '?' : '&') + 'view=regrant' : null;
+    return DPEngines.makeResult({ ok: true, status: 'OK', message: msg, provisioned: link.provisioned, url: link.url, missing: link.missing, searchUrl: DPConfig.getSheetSearchUrl(), regrantUrl: regrantUrl });
   } catch (err) {
     return failFrom_(err);
   }

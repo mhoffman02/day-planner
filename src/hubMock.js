@@ -7,9 +7,11 @@
  */
 import { gmailTaskKey, gmailWaitingKey, gmailMeetingKey, DEFAULT_FEATURES } from './integration/contracts.js';
 import { TRIAGE_BAND } from './integration/triageScore.js';
+import { formatCarryInsList } from './integration/notesPlanner.js';
 
 const GMAIL_BASE = 'https:' + '/' + '/mail.google.com/mail/#all/';
 const DOCS_BASE = 'https:' + '/' + '/docs.google.com/document/d/';
+const MOCK_REGRANT_URL = 'https:' + '/' + '/script.google.com/macros/s/mock-deployment-id/exec?view=regrant';
 
 /**
  * Local-time ISO-like string offset from now, no UTC conversion of local fields.
@@ -145,9 +147,15 @@ function buildThreads() {
   };
 }
 
-/** Existing carry-ins already in the notes Doc; the real server returns only their count. */
-function buildCarryIns() {
-  return ['t-2001', 't-2002', 't-1003'].map((id) => ({ threadId: id }));
+/** Carry-in entry in the server getMeetingPrep shape (a ledger row on the real server). */
+function mockCarryIn(src, threadId, framing) {
+  return { threadId, subject: src ? src.subject : threadId, fromName: src ? src.fromName : '', receivedDate: src ? src.date.slice(0, 10) : '', gmailUrl: GMAIL_BASE + threadId, snippet: src ? src.snippet : '', kind: 'Decision/Input needed', framing: framing || '' };
+}
+
+/** Existing carry-ins already recorded for the next occurrence. */
+function buildCarryIns(queues) {
+  const all = Object.values(queues).flat();
+  return ['t-2001', 't-2002', 't-1003'].map((id) => mockCarryIn(all.find((t) => t.threadId === id), id, 'Please decide'));
 }
 
 /**
@@ -175,7 +183,7 @@ export class HubMock {
     this.tasks = [];
     this.waiting = [];
     this.dismissed = new Set();
-    this.carryIns = buildCarryIns();
+    this.carryIns = buildCarryIns(this.queues);
     this.failNext = new Set();
     this.sheetProvisioned = opts.sheetProvisioned === undefined ? true : opts.sheetProvisioned;
     // true: the owner has not approved the current scopes; getHubStatus returns AUTH_REQUIRED until approveAuth().
@@ -262,10 +270,10 @@ export class HubMock {
    */
   getHubSheetLink() {
     if (this.sheetProvisioned === true) {
-      return { ok: true, status: 'OK', message: 'Hub Sheet found', provisioned: true, url: 'https://docs.google.com/spreadsheets/d/mock-hub-sheet/edit#gid=0', missing: null, searchUrl: 'https://drive.google.com/drive/search?q=' + encodeURIComponent('title:"Day Planner Hub Config" type:spreadsheet') };
+      return { ok: true, status: 'OK', message: 'Hub Sheet found', provisioned: true, url: 'https://docs.google.com/spreadsheets/d/mock-hub-sheet/edit#gid=0', missing: null, searchUrl: 'https://drive.google.com/drive/search?q=' + encodeURIComponent('title:"Day Planner Hub Config" type:spreadsheet'), regrantUrl: MOCK_REGRANT_URL };
     }
     const missing = this.sheetProvisioned || 'never';
-    return { ok: true, status: 'OK', message: missing === 'never' ? 'Hub Sheet is not set up yet' : `Hub Sheet was ${missing}`, provisioned: false, url: null, missing, searchUrl: 'https://drive.google.com/drive/search?q=' + encodeURIComponent('title:"Day Planner Hub Config" type:spreadsheet') };
+    return { ok: true, status: 'OK', message: missing === 'never' ? 'Hub Sheet is not set up yet' : `Hub Sheet was ${missing}`, provisioned: false, url: null, missing, searchUrl: 'https://drive.google.com/drive/search?q=' + encodeURIComponent('title:"Day Planner Hub Config" type:spreadsheet'), regrantUrl: MOCK_REGRANT_URL };
   }
 
   /** @returns {object} Same shape as getHubSheetLink, after creating (or re-creating) the mock Sheet. */
@@ -416,11 +424,12 @@ export class HubMock {
     if (!occurrenceId || String(occurrenceId).includes('|')) {
       return this._fail('INVALID_INPUT', 'Invalid occurrence id');
     }
+    const src = this._find(threadId);
     const key = gmailMeetingKey(threadId, o.backlog === true ? `BACKLOG-${occurrenceId}` : occurrenceId);
     return this._apply(threadId, key, () => {
-      this.carryIns.push({ threadId });
+      this.carryIns.push(mockCarryIn(src, threadId, o.framing));
       return DOCS_BASE + 'mock-notes-doc/edit';
-    }, 'Carry-in appended to meeting notes', 'Would append carry-in to Doc mock...', o);
+    }, 'Carry-in recorded for Meeting Prep', 'Would record carry-in on the Meeting Prep page', o);
   }
 
   dismissTriageItem(threadId, opts) {
@@ -478,6 +487,7 @@ export class HubMock {
     const key = seriesKey || 'NCMMS_CORE';
     const upcoming = mockOccurrences(key);
     const hit = upcoming.find((o) => o.occurrenceId === occurrenceId) || upcoming[0];
+    const carryIns = this.carryIns.map((c) => { const rest = { ...c }; delete rest.threadId; return rest; });
     return {
       ok: true,
       status: 'OK',
@@ -494,7 +504,9 @@ export class HubMock {
         htmlLink: null
       },
       upcoming,
-      carryInCount: this.carryIns.length,
+      carryIns,
+      carryInsText: formatCarryInsList(carryIns, SERIES_NAMES[key] || key),
+      carryInCount: carryIns.length,
       notesDocUrl: DOCS_BASE + 'mock-notes-doc/edit',
       warning: null
     };

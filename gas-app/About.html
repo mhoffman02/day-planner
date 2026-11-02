@@ -112,7 +112,7 @@
           </tr>
           <tr>
             <td><b>Meeting Prep</b> <i>(optional)</i></td>
-            <td>Before a recurring meeting, shows how many carry-in items are waiting in its notes Doc, with a link to open it. Appears once the Gmail hub is on.</td>
+            <td>Before a recurring meeting, lists the emails sent to it as carry-ins, each one collapsible with a link to the email, plus a copy-ready bullet list to paste into your own meeting notes. The notes Doc is not written. Appears once the Gmail hub is on.</td>
           </tr>
         </tbody>
       </table>
@@ -303,7 +303,7 @@
           </tr>
           <tr>
             <td>Label an email <b>🎯/Meeting/NCMMS-Core</b></td>
-            <td>No task: a link to the email is added under <b>PREP / EMAIL CARRY-INS</b> in the next Core meeting's notes Doc.</td>
+            <td>No task: the email appears on the <b>Meeting Prep</b> page as a copy-ready bullet list with a link to each email. The notes Doc is not written.</td>
           </tr>
         </tbody>
       </table>
@@ -318,12 +318,14 @@
           The hub checks your 🎯 labels every few minutes, once its schedule is installed. Each email is handled once, so leaving the label on is safe. Other 🎯 labels (Read, Review, Meeting, NCMMS-Daily) are recognized but don't do anything yet.
         </p>
         <div x-data="{
+            regrantUrl: null,
             hubLink: { state: 'loading', url: null, error: '', searchUrl: null },
             async loadHubLink(action) {
               this.hubLink = { state: action === 'setupHub' ? 'working' : 'loading', url: null, error: '', searchUrl: this.hubLink.searchUrl };
               try {
                 const r = await bridge[action]();
                 if (!r || r.ok !== true) throw new Error((r &amp;&amp; r.message) || 'No answer from the server');
+                this.regrantUrl = r.regrantUrl || null;
                 this.hubLink = { state: r.provisioned ? 'ready' : 'missing', url: r.url, missing: r.missing, error: '', searchUrl: r.searchUrl || null };
               } catch (err) {
                 console.error('About: ' + action + ' failed, showing the error with a Try again button', err.stack);
@@ -333,6 +335,9 @@
           }" x-init="loadHubLink('getHubSheetLink')">
         <p class="guide-card-text">
           <b>Turning it on:</b> the first time the app opens, it creates the <a x-show="hubLink.searchUrl" :href="hubLink.searchUrl" target="_blank" rel="noopener noreferrer" title="Find it in Google Drive (you should see exactly one)">Day Planner Hub Config</a><i x-show="!hubLink.searchUrl">Day Planner Hub Config</i> Sheet in your Day Planner folder, turns on <code>GMAIL_ROUTER</code> and <code>TRIAGE_BOARD</code> in trial mode (<code>DRY_RUN</code> TRUE), and installs the hub schedule. The settings live in that Sheet’s <b>Config</b> tab. Check the trial run on the Triage tab, then click <b>Review and go live</b> in the Trial mode banner (or set <code>DRY_RUN</code> to FALSE in the Sheet). Once live, the Triage and Meeting Prep headers show only a quiet <b>Live</b> mark; <b>Switch to trial</b> at the top of this About page turns trial mode back on. While <code>DRY_RUN</code> is TRUE, the hub only reports what it <i>would</i> do. Set <code>NCMMS_CORE_PILOT</code> to TRUE to show the Meeting Prep tab. The <b>Meeting Registry</b> tab lists your recurring meetings and their notes Docs.
+        </p>
+        <p class="guide-card-text" x-show="regrantUrl" x-cloak>
+          <b>Drive access refused:</b> if a write to a Drive file fails with <i>Notes Doc is inaccessible</i> or a 403, open the <a :href="regrantUrl" target="_blank" rel="noopener noreferrer">Drive re-grant page</a> and pick the file again.
         </p>
         <div class="guide-card-text hub-sheet-link">
           <b>Hub settings:</b>

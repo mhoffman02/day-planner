@@ -129,7 +129,7 @@ test('(e) DRY_RUN performs zero writes and returns the spec strings', () => {
   const r = run(ctx);
   assert.equal(r.status, 'DRY_RUN');
   assert.ok(r.messages.includes('Would create Task'), r.messages.join('|'));
-  assert.ok(r.messages.some((m) => m === 'Would route to NCMMS Core occurrence core_20261006; Would append carry-in to Doc ***'), r.messages.join('|'));
+  assert.ok(r.messages.some((m) => m === 'Would route to NCMMS Core occurrence core_20261006; Would record carry-in on the Meeting Prep page'), r.messages.join('|'));
   assert.equal(ctx.__hub.tasks.inserts, 0);
   assert.equal(ctx.__hub.ledger.writes.length, 0);
   assert.equal(ctx.__hub.notes.applyCalls, 0);
@@ -176,10 +176,8 @@ test('(g) two concurrent runs: the second finds the lock held and does nothing',
 });
 
 const coreOpts = { features: { GMAIL_ROUTER: true, NCMMS_CORE_PILOT: true, DRY_RUN: false } };
-const coreCount = (ctx) => {
-  const doc = ctx.__hub.notes.docs['doc-NCMMS_CORE-0000000000'];
-  return doc ? toHost(ctx.DPEngines.carryInCount(doc, { date: '2026-10-06', displayName: 'NCMMS Core Team' })) : 0;
-};
+// Carry-ins are CARRY_IN ledger rows (2026-11-02): count the DONE rows for the 2026-10-06 occurrence.
+const coreCount = (ctx) => [...ctx.__hub.ledger.rows.values()].filter((r) => r.TargetType === 'CARRY_IN' && r.Status === 'DONE' && r.TargetId === 'core_20261006').length;
 
 test('(h) Monday-afternoon Core route targets the Tuesday occurrence; rerun does not duplicate', () => {
   const ctx = makeHubContext({ ...coreOpts, now: '2026-10-05T22:00:00Z' });
@@ -190,7 +188,7 @@ test('(h) Monday-afternoon Core route targets the Tuesday occurrence; rerun does
   assert.equal(ctx.__hub.ledger.rows.get(key).Status, 'DONE');
   assert.equal(coreCount(ctx), 1);
   run(ctx);
-  assert.equal(ctx.__hub.notes.applyCalls, 1);
+  assert.equal(ctx.__hub.notes.applyCalls, 0, 'no Doc write');
   assert.equal(coreCount(ctx), 1);
   ctx.__setNow('2026-10-12T22:00:00Z');
   run(ctx);
@@ -222,7 +220,7 @@ test('(h) user override routes to the current occurrence after the cutoff, or to
   const spec = call(ctx, 'routeThreadToMeeting', 't2', 'core_20261013', { seriesKey: 'NCMMS_CORE' });
   assert.equal(spec.ok, true, spec.message);
   assert.ok(ctx.__hub.ledger.rows.has('GMAIL|t2|MEETING|core_20261013'));
-  assert.match(spec.targetUrl, /docs\.google\.com\/document\/d\/doc-NCMMS_CORE/);
+  assert.equal(spec.targetUrl, undefined, 'a carry-in has no target URL');
 });
 
 test('(h) backlog routing is ledger-only and takes the series key in the occurrence slot', () => {
@@ -235,15 +233,15 @@ test('(h) backlog routing is ledger-only and takes the series key in the occurre
   assert.equal(ctx.__hub.notes.applyCalls, 0);
 });
 
-test('(h) a doc write that is inaccessible quarantines as ERROR and retry succeeds once fixed', () => {
+test('(h) a carry-in whose DONE ledger write fails is not DONE, and retry succeeds once fixed', () => {
   const ctx = makeHubContext({ ...coreOpts, now: '2026-10-05T22:00:00Z' });
   addCoreOccurrences(ctx);
   addThread(ctx, { id: 't1', labels: ['🎯/Meeting/NCMMS-Core'] });
-  ctx.__hub.notes.inaccessible = true;
+  ctx.__hub.ledger.failUpsert = (row) => row.Status === 'DONE';
   run(ctx);
   const key = 'GMAIL|t1|MEETING|core_20261006';
-  assert.equal(ctx.__hub.ledger.rows.get(key).Status, 'ERROR');
-  ctx.__hub.notes.inaccessible = false;
+  assert.notEqual(ctx.__hub.ledger.rows.get(key).Status, 'DONE');
+  ctx.__hub.ledger.failUpsert = null;
   const retry = call(ctx, 'retryFailedOperation', key);
   assert.equal(retry.ok, true, retry.message);
   assert.equal(coreCount(ctx), 1);
@@ -255,12 +253,11 @@ test('(h2) retry of a MEETING op with corrupt MetadataJson fails explicitly and 
   const ctx = makeHubContext({ ...coreOpts, now: '2026-10-05T22:00:00Z' });
   addCoreOccurrences(ctx);
   addThread(ctx, { id: 't1', labels: ['🎯/Meeting/NCMMS-Core'] });
-  ctx.__hub.notes.inaccessible = true;
   run(ctx);
   const key = 'GMAIL|t1|MEETING|core_20261006';
-  assert.equal(ctx.__hub.ledger.rows.get(key).Status, 'ERROR');
+  // The carry-in no longer fails on a Doc, so force the ERROR state a failed run would leave behind.
+  ctx.__hub.ledger.rows.get(key).Status = 'ERROR';
   ctx.__hub.ledger.rows.get(key).MetadataJson = '{"seriesKey":"NCMMS_';
-  ctx.__hub.notes.inaccessible = false;
   const retry = call(ctx, 'retryFailedOperation', key);
   assert.equal(retry.ok, false, 'must not guess the series');
   assert.equal(retry.errorCode, 'CORRUPT_METADATA');

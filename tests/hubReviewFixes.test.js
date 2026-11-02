@@ -329,21 +329,20 @@ test('#6 getOccurrence maps only HTTP 404 to non-retryable OCCURRENCE_NOT_FOUND;
 });
 
 // ---------------------------------------------------------------- #8 carry-in idempotency
-test('#8 crash after the Doc write then cutoff rollover => still exactly one carry-in', () => {
+test('#8 crash before the DONE write then cutoff rollover => still exactly one carry-in (ledger rows, no Doc)', () => {
   const ctx = makeHubContext({ features: { ...LIVE, NCMMS_CORE_PILOT: true }, now: '2026-10-05T22:00:00Z' });
   addCoreOccurrences(ctx);
   addThread(ctx, { id: 't1', labels: ['🎯/Meeting/NCMMS-Core'], subject: 'Budget question' });
   ctx.__hub.ledger.failUpsert = (row) => row.Status !== 'PENDING'; // process dies before DONE/ERROR can be written
   run(ctx);
-  const doc = () => ctx.__hub.notes.docs['doc-NCMMS_CORE-0000000000'];
-  const count = (date) => toHost(ctx.DPEngines.carryInCount(doc(), { date, displayName: 'NCMMS Core Team' }));
-  assert.equal(count('2026-10-06'), 1, 'Doc write happened');
+  const count = (occurrenceId) => [...ctx.__hub.ledger.rows.values()].filter((r) => r.TargetType === 'CARRY_IN' && r.Status === 'DONE' && r.TargetId === occurrenceId).length;
   assert.equal(ctx.__hub.ledger.rows.get('GMAIL|t1|MEETING|core_20261006').Status, 'PENDING');
+  assert.equal(ctx.__hub.notes.applyCalls, 0, 'no Doc is written');
   ctx.__hub.ledger.failUpsert = null;
   ctx.__setNow('2026-10-06T14:45:00Z'); // past the 07:30 PT prep cutoff: selection now prefers 10-13
   run(ctx);
-  assert.equal(count('2026-10-06'), 1);
-  assert.equal(count('2026-10-13'), 0, 'no second carry-in on the next occurrence');
+  assert.equal(count('core_20261006'), 1);
+  assert.equal(count('core_20261013'), 0, 'no second carry-in on the next occurrence');
   const meetingKeys = [...ctx.__hub.ledger.rows.keys()].filter((k) => k.includes('MEETING'));
   assert.deepEqual(meetingKeys, ['GMAIL|t1|MEETING|core_20261006']);
   assert.equal(ctx.__hub.ledger.rows.get(meetingKeys[0]).Status, 'DONE');
