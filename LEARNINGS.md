@@ -327,3 +327,16 @@ live-testing catches it by luck.
 **Needs improvement:** A ratchet that only compares counts to its own baseline hid that axe audited the wrong frame for a whole session; check what a gate measures, not just that it passes. A lite agent cannot find live-only violations; give it the node targets up front.
 
 ---
+
+## 2026-11-01 — prune-branches port, tree cleanup
+
+**Worked well:**
+- Found the script only on master via git show, ported it test-first (red: ERR_MODULE_NOT_FOUND) with pure-gas-main as base
+- Ran prune from the worktree, which the sandbox allows, instead of handing the user commands
+- Checked leftover agent branches by reading their commits: 6 sat on master's tip, 2 were cherry-picks already in pure-gas-main
+
+**Needs improvement:**
+- The merge-base gate flags cherry-picked branches as unmerged (new SHAs); needed a manual grep of subjects to tell
+- I told the user to run prune themselves before trying it from the worktree; try the allowed route first
+
+---
