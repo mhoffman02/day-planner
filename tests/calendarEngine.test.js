@@ -223,3 +223,15 @@ describe('Calendar Engine Unit Tests', () => {
     });
   });
 });
+
+describe('formatEventDescriptionHtml anchor attributes', () => {
+  it('adds target and rel to an anchor whose only match is data-target', () => {
+    const out = formatEventDescriptionHtml('<a data-target="1" href="https://x.test">x</a>');
+    assert.match(out, /target="_blank" rel="noopener noreferrer"/);
+  });
+
+  it('leaves an anchor with a real target untouched', () => {
+    const html = '<a href="https://x.test" target="_self">x</a>';
+    assert.equal(formatEventDescriptionHtml(html), html);
+  });
+});

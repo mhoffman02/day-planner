@@ -163,7 +163,7 @@ function sanitizeDescriptionHtml(html) {
     .replace(/<style[\s\S]*?<\/style>/gi, '')
     .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
     .replace(/(href|src)\s*=\s*("|')\s*(?:javascript|data):[^"']*\2/gi, '$1="#"')
-    .replace(/<a(?![^>]*\btarget=)([^>]*?)>/gi, '<a target="_blank" rel="noopener noreferrer"$1>');
+    .replace(/<a(?![^>]*(?<![\w-])target=)([^>]*?)>/gi, '<a target="_blank" rel="noopener noreferrer"$1>');
 }
 
 /**
