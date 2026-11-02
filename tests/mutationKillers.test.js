@@ -805,3 +805,249 @@ describe('searchEngine survivors, round two', () => {
     assert.equal(r.archive.length, 4);
   });
 });
+
+describe('taskEngine survivors, round 2', () => {
+  it('parseTaskTitle: falsy input yields empty result; null does not throw', () => {
+    const empty = { priorityGroup: null, sequence: null, priorityCode: null, cleanTitle: '' };
+    assert.deepEqual(parseTaskTitle(null), empty);
+    assert.deepEqual(parseTaskTitle(undefined), empty);
+    assert.deepEqual(parseTaskTitle(''), empty);
+  });
+
+  it('parseTaskTitle: prefix regex is end-anchored (multiline text is not a priority title)', () => {
+    const r = parseTaskTitle('[A1] foo\nbar');
+    assert.equal(r.priorityGroup, null);
+    assert.equal(r.cleanTitle, '[A1] foo\nbar');
+  });
+
+  it('extractInlinePriority: no-arg default input is empty', () => {
+    assert.deepEqual(extractInlinePriority(), { priorityGroup: 'A', cleanTitle: '' });
+    assert.deepEqual(extractInlinePriority(null, 'C'), { priorityGroup: 'C', cleanTitle: '' });
+  });
+
+  it('extractInlinePriority: regex is end-anchored and separator may be glued to the title', () => {
+    assert.deepEqual(extractInlinePriority('#a x\ny'), { priorityGroup: 'A', cleanTitle: '#a x\ny' });
+    assert.deepEqual(extractInlinePriority('#b:task'), { priorityGroup: 'B', cleanTitle: 'task' });
+    assert.deepEqual(extractInlinePriority('#c-task'), { priorityGroup: 'C', cleanTitle: 'task' });
+    assert.deepEqual(extractInlinePriority('#a  :  spaced'), { priorityGroup: 'A', cleanTitle: 'spaced' });
+  });
+
+  it('sortTasks: untitled and same-priority tasks order by clean title', () => {
+    const titles = arr => sortTasks(arr).map(t => t.title);
+    assert.deepEqual(titles([{ title: 'Zeta' }, { title: 'Alpha' }]), ['Alpha', 'Zeta']);
+    assert.deepEqual(titles([{ title: 'ab' }, { title: 'aa' }]), ['aa', 'ab']);
+    assert.deepEqual(titles([{ title: 'aa' }, { title: 'ab' }]), ['aa', 'ab']);
+    assert.deepEqual(titles([{ title: 'zz' }, { title: 'zy' }]), ['zy', 'zz']);
+    assert.deepEqual(titles([{ title: 'Alpha' }, { title: '' }]), ['', 'Alpha']);
+    assert.deepEqual(titles([{ title: '' }, { title: 'Alpha' }]), ['', 'Alpha']);
+    assert.deepEqual(titles([{ title: 'Alpha' }, {}]), [undefined, 'Alpha']);
+    assert.deepEqual(titles([{ title: '[A1] b' }, { title: '[A1] a' }]), ['[A1] a', '[A1] b']);
+  });
+
+  it('sortTasksByColumn: ties keep original order in both directions', () => {
+    const tasks = [1, 2, 3, 4].map(n => ({ id: n, status: '•' }));
+    assert.deepEqual(sortTasksByColumn(tasks, 'status', 'asc').map(t => t.id), [1, 2, 3, 4]);
+    assert.deepEqual(sortTasksByColumn(tasks, 'status', 'desc').map(t => t.id), [1, 2, 3, 4]);
+    assert.deepEqual(sortTasksByColumn(tasks, 'status').map(t => t.id), [1, 2, 3, 4]);
+  });
+
+  it('sortTasksByColumn: status ordering asc/desc', () => {
+    const tasks = [{ id: 'c', status: '✓' }, { id: 'a', status: '•' }, { id: 'b', status: '○' }];
+    assert.deepEqual(sortTasksByColumn(tasks, 'status', 'asc').map(t => t.id), ['a', 'b', 'c']);
+    assert.deepEqual(sortTasksByColumn(tasks, 'status', 'desc').map(t => t.id), ['c', 'b', 'a']);
+  });
+
+  it('getNextSequence: default group is A, default tasks empty', () => {
+    assert.equal(getNextSequence([{ title: '[A1] x' }]), 2);
+    assert.equal(getNextSequence([{ title: '[B1] x' }]), 1);
+    assert.equal(getNextSequence(), 1);
+  });
+
+  it('filterTasksByStatus: non-array statuses return tasks untouched, bad tasks give []', () => {
+    const tasks = [{ status: '•' }];
+    assert.equal(filterTasksByStatus(tasks, 'x'), tasks);
+    assert.equal(filterTasksByStatus(tasks, {}), tasks);
+    assert.equal(filterTasksByStatus(tasks, null), tasks);
+    assert.deepEqual(filterTasksByStatus('abc', ['•']), []);
+  });
+
+  it('filterTasksByDateHorizon: all/empty/null horizon returns the same array; bad tasks give []', () => {
+    const tasks = [{ dueDate: '2030-01-01' }, { dueDate: null }];
+    assert.equal(filterTasksByDateHorizon(tasks, 'all', '2026-01-01'), tasks);
+    assert.equal(filterTasksByDateHorizon(tasks, undefined, '2026-01-01'), tasks);
+    assert.equal(filterTasksByDateHorizon(tasks, null, '2026-01-01'), tasks);
+    assert.equal(filterTasksByDateHorizon(tasks, '', '2026-01-01'), tasks);
+    assert.deepEqual(filterTasksByDateHorizon('abc', 'future'), []);
+  });
+
+  it('buildMasterTasksClearinghouse: no-arg is empty; missing title is empty string', () => {
+    assert.deepEqual(buildMasterTasksClearinghouse(), []);
+    const [row] = buildMasterTasksClearinghouse([{ id: 'x' }]);
+    assert.equal(row.title, '');
+    assert.equal(row.notes, '');
+    assert.equal(row.category, 'General');
+  });
+
+  it('clearinghouse: master with movedTaskId pairs with daily lacking sourceMasterId', () => {
+    const out = buildMasterTasksClearinghouse([
+      { id: 'm', title: 'M', movedTaskId: 'd', movedTo: '2026-01-05' },
+      { id: 'd', title: 'D', dueDate: '2026-01-05' }
+    ]);
+    assert.equal(out.length, 1);
+    assert.equal(out[0].id, 'm');
+    assert.equal(out[0].movedTaskId, 'd');
+    assert.equal(out[0].title, 'D');
+    assert.equal(out[0].starred, false);
+    assert.equal(out[0].notes, '');
+  });
+
+  it('clearinghouse: master pairs with daily via daily.sourceMasterId (master first)', () => {
+    const out = buildMasterTasksClearinghouse([
+      { id: 'm', title: 'M' },
+      { id: 'd', title: 'D', dueDate: '2026-01-05', sourceMasterId: 'm' }
+    ]);
+    assert.equal(out.length, 1);
+    assert.equal(out[0].id, 'm');
+    assert.equal(out[0].movedTaskId, 'd');
+    assert.equal(out[0].movedTo, '2026-01-05');
+  });
+
+  it('clearinghouse: daily first, found via sourceMasterId in taskById', () => {
+    const out = buildMasterTasksClearinghouse([
+      { id: 'd', title: 'D', dueDate: '2026-01-05', sourceMasterId: 'm', starred: true, notes: 'n' },
+      { id: 'm', title: 'M' }
+    ]);
+    assert.equal(out.length, 1);
+    assert.equal(out[0].id, 'm');
+    assert.equal(out[0].movedTaskId, 'd');
+    assert.equal(out[0].starred, true);
+    assert.equal(out[0].notes, 'n');
+    assert.equal(out[0].dueDate, '2026-01-05');
+  });
+
+  it('clearinghouse: daily first, found via master.movedTaskId (no sourceMasterId)', () => {
+    const out = buildMasterTasksClearinghouse([
+      { id: 'd', title: 'D', dueDate: '2026-01-05' },
+      { id: 'm', title: 'M', movedTaskId: 'd', movedTo: '2026-01-05' }
+    ]);
+    assert.equal(out.length, 1);
+    assert.equal(out[0].id, 'm');
+    assert.equal(out[0].movedTaskId, 'd');
+    assert.equal(out[0].starred, false);
+    assert.equal(out[0].notes, '');
+  });
+
+  it('clearinghouse: starred and notes merge from either side, default false/empty', () => {
+    const a = buildMasterTasksClearinghouse([
+      { id: 'm', title: 'M', starred: true, notes: 'mn' },
+      { id: 'd', title: 'D', sourceMasterId: 'm', dueDate: '2026-01-05' }
+    ]);
+    assert.equal(a[0].starred, true);
+    assert.equal(a[0].notes, 'mn');
+    const b = buildMasterTasksClearinghouse([
+      { id: 'm', title: 'M' },
+      { id: 'd', title: 'D', sourceMasterId: 'm', dueDate: '2026-01-05', starred: true, notes: 'dn' }
+    ]);
+    assert.equal(b[0].starred, true);
+    assert.equal(b[0].notes, 'dn');
+    const c = buildMasterTasksClearinghouse([
+      { id: 'd', title: 'D', sourceMasterId: 'm', dueDate: '2026-01-05' },
+      { id: 'm', title: 'M', starred: true }
+    ]);
+    assert.equal(c[0].starred, true);
+    assert.equal(c[0].notes, '');
+    const d = buildMasterTasksClearinghouse([
+      { id: 'd', title: 'D', sourceMasterId: 'm', dueDate: '2026-01-05' },
+      { id: 'm', title: 'M' }
+    ]);
+    assert.equal(d[0].starred, false);
+    assert.equal(d[0].notes, '');
+  });
+
+  it('clearinghouse: tasks without ids are not paired with unrelated tasks', () => {
+    const out = buildMasterTasksClearinghouse([
+      { id: null, title: 'n' },
+      { id: 'x', title: 'x' }
+    ]);
+    assert.equal(out.length, 2);
+    assert.deepEqual(out.map(r => r.title), ['n', 'x']);
+  });
+
+  it('clearinghouse: self-referencing movedTaskId is not a merge', () => {
+    const out = buildMasterTasksClearinghouse([
+      { id: 'a', title: 'A', dueDate: '2026-01-05', movedTaskId: 'a', status: '✓' }
+    ]);
+    assert.deepEqual(out, []);
+    const out2 = buildMasterTasksClearinghouse([
+      { id: 'a', title: 'A', dueDate: '2026-01-05', movedTaskId: 'a' }
+    ]);
+    assert.equal(out2.length, 1);
+    assert.equal(out2[0].movedTo, null);
+  });
+
+  it('clearinghouse: unlinked rows keep movedTo/movedTaskId, defaulting to null', () => {
+    const [dated] = buildMasterTasksClearinghouse([
+      { id: 'x', dueDate: '2026-01-05', movedTo: '2026-01-06', movedTaskId: 'ghost' }
+    ]);
+    assert.equal(dated.movedTo, '2026-01-06');
+    assert.equal(dated.movedTaskId, 'ghost');
+    const [datedPlain] = buildMasterTasksClearinghouse([{ id: 'x', dueDate: '2026-01-05' }]);
+    assert.equal(datedPlain.movedTo, null);
+    assert.equal(datedPlain.movedTaskId, null);
+    const [undated] = buildMasterTasksClearinghouse([{ id: 'x', movedTaskId: 'ghost' }]);
+    assert.equal(undated.movedTaskId, 'ghost');
+    const [undatedPlain] = buildMasterTasksClearinghouse([{ id: 'x' }]);
+    assert.equal(undatedPlain.movedTaskId, null);
+    assert.equal(undatedPlain.movedTo, null);
+  });
+});
+
+describe('futureMatrixEngine survivors, round 2', () => {
+  it('quarterForMonth: numbers above 99 clamp to 12, not last-two-digit parsing', () => {
+    assert.equal(quarterForMonth(105), 'Q4');
+    assert.equal(quarterForMonth(100), 'Q4');
+  });
+
+  it('quarterKeyFor: only a leading Q is stripped', () => {
+    assert.equal(quarterKeyFor(2026, 'q2'), '2026-Q2');
+    assert.equal(quarterKeyFor(2026, '1Q'), '2026-Q1Q');
+  });
+
+  it('advance/regressQuarterKey: key must match in full', () => {
+    assert.equal(advanceQuarterKey('2026-Q1x'), '2026-Q1x');
+    assert.equal(advanceQuarterKey('x2026-Q1'), 'x2026-Q1');
+    assert.equal(regressQuarterKey('x2026-Q2'), 'x2026-Q2');
+    assert.equal(regressQuarterKey('2026-Q2x'), '2026-Q2x');
+  });
+
+  it('updateMilestone: object deliverables keep title; string deliverables default to open', () => {
+    const r = updateMilestone({ id: 'm' }, { deliverables: [{ id: 'd1', title: 'T', status: '✓' }, 'plain'] });
+    assert.equal(r.deliverables[0].title, 'T');
+    assert.equal(r.deliverables[0].status, '✓');
+    assert.equal(r.deliverables[1].title, 'plain');
+    assert.equal(r.deliverables[1].status, '•');
+    const r2 = updateMilestone({ id: 'm' }, { deliverables: [{ title: 'no status' }] });
+    assert.equal(r2.deliverables[0].status, '•');
+  });
+
+  it('addDeliverable: milestone without deliverables gets exactly the new one', () => {
+    const r = addDeliverable({ status: '•' }, ' x ');
+    assert.equal(r.deliverables.length, 1);
+    assert.equal(r.deliverables[0].title, 'x');
+    assert.equal(r.progress, 0);
+  });
+
+  it('trackMultiQuarterMilestones: byQuarter accumulates per key', () => {
+    const a = { id: 'a', targetQuarter: '2026-Q1' };
+    const b = { id: 'b', targetQuarter: '2026-Q1' };
+    const c = { id: 'c', targetQuarter: '2026-Q2' };
+    const r = trackMultiQuarterMilestones([a, b, c]);
+    assert.deepEqual(r.byQuarter, { '2026-Q1': [a, b], '2026-Q2': [c] });
+  });
+
+  it('projectRollingHorizon: omitted milestones default to none', () => {
+    const r = projectRollingHorizon([{ monthKey: '2026-01' }]);
+    assert.equal(r.summary.totalMilestones, 0);
+    assert.deepEqual(r.horizon[0].milestones, []);
+  });
+});
