@@ -353,3 +353,16 @@ live-testing catches it by luck.
 ## 2026-11-03
 **Worked well:** Restating the real requirement ("edit and view both look rich, storage is secondary") ended a drift toward raw-markup fixes; keeping the Doc markup and rendering it per line was the smallest change.
 **Needs improvement:** Guessed regexes against rendered HTML (`<strong|b>`) instead of reading the renderer first; compound bash is refused in worktrees, so write script files up front.
+
+## 2026-11-03 — Part-line color in WYSIWYG notes
+
+**Worked well:**
+- Pure lineEditorColorRange helper made the feature testable without a DOM; red test first
+- Reusing the existing swatch buttons kept the UI unchanged
+- Deployed HOME then WORK; user verified on WORK
+
+**Needs improvement:**
+- Compound bash was refused in the worktree again; write scripts up front
+- Pushed WORK twice by re-running to read the output; capture output once
+
+---
