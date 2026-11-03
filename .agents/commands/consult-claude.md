@@ -11,7 +11,7 @@ Use when Antigravity CLI (agy) is the current driver and the task at hand is Tie
 architecture/design decisions, Google Workspace API scope changes (`gas-app/appsscript.json`, `drive.file` boundaries),
 or deep adversarial security and code reviews — per the routing table in
 [[cross-cli-headless-invocation]]. Do **not** use this for browser/CDP checks (those stay on
-`tools/ensure-chrome.js`/`tools/e2e/*`), bulk mechanical edits/summarization (handle those
+`tools/ensure-chrome.js`/the CDP tools in `tools/` (`eval-console.js`, `probe-live.js`, `smoke-test.js`)), bulk mechanical edits/summarization (handle those
 directly in AGY), or anything that needs a commit decision (delegate the edit or advice, keep the
 commit in this session).
 

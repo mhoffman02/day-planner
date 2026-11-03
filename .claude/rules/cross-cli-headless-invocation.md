@@ -9,7 +9,7 @@ agents; agy `invoke_subagent(Model="flash_lite" | "flash" | "pro")` (`pro` is ag
 | :--- | :--- |
 | Architecture, OAuth/scope changes (`gas-app/appsscript.json`, `drive.file`), deep adversarial review | `claude` (from agy: `/consult-claude`) |
 | Bulk mechanical edits, whole-repo summaries, rapid edit-test loops | `agy` (from claude: `/consult-agy`) |
-| Browser/CDP checks, mock mode included | **Neither**: run `tools/ensure-chrome.js` + `tools/e2e/*` in the driving CLI ([[live-google-auth-browser-tool]]) |
+| Browser/CDP checks, mock mode included | **Neither**: run `tools/ensure-chrome.js` + the CDP tools in `tools/` (`eval-console.js`, `probe-live.js`, `smoke-test.js`) in the driving CLI ([[live-google-auth-browser-tool]]) |
 | Lint, ESM import check, pre-commit | Local scripts, zero tokens |
 
 - MUST run a headless call with its unattended-permission flag, or it hangs or auto-denies. The exact commands and

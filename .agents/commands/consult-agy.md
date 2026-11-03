@@ -11,7 +11,7 @@ Use when Claude Code is the current driver and the task at hand is bulk mechanic
 whole-repo summarization/ingestion, or a rapid edit-test loop that Gemini Flash/Flash-Lite can
 handle safely and cheaply — per the routing table in
 [[cross-cli-headless-invocation]]. Do **not** use this for browser/CDP checks (those stay on
-`tools/ensure-chrome.js`/`tools/e2e/*`), architecture/OAuth/security judgment calls (handle those
+`tools/ensure-chrome.js`/the CDP tools in `tools/` (`eval-console.js`, `probe-live.js`, `smoke-test.js`)), architecture/OAuth/security judgment calls (handle those
 directly in Claude Code), or anything that needs a commit decision (delegate the edit, keep the
 commit in this session).
 

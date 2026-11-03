@@ -21,7 +21,7 @@ to matter). Origin, the full comparison and flag notes: `references/details.md`.
 | Architecture or design decisions | No |
 | Any code edit, however small | No |
 | Security, OAuth, or anything gating a commit/merge | No |
-| Browser/CDP checks | No: `tools/ensure-chrome.js` + `tools/e2e/*` ([live-google-auth-browser-tool](../../rules/live-google-auth-browser-tool.md)) |
+| Browser/CDP checks | No: `tools/ensure-chrome.js` + the CDP tools in `tools/` (`eval-console.js`, `probe-live.js`, `smoke-test.js`) ([live-google-auth-browser-tool](../../rules/live-google-auth-browser-tool.md)) |
 | Under ~1200 characters of input | No: overhead exceeds savings |
 
 ## Invocation

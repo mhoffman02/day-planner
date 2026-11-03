@@ -47,7 +47,7 @@ note badge, completing a `Decision:` task adds `#decision <what>` to the last no
   attaches to the app iframe target like `tools/eval-console.js`; `--break <function>` pauses on the next call
   (`Debugger.setBreakpointOnFunctionCall`); JSON-line commands on stdin (`over`, `into`, `out`, `locals`, `eval <js>`,
   `resume`) so an agent can drive it; prints the frame location + locals each step. Out of scope: GAS server code, source
-  maps, multi-tab. Red test first on the command parser; live part is manual. Note: rules mention `tools/e2e/*` but that directory does not exist (fix those rule refs).
+  maps, multi-tab. Red test first on the command parser; live part is manual.
 
 ### B4. Phase 30: WORK promotion and user-gated release items
 

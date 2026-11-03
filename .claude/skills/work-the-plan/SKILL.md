@@ -37,11 +37,11 @@ rules that apply by name (a fresh agent does not inherit your context). Never fo
 Every prompt MUST contain:
 - **Exit criteria**: the task-specific check, then `npm run lint && npm test`, with expected results. The agent
   reports evidence lines, not "done".
-- **TDD** per [[test-before-fix]] and **fail loud** per [[fail-loud-catch]]. Not unit-testable → `tools/e2e/smoke-test.js`
+- **TDD** per [[test-before-fix]] and **fail loud** per [[fail-loud-catch]]. Not unit-testable → `tools/smoke-test.js`
   via `tools/ensure-chrome.js`, and say so.
 - Constraints: no commit unless told; no `clasp push`; edit `.agents/` then `npm run sync:agents`, never the
   `.claude/`/`.kilo/` mirrors; never touch `gas-app/.clasp.json`; no `.toISOString()` on local dates; no `substr()`;
-  browser checks only through `tools/ensure-chrome.js` + `tools/e2e/*`.
+  browser checks only through `tools/ensure-chrome.js` + the CDP tools in `tools/` (`eval-console.js`, `probe-live.js`, `smoke-test.js`).
 
 ## 4. VERIFY (never trust a self-report)
 

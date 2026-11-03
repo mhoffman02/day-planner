@@ -162,7 +162,7 @@ This worked for Docs; it is unproven for Sheets.
   each, Gmail link in notes, ledger `DONE`; rerun creates nothing.
 - L6 Force a failure (revoke the notes Doc or use a bad Task list ID), see ledger `ERROR` in Triage, fix, press Retry.
 - L7 Triage and Meeting Prep render against the real server (queue keys, item fields, picker, carry-in count equals
-  the Doc), using `tools/ensure-chrome.js` + `tools/e2e/*` (never a generic browser tool).
+  the Doc), using `tools/ensure-chrome.js` + the CDP tools in `tools/` (`eval-console.js`, `probe-live.js`, `smoke-test.js`) (never a generic browser tool).
 - L8 Dispatcher: `installHubTriggers` twice leaves one trigger; observe a scheduled run; a run that overlaps another
   skips on the lock.
 - L9 WORK: scope approval (section 6).
