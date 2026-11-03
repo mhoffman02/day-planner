@@ -39,6 +39,7 @@ function stubDocument() {
     addEventListener: () => {},
     removeEventListener: () => {},
     getElementById: () => null,
+    execCommand: () => true,
     querySelector: () => null,
     querySelectorAll: () => [],
     createElement: () => ({ style: {}, setAttribute: () => {}, appendChild: () => {} }),

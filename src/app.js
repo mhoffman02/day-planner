@@ -23,6 +23,7 @@ import { formatEventDescriptionHtml, extractMeetLink } from './calendarEngine.js
 import { parseIndexEntriesFromNote } from './indexParser.js';
 import { getQuoteForDateStr } from './quotesEngine.js';
 import { clipboardToNoteLines, isNoteListLine } from './notePaste.js';
+import { lineEditorSplitPrefix, lineEditorRender, lineEditorSerialize, lineEditorTextLength, lineEditorSlice, lineEditorToDom, lineEditorFromDom } from './lineEditor.js';
 import {
   getCached, setCached, invalidateCached, primeFromRange, hydrateFromIdb, getCachedRange,
   getCachedMasterTasks, setCachedMasterTasks, hydrateMasterTasksFromIdb,
@@ -2781,17 +2782,107 @@ Alpine.data('plannerApp', () => ({
         return lines.length > 0 ? lines : [''];
       },
 
-      startEditingLine(card, idx) {
+      cardLineEl(card, idx) {
+        return document.getElementById(`card-line-${card.id}-${idx}`);
+      },
+
+      // Glyph shown ahead of the editable line: the list marker is not part of the editable text.
+      lineEditorPrefixLabel(line) {
+        const prefix = lineEditorSplitPrefix(line || '').prefix.trim();
+        return prefix === '-' ? '•' : prefix;
+      },
+
+      // Fills the contenteditable line from markup text. Done once per edit session, never bound
+      // through Alpine, because a re-render would reset the caret.
+      fillLineEditor(el, body) {
+        el.replaceChildren(lineEditorToDom(lineEditorRender(body), document));
+      },
+
+      lineEditorBodyOf(el) {
+        return lineEditorSerialize(lineEditorFromDom(el));
+      },
+
+      // Maps a plain-text offset in root to a DOM point.
+      lineTextPoint(root, offset) {
+        const walker = document.createTreeWalker(root, window.NodeFilter.SHOW_TEXT);
+        let remaining = offset;
+        let last = null;
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+          if (remaining <= n.nodeValue.length) return { node: n, offset: remaining };
+          remaining -= n.nodeValue.length;
+          last = n;
+        }
+        return last ? { node: last, offset: last.nodeValue.length } : { node: root, offset: 0 };
+      },
+
+      // where is start, end or a plain-text offset.
+      placeLineCaret(el, where) {
+        const total = (el.textContent || '').length;
+        const off = where === 'start' ? 0 : (typeof where === 'number' ? Math.min(where, total) : total);
+        const pt = this.lineTextPoint(el, off);
+        const range = document.createRange();
+        range.setStart(pt.node, pt.offset);
+        range.collapse(true);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      },
+
+      // Selection as plain-text offsets inside el, or null when the selection is elsewhere.
+      lineSelectionOffsets(el) {
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return null;
+        const r = sel.getRangeAt(0);
+        if (!el.contains(r.startContainer) || !el.contains(r.endContainer)) return null;
+        const pre = document.createRange();
+        pre.selectNodeContents(el);
+        pre.setEnd(r.startContainer, r.startOffset);
+        const start = pre.toString().length;
+        return { start, end: start + r.toString().length };
+      },
+
+      // Splits body markup around plain-text offsets. Formatting that spans the cut is kept on both sides.
+      lineMarkupAround(body, start, end) {
+        const nodes = lineEditorRender(body);
+        return {
+          before: lineEditorSerialize(lineEditorSlice(nodes, 0, start)),
+          after: lineEditorSerialize(lineEditorSlice(nodes, end, Infinity))
+        };
+      },
+
+      // Caret and selection for a line body, falling back to the end when the editor holds no selection.
+      lineSelectionOrEnd(el, body) {
+        const total = lineEditorTextLength(lineEditorRender(body));
+        return (el && this.lineSelectionOffsets(el)) || { start: total, end: total };
+      },
+
+      startEditingLine(card, idx, caret = 'end') {
         if (!card) return;
         card._activeLineIndex = idx;
         card._selectedLineRange = null;
         this.$nextTick(() => {
-          const el = document.getElementById(`card-line-${card.id}-${idx}`);
+          const el = this.cardLineEl(card, idx);
           if (el) {
+            this.fillLineEditor(el, lineEditorSplitPrefix(this.cardLines(card)[idx] || '').body);
             el.focus();
-            el.setSelectionRange(el.value.length, el.value.length);
+            this.placeLineCaret(el, caret);
           }
         });
+      },
+
+      // Input handler for the contenteditable line: serialize back to markup and store it.
+      onLineInput(card, idx, e) {
+        const el = e.target;
+        if (el.textContent === '' && el.childNodes.length > 0) el.replaceChildren();
+        const prefix = lineEditorSplitPrefix(this.cardLines(card)[idx] || '').prefix;
+        this.updateCardLine(card, idx, prefix + this.lineEditorBodyOf(el));
+        if (prefix) return;
+        // Typing a list marker at the start of a plain line (dash, number, [] ) turns it into a list line.
+        const stored = this.cardLines(card)[idx] || '';
+        if (lineEditorSplitPrefix(stored).prefix) {
+          this.fillLineEditor(el, lineEditorSplitPrefix(stored).body);
+          this.placeLineCaret(el, 'start');
+        }
       },
 
       stopEditingLine(card, idx) {
@@ -2912,62 +3003,42 @@ Alpine.data('plannerApp', () => ({
 
         if (e.key === 'Enter') {
           e.preventDefault();
-          if (currentLine === '☐ ' || currentLine === '☒ ' || currentLine === '☑ ' || currentLine === '- ') {
+          const el = this.cardLineEl(card, idx);
+          const { prefix: curPrefix, body: curBody } = lineEditorSplitPrefix(currentLine);
+          if (curPrefix && curBody === '') {
             lines[idx] = '';
             card.content = lines.join('\n');
             this.syncCardsToDailyNote();
+            if (el) this.fillLineEditor(el, '');
             return;
           }
 
-          const cursorPos = typeof e.target?.selectionStart === 'number' ? e.target.selectionStart : null;
-          const isMidLine = cursorPos != null && cursorPos > 0 && cursorPos < currentLine.length;
-
-          if (isMidLine) {
-            const before = currentLine.slice(0, cursorPos).trimEnd();
-            const afterText = currentLine.slice(cursorPos).trimStart();
-            const prefix = this.getContinuationPrefix(currentLine);
-            const after = prefix && !afterText.startsWith(prefix.trim()) ? prefix + afterText : afterText;
-            lines[idx] = before;
-            lines.splice(idx + 1, 0, after);
-            card.content = lines.join('\n');
-            this.syncCardsToDailyNote();
-            const caretPos = prefix ? prefix.length : 0;
-            this.$nextTick(() => {
-              this.startEditingLine(card, idx + 1);
-            });
-            setTimeout(() => {
-              this.startEditingLine(card, idx + 1);
-              const el = document.getElementById(`card-line-${card.id}-${idx + 1}`);
-              if (el) {
-                el.focus();
-                try { el.setSelectionRange(caretPos, caretPos); } catch (err) { console.error('Enter: could not restore caret in new card line:', err.stack); }
-              }
-            }, 40);
-            return;
-          }
-
-          const prefix = this.getContinuationPrefix(currentLine);
-          lines.splice(idx + 1, 0, prefix);
+          const sel = this.lineSelectionOrEnd(el, curBody);
+          const { before, after } = this.lineMarkupAround(curBody, sel.start, sel.end);
+          const isMidLine = after !== '';
+          lines[idx] = curPrefix + (isMidLine ? before.trimEnd() : before);
+          lines.splice(idx + 1, 0, this.getContinuationPrefix(currentLine) + (isMidLine ? after.trimStart() : after));
           card.content = lines.join('\n');
           this.syncCardsToDailyNote();
+          if (el) this.fillLineEditor(el, lineEditorSplitPrefix(lines[idx]).body);
           this.$nextTick(() => {
-            this.startEditingLine(card, idx + 1);
+            this.startEditingLine(card, idx + 1, 'start');
           });
           setTimeout(() => {
-            this.startEditingLine(card, idx + 1);
-            const el = document.getElementById(`card-line-${card.id}-${idx + 1}`);
-            if (el) {
-              el.focus();
-              try { el.setSelectionRange(el.value.length, el.value.length); } catch (err) { console.error('Enter: could not move caret to end of new card line:', err.stack); }
-            }
+            this.startEditingLine(card, idx + 1, 'start');
           }, 40);
           return;
         } else if (e.key === 'Backspace') {
-          if (currentLine === '☐ ' || currentLine === '☒ ' || currentLine === '☑ ') {
+          const el = this.cardLineEl(card, idx);
+          const sel = el ? this.lineSelectionOffsets(el) : null;
+          const { prefix: curPrefix, body: curBody } = lineEditorSplitPrefix(currentLine);
+          if (el && curPrefix && sel && sel.start === 0 && sel.end === 0) {
             e.preventDefault();
-            lines[idx] = '';
+            lines[idx] = curBody;
             card.content = lines.join('\n');
             this.syncCardsToDailyNote();
+            this.fillLineEditor(el, curBody);
+            this.placeLineCaret(el, 'start');
             return;
           }
           if (!currentLine && lines.length > 1) {
@@ -3047,21 +3118,15 @@ Alpine.data('plannerApp', () => ({
       openLinkModal(card, idx) {
         if (!card) return;
         const lineIdx = idx ?? card._activeLineIndex ?? 0;
-        const lines = this.cardLines(card);
-        const lineText = lines[lineIdx] || '';
-
-        const el = document.getElementById(`card-line-${card.id}-${lineIdx}`);
+        const el = this.cardLineEl(card, lineIdx);
         let selStart = null;
         let selEnd = null;
         let selectedText = '';
-        if (el && typeof el.selectionStart === 'number' && typeof el.selectionEnd === 'number') {
-          selStart = el.selectionStart;
-          selEnd = el.selectionEnd;
-          if (selStart !== selEnd) {
-            const start = Math.min(selStart, selEnd);
-            const end = Math.max(selStart, selEnd);
-            selectedText = lineText.slice(start, end);
-          }
+        const sel = el ? this.lineSelectionOffsets(el) : null;
+        if (sel) {
+          selStart = sel.start;
+          selEnd = sel.end;
+          if (selStart !== selEnd) selectedText = (el.textContent || '').slice(selStart, selEnd);
         }
 
         this.linkModalCard = card;
@@ -3198,14 +3263,14 @@ Alpine.data('plannerApp', () => ({
 
         const lines = this.cardLines(card);
         const lineText = lines[idx] || '';
+        const { prefix, body } = lineEditorSplitPrefix(lineText);
 
         const selStart = this.linkModalSelStart;
         const selEnd = this.linkModalSelEnd;
 
         if (selStart !== null && selEnd !== null && selStart >= 0 && selEnd >= selStart) {
-          const before = lineText.slice(0, selStart);
-          const after = lineText.slice(selEnd);
-          lines[idx] = before + wrapped + after;
+          const around = this.lineMarkupAround(body, selStart, selEnd);
+          lines[idx] = prefix + around.before + wrapped + around.after;
         } else {
           lines[idx] = lineText ? `${lineText} ${wrapped}` : wrapped;
         }
@@ -3232,14 +3297,13 @@ Alpine.data('plannerApp', () => ({
         }
 
         e.preventDefault();
-        const el = document.getElementById(`card-line-${card.id}-${idx}`);
+        const el = this.cardLineEl(card, idx);
         const lines = this.cardLines(card);
         if (idx >= lines.length) return;
         const text = lines[idx] || '';
-        const start = el ? el.selectionStart : text.length;
-        const end = el ? el.selectionEnd : text.length;
-        const before = text.slice(0, start);
-        const after = text.slice(end);
+        const { prefix, body } = lineEditorSplitPrefix(text);
+        const sel = this.lineSelectionOrEnd(el, body);
+        const around = this.lineMarkupAround(body, sel.start, sel.end);
 
         let displayText = trimmed;
         try {
@@ -3254,43 +3318,46 @@ Alpine.data('plannerApp', () => ({
         }
 
         const wrapped = displayText === trimmed ? trimmed : `[[link:${trimmed}]]${displayText}[[/link]]`;
-        lines[idx] = before + wrapped + after;
+        lines[idx] = prefix + around.before + wrapped + around.after;
         card.content = lines.join('\n');
         this.syncCardsToDailyNote();
 
-        const caretPos = before.length + wrapped.length;
-        this.$nextTick(() => { if (el) { el.focus(); el.setSelectionRange(caretPos, caretPos); } });
+        this.startEditingLine(card, idx, lineEditorTextLength(lineEditorRender(around.before + wrapped)));
       },
 
       /* Multi-line or formatted paste (Gmail, Google Docs, Gemini): one card line per paragraph,
-         formatting mapped to the card line markup. A single plain line is left to the browser. */
+         formatting mapped to the card line markup. Foreign HTML is never inserted into the editable
+         line: a single plain line is inserted as text, several lines become several card lines. */
       pasteNoteLines(e, clipboard, pasted, card, idx) {
         const html = clipboard ? clipboard.getData('text/html') : '';
         const pastedLines = clipboardToNoteLines({ html, text: pasted || '' });
-        if (!pastedLines) return;
+        e.preventDefault();
+        if (!pastedLines) {
+          const plain = String(pasted || '').replace(/\r?\n/g, ' ');
+          if (plain) document.execCommand('insertText', false, plain);
+          return;
+        }
         const lines = this.cardLines(card);
         if (idx >= lines.length) return;
-        e.preventDefault();
-        const el = document.getElementById('card-line-' + card.id + '-' + idx);
-        const text = lines[idx] || '';
-        const before = text.slice(0, el ? el.selectionStart : text.length);
-        const after = text.slice(el ? el.selectionEnd : text.length);
+        const el = this.cardLineEl(card, idx);
+        const { prefix, body } = lineEditorSplitPrefix(lines[idx] || '');
+        const sel = this.lineSelectionOrEnd(el, body);
+        const around = this.lineMarkupAround(body, sel.start, sel.end);
         const inserted = pastedLines.slice();
         const lead = [];
-        if (before.trim() && isNoteListLine(inserted[0])) lead.push(before.replace(/\s+$/, ''));
-        else if (before.trim()) inserted[0] = before + inserted[0];
+        if (around.before.trim()) {
+          if (isNoteListLine(inserted[0])) lead.push((prefix + around.before).replace(/\s+$/, ''));
+          else inserted[0] = prefix + around.before + inserted[0];
+        } else if (prefix && !isNoteListLine(inserted[0])) {
+          inserted[0] = prefix + inserted[0];
+        }
         const last = inserted.length - 1;
-        const caretPos = inserted[last].length;
-        inserted[last] += after;
+        const caretText = lineEditorTextLength(lineEditorRender(lineEditorSplitPrefix(inserted[last]).body));
+        inserted[last] += around.after;
         lines.splice(idx, 1, ...lead, ...inserted);
         card.content = lines.join('\n');
         this.syncCardsToDailyNote();
-        const targetIdx = idx + lead.length + last;
-        card._activeLineIndex = targetIdx;
-        this.$nextTick(() => {
-          const target = document.getElementById('card-line-' + card.id + '-' + targetIdx);
-          if (target) { target.focus(); target.setSelectionRange(caretPos, caretPos); }
-        });
+        this.startEditingLine(card, idx + lead.length + last, caretText);
       },
 
       applyRangeFormat(card, formatType) {
@@ -3384,9 +3451,16 @@ Alpine.data('plannerApp', () => ({
           return;
         }
         dictationPopupTargetEl = el;
-        dictationPopupBaseValue = el.value;
-        dictationPopupSelStart = el.selectionStart ?? dictationPopupBaseValue.length;
-        dictationPopupSelEnd = el.selectionEnd ?? dictationPopupBaseValue.length;
+        if (el.isContentEditable) {
+          const sel = this.lineSelectionOrEnd(el, this.lineEditorBodyOf(el));
+          dictationPopupBaseValue = this.lineEditorBodyOf(el);
+          dictationPopupSelStart = sel.start;
+          dictationPopupSelEnd = sel.end;
+        } else {
+          dictationPopupBaseValue = el.value;
+          dictationPopupSelStart = el.selectionStart ?? dictationPopupBaseValue.length;
+          dictationPopupSelEnd = el.selectionEnd ?? dictationPopupBaseValue.length;
+        }
 
         // Reverted the blob: URL navigation tried earlier this session -- it broke mic access
         // (SpeechRecognition/getUserMedia), likely because a blob:-origin popup does not get the
@@ -3416,9 +3490,16 @@ Alpine.data('plannerApp', () => ({
         const el = dictationPopupTargetEl;
         if (!el || !document.body.contains(el)) return;
         if (data.type === 'dictation-interim' || data.type === 'dictation-final') {
-          el.value = dictationPopupBaseValue.slice(0, dictationPopupSelStart)
-            + (data.text || '')
-            + dictationPopupBaseValue.slice(dictationPopupSelEnd);
+          const dictated = data.text || '';
+          if (el.isContentEditable) {
+            const around = this.lineMarkupAround(dictationPopupBaseValue, dictationPopupSelStart, dictationPopupSelEnd);
+            this.fillLineEditor(el, around.before + dictated + around.after);
+            this.placeLineCaret(el, dictationPopupSelStart + dictated.length);
+          } else {
+            el.value = dictationPopupBaseValue.slice(0, dictationPopupSelStart)
+              + dictated
+              + dictationPopupBaseValue.slice(dictationPopupSelEnd);
+          }
           el.dispatchEvent(new window.Event('input', { bubbles: true }));
           if (data.closed) {
             this.sttListening = false;
@@ -3438,6 +3519,16 @@ Alpine.data('plannerApp', () => ({
       // Inserts text at the current cursor/selection of a text input or textarea and fires a
       // native 'input' event so existing x-model/@input bindings pick up the change unchanged.
       insertTextIntoField(el, text) {
+        if (el.isContentEditable) {
+          const body = this.lineEditorBodyOf(el);
+          const sel = this.lineSelectionOrEnd(el, body);
+          const around = this.lineMarkupAround(body, sel.start, sel.end);
+          this.fillLineEditor(el, around.before + text + around.after);
+          el.dispatchEvent(new window.Event('input', { bubbles: true }));
+          el.focus();
+          this.placeLineCaret(el, sel.start + text.length);
+          return;
+        }
         const baseValue = el.value;
         const selStart = el.selectionStart ?? baseValue.length;
         const selEnd = el.selectionEnd ?? baseValue.length;
@@ -3551,6 +3642,18 @@ Alpine.data('plannerApp', () => ({
         if (idx >= lines.length) return;
         let line = lines[idx] || '';
 
+        // A non-empty selection inside the live editor gets real inline formatting; the input event it
+        // fires stores the markup. With only a caret the whole line is toggled, as before.
+        const execMap = { bold: 'bold', italic: 'italic', underline: 'underline', strike: 'strikeThrough' };
+        const editorEl = this.cardLineEl(card, idx);
+        if (execMap[formatType] && editorEl && document.activeElement === editorEl) {
+          const sel = this.lineSelectionOffsets(editorEl);
+          if (sel && sel.start !== sel.end) {
+            document.execCommand(execMap[formatType]);
+            return;
+          }
+        }
+
         const prefixMap = { bold: '**', italic: '*', strike: '~~', underline: '__' };
         if (formatType === 'clear') {
           line = line.replace(/\*\*|~~|__|\*/g, '')
@@ -3614,6 +3717,10 @@ Alpine.data('plannerApp', () => ({
         lines[idx] = line;
         card.content = lines.join('\n');
         this.syncCardsToDailyNote();
+        if (card._activeLineIndex === idx && editorEl) {
+          this.fillLineEditor(editorEl, lineEditorSplitPrefix(line).body);
+          this.placeLineCaret(editorEl, 'end');
+        }
       },
 
       cardNoteColor(card) {

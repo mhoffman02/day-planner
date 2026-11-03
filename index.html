@@ -846,7 +846,7 @@
                             </template>
                             <span class="note-line-body" :class="{ 'note-line-checked': isLineChecked(line) }" x-html="renderCardLine(getLineTextWithoutCheckbox(line), cardLines(card).length === 1 && !line)"></span>
                           </div>
-                          <input type="text" x-show="card._activeLineIndex === idx" :id="'card-line-' + card.id + '-' + idx" :value="line" @input="updateCardLine(card, idx, $event.target.value)" @keydown="handleLineKeydown($event, card, idx)" @paste="handleLinePaste($event, card, idx)" @blur="stopEditingLine(card, idx)" :placeholder="cardLines(card).length === 1 && idx === 0 ? 'Type notes for this topic (e.g. - #index [Topic] key decisions...)' : ''" class="note-card-line-input" aria-label="Note line">
+                          <div class="note-card-line-edit" x-show="card._activeLineIndex === idx"><span class="note-card-line-prefix" x-show="lineEditorPrefixLabel(line)" x-text="lineEditorPrefixLabel(line)"></span><div contenteditable="true" :id="'card-line-' + card.id + '-' + idx" @input="onLineInput(card, idx, $event)" @keydown="handleLineKeydown($event, card, idx)" @paste="handleLinePaste($event, card, idx)" @blur="stopEditingLine(card, idx)" :data-placeholder="cardLines(card).length === 1 && idx === 0 ? 'Type notes for this topic (e.g. - #index [Topic] key decisions...)' : ''" class="note-card-line-input note-card-line-rich" title="Note line"></div></div>
                         </div>
                       </template>
                     </div>

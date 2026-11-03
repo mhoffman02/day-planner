@@ -121,11 +121,11 @@ for (const c of await bothClients()) {
       assert.equal(card.content, 'p1\np2\nlast');
     });
 
-    it('leaves a single plain line to the browser', async () => {
+    it('inserts a single plain line as text, never as foreign HTML', async () => {
       const { vm, card } = vmWith('alpha');
-      const ev = pasteEvent({ 'text/plain': 'word' });
+      const ev = pasteEvent({ 'text/html': '<span style="color:red">word</span>', 'text/plain': 'word' });
       await vm.handleLinePaste(ev, card, 0);
-      assert.equal(ev.prevented, false);
+      assert.equal(ev.prevented, true);
       assert.equal(card.content, 'alpha');
     });
   });
