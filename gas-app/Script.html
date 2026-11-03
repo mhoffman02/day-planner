@@ -2705,8 +2705,7 @@
       sttRefreshedFlash: false,
       sttScratchDocUrl: '',
       sttScratchCreating: false,
-      docViewOpen: false, // Notes panel Google Doc view is showing
-      docView: { loading: false, error: '', blocks: [], docUrl: '', headingLink: '', forDate: '' },
+      docLink: { url: '', forDate: '' }, // href of the Open Notes in Docs anchor: the heading of the selected day in the monthly Doc
       noteViewMode: 'cards', // cards (Option 1) or doc (Option 2)
       quoteCardCollapsed: false,
       noteFilterMenuOpen: false,
@@ -4703,7 +4702,7 @@
       // stale server data, and the user’s in-progress edit is silently reverted mid-keystroke.
       async loadDayData(opts = {}) {
         const dateStr = this.selectedDate;
-        if (this.docViewOpen) this.loadDocView();
+        this.loadDocLink();
         this.resolveStaleDayNotices(dateStr);
         let cached = dpGetCached(dateStr);
         if (!cached) {
@@ -6781,35 +6780,19 @@
         }
       },
 
-      // One Doc block as the same rich HTML the cards show: runs are joined into note markup (real Doc bold,
-      // italic and links become markers); the template renders it through renderCardLine, which escapes the rest.
-      docBlockMarkup(block) {
-        return (block.runs || []).map((r) => {
-          let t = r.text || '';
-          if (t && r.bold) t = '**' + t + '**';
-          if (t && r.italic) t = '*' + t + '*';
-          if (t && r.href && /^(https?|mailto):[^\]\s]+$/.test(r.href)) t = '[[link:' + r.href + ']]' + t + '[[/link]]';
-          return t;
-        }).join('');
-      },
-
-      // Notes panel Google Doc view: a read-only render of the selected day from the real monthly Doc.
-      async toggleDocView() {
-        this.docViewOpen = !this.docViewOpen;
-        if (this.docViewOpen) await this.loadDocView();
-      },
-
-      async loadDocView() {
+      // Href for the Open Notes in Docs anchor. Fetched on day change, not on click: a window opened after an
+      // await loses the click gesture, so the anchor needs its href before the user reaches it.
+      async loadDocLink() {
         const dateStr = this.selectedDate;
-        this.docView = { ...this.docView, loading: true, error: '', forDate: dateStr };
+        if (this.docLink.forDate !== dateStr) this.docLink = { url: '', forDate: dateStr };
         try {
           const r = await this.bridge.getDayDocView(dateStr);
           if (this.selectedDate !== dateStr) return;
-          if (!r || r.ok !== true) throw new Error((r && r.error) || 'The Google Doc view could not be loaded');
-          this.docView = { loading: false, error: '', blocks: r.blocks || [], docUrl: r.docUrl || '', headingLink: r.headingLink || '', forDate: dateStr };
+          if (!r || r.ok !== true) throw new Error((r && r.error) || 'The notes Doc link could not be loaded');
+          this.docLink = { url: r.headingLink || r.docUrl || '', forDate: dateStr };
         } catch (err) {
-          console.error('loadDocView: could not load the Google Doc view for ' + dateStr + ', showing the error in the panel:', err.stack);
-          this.docView = { loading: false, error: err.message, blocks: [], docUrl: '', headingLink: '', forDate: dateStr };
+          console.error('loadDocLink: could not load the notes Doc link for ' + dateStr + ', the Open Notes in Docs link stays disabled:', err.stack);
+          if (this.selectedDate === dateStr) this.docLink = { url: '', forDate: dateStr };
         }
       },
 

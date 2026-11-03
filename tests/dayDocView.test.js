@@ -127,46 +127,32 @@ describe('getDayDocView (Code.gs)', () => {
 });
 
 for (const c of await bothClients()) {
-  describe(`Google Doc view [${c.label}]`, () => {
-    const view = { ok: true, blocks: [{ style: 'p', runs: [{ text: 'hi' }] }], docUrl: 'https://d/edit', headingLink: 'https://d/edit#heading=h.1' };
+  describe(`Open Notes in Docs link [${c.label}]`, () => {
+    const view = { ok: true, blocks: [], docUrl: 'https://d/edit', headingLink: 'https://d/edit#heading=h.1' };
     const vm = (over = {}) => makeVm(c.factory, { selectedDate: '2031-03-12', ...over });
 
-    it('opening the view loads the selected day through the bridge', async () => {
+    it('the toggle and inline view are gone', () => {
+      const v = vm();
+      assert.equal(v.toggleDocView, undefined);
+      assert.equal(v.docViewOpen, undefined);
+      assert.equal(v.docBlockMarkup, undefined);
+    });
+
+    it('loadDocLink keeps the day heading link for the selected day', async () => {
       const seen = [];
       const v = vm({ bridge: { getDayDocView: async (d) => { seen.push(d); return view; } } });
-      await v.toggleDocView();
-      assert.equal(v.docViewOpen, true);
+      await v.loadDocLink();
       assert.deepEqual(seen, ['2031-03-12']);
-      assert.deepEqual(v.docView.blocks, view.blocks);
-      assert.equal(v.docView.headingLink, view.headingLink);
-      assert.equal(v.docView.loading, false);
+      assert.equal(v.docLink.url, view.headingLink);
     });
 
-    it('docBlockMarkup renders stored markup and Doc links as rich text, escaping the rest', () => {
-      const v = vm();
-      const html = v.renderCardLine(v.docBlockMarkup({ style: 'p', runs: [{ text: 'a **bold** <i>x</i> ' }, { text: 'go', href: 'https://x.com/d' }] }), false);
-      assert.match(html, /<span class="note-render-bold">bold<\/span>/);
-      assert.match(html, /&lt;i&gt;x&lt;\/i&gt;/);
-      assert.match(html, /<a [^>]*href="https:\/\/x\.com\/d"[^>]*>go<\/a>/);
-      assert.doesNotMatch(html, /\*\*/);
-    });
-
-    it('closing the view makes no call', async () => {
-      let calls = 0;
-      const v = vm({ docViewOpen: true, bridge: { getDayDocView: async () => { calls += 1; return view; } } });
-      await v.toggleDocView();
-      assert.equal(v.docViewOpen, false);
-      assert.equal(calls, 0);
-    });
-
-    it('a failed load shows the message in the panel and logs the stack', async () => {
+    it('a failed load leaves the link empty and logs the stack', async () => {
       const v = vm({ bridge: { getDayDocView: async () => ({ ok: false, error: 'Notes Doc D1 has 2 tabs' }) } });
       const errors = [];
       const real = console.error;
       console.error = (...a) => errors.push(a.join(' '));
-      try { await v.toggleDocView(); } finally { console.error = real; }
-      assert.equal(v.docView.error, 'Notes Doc D1 has 2 tabs');
-      assert.deepEqual(v.docView.blocks, []);
+      try { await v.loadDocLink(); } finally { console.error = real; }
+      assert.equal(v.docLink.url, '');
       assert.equal(errors.length, 1);
     });
 
@@ -174,17 +160,16 @@ for (const c of await bothClients()) {
       let release;
       const slow = new Promise((r) => { release = r; });
       const v = vm({ bridge: { getDayDocView: () => slow } });
-      const p = v.toggleDocView();
+      const p = v.loadDocLink();
       v.selectedDate = '2031-03-13';
       release(view);
       await p;
-      assert.deepEqual(v.docView.blocks, []);
+      assert.equal(v.docLink.url, '');
     });
 
-    it('moving to another day while the view is open reloads it', async () => {
+    it('moving to another day refreshes the link', async () => {
       const seen = [];
       const v = vm({
-        docViewOpen: true,
         bridge: {
           getDayDocView: async (d) => { seen.push(d); return view; },
           getDailyData: async (d) => ({ date: d, tasks: [], calendarEvents: [], noteContent: '' })
@@ -198,19 +183,17 @@ for (const c of await bothClients()) {
   });
 }
 
-test('both Index copies bind the Doc view toggle, the link and the blocks', () => {
+test('both Index copies carry a real Open Notes in Docs anchor and no inline Doc view', () => {
   for (const p of ['gas-app/Index.html', 'index.html']) {
     const src = read(p);
-    assert.match(src, /@click="toggleDocView\(\)"/, p);
-    assert.match(src, /class="note-gdoc-container" x-show="docViewOpen"/, p);
-    assert.match(src, /:href="docView\.headingLink"[^>]*target="_blank"[^>]*rel="noopener noreferrer"/, p);
-    assert.match(src, /x-for="\(block, bi\) in docView\.blocks"/, p);
-    assert.match(src, /x-show="noteViewMode === 'cards' &amp;&amp; !docViewOpen"|x-show="noteViewMode === 'cards' && !docViewOpen"/, p);
+    assert.match(src, /<a [^>]*:href="docLink\.url \|\| false"[^>]*target="_blank"[^>]*rel="noopener noreferrer"/, p);
+    assert.match(src, /aria-label="Open Notes in Docs"/, p);
+    assert.doesNotMatch(src, /toggleDocView|docViewOpen|note-gdoc-container|Google Doc view/, p);
   }
 });
 
-test('both style copies define the Doc view container', () => {
+test('both style copies drop the inline Doc view styles', () => {
   for (const p of ['src/styles.css', 'gas-app/Styles.html']) {
-    assert.match(read(p), /\.note-gdoc-container\s*\{/, p);
+    assert.doesNotMatch(read(p), /\.note-gdoc-container\s*\{/, p);
   }
 });
