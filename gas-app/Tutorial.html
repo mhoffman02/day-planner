@@ -120,7 +120,7 @@
   <section aria-labelledby="heading-tut-ready">
     <h2 id="heading-tut-ready" class="about-section-heading">Before You Start</h2>
     <p class="about-paragraph">
-      Exercises T09 to T15 need the Gmail hub. Change these settings in the <a x-show="hubLink.searchUrl" :href="hubLink.searchUrl" target="_blank" rel="noopener noreferrer" title="Find it in Google Drive (you should see exactly one)">Hub Config Sheet</a><i x-show="!hubLink.searchUrl">Hub Config Sheet</i> (<b>About</b> &rsaquo; <b>Automatic Tasks</b> &rsaquo; <b>Hub settings</b>). If an exercise needs a setting that is off, skip it. That is a setup gap, not a failure.
+      Exercises T09 to T15, T19 and T20 need the Gmail hub. Change these settings in the <a x-show="hubLink.searchUrl" :href="hubLink.searchUrl" target="_blank" rel="noopener noreferrer" title="Find it in Google Drive (you should see exactly one)">Hub Config Sheet</a><i x-show="!hubLink.searchUrl">Hub Config Sheet</i> (<b>About</b> &rsaquo; <b>Automatic Tasks</b> &rsaquo; <b>Hub settings</b>). If an exercise needs a setting that is off, skip it. That is a setup gap, not a failure.
     </p>
     <p class="about-paragraph hub-sheet-link-error" role="alert" x-show="hubError">
       <span x-text="'Could not read the hub settings: ' + hubError"></span>
@@ -139,7 +139,7 @@
           <tr>
             <td><code>GMAIL_ROUTER</code> (Gmail hub)</td>
             <td x-text="flagOn('GMAIL_ROUTER') ? 'On' : 'Off'"></td>
-            <td>T09 to T15</td>
+            <td>T09 to T15, T19, T20</td>
           </tr>
           <tr>
             <td><code>DRY_RUN</code> (trial run only)</td>
@@ -159,7 +159,7 @@
           <tr>
             <td>Hub schedule (checks your 🎯 labels every few minutes)</td>
             <td x-text="hub &amp;&amp; hub.triggers > 0 ? 'Installed' : 'Not installed'"></td>
-            <td>T10 to T14. Without it, labelled emails are never picked up.</td>
+            <td>T10 to T15. Without it, labelled emails are never picked up.</td>
           </tr>
         </tbody>
       </table>
@@ -173,8 +173,8 @@
       <details class="guide-card about-details tutorial-ex" data-ex="T01" data-title="Add a priority task" x-data="{ id: 'T01' }">
         <summary class="guide-card-title"><span class="tutorial-ex-id">T01</span> Add a priority task <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
         <dl class="tutorial-steps">
-          <dt>Do</dt><dd>On the <b>Daily</b> tab, type <code>#a DP-T01 Call vendor</code> in the new task box and press Enter. The <code>#a</code> goes first; it only counts at the start.</dd>
-          <dt>Look in</dt><dd>Today’s task list on the Daily tab, then Google Tasks.</dd>
+          <dt>Do</dt><dd>On the <b>Today</b> tab, type <code>#a DP-T01 Call vendor</code> in the new task box and press Enter. The <code>#a</code> goes first; it only counts at the start.</dd>
+          <dt>Look in</dt><dd>Today’s task list on the <b>Today</b> tab, then Google Tasks.</dd>
           <dt>Pass if</dt><dd>The task appears in the <b>A</b> group with a code such as <b>A1</b>, its title no longer shows <code>#a</code>, and it is in Google Tasks due today.</dd>
           <dt>Clean up</dt><dd>Keep it for T03, then delete it in Google Tasks.</dd>
         </dl>
@@ -204,8 +204,8 @@
         <summary class="guide-card-title"><span class="tutorial-ex-id">T03</span> Forward a task to tomorrow <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
         <dl class="tutorial-steps">
           <dt>Do</dt><dd>Click the status box of <b>DP-T01</b> and pick <b>Forward to tomorrow</b>.</dd>
-          <dt>Look in</dt><dd>Tomorrow’s Daily page (use the next-day arrow).</dd>
-          <dt>Pass if</dt><dd>Tomorrow has one copy of <b>DP-T01 Call vendor</b>, and today’s task still shows Forwarded.</dd>
+          <dt>Look in</dt><dd>Tomorrow on the <b>Today</b> tab (use the next-day arrow).</dd>
+          <dt>Pass if</dt><dd>Tomorrow has one copy of <b>DP-T01 Call vendor</b>, and today’s task shows the → status.</dd>
           <dt>Clean up</dt><dd>Delete both copies in Google Tasks.</dd>
         </dl>
         <div class="tutorial-ex-actions">
@@ -219,7 +219,7 @@
         <summary class="guide-card-title"><span class="tutorial-ex-id">T04</span> Move a Master Task to today <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
         <dl class="tutorial-steps">
           <dt>Do</dt><dd>In Google Tasks, add <code>DP-T04 Plan offsite</code> with <b>no date</b>. Open the <b>Master Tasks</b> tab (reload if it is not there yet) and click <b>Move to Date</b> on it, with today’s date picked.</dd>
-          <dt>Look in</dt><dd>Today’s task list on the Daily tab.</dd>
+          <dt>Look in</dt><dd>Today’s task list on the <b>Today</b> tab.</dd>
           <dt>Pass if</dt><dd><b>DP-T04 Plan offsite</b> is on today’s list with a priority code, and you did not have to retype it.</dd>
           <dt>Clean up</dt><dd>Delete it in Google Tasks.</dd>
         </dl>
@@ -233,7 +233,7 @@
       <details class="guide-card about-details tutorial-ex" data-ex="T05" data-title="Plan something months ahead" x-data="{ id: 'T05' }">
         <summary class="guide-card-title"><span class="tutorial-ex-id">T05</span> Plan something months ahead <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
         <dl class="tutorial-steps">
-          <dt>Do</dt><dd>On the <b>Future Planning</b> tab, add <code>DP-T05 Budget review</code> in a month at least two months away.</dd>
+          <dt>Do</dt><dd>On the <b>Future</b> tab, in the card for a month at least two months away, type <code>DP-T05 Budget review</code> in <b>Add big item...</b> and click <b>Add item</b>.</dd>
           <dt>Look in</dt><dd>Google Tasks.</dd>
           <dt>Pass if</dt><dd>There is a Google Task <b>DP-T05 Budget review</b> due on that date, with <code>[Future]</code> in its details.</dd>
           <dt>Clean up</dt><dd>Delete it in Google Tasks.</dd>
@@ -255,7 +255,7 @@
       <details class="guide-card about-details tutorial-ex" data-ex="T06" data-title="Group a note card by category" x-data="{ id: 'T06' }">
         <summary class="guide-card-title"><span class="tutorial-ex-id">T06</span> Group a note card by category <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
         <dl class="tutorial-steps">
-          <dt>Do</dt><dd>In today’s notes, add a card <code>DP-T06 test card</code> and tick <b>Work</b> and <b>Meeting</b>. Then set the Category Filter to <b>Meeting</b>.</dd>
+          <dt>Do</dt><dd>In today’s notes, click <b>+</b> (Add Topic Card), type <code>DP-T06</code> in <b>Topic</b> and <code>test card</code> in <b>Summary</b>, then toggle <b>Work</b> and <b>Meeting</b> under the card. Open the filter menu (tune icon) and set <b>Category Filter:</b> to <b>Meeting</b>.</dd>
           <dt>Look in</dt><dd>The notes column, then this month’s notes Doc in your Day Planner folder.</dd>
           <dt>Pass if</dt><dd>The card stays visible under the Meeting filter, and the Doc shows it with <code>#category: Work, Meeting</code>.</dd>
           <dt>Clean up</dt><dd>Delete the card and clear the filter.</dd>
@@ -270,8 +270,8 @@
       <details class="guide-card about-details tutorial-ex" data-ex="T07" data-title="Log a decision with #index" x-data="{ id: 'T07' }">
         <summary class="guide-card-title"><span class="tutorial-ex-id">T07</span> Log a decision with #index <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
         <dl class="tutorial-steps">
-          <dt>Do</dt><dd>Start a note card heading with <code>#index [DP-T07] Approved the test plan</code>.</dd>
-          <dt>Look in</dt><dd>The <b>Monthly Index</b> tab.</dd>
+          <dt>Do</dt><dd>In today’s notes, click <b>+</b> (Add Topic Card). Type <code>DP-T07</code> in <b>Topic</b> and <code>Approved the test plan</code> in <b>Summary</b>.</dd>
+          <dt>Look in</dt><dd>The <b>Index</b> tab (page title Monthly Index and Decisions).</dd>
           <dt>Pass if</dt><dd>An entry under the topic <b>DP-T07</b> shows today’s date and the text <b>Approved the test plan</b>.</dd>
           <dt>Clean up</dt><dd>Delete the note card.</dd>
         </dl>
@@ -356,7 +356,7 @@
         <dl class="tutorial-steps">
           <dt>Needs</dt><dd>Same as T11.</dd>
           <dt>Do</dt><dd>Send yourself a new email <code>DP-T12</code> plus today’s date and apply <b>🎯/Task-Today</b>. Wait about 10 minutes and reload the app.</dd>
-          <dt>Look in</dt><dd>Today’s task list on the Daily tab.</dd>
+          <dt>Look in</dt><dd>Today’s task list on the <b>Today</b> tab.</dd>
           <dt>Pass if</dt><dd><b>DP-T12</b> is on today’s list, with the Gmail link in its details.</dd>
           <dt>Clean up</dt><dd>Delete the task in Google Tasks.</dd>
         </dl>
@@ -372,7 +372,7 @@
         <dl class="tutorial-steps">
           <dt>Needs</dt><dd>Same as T11.</dd>
           <dt>Do</dt><dd>Send yourself a new email <code>DP-T13</code> plus today’s date and apply <b>🎯/Waiting</b>. Wait about 10 minutes.</dd>
-          <dt>Look in</dt><dd>Google Tasks, and the Daily page on the follow-up date.</dd>
+          <dt>Look in</dt><dd>Google Tasks, and that day on the <b>Today</b> tab, on the follow-up date.</dd>
           <dt>Pass if</dt><dd>A task <b>DP-T13</b> exists with <code>[Waiting]</code> in its details, due on a follow-up date.</dd>
           <dt>Clean up</dt><dd>Delete the task in Google Tasks.</dd>
         </dl>
@@ -387,9 +387,9 @@
         <summary class="guide-card-title"><span class="tutorial-ex-id">T14</span> Send an email to the next Core meeting <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
         <dl class="tutorial-steps">
           <dt>Needs</dt><dd>Same as T11, plus <code>NCMMS_CORE_PILOT</code> on. No notes Doc id is needed: nothing is written to a Doc.</dd>
-          <dt>Do</dt><dd>Open <b>Meeting Prep</b> and note the carry-in count. Send yourself a new email <code>DP-T14b</code> plus today’s date and apply <b>🎯/Meeting/NCMMS-Core</b>. Then click <b>Refresh</b> on Meeting Prep: it checks your mail now (no waiting for the schedule; a second click within a minute only reloads).</dd>
-          <dt>Look in</dt><dd>The Meeting Prep tab, under <b>Carry-ins</b>: the table row and the copy-ready bullet list below it.</dd>
-          <dt>Pass if</dt><dd>The carry-in count went up by exactly one, the row shows the email subject linked to the email, and the copy-ready bullet list contains that one bullet.</dd>
+          <dt>Do</dt><dd>Open <b>Meeting Prep</b> and note the carry-in count. Send yourself a new email <code>DP-T14b</code> plus today’s date and apply <b>🎯/Meeting/NCMMS-Core</b>. Then click <b>Refresh</b> on Meeting Prep: it checks your mail now (no waiting for the schedule; a second click within a minute only reloads and shows “next check allowed in N s”).</dd>
+          <dt>Look in</dt><dd>The Meeting Prep tab, expand <b>Carry-ins (N)</b>. It opens by itself only when it holds 1 to 5 items.</dd>
+          <dt>Pass if</dt><dd>The carry-in count went up by exactly one, a new item shows the email subject linked to the email, and the <b>Copy-ready bullet list</b> box has one more bullet.</dd>
           <dt>Clean up</dt><dd>Nothing to delete: no Doc is written.</dd>
         </dl>
         <div class="tutorial-ex-actions">
@@ -426,7 +426,7 @@
         <summary class="guide-card-title"><span class="tutorial-ex-id">T16</span> Forward to next week, then Undo <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
         <dl class="tutorial-steps">
           <dt>Do</dt><dd>Add the task <code>DP-T16 Draft memo</code>. Click its status box, pick <b>Forward to next week</b>, then click <b>Undo</b> on the message at the bottom of the screen.</dd>
-          <dt>Look in</dt><dd>Today’s task list, then next Monday’s Daily page.</dd>
+          <dt>Look in</dt><dd>Today’s task list, then next Monday on the <b>Today</b> tab.</dd>
           <dt>Pass if</dt><dd>Today’s <b>DP-T16 Draft memo</b> is back to Open, and next Monday has no copy of it.</dd>
           <dt>Clean up</dt><dd>Delete it in Google Tasks.</dd>
         </dl>
@@ -441,8 +441,8 @@
         <summary class="guide-card-title"><span class="tutorial-ex-id">T17</span> Delegate with a check-back day <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
         <dl class="tutorial-steps">
           <dt>Do</dt><dd>Add the task <code>DP-T17 Collect timesheets</code>. Click its status box, pick <b>Delegate…</b>, type <code>Pat</code>, and click the <b>tomorrow</b> button.</dd>
-          <dt>Look in</dt><dd>Today’s task list, then tomorrow’s Daily page.</dd>
-          <dt>Pass if</dt><dd>Today’s task shows <b>Ⓓ</b> and is not crossed out, and tomorrow has an open task <b>Check back: DP-T17 Collect timesheets (Pat)</b>.</dd>
+          <dt>Look in</dt><dd>Today’s task list, then tomorrow on the <b>Today</b> tab.</dd>
+          <dt>Pass if</dt><dd>Today’s task shows <b>Ⓓ</b> and is not crossed out, and tomorrow has an open task whose title contains <b>Check back: DP-T17 Collect timesheets (Pat)</b>, with a priority code in front.</dd>
           <dt>Clean up</dt><dd>Delete both in Google Tasks.</dd>
         </dl>
         <div class="tutorial-ex-actions">
@@ -456,7 +456,7 @@
         <summary class="guide-card-title"><span class="tutorial-ex-id">T18</span> Forward a Master Task <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
         <dl class="tutorial-steps">
           <dt>Do</dt><dd>In Google Tasks, add <code>DP-T18 Plan offsite</code> with <b>no date</b>. On the <b>Master Tasks</b> tab, click its status box and pick <b>Forward to next week</b>.</dd>
-          <dt>Look in</dt><dd>Its row on Master Tasks, then next Monday’s Daily page.</dd>
+          <dt>Look in</dt><dd>Its row on Master Tasks, then next Monday on the <b>Today</b> tab.</dd>
           <dt>Pass if</dt><dd>The row shows next Monday’s date with <b>Jump to Day</b>, and next Monday has <b>DP-T18 Plan offsite</b> with a priority code.</dd>
           <dt>Clean up</dt><dd>Delete both in Google Tasks.</dd>
         </dl>
@@ -479,7 +479,7 @@
         <dl class="tutorial-steps">
           <dt>Do</dt><dd>On <b>About</b>, under <b>Automatic Tasks</b>, click <b>Create Gmail labels</b>.</dd>
           <dt>Look in</dt><dd>The message next to the buttons, then the label list in Gmail (left side).</dd>
-          <dt>Pass if</dt><dd>The message names what was created (or says all labels already exist), and Gmail shows <b>🎯</b> with Task, Task-Today, Waiting, Meeting (with NCMMS-Core and NCMMS-Daily under it), Read and Review.</dd>
+          <dt>Pass if</dt><dd>The message names what was created (or says all labels already exist), and Gmail shows <b>🎯</b> with Task, Task-Today, Waiting, Decision, Meeting (with NCMMS-Core and NCMMS-Daily under it), Read and Review.</dd>
           <dt>Clean up</dt><dd>Nothing to clean up; running it again creates nothing new.</dd>
         </dl>
         <div class="tutorial-ex-actions">

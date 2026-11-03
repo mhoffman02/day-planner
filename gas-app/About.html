@@ -87,11 +87,11 @@
         </thead>
         <tbody>
           <tr>
-            <td><b>Daily</b></td>
+            <td><b>Today</b></td>
             <td>Your main workspace: today's tasks, today's schedule, and today's notes, side by side, plus a short quote for the day (click its header to collapse it). Click an appointment for its details; hover its note icon to see the same details (time, place, Meet link, description) without opening it.</td>
           </tr>
           <tr>
-            <td><b>Monthly Calendar</b></td>
+            <td><b>Month</b></td>
             <td>A full-month view of your appointments, so you can see what's coming up at a glance.</td>
           </tr>
           <tr>
@@ -99,16 +99,16 @@
             <td>Your longer-running to-do list, grouped by category (Work, Personal, Financial, Projects, and more) — for things that aren't tied to one specific day yet.</td>
           </tr>
           <tr>
-            <td><b>Monthly Index</b></td>
+            <td><b>Index</b> (page title Monthly Index and Decisions)</td>
             <td>A running, searchable log of the key decisions and outcomes you've tagged with <code>#index</code> in your notes, so you can find "what did we decide about X" without digging back through old notes.</td>
           </tr>
           <tr>
-            <td><b>Future Planning</b></td>
+            <td><b>Future</b> (page title Future Planning)</td>
             <td>A 12-month look-ahead for goals and milestones that are more than a month out. Items are saved as Google Tasks, so you can also see them in Google Tasks.</td>
           </tr>
           <tr>
             <td><b>Triage</b> <i>(optional)</i></td>
-            <td>A board of the Gmail threads you've labelled with 🎯, showing what the hub did with each one (Done, Error, or Waiting). From each row you can make it a task, send it to a meeting, or <b>Archive</b> it or <b>Delete</b> it (moves it to Gmail Trash). Only threads still in your Inbox are listed, each with a one-line preview of the latest message (click it for more), and the <b>Result</b> column says what happened. The board opens at once from its last copy, marked out of date until it refreshes; if Gmail’s per-minute limit is reached, it waits about a minute before reading Gmail again. Appears once the Gmail hub is on.</td>
+            <td>A board of the Gmail threads you've labelled with 🎯, showing what the hub did with each one (Done, Failed, Deferred, In progress, or Already done). From each row you can make it a task, send it to a meeting, or <b>Archive</b> it or <b>Delete</b> it (moves it to Gmail Trash). Only threads still in your Inbox are listed, each with a one-line preview of the latest message (click it for more), and the <b>Result</b> column says what happened. The board opens at once from its last copy, marked out of date until it refreshes; if Gmail’s per-minute limit is reached, it waits about a minute before reading Gmail again. Appears once the Gmail hub is on.</td>
           </tr>
           <tr>
             <td><b>Meeting Prep</b> <i>(optional)</i></td>
@@ -146,7 +146,7 @@
           <span class="material-symbols-outlined">move_item</span> Moving a Task to Today
         </h3>
         <p class="guide-card-text">
-          Open <b>Master Tasks</b> to see everything on your longer-term list. When you're ready to work on one, pick a day and click <b>Move to Date</b> — it's added to that day's task list with its priority kept, no retyping. Its status menu has every choice the Daily page has: <b>Forward to today</b>, <b>Forward to next week</b>, <b>Forward to date…</b>, and <b>Delegate…</b>, each with <b>Undo</b>.
+          Open <b>Master Tasks</b> to see everything on your longer-term list. When you're ready to work on one, pick a day and click <b>Move to Date</b> — it's added to that day's task list with its priority kept, no retyping. Its status menu has every choice the Today tab has: <b>Forward to tomorrow</b> (the label follows the day), <b>Forward to next week</b>, <b>Forward to date…</b>, and <b>Delegate…</b>, each with <b>Undo</b>.
         </p>
       </article>
     </section>
@@ -170,7 +170,7 @@
           <span class="material-symbols-outlined">tag</span> Logging a Decision So You Can Find It Later
         </h3>
         <p class="guide-card-text">
-          Start a note card heading with <code>#index [Topic]</code>, e.g. <code>#index [Budget] Approved the Q3 budget</code>. It shows up in the <b>Monthly Index</b> tab, in date order — a running record of the calls you've made, without any extra filing.
+          Give a note card a <b>Topic</b> and a <b>Summary</b>, e.g. Topic <code>Budget</code>, Summary <code>Approved the Q3 budget</code> (in the notes Doc the line reads <code>#index [Budget] Approved the Q3 budget</code>). It shows up in the <b>Index</b> tab, in date order — a running record of the calls you've made, without any extra filing.
         </p>
       </article>
 
@@ -315,7 +315,7 @@
           <span class="material-symbols-outlined">mail</span> How the Gmail Hub Works
         </h3>
         <p class="guide-card-text">
-          The hub checks your 🎯 labels every few minutes, once its schedule is installed. On the Meeting Prep page, <b>Refresh</b> checks your mail now instead of waiting for the schedule. Each email is handled once, so leaving the label on is safe. Other 🎯 labels (Read, Review, Meeting, NCMMS-Daily) are recognized but don't do anything yet.
+          The hub checks your 🎯 labels every few minutes, once its schedule is installed. On the Meeting Prep page, <b>Refresh</b> checks your mail now instead of waiting for the schedule. Each email is handled once, so leaving the label on is safe. Other 🎯 labels (Read, Review, Meeting without NCMMS-Core, NCMMS-Daily) are recognized but don't do anything yet.
         </p>
         <div x-data="{
             regrantUrl: null,

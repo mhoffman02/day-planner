@@ -5,6 +5,12 @@ Order (2026-10-30, user): autonomous agent work first (item A3); everything that
 
 ## Agent work: next session (no user needed)
 
+### A0. Tutorial coverage gaps (2026-11-02; stale labels already fixed)
+- [ ] Add exercises for features the Tutorial skips: one-time folder setup, event add/edit, Month view and Search,
+  task statuses (Open/In Progress/Done/Canceled, Forward to date), Master Find box and filters, Go-live and Undo
+  flow, Sync button, voice dictation, Quote strip, install to desktop or phone. Also verify against the UI that the
+  T07 Topic/Summary steps and the T03 → status wording match what a user sees (live check on HOME `/dev`).
+
 ### A3. Solid Code ratchets: remaining shrinks (2026-11-01; shipped items in TODO_HISTORY)
 
 Phase 33. Done 2026-11-01 (shipped items in TODO_HISTORY): rpc-guard 46 -> 0, html 21 -> 12 per page, axe 0 (`axe-baseline.json` is `{}`), mirror 107 -> 72, `var` suppressions 858 -> 0, mutation survivors: searchEngine 360 -> 20, taskEngine 74 -> 24, futureMatrixEngine 22 -> 10, calendarEngine 134 -> 6 (all left equivalent; shipped items in TODO_HISTORY).
