@@ -41,8 +41,9 @@ delegator), not a generic range-write endpoint (user decision 2026-10-10: typed 
 
 ## Auth and errors
 
-The rpc token dies every 7 days (consent screen stays in Testing). From day 6 the tool warns on stderr; on expiry it
-exits 2 with `invalid_grant … 7-day`. Either way, **remind the user** to rerun the rpc login. To check the token
+The consent screen went In production (unverified) on 2026-11-03, so a token minted after the rerun login should no
+longer expire in 7 days. Until a token is seen to outlive 7 days (due 2026-11-11) the tool still warns from day 6 and
+exits 2 with `invalid_grant … 7-day` on expiry; either way, **remind the user** to rerun the rpc login. To check the token
 without side effects, run a read-only function **without** `--deploy` (e.g. `npm run rpc -- getHubStatus`).
 Login command, GCP project, clasp credential slots, and a symptom → cause table (404, 403, 401,
 `FUNCTION_NOT_FOUND`, new manifest scope): `references/setup.md`.

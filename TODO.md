@@ -54,7 +54,7 @@ note badge, completing a `Decision:` task adds `#decision <what>` to the last no
 Most items need the user (GSA account, a release go, or a decision). HOME live checks are done (TODO_HISTORY 2026-10-10).
 
 - [ ] **Update WORK** whenever `npm run push:work` has run (the user repoints "Day Planner v1" in the WORK IDE).
-- [ ] **rpc login** (only if an `npm run rpc` `runSelfTest` probe finds the token dead): the user reruns the rpc login.
+- [ ] **rpc login (2026-11-03, consent screen now In production)**: run `! (cd gas-app && npx clasp --user rpc login --creds ~/.config/day-planner/clasp-run-client.json --use-project-scopes --redirect-port 8765)` once so the token is minted under production, then confirm it still works after 7 days, due 2026-11-11 (see PLAN.md).
 - [ ] **Re-check WORK forwards made before v149**: Forward/Delegate on a Daily row set the glyph without making a
   copy (fixed in `2b2d712`). Tasks forwarded on WORK ≤ v148 may be missing from their later day; re-add any.
 - [ ] **Delete the test appointment** "Day Planner e2e test - safe to delete" (HOME calendar, 2026-10-30 14:00, has a
