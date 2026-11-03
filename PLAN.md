@@ -65,7 +65,9 @@ Checklist in [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md). Evals:
 - [x] Decisions: `🎯/Decision` -> `Decision:` Task, `#decision` badge, completion logs `#decision` (@340).
 - [ ] HOME live check of the above: conflict flow verified (2026-10-30); the `Decision:` checks need the user
   (TODO.md B1).
-- [ ] Notes portal: user answers the six decisions in `docs/notes-portal-eval.md`.
+- [x] Notes portal: decisions answered; Doc view, Open-in-Docs link, multi-tab guard (HOME @370).
+- [x] Per-line WYSIWYG notes editor + rich Doc view (HOME @374/@375, 2026-11-03; WORK pushed, user repoints).
+- [ ] Hand-check WYSIWYG: link modal, multi-line paste, Backspace on list line, dictation (TODO.md B1).
 
 ---
 

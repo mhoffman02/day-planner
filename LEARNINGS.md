@@ -349,3 +349,7 @@ live-testing catches it by luck.
 **Needs improvement:**
 - A first ordering test stayed green under the mutant (V8 only calls the comparator as later, earlier); check the test against the mutant before trusting it.
 - Parallel Stryker runs pushed one past the 600 s foreground cap; run per file in the background.
+
+## 2026-11-03
+**Worked well:** Restating the real requirement ("edit and view both look rich, storage is secondary") ended a drift toward raw-markup fixes; keeping the Doc markup and rendering it per line was the smallest change.
+**Needs improvement:** Guessed regexes against rendered HTML (`<strong|b>`) instead of reading the renderer first; compound bash is refused in worktrees, so write script files up front.
