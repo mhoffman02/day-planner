@@ -80,6 +80,8 @@ Most items need the user (GSA account, a release go, or a decision). HOME live c
   likely blocks it (About shows "Approve filter access").
 - [ ] **UAT run (Phase 30)**: work through About > **Tutorial** T01-T20 on HOME, then WORK; paste each run's
   "Copy results" into this file. Failures become TODO items.
+  WORK run 2026-11-02 (user, v191, in progress): T01 FAIL, the Tutorial example put `#a` at the end but the parser only
+  honors a leading tag (`extractInlinePriority`); docs fixed to `#a DP-T01 Call vendor` (re-test T01).
 - [ ] **Optional speed follow-ups** (ranked list from 2026-10-16): time each server step on HOME (folder check, page
   assembly, `Tasks.list`) before deciding on minify-at-push or a shell + cached bundle; `completedMin` on
   `getMasterTasks` only with the user's OK (hides old done undated items).

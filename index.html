@@ -1675,7 +1675,7 @@
           <span class="material-symbols-outlined">format_list_bulleted</span> Priorities and Status
         </h3>
         <p class="guide-card-text">
-          Every task gets a priority letter and number: <b>A</b> for urgent, <b>B</b> for important, <b>C</b> for everything else, then a number for order within that group. Type <code>#a</code>, <code>#b</code>, or <code>#c</code> in the input, or click the priority selector. Hover over or click a task's status box to open its menu, then pick Open, In Progress, Done, Forwarded, Canceled, or Delegated.
+          Every task gets a priority letter and number: <b>A</b> for urgent, <b>B</b> for important, <b>C</b> for everything else, then a number for order within that group. Type <code>#a</code>, <code>#b</code>, or <code>#c</code> at the start of the input, or click the priority selector. Hover over or click a task's status box to open its menu, then pick Open, In Progress, Done, Forwarded, Canceled, or Delegated.
         </p>
       </article>
 
@@ -1760,8 +1760,8 @@
           <tr>
             <td><code>#a</code> <code>#b</code> <code>#c</code></td>
             <td>New task input</td>
-            <td>Sets the task's priority group (A urgent, B important, C everything else).</td>
-            <td><code>Call vendor #a</code></td>
+            <td>Sets the task's priority group (A urgent, B important, C everything else). Type it at the start of the text.</td>
+            <td><code>#a Call vendor</code></td>
           </tr>
           <tr>
             <td><code>|</code></td>
@@ -2242,7 +2242,7 @@
       <details class="guide-card about-details tutorial-ex" data-ex="T01" data-title="Add a priority task" x-data="{ id: 'T01' }">
         <summary class="guide-card-title"><span class="tutorial-ex-id">T01</span> Add a priority task <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
         <dl class="tutorial-steps">
-          <dt>Do</dt><dd>On the <b>Daily</b> tab, type <code>DP-T01 Call vendor #a</code> in the new task box and press Enter.</dd>
+          <dt>Do</dt><dd>On the <b>Daily</b> tab, type <code>#a DP-T01 Call vendor</code> in the new task box and press Enter. The <code>#a</code> goes first; it only counts at the start.</dd>
           <dt>Look in</dt><dd>Today’s task list on the Daily tab, then Google Tasks.</dd>
           <dt>Pass if</dt><dd>The task appears in the <b>A</b> group with a code such as <b>A1</b>, its title no longer shows <code>#a</code>, and it is in Google Tasks due today.</dd>
           <dt>Clean up</dt><dd>Keep it for T03, then delete it in Google Tasks.</dd>
