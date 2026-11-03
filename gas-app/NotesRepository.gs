@@ -19,7 +19,7 @@
 
 const MIME_DOC = 'application/vnd.google-apps.document';
 const NOTES_TITLE_PREFIX = 'Meeting Notes – ';
-const READ_FIELDS = 'revisionId,body.content(startIndex,endIndex,paragraph(paragraphStyle.namedStyleType,elements(startIndex,endIndex,textRun(content,textStyle.link.url))))';
+const READ_FIELDS = 'revisionId,tabs(tabProperties.tabId,childTabs(tabProperties.tabId),documentTab.body.content(startIndex,endIndex,paragraph(paragraphStyle.namedStyleType,elements(startIndex,endIndex,textRun(content,textStyle.link.url)))))';
 
 function docError_(code, message, retryable, cause) {
   const e = new Error(message);
@@ -37,7 +37,9 @@ function isAccessError_(err) {
 
 function fetchDoc_(docId) {
   try {
-    return Docs.Documents.get(docId, { fields: READ_FIELDS });
+    // includeTabsContent: a second tab throws here instead of being silently skipped (only tab 1 would be read).
+    const doc = Docs.Documents.get(docId, { includeTabsContent: true, fields: READ_FIELDS });
+    return { revisionId: doc.revisionId, body: { content: DPEngines.docBodyContent(doc, docId) } };
   } catch (err) {
     if (isAccessError_(err)) throw docError_('DOC_INACCESSIBLE', 'Notes Doc is inaccessible: ' + String(err.message), true, err);
     throw err;

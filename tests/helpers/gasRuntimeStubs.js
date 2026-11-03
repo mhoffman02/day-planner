@@ -182,7 +182,16 @@ function makeAdvancedFakes() {
     },
     Docs: {
       Documents: {
-        get(docId) { return docToApi(docGuard(docId)); },
+        // Like the real API: tabs come back only for includeTabsContent, in place of body. doc.extraTabs adds empty tabs.
+        get(docId, opts) {
+          const doc = docGuard(docId);
+          const api = docToApi(doc);
+          if (!opts || opts.includeTabsContent !== true) return api;
+          const tabs = [{ tabProperties: { tabId: 't.0', index: 0 }, documentTab: { body: api.body } }];
+          for (let n = 1; n <= (doc.extraTabs || 0); n += 1) tabs.push({ tabProperties: { tabId: `t.${n}`, index: n }, documentTab: { body: { content: [] } } });
+          const { body, ...rest } = api;
+          return { ...rest, tabs };
+        },
         create(doc) { return docToApi(newFakeDoc((doc && doc.title) || 'Untitled')); },
         batchUpdate(body, docId) {
           const doc = docGuard(docId);

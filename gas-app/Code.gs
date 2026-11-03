@@ -103,10 +103,13 @@ function docsGetBodyElements_(documentId) {
 
 /** @returns {{revisionId: string, elements: Array<Object>}} Paragraph elements plus the revision they were read at. */
 function docsGetBody_(documentId) {
+  // includeTabsContent so a tab added by hand is seen (and refused) instead of silently ignored: without it the
+  // API returns tab 1 only and writes default to tab 1.
   const doc = Docs.Documents.get(documentId, {
-    fields: 'revisionId,body.content(startIndex,endIndex,paragraph(paragraphStyle.namedStyleType,bullet,elements(textRun.content,pageBreak)))'
+    includeTabsContent: true,
+    fields: 'revisionId,tabs(tabProperties.tabId,childTabs(tabProperties.tabId),documentTab.body.content(startIndex,endIndex,paragraph(paragraphStyle.namedStyleType,bullet,elements(textRun.content,pageBreak))))'
   });
-  const content = (doc.body && doc.body.content) || [];
+  const content = DPEngines.docBodyContent(doc, documentId);
   return {
     revisionId: doc.revisionId || '',
     elements: content.filter(function (el) { return !!el.paragraph; })
@@ -224,8 +227,8 @@ function buildDaySectionRequests_(baseIndex, dayHeadingText, lines) {
  * @returns {{startIndex: number, endIndex: number}} Character range of the inserted text.
  */
 function docsAppendParagraph_(documentId, text) {
-  const doc = Docs.Documents.get(documentId);
-  const content = doc.body.content;
+  const doc = Docs.Documents.get(documentId, { includeTabsContent: true, fields: 'tabs(tabProperties.tabId,childTabs(tabProperties.tabId),documentTab.body.content(endIndex))' });
+  const content = DPEngines.docBodyContent(doc, documentId);
   const lastEndIndex = content[content.length - 1].endIndex;
   const insertAt = lastEndIndex - 1;
   Docs.Documents.batchUpdate({
@@ -460,7 +463,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 613;
+const BUILD_NUMBER_ = 614;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -2057,6 +2060,8 @@ function getOrCreateDailyDocContent(dateStr, knownDocId) {
     return extracted !== null ? extracted : ('### #index [General] Daily Notes\n- Initialized daily topic card.');
   } catch (err) {
     logError('getOrCreateDailyDocContent(' + dateStr + ')', err);
+    // A second tab must reach the user: the placeholder below would hide it and invite a save into tab 1.
+    if (err && err.code === 'DOC_MULTI_TAB') throw err;
     return '### #index [General] Daily Notes';
   }
 }
