@@ -2108,6 +2108,89 @@
     background: var(--binder-teal-light) !important;
   }
 
+  /* Notes panel Google Doc view: read-only render of the day from the real Doc. */
+  .btn-icon-subtle.btn-gdoc-toggle.active {
+    box-shadow: inset 0 -3px 0 var(--tab-gold);
+  }
+
+  .note-gdoc-container {
+    padding: 6px 4px;
+  }
+
+  .note-gdoc-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .note-gdoc-open {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--binder-teal);
+    text-decoration: none;
+    border-bottom: 1px solid currentColor;
+  }
+
+  .note-gdoc-status,
+  .note-gdoc-empty {
+    margin: 0 0 6px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+
+  .note-gdoc-error {
+    margin: 0 0 6px;
+    font-size: 0.85rem;
+    color: #b3261e;
+  }
+
+  .note-gdoc-block {
+    margin: 0 0 4px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  .note-gdoc-h3 {
+    margin-top: 10px;
+    font-family: var(--font-family-header);
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .note-gdoc-li {
+    position: relative;
+    padding-left: 1.2em;
+  }
+
+  .note-gdoc-li::before {
+    content: "\2022";
+    position: absolute;
+    left: 0.35em;
+  }
+
+  .note-gdoc-run.is-bold {
+    font-weight: 700;
+  }
+
+  .note-gdoc-run.is-italic {
+    font-style: italic;
+  }
+
+  [data-theme="dark"] .note-gdoc-error {
+    color: #f2b8b5;
+  }
+
+  [data-theme="dark"] .note-gdoc-open,
+  [data-theme="dark"] .note-gdoc-run a {
+    color: #79d6bd;
+  }
+
   .dropdown-container {
     position: relative;
   }

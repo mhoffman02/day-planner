@@ -17,6 +17,34 @@ describe('GAS Bridge Unit Tests', () => {
     assert.ok(data.noteContent.includes('Executive briefing'));
   });
 
+  it('should build the mock Google Doc view as blocks from the day note, with a Doc link', async () => {
+    const bridge = new GASBridge(true);
+    const view = await bridge.getDayDocView('2026-08-15');
+    assert.equal(view.ok, true);
+    assert.ok(view.blocks.length > 0);
+    assert.ok(view.blocks.every((b) => ['h3', 'li', 'p'].includes(b.style) && b.runs.length === 1));
+    assert.match(view.docUrl, /^https:\/\/docs\.google\.com\/document\/d\//);
+    assert.equal(view.headingLink, view.docUrl);
+  });
+
+  it('should call getDayDocView through google.script.run when not in mock mode', async () => {
+    const seen = [];
+    const view = { ok: true, blocks: [], docUrl: '', headingLink: '' };
+    const run = {
+      withSuccessHandler(ok) { this.ok = ok; return this; },
+      withFailureHandler(no) { this.no = no; return this; },
+      getDayDocView(d) { seen.push(d); this.ok(view); }
+    };
+    globalThis.window = { google: { script: { run } } };
+    try {
+      const got = await new GASBridge(false).getDayDocView('2026-08-15');
+      assert.deepEqual(seen, ['2026-08-15']);
+      assert.equal(got, view);
+    } finally {
+      delete globalThis.window;
+    }
+  });
+
   it('should fetch unified master tasks clearinghouse (undated + incomplete dated, excluding completed dated)', async () => {
     const bridge = new GASBridge(true);
     const masterTasks = await bridge.getMasterTasks('August 2026');

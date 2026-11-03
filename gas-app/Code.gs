@@ -463,7 +463,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 614;
+const BUILD_NUMBER_ = 615;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -1983,6 +1983,32 @@ function isPlainDayHeadingText_(text) {
  * @returns {string|null} Card content text, or null if this date has no section in the doc.
  */
 function extractDaySectionText_(elements, dateStr) {
+  const section = findDaySection_(elements, dateStr);
+  if (!section) return null;
+
+  const contentLines = [];
+  section.body.forEach(function (el) {
+    if (docsElementIsPageBreak_(el)) return;
+    const heading = docsElementHeading_(el);
+    const text = docsElementText_(el);
+    if (heading === 'HEADING_3') {
+      contentLines.push('### ' + text);
+    } else if (docsElementIsListItem_(el)) {
+      contentLines.push('- ' + text);
+    } else if (text.trim()) {
+      contentLines.push(text);
+    }
+  });
+  return contentLines.length > 0 ? contentLines.join('\n') : null;
+}
+
+/**
+ * Finds one day's section in a month Doc's paragraph elements.
+ * @param {Array<Object>} elements Doc body paragraph elements for one monthly doc.
+ * @param {string} dateStr Target date in YYYY-MM-DD format.
+ * @returns {{heading: Object, body: Array<Object>}|null} The day heading and the elements up to the next day heading, or null if the date has no section.
+ */
+function findDaySection_(elements, dateStr) {
   const parts = dateStr.split('-');
   const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 12, 0, 0);
   const dayFormatted = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
@@ -1996,22 +2022,51 @@ function extractDaySectionText_(elements, dateStr) {
   }
   if (dayHeadingIndex === -1) return null;
 
-  const contentLines = [];
+  const body = [];
   for (let j = dayHeadingIndex + 1; j < elements.length; j++) {
-    const el = elements[j];
-    if (isAnyDayHeadingElement_(el)) break;
-    if (docsElementIsPageBreak_(el)) continue;
-    const heading = docsElementHeading_(el);
-    const text = docsElementText_(el);
-    if (heading === 'HEADING_3') {
-      contentLines.push('### ' + text);
-    } else if (docsElementIsListItem_(el)) {
-      contentLines.push('- ' + text);
-    } else if (text.trim()) {
-      contentLines.push(text);
-    }
+    if (isAnyDayHeadingElement_(elements[j])) break;
+    body.push(elements[j]);
   }
-  return contentLines.length > 0 ? contentLines.join('\n') : null;
+  return { heading: elements[dayHeadingIndex], body: body };
+}
+
+/**
+ * Read-only render model of one day of the monthly notes Doc, for the Notes panel Google Doc view. Reads one Doc
+ * (never creates one), keeps bold, italic and https links, and returns blocks of runs instead of HTML so the client
+ * renders it with x-text. headingLink carries the day heading id from this fresh read; heading ids change on every
+ * save, so it is never cached.
+ * @param {string} dateStr Target date in YYYY-MM-DD format.
+ * @returns {{ok: boolean, blocks?: Array<Object>, docUrl?: string, headingLink?: string, error?: string}}
+ */
+function getDayDocView(dateStr) {
+  DPEngines.v_.guard(arguments, 'getDayDocView').param('dateStr').string().matches(/^\d{4}-\d{2}-\d{2}$/).done();
+  try {
+    if (typeof DriveApp === 'undefined' || typeof Docs === 'undefined') return { ok: false, error: 'Google Docs is not available here' };
+    const targetFolder = getValidatedRootFolder();
+    if (!targetFolder) return { ok: false, error: 'The Day Planner folder is not set up yet' };
+    const parts = dateStr.split('-');
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const docName = 'Day Planner Notes - ' + monthNames[parseInt(parts[1], 10) - 1] + ' ' + parts[0];
+    const files = targetFolder.getFilesByName(docName);
+    if (!files.hasNext()) return { ok: true, blocks: [], docUrl: '', headingLink: '' };
+    const docId = files.next().getId();
+    const docUrl = 'https:' + '/' + '/docs.google.com/document/d/' + docId + '/edit';
+    const doc = Docs.Documents.get(docId, {
+      includeTabsContent: true,
+      fields: 'revisionId,tabs(tabProperties.tabId,childTabs(tabProperties.tabId),documentTab.body.content(startIndex,endIndex,paragraph(paragraphStyle(namedStyleType,headingId),bullet,elements(textRun(content,textStyle(bold,italic,link.url)),pageBreak))))'
+    });
+    const elements = DPEngines.docBodyContent(doc, docId).filter(function (el) { return !!el.paragraph; });
+    const section = findDaySection_(elements, dateStr);
+    if (!section) return { ok: true, blocks: [], docUrl: docUrl, headingLink: docUrl };
+    return {
+      ok: true,
+      blocks: DPEngines.dayDocBlocks(section.body),
+      docUrl: docUrl,
+      headingLink: DPEngines.dayDocHeadingLink(docUrl, section.heading)
+    };
+  } catch (err) {
+    return { ok: false, error: logError('getDayDocView(' + dateStr + ')', err).error };
+  }
 }
 
 /**
@@ -3782,6 +3837,7 @@ global._ensure2WaySyncTriggerInstalledInternal = ensure2WaySyncTriggerInstalled;
 global._includeInternal = include;
 global._validateAndSaveFolderUrlInternal = validateAndSaveFolderUrl;
 global._getDailyDataInternal = getDailyData;
+global._getDayDocViewInternal = getDayDocView;                   // google.script.run: Script.html
 global._getDailyDataRangeInternal = getDailyDataRange;
 global._getMasterTasksInternal = getMasterTasks;
 global._addDailyTaskInternal = addDailyTask;
@@ -3888,6 +3944,10 @@ function validateAndSaveFolderUrl(url) {
 
 function getDailyData(dateStr) {
   return (typeof _getDailyDataInternal === 'function') ? _getDailyDataInternal(dateStr) : (globalThis._getDailyDataInternal ? globalThis._getDailyDataInternal(dateStr) : null);
+}
+
+function getDayDocView(dateStr) {
+  return (typeof _getDayDocViewInternal === 'function') ? _getDayDocViewInternal(dateStr) : (globalThis._getDayDocViewInternal ? globalThis._getDayDocViewInternal(dateStr) : null);
 }
 
 function getDailyDataRange(startDateStr, endDateStr) {

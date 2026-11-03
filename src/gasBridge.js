@@ -207,6 +207,29 @@ export class GASBridge {
   }
 
   /**
+   * Read-only render model of one day of the monthly notes Doc (Notes panel Google Doc view).
+   * @param {string} dateStr Target date in YYYY-MM-DD format.
+   * @returns {Promise<{ok: boolean, blocks?: Array<object>, docUrl?: string, headingLink?: string, error?: string}>} View model.
+   */
+  async getDayDocView(dateStr) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      const note = this.mockData.dailyNotes[dateStr] || ('No notes recorded for ' + dateStr + '.');
+      const blocks = String(note).split('\n').filter((l) => l.trim()).map((l) => (
+        l.indexOf('### ') === 0 ? { style: 'h3', runs: [{ text: l.slice(4) }] }
+          : l.indexOf('- ') === 0 ? { style: 'li', runs: [{ text: l.slice(2) }] }
+            : { style: 'p', runs: [{ text: l }] }));
+      const docUrl = 'https:' + '/' + '/docs.google.com/document/d/mock-local-doc/edit';
+      return { ok: true, blocks: blocks, docUrl: docUrl, headingLink: docUrl };
+    }
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .getDayDocView(dateStr);
+    });
+  }
+
+  /**
    * Batched, read-only fetch of tasks/calendar/notes for every date in [startDateStr, endDateStr]
    * (inclusive), used for background prefetch/caching so day-by-day navigation doesn't cost one
    * getDailyData() round trip per day. Never creates a monthly notes doc as a side effect.

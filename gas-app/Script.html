@@ -1849,6 +1849,19 @@
       return this._runRpc('getDailyData', dateStr);
     }
 
+    async getDayDocView(dateStr) {
+      if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+        const note = this.mockData.dailyNotes[dateStr] || ('No notes recorded for ' + dateStr + '.');
+        const blocks = String(note).split('\n').filter((l) => l.trim()).map((l) => (
+          l.indexOf('### ') === 0 ? { style: 'h3', runs: [{ text: l.slice(4) }] }
+            : l.indexOf('- ') === 0 ? { style: 'li', runs: [{ text: l.slice(2) }] }
+              : { style: 'p', runs: [{ text: l }] }));
+        const docUrl = 'https:' + '/' + '/docs.google.com/document/d/mock-local-doc/edit';
+        return { ok: true, blocks: blocks, docUrl: docUrl, headingLink: docUrl };
+      }
+      return this._runRpc('getDayDocView', dateStr);
+    }
+
     async getDailyDataRange(startDateStr, endDateStr) {
       if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
         const days = {};
@@ -2466,6 +2479,8 @@
       sttRefreshedFlash: false,
       sttScratchDocUrl: '',
       sttScratchCreating: false,
+      docViewOpen: false, // Notes panel Google Doc view is showing
+      docView: { loading: false, error: '', blocks: [], docUrl: '', headingLink: '', forDate: '' },
       noteViewMode: 'cards', // cards (Option 1) or doc (Option 2)
       quoteCardCollapsed: false,
       noteFilterMenuOpen: false,
@@ -4462,6 +4477,7 @@
       // stale server data, and the user’s in-progress edit is silently reverted mid-keystroke.
       async loadDayData(opts = {}) {
         const dateStr = this.selectedDate;
+        if (this.docViewOpen) this.loadDocView();
         this.resolveStaleDayNotices(dateStr);
         let cached = dpGetCached(dateStr);
         if (!cached) {
@@ -6407,6 +6423,26 @@
           await this.selectTaskStatus(mTask, '→', mTask._moveDate || getLocalDateStr());
         } finally {
           mTask._moving = false;
+        }
+      },
+
+      // Notes panel Google Doc view: a read-only render of the selected day from the real monthly Doc.
+      async toggleDocView() {
+        this.docViewOpen = !this.docViewOpen;
+        if (this.docViewOpen) await this.loadDocView();
+      },
+
+      async loadDocView() {
+        const dateStr = this.selectedDate;
+        this.docView = { ...this.docView, loading: true, error: '', forDate: dateStr };
+        try {
+          const r = await this.bridge.getDayDocView(dateStr);
+          if (this.selectedDate !== dateStr) return;
+          if (!r || r.ok !== true) throw new Error((r && r.error) || 'The Google Doc view could not be loaded');
+          this.docView = { loading: false, error: '', blocks: r.blocks || [], docUrl: r.docUrl || '', headingLink: r.headingLink || '', forDate: dateStr };
+        } catch (err) {
+          console.error('loadDocView: could not load the Google Doc view for ' + dateStr + ', showing the error in the panel:', err.stack);
+          this.docView = { loading: false, error: err.message, blocks: [], docUrl: '', headingLink: '', forDate: dateStr };
         }
       },
 

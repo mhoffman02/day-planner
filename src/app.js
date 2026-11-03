@@ -435,6 +435,8 @@ Alpine.data('plannerApp', () => ({
       sttRefreshedFlash: false,
       sttScratchDocUrl: '',
       sttScratchCreating: false,
+      docViewOpen: false, // Notes panel Google Doc view is showing
+      docView: { loading: false, error: '', blocks: [], docUrl: '', headingLink: '', forDate: '' },
       noteViewMode: 'cards', // 'cards' (Option 1) or 'doc' (Option 2)
       quoteCardCollapsed: false,
       noteFilterMenuOpen: false,
@@ -2437,6 +2439,7 @@ Alpine.data('plannerApp', () => ({
       // stale server data, and the user's in-progress edit is silently reverted mid-keystroke.
       async loadDayData(opts = {}) {
         const dateStr = this.selectedDate;
+        if (this.docViewOpen) this.loadDocView();
         this.resolveStaleDayNotices(dateStr);
         let cached = getCached(dateStr);
         if (!cached) {
@@ -4358,6 +4361,26 @@ Alpine.data('plannerApp', () => ({
           await this.selectTaskStatus(mTask, '→', mTask._moveDate || getLocalDateStr());
         } finally {
           mTask._moving = false;
+        }
+      },
+
+      // Notes panel Google Doc view: a read-only render of the selected day from the real monthly Doc.
+      async toggleDocView() {
+        this.docViewOpen = !this.docViewOpen;
+        if (this.docViewOpen) await this.loadDocView();
+      },
+
+      async loadDocView() {
+        const dateStr = this.selectedDate;
+        this.docView = { ...this.docView, loading: true, error: '', forDate: dateStr };
+        try {
+          const r = await this.bridge.getDayDocView(dateStr);
+          if (this.selectedDate !== dateStr) return;
+          if (!r || r.ok !== true) throw new Error((r && r.error) || 'The Google Doc view could not be loaded');
+          this.docView = { loading: false, error: '', blocks: r.blocks || [], docUrl: r.docUrl || '', headingLink: r.headingLink || '', forDate: dateStr };
+        } catch (err) {
+          console.error('loadDocView: could not load the Google Doc view for ' + dateStr + ', showing the error in the panel:', err.stack);
+          this.docView = { loading: false, error: err.message, blocks: [], docUrl: '', headingLink: '', forDate: dateStr };
         }
       },
 

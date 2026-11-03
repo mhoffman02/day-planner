@@ -584,6 +584,10 @@
                 <button type="button" class="btn-icon-subtle" @click="openTimeMachine()" title="Version History" aria-label="Version History">
                   <span class="material-symbols-outlined">history</span>
                 </button>
+                <!-- Google Doc view: read-only render of this day from the real Doc -->
+                <button type="button" class="btn-icon-subtle btn-gdoc-toggle" :class="{ 'active': docViewOpen }" @click="toggleDocView()" title="Google Doc view (read-only)" aria-label="Google Doc view" :aria-pressed="docViewOpen ? 'true' : 'false'">
+                  <span class="material-symbols-outlined">article</span>
+                </button>
                 <!-- Dropdown Filter Menu Toggle -->
                 <div class="dropdown-container">
                   <button type="button" class="btn-icon-subtle" @click="noteFilterMenuOpen = !noteFilterMenuOpen" title="Filter & Search Notes" aria-label="Filter & Search Notes">
@@ -637,8 +641,31 @@
               </div>
             </article>
 
+            <!-- Mode 3: Google Doc view (read-only render of this day from the real Doc) -->
+            <div class="note-gdoc-container" x-show="docViewOpen">
+              <div class="note-gdoc-bar">
+                <a class="note-gdoc-open" :href="docView.headingLink" x-show="docView.headingLink" target="_blank" rel="noopener noreferrer" title="Open this day in Google Docs (the full editor)">
+                  <span class="material-symbols-outlined icon-16" aria-hidden="true">open_in_new</span> Open this day in Docs
+                </a>
+                <button type="button" class="btn-link-sm" @click="loadDocView()" :disabled="docView.loading">Refresh</button>
+              </div>
+              <p class="note-gdoc-status" x-show="docView.loading">Loading from Google Docs...</p>
+              <p class="note-gdoc-error" x-show="docView.error" x-text="docView.error"></p>
+              <p class="note-gdoc-empty" x-show="!docView.loading &amp;&amp; !docView.error &amp;&amp; docView.blocks.length === 0">This day has no text in the Google Doc yet.</p>
+              <div class="note-gdoc-body" x-show="!docView.error">
+                <template x-for="(block, bi) in docView.blocks" :key="bi">
+                  <div class="note-gdoc-block" :class="'note-gdoc-' + block.style">
+                    <template x-for="(r, ri) in block.runs" :key="ri">
+                      <span class="note-gdoc-run" :class="{ 'is-bold': r.bold, 'is-italic': r.italic }">
+                        <a x-show="r.href" :href="r.href" target="_blank" rel="noopener noreferrer" x-text="r.text"></a><span x-show="!r.href" x-text="r.text"></span>
+                      </span>
+                    </template>
+                  </div>
+                </template>
+              </div>
+            </div>
             <!-- Mode 1: Modular Topic Cards (Option 1) -->
-            <div class="note-cards-container" x-show="noteViewMode === 'cards'">
+            <div class="note-cards-container" x-show="noteViewMode === 'cards' &amp;&amp; !docViewOpen">
               
               <!-- Filter Active Indicator -->
               <template x-if="noteCardSearchQuery || noteCardCategoryFilter !== 'ALL'">
@@ -847,7 +874,7 @@
             </div>
 
             <!-- Mode 2: Continuous Lined Doc (Option 2 - Future To-Do Preview) -->
-            <div class="note-doc-container" x-show="noteViewMode === 'doc'">
+            <div class="note-doc-container" x-show="noteViewMode === 'doc' &amp;&amp; !docViewOpen">
               <div class="doc-preview-badge">
                 <span class="material-symbols-outlined icon-16">info</span>
                 <span>Option 2 Preview: Continuous Lined Doc with Collapsible H3 Accordions</span>
