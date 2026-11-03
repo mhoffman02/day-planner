@@ -366,3 +366,7 @@ live-testing catches it by luck.
 - Pushed WORK twice by re-running to read the output; capture output once
 
 ---
+
+## 2026-11-03 (evening)
+**Worked well:** Asked the UX designer first, then replaced the inline Doc view with a real anchor; follow-up split the RPC so the link no longer pulls a block render.
+**Needs improvement:** My own regression test asserted the new RPC was undefined (wrong name); caught by the full suite. Edit tool is refused in the shared checkout of a background job; use python or sed via Bash.
