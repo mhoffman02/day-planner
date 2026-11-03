@@ -44,7 +44,7 @@ note badge, completing a `Decision:` task adds `#decision <what>` to the last no
   account index), so any `/mobilebasic` panel must stay optional. Open: decide whether to add an optional `/mobilebasic` pane (agent recommends F).
   USER REQUIREMENT (2026-11-03): notes edit and view both look like rich text, storage is secondary. SHIPPED 2026-11-03 (HOME @374/@375, WORK pushed, user repoints): per-line WYSIWYG
   editor (`src/lineEditor.js`; the active line is contenteditable, the Doc keeps the same markup) and the Doc view renders markup as rich text (`docBlockMarkup`).
-  Live-verified on HOME: bold on a selection, Enter inside bold. Still to try by hand: link modal, multi-line paste, Backspace at the start of a list line, dictation insert.
+  Part-line color (selection recolor, HOME @376, WORK v203) verified by the user on WORK 2026-11-03. Live-verified on HOME: bold on a selection, Enter inside bold. Still to try by hand: link modal, multi-line paste, Backspace at the start of a list line, dictation insert.
 - [ ] **Live check day rollover** (HOME @337, `1da3fcf`): leave the tab open past midnight. Smart paste verified on WORK
   (2026-11-02, user): Gmail, Docs and Gemini all pass; headings paste as bold by design (user 1A, no heading size).
 
