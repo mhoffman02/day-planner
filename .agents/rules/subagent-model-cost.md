@@ -6,10 +6,14 @@
 
 | Task shape | Claude tier agent (model / effort) | Headless claude | AGY |
 | :--- | :--- | :--- | :--- |
-| Search/scout, grep sweeps, summaries, commit digests, doc pointer checks, simple renames | `lite` (haiku / low) | `--model haiku --effort low` | `flash_lite` |
+| Search/scout, grep sweeps, summaries, commit digests, doc pointer checks, renames, single-function edits to a clear spec, running tests/lint and reporting | `lite` (haiku / medium) | `--model haiku --effort medium` | `flash_lite` |
 | Mechanical edits needing some judgment (lint/catch sweeps, tests to a clear spec, wiring) | `worker` (sonnet / medium) | `--model sonnet --effort medium` | `flash` |
 | Architecture, OAuth/security, adversarial review, subtle data-loss/concurrency fixes | `deep` (opus / high) | `--model opus --effort high` | `pro` |
 
+- Never run Haiku at `low` effort: Anthropic's Haiku 5.5 guide says `low` skips checks and stops early in long
+  agent prompts, and `medium` is its default for agentic coding. `lite` is `medium`. A multi-file wiring job (client
+  mirrors, quota or cooldown logic) goes to `worker`; run it at `high` effort (headless `--effort high`) only when
+  `medium` failed its exit criteria. Avoid `xhigh`/`max` on Haiku (empty replies at `xhigh`).
 - Claude's `Agent` tool has no effort parameter; effort comes from the agent definition. So spawn via
   `subagent_type: "lite" | "worker" | "deep"` (user-level `~/.claude/agents/*.md`, model + effort pinned in
   frontmatter). Do not use `general-purpose` with a `model` override: that pins model but not effort.

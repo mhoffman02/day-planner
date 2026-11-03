@@ -16,7 +16,7 @@ These override or add to the generic steps above, for this repo only.
   deadline word, so the checker below can tell them apart.
 - **Step 5.2 script:** `npm run check:handoff` (`tools/check-handoff.js`). It also fails when this generated skill is
   older than the user skill.
-- **Step 5.2 fresh-eyes check:** from Claude, spawn the `lite` agent (haiku/low, per `.agents/rules/subagent-model-cost.md`);
+- **Step 5.2 fresh-eyes check:** from Claude, spawn the `lite` agent (haiku/medium, per `.agents/rules/subagent-model-cost.md`);
   from agy, `invoke_subagent(Model="flash_lite")`.
 - **Build stamp:** the pre-commit hook re-stamps `BUILD_NUMBER_` in `gas-app/Code.gs` on every commit, so the handoff
   commit includes that one-line change. That is expected and is not a buried code change.
