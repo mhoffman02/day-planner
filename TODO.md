@@ -62,6 +62,7 @@ Most items need the user (GSA account, a release go, or a decision). HOME live c
 - [ ] **Other test data you may want to clear**: the "Hub L6 forced-failure test" email and the Task it created in
   `@default`; default "Daily Notes" sections for 10-30 and 10-31 in the October notes Doc.
 - [x] **WORK Meeting Prep live render**: verified 2026-11-02 (user, WORK v189): T14b passed, carry-in listed after Refresh.
+  Verified 2026-11-03 (user, WORK v195, `bf1024e`): a Core meeting past its prep cutoff still shows, "(passed 41 mins ago)".
   Open follow-up: the status line under the header stretched to half the screen (fixed with `.hub-mail-note`, awaiting
   the next WORK push).
 - [x] **T14 FAIL on WORK (2026-11-02, user), resolved by the ledger redesign; T14b passed on v189:** count stayed 0; Integration Ledger row 51 error "Notes Doc is inaccessible:
