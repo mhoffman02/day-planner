@@ -9,7 +9,7 @@ Order (2026-10-30, user): autonomous agent work first (item A3); everything that
 - [ ] Add exercises for features the Tutorial skips: one-time folder setup, event add/edit, Month view and Search,
   task statuses (Open/In Progress/Done/Canceled, Forward to date), Master Find box and filters, Go-live and Undo
   flow, Sync button, voice dictation, Quote strip, install to desktop or phone. T03 and T07 were walked live on HOME
-  (2026-11-02) and pass; T09-T20 (hub) still unwalked.
+  (2026-11-02) and pass. T11, T12, T13, T15, T17, T19 walked live on HOME (2026-11-03) and pass (T11 Tutorial text fixed). Not walked: T09, T10 (needs DRY_RUN on), T14 (needs NCMMS_CORE_PILOT on), T16, T18, T20 (reads about 1,200 emails).
 
 ### A3. Solid Code ratchets: remaining shrinks (2026-11-01; shipped items in TODO_HISTORY)
 
@@ -38,6 +38,10 @@ note badge, completing a `Decision:` task adds `#decision <what>` to the last no
 - [ ] **Notes portal decisions** (`docs/notes-portal-eval.md`; user accepted all defaults 2026-11-01, so agent work: P1 probe, Docs API read-only render, "Open this day in Docs" link, fail loud on multi-tab Docs): 1A no iframe, run probe P1 only;
   2T read-only Docs API render as the panel Doc view; 3T "Open this day in Docs" link; 4A defer per-day tabs;
   5T fail loud when a notes Doc has more than one tab (latent data-loss path); 6T keep publish-to-web rejected.
+  SHIPPED 2026-11-03 (HOME @370, WORK pushed): 5T multi-tab guard (`docBodyContent`), 2T read-only Google Doc view (Notes header toggle),
+  3T Open this day in Docs link. P1 probe on HOME: `/edit` is blocked by frame-ancestors, `/mobilebasic` frames and renders the private Doc
+  read-only (whole month, no day targeting); read-write via a mobile view is not possible. WORK is untested for framing (third-party cookies,
+  account index), so any `/mobilebasic` panel must stay optional. Open: decide whether to add an optional `/mobilebasic` pane.
 - [ ] **Live check day rollover** (HOME @337, `1da3fcf`): leave the tab open past midnight. Smart paste verified on WORK
   (2026-11-02, user): Gmail, Docs and Gemini all pass; headings paste as bold by design (user 1A, no heading size).
 
