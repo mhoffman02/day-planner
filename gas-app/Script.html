@@ -2391,6 +2391,7 @@
       meetingPrepSeries: 'NCMMS_CORE',
       selectedDate: getLocalDateStr(),
       todayStr: getLocalDateStr(),
+      clockNowMs: Date.now(),
       dayRolloverBusy: false,
       selectedYear: new Date().getFullYear(),
       selectedMonth: new Date().getMonth() + 1,
@@ -3963,7 +3964,27 @@
         }
       },
 
+      // Marks the half-hour slot holding now and the one after it; blank off today or outside the 07:00 to 19:30 grid.
+      slotMarker(timeKey) {
+        if (this.selectedDate !== this.todayStr) return '';
+        const now = new Date(this.clockNowMs);
+        const nowMin = now.getHours() * 60 + now.getMinutes();
+        if (nowMin < 7 * 60) return '';
+        const [h, m] = String(timeKey).split(':').map(Number);
+        const slotMin = h * 60 + m;
+        const currentMin = nowMin - (nowMin % 30);
+        if (slotMin === currentMin) return 'now';
+        if (slotMin === currentMin + 30) return 'next';
+        return '';
+      },
+
       setupDayRolloverWatch() {
+        const tickClock = () => { this.clockNowMs = Date.now(); };
+        setInterval(tickClock, 30000);
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') tickClock();
+        });
+        window.addEventListener('focus', tickClock);
         let hiddenAt = null;
         const check = (hiddenMs) => {
           this.checkDayRollover({ hiddenMs }).catch((err) => {

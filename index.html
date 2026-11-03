@@ -522,7 +522,7 @@
             <!-- Hourly Schedule Grid -->
             <section class="schedule-list" tabindex="0" aria-label="Hourly Schedule">
               <template x-for="slot in scheduleGrid" :key="slot.timeKey">
-                <div class="schedule-row" :class="{ 'half-hour': slot.timeKey.endsWith(':30') }">
+                <div class="schedule-row" :class="{ 'half-hour': slot.timeKey.endsWith(':30'), 'slot-now': slotMarker(slot.timeKey) === 'now', 'slot-next': slotMarker(slot.timeKey) === 'next' }" :aria-current="slotMarker(slot.timeKey) === 'now' ? 'time' : null">
                   <time class="schedule-time" x-text="slot.displayTime"></time>
                   <div class="schedule-content">
                     <template x-for="(evt, evtIdx) in slot.events" :key="evt.id || ('evt_' + evtIdx)">

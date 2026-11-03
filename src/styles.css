@@ -6,6 +6,7 @@
   :root[data-theme="light"],
   [data-theme="light"] {
     /* Day Planner & Base Design Tokens */
+    --tab-gold: #d4a017; /* the Today-tab underline gold; also marks the current and next schedule slot */
     --font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-family-header: 'Playfair Display', Georgia, serif;
     --font-size-base: 100%;
@@ -826,12 +827,12 @@
     background: transparent !important;
     color: #ffffff !important;
     font-weight: 600 !important;
-    border-bottom: 3px solid #d4a017 !important;
+    border-bottom: 3px solid var(--tab-gold) !important;
     box-shadow: none !important;
   }
 
   .segment-btn.active .material-symbols-outlined {
-    color: #d4a017 !important;
+    color: var(--tab-gold) !important;
   }
 
   /* Compact Actions */
@@ -1558,7 +1559,7 @@
     background-color: transparent !important;
     border: none !important;
     box-shadow: none !important;
-    color: #d4a017;
+    color: var(--tab-gold);
     transform: translateY(-1px) scale(1.15);
   }
 
@@ -1577,7 +1578,7 @@
   }
 
   .star-toggle.is-starred {
-    color: #d4a017;
+    color: var(--tab-gold);
   }
 
   .star-toggle.is-starred:hover {
@@ -1952,6 +1953,16 @@
     align-self: stretch;
     box-sizing: border-box;
     flex-shrink: 0;
+  }
+
+  /* Current and next half-hour slot: the tab underline turned 90 degrees, drawn inside the cell so nothing shifts. */
+  .schedule-row.slot-now time.schedule-time {
+    box-shadow: inset 3px 0 0 var(--tab-gold);
+    font-weight: 700;
+  }
+
+  .schedule-row.slot-next time.schedule-time {
+    box-shadow: inset 3px 0 0 color-mix(in srgb, var(--tab-gold) 40%, transparent);
   }
 
   .schedule-content {
@@ -5917,6 +5928,10 @@
     background: #11241c !important;
     color: #95b3a8 !important;
     border-right-color: #244a3b !important;
+  }
+
+  [data-theme="dark"] .schedule-row.slot-now time.schedule-time {
+    color: var(--tab-gold) !important;
   }
 
   [data-theme="dark"] button.event-pill, 
