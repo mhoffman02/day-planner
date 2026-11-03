@@ -1455,7 +1455,7 @@ function formatCarryInsList(carryIns, meetingLabel = '') {
 
 
 const OS_MINUTE_MS = 60 * 1000;
-const OS_MODES = ['current', 'recommended', 'specific', 'backlog'];
+const OS_MODES = ['current', 'recommended', 'specific', 'backlog', 'next'];
 
 function osCheckZone(timeZone) {
   if (typeof timeZone !== 'string' || timeZone === '') throw new Error('selectOccurrence: timeZone (IANA name) is required');
@@ -1574,6 +1574,14 @@ function selectOccurrence({ occurrences, series, now, timeZone, override } = {})
   }
 
   const upcoming = all.filter((d) => d.endMs > nowMs || d.startMs > nowMs);
+  if (mode === 'next') {
+    // Viewing, not routing: the page shows the meeting you are about to walk into, so a passed cutoff does not skip it.
+    const hit = upcoming[0];
+    if (!hit) throw new Error(`selectOccurrence: no upcoming occurrence of ${series.SeriesKey} to show at ${new Date(nowMs).toISOString()}`);
+    const r = osResult(hit, 'next occurrence that has not ended');
+    if (hit.cutoffMs < nowMs) r.cutoffPassed = true;
+    return r;
+  }
   if (mode === 'current') {
     const today = osLocalYmd(nowMs, timeZone);
     const hit = upcoming.find((d) => osLocalYmd(d.startMs, timeZone) === today);

@@ -1501,7 +1501,7 @@
                 <tbody>
                   <tr><th scope="row">Starts</th><td x-text="(meetingPrep.occurrence.start || '').replace('T', ' ').slice(0, 16)"></td></tr>
                   <tr><th scope="row">Prep cutoff</th><td><span x-text="(meetingPrep.occurrence.cutoffISO || '').replace('T', ' ').slice(0, 16)"></span> <strong class="hub-countdown" x-text="'(' + hubCountdown(meetingPrep.occurrence.cutoffISO) + ')'"></strong></td></tr>
-                  <tr><th scope="row">Status</th><td x-text="meetingPrep.occurrence.deferred ? 'Deferred to the next occurrence' : (hubDryRun ? 'Trial mode' : 'Ready')"></td></tr>
+                  <tr><th scope="row">Status</th><td x-text="meetingPrep.occurrence.deferred ? 'Deferred to the next occurrence' : (meetingPrep.occurrence.cutoffPassed ? 'Prep cutoff passed, new mail goes to the next meeting' : (hubDryRun ? 'Trial mode' : 'Ready'))"></td></tr>
                   <tr>
                     <th scope="row">Notes Doc</th>
                     <td>

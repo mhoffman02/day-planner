@@ -508,7 +508,7 @@ function getMeetingPrep(seriesKey, occurrenceId) {
     const now = new Date();
     const occs = DPCalendarRepo.listOccurrences(series, registry, now);
     const sel = E.selectOccurrence({ occurrences: occs, series: series, now: now, timeZone: settings.timeZone,
-      override: occurrenceId ? { mode: 'specific', occurrenceId: occurrenceId } : undefined });
+      override: occurrenceId ? { mode: 'specific', occurrenceId: occurrenceId } : { mode: 'next' } });
     const hit = occs.filter(function(o) { return o.id === sel.occurrenceId; })[0];
     const date = E.taskPlannerLocalDate(new Date(Date.parse(hit.start)), settings.timeZone);
     // Carry-ins are ledger rows (no Doc or Gmail call): drive.file cannot write the user's own notes Doc.
@@ -523,7 +523,7 @@ function getMeetingPrep(seriesKey, occurrenceId) {
       return a.receivedDate < b.receivedDate ? -1 : a.receivedDate > b.receivedDate ? 1 : (a.subject < b.subject ? -1 : a.subject > b.subject ? 1 : 0);
     });
     return E.makeResult({ ok: true, status: 'OK', message: series.DisplayName + ' on ' + date, series: { seriesKey: series.SeriesKey, displayName: series.DisplayName, prepMinutes: series.PrepMinutes },
-      occurrence: { occurrenceId: sel.occurrenceId, start: hit.start, end: hit.end, date: date, cutoffISO: sel.cutoffISO, reason: sel.reason, deferred: !!sel.deferred, htmlLink: hit.htmlLink || null },
+      occurrence: { occurrenceId: sel.occurrenceId, start: hit.start, end: hit.end, date: date, cutoffISO: sel.cutoffISO, reason: sel.reason, deferred: !!sel.deferred, cutoffPassed: !!sel.cutoffPassed, htmlLink: hit.htmlLink || null },
       upcoming: describeUpcoming_(series, occs, now, settings.timeZone), carryIns: carryIns, carryInsText: E.formatCarryInsList(carryIns, series.DisplayName), carryInCount: carryIns.length, notesDocUrl: series.HumanNotesDocId ? 'https://docs.google.com/document/d/' + series.HumanNotesDocId + '/edit' : null, warning: null });
   } catch (err) {
     return failFrom_(err);
