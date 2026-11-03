@@ -4499,7 +4499,7 @@ Alpine.data('plannerApp', () => ({
         const dateStr = this.selectedDate;
         if (this.docLink.forDate !== dateStr) this.docLink = { url: '', forDate: dateStr };
         try {
-          const r = await this.bridge.getDayDocView(dateStr);
+          const r = await this.bridge.getDayDocLink(dateStr);
           if (this.selectedDate !== dateStr) return;
           if (!r || r.ok !== true) throw new Error((r && r.error) || 'The notes Doc link could not be loaded');
           this.docLink = { url: r.headingLink || r.docUrl || '', forDate: dateStr };

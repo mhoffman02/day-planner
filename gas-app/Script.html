@@ -2075,17 +2075,12 @@
       return this._runRpc('getDailyData', dateStr);
     }
 
-    async getDayDocView(dateStr) {
+    async getDayDocLink(dateStr) {
       if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
-        const note = this.mockData.dailyNotes[dateStr] || ('No notes recorded for ' + dateStr + '.');
-        const blocks = String(note).split('\n').filter((l) => l.trim()).map((l) => (
-          l.indexOf('### ') === 0 ? { style: 'h3', runs: [{ text: l.slice(4) }] }
-            : l.indexOf('- ') === 0 ? { style: 'li', runs: [{ text: l.slice(2) }] }
-              : { style: 'p', runs: [{ text: l }] }));
         const docUrl = 'https:' + '/' + '/docs.google.com/document/d/mock-local-doc/edit';
-        return { ok: true, blocks: blocks, docUrl: docUrl, headingLink: docUrl };
+        return { ok: true, docUrl: docUrl, headingLink: docUrl };
       }
-      return this._runRpc('getDayDocView', dateStr);
+      return this._runRpc('getDayDocLink', dateStr);
     }
 
     async getDailyDataRange(startDateStr, endDateStr) {
@@ -6786,7 +6781,7 @@
         const dateStr = this.selectedDate;
         if (this.docLink.forDate !== dateStr) this.docLink = { url: '', forDate: dateStr };
         try {
-          const r = await this.bridge.getDayDocView(dateStr);
+          const r = await this.bridge.getDayDocLink(dateStr);
           if (this.selectedDate !== dateStr) return;
           if (!r || r.ok !== true) throw new Error((r && r.error) || 'The notes Doc link could not be loaded');
           this.docLink = { url: r.headingLink || r.docUrl || '', forDate: dateStr };

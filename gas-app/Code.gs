@@ -463,7 +463,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 626;
+const BUILD_NUMBER_ = 627;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -2031,15 +2031,14 @@ function findDaySection_(elements, dateStr) {
 }
 
 /**
- * Read-only render model of one day of the monthly notes Doc, for the Notes panel Google Doc view. Reads one Doc
- * (never creates one), keeps bold, italic and https links, and returns blocks of runs instead of HTML so the client
- * renders it with x-text. headingLink carries the day heading id from this fresh read; heading ids change on every
- * save, so it is never cached.
+ * Links for the Notes panel Open Notes in Docs anchor. Reads one Doc (never creates one) with a narrow field mask:
+ * only what finding the day heading needs, no text styles. headingLink carries the day heading id from this fresh
+ * read; heading ids change on every save, so it is never cached.
  * @param {string} dateStr Target date in YYYY-MM-DD format.
- * @returns {{ok: boolean, blocks?: Array<Object>, docUrl?: string, headingLink?: string, error?: string}}
+ * @returns {{ok: boolean, docUrl?: string, headingLink?: string, error?: string}} Both links are empty when the month has no Doc.
  */
-function getDayDocView(dateStr) {
-  DPEngines.v_.guard(arguments, 'getDayDocView').param('dateStr').string().matches(/^\d{4}-\d{2}-\d{2}$/).done();
+function getDayDocLink(dateStr) {
+  DPEngines.v_.guard(arguments, 'getDayDocLink').param('dateStr').string().matches(/^\d{4}-\d{2}-\d{2}$/).done();
   try {
     if (typeof DriveApp === 'undefined' || typeof Docs === 'undefined') return { ok: false, error: 'Google Docs is not available here' };
     const targetFolder = getValidatedRootFolder();
@@ -2048,24 +2047,19 @@ function getDayDocView(dateStr) {
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     const docName = 'Day Planner Notes - ' + monthNames[parseInt(parts[1], 10) - 1] + ' ' + parts[0];
     const files = targetFolder.getFilesByName(docName);
-    if (!files.hasNext()) return { ok: true, blocks: [], docUrl: '', headingLink: '' };
+    if (!files.hasNext()) return { ok: true, docUrl: '', headingLink: '' };
     const docId = files.next().getId();
     const docUrl = 'https:' + '/' + '/docs.google.com/document/d/' + docId + '/edit';
     const doc = Docs.Documents.get(docId, {
       includeTabsContent: true,
-      fields: 'revisionId,tabs(tabProperties.tabId,childTabs(tabProperties.tabId),documentTab.body.content(startIndex,endIndex,paragraph(paragraphStyle(namedStyleType,headingId),bullet,elements(textRun(content,textStyle(bold,italic,link.url)),pageBreak))))'
+      fields: 'revisionId,tabs(tabProperties.tabId,childTabs(tabProperties.tabId),documentTab.body.content(paragraph(paragraphStyle(namedStyleType,headingId),elements(textRun.content,pageBreak))))'
     });
     const elements = DPEngines.docBodyContent(doc, docId).filter(function (el) { return !!el.paragraph; });
     const section = findDaySection_(elements, dateStr);
-    if (!section) return { ok: true, blocks: [], docUrl: docUrl, headingLink: docUrl };
-    return {
-      ok: true,
-      blocks: DPEngines.dayDocBlocks(section.body),
-      docUrl: docUrl,
-      headingLink: DPEngines.dayDocHeadingLink(docUrl, section.heading)
-    };
+    if (!section) return { ok: true, docUrl: docUrl, headingLink: docUrl };
+    return { ok: true, docUrl: docUrl, headingLink: DPEngines.dayDocHeadingLink(docUrl, section.heading) };
   } catch (err) {
-    return { ok: false, error: logError('getDayDocView(' + dateStr + ')', err).error };
+    return { ok: false, error: logError('getDayDocLink(' + dateStr + ')', err).error };
   }
 }
 
@@ -3837,7 +3831,7 @@ global._ensure2WaySyncTriggerInstalledInternal = ensure2WaySyncTriggerInstalled;
 global._includeInternal = include;
 global._validateAndSaveFolderUrlInternal = validateAndSaveFolderUrl;
 global._getDailyDataInternal = getDailyData;
-global._getDayDocViewInternal = getDayDocView;                   // google.script.run: Script.html
+global._getDayDocLinkInternal = getDayDocLink;                    // google.script.run: Script.html
 global._getDailyDataRangeInternal = getDailyDataRange;
 global._getMasterTasksInternal = getMasterTasks;
 global._addDailyTaskInternal = addDailyTask;
@@ -3946,8 +3940,8 @@ function getDailyData(dateStr) {
   return (typeof _getDailyDataInternal === 'function') ? _getDailyDataInternal(dateStr) : (globalThis._getDailyDataInternal ? globalThis._getDailyDataInternal(dateStr) : null);
 }
 
-function getDayDocView(dateStr) {
-  return (typeof _getDayDocViewInternal === 'function') ? _getDayDocViewInternal(dateStr) : (globalThis._getDayDocViewInternal ? globalThis._getDayDocViewInternal(dateStr) : null);
+function getDayDocLink(dateStr) {
+  return (typeof _getDayDocLinkInternal === 'function') ? _getDayDocLinkInternal(dateStr) : (globalThis._getDayDocLinkInternal ? globalThis._getDayDocLinkInternal(dateStr) : null);
 }
 
 function getDailyDataRange(startDateStr, endDateStr) {
