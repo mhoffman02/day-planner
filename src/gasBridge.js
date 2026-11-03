@@ -1127,6 +1127,9 @@ export class GASBridge {
    */
   getMeetingPrep(seriesKey, occurrenceId) { return this._hubRpc('getMeetingPrep', [seriesKey, occurrenceId]); }
 
+  /** @returns {Promise<object>} Result contract of one live pass over the 🎯 label queue (what the scheduled tick runs). */
+  processWorkflowQueue() { return this._hubRpc('processWorkflowQueue', []); }
+
 }
 
 

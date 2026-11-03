@@ -481,6 +481,12 @@ export class HubMock {
     return { ok: true, status: 'DONE', message: 'Retry succeeded', operationKey, sourceUrl: (this._find(row.threadId) || {}).url };
   }
 
+  /** Mock of the live queue pass: a trial-mode pass writes nothing; a live one has no new mail to file. */
+  processWorkflowQueue() {
+    if (this.flags.GMAIL_ROUTER !== true) return { ok: true, status: 'NOOP', message: 'GMAIL_ROUTER flag is off' };
+    return { ok: true, status: this.dryRun ? 'DRY_RUN' : 'OK', message: this.dryRun ? 'Dry run: nothing written' : 'Queue pass finished' };
+  }
+
   getMeetingPrep(seriesKey, occurrenceId) {
     const gate = this._preflight(['GMAIL_ROUTER', 'NCMMS_CORE_PILOT']);
     if (gate) return gate;

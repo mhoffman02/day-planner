@@ -1475,8 +1475,9 @@
                 <span x-text="hubLiveInfo ? 'Planner is live. Switch to trial on the About page.' : 'Live'"></span>
               </span>
             </div>
-            <button type="button" class="btn-secondary hub-refresh-btn" @click="refreshMeetingPrep()" :disabled="meetingPrepLoading" x-show="showMeetingPrepNav">Refresh</button>
+            <button type="button" class="btn-secondary hub-refresh-btn" @click="refreshMeetingPrep()" :disabled="meetingPrepLoading || meetingPrepRefreshing" :aria-busy="meetingPrepRefreshing ? 'true' : 'false'" title="Checks your mail now, then reloads" x-show="showMeetingPrepNav"><span x-text="meetingPrepRefreshing ? 'Checking mail…' : 'Refresh'"></span></button>
           </header>
+          <p class="hub-header-meta" role="status" x-show="showMeetingPrepNav &amp;&amp; meetingPrepMailNote" x-text="meetingPrepMailNote"></p>
 
           <template x-if="!showMeetingPrepNav">
             <section class="hub-empty" aria-label="Meeting Prep is off">
@@ -1861,7 +1862,7 @@
           <span class="material-symbols-outlined">mail</span> How the Gmail Hub Works
         </h3>
         <p class="guide-card-text">
-          The hub checks your 🎯 labels every few minutes, once its schedule is installed. Each email is handled once, so leaving the label on is safe. Other 🎯 labels (Read, Review, Meeting, NCMMS-Daily) are recognized but don't do anything yet.
+          The hub checks your 🎯 labels every few minutes, once its schedule is installed. On the Meeting Prep page, <b>Refresh</b> checks your mail now instead of waiting for the schedule. Each email is handled once, so leaving the label on is safe. Other 🎯 labels (Read, Review, Meeting, NCMMS-Daily) are recognized but don't do anything yet.
         </p>
         <div x-data="{
             regrantUrl: null,
@@ -2455,7 +2456,7 @@
         <summary class="guide-card-title"><span class="tutorial-ex-id">T14</span> Send an email to the next Core meeting <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
         <dl class="tutorial-steps">
           <dt>Needs</dt><dd>Same as T11, plus <code>NCMMS_CORE_PILOT</code> on. No notes Doc id is needed: nothing is written to a Doc.</dd>
-          <dt>Do</dt><dd>Open <b>Meeting Prep</b> and note the carry-in count. Send yourself a new email <code>DP-T14b</code> plus today’s date and apply <b>🎯/Meeting/NCMMS-Core</b>. Wait about 10 minutes, then reopen Meeting Prep.</dd>
+          <dt>Do</dt><dd>Open <b>Meeting Prep</b> and note the carry-in count. Send yourself a new email <code>DP-T14b</code> plus today’s date and apply <b>🎯/Meeting/NCMMS-Core</b>. Then click <b>Refresh</b> on Meeting Prep: it checks your mail now (no waiting for the schedule; a second click within a minute only reloads).</dd>
           <dt>Look in</dt><dd>The Meeting Prep tab, under <b>Carry-ins</b>: the table row and the copy-ready bullet list below it.</dd>
           <dt>Pass if</dt><dd>The carry-in count went up by exactly one, the row shows the email subject linked to the email, and the copy-ready bullet list contains that one bullet.</dd>
           <dt>Clean up</dt><dd>Nothing to delete: no Doc is written.</dd>

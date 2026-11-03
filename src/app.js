@@ -73,6 +73,7 @@ const DAY_STALE_RELOAD_MS = 15 * 60 * 1000;
 const MASTER_DATE_FORMAT = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 const GMAIL_COOLDOWN_KEY = 'dayPlannerGmailCooldownUntil';
 const GMAIL_COOLDOWN_MS = 75000;
+const MEETING_MAIL_MIN_GAP_MS = 60000;
 const TRIAGE_CACHE_FIELDS = ['threadId', 'url', 'subject', 'snippet', 'fromName', 'date', 'labels', 'score', 'band', 'signals', 'queue', 'ticketKey',
   'suggestions', 'requireConfirmation', 'humanReviewOnly', 'operationKey', 'ledgerStatus', 'errorMessage'];
 
@@ -353,6 +354,9 @@ Alpine.data('plannerApp', () => ({
       waitingForm: { open: false, threadId: null, subject: '', waitingOn: '', nagDate: '' },
       meetingPrep: null,
       meetingPrepLoading: false,
+      meetingPrepRefreshing: false,
+      meetingPrepMailNote: '',
+      meetingMailCheckedAt: 0,
       carryInCopyMsg: '',
       meetingPrepSeries: 'NCMMS_CORE',
       selectedDate: getLocalDateStr(),
@@ -1290,9 +1294,67 @@ Alpine.data('plannerApp', () => ({
         await this.loadTriageBoard({ after: true });
       },
 
+      // Refresh checks mail first (the scheduled-tick queue, run now), then reloads saved data. One queue call per click,
+      // none within MEETING_MAIL_MIN_GAP_MS of the last or during the Gmail cooldown; a quota error starts that cooldown.
       async refreshMeetingPrep() {
-        await this.loadHubStatus();
-        await this.loadMeetingPrep();
+        if (this.meetingPrepRefreshing) return;
+        this.meetingPrepRefreshing = true;
+        try {
+          const now = Date.now();
+          const nextAllowed = Math.max(this.meetingMailCheckedAt + MEETING_MAIL_MIN_GAP_MS, this.readGmailCooldown());
+          if (nextAllowed > now) {
+            const secs = Math.ceil((nextAllowed - now) / 1000);
+            this.meetingPrepMailNote = (this.meetingMailCheckedAt ? 'Mail was checked ' + this.clockText(this.meetingMailCheckedAt) : 'Gmail is limiting requests')
+              + '; next check allowed in ' + secs + ' s';
+          } else if (!(await this.runMeetingMailCheck())) {
+            return;
+          }
+          await this.loadHubStatus();
+          await this.loadMeetingPrep();
+        } finally {
+          this.meetingPrepRefreshing = false;
+        }
+      },
+
+      // Runs the queue once and sets the status line. Returns false only after a quota stop (no reload then).
+      async runMeetingMailCheck() {
+        let result = null;
+        let failure = null;
+        try {
+          result = await this.bridge.processWorkflowQueue();
+          if (!result || typeof result !== 'object') throw new Error('The mail check returned no result');
+        } catch (err) {
+          console.error('Meeting Prep mail check failed, showing saved data:', err.stack);
+          failure = { code: err.code || '', message: err.message || String(err) };
+        }
+        if (!failure && result.ok !== true) {
+          console.error('Meeting Prep mail check returned an error, showing saved data:', result.errorCode, result.message);
+          failure = { code: result.errorCode || '', message: result.message || 'The mail check failed' };
+        }
+        if (failure) {
+          const quota = failure.code === 'RATE_LIMITED' || /rate.?limit|quota|too many times|limiting requests/i.test(failure.message);
+          if (quota) this.startGmailCooldown();
+          this.meetingPrepMailNote = quota ? 'Mail check paused: Gmail is limiting requests. Try again in a minute.' : 'Mail check failed; showing saved data';
+          this.reportError('meeting-mail-check', failure.message);
+          return !quota;
+        }
+        const when = Date.now();
+        const checked = 'Mail checked ' + this.clockText(when);
+        this.resolveError('meeting-mail-check');
+        if (result.status === 'LOCK_BUSY') {
+          this.meetingPrepMailNote = 'Another run is in progress; showing saved data';
+          return true;
+        }
+        this.meetingMailCheckedAt = when;
+        if (result.status === 'DRY_RUN') this.meetingPrepMailNote = checked + '. Trial mode: nothing is written; carry-ins appear after you go live';
+        else if (result.status === 'NOOP') this.meetingPrepMailNote = checked + '. Nothing to process';
+        else this.meetingPrepMailNote = checked;
+        return true;
+      },
+
+      clockText(ms) {
+        const d = new Date(ms);
+        return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
       },
 
       // Check again after approving: never silent. A still-missing approval says so in the banner.
