@@ -1354,7 +1354,7 @@ Alpine.data('plannerApp', () => ({
 
       clockText(ms) {
         const d = new Date(ms);
-        return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+        return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
       },
 
       // Check again after approving: never silent. A still-missing approval says so in the banner.

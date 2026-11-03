@@ -47,12 +47,12 @@ describe('Meeting Prep Refresh runs a live mail check', () => {
 
   for (const c of clients) {
     describe(c.label, () => {
-      it('success: processWorkflowQueue exactly once, then hub status, then getMeetingPrep; status line says Mail checked HH:MM', async () => {
+      it('success: processWorkflowQueue exactly once, then hub status, then getMeetingPrep; status line says Mail checked 4:25 PM PDT', async () => {
         const calls = [];
         const vm = vmFor(c, okResult('DONE'), calls);
         await vm.refreshMeetingPrep();
         assert.deepEqual(calls, ['processWorkflowQueue', 'getHubStatus', 'getMeetingPrep']);
-        assert.match(vm.meetingPrepMailNote, /^Mail checked \d\d:\d\d/);
+        assert.match(vm.meetingPrepMailNote, /^Mail checked \d{1,2}:\d\d [AP]M [A-Z][A-Za-z0-9+:-]*/);
         assert.equal(vm.meetingPrepRefreshing, false, 'button re-enabled');
         assert.deepEqual(vm.errorsSeen, []);
       });
@@ -72,7 +72,7 @@ describe('Meeting Prep Refresh runs a live mail check', () => {
         vm.meetingMailCheckedAt = Date.now() - 20000;
         await vm.refreshMeetingPrep();
         assert.deepEqual(calls, ['getHubStatus', 'getMeetingPrep']);
-        assert.match(vm.meetingPrepMailNote, /^Mail was checked \d\d:\d\d; next check allowed in (39|40) s$/);
+        assert.match(vm.meetingPrepMailNote, /^Mail was checked \d{1,2}:\d\d [AP]M [A-Z][A-Za-z0-9+:-]*; next check allowed in (39|40) s$/);
       });
 
       it('checks again once 60 s have passed', async () => {
@@ -90,7 +90,7 @@ describe('Meeting Prep Refresh runs a live mail check', () => {
         globalThis.localStorage.setItem(COOLDOWN_KEY, String(Date.now() + 50000));
         await vm.refreshMeetingPrep();
         assert.deepEqual(calls, ['getHubStatus', 'getMeetingPrep']);
-        assert.match(vm.meetingPrepMailNote, /^Mail was checked \d\d:\d\d; next check allowed in (49|50) s$/);
+        assert.match(vm.meetingPrepMailNote, /^Mail was checked \d{1,2}:\d\d [AP]M [A-Z][A-Za-z0-9+:-]*; next check allowed in (49|50) s$/);
       });
 
       it('a quota error starts the shared cooldown, shows the message, and stops (no reload)', async () => {
@@ -127,7 +127,7 @@ describe('Meeting Prep Refresh runs a live mail check', () => {
         const calls = [];
         const vm = vmFor(c, okResult('DRY_RUN'), calls);
         await vm.refreshMeetingPrep();
-        assert.match(vm.meetingPrepMailNote, /^Mail checked \d\d:\d\d\. Trial mode: nothing is written; carry-ins appear after you go live$/);
+        assert.match(vm.meetingPrepMailNote, /^Mail checked \d{1,2}:\d\d [AP]M [A-Z][A-Za-z0-9+:-]*\. Trial mode: nothing is written; carry-ins appear after you go live$/);
         assert.deepEqual(vm.errorsSeen, []);
       });
 
@@ -135,7 +135,7 @@ describe('Meeting Prep Refresh runs a live mail check', () => {
         const calls = [];
         const vm = vmFor(c, okResult('NOOP'), calls);
         await vm.refreshMeetingPrep();
-        assert.match(vm.meetingPrepMailNote, /^Mail checked \d\d:\d\d\. Nothing to process/);
+        assert.match(vm.meetingPrepMailNote, /^Mail checked \d{1,2}:\d\d [AP]M [A-Z][A-Za-z0-9+:-]*\. Nothing to process/);
         assert.deepEqual(vm.errorsSeen, []);
       });
 

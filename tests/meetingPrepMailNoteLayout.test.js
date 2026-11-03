@@ -27,8 +27,8 @@ for (const f of ['src/app.js', 'gas-app/Script.html']) {
   test(`${f}: clockText shows the browser local clock, not UTC`, () => {
     const body = read(f).match(/clockText\(ms\) \{([\s\S]*?)\n      \},/);
     assert.ok(body, 'clockText exists');
-    assert.match(body[1], /getHours\(\)/);
-    assert.match(body[1], /getMinutes\(\)/);
-    assert.doesNotMatch(body[1], /UTC|toISOString/);
+    // 12-hour local clock with the zone name (user rule 2026-11-02: local time, like 4:25 PM PDT).
+    assert.match(body[1], /toLocaleTimeString\('en-US', \{ hour: 'numeric', minute: '2-digit', timeZoneName: 'short' \}\)/);
+    assert.doesNotMatch(body[1], /UTC|toISOString|timeZone:/);
   });
 }
