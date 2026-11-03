@@ -662,13 +662,7 @@
               <p class="note-gdoc-empty" x-show="!docView.loading &amp;&amp; !docView.error &amp;&amp; docView.blocks.length === 0">This day has no text in the Google Doc yet.</p>
               <div class="note-gdoc-body" x-show="!docView.error">
                 <template x-for="(block, bi) in docView.blocks" :key="bi">
-                  <div class="note-gdoc-block" :class="'note-gdoc-' + block.style">
-                    <template x-for="(r, ri) in block.runs" :key="ri">
-                      <span class="note-gdoc-run" :class="{ 'is-bold': r.bold, 'is-italic': r.italic }">
-                        <a x-show="r.href" :href="r.href" target="_blank" rel="noopener noreferrer" x-text="r.text"></a><span x-show="!r.href" x-text="r.text"></span>
-                      </span>
-                    </template>
-                  </div>
+                  <div class="note-gdoc-block" :class="'note-gdoc-' + block.style" x-html="renderCardLine(docBlockMarkup(block), false)"></div>
                 </template>
               </div>
             </div>

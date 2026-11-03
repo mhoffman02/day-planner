@@ -142,6 +142,15 @@ for (const c of await bothClients()) {
       assert.equal(v.docView.loading, false);
     });
 
+    it('docBlockMarkup renders stored markup and Doc links as rich text, escaping the rest', () => {
+      const v = vm();
+      const html = v.renderCardLine(v.docBlockMarkup({ style: 'p', runs: [{ text: 'a **bold** <i>x</i> ' }, { text: 'go', href: 'https://x.com/d' }] }), false);
+      assert.match(html, /<span class="note-render-bold">bold<\/span>/);
+      assert.match(html, /&lt;i&gt;x&lt;\/i&gt;/);
+      assert.match(html, /<a [^>]*href="https:\/\/x\.com\/d"[^>]*>go<\/a>/);
+      assert.doesNotMatch(html, /\*\*/);
+    });
+
     it('closing the view makes no call', async () => {
       let calls = 0;
       const v = vm({ docViewOpen: true, bridge: { getDayDocView: async () => { calls += 1; return view; } } });
@@ -189,7 +198,7 @@ for (const c of await bothClients()) {
   });
 }
 
-test('both Index copies bind the Doc view toggle, the link and the blocks without x-html', () => {
+test('both Index copies bind the Doc view toggle, the link and the blocks', () => {
   for (const p of ['gas-app/Index.html', 'index.html']) {
     const src = read(p);
     assert.match(src, /@click="toggleDocView\(\)"/, p);

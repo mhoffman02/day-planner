@@ -6734,6 +6734,18 @@
         }
       },
 
+      // One Doc block as the same rich HTML the cards show: runs are joined into note markup (real Doc bold,
+      // italic and links become markers); the template renders it through renderCardLine, which escapes the rest.
+      docBlockMarkup(block) {
+        return (block.runs || []).map((r) => {
+          let t = r.text || '';
+          if (t && r.bold) t = '**' + t + '**';
+          if (t && r.italic) t = '*' + t + '*';
+          if (t && r.href && /^(https?|mailto):[^\]\s]+$/.test(r.href)) t = '[[link:' + r.href + ']]' + t + '[[/link]]';
+          return t;
+        }).join('');
+      },
+
       // Notes panel Google Doc view: a read-only render of the selected day from the real monthly Doc.
       async toggleDocView() {
         this.docViewOpen = !this.docViewOpen;
