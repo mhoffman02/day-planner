@@ -8,8 +8,8 @@ Order (2026-10-30, user): autonomous agent work first (item A3); everything that
 ### A0. Tutorial coverage gaps (2026-11-02; stale labels already fixed)
 - [ ] Add exercises for features the Tutorial skips: one-time folder setup, event add/edit, Month view and Search,
   task statuses (Open/In Progress/Done/Canceled, Forward to date), Master Find box and filters, Go-live and Undo
-  flow, Sync button, voice dictation, Quote strip, install to desktop or phone. Also verify against the UI that the
-  T07 Topic/Summary steps and the T03 → status wording match what a user sees (live check on HOME `/dev`).
+  flow, Sync button, voice dictation, Quote strip, install to desktop or phone. T03 and T07 were walked live on HOME
+  (2026-11-02) and pass; T09-T20 (hub) still unwalked.
 
 ### A3. Solid Code ratchets: remaining shrinks (2026-11-01; shipped items in TODO_HISTORY)
 
