@@ -1485,7 +1485,7 @@
             </div>
             <button type="button" class="btn-secondary hub-refresh-btn" @click="refreshMeetingPrep()" :disabled="meetingPrepLoading || meetingPrepRefreshing" :aria-busy="meetingPrepRefreshing ? 'true' : 'false'" title="Checks your mail now, then reloads" x-show="showMeetingPrepNav"><span x-text="meetingPrepRefreshing ? 'Checking mail…' : 'Refresh'"></span></button>
           </header>
-          <p class="hub-header-meta" role="status" x-show="showMeetingPrepNav &amp;&amp; meetingPrepMailNote" x-text="meetingPrepMailNote"></p>
+          <p class="hub-mail-note" role="status" x-show="showMeetingPrepNav &amp;&amp; meetingPrepMailNote" x-text="meetingPrepMailNote"></p>
 
           <template x-if="!showMeetingPrepNav">
             <section class="hub-empty" aria-label="Meeting Prep is off">

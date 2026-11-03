@@ -6379,6 +6379,14 @@
     color: var(--text-muted);
   }
 
+  /* Under the header in a column flex container: must not grow like the header-row meta. */
+  .hub-mail-note {
+    margin: 0;
+    flex: none;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+
   .hub-refresh-btn {
     margin-left: auto;
   }

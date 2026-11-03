@@ -55,9 +55,10 @@ Most items need the user (GSA account, a release go, or a decision). HOME live c
   Meet link). The app has no event-delete RPC, so it was left for you.
 - [ ] **Other test data you may want to clear**: the "Hub L6 forced-failure test" email and the Task it created in
   `@default`; default "Daily Notes" sections for 10-30 and 10-31 in the October notes Doc.
-- [ ] **WORK Meeting Prep live render**: WORK hub Sheet exists (Triage on, trial mode). Set `NCMMS_CORE_PILOT`
-  TRUE and run Tutorial T14 (carry-ins are ledger rows on Meeting Prep; no notes Doc id is needed).
-- [ ] **T14 FAIL on WORK (2026-11-02, user):** count stayed 0; Integration Ledger row 51 error "Notes Doc is inaccessible:
+- [x] **WORK Meeting Prep live render**: verified 2026-11-02 (user, WORK v189): T14b passed, carry-in listed after Refresh.
+  Open follow-up: the status line under the header stretched to half the screen (fixed with `.hub-mail-note`, awaiting
+  the next WORK push).
+- [x] **T14 FAIL on WORK (2026-11-02, user), resolved by the ledger redesign; T14b passed on v189:** count stayed 0; Integration Ledger row 51 error "Notes Doc is inaccessible:
   batchUpdate failed" (permission; the weekly Doc was not made by the app, so `drive.file` refuses the write). Requirement
   change proposed by the user: do not write the user's weekly agenda Doc; show a 1-2 line carry-in summary plus an email
   link on the Meeting Prep page. Decided 2026-11-02: carry-ins are Integration Ledger rows (TargetType CARRY_IN) listed on Meeting Prep as collapsible items plus a copy-ready bullet list; no Doc write. Fix built, awaiting WORK re-test with a new DP-T14b email.
