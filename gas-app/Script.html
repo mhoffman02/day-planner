@@ -916,6 +916,30 @@
   }
 
 
+  function lineEditorUncolor(nodes) {
+    const out = [];
+    for (const node of nodes) {
+      if (typeof node === 'string') out.push(node);
+      else if (node.tag === 'span' && (node.attrs || {})['data-color']) out.push(...lineEditorUncolor(node.children || []));
+      else out.push({ tag: node.tag, attrs: node.attrs, children: lineEditorUncolor(node.children || []) });
+    }
+    return out;
+  }
+
+  /**
+   * @param {string} body Line markup without its list prefix.
+   * @param {number} start Visible-text offset where the selection starts.
+   * @param {number} end Visible-text offset where the selection ends.
+   * @param {string} color teal, red, green, blue, or default to clear color.
+   * @returns {string} The markup with only [start, end) recolored; other formatting is kept.
+   */
+  function lineEditorColorRange(body, start, end, color) {
+    const nodes = lineEditorRender(body);
+    const mid = lineEditorUncolor(lineEditorSlice(nodes, start, end));
+    const wrapped = color === 'default' ? mid : [{ tag: 'span', attrs: { 'data-color': color }, children: mid }];
+    return lineEditorSerialize(lineEditorSlice(nodes, 0, start)) + lineEditorSerialize(wrapped) + lineEditorSerialize(lineEditorSlice(nodes, end, Infinity));
+  }
+
   const LINE_EDITOR_TAGS = { b: 'b', i: 'i', u: 'u', s: 's', span: 'span', a: 'a' };
 
   /**
@@ -5067,6 +5091,18 @@
         sel.addRange(range);
       },
 
+      // Selects plain-text offsets [start, end) inside the live line editor.
+      selectLineRange(el, start, end) {
+        const a = this.lineTextPoint(el, start);
+        const b = this.lineTextPoint(el, end);
+        const range = document.createRange();
+        range.setStart(a.node, a.offset);
+        range.setEnd(b.node, b.offset);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      },
+
       // Selection as plain-text offsets inside el, or null when the selection is elsewhere.
       lineSelectionOffsets(el) {
         const sel = window.getSelection();
@@ -5888,6 +5924,17 @@
           const sel = this.lineSelectionOffsets(editorEl);
           if (sel && sel.start !== sel.end) {
             document.execCommand(execMap[formatType]);
+            return;
+          }
+        }
+        // A color button with text selected recolors just that part; the Doc keeps the same color markup.
+        if (formatType.startsWith('color-') && editorEl && document.activeElement === editorEl) {
+          const sel = this.lineSelectionOffsets(editorEl);
+          if (sel && sel.start !== sel.end) {
+            const body = lineEditorSplitPrefix(line).body;
+            this.fillLineEditor(editorEl, lineEditorColorRange(body, sel.start, sel.end, formatType.slice(6)));
+            editorEl.dispatchEvent(new window.Event('input', { bubbles: true }));
+            this.selectLineRange(editorEl, sel.start, sel.end);
             return;
           }
         }

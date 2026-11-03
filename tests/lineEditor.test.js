@@ -9,13 +9,14 @@ import fc from 'fast-check';
 import * as srcMod from '../src/lineEditor.js';
 import { loadScriptHtml } from './helpers/plannerHarness.js';
 
-const gasScope = loadScriptHtml({ exportNames: ['lineEditorSplitPrefix', 'lineEditorRender', 'lineEditorSerialize', 'lineEditorTextLength', 'lineEditorSlice'] }).scope;
+const gasScope = loadScriptHtml({ exportNames: ['lineEditorSplitPrefix', 'lineEditorRender', 'lineEditorSerialize', 'lineEditorTextLength', 'lineEditorSlice', 'lineEditorColorRange'] }).scope;
 const gasMod = {
   lineEditorSplitPrefix: gasScope.lineEditorSplitPrefix,
   lineEditorRender: gasScope.lineEditorRender,
   lineEditorSerialize: gasScope.lineEditorSerialize,
   lineEditorTextLength: gasScope.lineEditorTextLength,
-  lineEditorSlice: gasScope.lineEditorSlice
+  lineEditorSlice: gasScope.lineEditorSlice,
+  lineEditorColorRange: gasScope.lineEditorColorRange
 };
 
 const REAL_LINES = [
@@ -126,6 +127,23 @@ for (const [label, mod] of [['src/lineEditor.js', srcMod], ['gas-app/Script.html
       root.appendChild({ nodeType: 8, nodeName: '#comment', nodeValue: 'x', childNodes: [] });
       root.appendChild(d.createTextNode('b'));
       assert.equal(mod.lineEditorSerialize(mod.lineEditorFromDom(root)), '**a**b');
+    });
+  });
+}
+
+for (const [label, m] of [['src/lineEditor.js', srcMod], ['gas-app/Script.html', gasMod]]) {
+  describe(`lineEditorColorRange [${label}]`, () => {
+    it('colors only the selected part', () => {
+      assert.equal(m.lineEditorColorRange('hello world', 6, 11, 'red'), 'hello [[color:red]]world[[/color]]');
+    });
+    it('keeps bold inside the colored part and replaces an older color', () => {
+      assert.equal(m.lineEditorColorRange('a **b** [[color:blue]]cd[[/color]]', 2, 8, 'green'), 'a [[color:green]]**b** cd[[/color]]');
+    });
+    it('splits an existing color around a recolored middle', () => {
+      assert.equal(m.lineEditorColorRange('[[color:red]]abcd[[/color]]', 1, 3, 'blue'), '[[color:red]]a[[/color]][[color:blue]]bc[[/color]][[color:red]]d[[/color]]');
+    });
+    it('default removes color from the selection only', () => {
+      assert.equal(m.lineEditorColorRange('[[color:red]]abcd[[/color]]', 1, 3, 'default'), '[[color:red]]a[[/color]]bc[[color:red]]d[[/color]]');
     });
   });
 }

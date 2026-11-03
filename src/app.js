@@ -23,7 +23,7 @@ import { formatEventDescriptionHtml, extractMeetLink } from './calendarEngine.js
 import { parseIndexEntriesFromNote } from './indexParser.js';
 import { getQuoteForDateStr } from './quotesEngine.js';
 import { clipboardToNoteLines, isNoteListLine } from './notePaste.js';
-import { lineEditorSplitPrefix, lineEditorRender, lineEditorSerialize, lineEditorTextLength, lineEditorSlice, lineEditorToDom, lineEditorFromDom } from './lineEditor.js';
+import { lineEditorSplitPrefix, lineEditorRender, lineEditorSerialize, lineEditorTextLength, lineEditorSlice, lineEditorColorRange, lineEditorToDom, lineEditorFromDom } from './lineEditor.js';
 import {
   getCached, setCached, invalidateCached, primeFromRange, hydrateFromIdb, getCachedRange,
   getCachedMasterTasks, setCachedMasterTasks, hydrateMasterTasksFromIdb,
@@ -2828,6 +2828,18 @@ Alpine.data('plannerApp', () => ({
         sel.addRange(range);
       },
 
+      // Selects plain-text offsets [start, end) inside the live line editor.
+      selectLineRange(el, start, end) {
+        const a = this.lineTextPoint(el, start);
+        const b = this.lineTextPoint(el, end);
+        const range = document.createRange();
+        range.setStart(a.node, a.offset);
+        range.setEnd(b.node, b.offset);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      },
+
       // Selection as plain-text offsets inside el, or null when the selection is elsewhere.
       lineSelectionOffsets(el) {
         const sel = window.getSelection();
@@ -3650,6 +3662,17 @@ Alpine.data('plannerApp', () => ({
           const sel = this.lineSelectionOffsets(editorEl);
           if (sel && sel.start !== sel.end) {
             document.execCommand(execMap[formatType]);
+            return;
+          }
+        }
+        // A color button with text selected recolors just that part; the Doc keeps the same color markup.
+        if (formatType.startsWith('color-') && editorEl && document.activeElement === editorEl) {
+          const sel = this.lineSelectionOffsets(editorEl);
+          if (sel && sel.start !== sel.end) {
+            const body = lineEditorSplitPrefix(line).body;
+            this.fillLineEditor(editorEl, lineEditorColorRange(body, sel.start, sel.end, formatType.slice(6)));
+            editorEl.dispatchEvent(new window.Event('input', { bubbles: true }));
+            this.selectLineRange(editorEl, sel.start, sel.end);
             return;
           }
         }

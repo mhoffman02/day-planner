@@ -168,6 +168,30 @@ function lineEditorSlice(nodes, from, to) {
   return out;
 }
 
+function lineEditorUncolor(nodes) {
+  const out = [];
+  for (const node of nodes) {
+    if (typeof node === 'string') out.push(node);
+    else if (node.tag === 'span' && (node.attrs || {})['data-color']) out.push(...lineEditorUncolor(node.children || []));
+    else out.push({ tag: node.tag, attrs: node.attrs, children: lineEditorUncolor(node.children || []) });
+  }
+  return out;
+}
+
+/**
+ * @param {string} body Line markup without its list prefix.
+ * @param {number} start Visible-text offset where the selection starts.
+ * @param {number} end Visible-text offset where the selection ends.
+ * @param {string} color teal, red, green, blue, or default to clear color.
+ * @returns {string} The markup with only [start, end) recolored; other formatting is kept.
+ */
+function lineEditorColorRange(body, start, end, color) {
+  const nodes = lineEditorRender(body);
+  const mid = lineEditorUncolor(lineEditorSlice(nodes, start, end));
+  const wrapped = color === 'default' ? mid : [{ tag: 'span', attrs: { 'data-color': color }, children: mid }];
+  return lineEditorSerialize(lineEditorSlice(nodes, 0, start)) + lineEditorSerialize(wrapped) + lineEditorSerialize(lineEditorSlice(nodes, end, Infinity));
+}
+
 const LINE_EDITOR_TAGS = { b: 'b', i: 'i', u: 'u', s: 's', span: 'span', a: 'a' };
 
 /**
@@ -211,4 +235,4 @@ function lineEditorFromDom(root) {
   return out;
 }
 
-export { lineEditorSplitPrefix, lineEditorRender, lineEditorSerialize, lineEditorTextLength, lineEditorSlice, lineEditorToDom, lineEditorFromDom };
+export { lineEditorSplitPrefix, lineEditorRender, lineEditorSerialize, lineEditorTextLength, lineEditorSlice, lineEditorColorRange, lineEditorToDom, lineEditorFromDom };
