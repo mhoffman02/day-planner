@@ -14,5 +14,5 @@ This session shipped the per-line contenteditable notes editor (`src/lineEditor.
 
 - What changed: TODO.md B1 (notes portal item), PLAN.md Phase 32 checklist, LEARNINGS.md 2026-11-03.
 - Still open: TODO.md sections "Agent work" and "For the session after next" (B1 scheduled-tick Decision check, day rollover live check, /mobilebasic choice, B3, B4); Tutorial coverage exercises (TODO A0).
-- 2026-11-11: check `npm run rpc -- getHubStatus`, drop the day-6 warning in `tools/gas-rpc.js` (red test first).
+- rpc token check, due 2026-11-11: run `npm run rpc -- getHubStatus`; if it still works, drop the day-6 warning in `tools/gas-rpc.js` (red test first). The consent screen is already In production, so the 7-day expiry may no longer apply (TODO.md B4).
 - Trap: worktree Bash refuses compound commands; write script files and run plain commands. In `gas-app/*.html` never put `//` in strings.
