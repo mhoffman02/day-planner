@@ -3,5 +3,19 @@
     "allow": [
       "Bash(npm run rpc:*)"
     ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/tools/edit-gate.js\"",
+            "timeout": 90
+          }
+        ]
+      }
+    ]
   }
 }
