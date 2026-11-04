@@ -85,7 +85,7 @@ export function alpineToStatic(html) {
 
 export async function countFindings(html, name) {
   const hv = new HtmlValidate({
-    extends: ['html-validate:recommended'],
+    extends: ['html-validate:recommended', 'html-validate:a11y'],
     // House style, not correctness: inline styles are used deliberately; whitespace is lint noise.
     rules: { 'no-trailing-whitespace': 'off' },
   });

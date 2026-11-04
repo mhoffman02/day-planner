@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { countByRule, compareAxe, lowerBaseline } from './axe-ratchet.js';
+import { AXE_TAGS } from './axe-tags.js';
 
 const require = createRequire(import.meta.url);
 
@@ -43,7 +44,7 @@ export function buildAxeExpression(axeSource) {
   if (!frameEl || !frameEl.contentWindow) throw new Error('axe: #userHtmlFrame (app document) not found in sandbox frame');
   const w = frameEl.contentWindow;
   w.eval(${JSON.stringify(axeSource)});
-  const r = await w.axe.run(w.document);
+  const r = await w.axe.run(w.document, { runOnly: { type: 'tag', values: ${JSON.stringify(AXE_TAGS)} } });
   return { violations: r.violations.map(v => ({ id: v.id, nodes: v.nodes.map(() => 0) })) };
 })()`;
 }
