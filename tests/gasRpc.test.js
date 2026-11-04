@@ -15,7 +15,6 @@ import {
   runFunction,
   interpretRunResponse,
   main,
-  checkTokenAge,
   API_DEPLOYMENT_ID
 } from '../tools/gas-rpc.js';
 
@@ -263,38 +262,12 @@ test('appsscript.json has executionApi and unchanged webapp', () => {
   assert.deepEqual(m.webapp, { access: 'MYSELF', executeAs: 'USER_DEPLOYING' });
 });
 
-const DAY = 86400000;
-
-test('checkTokenAge: first sight records fingerprint, no warning, never stores the token', () => {
-  const state = tmpFile('state.json');
-  assert.equal(checkTokenAge(SECRET_TOKEN, 1000, state), null);
-  const saved = fs.readFileSync(state, 'utf8');
-  assert.ok(!saved.includes(SECRET_TOKEN));
-  assert.equal(checkTokenAge(SECRET_TOKEN, 1000 + 2 * DAY, state), null);
-});
-
-test('checkTokenAge: warns from day 6 with the expiry date and login command', () => {
-  const state = tmpFile('state.json');
-  const t0 = new Date(2026, 9, 10).getTime(); // local midnight: the expiry shown is a local date
-  checkTokenAge(SECRET_TOKEN, t0, state);
-  const msg = checkTokenAge(SECRET_TOKEN, t0 + 6 * DAY + 1, state);
-  assert.match(msg, /6 days old/);
-  assert.match(msg, /2026-10-17/);
-  assert.match(msg, /clasp login --user rpc/);
-});
-
-test('checkTokenAge: a new refresh token (re-login) resets the clock', () => {
-  const state = tmpFile('state.json');
-  checkTokenAge('old', 0, state);
-  assert.equal(checkTokenAge('new', 6.5 * DAY, state), null);
-});
-
-test('main: invalid_grant names the 7-day Testing expiry', async () => {
+test('main: invalid_grant names a revoked or expired token', async () => {
   const io = makeIo();
   const code = await main(['runSelfTest'], {
     fetchImpl: async () => jsonResponse(400, { error: 'invalid_grant', error_description: 'Token has been expired or revoked.' }),
     stdout: io.stdout, stderr: io.stderr, env: makeEnv()
   });
   assert.equal(code, 2);
-  assert.match(io.err.join(''), /7-day/);
+  assert.match(io.err.join(''), /revoked or expired/);
 });
