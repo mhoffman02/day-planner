@@ -53,8 +53,8 @@ test('Tutorial exercises have unique, ordered IDs that each card uses consistent
 test('Triage Archive/Delete buttons and handlers exist in both hand-synced copies', () => {
   for (const page of ['index.html', 'gas-app/Index.html']) {
     const html = read(page);
-    assert.match(html, /@click="archiveTriageEntry\(item\)"[^>]*>.*>archive<\/span>Archive</, `${page}: Archive button with archive icon`);
-    assert.match(html, /@click="trashTriageEntry\(item\)"[^>]*>.*>delete<\/span>Delete</, `${page}: Delete button with trash icon`);
+    assert.match(html, /@click="archiveTriageEntry\(item\)"[^>]*>.*>archive<\/span><\/button>/, `${page}: icon-only Archive button`);
+    assert.match(html, /@click="trashTriageEntry\(item\)"[^>]*>.*>delete<\/span><\/button>/, `${page}: icon-only Delete button`);
   }
   for (const js of ['src/app.js', 'gas-app/Script.html']) {
     const src = read(js);
