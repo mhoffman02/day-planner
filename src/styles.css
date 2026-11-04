@@ -139,9 +139,14 @@
   input:focus,
   select:focus,
   textarea:focus {
-    outline: none;
     border-color: var(--binder-teal) !important;
     box-shadow: 0 0 0 2px var(--binder-teal-focus) !important;
+  }
+
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: none;
   }
 
   input:disabled,
@@ -1565,10 +1570,6 @@
     transform: translateY(-1px) scale(1.15);
   }
 
-  .star-toggle:focus {
-    outline: none !important;
-  }
-
   .star-toggle:focus-visible {
     background: transparent !important;
     background-color: transparent !important;
@@ -1863,6 +1864,9 @@
     color: var(--text-primary);
     border: 1px solid var(--border-line);
     border-radius: 2px;
+  }
+
+  input.delegate-owner-input:focus-visible {
     outline: none;
   }
 
@@ -2037,10 +2041,13 @@
     border-bottom: 1px solid var(--binder-teal, #2d6a5a) !important;
     border-radius: 0 !important;
     background: transparent !important;
-    outline: none !important;
     box-shadow: none !important;
     text-decoration: none !important;
     vertical-align: middle;
+  }
+
+  .task-title-inline-input:focus-visible {
+    outline: none !important;
   }
 
   .event-pill-text {
@@ -2342,7 +2349,6 @@
     background: transparent !important;
     color: var(--binder-teal) !important;
     padding: 2px 4px !important;
-    outline: none;
     box-shadow: none !important;
     border-radius: 3px;
     cursor: text;
@@ -2351,6 +2357,10 @@
     text-overflow: ellipsis;
     margin-bottom: 0 !important;
     transition: border-color var(--duration-standard) var(--ease-standard), background var(--duration-standard) var(--ease-standard);
+  }
+
+  .card-topic-input:focus-visible {
+    outline: none;
   }
   .card-topic-input::-webkit-calendar-picker-indicator {
     display: none;
@@ -2363,7 +2373,7 @@
   .card-topic-input:hover {
     border-bottom-color: var(--border-line) !important;
   }
-  .card-topic-input:focus {
+  .card-topic-input:focus-visible {
     outline: none;
     border-bottom: 1px solid var(--binder-teal) !important;
     box-shadow: none !important;
@@ -2515,7 +2525,6 @@
     background: transparent !important;
     color: var(--text-primary) !important;
     padding: 2px 4px !important;
-    outline: none;
     box-shadow: none !important;
     border-radius: 3px;
     cursor: text;
@@ -2524,6 +2533,10 @@
     line-height: 1.35;
     margin-bottom: 0 !important;
   }
+
+  .card-heading-input:focus-visible {
+    outline: none;
+  }
   .card-heading-input:disabled {
     color: var(--text-muted) !important;
     cursor: not-allowed;
@@ -2531,7 +2544,7 @@
   .card-heading-input:hover:not(:disabled) {
     border-bottom-color: var(--border-line) !important;
   }
-  .card-heading-input:focus {
+  .card-heading-input:focus-visible {
     outline: none;
     border-bottom: 1px solid var(--binder-teal) !important;
     box-shadow: none !important;
@@ -2872,8 +2885,11 @@
     border: none !important;
     background: transparent !important;
     color: inherit;
-    outline: none;
     box-shadow: none !important;
+  }
+
+  .note-card-line-input:focus-visible {
+    outline: none;
   }
   .note-card-line-edit {
     display: flex;
@@ -3901,6 +3917,9 @@
     color: inherit;
     border: 1px solid var(--border-line);
     border-radius: 4px;
+  }
+
+  .future-item-input-field:focus-visible {
     outline: none;
   }
   .future-item-input-field:focus {
@@ -3962,12 +3981,15 @@
     color: inherit;
     border: 1px solid var(--border-line);
     border-radius: 4px;
-    outline: none;
     width: 120px !important;
     max-width: 120px !important;
     margin-bottom: 0 !important;
     flex: 0 0 120px !important;
     box-sizing: border-box;
+  }
+
+  input.future-item-date-input:focus-visible {
+    outline: none;
   }
   .future-item-actions .btn-move-to {
     height: 24px;
@@ -4100,13 +4122,16 @@
     color: var(--text-primary);
     border: 1px solid var(--border-line);
     border-radius: 2px;
-    outline: none;
     width: 130px !important;
     max-width: 130px !important;
     margin-bottom: 0 !important;
     flex: 0 0 130px !important;
     box-sizing: border-box;
     transition: border-color var(--duration-standard) var(--ease-standard), box-shadow var(--duration-standard) var(--ease-standard);
+  }
+
+  input.master-task-date-input:focus-visible {
+    outline: none;
   }
 
   input.master-task-date-input:focus {
@@ -4755,7 +4780,7 @@
   tr.search-hit > td {
     animation: search-hit-fade 2.5s ease-out;
   }
-  tr[tabindex="-1"]:focus {
+  tr[tabindex="-1"]:focus-visible {
     outline: none;
   }
   @keyframes search-hit-fade {
@@ -5940,10 +5965,6 @@
 
   [data-theme="dark"] .star-toggle.is-starred:hover {
     color: #fbbf24;
-  }
-
-  [data-theme="dark"] .star-toggle:focus {
-    outline: none !important;
   }
 
   [data-theme="dark"] .star-toggle:focus-visible {
