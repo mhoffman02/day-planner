@@ -105,6 +105,8 @@ function listThreadsByLabel(labelName, opts) {
   // inboxOnly: Gmail ANDs labelIds, so this lists threads with the label that are still in the Inbox.
   const params = { labelIds: o.inboxOnly ? [labelId, 'INBOX'] : [labelId], maxResults: o.maxResults || 50 };
   if (o.pageToken) params.pageToken = o.pageToken;
+  // newerThanDays bounds by the thread's last message date (Gmail keeps no label-applied date).
+  if (o.newerThanDays) params.q = 'newer_than:' + o.newerThanDays + 'd';
   const resp = Gmail.Users.Threads.list(GMAIL_ME_, params) || {};
   // historyId moves on any new message or label change: the Triage row cache keys on it.
   const historyIds = {};
@@ -115,6 +117,53 @@ function listThreadsByLabel(labelName, opts) {
     historyIds: historyIds,
     nextPageToken: resp.nextPageToken || null
   };
+}
+
+/**
+ * @returns {string|null} The mailbox's current historyId (the watermark for listThreadsLabeledSince), or null if unavailable.
+ */
+function currentHistoryId() {
+  const profile = Gmail.Users.getProfile(GMAIL_ME_) || {};
+  return profile.historyId ? String(profile.historyId) : null;
+}
+
+/**
+ * Lists thread ids that gained a label (labelAdded) or arrived already carrying it (messagesAdded, e.g. a
+ * Gmail filter) after startHistoryId. Works for archived threads: it reads label events, not the Inbox.
+ * Gmail keeps history for about a week, so an old startHistoryId answers expired:true (HTTP 404).
+ * @param {string} labelName Label name.
+ * @param {string} startHistoryId Watermark from currentHistoryId().
+ * @param {{maxPages?:number}} [opts] Paging bound.
+ * @returns {{labelFound:boolean, expired:boolean, threadIds:string[]}} Distinct thread ids.
+ */
+function listThreadsLabeledSince(labelName, startHistoryId, opts) {
+  const o = opts || {};
+  const labelId = resolveLabelId(labelName);
+  if (!labelId) return { labelFound: false, expired: false, threadIds: [] };
+  const seen = {};
+  const ids = [];
+  function take(msg) {
+    if (msg && msg.threadId && !seen[msg.threadId]) { seen[msg.threadId] = true; ids.push(msg.threadId); }
+  }
+  let pageToken = null;
+  let pages = 0;
+  try {
+    do {
+      const params = { startHistoryId: startHistoryId, labelId: labelId, historyTypes: ['labelAdded', 'messageAdded'], maxResults: 500 };
+      if (pageToken) params.pageToken = pageToken;
+      const resp = Gmail.Users.History.list(GMAIL_ME_, params) || {};
+      (resp.history || []).forEach(function(h) {
+        (h.labelsAdded || []).forEach(function(e) { if ((e.labelIds || []).indexOf(labelId) !== -1) take(e.message); });
+        (h.messagesAdded || []).forEach(function(e) { if (e.message && (e.message.labelIds || []).indexOf(labelId) !== -1) take(e.message); });
+      });
+      pageToken = resp.nextPageToken || null;
+      pages += 1;
+    } while (pageToken && pages < (o.maxPages || 10));
+  } catch (err) {
+    if (err && (err.code === 404 || /\b404\b|not found/i.test(String(err.message || err)))) return { labelFound: true, expired: true, threadIds: [] };
+    throw err;
+  }
+  return { labelFound: true, expired: false, threadIds: ids };
 }
 
 /**
@@ -496,6 +545,8 @@ global.DPGmailRepo = Object.freeze({
   gmailUrl: gmailUrl,
   resolveLabelId: resolveLabelId,
   listThreadsByLabel: listThreadsByLabel,
+  listThreadsLabeledSince: listThreadsLabeledSince, // QueueProcessor label-added watermark
+  currentHistoryId: currentHistoryId,               // QueueProcessor label-added watermark
   getThreadMeta: getThreadMeta,
   threadExists: threadExists,
   archiveThread: archiveThread, // HubController.archiveTriageThread only

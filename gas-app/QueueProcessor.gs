@@ -38,6 +38,7 @@
 const QUEUE_LAST_RUN_PROP_ = 'HUB_LAST_RUN';
 const QUEUE_LAST_RUN_DRY_PROP_ = 'HUB_LAST_RUN_DRY';
 const QUEUE_DRY_FP_PROP_ = 'HUB_DRY_PASS_FP';   // {fp, at} of the last full dry pass (scheduled ticks reuse it)
+const QUEUE_HISTORY_WM_PROP_ = 'HUB_HISTORY_WM'; // mailbox historyId at the last clean full scan (label-added watermark)
 const QUEUE_MAX_RUN_MS_ = 4 * 60 * 1000;
 const QUEUE_LOCK_WAIT_MS_ = 500;
 const QUEUE_PAGE_SIZE_ = 100;
@@ -95,7 +96,8 @@ function getSettings() {
     batchSize: cfg.BatchSize,
     triggerMinutes: cfg.TriggerMinutes,
     maxExcerpt: cfg.MaxExcerptChars,
-    tasksListId: cfg.TasksListId
+    tasksListId: cfg.TasksListId,
+    lookbackDays: cfg.LookbackDays
   };
 }
 
@@ -363,18 +365,39 @@ function collectItems_(ctx) {
   const seen = {};
   const todayThreads = {};
 
-  function pagedThreadIds(label) {
+  // Threads with an unfinished ledger row per kind (ERROR / PENDING / DEFERRED). The watermark would otherwise
+  // drop them: a retryable ERROR in backoff is filtered out of the run, so the run ends clean and the
+  // watermark moves on, and nothing would re-collect the thread when the backoff elapses.
+  const openByKind = {};
+  (ctx.ledgerRows || []).forEach(function(r) {
+    if (r.Status === E.LEDGER_STATUS.DONE || r.Status === E.LEDGER_STATUS.SKIPPED) return;
+    const m = /^GMAIL\|([^|]+)\|(TASK_TODAY|TASK|WAITING|DECISION|MEETING)(\||$)/.exec(r.OperationKey);
+    if (m) (openByKind[m[2]] = openByKind[m[2]] || []).push(m[1]);
+  });
+  function withOpen(ids, kind) {
+    const seenIds = {};
+    return ids.concat(openByKind[kind] || []).filter(function(tid) { return seenIds[tid] ? false : (seenIds[tid] = true); });
+  }
+
+  function pagedThreadIds(label, kind) {
+    // Watermark: only threads that gained the label since the last clean scan (archived ones included).
+    // Expired history (about a week) or no watermark yet: bounded lookback on the last message date.
+    if (ctx.scan && ctx.scan.startHistoryId) {
+      const since = DPGmailRepo.listThreadsLabeledSince(label, ctx.scan.startHistoryId);
+      if (!since.expired) return withOpen(since.threadIds, kind);
+      ctx.scan.fellBack = true;
+    }
     let ids = [];
     let pageToken = null;
     let pages = 0;
     do {
-      const page = DPGmailRepo.listThreadsByLabel(label, { maxResults: QUEUE_PAGE_SIZE_, pageToken: pageToken });
+      const page = DPGmailRepo.listThreadsByLabel(label, { maxResults: QUEUE_PAGE_SIZE_, pageToken: pageToken, newerThanDays: ctx.settings.lookbackDays });
       ids = ids.concat(page.threadIds);
       Object.keys(page.historyIds || {}).forEach(function(tid) { ctx.historyIds[tid] = page.historyIds[tid]; });
       pageToken = page.nextPageToken;
       pages += 1;
     } while (pageToken && pages < QUEUE_MAX_PAGES_);
-    return ids;
+    return withOpen(ids, kind);
   }
   function push(item) {
     if (seen[item.opKey] || ctx.doneKeys[item.opKey] || ctx.blockedKeys[item.opKey]) return;
@@ -384,25 +407,26 @@ function collectItems_(ctx) {
 
   // A thread labelled Decision is a pending decision; any Task/Task-Today label on it is not a second Task.
   const decisionThreads = {};
-  pagedThreadIds(W.DECISION).forEach(function(tid) {
+  pagedThreadIds(W.DECISION, 'DECISION').forEach(function(tid) {
     decisionThreads[tid] = true;
     push({ opKey: E.gmailDecisionKey(tid), threadId: tid, kind: 'DECISION', action: 'CREATE_TASK' });
   });
-  pagedThreadIds(W.TASK_TODAY).forEach(function(tid) {
-    if (decisionThreads[tid]) return;
+  pagedThreadIds(W.TASK_TODAY, 'TASK_TODAY').forEach(function(tid) {
+    if (decisionThreads[tid] || ctx.doneKeys[E.gmailDecisionKey(tid)]) return;
     todayThreads[tid] = true;
     push({ opKey: E.gmailTaskKey(tid, true), threadId: tid, kind: 'TASK_TODAY', action: 'CREATE_TASK' });
   });
-  pagedThreadIds(W.TASK).forEach(function(tid) {
-    if (todayThreads[tid] || decisionThreads[tid]) return;
+  pagedThreadIds(W.TASK, 'TASK').forEach(function(tid) {
+    // Under the watermark the sets above hold only recently labelled threads: finished Decision/Today work also blocks a plain Task.
+    if (todayThreads[tid] || decisionThreads[tid] || ctx.doneKeys[E.gmailDecisionKey(tid)] || ctx.doneKeys[E.gmailTaskKey(tid, true)]) return;
     push({ opKey: E.gmailTaskKey(tid, false), threadId: tid, kind: 'TASK', action: 'CREATE_TASK' });
   });
-  pagedThreadIds(W.WAITING).forEach(function(tid) {
+  pagedThreadIds(W.WAITING, 'WAITING').forEach(function(tid) {
     push({ opKey: E.gmailWaitingKey(tid), threadId: tid, kind: 'WAITING', action: 'CREATE_WAITING' });
   });
 
   if (ctx.features.NCMMS_CORE_PILOT === true) {
-    const coreIds = pagedThreadIds(W.MEETING_NCMMS_CORE).filter(function(tid) { return !ctx.meetingDoneThreads[tid]; });
+    const coreIds = pagedThreadIds(W.MEETING_NCMMS_CORE, 'MEETING').filter(function(tid) { return !ctx.meetingDoneThreads[tid]; });
     if (coreIds.length) {
       try {
         const now = new Date();
@@ -475,7 +499,9 @@ function runLocked_(dry, features, opts) {
     });
     const errors = [];
     const historyIds = {};
-    const items = collectItems_({ features: features, settings: settings, registry: registry, doneKeys: doneKeys, blockedKeys: blockedKeys, ledgerRows: ledgerRows, meetingDoneThreads: meetingDoneThreads, errors: errors, historyIds: historyIds });
+    // Read the mailbox historyId BEFORE listing so a label added mid-scan is seen by the next one.
+    const scan = { startHistoryId: PropertiesService.getUserProperties().getProperty(QUEUE_HISTORY_WM_PROP_) || null, nextHistoryId: DPGmailRepo.currentHistoryId(), fellBack: false };
+    const items = collectItems_({ scan: scan, features: features, settings: settings, registry: registry, doneKeys: doneKeys, blockedKeys: blockedKeys, ledgerRows: ledgerRows, meetingDoneThreads: meetingDoneThreads, errors: errors, historyIds: historyIds });
     let fingerprint = null;
     if (dry) {
       fingerprint = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,
@@ -547,6 +573,9 @@ function runLocked_(dry, features, opts) {
     // A time-limited pass did not see every item, so it is no baseline for skipping the next tick.
     if (dry && !timeLimited) props.setProperty(QUEUE_DRY_FP_PROP_, JSON.stringify({ fp: fingerprint, at: at }));
     const done = !timeLimited && items.length <= settings.batchSize;
+    // Advance the watermark only after a live run that saw and cleanly finished every candidate; otherwise the
+    // unfinished ones (batch cap, time limit, failures) are re-collected from the old watermark next run.
+    if (!dry && scan.nextHistoryId && done && counts.errors === 0) props.setProperty(QUEUE_HISTORY_WM_PROP_, scan.nextHistoryId);
     return E.makeResult({ ok: counts.errors === 0, status: status,
       message: failedLead + (dry ? 'Dry run: ' : '') + counts.processed + ' processed, ' + counts.skipped + ' skipped, ' + counts.errors + ' errors, ' + counts.quarantined + ' quarantined' +
         (timeLimited ? ', stopped at the ' + (QUEUE_MAX_RUN_MS_ / 60000) + ' minute time limit (' + counts.notStarted + ' not started; they resume next run)' : ''),

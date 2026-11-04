@@ -238,6 +238,7 @@ function buildConfigSeed_(featureOverrides) {
     ['BatchSize', '25'],
     ['TriggerMinutes', '5'],
     ['MaxExcerptChars', '160'],
+    ['LookbackDays', '30'],
     ['ExcludedAiLabels', E.AI_EXCLUDED_LABELS.join(',')]
   ];
   Object.keys(E.DEFAULT_FEATURES).forEach(function (name) {
@@ -416,7 +417,7 @@ function featuresFromMap_(map) {
 
 /**
  * @returns {Object} Frozen config: TimeZone, UserEmail, TasksListId, BatchSize, TriggerMinutes,
- *   MaxExcerptChars, ExcludedAiLabels (array), features. Throws SETUP_ERROR naming a missing key.
+ *   MaxExcerptChars, LookbackDays, ExcludedAiLabels (array), features. Throws SETUP_ERROR naming a missing key.
  */
 function getConfig() {
   const map = readConfigMap_();
@@ -434,6 +435,7 @@ function getConfig() {
     BatchSize: parsePositiveInt_('BatchSize', map.BatchSize, 25),
     TriggerMinutes: parsePositiveInt_('TriggerMinutes', map.TriggerMinutes, 5),
     MaxExcerptChars: parsePositiveInt_('MaxExcerptChars', map.MaxExcerptChars, 160),
+    LookbackDays: parsePositiveInt_('LookbackDays', map.LookbackDays, 30),
     ExcludedAiLabels: Object.freeze(excluded),
     features: featuresFromMap_(map)
   });

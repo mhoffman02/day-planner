@@ -100,7 +100,18 @@ function makeGmail(h) {
   });
   return {
     Users: {
-      getProfile(userId) { h.gmail.calls.push('getProfile'); return { emailAddress: 'Me@Example.test' }; },
+      getProfile(userId) {
+        h.gmail.calls.push('getProfile');
+        return h.gmail.mailboxHistoryId === undefined ? { emailAddress: 'Me@Example.test' } : { emailAddress: 'Me@Example.test', historyId: String(h.gmail.mailboxHistoryId) };
+      },
+      // Tests set h.gmail.historyEvents = [{ labelsAdded|messagesAdded }] and h.gmail.historyExpired to force a 404.
+      History: {
+        list(userId, opts = {}) {
+          h.gmail.calls.push(`history.list:${opts.startHistoryId}`);
+          if (h.gmail.historyExpired) { const e = new Error('Requested entity was not found.'); e.code = 404; throw e; }
+          return { history: h.gmail.historyEvents || [] };
+        }
+      },
       Labels: {
         list() { h.gmail.calls.push('labels.list'); return { labels: h.gmail.labels.map((l) => ({ ...l })) }; },
         // Advanced Gmail signature: create(resource, userId).
@@ -153,6 +164,7 @@ function makeGmail(h) {
       Threads: {
         list(userId, opts = {}) {
           h.gmail.calls.push('threads.list');
+          (h.gmail.listQueries = h.gmail.listQueries || []).push(opts.q);
           spend('threads.list');
           if (h.gmail.quotaOnList) throw new Error(QUOTA_MSG('list'));
           const ids = matchingThreads(opts).map((t) => ({ id: t.id, historyId: String(t.historyId) }));
@@ -377,7 +389,7 @@ export function makeHubContext(o = {}) {
   } else {
     ctx.DPConfig = {
       getFeatures: () => ({ ...engines.DEFAULT_FEATURES, ...h.config.features }),
-      getConfig: () => ({ TimeZone: TZ, UserEmail: 'me@example.test', TasksListId: 'LIST1', BatchSize: h.config.batchSize, TriggerMinutes: h.config.triggerMinutes || 10, MaxExcerptChars: 160, features: { ...engines.DEFAULT_FEATURES, ...h.config.features } }),
+      getConfig: () => ({ TimeZone: TZ, UserEmail: 'me@example.test', TasksListId: 'LIST1', BatchSize: h.config.batchSize, TriggerMinutes: h.config.triggerMinutes || 10, MaxExcerptChars: 160, LookbackDays: h.config.lookbackDays || 30, features: { ...engines.DEFAULT_FEATURES, ...h.config.features } }),
       getRegistry: () => h.config.registry,
       getSheetId: () => 'sheet1',
       isProvisioned: () => true,
