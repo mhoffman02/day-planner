@@ -22,6 +22,17 @@
   reports "needs a higher tier" instead. Only the orchestrating session uses the advisor.
 - State the chosen tier (model/effort) and a one-line reason when spawning.
 - A tier that fails its exit-criteria tests is retried one tier up; do not start at the top "to be safe".
+- Every background subagent that may run over about 5 minutes MUST be told to keep a status file: after each batch,
+  overwrite `$CLAUDE_JOB_DIR/tmp/<agent>.status` with one line (`<ISO time> phase=<edit|verify|commit> done=<n>/<total>
+  last=<command or file>`), and write `BLOCKED: <command>` if any command runs over 5 minutes. The orchestrator
+  reads it (compared to `date`) instead of guessing from file mtimes. Report the `done/total` count, never a time
+  estimate (the pace-based guess is unreliable). A running agent only reads messages between tool calls, so
+  SendMessage is not a liveness test.
+- Orchestrator monitoring: MUST NOT stop an agent for being quiet or slow. `deep` (Opus) legitimately runs 20+ minutes
+  between visible writes. Judge liveness by the status file, then by `git status`/`git diff --shortstat` and the task
+  metric (for example the `!important` count) across at least two checks several minutes apart. Stop one only when the
+  status file says `BLOCKED`, the metrics stay frozen across 3 checks about 10 minutes apart with no status update, or
+  the user says so. Before stopping, ask the user. Report to the user the metric and its change, never a guessed ETA.
 - Every subagent prompt MUST carry exit criteria: concrete commands plus expected results (full test suite, lint,
   task-specific gate). The agent reports evidence lines, not "done".
 - Every subagent works TDD: a behavior change or bug fix starts with a red test that fails for the diagnosed

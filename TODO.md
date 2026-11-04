@@ -32,6 +32,34 @@ Pilot branch `worktree-solid-code-pilot` (user merges, see HANDOFF) added the No
 - [x] gitleaks 8.30.1 installed in `~/.local/bin` (checksum verified) and `.githooks/pre-commit` scans staged changes, blocks if missing (2026-11-04).
 - [ ] **User decision:** `npm run push:work` for the pilot's gas-app changes (Styles `--target-min`); default: next
   gas-app change, then "Update WORK".
+- [ ] **Low priority, later: semantic color names (2026-11-04).** Rename the hex-named `--c-<hex>` tokens in
+  `src/styles.css` + `gas-app/Styles.html` to semantic names. First rank-rate 3-5 widely used palettes/design systems
+  (candidates: Material 3 color roles, Tailwind, Radix Colors, IBM Carbon, GitHub Primer), then map each of our
+  colors to its best match in the top-ranked system and rename accordingly. Keep the binder look (parchment cream,
+  forest teal); a mapping that shifts rendered colors is a design decision, so propose, don't apply silently.
+
+### A6. Triage action feedback (2026-11-04, medium priority)
+
+- [ ] **Triage page actions are silent; the user double/triple taps to be sure they registered.** Give every Triage
+  action a brief, non-annoying acknowledgement (toast, inline flash or similar) that the action took effect. Offer
+  3-4 ranked UX options first ([[feedback_quiet_normal_state_ui]]); reuse the existing toast pattern if one fits.
+  Red test first for any new `src/*.js` behavior; gas-app change is done only after `npm run deploy:home` passes.
+- [ ] **Triage: restyle the action row (user 2026-11-04: option A, labels on Task Today + Archive).** Hybrid row:
+  labeled Task Today and Archive, 28 px flat icon-only buttons for the rest, two groups split by a hairline (Create:
+  Task Later, Note, Waiting, Meeting; Clear: Read Later, Dismiss, Delete). Keep every action 1-click, no pills. Also
+  weigh color grouping and action hints (user ask): tint by group via tokens (create = binder teal, defer/clear =
+  muted ink, destructive = danger red kept apart from Dismiss); color never the only cue (icon + `title` +
+  `aria-label` carry meaning); keep contrast passing axe in light and dark; reuse existing `--c-*`/semantic tokens, no
+  new magic colors (css-baseline only goes down). Propose the color mapping before applying.
+- [ ] **Triage: every action button needs hover text** (`title`, plus `aria-label` where the label is icon-only or
+  1-2 words; user 2026-11-04). Include the new Note button. Say what the action does and where the item goes.
+- [ ] **Triage: add an "Add to Notes Today" action** (user 2026-11-04). Propose a 1-2 word button label (candidates:
+  "Note", "To Notes", "Journal"; default "Note") and confirm it fits the existing action row. Appends the item to
+  today's Notes. Check what the Phase 32 Notes Doc view and `appendToDailyNote`-style RPCs already offer before adding
+  a new one; same acknowledgement as the item above.
+- [ ] **Triage: THREAD show-more expands to 3-5 lines, not 2** (user 2026-11-04). Default 3, configurable somewhere out
+  of the way (user suggests the Hub sheet Config tab; check how Hub Config flags are read and cached before choosing,
+  clamp to 3-5, fail loud on a bad value per [[no-silent-failures]]). Collapsed state stays about 1 line.
 
 ## For the session after next: needs the user (interactive / HITL)
 
