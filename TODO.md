@@ -26,7 +26,7 @@ Pilot branch `worktree-solid-code-pilot` (user merges, see HANDOFF) added the No
 `check-css.js` (baseline `css-baseline.json`: magic-color 782, magic-z 26, important 537, px-font 16, outline-none 14),
 `tools/edit-gate.js` PostToolUse hook, and the skill split (`~/.claude/skills/solid-code/{js,py,web,css}.md`).
 
-- [ ] **Agent: shrink `css-baseline.json`** by moving literals into `:root` tokens (`--z-*` first: 26, then `px-font`
+- [ ] **Agent: shrink `css-baseline.json`** by moving literals into `:root` tokens (`--z-*` done @383 2026-11-04; next `px-font`
   to rem, `outline-none` needs `:focus-visible`, then colors). Edit `src/styles.css`, re-mirror `gas-app/Styles.html`
   (copy by hand; `node tools/check-mirror.js` verifies), then `node tools/check-css.js --update`. `!important` 537 is the long tail.
 - [ ] **Agent: fix the suppressed shell-string `exec`/`execSync` sites in `tools/`** (grep `eslint-suppressions.json`
