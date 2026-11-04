@@ -20,6 +20,21 @@ No agent work remains here; the two items below are user decisions to leave base
 - Left baselined: **html 12 per page** (user 2026-11-01: leave): role=radio priority buttons, listboxes, progressbar, event-pill button, dictation label; each changes markup/CSS/Alpine.
 - Left baselined: **mirror 72** (user 2026-11-01, 3A: the GAS copy wins; leave baselined, no more mirror work unless a drifted function is edited): ~30 `dp*` helper-name diffs, 4 URL builders using `'https:'+'/'+'/'`, diverged logic (addDailyTask, addMasterTask, parseDailyNoteToCards, toggleDictation popup size), binderStore shape, 25 `styles.css` entries unexamined.
 
+### A5. Solid Code pilot follow-ups (2026-11-04; shipped items in TODO_HISTORY)
+
+Pilot branch `worktree-solid-code-pilot` (user merges, see HANDOFF) added the Node safety bans, complexity 15,
+`check-css.js` (baseline `css-baseline.json`: magic-color 782, magic-z 26, important 537, px-font 16, outline-none 14),
+`tools/edit-gate.js` PostToolUse hook, and the skill split (`~/.claude/skills/solid-code/{js,py,web,css}.md`).
+
+- [ ] **Agent: shrink `css-baseline.json`** by moving literals into `:root` tokens (`--z-*` first: 26, then `px-font`
+  to rem, `outline-none` needs `:focus-visible`, then colors). Edit `src/styles.css`, re-mirror `gas-app/Styles.html`
+  (copy by hand; `node tools/check-mirror.js` verifies), then `node tools/check-css.js --update`. `!important` 537 is the long tail.
+- [ ] **Agent: fix the suppressed shell-string `exec`/`execSync` sites in `tools/`** (grep `eslint-suppressions.json`
+  for `no-restricted-syntax`), switching to `execFile` with an argv array, red test first.
+- [ ] **User decision:** install `gitleaks` locally and add `githooks/pre-commit-gitleaks` (default: yes, CI-only today).
+- [ ] **User decision:** `npm run push:work` for the pilot's gas-app changes (Styles `--target-min`); default: next
+  gas-app change, then "Update WORK".
+
 ## For the session after next: needs the user (interactive / HITL)
 
 Do not start these in an agent-only session; ask the user to be present.
@@ -62,7 +77,7 @@ note badge, completing a `Decision:` task adds `#decision <what>` to the last no
 Most items need the user (GSA account, a release go, or a decision). HOME live checks are done (TODO_HISTORY 2026-10-10).
 
 - [ ] **Update WORK** whenever `npm run push:work` has run (the user repoints "Day Planner v1" in the WORK IDE).
-- [ ] **rpc token check, due 2026-11-11**: consent screen is In production (2026-11-03) and the existing token (fingerprint 4d06a094, first seen 2026-10-12) already outlived 7 days, so no re-login is needed. Run `npm run rpc -- getHubStatus` on or after 2026-11-11; if it still works, drop the day-6 warning in `tools/gas-rpc.js` (red test first) and the 7-day notes in the gas-rpc skill.
+- [ ] **rpc token check, due 2026-11-11**: consent screen is In production (2026-11-03) and the existing token (fingerprint 4d06a094, first seen 2026-10-12) already outlived 7 days, so no re-login is needed. Run `npm run rpc -- getHubStatus` on or after 2026-11-11; if it still works, drop the 7-day notes in the gas-rpc skill (`tools/gas-rpc.js` has no age warning, only the `invalid_grant` hint at ~L117, which stays).
 - [ ] **Re-check WORK forwards made before v149**: Forward/Delegate on a Daily row set the glyph without making a
   copy (fixed in `2b2d712`). Tasks forwarded on WORK ≤ v148 may be missing from their later day; re-add any.
 - [ ] **Delete the test appointment** "Day Planner e2e test - safe to delete" (HOME calendar, 2026-10-30 14:00, has a

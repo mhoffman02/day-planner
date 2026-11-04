@@ -41,7 +41,7 @@ the GSA account, a release go, or a consent-screen decision. Checklist in [`TODO
 - [x] **WORK catch-up**: WORK v145 (build 483) live 2026-10-13: About rewrite, trial-mode controls, Triage preview,
   speed, Gmail-quota throttle + historyId row cache, Inbox only (TODO_HISTORY 2026-10-13).
 - [x] **Consent screen**: stay in Testing (decided 2026-10-10); rpc token dies every 7 days (last expiry 2026-10-17, OVERDUE probe in `TODO.md` Phase 30).
-- [ ] **rpc token after publishing (2026-11-03)**: consent screen is In production (unverified). The existing token already outlived 7 days, so no re-login; confirm it still works on or after 2026-11-11 (due 2026-11-11), then drop the day-6 age warning in `tools/gas-rpc.js` (red test first).
+- [ ] **rpc token after publishing (2026-11-03)**: consent screen is In production (unverified). The existing token already outlived 7 days, so no re-login; confirm it still works on or after 2026-11-11 (due 2026-11-11), then drop the 7-day notes in the gas-rpc skill (`tools/gas-rpc.js` has no age warning).
 - Out of scope: Gemini discovery/actions (Phase 6 build), USAi (Phase 7).
 - [x] **Task verbs + Master parity + speed** (2026-10-16): Forward menu, Delegate with check-back, Master Tasks get
   every Daily verb, Daily forward routing fix, quiet Live mark, Master tab speed (TODO_HISTORY 2026-10-16).
@@ -56,6 +56,10 @@ Phase 31 (search polish) shipped and is archived in `PLAN-HISTORY.md`. Checklist
 - [x] `var` 0, rpc-guard 0 (one `v_` validator, transport per family; ADR 0005 addendum), axe 0, searchEngine mutation 20 equivalent survivors (HOME @360, WORK v187).
 - **Mutation survivors done** (2026-11-02): taskEngine 24, futureMatrixEngine 10, calendarEngine 6, searchEngine 20, all equivalent. Nothing
   agent-doable remains in Phase 33: html 12 and mirror 72 are left baselined by user decision.
+
+- [x] Gates piloted from the `solid-code` skill (2026-11-04, branch `worktree-solid-code-pilot`): Node safety bans,
+  complexity 15, gitleaks and `npm ci`/audit in CI, `--target-min` token (HOME @382), `check-css.js` ratchet, edit-time
+  hook. Follow-ups: TODO.md A5.
 
 ### Phase 32: Notes Doc safety + Decisions (In progress)
 Checklist in [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md). Evals: `docs/notes-doc-embed-eval.md`,

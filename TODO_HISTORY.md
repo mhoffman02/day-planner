@@ -1,5 +1,11 @@
 # Task History (TODO_HISTORY)
 
+## 2026-11-04 — solid-code gates piloted (branch `worktree-solid-code-pilot`; HOME @382, WORK not pushed)
+
+- [x] **a11y**: html-validate a11y preset + axe `runOnly` Section 508/WCAG 2.2 AA tags (`0913955`); color swatch buttons use `--target-min` 24px (`9763133`).
+- [x] **lint**: Node safety bans, promise rules, complexity 15 with legacy suppressions, gitleaks and `npm ci`/audit in CI, strict mode in every JS/GS file (`b04ce8a`, `cfe006e`).
+- [x] **css**: `tools/check-css.js` + `css-baseline.json` ratchet (`ef7b716`); **hooks**: `tools/edit-gate.js` PostToolUse (`863d4d9`).
+
 ## 2026-11-02 — Stryker survivors chased (pushed to pure-gas-main; no deploy, no gas-app change)
 
 - [x] **mutation**: taskEngine 74 -> 24, futureMatrixEngine 22 -> 10 (`67fe9d1`, `f643796`); `src/calendarEngine.js` added to Stryker, 134 -> 6. Every survivor left is argued equivalent.
