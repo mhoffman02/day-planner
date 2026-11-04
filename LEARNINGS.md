@@ -381,4 +381,4 @@ live-testing catches it by luck.
 
 ## 2026-11-04 (Triage UX)
 **Worked well:** Showing the real button labels before proposing the color mapping; a markup test that reads both page shells caught the class on every button.
-**Needs improvement:** Proposed the mapping from classes and titles alone, before reading the labels; read the markup first next time. Also answered "dropdown?" only after being asked: say how a config value is edited when shipping it.
+**Needs improvement:** Proposed the mapping from classes and titles alone, before reading the labels; read the markup first next time. Also answered "dropdown?" only after being asked: say how a config value is edited when shipping it. The icon-only action row sat as an "optional, low priority" TODO until the user reported it undone; queue a user-requested follow-up in the next batch. A button-form test (text vs icon) now guards it.

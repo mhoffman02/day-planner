@@ -38,7 +38,7 @@ Pilot branch `worktree-solid-code-pilot` (user merges, see HANDOFF) added the No
 
 ### A6. Triage UX (2026-11-04, medium priority; shipped items in TODO_HISTORY)
 
-- [ ] **Hand-check on HOME (user): THREAD show-more and the action-row colors** (HOME @395). THREAD: click a Thread
+- [ ] **Hand-check on HOME (user): THREAD show-more and the action-row colors** (HOME @396; the row is icon-only except Task Today/Task Later, seen on WORK 2026-11-04, user: "look pretty good"). THREAD: click a Thread
   cell, expect 3 lines of body preview; set Hub Config `PreviewLines` to 5 and refresh, expect 5; 9 fails with
   `SETUP_ERROR`. Colors: teal = Task Today/Later, Note, Waiting; muted = Send to Meeting, Read Later, Dismiss,
   Archive, Open Gmail; red = Delete. Check light and dark.
