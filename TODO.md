@@ -53,8 +53,6 @@ Pilot branch `worktree-solid-code-pilot` (user merges, see HANDOFF) added the No
   `.beat` age for a running agent) and bake the status-log duty into `~/.claude/agents/lite|worker|deep.md`.
 - [ ] **Optional (user decides, default skip): Sheets data-validation dropdown (3,4,5) on the Hub Config `PreviewLines`
   cell.** It only constrains the cell; the server check in `getPreviewLines` (`gas-app/Config.gs`) stays.
-- [ ] **Optional, low priority: restyle the action row further** (user 2026-11-04 first picked a hybrid with icon-only
-  buttons, then took color-only, shipped). Icon-only grouping with a hairline is not built; ask before starting.
 
 ## For the session after next: needs the user (interactive / HITL)
 
