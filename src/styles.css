@@ -191,7 +191,7 @@
     font-family: 'Material Symbols Outlined';
     font-weight: normal;
     font-style: normal;
-    font-size: 20px;
+    font-size: 1.25rem;
     line-height: 1;
     letter-spacing: normal;
     text-transform: none;
@@ -352,7 +352,7 @@
   }
 
   .month-jump-btn .dropdown-arrow {
-    font-size: 16px;
+    font-size: 1rem;
     line-height: 1;
     opacity: 0.85;
     transition: transform var(--duration-standard) var(--ease-standard);
@@ -519,7 +519,7 @@
 
   .date-picker-btn .dropdown-arrow,
   .month-display-btn .dropdown-arrow {
-    font-size: 16px;
+    font-size: 1rem;
     line-height: 1;
     opacity: 0.9;
     transition: transform var(--duration-standard) var(--ease-standard);
@@ -755,7 +755,7 @@
   }
 
   .master-task-due-btn .due-clear-icon {
-    font-size: 14px;
+    font-size: 0.875rem;
     opacity: 0.6;
     cursor: pointer;
   }
@@ -810,7 +810,7 @@
   }
 
   .segment-btn .material-symbols-outlined {
-    font-size: 18px;
+    font-size: 1.125rem;
     color: rgba(255, 255, 255, 0.65);
     transition: color var(--duration-standard) var(--ease-standard);
   }
@@ -2466,7 +2466,7 @@
   }
 
   .topic-tag-icon {
-    font-size: 14px;
+    font-size: 0.875rem;
     opacity: 0.6;
     flex-shrink: 0;
   }
@@ -2547,7 +2547,7 @@
     cursor: help;
   }
   .card-heading-help .material-symbols-outlined {
-    font-size: 15px;
+    font-size: 0.9375rem;
   }
   .card-heading-help-tip {
     position: absolute;
@@ -2668,7 +2668,7 @@
   }
 
   .category-check-icon {
-    font-size: 11px !important;
+    font-size: 0.6875rem !important;
     width: 11px;
     height: 11px;
     line-height: 11px !important;
@@ -3139,7 +3139,7 @@
   }
 
   .note-card-skeleton .material-symbols-outlined {
-    font-size: 22px;
+    font-size: 1.375rem;
   }
 
   .note-card-empty-state p {
@@ -3539,11 +3539,11 @@
   }
 
   /* Utility Classes */
-  .icon-14 { font-size: 14px !important; }
-  .icon-16 { font-size: 16px !important; }
-  .icon-18 { font-size: 18px !important; }
-  .icon-28 { font-size: 28px !important; }
-  .icon-32 { font-size: 32px !important; }
+  .icon-14 { font-size: 0.875rem !important; }
+  .icon-16 { font-size: 1rem !important; }
+  .icon-18 { font-size: 1.125rem !important; }
+  .icon-28 { font-size: 1.75rem !important; }
+  .icon-32 { font-size: 2rem !important; }
 
   .flex-gap-8 {
     display: flex;
@@ -4183,7 +4183,7 @@
   }
 
   .btn-move-to .icon-18 {
-    font-size: 16px;
+    font-size: 1rem;
     margin-right: 4px;
   }
 
@@ -4301,7 +4301,7 @@
   }
 
   .quick-add-section-label .material-symbols-outlined {
-    font-size: 16px;
+    font-size: 1rem;
     color: var(--binder-teal);
   }
 
