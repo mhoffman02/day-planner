@@ -976,10 +976,22 @@ export class GASBridge {
     if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
       return 'https:' + '/' + '/script.google.com/macros/s/mock-deployment-id/exec';
     }
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       window.google.script.run
-        .withSuccessHandler(url => resolve(url || ''))
-        .withFailureHandler(() => resolve(''))
+        .withSuccessHandler((url) => {
+          if (url) {
+            resolve(url);
+            return;
+          }
+          const err = new Error('getWebAppUrl returned no URL');
+          console.error('[gasBridge] getWebAppUrl: server returned no URL', err.stack);
+          reject(err);
+        })
+        .withFailureHandler((e) => {
+          const err = new Error('getWebAppUrl failed: ' + (e && e.message ? e.message : e));
+          console.error('[gasBridge] getWebAppUrl failed', (e && e.stack) || err.stack);
+          reject(err);
+        })
         .getWebAppUrl();
     });
   }

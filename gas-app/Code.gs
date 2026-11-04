@@ -463,7 +463,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 660;
+const BUILD_NUMBER_ = 661;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -2925,6 +2925,9 @@ function updateDailyTask(dateStr, taskId, updates, serverMeta) {
 /**
  * Deletes a Google Task entirely by ID.
  * @param {string} taskId Google Task id.
+ * Idempotent by design: a 404 means the task is already gone, which is the state the caller
+ * wanted, so it returns true. Any other failure is logged with its stack and rethrown.
+ * The Tasks-undefined branch returns true only for the non-Apps-Script (unit test) runtime.
  * @returns {boolean} True if deleted successfully.
  */
 function deleteDailyTask(taskId) {
@@ -3532,7 +3535,10 @@ function openPlannerWebAppDialog() {
  * @returns {string} Web app /exec URL.
  */
 function getWebAppUrl() {
-  return (typeof ScriptApp !== 'undefined' && ScriptApp.getService) ? ScriptApp.getService().getUrl() : '';
+  if (typeof ScriptApp === 'undefined' || !ScriptApp.getService) {
+    throw new Error('getWebAppUrl: ScriptApp.getService is unavailable');
+  }
+  return ScriptApp.getService().getUrl();
 }
 
 
@@ -4069,7 +4075,9 @@ function openPlannerWebAppDialog() {
 }
 
 function getWebAppUrl() {
-  return (typeof _getWebAppUrlInternal === 'function') ? _getWebAppUrlInternal() : (globalThis._getWebAppUrlInternal ? globalThis._getWebAppUrlInternal() : '');
+  if (typeof _getWebAppUrlInternal === 'function') return _getWebAppUrlInternal();
+  if (globalThis._getWebAppUrlInternal) return globalThis._getWebAppUrlInternal();
+  throw new Error('getWebAppUrl: _getWebAppUrlInternal is not loaded');
 }
 
 function searchArchiveNotes(query) {

@@ -108,7 +108,9 @@ function openDb() {
         settled = true;
         clearTimeout(timeoutId);
         console.error('[dailyDataCache] IndexedDB open threw, falling back to memory-only cache for this session:', err.stack);
-        dbPromise = null;
+        // The executor runs before `dbPromise = new Promise(...)` assigns, so a direct reset here
+        // would be overwritten by the failed promise; defer it until after the assignment.
+        Promise.resolve().then(() => { dbPromise = null; });
         resolve(null);
       }
     }

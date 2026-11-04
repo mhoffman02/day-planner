@@ -21,6 +21,7 @@ import { fileURLToPath } from 'node:url';
 import { ensureChrome } from './ensure-chrome.js';
 import { assertCleanGasApp } from './clean-tree.js';
 import { runAxeInTab, ratchetAxe } from './lib/axe-live.js';
+import { checkVersionCount, parseVersionCount, VERSION_FAIL_AT } from './lib/version-guard.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const GAS_DIR = path.join(ROOT, 'gas-app');
@@ -55,6 +56,13 @@ async function main() {
   let axeCounts = null;
 
   assertCleanGasApp(ROOT);
+  const versions = checkVersionCount(parseVersionCount(run('npx', ['clasp', 'versions'], GAS_DIR)));
+  if (versions.level === 'fail') {
+    throw new Error(`HOME holds ${versions.count} versions (cap ${VERSION_FAIL_AT}); prune old versions before deploying`);
+  }
+  if (versions.level === 'warn') {
+    console.warn(`WARNING: HOME holds ${versions.count} of ${VERSION_FAIL_AT} versions; prune soon`);
+  }
   console.log('1/3 clasp push --force (HOME @HEAD)');
   run('npx', ['clasp', 'push', '--force'], GAS_DIR);
 

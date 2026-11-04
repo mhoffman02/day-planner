@@ -75,7 +75,7 @@ describe('GASBridge google.script.run forwarding', () => {
     });
   }
 
-  it('getWebAppUrl resolves the URL, and empty string for an empty result or a failure', async () => {
+  it('getWebAppUrl resolves the URL, rejects an empty result or a failure', async () => {
     const run = {
       withSuccessHandler(ok) { this.ok = ok; return this; },
       withFailureHandler(no) { this.no = no; return this; },
@@ -84,10 +84,15 @@ describe('GASBridge google.script.run forwarding', () => {
     globalThis.window = { google: { script: { run } } };
     run.respond = () => run.ok('https://script.google.com/x/exec');
     assert.equal(await new GASBridge(false).getWebAppUrl(), 'https://script.google.com/x/exec');
-    run.respond = () => run.ok(null);
-    assert.equal(await new GASBridge(false).getWebAppUrl(), '');
-    // Current behavior: a server failure is swallowed to '' (callers cannot tell it from "no URL").
-    run.respond = () => run.no(new Error('boom'));
-    assert.equal(await new GASBridge(false).getWebAppUrl(), '');
+    const origError = console.error;
+    console.error = () => {};
+    try {
+      run.respond = () => run.ok(null);
+      await assert.rejects(new GASBridge(false).getWebAppUrl(), /getWebAppUrl.*no URL/);
+      run.respond = () => run.no(new Error('boom'));
+      await assert.rejects(new GASBridge(false).getWebAppUrl(), /getWebAppUrl failed: boom/);
+    } finally {
+      console.error = origError;
+    }
   });
 });
