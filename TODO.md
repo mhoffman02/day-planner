@@ -30,20 +30,18 @@ Pilot branch `worktree-solid-code-pilot` (user merges, see HANDOFF) added the No
   (copy by hand; `node tools/check-mirror.js` verifies), then `node tools/check-css.js --update`. `!important` 535 is the long tail.
 - [x] shell-string `exec`/`execSync` in `tools/` now `execFileSync` argv (2026-11-04).
 - [x] gitleaks 8.30.1 installed in `~/.local/bin` (checksum verified) and `.githooks/pre-commit` scans staged changes, blocks if missing (2026-11-04).
-- [ ] **User decision:** `npm run push:work` for the pilot's gas-app changes (Styles `--target-min`); default: next
-  gas-app change, then "Update WORK".
 - [ ] **Low priority, later: semantic color names (2026-11-04).** Rename the hex-named `--c-<hex>` tokens in
   `src/styles.css` + `gas-app/Styles.html` to semantic names. First rank-rate 3-5 widely used palettes/design systems
   (candidates: Material 3 color roles, Tailwind, Radix Colors, IBM Carbon, GitHub Primer), then map each of our
   colors to its best match in the top-ranked system and rename accordingly. Keep the binder look (parchment cream,
   forest teal); a mapping that shifts rendered colors is a design decision, so propose, don't apply silently.
 
-### A6. Triage action feedback (2026-11-04, medium priority)
+### A6. Triage UX (2026-11-04, medium priority; shipped items in TODO_HISTORY)
 
-- [x] **Triage page actions are silent; the user double/triple taps to be sure they registered.** Give every Triage
-  action a brief, non-annoying acknowledgement (toast, inline flash or similar) that the action took effect. Offer
-  3-4 ranked UX options first ([[feedback_quiet_normal_state_ui]]); reuse the existing toast pattern if one fits.
-  Red test first for any new `src/*.js` behavior; gas-app change is done only after `npm run deploy:home` passes.
+- [ ] **Hand-check on HOME (user): THREAD show-more and the action-row colors** (HOME @395). THREAD: click a Thread
+  cell, expect 3 lines of body preview; set Hub Config `PreviewLines` to 5 and refresh, expect 5; 9 fails with
+  `SETUP_ERROR`. Colors: teal = Task Today/Later, Note, Waiting; muted = Send to Meeting, Read Later, Dismiss,
+  Archive, Open Gmail; red = Delete. Check light and dark.
 - [ ] **Triage: fix the 3 bugs the coverage worker found (2026-11-04).** Red test first for each. (1) `src/dailyDataCache.js`
   40-113: a synchronous throw from `indexedDB.open()` sets `dbPromise = null` inside the executor, then line 40 overwrites it,
   so the retry reset never happens (test: `tests/dailyDataCacheIdbThrow.test.js` records it). (2) `src/gasBridge.js`
@@ -51,22 +49,12 @@ Pilot branch `worktree-solid-code-pilot` (user merges, see HANDOFF) added the No
   sends only `taskId`; looks intentional, confirm and document.
 - [ ] **deploy-home.js: fail early and clearly at the 200-version limit, warn near 180** (hit 2026-11-04, user deleted old
   versions in the IDE).
-- [ ] **Triage: restyle the action row (user 2026-11-04: option A, labels on Task Today + Archive).** Hybrid row:
-  labeled Task Today and Archive, 28 px flat icon-only buttons for the rest, two groups split by a hairline (Create:
-  Task Later, Note, Waiting, Meeting; Clear: Read Later, Dismiss, Delete). Keep every action 1-click, no pills. Also
-  weigh color grouping and action hints (user ask): tint by group via tokens (create = binder teal, defer/clear =
-  muted ink, destructive = danger red kept apart from Dismiss); color never the only cue (icon + `title` +
-  `aria-label` carry meaning); keep contrast passing axe in light and dark; reuse existing `--c-*`/semantic tokens, no
-  new magic colors (css-baseline only goes down). Propose the color mapping before applying.
-- [x] **Triage: every action button needs hover text** (`title`, plus `aria-label` where the label is icon-only or
-  1-2 words; user 2026-11-04). Include the new Note button. Say what the action does and where the item goes.
-- [x] **Triage: add an "Add to Notes Today" action** (user 2026-11-04). Propose a 1-2 word button label (candidates:
-  "Note", "To Notes", "Journal"; default "Note") and confirm it fits the existing action row. Appends the item to
-  today's Notes. Check what the Phase 32 Notes Doc view and `appendToDailyNote`-style RPCs already offer before adding
-  a new one; same acknowledgement as the item above.
-- [ ] **Triage: THREAD show-more expands to 3-5 lines, not 2** (user 2026-11-04). Default 3, configurable somewhere out
-  of the way (user suggests the Hub sheet Config tab; check how Hub Config flags are read and cached before choosing,
-  clamp to 3-5, fail loud on a bad value per [[no-silent-failures]]). Collapsed state stays about 1 line.
+- [ ] **Verify the agent-heartbeat PostToolUse hook live** (`tools/agent-heartbeat.js`; `npm run agent:status` should show a
+  `.beat` age for a running agent) and bake the status-log duty into `~/.claude/agents/lite|worker|deep.md`.
+- [ ] **Optional (user decides, default skip): Sheets data-validation dropdown (3,4,5) on the Hub Config `PreviewLines`
+  cell.** It only constrains the cell; the server check in `getPreviewLines` (`gas-app/Config.gs`) stays.
+- [ ] **Optional, low priority: restyle the action row further** (user 2026-11-04 first picked a hybrid with icon-only
+  buttons, then took color-only, shipped). Icon-only grouping with a hairline is not built; ask before starting.
 
 ## For the session after next: needs the user (interactive / HITL)
 

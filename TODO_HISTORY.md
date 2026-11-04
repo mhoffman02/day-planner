@@ -1,5 +1,13 @@
 # Task History (TODO_HISTORY)
 
+## 2026-11-04 (later) — Triage UX: toast, hover text, Note, THREAD preview, action colors (HOME @395, WORK pushed, repoint pending)
+
+- [x] **Triage acknowledges every action** with a toast; every action button has hover text (`title`) (`3dcc6d9`).
+- [x] **Note action** appends the thread to today's last note card; keeps its loud refusal when no card exists (`4b4c93d`).
+- [x] **THREAD show-more** reads a 400-char server `preview` (no extra Gmail calls), 3-5 lines via Hub Config `PreviewLines` (default 3, bad value is `SETUP_ERROR`) (`28383f1`).
+- [x] **Action-row colors** (color only, no fills): teal creates, muted (`hub-action-quiet`) routes, red Delete (`48e5a41`).
+- [x] **WORK push** for the `--target-min` pilot change went out with these (user decision closed).
+
 ## 2026-11-04 — solid-code gates piloted (branch `worktree-solid-code-pilot`; HOME @382, WORK not pushed)
 
 - [x] **a11y**: html-validate a11y preset + axe `runOnly` Section 508/WCAG 2.2 AA tags (`0913955`); color swatch buttons use `--target-min` 24px (`9763133`).

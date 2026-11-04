@@ -376,3 +376,9 @@ live-testing catches it by luck.
 ## 2026-11-04
 **Worked well:** Piloting each gate in day-planner before writing it into the skill; the ratchet baselines let legacy code adopt strict rules without a flag day.
 **Needs improvement:** Worktree Bash refused compound commands again (twice); wrote files and ran plain commands. The 7-line axe-targets script should have been a tool from the start.
+
+---
+
+## 2026-11-04 (Triage UX)
+**Worked well:** Showing the real button labels before proposing the color mapping; a markup test that reads both page shells caught the class on every button.
+**Needs improvement:** Proposed the mapping from classes and titles alone, before reading the labels; read the markup first next time. Also answered "dropdown?" only after being asked: say how a config value is edited when shipping it.
