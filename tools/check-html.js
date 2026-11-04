@@ -55,6 +55,27 @@ export function hardRuleViolations(file, text) {
   return out;
 }
 
+/**
+ * Separation of concerns: HTML holds structure, CSS styles, JS behaves. Counts, per rule id, what breaks it.
+ * `soc/inline-style-binding` is `:style`/`x-bind:style` (html-validate's no-inline-style sees `style=` only).
+ * A `<style>`/`<script>` whose body is only a GAS scriptlet (`<?!= include('Styles') ?>`) or empty
+ * (`<script src>`) is the allowed way to ship a separate file, so it is not counted.
+ * @param {string} html File content.
+ * @returns {Record<string, number>} Rule id -> count (only rules that hit).
+ */
+export function separationCounts(html) {
+  const counts = {};
+  const bump = (rule, n) => { if (n) counts[rule] = n; };
+  const tags = html.match(/<[a-z][\w-]*\b[^>]*>/gi) || [];
+  bump('soc/inline-handler', tags.filter((t) => /\son[a-z]+\s*=/i.test(t)).length);
+  bump('soc/inline-style-binding', tags.filter((t) => /\s(?::|x-bind:)style\s*=/i.test(t)).length);
+  const blockCount = (tag) => [...html.matchAll(new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)</${tag}>`, 'gi'))]
+    .filter((m) => m[1].replace(/<\?[\s\S]*?\?>/g, '').trim() !== '').length;
+  bump('soc/style-block', blockCount('style'));
+  bump('soc/script-block', blockCount('script'));
+  return counts;
+}
+
 export function alpineToStatic(html) {
   return html
     .replace(/(\s)(?::|x-bind:)([a-zA-Z][\w-]*)="[^"]*"/g,
@@ -66,11 +87,11 @@ export async function countFindings(html, name) {
   const hv = new HtmlValidate({
     extends: ['html-validate:recommended'],
     // House style, not correctness: inline styles are used deliberately; whitespace is lint noise.
-    rules: { 'no-inline-style': 'off', 'no-trailing-whitespace': 'off' },
+    rules: { 'no-trailing-whitespace': 'off' },
   });
   const report = await hv.validateString(alpineToStatic(html), name);
   const messages = report.results.flatMap((r) => r.messages);
-  const counts = {};
+  const counts = separationCounts(html);
   for (const m of messages) counts[m.ruleId] = (counts[m.ruleId] || 0) + 1;
   return { counts, messages };
 }

@@ -10,6 +10,8 @@
  * IIFE per .agents/rules/gas-namespace-iife.md; only export is DPCalendarRepo. Literal-only top
  * level per .agents/rules/gas-global-init-order.md; DPEngines/DPConfig are read lazily.
  */
+'use strict';
+
 (function(global) {
 
 const CAL_FIELDS_ = 'items(id,summary,status,start,end,eventType,transparency,recurringEventId,htmlLink,hangoutLink,' +

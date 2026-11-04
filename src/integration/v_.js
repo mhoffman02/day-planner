@@ -29,7 +29,6 @@
  * literals, no apostrophe or backtick in comments, no HTML comment markers anywhere.
  */
 export const v_ = (function () {
-  'use strict';
 
   const hasOwn = Object.prototype.hasOwnProperty;
   const objToString = Object.prototype.toString;

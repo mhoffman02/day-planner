@@ -93,6 +93,8 @@ export function buildEngines() {
  * global it creates is \`${NAMESPACE}\` (see .agents/rules/gas-namespace-iife.md). Not reachable via
  * google.script.run: only other .gs files read ${NAMESPACE}.
  */
+'use strict';
+
 (function(global) {
 
 ${chunks.join('\n')}

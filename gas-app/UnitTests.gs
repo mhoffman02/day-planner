@@ -13,6 +13,8 @@
  * are Code.gs internals consumed here via its own export list -- see
  * .agents/rules/gas-namespace-iife.md before adding or removing an export.
  */
+'use strict';
+
 (function(global) {
 
 /**

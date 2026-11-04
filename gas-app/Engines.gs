@@ -5,6 +5,8 @@
  * global it creates is `DPEngines` (see .agents/rules/gas-namespace-iife.md). Not reachable via
  * google.script.run: only other .gs files read DPEngines.
  */
+'use strict';
+
 (function(global) {
 
 // ---- contracts.js ----
@@ -2485,7 +2487,6 @@ function queueFor(thread, scoreResult) {
  * literals, no apostrophe or backtick in comments, no HTML comment markers anywhere.
  */
 const v_ = (function () {
-  'use strict';
 
   const hasOwn = Object.prototype.hasOwnProperty;
   const objToString = Object.prototype.toString;

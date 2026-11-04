@@ -191,7 +191,9 @@ export default [
       ],
       // GAS concatenates all .gs files into one shared global scope at
       // runtime, so cross-file function refs are false positives here.
-      'no-undef': 'off'
+      'no-undef': 'off',
+      // 'use strict'; is the first statement of every .gs file (V8 applies it per file).
+      strict: ['error', 'global']
     }
   },
   {

@@ -11,6 +11,8 @@
  * hubDispatch is a trigger handler name string, so each needs a top-level delegator in Code.gs.
  * Literal-only top level (.agents/rules/gas-global-init-order.md).
  */
+'use strict';
+
 (function(global) {
 
 const HUB_HANDLER_ = 'hubDispatch';

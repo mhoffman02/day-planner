@@ -28,6 +28,8 @@
  * Wrapped in one IIFE (gas-namespace-iife rule); the only global created is `DPLedgerRepo`, used by
  * other .gs files (queue/trigger code). Reads DPConfig/DPEngines lazily at call time.
  */
+'use strict';
+
 (function(global) {
 
 const MAX_ROWS = 5000;

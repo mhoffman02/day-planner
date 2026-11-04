@@ -15,6 +15,8 @@
  * Wrapped in one IIFE (gas-namespace-iife rule); the only global created is `DPNotesRepo`, used by
  * other .gs files. Reads DPConfig/DPEngines lazily at call time (gas-global-init-order rule).
  */
+'use strict';
+
 (function(global) {
 
 const MIME_DOC = 'application/vnd.google-apps.document';

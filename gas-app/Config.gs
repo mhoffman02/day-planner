@@ -27,6 +27,8 @@
  * it after their write-through, so no later read in the run is stale.
  * Missing mandatory configuration throws Error('SETUP_ERROR: <key> ...') (spec section 19).
  */
+'use strict';
+
 (function(global) {
 
 const PROP_SHEET_ID = 'DP_HUB_SHEET_ID';

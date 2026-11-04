@@ -13,6 +13,8 @@ check is a wish; add the check or drop the line.
 | Mirrored code stays identical | `tools/check-mirror.js` in lint (`mirror-baseline.json`: src/*.js vs Script.html, styles.css vs Styles.html) |
 | Served HTML never truncates | `tools/check-gas-script-html-safe-chars.js`: every script and style block of every gas-app/*.html |
 | No GAS globals; no unbounded loops; no `substr`; no implicit coercion | ESLint: `Program > VariableDeclaration`, `global.X = <value>`, `while(true)`/`for(;;)`, `no-restricted-properties`, `no-implicit-coercion` |
+| Strict mode in every JS/GS file | ESLint `strict`: `'global'` (`'use strict';` first statement) in every `.gs` and gas-app html script body; `'safe'` flags a redundant directive in ES modules. `Engines.gs` gets it from `tools/build-gas-engines.js` |
+| Separation of concerns: no `style=`/`:style`, no `on*=` handlers, no inline `<style>`/`<script>` bodies in page shells | `tools/check-html.js` (`no-inline-style` + `soc/*` counts in `html-baseline.json`, only go down); CSS/JS ship as partials via `<?!= include() ?>` |
 | `===`, `const`, no `var`/eval/param reassign | ESLint 2T rules on `.js`/`.gs`/gas-app html scripts; legacy `var` in gas-app grandfathered in `eslint-suppressions.json` (only shrinks). Projects started after 2026-11-01 get no suppressions |
 | No pills; dynamic HTML only through sanitizers | `tools/check-html.js`: radius 50%/99px/≥100px fails; `x-html` only via `formatEventDescription`/`renderCardLine` |
 | Coverage never drops; no untested src file | `npm run test:coverage` (`coverage-baseline.json`), CI |

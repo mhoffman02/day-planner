@@ -10,6 +10,8 @@
  * IIFE per .agents/rules/gas-namespace-iife.md; only export is DPTaskRepo. Literal-only top level
  * per .agents/rules/gas-global-init-order.md; DPEngines is read lazily inside functions.
  */
+'use strict';
+
 (function(global) {
 
 const TASKS_PAGE_SIZE_ = 100;

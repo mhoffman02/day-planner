@@ -12,6 +12,8 @@
  * Code.gs; see .agents/rules/gas-namespace-iife.md. Literal-only top level; cross-file globals are
  * read lazily (.agents/rules/gas-global-init-order.md).
  */
+'use strict';
+
 (function(global) {
 
 const HUB_LOCK_WAIT_MS_ = 10000;

@@ -33,6 +33,8 @@
  * Literal-only top level per .agents/rules/gas-global-init-order.md; every cross-file global
  * (DPEngines, DPConfig, DPLedgerRepo, DPNotesRepo, the repos) is read lazily inside functions.
  */
+'use strict';
+
 (function(global) {
 
 const QUEUE_LAST_RUN_PROP_ = 'HUB_LAST_RUN';

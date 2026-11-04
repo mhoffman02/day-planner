@@ -17,6 +17,8 @@
  * namespace (cross-file use by QueueProcessor.gs / HubController.gs). Top-level state is literal-only
  * per .agents/rules/gas-global-init-order.md; DPEngines and friends are read lazily inside functions.
  */
+'use strict';
+
 (function(global) {
 
 const GMAIL_ME_ = 'me';

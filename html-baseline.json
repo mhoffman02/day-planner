@@ -2,11 +2,18 @@
   "index.html": {
     "prefer-native-element": 10,
     "aria-label-misuse": 1,
-    "multiple-labeled-controls": 1
+    "multiple-labeled-controls": 1,
+    "soc/inline-style-binding": 11,
+    "soc/script-block": 3,
+    "no-inline-style": 7
   },
   "gas-app/Index.html": {
     "prefer-native-element": 9,
     "aria-label-misuse": 1,
-    "multiple-labeled-controls": 1
+    "multiple-labeled-controls": 1,
+    "soc/inline-style-binding": 10,
+    "soc/style-block": 1,
+    "soc/script-block": 3,
+    "no-inline-style": 7
   }
 }
