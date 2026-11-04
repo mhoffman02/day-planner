@@ -1,5 +1,12 @@
 # Task History (TODO_HISTORY)
 
+## 2026-11-04 (evening) — A6 bug queue (HOME @397, WORK v211 pushed, repoint pending)
+
+- [x] **openDb retries after a sync `indexedDB.open()` throw**: reset now runs after the Promise assignment (`087b767`, `tests/dailyDataCacheIdbRetry.test.js`).
+- [x] **`getWebAppUrl` fails loud**: bridge rejects with context and logs the stack; `Code.gs` throws instead of `''` (`087b767`).
+- [x] **`deleteDailyTask`** confirmed intentional (404 = already gone = success; other errors logged and rethrown); documented in its JSDoc (`087b767`).
+- [x] **deploy-home version guard**: warn at 180, fail at 200, fail loud on unparseable `clasp versions` (`tools/lib/version-guard.js`, `087b767`).
+
 ## 2026-11-04 (later) — Triage UX: toast, hover text, Note, THREAD preview, action colors (HOME @395, WORK pushed, repoint pending)
 
 - [x] **Triage acknowledges every action** with a toast; every action button has hover text (`title`) (`3dcc6d9`).

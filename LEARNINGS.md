@@ -382,3 +382,9 @@ live-testing catches it by luck.
 ## 2026-11-04 (Triage UX)
 **Worked well:** Showing the real button labels before proposing the color mapping; a markup test that reads both page shells caught the class on every button.
 **Needs improvement:** Proposed the mapping from classes and titles alone, before reading the labels; read the markup first next time. Also answered "dropdown?" only after being asked: say how a config value is edited when shipping it. The icon-only action row sat as an "optional, low priority" TODO until the user reported it undone; queue a user-requested follow-up in the next batch. A button-form test (text vs icon) now guards it.
+
+---
+
+## 2026-11-04 (A6 bug queue)
+**Worked well:** Handoff pinned each bug to a symbol and a failing shape, so the red tests took one try each; `new Promise` executors run before the assignment, which is why the reset was lost.
+**Needs improvement:** `queueMicrotask` is not an ESLint global here; used `Promise.resolve().then`. Wrote the commit message to a temp file because worktree Bash refuses heredoc-style compounds.

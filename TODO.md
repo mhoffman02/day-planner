@@ -38,17 +38,10 @@ Pilot branch `worktree-solid-code-pilot` (user merges, see HANDOFF) added the No
 
 ### A6. Triage UX (2026-11-04, medium priority; shipped items in TODO_HISTORY)
 
-- [ ] **Hand-check on HOME (user): THREAD show-more and the action-row colors** (HOME @396; the row is icon-only except Task Today/Task Later, seen on WORK 2026-11-04, user: "look pretty good"). THREAD: click a Thread
+- [ ] **Hand-check on HOME (user): THREAD show-more and the action-row colors** (HOME @397, WORK v211 pushed, repoint pending; the row is icon-only except Task Today/Task Later, seen on WORK 2026-11-04, user: "look pretty good"). THREAD: click a Thread
   cell, expect 3 lines of body preview; set Hub Config `PreviewLines` to 5 and refresh, expect 5; 9 fails with
   `SETUP_ERROR`. Colors: teal = Task Today/Later, Note, Waiting; muted = Send to Meeting, Read Later, Dismiss,
   Archive, Open Gmail; red = Delete. Check light and dark.
-- [ ] **Triage: fix the 3 bugs the coverage worker found (2026-11-04).** Red test first for each. (1) `src/dailyDataCache.js`
-  40-113: a synchronous throw from `indexedDB.open()` sets `dbPromise = null` inside the executor, then line 40 overwrites it,
-  so the retry reset never happens (test: `tests/dailyDataCacheIdbThrow.test.js` records it). (2) `src/gasBridge.js`
-  `getWebAppUrl` resolves `''` on server failure with no log: fail loud ([[no-silent-failures]]). (3) `deleteDailyTask`
-  sends only `taskId`; looks intentional, confirm and document.
-- [ ] **deploy-home.js: fail early and clearly at the 200-version limit, warn near 180** (hit 2026-11-04, user deleted old
-  versions in the IDE).
 - [ ] **Verify the agent-heartbeat PostToolUse hook live** (`tools/agent-heartbeat.js`; `npm run agent:status` should show a
   `.beat` age for a running agent) and bake the status-log duty into `~/.claude/agents/lite|worker|deep.md`.
 - [ ] **Optional (user decides, default skip): Sheets data-validation dropdown (3,4,5) on the Hub Config `PreviewLines`
