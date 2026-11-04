@@ -18,7 +18,7 @@ describe('filter tab helpers', () => {
   it('targets the five automatable labels, never Task-Today, Waiting or Meeting', () => {
     assert.deepEqual([...FILTER_TARGET_LABELS], ['🎯/Task', '🎯/Meeting/NCMMS-Core', '🎯/Meeting/NCMMS-Daily', '🎯/Read', '🎯/Review']);
   });
-  it('lists all nine workflow labels for setup', () => assert.equal(workflowLabelNames().length, 9));
+  it('lists all ten workflow labels for setup', () => assert.equal(workflowLabelNames().length, 10));
   it('reads filter criteria as one Gmail query', () => {
     assert.equal(filterCriteriaQuery({ from: 'a@b.gov', subject: 'Notes:', hasAttachment: true }), 'from:(a@b.gov) subject:(Notes:) has:attachment');
     assert.equal(filterCriteriaQuery({ query: 'list:(x)' }), 'list:(x)');

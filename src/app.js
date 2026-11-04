@@ -324,6 +324,7 @@ Alpine.data('plannerApp', () => ({
 
       // Gmail / Meeting Hub (Triage + Meeting Prep). Hidden until getHubStatus reports flags ON.
       hubFlags: null,
+      filedEmails: [],
       authApprovalUrl: null,
       authRechecking: false,
       authRecheckNote: '',
@@ -1393,10 +1394,26 @@ Alpine.data('plannerApp', () => ({
           this.hubCounts = (st && st.counts) || {};
           if (this.showTriageNav) this.hydrateTriageCache();
           else this.clearTriageCache();
+          this.loadFiledEmails();
         } catch (err) {
           this.hubFlags = null;
           this.clearTriageCache();
           console.error('Hub status unavailable, Triage and Meeting Prep stay hidden:', err.stack);
+        }
+      },
+
+      get showFiledEmails() {
+        return !!(this.hubFlags && this.hubFlags.GMAIL_ROUTER === true && this.hubFlags.NOTES === true);
+      },
+
+      async loadFiledEmails() {
+        if (!this.showFiledEmails) { this.filedEmails = []; return; }
+        try {
+          const r = await this.bridge.getFiledEmails(30);
+          this.filedEmails = (r && r.ok === true && Array.isArray(r.items)) ? r.items : [];
+        } catch (err) {
+          this.filedEmails = [];
+          console.error('Filed emails unavailable:', err.stack);
         }
       },
 

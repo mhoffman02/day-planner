@@ -147,7 +147,7 @@ function docUrl_(docId) {
   return 'https://docs.google.com/document/d/' + docId + '/edit';
 }
 
-const ROUTE_ACTIONS_ = { TASK: 'CREATE_TASK', TASK_TODAY: 'CREATE_TASK', DECISION: 'CREATE_TASK', WAITING: 'CREATE_WAITING', MEETING: 'ROUTE_MEETING' };
+const ROUTE_ACTIONS_ = { TASK: 'CREATE_TASK', TASK_TODAY: 'CREATE_TASK', DECISION: 'CREATE_TASK', WAITING: 'CREATE_WAITING', MEETING: 'ROUTE_MEETING', NOTE: 'RECORD_NOTE' };
 
 /**
  * Best-effort PENDING to ERROR so the failure is recorded (attempt counter, backoff or permanent
@@ -249,6 +249,14 @@ function executeRoute(spec) {
         const waitingOn = o.waitingOn || (other.length ? other[other.length - 1].fromName : '') || 'Unspecified';
         const out = DPTaskRepo.createWaiting({ thread: thread, waitingOn: waitingOn, nagDate: o.nagDate || addDays_(today, QUEUE_NAG_DAYS_), priority: o.priority, opKey: opKey, now: now, listId: spec.settings.tasksListId });
         return { targetId: out.task.id, targetType: 'TASK', metadata: { created: out.created } };
+      };
+    } else if (spec.kind === 'NOTE') {
+      opKey = opKey || E.gmailNoteKey(spec.threadId);
+      op = { opKey: opKey, sourceType: 'GMAIL', sourceId: spec.threadId, sourceVersion: thread.lastMessageId, action: 'RECORD_NOTE', targetType: 'EMAIL_NOTE' };
+      work = function() {
+        const other = thread.messages.filter(function(m) { return !m.isFromUser; });
+        const last = other.length ? other[other.length - 1] : (thread.messages[thread.messages.length - 1] || {});
+        return { targetId: spec.threadId, targetType: 'EMAIL_NOTE', metadata: { subject: String(thread.subject || '').slice(0, 200), from: String(last.fromName || '').slice(0, 80), url: thread.url, filedOn: today } };
       };
     } else if (spec.kind === 'MEETING') {
       target = resolveMeetingTarget_(spec, now);
@@ -371,7 +379,7 @@ function collectItems_(ctx) {
   const openByKind = {};
   (ctx.ledgerRows || []).forEach(function(r) {
     if (r.Status === E.LEDGER_STATUS.DONE || r.Status === E.LEDGER_STATUS.SKIPPED) return;
-    const m = /^GMAIL\|([^|]+)\|(TASK_TODAY|TASK|WAITING|DECISION|MEETING)(\||$)/.exec(r.OperationKey);
+    const m = /^GMAIL\|([^|]+)\|(TASK_TODAY|TASK|WAITING|DECISION|MEETING|NOTE)(\||$)/.exec(r.OperationKey);
     if (m) (openByKind[m[2]] = openByKind[m[2]] || []).push(m[1]);
   });
   function withOpen(ids, kind) {
@@ -424,6 +432,12 @@ function collectItems_(ctx) {
   pagedThreadIds(W.WAITING, 'WAITING').forEach(function(tid) {
     push({ opKey: E.gmailWaitingKey(tid), threadId: tid, kind: 'WAITING', action: 'CREATE_WAITING' });
   });
+
+  if (ctx.features.NOTES === true) {
+    pagedThreadIds(W.NOTE, 'NOTE').forEach(function(tid) {
+      push({ opKey: E.gmailNoteKey(tid), threadId: tid, kind: 'NOTE', action: 'RECORD_NOTE' });
+    });
+  }
 
   if (ctx.features.NCMMS_CORE_PILOT === true) {
     const coreIds = pagedThreadIds(W.MEETING_NCMMS_CORE, 'MEETING').filter(function(tid) { return !ctx.meetingDoneThreads[tid]; });

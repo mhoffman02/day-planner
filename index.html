@@ -316,6 +316,17 @@
     <section class="binder-body">
 
       <!-- View 1: 3-Column Daily Spread -->
+      <template x-if="activeView === 'daily' && showFiledEmails && filedEmails.length">
+        <details class="hub-filed-emails">
+          <summary><span class="material-symbols-outlined">mail</span> Filed emails (<span x-text="filedEmails.length"></span>)</summary>
+          <ul>
+            <template x-for="n in filedEmails" :key="n.gmailUrl + n.filedOn">
+              <li><a :href="n.gmailUrl" target="_blank" rel="noopener" x-text="n.subject"></a> <span class="hub-filed-meta" x-text="(n.fromName ? n.fromName + ' · ' : '') + n.filedOn"></span></li>
+            </template>
+          </ul>
+        </details>
+      </template>
+
       <template x-if="activeView === 'daily'">
         <section class="two-page-spread"
                  aria-label="Daily Planner 3-Column Workspace"

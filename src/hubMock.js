@@ -487,6 +487,12 @@ export class HubMock {
     return { ok: true, status: this.dryRun ? 'DRY_RUN' : 'OK', message: this.dryRun ? 'Dry run: nothing written' : 'Queue pass finished' };
   }
 
+  getFiledEmails() {
+    const gate = this._preflight(['GMAIL_ROUTER', 'NOTES']);
+    if (gate) return gate;
+    return { ok: true, status: 'OK', message: '0 filed emails', items: [] };
+  }
+
   getMeetingPrep(seriesKey, occurrenceId) {
     const gate = this._preflight(['GMAIL_ROUTER', 'NCMMS_CORE_PILOT']);
     if (gate) return gate;

@@ -1138,6 +1138,9 @@ export class GASBridge {
   /** @returns {Promise<object>} Result contract. */
   retryFailedOperation(operationKey, opts = {}) { return this._hubRpc('retryFailedOperation', [operationKey, opts]); }
 
+  /** @param {number} [days] Look-back days. @returns {Promise<object>} Filed (🎯/Note) emails, newest first. */
+  getFiledEmails(days) { return this._hubRpc('getFiledEmails', [days]); }
+
   /**
    * @param {string} seriesKey Meeting series key.
    * @param {string} [occurrenceId] Occurrence id.

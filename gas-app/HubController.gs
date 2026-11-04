@@ -487,6 +487,35 @@ function getUpcomingMeetingChoices(threadId) {
 }
 
 /**
+ * Filed emails: 🎯/Note threads recorded in the ledger (subject, sender, Gmail link), newest first.
+ * Ledger-only: no Gmail, Docs or Tasks call.
+ * @param {number} [days] Look-back window in days (1 to 365, default 30).
+ * @returns {object} makeResult-shaped result with items [{subject, fromName, gmailUrl, filedOn}].
+ */
+function getFiledEmails(days) {
+  const invalid = rejectInvalid_(() => DPEngines.v_.guard(arguments, 'getFiledEmails').param('days').number().optional().nullable().done());
+  if (invalid) return invalid;
+  const pre = preflight_(['GMAIL_ROUTER', 'NOTES']);
+  if (pre.failure) return pre.failure;
+  try {
+    const E = DPEngines;
+    const window = Math.min(Math.max(parseInt(days, 10) || 30, 1), 365);
+    const cutoff = E.taskPlannerLocalDate(new Date(Date.now() - window * 86400000), DPQueue.getSettings().timeZone);
+    const items = [];
+    DPLedgerRepo.list({ sourceType: 'GMAIL', status: E.LEDGER_STATUS.DONE }).forEach(function(row) {
+      if (row.TargetType !== 'EMAIL_NOTE') return;
+      const m = E.ledgerReadMeta(row, 'skipping this filed email').meta;
+      if (!m.filedOn || m.filedOn < cutoff) return;
+      items.push({ subject: m.subject || '(no subject)', fromName: m.from || '', gmailUrl: m.url || '', filedOn: m.filedOn });
+    });
+    items.sort(function(a, b) { return a.filedOn < b.filedOn ? 1 : a.filedOn > b.filedOn ? -1 : (a.subject < b.subject ? -1 : 1); });
+    return E.makeResult({ ok: true, status: 'OK', message: items.length + ' filed email' + (items.length === 1 ? '' : 's'), items: items });
+  } catch (err) {
+    return failFrom_(err);
+  }
+}
+
+/**
  * Meeting prep data: target occurrence, upcoming list, carry-in count and the notes Doc link.
  * @param {string} seriesKey Registry series key.
  * @param {string|null} occurrenceId Occurrence id, or null for the recommended upcoming one.
@@ -1442,6 +1471,7 @@ function confirmMeetingActions(occurrenceId, selectedItems) {
 // Every name below is called via google.script.run (Script.html) and therefore also needs a
 // top-level delegator in Code.gs.
 global._getTriageBoardInternal = getTriageBoard;                   // google.script.run
+global._getFiledEmailsInternal = getFiledEmails;                   // google.script.run (Filed emails)
 global._getMeetingPrepInternal = getMeetingPrep;                   // google.script.run
 global._getUpcomingMeetingChoicesInternal = getUpcomingMeetingChoices; // google.script.run
 global._routeThreadToTaskInternal = routeThreadToTask;             // google.script.run

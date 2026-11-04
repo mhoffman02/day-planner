@@ -7,10 +7,10 @@ import {
 import { buildEngines } from '../tools/build-gas-engines.js';
 import fs from 'node:fs';
 
-test('labels use the bullseye prefix and active set is the v1 four plus Decision', () => {
+test('labels use the bullseye prefix and active set is the v1 four plus Decision and Note', () => {
   assert.equal(WORKFLOW_LABEL.TASK, '🎯/Task');
   assert.equal(WORKFLOW_LABEL.DECISION, '🎯/Decision');
-  assert.deepEqual([...ACTIVE_LABELS], ['🎯/Task', '🎯/Task-Today', '🎯/Waiting', '🎯/Meeting/NCMMS-Core', '🎯/Decision']);
+  assert.deepEqual([...ACTIVE_LABELS], ['🎯/Task', '🎯/Task-Today', '🎯/Waiting', '🎯/Meeting/NCMMS-Core', '🎯/Decision', '🎯/Note']);
 });
 
 test('gmailDecisionKey is its own idempotency identity per thread', () => {

@@ -4084,6 +4084,10 @@ function getTriageBoard(filters) {
   return (typeof _getTriageBoardInternal === 'function') ? _getTriageBoardInternal(filters) : (globalThis._getTriageBoardInternal ? globalThis._getTriageBoardInternal(filters) : null);
 }
 
+function getFiledEmails(days) {
+  return (typeof _getFiledEmailsInternal === 'function') ? _getFiledEmailsInternal(days) : (globalThis._getFiledEmailsInternal ? globalThis._getFiledEmailsInternal(days) : null);
+}
+
 function getMeetingPrep(seriesKey, occurrenceId) {
   return (typeof _getMeetingPrepInternal === 'function') ? _getMeetingPrepInternal(seriesKey, occurrenceId) : (globalThis._getMeetingPrepInternal ? globalThis._getMeetingPrepInternal(seriesKey, occurrenceId) : null);
 }

@@ -13,7 +13,7 @@ import { makeHubContext } from './helpers/gasFakesHub.js';
 const call = (ctx, name, ...args) => toHost(ctx[`_${name}Internal`](...args));
 const SHEET = 'application/vnd.google-apps.spreadsheet';
 const sheets = (ctx) => ctx.__fakes.driveFiles.filter((f) => f.mimeType === SHEET && f.trashed !== true);
-const AUTO = { GMAIL_ROUTER: true, TRIAGE_BOARD: true, DRY_RUN: true, NCMMS_CORE_PILOT: false, GEMINI_DISCOVERY: false, GEMINI_RECONCILIATION: false, USAI_ASSIST: false };
+const AUTO = { GMAIL_ROUTER: true, TRIAGE_BOARD: true, DRY_RUN: true, NCMMS_CORE_PILOT: false, NOTES: false, GEMINI_DISCOVERY: false, GEMINI_RECONCILIATION: false, USAI_ASSIST: false };
 
 test('app load with no Sheet creates one, seeds Triage-on trial flags and installs the schedule', () => {
   const ctx = makeHubContext({ realStores: 'cold' });
