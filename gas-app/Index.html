@@ -1449,20 +1449,20 @@
                             <td class="hub-col-ledger">
                               <span class="hub-ledger" :class="item.ledgerStatus ? 'hub-ledger-' + item.ledgerStatus.toLowerCase().replace('_', '-') : ''" x-text="hubLedgerLabel(item.ledgerStatus, item.operationKey) || 'None'"></span>
                               <template x-if="hubCanRetry(item.ledgerStatus)">
-                                <button type="button" class="hub-action-btn" @click="retryTriageItem(item)" :disabled="triageStale" :aria-label="'Retry failed operation: ' + item.subject">Retry</button>
+                                <button type="button" class="hub-action-btn" @click="retryTriageItem(item)" :disabled="triageStale" title="Retry the failed operation" :aria-label="'Retry failed operation: ' + item.subject">Retry</button>
                               </template>
                             </td>
                             <td class="hub-col-actions">
                               <div class="hub-actions" role="group" :aria-label="'Actions for ' + item.subject">
-                                <button type="button" class="hub-action-btn" :disabled="triageStale" @click="triageTask(item, true)" :aria-label="'Task Today: ' + item.subject">Task Today</button>
-                                <button type="button" class="hub-action-btn" :disabled="triageStale" @click="triageTask(item, false)" :aria-label="'Task Later: ' + item.subject">Task Later</button>
-                                <button type="button" class="hub-action-btn" :disabled="triageStale" @click="openWaitingForm(item)" :aria-label="'Waiting: ' + item.subject">Waiting</button>
-                                <button type="button" class="hub-action-btn" :disabled="triageStale" @click="openMeetingPicker(item)" :aria-label="'Send to Meeting: ' + item.subject">Send to Meeting</button>
-                                <button type="button" class="hub-action-btn" :disabled="triageStale" @click="readLaterItem(item)" :aria-label="'Read Later: ' + item.subject">Read Later</button>
-                                <button type="button" class="hub-action-btn" :disabled="triageStale" @click="dismissTriageEntry(item)" :aria-label="'Dismiss: ' + item.subject">Dismiss</button>
+                                <button type="button" class="hub-action-btn" :disabled="triageStale" @click="triageTask(item, true)" title="Create a Google Task due today" :aria-label="'Task Today: ' + item.subject">Task Today</button>
+                                <button type="button" class="hub-action-btn" :disabled="triageStale" @click="triageTask(item, false)" title="Create a Google Task for later" :aria-label="'Task Later: ' + item.subject">Task Later</button>
+                                <button type="button" class="hub-action-btn" :disabled="triageStale" @click="openWaitingForm(item)" title="Track as waiting on someone, with a nag date" :aria-label="'Waiting: ' + item.subject">Waiting</button>
+                                <button type="button" class="hub-action-btn" :disabled="triageStale" @click="openMeetingPicker(item)" title="Add to a meeting agenda" :aria-label="'Send to Meeting: ' + item.subject">Send to Meeting</button>
+                                <button type="button" class="hub-action-btn" :disabled="triageStale" @click="readLaterItem(item)" title="Save for later in this browser only" :aria-label="'Read Later: ' + item.subject">Read Later</button>
+                                <button type="button" class="hub-action-btn" :disabled="triageStale" @click="dismissTriageEntry(item)" title="Hide from Triage; Gmail is untouched" :aria-label="'Dismiss: ' + item.subject">Dismiss</button>
                                 <button type="button" class="hub-action-btn hub-action-icon" :disabled="triageStale" @click="archiveTriageEntry(item)" title="Archive in Gmail (removes it from the Inbox; labels stay)" :aria-label="'Archive in Gmail: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">archive</span>Archive</button>
                                 <button type="button" class="hub-action-btn hub-action-icon hub-action-danger" :disabled="triageStale" @click="trashTriageEntry(item)" title="Move to Gmail Trash (recoverable for 30 days)" :aria-label="'Delete (move to Gmail Trash): ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">delete</span>Delete</button>
-                                <a class="hub-action-btn hub-action-link" :href="item.url" target="_blank" rel="noopener noreferrer" :aria-label="'Open Gmail: ' + item.subject">Open Gmail</a>
+                                <a class="hub-action-btn hub-action-link" :href="item.url" target="_blank" rel="noopener noreferrer" title="Open the thread in Gmail" :aria-label="'Open Gmail: ' + item.subject">Open Gmail</a>
                               </div>
                             </td>
                           </tr>

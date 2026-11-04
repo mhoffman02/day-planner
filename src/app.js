@@ -1598,6 +1598,7 @@ Alpine.data('plannerApp', () => ({
             this.dailyNeedsRefresh = true;
           }
           this.triageNotice = { kind: r.ok ? 'ok' : 'error', text: label + ': ' + r.message, url: r.targetUrl || null };
+          this.showTaskToast(this.triageNotice.text);
           if (!r.ok) {
             console.error('Triage action failed, row restored:', label, r);
             this.restoreTriageRow(taken);
@@ -1610,6 +1611,7 @@ Alpine.data('plannerApp', () => ({
           console.error('Triage action threw, row restored:', label, err.stack);
           this.restoreTriageRow(taken);
           this.triageNotice = { kind: 'error', text: label + ' failed: ' + (err.message || err), url: null };
+          this.showTaskToast(this.triageNotice.text);
           return null;
         }
       },
@@ -1644,6 +1646,7 @@ Alpine.data('plannerApp', () => ({
         if (!this.triageReadLater.includes(item.threadId)) this.triageReadLater.push(item.threadId);
         this.persistReadLater();
         this.triageNotice = { kind: 'ok', text: 'Read Later: saved in this browser only, Gmail and the ledger are untouched.', url: null };
+        this.showTaskToast(this.triageNotice.text);
       },
 
       persistReadLater() {

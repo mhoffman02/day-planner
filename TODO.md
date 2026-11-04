@@ -40,10 +40,17 @@ Pilot branch `worktree-solid-code-pilot` (user merges, see HANDOFF) added the No
 
 ### A6. Triage action feedback (2026-11-04, medium priority)
 
-- [ ] **Triage page actions are silent; the user double/triple taps to be sure they registered.** Give every Triage
+- [x] **Triage page actions are silent; the user double/triple taps to be sure they registered.** Give every Triage
   action a brief, non-annoying acknowledgement (toast, inline flash or similar) that the action took effect. Offer
   3-4 ranked UX options first ([[feedback_quiet_normal_state_ui]]); reuse the existing toast pattern if one fits.
   Red test first for any new `src/*.js` behavior; gas-app change is done only after `npm run deploy:home` passes.
+- [ ] **Triage: fix the 3 bugs the coverage worker found (2026-11-04).** Red test first for each. (1) `src/dailyDataCache.js`
+  40-113: a synchronous throw from `indexedDB.open()` sets `dbPromise = null` inside the executor, then line 40 overwrites it,
+  so the retry reset never happens (test: `tests/dailyDataCacheIdbThrow.test.js` records it). (2) `src/gasBridge.js`
+  `getWebAppUrl` resolves `''` on server failure with no log: fail loud ([[no-silent-failures]]). (3) `deleteDailyTask`
+  sends only `taskId`; looks intentional, confirm and document.
+- [ ] **deploy-home.js: fail early and clearly at the 200-version limit, warn near 180** (hit 2026-11-04, user deleted old
+  versions in the IDE).
 - [ ] **Triage: restyle the action row (user 2026-11-04: option A, labels on Task Today + Archive).** Hybrid row:
   labeled Task Today and Archive, 28 px flat icon-only buttons for the rest, two groups split by a hairline (Create:
   Task Later, Note, Waiting, Meeting; Clear: Read Later, Dismiss, Delete). Keep every action 1-click, no pills. Also
@@ -51,7 +58,7 @@ Pilot branch `worktree-solid-code-pilot` (user merges, see HANDOFF) added the No
   muted ink, destructive = danger red kept apart from Dismiss); color never the only cue (icon + `title` +
   `aria-label` carry meaning); keep contrast passing axe in light and dark; reuse existing `--c-*`/semantic tokens, no
   new magic colors (css-baseline only goes down). Propose the color mapping before applying.
-- [ ] **Triage: every action button needs hover text** (`title`, plus `aria-label` where the label is icon-only or
+- [x] **Triage: every action button needs hover text** (`title`, plus `aria-label` where the label is icon-only or
   1-2 words; user 2026-11-04). Include the new Note button. Say what the action does and where the item goes.
 - [ ] **Triage: add an "Add to Notes Today" action** (user 2026-11-04). Propose a 1-2 word button label (candidates:
   "Note", "To Notes", "Journal"; default "Note") and confirm it fits the existing action row. Appends the item to
