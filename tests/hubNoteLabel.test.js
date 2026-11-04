@@ -66,3 +66,11 @@ test('getFiledEmails drops rows older than the window', () => {
   row.MetadataJson = JSON.stringify({ ...JSON.parse(row.MetadataJson), filedOn: '2026-01-01' });
   assert.equal(call(ctx, 'getFiledEmails', 30).items.length, 0);
 });
+
+test('an ERROR row is dropped as SKIPPED when the user removed the label', () => {
+  const ctx = filed();
+  ctx.__hub.ledger.rows.set('GMAIL|n2|NOTE', { OperationKey: 'GMAIL|n2|NOTE', SourceType: 'GMAIL', SourceId: 'n2', Action: 'RECORD_NOTE', TargetType: 'EMAIL_NOTE', Status: 'ERROR', CreatedAt: '2026-10-01T00:00:00Z', UpdatedAt: '2026-10-01T00:00:00Z', ErrorCode: 'ERROR', ErrorMessage: 'x', MetadataJson: JSON.stringify({ attempts: 1, nextRetryAt: '2026-10-01T00:00:00Z' }) });
+  addThread(ctx, { id: 'n2', labels: [], archived: true });
+  tick(ctx);
+  assert.equal(ctx.__hub.ledger.rows.get('GMAIL|n2|NOTE').Status, 'SKIPPED');
+});

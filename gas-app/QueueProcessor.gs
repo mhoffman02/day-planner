@@ -147,6 +147,9 @@ function docUrl_(docId) {
   return 'https://docs.google.com/document/d/' + docId + '/edit';
 }
 
+/** Workflow label (WORKFLOW_LABEL key) that queues each kind; MEETING is excluded (its label is chosen per series). */
+const KIND_LABEL_ = { TASK: 'TASK', TASK_TODAY: 'TASK_TODAY', DECISION: 'DECISION', WAITING: 'WAITING', NOTE: 'NOTE' };
+
 const ROUTE_ACTIONS_ = { TASK: 'CREATE_TASK', TASK_TODAY: 'CREATE_TASK', DECISION: 'CREATE_TASK', WAITING: 'CREATE_WAITING', MEETING: 'ROUTE_MEETING', NOTE: 'RECORD_NOTE' };
 
 /**
@@ -558,6 +561,15 @@ function runLocked_(dry, features, opts) {
         break;
       }
       const item = plan.toProcess[i];
+      // A retry of an unfinished row (kept alive by openByKind) is dropped once the user removed the label.
+      const prior = !dry && store.get(item.opKey);
+      const want = KIND_LABEL_[item.kind];
+      const meta = metaByThread[item.threadId];
+      if (prior && prior.Status === E.LEDGER_STATUS.ERROR && want && meta && (meta.labels || []).indexOf(E.WORKFLOW_LABEL[want]) === -1) {
+        store.put(Object.assign({}, prior, { Status: E.LEDGER_STATUS.SKIPPED, UpdatedAt: new Date().toISOString(), ErrorMessage: 'Label removed' }));
+        counts.skipped += 1;
+        continue;
+      }
       const r = executeRoute({ kind: item.kind, threadId: item.threadId, thread: metaByThread[item.threadId], seriesKey: item.seriesKey, occurrenceInfo: item.occurrenceInfo,
         dryRun: dry, settings: settings, registry: registry, opKey: item.opKey });
       if (!r.ok) {
