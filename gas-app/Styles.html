@@ -8,6 +8,7 @@
   [data-theme="light"] {
     /* Day Planner & Base Design Tokens */
     --tab-gold: #d4a017; /* the Today-tab underline gold; also marks the current and next schedule slot */
+    --z-1: 1; --z-5: 5; --z-10: 10; --z-40: 40; --z-50: 50; --z-100: 100; --z-150: 150; --z-200: 200; --z-500: 500; --z-1000: 1000; --z-2000: 2000; --z-9999: 9999; --z-10000: 10000; /* stacking layers, values unchanged */
     --font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-family-header: 'Playfair Display', Georgia, serif;
     --font-size-base: 100%;
@@ -253,7 +254,7 @@
     border-bottom: 2px solid #0b1c15;
     box-shadow: 0 2px 8px rgba(0,0,0,0.12);
     flex-wrap: nowrap;
-    z-index: 1000;
+    z-index: var(--z-1000);
     box-sizing: border-box;
     overflow: visible;
   }
@@ -362,7 +363,7 @@
     position: absolute;
     top: calc(100% + 6px);
     left: 0;
-    z-index: 2000;
+    z-index: var(--z-2000);
     background: #ffffff;
     border: 1px solid #d1d5db;
     border-radius: 4px;
@@ -535,7 +536,7 @@
     position: absolute;
     top: calc(100% + 6px);
     left: 0;
-    z-index: 2000;
+    z-index: var(--z-2000);
     background: #ffffff;
     border: 1px solid var(--border-line, #d1d5db);
     border-radius: 4px;
@@ -965,7 +966,7 @@
     position: absolute;
     top: calc(100% + 6px);
     right: 0;
-    z-index: 2000;
+    z-index: var(--z-2000);
     background: #ffffff;
     border: 1px solid var(--border-line, #d1d5db);
     border-radius: 4px;
@@ -1103,7 +1104,7 @@
     cursor: col-resize;
     user-select: none;
     touch-action: none;
-    z-index: 10;
+    z-index: var(--z-10);
     flex-shrink: 0;
     position: relative;
     border-radius: 4px;
@@ -1315,7 +1316,7 @@
   .priority-segment-btn:focus-visible {
     outline: 2px solid var(--binder-teal, #2d6a5a);
     outline-offset: -2px;
-    z-index: 1;
+    z-index: var(--z-1);
   }
 
   .priority-segment-btn.active.a {
@@ -1440,7 +1441,7 @@
   .daily-tasks-table thead th {
     position: sticky;
     top: 0;
-    z-index: 5;
+    z-index: var(--z-5);
     box-shadow: 0 1px 0 var(--border-line);
   }
 
@@ -1619,21 +1620,21 @@
   .notes-indicator-wrap:has(.notes-popover:not([style*="display: none"])),
   .notes-indicator-wrap:focus-within,
   .notes-indicator-wrap:hover {
-    z-index: 500;
+    z-index: var(--z-500);
   }
 
   tr:has(.notes-indicator-wrap:hover),
   tr:has(.notes-indicator-wrap:focus-within),
   tr:has(.notes-popover:not([style*="display: none"])) {
     position: relative;
-    z-index: 200;
+    z-index: var(--z-200);
   }
 
   .notes-popover {
     position: absolute;
     top: 100%;
     left: 0;
-    z-index: 500;
+    z-index: var(--z-500);
     background: #ffffff;
     color: #1c2826;
     border: 1px solid #c8ded7;
@@ -1679,14 +1680,14 @@
   .status-menu-wrap:has(.status-menu:not([style*="display: none"])),
   .status-menu-wrap:focus-within,
   .status-menu-wrap:hover {
-    z-index: 500;
+    z-index: var(--z-500);
   }
 
   tr:has(.status-menu-wrap:hover),
   tr:has(.status-menu-wrap:focus-within),
   tr:has(.status-menu:not([style*="display: none"])) {
     position: relative;
-    z-index: 200;
+    z-index: var(--z-200);
   }
 
   .status-menu {
@@ -1702,7 +1703,7 @@
     padding: 4px;
     padding-top: 8px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-    z-index: 500;
+    z-index: var(--z-500);
     min-width: 160px;
     max-height: min(320px, (80 * var(--vh)));
     overflow-y: auto;
@@ -2133,7 +2134,7 @@
     border-radius: 6px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
     padding: 12px;
-    z-index: 100;
+    z-index: var(--z-100);
   }
 
   .dropdown-header {
@@ -2307,7 +2308,7 @@
     width: 10px;
     margin: 0 -5px;
     cursor: col-resize;
-    z-index: 5;
+    z-index: var(--z-5);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2387,7 +2388,7 @@
     border: 1px solid var(--border-line);
     border-radius: 4px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-    z-index: 150;
+    z-index: var(--z-150);
     overflow: hidden;
   }
 
@@ -2566,7 +2567,7 @@
     color: var(--text-primary);
     line-height: 1.35;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-    z-index: 100;
+    z-index: var(--z-100);
     display: none;
     pointer-events: none;
   }
@@ -2658,7 +2659,7 @@
   .category-segment-btn:focus-visible {
     outline: 2px solid var(--binder-teal, #2d6a5a);
     outline-offset: -2px;
-    z-index: 1;
+    z-index: var(--z-1);
   }
 
   .category-segment-btn.is-active {
@@ -3433,7 +3434,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 10000;
+    z-index: var(--z-10000);
     border: none;
     padding: 0;
     margin: 0;
@@ -3838,7 +3839,7 @@
   }
   article.future-month-card:has(.status-menu-wrap:hover),
   article.future-month-card:focus-within {
-    z-index: 40;
+    z-index: var(--z-40);
     position: relative;
   }
   article.future-month-card.is-current-month {
@@ -3929,7 +3930,7 @@
   }
   .future-item-row:has(.status-menu-wrap:hover),
   .future-item-row:focus-within {
-    z-index: 50;
+    z-index: var(--z-50);
     position: relative;
   }
   .future-item-main {
@@ -4363,7 +4364,7 @@
   .monthly-index-table thead th {
     position: sticky;
     top: 0;
-    z-index: 5;
+    z-index: var(--z-5);
     box-shadow: 0 1px 0 var(--border-line);
   }
 
@@ -4386,7 +4387,7 @@
   .master-tasks-table thead th {
     position: sticky;
     top: 0;
-    z-index: 5;
+    z-index: var(--z-5);
     box-shadow: 0 1px 0 var(--border-line);
   }
 
@@ -5203,7 +5204,7 @@
     border-radius: 4px;
     font-size: 0.9rem;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
-    z-index: 9999;
+    z-index: var(--z-9999);
     display: flex;
     align-items: center;
     gap: 8px;
@@ -5235,7 +5236,7 @@
   nav.about-toc {
     position: sticky;
     top: -10px;
-    z-index: 5;
+    z-index: var(--z-5);
     display: flex;
     flex-wrap: wrap;
     gap: 2px 4px;
@@ -6713,7 +6714,7 @@
     border-radius: 4px;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
     font-size: 0.9rem;
-    z-index: 9999;
+    z-index: var(--z-9999);
   }
 
   .hub-snack-btn {
