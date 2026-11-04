@@ -1456,6 +1456,7 @@
                               <div class="hub-actions" role="group" :aria-label="'Actions for ' + item.subject">
                                 <button type="button" class="hub-action-btn" :disabled="triageStale" @click="triageTask(item, true)" title="Create a Google Task due today" :aria-label="'Task Today: ' + item.subject">Task Today</button>
                                 <button type="button" class="hub-action-btn" :disabled="triageStale" @click="triageTask(item, false)" title="Create a Google Task for later" :aria-label="'Task Later: ' + item.subject">Task Later</button>
+                                <button type="button" class="hub-action-btn" :disabled="triageStale" @click="noteTriageItem(item)" title="Add this thread as a line in the last note card of today" :aria-label="'Note: ' + item.subject">Note</button>
                                 <button type="button" class="hub-action-btn" :disabled="triageStale" @click="openWaitingForm(item)" title="Track as waiting on someone, with a nag date" :aria-label="'Waiting: ' + item.subject">Waiting</button>
                                 <button type="button" class="hub-action-btn" :disabled="triageStale" @click="openMeetingPicker(item)" title="Add to a meeting agenda" :aria-label="'Send to Meeting: ' + item.subject">Send to Meeting</button>
                                 <button type="button" class="hub-action-btn" :disabled="triageStale" @click="readLaterItem(item)" title="Save for later in this browser only" :aria-label="'Read Later: ' + item.subject">Read Later</button>

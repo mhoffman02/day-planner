@@ -1642,6 +1642,26 @@ Alpine.data('plannerApp', () => ({
         return this.runTriageAction('Retry', () => this.bridge.retryFailedOperation(item.operationKey, this.hubModeOpts()), item.threadId);
       },
 
+      // Appends the thread as a bullet to the last note card of today, through the normal guarded note
+      // save. Like logCompletedDecision it only writes while today is the open day; unlike it, a
+      // refusal is toasted, never silent.
+      noteTriageItem(item) {
+        const cards = this.noteCards || [];
+        const refuse = (why) => {
+          this.triageNotice = { kind: 'error', text: 'Note failed: ' + why, url: null };
+          this.showTaskToast(this.triageNotice.text);
+        };
+        if (this.selectedDate !== this.todayStr) return refuse('open today first, notes are only added to today.');
+        if (cards.length === 0) return refuse('today has no note card yet, add one first.');
+        const card = cards[cards.length - 1];
+        const body = (card.content || '').replace(/\n+$/, '');
+        const from = item.fromName ? ' (' + item.fromName + ')' : '';
+        card.content = (body ? body + '\n' : '') + '- ' + item.subject + from + (item.url ? ' ' + item.url : '');
+        this.syncCardsToDailyNote();
+        this.triageNotice = { kind: 'ok', text: 'Note: added to today', url: null };
+        this.showTaskToast(this.triageNotice.text);
+      },
+
       readLaterItem(item) {
         if (!this.triageReadLater.includes(item.threadId)) this.triageReadLater.push(item.threadId);
         this.persistReadLater();

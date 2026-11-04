@@ -60,7 +60,7 @@ Pilot branch `worktree-solid-code-pilot` (user merges, see HANDOFF) added the No
   new magic colors (css-baseline only goes down). Propose the color mapping before applying.
 - [x] **Triage: every action button needs hover text** (`title`, plus `aria-label` where the label is icon-only or
   1-2 words; user 2026-11-04). Include the new Note button. Say what the action does and where the item goes.
-- [ ] **Triage: add an "Add to Notes Today" action** (user 2026-11-04). Propose a 1-2 word button label (candidates:
+- [x] **Triage: add an "Add to Notes Today" action** (user 2026-11-04). Propose a 1-2 word button label (candidates:
   "Note", "To Notes", "Journal"; default "Note") and confirm it fits the existing action row. Appends the item to
   today's Notes. Check what the Phase 32 Notes Doc view and `appendToDailyNote`-style RPCs already offer before adding
   a new one; same acknowledgement as the item above.

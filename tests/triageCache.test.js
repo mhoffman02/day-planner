@@ -142,7 +142,7 @@ for (const f of ['index.html', 'gas-app/Index.html']) {
     const start = html.indexOf('<td class="hub-col-actions">');
     const actions = html.slice(start, html.indexOf('</td>', start));
     const buttons = actions.match(/<button [^>]*>/g) || [];
-    assert.equal(buttons.length, 8);
+    assert.equal(buttons.length, 9);
     for (const b of buttons) assert.match(b, /:disabled="triageStale"/, b);
     assert.match(html, /@click="retryTriageItem\(item\)" :disabled="triageStale"/);
     assert.match(html, /x-text="triageStatusText"/);
