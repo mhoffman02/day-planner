@@ -42,6 +42,7 @@
     "acorn": "^8.18.0",
     "axe-core": "4.10.2",
     "eslint": "^10.9.1",
+    "eslint-plugin-promise": "^7.3.0",
     "fast-check": "^3.23.2",
     "html-validate": "^9.7.1"
   }

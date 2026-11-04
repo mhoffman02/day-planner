@@ -6,6 +6,7 @@
  * globals, no module system).
  */
 import js from '@eslint/js';
+import promise from 'eslint-plugin-promise';
 
 // `toISOString().slice(0, 10)` is the UTC day: after 20:00 EDT it is tomorrow (2331533, 12 sites
 // on 2026-10-30). Flat config replaces rule options per block, so the gas-app block repeats it.
@@ -13,6 +14,12 @@ const UTC_DAY_KEY = {
   selector: "CallExpression[callee.property.name=/^(slice|substring|split)$/][callee.object.callee.property.name='toISOString']",
   message: 'UTC day shift: use a local date (getLocalDateStr, taskPlannerLocalDate, toLocaleDateString("en-CA")).'
 };
+// Node only. Shell strings are injectable and an untimed child or fetch hangs a pipeline forever.
+const NODE_SAFETY = [
+  { selector: "CallExpression[callee.name=/^(exec|execSync)$/], CallExpression[callee.property.name=/^(exec|execSync)$/][callee.object.name=/^(child_process|cp)$/]", message: 'Shell string: use execFile/execFileSync/spawn with an argv array (no shell).' },
+  { selector: "CallExpression[callee.name='fetch'][arguments.length<2]", message: 'fetch needs an options object with signal: AbortSignal.timeout(ms).' },
+  { selector: "CallExpression[callee.name=/^(execFileSync|spawnSync)$/][arguments.length<3]", message: 'Child process needs an options object with timeout: ms.' }
+];
 // External-API loops need a page cap and a time budget (6077c04, Gmail quota).
 const UNBOUNDED_LOOP = {
   selector: "WhileStatement[test.raw='true'], DoWhileStatement[test.raw='true'], ForStatement[test=null]",
@@ -88,7 +95,19 @@ export default [
       'no-throw-literal': 'error',
       'no-restricted-syntax': ['error', UTC_DAY_KEY, UNBOUNDED_LOOP],
       'no-restricted-properties': ['error', { property: 'substr', message: 'Deprecated: use slice().' }],
-      'no-implicit-coercion': ['error', { boolean: false }]
+      'no-implicit-coercion': ['error', { boolean: false }],
+      complexity: ['error', 15]   // legacy hits are in eslint-suppressions.json and only shrink
+    }
+  },
+  {
+    // Node-run files: process-safety bans and promise hygiene.
+    files: ['tools/**/*.js', 'server.js'],
+    plugins: { promise },
+    rules: {
+      'no-restricted-syntax': ['error', UTC_DAY_KEY, UNBOUNDED_LOOP, ...NODE_SAFETY],
+      'promise/catch-or-return': 'error',   // a floating promise is a swallowed failure
+      'promise/no-return-wrap': 'error',
+      'promise/param-names': 'error'
     }
   },
   {

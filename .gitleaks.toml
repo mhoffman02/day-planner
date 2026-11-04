@@ -1,0 +1,10 @@
+# Copy to .gitleaks.toml. Default ruleset plus a per-project allowlist; every entry needs a reason.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known non-secrets. One line of reason per entry."
+paths = [
+  '''package-lock\.json''',
+]
+# regexes = ['''EXAMPLE_PUBLIC_CLIENT_ID_[a-z0-9]+''']   # reason: public OAuth client id, not a secret

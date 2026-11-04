@@ -9,10 +9,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0                      # gitleaks scans history
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: npm install --no-audit --no-fund
+      # `npm ci` installs exactly package-lock.json (a drifted lockfile fails) instead of resolving afresh.
+      - run: npm ci --no-audit --no-fund
+      # Runtime deps only: a dev-tool advisory must not block a release; a shipped one must.
+      - run: npm audit --omit=dev --audit-level=high
+      - uses: gitleaks/gitleaks-action@v2     # secrets in the tree or history; allowlist in .gitleaks.toml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npm run sync:agents:check
       - run: npm run lint
-      - run: npm run test:coverage
+      # A dropped promise crashes the run instead of vanishing.
+      - run: NODE_OPTIONS=--unhandled-rejections=strict npm run test:coverage

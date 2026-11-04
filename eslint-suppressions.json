@@ -1,2 +1,219 @@
 {
+  "gas-app/CalendarRepository.gs": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "gas-app/Code.gs": {
+    "complexity": {
+      "count": 15
+    }
+  },
+  "gas-app/Engines.gs": {
+    "complexity": {
+      "count": 8
+    }
+  },
+  "gas-app/GmailRepository.gs": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "gas-app/HubController.gs": {
+    "complexity": {
+      "count": 7
+    }
+  },
+  "gas-app/QueueProcessor.gs": {
+    "complexity": {
+      "count": 2
+    }
+  },
+  "gas-app/Script.html": {
+    "complexity": {
+      "count": 20
+    }
+  },
+  "gas-app/UnitTests.gs": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/app.js": {
+    "complexity": {
+      "count": 15
+    }
+  },
+  "src/calendarEngine.js": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/gasBridge.js": {
+    "complexity": {
+      "count": 3
+    }
+  },
+  "src/integration/eventClassifier.js": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/integration/ledger.js": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/integration/occurrenceSelector.js": {
+    "complexity": {
+      "count": 2
+    }
+  },
+  "src/integration/queuePlanner.js": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/integration/topicRouting.js": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/integration/triageScore.js": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/integration/v_.js": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/lineEditor.js": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "src/notePaste.js": {
+    "complexity": {
+      "count": 2
+    }
+  },
+  "src/taskEngine.js": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "tools/audit-wcag-responsive.js": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "tools/check-catch-logging.js": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "tools/check-mirror.js": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "tools/deploy-home.js": {
+    "complexity": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    },
+    "promise/param-names": {
+      "count": 1
+    }
+  },
+  "tools/ensure-chrome.js": {
+    "no-restricted-syntax": {
+      "count": 4
+    },
+    "promise/param-names": {
+      "count": 1
+    }
+  },
+  "tools/eval-console.js": {
+    "complexity": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "tools/gas-rpc.js": {
+    "complexity": {
+      "count": 3
+    },
+    "promise/catch-or-return": {
+      "count": 1
+    }
+  },
+  "tools/gemini-delegate.js": {
+    "complexity": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "tools/lib/axe-live.js": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "tools/probe-live.js": {
+    "complexity": {
+      "count": 2
+    },
+    "no-restricted-syntax": {
+      "count": 2
+    },
+    "promise/param-names": {
+      "count": 1
+    }
+  },
+  "tools/promote-to-work.js": {
+    "no-restricted-syntax": {
+      "count": 5
+    }
+  },
+  "tools/prune-branches.js": {
+    "complexity": {
+      "count": 1
+    }
+  },
+  "tools/read-console.js": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "tools/retro.js": {
+    "no-restricted-syntax": {
+      "count": 2
+    }
+  },
+  "tools/smoke-test.js": {
+    "complexity": {
+      "count": 1
+    },
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "tools/stamp-build-number.js": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
+  "tools/status.js": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  }
 }
