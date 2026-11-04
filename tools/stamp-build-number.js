@@ -6,12 +6,12 @@
  * actually being shipped. Run before a real deploy (clasp push), not on every commit.
  */
 
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
 const file = path.join('gas-app', 'Code.gs');
-const count = parseInt(execSync('git rev-list --count HEAD').toString().trim(), 10);
+const count = parseInt(execFileSync('git', ['rev-list', '--count', 'HEAD'], { timeout: 30000 }).toString().trim(), 10);
 
 const src = fs.readFileSync(file, 'utf8');
 const re = /const BUILD_NUMBER_ = \d+;/;

@@ -44,7 +44,7 @@
  * and always logs, so there's no lower-level path a caller could use to delegate silently.
  */
 
-import { spawnSync, execSync } from 'node:child_process'
+import { spawnSync, execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -66,10 +66,10 @@ export function findAgyExecutable() {
   ]
   for (const cand of candidates) {
     try {
-      const resolved = execSync(`which ${cand} 2>/dev/null`, { encoding: 'utf8' }).trim()
+      const resolved = execFileSync('which', [cand], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
       if (resolved && fs.existsSync(resolved)) return resolved
-    } catch {
-      // try next candidate
+    } catch (err) {
+      console.error(`findAgyExecutable: candidate ${cand} not resolved, trying next: ${err.stack}`)
     }
   }
   return null

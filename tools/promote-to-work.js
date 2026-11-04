@@ -10,7 +10,7 @@
  * 4. Checks authentication before attempting push.
  */
 
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -46,9 +46,9 @@ try {
 console.log('\n[1/3] Running pre-flight quality checks...');
 try {
   console.log('  -> Running linter & safe-character guard...');
-  execSync('npm run lint', { cwd: ROOT_DIR, stdio: 'inherit' });
+  execFileSync('npm', ['run', 'lint'], { cwd: ROOT_DIR, stdio: 'inherit' });
   console.log('  -> Running unit tests...');
-  execSync('npm test', { cwd: ROOT_DIR, stdio: 'inherit' });
+  execFileSync('npm', ['test'], { cwd: ROOT_DIR, stdio: 'inherit' });
   console.log('  ✓ Pre-flight checks passed.');
 } catch {
   console.error('❌ Pre-flight checks failed. Aborting promotion to WORK.');
@@ -57,9 +57,9 @@ try {
 
 // 3. Determine Auth Configuration
 console.log('\n[2/3] Checking authentication...');
-let authFlag = '';
+let authArgs = [];
 if (fs.existsSync(WORK_AUTH)) {
-  authFlag = `--auth "${WORK_AUTH}"`;
+  authArgs = ['--auth', WORK_AUTH];
   console.log(`  -> Using dedicated WORK auth file: ${WORK_AUTH}`);
 } else {
   console.log(`  -> Checking default clasp auth: ${DEFAULT_AUTH}`);
@@ -68,7 +68,7 @@ if (fs.existsSync(WORK_AUTH)) {
 // Check if current auth can access the WORK script
 let canAccess;
 try {
-  execSync(`npx clasp ${authFlag} deployments "${WORK_SCRIPT_ID}"`, {
+  execFileSync('npx', ['clasp', ...authArgs, 'deployments', WORK_SCRIPT_ID], {
     cwd: GAS_APP_DIR,
     stdio: 'pipe',
   });
@@ -96,13 +96,13 @@ if (!canAccess) {
 // 4. Push to WORK
 console.log('\n[3/3] Pushing vetted code to Day-Planner-WORK...');
 try {
-  execSync(`npx clasp ${authFlag} --project "${WORK_CONFIG}" push --force`, {
+  execFileSync('npx', ['clasp', ...authArgs, '--project', WORK_CONFIG, 'push', '--force'], {
     cwd: GAS_APP_DIR,
     stdio: 'inherit',
   });
   console.log('\n  -> Creating version on WORK...');
   try {
-    const versionOutput = execSync(`npx clasp ${authFlag} --project "${WORK_CONFIG}" version "Day Planner v1"`, {
+    const versionOutput = execFileSync('npx', ['clasp', ...authArgs, '--project', WORK_CONFIG, 'version', 'Day Planner v1'], {
       cwd: GAS_APP_DIR,
       stdio: 'pipe'
     }).toString().trim();

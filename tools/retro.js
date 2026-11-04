@@ -5,7 +5,7 @@
  * then commits it (unless --dry-run).
  */
 
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -67,8 +67,8 @@ const existing = fs.existsSync(learningsPath)
   : '# Learnings\n\n';
 fs.writeFileSync(learningsPath, `${existing.trimEnd()}\n\n${entry}`);
 
-execSync('git add LEARNINGS.md', { cwd: ROOT });
-execSync(`git commit -m ${JSON.stringify(`docs(retro): ${label}`)}`, {
+execFileSync('git', ['add', 'LEARNINGS.md'], { cwd: ROOT });
+execFileSync('git', ['commit', '-m', `docs(retro): ${label}`], {
   cwd: ROOT,
   stdio: 'inherit',
 });

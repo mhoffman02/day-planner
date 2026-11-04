@@ -74,8 +74,8 @@ async function waitForCdp(port, maxAttempts = 15) {
 
 async function getWindowsUsername() {
   try {
-    const { execSync } = await import('node:child_process');
-    const out = execSync('powershell.exe -NoProfile -Command "[System.Environment]::UserName"', { encoding: 'utf8' });
+    const { execFileSync } = await import('node:child_process');
+    const out = execFileSync('powershell.exe', ['-NoProfile', '-Command', '[System.Environment]::UserName'], { encoding: 'utf8' });
     return out.trim() || null;
   } catch {
     return null;

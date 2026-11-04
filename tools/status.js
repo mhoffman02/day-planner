@@ -5,7 +5,7 @@
  * PLAN.md checklist progress, and test file count.
  */
 
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,17 +13,18 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 
-function sh(cmd) {
+function sh(...args) {
   try {
-    return execSync(cmd, { cwd: ROOT, encoding: 'utf8' }).trim();
-  } catch {
+    return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' }).trim();
+  } catch (err) {
+    console.error(`git ${args.join(' ')} failed, reporting empty: ${err.stack}`);
     return '';
   }
 }
 
-const branch = sh('git rev-parse --abbrev-ref HEAD') || 'unknown';
-const lastCommit = sh('git log -1 --oneline') || 'no commits';
-const dirtyFiles = sh('git status --porcelain').split('\n').filter(Boolean);
+const branch = sh('rev-parse', '--abbrev-ref', 'HEAD') || 'unknown';
+const lastCommit = sh('log', '-1', '--oneline') || 'no commits';
+const dirtyFiles = sh('status', '--porcelain').split('\n').filter(Boolean);
 
 let checked = 0;
 let unchecked = 0;
