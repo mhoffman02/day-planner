@@ -42,6 +42,17 @@ if ! npm test; then
   ERRORS=$((ERRORS + 1))
 fi
 
+# ── Secret scan (gitleaks; allowlist in .gitleaks.toml) ─────────────────────
+# CI scans history; this catches a secret before it is ever committed. A missing binary blocks
+# the commit: a skipped scan is a silent failure.
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "❌ [BLOCKER] gitleaks is not installed. Get the linux_x64 release from https://github.com/gitleaks/gitleaks/releases into ~/.local/bin."
+  ERRORS=$((ERRORS + 1))
+elif ! gitleaks git --staged --redact --no-banner --config .gitleaks.toml; then
+  echo "❌ [BLOCKER] gitleaks found a secret in the staged changes"
+  ERRORS=$((ERRORS + 1))
+fi
+
 if [ "$ERRORS" -gt 0 ]; then
   echo ""
   echo "❌ Pre-commit checks failed ($ERRORS error(s)). Fix issues before committing."

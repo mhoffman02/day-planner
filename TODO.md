@@ -31,7 +31,7 @@ Pilot branch `worktree-solid-code-pilot` (user merges, see HANDOFF) added the No
   (copy by hand; `node tools/check-mirror.js` verifies), then `node tools/check-css.js --update`. `!important` 537 is the long tail.
 - [ ] **Agent: fix the suppressed shell-string `exec`/`execSync` sites in `tools/`** (grep `eslint-suppressions.json`
   for `no-restricted-syntax`), switching to `execFile` with an argv array, red test first.
-- [ ] **User decision:** install `gitleaks` locally and add `githooks/pre-commit-gitleaks` (default: yes, CI-only today).
+- [x] gitleaks 8.30.1 installed in `~/.local/bin` (checksum verified) and `.githooks/pre-commit` scans staged changes, blocks if missing (2026-11-04).
 - [ ] **User decision:** `npm run push:work` for the pilot's gas-app changes (Styles `--target-min`); default: next
   gas-app change, then "Update WORK".
 
