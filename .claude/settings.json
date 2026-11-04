@@ -15,6 +15,15 @@
             "timeout": 90
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/tools/agent-heartbeat.js\"",
+            "timeout": 10
+          }
+        ]
       }
     ]
   }

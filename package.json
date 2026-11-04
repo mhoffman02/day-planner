@@ -17,6 +17,7 @@
     "rpc": "node tools/gas-rpc.js",
     "smoke": "node tools/smoke-test.js",
     "audit:a11y": "node tools/audit-wcag-responsive.js",
+    "agent:status": "node tools/agent-status.js",
     "sync:agents": "node tools/sync-agent-config.js",
     "sync:agents:check": "node tools/sync-agent-config.js --check",
     "stamp-build": "node tools/stamp-build-number.js",
