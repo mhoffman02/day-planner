@@ -23,11 +23,11 @@ No agent work remains here; the two items below are user decisions to leave base
 ### A5. Solid Code pilot follow-ups (2026-11-04; shipped items in TODO_HISTORY)
 
 Pilot branch `worktree-solid-code-pilot` (user merges, see HANDOFF) added the Node safety bans, complexity 15,
-`check-css.js` (baseline `css-baseline.json`: magic-color 782, important 535),
+`check-css.js` (baseline `css-baseline.json`: magic-color 126, important 535),
 `tools/edit-gate.js` PostToolUse hook, and the skill split (`~/.claude/skills/solid-code/{js,py,web,css}.md`).
 
-- [ ] **Agent: shrink `css-baseline.json`** by moving literals into `:root` tokens (`--z-*` @383, `px-font` @384, `outline-none` @385, done 2026-11-04; next colors 782). Edit `src/styles.css`, re-mirror `gas-app/Styles.html`
-  (copy by hand; `node tools/check-mirror.js` verifies), then `node tools/check-css.js --update`. `!important` 537 is the long tail.
+- [ ] **Agent: shrink `css-baseline.json`** by moving literals into `:root` tokens (`--z-*` @383, `px-font` @384, `outline-none` @385, done 2026-11-04; colors 782 to 126 @387; remaining 126 are single-use literals). Edit `src/styles.css`, re-mirror `gas-app/Styles.html`
+  (copy by hand; `node tools/check-mirror.js` verifies), then `node tools/check-css.js --update`. `!important` 535 is the long tail.
 - [x] shell-string `exec`/`execSync` in `tools/` now `execFileSync` argv (2026-11-04).
 - [x] gitleaks 8.30.1 installed in `~/.local/bin` (checksum verified) and `.githooks/pre-commit` scans staged changes, blocks if missing (2026-11-04).
 - [ ] **User decision:** `npm run push:work` for the pilot's gas-app changes (Styles `--target-min`); default: next
