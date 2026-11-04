@@ -80,7 +80,9 @@ test('(l) message bodies never reach logs, properties, ledger, Tasks, Docs or RP
   ctx.__hub.tasks.onInsert = (res) => { if (res.title === 'Fails') throw new Error('backend exploded'); };
   const outputs = [call(ctx, 'getTriageBoard', {}), call(ctx, 'processWorkflowQueue'), call(ctx, 'getHubStatus'), call(ctx, 'getUpcomingMeetingChoices', 't2'), call(ctx, 'getMeetingPrep', 'NCMMS_CORE', null)];
   const props = JSON.stringify(ctx.PropertiesService.getUserProperties().getProperties());
-  const haystack = JSON.stringify([outputs, lines(ctx), props, [...ctx.__hub.ledger.rows.values()], ctx.__hub.tasks.items, ctx.__hub.notes.docs]);
+  // `preview` is the one deliberate exception: a bounded (400 char) display excerpt on board rows, like `snippet`.
+  const noPreview = (k, v) => (k === 'preview' ? undefined : v);
+  const haystack = JSON.stringify([outputs, lines(ctx), props, [...ctx.__hub.ledger.rows.values()], ctx.__hub.tasks.items, ctx.__hub.notes.docs], noPreview);
   assert.ok(!haystack.includes(CANARY), 'a message body leaked');
   assert.ok(ctx.__hub.gmail.calls.some((c) => c === 'threads.get:full'), 'triage did read bodies in memory');
 });

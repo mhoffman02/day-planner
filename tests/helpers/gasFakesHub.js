@@ -391,6 +391,7 @@ export function makeHubContext(o = {}) {
       getFeatures: () => ({ ...engines.DEFAULT_FEATURES, ...h.config.features }),
       getConfig: () => ({ TimeZone: TZ, UserEmail: 'me@example.test', TasksListId: 'LIST1', BatchSize: h.config.batchSize, TriggerMinutes: h.config.triggerMinutes || 10, MaxExcerptChars: 160, LookbackDays: h.config.lookbackDays || 30, features: { ...engines.DEFAULT_FEATURES, ...h.config.features } }),
       getRegistry: () => h.config.registry,
+      getPreviewLines: () => h.config.previewLines || 3,
       getSheetId: () => 'sheet1',
       isProvisioned: () => true,
       isFolderBound: () => true,

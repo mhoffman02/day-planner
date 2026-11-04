@@ -23,7 +23,7 @@ Never paste these into a public prompt or commit them. Most are created or fille
 | Gemini attachment example | Needed only for Phase 6 discovery work (not built) | User, if approved |
 | Deployment and rollback procedure | Section 5 below and `.agents/rules/gas-environments.md` | existing |
 | Approved OAuth scopes / admin constraints | Section 4 (WORK) | WORK admin |
-| Other Config tab keys | `BatchSize` (25), `TriggerMinutes` (5; one of 1, 5, 10, 15, 30), `MaxExcerptChars` (160), `ExcludedAiLabels` (`HR/,_NCMMS/OIG Audit,_NCMMS/Acquisition,FOIA`) | Defaults are fine |
+| Other Config tab keys | `BatchSize` (25), `TriggerMinutes` (5; one of 1, 5, 10, 15, 30), `MaxExcerptChars` (160), `PreviewLines` (3; whole number 3 to 5, lines shown when a Triage Thread preview is expanded; anything else fails with `SETUP_ERROR`), `ExcludedAiLabels` (`HR/,_NCMMS/OIG Audit,_NCMMS/Acquisition,FOIA`) | Defaults are fine |
 
 Missing mandatory keys fail loudly with `SETUP_ERROR: <key> ...`; the app does not guess.
 

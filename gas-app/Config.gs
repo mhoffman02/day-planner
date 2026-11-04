@@ -45,6 +45,7 @@ const CONFIG_HEADER = ['Key', 'Value'];
 const TAB_FILTERS = 'Filter Suggestions';
 const FILTER_READ_RANGE = 'A1:J500';
 const PROP_FLAGS = 'HUB_FLAGS_JSON';
+const PROP_PREVIEW_LINES = 'HUB_PREVIEW_LINES';
 const SETUP_LOCK_WAIT_MS = 30000;
 const MANDATORY_KEYS = ['TimeZone', 'UserEmail', 'TasksListId'];
 const ENABLED_SERIES = ['NCMMS_CORE', 'NCMMS_DAILY', 'NCMMS_AA', 'NCMMS_ACQ', 'TRM_PM'];
@@ -424,6 +425,7 @@ function featuresFromMap_(map) {
 function getConfig() {
   const map = readConfigMap_();
   PropertiesService.getUserProperties().setProperty(PROP_FLAGS, JSON.stringify(featuresFromMap_(map)));
+  PropertiesService.getUserProperties().setProperty(PROP_PREVIEW_LINES, String(previewLinesFromMap_(map)));
   MANDATORY_KEYS.forEach(function (k) {
     if (!map[k]) throw setupError_(k + ' is missing or empty in the "Config" tab of the Day Planner Hub Config sheet');
   });
@@ -439,6 +441,7 @@ function getConfig() {
     MaxExcerptChars: parsePositiveInt_('MaxExcerptChars', map.MaxExcerptChars, 160),
     LookbackDays: parsePositiveInt_('LookbackDays', map.LookbackDays, 30),
     ExcludedAiLabels: Object.freeze(excluded),
+    PreviewLines: previewLinesFromMap_(map),
     features: featuresFromMap_(map)
   });
 }
@@ -454,9 +457,32 @@ function flagsFromStored_(stored) {
 
 /** Re-reads the Config tab and mirrors the flags into HUB_FLAGS_JSON. Needs the Sheet to exist. */
 function refreshFlags_() {
-  const flags = featuresFromMap_(readConfigMap_());
-  PropertiesService.getUserProperties().setProperty(PROP_FLAGS, JSON.stringify(flags));
+  const map = readConfigMap_();
+  const flags = featuresFromMap_(map);
+  const lines = previewLinesFromMap_(map);
+  const props = PropertiesService.getUserProperties();
+  props.setProperty(PROP_FLAGS, JSON.stringify(flags));
+  props.setProperty(PROP_PREVIEW_LINES, String(lines));
   return flags;
+}
+
+/**
+ * @param {Object<string,string>} map Config tab key/value map.
+ * @returns {number} PreviewLines (3-5, default 3). Throws SETUP_ERROR naming the key when the cell is bad.
+ */
+function previewLinesFromMap_(map) {
+  try {
+    return engines_().triagePreviewLines(map.PreviewLines);
+  } catch (err) {
+    throw setupError_(err.message);
+  }
+}
+
+/**
+ * @returns {number} Lines the expanded Triage preview shows, as mirrored by the last Config read (default 3).
+ */
+function getPreviewLines() {
+  return engines_().triagePreviewLines(PropertiesService.getUserProperties().getProperty(PROP_PREVIEW_LINES));
 }
 
 /**
@@ -753,6 +779,7 @@ global.DPConfig = Object.freeze({
   ensureSetup: ensureSetup,
   getConfig: getConfig,
   getFeatures: getFeatures,
+  getPreviewLines: getPreviewLines, // used by HubController.getHubStatus (Triage expanded preview height)
   isProvisioned: isProvisioned,
   isFolderBound: isFolderBound, // used by HubController.provisionHub_ (auto-setup on app load)
   tabs: Object.freeze({ LEDGER: TAB_LEDGER, ARCHIVE: TAB_ARCHIVE }), // used by LedgerRepository

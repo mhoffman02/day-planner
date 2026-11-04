@@ -17,7 +17,7 @@ function fakeStorage() {
   return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k), _m: m };
 }
 
-const ITEM = { threadId: 't1', url: 'https://mail.google.com/mail/u/0/#all/t1', subject: 'Approve', snippet: 'Please approve', fromName: 'Pat', date: '2026-10-12T09:00:00Z',
+const ITEM = { threadId: 't1', url: 'https://mail.google.com/mail/u/0/#all/t1', subject: 'Approve', snippet: 'Please approve', preview: 'Please approve the order by Friday.', fromName: 'Pat', date: '2026-10-12T09:00:00Z',
   labels: ['00_AR'], score: 9, band: 'HIGH_CONFIDENCE', signals: ['to-you'], queue: 'DIRECT_ACTION', ticketKey: null, suggestions: [], requireConfirmation: false,
   humanReviewOnly: false, operationKey: null, ledgerStatus: null, errorMessage: null };
 const board = (items = [ITEM]) => ({ ok: true, status: 'OK', queues: { directAction: items, meetingCarryIns: [], systemExceptions: [], fyiReading: [] } });

@@ -75,7 +75,7 @@ const MASTER_DATE_FORMAT = new Intl.DateTimeFormat('en-US', { month: 'short', da
 const GMAIL_COOLDOWN_KEY = 'dayPlannerGmailCooldownUntil';
 const GMAIL_COOLDOWN_MS = 75000;
 const MEETING_MAIL_MIN_GAP_MS = 60000;
-const TRIAGE_CACHE_FIELDS = ['threadId', 'url', 'subject', 'snippet', 'fromName', 'date', 'labels', 'score', 'band', 'signals', 'queue', 'ticketKey',
+const TRIAGE_CACHE_FIELDS = ['threadId', 'url', 'subject', 'snippet', 'preview', 'fromName', 'date', 'labels', 'score', 'band', 'signals', 'queue', 'ticketKey',
   'suggestions', 'requireConfirmation', 'humanReviewOnly', 'operationKey', 'ledgerStatus', 'errorMessage'];
 
 const TASK_SAVE_KINDS = [
@@ -336,6 +336,7 @@ Alpine.data('plannerApp', () => ({
       hubLiveInfo: false,
       hubModeSnackTimer: null,
       hubSnippetOpenId: '',
+      hubPreviewLines: 3,
       hubLastRun: null,
       hubCounts: {},
       hubNowMs: Date.now(),
@@ -1391,6 +1392,7 @@ Alpine.data('plannerApp', () => ({
           this.hubFlags = (st && st.flags) || null;
           this.hubDryRun = !!(st && st.dryRun);
           this.hubLastRun = (st && st.lastRun) || null;
+          this.hubPreviewLines = (st && st.previewLines) || 3;
           this.hubCounts = (st && st.counts) || {};
           if (this.showTriageNav) this.hydrateTriageCache();
           else this.clearTriageCache();

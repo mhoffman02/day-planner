@@ -72,7 +72,7 @@ function isQuotaError_(err) {
 // Scored Triage rows in the user CacheService, keyed by thread id and valid while the Gmail historyId is unchanged.
 const HUB_ROW_CACHE_PREFIX_ = 'triageRow.v1:';
 const HUB_ROW_CACHE_TTL_S_ = 21600;
-const HUB_ROW_CACHE_FIELDS_ = ['url', 'subject', 'snippet', 'fromName', 'date', 'labels', 'score', 'band', 'signals', 'ticketKey', 'suggestions', 'requireConfirmation', 'humanReviewOnly'];
+const HUB_ROW_CACHE_FIELDS_ = ['url', 'subject', 'snippet', 'preview', 'fromName', 'date', 'labels', 'score', 'band', 'signals', 'ticketKey', 'suggestions', 'requireConfirmation', 'humanReviewOnly'];
 
 /**
  * Cached rows whose historyId still matches. A cache failure is logged and treated as a miss (Gmail is read).
@@ -636,7 +636,7 @@ function getTriageBoard(filters) {
         const last = t.messages[t.messages.length - 1];
         const routing = E.suggestDestinations(t.labels);
         const row = {
-          url: t.url, subject: t.subject, snippet: t.lastSnippet, fromName: last ? last.fromName : '', date: last ? last.date : '', labels: t.labels,
+          url: t.url, subject: t.subject, snippet: t.lastSnippet, preview: last ? E.triagePreview(last.bodyText || '') : '', fromName: last ? last.fromName : '', date: last ? last.date : '', labels: t.labels,
           score: scored.score, band: scored.band, signals: scored.signals.map(function(s) { return s.id; }),
           ticketKey: E.extractExternalTicketKey(t.subject, last ? last.from : '', null),
           suggestions: routing.suggestions, requireConfirmation: routing.requireConfirmation, humanReviewOnly: routing.humanReviewOnly
@@ -733,7 +733,7 @@ function getHubStatus() {
     try { lastDry = JSON.parse(props.getProperty(HUB_LAST_RUN_DRY_PROP_) || 'null'); } catch (e) { DPQueue.logSafe('HubController: corrupt last-dry-run property, reporting no last dry run', e); lastDry = null; }
     if (lastDry && (!lastRun || String(lastDry.at) > String(lastRun.at))) lastRun = lastDry;
     const triggers = ScriptApp.getProjectTriggers().filter(function(t) { return t.getHandlerFunction() === HUB_TRIGGER_HANDLER_; }).length;
-    return DPEngines.makeResult({ ok: true, status: 'OK', message: 'Hub status', flags: pre.features, dryRun: pre.features.DRY_RUN === true, lastRun: lastRun, counts: counts, triggers: triggers });
+    return DPEngines.makeResult({ ok: true, status: 'OK', message: 'Hub status', flags: pre.features, previewLines: DPConfig.getPreviewLines(), dryRun: pre.features.DRY_RUN === true, lastRun: lastRun, counts: counts, triggers: triggers });
   } catch (err) {
     return failFrom_(err);
   }

@@ -74,10 +74,22 @@ test('getConfig returns typed, frozen values with defaults', () => {
   assert.equal(cfg.TasksListId, '@default');
   assert.equal(cfg.BatchSize, 25);
   assert.equal(cfg.MaxExcerptChars, 160);
+  assert.equal(cfg.PreviewLines, 3);
   assert.deepEqual(toHost(cfg.ExcludedAiLabels), toHost(ctx.DPEngines.AI_EXCLUDED_LABELS));
   assert.ok(Object.isFrozen(cfg));
   configTab(ctx).rows.find((r) => r[0] === 'BatchSize')[1] = 'abc';
   assert.throws(() => ctx.DPConfig.getConfig(), (e) => e.message.startsWith('SETUP_ERROR:') && e.message.includes('BatchSize'));
+});
+
+test('PreviewLines outside 3-5 throws SETUP_ERROR naming the key; 4 is accepted', () => {
+  const ctx = setup();
+  ctx.DPConfig.ensureSetup();
+  const row = () => configTab(ctx).rows.find((r) => r[0] === 'PreviewLines');
+  if (!row()) configTab(ctx).rows.push(['PreviewLines', '']);
+  row()[1] = '4';
+  assert.equal(ctx.DPConfig.getConfig().PreviewLines, 4);
+  row()[1] = '9';
+  assert.throws(() => ctx.DPConfig.getConfig(), (e) => e.message.startsWith('SETUP_ERROR:') && e.message.includes('PreviewLines'));
 });
 
 test('(c) features default DRY_RUN true and all other flags false', () => {

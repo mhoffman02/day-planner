@@ -58,7 +58,9 @@ test('ledger status and queue are recomputed for cached rows', () => {
 test('cache holds display rows with a 6 h TTL and never a message body', () => {
   const ctx = setup(2);
   call(ctx, 'getTriageBoard', {});
-  const dump = JSON.stringify([...ctx.__hub.cache.store.entries()]);
+  // Rows carry `preview`, a bounded display excerpt like `snippet`; the full body never does.
+  const noPreview = (k, v) => (k === 'preview' ? undefined : v);
+  const dump = JSON.stringify([...ctx.__hub.cache.store.entries()].map(([k, v]) => [k, typeof v === 'string' ? JSON.parse(v) : v]), noPreview);
   assert.ok(dump.includes('snip 0'));
   assert.ok(!/BODY_CANARY/.test(dump), 'a message body reached the cache');
   assert.ok(!/bodyText/.test(dump));

@@ -56,6 +56,7 @@ function thread(id, subject, from, ageMin, score, signals, labels, suggestions) 
     url: GMAIL_BASE + id,
     subject,
     snippet: MOCK_SNIPPETS[id] || '',
+    preview: MOCK_SNIPPETS[id] || '',
     fromName: from,
     date: localIso(-ageMin),
     labels,
@@ -327,6 +328,7 @@ export class HubMock {
       message: 'Hub status',
       flags: { ...this.flags },
       dryRun: this.dryRun,
+      previewLines: 3,
       lastRun: { ...this.lastRun, counts: { ...this.lastRun.counts } },
       counts,
       triggers: 1
