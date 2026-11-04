@@ -14,6 +14,7 @@
     --line-height-base: 1.5;
     --spacing: 0.75rem;
     --border-radius: 6px;
+    --target-min: 24px; /* WCAG 2.2 SC 2.5.8 minimum pointer target */
     --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
     --duration-fast: 0.1s;
     --duration-standard: 0.15s;
@@ -2812,8 +2813,8 @@
   }
 
   .color-swatch-btn {
-    width: 18px;
-    height: 18px;
+    width: var(--target-min);
+    height: var(--target-min);
     padding: 0;
     border-radius: 3px;
     cursor: pointer;
