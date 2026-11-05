@@ -42,8 +42,6 @@ Pilot branch `worktree-solid-code-pilot` (user merges, see HANDOFF) added the No
   cell, expect 3 lines of body preview; set Hub Config `PreviewLines` to 5 and refresh, expect 5; 9 fails with
   `SETUP_ERROR`. Colors: teal = Task Today/Later, Note, Waiting; muted = Send to Meeting, Read Later, Dismiss,
   Archive, Open Gmail; red = Delete. Check light and dark.
-- [ ] **Verify the agent-heartbeat PostToolUse hook live** (`tools/agent-heartbeat.js`; `npm run agent:status` should show a
-  `.beat` age for a running agent) and bake the status-log duty into `~/.claude/agents/lite|worker|deep.md`.
 - [ ] **Optional (user decides, default skip): Sheets data-validation dropdown (3,4,5) on the Hub Config `PreviewLines`
   cell.** It only constrains the cell; the server check in `getPreviewLines` (`gas-app/Config.gs`) stays.
 

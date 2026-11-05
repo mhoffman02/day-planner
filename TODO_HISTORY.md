@@ -1,5 +1,9 @@
 # Task History (TODO_HISTORY)
 
+## 2026-11-05 — Agent heartbeat
+
+- [x] **Heartbeat hook verified live**: beat file keyed by `agent_type` first so `<type>.beat` pairs with `<type>.log` (`66e3c51`, `tests/agentHeartbeat.test.js`); `agent:status` shows `| beat 00:04` for `lite`. Status-log duty added to `~/.claude/agents/lite|worker|deep.md`.
+
 ## 2026-11-04 (evening) — A6 bug queue (HOME @397, WORK v211 pushed, repoint pending)
 
 - [x] **openDb retries after a sync `indexedDB.open()` throw**: reset now runs after the Promise assignment (`087b767`, `tests/dailyDataCacheIdbRetry.test.js`).
