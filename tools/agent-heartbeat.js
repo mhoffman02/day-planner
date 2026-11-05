@@ -5,6 +5,7 @@
  * `<local datetime> <tool_name> <file_path|command first 60 chars>` to
  * $CLAUDE_JOB_DIR/tmp/agents/<id>.beat (last 200 lines kept). Never blocks: always exits 0.
  * Payload id fields (probed 2026-11-04): top-level sessions carry session_id; subagent calls add agent_id/agent_type.
+ * Keyed by agent_type first so `<type>.beat` pairs with `<type>.log` in tools/agent-status.js (agent_id never matched, 2026-11-05).
  */
 
 import fs from 'node:fs';
@@ -15,7 +16,7 @@ const MAX_LINES = 200;
 const pad = (n) => String(n).padStart(2, '0');
 
 export function beatId(payload) {
-  const raw = payload.agent_id || payload.agent_type || payload.session_id || 'session';
+  const raw = payload.agent_type || payload.agent_id || payload.session_id || 'session';
   return String(raw).replace(/[^A-Za-z0-9_.-]/g, '_').replace(/^\.+$/, '_');
 }
 

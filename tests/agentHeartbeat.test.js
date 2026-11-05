@@ -9,8 +9,9 @@ import { beatId, beatLine, appendBeat } from '../tools/agent-heartbeat.js';
 
 const HOOK = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../tools/agent-heartbeat.js');
 
-test('beatId prefers agent_id, then agent_type, then session_id, then session', () => {
-  assert.equal(beatId({ agent_id: 'a1', agent_type: 'worker', session_id: 's' }), 'a1');
+test('beatId prefers agent_type, then agent_id, then session_id, then session', () => {
+  assert.equal(beatId({ agent_id: 'a1', agent_type: 'worker', session_id: 's' }), 'worker');
+  assert.equal(beatId({ agent_id: 'a1', session_id: 's' }), 'a1');
   assert.equal(beatId({ agent_type: 'worker', session_id: 's' }), 'worker');
   assert.equal(beatId({ session_id: 's' }), 's');
   assert.equal(beatId({}), 'session');
