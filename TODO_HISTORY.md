@@ -1,5 +1,9 @@
 # Task History (TODO_HISTORY)
 
+## 2026-11-05 — CSS magic colors
+
+- [x] **`css-baseline.json` magic-color 126 to 0**: every single-use literal is now a `--c-<value>` token in `:root` (exact values, no merges), mirrored to `gas-app/Styles.html`. `!important` 200 remains the long tail.
+
 ## 2026-11-05 — Agent heartbeat
 
 - [x] **Heartbeat hook verified live**: beat file keyed by `agent_type` first so `<type>.beat` pairs with `<type>.log` (`66e3c51`, `tests/agentHeartbeat.test.js`); `agent:status` shows `| beat 00:04` for `lite`. Status-log duty added to `~/.claude/agents/lite|worker|deep.md`.
