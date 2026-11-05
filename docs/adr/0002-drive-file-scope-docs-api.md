@@ -9,6 +9,10 @@ file the user owns. `DocumentApp` accepts only the `documents` scope.
 All Docs reads and writes go through `Docs.Documents.get/batchUpdate/create`, which works under
 `drive.file`.
 
+**Amendment (2026-11-05):** the manifest also carries `drive.readonly` (read only). Doc action items in Triage
+list files and comments through the Advanced Drive v3 service (`DriveV3`); the app never edits or resolves a comment.
+Broad `drive` is still never requested.
+
 **Consequences:** The app sees only files it created or the user opened with it. Linking the GCP project
 later broke `drive.file` grants on older app files (HOME, 2026-10-10). A new Advanced Service needs the IDE
 Services (+) click, not just a manifest entry.

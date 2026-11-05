@@ -60,7 +60,7 @@ The **Google Digital Day Planner** is a single-page digital binder application b
 ## 5. Critical Technical Constraints & Gotchas
 
 1. **Date Arithmetic**: Always use pure local year/month/day date arithmetic (`new Date(y, m - 1, d + delta)`). Never call `.toISOString()` on local date variables to prevent timezone and UTC day-shift bugs.
-2. **Drive OAuth Scopes**: Keep Drive permissions sandboxed to `drive.file`. Never request broad `drive`.
+2. **Drive OAuth Scopes**: Keep Drive writes sandboxed to `drive.file`; the manifest also carries read-only `drive.readonly` (Doc action items in Triage read comments through the `DriveV3` Advanced Service, never write). Never request broad `drive`.
 3. **Link Attributes**: External links must carry `target="_blank"` and `rel="noopener noreferrer"`.
 4. **String Methods**: Use `slice()`, never deprecated `String.prototype.substr()`.
 5. **Pre-Flight Gates**: Before committing or performing a session handoff, ensure `npm run lint && npm test` runs and passes with zero errors and zero warnings.
