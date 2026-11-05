@@ -388,3 +388,9 @@ live-testing catches it by luck.
 ## 2026-11-04 (A6 bug queue)
 **Worked well:** Handoff pinned each bug to a symbol and a failing shape, so the red tests took one try each; `new Promise` executors run before the assignment, which is why the reset was lost.
 **Needs improvement:** `queueMicrotask` is not an ESLint global here; used `Promise.resolve().then`. Wrote the commit message to a temp file because worktree Bash refuses heredoc-style compounds.
+
+---
+
+## 2026-11-05 (Gmail summary parking lot)
+**Worked well:** Reading the AI Assist memory first settled the Docs-Gemini bridge as infeasible (cross-origin side panel) without a probe; the idea went to PLAN.md section 5 with the USAi option.
+**Needs improvement:** `EnterWorktree` bases on `master`, not `pure-gas-main`; reset to `pure-gas-main` before editing. A cherry-pick leaves the worktree branch looking unmerged to `prune-branches`; verify the diff, then delete.

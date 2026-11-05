@@ -71,7 +71,7 @@ Checklist in [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md). Evals:
   (TODO.md B1).
 - [x] Notes portal: decisions answered; Doc view, Open-in-Docs link, multi-tab guard (HOME @370).
 - [x] Per-line WYSIWYG notes editor + rich Doc view (HOME @374/@375, 2026-11-03; WORK pushed, user repoints).
-- [ ] Hand-check WYSIWYG: link modal, multi-line paste, Backspace on list line, dictation (TODO.md B1).
+- [x] Hand-check WYSIWYG: link modal, multi-line paste, Backspace on list line, dictation (user, 2026-11-05).
 
 ---
 

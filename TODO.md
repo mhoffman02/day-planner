@@ -71,7 +71,7 @@ note badge, completing a `Decision:` task adds `#decision <what>` to the last no
   account index), so any `/mobilebasic` panel must stay optional. Open: decide whether to add an optional `/mobilebasic` pane (agent recommends F).
   USER REQUIREMENT (2026-11-03): notes edit and view both look like rich text, storage is secondary. SHIPPED 2026-11-03 (HOME @374/@375, WORK pushed, user repoints): per-line WYSIWYG
   editor (`src/lineEditor.js`; the active line is contenteditable, the Doc keeps the same markup) and the Doc view renders markup as rich text (`docBlockMarkup`).
-  Part-line color (selection recolor, HOME @376, WORK v203) verified by the user on WORK 2026-11-03. Live-verified on HOME: bold on a selection, Enter inside bold. Still to try by hand: link modal, multi-line paste, Backspace at the start of a list line, dictation insert.
+  Part-line color (selection recolor, HOME @376, WORK v203) verified by the user on WORK 2026-11-03. Live-verified on HOME: bold on a selection, Enter inside bold. Hand-check of link modal, multi-line paste, Backspace at the start of a list line and dictation insert done (user, 2026-11-05).
   Inline Doc view retired (2026-11-03): the Notes header icon is now a real link, Open Notes in Docs (HOME @378, WORK pushed, v204 verified by the user; the light `getDayDocLink` RPC from 190e44e awaits the WORK repoint and a hand-check that the icon still opens the day heading).
 - [ ] **Live check day rollover** (HOME @337, `1da3fcf`): leave the tab open past midnight. Smart paste verified on WORK
   (2026-11-02, user): Gmail, Docs and Gemini all pass; headings paste as bold by design (user 1A, no heading size).
@@ -89,7 +89,7 @@ note badge, completing a `Decision:` task adds `#decision <what>` to the last no
 Most items need the user (GSA account, a release go, or a decision). HOME live checks are done (TODO_HISTORY 2026-10-10).
 
 - [ ] **Update WORK** whenever `npm run push:work` has run (the user repoints "Day Planner v1" in the WORK IDE).
-- [ ] **rpc token check, due 2026-11-11**: consent screen is In production (2026-11-03) and the existing token (fingerprint 4d06a094, first seen 2026-10-12) already outlived 7 days, so no re-login is needed. Run `npm run rpc -- getHubStatus` on or after 2026-11-11; if it still works, drop the 7-day notes in the gas-rpc skill (`tools/gas-rpc.js` has no age warning, only the `invalid_grant` hint at ~L117, which stays).
+- [ ] **rpc token check, due 2026-11-11**: consent screen is In production (2026-11-03) and the existing token (fingerprint 4d06a094, first seen 2026-10-12) already outlived 7 days, so no re-login is needed. `getHubStatus` already worked with the 24-day-old token (2026-11-05). Re-run it on or after 2026-11-11; if it still works, drop the 7-day notes in the gas-rpc skill (`tools/gas-rpc.js` has no age warning, only the `invalid_grant` hint at ~L117, which stays).
 - [ ] **Re-check WORK forwards made before v149**: Forward/Delegate on a Daily row set the glyph without making a
   copy (fixed in `2b2d712`). Tasks forwarded on WORK ≤ v148 may be missing from their later day; re-add any.
 - [ ] **Delete the test appointment** "Day Planner e2e test - safe to delete" (HOME calendar, 2026-10-30 14:00, has a
