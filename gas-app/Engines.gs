@@ -241,6 +241,15 @@ const DOC_ACTION_SOURCE_TYPE = 'DOC_COMMENT';
 const DOC_ACTION_SCORE_ASSIGNED = 8;
 const DOC_ACTION_SCORE_UNMATCHED = 4;
 
+/** At most this many matching files are read per load (newest first); the rest are counted as truncated. */
+const DOC_ACTION_FILE_CAP = 50;
+/** Finished row list, user cache. */
+const DOC_ACTION_CACHE_TTL_S = 300;
+/** Per-file "no comment assigned to me" memo, valid while the file's modifiedTime is unchanged. */
+const DOC_ACTION_MEMO_TTL_S = 21600;
+/** A serialized row list larger than this is returned but not cached (CacheService caps a value at 100 KB). */
+const DOC_ACTION_CACHE_MAX_BYTES = 90 * 1024;
+
 const DOC_URL_PATH = Object.freeze({
   'application/vnd.google-apps.document': 'document',
   'application/vnd.google-apps.spreadsheet': 'spreadsheets',
@@ -256,6 +265,27 @@ function docActionUrl(file, commentId) {
   const kind = DOC_URL_PATH[file.mimeType] || 'document';
   const base = `https://docs.google.com/${kind}/d/${file.id}/edit`;
   return commentId ? `${base}?disco=${commentId}` : base;
+}
+
+/**
+ * @param {string} fileId Drive file id.
+ * @param {string} modifiedTime Drive modifiedTime; a new value is a new key, which invalidates the memo.
+ * @returns {string} User-cache key for the negative memo.
+ */
+function docActionMemoKey(fileId, modifiedTime) {
+  if (!fileId) throw new Error('docActionMemoKey: fileId required');
+  if (!modifiedTime) throw new Error('docActionMemoKey: modifiedTime required');
+  return `docNeg.v1:${fileId}|${modifiedTime}`;
+}
+
+/**
+ * Static first line of a routed Task's notes. States what was true when routed, never that the comment is still open.
+ * @param {string} title Doc title.
+ * @param {string} localDate Local YYYY-MM-DD.
+ * @returns {string} Provenance line.
+ */
+function docActionProvenance(title, localDate) {
+  return `${DOC_ACTION_SOURCE_TAG}: ${String(title || '').trim() || '(untitled)'}, routed from an open comment on ${localDate}`;
 }
 
 function joinText(quoted, content) {
@@ -2231,7 +2261,8 @@ function taskPlannerEncodeMeta(meta) {
 
 function taskPlannerBuildNotes(thread, now, meta, tag) {
   const url = taskPlannerRequire(thread && thread.url, 'thread.url');
-  const lines = [`Gmail: ${url}`, `Created: ${now.toISOString()}`];
+  // A Doc-sourced thread carries its own provenance line and the bare link; Gmail threads keep the "Gmail:" label.
+  const lines = thread.provenance ? [thread.provenance, url, `Created: ${now.toISOString()}`] : [`Gmail: ${url}`, `Created: ${now.toISOString()}`];
   if (tag) lines.push('', tag);
   lines.push(`<!--dp-meta:${taskPlannerEncodeMeta(meta)}-->`);
   return lines.join('\n');
@@ -2258,7 +2289,7 @@ function findExistingByOpKey(tasks, opKey) {
 /**
  * Plans a Task from a labeled Gmail thread. `decision` makes a pending decision: an undated Task
  * whose title leads with "Decision: " (after any priority code), so it lives in Master Tasks.
- * @param {{thread:{threadId:string, subject:string, url:string}, today?:boolean, decision?:boolean, priority?:string|{group:string,sequence:number}, existingTasks:Array<object>, opKey:string, now:Date, timeZone?:string}} a
+ * @param {{thread:{threadId:string, subject:string, url:string, provenance?:string}, today?:boolean, decision?:boolean, priority?:string|{group:string,sequence:number}, existingTasks:Array<object>, opKey:string, now:Date, timeZone?:string}} a
  * @returns {{action:'CREATE', task:object}|{action:'EXISTS', task:object}}
  */
 function planTaskFromThread(a) {
@@ -3461,7 +3492,13 @@ global.DPEngines = Object.freeze({
   DOC_ACTION_SOURCE_TYPE: DOC_ACTION_SOURCE_TYPE,
   DOC_ACTION_SCORE_ASSIGNED: DOC_ACTION_SCORE_ASSIGNED,
   DOC_ACTION_SCORE_UNMATCHED: DOC_ACTION_SCORE_UNMATCHED,
+  DOC_ACTION_FILE_CAP: DOC_ACTION_FILE_CAP,
+  DOC_ACTION_CACHE_TTL_S: DOC_ACTION_CACHE_TTL_S,
+  DOC_ACTION_MEMO_TTL_S: DOC_ACTION_MEMO_TTL_S,
+  DOC_ACTION_CACHE_MAX_BYTES: DOC_ACTION_CACHE_MAX_BYTES,
   docActionUrl: docActionUrl,
+  docActionMemoKey: docActionMemoKey,
+  docActionProvenance: docActionProvenance,
   selectAssignedComments: selectAssignedComments,
   docBodyContent: docBodyContent,
   normalizeEventTitle: normalizeEventTitle,

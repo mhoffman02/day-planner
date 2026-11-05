@@ -12,11 +12,12 @@
 (function(global) {
 
 const FOLLOWUP_QUERY_ = "fullText contains 'followup:actionitems' and trashed = false";
-const FOLLOWUP_FILE_CAP_ = 25;
+const FOLLOWUP_PAGE_SIZE_ = 100;
+const FOLLOWUP_PAGE_CAP_ = 5;
 const COMMENT_PAGE_SIZE_ = 100;
 const COMMENT_PAGE_CAP_ = 5;
 const FILE_ID_RE_ = /^[A-Za-z0-9_-]{10,128}$/;
-const FILE_FIELDS_ = 'files(id,name,mimeType,modifiedTime)';
+const FILE_FIELDS_ = 'nextPageToken,files(id,name,mimeType,modifiedTime)';
 const COMMENT_FIELDS_ = 'nextPageToken,comments(id,resolved,deleted,assigneeEmailAddress,author(displayName),quotedFileContent/value,content,modifiedTime)';
 
 /**
@@ -33,21 +34,30 @@ function requireService_() {
  */
 function listFiles_(q) {
   requireService_();
-  const res = DriveV3.Files.list({
-    q: q,
-    pageSize: FOLLOWUP_FILE_CAP_,
-    corpora: 'allDrives',
-    includeItemsFromAllDrives: true,
-    supportsAllDrives: true,
-    orderBy: 'modifiedTime desc',
-    fields: FILE_FIELDS_
-  });
-  return res && res.files ? res.files : [];
+  const out = [];
+  let pageToken;
+  for (let page = 0; page < FOLLOWUP_PAGE_CAP_; page++) {
+    const res = DriveV3.Files.list({
+      q: q,
+      pageSize: FOLLOWUP_PAGE_SIZE_,
+      pageToken: pageToken,
+      corpora: 'allDrives',
+      includeItemsFromAllDrives: true,
+      supportsAllDrives: true,
+      orderBy: 'modifiedTime desc',
+      fields: FILE_FIELDS_
+    });
+    ((res && res.files) || []).forEach(function(f) { out.push(f); });
+    pageToken = res && res.nextPageToken;
+    if (!pageToken) return out;
+  }
+  console.error('DriveFollowupRepo: more than ' + (FOLLOWUP_PAGE_SIZE_ * FOLLOWUP_PAGE_CAP_) + ' files matched followup:actionitems; the truncated count is a lower bound');
+  return out;
 }
 
 /**
  * Files Drive itself lists under Action items for the signed-in user.
- * @returns {Array<{id:string,name:string,mimeType:string,modifiedTime:string}>} Up to 25 files.
+ * @returns {Array<{id:string,name:string,mimeType:string,modifiedTime:string}>} Up to 500 files, newest first (the caller caps the fan-out).
  */
 function listFollowupFiles() {
   return listFiles_(FOLLOWUP_QUERY_);

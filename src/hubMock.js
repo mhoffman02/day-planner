@@ -416,7 +416,7 @@ export class HubMock {
     const rows = selectAssignedComments({ file: doc, comments, userEmail: 'me@example.com' })
       .filter((r) => !this.dismissedDocs.has(r.itemId))
       .map((r) => ({ ...r, queue: QUEUE_DISPLAY.directAction, operationKey: null, ledgerStatus: null, errorMessage: null }));
-    return { ok: true, status: 'OK', message: `${rows.length} Doc action item(s)`, rows, itemErrors: [], dryRun: this.dryRun };
+    return { ok: true, status: 'OK', message: `${rows.length} Doc action item(s)`, rows, itemErrors: [], truncated: 0, dryRun: this.dryRun };
   }
 
   dismissDocItem(itemId, opts) {

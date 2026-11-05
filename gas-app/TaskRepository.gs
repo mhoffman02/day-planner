@@ -102,7 +102,7 @@ function createFromPlan_(plan, listId) {
  */
 function createFromThread(a) {
   const plan = DPEngines.planTaskFromThread({
-    thread: { threadId: a.thread.threadId, subject: a.thread.subject, url: a.thread.url },
+    thread: { threadId: a.thread.threadId, subject: a.thread.subject, url: a.thread.url, provenance: a.thread.provenance },
     today: !!a.today,
     decision: !!a.decision,
     priority: a.priority,

@@ -93,7 +93,8 @@ function taskPlannerEncodeMeta(meta) {
 
 function taskPlannerBuildNotes(thread, now, meta, tag) {
   const url = taskPlannerRequire(thread && thread.url, 'thread.url');
-  const lines = [`Gmail: ${url}`, `Created: ${now.toISOString()}`];
+  // A Doc-sourced thread carries its own provenance line and the bare link; Gmail threads keep the "Gmail:" label.
+  const lines = thread.provenance ? [thread.provenance, url, `Created: ${now.toISOString()}`] : [`Gmail: ${url}`, `Created: ${now.toISOString()}`];
   if (tag) lines.push('', tag);
   lines.push(`<!--dp-meta:${taskPlannerEncodeMeta(meta)}-->`);
   return lines.join('\n');
@@ -120,7 +121,7 @@ export function findExistingByOpKey(tasks, opKey) {
 /**
  * Plans a Task from a labeled Gmail thread. `decision` makes a pending decision: an undated Task
  * whose title leads with "Decision: " (after any priority code), so it lives in Master Tasks.
- * @param {{thread:{threadId:string, subject:string, url:string}, today?:boolean, decision?:boolean, priority?:string|{group:string,sequence:number}, existingTasks:Array<object>, opKey:string, now:Date, timeZone?:string}} a
+ * @param {{thread:{threadId:string, subject:string, url:string, provenance?:string}, today?:boolean, decision?:boolean, priority?:string|{group:string,sequence:number}, existingTasks:Array<object>, opKey:string, now:Date, timeZone?:string}} a
  * @returns {{action:'CREATE', task:object}|{action:'EXISTS', task:object}}
  */
 export function planTaskFromThread(a) {

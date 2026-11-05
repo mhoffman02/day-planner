@@ -1131,8 +1131,8 @@ export class GASBridge {
   /** @returns {Promise<object>} Result contract. */
   routeThreadToMeeting(threadId, occurrenceId, opts = {}) { return this._hubRpc('routeThreadToMeeting', [threadId, occurrenceId, opts]); }
 
-  /** @returns {Promise<{rows: Array<object>}>} Doc action items (Drive comments assigned to the user); FLAG_OFF failure when the flag is off. */
-  getDocActionItems() { return this._hubRpc('getDocActionItems', []); }
+  /** @param {boolean} [refresh] True bypasses the server cache. @returns {Promise<{rows: Array<object>, truncated: number}>} Doc action items (Drive comments assigned to the user); FLAG_OFF failure when the flag is off. */
+  getDocActionItems(refresh = false) { return this._hubRpc('getDocActionItems', [refresh === true]); }
 
   /** @param {string} itemId Doc item id, fileId~commentId. @param {{expectDryRun?:boolean}} [opts] Mode on screen. @returns {Promise<object>} Result contract (ledger only; the comment stays open). */
   dismissDocItem(itemId, opts = {}) { return this._hubRpc('dismissDocItem', [itemId, opts]); }

@@ -5,9 +5,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  selectAssignedComments, DOC_ACTION_SNIPPET_CAP, DOC_ACTION_PREVIEW_CAP
+  selectAssignedComments, DOC_ACTION_SNIPPET_CAP, DOC_ACTION_PREVIEW_CAP,
+  DOC_ACTION_FILE_CAP, DOC_ACTION_CACHE_TTL_S, DOC_ACTION_MEMO_TTL_S, DOC_ACTION_CACHE_MAX_BYTES,
+  docActionProvenance, docActionMemoKey
 } from '../src/integration/docActionItems.js';
 import { docActionKey } from '../src/integration/contracts.js';
+import { planTaskFromThread } from '../src/integration/taskPlanner.js';
 
 const FILE = { id: 'F1', name: 'Plan', mimeType: 'application/vnd.google-apps.document' };
 const ME = 'me@example.com';
@@ -70,4 +73,32 @@ test('a deleted comment is skipped and a missing userEmail fails loud', () => {
   assert.equal(rows.length, 1);
   assert.equal(rows[0].unmatched, true);
   assert.throws(() => selectAssignedComments({ file: FILE, comments: [], userEmail: '' }), /userEmail/);
+});
+
+test('cache and fan-out constants', () => {
+  assert.equal(DOC_ACTION_FILE_CAP, 50);
+  assert.equal(DOC_ACTION_CACHE_TTL_S, 300);
+  assert.equal(DOC_ACTION_MEMO_TTL_S, 21600);
+  assert.equal(DOC_ACTION_CACHE_MAX_BYTES, 90 * 1024);
+});
+
+test('docActionMemoKey changes with modifiedTime and is stable otherwise', () => {
+  assert.equal(docActionMemoKey('F1', 'T1'), docActionMemoKey('F1', 'T1'));
+  assert.notEqual(docActionMemoKey('F1', 'T1'), docActionMemoKey('F1', 'T2'));
+  assert.notEqual(docActionMemoKey('F1', 'T1'), docActionMemoKey('F2', 'T1'));
+  assert.throws(() => docActionMemoKey('F1', ''), /modifiedTime/);
+});
+
+test('docActionProvenance is a static line with title and date', () => {
+  assert.equal(docActionProvenance('Plan', '2026-11-05'), 'Doc action item: Plan, routed from an open comment on 2026-11-05');
+  assert.equal(docActionProvenance('', '2026-11-05'), 'Doc action item: (untitled), routed from an open comment on 2026-11-05');
+});
+
+test('planTaskFromThread puts thread.provenance first, then the link, replacing the Gmail label', () => {
+  const thread = { threadId: 'F1~C1', subject: 'Plan', url: 'https://docs.google.com/document/d/F1/edit?disco=C1', provenance: 'Doc action item: Plan, routed from an open comment on 2026-11-05' };
+  const plan = planTaskFromThread({ thread, opKey: 'DOC|F1~C1|TASK', existingTasks: [], now: new Date(2026, 10, 5, 12), timeZone: 'America/New_York' });
+  const lines = plan.task.notes.split('\n');
+  assert.equal(lines[0], thread.provenance);
+  assert.equal(lines[1], thread.url);
+  assert.ok(!plan.task.notes.includes('Gmail:'));
 });

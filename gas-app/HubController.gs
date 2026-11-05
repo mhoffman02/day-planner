@@ -1471,17 +1471,102 @@ function confirmMeetingActions(occurrenceId, selectedItems) {
 
 const DOC_ITEM_ID_RE_ = /^([A-Za-z0-9_-]{10,128})~([A-Za-z0-9_-]{1,64})$/;
 
+const DOC_ROWS_CACHE_KEY_ = 'docItems.v1';
+
+/**
+ * Cached finished row list (user cache, so per user). A read failure is logged and treated as a miss.
+ * @returns {?{rows:Array<object>,truncated:number}} Cached payload, or null on a miss.
+ */
+function docRowsCacheRead_() {
+  try {
+    const raw = CacheService.getUserCache().get(DOC_ROWS_CACHE_KEY_);
+    if (!raw) return null;
+    const e = JSON.parse(raw);
+    return e && Array.isArray(e.rows) ? e : null;
+  } catch (err) {
+    DPQueue.logSafe('getDocActionItems cache read failed, reading Drive', err);
+    return null;
+  }
+}
+
+/**
+ * @param {{rows:Array<object>,truncated:number}} payload Successful, complete result only.
+ * @returns {void}
+ */
+function docRowsCacheWrite_(payload) {
+  try {
+    const json = JSON.stringify(payload);
+    if (json.length > DPEngines.DOC_ACTION_CACHE_MAX_BYTES) {
+      console.error('getDocActionItems: row list is ' + json.length + ' bytes, over the cache cap; returned uncached');
+      return;
+    }
+    CacheService.getUserCache().put(DOC_ROWS_CACHE_KEY_, json, DPEngines.DOC_ACTION_CACHE_TTL_S);
+  } catch (err) {
+    DPQueue.logSafe('getDocActionItems cache write failed, the next load reads Drive again', err);
+  }
+}
+
+/**
+ * Called after a ledger write that changes which rows show. A failure is logged loudly: a stale list would
+ * keep showing a dismissed or routed row for up to the TTL.
+ * @returns {void}
+ */
+function docRowsCacheClear_() {
+  try {
+    CacheService.getUserCache().remove(DOC_ROWS_CACHE_KEY_);
+  } catch (err) {
+    DPQueue.logSafe('Doc rows cache clear failed, the list may show a stale row for up to 5 minutes', err);
+  }
+}
+
+/**
+ * @param {Array<object>} files Capped file list.
+ * @returns {Object<string,boolean>} Memo key to true for files known to have no comment assigned to the user.
+ */
+function docNegMemoRead_(files) {
+  const keys = files.filter(function(f) { return f.modifiedTime; }).map(function(f) { return DPEngines.docActionMemoKey(f.id, f.modifiedTime); });
+  if (!keys.length) return {};
+  try {
+    return CacheService.getUserCache().getAll(keys) || {};
+  } catch (err) {
+    DPQueue.logSafe('getDocActionItems negative memo read failed, listing comments for every file', err);
+    return {};
+  }
+}
+
+/**
+ * @param {object} file Drive file that was listed without error and has no comment assigned to the user.
+ * @returns {void}
+ */
+function docNegMemoWrite_(file) {
+  if (!file.modifiedTime) return;
+  try {
+    CacheService.getUserCache().put(DPEngines.docActionMemoKey(file.id, file.modifiedTime), '1', DPEngines.DOC_ACTION_MEMO_TTL_S);
+  } catch (err) {
+    DPQueue.logSafe('getDocActionItems negative memo write failed, the file is re-listed next load', err);
+  }
+}
+
 /**
  * Doc action items (Drive comments assigned to the user) as Triage rows. A separate RPC from getTriageBoard
  * so a Drive failure can never blank the Gmail list. Read-only: no Drive write, comments are never resolved.
  * Comment text is returned for display only and is not written to the ledger.
- * @returns {object} makeResult-shaped result; rows[] on success.
+ * Finished rows are cached 300 s (never when any file failed or the payload is over 90 KB); dismiss/route clear it.
+ * At most 50 files (newest first) are read per load; `truncated` counts the rest. A file with no assigned comment
+ * is remembered 6 h while its modifiedTime is unchanged, so comments.list is skipped for it.
+ * @param {boolean} [refresh] True skips the rows cache and the negative memo is also ignored for a fresh read.
+ * @returns {object} makeResult-shaped result; rows[] and truncated on success.
  */
-function getDocActionItems() {
+function getDocActionItems(refresh) {
+  const invalid = rejectInvalid_(() => DPEngines.v_.guard(arguments, 'getDocActionItems').param('refresh').boolean().optional().nullable().done());
+  if (invalid) return invalid;
   const pre = preflight_(['DOC_ACTION_ITEMS']);
   if (pre.failure) return pre.failure;
   try {
     const E = DPEngines;
+    const dryRun = pre.features.DRY_RUN === true;
+    const cached = refresh === true ? null : docRowsCacheRead_();
+    if (cached) return E.makeResult({ ok: true, status: 'OK', message: cached.rows.length + ' Doc action item(s)', rows: cached.rows, itemErrors: [], truncated: cached.truncated, dryRun: dryRun });
     const me = DPGmailRepo.userEmail();
     const ledger = {};
     DPLedgerRepo.list({ sourceType: E.DOC_ACTION_SOURCE_TYPE }).forEach(function(r) {
@@ -1490,11 +1575,22 @@ function getDocActionItems() {
       if (dismiss) { if (r.Status === E.LEDGER_STATUS.DONE) cur.dismissed = true; } else cur.task = r;
       ledger[r.SourceId] = cur;
     });
+    const all = DPDriveFollowupRepo.listFollowupFiles().slice().sort(function(a, b) {
+      return String(b.modifiedTime || '') < String(a.modifiedTime || '') ? -1 : (String(b.modifiedTime || '') > String(a.modifiedTime || '') ? 1 : 0);
+    });
+    const files = all.slice(0, E.DOC_ACTION_FILE_CAP);
+    const truncated = all.length - files.length;
+    if (truncated > 0) console.error('getDocActionItems: ' + all.length + ' files matched, read the newest ' + files.length + ', ' + truncated + ' not read');
+    const memo = refresh === true ? {} : docNegMemoRead_(files);
     const rows = [];
     const itemErrors = [];
-    DPDriveFollowupRepo.listFollowupFiles().forEach(function(file) {
+    files.forEach(function(file) {
       try {
-        E.selectAssignedComments({ file: file, comments: DPDriveFollowupRepo.listComments(file.id), userEmail: me }).forEach(function(row) {
+        const memoed = file.modifiedTime && memo[E.docActionMemoKey(file.id, file.modifiedTime)];
+        const comments = memoed ? [] : DPDriveFollowupRepo.listComments(file.id);
+        const selected = E.selectAssignedComments({ file: file, comments: comments, userEmail: me });
+        if (!memoed && selected[0].unmatched) docNegMemoWrite_(file);
+        selected.forEach(function(row) {
           const led = ledger[row.itemId] || {};
           if (led.dismissed) return;
           rows.push(Object.assign({}, row, {
@@ -1510,7 +1606,8 @@ function getDocActionItems() {
       }
     });
     rows.sort(function(a, b) { return b.score - a.score; });
-    return E.makeResult({ ok: true, status: 'OK', message: rows.length + ' Doc action item(s)', rows: rows, itemErrors: itemErrors, dryRun: pre.features.DRY_RUN === true });
+    if (!itemErrors.length) docRowsCacheWrite_({ rows: rows, truncated: truncated });
+    return E.makeResult({ ok: true, status: 'OK', message: rows.length + ' Doc action item(s)' + (truncated > 0 ? ', ' + truncated + ' older file(s) not read' : ''), rows: rows, itemErrors: itemErrors, truncated: truncated, dryRun: dryRun });
   } catch (err) {
     return failFrom_(err);
   }
@@ -1539,6 +1636,7 @@ function dismissDocItem(itemId, options) {
       const now = new Date();
       const row = E.beginOp({ opKey: opKey, sourceType: E.DOC_ACTION_SOURCE_TYPE, sourceId: itemId, action: 'DISMISS', targetType: 'PLANNER' }, now);
       DPLedgerRepo.upsert(E.completeOp(row, now, {}));
+      docRowsCacheClear_();
       return E.makeResult({ ok: true, operationKey: opKey, status: 'DONE', message: 'Dismissed from triage' });
     });
   } catch (err) {
@@ -1563,10 +1661,13 @@ function routeDocItemToTask(itemId, options) {
   if (!m) return fail_('INVALID_ITEM_ID', 'Invalid Doc item id');
   try {
     const file = DPDriveFollowupRepo.getFile(m[1]);
-    const thread = { threadId: itemId, subject: file.name || '(untitled)', url: DPEngines.docActionUrl(file, m[2] === 'FILE' ? '' : m[2]), lastMessageId: '', messages: [] };
     const settings = DPQueue.getSettings();
+    const provenance = DPEngines.docActionProvenance(file.name, DPEngines.taskPlannerLocalDate(new Date(), settings.timeZone));
+    const thread = { threadId: itemId, subject: file.name || '(untitled)', url: DPEngines.docActionUrl(file, m[2] === 'FILE' ? '' : m[2]), provenance: provenance, lastMessageId: '', messages: [] };
     return locked_(function() {
-      return DPQueue.executeRoute({ kind: 'DOC_TASK', threadId: itemId, thread: thread, options: { priority: o.priority }, dryRun: pre.features.DRY_RUN === true, settings: settings });
+      const routed = DPQueue.executeRoute({ kind: 'DOC_TASK', threadId: itemId, thread: thread, options: { priority: o.priority }, dryRun: pre.features.DRY_RUN === true, settings: settings });
+      docRowsCacheClear_();
+      return routed;
     });
   } catch (err) {
     return failFrom_(err);

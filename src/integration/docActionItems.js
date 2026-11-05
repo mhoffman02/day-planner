@@ -14,6 +14,15 @@ export const DOC_ACTION_SOURCE_TYPE = 'DOC_COMMENT';
 export const DOC_ACTION_SCORE_ASSIGNED = 8;
 export const DOC_ACTION_SCORE_UNMATCHED = 4;
 
+/** At most this many matching files are read per load (newest first); the rest are counted as truncated. */
+export const DOC_ACTION_FILE_CAP = 50;
+/** Finished row list, user cache. */
+export const DOC_ACTION_CACHE_TTL_S = 300;
+/** Per-file "no comment assigned to me" memo, valid while the file's modifiedTime is unchanged. */
+export const DOC_ACTION_MEMO_TTL_S = 21600;
+/** A serialized row list larger than this is returned but not cached (CacheService caps a value at 100 KB). */
+export const DOC_ACTION_CACHE_MAX_BYTES = 90 * 1024;
+
 const DOC_URL_PATH = Object.freeze({
   'application/vnd.google-apps.document': 'document',
   'application/vnd.google-apps.spreadsheet': 'spreadsheets',
@@ -29,6 +38,27 @@ export function docActionUrl(file, commentId) {
   const kind = DOC_URL_PATH[file.mimeType] || 'document';
   const base = `https://docs.google.com/${kind}/d/${file.id}/edit`;
   return commentId ? `${base}?disco=${commentId}` : base;
+}
+
+/**
+ * @param {string} fileId Drive file id.
+ * @param {string} modifiedTime Drive modifiedTime; a new value is a new key, which invalidates the memo.
+ * @returns {string} User-cache key for the negative memo.
+ */
+export function docActionMemoKey(fileId, modifiedTime) {
+  if (!fileId) throw new Error('docActionMemoKey: fileId required');
+  if (!modifiedTime) throw new Error('docActionMemoKey: modifiedTime required');
+  return `docNeg.v1:${fileId}|${modifiedTime}`;
+}
+
+/**
+ * Static first line of a routed Task's notes. States what was true when routed, never that the comment is still open.
+ * @param {string} title Doc title.
+ * @param {string} localDate Local YYYY-MM-DD.
+ * @returns {string} Provenance line.
+ */
+export function docActionProvenance(title, localDate) {
+  return `${DOC_ACTION_SOURCE_TAG}: ${String(title || '').trim() || '(untitled)'}, routed from an open comment on ${localDate}`;
 }
 
 function joinText(quoted, content) {

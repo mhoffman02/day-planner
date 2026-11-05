@@ -2571,7 +2571,7 @@
     routeThreadToTask(threadId, opts) { return this.hubRpc('routeThreadToTask', [threadId, opts || {}]); }
     routeThreadToWaiting(threadId, opts) { return this.hubRpc('routeThreadToWaiting', [threadId, opts || {}]); }
     routeThreadToMeeting(threadId, occurrenceId, opts) { return this.hubRpc('routeThreadToMeeting', [threadId, occurrenceId, opts || {}]); }
-    getDocActionItems() { return this.hubRpc('getDocActionItems', []); }
+    getDocActionItems(refresh) { return this.hubRpc('getDocActionItems', [refresh === true]); }
     dismissDocItem(itemId, opts) { return this.hubRpc('dismissDocItem', [itemId, opts || {}]); }
     routeDocItemToTask(itemId, opts) { return this.hubRpc('routeDocItemToTask', [itemId, opts || {}]); }
     dismissTriageItem(threadId, opts) { return this.hubRpc('dismissTriageItem', [threadId, opts || {}]); }
@@ -2609,6 +2609,7 @@
       hubNowMs: Date.now(),
       triageBoard: { queues: {} },
       docActionRows: [],
+      docTruncated: 0,
       triageStale: false,
       triageSavedAt: 0,
       // A Triage action created or found a Task: the Daily list on screen predates it, so re-fetch on return.
@@ -3559,7 +3560,7 @@
 
       async refreshTriage() {
         await this.loadHubStatus();
-        await this.loadTriageBoard({ after: true });
+        await this.loadTriageBoard({ after: true, refresh: true });
       },
 
       // Refresh checks mail first (the scheduled-tick queue, run now), then reloads saved data. One queue call per click,
@@ -3724,7 +3725,7 @@
             this.triageSavedAt = Date.now();
             this.saveTriageCache(board);
             this.resolveError('load-triage');
-            this.loadDocActionItems();
+            this.loadDocActionItems(!!(opts && opts.refresh));
           } catch (err) {
             console.error('Triage board failed to load, any saved board stays on screen marked stale:', err.stack);
             this.reportError('load-triage', 'Triage board failed to load: ' + (err.message || err), { retry: () => this.loadTriageBoard() });
@@ -3741,14 +3742,16 @@
       },
 
       // Doc action items (Drive comments assigned to me) load on their own RPC so a Drive failure never blocks Gmail rows.
-      async loadDocActionItems() {
+      async loadDocActionItems(refresh) {
         try {
-          const res = await this.bridge.getDocActionItems();
+          const res = await this.bridge.getDocActionItems(refresh === true);
           if (res && res.errorCode === 'FLAG_OFF') {
             this.docActionRows = [];
+            this.docTruncated = 0;
           } else {
             if (!res || res.ok !== true) throw new Error((res && res.message) || 'Doc action items unavailable');
             this.docActionRows = (res.rows || []).map((r) => ({ ...r, threadId: r.itemId }));
+            this.docTruncated = Number(res.truncated) || 0;
             this.resolveError('load-doc-items');
           }
         } catch (err) {
