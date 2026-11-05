@@ -81,3 +81,15 @@ Checklist in [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md). Evals:
 - [x] `npm test` passes cleanly with all suites green.
 - [x] UI strictly conforms to Day Planner aesthetic (cream `#fcfbfa`, teal `#2d6a5a`, serif headers, no pills).
 - [x] Clasp deployment deploys cleanly without missing scriptlet templates.
+
+---
+
+## 5. Parking Lot
+- [ ] Gmail thread summary into Notes/Tasks (2026-11-05). Gmail's Gemini summary card is web-UI only: not in the
+  Gmail API, body or snippet. A Docs bridge (paste thread into a Doc, "Ask Gemini", pull text back) cannot be
+  automated: Gemini in Docs is a side panel on cross-origin docs.google.com, with no API to trigger it or read its
+  output (see `openAiAssist()`). The manual variant (paste thread, run Gemini, paste summary back) saves nothing
+  over pasting the card directly.
+  Option: summarize server-side through the US-GSA USAi REST interface (`UrlFetchApp`, WORK only; needs USAi
+  access, endpoint, API key and data-handling approval first) with a fixed summary template. HOME has no USAi
+  access, so it needs a no-op there.
