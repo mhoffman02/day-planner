@@ -1424,16 +1424,21 @@
                         </tr>
                       </thead>
                       <tbody>
-                        <template x-for="item in q.items" :key="item.threadId">
+                        <template x-for="item in q.items" :key="item.itemId || item.threadId">
                           <tr>
                             <td class="hub-col-score">
                               <span class="hub-score-num" x-text="item.score"></span>
                               <span class="hub-band" x-text="hubBand(item.score)"></span>
                             </td>
                             <td>
-                              <span class="hub-subject" x-text="item.subject"></span>
+                              <template x-if="item.sourceType === 'DOC_COMMENT'">
+                                <a class="hub-subject" :href="item.url" target="_blank" rel="noopener noreferrer" title="Open the comment in Google Docs" x-text="item.subject"></a>
+                              </template>
+                              <template x-if="item.sourceType !== 'DOC_COMMENT'">
+                                <span class="hub-subject" x-text="item.subject"></span>
+                              </template>
                               <span class="hub-from"><span class="hub-from-name" x-text="item.fromName"></span> <span class="hub-from-date" x-text="'· ' + (item.date || '').replace('T', ' ').slice(0, 16)"></span></span>
-                              <button type="button" class="hub-snippet" x-show="item.snippet" :class="hubSnippetOpenId === item.threadId ? 'is-open lines-' + hubPreviewLines : ''" :aria-expanded="hubSnippetOpenId === item.threadId" @click="toggleSnippet(item.threadId)" :title="hubSnippetOpenId === item.threadId ? 'Show less' : 'Show more of the latest message'" x-text="hubSnippetOpenId === item.threadId ? (item.preview || item.snippet) : item.snippet"></button>
+                              <button type="button" class="hub-snippet" x-show="item.snippet" :class="hubSnippetOpenId === item.threadId ? 'is-open lines-' + hubPreviewLines : ''" :aria-expanded="hubSnippetOpenId === item.threadId" @click="toggleSnippet(item.threadId)" :title="hubSnippetOpenId === item.threadId ? 'Show less' : (item.sourceType === 'DOC_COMMENT' ? (item.preview || item.snippet) : 'Show more of the latest message')" x-text="hubSnippetOpenId === item.threadId ? (item.preview || item.snippet) : item.snippet"></button>
                               <template x-if="item.suggestions &amp;&amp; item.suggestions.length > 0">
                                 <span class="hub-suggest">Suggested:
                                   <template x-for="d in item.suggestions" :key="d.seriesKey">
@@ -1444,7 +1449,7 @@
                             </td>
                             <td class="hub-col-signals">
                               <span class="hub-signals" x-text="(item.signals || []).join(', ')"></span>
-                              <span class="hub-labels" x-text="(item.labels || []).join(', ')"></span>
+                              <span class="hub-labels" x-text="item.sourceType === 'DOC_COMMENT' ? item.sourceTag : (item.labels || []).join(', ')"></span>
                             </td>
                             <td class="hub-col-ledger">
                               <span class="hub-ledger" :class="item.ledgerStatus ? 'hub-ledger-' + item.ledgerStatus.toLowerCase().replace('_', '-') : ''" x-text="hubLedgerLabel(item.ledgerStatus, item.operationKey) || 'None'"></span>
@@ -1454,6 +1459,15 @@
                             </td>
                             <td class="hub-col-actions">
                               <div class="hub-actions" role="group" :aria-label="'Actions for ' + item.subject">
+                                <template x-if="item.sourceType === 'DOC_COMMENT'">
+                                  <span class="hub-doc-actions">
+                                    <button type="button" class="hub-action-btn" :disabled="triageStale" @click="taskDocEntry(item)" title="Create a Google Task linking this Doc comment" :aria-label="'Task: ' + item.subject">Task</button>
+                                    <button type="button" class="hub-action-btn hub-action-icon hub-action-quiet" :disabled="triageStale" @click="dismissDocEntry(item)" title="Hide from Triage; the Doc comment stays open" :aria-label="'Dismiss: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">close</span></button>
+                                    <a class="hub-action-btn hub-action-icon hub-action-quiet" :href="item.url" target="_blank" rel="noopener noreferrer" title="Open the Doc" :aria-label="'Open Doc: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">open_in_new</span></a>
+                                  </span>
+                                </template>
+                                <template x-if="item.sourceType !== 'DOC_COMMENT'">
+                                  <span class="hub-gmail-actions">
                                 <button type="button" class="hub-action-btn" :disabled="triageStale" @click="triageTask(item, true)" title="Create a Google Task due today" :aria-label="'Task Today: ' + item.subject">Task Today</button>
                                 <button type="button" class="hub-action-btn" :disabled="triageStale" @click="triageTask(item, false)" title="Create a Google Task for later" :aria-label="'Task Later: ' + item.subject">Task Later</button>
                                 <button type="button" class="hub-action-btn hub-action-icon" :disabled="triageStale" @click="noteTriageItem(item)" title="Add this thread as a line in the last note card of today" :aria-label="'Note: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">edit_note</span></button>
@@ -1464,6 +1478,8 @@
                                 <button type="button" class="hub-action-btn hub-action-icon hub-action-quiet" :disabled="triageStale" @click="archiveTriageEntry(item)" title="Archive in Gmail (removes it from the Inbox; labels stay)" :aria-label="'Archive in Gmail: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">archive</span></button>
                                 <button type="button" class="hub-action-btn hub-action-icon hub-action-danger" :disabled="triageStale" @click="trashTriageEntry(item)" title="Move to Gmail Trash (recoverable for 30 days)" :aria-label="'Delete (move to Gmail Trash): ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">delete</span></button>
                                 <a class="hub-action-btn hub-action-icon hub-action-quiet" :href="item.url" target="_blank" rel="noopener noreferrer" title="Open the thread in Gmail" :aria-label="'Open Gmail: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">open_in_new</span></a>
+                                  </span>
+                                </template>
                               </div>
                             </td>
                           </tr>

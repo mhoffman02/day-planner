@@ -7213,6 +7213,11 @@
     gap: 4px;
   }
 
+  .hub-doc-actions,
+  .hub-gmail-actions {
+    display: contents;
+  }
+
   .hub-action-btn {
     display: inline-block;
     width: auto;

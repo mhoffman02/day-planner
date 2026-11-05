@@ -2571,6 +2571,9 @@
     routeThreadToTask(threadId, opts) { return this.hubRpc('routeThreadToTask', [threadId, opts || {}]); }
     routeThreadToWaiting(threadId, opts) { return this.hubRpc('routeThreadToWaiting', [threadId, opts || {}]); }
     routeThreadToMeeting(threadId, occurrenceId, opts) { return this.hubRpc('routeThreadToMeeting', [threadId, occurrenceId, opts || {}]); }
+    getDocActionItems() { return this.hubRpc('getDocActionItems', []); }
+    dismissDocItem(itemId, opts) { return this.hubRpc('dismissDocItem', [itemId, opts || {}]); }
+    routeDocItemToTask(itemId, opts) { return this.hubRpc('routeDocItemToTask', [itemId, opts || {}]); }
     dismissTriageItem(threadId, opts) { return this.hubRpc('dismissTriageItem', [threadId, opts || {}]); }
     archiveTriageThread(threadId, opts) { return this.hubRpc('archiveTriageThread', [threadId, opts || {}]); }
     trashTriageThread(threadId, opts) { return this.hubRpc('trashTriageThread', [threadId, opts || {}]); }
@@ -2605,6 +2608,7 @@
       hubCounts: {},
       hubNowMs: Date.now(),
       triageBoard: { queues: {} },
+      docActionRows: [],
       triageStale: false,
       triageSavedAt: 0,
       // A Triage action created or found a Task: the Daily list on screen predates it, so re-fetch on return.
@@ -3720,6 +3724,7 @@
             this.triageSavedAt = Date.now();
             this.saveTriageCache(board);
             this.resolveError('load-triage');
+            this.loadDocActionItems();
           } catch (err) {
             console.error('Triage board failed to load, any saved board stays on screen marked stale:', err.stack);
             this.reportError('load-triage', 'Triage board failed to load: ' + (err.message || err), { retry: () => this.loadTriageBoard() });
@@ -3733,6 +3738,44 @@
           }
         })();
         return this.triageLoadPromise;
+      },
+
+      // Doc action items (Drive comments assigned to me) load on their own RPC so a Drive failure never blocks Gmail rows.
+      async loadDocActionItems() {
+        try {
+          const res = await this.bridge.getDocActionItems();
+          if (res && res.errorCode === 'FLAG_OFF') {
+            this.docActionRows = [];
+          } else {
+            if (!res || res.ok !== true) throw new Error((res && res.message) || 'Doc action items unavailable');
+            this.docActionRows = (res.rows || []).map((r) => ({ ...r, threadId: r.itemId }));
+            this.resolveError('load-doc-items');
+          }
+        } catch (err) {
+          console.error('Doc action items failed to load, Gmail rows are unaffected:', err.stack);
+          this.reportError('load-doc-items', 'Doc action items failed to load: ' + (err.message || err), { retry: () => this.loadDocActionItems() });
+        }
+        this.mergeDocRows();
+      },
+
+      // Direct Action = Gmail rows plus Doc rows, best score first. Doc rows carry threadId = itemId so row take/restore/key logic is shared.
+      mergeDocRows() {
+        const queues = this.triageBoard && this.triageBoard.queues;
+        if (!queues) return;
+        const gmail = (queues.directAction || []).filter((i) => i.sourceType !== 'DOC_COMMENT');
+        queues.directAction = gmail.concat(this.docActionRows).sort((a, b) => (b.score || 0) - (a.score || 0));
+      },
+
+      dismissDocEntry(item) {
+        return this.runTriageAction('Dismiss', () => this.bridge.dismissDocItem(item.itemId, this.hubModeOpts()), item.itemId, true).then((r) => {
+          if (r && r.ok) this.docActionRows = this.docActionRows.filter((i) => i.itemId !== item.itemId);
+          return r;
+        });
+      },
+
+      taskDocEntry(item) {
+        const priority = item.score >= 8 ? 'B1' : 'C1';
+        return this.runTriageAction('Task', () => this.bridge.routeDocItemToTask(item.itemId, { priority, ...this.hubModeOpts() }), item.itemId);
       },
 
       // Startup prefetch: only when the saved board is old enough to be worth a Gmail read.
@@ -3810,7 +3853,7 @@
         try {
           const queues = {};
           Object.keys(board.queues || {}).forEach((q) => {
-            queues[q] = (board.queues[q] || []).map((item) => {
+            queues[q] = (board.queues[q] || []).filter((item) => item.sourceType !== 'DOC_COMMENT').map((item) => {
               const kept = {};
               TRIAGE_CACHE_FIELDS.forEach((f) => { if (f in item) kept[f] = item[f]; });
               return kept;

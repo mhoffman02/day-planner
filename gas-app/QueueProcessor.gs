@@ -239,6 +239,15 @@ function executeRoute(spec) {
         const out = DPTaskRepo.createFromThread({ thread: thread, today: isToday, priority: o.priority, opKey: opKey, now: now, timeZone: spec.settings.timeZone, listId: spec.settings.tasksListId });
         return { targetId: out.task.id, targetType: 'TASK', metadata: { created: out.created, due: out.task.due || '' } };
       };
+    } else if (spec.kind === 'DOC_TASK') {
+      // spec.threadId is the Doc item id (fileId~commentId); the thread is built server-side from trusted Drive metadata.
+      const parts = spec.threadId.split('~');
+      opKey = opKey || E.docActionKey(parts[0], parts[1], 'TASK');
+      op = { opKey: opKey, sourceType: E.DOC_ACTION_SOURCE_TYPE, sourceId: spec.threadId, action: 'CREATE_TASK', targetType: 'TASK' };
+      work = function() {
+        const out = DPTaskRepo.createFromThread({ thread: thread, today: false, priority: o.priority, opKey: opKey, now: now, timeZone: spec.settings.timeZone, listId: spec.settings.tasksListId });
+        return { targetId: out.task.id, targetType: 'TASK', metadata: { created: out.created, due: out.task.due || '' } };
+      };
     } else if (spec.kind === 'DECISION') {
       opKey = opKey || E.gmailDecisionKey(spec.threadId);
       op = { opKey: opKey, sourceType: 'GMAIL', sourceId: spec.threadId, sourceVersion: thread.lastMessageId, action: 'CREATE_TASK', targetType: 'TASK' };

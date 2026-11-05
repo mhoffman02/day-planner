@@ -544,6 +544,7 @@ global.DPGmailRepo = Object.freeze({
   listMessageRefs: listMessageRefs,     // HubController filter learner
   getMessageSample: getMessageSample,   // HubController filter learner
   validateThreadId: validateThreadId,
+  userEmail: userEmail_,                // HubController Doc action items (assignee match)
   gmailUrl: gmailUrl,
   resolveLabelId: resolveLabelId,
   listThreadsByLabel: listThreadsByLabel,

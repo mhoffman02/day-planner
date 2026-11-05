@@ -463,7 +463,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 670;
+const BUILD_NUMBER_ = 671;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -4090,6 +4090,22 @@ function searchArchiveNotes(query) {
 
 function getTriageBoard(filters) {
   return (typeof _getTriageBoardInternal === 'function') ? _getTriageBoardInternal(filters) : (globalThis._getTriageBoardInternal ? globalThis._getTriageBoardInternal(filters) : null);
+}
+
+function getDocActionItems() {
+  return (typeof _getDocActionItemsInternal === 'function') ? _getDocActionItemsInternal() : (globalThis._getDocActionItemsInternal ? globalThis._getDocActionItemsInternal() : null);
+}
+
+function dismissDocItem(itemId, options) {
+  return (typeof _dismissDocItemInternal === 'function') ? _dismissDocItemInternal(itemId, options) : (globalThis._dismissDocItemInternal ? globalThis._dismissDocItemInternal(itemId, options) : null);
+}
+
+function routeDocItemToTask(itemId, options) {
+  return (typeof _routeDocItemToTaskInternal === 'function') ? _routeDocItemToTaskInternal(itemId, options) : (globalThis._routeDocItemToTaskInternal ? globalThis._routeDocItemToTaskInternal(itemId, options) : null);
+}
+
+function docActionCanary() {
+  return (typeof _docActionCanaryInternal === 'function') ? _docActionCanaryInternal() : (globalThis._docActionCanaryInternal ? globalThis._docActionCanaryInternal() : null);
 }
 
 function getFiledEmails(days) {

@@ -9,9 +9,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
-const TEAL = ['Task Today', 'Task Later', 'Note', 'Waiting'];
-const QUIET = ['Send to Meeting', 'Read Later', 'Dismiss', 'Archive in Gmail', 'Open Gmail'];
-const TEXT_BUTTONS = ['Task Today', 'Task Later'];
+const TEAL = ['Task Today', 'Task Later', 'Task', 'Note', 'Waiting'];
+const QUIET = ['Send to Meeting', 'Read Later', 'Dismiss', 'Archive in Gmail', 'Open Gmail', 'Open Doc'];
+const TEXT_BUTTONS = ['Task Today', 'Task Later', 'Task'];
 
 function actionButtons(html) {
   const group = html.split('class="hub-actions"')[1].split('</div>')[0];
@@ -28,18 +28,18 @@ function actionButtons(html) {
 for (const file of ['index.html', 'gas-app/Index.html']) {
   test(`${file}: action buttons carry the colour classes`, () => {
     const btns = actionButtons(read(file));
-    assert.equal(btns.length, 10);
+    assert.equal(btns.length, 13); // 10 Gmail actions + Doc row Task, Dismiss, Open Doc
     for (const b of btns) {
       assert.ok(b.label, `label parsed from aria-label: ${b.attrs}`);
       const quiet = /hub-action-quiet/.test(b.attrs);
       if (TEAL.includes(b.label)) assert.ok(!quiet, `${b.label} stays teal`);
       if (QUIET.includes(b.label)) assert.ok(quiet, `${b.label} is muted`);
       if (b.label === 'Delete') assert.ok(/hub-action-danger/.test(b.attrs) && !quiet, 'Delete is red only');
-      if (b.label !== 'Open Gmail') assert.match(b.attrs, /:disabled="triageStale"/, `${b.label} keeps its stale lock`);
+      if (b.label !== 'Open Gmail' && b.label !== 'Open Doc') assert.match(b.attrs, /:disabled="triageStale"/, `${b.label} keeps its stale lock`);
     }
   });
 
-  test(`${file}: only Task Today and Task Later are text buttons, the rest are icon-only with a title`, () => {
+  test(`${file}: only the Task buttons are text buttons, the rest are icon-only with a title`, () => {
     for (const b of actionButtons(read(file))) {
       if (TEXT_BUTTONS.includes(b.label)) {
         assert.ok(!b.hasIcon && b.text === b.label, `${b.label} keeps its text label`);

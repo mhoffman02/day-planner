@@ -5,7 +5,8 @@
  * idempotent by operation key, mirroring the real ledger: a repeated call returns the same
  * result and never creates a second mock task.
  */
-import { gmailTaskKey, gmailWaitingKey, gmailMeetingKey, DEFAULT_FEATURES } from './integration/contracts.js';
+import { gmailTaskKey, gmailWaitingKey, gmailMeetingKey, docActionKey, DEFAULT_FEATURES } from './integration/contracts.js';
+import { selectAssignedComments } from './integration/docActionItems.js';
 import { TRIAGE_BAND } from './integration/triageScore.js';
 import { formatCarryInsList } from './integration/notesPlanner.js';
 
@@ -174,6 +175,7 @@ export class HubMock {
       GMAIL_ROUTER: true,
       TRIAGE_BOARD: true,
       NCMMS_CORE_PILOT: true,
+      DOC_ACTION_ITEMS: true,
       ...(opts.flags || {}),
       DRY_RUN: this.dryRun
     };
@@ -184,6 +186,7 @@ export class HubMock {
     this.tasks = [];
     this.waiting = [];
     this.dismissed = new Set();
+    this.dismissedDocs = new Set();
     this.carryIns = buildCarryIns(this.queues);
     this.failNext = new Set();
     this.sheetProvisioned = opts.sheetProvisioned === undefined ? true : opts.sheetProvisioned;
@@ -402,6 +405,39 @@ export class HubMock {
       });
       return 'https:' + '/' + '/tasks.google.com/mock/' + id;
     }, today ? 'Task created for today' : 'Task created', 'Would create Task', opts);
+  }
+
+  /** Doc action items (Drive comments assigned to the user); server parity: separate RPC, FLAG_OFF when the flag is off. */
+  getDocActionItems() {
+    const gate = this._preflight(['DOC_ACTION_ITEMS']);
+    if (gate) return gate;
+    const doc = { id: 'MockDocFileId001', name: 'Q4 budget review', mimeType: 'application/vnd.google-apps.document' };
+    const comments = [{ id: 'MockComment1', assigneeEmailAddress: 'me@example.com', content: 'Please finalize the travel line before Friday and confirm the vendor quote.', quotedFileContent: { value: 'Travel: 12,400' }, author: { displayName: 'Ann Lee' }, modifiedTime: localIso(-90) }];
+    const rows = selectAssignedComments({ file: doc, comments, userEmail: 'me@example.com' })
+      .filter((r) => !this.dismissedDocs.has(r.itemId))
+      .map((r) => ({ ...r, queue: QUEUE_DISPLAY.directAction, operationKey: null, ledgerStatus: null, errorMessage: null }));
+    return { ok: true, status: 'OK', message: `${rows.length} Doc action item(s)`, rows, itemErrors: [], dryRun: this.dryRun };
+  }
+
+  dismissDocItem(itemId, opts) {
+    const gate = this._preflight(['DOC_ACTION_ITEMS'], opts);
+    if (gate) return gate;
+    const [fileId, commentId] = String(itemId).split('~');
+    const operationKey = docActionKey(fileId, commentId, 'DISMISS');
+    if (this.dryRun) return { ok: true, status: 'DRY_RUN', message: 'Would dismiss from triage', operationKey };
+    this.dismissedDocs.add(itemId);
+    return { ok: true, status: 'DONE', message: 'Dismissed from triage', operationKey };
+  }
+
+  routeDocItemToTask(itemId, opts = {}) {
+    const gate = this._preflight(['DOC_ACTION_ITEMS'], opts);
+    if (gate) return gate;
+    const [fileId, commentId] = String(itemId).split('~');
+    const operationKey = docActionKey(fileId, commentId, 'TASK');
+    if (this.dryRun) return { ok: true, status: 'DRY_RUN', message: 'Would create Task', operationKey };
+    const id = `mock-task-${this.tasks.length + 1}`;
+    this.tasks.push({ id, key: operationKey, threadId: itemId, today: false, title: `[${(opts && opts.priority) || 'B1'}] Q4 budget review`, priority: (opts && opts.priority) || 'B1' });
+    return { ok: true, status: 'DONE', message: 'Task created', operationKey, targetUrl: 'https:' + '/' + '/tasks.google.com/mock/' + id };
   }
 
   routeThreadToWaiting(threadId, opts = {}) {

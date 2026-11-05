@@ -1469,6 +1469,122 @@ function confirmMeetingActions(occurrenceId, selectedItems) {
   return geminiStub_('GEMINI_RECONCILIATION', occurrenceId, selectedItems || []);
 }
 
+const DOC_ITEM_ID_RE_ = /^([A-Za-z0-9_-]{10,128})~([A-Za-z0-9_-]{1,64})$/;
+
+/**
+ * Doc action items (Drive comments assigned to the user) as Triage rows. A separate RPC from getTriageBoard
+ * so a Drive failure can never blank the Gmail list. Read-only: no Drive write, comments are never resolved.
+ * Comment text is returned for display only and is not written to the ledger.
+ * @returns {object} makeResult-shaped result; rows[] on success.
+ */
+function getDocActionItems() {
+  const pre = preflight_(['DOC_ACTION_ITEMS']);
+  if (pre.failure) return pre.failure;
+  try {
+    const E = DPEngines;
+    const me = DPGmailRepo.userEmail();
+    const ledger = {};
+    DPLedgerRepo.list({ sourceType: E.DOC_ACTION_SOURCE_TYPE }).forEach(function(r) {
+      const dismiss = /\|DISMISS$/.test(r.OperationKey);
+      const cur = ledger[r.SourceId] || {};
+      if (dismiss) { if (r.Status === E.LEDGER_STATUS.DONE) cur.dismissed = true; } else cur.task = r;
+      ledger[r.SourceId] = cur;
+    });
+    const rows = [];
+    const itemErrors = [];
+    DPDriveFollowupRepo.listFollowupFiles().forEach(function(file) {
+      try {
+        E.selectAssignedComments({ file: file, comments: DPDriveFollowupRepo.listComments(file.id), userEmail: me }).forEach(function(row) {
+          const led = ledger[row.itemId] || {};
+          if (led.dismissed) return;
+          rows.push(Object.assign({}, row, {
+            queue: E.TRIAGE_QUEUE.DIRECT_ACTION,
+            operationKey: led.task ? led.task.OperationKey : null,
+            ledgerStatus: led.task ? led.task.Status : null,
+            errorMessage: led.task && led.task.Status === E.LEDGER_STATUS.ERROR ? led.task.ErrorMessage : null
+          }));
+        });
+      } catch (fileErr) {
+        itemErrors.push({ itemId: file.id, message: E.sanitizeError(fileErr) });
+        DPQueue.logSafe('getDocActionItems file', fileErr);
+      }
+    });
+    rows.sort(function(a, b) { return b.score - a.score; });
+    return E.makeResult({ ok: true, status: 'OK', message: rows.length + ' Doc action item(s)', rows: rows, itemErrors: itemErrors, dryRun: pre.features.DRY_RUN === true });
+  } catch (err) {
+    return failFrom_(err);
+  }
+}
+
+/**
+ * Removes a Doc action item from Triage (ledger only; the Drive comment is untouched and stays open).
+ * @param {string} itemId Doc item id, fileId~commentId.
+ * @param {{expectDryRun?:boolean}} [options] The mode the client is showing.
+ * @returns {object} makeResult-shaped result.
+ */
+function dismissDocItem(itemId, options) {
+  const invalid = rejectInvalid_(() => DPEngines.v_.guard(arguments, 'dismissDocItem').param('itemId').string().param('options').object().optional().nullable().done());
+  if (invalid) return invalid;
+  const pre = preflight_(['DOC_ACTION_ITEMS'], modeOpts_(options));
+  if (pre.failure) return pre.failure;
+  const m = DOC_ITEM_ID_RE_.exec(itemId);
+  if (!m) return fail_('INVALID_ITEM_ID', 'Invalid Doc item id');
+  try {
+    const E = DPEngines;
+    const opKey = E.docActionKey(m[1], m[2], 'DISMISS');
+    return locked_(function() {
+      const existing = DPLedgerRepo.get(opKey);
+      if (existing && existing.Status === E.LEDGER_STATUS.DONE) return E.makeResult({ ok: true, operationKey: opKey, status: 'SKIPPED', message: 'Already dismissed' });
+      if (pre.features.DRY_RUN === true) return E.makeResult({ ok: true, operationKey: opKey, status: 'DRY_RUN', message: 'Would dismiss from triage' });
+      const now = new Date();
+      const row = E.beginOp({ opKey: opKey, sourceType: E.DOC_ACTION_SOURCE_TYPE, sourceId: itemId, action: 'DISMISS', targetType: 'PLANNER' }, now);
+      DPLedgerRepo.upsert(E.completeOp(row, now, {}));
+      return E.makeResult({ ok: true, operationKey: opKey, status: 'DONE', message: 'Dismissed from triage' });
+    });
+  } catch (err) {
+    return failFrom_(err);
+  }
+}
+
+/**
+ * Creates one Task from a Doc action item. Title and link come from Drive, never from the client.
+ * The Drive comment is left open: resolve it in the Doc.
+ * @param {string} itemId Doc item id, fileId~commentId.
+ * @param {{priority?:string, expectDryRun?:boolean}} [options] Client options.
+ * @returns {object} makeResult-shaped result.
+ */
+function routeDocItemToTask(itemId, options) {
+  const invalid = rejectInvalid_(() => DPEngines.v_.guard(arguments, 'routeDocItemToTask').param('itemId').string().param('options').object().optional().nullable().done());
+  if (invalid) return invalid;
+  const o = opts_(options);
+  const pre = preflight_(['DOC_ACTION_ITEMS'], modeOpts_(o));
+  if (pre.failure) return pre.failure;
+  const m = DOC_ITEM_ID_RE_.exec(itemId);
+  if (!m) return fail_('INVALID_ITEM_ID', 'Invalid Doc item id');
+  try {
+    const file = DPDriveFollowupRepo.getFile(m[1]);
+    const thread = { threadId: itemId, subject: file.name || '(untitled)', url: DPEngines.docActionUrl(file, m[2] === 'FILE' ? '' : m[2]), lastMessageId: '', messages: [] };
+    const settings = DPQueue.getSettings();
+    return locked_(function() {
+      return DPQueue.executeRoute({ kind: 'DOC_TASK', threadId: itemId, thread: thread, options: { priority: o.priority }, dryRun: pre.features.DRY_RUN === true, settings: settings });
+    });
+  } catch (err) {
+    return failFrom_(err);
+  }
+}
+
+/**
+ * Live check that the DriveV3 service and the followup:actionitems operator work (unknown value returns empty).
+ * @returns {object} makeResult-shaped result; data carries the counts.
+ */
+function docActionCanary() {
+  try {
+    return DPEngines.makeResult({ ok: true, status: 'DONE', message: 'Doc action canary passed', data: DPDriveFollowupRepo.canary() });
+  } catch (err) {
+    return failFrom_(err);
+  }
+}
+
 // ── Export surface ───────────────────────────────────────────────────────────
 // Every name below is called via google.script.run (Script.html) and therefore also needs a
 // top-level delegator in Code.gs.
@@ -1492,7 +1608,11 @@ global._hubSetFeatureInternal = hubSetFeature;                    // gas-rpc (Ex
 global._hubSetupLabelsInternal = hubSetupLabels;                   // google.script.run (About) + gas-rpc + IDE manual-run
 global._hubFilterLearnStatusInternal = hubFilterLearnStatus;       // google.script.run (About progress) + gas-rpc
 global._hubFilterLearnTickInternal = hubFilterLearnTick;           // time-driven trigger (every minute while learning)
-global._hubSuggestFiltersInternal = hubSuggestFilters;             // google.script.run (About) + gas-rpc + IDE manual-run
+global._getDocActionItemsInternal = getDocActionItems;             // google.script.run (Triage Doc action items)
+global._dismissDocItemInternal = dismissDocItem;                   // google.script.run (Triage Doc item Dismiss)
+global._routeDocItemToTaskInternal = routeDocItemToTask;           // google.script.run (Triage Doc item Task)
+global._docActionCanaryInternal = docActionCanary;                // gas-rpc + IDE manual-run
+global._hubSuggestFiltersInternal = hubSuggestFilters;            // google.script.run (About) + gas-rpc + IDE manual-run
 global._hubCreateSelectedFiltersInternal = hubCreateSelectedFilters; // google.script.run (About) + gas-rpc + IDE manual-run
 global._hubSetTasksListIdInternal = hubSetTasksListId;             // gas-rpc (Execution API) + IDE manual-run
 global._discoverGeminiNotesInternal = discoverGeminiNotes;         // google.script.run (stub, flag gated)

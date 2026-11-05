@@ -73,6 +73,7 @@ export const DEFAULT_FEATURES = Object.freeze({
   GEMINI_DISCOVERY: false,
   GEMINI_RECONCILIATION: false,
   USAI_ASSIST: false,
+  DOC_ACTION_ITEMS: false,
   DRY_RUN: true
 });
 
@@ -106,6 +107,13 @@ export function geminiProposeKey(docId, contentHash) {
 }
 export function meetingTaskKey(occurrenceEventId, actionHash) {
   return `MEETING|${requirePart(occurrenceEventId, 'occurrenceEventId')}|TASK|${requirePart(actionHash, 'actionHash')}`;
+}
+
+const DOC_ACTIONS = Object.freeze(['TASK', 'DISMISS']);
+/** Ledger key of a Doc action item (Drive comment assigned to the user). Ids are Drive file and comment ids. */
+export function docActionKey(fileId, commentId, action) {
+  if (!DOC_ACTIONS.includes(action)) throw new Error(`Invalid Doc action ${JSON.stringify(action)}`);
+  return `DOC|${requirePart(fileId, 'fileId')}~${requirePart(commentId, 'commentId')}|${action}`;
 }
 
 function requirePart(value, name) {
