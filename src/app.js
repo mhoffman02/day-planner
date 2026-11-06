@@ -2,7 +2,7 @@ import Alpine from 'https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/module.esm.
 import { GASBridge } from './gasBridge.js';
 import { getLocalDateStr } from './binderStore.js';
 import {
-  isHubViewVisible, scoreBandLabel, ledgerStatusLabel, ledgerOperationKind, canRetryLedger, formatCutoffCountdown, formatLocalDateTime, limitDocRows, sortDocRows, docRowsOlderThan, DOC_ROW_LIMITS, DOC_ROW_LIMIT_DEFAULT,
+  isHubViewVisible, scoreBandLabel, ledgerStatusLabel, ledgerOperationKind, canRetryLedger, formatCutoffCountdown, formatLocalDateTime, limitDocRows, sortDocRows, parseSavedHubFlags, docRowsOlderThan, DOC_ROW_LIMITS, DOC_ROW_LIMIT_DEFAULT,
   QUEUE_ORDER, QUEUE_TITLES
 } from './hubUi.js';
 import {
@@ -672,6 +672,7 @@ Alpine.data('plannerApp', () => ({
         this.initColumnWidths();
         this.initUiZoom();
         this.initDocRowLimit();
+        this.initHubFlagsCache();
         this.initRecentTopics();
         this.initCategories();
         const hubReady = this.initHub();
@@ -736,6 +737,28 @@ Alpine.data('plannerApp', () => ({
       },
 
       // Doc-items display limit, saved per device. Storage may be unavailable; the default then applies.
+      // Last-known hub flags paint the Triage and Meeting Prep tabs at first load; loadHubStatus then confirms or removes them.
+      initHubFlagsCache() {
+        try {
+          const saved = parseSavedHubFlags(localStorage.getItem('dayPlannerHubFlags'));
+          if (saved && this.hubFlags === null) {
+            this.hubFlags = saved;
+            this.hydrateTriageCache();
+          }
+        } catch (err) {
+          console.error('Could not read the saved hub flags, tabs wait for the server:', err.stack);
+        }
+      },
+
+      saveHubFlagsCache() {
+        try {
+          if (this.hubFlags) localStorage.setItem('dayPlannerHubFlags', JSON.stringify(this.hubFlags));
+          else localStorage.removeItem('dayPlannerHubFlags');
+        } catch (err) {
+          console.error('Could not save the hub flags, the tabs will wait for the server next load:', err.stack);
+        }
+      },
+
       initDocRowLimit() {
         try {
           const saved = localStorage.getItem('dayPlannerDocRowLimit');
@@ -1451,12 +1474,14 @@ Alpine.data('plannerApp', () => ({
           if (this.authApprovalUrl) {
             console.error('loadHubStatus: Google permissions not approved yet, missing scopes:', (st.missingScopes || []).join(', ') || '(not reported)');
             this.hubFlags = null;
+            this.saveHubFlagsCache();
             this.clearTriageCache();
             return;
           }
           this.authRecheckNote = '';
           if (!st || st.ok !== true) throw new Error((st && st.message) || 'Hub status unavailable');
           this.hubFlags = (st && st.flags) || null;
+          this.saveHubFlagsCache();
           this.hubDryRun = !!(st && st.dryRun);
           this.hubLastRun = (st && st.lastRun) || null;
           this.hubPreviewLines = (st && st.previewLines) || 3;
@@ -1466,6 +1491,7 @@ Alpine.data('plannerApp', () => ({
           this.loadFiledEmails();
         } catch (err) {
           this.hubFlags = null;
+          this.saveHubFlagsCache();
           this.clearTriageCache();
           console.error('Hub status unavailable, Triage and Meeting Prep stay hidden:', err.stack);
         }

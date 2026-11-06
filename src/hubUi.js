@@ -144,6 +144,25 @@ export const DOC_ROW_LIMIT_DEFAULT = 25;
 export const DOC_ROW_LIMITS = [10, 25, 50, 'all'];
 
 /**
+ * Reads the hub feature flags saved by the last successful status load, so Triage and Meeting Prep
+ * tabs can show at first paint. Anything that is not a plain object of booleans is rejected.
+ * @param {string|null|undefined} raw The saved JSON text.
+ * @returns {Object<string, boolean>|null} The flags, or null when nothing usable is saved.
+ */
+export function parseSavedHubFlags(raw) {
+  if (typeof raw !== 'string' || raw === '') return null;
+  let v;
+  try {
+    v = JSON.parse(raw);
+  } catch (err) {
+    console.error('parseSavedHubFlags: saved hub flags are not valid JSON, ignoring them:', err.stack);
+    return null;
+  }
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  return Object.keys(v).every((k) => typeof v[k] === 'boolean') ? v : null;
+}
+
+/**
  * Orders Doc action rows by their comment date; undated rows (file-level fallbacks) always go last.
  * @param {Array<object>} rows Doc rows.
  * @param {string} [dir] 'desc' (newest first, the default) or 'asc' (oldest first).

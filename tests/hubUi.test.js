@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import {
   isHubViewVisible, scoreBandLabel, ledgerStatusLabel, canRetryLedger,
-  formatCutoffCountdown, countBoardItems, limitDocRows, sortDocRows, docRowsOlderThan, DOC_ROW_LIMIT_DEFAULT, formatLocalDateTime, QUEUE_ORDER, QUEUE_TITLES
+  formatCutoffCountdown, countBoardItems, limitDocRows, sortDocRows, parseSavedHubFlags, docRowsOlderThan, DOC_ROW_LIMIT_DEFAULT, formatLocalDateTime, QUEUE_ORDER, QUEUE_TITLES
 } from '../src/hubUi.js';
 
 const ON = { GMAIL_ROUTER: true, TRIAGE_BOARD: true, NCMMS_CORE_PILOT: true };
@@ -248,5 +248,16 @@ describe('docRowsOlderThan', () => {
     assert.deepEqual(docRowsOlderThan(rows, 0, now), []);
     assert.deepEqual(docRowsOlderThan(rows, NaN, now), []);
     assert.deepEqual(docRowsOlderThan(null, 30, now), []);
+  });
+});
+
+describe('parseSavedHubFlags', () => {
+  it('returns a flags object of booleans', () => {
+    assert.deepEqual(parseSavedHubFlags('{"GMAIL_ROUTER":true,"NOTES":false}'), { GMAIL_ROUTER: true, NOTES: false });
+  });
+  it('rejects anything else with null (never invents flags)', () => {
+    ['', null, undefined, 'x', '[]', '1', 'null', '{"A":"yes"}', '{"A":1}'].forEach((raw) => {
+      assert.equal(parseSavedHubFlags(raw), null, String(raw));
+    });
   });
 });
