@@ -62,6 +62,7 @@ function buildDateWindow(centerDateStr, radiusDays) {
 // Triage board copy in sessionStorage (stale-while-revalidate; see loadTriageBoard).
 const TRIAGE_CACHE_KEY = 'dayPlannerTriageBoard.v1';
 const TRIAGE_FRESH_MS = 120000;
+const DOC_FRESH_MS = 300000;
 const TRIAGE_PREFETCH_MIN_AGE_MS = 300000;
 const TRIAGE_RELOAD_DEBOUNCE_MS = 15000;
 // Master Tasks: rows drawn at first paint, rows added per background tick, and the delay after
@@ -359,6 +360,7 @@ Alpine.data('plannerApp', () => ({
       taskToastAnchored: false,
       docSortDir: 'desc',
       docLoading: false,
+      docLoadedAt: 0, // ms of the last successful Doc load this session; board loads skip the slow Doc request while it is fresh
       docBulkDays: 0,
       docBulkIds: [],
       triageStale: false,
@@ -1600,7 +1602,8 @@ Alpine.data('plannerApp', () => ({
         this.triageLoadPromise = (async () => {
           try {
             // Doc items go out with the board, not after it: the two server calls overlap almost for free.
-            this.loadDocActionItems(!!(opts && opts.refresh));
+            // Docs take 1-2 minutes: reuse the rows on screen when they loaded recently, unless Refresh or a finished action asks for fresh ones.
+            if (this.docsNeedLoad(opts)) this.loadDocActionItems(!!(opts && opts.refresh));
             const board = await this.bridge.getTriageBoard({});
             if (board && board.errorCode === 'FLAG_OFF') {
               // Flags saved from an earlier visit were stale; loadHubStatus is about to hide the tab.
@@ -1636,6 +1639,11 @@ Alpine.data('plannerApp', () => ({
         return this.triageLoadPromise;
       },
 
+      docsNeedLoad(opts) {
+        if (opts && (opts.refresh || opts.after)) return true;
+        return Date.now() - this.docLoadedAt >= DOC_FRESH_MS;
+      },
+
       // Doc action items (Drive comments assigned to me) load on their own RPC so a Drive failure never blocks Gmail rows.
       async loadDocActionItems(refresh) {
         this.docLoading = true;
@@ -1650,6 +1658,7 @@ Alpine.data('plannerApp', () => ({
             // A load already in flight when a row was dismissed can still return it; the session set wins.
             this.docActionRows = (res.rows || []).filter((r) => !this.docDismissedIds[r.itemId]).map((r) => ({ ...r, threadId: r.itemId }));
             this.docTruncated = Number(res.truncated) || 0;
+            this.docLoadedAt = Date.now();
             this.resolveError('load-doc-items');
             this.saveDocRowsCache();
           }
