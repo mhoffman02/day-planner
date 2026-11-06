@@ -422,3 +422,7 @@ live-testing catches it by luck.
 - Last-run staleness (no status poll) is still unanswered by the user
 
 ---
+
+## 2026-11-06 (night)
+**Worked well:** red tests for both client copies caught the missing methods; the live /dev gate passed first try.
+**Needs improvement:** an unreproduced "button not disabled" report; ask for the item state before guessing.

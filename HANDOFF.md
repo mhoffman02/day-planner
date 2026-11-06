@@ -1,18 +1,24 @@
-<!-- handoff: branch=worktree-beat-key worktree=/home/mike/projects/day-planner/.claude/worktrees/beat-key base=4fe63c4460a9 written=2026-11-06T09:52:00-08:00 -->
-# Resume: bulk Doc dismiss quota fix live on HOME @418; "last run" auto-refresh awaits your answer
+<!-- handoff: branch=worktree-beat-key worktree=/home/mike/projects/day-planner/.claude/worktrees/beat-key base=a483ea625586 written=2026-11-06T10:09:30-08:00 -->
+# Resume: last-run refresh, click-anchored toast and push:work shipped; waiting on "Update WORK" and WORK checks
 
 > **WARNING: written on branch `worktree-beat-key`** (worktree `/home/mike/projects/day-planner/.claude/worktrees/beat-key`), pushed to `pure-gas-main`. The main checkout needs `git pull --ff-only` to see it.
 
 **Verify first:**
 `git fetch -q; git log --branches --remotes -1 --abbrev=12 --format='%h %p %cI' -- HANDOFF.md`
-Stale if that commit is dated after `2026-11-06T09:52:00-08:00` **and** its parent isn't `4fe63c4460a9`, or a worktree's `HANDOFF.md` has a later `written=`. Then read that copy instead and tell the user. `git log --oneline 4fe63c4460a9..origin/pure-gas-main`: any commit besides the handoff commit landed after this prompt; check it first.
+Stale if that commit is dated after `2026-11-06T10:09:30-08:00` **and** its parent isn't `a483ea625586`, or a worktree's `HANDOFF.md` has a later `written=`. Then read that copy instead and tell the user. `git log --oneline a483ea625586..origin/pure-gas-main`: any commit besides the handoff commit landed after this prompt; check it first.
 
-**Start by:** run the agent items in TODO.md A7: (1) probe the server trigger, `npm run rpc -- getHubStatus --deploy` (the `--deploy` flag runs @HEAD; read-only on an already-provisioned HOME, it self-provisions if the hub is unprovisioned), and compare `lastRun` (null if none recorded) with `date`; the reply's `triggers` count says whether the hub trigger handlers exist; (2) the "Live check on HOME /dev over CDP" item (Show 10/25/50/All, last-run text; `node tools/ensure-chrome.js` + `tools/probe-live.js`). In your first reply also put these user items together: (a) "last run" refresh, A7 Decide: default a = poll `loadHubStatus()` every 5 min while visible plus on `visibilitychange` (b = 10 min, c = leave); build only after the answer; (b) after "Update WORK" (version 222), the WORK check in A8, then I run `npm run push:work` again for QW2, QW5, the Clear button, Task Today/Later and this quota fix (default: yes); (c) easing scope, A8 (default: opacity only, 150-200 ms); (d) QW6 fonts (default: skip).
+**Start by:** do TODO.md A3 (Solid Code ratchet shrinks; per TODO.md line 4 an agent session works only A3) without asking. In your first reply also put user items 1-4 below to the user. The rest needs the user.
 
-This session fixed the Triage error "Quota exceeded: read requests per minute" on bulk Doc-item removal. The old `dismissDocItems` (`gas-app/HubController.gs`) cost about 2N Sheets calls; it now uses one ledger session (1 read, `appendMany`, deduped ids, retryable RATE_LIMITED on a quota error). HOME @418, commit `1566ddc`, 2103 tests, live /dev gate passed. WORK still lacks it.
+This session shipped (`a483ea6`, HOME @421, `push:work` ran): Triage last-run polls `getHubStatus` every 5 min while visible and on tab focus (`refreshHubLastRun` in `src/app.js`, 60 s throttle, fade-in); the action toast sits up-left of the last click (`toastAnchorFor`, 300 ms opacity ease, CSS `.task-toast.is-anchored` in `src/styles.css`). The server trigger is healthy (`triggers: 1`), the rpc token works, the HOME live check passed.
 
-- What changed: TODO.md A7 (new decide, probe, optional and hand-check items), TODO_HISTORY 2026-11-06 (late), LEARNINGS 2026-11-06 (`4fe63c4`).
-- Still open: TODO.md "Agent work" (A0, A3, A5, A6, A7, A8; hand-check of @417 is in A6, the bulk-dismiss check is a WORK check in A7, HOME check skipped by the user) and "For the session after next" (B1/B3/B4, user present).
-- rpc token: re-run `npm run rpc -- getHubStatus` on or after 2026-11-11 (due 2026-11-11), TODO.md B4.
-- Rule from the user: never single-row or single-cell Sheets reads or writes; always bulk (hundreds of rows). Any new loop over ledger rows needs a session and a call-count test (see `countLedger` in `tests/hubDocActionItems.test.js`).
-- Trap: never retry Sheets quota errors with `Utilities.sleep` (holds the script lock). IndexedDB tests need real timers (`bothClients({ timers })`). In `gas-app/*.html` never put `//` in strings or apostrophes in comments.
+User items, with my recommendation:
+1. Task Today/Later button "not disabled on an already-tasked item" (TODO.md A6): code locks on success (`triageTaskDone`), so I could not reproduce it. Recommend (a): the user names the item and state, or retests on @421 with a fresh item (HOME Triage is empty now); (b) drop it.
+2. Say "Update WORK" (the new version just created by `push:work`), then run the WORK checks in TODO.md A8 (reload twice, saved board) and A7 (bulk Doc dismiss, the "129 items, 0 rows" trace). Recommend yes.
+3. Hand-check @421 on HOME: toast placement and fade, last-run changing after 5 min (A6).
+4. Easing rest of scope (TODO.md A8): other toasts, popups, late tabs. Default (agent work): opacity only, 150-200 ms, not the stale-to-fresh swap.
+
+- What changed: TODO.md (A6, A7, A8, B4), TODO_HISTORY 2026-11-06 (night), LEARNINGS 2026-11-06 (night).
+- Still open: TODO.md "Agent work" (A0, A3, A5, A6, A7, A8) and "For the session after next" (B1/B3/B4, user present).
+- Not traced: "129 items, only showing most recent 50" with 0 rows (the wording is not in the code; `docHidden` is only set in `mergeDocRows`); needs the WORK retest.
+- Rule from the user: never single-row or single-cell Sheets reads or writes; always bulk. Reuse the one Day Planner tab for browser checks and do not leave extra tabs open.
+- Trap: edits to `src/app.js` need the same edit in `gas-app/Script.html` (and `src/styles.css` in `gas-app/Styles.html`); tests run both copies. In `gas-app/*.html` never put `//` in strings or apostrophes in comments. Never retry Sheets quota errors with `Utilities.sleep`.

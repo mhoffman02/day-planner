@@ -44,17 +44,15 @@ Pilot branch `worktree-solid-code-pilot` (user merges, see HANDOFF) added the No
 - [ ] **Optional (user decides, default skip): Sheets data-validation dropdown (3,4,5) on the Hub Config `PreviewLines`
   cell.** It only constrains the cell; the server check in `getPreviewLines` (`gas-app/Config.gs`) stays.
 
-- [ ] **Unreproduced (user, HOME 2026-11-06): Task Today/Later button not disabled on an already-tasked item.** Code locks on success (`triageTaskDone`); ask which item/state, or retest on @419 with a fresh item.
-- [ ] **Hand-check on HOME @417 (user, 2026-11-06, `1c29a29`):** (1) Task Today / Task Later: spinner at the click, then the pair locks and reads "Tasked today" or "Tasked later" with a check, no toast on success, a toast on failure; reload keeps it locked; (2) FYI toasts (Undo, Note, Read Later) show top right, left of Live and Refresh, not over the rows. Archive already removes its row at the click; if one stayed, send the item. Not done: speeding up the Task call itself (server work, measure first).
+- [ ] **Unreproduced (user, HOME 2026-11-06): Task Today/Later button not disabled on an already-tasked item.** Code locks on success (`triageTaskDone`); ask which item/state, or retest on @421 with a fresh item.
+- [ ] **Hand-check on HOME @421 (adds: toast now up-left of the click, 300 ms fade; last-run polls every 5 min). Original @417 (user, 2026-11-06, `1c29a29`):** (1) Task Today / Task Later: spinner at the click, then the pair locks and reads "Tasked today" or "Tasked later" with a check, no toast on success, a toast on failure; reload keeps it locked; (2) FYI toasts (Undo, Note, Read Later) show top right, left of Live and Refresh, not over the rows. Archive already removes its row at the click; if one stayed, send the item. Not done: speeding up the Task call itself (server work, measure first).
 
 ### A8. Load speed: hub cache in IndexedDB (2026-11-06; QW1-QW3, QW5, Option 1 and Clear saved data shipped, see TODO_HISTORY)
 
 On HOME @416 (`90ccb30`). On WORK as version 222 (code `c716b0c`..`aff529a`, pushed 2026-11-06; QW2, QW5 and the Clear button are NOT in it, run `npm run push:work` again after the check).
 - [ ] **Check on WORK (user), version 222 after "Update WORK":** reload twice; the second load paints the saved Triage board right away, marked stale, and the refresh replaces it. In the app iframe console `indexedDB.databases()` lists `day-planner-hub`. Any `[hubCache]` console error: send it. The code has no off switch; if IndexedDB is blocked it loads as before.
 - [ ] **Hand-check on HOME @416 (user):** (1) a profile with no saved flags (clear site data, reload): no jump in the nav when Triage and Meeting Prep appear; (2) About > Saved on this device > Clear saved data, then reload: the board is not painted from storage; (3) Doc rows stay cached 30 min, Refresh reads Drive.
-- [ ] **Agent next:** after the check passes, `npm run push:work` again (QW2, QW5, Clear button), then "Update WORK".
 - [ ] **QW4 dropped (2026-11-06):** measured on HOME, `getHubStatus` about 3 s against about 1.2-2 s for a trivial RPC, so a flags-only split saves about 1 s and nothing waits on it any more (saved flags paint the tabs, the board starts without it). Reopen only if a first-visit WORK trace shows otherwise.
-- [ ] **QW6 (fonts) not approved yet.** Default: skip.
 - [ ] **Easing, rest of scope (user chose opacity only, 150-200 ms, 2026-11-06):** done for the Triage last-run text and the action toast (300 ms). Still to ease: other toasts, popups and late-appearing tabs or rows; not the stale-to-fresh list swap; keep `prefers-reduced-motion`.
 
 ### A7. Triage Doc action items (2026-11-05; shipped items in TODO_HISTORY)

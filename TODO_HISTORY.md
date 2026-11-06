@@ -5,6 +5,7 @@
 - [x] **Triage "last run" refreshes itself**: quiet `getHubStatus` poll every 5 min while visible and on tab focus, 60 s throttle, fade-in on change (`refreshHubLastRun`, `tests/hubLastRunRefresh.test.js`).
 - [x] **Action toast sits up-left of the last click** (right edge at the click, bottom 16 px above), 300 ms opacity ease (`toastAnchorFor`, `tests/toastAnchor.test.js`).
 - [x] **Server queue trigger verified** (`triggers: 1`, last run 3 min old, 0 errors) and **HOME `/dev` live check** (last-run text local, Show 10/25/50/All persists).
+- [x] **push:work ran (`a483ea6`, HOME @421); QW6 fonts skipped by the user.**
 - [x] **rpc token works** (`getHubStatus` ran 2026-11-06 with the 25-day-old token); item closed.
 
 ## 2026-11-06 (late) — Bulk Doc dismiss quota fix (HOME @418)
