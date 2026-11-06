@@ -22,9 +22,10 @@ const ITEM = { threadId: 't1', url: 'https://mail.google.com/mail/u/0/#all/t1', 
   humanReviewOnly: false, operationKey: null, ledgerStatus: null, errorMessage: null };
 const board = (items = [ITEM]) => ({ ok: true, status: 'OK', queues: { directAction: items, meetingCarryIns: [], systemExceptions: [], fyiReading: [] } });
 
+const NO_DOC_ITEMS = { getDocActionItems: async () => ({ ok: true, rows: [], truncated: 0 }) };
 function vmFor(c, bridge = {}) {
   const errors = [];
-  const vm = makeVm(c.factory, { bridge, hubNowMs: Date.parse('2026-10-12T10:00:00Z') });
+  const vm = makeVm(c.factory, { bridge: { ...NO_DOC_ITEMS, ...bridge }, hubNowMs: Date.parse('2026-10-12T10:00:00Z') });
   vm.reportError = (key, msg) => errors.push({ key, msg });
   vm.resolveError = () => {};
   vm._errors = errors;

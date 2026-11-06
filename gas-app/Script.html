@@ -3011,6 +3011,8 @@
           console.error('Background sync after first paint failed; the 5-minute trigger will retry:', err.stack || err);
         });
         // Triage takes several seconds to build: fetch it in the background once the day view is loaded.
+        // Saved hub flags already show the tab: start the board now instead of waiting for the hub status call.
+        if (this.showTriageNav) this.prefetchTriage();
         hubReady.then(() => this.prefetchTriage());
         this.setupKeyboardShortcuts();
         this.setupDayRolloverWatch();
@@ -3871,7 +3873,14 @@
         this.triageLoading = true;
         this.triageLoadPromise = (async () => {
           try {
+            // Doc items go out with the board, not after it: the two server calls overlap almost for free.
+            this.loadDocActionItems(!!(opts && opts.refresh));
             const board = await this.bridge.getTriageBoard({});
+            if (board && board.errorCode === 'FLAG_OFF') {
+              // Flags saved from an earlier visit were stale; loadHubStatus is about to hide the tab.
+              console.error('Triage board refused with FLAG_OFF, leaving it to the hub status to hide the tab:', board.message);
+              return;
+            }
             if (board && board.errorCode === 'RATE_LIMITED') {
               this.startGmailCooldown();
               console.error('Triage board: Gmail quota hit, saved rows stay and loads pause for', GMAIL_COOLDOWN_MS, 'ms', board.message);
@@ -3886,7 +3895,6 @@
             this.triageSavedAt = Date.now();
             this.saveTriageCache(board);
             this.resolveError('load-triage');
-            this.loadDocActionItems(!!(opts && opts.refresh));
           } catch (err) {
             console.error('Triage board failed to load, any saved board stays on screen marked stale:', err.stack);
             this.reportError('load-triage', 'Triage board failed to load: ' + (err.message || err), { retry: () => this.loadTriageBoard() });

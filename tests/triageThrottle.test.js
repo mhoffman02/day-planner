@@ -36,8 +36,9 @@ const item = (id) => ({ threadId: id, subject: id, fromName: 'Pat', labels: [], 
 const board = (ids = ['a', 'b', 'c']) => ({ ok: true, status: 'OK', queues: { directAction: ids.map(item), meetingCarryIns: [], systemExceptions: [], fyiReading: [] } });
 const rowIds = (vm) => vm.triageQueueList.flatMap((q) => q.items.map((i) => i.threadId));
 
+const NO_DOC_ITEMS = { getDocActionItems: async () => ({ ok: true, rows: [], truncated: 0 }) };
 function vmFor(c, bridge) {
-  const vm = makeVm(c.factory, { bridge, hubFlags: { GMAIL_ROUTER: true, TRIAGE_BOARD: true }, hubDryRun: true, hubNowMs: Date.now() });
+  const vm = makeVm(c.factory, { bridge: { ...NO_DOC_ITEMS, ...bridge }, hubFlags: { GMAIL_ROUTER: true, TRIAGE_BOARD: true }, hubDryRun: true, hubNowMs: Date.now() });
   vm.errorsSeen = [];
   vm.reportError = (key, msg) => vm.errorsSeen.push({ key, msg });
   vm.resolveError = () => {};
