@@ -1640,7 +1640,7 @@ function dismissDocItem(itemId, options) {
   const pre = preflight_(['DOC_ACTION_ITEMS'], modeOpts_(options));
   if (pre.failure) return pre.failure;
   const m = DOC_ITEM_ID_RE_.exec(itemId);
-  if (!m) return fail_('INVALID_ITEM_ID', 'Invalid Doc item id');
+  if (!m) return fail_('INVALID_ITEM_ID', 'Invalid Doc item id: ' + String(itemId).slice(0, 200));
   try {
     const E = DPEngines;
     const opKey = E.docActionKey(m[1], m[2], 'DISMISS');
@@ -1673,7 +1673,7 @@ function routeDocItemToTask(itemId, options) {
   const pre = preflight_(['DOC_ACTION_ITEMS'], modeOpts_(o));
   if (pre.failure) return pre.failure;
   const m = DOC_ITEM_ID_RE_.exec(itemId);
-  if (!m) return fail_('INVALID_ITEM_ID', 'Invalid Doc item id');
+  if (!m) return fail_('INVALID_ITEM_ID', 'Invalid Doc item id: ' + String(itemId).slice(0, 200));
   try {
     const file = DPDriveFollowupRepo.getFile(m[1]);
     const settings = DPQueue.getSettings();

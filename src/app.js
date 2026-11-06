@@ -2,7 +2,7 @@ import Alpine from 'https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/module.esm.
 import { GASBridge } from './gasBridge.js';
 import { getLocalDateStr } from './binderStore.js';
 import {
-  isHubViewVisible, scoreBandLabel, ledgerStatusLabel, ledgerOperationKind, canRetryLedger, formatCutoffCountdown, formatLocalDateTime, limitDocRows, DOC_ROW_LIMITS, DOC_ROW_LIMIT_DEFAULT,
+  isHubViewVisible, scoreBandLabel, ledgerStatusLabel, ledgerOperationKind, canRetryLedger, formatCutoffCountdown, formatLocalDateTime, limitDocRows, sortDocRows, DOC_ROW_LIMITS, DOC_ROW_LIMIT_DEFAULT,
   QUEUE_ORDER, QUEUE_TITLES
 } from './hubUi.js';
 import {
@@ -346,6 +346,7 @@ Alpine.data('plannerApp', () => ({
       docTruncated: 0,
       docHidden: 0,
       docRowLimit: 25,
+      docSortDir: 'desc',
       triageStale: false,
       triageSavedAt: 0,
       // A Triage action created or found a Task: the Daily list on screen predates it, so re-fetch on return.
@@ -737,9 +738,20 @@ Alpine.data('plannerApp', () => ({
           const saved = localStorage.getItem('dayPlannerDocRowLimit');
           const v = saved === 'all' ? 'all' : parseInt(saved, 10);
           if (DOC_ROW_LIMITS.includes(v)) this.docRowLimit = v;
+          if (localStorage.getItem('dayPlannerDocSort') === 'asc') this.docSortDir = 'asc';
         } catch (err) {
           console.error('Could not load saved Doc row limit, using ' + DOC_ROW_LIMIT_DEFAULT + ':', err.stack);
         }
+      },
+
+      toggleDocSort() {
+        this.docSortDir = this.docSortDir === 'asc' ? 'desc' : 'asc';
+        try {
+          localStorage.setItem('dayPlannerDocSort', this.docSortDir);
+        } catch (err) {
+          console.error('Could not save Doc sort order, it applies until reload:', err.stack);
+        }
+        this.mergeDocRows();
       },
 
       setDocRowLimit(value) {
@@ -1533,9 +1545,10 @@ Alpine.data('plannerApp', () => ({
         const queues = this.triageBoard && this.triageBoard.queues;
         if (!queues) return;
         const gmail = (queues.directAction || []).filter((i) => i.sourceType !== 'DOC_COMMENT');
-        const shown = limitDocRows(this.docActionRows, this.docRowLimit);
+        const shown = limitDocRows(sortDocRows(this.docActionRows, this.docSortDir), this.docRowLimit);
         this.docHidden = shown.hidden;
-        queues.directAction = gmail.concat(shown.rows).sort((a, b) => (b.score || 0) - (a.score || 0));
+        // Doc rows keep their date order after the score-ranked Gmail rows; the Show limit applies to the sorted list.
+        queues.directAction = gmail.sort((a, b) => (b.score || 0) - (a.score || 0)).concat(shown.rows);
       },
 
       dismissDocEntry(item) {

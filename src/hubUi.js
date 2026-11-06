@@ -144,6 +144,26 @@ export const DOC_ROW_LIMIT_DEFAULT = 25;
 export const DOC_ROW_LIMITS = [10, 25, 50, 'all'];
 
 /**
+ * Orders Doc action rows by their comment date; undated rows (file-level fallbacks) always go last.
+ * @param {Array<object>} rows Doc rows.
+ * @param {string} [dir] 'desc' (newest first, the default) or 'asc' (oldest first).
+ * @returns {Array<object>} A new sorted array.
+ */
+export function sortDocRows(rows, dir) {
+  const list = Array.isArray(rows) ? rows.slice() : [];
+  const sign = dir === 'asc' ? 1 : -1;
+  const t = (r) => Date.parse(r && r.date);
+  return list.sort((a, b) => {
+    const ta = t(a);
+    const tb = t(b);
+    const na = Number.isNaN(ta);
+    const nb = Number.isNaN(tb);
+    if (na || nb) return na === nb ? 0 : (na ? 1 : -1);
+    return ta === tb ? 0 : sign * (ta - tb);
+  });
+}
+
+/**
  * Display limit for Doc action rows (client side only; the server list and its cache stay whole).
  * @param {Array<object>} rows Rows already in display order (newest first).
  * @param {number|string} limit 10, 25, 50 or 'all'; anything else falls back to DOC_ROW_LIMIT_DEFAULT.

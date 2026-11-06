@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import {
   isHubViewVisible, scoreBandLabel, ledgerStatusLabel, canRetryLedger,
-  formatCutoffCountdown, countBoardItems, limitDocRows, DOC_ROW_LIMIT_DEFAULT, formatLocalDateTime, QUEUE_ORDER, QUEUE_TITLES
+  formatCutoffCountdown, countBoardItems, limitDocRows, sortDocRows, DOC_ROW_LIMIT_DEFAULT, formatLocalDateTime, QUEUE_ORDER, QUEUE_TITLES
 } from '../src/hubUi.js';
 
 const ON = { GMAIL_ROUTER: true, TRIAGE_BOARD: true, NCMMS_CORE_PILOT: true };
@@ -207,5 +207,26 @@ describe('Hub styles: flat UI only', () => {
         assert.match(a, /rel="noopener noreferrer"/);
       });
     });
+  });
+});
+
+describe('sortDocRows', () => {
+  const rows = [
+    { itemId: 'a', date: '2026-10-01T10:00:00Z', subject: 'A' },
+    { itemId: 'u', date: '', subject: 'U' },
+    { itemId: 'c', date: '2026-11-03T10:00:00Z', subject: 'C' },
+    { itemId: 'b', date: '2026-10-20T10:00:00Z', subject: 'B' }
+  ];
+  it('newest first by default, undated last', () => {
+    assert.deepEqual(sortDocRows(rows).map((r) => r.itemId), ['c', 'b', 'a', 'u']);
+    assert.deepEqual(sortDocRows(rows, 'desc').map((r) => r.itemId), ['c', 'b', 'a', 'u']);
+  });
+  it('oldest first keeps undated last', () => {
+    assert.deepEqual(sortDocRows(rows, 'asc').map((r) => r.itemId), ['a', 'b', 'c', 'u']);
+  });
+  it('does not mutate its input and tolerates non-arrays', () => {
+    sortDocRows(rows, 'asc');
+    assert.equal(rows[0].itemId, 'a');
+    assert.deepEqual(sortDocRows(null), []);
   });
 });

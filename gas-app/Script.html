@@ -1965,6 +1965,20 @@
   const DOC_ROW_LIMIT_DEFAULT = 25;
   const DOC_ROW_LIMITS = [10, 25, 50, 'all'];
 
+  function sortDocRows(rows, dir) {
+    const list = Array.isArray(rows) ? rows.slice() : [];
+    const sign = dir === 'asc' ? 1 : -1;
+    const t = (r) => Date.parse(r && r.date);
+    return list.sort((a, b) => {
+      const ta = t(a);
+      const tb = t(b);
+      const na = Number.isNaN(ta);
+      const nb = Number.isNaN(tb);
+      if (na || nb) return na === nb ? 0 : (na ? 1 : -1);
+      return ta === tb ? 0 : sign * (ta - tb);
+    });
+  }
+
   function limitDocRows(rows, limit) {
     const list = Array.isArray(rows) ? rows : [];
     if (typeof limit === 'string' && limit.toLowerCase() === 'all') return { rows: list, hidden: 0 };
@@ -2634,6 +2648,7 @@
       docTruncated: 0,
       docHidden: 0,
       docRowLimit: 25,
+      docSortDir: 'desc',
       triageStale: false,
       triageSavedAt: 0,
       // A Triage action created or found a Task: the Daily list on screen predates it, so re-fetch on return.
@@ -3020,9 +3035,20 @@
           const saved = localStorage.getItem('dayPlannerDocRowLimit');
           const v = saved === 'all' ? 'all' : parseInt(saved, 10);
           if (DOC_ROW_LIMITS.includes(v)) this.docRowLimit = v;
+          if (localStorage.getItem('dayPlannerDocSort') === 'asc') this.docSortDir = 'asc';
         } catch (err) {
           console.error('Could not load saved Doc row limit, using ' + DOC_ROW_LIMIT_DEFAULT + ':', err.stack);
         }
+      },
+
+      toggleDocSort() {
+        this.docSortDir = this.docSortDir === 'asc' ? 'desc' : 'asc';
+        try {
+          localStorage.setItem('dayPlannerDocSort', this.docSortDir);
+        } catch (err) {
+          console.error('Could not save Doc sort order, it applies until reload:', err.stack);
+        }
+        this.mergeDocRows();
       },
 
       setDocRowLimit(value) {
@@ -3816,9 +3842,10 @@
         const queues = this.triageBoard && this.triageBoard.queues;
         if (!queues) return;
         const gmail = (queues.directAction || []).filter((i) => i.sourceType !== 'DOC_COMMENT');
-        const shown = limitDocRows(this.docActionRows, this.docRowLimit);
+        const shown = limitDocRows(sortDocRows(this.docActionRows, this.docSortDir), this.docRowLimit);
         this.docHidden = shown.hidden;
-        queues.directAction = gmail.concat(shown.rows).sort((a, b) => (b.score || 0) - (a.score || 0));
+        // Doc rows keep their date order after the score-ranked Gmail rows; the Show limit applies to the sorted list.
+        queues.directAction = gmail.sort((a, b) => (b.score || 0) - (a.score || 0)).concat(shown.rows);
       },
 
       dismissDocEntry(item) {
