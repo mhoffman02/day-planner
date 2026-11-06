@@ -8689,11 +8689,14 @@
         this.selectedEvent = null;
       },
 
-      openCreateEventModal() {
+      // timeKey (HH:MM) comes from a clicked schedule slot; anything else (a click event, no argument) keeps 09:00.
+      openCreateEventModal(timeKey) {
+        const slot = typeof timeKey === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(timeKey) ? timeKey : '09:00';
+        const endHour = (Number(slot.slice(0, 2)) + 1) % 24;
         this.newEventData = {
           title: '',
-          startTime: '09:00',
-          endTime: '10:00',
+          startTime: slot,
+          endTime: `${String(endHour).padStart(2, '0')}${slot.slice(2)}`,
           location: '',
           description: '',
           addMeet: false,

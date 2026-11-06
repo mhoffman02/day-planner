@@ -2165,6 +2165,17 @@
     box-shadow: inset 3px 0 0 color-mix(in srgb, var(--tab-gold) 40%, transparent);
   }
 
+  /* Click targets that start a new appointment: every time label, and the body of a slot with no appointment. */
+  time.schedule-time,
+  .schedule-content.is-free {
+    cursor: pointer;
+  }
+
+  time.schedule-time:hover,
+  .schedule-content.is-free:hover {
+    background: var(--binder-teal-light);
+  }
+
   .schedule-content {
     flex: 1;
     min-width: 0;
