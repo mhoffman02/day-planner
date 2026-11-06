@@ -1675,9 +1675,12 @@ function dismissDocItems(itemIds, options) {
   if (pre.failure) return pre.failure;
   if (itemIds.length > DOC_DISMISS_BATCH_MAX_) return fail_('TOO_MANY_ITEMS', 'At most ' + DOC_DISMISS_BATCH_MAX_ + ' Doc items per call, got ' + itemIds.length);
   const parsed = [];
+  const seenIds = {};
   for (let i = 0; i < itemIds.length; i++) {
     const m = typeof itemIds[i] === 'string' ? DOC_ITEM_ID_RE_.exec(itemIds[i]) : null;
     if (!m) return fail_('INVALID_ITEM_ID', 'Invalid Doc item id: ' + String(itemIds[i]).slice(0, 200));
+    if (seenIds[itemIds[i]]) continue; // appendMany refuses a repeated key
+    seenIds[itemIds[i]] = true;
     parsed.push({ id: itemIds[i], fileId: m[1], commentId: m[2] });
   }
   try {
@@ -1687,18 +1690,34 @@ function dismissDocItems(itemIds, options) {
       let dismissed = 0;
       let skipped = 0;
       const now = new Date();
-      parsed.forEach(function(p) {
-        const opKey = E.docActionKey(p.fileId, p.commentId, 'DISMISS');
-        const existing = DPLedgerRepo.get(opKey);
-        if (existing && existing.Status === E.LEDGER_STATUS.DONE) { skipped++; return; }
-        const row = E.beginOp({ opKey: opKey, sourceType: E.DOC_ACTION_SOURCE_TYPE, sourceId: p.id, action: 'DISMISS', targetType: 'PLANNER' }, now);
-        DPLedgerRepo.upsert(E.completeOp(row, now, {}));
-        dismissed++;
-      });
-      docRowsCacheClear_();
+      // One session: a single tab read and chunked batch writes. Outside one, each get re-reads the whole tab
+      // and each new key is an append, which hit the Sheets read quota on a 300-item cleanup (2026-11-06).
+      // New rows go out in one appendMany, which writes nothing when the ledger is full (a per-row upsert would
+      // throw partway and the finally flush would keep the rows already queued).
+      const fresh = [];
+      try {
+        DPLedgerRepo.beginSession();
+        parsed.forEach(function(p) {
+          const opKey = E.docActionKey(p.fileId, p.commentId, 'DISMISS');
+          const existing = DPLedgerRepo.get(opKey);
+          if (existing && existing.Status === E.LEDGER_STATUS.DONE) { skipped++; return; }
+          const row = E.completeOp(E.beginOp({ opKey: opKey, sourceType: E.DOC_ACTION_SOURCE_TYPE, sourceId: p.id, action: 'DISMISS', targetType: 'PLANNER' }, now), now, {});
+          if (existing) DPLedgerRepo.upsert(row); else fresh.push(row);
+          dismissed++;
+        });
+        DPLedgerRepo.appendMany(fresh);
+        DPLedgerRepo.flush();
+      } finally {
+        DPLedgerRepo.endSession();
+        docRowsCacheClear_();
+      }
       return E.makeResult({ ok: true, status: 'DONE', message: 'Dismissed ' + dismissed + ' item(s) from triage' + (skipped ? ', ' + skipped + ' already dismissed' : ''), data: { dismissed: dismissed, skipped: skipped } });
     });
   } catch (err) {
+    if (isQuotaError_(err)) {
+      DPQueue.logSafe('HubController', err);
+      return DPEngines.makeResult({ ok: false, status: 'ERROR', errorCode: 'RATE_LIMITED', retryable: true, message: 'Google Sheets is limiting requests right now. Try again in a minute.' });
+    }
     return failFrom_(err);
   }
 }

@@ -310,3 +310,64 @@ test('dismissDocItems: dry run writes nothing, over-long list is refused', () =>
   const many = Array.from({ length: 501 }, (_, i) => `${FILE_A}~c${i}`);
   assert.equal(call(setup(), 'dismissDocItems', many, {}).ok, false);
 });
+
+// User 2026-11-06: bulk dismiss of 300 old items hit "Read requests per minute per user". Outside a ledger
+// session every get is a whole-tab read and every new key an append, so N items cost about 2N Sheets calls.
+function countLedger(ctx) {
+  const real = ctx.DPLedgerRepo;
+  const n = { open: 0, begin: 0, end: 0, flush: 0, outside: 0 };
+  const guard = (fn) => (...a) => { if (!n.open) n.outside++; return fn(...a); };
+  ctx.DPLedgerRepo = Object.freeze({
+    ...real,
+    beginSession: (...a) => { n.begin++; n.open++; return real.beginSession(...a); },
+    endSession: (...a) => { n.end++; n.open--; return real.endSession(...a); },
+    flush: (...a) => { n.flush++; return real.flush(...a); },
+    get: guard(real.get),
+    upsert: guard(real.upsert)
+  });
+  return n;
+}
+
+test('dismissDocItems: many items cost one ledger session, not a Sheets call per item', () => {
+  const ctx = setup();
+  const n = countLedger(ctx);
+  const ids = Array.from({ length: 40 }, (_, i) => `${FILE_A}~c${i + 1}`);
+  const r = call(ctx, 'dismissDocItems', ids, {});
+  assert.equal(r.data.dismissed, 40, JSON.stringify(r));
+  assert.equal(n.outside, 0, 'every ledger get and upsert runs inside a session');
+  assert.equal(n.begin, 1);
+  assert.equal(n.flush, 1);
+  assert.equal(n.end, 1);
+});
+
+test('dismissDocItems: repeated ids dismiss once, new rows go out in one appendMany', () => {
+  const ctx = setup();
+  const real = ctx.DPLedgerRepo;
+  const appends = [];
+  ctx.DPLedgerRepo = Object.freeze({ ...real, appendMany: (rows) => { appends.push(rows.length); return real.appendMany(rows); } });
+  const a = `${FILE_A}~c1`;
+  const r = call(ctx, 'dismissDocItems', [a, a, `${FILE_B}~c2`, a], {});
+  assert.equal(r.data.dismissed, 2, JSON.stringify(r));
+  assert.deepEqual(appends, [2]);
+});
+
+test('dismissDocItems: a failing write still ends the ledger session and clears the rows cache', () => {
+  const ctx = setup();
+  const n = countLedger(ctx);
+  const real = ctx.DPLedgerRepo;
+  ctx.DPLedgerRepo = Object.freeze({ ...real, appendMany: () => { throw new Error('Sheets write failed'); } });
+  const r = call(ctx, 'dismissDocItems', [`${FILE_A}~c1`], {});
+  assert.equal(r.ok, false);
+  assert.equal(n.begin, n.end, 'session closed after the failure');
+});
+
+test('dismissDocItems: a Sheets quota error is RATE_LIMITED and retryable, not a generic error', () => {
+  const ctx = setup();
+  const real = ctx.DPLedgerRepo;
+  ctx.DPLedgerRepo = Object.freeze({ ...real, get: () => { throw new Error('Quota exceeded for quota metric Read requests'); } });
+  const r = call(ctx, 'dismissDocItems', [`${FILE_A}~c1`], {});
+  assert.equal(r.ok, false);
+  assert.equal(r.errorCode, 'RATE_LIMITED');
+  assert.equal(r.retryable, true);
+  assert.match(r.message, /Sheets/);
+});
