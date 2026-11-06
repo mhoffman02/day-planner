@@ -429,6 +429,15 @@ export class HubMock {
     return { ok: true, status: 'DONE', message: 'Dismissed from triage', operationKey };
   }
 
+  dismissDocItems(itemIds, opts) {
+    const gate = this._preflight(['DOC_ACTION_ITEMS'], opts);
+    if (gate) return gate;
+    if (this.dryRun) return { ok: true, status: 'DRY_RUN', message: `Would dismiss ${itemIds.length} item(s) from triage`, data: { dismissed: 0, skipped: 0 } };
+    const fresh = itemIds.filter((id) => !this.dismissedDocs.has(id));
+    fresh.forEach((id) => this.dismissedDocs.add(id));
+    return { ok: true, status: 'DONE', message: `Dismissed ${fresh.length} item(s) from triage`, data: { dismissed: fresh.length, skipped: itemIds.length - fresh.length } };
+  }
+
   routeDocItemToTask(itemId, opts = {}) {
     const gate = this._preflight(['DOC_ACTION_ITEMS'], opts);
     if (gate) return gate;

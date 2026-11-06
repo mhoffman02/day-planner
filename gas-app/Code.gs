@@ -463,7 +463,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 679;
+const BUILD_NUMBER_ = 680;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -4098,6 +4098,10 @@ function getDocActionItems(refresh) {
 
 function dismissDocItem(itemId, options) {
   return (typeof _dismissDocItemInternal === 'function') ? _dismissDocItemInternal(itemId, options) : (globalThis._dismissDocItemInternal ? globalThis._dismissDocItemInternal(itemId, options) : null);
+}
+
+function dismissDocItems(itemIds, options) {
+  return (typeof _dismissDocItemsInternal === 'function') ? _dismissDocItemsInternal(itemIds, options) : (globalThis._dismissDocItemsInternal ? globalThis._dismissDocItemsInternal(itemIds, options) : null);
 }
 
 function routeDocItemToTask(itemId, options) {

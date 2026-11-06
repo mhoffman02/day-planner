@@ -1469,6 +1469,8 @@ function confirmMeetingActions(occurrenceId, selectedItems) {
   return geminiStub_('GEMINI_RECONCILIATION', occurrenceId, selectedItems || []);
 }
 
+/** Most Doc items one dismissDocItems call takes (one lock, one ledger pass). */
+const DOC_DISMISS_BATCH_MAX_ = 500;
 const DOC_ITEM_ID_RE_ = /^([A-Za-z0-9_-]{10,128})~([A-Za-z0-9_-]{1,64})$/;
 
 const DOC_ROWS_CACHE_KEY_ = 'docItems.v1';
@@ -1660,6 +1662,48 @@ function dismissDocItem(itemId, options) {
 }
 
 /**
+ * Removes many Doc action items from Triage in one locked pass (ledger only; the Drive comments stay open).
+ * All ids are validated first, so a bad id writes nothing.
+ * @param {Array<string>} itemIds Doc item ids, fileId~commentId, at most 500.
+ * @param {{expectDryRun?:boolean}} [options] The mode the client is showing.
+ * @returns {object} makeResult-shaped result; data = {dismissed, skipped}.
+ */
+function dismissDocItems(itemIds, options) {
+  const invalid = rejectInvalid_(() => DPEngines.v_.guard(arguments, 'dismissDocItems').param('itemIds').array().param('options').object().optional().nullable().done());
+  if (invalid) return invalid;
+  const pre = preflight_(['DOC_ACTION_ITEMS'], modeOpts_(options));
+  if (pre.failure) return pre.failure;
+  if (itemIds.length > DOC_DISMISS_BATCH_MAX_) return fail_('TOO_MANY_ITEMS', 'At most ' + DOC_DISMISS_BATCH_MAX_ + ' Doc items per call, got ' + itemIds.length);
+  const parsed = [];
+  for (let i = 0; i < itemIds.length; i++) {
+    const m = typeof itemIds[i] === 'string' ? DOC_ITEM_ID_RE_.exec(itemIds[i]) : null;
+    if (!m) return fail_('INVALID_ITEM_ID', 'Invalid Doc item id: ' + String(itemIds[i]).slice(0, 200));
+    parsed.push({ id: itemIds[i], fileId: m[1], commentId: m[2] });
+  }
+  try {
+    const E = DPEngines;
+    return locked_(function() {
+      if (pre.features.DRY_RUN === true) return E.makeResult({ ok: true, status: 'DRY_RUN', message: 'Would dismiss ' + parsed.length + ' item(s) from triage', data: { dismissed: 0, skipped: 0 } });
+      let dismissed = 0;
+      let skipped = 0;
+      const now = new Date();
+      parsed.forEach(function(p) {
+        const opKey = E.docActionKey(p.fileId, p.commentId, 'DISMISS');
+        const existing = DPLedgerRepo.get(opKey);
+        if (existing && existing.Status === E.LEDGER_STATUS.DONE) { skipped++; return; }
+        const row = E.beginOp({ opKey: opKey, sourceType: E.DOC_ACTION_SOURCE_TYPE, sourceId: p.id, action: 'DISMISS', targetType: 'PLANNER' }, now);
+        DPLedgerRepo.upsert(E.completeOp(row, now, {}));
+        dismissed++;
+      });
+      docRowsCacheClear_();
+      return E.makeResult({ ok: true, status: 'DONE', message: 'Dismissed ' + dismissed + ' item(s) from triage' + (skipped ? ', ' + skipped + ' already dismissed' : ''), data: { dismissed: dismissed, skipped: skipped } });
+    });
+  } catch (err) {
+    return failFrom_(err);
+  }
+}
+
+/**
  * Creates one Task from a Doc action item. Title and link come from Drive, never from the client.
  * The Drive comment is left open: resolve it in the Doc.
  * @param {string} itemId Doc item id, fileId~commentId.
@@ -1726,6 +1770,7 @@ global._hubFilterLearnStatusInternal = hubFilterLearnStatus;       // google.scr
 global._hubFilterLearnTickInternal = hubFilterLearnTick;           // time-driven trigger (every minute while learning)
 global._getDocActionItemsInternal = getDocActionItems;             // google.script.run (Triage Doc action items)
 global._dismissDocItemInternal = dismissDocItem;                   // google.script.run (Triage Doc item Dismiss)
+global._dismissDocItemsInternal = dismissDocItems;                 // google.script.run (Triage bulk Doc Dismiss)
 global._routeDocItemToTaskInternal = routeDocItemToTask;           // google.script.run (Triage Doc item Task)
 global._docActionCanaryInternal = docActionCanary;                // gas-rpc + IDE manual-run
 global._hubSuggestFiltersInternal = hubSuggestFilters;            // google.script.run (About) + gas-rpc + IDE manual-run

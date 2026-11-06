@@ -164,6 +164,19 @@ export function sortDocRows(rows, dir) {
 }
 
 /**
+ * Ids of Doc rows whose comment is older than a number of days; undated rows are never picked.
+ * @param {Array<object>} rows Doc rows.
+ * @param {number} days Age in days, > 0.
+ * @param {number} nowMs Current time in ms.
+ * @returns {Array<string>} itemIds to dismiss.
+ */
+export function docRowsOlderThan(rows, days, nowMs) {
+  if (!Array.isArray(rows) || !(days > 0)) return [];
+  const cutoff = nowMs - days * 86400000;
+  return rows.filter((r) => Date.parse(r && r.date) < cutoff).map((r) => r.itemId);
+}
+
+/**
  * Display limit for Doc action rows (client side only; the server list and its cache stay whole).
  * @param {Array<object>} rows Rows already in display order (newest first).
  * @param {number|string} limit 10, 25, 50 or 'all'; anything else falls back to DOC_ROW_LIMIT_DEFAULT.

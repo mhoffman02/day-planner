@@ -285,3 +285,28 @@ test('routeDocItemToTask: notes carry a static provenance line then the disco li
   assert.ok(!/currently|still open|unresolved/i.test(notes));
   assert.ok(!notes.startsWith('Gmail:'));
 });
+
+test('dismissDocItems: one call dismisses many, skips already-dismissed, refuses a bad id with nothing written', () => {
+  const ctx = setup();
+  const a = `${FILE_A}~c1`;
+  const b = `${FILE_B}~c2`;
+  assert.equal(call(ctx, 'dismissDocItem', a, {}).status, 'DONE');
+  const bad = call(ctx, 'dismissDocItems', [b, 'not an id'], {});
+  assert.equal(bad.ok, false);
+  assert.equal(bad.errorCode, 'INVALID_ITEM_ID');
+  assert.deepEqual(call(ctx, 'getDocActionItems').rows.map((x) => x.itemId), [b]);
+  const r = call(ctx, 'dismissDocItems', [a, b], {});
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.equal(r.status, 'DONE');
+  assert.equal(r.data.dismissed, 1);
+  assert.equal(r.data.skipped, 1);
+  assert.deepEqual(call(ctx, 'getDocActionItems').rows, []);
+});
+
+test('dismissDocItems: dry run writes nothing, over-long list is refused', () => {
+  const ctx = setup({ DRY_RUN: true });
+  const r = call(ctx, 'dismissDocItems', [`${FILE_A}~c1`], { expectDryRun: true });
+  assert.equal(r.status, 'DRY_RUN');
+  const many = Array.from({ length: 501 }, (_, i) => `${FILE_A}~c${i}`);
+  assert.equal(call(setup(), 'dismissDocItems', many, {}).ok, false);
+});

@@ -2,7 +2,7 @@ import Alpine from 'https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/module.esm.
 import { GASBridge } from './gasBridge.js';
 import { getLocalDateStr } from './binderStore.js';
 import {
-  isHubViewVisible, scoreBandLabel, ledgerStatusLabel, ledgerOperationKind, canRetryLedger, formatCutoffCountdown, formatLocalDateTime, limitDocRows, sortDocRows, DOC_ROW_LIMITS, DOC_ROW_LIMIT_DEFAULT,
+  isHubViewVisible, scoreBandLabel, ledgerStatusLabel, ledgerOperationKind, canRetryLedger, formatCutoffCountdown, formatLocalDateTime, limitDocRows, sortDocRows, docRowsOlderThan, DOC_ROW_LIMITS, DOC_ROW_LIMIT_DEFAULT,
   QUEUE_ORDER, QUEUE_TITLES
 } from './hubUi.js';
 import {
@@ -347,6 +347,8 @@ Alpine.data('plannerApp', () => ({
       docHidden: 0,
       docRowLimit: 25,
       docSortDir: 'desc',
+      docBulkDays: 0,
+      docBulkIds: [],
       triageStale: false,
       triageSavedAt: 0,
       // A Triage action created or found a Task: the Daily list on screen predates it, so re-fetch on return.
@@ -742,6 +744,30 @@ Alpine.data('plannerApp', () => ({
         } catch (err) {
           console.error('Could not load saved Doc row limit, using ' + DOC_ROW_LIMIT_DEFAULT + ':', err.stack);
         }
+      },
+
+      // Bulk sweep: two steps (pick an age, then confirm) so one stray click never dismisses a pile of items.
+      requestBulkDocDismiss(days) {
+        this.docBulkDays = days;
+        this.docBulkIds = docRowsOlderThan(this.docActionRows, days, Date.now());
+      },
+
+      cancelBulkDocDismiss() {
+        this.docBulkDays = 0;
+        this.docBulkIds = [];
+      },
+
+      async confirmBulkDocDismiss() {
+        const ids = this.docBulkIds.slice();
+        if (!ids.length) return this.cancelBulkDocDismiss();
+        const r = await this.runTriageAction('Dismiss', () => this.bridge.dismissDocItems(ids, this.hubModeOpts()), null);
+        if (r && r.ok) {
+          ids.forEach((id) => { this.docDismissedIds[id] = true; });
+          this.docActionRows = this.docActionRows.filter((i) => !this.docDismissedIds[i.itemId]);
+          this.cancelBulkDocDismiss();
+          this.mergeDocRows();
+        }
+        return r;
       },
 
       toggleDocSort() {

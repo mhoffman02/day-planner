@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import {
   isHubViewVisible, scoreBandLabel, ledgerStatusLabel, canRetryLedger,
-  formatCutoffCountdown, countBoardItems, limitDocRows, sortDocRows, DOC_ROW_LIMIT_DEFAULT, formatLocalDateTime, QUEUE_ORDER, QUEUE_TITLES
+  formatCutoffCountdown, countBoardItems, limitDocRows, sortDocRows, docRowsOlderThan, DOC_ROW_LIMIT_DEFAULT, formatLocalDateTime, QUEUE_ORDER, QUEUE_TITLES
 } from '../src/hubUi.js';
 
 const ON = { GMAIL_ROUTER: true, TRIAGE_BOARD: true, NCMMS_CORE_PILOT: true };
@@ -228,5 +228,25 @@ describe('sortDocRows', () => {
     sortDocRows(rows, 'asc');
     assert.equal(rows[0].itemId, 'a');
     assert.deepEqual(sortDocRows(null), []);
+  });
+});
+
+describe('docRowsOlderThan', () => {
+  const now = Date.parse('2026-11-06T12:00:00Z');
+  const rows = [
+    { itemId: 'new', date: '2026-11-01T00:00:00Z' },
+    { itemId: 'mid', date: '2026-08-01T00:00:00Z' },
+    { itemId: 'old', date: '2024-02-25T00:00:00Z' },
+    { itemId: 'undated', date: '' }
+  ];
+  it('returns ids of rows older than N days, never undated rows', () => {
+    assert.deepEqual(docRowsOlderThan(rows, 30, now), ['mid', 'old']);
+    assert.deepEqual(docRowsOlderThan(rows, 90, now), ['mid', 'old']);
+    assert.deepEqual(docRowsOlderThan(rows, 365, now), ['old']);
+  });
+  it('a bad age or non-array dismisses nothing', () => {
+    assert.deepEqual(docRowsOlderThan(rows, 0, now), []);
+    assert.deepEqual(docRowsOlderThan(rows, NaN, now), []);
+    assert.deepEqual(docRowsOlderThan(null, 30, now), []);
   });
 });

@@ -1136,6 +1136,7 @@ export class GASBridge {
 
   /** @param {string} itemId Doc item id, fileId~commentId. @param {{expectDryRun?:boolean}} [opts] Mode on screen. @returns {Promise<object>} Result contract (ledger only; the comment stays open). */
   dismissDocItem(itemId, opts = {}) { return this._hubRpc('dismissDocItem', [itemId, opts]); }
+  dismissDocItems(itemIds, opts = {}) { return this._hubRpc('dismissDocItems', [itemIds, opts]); }
 
   /** @param {string} itemId Doc item id, fileId~commentId. @param {{priority?:string, expectDryRun?:boolean}} [opts] Options. @returns {Promise<object>} Result contract. */
   routeDocItemToTask(itemId, opts = {}) { return this._hubRpc('routeDocItemToTask', [itemId, opts]); }

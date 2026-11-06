@@ -1979,6 +1979,12 @@
     });
   }
 
+  function docRowsOlderThan(rows, days, nowMs) {
+    if (!Array.isArray(rows) || !(days > 0)) return [];
+    const cutoff = nowMs - days * 86400000;
+    return rows.filter((r) => Date.parse(r && r.date) < cutoff).map((r) => r.itemId);
+  }
+
   function limitDocRows(rows, limit) {
     const list = Array.isArray(rows) ? rows : [];
     if (typeof limit === 'string' && limit.toLowerCase() === 'all') return { rows: list, hidden: 0 };
@@ -2608,6 +2614,7 @@
     routeThreadToMeeting(threadId, occurrenceId, opts) { return this.hubRpc('routeThreadToMeeting', [threadId, occurrenceId, opts || {}]); }
     getDocActionItems(refresh) { return this.hubRpc('getDocActionItems', [refresh === true]); }
     dismissDocItem(itemId, opts) { return this.hubRpc('dismissDocItem', [itemId, opts || {}]); }
+    dismissDocItems(itemIds, opts) { return this.hubRpc('dismissDocItems', [itemIds, opts || {}]); }
     routeDocItemToTask(itemId, opts) { return this.hubRpc('routeDocItemToTask', [itemId, opts || {}]); }
     dismissTriageItem(threadId, opts) { return this.hubRpc('dismissTriageItem', [threadId, opts || {}]); }
     archiveTriageThread(threadId, opts) { return this.hubRpc('archiveTriageThread', [threadId, opts || {}]); }
@@ -2649,6 +2656,8 @@
       docHidden: 0,
       docRowLimit: 25,
       docSortDir: 'desc',
+      docBulkDays: 0,
+      docBulkIds: [],
       triageStale: false,
       triageSavedAt: 0,
       // A Triage action created or found a Task: the Daily list on screen predates it, so re-fetch on return.
@@ -3039,6 +3048,30 @@
         } catch (err) {
           console.error('Could not load saved Doc row limit, using ' + DOC_ROW_LIMIT_DEFAULT + ':', err.stack);
         }
+      },
+
+      // Bulk sweep: two steps (pick an age, then confirm) so one stray click never dismisses a pile of items.
+      requestBulkDocDismiss(days) {
+        this.docBulkDays = days;
+        this.docBulkIds = docRowsOlderThan(this.docActionRows, days, Date.now());
+      },
+
+      cancelBulkDocDismiss() {
+        this.docBulkDays = 0;
+        this.docBulkIds = [];
+      },
+
+      async confirmBulkDocDismiss() {
+        const ids = this.docBulkIds.slice();
+        if (!ids.length) return this.cancelBulkDocDismiss();
+        const r = await this.runTriageAction('Dismiss', () => this.bridge.dismissDocItems(ids, this.hubModeOpts()), null);
+        if (r && r.ok) {
+          ids.forEach((id) => { this.docDismissedIds[id] = true; });
+          this.docActionRows = this.docActionRows.filter((i) => !this.docDismissedIds[i.itemId]);
+          this.cancelBulkDocDismiss();
+          this.mergeDocRows();
+        }
+        return r;
       },
 
       toggleDocSort() {
