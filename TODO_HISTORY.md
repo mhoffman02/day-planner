@@ -1,5 +1,9 @@
 # Task History (TODO_HISTORY)
 
+## 2026-11-06 (late) — Bulk Doc dismiss quota fix (HOME @418)
+
+- [x] **Bulk "remove Doc items older than 365 days" hit the Sheets read quota**: old `dismissDocItems` cost about 2N Sheets calls (a whole-tab read plus an append per item). Now one ledger session: 1 read, 1 `appendMany`, repeated ids deduped, LEDGER_FULL writes nothing, a quota error returns retryable RATE_LIMITED (`1566ddc`, `tests/hubDocActionItems.test.js`). No extra pacing needed; the Architect advised against sleep retries (they hold the script lock).
+
 ## 2026-11-06 — Load speed (HOME @414)
 
 - [x] **QW1: the 2-Way Sync pass left `doGet`**; it runs as `runBackgroundSync` after first paint (`c716b0c`).

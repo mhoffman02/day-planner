@@ -58,6 +58,10 @@ On HOME @416 (`90ccb30`). On WORK as version 222 (code `c716b0c`..`aff529a`, pus
 
 ### A7. Triage Doc action items (2026-11-05; shipped items in TODO_HISTORY)
 
+- [ ] **Decide (user, asked 2026-11-06): Triage "last run" never refreshes on its own** (`loadHubStatus` in `src/app.js` runs on load, Refresh and after actions; the 60 s timer only bumps `hubNowMs`). Proposed default: a. poll `loadHubStatus()` every 5 min while the tab is visible and on `visibilitychange` to visible, in `src/app.js` and the `gas-app/Script.html` mirror, test first. Alternatives: b. 10 min, c. leave. Build only after the user answers.
+- [ ] **Agent: probe whether the server queue trigger fires** (a last run over an hour old may be a dead trigger, not a stale page). Run `npm run rpc -- getHubStatus --deploy` (@HEAD; read-only once the hub is provisioned), compare `lastRun` with the time now and read the `triggers` count (no IDE needed); if `triggers` is 0 or `lastRun` is old, the trigger is the cause.
+- [ ] **Optional (default skip): `getDocActionItems` reads the full ledger twice per load** (`gas-app/HubController.gs`); fold into one read if Sheets quota errors recur. Residual risk: ledger `MAX_ROWS` 5000 and `ARCHIVE_AFTER_DAYS` 90 in `gas-app/LedgerRepository.gs`.
+- [ ] **Hand-check on HOME @418 (user):** bulk remove Doc items older than 365 days finishes in one call with no Quota error. WORK lacks this fix until "Update WORK".
 - [ ] **Live check on WORK (user), HOME @406, WORK pushed, repoint pending (Update WORK):** (1) click X on a Doc row, wait
   about 10 s, it stays gone; (2) wait through a Triage refresh, Doc rows stay on screen while the Doc load runs;
   (3) the 240 s budget against 169+ Docs and the "N older file(s) not read" line. If a row still returns, check
