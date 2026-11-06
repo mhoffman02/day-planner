@@ -1089,6 +1089,14 @@ export class GASBridge {
     });
   }
 
+  /** @returns {Promise<{ok: boolean}>} Post-load 2-Way Sync pass and trigger check; a no-op in mock mode. */
+  runBackgroundSync() {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) return Promise.resolve({ ok: true });
+    return new Promise((resolve, reject) => {
+      window.google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).runBackgroundSync();
+    });
+  }
+
   /** @returns {Promise<{flags: object, dryRun: boolean, lastRun: string|null, counts: object}>} Hub flags and status. */
   getHubStatus() { return this._hubRpc('getHubStatus', []); }
 

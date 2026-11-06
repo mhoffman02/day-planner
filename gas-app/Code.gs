@@ -463,7 +463,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 685;
+const BUILD_NUMBER_ = 686;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -538,14 +538,8 @@ function doGet_original(e) {
       return renderSetupFolderPage();
     }
 
-    // 4. Regular Web App load
-    try {
-      syncWorkspaceChanges();
-      ensure2WaySyncTriggerInstalled(5);
-    } catch (syncErr) {
-      logError('doGet background sync init', syncErr);
-    }
-
+    // 4. Regular Web App load. The sync pass and trigger check cost ~2 s, so they run in
+    // runBackgroundSync, which the client calls after first paint, not before the shell returns.
     const template = HtmlService.createTemplateFromFile('Index');
     const output = template.evaluate()
       .setTitle('Day Planner')
@@ -923,6 +917,22 @@ function ensure2WaySyncTriggerInstalled(minutes) {
     }
   } catch (err) {
     logError('ensure2WaySyncTriggerInstalled', err);
+  }
+}
+
+/**
+ * Post-load housekeeping the shell page used to do inline: one 2-Way Sync pass plus the trigger check.
+ * Called by the client once the first screen has painted. Takes no arguments.
+ * @returns {{ok: boolean}} ok is false when the pass threw (already logged with its stack).
+ */
+function runBackgroundSync() {
+  try {
+    syncWorkspaceChanges();
+    ensure2WaySyncTriggerInstalled(5);
+    return { ok: true };
+  } catch (syncErr) {
+    logError('runBackgroundSync', syncErr);
+    return { ok: false };
   }
 }
 
@@ -3774,6 +3784,7 @@ global.doGet = doGet;                                        // Apps Script web 
 global.onOpen = onOpen;                                      // Google Docs runtime onOpen trigger
 global.getWebAppUrl = getWebAppUrl;                          // google.script.run: Script.html / About.html
 global.syncWorkspaceChanges = syncWorkspaceChanges;          // time-driven trigger handler (by name)
+global.runBackgroundSync = runBackgroundSync;                // google.script.run: Script.html (after first paint)
 global.include = include;                                    // template: Index.html, SetupFolder.html
 global.validateAndSaveFolderUrl = validateAndSaveFolderUrl;  // google.script.run: SetupFolder.html
 global.getDailyData = getDailyData;                          // google.script.run: Script.html
@@ -3832,6 +3843,7 @@ global.DPApp = DPApp;                                        // used by UnitTest
 global._doGetInternal = doGet_original;
 global._onOpenInternal = onOpen;
 global._syncWorkspaceChangesInternal = syncWorkspaceChanges;
+global._runBackgroundSyncInternal = runBackgroundSync;
 global._setup2WaySyncTriggerInternal = setup2WaySyncTrigger;
 global._ensure2WaySyncTriggerInstalledInternal = ensure2WaySyncTriggerInstalled;
 global._includeInternal = include;
@@ -3909,6 +3921,14 @@ function onOpen(e) {
  */
 function syncWorkspaceChanges() {
   return (typeof _syncWorkspaceChangesInternal === 'function') ? _syncWorkspaceChangesInternal() : (globalThis._syncWorkspaceChangesInternal ? globalThis._syncWorkspaceChangesInternal() : null);
+}
+
+/**
+ * Post-load sync pass and trigger check; the client calls it after first paint.
+ * @returns {{ok: boolean}}
+ */
+function runBackgroundSync() {
+  return (typeof _runBackgroundSyncInternal === 'function') ? _runBackgroundSyncInternal() : (globalThis._runBackgroundSyncInternal ? globalThis._runBackgroundSyncInternal() : null);
 }
 
 /**

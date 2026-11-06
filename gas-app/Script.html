@@ -2612,6 +2612,15 @@
       });
     }
 
+    runBackgroundSync() {
+      return new Promise((resolve, reject) => {
+        if (!window.google || !window.google.script || !window.google.script.run) {
+          reject(new Error('Apps Script runtime unavailable for runBackgroundSync'));
+          return;
+        }
+        window.google.script.run.withSuccessHandler(resolve).withFailureHandler(reject).runBackgroundSync();
+      });
+    }
     getHubStatus() { return this.hubRpc('getHubStatus', []); }
     getHubSheetLink() { return this.hubRpc('getHubSheetLink', []); }
     setupHub() { return this.hubRpc('setupHub', []); }
@@ -2997,6 +3006,10 @@
         const hubReady = this.initHub();
         await this.loadStartupData();
         setTimeout(() => this.prebuildMasterView(), MASTER_PREBUILD_DELAY_MS);
+        // The 2-Way Sync pass used to run inside the shell request (~2 s); now it runs once the first screen is up.
+        this.bridge.runBackgroundSync().catch((err) => {
+          console.error('Background sync after first paint failed; the 5-minute trigger will retry:', err.stack || err);
+        });
         // Triage takes several seconds to build: fetch it in the background once the day view is loaded.
         hubReady.then(() => this.prefetchTriage());
         this.setupKeyboardShortcuts();
