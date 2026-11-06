@@ -400,3 +400,9 @@ live-testing catches it by luck.
 ## 2026-11-05 (Triage Doc items)
 **Worked well:** Red tests that model a slow in-flight RPC (a gate promise) reproduced both live races exactly; the fix for each was one line once the race was named.
 **Needs improvement:** The 240 s Doc load was tested only with instant mocks, so a dismiss or reload landing mid-load escaped. Model slow RPCs when a load can run minutes. The "showing 0" note is still untraced; verify live before closing.
+
+---
+
+## 2026-11-06 (load speed, hub cache)
+**Worked well:** An architect pass with measurements first (shell 4.2 s vs 2 s floor) showed the cost was the sync in `doGet`, not the caches; moving it behind first paint was one small change.
+**Needs improvement:** The harness's immediate timers fire a 2 s open timeout on the next tick, so IndexedDB tests need real timers. A deliberate behavior change (restored board always refreshes) broke an old test that asserted the opposite; update it in the same commit.

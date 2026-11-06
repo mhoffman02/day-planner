@@ -2,6 +2,7 @@
 
 Order (2026-10-30, user): autonomous agent work first (item A3); everything that needs the user is in the last section,
 "For the session after next" (items B1, B3, B4). An agent session works only A3.
+Load-speed work (A8) came first on 2026-11-06 at the user's request.
 
 ## Agent work: next session (no user needed)
 
@@ -42,6 +43,22 @@ Pilot branch `worktree-solid-code-pilot` (user merges, see HANDOFF) added the No
   Archive, Open Gmail; red = Delete. Check light and dark.
 - [ ] **Optional (user decides, default skip): Sheets data-validation dropdown (3,4,5) on the Hub Config `PreviewLines`
   cell.** It only constrains the cell; the server check in `getPreviewLines` (`gas-app/Config.gs`) stays.
+
+### A8. Load speed: hub cache in IndexedDB (2026-11-06; QW1, QW3 and Option 1 shipped, see TODO_HISTORY)
+
+Shipped on HOME @414 (`aff529a`), NOT on WORK yet. Live HOME check (CDP): the saved board shows 0.5 s after the frame
+loads, marked stale; the refresh finishes about 6 s.
+- [ ] **WORK storage probe (user, due before `npm run push:work`).** On the GSA machine, in the WORK app tab console
+  (frame context = the app iframe), run:
+  `(async()=>{const o=indexedDB.open('probe-hub');const db=await new Promise((r,j)=>{o.onupgradeneeded=()=>o.result.createObjectStore('e',{keyPath:'k'});o.onsuccess=()=>r(o.result);o.onerror=()=>j(o.error)});const tx=db.transaction('e','readwrite');tx.objectStore('e').put({k:1,v:'x'});await new Promise((r,j)=>{tx.oncomplete=r;tx.onerror=()=>j(tx.error)});const g=await new Promise(r=>{const q=db.transaction('e').objectStore('e').get(1);q.onsuccess=()=>r(q.result)});db.close();indexedDB.deleteDatabase('probe-hub');return g&&g.v==='x'?'IDB OK':'IDB FAIL'})()`
+  Then reload the tab and run `indexedDB.databases()`; `day-planner-cache` must still be listed (data survives a reload).
+  Pass = both. Fail = keep WORK on the previous version (the code has no off switch; ask for one first).
+- [ ] After the probe passes, run `npm run push:work`, then "Update WORK". Check on WORK: second visit paints the saved
+  Triage board and Doc rows right away, marked stale, and the refresh replaces them.
+- [ ] **Not approved yet, ask before building:** QW2 (hub tabs after About or reserved width), QW4 (split `getHubStatus`
+  into flags-only and slow parts), QW5 (bigger server Doc cache), QW6 (fonts).
+- [ ] Stored on the device now: email subjects, previews and Doc comment text, 7-day max age (user chose this
+  2026-11-06). Open question for the user: add a Clear saved data button on About? Default: yes, small, later.
 
 ### A7. Triage Doc action items (2026-11-05; shipped items in TODO_HISTORY)
 
