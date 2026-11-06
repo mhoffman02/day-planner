@@ -12,7 +12,7 @@ Stale if that commit is dated after `2026-11-06T09:52:00-08:00` **and** its pare
 This session fixed the Triage error "Quota exceeded: read requests per minute" on bulk Doc-item removal. The old `dismissDocItems` (`gas-app/HubController.gs`) cost about 2N Sheets calls; it now uses one ledger session (1 read, `appendMany`, deduped ids, retryable RATE_LIMITED on a quota error). HOME @418, commit `1566ddc`, 2103 tests, live /dev gate passed. WORK still lacks it.
 
 - What changed: TODO.md A7 (new decide, probe, optional and hand-check items), TODO_HISTORY 2026-11-06 (late), LEARNINGS 2026-11-06 (`4fe63c4`).
-- Still open: TODO.md "Agent work" (A0, A3, A5, A6, A7, A8; hand-check of @417 is in A6, of @418 in A7) and "For the session after next" (B1/B3/B4, user present).
+- Still open: TODO.md "Agent work" (A0, A3, A5, A6, A7, A8; hand-check of @417 is in A6, the bulk-dismiss check is a WORK check in A7, HOME check skipped by the user) and "For the session after next" (B1/B3/B4, user present).
 - rpc token: re-run `npm run rpc -- getHubStatus` on or after 2026-11-11 (due 2026-11-11), TODO.md B4.
 - Rule from the user: never single-row or single-cell Sheets reads or writes; always bulk (hundreds of rows). Any new loop over ledger rows needs a session and a call-count test (see `countLedger` in `tests/hubDocActionItems.test.js`).
 - Trap: never retry Sheets quota errors with `Utilities.sleep` (holds the script lock). IndexedDB tests need real timers (`bothClients({ timers })`). In `gas-app/*.html` never put `//` in strings or apostrophes in comments.
