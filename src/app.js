@@ -2,7 +2,7 @@ import Alpine from 'https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/module.esm.
 import { GASBridge } from './gasBridge.js';
 import { getLocalDateStr } from './binderStore.js';
 import {
-  isHubViewVisible, scoreBandLabel, ledgerStatusLabel, ledgerOperationKind, canRetryLedger, formatCutoffCountdown, limitDocRows, DOC_ROW_LIMITS, DOC_ROW_LIMIT_DEFAULT,
+  isHubViewVisible, scoreBandLabel, ledgerStatusLabel, ledgerOperationKind, canRetryLedger, formatCutoffCountdown, formatLocalDateTime, limitDocRows, DOC_ROW_LIMITS, DOC_ROW_LIMIT_DEFAULT,
   QUEUE_ORDER, QUEUE_TITLES
 } from './hubUi.js';
 import {
@@ -1235,6 +1235,7 @@ Alpine.data('plannerApp', () => ({
       hubLedgerLabel(status, operationKey) { return ledgerStatusLabel(status, operationKey); },
       hubCanRetry(status) { return canRetryLedger(status); },
       hubCountdown(iso) { return formatCutoffCountdown(iso, this.hubNowMs); },
+      hubLastRunText() { return this.hubLastRun ? formatLocalDateTime(this.hubLastRun.at) : ''; },
 
       get hubTrialBannerVisible() {
         const onHubView = (this.activeView === 'triage' && this.showTriageNav) || (this.activeView === 'meetingPrep' && this.showMeetingPrepNav);

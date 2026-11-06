@@ -122,6 +122,22 @@ export function countBoardItems(board) {
   return QUEUE_ORDER.reduce((n, key) => n + ((board.queues[key] || []).length), 0);
 }
 
+const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * Local-time label like "Nov 6, 2026 4:29 pm" for a stored timestamp (server stamps are UTC ISO).
+ * @param {string|null|undefined} iso ISO timestamp; one without an offset is read as local time.
+ * @returns {string} The label, or '' when empty or unparseable.
+ */
+export function formatLocalDateTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const h = d.getHours();
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return MONTH_ABBR[d.getMonth()] + ' ' + d.getDate() + ', ' + d.getFullYear() + ' ' + (h % 12 || 12) + ':' + min + ' ' + (h < 12 ? 'am' : 'pm');
+}
+
 /** Triage Doc-items display limit when none, or an unknown one, is saved. */
 export const DOC_ROW_LIMIT_DEFAULT = 25;
 /** The choices offered by the Show: toggles; 'all' disables the limit. */

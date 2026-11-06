@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import {
   isHubViewVisible, scoreBandLabel, ledgerStatusLabel, canRetryLedger,
-  formatCutoffCountdown, countBoardItems, limitDocRows, DOC_ROW_LIMIT_DEFAULT, QUEUE_ORDER, QUEUE_TITLES
+  formatCutoffCountdown, countBoardItems, limitDocRows, DOC_ROW_LIMIT_DEFAULT, formatLocalDateTime, QUEUE_ORDER, QUEUE_TITLES
 } from '../src/hubUi.js';
 
 const ON = { GMAIL_ROUTER: true, TRIAGE_BOARD: true, NCMMS_CORE_PILOT: true };
@@ -117,6 +117,23 @@ describe('limitDocRows', () => {
   });
 });
 
+describe('formatLocalDateTime', () => {
+  it('renders a UTC ISO instant in local time as "Nov 6, 2026 4:29 pm"', () => {
+    assert.equal(formatLocalDateTime(new Date(2026, 10, 6, 16, 29).toISOString()), 'Nov 6, 2026 4:29 pm');
+  });
+  it('handles midnight, noon and zero-padded minutes', () => {
+    assert.equal(formatLocalDateTime(new Date(2026, 0, 5, 0, 5).toISOString()), 'Jan 5, 2026 12:05 am');
+    assert.equal(formatLocalDateTime(new Date(2026, 11, 31, 12, 0).toISOString()), 'Dec 31, 2026 12:00 pm');
+    assert.equal(formatLocalDateTime(new Date(2026, 6, 4, 9, 7).toISOString()), 'Jul 4, 2026 9:07 am');
+  });
+  it('a local-time ISO without offset is read as local', () => {
+    assert.equal(formatLocalDateTime('2026-11-06T16:29:00'), 'Nov 6, 2026 4:29 pm');
+  });
+  it('empty or unparseable input yields an empty string', () => {
+    ['', null, undefined, 'garbage'].forEach((v) => assert.equal(formatLocalDateTime(v), ''));
+  });
+});
+
 describe('gas-app/Script.html mirror parity', () => {
   const html = fs.readFileSync(new URL('../gas-app/Script.html', import.meta.url), 'utf8');
   const m = html.match(/HUB-UI-MIRROR-BEGIN[^\n]*\n([\s\S]*?)\/\/ HUB-UI-MIRROR-END/);
@@ -126,8 +143,11 @@ describe('gas-app/Script.html mirror parity', () => {
   it('mirror behaves identically to src/hubUi.js', () => {
     const ctx = {};
     vm.createContext(ctx);
-    vm.runInContext(`${m[1]}\nthis.api = { isHubViewVisible, scoreBandLabel, ledgerStatusLabel, canRetryLedger, formatCutoffCountdown, limitDocRows, DOC_ROW_LIMIT_DEFAULT, QUEUE_ORDER, QUEUE_TITLES };`, ctx);
+    vm.runInContext(`${m[1]}\nthis.api = { isHubViewVisible, scoreBandLabel, ledgerStatusLabel, canRetryLedger, formatCutoffCountdown, limitDocRows, DOC_ROW_LIMIT_DEFAULT, formatLocalDateTime, QUEUE_ORDER, QUEUE_TITLES };`, ctx);
     const mirror = ctx.api;
+    ['2026-11-06T21:29:00.000Z', '2026-01-05T00:05:00', '2026-12-31T12:00:00', '', null, 'garbage'].forEach((iso) => {
+      assert.equal(mirror.formatLocalDateTime(iso), formatLocalDateTime(iso));
+    });
     const flagSets = [null, {}, ON, { ...ON, TRIAGE_BOARD: false }, { ...ON, NCMMS_CORE_PILOT: false }, { GMAIL_ROUTER: false, TRIAGE_BOARD: true }];
     flagSets.forEach((f) => ['triage', 'meetingPrep', 'daily'].forEach((v) => {
       assert.equal(mirror.isHubViewVisible(v, f), isHubViewVisible(v, f));

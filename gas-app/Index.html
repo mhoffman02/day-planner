@@ -1362,7 +1362,7 @@
             <p class="hub-header-meta" x-show="showTriageNav">
               <span x-text="triageItemCount + (triageItemCount === 1 ? ' thread' : ' threads')"></span>
               <span class="hub-triage-status" x-show="triageStatusText"> &middot; <span x-text="triageStatusText"></span></span>
-              <span x-show="hubLastRun"> &middot; last run <span x-text="hubLastRun &amp;&amp; hubLastRun.at ? hubLastRun.at.replace('T', ' ').slice(0, 16) : ''"></span></span>
+              <span x-show="hubLastRun"> &middot; last run <span x-text="hubLastRunText()"></span></span>
               <span x-show="triageReadLater.length > 0"> &middot;
                 <button type="button" class="hub-link-btn" @click="showReadLater = !showReadLater" :aria-pressed="showReadLater" x-text="(showReadLater ? 'Hide' : 'Show') + ' read later (' + triageReadLater.length + ')'"></button>
               </span>
