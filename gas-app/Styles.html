@@ -2260,6 +2260,86 @@
   }
 
   /* Hover note for an appointment: the same details as its popup, in the Tasks note style. */
+  /* Sticky note editor: the textarea is the resizable work surface and the popup shrink-wraps it. */
+  .notes-editor {
+    position: fixed;
+    top: var(--notes-editor-top, auto);
+    bottom: var(--notes-editor-bottom, auto);
+    left: var(--notes-editor-left, 16px);
+    z-index: var(--z-9999);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: max-content;
+    max-width: calc(96 * var(--vw));
+    padding: 10px;
+    background: var(--white);
+    color: var(--text-default);
+    border: 1px solid var(--border-default);
+    border-radius: 6px;
+    box-shadow: 0 8px 24px var(--c-rgba-0-0-0-0p2);
+  }
+
+  .notes-editor-text {
+    box-sizing: border-box;
+    width: 340px;
+    height: 150px;
+    min-width: 280px;
+    min-height: 90px;
+    max-width: calc(90 * var(--vw));
+    max-height: calc(60 * var(--vh));
+    resize: both;
+    overflow: auto;
+    white-space: pre;
+    overflow-wrap: normal;
+    padding: 6px 8px;
+    font: inherit;
+    font-size: 0.85rem;
+    color: inherit;
+    background: var(--white);
+    border: 1px solid var(--border-default);
+    border-radius: 4px;
+  }
+
+  .notes-editor-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+  }
+
+  .notes-editor-hint {
+    margin-right: auto;
+    padding-right: 12px;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    color: var(--text-faint);
+  }
+
+  .notes-editor-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3px 6px;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+
+  .notes-editor-btn:hover {
+    background: var(--c-rgba-0-0-0-0p05);
+    color: var(--binder-teal, var(--accent));
+  }
+
+  [data-theme="dark"] .notes-editor,
+  [data-theme="dark"] .notes-editor-text {
+    background: var(--dk-bg-binder);
+    border-color: var(--dk-border-default);
+    color: var(--dk-text-default);
+  }
+
   .event-notes-popover {
     white-space: normal;
     min-width: 220px;

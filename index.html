@@ -497,7 +497,7 @@
                                aria-label="Edit task description"
                                x-cloak>
                         <span class="notes-indicator-wrap" x-show="hasNotes(task)" @mouseenter="openNotesPopover(task.id, $event)" @mouseleave="scheduleNotesPopoverClose(task.id)">
-                          <button type="button" class="notes-indicator" @click.stop="toggleNotesPopover(task.id, $event)"
+                          <button type="button" class="notes-indicator" @click.stop="openNotesEditor(task, false, $event)"
                                   aria-label="View notes" aria-haspopup="true" :aria-expanded="openNotesPopoverTaskId === task.id">
                             <span class="material-symbols-outlined icon-14">sticky_note_2</span>
                           </button>
@@ -1174,7 +1174,7 @@
                              aria-label="Edit task description"
                              x-cloak>
                       <span class="notes-indicator-wrap" x-show="hasNotes(mTask)" @mouseenter="openNotesPopover(mTask.id, $event)" @mouseleave="scheduleNotesPopoverClose(mTask.id)">
-                        <button type="button" class="notes-indicator" @click.stop="toggleNotesPopover(mTask.id, $event)"
+                        <button type="button" class="notes-indicator" @click.stop="openNotesEditor(mTask, true, $event)"
                                 aria-label="View notes" aria-haspopup="true" :aria-expanded="openNotesPopoverTaskId === mTask.id">
                           <span class="material-symbols-outlined icon-14">sticky_note_2</span>
                         </button>
@@ -3194,6 +3194,16 @@
     <div class="load-toast" role="status" x-show="docLoading || triageLoading" x-transition.opacity.duration.600ms x-cloak>
       <span class="material-symbols-outlined icon-18">hourglass_empty</span>
       <span x-text="docLoading ? 'Loading Doc items, the first load can take a minute...' : 'Loading Triage...'"></span>
+    </div>
+
+    <!-- Sticky note editor: one shared popup, opened by clicking or tapping a task sticky note; Save overwrites the notes only -->
+    <div class="notes-editor" :class="{ 'dropup': notesEditor.dropUp }" x-show="notesEditor.open" x-transition.opacity.duration.150ms x-cloak role="dialog" aria-label="Edit task notes" @pointerdown.outside="closeNotesEditorOutside()" @keydown.escape.stop="cancelNotesEditor()">
+      <textarea id="notes-editor-text" class="notes-editor-text" x-model="notesEditor.text" aria-label="Task notes" @keydown.ctrl.enter.prevent="saveNotesEditor()" @keydown.meta.enter.prevent="saveNotesEditor()"></textarea>
+      <div class="notes-editor-actions">
+        <span class="notes-editor-hint">Drag the corner to resize &middot; Ctrl+Enter saves</span>
+        <button type="button" class="notes-editor-btn" @click="cancelNotesEditor()" title="Cancel (Esc)" aria-label="Cancel"><span class="material-symbols-outlined icon-18">close</span></button>
+        <button type="button" class="notes-editor-btn notes-editor-save" @click="saveNotesEditor()" title="Save (Ctrl+Enter)" aria-label="Save"><span class="material-symbols-outlined icon-18">check</span></button>
+      </div>
     </div>
 
     <!-- Toast Notification for Task Actions (Forwarding, etc.) -->

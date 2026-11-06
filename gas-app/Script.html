@@ -2892,6 +2892,8 @@
       notesPopoverCloseTimer: null,
       notesPopoverDropUp: false,
       notesPopoverPos: { top: null, bottom: null, left: null },
+      notesEditor: { open: false, taskId: null, isMaster: false, text: '', original: '', dropUp: false },
+      notesEditorOpener: null,
       masterTasks: [],
       newMasterTaskTitle: '',
       newMasterTaskCategory: '',
@@ -7572,7 +7574,8 @@
         if (!task || !task.id) return;
         this.editingTaskId = task.id;
         const parsed = this.parseTask(task.title);
-        this.editingTaskTitle = task.notes ? `${parsed.cleanTitle} | ${task.notes}` : parsed.cleanTitle;
+        // A single-line input would flatten multi-line notes on save, so those are edited in the notes popup only.
+        this.editingTaskTitle = task.notes && !task.notes.includes('\n') ? `${parsed.cleanTitle} | ${task.notes}` : parsed.cleanTitle;
         this.$nextTick(() => {
           const el = document.getElementById(`task-title-input-${task.id}`);
           if (el) {
@@ -7611,6 +7614,11 @@
         }
 
         const newFullTitle = titleChanged ? updateTaskTitleText(task.title, trimmed) : task.title;
+        return this.queueTaskTitleSave(task, isMaster, newFullTitle, notesChanged, details.notes);
+      },
+
+      // Serialized per task (key task-title:<id>), latest wins; used by the inline title edit and the notes editor.
+      queueTaskTitleSave(task, isMaster, newFullTitle, notesChanged, newNotes) {
         const dateStr = this.selectedDate;
         const key = `task-title:${task.id}`;
         const baseline = TASK_TITLE_KIND.value(task);
@@ -7619,7 +7627,7 @@
         const prior = this.saveQueue.unsaved(key) ? this.saveQueue.latest(key) : null;
         const value = {
           title: newFullTitle,
-          notes: notesChanged ? details.notes : baseline.notes,
+          notes: notesChanged ? newNotes : baseline.notes,
           notesEdited: notesChanged || Boolean(prior && prior.notesEdited)
         };
         // The task and its linked master/daily copy move (and roll back) together.
@@ -7650,6 +7658,76 @@
             kind: TASK_TITLE_KIND, task, isMaster, dateStr, key, attempted: value, confirmed, err, what: 'task title', linked: true
           })
         });
+      },
+
+      notesEditorDirty() {
+        return this.notesEditor.text !== this.notesEditor.original;
+      },
+
+      // Click or tap on a sticky note: edit the notes (the text after the pipe) in a small resizable popup.
+      openNotesEditor(task, isMaster, event) {
+        if (!task || !task.id) return;
+        // Another sticky note never replaces text that is typed but not saved.
+        if (this.notesEditor.open && this.notesEditorDirty()) return;
+        clearTimeout(this.notesPopoverCloseTimer);
+        this.openNotesPopoverTaskId = null;
+        const text = task.notes || '';
+        this.notesEditor = { open: true, taskId: task.id, isMaster: Boolean(isMaster), text, original: text, dropUp: false };
+        const el = event && (event.currentTarget || event.target);
+        this.notesEditorOpener = el && el.closest ? (el.closest('.notes-indicator') || el) : null;
+        if (this.notesEditorOpener) {
+          const rect = this.zoomedRect(this.notesEditorOpener);
+          const view = this.zoomedViewport();
+          const dropUp = view.h - rect.bottom < 300 && rect.top > view.h - rect.bottom;
+          this.notesEditor.dropUp = dropUp;
+          this.applyNotesEditorAnchor({
+            left: Math.max(8, Math.min(Math.round(rect.left), view.w - 380)),
+            top: dropUp ? null : Math.round(rect.bottom + 4),
+            bottom: dropUp ? Math.round(view.h - rect.top + 4) : null
+          });
+        }
+        this.$nextTick(() => {
+          const ta = document.getElementById('notes-editor-text');
+          if (ta) {
+            ta.focus();
+            ta.setSelectionRange(ta.value.length, ta.value.length);
+          }
+        });
+      },
+
+      // CSS custom properties on the root, read by .notes-editor (no inline style on the element).
+      applyNotesEditorAnchor(anchor) {
+        const root = document.documentElement.style;
+        root.setProperty('--notes-editor-left', anchor.left + 'px');
+        root.setProperty('--notes-editor-top', anchor.top === null ? 'auto' : anchor.top + 'px');
+        root.setProperty('--notes-editor-bottom', anchor.bottom === null ? 'auto' : anchor.bottom + 'px');
+      },
+
+      cancelNotesEditor() {
+        this.notesEditor.open = false;
+        const opener = this.notesEditorOpener;
+        this.notesEditorOpener = null;
+        if (opener && opener.focus) opener.focus();
+      },
+
+      // Outside click: close only when nothing was typed, so a stray click never loses an edit.
+      closeNotesEditorOutside() {
+        if (this.notesEditor.open && !this.notesEditorDirty()) this.cancelNotesEditor();
+      },
+
+      async saveNotesEditor() {
+        const ed = this.notesEditor;
+        if (!ed.open) return;
+        const notes = ed.text.trim();
+        let isMaster = ed.isMaster;
+        let task = (isMaster ? this.masterTasks : this.dailyTasks).find(t => t.id === ed.taskId);
+        if (!task) {
+          isMaster = !isMaster;
+          task = (isMaster ? this.masterTasks : this.dailyTasks).find(t => t.id === ed.taskId);
+        }
+        this.cancelNotesEditor();
+        if (!task || notes === (task.notes || '').trim()) return;
+        return this.queueTaskTitleSave(task, isMaster, task.title, true, notes);
       },
 
       // Every live object for this task: the original, the copy on screen now (a reload may have

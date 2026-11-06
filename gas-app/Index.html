@@ -505,8 +505,8 @@
                                aria-label="Edit task description"
                                x-cloak>
                         <span class="notes-indicator-wrap" x-show="hasNotes(task)" @pointerenter="$event.pointerType === 'mouse' && openNotesPopover(task.id, $event)" @pointerleave="$event.pointerType === 'mouse' && scheduleNotesPopoverClose(task.id)" @pointerdown.outside="openNotesPopoverTaskId === task.id && (openNotesPopoverTaskId = null)" @keydown.escape="openNotesPopoverTaskId = null">
-                          <button type="button" class="notes-indicator" @click="openNotesPopover(task.id, $event)"
-                                  aria-label="View notes" aria-haspopup="true" :aria-expanded="openNotesPopoverTaskId === task.id">
+                          <button type="button" class="notes-indicator" @click="openNotesEditor(task, false, $event)"
+                                  aria-label="Edit notes" aria-haspopup="dialog" :aria-expanded="openNotesPopoverTaskId === task.id">
                             <span class="material-symbols-outlined icon-14">sticky_note_2</span>
                           </button>
                           <span class="notes-popover" :class="{ 'dropup': notesPopoverDropUp, 'dropdown-down': !notesPopoverDropUp }" :style="notesPopoverStyle(task.id)" role="tooltip" x-cloak x-text="task.notes"></span>
@@ -1182,8 +1182,8 @@
                              aria-label="Edit task description"
                              x-cloak>
                       <span class="notes-indicator-wrap" x-show="hasNotes(mTask)" @pointerenter="$event.pointerType === 'mouse' && openNotesPopover(mTask.id, $event)" @pointerleave="$event.pointerType === 'mouse' && scheduleNotesPopoverClose(mTask.id)" @pointerdown.outside="openNotesPopoverTaskId === mTask.id && (openNotesPopoverTaskId = null)" @keydown.escape="openNotesPopoverTaskId = null">
-                        <button type="button" class="notes-indicator" @click="openNotesPopover(mTask.id, $event)"
-                                aria-label="View notes" aria-haspopup="true" :aria-expanded="openNotesPopoverTaskId === mTask.id">
+                        <button type="button" class="notes-indicator" @click="openNotesEditor(mTask, true, $event)"
+                                aria-label="Edit notes" aria-haspopup="dialog" :aria-expanded="openNotesPopoverTaskId === mTask.id">
                           <span class="material-symbols-outlined icon-14">sticky_note_2</span>
                         </button>
                         <span class="notes-popover" :class="{ 'dropup': notesPopoverDropUp, 'dropdown-down': !notesPopoverDropUp }" :style="notesPopoverStyle(mTask.id)" role="tooltip" x-cloak x-text="mTask.notes"></span>
@@ -2154,6 +2154,16 @@
     <div class="load-toast" role="status" x-show="docLoading || triageLoading" x-transition.opacity.duration.600ms x-cloak>
       <span class="material-symbols-outlined icon-18">hourglass_empty</span>
       <span x-text="docLoading ? 'Loading Doc items, the first load can take a minute...' : 'Loading Triage...'"></span>
+    </div>
+
+    <!-- Sticky note editor: one shared popup, opened by clicking or tapping a task sticky note; Save overwrites the notes only -->
+    <div class="notes-editor" :class="{ 'dropup': notesEditor.dropUp }" x-show="notesEditor.open" x-transition.opacity.duration.150ms x-cloak role="dialog" aria-label="Edit task notes" @pointerdown.outside="closeNotesEditorOutside()" @keydown.escape.stop="cancelNotesEditor()">
+      <textarea id="notes-editor-text" class="notes-editor-text" x-model="notesEditor.text" aria-label="Task notes" @keydown.ctrl.enter.prevent="saveNotesEditor()" @keydown.meta.enter.prevent="saveNotesEditor()"></textarea>
+      <div class="notes-editor-actions">
+        <span class="notes-editor-hint">Drag the corner to resize &middot; Ctrl+Enter saves</span>
+        <button type="button" class="notes-editor-btn" @click="cancelNotesEditor()" title="Cancel (Esc)" aria-label="Cancel"><span class="material-symbols-outlined icon-18">close</span></button>
+        <button type="button" class="notes-editor-btn notes-editor-save" @click="saveNotesEditor()" title="Save (Ctrl+Enter)" aria-label="Save"><span class="material-symbols-outlined icon-18">check</span></button>
+      </div>
     </div>
 
     <!-- Toast Notification for Task Actions (Forwarding, etc.) -->

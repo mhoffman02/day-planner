@@ -31,7 +31,7 @@
   },
   "gas-app/Script.html": {
     "complexity": {
-      "count": 20
+      "count": 19
     }
   },
   "gas-app/UnitTests.gs": {
@@ -41,7 +41,7 @@
   },
   "src/app.js": {
     "complexity": {
-      "count": 15
+      "count": 14
     }
   },
   "src/calendarEngine.js": {

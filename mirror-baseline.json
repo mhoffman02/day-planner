@@ -52,7 +52,7 @@
   "app.js:m:transferFutureItemToDay",
   "app.js:m:undoForward",
   "app.js:m:undoMasterRowForward",
-  "app.js:m:updateTaskTitle",
+  "app.js:m:queueTaskTitleSave",
   "app.js:m:write",
   "app.js:m:writeTaskStatus",
   "binderStore.js:getLocalDateStr",
