@@ -347,6 +347,7 @@ Alpine.data('plannerApp', () => ({
       docHidden: 0,
       docRowLimit: 25,
       docSortDir: 'desc',
+      docLoading: false,
       docBulkDays: 0,
       docBulkIds: [],
       triageStale: false,
@@ -1547,6 +1548,7 @@ Alpine.data('plannerApp', () => ({
 
       // Doc action items (Drive comments assigned to me) load on their own RPC so a Drive failure never blocks Gmail rows.
       async loadDocActionItems(refresh) {
+        this.docLoading = true;
         try {
           const res = await this.bridge.getDocActionItems(refresh === true);
           if (res && res.errorCode === 'FLAG_OFF') {
@@ -1563,6 +1565,7 @@ Alpine.data('plannerApp', () => ({
           console.error('Doc action items failed to load, Gmail rows are unaffected:', err.stack);
           this.reportError('load-doc-items', 'Doc action items failed to load: ' + (err.message || err), { retry: () => this.loadDocActionItems() });
         }
+        this.docLoading = false;
         this.mergeDocRows();
       },
 
