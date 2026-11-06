@@ -146,7 +146,7 @@ describe('Triage throttling (Gmail quota)', () => {
         const vm = vmFor(c, { getTriageBoard: async () => { loads += 1; return board(); } });
         vm.triageBoard = board();
         vm.triageSavedAt = Date.now() - 60000;
-        vm.triageStale = true;
+        vm.triageStale = false;
         await vm.prefetchTriage();
         assert.equal(loads, 0);
         vm.triageSavedAt = Date.now() - 6 * 60000;

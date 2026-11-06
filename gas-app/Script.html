@@ -2006,6 +2006,157 @@
   }
   // HUB-UI-MIRROR-END
 
+  // HUB-CACHE-MIRROR-BEGIN (mirrors src/hubCache.js; tests/hubCache.test.js and tests/hubCacheWiring.test.js cover both)
+  const HUB_CACHE_DB = 'day-planner-hub';
+  const HUB_CACHE_DB_VERSION = 1;
+  const HUB_CACHE_STORE = 'entries';
+  const HUB_CACHE_SCHEMA = 1;
+  const HUB_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+  const HUB_CACHE_OPEN_TIMEOUT_MS = 2000;
+  const HUB_CACHE_CLOCK_SKEW_MS = 5 * 60 * 1000;
+
+  let hubCacheDbPromise = null;
+
+  /**
+   * @param {*} payload JSON-safe data to keep.
+   * @param {number} nowMs Save time in epoch ms.
+   * @returns {{schema: number, savedAt: number, payload: *}} The stored record.
+   */
+  function packHubCacheRecord(payload, nowMs) {
+    return { schema: HUB_CACHE_SCHEMA, savedAt: nowMs, payload: JSON.parse(JSON.stringify(payload)) };
+  }
+
+  /**
+   * @param {*} rec A stored record, or anything found under the key.
+   * @param {number} nowMs Current time in epoch ms.
+   * @returns {{payload: *, savedAt: number}|null} The data, or null when the record is the wrong shape or
+   *   schema, older than 7 days, or saved in the future (a clock that moved).
+   */
+  function unpackHubCacheRecord(rec, nowMs) {
+    if (!rec || typeof rec !== 'object' || Array.isArray(rec)) return null;
+    if (rec.schema !== HUB_CACHE_SCHEMA || typeof rec.savedAt !== 'number' || !('payload' in rec) || rec.payload === undefined) return null;
+    if (rec.savedAt > nowMs + HUB_CACHE_CLOCK_SKEW_MS) return null;
+    if (nowMs - rec.savedAt > HUB_CACHE_MAX_AGE_MS) return null;
+    return { payload: rec.payload, savedAt: rec.savedAt };
+  }
+
+  function hubCacheOpen() {
+    if (hubCacheDbPromise) return hubCacheDbPromise;
+    hubCacheDbPromise = new Promise((resolve) => {
+      if (typeof indexedDB === 'undefined') {
+        resolve(null);
+        return;
+      }
+      let settled = false;
+      const finish = (db, why, err) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (!db) {
+          console.error('[hubCache] IndexedDB unavailable (' + why + '), the hub loads from the server only this session:', err && err.stack ? err.stack : err);
+          hubCacheDbPromise = null;
+        }
+        resolve(db);
+      };
+      const timer = setTimeout(() => finish(null, 'open timed out after ' + HUB_CACHE_OPEN_TIMEOUT_MS + ' ms', null), HUB_CACHE_OPEN_TIMEOUT_MS);
+      try {
+        const req = indexedDB.open(HUB_CACHE_DB, HUB_CACHE_DB_VERSION);
+        req.onupgradeneeded = () => {
+          if (!req.result.objectStoreNames.contains(HUB_CACHE_STORE)) req.result.createObjectStore(HUB_CACHE_STORE, { keyPath: 'key' });
+        };
+        req.onsuccess = () => {
+          req.result.onversionchange = () => { req.result.close(); };
+          finish(req.result, '', null);
+        };
+        req.onerror = () => finish(null, 'open failed', req.error);
+        req.onblocked = () => finish(null, 'open blocked by another tab', null);
+      } catch (err) {
+        console.error('[hubCache] indexedDB.open threw:', err.stack);
+      finish(null, 'open threw', null);
+      }
+    });
+    return hubCacheDbPromise;
+  }
+
+  /**
+   * @param {string} key Entry name, for example triageBoard.
+   * @param {*} payload JSON-safe data.
+   * @returns {Promise<boolean>} True when committed; false when IndexedDB is unavailable or the write failed (logged).
+   */
+  function hubCachePut(key, payload) {
+    return hubCacheOpen().then((db) => {
+      if (!db) return false;
+      return new Promise((resolve) => {
+        try {
+          const tx = db.transaction(HUB_CACHE_STORE, 'readwrite');
+          tx.oncomplete = () => resolve(true);
+          const fail = () => {
+            console.error('[hubCache] write of ' + key + ' failed, the next page load waits for the server:', tx.error);
+            resolve(false);
+          };
+          tx.onerror = fail;
+          tx.onabort = fail;
+          tx.objectStore(HUB_CACHE_STORE).put({ key, ...packHubCacheRecord(payload, Date.now()) });
+        } catch (err) {
+          console.error('[hubCache] write of ' + key + ' threw, the next page load waits for the server:', err.stack);
+          resolve(false);
+        }
+      });
+    });
+  }
+
+  /**
+   * @param {string} key Entry name.
+   * @returns {Promise<{payload: *, savedAt: number}|null>} The saved data, or null on a miss, an expired or
+   *   malformed record, or an unavailable IndexedDB.
+   */
+  function hubCacheGet(key) {
+    return hubCacheOpen().then((db) => {
+      if (!db) return null;
+      return new Promise((resolve) => {
+        try {
+          const req = db.transaction(HUB_CACHE_STORE, 'readonly').objectStore(HUB_CACHE_STORE).get(key);
+          req.onsuccess = () => resolve(unpackHubCacheRecord(req.result, Date.now()));
+          req.onerror = () => {
+            console.error('[hubCache] read of ' + key + ' failed, treating it as a miss:', req.error);
+            resolve(null);
+          };
+        } catch (err) {
+          console.error('[hubCache] read of ' + key + ' threw, treating it as a miss:', err.stack);
+          resolve(null);
+        }
+      });
+    });
+  }
+
+  /**
+   * @param {string} key Entry name.
+   * @returns {Promise<boolean>} True when removed; false when IndexedDB is unavailable or the delete failed (logged).
+   */
+  function hubCacheDelete(key) {
+    return hubCacheOpen().then((db) => {
+      if (!db) return false;
+      return new Promise((resolve) => {
+        try {
+          const tx = db.transaction(HUB_CACHE_STORE, 'readwrite');
+          tx.oncomplete = () => resolve(true);
+          const fail = () => {
+            console.error('[hubCache] delete of ' + key + ' failed, a stale copy may reappear next load:', tx.error);
+            resolve(false);
+          };
+          tx.onerror = fail;
+          tx.onabort = fail;
+          tx.objectStore(HUB_CACHE_STORE).delete(key);
+        } catch (err) {
+          console.error('[hubCache] delete of ' + key + ' threw, a stale copy may reappear next load:', err.stack);
+          resolve(false);
+        }
+      });
+    });
+  }
+  // HUB-CACHE-MIRROR-END
+
+
   class GASBridge {
     constructor(useMock = false) {
       this.useMock = useMock;
@@ -3001,6 +3152,7 @@
         this.initUiZoom();
         this.initDocRowLimit();
         this.initHubFlagsCache();
+        if (this.hubFlags) this.hydrateHubFromIdb().catch((err) => console.error('Could not paint the saved hub data, the server answer will:', err.stack));
         this.initRecentTopics();
         this.initCategories();
         const hubReady = this.initHub();
@@ -3120,6 +3272,7 @@
         if (r && r.ok) {
           ids.forEach((id) => { this.docDismissedIds[id] = true; });
           this.docActionRows = this.docActionRows.filter((i) => !this.docDismissedIds[i.itemId]);
+          this.saveDocRowsCache();
           this.cancelBulkDocDismiss();
           this.mergeDocRows();
         }
@@ -3924,6 +4077,7 @@
             this.docActionRows = (res.rows || []).filter((r) => !this.docDismissedIds[r.itemId]).map((r) => ({ ...r, threadId: r.itemId }));
             this.docTruncated = Number(res.truncated) || 0;
             this.resolveError('load-doc-items');
+            this.saveDocRowsCache();
           }
         } catch (err) {
           console.error('Doc action items failed to load, Gmail rows are unaffected:', err.stack);
@@ -3949,6 +4103,7 @@
           if (r && r.ok) {
             this.docDismissedIds[item.itemId] = true;
             this.docActionRows = this.docActionRows.filter((i) => i.itemId !== item.itemId);
+            this.saveDocRowsCache();
           }
           return r;
         });
@@ -3962,7 +4117,7 @@
       // Startup prefetch: only when the saved board is old enough to be worth a Gmail read.
       prefetchTriage() {
         if (!this.showTriageNav) return null;
-        if (this.triageSavedAt && Date.now() - this.triageSavedAt < TRIAGE_PREFETCH_MIN_AGE_MS) return null;
+        if (this.triageSavedAt && !this.triageStale && Date.now() - this.triageSavedAt < TRIAGE_PREFETCH_MIN_AGE_MS) return null;
         return this.loadTriageBoard();
       },
 
@@ -4041,6 +4196,7 @@
             });
           });
           sessionStorage.setItem(TRIAGE_CACHE_KEY, JSON.stringify({ savedAt: this.triageSavedAt, queues }));
+          hubCachePut('triageBoard', { savedAt: this.triageSavedAt, queues });
         } catch (err) {
           console.error('saveTriageCache: could not save the Triage board, the next page load waits for the server:', err.stack);
         }
@@ -4064,9 +4220,45 @@
         }
       },
 
+      saveDocRowsCache() {
+        hubCachePut('docRows', { rows: this.docActionRows, truncated: this.docTruncated });
+      },
+
+      // Paints the last board, Doc rows and Meeting Prep from IndexedDB in a new tab; server answers replace them.
+      async hydrateHubFromIdb() {
+        const [board, docs, prep] = await Promise.all([hubCacheGet('triageBoard'), hubCacheGet('docRows'), hubCacheGet('meetingPrep')]);
+        this.restoreSavedBoard(board && board.payload);
+        this.restoreSavedDocRows(docs && docs.payload);
+        const savedPrep = prep && prep.payload;
+        if (savedPrep && savedPrep.prep && savedPrep.series === this.meetingPrepSeries && !this.meetingPrep) {
+          this.meetingPrep = savedPrep.prep;
+        }
+        this.mergeDocRows();
+      },
+
+      restoreSavedBoard(saved) {
+        if (!saved || this.triageSavedAt) return;
+        const q = saved.queues;
+        if (typeof saved.savedAt !== 'number' || !q || typeof q !== 'object' || Array.isArray(q)) {
+          console.error('hydrateHubFromIdb: saved Triage board has the wrong shape, ignoring it');
+          return;
+        }
+        this.triageBoard = { ok: true, queues: q };
+        this.triageSavedAt = saved.savedAt;
+        this.triageStale = true;
+      },
+
+      restoreSavedDocRows(saved) {
+        if (!saved || !Array.isArray(saved.rows) || this.docActionRows.length) return;
+        this.docActionRows = saved.rows.filter((r) => r && r.itemId && !this.docDismissedIds[r.itemId]);
+        this.docTruncated = Number(saved.truncated) || 0;
+      },
+
       clearTriageCache() {
         try {
           sessionStorage.removeItem(TRIAGE_CACHE_KEY);
+          hubCacheDelete('triageBoard');
+          hubCacheDelete('docRows');
         } catch (err) {
           console.error('clearTriageCache: could not remove the saved Triage board:', err.stack);
         }
@@ -4220,6 +4412,7 @@
           if (!prep || prep.ok !== true) throw new Error((prep && prep.message) || 'Meeting prep unavailable');
           this.meetingPrep = prep;
           this.resolveError('load-meeting-prep');
+          hubCachePut('meetingPrep', { series: this.meetingPrepSeries, prep });
         } catch (err) {
           console.error('Meeting prep failed to load:', err.stack);
           this.reportError('load-meeting-prep', 'Meeting prep failed to load: ' + (err.message || err), { retry: () => this.loadMeetingPrep() });

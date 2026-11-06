@@ -30,6 +30,7 @@ import {
   getCachedFutureMatrix, setCachedFutureMatrix, hydrateFutureMatrixFromIdb,
   saveNoteRevision, getNoteRevisions, hydrateNoteRevisionsFromIdb
 } from './dailyDataCache.js';
+import { hubCachePut, hubCacheGet, hubCacheDelete } from './hubCache.js';
 import { callBridge, requireSaved, restoreIfUnchanged, staleNoticeText, createSaveQueue } from './saveGuard.js';
 window.GASBridge = GASBridge;
 window.Alpine = Alpine;
@@ -673,6 +674,7 @@ Alpine.data('plannerApp', () => ({
         this.initUiZoom();
         this.initDocRowLimit();
         this.initHubFlagsCache();
+        if (this.hubFlags) this.hydrateHubFromIdb().catch((err) => console.error('Could not paint the saved hub data, the server answer will:', err.stack));
         this.initRecentTopics();
         this.initCategories();
         const hubReady = this.initHub();
@@ -794,6 +796,7 @@ Alpine.data('plannerApp', () => ({
         if (r && r.ok) {
           ids.forEach((id) => { this.docDismissedIds[id] = true; });
           this.docActionRows = this.docActionRows.filter((i) => !this.docDismissedIds[i.itemId]);
+          this.saveDocRowsCache();
           this.cancelBulkDocDismiss();
           this.mergeDocRows();
         }
@@ -1598,6 +1601,7 @@ Alpine.data('plannerApp', () => ({
             this.docActionRows = (res.rows || []).filter((r) => !this.docDismissedIds[r.itemId]).map((r) => ({ ...r, threadId: r.itemId }));
             this.docTruncated = Number(res.truncated) || 0;
             this.resolveError('load-doc-items');
+            this.saveDocRowsCache();
           }
         } catch (err) {
           console.error('Doc action items failed to load, Gmail rows are unaffected:', err.stack);
@@ -1623,6 +1627,7 @@ Alpine.data('plannerApp', () => ({
           if (r && r.ok) {
             this.docDismissedIds[item.itemId] = true;
             this.docActionRows = this.docActionRows.filter((i) => i.itemId !== item.itemId);
+            this.saveDocRowsCache();
           }
           return r;
         });
@@ -1636,7 +1641,7 @@ Alpine.data('plannerApp', () => ({
       // Startup prefetch: only when the saved board is old enough to be worth a Gmail read.
       prefetchTriage() {
         if (!this.showTriageNav) return null;
-        if (this.triageSavedAt && Date.now() - this.triageSavedAt < TRIAGE_PREFETCH_MIN_AGE_MS) return null;
+        if (this.triageSavedAt && !this.triageStale && Date.now() - this.triageSavedAt < TRIAGE_PREFETCH_MIN_AGE_MS) return null;
         return this.loadTriageBoard();
       },
 
@@ -1715,6 +1720,7 @@ Alpine.data('plannerApp', () => ({
             });
           });
           sessionStorage.setItem(TRIAGE_CACHE_KEY, JSON.stringify({ savedAt: this.triageSavedAt, queues }));
+          hubCachePut('triageBoard', { savedAt: this.triageSavedAt, queues });
         } catch (err) {
           console.error('saveTriageCache: could not save the Triage board, the next page load waits for the server:', err.stack);
         }
@@ -1738,9 +1744,45 @@ Alpine.data('plannerApp', () => ({
         }
       },
 
+      saveDocRowsCache() {
+        hubCachePut('docRows', { rows: this.docActionRows, truncated: this.docTruncated });
+      },
+
+      // Paints the last board, Doc rows and Meeting Prep from IndexedDB in a new tab; server answers replace them.
+      async hydrateHubFromIdb() {
+        const [board, docs, prep] = await Promise.all([hubCacheGet('triageBoard'), hubCacheGet('docRows'), hubCacheGet('meetingPrep')]);
+        this.restoreSavedBoard(board && board.payload);
+        this.restoreSavedDocRows(docs && docs.payload);
+        const savedPrep = prep && prep.payload;
+        if (savedPrep && savedPrep.prep && savedPrep.series === this.meetingPrepSeries && !this.meetingPrep) {
+          this.meetingPrep = savedPrep.prep;
+        }
+        this.mergeDocRows();
+      },
+
+      restoreSavedBoard(saved) {
+        if (!saved || this.triageSavedAt) return;
+        const q = saved.queues;
+        if (typeof saved.savedAt !== 'number' || !q || typeof q !== 'object' || Array.isArray(q)) {
+          console.error('hydrateHubFromIdb: saved Triage board has the wrong shape, ignoring it');
+          return;
+        }
+        this.triageBoard = { ok: true, queues: q };
+        this.triageSavedAt = saved.savedAt;
+        this.triageStale = true;
+      },
+
+      restoreSavedDocRows(saved) {
+        if (!saved || !Array.isArray(saved.rows) || this.docActionRows.length) return;
+        this.docActionRows = saved.rows.filter((r) => r && r.itemId && !this.docDismissedIds[r.itemId]);
+        this.docTruncated = Number(saved.truncated) || 0;
+      },
+
       clearTriageCache() {
         try {
           sessionStorage.removeItem(TRIAGE_CACHE_KEY);
+          hubCacheDelete('triageBoard');
+          hubCacheDelete('docRows');
         } catch (err) {
           console.error('clearTriageCache: could not remove the saved Triage board:', err.stack);
         }
@@ -1894,6 +1936,7 @@ Alpine.data('plannerApp', () => ({
           if (!prep || prep.ok !== true) throw new Error((prep && prep.message) || 'Meeting prep unavailable');
           this.meetingPrep = prep;
           this.resolveError('load-meeting-prep');
+          hubCachePut('meetingPrep', { series: this.meetingPrepSeries, prep });
         } catch (err) {
           console.error('Meeting prep failed to load:', err.stack);
           this.reportError('load-meeting-prep', 'Meeting prep failed to load: ' + (err.message || err), { retry: () => this.loadMeetingPrep() });
