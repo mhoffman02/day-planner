@@ -1614,9 +1614,15 @@ function getDocActionItems(refresh) {
         DPQueue.logSafe('getDocActionItems file', fileErr);
       }
     });
-    rows.sort(function(a, b) { return b.score - a.score; });
-    if (!itemErrors.length) docRowsCacheWrite_({ rows: rows, truncated: truncated });
-    return E.makeResult({ ok: true, status: 'OK', message: rows.length + ' Doc action item(s)' + (truncated > 0 ? ', ' + truncated + ' older file(s) not read' : ''), rows: rows, itemErrors: itemErrors, truncated: truncated, dryRun: dryRun });
+    // A load can run minutes; a dismiss that landed meanwhile must not be re-listed or cached by this stale read.
+    const dismissedNow = {};
+    DPLedgerRepo.list({ sourceType: E.DOC_ACTION_SOURCE_TYPE }).forEach(function(r) {
+      if (/\|DISMISS$/.test(r.OperationKey) && r.Status === E.LEDGER_STATUS.DONE) dismissedNow[r.SourceId] = true;
+    });
+    const kept = rows.filter(function(r) { return !dismissedNow[r.itemId]; });
+    kept.sort(function(a, b) { return b.score - a.score; });
+    if (!itemErrors.length) docRowsCacheWrite_({ rows: kept, truncated: truncated });
+    return E.makeResult({ ok: true, status: 'OK', message: kept.length + ' Doc action item(s)' + (truncated > 0 ? ', ' + truncated + ' older file(s) not read' : ''), rows: kept, itemErrors: itemErrors, truncated: truncated, dryRun: dryRun });
   } catch (err) {
     return failFrom_(err);
   }

@@ -158,6 +158,23 @@ test('dismissDocItem and routeDocItemToTask clear the rows cache', () => {
   assert.equal(cacheKeys(ctx).some((k) => k.startsWith('docItems')), false);
 });
 
+test('getDocActionItems: a dismiss that lands during a slow load is not undone by that load or its cache', () => {
+  const ctx = setup();
+  const inner = ctx.DPDriveFollowupRepo.listComments;
+  let fired = false;
+  ctx.DPDriveFollowupRepo = Object.freeze({
+    ...ctx.DPDriveFollowupRepo,
+    listComments: (id) => {
+      if (!fired) { fired = true; assert.equal(call(ctx, 'dismissDocItem', `${FILE_A}~c1`, {}).status, 'DONE'); }
+      return inner(id);
+    }
+  });
+  const slow = call(ctx, 'getDocActionItems');
+  assert.deepEqual(slow.rows.map((x) => x.itemId), [`${FILE_B}~c2`]);
+  const next = call(ctx, 'getDocActionItems');
+  assert.deepEqual(next.rows.map((x) => x.itemId), [`${FILE_B}~c2`]);
+});
+
 test('getDocActionItems: payload over 90 KB is returned whole but not cached', () => {
   const big = 'x'.repeat(1900);
   const files = Array.from({ length: 50 }, (_, i) => ({ id: `BigFile${String(i).padStart(4, '0')}`, name: `Doc ${i}`, modifiedTime: `2026-11-04T10:${String(i).padStart(2, '0')}:00Z` }));

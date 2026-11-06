@@ -2630,6 +2630,7 @@
       hubNowMs: Date.now(),
       triageBoard: { queues: {} },
       docActionRows: [],
+      docDismissedIds: {},
       docTruncated: 0,
       docHidden: 0,
       docRowLimit: 25,
@@ -3767,6 +3768,8 @@
             }
             if (!board || board.ok !== true) throw new Error((board && board.message) || 'Triage board unavailable');
             this.triageBoard = board;
+            // The fresh board has Gmail rows only; keep the Doc rows already loaded on screen until the slow Doc RPC returns.
+            this.mergeDocRows();
             this.triageStale = false;
             this.triageSavedAt = Date.now();
             this.saveTriageCache(board);
@@ -3796,7 +3799,8 @@
             this.docTruncated = 0;
           } else {
             if (!res || res.ok !== true) throw new Error((res && res.message) || 'Doc action items unavailable');
-            this.docActionRows = (res.rows || []).map((r) => ({ ...r, threadId: r.itemId }));
+            // A load already in flight when a row was dismissed can still return it; the session set wins.
+            this.docActionRows = (res.rows || []).filter((r) => !this.docDismissedIds[r.itemId]).map((r) => ({ ...r, threadId: r.itemId }));
             this.docTruncated = Number(res.truncated) || 0;
             this.resolveError('load-doc-items');
           }
@@ -3819,7 +3823,10 @@
 
       dismissDocEntry(item) {
         return this.runTriageAction('Dismiss', () => this.bridge.dismissDocItem(item.itemId, this.hubModeOpts()), item.itemId, true).then((r) => {
-          if (r && r.ok) this.docActionRows = this.docActionRows.filter((i) => i.itemId !== item.itemId);
+          if (r && r.ok) {
+            this.docDismissedIds[item.itemId] = true;
+            this.docActionRows = this.docActionRows.filter((i) => i.itemId !== item.itemId);
+          }
           return r;
         });
       },
