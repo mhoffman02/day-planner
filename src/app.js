@@ -70,6 +70,11 @@ const MASTER_FIRST_ROWS = 20;
 const MASTER_ROWS_PER_TICK = 20;
 const MASTER_PREBUILD_DELAY_MS = 1500;
 const DAY_ROLLOVER_CHECK_MS = 60 * 1000;
+const TOAST_POINTER_MAX_AGE_MS = 30 * 1000;
+const TOAST_MIN_LEFT_PX = 280;
+const TOAST_MIN_TOP_PX = 96;
+const HUB_LAST_RUN_POLL_MS = 5 * 60 * 1000;
+const HUB_LAST_RUN_MIN_GAP_MS = 60 * 1000;
 const DAY_STALE_RELOAD_MS = 15 * 60 * 1000;
 // One shared formatter: toLocaleDateString per row was the costliest call in a Master render.
 const MASTER_DATE_FORMAT = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -349,6 +354,9 @@ Alpine.data('plannerApp', () => ({
       docTruncated: 0,
       docHidden: 0,
       docRowLimit: 25,
+      hubLastRunFetchedAt: 0,
+      lastPointer: null,
+      taskToastAnchored: false,
       docSortDir: 'desc',
       docLoading: false,
       docBulkDays: 0,
@@ -692,6 +700,7 @@ Alpine.data('plannerApp', () => ({
         hubReady.then(() => this.prefetchTriage());
         this.setupKeyboardShortcuts();
         this.setupDayRolloverWatch();
+        this.setupHubLastRunRefresh();
         if (typeof window !== 'undefined') {
           window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
@@ -1315,6 +1324,32 @@ Alpine.data('plannerApp', () => ({
       hubCanRetry(status) { return canRetryLedger(status); },
       hubCountdown(iso) { return formatCutoffCountdown(iso, this.hubNowMs); },
       hubLastRunText() { return this.hubLastRun ? formatLocalDateTime(this.hubLastRun.at) : ''; },
+
+      // Quiet background refresh of the Triage "last run" text only: no spinner, no toast, no board reload.
+      // A failure keeps the old text (it is only a status line) but logs the stack.
+      async refreshHubLastRun() {
+        if (!this.showTriageNav) return;
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+        const now = Date.now();
+        if (now - this.hubLastRunFetchedAt < HUB_LAST_RUN_MIN_GAP_MS) return;
+        this.hubLastRunFetchedAt = now;
+        try {
+          const st = await this.bridge.getHubStatus();
+          if (st && st.ok === true && st.lastRun) this.hubLastRun = st.lastRun;
+        } catch (err) {
+          console.error('Triage last-run refresh failed, keeping the old text:', err.stack);
+        }
+      },
+
+      setupHubLastRunRefresh() {
+        document.addEventListener('pointerdown', (e) => {
+          this.lastPointer = { x: e.clientX, y: e.clientY, at: Date.now() };
+        }, true);
+        setInterval(() => this.refreshHubLastRun(), HUB_LAST_RUN_POLL_MS);
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') this.refreshHubLastRun();
+        });
+      },
 
       get hubTrialBannerVisible() {
         const onHubView = (this.activeView === 'triage' && this.showTriageNav) || (this.activeView === 'meetingPrep' && this.showMeetingPrepNav);
@@ -5600,9 +5635,31 @@ Alpine.data('plannerApp', () => ({
         }
       },
 
+      // Where the toast goes so it sits up-left of the last click: right edge at the click, bottom 16 px above it.
+      // Null (fixed top-right spot) with no click or one older than 30 s, e.g. a keyboard action.
+      toastAnchorFor(pointer, view, nowMs) {
+        if (!pointer || nowMs - pointer.at > TOAST_POINTER_MAX_AGE_MS) return null;
+        const x = Math.min(Math.max(pointer.x, TOAST_MIN_LEFT_PX), view.width - 12);
+        const y = Math.min(Math.max(pointer.y, TOAST_MIN_TOP_PX), view.height);
+        return { right: view.width - x, bottom: view.height - y + 16 };
+      },
+
+      viewportSize() {
+        return { width: window.innerWidth, height: window.innerHeight };
+      },
+
+      // CSS custom properties on the root, read by .task-toast.is-anchored (no inline style on the element).
+      applyToastAnchor(anchor) {
+        this.taskToastAnchored = anchor !== null;
+        if (!anchor) return;
+        document.documentElement.style.setProperty('--toast-right', anchor.right + 'px');
+        document.documentElement.style.setProperty('--toast-bottom', anchor.bottom + 'px');
+      },
+
       // A toast with an undo stays longer (8s) so there is time to reach its Undo button.
       showTaskToast(msg, undo = null) {
         clearTimeout(this.taskToastTimer);
+        this.applyToastAnchor(this.toastAnchorFor(this.lastPointer, this.viewportSize(), Date.now()));
         this.taskToast = msg;
         this.taskToastUndo = undo;
         this.taskToastTimer = setTimeout(() => {

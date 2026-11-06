@@ -44,6 +44,7 @@ Pilot branch `worktree-solid-code-pilot` (user merges, see HANDOFF) added the No
 - [ ] **Optional (user decides, default skip): Sheets data-validation dropdown (3,4,5) on the Hub Config `PreviewLines`
   cell.** It only constrains the cell; the server check in `getPreviewLines` (`gas-app/Config.gs`) stays.
 
+- [ ] **Unreproduced (user, HOME 2026-11-06): Task Today/Later button not disabled on an already-tasked item.** Code locks on success (`triageTaskDone`); ask which item/state, or retest on @419 with a fresh item.
 - [ ] **Hand-check on HOME @417 (user, 2026-11-06, `1c29a29`):** (1) Task Today / Task Later: spinner at the click, then the pair locks and reads "Tasked today" or "Tasked later" with a check, no toast on success, a toast on failure; reload keeps it locked; (2) FYI toasts (Undo, Note, Read Later) show top right, left of Live and Refresh, not over the rows. Archive already removes its row at the click; if one stayed, send the item. Not done: speeding up the Task call itself (server work, measure first).
 
 ### A8. Load speed: hub cache in IndexedDB (2026-11-06; QW1-QW3, QW5, Option 1 and Clear saved data shipped, see TODO_HISTORY)
@@ -54,12 +55,10 @@ On HOME @416 (`90ccb30`). On WORK as version 222 (code `c716b0c`..`aff529a`, pus
 - [ ] **Agent next:** after the check passes, `npm run push:work` again (QW2, QW5, Clear button), then "Update WORK".
 - [ ] **QW4 dropped (2026-11-06):** measured on HOME, `getHubStatus` about 3 s against about 1.2-2 s for a trivial RPC, so a flags-only split saves about 1 s and nothing waits on it any more (saved flags paint the tabs, the board starts without it). Reopen only if a first-visit WORK trace shows otherwise.
 - [ ] **QW6 (fonts) not approved yet.** Default: skip.
-- [ ] **Easing (user suggestion 2026-11-06):** fade-in/out for late items, toasts and popups. Agent proposal (user decides scope): ease opacity only, 150-200 ms (`--duration-slow`, `--ease-standard`), on toasts, popups and tabs or rows that appear after load; do NOT ease the stale-to-fresh list swap (it would flicker); keep `prefers-reduced-motion`. Reserved space (QW2) is the real fix for jumps.
+- [ ] **Easing, rest of scope (user chose opacity only, 150-200 ms, 2026-11-06):** done for the Triage last-run text and the action toast (300 ms). Still to ease: other toasts, popups and late-appearing tabs or rows; not the stale-to-fresh list swap; keep `prefers-reduced-motion`.
 
 ### A7. Triage Doc action items (2026-11-05; shipped items in TODO_HISTORY)
 
-- [ ] **Decide (user, asked 2026-11-06): Triage "last run" never refreshes on its own** (`loadHubStatus` in `src/app.js` runs on load, Refresh and after actions; the 60 s timer only bumps `hubNowMs`). Proposed default: a. poll `loadHubStatus()` every 5 min while the tab is visible and on `visibilitychange` to visible, in `src/app.js` and the `gas-app/Script.html` mirror, test first. Alternatives: b. 10 min, c. leave. Build only after the user answers.
-- [ ] **Agent: probe whether the server queue trigger fires** (a last run over an hour old may be a dead trigger, not a stale page). Run `npm run rpc -- getHubStatus --deploy` (@HEAD; read-only once the hub is provisioned), compare `lastRun` with the time now and read the `triggers` count (no IDE needed); if `triggers` is 0 or `lastRun` is old, the trigger is the cause.
 - [ ] **Optional (default skip): `getDocActionItems` reads the full ledger twice per load** (`gas-app/HubController.gs`); fold into one read if Sheets quota errors recur. Residual risk: ledger `MAX_ROWS` 5000 and `ARCHIVE_AFTER_DAYS` 90 in `gas-app/LedgerRepository.gs`.
 - [ ] **Live check on WORK (user), after "Update WORK" (user decision 2026-11-06: skip the HOME check, HOME has too few items to stress it):** bulk remove Doc items older than 365 days finishes in one call with no Quota error. WORK lacks this fix until `npm run push:work` runs again.
 - [ ] **Live check on WORK (user), HOME @406, WORK pushed, repoint pending (Update WORK):** (1) click X on a Doc row, wait
@@ -72,9 +71,6 @@ On HOME @416 (`90ccb30`). On WORK as version 222 (code `c716b0c`..`aff529a`, pus
 - [ ] **Later: migrate Drive v2 to v3** (separate TDD change, `DriveV3` Advanced Service is already used for comments).
 - [ ] **Optional (user decides, default skip): trim the other raw UTC stamps** (email `item.date`, meeting `start` and
   `cutoffISO`, `c.start`) to local time like the last-run label (`formatLocalDateTime` in `src/hubUi.js`).
-- [ ] **Live check on HOME `/dev` over CDP**: last-run text matches `/^[A-Z][a-z]{2} \d{1,2}, \d{4} \d{1,2}:\d{2} (am|pm)$/`
-  and is local; the Show: 10/25/50/All toggle with the "N more hidden" line; `localStorage.dayPlannerDocRowLimit` persists
-  (reset it afterwards).
 
 ## For the session after next: needs the user (interactive / HITL)
 
@@ -118,7 +114,6 @@ note badge, completing a `Decision:` task adds `#decision <what>` to the last no
 Most items need the user (GSA account, a release go, or a decision). HOME live checks are done (TODO_HISTORY 2026-10-10).
 
 - [ ] **Update WORK** whenever `npm run push:work` has run (the user repoints "Day Planner v1" in the WORK IDE).
-- [ ] **rpc token check, due 2026-11-11**: consent screen is In production (2026-11-03) and the existing token (fingerprint 4d06a094, first seen 2026-10-12) already outlived 7 days, so no re-login is needed. `getHubStatus` already worked with the 24-day-old token (2026-11-05). Re-run it on or after 2026-11-11; if it still works, drop the 7-day notes in the gas-rpc skill (`tools/gas-rpc.js` has no age warning, only the `invalid_grant` hint at ~L117, which stays).
 - [ ] **Re-check WORK forwards made before v149**: Forward/Delegate on a Daily row set the glyph without making a
   copy (fixed in `2b2d712`). Tasks forwarded on WORK ≤ v148 may be missing from their later day; re-add any.
 - [ ] **Delete the test appointment** "Day Planner e2e test - safe to delete" (HOME calendar, 2026-10-30 14:00, has a

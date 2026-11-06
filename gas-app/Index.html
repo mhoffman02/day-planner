@@ -1374,7 +1374,7 @@
             <p class="hub-header-meta" x-show="showTriageNav">
               <span x-text="triageItemCount + (triageItemCount === 1 ? ' thread' : ' threads')"></span>
               <span class="hub-triage-status" x-show="triageStatusText"> &middot; <span x-text="triageStatusText"></span></span>
-              <span x-show="hubLastRun"> &middot; last run <span x-text="hubLastRunText()"></span></span>
+              <span x-show="hubLastRun" x-transition.opacity.duration.200ms> &middot; last run <template x-for="stamp in [hubLastRunText()]" :key="stamp"><span class="fade-in" x-text="stamp"></span></template></span>
               <span x-show="triageReadLater.length > 0"> &middot;
                 <button type="button" class="hub-link-btn" @click="showReadLater = !showReadLater" :aria-pressed="showReadLater" x-text="(showReadLater ? 'Hide' : 'Show') + ' read later (' + triageReadLater.length + ')'"></button>
               </span>
@@ -2157,7 +2157,7 @@
     </div>
 
     <!-- Toast Notification for Task Actions (Forwarding, etc.) -->
-    <div class="task-toast" role="status" x-show="taskToast" x-cloak>
+    <div class="task-toast" :class="{ 'is-anchored': taskToastAnchored }" role="status" x-show="taskToast" x-transition.opacity.duration.300ms x-cloak>
       <span class="material-symbols-outlined icon-18">arrow_forward</span>
       <span x-text="taskToast"></span>
       <button type="button" class="hub-snack-btn task-toast-btn" x-show="taskToastUndo" @click="undoForward(taskToastUndo)">Undo</button>

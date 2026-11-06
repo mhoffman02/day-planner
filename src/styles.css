@@ -5484,6 +5484,13 @@
       max-width: calc(100vw - 24px);
     }
   }
+  /* Anchored: up-left of the last click, set by showTaskToast through --toast-right and --toast-bottom. */
+  .task-toast.is-anchored {
+    top: auto;
+    right: var(--toast-right);
+    bottom: var(--toast-bottom);
+    max-width: min(420px, calc(100vw - 24px));
+  }
   [data-theme="dark"] .time-machine-item.is-selected {
     background: var(--c-rgba-45-106-90-0p25);
     border-left-color: var(--dk-accent-text);
@@ -6896,6 +6903,20 @@
 
   @media (prefers-reduced-motion: reduce) {
     .btn-spinner { animation: none; }
+  }
+
+  /* Opacity-only ease for text that changes or appears after load (Triage last-run). */
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .fade-in {
+    animation: fade-in var(--duration-slow) var(--ease-standard);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fade-in { animation: none; }
   }
 
   .learn-progress-wrap {

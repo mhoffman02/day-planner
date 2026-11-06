@@ -1,5 +1,12 @@
 # Task History (TODO_HISTORY)
 
+## 2026-11-06 (night) — Last-run refresh, anchored toast, token check
+
+- [x] **Triage "last run" refreshes itself**: quiet `getHubStatus` poll every 5 min while visible and on tab focus, 60 s throttle, fade-in on change (`refreshHubLastRun`, `tests/hubLastRunRefresh.test.js`).
+- [x] **Action toast sits up-left of the last click** (right edge at the click, bottom 16 px above), 300 ms opacity ease (`toastAnchorFor`, `tests/toastAnchor.test.js`).
+- [x] **Server queue trigger verified** (`triggers: 1`, last run 3 min old, 0 errors) and **HOME `/dev` live check** (last-run text local, Show 10/25/50/All persists).
+- [x] **rpc token works** (`getHubStatus` ran 2026-11-06 with the 25-day-old token); item closed.
+
 ## 2026-11-06 (late) — Bulk Doc dismiss quota fix (HOME @418)
 
 - [x] **Bulk "remove Doc items older than 365 days" hit the Sheets read quota**: old `dismissDocItems` cost about 2N Sheets calls (a whole-tab read plus an append per item). Now one ledger session: 1 read, 1 `appendMany`, repeated ids deduped, LEDGER_FULL writes nothing, a quota error returns retryable RATE_LIMITED (`1566ddc`, `tests/hubDocActionItems.test.js`). No extra pacing needed; the Architect advised against sleep retries (they hold the script lock).
