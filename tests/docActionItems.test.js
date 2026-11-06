@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   selectAssignedComments, DOC_ACTION_SNIPPET_CAP, DOC_ACTION_PREVIEW_CAP,
-  DOC_ACTION_FILE_CAP, DOC_ACTION_CACHE_TTL_S, DOC_ACTION_MEMO_TTL_S, DOC_ACTION_CACHE_MAX_BYTES,
+  DOC_ACTION_FILE_CAP, DOC_ACTION_TIME_BUDGET_MS, DOC_ACTION_CACHE_TTL_S, DOC_ACTION_MEMO_TTL_S, DOC_ACTION_CACHE_MAX_BYTES,
   docActionProvenance, docActionMemoKey
 } from '../src/integration/docActionItems.js';
 import { docActionKey } from '../src/integration/contracts.js';
@@ -76,7 +76,8 @@ test('a deleted comment is skipped and a missing userEmail fails loud', () => {
 });
 
 test('cache and fan-out constants', () => {
-  assert.equal(DOC_ACTION_FILE_CAP, 50);
+  assert.equal(DOC_ACTION_FILE_CAP, 200);
+  assert.equal(DOC_ACTION_TIME_BUDGET_MS, 240000);
   assert.equal(DOC_ACTION_CACHE_TTL_S, 300);
   assert.equal(DOC_ACTION_MEMO_TTL_S, 21600);
   assert.equal(DOC_ACTION_CACHE_MAX_BYTES, 90 * 1024);

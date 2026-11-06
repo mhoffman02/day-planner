@@ -15,7 +15,9 @@ export const DOC_ACTION_SCORE_ASSIGNED = 8;
 export const DOC_ACTION_SCORE_UNMATCHED = 4;
 
 /** At most this many matching files are read per load (newest first); the rest are counted as truncated. */
-export const DOC_ACTION_FILE_CAP = 50;
+export const DOC_ACTION_FILE_CAP = 200;
+/** Stop reading comments after this much elapsed time (GAS kills an execution at 6 min); the unread rest is counted as truncated. */
+export const DOC_ACTION_TIME_BUDGET_MS = 240000;
 /** Finished row list, user cache. */
 export const DOC_ACTION_CACHE_TTL_S = 300;
 /** Per-file "no comment assigned to me" memo, valid while the file's modifiedTime is unchanged. */

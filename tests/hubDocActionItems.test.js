@@ -168,16 +168,52 @@ test('getDocActionItems: payload over 90 KB is returned whole but not cached', (
   assert.equal(cacheKeys(ctx).some((k) => k.startsWith('docItems')), false);
 });
 
-test('getDocActionItems: at most 50 files by modifiedTime desc, truncated count returned', () => {
-  const files = Array.from({ length: 60 }, (_, i) => ({ id: `File${String(i).padStart(6, '0')}`, name: `Doc ${i}`, modifiedTime: `2026-11-04T10:${String(i).padStart(2, '0')}:00Z` }));
-  const ctx = setup({}, { files });
+const manyFiles = (n) => Array.from({ length: n }, (_, i) => ({ id: `File${String(i).padStart(6, '0')}`, name: `Doc ${i}`, modifiedTime: new Date(Date.UTC(2026, 10, 4, 0, 0, i)).toISOString() }));
+
+test('getDocActionItems: at most 200 files by modifiedTime desc, truncated count returned', () => {
+  const ctx = setup({}, { files: manyFiles(201) });
   const r = call(ctx, 'getDocActionItems');
   assert.equal(r.ok, true, JSON.stringify(r));
-  assert.equal(ctx.__docStats.commentCalls.length, 50);
-  assert.equal(r.truncated, 10);
-  assert.ok(ctx.__docStats.commentCalls.includes('File000059'), 'newest processed');
+  assert.equal(ctx.__docStats.commentCalls.length, 200);
+  assert.equal(r.truncated, 1);
+  assert.ok(ctx.__docStats.commentCalls.includes('File000200'), 'newest processed');
   assert.ok(!ctx.__docStats.commentCalls.includes('File000000'), 'oldest dropped');
-  assert.match(r.message, /10/);
+  assert.match(r.message, /1 older/);
+});
+
+test('getDocActionItems: 200 files is not truncated', () => {
+  const ctx = setup({}, { files: manyFiles(200) });
+  assert.equal(call(ctx, 'getDocActionItems').truncated, 0);
+});
+
+test('getDocActionItems: stops reading comments after the time budget, remainder is truncated and logged', () => {
+  const ctx = setup({}, { files: manyFiles(30) });
+  const base = ctx.DPDriveFollowupRepo.listComments;
+  ctx.DPDriveFollowupRepo = Object.freeze({ ...ctx.DPDriveFollowupRepo, listComments: (id) => {
+    ctx.__nowMs += 60000;
+    return base(id);
+  } });
+  const errs = [];
+  ctx.console.error = (...a) => errs.push(a.join(' '));
+  const r = call(ctx, 'getDocActionItems');
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.equal(ctx.__docStats.commentCalls.length, 5, 'budget 240 s at 60 s per file');
+  assert.equal(r.truncated, 25);
+  assert.ok(ctx.__docStats.commentCalls.includes('File000029'), 'newest first');
+  assert.ok(errs.some((e) => /time budget/.test(e)), errs.join('|'));
+});
+
+test('getDocActionItems: cache holds the full row list, not a display-limited one', () => {
+  const files = manyFiles(60);
+  const ctx = setup({}, { files });
+  files.forEach((f) => { ctx.__docComments[f.id] = [{ id: 'c1', assigneeEmailAddress: 'me@example.test', content: 'x', author: { displayName: 'A' } }]; });
+  const a = call(ctx, 'getDocActionItems');
+  assert.equal(a.rows.length, 60);
+  const cached = JSON.parse(ctx.__hub.cache.store.get('docItems.v1'));
+  assert.equal(cached.rows.length, 60);
+  const b = call(ctx, 'getDocActionItems');
+  assert.equal(b.rows.length, 60);
+  assert.equal(ctx.__docStats.listCalls, 1);
 });
 
 test('getDocActionItems: no truncation reports truncated 0', () => {

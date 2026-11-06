@@ -2,7 +2,7 @@ import Alpine from 'https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/module.esm.
 import { GASBridge } from './gasBridge.js';
 import { getLocalDateStr } from './binderStore.js';
 import {
-  isHubViewVisible, scoreBandLabel, ledgerStatusLabel, ledgerOperationKind, canRetryLedger, formatCutoffCountdown,
+  isHubViewVisible, scoreBandLabel, ledgerStatusLabel, ledgerOperationKind, canRetryLedger, formatCutoffCountdown, limitDocRows, DOC_ROW_LIMITS, DOC_ROW_LIMIT_DEFAULT,
   QUEUE_ORDER, QUEUE_TITLES
 } from './hubUi.js';
 import {
@@ -343,6 +343,8 @@ Alpine.data('plannerApp', () => ({
       triageBoard: { queues: {} },
       docActionRows: [],
       docTruncated: 0,
+      docHidden: 0,
+      docRowLimit: 25,
       triageStale: false,
       triageSavedAt: 0,
       // A Triage action created or found a Task: the Daily list on screen predates it, so re-fetch on return.
@@ -664,6 +666,7 @@ Alpine.data('plannerApp', () => ({
         this.initTheme();
         this.initColumnWidths();
         this.initUiZoom();
+        this.initDocRowLimit();
         this.initRecentTopics();
         this.initCategories();
         const hubReady = this.initHub();
@@ -725,6 +728,27 @@ Alpine.data('plannerApp', () => ({
           console.error('initCategories: could not read saved categories from localStorage, using defaults:', err.stack);
         }
         this.recentCategories = defaultCategories;
+      },
+
+      // Doc-items display limit, saved per device. Storage may be unavailable; the default then applies.
+      initDocRowLimit() {
+        try {
+          const saved = localStorage.getItem('dayPlannerDocRowLimit');
+          const v = saved === 'all' ? 'all' : parseInt(saved, 10);
+          if (DOC_ROW_LIMITS.includes(v)) this.docRowLimit = v;
+        } catch (err) {
+          console.error('Could not load saved Doc row limit, using ' + DOC_ROW_LIMIT_DEFAULT + ':', err.stack);
+        }
+      },
+
+      setDocRowLimit(value) {
+        this.docRowLimit = DOC_ROW_LIMITS.includes(value) ? value : DOC_ROW_LIMIT_DEFAULT;
+        try {
+          localStorage.setItem('dayPlannerDocRowLimit', String(this.docRowLimit));
+        } catch (err) {
+          console.error('Could not save Doc row limit, it applies until reload:', err.stack);
+        }
+        this.mergeDocRows();
       },
 
       initUiZoom() {
@@ -1504,7 +1528,9 @@ Alpine.data('plannerApp', () => ({
         const queues = this.triageBoard && this.triageBoard.queues;
         if (!queues) return;
         const gmail = (queues.directAction || []).filter((i) => i.sourceType !== 'DOC_COMMENT');
-        queues.directAction = gmail.concat(this.docActionRows).sort((a, b) => (b.score || 0) - (a.score || 0));
+        const shown = limitDocRows(this.docActionRows, this.docRowLimit);
+        this.docHidden = shown.hidden;
+        queues.directAction = gmail.concat(shown.rows).sort((a, b) => (b.score || 0) - (a.score || 0));
       },
 
       dismissDocEntry(item) {

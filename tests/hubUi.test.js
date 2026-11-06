@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import {
   isHubViewVisible, scoreBandLabel, ledgerStatusLabel, canRetryLedger,
-  formatCutoffCountdown, countBoardItems, QUEUE_ORDER, QUEUE_TITLES
+  formatCutoffCountdown, countBoardItems, limitDocRows, DOC_ROW_LIMIT_DEFAULT, QUEUE_ORDER, QUEUE_TITLES
 } from '../src/hubUi.js';
 
 const ON = { GMAIL_ROUTER: true, TRIAGE_BOARD: true, NCMMS_CORE_PILOT: true };
@@ -87,6 +87,36 @@ describe('Hub presentation helpers', () => {
   });
 });
 
+describe('limitDocRows', () => {
+  const rows = Array.from({ length: 60 }, (_, i) => ({ itemId: `r${i}` }));
+  it('shows the first N in input order and counts the hidden rest', () => {
+    [10, 25, 50].forEach((n) => {
+      const r = limitDocRows(rows, n);
+      assert.equal(r.rows.length, n);
+      assert.equal(r.hidden, 60 - n);
+      assert.deepEqual(r.rows.map((x) => x.itemId), rows.slice(0, n).map((x) => x.itemId));
+    });
+  });
+  it('All shows everything, hidden 0', () => {
+    assert.deepEqual(limitDocRows(rows, 'all'), { rows, hidden: 0 });
+    assert.equal(limitDocRows(rows, 'All').hidden, 0);
+  });
+  it('fewer rows than the limit hides none', () => {
+    assert.deepEqual(limitDocRows(rows.slice(0, 3), 10), { rows: rows.slice(0, 3), hidden: 0 });
+  });
+  it('an invalid limit falls back to 25', () => {
+    assert.equal(DOC_ROW_LIMIT_DEFAULT, 25);
+    [0, -1, 7, NaN, null, undefined, 'x', '25', {}].forEach((l) => {
+      const r = limitDocRows(rows, l);
+      assert.equal(r.rows.length, 25, String(l));
+      assert.equal(r.hidden, 35);
+    });
+  });
+  it('a non-array yields no rows', () => {
+    assert.deepEqual(limitDocRows(null, 10), { rows: [], hidden: 0 });
+  });
+});
+
 describe('gas-app/Script.html mirror parity', () => {
   const html = fs.readFileSync(new URL('../gas-app/Script.html', import.meta.url), 'utf8');
   const m = html.match(/HUB-UI-MIRROR-BEGIN[^\n]*\n([\s\S]*?)\/\/ HUB-UI-MIRROR-END/);
@@ -96,7 +126,7 @@ describe('gas-app/Script.html mirror parity', () => {
   it('mirror behaves identically to src/hubUi.js', () => {
     const ctx = {};
     vm.createContext(ctx);
-    vm.runInContext(`${m[1]}\nthis.api = { isHubViewVisible, scoreBandLabel, ledgerStatusLabel, canRetryLedger, formatCutoffCountdown, QUEUE_ORDER, QUEUE_TITLES };`, ctx);
+    vm.runInContext(`${m[1]}\nthis.api = { isHubViewVisible, scoreBandLabel, ledgerStatusLabel, canRetryLedger, formatCutoffCountdown, limitDocRows, DOC_ROW_LIMIT_DEFAULT, QUEUE_ORDER, QUEUE_TITLES };`, ctx);
     const mirror = ctx.api;
     const flagSets = [null, {}, ON, { ...ON, TRIAGE_BOARD: false }, { ...ON, NCMMS_CORE_PILOT: false }, { GMAIL_ROUTER: false, TRIAGE_BOARD: true }];
     flagSets.forEach((f) => ['triage', 'meetingPrep', 'daily'].forEach((v) => {
@@ -113,6 +143,12 @@ describe('gas-app/Script.html mirror parity', () => {
     ['2026-10-09T14:15:00', '2026-10-09T11:20:00', '2026-10-11T14:00:00', '2026-10-09T12:00:00', '', 'garbage'].forEach((iso) => {
       assert.equal(mirror.formatCutoffCountdown(iso, now), formatCutoffCountdown(iso, now));
     });
+    const rows = Array.from({ length: 60 }, (_, i) => ({ itemId: `r${i}` }));
+    [10, 25, 50, 'all', 'All', 0, -3, 7, '25', null, undefined, NaN, 'x'].forEach((l) => {
+      assert.deepEqual(JSON.parse(JSON.stringify(mirror.limitDocRows(rows, l))), limitDocRows(rows, l), String(l));
+    });
+    assert.deepEqual(JSON.parse(JSON.stringify(mirror.limitDocRows(null, 10))), limitDocRows(null, 10));
+    assert.equal(mirror.DOC_ROW_LIMIT_DEFAULT, DOC_ROW_LIMIT_DEFAULT);
     assert.deepEqual([...mirror.QUEUE_ORDER], QUEUE_ORDER);
     assert.deepEqual({ ...mirror.QUEUE_TITLES }, QUEUE_TITLES);
   });

@@ -1552,7 +1552,8 @@ function docNegMemoWrite_(file) {
  * so a Drive failure can never blank the Gmail list. Read-only: no Drive write, comments are never resolved.
  * Comment text is returned for display only and is not written to the ledger.
  * Finished rows are cached 300 s (never when any file failed or the payload is over 90 KB); dismiss/route clear it.
- * At most 50 files (newest first) are read per load; `truncated` counts the rest. A file with no assigned comment
+ * At most DOC_ACTION_FILE_CAP files (newest first) are read per load, and reading stops after DOC_ACTION_TIME_BUDGET_MS;
+ * `truncated` counts the rest. The cached list is always the full one (the display limit is client side). A file with no assigned comment
  * is remembered 6 h while its modifiedTime is unchanged, so comments.list is skipped for it.
  * @param {boolean} [refresh] True skips the rows cache and the negative memo is also ignored for a fresh read.
  * @returns {object} makeResult-shaped result; rows[] and truncated on success.
@@ -1579,12 +1580,20 @@ function getDocActionItems(refresh) {
       return String(b.modifiedTime || '') < String(a.modifiedTime || '') ? -1 : (String(b.modifiedTime || '') > String(a.modifiedTime || '') ? 1 : 0);
     });
     const files = all.slice(0, E.DOC_ACTION_FILE_CAP);
-    const truncated = all.length - files.length;
+    let truncated = all.length - files.length;
     if (truncated > 0) console.error('getDocActionItems: ' + all.length + ' files matched, read the newest ' + files.length + ', ' + truncated + ' not read');
+    const startedMs = Date.now();
+    let timedOut = false;
     const memo = refresh === true ? {} : docNegMemoRead_(files);
     const rows = [];
     const itemErrors = [];
     files.forEach(function(file) {
+      if (timedOut || Date.now() - startedMs > E.DOC_ACTION_TIME_BUDGET_MS) {
+        if (!timedOut) console.error('getDocActionItems: time budget of ' + E.DOC_ACTION_TIME_BUDGET_MS + ' ms exceeded; remaining files not read');
+        timedOut = true;
+        truncated++;
+        return;
+      }
       try {
         const memoed = file.modifiedTime && memo[E.docActionMemoKey(file.id, file.modifiedTime)];
         const comments = memoed ? [] : DPDriveFollowupRepo.listComments(file.id);

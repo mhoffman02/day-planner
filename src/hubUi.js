@@ -121,3 +121,21 @@ export function countBoardItems(board) {
   if (!board || !board.queues) return 0;
   return QUEUE_ORDER.reduce((n, key) => n + ((board.queues[key] || []).length), 0);
 }
+
+/** Triage Doc-items display limit when none, or an unknown one, is saved. */
+export const DOC_ROW_LIMIT_DEFAULT = 25;
+/** The choices offered by the Show: toggles; 'all' disables the limit. */
+export const DOC_ROW_LIMITS = [10, 25, 50, 'all'];
+
+/**
+ * Display limit for Doc action rows (client side only; the server list and its cache stay whole).
+ * @param {Array<object>} rows Rows already in display order (newest first).
+ * @param {number|string} limit 10, 25, 50 or 'all'; anything else falls back to DOC_ROW_LIMIT_DEFAULT.
+ * @returns {{rows: Array<object>, hidden: number}} The first N rows and how many were left out.
+ */
+export function limitDocRows(rows, limit) {
+  const list = Array.isArray(rows) ? rows : [];
+  if (typeof limit === 'string' && limit.toLowerCase() === 'all') return { rows: list, hidden: 0 };
+  const n = DOC_ROW_LIMITS.includes(limit) ? limit : DOC_ROW_LIMIT_DEFAULT;
+  return { rows: list.slice(0, n), hidden: Math.max(0, list.length - n) };
+}

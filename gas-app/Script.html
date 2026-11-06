@@ -1950,6 +1950,16 @@
     else span = mins + ' min';
     return diffMin > 0 ? 'in ' + span : 'passed ' + span + ' ago';
   }
+
+  const DOC_ROW_LIMIT_DEFAULT = 25;
+  const DOC_ROW_LIMITS = [10, 25, 50, 'all'];
+
+  function limitDocRows(rows, limit) {
+    const list = Array.isArray(rows) ? rows : [];
+    if (typeof limit === 'string' && limit.toLowerCase() === 'all') return { rows: list, hidden: 0 };
+    const n = DOC_ROW_LIMITS.includes(limit) ? limit : DOC_ROW_LIMIT_DEFAULT;
+    return { rows: list.slice(0, n), hidden: Math.max(0, list.length - n) };
+  }
   // HUB-UI-MIRROR-END
 
   class GASBridge {
@@ -2610,6 +2620,8 @@
       triageBoard: { queues: {} },
       docActionRows: [],
       docTruncated: 0,
+      docHidden: 0,
+      docRowLimit: 25,
       triageStale: false,
       triageSavedAt: 0,
       // A Triage action created or found a Task: the Daily list on screen predates it, so re-fetch on return.
@@ -2928,6 +2940,7 @@
         this.initTheme();
         this.initColumnWidths();
         this.initUiZoom();
+        this.initDocRowLimit();
         this.initRecentTopics();
         this.initCategories();
         const hubReady = this.initHub();
@@ -2987,6 +3000,27 @@
           console.error('initCategories: could not read saved categories from localStorage, using defaults:', err.stack);
         }
         this.recentCategories = defaultCategories;
+      },
+
+      // Doc-items display limit, saved per device. Storage may be unavailable; the default then applies.
+      initDocRowLimit() {
+        try {
+          const saved = localStorage.getItem('dayPlannerDocRowLimit');
+          const v = saved === 'all' ? 'all' : parseInt(saved, 10);
+          if (DOC_ROW_LIMITS.includes(v)) this.docRowLimit = v;
+        } catch (err) {
+          console.error('Could not load saved Doc row limit, using ' + DOC_ROW_LIMIT_DEFAULT + ':', err.stack);
+        }
+      },
+
+      setDocRowLimit(value) {
+        this.docRowLimit = DOC_ROW_LIMITS.includes(value) ? value : DOC_ROW_LIMIT_DEFAULT;
+        try {
+          localStorage.setItem('dayPlannerDocRowLimit', String(this.docRowLimit));
+        } catch (err) {
+          console.error('Could not save Doc row limit, it applies until reload:', err.stack);
+        }
+        this.mergeDocRows();
       },
 
       initUiZoom() {
@@ -3766,7 +3800,9 @@
         const queues = this.triageBoard && this.triageBoard.queues;
         if (!queues) return;
         const gmail = (queues.directAction || []).filter((i) => i.sourceType !== 'DOC_COMMENT');
-        queues.directAction = gmail.concat(this.docActionRows).sort((a, b) => (b.score || 0) - (a.score || 0));
+        const shown = limitDocRows(this.docActionRows, this.docRowLimit);
+        this.docHidden = shown.hidden;
+        queues.directAction = gmail.concat(shown.rows).sort((a, b) => (b.score || 0) - (a.score || 0));
       },
 
       dismissDocEntry(item) {
