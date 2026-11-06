@@ -4901,6 +4901,26 @@
     flex: 0 0 auto;
     white-space: nowrap;
   }
+  .doc-bulk-confirm {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5em 1.5em;
+    margin: 0.5em 0;
+    padding: 0.75em 1em;
+    border: 1px solid var(--border-line);
+    border-left: 3px solid var(--binder-teal);
+    border-radius: 4px;
+    background: var(--bg-card);
+  }
+  .doc-bulk-confirm-text {
+    margin: 0;
+  }
+  .doc-bulk-confirm-actions {
+    display: flex;
+    gap: 0.5em;
+  }
   .doc-controls {
     display: flex;
     flex-wrap: wrap;
