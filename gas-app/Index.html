@@ -2151,7 +2151,7 @@
     </div>
 
     <!-- Quiet top toast while Triage or its Doc items load; fades out when loading ends -->
-    <div class="load-toast" role="status" x-show="docLoading || triageLoading" x-transition.opacity.duration.600ms x-cloak>
+    <div class="load-toast" role="status" x-show="loadToastVisible()" x-transition.opacity.duration.600ms x-cloak>
       <span class="material-symbols-outlined icon-18">hourglass_empty</span>
       <span x-text="docLoading ? 'Loading Doc items, the first load can take a minute...' : 'Loading Triage...'"></span>
     </div>

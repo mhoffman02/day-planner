@@ -542,6 +542,8 @@ Alpine.data('plannerApp', () => ({
       taskToast: null,
       taskToastUndo: null,
       taskToastTimer: null,
+      loadToastShown: false,
+      loadToastTimer: null,
 
       // Themed Day Calendar Picker state
       dayPickerOpen: false,
@@ -1594,6 +1596,7 @@ Alpine.data('plannerApp', () => ({
         }
         if (this.readGmailCooldown() > Date.now()) return Promise.resolve();
         this.triageLoading = true;
+        this.flashLoadToast();
         this.triageLoadPromise = (async () => {
           try {
             // Doc items go out with the board, not after it: the two server calls overlap almost for free.
@@ -1636,6 +1639,7 @@ Alpine.data('plannerApp', () => ({
       // Doc action items (Drive comments assigned to me) load on their own RPC so a Drive failure never blocks Gmail rows.
       async loadDocActionItems(refresh) {
         this.docLoading = true;
+        this.flashLoadToast();
         try {
           const res = await this.bridge.getDocActionItems(refresh === true);
           if (res && res.errorCode === 'FLAG_OFF') {
@@ -5732,6 +5736,17 @@ Alpine.data('plannerApp', () => ({
         if (!anchor) return;
         document.documentElement.style.setProperty('--toast-right', anchor.right + 'px');
         document.documentElement.style.setProperty('--toast-bottom', anchor.bottom + 'px');
+      },
+
+      // The loading toast shows at most 4 s per load start: a Doc load can run for minutes and the toast would cover the tabs.
+      flashLoadToast() {
+        clearTimeout(this.loadToastTimer);
+        this.loadToastShown = true;
+        this.loadToastTimer = setTimeout(() => { this.loadToastShown = false; }, 4000);
+      },
+
+      loadToastVisible() {
+        return this.loadToastShown && (this.docLoading || this.triageLoading);
       },
 
       // A toast with an undo stays longer (8s) so there is time to reach its Undo button.
