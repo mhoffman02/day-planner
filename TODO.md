@@ -23,7 +23,7 @@ No agent work remains here; the two items below are user decisions to leave base
 ### A5. Solid Code pilot follow-ups (2026-11-04; shipped items in TODO_HISTORY)
 
 Pilot branch `worktree-solid-code-pilot` (user merges, see HANDOFF) added the Node safety bans, complexity 15,
-`check-css.js` (baseline `css-baseline.json`: magic-color 0, important 200),
+`check-css.js` (baseline `css-baseline.json`: magic-color 0, important 123),
 `tools/edit-gate.js` PostToolUse hook, and the skill split (`~/.claude/skills/solid-code/{js,py,web,css}.md`).
 
 - [x] shell-string `exec`/`execSync` in `tools/` now `execFileSync` argv (2026-11-04).
@@ -42,6 +42,22 @@ Pilot branch `worktree-solid-code-pilot` (user merges, see HANDOFF) added the No
   Archive, Open Gmail; red = Delete. Check light and dark.
 - [ ] **Optional (user decides, default skip): Sheets data-validation dropdown (3,4,5) on the Hub Config `PreviewLines`
   cell.** It only constrains the cell; the server check in `getPreviewLines` (`gas-app/Config.gs`) stays.
+
+### A7. Triage Doc action items (2026-11-05; shipped items in TODO_HISTORY)
+
+- [ ] **Live check on WORK (user), HOME @406, WORK pushed, repoint pending (Update WORK):** (1) click X on a Doc row, wait
+  about 10 s, it stays gone; (2) wait through a Triage refresh, Doc rows stay on screen while the Doc load runs;
+  (3) the 240 s budget against 169+ Docs and the "N older file(s) not read" line. If a row still returns, check
+  `docRowsCacheClear_` logs, that `dismissDocItem` returns `ok` on WORK, and `DRY_RUN`.
+- [ ] **Not yet traced: "129 items, only showing most recent 50" with 0 rows shown (user, WORK 2026-11-05).** The reload
+  wipe fix (c8e03d1) explains rows vanishing; if the note still shows with 0 rows after the repoint, trace `limitDocRows`
+  and the hidden-count text.
+- [ ] **Later: migrate Drive v2 to v3** (separate TDD change, `DriveV3` Advanced Service is already used for comments).
+- [ ] **Optional (user decides, default skip): trim the other raw UTC stamps** (email `item.date`, meeting `start` and
+  `cutoffISO`, `c.start`) to local time like the last-run label (`formatLocalDateTime` in `src/hubUi.js`).
+- [ ] **Live check on HOME `/dev` over CDP**: last-run text matches `/^[A-Z][a-z]{2} \d{1,2}, \d{4} \d{1,2}:\d{2} (am|pm)$/`
+  and is local; the Show: 10/25/50/All toggle with the "N more hidden" line; `localStorage.dayPlannerDocRowLimit` persists
+  (reset it afterwards).
 
 ## For the session after next: needs the user (interactive / HITL)
 

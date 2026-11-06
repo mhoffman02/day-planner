@@ -394,3 +394,9 @@ live-testing catches it by luck.
 ## 2026-11-05 (Gmail summary parking lot)
 **Worked well:** Reading the AI Assist memory first settled the Docs-Gemini bridge as infeasible (cross-origin side panel) without a probe; the idea went to PLAN.md section 5 with the USAi option.
 **Needs improvement:** `EnterWorktree` bases on `master`, not `pure-gas-main`; reset to `pure-gas-main` before editing. A cherry-pick leaves the worktree branch looking unmerged to `prune-branches`; verify the diff, then delete.
+
+---
+
+## 2026-11-05 (Triage Doc items)
+**Worked well:** Red tests that model a slow in-flight RPC (a gate promise) reproduced both live races exactly; the fix for each was one line once the race was named.
+**Needs improvement:** The 240 s Doc load was tested only with instant mocks, so a dismiss or reload landing mid-load escaped. Model slow RPCs when a load can run minutes. The "showing 0" note is still untraced; verify live before closing.

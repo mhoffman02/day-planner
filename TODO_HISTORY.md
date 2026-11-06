@@ -1,5 +1,11 @@
 # Task History (TODO_HISTORY)
 
+## 2026-11-05 (evening) — Triage Doc action items (HOME @406, WORK pushed, repoint pending)
+
+- [x] **Drive "Follow-up" Doc comments assigned to me appear as Triage rows**, cached 300 s, cap 200 files with a 240 s budget, client Show: 10/25/50/All limit (`4073d72`, `77c9c3a`, `fa3f912`); WORK flag `DOC_ACTION_ITEMS` set by the user.
+- [x] **Triage "last run" in local time** like "Nov 6, 2026 4:29 pm" (`50edc48`, `formatLocalDateTime`).
+- [x] **Dismissed Doc item no longer returns** (server re-reads ledger dismissals after the slow load; client keeps a session set) and **Doc rows stay on screen during a board reload** (`c8e03d1`, `tests/hubDocActionItems.test.js`, `tests/triageDocRowsStay.test.js`).
+
 ## 2026-11-05 — CSS magic colors
 
 - [x] **`css-baseline.json` magic-color 126 to 0**: every single-use literal is now a `--c-<value>` token in `:root` (exact values, no merges), mirrored to `gas-app/Styles.html`. `!important` 200 remains the long tail.
