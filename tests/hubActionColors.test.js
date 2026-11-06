@@ -22,6 +22,7 @@ function actionButtons(html) {
       label: (m[2].match(/:aria-label="'([^:']+?)(?: \([^)]*\))?: '/) || [])[1],
       text: m[3].replace(/<span[^>]*>[^<]*<\/span>/g, '').replace(/<[^>]+>/g, '').trim(),
       hasIcon: /material-symbols-outlined/.test(m[3]),
+      inner: m[3],
     }));
 }
 
@@ -35,13 +36,17 @@ for (const file of ['index.html', 'gas-app/Index.html']) {
       if (TEAL.includes(b.label)) assert.ok(!quiet, `${b.label} stays teal`);
       if (QUIET.includes(b.label)) assert.ok(quiet, `${b.label} is muted`);
       if (b.label === 'Delete') assert.ok(/hub-action-danger/.test(b.attrs) && !quiet, 'Delete is red only');
-      if (b.label !== 'Open Gmail' && b.label !== 'Open Doc') assert.match(b.attrs, /:disabled="triageStale"/, `${b.label} keeps its stale lock`);
+      if (b.label !== 'Open Gmail' && b.label !== 'Open Doc') assert.match(b.attrs, /:disabled="triageStale/, `${b.label} keeps its stale lock`);
     }
   });
 
   test(`${file}: only the Task buttons are text buttons, the rest are icon-only with a title`, () => {
     for (const b of actionButtons(read(file))) {
-      if (TEXT_BUTTONS.includes(b.label)) {
+      if (b.label === 'Task Today' || b.label === 'Task Later') {
+        // The label sits in an x-text span so the button can swap to "Tasked ..." with a spinner or check beside it.
+        assert.ok(b.inner.includes('>' + b.label + '</span>'), `${b.label} keeps its text label`);
+        assert.match(b.attrs, /triageTaskDone\(item\) !== ''/, `${b.label} locks once done`);
+      } else if (TEXT_BUTTONS.includes(b.label)) {
         assert.ok(!b.hasIcon && b.text === b.label, `${b.label} keeps its text label`);
       } else {
         assert.ok(b.hasIcon, `${b.label} shows an icon`);

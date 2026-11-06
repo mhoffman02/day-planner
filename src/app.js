@@ -1808,7 +1808,8 @@ Alpine.data('plannerApp', () => ({
         this.savedDataNote = done.every(Boolean) ? 'Saved data cleared on this device. Triage fills again on its next refresh.' : 'Could not remove all saved data, see the browser console.';
       },
 
-      async runTriageAction(label, call, threadId, remove) {
+      // quiet: a success shows no banner or toast (the button itself shows the result); failures always do.
+      async runTriageAction(label, call, threadId, remove, quiet) {
         const taken = remove ? this.takeTriageRow(threadId) : null;
         try {
           const r = await call();
@@ -1816,7 +1817,7 @@ Alpine.data('plannerApp', () => ({
             this.dailyNeedsRefresh = true;
           }
           this.triageNotice = { kind: r.ok ? 'ok' : 'error', text: label + ': ' + r.message, url: r.targetUrl || null };
-          this.showTaskToast(this.triageNotice.text);
+          if (!(quiet && r.ok)) this.showTaskToast(this.triageNotice.text);
           if (!r.ok) {
             console.error('Triage action failed, row restored:', label, r);
             this.restoreTriageRow(taken);
@@ -1834,9 +1835,30 @@ Alpine.data('plannerApp', () => ({
         }
       },
 
-      triageTask(item, today) {
+      // Empty, today or later: which Task button is waiting on the server for this row.
+      triageTaskBusy(item) {
+        return item.taskBusy || '';
+      },
+
+      // Empty, today or later: set on success, or read back from the ledger after a board reload.
+      triageTaskDone(item) {
+        if (item.taskDone) return item.taskDone;
+        if (item.ledgerStatus !== 'DONE') return '';
+        const kind = ledgerOperationKind(item.operationKey);
+        return kind === 'TASK_TODAY' ? 'today' : kind === 'TASK' ? 'later' : '';
+      },
+
+      async triageTask(item, today) {
+        if (this.triageTaskBusy(item) || this.triageTaskDone(item)) return null;
         const priority = today ? (item.score >= 8 ? 'A1' : 'B1') : (item.score >= 4 ? 'B1' : 'C1');
-        return this.runTriageAction(today ? 'Task Today' : 'Task Later', () => this.bridge.routeThreadToTask(item.threadId, { today, priority, ...this.hubModeOpts() }), item.threadId);
+        item.taskBusy = today ? 'today' : 'later';
+        try {
+          const r = await this.runTriageAction(today ? 'Task Today' : 'Task Later', () => this.bridge.routeThreadToTask(item.threadId, { today, priority, ...this.hubModeOpts() }), item.threadId, false, true);
+          if (r && r.ok) item.taskDone = today ? 'today' : 'later';
+          return r;
+        } finally {
+          item.taskBusy = '';
+        }
       },
 
       dismissTriageEntry(item) {

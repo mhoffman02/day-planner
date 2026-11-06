@@ -41,10 +41,12 @@ describe('Triage action toast', () => {
   });
   for (const c of clients) {
     describe(c.label, () => {
-      it('a successful action toasts its label and message', async () => {
+      it('a successful Task Today stays quiet: the button shows the result (see triageTaskDone.test.js)', async () => {
         const { vm, toasts } = vmFor(c, { ok: true, status: 'DONE', operationKey: 'GMAIL|t1|TASK_TODAY', message: 'Task created' });
-        await vm.triageTask(item, true);
-        assert.deepEqual(toasts.map((t) => t.msg), ['Task Today: Task created']);
+        const own = { ...item };
+        vm.triageBoard = { ok: true, queues: { directAction: [own], meetingCarryIns: [], systemExceptions: [], fyiReading: [] } };
+        await vm.triageTask(own, true);
+        assert.deepEqual(toasts, []);
       });
       it('a failed result toasts the failure', async () => {
         const { vm, toasts } = vmFor(c, { ok: false, message: 'Gmail refused' });

@@ -5470,6 +5470,20 @@
     gap: 8px;
     pointer-events: none;
   }
+  /* FYI toasts sit top right, left of the Live and Refresh buttons: empty space near the eye, off the busy lists. */
+  .task-toast {
+    bottom: auto;
+    top: 12px;
+    right: 200px;
+    max-width: min(420px, calc(100vw - 232px));
+  }
+  @media (max-width: 767px) {
+    .task-toast {
+      top: 56px;
+      right: 12px;
+      max-width: calc(100vw - 24px);
+    }
+  }
   [data-theme="dark"] .time-machine-item.is-selected {
     background: var(--c-rgba-45-106-90-0p25);
     border-left-color: var(--dk-accent-text);
@@ -6869,6 +6883,11 @@
     margin-right: 4px;
     vertical-align: -3px;
     animation: btn-spin 1s linear infinite;
+  }
+
+  .hub-task-done {
+    margin-right: 4px;
+    vertical-align: -3px;
   }
 
   @keyframes btn-spin {
