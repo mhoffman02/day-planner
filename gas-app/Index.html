@@ -114,7 +114,7 @@
                 </button>
 
                 <!-- Themed Day Calendar Popover -->
-                <div class="day-picker-dropdown" x-show="dayPickerOpen" x-cloak>
+                <div class="day-picker-dropdown" x-show="dayPickerOpen" x-transition.opacity.duration.150ms x-cloak>
                   <div class="day-picker-header">
                     <button type="button" class="icon-nav-btn day-picker-nav-btn" @click.stop="navigateDayPickerMonth(-1)" title="Previous Month" aria-label="Previous Month">
                       <span class="material-symbols-outlined icon-16">chevron_left</span>
@@ -167,7 +167,7 @@
                   <span class="date-text-display" x-text="selectedMonthName + ' ' + selectedYear"></span>
                   <span class="material-symbols-outlined icon-14 dropdown-arrow" :class="{ 'arrow-up': monthPickerOpen }">arrow_drop_down</span>
                 </button>
-                <div class="month-picker-dropdown" x-show="monthPickerOpen" x-cloak>
+                <div class="month-picker-dropdown" x-show="monthPickerOpen" x-transition.opacity.duration.150ms x-cloak>
                   <div class="month-picker-year-nav">
                     <button type="button" class="icon-nav-btn" @click.stop="changeMonthPickerYear(-1)" aria-label="Previous Year" title="Previous Year">
                       <span class="material-symbols-outlined icon-16">chevron_left</span>
@@ -264,7 +264,7 @@
           <button type="button" class="view-options-btn" @click="viewOptionsOpen = !viewOptionsOpen" title="View options (size, theme)" aria-label="View options" aria-haspopup="true" :aria-expanded="viewOptionsOpen">
             <span class="material-symbols-outlined icon-18">tune</span>
           </button>
-          <div class="view-options-dropdown" x-show="viewOptionsOpen" x-cloak @keydown.escape.window="viewOptionsOpen = false">
+          <div class="view-options-dropdown" x-show="viewOptionsOpen" x-transition.opacity.duration.150ms x-cloak @keydown.escape.window="viewOptionsOpen = false">
             <div class="view-options-row" title="UI size (double-click to reset)" @dblclick="setUiZoom(100)">
               <span class="view-options-label">Size</span>
               <div class="ui-zoom">
@@ -625,7 +625,7 @@
                     <span class="material-symbols-outlined">tune</span>
                   </button>
                   
-                  <div class="dropdown-menu notes-filter-menu" x-show="noteFilterMenuOpen" @click.outside="noteFilterMenuOpen = false" x-cloak>
+                  <div class="dropdown-menu notes-filter-menu" x-show="noteFilterMenuOpen" x-transition.opacity.duration.150ms @click.outside="noteFilterMenuOpen = false" x-cloak>
                     <div class="dropdown-header">Filter &amp; Search Cards</div>
                     <div class="dropdown-item-group">
                       <input type="search" x-model="noteCardSearchQuery" placeholder="Search card heading, notes..." class="dropdown-search-input">
@@ -1016,7 +1016,7 @@
                 </template>
                 <span class="material-symbols-outlined icon-14 dropdown-arrow" :class="{ 'arrow-up': masterTaskDuePickerOpen }" x-show="!newMasterTaskDueDate">arrow_drop_down</span>
               </button>
-              <div class="day-picker-dropdown day-picker-dropdown-due" x-show="masterTaskDuePickerOpen" x-cloak>
+              <div class="day-picker-dropdown day-picker-dropdown-due" x-show="masterTaskDuePickerOpen" x-transition.opacity.duration.150ms x-cloak>
                 <div class="day-picker-header">
                   <button type="button" class="icon-nav-btn day-picker-nav-btn" @click.stop="navigateMasterTaskDuePickerMonth(-1)" title="Previous Month" aria-label="Previous Month">
                     <span class="material-symbols-outlined icon-16">chevron_left</span>
@@ -2113,7 +2113,7 @@
     </dialog>
 
     <!-- Toast Notification for Time Machine Restoration -->
-    <div class="time-machine-toast" x-show="timeMachineToast" x-cloak>
+    <div class="time-machine-toast" x-show="timeMachineToast" x-transition.opacity.duration.150ms x-cloak>
       <span class="material-symbols-outlined icon-18">check_circle</span>
       <span x-text="timeMachineToast"></span>
     </div>
