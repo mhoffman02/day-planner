@@ -234,6 +234,18 @@
             <span>Meeting Prep</span>
           </button>
         </template>
+        <template x-if="hubTabsPending">
+          <span class="segment-btn hub-tab-reserve" aria-hidden="true">
+            <span class="material-symbols-outlined icon-16">inbox</span>
+            <span>Triage</span>
+          </span>
+        </template>
+        <template x-if="hubTabsPending">
+          <span class="segment-btn hub-tab-reserve" aria-hidden="true">
+            <span class="material-symbols-outlined icon-16">event_note</span>
+            <span>Meeting Prep</span>
+          </span>
+        </template>
         <button type="button" class="segment-btn" :class="{ 'active': activeView === 'about' || activeView === 'tutorial' }" @click="setView('about')" :title="'Help & About' + (appBuildNumber ? ' — GH Build ' + appBuildNumber : '')">
           <span class="material-symbols-outlined icon-16">info</span>
           <span>About</span>

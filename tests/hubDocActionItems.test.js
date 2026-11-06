@@ -104,7 +104,7 @@ test('HubMock: Doc rows, dismiss hides them, Task lands in the mock task list', 
 // ---- cache, fan-out cap, negative memo, provenance ----
 const cacheKeys = (ctx) => [...ctx.__hub.cache.store.keys()];
 
-test('getDocActionItems: second call is a cache hit (no Drive calls), TTL 300s', () => {
+test('getDocActionItems: second call is a cache hit (no Drive calls), TTL 1800s', () => {
   const ctx = setup();
   const a = call(ctx, 'getDocActionItems');
   const listAfterFirst = ctx.__docStats.listCalls;
@@ -113,7 +113,7 @@ test('getDocActionItems: second call is a cache hit (no Drive calls), TTL 300s',
   assert.deepEqual(b.rows.map((x) => x.itemId), a.rows.map((x) => x.itemId));
   const key = cacheKeys(ctx).find((k) => k.startsWith('docItems'));
   assert.ok(key, 'rows cached');
-  assert.equal(ctx.__hub.cache.ttl.get(key), 300);
+  assert.equal(ctx.__hub.cache.ttl.get(key), 1800);
 });
 
 test('getDocActionItems: refresh=true bypasses the cache', () => {

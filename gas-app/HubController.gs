@@ -1517,7 +1517,7 @@ function docRowsCacheClear_() {
   try {
     CacheService.getUserCache().remove(DOC_ROWS_CACHE_KEY_);
   } catch (err) {
-    DPQueue.logSafe('Doc rows cache clear failed, the list may show a stale row for up to 5 minutes', err);
+    DPQueue.logSafe('Doc rows cache clear failed, the list may show a stale row for up to 30 minutes', err);
   }
 }
 
@@ -1553,7 +1553,7 @@ function docNegMemoWrite_(file) {
  * Doc action items (Drive comments assigned to the user) as Triage rows. A separate RPC from getTriageBoard
  * so a Drive failure can never blank the Gmail list. Read-only: no Drive write, comments are never resolved.
  * Comment text is returned for display only and is not written to the ledger.
- * Finished rows are cached 300 s (never when any file failed or the payload is over 90 KB); dismiss/route clear it.
+ * Finished rows are cached 1800 s (never when any file failed or the payload is over 90 KB); dismiss/route clear it.
  * At most DOC_ACTION_FILE_CAP files (newest first) are read per load, and reading stops after DOC_ACTION_TIME_BUDGET_MS;
  * `truncated` counts the rest. The cached list is always the full one (the display limit is client side). A file with no assigned comment
  * is remembered 6 h while its modifiedTime is unchanged, so comments.list is skipped for it.

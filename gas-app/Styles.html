@@ -1030,6 +1030,12 @@
     color: var(--tab-gold);
   }
 
+  /* Holds the place of the hub tabs until the hub status answers, so About does not jump. */
+  .hub-tab-reserve {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
   /* Compact Actions */
   .header-actions-compact {
     display: flex;

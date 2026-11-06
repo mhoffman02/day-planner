@@ -133,5 +133,17 @@ describe('hub cache wiring', () => {
       assert.equal(rows.has('triageBoard'), false);
       assert.equal(rows.has('docRows'), false);
     });
+
+    it(c.label + ': Clear saved data removes all three saved copies and the on-screen Meeting Prep', async () => {
+      seed('triageBoard', { savedAt: Date.now(), queues: {} });
+      seed('docRows', { rows: [], truncated: 0 });
+      seed('meetingPrep', { series: 'NCMMS_CORE', prep: { ok: true } });
+      const vm = vmFor();
+      vm.meetingPrep = { ok: true, carryInsText: 'x' };
+      await vm.clearSavedData();
+      assert.equal(rows.size, 0);
+      assert.equal(vm.meetingPrep, null);
+      assert.match(vm.savedDataNote, /cleared/i);
+    });
   }
 });

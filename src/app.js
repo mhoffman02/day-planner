@@ -325,6 +325,8 @@ Alpine.data('plannerApp', () => ({
 
       // Gmail / Meeting Hub (Triage + Meeting Prep). Hidden until getHubStatus reports flags ON.
       hubFlags: null,
+      hubStatusSettled: false,
+      savedDataNote: '',
       filedEmails: [],
       authApprovalUrl: null,
       authRechecking: false,
@@ -1273,6 +1275,11 @@ Alpine.data('plannerApp', () => ({
         return isHubViewVisible('meetingPrep', this.hubFlags);
       },
 
+      // First visit with no saved flags: the nav keeps room for the two hub tabs until the status answers.
+      get hubTabsPending() {
+        return !this.hubStatusSettled && this.hubFlags === null;
+      },
+
       get triageQueueList() {
         const queues = (this.triageBoard && this.triageBoard.queues) || {};
         return QUEUE_ORDER.map((key) => ({
@@ -1503,6 +1510,8 @@ Alpine.data('plannerApp', () => ({
           this.saveHubFlagsCache();
           this.clearTriageCache();
           console.error('Hub status unavailable, Triage and Meeting Prep stay hidden:', err.stack);
+        } finally {
+          this.hubStatusSettled = true;
         }
       },
 
@@ -1789,6 +1798,14 @@ Alpine.data('plannerApp', () => ({
         this.triageBoard = { queues: {} };
         this.triageStale = false;
         this.triageSavedAt = 0;
+      },
+
+      // About: wipes the email subjects, previews and Doc comment text kept in this browser for the next tab.
+      async clearSavedData() {
+        this.clearTriageCache();
+        this.meetingPrep = null;
+        const done = await Promise.all([hubCacheDelete('triageBoard'), hubCacheDelete('docRows'), hubCacheDelete('meetingPrep')]);
+        this.savedDataNote = done.every(Boolean) ? 'Saved data cleared on this device. Triage fills again on its next refresh.' : 'Could not remove all saved data, see the browser console.';
       },
 
       async runTriageAction(label, call, threadId, remove) {

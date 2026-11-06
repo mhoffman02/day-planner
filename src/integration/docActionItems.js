@@ -18,8 +18,8 @@ export const DOC_ACTION_SCORE_UNMATCHED = 4;
 export const DOC_ACTION_FILE_CAP = 200;
 /** Stop reading comments after this much elapsed time (GAS kills an execution at 6 min); the unread rest is counted as truncated. */
 export const DOC_ACTION_TIME_BUDGET_MS = 240000;
-/** Finished row list, user cache. */
-export const DOC_ACTION_CACHE_TTL_S = 300;
+/** Finished row list, user cache. 30 min: Refresh bypasses it, dismiss and route clear it, and the browser copy already shows first. */
+export const DOC_ACTION_CACHE_TTL_S = 1800;
 /** Per-file "no comment assigned to me" memo, valid while the file's modifiedTime is unchanged. */
 export const DOC_ACTION_MEMO_TTL_S = 21600;
 /** A serialized row list larger than this is returned but not cached (CacheService caps a value at 100 KB). */

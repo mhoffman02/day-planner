@@ -362,6 +362,11 @@
           </span>
         </div>
         </div>
+        <p class="guide-card-text">
+          <b>Saved on this device:</b> to open faster, this browser keeps the last Triage board (email subjects and previews), Doc comment text and Meeting Prep for up to 7 days.
+          <button type="button" class="about-action-btn" @click="clearSavedData()">Clear saved data</button>
+          <span class="hub-sheet-link-note" role="status" x-show="savedDataNote" x-text="savedDataNote"></span>
+        </p>
         <div id="gmail-labels-filters" class="guide-card-text hub-sheet-link" x-data="{
             tool: { busy: null, message: '', url: null, authUrl: null, failed: false },
             learn: null,

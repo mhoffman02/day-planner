@@ -78,7 +78,7 @@ test('a deleted comment is skipped and a missing userEmail fails loud', () => {
 test('cache and fan-out constants', () => {
   assert.equal(DOC_ACTION_FILE_CAP, 200);
   assert.equal(DOC_ACTION_TIME_BUDGET_MS, 240000);
-  assert.equal(DOC_ACTION_CACHE_TTL_S, 300);
+  assert.equal(DOC_ACTION_CACHE_TTL_S, 1800);
   assert.equal(DOC_ACTION_MEMO_TTL_S, 21600);
   assert.equal(DOC_ACTION_CACHE_MAX_BYTES, 90 * 1024);
 });
