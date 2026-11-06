@@ -1720,6 +1720,12 @@
           <a :href="selectedEvent?.gCalLink" target="_blank" rel="noopener noreferrer" class="btn-primary">
             <span class="material-symbols-outlined">calendar_today</span> Open in gCal
           </a>
+          <button type="button" class="btn-secondary" x-show="selectedEvent?.canEdit" @click="openEditEventModal(selectedEvent)">
+            <span class="material-symbols-outlined icon-16">edit</span> Edit
+          </button>
+          <button type="button" class="btn-secondary" x-show="selectedEvent?.canDelete" @click="requestDeleteEvent(selectedEvent)">
+            <span class="material-symbols-outlined icon-16">delete</span> Delete
+          </button>
           <button type="button" class="btn-secondary" @click="closeEventModal()">Close</button>
         </footer>
       </article>
@@ -1730,23 +1736,29 @@
       <article class="modal-card modal-card-form" @click.away="closeCreateEventModal()">
         <header class="modal-header-spaced">
           <h3 id="createEventModalTitle" class="modal-title-with-icon">
-            <span class="material-symbols-outlined">event</span> Add New Appointment
+            <span class="material-symbols-outlined">event</span> <span x-text="editingEvent ? 'Edit Appointment' : 'Add New Appointment'"></span>
           </h3>
           <button type="button" class="btn-icon-subtle" @click="closeCreateEventModal()" title="Close">
             <span class="material-symbols-outlined icon-18">close</span>
           </button>
         </header>
 
-        <form @submit.prevent="saveNewEvent()" class="create-event-form">
+        <form @submit.prevent="submitEventForm()" class="create-event-form">
           <div class="form-group">
             <label for="evtTitleInput" class="form-label">Appointment Title <span class="required-star">*</span></label>
             <input type="text" id="evtTitleInput" x-model="newEventData.title" placeholder="e.g. Client Strategy Sync" required class="form-input">
+          </div>
+
+          <div class="form-group" x-show="editingEvent" x-cloak>
+            <label for="evtDateInput" class="form-label">Date</label>
+            <input type="date" id="evtDateInput" x-model="newEventData.dateStr" :required="Boolean(editingEvent)" class="form-input">
           </div>
 
           <div class="form-row-2">
             <div class="form-group">
               <label for="evtStartTime" class="form-label">Start Time</label>
               <select id="evtStartTime" x-model="newEventData.startTime" class="form-select">
+                <template x-if="offGridTime(newEventData.startTime, '08:00', '17:00')"><option :value="newEventData.startTime" x-text="newEventData.startTime"></option></template>
                 <option value="08:00">08:00 AM</option>
                 <option value="08:30">08:30 AM</option>
                 <option value="09:00">09:00 AM</option>
@@ -1772,6 +1784,7 @@
             <div class="form-group">
               <label for="evtEndTime" class="form-label">End Time</label>
               <select id="evtEndTime" x-model="newEventData.endTime" class="form-select">
+                <template x-if="offGridTime(newEventData.endTime, '08:30', '17:30')"><option :value="newEventData.endTime" x-text="newEventData.endTime"></option></template>
                 <option value="08:30">08:30 AM</option>
                 <option value="09:00">09:00 AM</option>
                 <option value="09:30">09:30 AM</option>
@@ -1800,7 +1813,7 @@
             <input type="text" id="evtLocationInput" x-model="newEventData.location" placeholder="e.g. Conference Room A / Google Meet" class="form-input">
           </div>
 
-          <div class="form-group">
+          <div class="form-group" x-show="!editingEvent">
             <label class="form-check-label">
               <input type="checkbox" id="evtAddMeetInput" x-model="newEventData.addMeet" class="form-check-input">
               <span class="material-symbols-outlined icon-16" aria-hidden="true">videocam</span> Add Google Meet
@@ -1834,6 +1847,19 @@
             </div>
           </div>
 
+          <fieldset class="form-group" x-show="editingEvent?.recurringEventId" x-cloak>
+            <legend class="form-label">Change</legend>
+            <label class="form-check-label"><input type="radio" name="evtScope" value="this" x-model="eventScope" class="form-check-input"> This event</label>
+            <label class="form-check-label"><input type="radio" name="evtScope" value="all" x-model="eventScope" class="form-check-input"> All events (keeps each date, changes the time of day)</label>
+          </fieldset>
+
+          <div class="form-group" x-show="editingEvent?.guestCount > 0" x-cloak>
+            <label class="form-check-label">
+              <input type="checkbox" id="evtNotifyInput" x-model="eventNotify" class="form-check-input">
+              Email guests about this change
+            </label>
+          </div>
+
           <!-- Not-saved error shown inside the modal (the page error tray sits behind it) -->
           <aside class="error-banner" role="alert" x-show="createEventError" x-cloak>
             <div class="error-banner-content">
@@ -1843,18 +1869,51 @@
           </aside>
 
           <footer class="modal-form-actions">
-            <button type="button" class="btn-secondary btn-gcal-popup" @click="launchNativeGCalCreate()" title="Open pre-filled Google Calendar event creator window">
+            <button type="button" class="btn-secondary btn-gcal-popup" x-show="!editingEvent" @click="launchNativeGCalCreate()" title="Open pre-filled Google Calendar event creator window">
               <span class="material-symbols-outlined icon-16">open_in_new</span> Open Native gCal Window
             </button>
             <div class="action-right-group">
               <button type="button" class="btn-link" @click="closeCreateEventModal()">Cancel</button>
               <button type="submit" class="btn-primary" :disabled="createEventSaving">
-                <span class="material-symbols-outlined icon-16" x-text="createEventSaving ? 'hourglass_top' : 'add'"></span>
-                <span x-text="createEventSaving ? 'Creating…' : 'Create Appointment'"></span>
+                <span class="material-symbols-outlined icon-16" x-text="createEventSaving ? 'hourglass_top' : (editingEvent ? 'check' : 'add')"></span>
+                <span x-text="createEventSaving ? (editingEvent ? 'Saving…' : 'Creating…') : (editingEvent ? 'Save Changes' : 'Create Appointment')"></span>
               </button>
             </div>
           </footer>
         </form>
+      </article>
+    </dialog>
+
+    <!-- Delete Appointment: asked only when there is a choice (recurring series or guests) -->
+    <dialog class="modal-backdrop" :open="deletePromptOpen" x-show="deletePromptOpen" x-cloak aria-labelledby="deleteEventTitle" @click.self="cancelDeleteEvent()">
+      <article class="modal-card modal-card-form" @click.away="cancelDeleteEvent()">
+        <header class="modal-header-spaced">
+          <h3 id="deleteEventTitle" class="modal-title" x-text="'Delete ' + (deleteTarget?.title || 'appointment') + '?'"></h3>
+          <button type="button" class="btn-icon-subtle" @click="cancelDeleteEvent()" title="Close">
+            <span class="material-symbols-outlined icon-18">close</span>
+          </button>
+        </header>
+        <div class="create-event-form">
+          <fieldset class="form-group" x-show="deleteTarget?.recurringEventId" x-cloak>
+            <legend class="form-label">Delete</legend>
+            <label class="form-check-label"><input type="radio" name="evtDeleteScope" value="this" x-model="eventScope" class="form-check-input"> This event</label>
+            <label class="form-check-label"><input type="radio" name="evtDeleteScope" value="all" x-model="eventScope" class="form-check-input"> All events</label>
+          </fieldset>
+          <div class="form-group" x-show="deleteTarget?.guestCount > 0" x-cloak>
+            <label class="form-check-label">
+              <input type="checkbox" x-model="eventNotify" class="form-check-input">
+              Email guests that it was cancelled
+            </label>
+          </div>
+          <footer class="modal-form-actions">
+            <div class="action-right-group">
+              <button type="button" class="btn-link" @click="cancelDeleteEvent()">Cancel</button>
+              <button type="button" class="btn-primary" @click="confirmDeleteEvent()">
+                <span class="material-symbols-outlined icon-16">delete</span> Delete
+              </button>
+            </div>
+          </footer>
+        </div>
       </article>
     </dialog>
 
@@ -2170,7 +2229,7 @@
     <div class="task-toast" :class="{ 'is-anchored': taskToastAnchored }" role="status" x-show="taskToast" x-transition.opacity.duration.300ms x-cloak>
       <span class="material-symbols-outlined icon-18">arrow_forward</span>
       <span x-text="taskToast"></span>
-      <button type="button" class="hub-snack-btn task-toast-btn" x-show="taskToastUndo" @click="undoForward(taskToastUndo)">Undo</button>
+      <button type="button" class="hub-snack-btn task-toast-btn" x-show="taskToastUndo" @click="runToastUndo(taskToastUndo)">Undo</button>
     </div>
 
     <!-- Global Autocomplete Category Suggestions Datalist -->

@@ -463,7 +463,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 703;
+const BUILD_NUMBER_ = 704;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -1234,8 +1234,35 @@ function mapCalendarApiEvent_(evt) {
     meetLink: extractMeetLinkFromEvent_(evt),
     htmlLink: evt.htmlLink || null,
     syncTaskId: (evt.extendedProperties && evt.extendedProperties.shared && evt.extendedProperties.shared.gasTaskId) || null,
-    myResponse: selfResponseStatus_(evt.attendees)
+    myResponse: selfResponseStatus_(evt.attendees),
+    etag: evt.etag || null,
+    recurringEventId: evt.recurringEventId || null,
+    guestCount: (evt.attendees || []).filter(function(a) { return a && !a.self; }).length,
+    canEdit: canModifyEvent_(evt),
+    canDelete: canModifyEvent_(evt)
   };
+}
+
+/**
+ * Raw Calendar.Events fields the client mapper needs; one string for every list call.
+ * @returns {string} Calendar API fields mask for events.list items.
+ */
+function calendarEventFields_() {
+  return 'id,etag,summary,start,end,location,description,hangoutLink,conferenceData,htmlLink,extendedProperties,recurringEventId,eventType,guestsCanModify,organizer(self),attendees(self,responseStatus)';
+}
+
+/**
+ * True when I may edit or delete this event as Google Calendar would offer it: a plain timed event
+ * that I organize, or one whose guests may modify it. Special types (out of office, focus time,
+ * working location, birthday, Gmail) and all-day events stay read-only here.
+ * @param {Object} evt Raw Calendar.Events item.
+ * @returns {boolean}
+ */
+function canModifyEvent_(evt) {
+  const type = evt.eventType || 'default';
+  if (type !== 'default') return false;
+  if (!(evt.start && evt.start.dateTime)) return false;
+  return !!((evt.organizer && evt.organizer.self === true) || evt.guestsCanModify === true);
 }
 
 /**
@@ -1330,7 +1357,7 @@ function getDailyData(dateStr) {
           singleEvents: true,
           maxResults: 250,
           conferenceDataVersion: 1,
-          fields: 'items(id,summary,start,end,location,description,hangoutLink,conferenceData,htmlLink,extendedProperties,attendees(self,responseStatus))'
+          fields: 'items(' + calendarEventFields_() + ')'
         });
         result.calendarEvents = (dayResp.items || []).map(mapCalendarApiEvent_);
       } catch (calErr) {
@@ -1652,6 +1679,104 @@ function createCalendarEvent(payload) {
   return out;
 }
 
+/**
+ * Edits an appointment (the same fields as createCalendarEvent), as Google Calendar does.
+ * scope 'this' (default) patches the event or occurrence; 'all' patches the series master with the new
+ * times on the series' own start date. notify true emails the guests; otherwise nobody is told. A changed
+ * etag (the event was edited elsewhere since it was loaded) is refused, never overwritten.
+ * @param {string} eventId Event or occurrence id.
+ * @param {Object} payload Same shape as createCalendarEvent (title, dateStr, startTime, endTime, description?, location?).
+ * @param {{scope: (string|undefined), notify: (boolean|undefined), etag: (string|undefined)}=} opts
+ * @returns {Object} The saved event, in the getDailyData calendarEvents shape (the occurrence for scope all).
+ * @throws {Error} 'Invalid event: ...' for bad input; a friendly message when not allowed, stale or Calendar fails.
+ */
+function updateCalendarEvent(eventId, payload, opts) {
+  DPEngines.v_.guard(arguments, 'updateCalendarEvent').param('eventId').string().param('payload').object().param('opts').object().optional().nullable().done();
+  const o = opts || {};
+  const ev = validateCalendarEventPayload_(payload);
+  requireCalendarService_('so the event was not changed');
+  const tz = primaryCalendarTimeZone_('so the event was not changed');
+  try {
+    const current = loadEditableEvent_(eventId, o.etag);
+    const useSeries = Boolean(o.scope === 'all' && current.recurringEventId);
+    const targetId = useSeries ? current.recurringEventId : eventId;
+    const day = useSeries ? seriesStartDay_(targetId) : ev.dateStr;
+    const patched = Calendar.Events.patch(eventPatchBody_(ev, day, tz), 'primary', targetId, { sendUpdates: o.notify === true ? 'all' : 'none' });
+    if (!patched || !patched.id) throw new Error('Calendar.Events.patch returned no event');
+    return mapCalendarApiEvent_(useSeries ? Calendar.Events.get('primary', eventId) : patched);
+  } catch (err) {
+    logError('updateCalendarEvent(' + eventId + ')', err);
+    throw editFailure_(err, ev.title);
+  }
+}
+
+/** Calendar Advanced Service must be on; the reason says what did not happen. */
+function requireCalendarService_(outcome) {
+  if (typeof Calendar === 'undefined' || !Calendar.Events || !Calendar.Calendars) {
+    throw new Error('Google Calendar is not available, ' + outcome + '.');
+  }
+}
+
+/** The error an edit surfaces: a refusal keeps its own words, anything else says nothing was changed. */
+function editFailure_(err, title) {
+  if (/not allowed to edit|changed in Google Calendar/.test(err.message || '')) return err;
+  return new Error('Could not save the changes to "' + title + '" in Google Calendar (' + (err.message || err) + '). Nothing was changed.', { cause: err });
+}
+
+/** Gets an event for editing; refuses one the user may not change or one edited elsewhere since it was opened (etag). */
+function loadEditableEvent_(eventId, etag) {
+  const current = Calendar.Events.get('primary', eventId);
+  if (!canModifyEvent_(current)) throw new Error('You are not allowed to edit this event.');
+  if (etag && current.etag && etag !== current.etag) {
+    throw new Error('This event changed in Google Calendar after you opened it. Reload the day and edit again.');
+  }
+  return current;
+}
+
+/** Start date (YYYY-MM-DD) of a recurring series master: a series edit changes the time, not the first day. */
+function seriesStartDay_(masterId) {
+  const master = Calendar.Events.get('primary', masterId);
+  return String((master.start && master.start.dateTime) || '').slice(0, 10);
+}
+
+/** Calendar patch resource for an edited, validated appointment on the given day. */
+function eventPatchBody_(ev, day, tz) {
+  return {
+    summary: ev.title,
+    description: ev.description,
+    location: ev.location,
+    start: { dateTime: day + 'T' + ev.startTime + ':00', timeZone: tz },
+    end: { dateTime: day + 'T' + ev.endTime + ':00', timeZone: tz }
+  };
+}
+
+/**
+ * Deletes an appointment. scope 'this' (default) removes the event or one occurrence; 'all' removes the
+ * whole series. notify true emails the guests.
+ * @param {string} eventId Event or occurrence id.
+ * @param {{scope: (string|undefined), notify: (boolean|undefined)}=} opts
+ * @returns {{id: string, deleted: boolean, scope: string}}
+ * @throws {Error} When not allowed or Calendar fails; nothing is deleted then.
+ */
+function deleteCalendarEvent(eventId, opts) {
+  DPEngines.v_.guard(arguments, 'deleteCalendarEvent').param('eventId').string().param('opts').object().optional().nullable().done();
+  const o = opts || {};
+  if (typeof Calendar === 'undefined' || !Calendar.Events) {
+    throw new Error('Google Calendar is not available, so the event was not deleted.');
+  }
+  try {
+    const current = Calendar.Events.get('primary', eventId);
+    if (!canModifyEvent_(current)) throw new Error('You are not allowed to delete this event.');
+    const useSeries = o.scope === 'all' && current.recurringEventId;
+    Calendar.Events.remove('primary', useSeries ? current.recurringEventId : eventId, { sendUpdates: o.notify === true ? 'all' : 'none' });
+    return { id: eventId, deleted: true, scope: useSeries ? 'all' : 'this' };
+  } catch (err) {
+    logError('deleteCalendarEvent(' + eventId + ')', err);
+    if (/not allowed to delete/.test(err.message || '')) throw err;
+    throw new Error('The event was not deleted (' + (err.message || err) + ').', { cause: err });
+  }
+}
+
 /** Plain insert on the primary calendar that throws when the response has no event id. */
 function insertEventChecked_(resource) {
   const created = Calendar.Events.insert(resource, 'primary');
@@ -1801,7 +1926,7 @@ function getDailyDataRange(startDateStr, endDateStr) {
         singleEvents: true,
         maxResults: 250,
         conferenceDataVersion: 1,
-        fields: 'items(id,summary,start,end,location,description,hangoutLink,conferenceData,htmlLink,extendedProperties,attendees(self,responseStatus)),nextPageToken'
+        fields: 'items(' + calendarEventFields_() + '),nextPageToken'
       };
       if (calPageToken) calParams.pageToken = calPageToken;
       const calResp = Calendar.Events.list('primary', calParams);
@@ -3820,6 +3945,8 @@ global.forwardMasterTask = forwardMasterTask;                // google.script.ru
 global.undoMasterForward = undoMasterForward;                // google.script.run: Script.html
 global.createCalendarEvent = createCalendarEvent;            // google.script.run: Script.html
 global.setEventRsvp = setEventRsvp;                          // google.script.run: Script.html
+global.updateCalendarEvent = updateCalendarEvent;            // google.script.run: Script.html
+global.deleteCalendarEvent = deleteCalendarEvent;            // google.script.run: Script.html
 
 // Cross-file only (not reachable from any client/template/trigger/IDE surface above, but needed
 // by other .gs files' own IIFEs since GAS has no import statement -- this global object is the
@@ -3861,6 +3988,8 @@ global._forwardMasterTaskInternal = forwardMasterTask;
 global._undoMasterForwardInternal = undoMasterForward;
 global._createCalendarEventInternal = createCalendarEvent;
 global._setEventRsvpInternal = setEventRsvp;
+global._updateCalendarEventInternal = updateCalendarEvent;
+global._deleteCalendarEventInternal = deleteCalendarEvent;
 global._addMasterTaskInternal = addMasterTask;
 global._updateMasterTaskInternal = updateMasterTask;
 global._deleteMasterTaskInternal = deleteMasterTask;
@@ -4008,6 +4137,14 @@ function undoMasterForward(masterTaskId, copyTaskId, prevStatus) {
 
 function createCalendarEvent(payload) {
   return (typeof _createCalendarEventInternal === 'function') ? _createCalendarEventInternal(payload) : (globalThis._createCalendarEventInternal ? globalThis._createCalendarEventInternal(payload) : null);
+}
+
+function updateCalendarEvent(eventId, payload, opts) {
+  return (typeof _updateCalendarEventInternal === 'function') ? _updateCalendarEventInternal(eventId, payload, opts) : (globalThis._updateCalendarEventInternal ? globalThis._updateCalendarEventInternal(eventId, payload, opts) : null);
+}
+
+function deleteCalendarEvent(eventId, opts) {
+  return (typeof _deleteCalendarEventInternal === 'function') ? _deleteCalendarEventInternal(eventId, opts) : (globalThis._deleteCalendarEventInternal ? globalThis._deleteCalendarEventInternal(eventId, opts) : null);
 }
 
 function setEventRsvp(eventId, response) {

@@ -464,7 +464,12 @@ export class GASBridge {
         meetLink: null,
         htmlLink: 'https:' + '/' + `/calendar.google.com/calendar/event?eid=${id}`,
         syncTaskId: null,
-        myResponse: null
+        myResponse: null,
+        etag: '"1"',
+        recurringEventId: null,
+        guestCount: 0,
+        canEdit: true,
+        canDelete: true
       };
       if (p.addMeet === true && !this.mockMeetError) {
         const letters = (n) => Array.from({ length: n }, (_, i) => String.fromCharCode(97 + ((this.mockEventSeq * 7 + i * 3) % 26))).join('');
@@ -488,6 +493,69 @@ export class GASBridge {
         .withSuccessHandler(resolve)
         .withFailureHandler(reject)
         .createCalendarEvent(payload);
+    });
+  }
+
+  /**
+   * Edits a calendar event (RPC updateCalendarEvent), same payload as createCalendarEvent.
+   * @param {string} eventId Event or occurrence id.
+   * @param {object} payload title, dateStr, startTime, endTime, description?, location?.
+   * @param {{scope?: string, notify?: boolean, etag?: string}} [opts] scope this|all; notify emails guests; etag refuses a stale edit.
+   * @returns {Promise<object>} The saved event in the getDailyData calendarEvents shape.
+   */
+  async updateCalendarEvent(eventId, payload, opts = {}) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      return this.mockUpdateEvent_(eventId, payload || {});
+    }
+
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .updateCalendarEvent(eventId, payload, opts);
+    });
+  }
+
+  /** Mock path of updateCalendarEvent: edits the stored event and moves it when the date changed. */
+  mockUpdateEvent_(eventId, p) {
+    const days = this.mockData.calendarEvents;
+    const key = Object.keys(days).find(k => days[k].some(e => e.id === eventId));
+    const evt = key && days[key].find(e => e.id === eventId);
+    if (!evt) throw new Error('Could not save the changes: the event no longer exists.');
+    if (!p.title || !String(p.title).trim()) throw new Error('Invalid event: a title is required.');
+    const offset = evt.startTime.slice(19);
+    Object.assign(evt, {
+      title: String(p.title).trim(),
+      startTime: `${p.dateStr}T${p.startTime}:00${offset}`,
+      endTime: `${p.dateStr}T${p.endTime}:00${offset}`,
+      location: p.location || '',
+      description: p.description || ''
+    });
+    if (key !== p.dateStr) {
+      days[key] = days[key].filter(e => e !== evt);
+      days[p.dateStr] = [...(days[p.dateStr] || []), evt];
+    }
+    return { ...evt };
+  }
+
+  /**
+   * Deletes a calendar event (RPC deleteCalendarEvent).
+   * @param {string} eventId Event or occurrence id.
+   * @param {{scope?: string, notify?: boolean}} [opts] scope this|all; notify emails guests.
+   * @returns {Promise<{id: string, deleted: boolean, scope: string}>}
+   */
+  async deleteCalendarEvent(eventId, opts = {}) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      const days = this.mockData.calendarEvents;
+      Object.keys(days).forEach(k => { days[k] = days[k].filter(e => e.id !== eventId); });
+      return { id: eventId, deleted: true, scope: 'this' };
+    }
+
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .deleteCalendarEvent(eventId, opts);
     });
   }
 

@@ -24,6 +24,8 @@ const CASES = [
   ['deleteDailyTask', ['2026-08-15', 't1'], 'deleteDailyTask', ['t1']],
   ['createCalendarEvent', [{ title: 'E' }], 'createCalendarEvent', [{ title: 'E' }]],
   ['setEventRsvp', ['e1', 'yes'], 'setEventRsvp', ['e1', 'yes']],
+  ['updateCalendarEvent', ['e1', { title: 'E' }, { scope: 'all' }], 'updateCalendarEvent', ['e1', { title: 'E' }, { scope: 'all' }]],
+  ['deleteCalendarEvent', ['e1', { notify: true }], 'deleteCalendarEvent', ['e1', { notify: true }]],
   ['forwardDailyTask', ['2026-08-15', 't1', '2026-08-16'], 'forwardDailyTask', ['2026-08-15', 't1', '2026-08-16']],
   ['delegateDailyTask', ['2026-08-15', 't1', '2026-08-20', 'Bob'], 'delegateDailyTask', ['2026-08-15', 't1', '2026-08-20', 'Bob']],
   ['updateMasterTask', ['m1', { title: 'x' }], 'updateMasterTask', ['m1', { title: 'x' }]],

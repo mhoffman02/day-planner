@@ -524,8 +524,16 @@ Alpine.data('plannerApp', () => ({
         endTime: '10:00',
         location: '',
         description: '',
-        addMeet: false
+        addMeet: false,
+        dateStr: ''
       },
+      // Edit mode reuses the create modal: editingEvent holds the event being changed (null = creating).
+      editingEvent: null,
+      eventScope: 'this',
+      eventNotify: false,
+      deletePromptOpen: false,
+      deleteTarget: null,
+      eventDeleteTimers: {},
 
       searchModalOpen: false,
       searchQuery: '',
@@ -6071,10 +6079,47 @@ Alpine.data('plannerApp', () => ({
           endTime: '10:00',
           location: '',
           description: '',
-          addMeet: false
+          addMeet: false,
+          dateStr: this.selectedDate
         };
+        this.editingEvent = null;
         this.createEventError = null;
         this.createEventModalOpen = true;
+      },
+
+      // Edit reuses the create modal, prefilled. Only events I may change (canEdit from the server) open.
+      openEditEventModal(evt) {
+        if (!evt || !evt.canEdit || !evt.startTime) return;
+        this.closeEventModal();
+        this.newEventData = {
+          title: evt.title || '',
+          startTime: evt.startTime.slice(11, 16),
+          endTime: (evt.endTime || '').slice(11, 16),
+          location: evt.location || '',
+          description: evt.description || '',
+          addMeet: false,
+          dateStr: evt.startTime.slice(0, 10)
+        };
+        this.editingEvent = {
+          id: evt.id,
+          etag: evt.etag || null,
+          recurringEventId: evt.recurringEventId || null,
+          guestCount: evt.guestCount || 0,
+          dateStr: evt.startTime.slice(0, 10)
+        };
+        this.eventScope = 'this';
+        this.eventNotify = false;
+        this.createEventError = null;
+        this.createEventModalOpen = true;
+      },
+
+      // True for a time the 30-minute picker lacks (kept as an extra option while editing).
+      offGridTime(time, lo, hi) {
+        return Boolean(this.editingEvent && time && (time < lo || time > hi || !/:(00|30)$/.test(time)));
+      },
+
+      submitEventForm() {
+        return this.editingEvent ? this.saveEditedEvent() : this.saveNewEvent();
       },
 
       closeCreateEventModal() {
@@ -6134,18 +6179,135 @@ Alpine.data('plannerApp', () => ({
           console.error(`🔥 saveNewEvent: event ${evt.id} on ${dateStr} saved, but Google Meet was not added:`, meetError);
           this.reportError(`meet:${evt.id}`, `Appointment "${evt.title || payload.title}" was saved, but Google Meet was not added: ${meetError}`);
         }
+        this.placeEventOnDay(dateStr, evt);
+        this.createEventModalOpen = false;
+      },
+
+      // Puts an event on a day: the live list when that day is open, else that day cache copy.
+      placeEventOnDay(dateStr, evt) {
         if (dateStr === this.selectedDate) {
           this.calendarEvents.push(evt);
           this.buildScheduleGrid();
           this.syncDailyCacheFromLiveState(dateStr);
-        } else {
-          const entry = getCached(dateStr);
-          if (entry) {
-            setCached(dateStr, { ...entry, calendarEvents: [...(entry.calendarEvents || []), evt] });
-            this.bumpDailyEditSeq(dateStr);
-          }
+          return;
         }
+        const entry = getCached(dateStr);
+        if (!entry) return;
+        setCached(dateStr, { ...entry, calendarEvents: [...(entry.calendarEvents || []), evt] });
+        this.bumpDailyEditSeq(dateStr);
+      },
+
+      removeEventFromDay(dateStr, id) {
+        if (dateStr === this.selectedDate) {
+          this.calendarEvents = this.calendarEvents.filter(e => e.id !== id);
+          this.buildScheduleGrid();
+          this.syncDailyCacheFromLiveState(dateStr);
+          return;
+        }
+        const entry = getCached(dateStr);
+        if (!entry) return;
+        setCached(dateStr, { ...entry, calendarEvents: (entry.calendarEvents || []).filter(e => e.id !== id) });
+        this.bumpDailyEditSeq(dateStr);
+      },
+
+      // Saves the edit (updateCalendarEvent RPC) and shows it only once Google returned the event. The
+      // etag guards against overwriting a change made in Google Calendar; guests hear about it only when asked.
+      async saveEditedEvent() {
+        const form = this.newEventData;
+        const ed = this.editingEvent;
+        if (!ed || !form.title.trim() || this.createEventSaving) return;
+        const payload = {
+          title: form.title.trim(),
+          dateStr: form.dateStr || ed.dateStr,
+          startTime: form.startTime,
+          endTime: form.endTime,
+          description: form.description || '',
+          location: form.location || ''
+        };
+        const opts = { scope: ed.recurringEventId ? this.eventScope : 'this', notify: ed.guestCount > 0 && this.eventNotify, etag: ed.etag };
+        this.createEventSaving = true;
+        this.createEventError = null;
+        let saved;
+        try {
+          saved = await callBridge(this.bridge, [['updateCalendarEvent', [ed.id, payload, opts]]], 'appointment');
+          if (!saved || !saved.id) throw new Error('Not saved: Google Calendar did not return the changed event.');
+        } catch (err) {
+          console.error(`🔥 saveEditedEvent: updateCalendarEvent failed for ${ed.id}; nothing changed, modal kept open with the input:`, err.stack);
+          const msg = err.message || err.toString();
+          this.createEventError = /not saved/i.test(msg) ? msg : `Appointment NOT saved: ${msg}`;
+          return;
+        } finally {
+          this.createEventSaving = false;
+        }
+        this.removeEventFromDay(ed.dateStr, ed.id);
+        this.placeEventOnDay((saved.startTime || '').slice(0, 10) || payload.dateStr, saved);
         this.createEventModalOpen = false;
+        this.editingEvent = null;
+      },
+
+      // Delete asks first only when a choice exists (recurring series, or guests to notify).
+      requestDeleteEvent(evt) {
+        if (!evt || !evt.canDelete) return;
+        if (evt.recurringEventId || evt.guestCount > 0) {
+          this.deleteTarget = evt;
+          this.eventScope = 'this';
+          this.eventNotify = false;
+          this.deletePromptOpen = true;
+          return;
+        }
+        this.startEventDelete(evt, 'this', false);
+      },
+
+      confirmDeleteEvent() {
+        const evt = this.deleteTarget;
+        this.deletePromptOpen = false;
+        this.deleteTarget = null;
+        if (!evt) return;
+        this.startEventDelete(evt, evt.recurringEventId ? this.eventScope : 'this', evt.guestCount > 0 && this.eventNotify);
+      },
+
+      cancelDeleteEvent() {
+        this.deletePromptOpen = false;
+        this.deleteTarget = null;
+      },
+
+      // Hides the event now and sends the delete only after the 8 s Undo window. Closing the tab inside it
+      // means nothing was deleted. A linked task is left alone, and the toast says so.
+      startEventDelete(evt, scope, notify) {
+        const dateStr = this.selectedDate;
+        const undo = { kind: 'eventDelete', evt, dateStr, scope, notify };
+        this.removeEventFromDay(dateStr, evt.id);
+        this.closeEventModal();
+        const taskNote = evt.syncTaskId ? ' Its linked task is unchanged.' : '';
+        this.showTaskToast(`Deleted "${evt.title || 'appointment'}".${taskNote}`, undo);
+        this.eventDeleteTimers[evt.id] = setTimeout(() => this.commitEventDelete(undo), 8000);
+      },
+
+      async commitEventDelete(undo) {
+        const { evt, dateStr, scope, notify } = undo;
+        delete this.eventDeleteTimers[evt.id];
+        try {
+          await callBridge(this.bridge, [['deleteCalendarEvent', [evt.id, { scope, notify }]]], 'appointment');
+        } catch (err) {
+          console.error(`🔥 commitEventDelete: deleteCalendarEvent failed for ${evt.id}; the event is shown again:`, err.stack);
+          this.placeEventOnDay(dateStr, evt);
+          this.reportError(`event-delete:${evt.id}`, `Appointment "${evt.title || 'appointment'}" was not deleted: ${err.message || err}`);
+        }
+      },
+
+      undoEventDelete(undo) {
+        clearTimeout(this.eventDeleteTimers[undo.evt.id]);
+        delete this.eventDeleteTimers[undo.evt.id];
+        clearTimeout(this.taskToastTimer);
+        this.taskToast = null;
+        this.taskToastUndo = null;
+        this.placeEventOnDay(undo.dateStr, undo.evt);
+      },
+
+      // One Undo button for every toast: routes to the matching undo.
+      runToastUndo(undo) {
+        if (undo && undo.kind === 'eventDelete') return this.undoEventDelete(undo);
+        return this.undoForward(undo);
       },
 
       openSearchModal() {
