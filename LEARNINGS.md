@@ -403,6 +403,10 @@ live-testing catches it by luck.
 
 ---
 
+## 2026-11-06 (load speed, follow-ups)
+**Worked well:** Timing `getHubStatus` (3 s) next to a trivial RPC (1.2-2 s) over CDP before building QW4 showed the split would save about 1 s, so it was dropped instead of built.
+**Needs improvement:** Raising a cache TTL broke a second test that hard-coded 300 (`tests/hubDocActionItems.test.js`); grep tests for the old value before changing a constant.
+
 ## 2026-11-06 (load speed, hub cache)
 **Worked well:** An architect pass with measurements first (shell 4.2 s vs 2 s floor) showed the cost was the sync in `doGet`, not the caches; moving it behind first paint was one small change.
 **Needs improvement:** The harness's immediate timers fire a 2 s open timeout on the next tick, so IndexedDB tests need real timers. A deliberate behavior change (restored board always refreshes) broke an old test that asserted the opposite; update it in the same commit.

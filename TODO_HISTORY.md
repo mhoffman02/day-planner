@@ -5,6 +5,7 @@
 - [x] **QW1: the 2-Way Sync pass left `doGet`**; it runs as `runBackgroundSync` after first paint (`c716b0c`).
 - [x] **QW3: Triage board and Doc items requested in parallel**, board prefetch starts from saved flags (`38bf3dc`).
 - [x] **Quiet loading toast; Triage and Meeting Prep tabs paint from saved hub flags** (`33fcc6d`).
+- [x] **QW2 hub tab room reserved on a first visit; QW5 server Doc rows cache 5 to 30 min; Clear saved data on About** (`90ccb30`, HOME @416).
 - [x] **Option 1: hub cache in IndexedDB `day-planner-hub`** (board, Doc rows, Meeting Prep; 7-day max age; restored board always refreshes) (`aff529a`, `src/hubCache.js`, `tests/hubCache*.test.js`).
 
 ## 2026-11-05 (evening) — Triage Doc action items (HOME @406, WORK pushed, repoint pending)

@@ -44,21 +44,17 @@ Pilot branch `worktree-solid-code-pilot` (user merges, see HANDOFF) added the No
 - [ ] **Optional (user decides, default skip): Sheets data-validation dropdown (3,4,5) on the Hub Config `PreviewLines`
   cell.** It only constrains the cell; the server check in `getPreviewLines` (`gas-app/Config.gs`) stays.
 
-### A8. Load speed: hub cache in IndexedDB (2026-11-06; QW1, QW3 and Option 1 shipped, see TODO_HISTORY)
+- [ ] **A6 add (2026-11-06): Task Today / Task Later done state.** After success the button disables and reads "Tasked today" / "Tasked later" with a check icon (user also asked for options, ranking in the reply of 2026-11-06). Needs the user's pick of style; default: relabel plus check, both buttons lock. Archive already removes the row (`archiveTriageEntry` passes remove=true), so only a failed or stale case could leave it; ask the user for the item.
 
-Shipped on HOME @414 (`aff529a`), NOT on WORK yet. Live HOME check (CDP): the saved board shows 0.5 s after the frame
-loads, marked stale; the refresh finishes about 6 s.
-- [ ] **WORK storage probe (user, due before `npm run push:work`).** On the GSA machine, in the WORK app tab console
-  (frame context = the app iframe), run:
-  `(async()=>{const o=indexedDB.open('probe-hub');const db=await new Promise((r,j)=>{o.onupgradeneeded=()=>o.result.createObjectStore('e',{keyPath:'k'});o.onsuccess=()=>r(o.result);o.onerror=()=>j(o.error)});const tx=db.transaction('e','readwrite');tx.objectStore('e').put({k:1,v:'x'});await new Promise((r,j)=>{tx.oncomplete=r;tx.onerror=()=>j(tx.error)});const g=await new Promise(r=>{const q=db.transaction('e').objectStore('e').get(1);q.onsuccess=()=>r(q.result)});db.close();indexedDB.deleteDatabase('probe-hub');return g&&g.v==='x'?'IDB OK':'IDB FAIL'})()`
-  Then reload the tab and run `indexedDB.databases()`; `day-planner-cache` must still be listed (data survives a reload).
-  Pass = both. Fail = keep WORK on the previous version (the code has no off switch; ask for one first).
-- [ ] After the probe passes, run `npm run push:work`, then "Update WORK". Check on WORK: second visit paints the saved
-  Triage board and Doc rows right away, marked stale, and the refresh replaces them.
-- [ ] **Not approved yet, ask before building:** QW2 (hub tabs after About or reserved width), QW4 (split `getHubStatus`
-  into flags-only and slow parts), QW5 (bigger server Doc cache), QW6 (fonts).
-- [ ] Stored on the device now: email subjects, previews and Doc comment text, 7-day max age (user chose this
-  2026-11-06). Open question for the user: add a Clear saved data button on About? Default: yes, small, later.
+### A8. Load speed: hub cache in IndexedDB (2026-11-06; QW1-QW3, QW5, Option 1 and Clear saved data shipped, see TODO_HISTORY)
+
+On HOME @416 (`90ccb30`). On WORK as version 222 (code `c716b0c`..`aff529a`, pushed 2026-11-06; QW2, QW5 and the Clear button are NOT in it, run `npm run push:work` again after the check).
+- [ ] **Check on WORK (user), version 222 after "Update WORK":** reload twice; the second load paints the saved Triage board right away, marked stale, and the refresh replaces it. In the app iframe console `indexedDB.databases()` lists `day-planner-hub`. Any `[hubCache]` console error: send it. The code has no off switch; if IndexedDB is blocked it loads as before.
+- [ ] **Hand-check on HOME @416 (user):** (1) a profile with no saved flags (clear site data, reload): no jump in the nav when Triage and Meeting Prep appear; (2) About > Saved on this device > Clear saved data, then reload: the board is not painted from storage; (3) Doc rows stay cached 30 min, Refresh reads Drive.
+- [ ] **Agent next:** after the check passes, `npm run push:work` again (QW2, QW5, Clear button), then "Update WORK".
+- [ ] **QW4 dropped (2026-11-06):** measured on HOME, `getHubStatus` about 3 s against about 1.2-2 s for a trivial RPC, so a flags-only split saves about 1 s and nothing waits on it any more (saved flags paint the tabs, the board starts without it). Reopen only if a first-visit WORK trace shows otherwise.
+- [ ] **QW6 (fonts) not approved yet.** Default: skip.
+- [ ] **Easing (user suggestion 2026-11-06):** fade-in/out for late items, toasts and popups. Agent proposal (user decides scope): ease opacity only, 150-200 ms (`--duration-slow`, `--ease-standard`), on toasts, popups and tabs or rows that appear after load; do NOT ease the stale-to-fresh list swap (it would flicker); keep `prefers-reduced-motion`. Reserved space (QW2) is the real fix for jumps.
 
 ### A7. Triage Doc action items (2026-11-05; shipped items in TODO_HISTORY)
 
