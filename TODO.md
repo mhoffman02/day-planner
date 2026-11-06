@@ -44,7 +44,7 @@ Pilot branch `worktree-solid-code-pilot` (user merges, see HANDOFF) added the No
 - [ ] **Optional (user decides, default skip): Sheets data-validation dropdown (3,4,5) on the Hub Config `PreviewLines`
   cell.** It only constrains the cell; the server check in `getPreviewLines` (`gas-app/Config.gs`) stays.
 
-- [ ] **A6 add (2026-11-06): Task Today / Task Later done state.** After success the button disables and reads "Tasked today" / "Tasked later" with a check icon (user also asked for options, ranking in the reply of 2026-11-06). Needs the user's pick of style; default: relabel plus check, both buttons lock. Archive already removes the row (`archiveTriageEntry` passes remove=true), so only a failed or stale case could leave it; ask the user for the item.
+- [ ] **Hand-check on HOME @417 (user, 2026-11-06, `1c29a29`):** (1) Task Today / Task Later: spinner at the click, then the pair locks and reads "Tasked today" or "Tasked later" with a check, no toast on success, a toast on failure; reload keeps it locked; (2) FYI toasts (Undo, Note, Read Later) show top right, left of Live and Refresh, not over the rows. Archive already removes its row at the click; if one stayed, send the item. Not done: speeding up the Task call itself (server work, measure first).
 
 ### A8. Load speed: hub cache in IndexedDB (2026-11-06; QW1-QW3, QW5, Option 1 and Clear saved data shipped, see TODO_HISTORY)
 
