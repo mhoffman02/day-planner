@@ -410,3 +410,15 @@ live-testing catches it by luck.
 ## 2026-11-06 (load speed, hub cache)
 **Worked well:** An architect pass with measurements first (shell 4.2 s vs 2 s floor) showed the cost was the sync in `doGet`, not the caches; moving it behind first paint was one small change.
 **Needs improvement:** The harness's immediate timers fire a 2 s open timeout on the next tick, so IndexedDB tests need real timers. A deliberate behavior change (restored board always refreshes) broke an old test that asserted the opposite; update it in the same commit.
+
+## 2026-11-06 — bulk Doc dismiss quota fix
+
+**Worked well:**
+- Counting un-sessioned ledger calls in a test (80 for 40 items) reproduced the quota cause before the fix
+- Architect pass upgraded per-row upsert to appendMany, closing partial-write and LEDGER_FULL gaps
+
+**Needs improvement:**
+- The bulk path shipped as 2N Sheets calls; any new loop over ledger or Sheets rows needs a session and a call-count test from the start
+- Last-run staleness (no status poll) is still unanswered by the user
+
+---
