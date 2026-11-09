@@ -385,9 +385,9 @@
               <table class="task-table daily-tasks-table">
                 <thead>
                   <tr>
-                    <th scope="col" class="th-w-40 th-sortable" @click="setTaskSort('dailyTaskSort', 'priority')">
+                    <th scope="col" class="th-w-pri th-sortable" @click="setTaskSort('dailyTaskSort', 'priority')">
                       Pri<span class="sort-arrow" x-show="dailyTaskSort.column === 'priority'" x-text="dailyTaskSort.direction === 'asc' ? '▲' : '▼'"></span>
-                      <button type="button" class="priority-renumber-btn" @click.stop="renumberPriorities()" title="Renumber so each group runs 1, 2, 3 with no repeats" aria-label="Renumber priorities">#</button>
+                      <button type="button" class="priority-renumber-btn" @click.stop="renumberPriorities()" title="Renumber so each group runs 1, 2, 3 with no repeats" aria-label="Renumber priorities"><span class="material-symbols-outlined icon-14" aria-hidden="true">format_list_numbered</span></button>
                     </th>
                     <th scope="col" class="th-w-40 th-sortable" @click="setTaskSort('dailyTaskSort', 'status')">
                       Sts<span class="sort-arrow" x-show="dailyTaskSort.column === 'status'" x-text="dailyTaskSort.direction === 'asc' ? '▲' : '▼'"></span>

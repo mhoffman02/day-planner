@@ -1714,15 +1714,21 @@
   color: var(--theme-input-fg);
 }
 .priority-renumber-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  vertical-align: middle;
   background: transparent;
-  border: none;
+  border: 1px solid var(--theme-input-border);
   border-radius: 4px;
   color: var(--theme-text-muted);
   cursor: pointer;
   font: inherit;
-  padding: 0 3px;
+  padding: 0;
 }
-.priority-renumber-btn:hover { color: var(--theme-input-fg); }
+.priority-renumber-btn:hover { color: var(--binder-teal); border-color: var(--binder-teal); background: var(--binder-teal-light); }
 
 .status-btn {
     cursor: pointer;
@@ -4038,6 +4044,7 @@
 
   /* Table Helper Classes */
   .th-w-40 { width: 40px; }
+  .th-w-pri { width: 80px; }
   .th-w-80 { width: 80px; }
   .th-w-100 { width: 100px; }
   .th-w-150 { width: 150px; }
