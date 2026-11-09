@@ -1,5 +1,9 @@
 # Task History (TODO_HISTORY)
 
+## 2026-11-09 — Click a schedule slot to add an appointment
+
+- [x] **Today > Appointments: click a time label, or the empty body of a free slot, to add an appointment there** (`21bd663`, `openCreateEventModal(timeKey)`, one hour long, `tests/scheduleSlotCreate.test.js`). Occupied slots add only from the time label. HOME @426 live-checked over CDP (4:00 PM label and free body both open the form at 16:00-17:00); `push:work` ran (WORK version 229).
+
 ## 2026-11-06 (night) — Last-run refresh, anchored toast, token check
 
 - [x] **Triage "last run" refreshes itself**: quiet `getHubStatus` poll every 5 min while visible and on tab focus, 60 s throttle, fade-in on change (`refreshHubLastRun`, `tests/hubLastRunRefresh.test.js`).

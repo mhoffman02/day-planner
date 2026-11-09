@@ -6,6 +6,9 @@ Load-speed work (A8) came first on 2026-11-06 at the user's request.
 
 ## Agent work: next session (no user needed)
 
+### A9. Schedule slot click (2026-11-09; shipped in TODO_HISTORY)
+- [ ] User hand-check on HOME @426 and, after "Update WORK" (version 229), on WORK: click "4:00 PM" and the blank cell beside it; click a time label on a row that has an appointment. Default length is 1 hour; say if you want 30 minutes.
+
 ### A0. Tutorial coverage gaps (2026-11-02; stale labels already fixed)
 - [ ] Add exercises for features the Tutorial skips: one-time folder setup, event add/edit, Month view and Search,
   task statuses (Open/In Progress/Done/Canceled, Forward to date), Master Find box and filters, Go-live and Undo

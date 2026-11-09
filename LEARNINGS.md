@@ -1,5 +1,9 @@
 # Learnings
 
+## 2026-11-09
+**Worked well:** Red test first against `bothClients` caught the Script.html mirror at once; the safe-chars gate caught an apostrophe in a comment before any deploy.
+**Needs improvement:** The bg worktree branched from master, not `pure-gas-main`; check `git log -1` right after `EnterWorktree`. A live CDP check must reload the tab first, since the open tab still ran the pre-deploy page and looked like a failure.
+
 ## 2026-11-01 (rpc-guard 0)
 **Worked well:** Asking the architect before a cross-family decision (throw vs envelope) gave one validator with per-family transport; two parallel worker agents on disjoint files (mutation tests, RPC guards) finished while I did the Future-matrix guards.
 **Needs improvement:** The handoff claimed `primaryTzMemo_` was a real global without checking; read the code before scoping a task from a note. Positional `v_` guards bit twice (undeclared `year` arg); declare every arg.
