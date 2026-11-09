@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#2d6a5a" />
-      <stop offset="100%" stop-color="#1b4339" />
+      <stop offset="0%" stop-color="#4fa58c" />
+      <stop offset="100%" stop-color="#2d6a5a" />
     </linearGradient>
     <linearGradient id="binder" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#fcfbfa" />
@@ -17,7 +17,7 @@
   <rect width="512" height="512" rx="112" fill="url(#bg)" />
   
   <!-- Subtle Gold Trim Accent -->
-  <rect x="24" y="24" width="464" height="464" rx="88" fill="none" stroke="#c5a059" stroke-width="4" opacity="0.6" />
+  <rect x="10.0" y="10.0" width="492" height="492" rx="102.0" fill="none" stroke="#e6c27a" stroke-width="20" opacity="1.0" />
 
   <!-- Open Planner Binder Pages -->
   <g filter="url(#shadow)">
