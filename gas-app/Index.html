@@ -387,6 +387,7 @@
                   <tr>
                     <th scope="col" class="th-w-40 th-sortable" @click="setTaskSort('dailyTaskSort', 'priority')">
                       Pri<span class="sort-arrow" x-show="dailyTaskSort.column === 'priority'" x-text="dailyTaskSort.direction === 'asc' ? '▲' : '▼'"></span>
+                      <button type="button" class="priority-renumber-btn" @click.stop="renumberPriorities()" title="Renumber so each group runs 1, 2, 3 with no repeats" aria-label="Renumber priorities">#</button>
                     </th>
                     <th scope="col" class="th-w-40 th-sortable" @click="setTaskSort('dailyTaskSort', 'status')">
                       Sts<span class="sort-arrow" x-show="dailyTaskSort.column === 'status'" x-text="dailyTaskSort.direction === 'asc' ? '▲' : '▼'"></span>
@@ -403,7 +404,14 @@
                   <template x-for="task in sortedTasks(dailyTasks, dailyTaskSort)" :key="task.id">
                     <tr :id="'daily-row-' + task.id" tabindex="-1" :class="{ 'search-hit': searchHitTaskId === task.id }">
                       <td>
-                        <span class="priority-badge" :class="parseTask(task.title).priorityGroup || 'A'" x-text="parseTask(task.title).priorityCode || 'A1'"></span>
+                        <button type="button" class="priority-badge priority-edit-btn" :class="parseTask(task.title).priorityGroup || 'none'"
+                                x-show="editingPriorityTaskId !== task.id" @click="startEditingPriority(task)"
+                                title="Click to change priority (A1, B2, ...)" :aria-label="'Priority ' + (parseTask(task.title).priorityCode || 'none') + ', click to change'"
+                                x-text="parseTask(task.title).priorityCode || '--'"></button>
+                        <input type="text" class="priority-edit-input" maxlength="2" x-show="editingPriorityTaskId === task.id"
+                               :id="'task-priority-input-' + task.id" x-model="editingPriorityText"
+                               @keydown.enter.prevent="commitPriority(task.id)" @keydown.escape.prevent="cancelEditingPriority()"
+                               @blur="commitPriority(task.id)" aria-label="Priority code, letter A to C plus digit 1 to 9">
                       </td>
                       <td>
                         <div class="status-menu-wrap" @pointerenter="$event.pointerType === 'mouse' && openStatusMenu(task.id, $event)" @pointerleave="$event.pointerType === 'mouse' && scheduleStatusMenuClose(task.id)" @pointerdown.outside="openStatusMenuTaskId === task.id && (openStatusMenuTaskId = null)" @keydown.escape="openStatusMenuTaskId = null">

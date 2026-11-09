@@ -478,6 +478,84 @@
     };
   }
 
+  /**
+   * Finds next available sequence integer for a priority group (A, B, or C).
+   * @param {Array<object>} [tasks=[]] Array of existing task objects.
+   * @param {string} [priorityGroup=A] Target priority group letter.
+   * @returns {number} Next available sequence number (1 to 9).
+   */
+  function getNextSequence(tasks = [], priorityGroup = 'A') {
+    const pGroup = priorityGroup.toUpperCase();
+    const existingSeqs = tasks
+      .map(t => parseTaskTitle(t.title))
+      .filter(p => p.priorityGroup === pGroup && p.sequence !== null)
+      .map(p => p.sequence);
+
+    for (let seq = 1; seq <= 9; seq++) {
+      if (!existingSeqs.includes(seq)) {
+        return seq;
+      }
+    }
+    return 9; // Cap at 9
+  }
+
+  /**
+   * Renumbers each priority group to 1..n in its current order (sequence, then list order), applying
+   * an optional move first. Titles are the only source of rank, so the result is a list of title edits.
+   * @param {Array<object>} tasks Tasks with id and title.
+   * @param {{id: string, group: string, rank: number}|null} move Task to place at group/rank, or null.
+   * @returns {Array<{id: string, title: string}>} Only the tasks whose title changes.
+   */
+  function planRanks(tasks, move) {
+    const groups = { A: [], B: [], C: [] };
+    tasks.forEach((task, index) => {
+      const parsed = parseTaskTitle(task.title);
+      if (move && task.id === move.id) return;
+      if (parsed.priorityGroup) groups[parsed.priorityGroup].push({ task, parsed, index });
+    });
+    Object.values(groups).forEach(list => list.sort((a, b) => a.parsed.sequence - b.parsed.sequence || a.index - b.index));
+    const next = new Map();
+    Object.entries(groups).forEach(([group, list]) => {
+      const ordered = list.map(entry => entry.task);
+      if (move && move.group === group) {
+        const at = Math.min(Math.max(move.rank, 1), ordered.length + 1) - 1;
+        ordered.splice(at, 0, tasks.find(t => t.id === move.id));
+      }
+      ordered.forEach((task, i) => {
+        next.set(task.id, formatTaskTitle(group, Math.min(i + 1, 9), parseTaskTitle(task.title).cleanTitle || task.title));
+      });
+    });
+    return tasks
+      .filter(task => next.has(task.id) && next.get(task.id) !== task.title)
+      .map(task => ({ id: task.id, title: next.get(task.id) }));
+  }
+
+  /**
+   * Plans the title edits for giving one task a new priority code. Inserting at an occupied rank pushes
+   * later tasks in that group down; the group it left closes up.
+   * @param {Array<object>} tasks Tasks with id and title.
+   * @param {string} taskId Task being re-ranked.
+   * @param {A|B|C} group Target group.
+   * @param {number} rank Target rank (clamped to 1..group size + 1).
+   * @returns {Array<{id: string, title: string}>} Title edits to save.
+   */
+  function planPriorityChange(tasks = [], taskId, group, rank) {
+    const g = String(group).toUpperCase();
+    if (!['A', 'B', 'C'].includes(g) || !tasks.some(t => t.id === taskId)) {
+      throw new Error(`planPriorityChange: bad input group=${group} taskId=${taskId}`);
+    }
+    return planRanks(tasks, { id: taskId, group: g, rank: Number(rank) || 1 });
+  }
+
+  /**
+   * Plans edits that make every priority group run 1..n with no repeats (e.g. four A1 become A1-A4).
+   * @param {Array<object>} tasks Tasks with id and title.
+   * @returns {Array<{id: string, title: string}>} Title edits to save.
+   */
+  function planRenumber(tasks = []) {
+    return planRanks(tasks, null);
+  }
+
   function getNextStatus(currentStatus) {
     const idx = STATUS_LIST.indexOf(currentStatus);
     if (idx === -1 || idx === STATUS_LIST.length - 1) {
@@ -2908,6 +2986,8 @@
       // Data collections
       dailyTasks: [],
       editingTaskId: null,
+      editingPriorityTaskId: null,
+      editingPriorityText: '',
       editingTaskTitle: '',
       openStatusMenuTaskId: null,
       statusMenuCloseTimer: null,
@@ -7608,8 +7688,8 @@
         try {
           const category = (this.newTaskCategory && this.newTaskCategory.trim()) || 'Work';
           this.recordCategory(category);
-          const existingCount = this.dailyTasks.length + 1;
-          const formattedTitle = formatTaskTitle(this.newTaskPriorityGroup, existingCount, taskTitle);
+          const nextSequence = getNextSequence(this.dailyTasks, this.newTaskPriorityGroup);
+          const formattedTitle = formatTaskTitle(this.newTaskPriorityGroup, nextSequence, taskTitle);
           const newTask = await this.bridge.addDailyTask(this.selectedDate, formattedTitle, category, null, details.notes);
           if (details.notes && !newTask.notes) newTask.notes = details.notes;
           this.dailyTasks.push(newTask);
@@ -7641,6 +7721,47 @@
       cancelEditingTask() {
         this.editingTaskId = null;
         this.editingTaskTitle = '';
+      },
+
+      startEditingPriority(task) {
+        this.editingPriorityTaskId = task.id;
+        this.editingPriorityText = this.parseTask(task.title).priorityCode || '';
+        this.$nextTick(() => {
+          const el = document.getElementById('task-priority-input-' + task.id);
+          if (el) { el.focus(); el.select(); }
+        });
+      },
+
+      cancelEditingPriority() {
+        this.editingPriorityTaskId = null;
+        this.editingPriorityText = '';
+      },
+
+      // Priority code is typed as letter + digit (A1, b2). Anything else is rejected loudly, not guessed.
+      async commitPriority(taskId) {
+        if (this.editingPriorityTaskId !== taskId) return;
+        const text = (this.editingPriorityText || '').trim().toUpperCase();
+        this.cancelEditingPriority();
+        const task = this.dailyTasks.find(t => t.id === taskId);
+        if (!task || !text || text === this.parseTask(task.title).priorityCode) return;
+        const match = text.match(/^([ABC])([1-9])$/);
+        if (!match) {
+          this.reportError('task-priority', `Priority must be A, B or C plus 1-9 (got "${text}").`);
+          return;
+        }
+        await this.saveTitleEdits(planPriorityChange(this.dailyTasks, taskId, match[1], Number(match[2])));
+      },
+
+      // Makes every group run 1..n so repeated codes (four A1s) become A1-A4.
+      async renumberPriorities() {
+        await this.saveTitleEdits(planRenumber(this.dailyTasks));
+      },
+
+      async saveTitleEdits(edits) {
+        for (const edit of edits) {
+          const task = this.dailyTasks.find(t => t.id === edit.id);
+          if (task) await this.queueTaskTitleSave(task, false, edit.title, false, null);
+        }
       },
 
       async updateTaskTitle(taskId, newTitle) {

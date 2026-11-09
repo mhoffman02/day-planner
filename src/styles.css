@@ -1690,7 +1690,40 @@
   .priority-badge.B { background-color: var(--priority-b); }
   .priority-badge.C { background-color: var(--priority-c); }
 
-  .status-btn {
+  .priority-edit-btn {
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.priority-edit-btn:hover { background: var(--theme-input-bg); }
+.priority-edit-btn.none { color: var(--theme-text-muted); }
+.priority-edit-input {
+  width: 2.6ch;
+  box-sizing: content-box;
+  padding: 1px 3px;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  border: 1px solid var(--theme-input-border);
+  border-radius: 3px;
+  background: var(--theme-input-bg);
+  color: var(--theme-input-fg);
+}
+.priority-renumber-btn {
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--theme-text-muted);
+  cursor: pointer;
+  font: inherit;
+  padding: 0 3px;
+}
+.priority-renumber-btn:hover { color: var(--theme-input-fg); }
+
+.status-btn {
     cursor: pointer;
     font-weight: 700;
     font-size: 1rem;

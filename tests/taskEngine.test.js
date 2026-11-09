@@ -487,3 +487,35 @@ describe('Task Engine Unit Tests', () => {
 });
 
 
+
+describe('planPriorityChange / planRenumber', () => {
+  const t = (id, title) => ({ id, title });
+  const apply = (tasks, changes) => tasks.map(x => (changes.find(c => c.id === x.id) || x).title || x.title);
+
+  it('moves a task to a new group at the end and closes the gap in the old group', async () => {
+    const { planPriorityChange } = await import('../src/taskEngine.js');
+    const tasks = [t('1', '[A1] a'), t('2', '[A2] b'), t('3', '[A3] c'), t('4', '[B1] d')];
+    const changes = planPriorityChange(tasks, '2', 'B', 2);
+    assert.deepEqual(apply(tasks, changes.map(c => ({ id: c.id, title: c.title }))), ['[A1] a', '[B2] b', '[A2] c', '[B1] d']);
+  });
+
+  it('inserting at an occupied rank shifts later tasks down', async () => {
+    const { planPriorityChange } = await import('../src/taskEngine.js');
+    const tasks = [t('1', '[A1] a'), t('2', '[A2] b'), t('3', '[B1] c')];
+    const changes = planPriorityChange(tasks, '3', 'A', 1);
+    assert.deepEqual(apply(tasks, changes), ['[A2] a', '[A3] b', '[A1] c']);
+  });
+
+  it('prefixes an unranked task and clamps rank past the end', async () => {
+    const { planPriorityChange } = await import('../src/taskEngine.js');
+    const tasks = [t('1', '[A1] a'), t('2', 'plain')];
+    const changes = planPriorityChange(tasks, '2', 'A', 9);
+    assert.deepEqual(apply(tasks, changes), ['[A1] a', '[A2] plain']);
+  });
+
+  it('planRenumber turns four A1 and four B1 into A1-A4 and B1-B4, unranked untouched', async () => {
+    const { planRenumber } = await import('../src/taskEngine.js');
+    const tasks = [t('1', '[A1] a'), t('2', '[A1] b'), t('3', '[B1] c'), t('4', '[A1] d'), t('5', '[B1] e'), t('6', 'plain')];
+    assert.deepEqual(apply(tasks, planRenumber(tasks)), ['[A1] a', '[A2] b', '[B1] c', '[A3] d', '[B2] e', 'plain']);
+  });
+});

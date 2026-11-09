@@ -15,6 +15,9 @@ import {
   sortTasksByColumn,
   extractTaskDetails,
   extractInlinePriority,
+  getNextSequence,
+  planPriorityChange,
+  planRenumber,
   filterTasksByStatus,
   filterTasksByDateHorizon
 } from './taskEngine.js';
@@ -395,6 +398,8 @@ Alpine.data('plannerApp', () => ({
       // Data collections
       dailyTasks: [],
       editingTaskId: null,
+      editingPriorityTaskId: null,
+      editingPriorityText: '',
       editingTaskTitle: '',
       openStatusMenuTaskId: null,
       statusMenuCloseTimer: null,
@@ -5041,8 +5046,8 @@ Alpine.data('plannerApp', () => ({
         try {
           const category = (this.newTaskCategory && this.newTaskCategory.trim()) || 'Work';
           this.recordCategory(category);
-          const existingCount = this.dailyTasks.length + 1;
-          const formattedTitle = formatTaskTitle(this.newTaskPriorityGroup, existingCount, taskTitle);
+          const nextSequence = getNextSequence(this.dailyTasks, this.newTaskPriorityGroup);
+          const formattedTitle = formatTaskTitle(this.newTaskPriorityGroup, nextSequence, taskTitle);
           const newTask = await this.bridge.addDailyTask(this.selectedDate, formattedTitle, category, null, details.notes);
           newTask._isNew = true;
           if (details.notes && !newTask.notes) newTask.notes = details.notes;
@@ -5075,6 +5080,47 @@ Alpine.data('plannerApp', () => ({
       cancelEditingTask() {
         this.editingTaskId = null;
         this.editingTaskTitle = '';
+      },
+
+      startEditingPriority(task) {
+        this.editingPriorityTaskId = task.id;
+        this.editingPriorityText = this.parseTask(task.title).priorityCode || '';
+        this.$nextTick(() => {
+          const el = document.getElementById('task-priority-input-' + task.id);
+          if (el) { el.focus(); el.select(); }
+        });
+      },
+
+      cancelEditingPriority() {
+        this.editingPriorityTaskId = null;
+        this.editingPriorityText = '';
+      },
+
+      // Priority code is typed as letter + digit (A1, b2). Anything else is rejected loudly, not guessed.
+      async commitPriority(taskId) {
+        if (this.editingPriorityTaskId !== taskId) return;
+        const text = (this.editingPriorityText || '').trim().toUpperCase();
+        this.cancelEditingPriority();
+        const task = this.dailyTasks.find(t => t.id === taskId);
+        if (!task || !text || text === this.parseTask(task.title).priorityCode) return;
+        const match = text.match(/^([ABC])([1-9])$/);
+        if (!match) {
+          this.reportError('task-priority', `Priority must be A, B or C plus 1-9 (got "${text}").`);
+          return;
+        }
+        await this.saveTitleEdits(planPriorityChange(this.dailyTasks, taskId, match[1], Number(match[2])));
+      },
+
+      // Makes every group run 1..n so repeated codes (four A1s) become A1-A4.
+      async renumberPriorities() {
+        await this.saveTitleEdits(planRenumber(this.dailyTasks));
+      },
+
+      async saveTitleEdits(edits) {
+        for (const edit of edits) {
+          const task = this.dailyTasks.find(t => t.id === edit.id);
+          if (task) await this.queueTaskTitleSave(task, false, edit.title, false, null);
+        }
       },
 
       async updateTaskTitle(taskId, newTitle) {

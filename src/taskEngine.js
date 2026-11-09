@@ -272,6 +272,63 @@ export function getNextSequence(tasks = [], priorityGroup = 'A') {
   return 9; // Cap at 9
 }
 
+/**
+ * Renumbers each priority group to 1..n in its current order (sequence, then list order), applying
+ * an optional move first. Titles are the only source of rank, so the result is a list of title edits.
+ * @param {Array<object>} tasks Tasks with id and title.
+ * @param {{id: string, group: string, rank: number}|null} move Task to place at group/rank, or null.
+ * @returns {Array<{id: string, title: string}>} Only the tasks whose title changes.
+ */
+function planRanks(tasks, move) {
+  const groups = { A: [], B: [], C: [] };
+  tasks.forEach((task, index) => {
+    const parsed = parseTaskTitle(task.title);
+    if (move && task.id === move.id) return;
+    if (parsed.priorityGroup) groups[parsed.priorityGroup].push({ task, parsed, index });
+  });
+  Object.values(groups).forEach(list => list.sort((a, b) => a.parsed.sequence - b.parsed.sequence || a.index - b.index));
+  const next = new Map();
+  Object.entries(groups).forEach(([group, list]) => {
+    const ordered = list.map(entry => entry.task);
+    if (move && move.group === group) {
+      const at = Math.min(Math.max(move.rank, 1), ordered.length + 1) - 1;
+      ordered.splice(at, 0, tasks.find(t => t.id === move.id));
+    }
+    ordered.forEach((task, i) => {
+      next.set(task.id, formatTaskTitle(group, Math.min(i + 1, 9), parseTaskTitle(task.title).cleanTitle || task.title));
+    });
+  });
+  return tasks
+    .filter(task => next.has(task.id) && next.get(task.id) !== task.title)
+    .map(task => ({ id: task.id, title: next.get(task.id) }));
+}
+
+/**
+ * Plans the title edits for giving one task a new priority code. Inserting at an occupied rank pushes
+ * later tasks in that group down; the group it left closes up.
+ * @param {Array<object>} tasks Tasks with id and title.
+ * @param {string} taskId Task being re-ranked.
+ * @param {'A'|'B'|'C'} group Target group.
+ * @param {number} rank Target rank (clamped to 1..group size + 1).
+ * @returns {Array<{id: string, title: string}>} Title edits to save.
+ */
+export function planPriorityChange(tasks = [], taskId, group, rank) {
+  const g = String(group).toUpperCase();
+  if (!['A', 'B', 'C'].includes(g) || !tasks.some(t => t.id === taskId)) {
+    throw new Error(`planPriorityChange: bad input group=${group} taskId=${taskId}`);
+  }
+  return planRanks(tasks, { id: taskId, group: g, rank: Number(rank) || 1 });
+}
+
+/**
+ * Plans edits that make every priority group run 1..n with no repeats (e.g. four A1 become A1-A4).
+ * @param {Array<object>} tasks Tasks with id and title.
+ * @returns {Array<{id: string, title: string}>} Title edits to save.
+ */
+export function planRenumber(tasks = []) {
+  return planRanks(tasks, null);
+}
+
 export { getNextSequence as findNextAvailableSequence };
 
 /**
