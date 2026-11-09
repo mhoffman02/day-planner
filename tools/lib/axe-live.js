@@ -44,7 +44,14 @@ export function buildAxeExpression(axeSource) {
   if (!frameEl || !frameEl.contentWindow) throw new Error('axe: #userHtmlFrame (app document) not found in sandbox frame');
   const w = frameEl.contentWindow;
   w.eval(${JSON.stringify(axeSource)});
-  const r = await w.axe.run(w.document, { runOnly: { type: 'tag', values: ${JSON.stringify(AXE_TAGS)} } });
+  // Alpine fades toasts in over 600 ms; axe reads the blended mid-fade colors as low contrast.
+  // Loop because a finished transition can start the next one (a toast mounts as another leaves).
+  for (let i = 0; i < 5; i++) {
+    const running = w.document.getAnimations();
+    if (!running.length) break;
+    await Promise.allSettled(running.map((a) => a.finished));
+  }
+  const r =await w.axe.run(w.document, { runOnly: { type: 'tag', values: ${JSON.stringify(AXE_TAGS)} } });
   return { violations: r.violations.map(v => ({ id: v.id, nodes: v.nodes.map(() => 0) })) };
 })()`;
 }

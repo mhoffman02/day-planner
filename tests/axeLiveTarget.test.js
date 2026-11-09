@@ -11,6 +11,13 @@ test('axe expression audits the app document inside userHtmlFrame, not the wrapp
   assert.match(expr, /contentWindow/);
 });
 
+test('axe waits for running transitions to finish before auditing (mid-fade toast reads as low contrast)', () => {
+  const expr = buildAxeExpression('/*AXE*/');
+  const settle = expr.indexOf('getAnimations');
+  assert.ok(settle !== -1, 'expression must await document.getAnimations()');
+  assert.ok(settle < expr.indexOf('axe.run'), 'settle must come before axe.run');
+});
+
 test('axe runs only the named Section 508 / WCAG 2.2 AA tag set', () => {
   const expr = buildAxeExpression('/*AXE*/');
   assert.match(expr, /runOnly/);
