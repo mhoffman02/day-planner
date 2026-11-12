@@ -279,6 +279,9 @@ These override or add to the generic steps above, for this repo only.
   older than the user skill.
 - **Step 5.2 fresh-eyes check:** from Claude, spawn the `lite` agent (haiku/medium, per `.agents/rules/subagent-model-cost.md`);
   from agy, `invoke_subagent(Model="flash_lite")`.
+- **Step 3 and tracker sync (mechanical):** dispatch the archive moves and `check:handoff` fix-ups to `worker`
+  (sonnet/medium) with the exit criteria `npm run check:handoff` passing; keep Step 4 (next-task choice) and the
+  HANDOFF.md prose inline.
 - **Build stamp:** the pre-commit hook re-stamps `BUILD_NUMBER_` in `gas-app/Code.gs` on every commit, so the handoff
   commit includes that one-line change. That is expected and is not a buried code change.
 - **Reply style:** start with `🔋Mike:`; every file and symbol is a clickable `file://` link (CLAUDE.md rule 7);

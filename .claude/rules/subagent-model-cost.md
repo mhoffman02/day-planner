@@ -32,6 +32,8 @@
   `tools/agent-heartbeat.js` PostToolUse hook writes. Report the `done/total` count, never a time estimate (the
   pace-based guess is unreliable). A running agent only reads messages between tool calls, so SendMessage is not
   a liveness test.
+- `Explore`, `general-purpose`, `Plan` and `claude` agents inherit the session model and cannot pin effort: do not use
+  them for scouting. Use `lite`. Same for forks (`subagent_type: "fork"` always runs on the session model).
 - Orchestrator monitoring: MUST NOT stop an agent for being quiet or slow. `deep` (Opus) legitimately runs 20+ minutes
   between visible writes. Judge liveness by the status file, then by `git status`/`git diff --shortstat` and the task
   metric (for example the `!important` count) across at least two checks several minutes apart. Stop one only when the
