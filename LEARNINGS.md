@@ -462,3 +462,9 @@ live-testing catches it by luck.
 ## 2026-11-12 (table columns)
 **Worked well:** Delegated document-level listeners plus root CSS variables (`--tc-<table>-<n>`) made four tables resizable with one attribute pair per table and no per-row cost; pure helpers in `src/layoutPrefs.js` kept the logic red-testable.
 **Needs improvement:** Edge grab zones were only tested on interior columns, so the last column (on the table border, half the zone outside) shipped hard to grab; test boundary cases of any hit zone, not just the middle. A `var()` with no fallback inside a width rule makes the declaration invalid and skips the class default, so every var needs a fallback.
+
+---
+
+## 2026-11-12 (context budget)
+**Worked well:** Measuring first (`wc -c` on every always-loaded file) showed rules and `MEMORY.md`, not `CLAUDE.md`, were the bulk; scoping with `paths:` and moving on-demand detail to `docs/` cut ~26 KB per turn without losing a constraint.
+**Needs improvement:** My replies ran long against the brevity rule, which has no hook behind it; the rule is now bold and first in the global `CLAUDE.md`. Say less.

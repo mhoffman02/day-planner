@@ -1,5 +1,9 @@
 # Task History (TODO_HISTORY)
 
+## 2026-11-12 (context budget) — Cut always-loaded context
+
+- [x] **Condensed always-loaded context ~46 KB to ~20 KB** (`f6cee25`, `3c9d1cc`, `b27a7a3`, `b1977d2`): rules rewritten terse (`no-silent-failures` merged into `fail-loud-catch`), `CLAUDE.md` 7.9 to 2.9 KB (architecture and agent config moved to `docs/architecture-and-agent-config.md`), `solid-code` scoped to code paths, subagent monitoring moved to `docs/subagent-monitoring.md`, `MEMORY.md` hooks shortened, `gas-*` rules condensed. Rule: scouting uses `lite`, never `Explore`/`general-purpose`/forks; handoff archive and tracker sync go to `worker`. Disabled `engineering`, `cowork-plugin-management`, `operations` plugins in `~/.claude/settings.json`.
+
 ## 2026-11-12 (later) — Full-width layout and resizable reading width
 
 - [x] **Resizable table columns: drag any column edge (header or row) on Master, Index, Triage and Today tasks; double-click auto-fits; Widths Reset in View options clears all saved widths; saved as `dayPlannerTableColumns`; fixed wrong Master/Index default widths** (`0954c99`, HOME @441, WORK pushed; `tests/tableColumns.test.js`). Last-column grab zone widened (`83c67c5`, HOME @442). User verified on HOME and WORK 2026-11-12.

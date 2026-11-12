@@ -8,8 +8,12 @@ Load-speed work (A8) came first on 2026-11-06 at the user's request.
 ## Agent work: next session (hand-check lines inside need the user)
 
 ### A10. Attendees and hover popovers (2026-11-12; shipped in TODO_HISTORY, hand-checked on WORK 2026-11-12)
-- [ ] Local-preview `index.html` port is unverified in a browser: `npm run smoke` fails on clean HEAD ("Alpine app failed to initialize within 6s"). Diagnose with `tools/ensure-chrome.js http://localhost:3000` + `tools/probe-live.js`, then fix with a red test or smoke repro.
+- [ ] Local-preview `index.html` port is unverified in a browser: `npm run smoke` fails on clean HEAD (it does not start the server; run `npm start` first) ("Alpine app failed to initialize within 6s"). Diagnose with `tools/ensure-chrome.js http://localhost:3000` + `tools/probe-live.js`, then fix with a red test or smoke repro.
 - [ ] `tools/ensure-chrome.js` Linux branch deliberately left without `--password-store=basic` (WSL2 launches Windows chrome.exe); revisit only if the keyring prompt returns after `npm run smoke`.
+
+### A11. Context budget follow-ups (2026-11-12; shipped part in TODO_HISTORY)
+- [ ] User: remove the Play Sheet Music, monday and Postman connectors at claude.ai > Settings > Connectors.
+- [ ] User: re-run `/usage` due 2026-11-19 and compare with 2026-11-12 (47% subagent hint, 36% CLAUDE.md hint, 72% worker hint). Always-loaded context went ~46 KB to ~20 KB; if "worker" still tops the hints, look at which sessions spawn it before changing tiers.
 
 ### A9. Schedule slot click (2026-11-09; shipped in TODO_HISTORY)
 - [ ] User hand-check on HOME @426 and, after "Update WORK" (version 229), on WORK: click "4:00 PM" and the blank cell beside it; click a time label on a row that has an appointment. Default length is 1 hour; say if you want 30 minutes.
