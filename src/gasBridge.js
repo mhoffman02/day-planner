@@ -468,6 +468,7 @@ export class GASBridge {
         etag: '"1"',
         recurringEventId: null,
         guestCount: 0,
+        guests: [],
         canEdit: true,
         canDelete: true
       };

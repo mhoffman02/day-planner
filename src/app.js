@@ -417,6 +417,8 @@ Alpine.data('plannerApp', () => ({
       openNotesPopoverTaskId: null,
       notesPopoverCloseTimer: null,
       notesPopoverDropUp: false,
+      guestsExpanded: false,
+      guestsOverflow: false,
       notesPopoverPos: { top: null, bottom: null, left: null },
       notesEditor: { open: false, taskId: null, isMaster: false, text: '', original: '', dropUp: false },
       notesEditorOpener: null,
@@ -6024,6 +6026,7 @@ Alpine.data('plannerApp', () => ({
 
       openEventModal(evt) {
         if (!evt) return;
+        this.guestsExpanded = false;
         this.selectedEvent = this.eventDetails(evt);
         this.eventModalOpen = true;
       },
@@ -6046,9 +6049,20 @@ Alpine.data('plannerApp', () => ({
         };
       },
 
-      // The note icon shows only when there is more than the title, like the Tasks note icon.
+      // Guest-list toggle: the 2-line clamp is by CSS (adapts to width), so overflow is measured, not guessed.
+      measureGuests(el) {
+        if (!el || this.guestsExpanded) return;
+        this.guestsOverflow = el.scrollHeight > el.clientHeight + 1;
+      },
+
+      // Response mark before the guest name; no mark while they have not answered.
+      guestMark(guest) {
+        return { accepted: '✓', declined: '✗', tentative: '?' }[guest && guest.response] || '';
+      },
+
+            // The note icon shows only when there is more than the title, like the Tasks note icon.
       hasEventDetails(evt) {
-        return Boolean(evt && ((evt.description && String(evt.description).trim()) || evt.location || this.extractMeetLink(evt) || evt.myResponse));
+        return Boolean(evt && ((evt.description && String(evt.description).trim()) || evt.location || this.extractMeetLink(evt) || evt.myResponse || (evt.guests && evt.guests.length)));
       },
 
       isRsvpSaving(evt) {

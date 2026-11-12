@@ -463,7 +463,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 712;
+const BUILD_NUMBER_ = 713;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -1238,6 +1238,7 @@ function mapCalendarApiEvent_(evt) {
     etag: evt.etag || null,
     recurringEventId: evt.recurringEventId || null,
     guestCount: (evt.attendees || []).filter(function(a) { return a && !a.self; }).length,
+    guests: guestList_(evt.attendees),
     canEdit: canModifyEvent_(evt),
     canDelete: canModifyEvent_(evt)
   };
@@ -1248,7 +1249,7 @@ function mapCalendarApiEvent_(evt) {
  * @returns {string} Calendar API fields mask for events.list items.
  */
 function calendarEventFields_() {
-  return 'id,etag,summary,start,end,location,description,hangoutLink,conferenceData,htmlLink,extendedProperties,recurringEventId,eventType,guestsCanModify,organizer(self),attendees(self,responseStatus)';
+  return 'id,etag,summary,start,end,location,description,hangoutLink,conferenceData,htmlLink,extendedProperties,recurringEventId,eventType,guestsCanModify,organizer(self),attendees(self,responseStatus,email,displayName,organizer,resource)';
 }
 
 /**
@@ -1263,6 +1264,18 @@ function canModifyEvent_(evt) {
   if (type !== 'default') return false;
   if (!(evt.start && evt.start.dateTime)) return false;
   return !!((evt.organizer && evt.organizer.self === true) || evt.guestsCanModify === true);
+}
+
+/**
+ * Guests for the details views: organizer first, rooms and other resources dropped, name falls back to email.
+ * @param {Array<object>=} attendees Calendar API attendees.
+ * @returns {Array<{name: string, email: string, response: string, organizer: boolean, self: boolean}>}
+ */
+function guestList_(attendees) {
+  const guests = (attendees || []).filter(function(a) { return a && !a.resource; }).map(function(a) {
+    return { name: a.displayName || a.email || '', email: a.email || '', response: a.responseStatus || 'needsAction', organizer: !!a.organizer, self: !!a.self };
+  });
+  return guests.filter(function(g) { return g.organizer; }).concat(guests.filter(function(g) { return !g.organizer; }));
 }
 
 /**

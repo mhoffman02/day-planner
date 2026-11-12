@@ -40,11 +40,26 @@ test('listed events carry myResponse from the self attendee, and ask Calendar fo
   const { ctx, lists } = rsvpCtx();
   const day = toHost(ctx.getDailyData('2026-10-09'));
   assert.equal(day.calendarEvents[0].myResponse, 'needsAction');
-  assert.equal(day.calendarEvents[0].attendees, undefined, 'the attendee list is not sent to the client');
-  assert.match(lists[0].fields, /attendees\(self,responseStatus\)/);
+  assert.equal(day.calendarEvents[0].attendees, undefined, 'raw attendees are not sent; the client gets the mapped guests list');
+  assert.match(lists[0].fields, /attendees\(self,responseStatus,email,displayName,organizer,resource\)/);
   lists.length = 0;
   ctx.getDailyDataRange('2026-10-09', '2026-10-09');
-  assert.match(lists[0].fields, /attendees\(self,responseStatus\)/, 'range fetch asks for attendees too');
+  assert.match(lists[0].fields, /attendees\(self,responseStatus,email,displayName,organizer,resource\)/, 'range fetch asks for attendees too');
+});
+
+test('listed events carry guests: organizer first, rooms dropped, name falls back to email', () => {
+  const { ctx } = rsvpCtx({ attendees: [
+    { email: 'pal@example.com', displayName: 'Pal Ng', responseStatus: 'tentative' },
+    { email: 'room@resource.calendar.google.com', resource: true, responseStatus: 'accepted' },
+    { email: 'boss@example.com', organizer: true, responseStatus: 'accepted' },
+    { email: 'me@example.com', self: true, responseStatus: 'needsAction' }
+  ] });
+  const evt = toHost(ctx.getDailyData('2026-10-09')).calendarEvents[0];
+  assert.deepEqual(evt.guests, [
+    { name: 'boss@example.com', email: 'boss@example.com', response: 'accepted', organizer: true, self: false },
+    { name: 'Pal Ng', email: 'pal@example.com', response: 'tentative', organizer: false, self: false },
+    { name: 'me@example.com', email: 'me@example.com', response: 'needsAction', organizer: false, self: true }
+  ]);
 });
 
 test('no self attendee (my own event, or no guests) -> myResponse null', () => {

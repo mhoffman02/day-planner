@@ -2412,6 +2412,60 @@
     border-top: 1px solid var(--border-neutral-subtle);
   }
 
+  .event-guests {
+    margin-top: 6px;
+  }
+
+  .event-guests-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 2px;
+  }
+
+  .guest-list {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .guest-list.is-clamped {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+  }
+
+  .guest-item:not(:last-child)::after {
+    content: ", ";
+  }
+
+  .guest-mark {
+    margin-right: 2px;
+    color: var(--binder-teal);
+  }
+
+  .guest-toggle {
+    margin-top: 2px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--binder-teal);
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
+  .task-tip-popover {
+    white-space: normal;
+    min-width: 200px;
+  }
+
+  .tip-label {
+    min-width: 56px;
+    color: var(--text-muted);
+  }
+
   /* Notes Column Panel */
   article.notes-column-panel {
     background-color: var(--bg-card, var(--white));
