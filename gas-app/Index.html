@@ -1191,8 +1191,18 @@
                       <span class="task-title-text"
                             x-show="editingTaskId !== mTask.id"
                             @click="startEditingTask(mTask)"
-                            title="Click to edit task description"
+                            @pointerenter="$event.pointerType === 'mouse' && openNotesPopover(mTask.id, $event)" @pointerleave="$event.pointerType === 'mouse' && scheduleNotesPopoverClose(mTask.id)"
                             x-text="parseTask(mTask.title).cleanTitle"></span>
+                          <template x-if="openNotesPopoverTaskId === mTask.id">
+                            <div class="notes-popover task-tip-popover" :class="{ 'dropup': notesPopoverDropUp, 'dropdown-down': !notesPopoverDropUp }" :style="notesPopoverStyle(mTask.id)" role="tooltip" @pointerenter="openNotesPopover(mTask.id)" @pointerleave="scheduleNotesPopoverClose(mTask.id)">
+                              <p class="event-note-title" x-text="parseTask(mTask.title).cleanTitle"></p>
+                              <p class="event-note-row"><span class="tip-label">Priority</span><span x-text="parseTask(mTask.title).priorityCode || 'none'"></span></p>
+                              <p class="event-note-row"><span class="tip-label">Status</span><span x-text="mTask.status || '•'"></span></p>
+                              <p class="event-note-row"><span class="tip-label">Category</span><span x-text="mTask.category || 'General'"></span></p>
+                              <p class="event-note-row" x-show="mTask.dueDate"><span class="tip-label">Due</span><span x-text="mTask.dueDate"></span></p>
+                              <p class="event-note-description" x-show="hasNotes(mTask)" x-text="mTask.notes"></p>
+                            </div>
+                          </template>
                       <input type="text"
                              x-show="editingTaskId === mTask.id"
                              :id="'task-title-input-' + mTask.id"
@@ -1208,7 +1218,6 @@
                                 aria-label="Edit notes" aria-haspopup="dialog" :aria-expanded="openNotesPopoverTaskId === mTask.id">
                           <span class="material-symbols-outlined icon-14">sticky_note_2</span>
                         </button>
-                        <span class="notes-popover" :class="{ 'dropup': notesPopoverDropUp, 'dropdown-down': !notesPopoverDropUp }" :style="notesPopoverStyle(mTask.id)" role="tooltip" x-cloak x-text="mTask.notes"></span>
                       </span>
                     </td>
                     <td class="td-category" x-text="mTask.category || 'General'"></td>
