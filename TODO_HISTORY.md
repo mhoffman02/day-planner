@@ -1,5 +1,9 @@
 # Task History (TODO_HISTORY)
 
+## 2026-11-12 — Attendees and hover popovers
+
+- [x] **Attendees in the appointment modal and hover popover; hover popovers on appointment pills and Today/Master task titles** (`8a992cc`, `a0b2568`, `8d1a264`, HOME @433-@435, WORK pushed). User verified on WORK PC 2026-11-12: "Good work".
+
 ## 2026-11-09 — Click a schedule slot to add an appointment
 
 - [x] **Today > Appointments: click a time label, or the empty body of a free slot, to add an appointment there** (`21bd663`, `openCreateEventModal(timeKey)`, one hour long, `tests/scheduleSlotCreate.test.js`). Occupied slots add only from the time label. HOME @426 live-checked over CDP (4:00 PM label and free body both open the form at 16:00-17:00); `push:work` ran (WORK version 229).

@@ -1,5 +1,5 @@
 <!-- handoff: branch=pure-gas-main worktree=/home/mike/projects/day-planner base=61733d163020 written=2026-11-12T11:49:30-08:00 -->
-# Resume: Attendees + hover popovers shipped (HOME @435, WORK pushed); waiting on "Update WORK" and hand-checks
+# Resume: Attendees + hover popovers shipped (HOME @435, WORK pushed); verified on WORK 2026-11-12
 
 **Verify first:**
 `git fetch -q; git log --branches --remotes -1 --abbrev=12 --format='%h %p %cI' -- HANDOFF.md`
@@ -9,10 +9,8 @@ Stale if that commit is dated after `2026-11-12T11:49:30-08:00` **and** its pare
 
 This session added Attendees to the appointment modal and hover popover (`guestList_` in `gas-app/Code.gs`, `measureGuests`/`guestMark` in `src/app.js` mirrored in `gas-app/Script.html`), hover popovers on appointment pills and Today/Master task titles, the pill-to-popover roll fix (`openNotesPopover` `wasOpen` guard), and `--password-store=basic` for headless Linux Chrome in `tools/smoke-test.js` and `tools/audit-wcag-responsive.js`. Lint clean, 2210 tests pass.
 
-User items, with my recommendation:
-1. Say "Update WORK" (HOME @435 pushed to WORK). Recommend yes.
-2. Hand-check HOME and WORK popovers and Attendees (TODO.md A10 item 1). Recommend yes after item 1.
-3. Older hand-checks still open: A9 slot click, A6 (unreproduced Task Today/Later lock), A7/A8 WORK checks. Recommend as in the prior handoff.
+User items (WORK repoint and popover/Attendees checks done 2026-11-12), with my recommendation:
+1. Older hand-checks still open: A9 slot click, A6 (unreproduced Task Today/Later lock), A7/A8 WORK checks. Recommend as in the prior handoff.
 
 - What changed: TODO.md (A10 added), LEARNINGS 2026-11-12.
 - Still open: TODO.md "Agent work" (A0, A5, A6, A7, A8, A9, A10) and "For the session after next" (B1/B3/B4, user present).
