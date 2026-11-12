@@ -1,3 +1,7 @@
+---
+paths: ["src/**","gas-app/**","tools/**","tests/**"]
+---
+
 # Solid Code: Every Practice Has a Gate
 
 Maguire (*Writing Solid Code*) and Knuth practices, kept only where a check enforces them. A practice with no
