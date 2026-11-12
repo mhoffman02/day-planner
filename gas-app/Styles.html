@@ -1635,6 +1635,10 @@
     margin-bottom: 0;
   }
 
+  .daily-tasks-table th:nth-child(1) { width: var(--tc-daily-1, 40px); }
+  .daily-tasks-table th:nth-child(2) { width: var(--tc-daily-2, 40px); }
+  .daily-tasks-table th:nth-child(4) { width: var(--tc-daily-4, 80px); }
+
   .daily-tasks-table thead th {
     position: sticky;
     top: 0;
@@ -1744,6 +1748,14 @@
     justify-content: center;
     padding: 0;
   }
+
+  table[data-col-table].is-col-edge,
+  table[data-col-table].is-col-edge * { cursor: col-resize; }
+  body.is-col-resizing, body.is-col-resizing * { user-select: none; cursor: col-resize; }
+
+  /* Auto-fit measuring: natural-width layout for one synchronous read, never painted. */
+  table[data-col-table].col-measuring { table-layout: auto; width: max-content; }
+  table[data-col-table].col-measuring :is(th, td) { width: auto; white-space: nowrap; }
 
   .th-sortable {
     cursor: ns-resize;
@@ -4768,6 +4780,11 @@
     margin-bottom: 0;
   }
 
+  .monthly-index-table th:nth-child(1) { width: var(--tc-index-1, 150px); }
+  .monthly-index-table th:nth-child(2) { width: var(--tc-index-2, 140px); }
+  .monthly-index-table th:nth-child(4) { width: var(--tc-index-4, 140px); }
+  .monthly-index-table th:nth-child(5) { width: var(--tc-index-5, 160px); }
+
   .monthly-index-table thead th {
     position: sticky;
     top: 0;
@@ -4800,24 +4817,29 @@
 
   .master-tasks-table th:nth-child(1),
   .master-tasks-table td:nth-child(1) {
-    width: 48px;
+    width: var(--tc-master-1, 48px);
     text-align: center;
   }
 
   .master-tasks-table th:nth-child(2),
   .master-tasks-table td:nth-child(2) {
-    width: 48px;
+    width: var(--tc-master-2, 48px);
     text-align: center;
   }
 
   .master-tasks-table th:nth-child(4),
   .master-tasks-table td:nth-child(4) {
-    width: 110px;
+    width: var(--tc-master-4, 110px);
   }
 
   .master-tasks-table th:nth-child(5),
   .master-tasks-table td:nth-child(5) {
-    width: 260px;
+    width: var(--tc-master-5, 120px);
+  }
+
+  .master-tasks-table th:nth-child(6),
+  .master-tasks-table td:nth-child(6) {
+    width: var(--tc-master-6, 260px);
   }
 
   .master-tasks-table td:nth-child(3) {
@@ -7397,6 +7419,13 @@
   .hub-col-signals { width: 22%; }
   .hub-col-ledger { width: 110px; }
   .hub-col-actions { width: 300px; }
+
+  .hub-table-wrap .hub-table { table-layout: fixed; }
+  .hub-table-wrap .hub-table th.hub-col-score { width: var(--tc-hub-1, 120px); }
+  .hub-table-wrap .hub-table th.hub-col-signals { width: var(--tc-hub-3, 22%); }
+  .hub-table-wrap .hub-table th.hub-col-ledger { width: var(--tc-hub-4, 110px); }
+  .hub-table-wrap .hub-table th.hub-col-actions { width: var(--tc-hub-5, 300px); }
+  .hub-table-wrap .hub-table td { overflow-wrap: anywhere; }
 
   .hub-score-num {
     display: block;

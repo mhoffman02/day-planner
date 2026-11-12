@@ -1,7 +1,7 @@
 import Alpine from 'https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/module.esm.js';
 import { GASBridge } from './gasBridge.js';
 import { getLocalDateStr } from './binderStore.js';
-import { READING_WIDTH_DEFAULT, parseSavedReadingWidth, resizedReadingWidth } from './layoutPrefs.js';
+import { READING_WIDTH_DEFAULT, parseSavedReadingWidth, resizedReadingWidth, clampColWidth, parseSavedTableCols, resizedColWidth, colEdgeAt, colResizePlan, colVarName } from './layoutPrefs.js';
 import {
   isHubViewVisible, scoreBandLabel, ledgerStatusLabel, ledgerOperationKind, canRetryLedger, formatCutoffCountdown, formatLocalDateTime, limitDocRows, sortDocRows, parseSavedHubFlags, docRowsOlderThan, DOC_ROW_LIMITS, DOC_ROW_LIMIT_DEFAULT,
   QUEUE_ORDER, QUEUE_TITLES
@@ -593,6 +593,7 @@ Alpine.data('plannerApp', () => ({
       colWidths: [33.33, 33.33, 33.34],
       // About / Tutorial reading width in px; drag the page edges to change. Persisted per device.
       readingWidth: READING_WIDTH_DEFAULT,
+      tableCols: {},
       // Whole-UI zoom, percent (80-150). Persisted per device.
       uiZoom: 100,
       isResizing: false,
@@ -706,6 +707,7 @@ Alpine.data('plannerApp', () => ({
         this.initTheme();
         this.initColumnWidths();
         this.initReadingWidth();
+        this.initTableColumns();
         this.initUiZoom();
         this.initDocRowLimit();
         this.initHubFlagsCache();
@@ -985,6 +987,156 @@ Alpine.data('plannerApp', () => ({
         window.addEventListener('mouseup', onPointerUp);
         window.addEventListener('touchmove', onPointerMove, { passive: false });
         window.addEventListener('touchend', onPointerUp);
+      },
+
+      // Resizable table columns: one delegated listener set per document, no per-row listeners.
+      // Widths live in CSS variables on the root (--tc-<table>-<n>) that styles.css reads with the
+      // default as fallback, so rows rendered later pick them up and markup carries no inline style.
+      initTableColumns() {
+        try {
+          this.tableCols = parseSavedTableCols(localStorage.getItem('dayPlannerTableColumns'));
+        } catch (e) {
+          console.error('Could not load saved table columns:', e.stack);
+        }
+        this.applyTableColumns();
+        if (this.tableColsBound) return;
+        this.tableColsBound = true;
+        document.addEventListener('mousemove', (e) => this.onTableColsHover(e), { passive: true });
+        document.addEventListener('mousedown', (e) => this.onTableColsPointerDown(e));
+        document.addEventListener('touchstart', (e) => this.onTableColsPointerDown(e), { passive: false });
+        document.addEventListener('dblclick', (e) => this.onTableColsDblClick(e));
+      },
+
+      applyTableColumns() {
+        const root = document.documentElement;
+        (this.tableColVars || []).forEach((name) => root.style.removeProperty(name));
+        this.tableColVars = [];
+        Object.keys(this.tableCols).forEach((id) => {
+          Object.keys(this.tableCols[id]).forEach((k) => {
+            const name = colVarName(id, Number(k));
+            root.style.setProperty(name, this.tableCols[id][k] + 'px');
+            this.tableColVars.push(name);
+          });
+        });
+      },
+
+      setTableCol(id, col, width) {
+        this.tableCols = { ...this.tableCols, [id]: { ...(this.tableCols[id] || {}), [col]: width } };
+        this.applyTableColumns();
+      },
+
+      saveTableColumns() {
+        try {
+          localStorage.setItem('dayPlannerTableColumns', JSON.stringify(this.tableCols));
+        } catch (err) {
+          console.error('table columns: could not persist widths to localStorage (quota/disabled):', err.stack);
+        }
+      },
+
+      resetTableColumns() {
+        this.tableCols = {};
+        this.applyTableColumns();
+        try {
+          localStorage.removeItem('dayPlannerTableColumns');
+        } catch (err) {
+          console.error('resetTableColumns: could not clear saved table columns from localStorage:', err.stack);
+        }
+      },
+
+      // One Reset for every saved width: Today panels, About reading width, Topic/Summary split, table columns.
+      resetAllWidths() {
+        this.resetColumnWidths();
+        this.resetReadingWidth();
+        this.resetHeaderSplit();
+        this.resetTableColumns();
+      },
+
+      // The table boundary under the pointer, or null. Header only for touch, so body drags still scroll.
+      tableColEdge(event) {
+        const target = event.target;
+        if (!target || !target.closest) return null;
+        const table = target.closest('table[data-col-table]');
+        if (!table || !table.tHead || table.tHead.offsetWidth === 0) return null;
+        if (event.touches && !target.closest('thead')) return null;
+        if (target.closest('button, input, select, textarea, a, label, [contenteditable]')) return null;
+        const point = event.touches ? event.touches[0] : event;
+        const ths = Array.from(table.querySelectorAll('thead th'));
+        const edge = colEdgeAt(ths.map((th) => th.getBoundingClientRect().right), point.clientX, 4);
+        if (edge < 0) return null;
+        const id = table.dataset.colTable;
+        const plan = colResizePlan(edge, Number(table.dataset.colFlex) - 1, ths.length);
+        return plan ? { table, id, ths, plan } : null;
+      },
+
+      onTableColsHover(event) {
+        if (this.tableColDragging) return;
+        const hit = this.tableColEdge(event);
+        const next = hit ? hit.table : null;
+        if (this.tableColHover === next) return;
+        if (this.tableColHover) this.tableColHover.classList.remove('is-col-edge');
+        if (next) next.classList.add('is-col-edge');
+        this.tableColHover = next;
+      },
+
+      onTableColsPointerDown(event) {
+        if (event.type === 'mousedown' && event.button !== 0) return;
+        const hit = this.tableColEdge(event);
+        if (!hit) return;
+        event.preventDefault();
+        const { id, ths, plan } = hit;
+        const startX = event.touches ? event.touches[0].clientX : event.clientX;
+        const startWidth = ths[plan.col].getBoundingClientRect().width / (this.uiZoom / 100);
+        let moved = false;
+        this.tableColDragging = true;
+        document.body.classList.add('is-col-resizing');
+
+        const onPointerMove = (e) => {
+          const x = e.touches ? e.touches[0].clientX : e.clientX;
+          if (e.cancelable) e.preventDefault();
+          moved = true;
+          this.setTableCol(id, plan.col, resizedColWidth(startWidth, plan.sign * (x - startX), this.uiZoom));
+        };
+
+        const onPointerUp = () => {
+          this.tableColDragging = false;
+          document.body.classList.remove('is-col-resizing');
+          window.removeEventListener('mousemove', onPointerMove);
+          window.removeEventListener('mouseup', onPointerUp);
+          window.removeEventListener('touchmove', onPointerMove);
+          window.removeEventListener('touchend', onPointerUp);
+          if (!moved) return;
+          this.saveTableColumns();
+          // The release also fires a click on the header; swallow it so a resize never re-sorts.
+          const swallow = (ev) => { ev.stopPropagation(); ev.preventDefault(); };
+          document.addEventListener('click', swallow, { capture: true, once: true });
+          setTimeout(() => document.removeEventListener('click', swallow, { capture: true }), 0);
+        };
+
+        window.addEventListener('mousemove', onPointerMove);
+        window.addEventListener('mouseup', onPointerUp);
+        window.addEventListener('touchmove', onPointerMove, { passive: false });
+        window.addEventListener('touchend', onPointerUp);
+      },
+
+      onTableColsDblClick(event) {
+        const hit = this.tableColEdge(event);
+        if (!hit) return;
+        this.autoFitTableColumn(hit.table, hit.id, hit.plan.col);
+      },
+
+      // Auto-fit: let the browser lay the table out at natural width (CSS .col-measuring), read the column, restore.
+      autoFitTableColumn(table, id, col) {
+        table.classList.add('col-measuring');
+        const th = table.querySelectorAll('thead th')[col];
+        const natural = th ? th.getBoundingClientRect().width / (this.uiZoom / 100) : null;
+        table.classList.remove('col-measuring');
+        const width = clampColWidth(natural);
+        if (width === null) {
+          console.error('autoFitTableColumn: could not measure column', id, col);
+          return;
+        }
+        this.setTableCol(id, col, width);
+        this.saveTableColumns();
       },
 
       toggleMaximizeColumn(name) {

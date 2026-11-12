@@ -253,7 +253,7 @@
           <span class="material-symbols-outlined icon-18" :class="{ 'spin': isSyncing }">sync</span>
         </button>
         <div class="view-options-wrap" @click.outside="viewOptionsOpen = false">
-          <button type="button" class="view-options-btn" @click="viewOptionsOpen = !viewOptionsOpen" title="View options (size, theme)" aria-label="View options" aria-haspopup="true" :aria-expanded="viewOptionsOpen">
+          <button type="button" class="view-options-btn" @click="viewOptionsOpen = !viewOptionsOpen" title="View options (size, theme, widths)" aria-label="View options" aria-haspopup="true" :aria-expanded="viewOptionsOpen">
             <span class="material-symbols-outlined icon-18">tune</span>
           </button>
           <div class="view-options-dropdown" x-show="viewOptionsOpen" x-cloak @keydown.escape.window="viewOptionsOpen = false">
@@ -265,6 +265,13 @@
                 <button type="button" class="ui-zoom-glyph" style="font-size: 1.1rem;" @click="stepUiZoom(1)" :disabled="uiZoom >= 150" title="Zoom in" aria-label="Zoom in">A</button>
               </div>
               <span class="view-options-value" x-text="uiZoom + '%'"></span>
+            </div>
+            <div class="view-options-row" title="Reset every saved width: table columns, Today panels, About page">
+              <span class="view-options-label">Widths</span>
+              <button type="button" class="view-options-theme-btn" @click="resetAllWidths()">
+                <span class="material-symbols-outlined icon-18">restart_alt</span>
+                <span>Reset</span>
+              </button>
             </div>
             <div class="view-options-row">
               <span class="view-options-label">Theme</span>
@@ -374,7 +381,7 @@
 
             <!-- Task Table Grid -->
             <figure class="table-container daily-tasks-table-container" @scroll.passive="openStatusMenuTaskId = null">
-              <table class="task-table daily-tasks-table">
+              <table class="task-table daily-tasks-table" data-col-table="daily" data-col-flex="3">
                 <thead>
                   <tr>
                     <th scope="col" class="th-w-40 th-sortable" @click="setTaskSort('dailyTaskSort', 'priority')">
@@ -1061,7 +1068,7 @@
             </button>
           </form>
           <figure class="table-container master-tasks-table-container" @scroll.passive="openStatusMenuTaskId = null">
-            <table class="task-table table-card master-tasks-table">
+            <table class="task-table table-card master-tasks-table" data-col-table="master" data-col-flex="3">
               <thead>
                 <tr class="table-header-row">
                   <th scope="col" class="th-w-48 th-sortable" @click="setTaskSort('masterTaskSort', 'priority')">
@@ -1250,7 +1257,7 @@
             </h2>
           </header>
           <figure class="table-container monthly-index-table-container">
-            <table class="task-table table-card monthly-index-table">
+            <table class="task-table table-card monthly-index-table" data-col-table="index" data-col-flex="3">
               <thead>
                 <tr class="table-header-row">
                   <th scope="col" class="th-w-150">Date</th>
@@ -1442,7 +1449,7 @@
                   <p class="hub-queue-empty doc-controls" x-show="q.key === 'directAction' &amp;&amp; (docActionRows.length > 0 || docHidden > 0 || docLoading)"><span class="match-mode-group" role="radiogroup" aria-label="How many Doc items to show"><span class="task-filter-label">Show:</span><label class="match-mode-opt" title="Show the newest 10 Doc items"><input type="radio" name="docRowLimit" value="10" :checked="docRowLimit === 10" @change="setDocRowLimit(10)"><span>10</span></label><label class="match-mode-opt" title="Show the newest 25 Doc items"><input type="radio" name="docRowLimit" value="25" :checked="docRowLimit === 25" @change="setDocRowLimit(25)"><span>25</span></label><label class="match-mode-opt" title="Show the newest 50 Doc items"><input type="radio" name="docRowLimit" value="50" :checked="docRowLimit === 50" @change="setDocRowLimit(50)"><span>50</span></label><label class="match-mode-opt" title="Show every Doc item"><input type="radio" name="docRowLimit" value="all" :checked="docRowLimit === 'all'" @change="setDocRowLimit('all')"><span>All</span></label></span> <span class="match-mode-group" role="radiogroup" aria-label="Sort Doc items by date"><span class="task-filter-label">Sort:</span><label class="match-mode-opt" title="Newest comments first"><input type="radio" name="docSort" value="desc" :checked="docSortDir === 'desc'" @change="docSortDir !== 'desc' &amp;&amp; toggleDocSort()"><span>Newest</span></label><label class="match-mode-opt" title="Oldest comments first"><input type="radio" name="docSort" value="asc" :checked="docSortDir === 'asc'" @change="docSortDir !== 'asc' &amp;&amp; toggleDocSort()"><span>Oldest</span></label></span> <span x-show="docHidden > 0" x-text="docHidden + ' more hidden'"></span> <span class="match-mode-group" role="radiogroup" aria-label="Dismiss Doc items older than"><span class="task-filter-label">Dismiss older than:</span><label class="match-mode-opt" title="Pick the Doc items whose comment is over 30 days old"><input type="radio" name="docBulkAge" value="30" :checked="docBulkDays === 30" @change="requestBulkDocDismiss(30)"><span>30d</span></label><label class="match-mode-opt" title="Pick the Doc items whose comment is over 90 days old"><input type="radio" name="docBulkAge" value="90" :checked="docBulkDays === 90" @change="requestBulkDocDismiss(90)"><span>90d</span></label><label class="match-mode-opt" title="Pick the Doc items whose comment is over a year old"><input type="radio" name="docBulkAge" value="365" :checked="docBulkDays === 365" @change="requestBulkDocDismiss(365)"><span>1yr</span></label></span></p>
                   <div class="doc-bulk-confirm" x-show="q.key === 'directAction' &amp;&amp; docBulkDays > 0" role="alert" @keydown.escape="cancelBulkDocDismiss()"><p class="doc-bulk-confirm-text" x-show="docBulkIds.length === 0" x-text="'No Doc items are older than ' + docBulkDays + ' days.'"></p><p class="doc-bulk-confirm-text" x-show="docBulkIds.length > 0" x-text="'Remove ' + docBulkIds.length + ' Doc item(s) older than ' + docBulkDays + ' days from Triage? The comments stay open in the Doc.'"></p><span class="doc-bulk-confirm-actions"><button type="button" class="btn-primary" x-show="docBulkIds.length > 0" @click="confirmBulkDocDismiss()">Remove them</button><button type="button" class="btn-secondary" @click="cancelBulkDocDismiss()">Cancel</button></span></div>
                   <figure class="table-container hub-table-wrap" x-show="q.items.length > 0">
-                    <table class="hub-table">
+                    <table class="hub-table" data-col-table="hub" data-col-flex="2">
                       <thead>
                         <tr>
                           <th scope="col" class="hub-col-score">Score</th>
