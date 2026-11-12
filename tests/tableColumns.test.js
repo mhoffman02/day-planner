@@ -29,6 +29,14 @@ test('edge detection picks the header boundary within the slop, else -1', () => 
   assert.equal(colEdgeAt(rights, 200, 4), -1);
 });
 
+test('last column edge sits on the table border, so its grab zone reaches 3x slop inward and none outward', () => {
+  const rights = [50, 100, 400];
+  assert.equal(colEdgeAt(rights, 390, 4), 2);
+  assert.equal(colEdgeAt(rights, 388, 4), 2);
+  assert.equal(colEdgeAt(rights, 387, 4), -1);
+  assert.equal(colEdgeAt(rights, 403, 4), -1);
+});
+
 test('plan: a fixed column resizes itself, a flex column resizes its right neighbour inversely', () => {
   assert.deepEqual(colResizePlan(0, 2, 6), { col: 0, sign: 1 });
   assert.deepEqual(colResizePlan(2, 2, 6), { col: 3, sign: -1 });

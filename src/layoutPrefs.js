@@ -49,8 +49,11 @@ export function resizedColWidth(startWidth, deltaPx, zoomPct) {
 
 // rights: right-edge x of each header cell. Returns the index of the boundary under x, else -1.
 export function colEdgeAt(rights, x, slop) {
+  const last = rights.length - 1;
   for (let i = 0; i < rights.length; i++) {
-    if (Math.abs(x - rights[i]) <= slop) return i;
+    // The last edge is the table border: half the usual zone would be outside it, so reach inward instead.
+    const hit = i === last ? x <= rights[i] && rights[i] - x <= slop * 3 : Math.abs(x - rights[i]) <= slop;
+    if (hit) return i;
   }
   return -1;
 }
