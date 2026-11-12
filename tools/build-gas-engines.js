@@ -6,7 +6,7 @@
 //   (default) write gas-app/Engines.gs
 //   --check   exit 1 if the committed Engines.gs differs from a fresh build (pre-commit/CI gate)
 //
-// Rules enforced (fail loud, per no-silent-failures.md):
+// Rules enforced (fail loud, per fail-loud-catch.md):
 //   - modules may only import from sibling ./*.js files (no bare/npm/parent imports)
 //   - no two modules may declare the same top-level name (they share one IIFE scope)
 //   - every `export` becomes a member of the single global namespace `DPEngines`

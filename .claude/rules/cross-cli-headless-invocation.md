@@ -1,21 +1,16 @@
-# Two CLIs: Which One Does What
+# Two CLIs: `claude` and `agy`
 
-`claude` (Claude Pro: Sonnet/Opus) and `agy` (Gemini Flash driver, Flash-Lite and Pro subagents) share this
-working copy. Either may drive; the other is called headlessly as a one-shot worker, never by asking the human to
-switch terminals. Both use local subscription logins; no API keys. In-harness tiers: Claude `lite`/`worker`/`deep`
-agents; agy `invoke_subagent(Model="flash_lite" | "flash" | "pro")` (`pro` is agy's fallback for Tier-1 work).
+Both share this working copy; either drives, the other runs headlessly as a one-shot worker (never ask the human to switch terminals). Local subscription logins, no API keys. Tiers: Claude `lite`/`worker`/`deep`; agy `invoke_subagent(Model="flash_lite"|"flash"|"pro")`.
 
-| Task shape | Goes to |
+| Task | Goes to |
 | :--- | :--- |
-| Architecture, OAuth/scope changes (`gas-app/appsscript.json`, `drive.file`), deep adversarial review | `claude` (from agy: `/consult-claude`) |
-| Bulk mechanical edits, whole-repo summaries, rapid edit-test loops | `agy` (from claude: `/consult-agy`) |
-| Browser/CDP checks, mock mode included | **Neither**: run `tools/ensure-chrome.js` + the CDP tools in `tools/` (`eval-console.js`, `probe-live.js`, `smoke-test.js`) in the driving CLI ([[live-google-auth-browser-tool]]) |
-| Lint, ESM import check, pre-commit | Local scripts, zero tokens |
+| Architecture, OAuth/scope changes (`gas-app/appsscript.json`), deep adversarial review | `claude` (from agy: `/consult-claude`) |
+| Bulk mechanical edits, repo summaries, fast edit-test loops | `agy` (from claude: `/consult-agy`) |
+| Browser/CDP checks | neither: `tools/ensure-chrome.js` + `tools/` CDP ([[live-google-auth-browser-tool]]) |
+| Lint, ESM check, pre-commit | local scripts |
 
-- MUST run a headless call with its unattended-permission flag, or it hangs or auto-denies. The exact commands and
-  flags live in `/consult-agy` and `/consult-claude`; read the command before calling.
-- A headless call may edit and report; it never commits. The driving session reviews, tests and commits.
-- Log each call: `node tools/agent-bridge.js send --from <caller> --to <target> --type task "<what was asked>"` (keeps `.agents/BRIDGE.md` a readable history).
-- Session start: `node tools/agent-bridge.js read` (then `ack`). Before handing the terminal to the other CLI, run
-  `/handoff`. A full interactive switch (user keeps driving in the other CLI) uses `/bridge`.
-- Configs live in `.agents/`; run `npm run sync:agents` after editing so both CLIs stay in step.
+- Headless calls MUST use the unattended-permission flag (or they hang/auto-deny); read `/consult-agy` or `/consult-claude` for exact flags.
+- Headless calls edit and report, never commit; the driver reviews, tests, commits.
+- Log each call: `node tools/agent-bridge.js send --from <caller> --to <target> --type task "<ask>"`.
+- Session start: `node tools/agent-bridge.js read`, then `ack`. Before handing over, `/handoff`. Full interactive switch: `/bridge`.
+- After editing `.agents/`, run `npm run sync:agents`.

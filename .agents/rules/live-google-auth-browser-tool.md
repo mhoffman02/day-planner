@@ -1,7 +1,7 @@
-# Use `ensure-chrome`/`tools/` CDP tools for Any Browser Check
+# Browser Checks: `ensure-chrome` + `tools/` CDP Only
 
-- MUST drive every day-planner browser check — including `localhost:3000` mock mode — with `node tools/ensure-chrome.js [url]` + the CDP tools in `tools/` (`eval-console.js`, `read-console.js`, `probe-live.js`, `smoke-test.js`).
-- MUST NOT use a generic browser-automation tool (`mcp__chrome-devtools__*`, or any Puppeteer/Playwright-style `launch()`) for any day-planner page, mock mode included. No exception exists.
-- If a generic browser tool is already open and Google auth appears unexpectedly mid-check: MUST stop and switch to `ensure-chrome.js` rather than pushing the generic tool through the block.
+- Every day-planner browser check, mock mode (`localhost:3000`) included: `node tools/ensure-chrome.js [url]` + `tools/` CDP scripts (`eval-console.js`, `read-console.js`, `probe-live.js`, `smoke-test.js`).
+- Never `mcp__chrome-devtools__*`, Puppeteer/Playwright `launch()` or any generic browser tool. No exceptions.
+- Generic tool already open and Google auth appears: stop, switch to `ensure-chrome.js`.
 
-**Why:** generic tools set `--enable-automation`/`navigator.webdriver`, which trips Google's "This browser or app may not be secure" block when accessing Google accounts or Apps Script deployments. `tools/ensure-chrome.js` launches a plain, non-automated `chrome` with a persistent profile instead; sign in manually once, it persists across runs.
+**Why:** generic tools set `--enable-automation`/`navigator.webdriver`, tripping Google's "browser may not be secure" block. `ensure-chrome` launches plain chrome with a persistent profile; sign in once.
