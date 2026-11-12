@@ -443,3 +443,14 @@ live-testing catches it by luck.
 - Smoke test fails on clean HEAD (Alpine init in 6s), so mock-mode checks were unavailable for the index.html port
 
 ---
+
+## 2026-11-12 — WORK verification of attendees and popovers
+
+**Worked well:**
+- User verified WORK PC after repoint, no regressions
+- Trackers archived the shipped item the same day
+
+**Needs improvement:**
+- (none)
+
+---
