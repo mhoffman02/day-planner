@@ -213,6 +213,7 @@ async function runResponsiveAudit() {
 
   const chromeProcess = spawn('google-chrome', [
     '--headless=new',
+    '--password-store=basic',
     `--remote-debugging-port=${CHROME_PORT}`,
     '--no-first-run',
     '--no-default-browser-check',

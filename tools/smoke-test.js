@@ -100,6 +100,7 @@ async function runSmokeTest() {
   const tmpProfileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'day-planner-smoke-'));
   const chromeProcess = spawn('google-chrome', [
     '--headless=new',
+    '--password-store=basic',
     `--remote-debugging-port=${CHROME_PORT}`,
     `--user-data-dir=${tmpProfileDir}`,
     '--no-first-run',
