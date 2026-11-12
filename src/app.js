@@ -1,6 +1,7 @@
 import Alpine from 'https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/module.esm.js';
 import { GASBridge } from './gasBridge.js';
 import { getLocalDateStr } from './binderStore.js';
+import { READING_WIDTH_DEFAULT, parseSavedReadingWidth, resizedReadingWidth } from './layoutPrefs.js';
 import {
   isHubViewVisible, scoreBandLabel, ledgerStatusLabel, ledgerOperationKind, canRetryLedger, formatCutoffCountdown, formatLocalDateTime, limitDocRows, sortDocRows, parseSavedHubFlags, docRowsOlderThan, DOC_ROW_LIMITS, DOC_ROW_LIMIT_DEFAULT,
   QUEUE_ORDER, QUEUE_TITLES
@@ -590,6 +591,8 @@ Alpine.data('plannerApp', () => ({
 
       // Resizable 3-Column Layout state
       colWidths: [33.33, 33.33, 33.34],
+      // About / Tutorial reading width in px; drag the page edges to change. Persisted per device.
+      readingWidth: READING_WIDTH_DEFAULT,
       // Whole-UI zoom, percent (80-150). Persisted per device.
       uiZoom: 100,
       isResizing: false,
@@ -702,6 +705,7 @@ Alpine.data('plannerApp', () => ({
         this.sttBlocked = !this.sttSupported;
         this.initTheme();
         this.initColumnWidths();
+        this.initReadingWidth();
         this.initUiZoom();
         this.initDocRowLimit();
         this.initHubFlagsCache();
@@ -904,6 +908,83 @@ Alpine.data('plannerApp', () => ({
         } catch (err) {
           console.error('resetColumnWidths: could not clear saved column widths from localStorage:', err.stack);
         }
+      },
+
+      initReadingWidth() {
+        try {
+          const saved = parseSavedReadingWidth(localStorage.getItem('dayPlannerReadingWidth'));
+          if (saved !== null) this.readingWidth = saved;
+        } catch (e) {
+          console.error('Could not load saved reading width:', e.stack);
+        }
+        this.applyReadingWidth();
+      },
+
+      applyReadingWidth() {
+        document.documentElement.style.setProperty('--reading-w', this.readingWidth + 'px');
+      },
+
+      resetReadingWidth() {
+        this.readingWidth = READING_WIDTH_DEFAULT;
+        this.applyReadingWidth();
+        try {
+          localStorage.removeItem('dayPlannerReadingWidth');
+        } catch (err) {
+          console.error('resetReadingWidth: could not clear saved reading width from localStorage:', err.stack);
+        }
+      },
+
+      // Drag handles are the About page edges (::before / ::after on .about-container); the
+      // mousedown bubbles to the view section, which tells the side by pointer position.
+      readingEdgeSide(event) {
+        const article = event.target;
+        if (!article.classList || !article.classList.contains('about-container')) return null;
+        const rect = article.getBoundingClientRect();
+        const x = event.touches ? event.touches[0].clientX : event.clientX;
+        const edge = 12;
+        if (x - rect.left <= edge) return 'left';
+        if (rect.right - x <= edge) return 'right';
+        return null;
+      },
+
+      onReadingDblClick(event) {
+        if (this.readingEdgeSide(event)) this.resetReadingWidth();
+      },
+
+      initReadingResize(event) {
+        if (event.type === 'mousedown' && event.button !== 0) return;
+        const side = this.readingEdgeSide(event);
+        if (!side) return;
+        const startX = event.touches ? event.touches[0].clientX : event.clientX;
+        event.preventDefault();
+
+        const startWidth = this.readingWidth;
+        const zoomPct = this.uiZoom;
+        document.body.classList.add('is-reading-resizing');
+
+        const onPointerMove = (e) => {
+          const x = e.touches ? e.touches[0].clientX : e.clientX;
+          this.readingWidth = resizedReadingWidth(startWidth, x - startX, side, zoomPct);
+          this.applyReadingWidth();
+        };
+
+        const onPointerUp = () => {
+          document.body.classList.remove('is-reading-resizing');
+          window.removeEventListener('mousemove', onPointerMove);
+          window.removeEventListener('mouseup', onPointerUp);
+          window.removeEventListener('touchmove', onPointerMove);
+          window.removeEventListener('touchend', onPointerUp);
+          try {
+            localStorage.setItem('dayPlannerReadingWidth', String(this.readingWidth));
+          } catch (err) {
+            console.error('reading resize: could not persist reading width to localStorage (quota/disabled):', err.stack);
+          }
+        };
+
+        window.addEventListener('mousemove', onPointerMove);
+        window.addEventListener('mouseup', onPointerUp);
+        window.addEventListener('touchmove', onPointerMove, { passive: false });
+        window.addEventListener('touchend', onPointerUp);
       },
 
       toggleMaximizeColumn(name) {

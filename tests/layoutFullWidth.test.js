@@ -17,5 +17,5 @@ test('body gutter is 8px each side', () => {
   assert.match(rule('  body'), /padding:\s*52px 8px 4px 8px/);
 });
 test('prose pages keep a reading-width cap', () => {
-  assert.match(rule('  article.about-container'), /max-width:\s*960px/);
+  assert.match(rule('  article.about-container'), /max-width:\s*var\(--reading-w, 960px\)/);
 });

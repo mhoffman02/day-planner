@@ -1613,7 +1613,7 @@
 
       <!-- View 6: Static About Page -->
       <template x-if="activeView === 'about'">
-        <section class="view-container-compact about-view-container" aria-label="About Day Planner">
+        <section class="view-container-compact about-view-container" aria-label="About Day Planner" @mousedown="initReadingResize($event)" @touchstart="initReadingResize($event)" @dblclick="onReadingDblClick($event)">
           <article class="about-container">
 
   <header class="about-header">
@@ -2140,7 +2140,7 @@
 
       <!-- View 7: Tutorial (exercises that double as an acceptance checklist) -->
       <template x-if="activeView === 'tutorial'">
-        <section class="view-container-compact about-view-container" aria-label="Tutorial">
+        <section class="view-container-compact about-view-container" aria-label="Tutorial" @mousedown="initReadingResize($event)" @touchstart="initReadingResize($event)" @dblclick="onReadingDblClick($event)">
           <article class="about-container tutorial-container" x-data="{
     storeKey: 'dp.tutorial.results.v1',
     results: {},

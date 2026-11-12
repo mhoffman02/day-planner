@@ -5379,7 +5379,8 @@
   }
 
   article.about-container {
-    max-width: 960px;
+    position: relative;
+    max-width: var(--reading-w, 960px);
     margin: 12px auto 24px auto;
     padding: 32px;
     background: var(--white);
@@ -5390,6 +5391,30 @@
     color: var(--text-primary);
     line-height: 1.7;
   }
+  /* Drag handles: the left and right edges of the reading page resize its width. */
+  article.about-container::before,
+  article.about-container::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 12px;
+    cursor: col-resize;
+    touch-action: none;
+    z-index: var(--z-10);
+  }
+  article.about-container::before {
+    left: -6px;
+  }
+  article.about-container::after {
+    right: -6px;
+  }
+  body.is-reading-resizing,
+  body.is-reading-resizing * {
+    user-select: none;
+    cursor: col-resize;
+  }
+
   header.about-header {
     border-bottom: 2px solid var(--binder-teal);
     padding-bottom: 16px;

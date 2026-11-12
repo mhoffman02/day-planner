@@ -2054,6 +2054,33 @@
   const DOC_ROW_LIMIT_DEFAULT = 25;
   const DOC_ROW_LIMITS = [10, 25, 50, 'all'];
 
+  const READING_WIDTH_DEFAULT = 960;
+  const READING_WIDTH_MIN = 480;
+  const READING_WIDTH_MAX = 4000;
+
+  function clampReadingWidth(n) {
+    const v = Math.round(Number(n));
+    if (!Number.isFinite(v)) return READING_WIDTH_DEFAULT;
+    return Math.min(READING_WIDTH_MAX, Math.max(READING_WIDTH_MIN, v));
+  }
+
+  function parseSavedReadingWidth(raw) {
+    if (typeof raw !== 'string' || raw === '') return null;
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < READING_WIDTH_MIN || n > READING_WIDTH_MAX) {
+      console.error('parseSavedReadingWidth: saved reading width is out of range, using the default:', raw);
+      return null;
+    }
+    return Math.round(n);
+  }
+
+  // The page is centered, so a dragged edge moves both edges: width changes by twice the pointer delta.
+  // deltaPx is in viewport px; zoomPct converts it to the zoomed CSS px the width is expressed in.
+  function resizedReadingWidth(startWidth, deltaPx, side, zoomPct) {
+    const sign = side === 'left' ? -1 : 1;
+    return clampReadingWidth(startWidth + (2 * sign * deltaPx) / (zoomPct / 100));
+  }
+
   function parseSavedHubFlags(raw) {
     if (typeof raw !== 'string' || raw === '') return null;
     let v;
@@ -3182,6 +3209,8 @@
 
       // Resizable 3-Column Layout state
       colWidths: [33.33, 33.33, 33.34],
+      // About / Tutorial reading width in px; drag the page edges to change. Persisted per device.
+      readingWidth: READING_WIDTH_DEFAULT,
       // Whole-UI zoom, percent (80-150). Persisted per device.
       uiZoom: 100,
       isResizing: false,
@@ -3287,6 +3316,7 @@
         this.sttBlocked = !this.sttSupported;
         this.initTheme();
         this.initColumnWidths();
+        this.initReadingWidth();
         this.initUiZoom();
         this.initDocRowLimit();
         this.initHubFlagsCache();
@@ -3487,6 +3517,83 @@
         } catch (err) {
           console.error('resetColumnWidths: could not clear saved column widths from localStorage:', err.stack);
         }
+      },
+
+      initReadingWidth() {
+        try {
+          const saved = parseSavedReadingWidth(localStorage.getItem('dayPlannerReadingWidth'));
+          if (saved !== null) this.readingWidth = saved;
+        } catch (e) {
+          console.error('Could not load saved reading width:', e.stack);
+        }
+        this.applyReadingWidth();
+      },
+
+      applyReadingWidth() {
+        document.documentElement.style.setProperty('--reading-w', this.readingWidth + 'px');
+      },
+
+      resetReadingWidth() {
+        this.readingWidth = READING_WIDTH_DEFAULT;
+        this.applyReadingWidth();
+        try {
+          localStorage.removeItem('dayPlannerReadingWidth');
+        } catch (err) {
+          console.error('resetReadingWidth: could not clear saved reading width from localStorage:', err.stack);
+        }
+      },
+
+      // Drag handles are the About page edges (::before / ::after on .about-container); the
+      // mousedown bubbles to the view section, which tells the side by pointer position.
+      readingEdgeSide(event) {
+        const article = event.target;
+        if (!article.classList || !article.classList.contains('about-container')) return null;
+        const rect = article.getBoundingClientRect();
+        const x = event.touches ? event.touches[0].clientX : event.clientX;
+        const edge = 12;
+        if (x - rect.left <= edge) return 'left';
+        if (rect.right - x <= edge) return 'right';
+        return null;
+      },
+
+      onReadingDblClick(event) {
+        if (this.readingEdgeSide(event)) this.resetReadingWidth();
+      },
+
+      initReadingResize(event) {
+        if (event.type === 'mousedown' && event.button !== 0) return;
+        const side = this.readingEdgeSide(event);
+        if (!side) return;
+        const startX = event.touches ? event.touches[0].clientX : event.clientX;
+        event.preventDefault();
+
+        const startWidth = this.readingWidth;
+        const zoomPct = this.uiZoom;
+        document.body.classList.add('is-reading-resizing');
+
+        const onPointerMove = (e) => {
+          const x = e.touches ? e.touches[0].clientX : e.clientX;
+          this.readingWidth = resizedReadingWidth(startWidth, x - startX, side, zoomPct);
+          this.applyReadingWidth();
+        };
+
+        const onPointerUp = () => {
+          document.body.classList.remove('is-reading-resizing');
+          window.removeEventListener('mousemove', onPointerMove);
+          window.removeEventListener('mouseup', onPointerUp);
+          window.removeEventListener('touchmove', onPointerMove);
+          window.removeEventListener('touchend', onPointerUp);
+          try {
+            localStorage.setItem('dayPlannerReadingWidth', String(this.readingWidth));
+          } catch (err) {
+            console.error('reading resize: could not persist reading width to localStorage (quota/disabled):', err.stack);
+          }
+        };
+
+        window.addEventListener('mousemove', onPointerMove);
+        window.addEventListener('mouseup', onPointerUp);
+        window.addEventListener('touchmove', onPointerMove, { passive: false });
+        window.addEventListener('touchend', onPointerUp);
       },
 
       toggleMaximizeColumn(name) {

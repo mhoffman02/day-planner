@@ -30,7 +30,7 @@ for (const name of ['About', 'Tutorial']) {
 }
 
 test('GAS Index.html includes Tutorial in its own view, and the About nav button opens it', () => {
-  assert.match(read('gas-app/Index.html'), /x-if="activeView === 'tutorial'"[\s\S]{0,200}include\('Tutorial'\)/);
+  assert.match(read('gas-app/Index.html'), /x-if="activeView === 'tutorial'"[\s\S]{0,400}include\('Tutorial'\)/);
   assert.match(read('gas-app/About.html'), /@click="setView\('tutorial'\)"/);
 });
 
