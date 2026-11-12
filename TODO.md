@@ -1,10 +1,11 @@
 # Active Tasks (TODO)
 
-Order (2026-10-30, user): autonomous agent work first (item A3); everything that needs the user is in the last section,
-"For the session after next" (items B1, B3, B4). An agent session works only A3.
+Order (2026-10-30, user): autonomous agent work first; everything that needs the user is in the last section,
+"For the session after next" (items B1, B3, B4). An agent session works the open agent bullets in "Agent work"
+(A10 smoke and ensure-chrome, A0, A3, A5, A8) and skips any line marked as a user hand-check (A6, A7, A9, A10 hand-check lines).
 Load-speed work (A8) came first on 2026-11-06 at the user's request.
 
-## Agent work: next session (no user needed)
+## Agent work: next session (hand-check lines inside need the user)
 
 ### A10. Attendees and hover popovers (2026-11-12; shipped in TODO_HISTORY, hand-checked on WORK 2026-11-12)
 - [ ] Local-preview `index.html` port is unverified in a browser: `npm run smoke` fails on clean HEAD ("Alpine app failed to initialize within 6s"). Diagnose with `tools/ensure-chrome.js http://localhost:3000` + `tools/probe-live.js`, then fix with a red test or smoke repro.
