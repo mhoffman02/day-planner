@@ -8027,8 +8027,10 @@
 
       openNotesPopover(taskId, event) {
         clearTimeout(this.notesPopoverCloseTimer);
+        // Already open for this key (pointer moved from the pill onto the popover): keep it where it is.
+        const wasOpen = this.openNotesPopoverTaskId === taskId;
         this.openNotesPopoverTaskId = taskId;
-        if (event && (event.currentTarget || event.target)) {
+        if (!wasOpen && event && (event.currentTarget || event.target)) {
           const el = event.currentTarget || event.target;
           const btn = el.closest ? (el.closest('.notes-indicator') || el) : el;
           const rect = this.zoomedRect(btn);

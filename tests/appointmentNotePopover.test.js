@@ -7,7 +7,6 @@
 import { describe, it, test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { bothClients, makeVm } from './helpers/plannerHarness.js';
 
 const read = (p) => fs.readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
 
@@ -65,3 +64,17 @@ test('both Index copies put a note icon with a details popover on each appointme
       `${page}: Meet link is a clickable "Google Meet" hyperlink, not the raw URL`);
   }
 });
+
+import { bothClients, makeVm } from './helpers/plannerHarness.js';
+
+for (const c of await bothClients()) {
+  test(`[${c.label}] re-entering an open popover (pill to popover) keeps its position`, () => {
+    const vm = makeVm(c.factory, { selectedDate: '2026-11-12', dailyTasks: [], masterTasks: [], calendarEvents: [], dailyNote: '' });
+    const rectOf = (left) => ({ left, right: left + 20, top: 100, bottom: 120, width: 20, height: 20 });
+    const target = (left) => ({ currentTarget: { closest: () => null, getBoundingClientRect: () => rectOf(left) } });
+    vm.openNotesPopover('evt:a', target(40));
+    const first = { ...vm.notesPopoverPos };
+    vm.openNotesPopover('evt:a', target(240));
+    assert.deepEqual(vm.notesPopoverPos, first, 'wrapper mouseenter must not move the popover away from the cursor');
+  });
+}
