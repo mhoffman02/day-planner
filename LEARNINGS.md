@@ -458,3 +458,7 @@ live-testing catches it by luck.
 **Needs improvement:** Live CDP check broke when I reloaded the GAS inner iframe directly; reload the top tab with `location.href = <dev url>` instead.
 
 ---
+
+## 2026-11-12 (table columns)
+**Worked well:** Delegated document-level listeners plus root CSS variables (`--tc-<table>-<n>`) made four tables resizable with one attribute pair per table and no per-row cost; pure helpers in `src/layoutPrefs.js` kept the logic red-testable.
+**Needs improvement:** Edge grab zones were only tested on interior columns, so the last column (on the table border, half the zone outside) shipped hard to grab; test boundary cases of any hit zone, not just the middle. A `var()` with no fallback inside a width rule makes the declaration invalid and skips the class default, so every var needs a fallback.
