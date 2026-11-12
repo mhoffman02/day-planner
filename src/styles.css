@@ -2339,8 +2339,8 @@
     max-height: calc(60 * var(--vh));
     resize: both;
     overflow: auto;
-    white-space: pre;
-    overflow-wrap: normal;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
     padding: 6px 8px;
     font: inherit;
     font-size: 0.85rem;
@@ -2459,6 +2459,11 @@
   .task-tip-popover {
     white-space: normal;
     min-width: 200px;
+  }
+
+  .task-tip-popover .event-note-description {
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
   }
 
   .tip-label {
