@@ -1,9 +1,9 @@
-<!-- handoff: branch=pure-gas-main worktree=/home/mike/projects/day-planner base=61733d163020 written=2026-11-12T11:49:30-08:00 -->
+<!-- handoff: branch=pure-gas-main worktree=/home/mike/projects/day-planner base=4676868db286 written=2026-11-12T12:32:52-08:00 -->
 # Resume: Attendees + hover popovers shipped (HOME @435, WORK pushed); verified on WORK 2026-11-12
 
 **Verify first:**
 `git fetch -q; git log --branches --remotes -1 --abbrev=12 --format='%h %p %cI' -- HANDOFF.md`
-Stale if that commit is dated after `2026-11-12T11:49:30-08:00` **and** its parent isn't `61733d163020`, or a worktree's `HANDOFF.md` has a later `written=`. Then read that copy instead and tell the user. `git log --oneline 61733d163020..origin/pure-gas-main`: any commit besides the handoff commit landed after this prompt; check it first.
+Stale if that commit is dated after `2026-11-12T12:32:52-08:00` **and** its parent isn't `4676868db286`, or a worktree's `HANDOFF.md` has a later `written=`. Then read that copy instead and tell the user. `git log --oneline 4676868db286..origin/pure-gas-main`: any commit besides the handoff commit landed after this prompt; check it first.
 
 **Start by:** agent work: (1) PLAN.md Phase 30 OVERDUE rpc-token check (`npm run rpc -- getHubStatus`, read-only); (2) TODO.md A10 item 2, diagnose why `npm run smoke` fails on clean HEAD (thrown at `tools/smoke-test.js` ~L150; use `tools/ensure-chrome.js http://localhost:3000` + `tools/probe-live.js`, red test or repro first), then verify the local-preview `index.html` port. User-gated items below are listed separately.
 
