@@ -453,4 +453,8 @@ live-testing catches it by luck.
 **Needs improvement:**
 - (none)
 
+## 2026-11-12 (layout)
+**Worked well:** One cap (`.binder-container` max-width) explained every tab; CSS-var width (`--reading-w`) plus pseudo-element edge handles gave resize with no new markup beyond one attribute set on the section.
+**Needs improvement:** Live CDP check broke when I reloaded the GAS inner iframe directly; reload the top tab with `location.href = <dev url>` instead.
+
 ---

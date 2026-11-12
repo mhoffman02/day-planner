@@ -1,5 +1,10 @@
 # Task History (TODO_HISTORY)
 
+## 2026-11-12 (later) — Full-width layout and resizable reading width
+
+- [x] **Binder fills the frame: removed the 1720px cap, 8px side gutter, trimmed vertical gaps** (`42dd7c9`, HOME @438, WORK pushed; `tests/layoutFullWidth.test.js`). User verified on HOME and WORK 2026-11-12.
+- [x] **About/Tutorial: drag either page edge to set reading width (default 960px, 480-4000px), double-click an edge to reset, saved per device as `dayPlannerReadingWidth`** (`e94fc2c`, HOME @440, WORK v238; `src/layoutPrefs.js`, `tests/layoutPrefs.test.js`). User verified on HOME and WORK 2026-11-12.
+
 ## 2026-11-12 — Attendees and hover popovers
 
 - [x] **Attendees in the appointment modal and hover popover; hover popovers on appointment pills and Today/Master task titles** (`8a992cc`, `a0b2568`, `8d1a264`, HOME @433-@435, WORK pushed). User verified on WORK PC 2026-11-12: "Good work".
