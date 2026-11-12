@@ -430,3 +430,16 @@ live-testing catches it by luck.
 ## 2026-11-06 (night)
 **Worked well:** red tests for both client copies caught the missing methods; the live /dev gate passed first try.
 **Needs improvement:** an unreproduced "button not disabled" report; ask for the item state before guessing.
+
+## 2026-11-12 — Appointment attendees, hover popovers, keyring prompt
+
+**Worked well:**
+- Asked UX options before building; user picks shipped unchanged
+- Pill-to-popover close bug: red test reproduced the re-anchor cause before the fix
+- Journalctl pinned the Unlock Keyring prompt to the smoke test's headless Chrome; guard test added
+
+**Needs improvement:**
+- Hover popover shipped with a wrapper mouseenter that moved it; a new hover trigger needs a pointer-path test from the start
+- Smoke test fails on clean HEAD (Alpine init in 6s), so mock-mode checks were unavailable for the index.html port
+
+---
