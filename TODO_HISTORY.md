@@ -2,6 +2,7 @@
 
 ## 2026-11-12 (later) — Full-width layout and resizable reading width
 
+- [x] **Resizable table columns: drag any column edge (header or row) on Master, Index, Triage and Today tasks; double-click auto-fits; Widths Reset in View options clears all saved widths; saved as `dayPlannerTableColumns`; fixed wrong Master/Index default widths** (`0954c99`, HOME @441, WORK pushed; `tests/tableColumns.test.js`). User verified on HOME 2026-11-12, WORK pending.
 - [x] **Binder fills the frame: removed the 1720px cap, 8px side gutter, trimmed vertical gaps** (`42dd7c9`, HOME @438, WORK pushed; `tests/layoutFullWidth.test.js`). User verified on HOME and WORK 2026-11-12.
 - [x] **About/Tutorial: drag either page edge to set reading width (default 960px, 480-4000px), double-click an edge to reset, saved per device as `dayPlannerReadingWidth`** (`e94fc2c`, HOME @440, WORK v238; `src/layoutPrefs.js`, `tests/layoutPrefs.test.js`). User verified on HOME and WORK 2026-11-12.
 
