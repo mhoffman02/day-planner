@@ -2,23 +2,12 @@
 paths: ["gas-app/**"]
 ---
 
-# GAS HtmlService Truncation on Literal `//`, Backticks, and Apostrophes
+# GAS HtmlService Truncation: `//`, Apostrophes, Backticks
 
-Google Apps Script's `HtmlService.createHtmlOutputFromFile().getContent()` (used by `include('Script')` and `include('Styles')`) has an AST/lexer bug that silently truncates served HTML/JS files:
-- It truncates from the first literal `//` found inside ANY string literal or template literal to the end of that source line.
-- It truncates at any literal apostrophe (`'`), backtick (`` ` ``), or `//` found inside comment prose (`//` or `/* */`).
+`HtmlService...getContent()` (via `include('Script')`/`include('Styles')`) silently truncates served files: from a literal `//` inside any string/template literal to end of line, and at any apostrophe, backtick or `//` in comment prose. Result: half-cut lines, then `Uncaught SyntaxError: Failed to execute 'write' on 'Document': Invalid or unexpected token`.
 
-When this occurs, lines are served half-cut (e.g., `const url = prompt('URL (https:`), causing unclosed tokens and immediate browser crashes:
-`Uncaught SyntaxError: Failed to execute 'write' on 'Document': Invalid or unexpected token`.
+In `gas-app/*.html`:
+1. Never write `'https://...'`, `"https://..."` or `` `https://${...}` ``; split: `'https:' + '/' + '/...'`.
+2. No ASCII `'` or backtick in comment prose; use curly `’` or rephrase.
 
-## Rules to Enforce
-
-1. **Protocol URLs in String Literals**:
-   - NEVER write `'https://...'` or `"https://..."` or `` `https://${...}` `` in `gas-app/*.html` files.
-   - ALWAYS split the double slash: `'https:' + '/' + '/...'`.
-2. **Comment Prose**:
-   - NEVER use ASCII apostrophes (`'`) or backticks (`` ` ``) in comment prose in `gas-app/*.html` files.
-   - Use typographic curly apostrophes (`’`) or rephrase without apostrophes.
-3. **Automated Enforcement**:
-   - Run `npm run check:gas-safe-chars` before any commit or `clasp push`.
-   - Wired into `npm run lint` and the `.githooks/pre-commit` hook.
+Enforced: `npm run check:gas-safe-chars` (in `npm run lint` and pre-commit).
