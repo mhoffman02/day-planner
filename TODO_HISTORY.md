@@ -3,6 +3,7 @@
 ## 2026-11-12 — Attendees and hover popovers
 
 - [x] **Attendees in the appointment modal and hover popover; hover popovers on appointment pills and Today/Master task titles** (`8a992cc`, `a0b2568`, `8d1a264`, HOME @433-@435, WORK pushed). User verified on WORK PC 2026-11-12: "Good work".
+- [x] **Task hover notes and notes edit box keep plain-text line breaks** (`21ab2bf`, CSS `white-space: pre-wrap`, HOME @436, WORK pushed). User verified on WORK PC 2026-11-12.
 
 ## 2026-11-09 — Click a schedule slot to add an appointment
 
