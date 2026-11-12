@@ -6,6 +6,11 @@ Load-speed work (A8) came first on 2026-11-06 at the user's request.
 
 ## Agent work: next session (no user needed)
 
+### A10. Attendees and hover popovers (2026-11-12; shipped in HOME @433-@435, WORK pushed)
+- [ ] User hand-check on HOME and WORK (after "Update WORK"): hover an appointment pill and a Today or Master task title (popover stays open when the pointer rolls onto it); open an appointment with guests (Attendees (N), 2 lines, Show all / Hide). Events from the CalendarApp fallback path carry no `guests` (block hidden by design).
+- [ ] Local-preview `index.html` port is unverified in a browser: `npm run smoke` fails on clean HEAD ("Alpine app failed to initialize within 6s"). Diagnose with `tools/ensure-chrome.js http://localhost:3000` + `tools/probe-live.js`, then fix with a red test or smoke repro.
+- [ ] `tools/ensure-chrome.js` Linux branch deliberately left without `--password-store=basic` (WSL2 launches Windows chrome.exe); revisit only if the keyring prompt returns after `npm run smoke`.
+
 ### A9. Schedule slot click (2026-11-09; shipped in TODO_HISTORY)
 - [ ] User hand-check on HOME @426 and, after "Update WORK" (version 229), on WORK: click "4:00 PM" and the blank cell beside it; click a time label on a row that has an appointment. Default length is 1 hour; say if you want 30 minutes.
 
