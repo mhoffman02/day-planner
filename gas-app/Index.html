@@ -1763,10 +1763,10 @@
           <a :href="selectedEvent?.gCalLink" target="_blank" rel="noopener noreferrer" class="btn-primary">
             <span class="material-symbols-outlined">calendar_today</span> Open in gCal
           </a>
-          <button type="button" class="btn-secondary" x-show="selectedEvent?.canEdit" @click="openEditEventModal(selectedEvent)">
+          <button type="button" class="btn-secondary" x-show="selectedEvent?.canEdit" @click.stop="openEditEventModal(selectedEvent)">
             <span class="material-symbols-outlined icon-16">edit</span> Edit
           </button>
-          <button type="button" class="btn-secondary" x-show="selectedEvent?.canDelete" @click="requestDeleteEvent(selectedEvent)">
+          <button type="button" class="btn-secondary" x-show="selectedEvent?.canDelete" @click.stop="requestDeleteEvent(selectedEvent)">
             <span class="material-symbols-outlined icon-16">delete</span> Delete
           </button>
           <button type="button" class="btn-secondary" @click="closeEventModal()">Close</button>
