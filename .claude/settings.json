@@ -2,6 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(npm run rpc:*)"
+    ],
+    "ask": [
+      "Bash(npm run rpc*--deploy*)"
     ]
   },
   "hooks": {

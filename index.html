@@ -340,7 +340,7 @@
           <summary><span class="material-symbols-outlined">mail</span> Filed emails (<span x-text="filedEmails.length"></span>)</summary>
           <ul>
             <template x-for="n in filedEmails" :key="n.gmailUrl + n.filedOn">
-              <li><a :href="n.gmailUrl" target="_blank" rel="noopener" x-text="n.subject"></a> <span class="hub-filed-meta" x-text="(n.fromName ? n.fromName + ' · ' : '') + n.filedOn"></span></li>
+              <li><a :href="n.gmailUrl" target="_blank" rel="noopener noreferrer" x-text="n.subject"></a> <span class="hub-filed-meta" x-text="(n.fromName ? n.fromName + ' · ' : '') + n.filedOn"></span></li>
             </template>
           </ul>
         </details>

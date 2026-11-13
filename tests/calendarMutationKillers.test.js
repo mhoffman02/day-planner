@@ -232,8 +232,8 @@ describe('formatEventDescriptionHtml', () => {
   });
   it('tag detection: needs a letter after <, case-insensitive, spans newlines', () => {
     assert.equal(formatEventDescriptionHtml('1 < 2 > 0'), '<pre>1 &lt; 2 &gt; 0</pre>');
-    assert.equal(formatEventDescriptionHtml('x <B>bold</B>'), 'x <B>bold</B>');
-    assert.equal(formatEventDescriptionHtml('<p\nclass="a">hi</p>'), '<p\nclass="a">hi</p>');
+    assert.equal(formatEventDescriptionHtml('x <B>bold</B>'), 'x <b>bold</b>');
+    assert.equal(formatEventDescriptionHtml('<p\nclass="a">hi</p>'), '<p>hi</p>');
     assert.equal(formatEventDescriptionHtml('a <3 b>'), '<pre>a &lt;3 b&gt;</pre>');
     assert.equal(formatEventDescriptionHtml('a <b'), '<pre>a &lt;b</pre>');
   });
@@ -241,31 +241,31 @@ describe('formatEventDescriptionHtml', () => {
     assert.equal(formatEventDescriptionHtml('<b>a</b><script>x()\n</script>b<SCRIPT>y</SCRIPT>c'), '<b>a</b>bc');
     assert.equal(formatEventDescriptionHtml('<b>a</b><style>p{}\n</style>b<STYLE>q</STYLE>c'), '<b>a</b>bc');
   });
-  it('strips on* handlers with all quoting styles, keeps other attributes', () => {
+  it('strips on* handlers with all quoting styles, and every other attribute (allowlist)', () => {
     assert.equal(formatEventDescriptionHtml('<b onclick="x()">t</b>'), '<b>t</b>');
     assert.equal(formatEventDescriptionHtml('<b onclick=\'x()\'>t</b>'), '<b>t</b>');
     assert.equal(formatEventDescriptionHtml('<b onclick=x()>t</b>'), '<b>t</b>');
-    assert.equal(formatEventDescriptionHtml('<b ONCLICK = "x()" id="k">t</b>'), '<b id="k">t</b>');
+    assert.equal(formatEventDescriptionHtml('<b ONCLICK = "x()" id="k">t</b>'), '<b>t</b>');
     assert.equal(formatEventDescriptionHtml('<b onclick="x()" onmouseover="y()">t</b>'), '<b>t</b>');
-    assert.equal(formatEventDescriptionHtml('<b data-onx="1">t</b>'), '<b data-onx="1">t</b>');
+    assert.equal(formatEventDescriptionHtml('<b data-onx="1">t</b>'), '<b>t</b>');
     assert.equal(formatEventDescriptionHtml('<b\nonclick="x()">t</b>'), '<b>t</b>');
-    assert.equal(formatEventDescriptionHtml('<b onclick=x() id=3>t</b>'), '<b id=3>t</b>');
+    assert.equal(formatEventDescriptionHtml('<b onclick=x() id=3>t</b>'), '<b>t</b>');
   });
-  it('neutralises javascript:/data: URLs in href and src, both quote kinds', () => {
-    assert.equal(formatEventDescriptionHtml('<img src="javascript:alert(1)">'), '<img src="#">');
-    assert.equal(formatEventDescriptionHtml('<img src=\'data:text/html,x\'>'), '<img src="#">');
-    assert.equal(formatEventDescriptionHtml('<i href = " JavaScript:alert(1)">'), '<i href="#">');
-    assert.equal(formatEventDescriptionHtml('<i href="DATA:x">'), '<i href="#">');
-    assert.equal(formatEventDescriptionHtml('<i href="https://ok/javascript:x">'), '<i href="https://ok/javascript:x">');
-    assert.equal(formatEventDescriptionHtml('<i href="javascript:a" title="t">'), '<i href="#" title="t">');
+  it('drops non-allowlisted tags and every href/src that is not on an anchor or not http(s)/mailto', () => {
+    assert.equal(formatEventDescriptionHtml('<img src="javascript:alert(1)">'), '');
+    assert.equal(formatEventDescriptionHtml('<img src=\'data:text/html,x\'>'), '');
+    assert.equal(formatEventDescriptionHtml('<i href = " JavaScript:alert(1)">'), '<i></i>');
+    assert.equal(formatEventDescriptionHtml('<i href="DATA:x">'), '<i></i>');
+    assert.equal(formatEventDescriptionHtml('<i href="https://ok/javascript:x">'), '<i></i>');
+    assert.equal(formatEventDescriptionHtml('<i href="javascript:a" title="t">'), '<i></i>');
   });
-  it('anchors get target and rel unless target present', () => {
-    assert.equal(formatEventDescriptionHtml('<a href="https://x">l</a>'), '<a target="_blank" rel="noopener noreferrer" href="https://x">l</a>');
-    assert.equal(formatEventDescriptionHtml('<A href="https://x">l</A>'), '<a target="_blank" rel="noopener noreferrer" href="https://x">l</A>');
-    assert.equal(formatEventDescriptionHtml('<a target="_self" href="x">l</a>'), '<a target="_self" href="x">l</a>');
-    assert.equal(formatEventDescriptionHtml('<a href="x" target="_self">l</a>'), '<a href="x" target="_self">l</a>');
+  it('anchors always get forced target and rel; only absolute http(s)/mailto hrefs survive', () => {
+    assert.equal(formatEventDescriptionHtml('<a href="https://x">l</a>'), '<a href="https://x" target="_blank" rel="noopener noreferrer">l</a>');
+    assert.equal(formatEventDescriptionHtml('<A href="https://x">l</A>'), '<a href="https://x" target="_blank" rel="noopener noreferrer">l</a>');
+    assert.equal(formatEventDescriptionHtml('<a target="_self" href="x">l</a>'), '<a target="_blank" rel="noopener noreferrer">l</a>');
+    assert.equal(formatEventDescriptionHtml('<a href="x" target="_self">l</a>'), '<a target="_blank" rel="noopener noreferrer">l</a>');
     assert.equal(formatEventDescriptionHtml('<a>l</a>'), '<a target="_blank" rel="noopener noreferrer">l</a>');
-    assert.equal(formatEventDescriptionHtml('<a href="x">l</a> <a href="y">m</a>'), '<a target="_blank" rel="noopener noreferrer" href="x">l</a> <a target="_blank" rel="noopener noreferrer" href="y">m</a>');
+    assert.equal(formatEventDescriptionHtml('<a href="x">l</a> <a href="y">m</a>'), '<a target="_blank" rel="noopener noreferrer">l</a> <a target="_blank" rel="noopener noreferrer">m</a>');
   });
 });
 
@@ -358,7 +358,7 @@ describe('second-pass killers', () => {
   it('quoted on* values containing spaces are fully stripped', () => {
     assert.equal(formatEventDescriptionHtml('<b onclick="a b c">t</b>'), '<b>t</b>');
     assert.equal(formatEventDescriptionHtml('<b onclick=\'a b c\'>t</b>'), '<b>t</b>');
-    assert.equal(formatEventDescriptionHtml('<b onclick="a b" id="k">t</b>'), '<b id="k">t</b>');
+    assert.equal(formatEventDescriptionHtml('<b onclick="a b" id="k">t</b>'), '<b>t</b>');
     assert.equal(formatEventDescriptionHtml('<b onclick=\'a"b c\'>t</b>'), '<b>t</b>');
     assert.equal(formatEventDescriptionHtml('<b onclick="a\'b c">t</b>'), '<b>t</b>');
   });

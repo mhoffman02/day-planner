@@ -463,7 +463,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 736;
+const BUILD_NUMBER_ = 737;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -480,7 +480,7 @@ function renderSetupFolderPage() {
     .evaluate()
     .setTitle('Day Planner - Setup Google Drive Folder')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DEFAULT);
 
   try {
     output.setFaviconUrl(DPApp.faviconUrl());
@@ -500,10 +500,8 @@ function doGet_original(e) {
   try {
     console.info('doGet: ' + JSON.stringify(e, null, 2));
 
-    // 0. Check for log maintenance actions
-    if (e && e.parameter && e.parameter.clear_logs === '1') {
-      clearRecentServerLogs();
-    }
+    // 0. No state change on GET: a cross-site link could trigger it. The self-test page clears
+    // logs through google.script.run clearServerLogs (XSRF-protected), not ?clear_logs=1.
 
     // Check if requested raw JSON execution logs endpoint
     if (e && e.parameter && (e.parameter.view === 'logs' || e.parameter.logs === '1') && e.parameter.format === 'json') {
@@ -544,7 +542,7 @@ function doGet_original(e) {
     const output = template.evaluate()
       .setTitle('Day Planner')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DEFAULT);
 
     try {
       output.setFaviconUrl(DPApp.faviconUrl());
@@ -668,9 +666,26 @@ const PICKER_APP_ID = '951958469609';
  * @returns {{token: string, apiKey: string, appId: string, folderId: string}}
  */
 function getDriveRegrantConfig() {
+  assertDriveRegrantEnabled_();
   const apiKey = PropertiesService.getScriptProperties().getProperty('PICKER_API_KEY');
   if (!apiKey) throw new Error('PICKER_API_KEY script property is not set (Project Settings > Script Properties)');
   return { token: ScriptApp.getOAuthToken(), apiKey: apiKey, appId: PICKER_APP_ID, folderId: boundRootFolderId_() };
+}
+
+/**
+ * Gate for getDriveRegrantConfig: the config carries the live OAuth token, so it is served only
+ * inside a window the owner opens by hand. Script Property REGRANT_ENABLED_UNTIL must hold a
+ * future epoch-ms (digits only). Missing, expired or malformed fails closed, before the token is
+ * read, with how-to-enable text that the Regrant page shows as its status line.
+ * @throws {Error} When re-grant is not currently enabled.
+ */
+function assertDriveRegrantEnabled_() {
+  const raw = String(PropertiesService.getScriptProperties().getProperty('REGRANT_ENABLED_UNTIL') || '').trim();
+  const now = Date.now();
+  if (/^\d{1,15}$/.test(raw) && Number(raw) > now) return;
+  throw new Error('Drive re-grant is disabled' + (raw ? ' (REGRANT_ENABLED_UNTIL is expired or not an epoch-ms number)' : '') +
+    '. To enable it for one hour: Apps Script IDE > Project Settings > Script Properties, set REGRANT_ENABLED_UNTIL to ' +
+    (now + 3600000) + ', then reload this page. Delete the property when done.');
 }
 
 function renderRegrantPage() {
@@ -678,7 +693,7 @@ function renderRegrantPage() {
     .evaluate()
     .setTitle('Day Planner - Restore Drive Access')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DEFAULT);
   try {
     output.setFaviconUrl(DPApp.faviconUrl());
   } catch (_favErr) {
@@ -3671,7 +3686,7 @@ function openPlannerWebAppDialog() {
     '<div style="font-family:sans-serif; padding:16px; text-align:center;">' +
     '<h3 style="color:#2d6a5a;">📖 Day Planner Web App</h3>' +
     '<p>Click below to open your Digital Binder Application in a new browser tab:</p>' +
-    '<a href="' + url + '" target="_blank" style="display:inline-block; padding:10px 20px; background:#2d6a5a; color:white; text-decoration:none; border-radius:6px; font-weight:700;">Launch Day Planner SPA</a>' +
+    '<a href="' + url + '" target="_blank" rel="noopener noreferrer" style="display:inline-block; padding:10px 20px; background:#2d6a5a; color:white; text-decoration:none; border-radius:6px; font-weight:700;">Launch Day Planner SPA</a>' +
     '</div>'
   ).setWidth(360).setHeight(180);
 
@@ -3969,6 +3984,7 @@ global.logWarn = logWarn;                                    // used by UnitTest
 global.recordServerLog = recordServerLog;                    // used by UnitTests.gs
 global.getRecentServerLogs = getRecentServerLogs;            // used by UnitTests.gs
 global.clearRecentServerLogs = clearRecentServerLogs;        // used by UnitTests.gs
+global._clearServerLogsInternal = clearRecentServerLogs;     // google.script.run: self-test page (UnitTests.gs)
 global.getRunLogDocUrl = getRunLogDocUrl;                    // used by UnitTests.gs
 global.escapeHtml_ = escapeHtml_;                            // used by UnitTests.gs
 global.getFolderByNameOrCreate = getFolderByNameOrCreate;    // used by UnitTests.gs
@@ -4202,6 +4218,10 @@ function driveWriteAccessReport() {
 
 function getDriveRegrantConfig() {
   return (typeof _getDriveRegrantConfigInternal === 'function') ? _getDriveRegrantConfigInternal() : (globalThis._getDriveRegrantConfigInternal ? globalThis._getDriveRegrantConfigInternal() : null);
+}
+
+function clearServerLogs() {
+  return (typeof _clearServerLogsInternal === 'function') ? _clearServerLogsInternal() : (globalThis._clearServerLogsInternal ? globalThis._clearServerLogsInternal() : null);
 }
 
 function getFutureMatrix(year) {

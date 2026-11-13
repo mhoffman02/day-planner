@@ -638,6 +638,184 @@
       .map(({ task }) => task);
   }
 
+  /*
+   * Event description sanitizer. Calendar descriptions are attacker-controlled (anyone can send an
+   * invite) and render through x-html, which Alpine also initializes, so any attribute is as
+   * dangerous as a script. This is an allowlist that rebuilds the markup from a small HTML
+   * tokenizer: only a, br, p, b, i, u, ul, ol, li and span survive, with no attributes except a
+   * vetted http, https or mailto href on a (plus a forced target=_blank, rel=noopener noreferrer).
+   * Other tags are dropped and keep their text; script-like elements lose their content too. All
+   * text is re-escaped, so nothing the input spells can become markup. Pure string code so node
+   * tests run it (no DOM shim); mirrored verbatim from src/calendarEngine.js (tools/check-mirror.js).
+   */
+
+  function descAllowedTag(name) {
+    return /^(?:a|br|p|b|i|u|ul|ol|li|span)$/.test(name);
+  }
+
+  function descDropsContent(name) {
+    return /^(?:script|style|iframe|frame|frameset|noembed|noframes|noscript|textarea|title|xmp|template|object|embed|applet|svg|math|plaintext|select)$/.test(name);
+  }
+
+  function descScan(html, from, re) {
+    let k = from;
+    while (k < html.length && !re.test(html[k])) k++;
+    return k;
+  }
+
+  function descEscapeText(s) {
+    return s.replace(/&(?!(?:#[xX][0-9a-fA-F]+|#[0-9]+|[a-zA-Z][a-zA-Z0-9]*);)/g, '&amp;')
+      .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function descEscapeAll(s) {
+    return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/\u0027/g, '&#39;')
+      .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  /* Decodes character references so an encoded scheme (jav&#x61;script:) is checked as the browser reads it. */
+  function descDecodeEntities(s) {
+    const named = { amp: '&', AMP: '&', lt: '<', LT: '<', gt: '>', GT: '>', quot: '"', QUOT: '"', apos: '\u0027', colon: ':', Tab: '\t', NewLine: '\n', sol: '/', nbsp: '\u00a0' };
+    return s.replace(/&(#[xX][0-9a-fA-F]+|#[0-9]+|[a-zA-Z][a-zA-Z0-9]*);?/g, (m, ent) => {
+      if (ent[0] !== '#') return Object.prototype.hasOwnProperty.call(named, ent) ? named[ent] : m;
+      const code = ent[1] === 'x' || ent[1] === 'X' ? parseInt(ent.slice(2), 16) : parseInt(ent.slice(1), 10);
+      return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : '\ufffd';
+    });
+  }
+
+  /*
+   * The href exactly as the browser will read it back from the re-escaped attribute: entities
+   * decoded, leading and trailing C0 controls and spaces trimmed, tab and newlines removed (the URL
+   * parser does both). Only http, https and mailto pass; anything else (relative too) yields empty.
+   */
+  function descSafeHref(raw) {
+    const decoded = descDecodeEntities(raw);
+    let a = 0;
+    let b = decoded.length;
+    while (a < b && decoded.charCodeAt(a) <= 32) a++;
+    while (b > a && decoded.charCodeAt(b - 1) <= 32) b--;
+    const url = decoded.slice(a, b).replace(/[\t\n\r]/g, '');
+    return /^(?:https?|mailto):/i.test(url) ? url : '';
+  }
+
+  function descReadValue(html, from) {
+    const k = descScan(html, from, /[^\t\n\f\r ]/);
+    const q = html[k];
+    if (q === '"' || q === '\u0027') {
+      const close = html.indexOf(q, k + 1);
+      return close === -1 ? null : { text: html.slice(k + 1, close), end: close + 1 };
+    }
+    const end = descScan(html, k, /[\t\n\f\r >]/);
+    return { text: html.slice(k, end), end: end };
+  }
+
+  /* Attributes up to the closing angle bracket, tokenized like HTML (a slash separates, quotes may hold one); null at end of input. */
+  function descReadAttrs(html, from) {
+    const attrs = [];
+    let j = from;
+    while (j < html.length) {
+      if (html[j] === '>') return { attrs: attrs, end: j + 1 };
+      if (/[\t\n\f\r /]/.test(html[j])) {
+        j++;
+        continue;
+      }
+      const nameEnd = descScan(html, j + 1, /[\t\n\f\r />=]/);
+      const k = descScan(html, nameEnd, /[^\t\n\f\r ]/);
+      const value = html[k] === '=' ? descReadValue(html, k + 1) : { text: '', end: nameEnd };
+      if (!value) return null;
+      attrs.push([html.slice(j, nameEnd).toLowerCase(), value.text]);
+      j = value.end;
+    }
+    return null;
+  }
+
+  /* One markup token at lt: a comment or declaration to skip, an open or close tag, or null for a literal angle bracket. */
+  function descReadTag(html, lt) {
+    const next = html.charAt(lt + 1);
+    if (html.startsWith('!-' + '-', lt + 1)) {
+      const close = html.indexOf('-' + '->', lt + 4);
+      return { kind: 'skip', end: close === -1 ? html.length : close + 3 };
+    }
+    if (next === '!' || next === '?' || (next === '/' && !/[a-zA-Z]/.test(html.charAt(lt + 2)))) {
+      const gt = html.indexOf('>', lt + 1);
+      return { kind: 'skip', end: gt === -1 ? html.length : gt + 1 };
+    }
+    const nameStart = next === '/' ? lt + 2 : lt + 1;
+    if (!/[a-zA-Z]/.test(html.charAt(nameStart))) return null;
+    const nameEnd = descScan(html, nameStart + 1, /[\t\n\f\r />]/);
+    const parsed = descReadAttrs(html, nameEnd);
+    if (!parsed) return { kind: 'skip', end: html.length };
+    const name = html.slice(nameStart, nameEnd).toLowerCase();
+    return { kind: next === '/' ? 'close' : 'open', name: name, attrs: parsed.attrs, end: parsed.end };
+  }
+
+  function descOpenTag(tag) {
+    if (tag.name !== 'a') return '<' + tag.name + '>';
+    const hrefAttr = tag.attrs.find((at) => at[0] === 'href');
+    const href = hrefAttr ? descSafeHref(hrefAttr[1]) : '';
+    return '<a' + (href ? ' href="' + descEscapeAll(href) + '"' : '') + ' target="_blank" rel="noopener noreferrer">';
+  }
+
+  /* Next index after the end tag of a content-dropping element (or end of input when unclosed). */
+  function descSkipContent(html, tag) {
+    const close = html.toLowerCase().indexOf('<' + '/' + tag.name, tag.end);
+    if (close === -1) return html.length;
+    const gt = html.indexOf('>', close);
+    return gt === -1 ? html.length : gt + 1;
+  }
+
+  /* Emits an allowed tag (closers only for open elements, so output stays balanced); returns the next index. */
+  function descApplyTag(html, tag, out, open) {
+    if (tag.kind === 'skip') return tag.end;
+    if (tag.kind === 'close') {
+      const at = open.lastIndexOf(tag.name);
+      while (at !== -1 && open.length > at) out.push('<' + '/' + open.pop() + '>');
+      return tag.end;
+    }
+    if (descDropsContent(tag.name)) return descSkipContent(html, tag);
+    if (!descAllowedTag(tag.name)) return tag.end;
+    out.push(descOpenTag(tag));
+    if (tag.name !== 'br') open.push(tag.name);
+    return tag.end;
+  }
+
+  function sanitizeDescriptionHtml(html) {
+    const out = [];
+    const open = [];
+    let i = 0;
+    while (i < html.length) {
+      const lt = html.indexOf('<', i);
+      if (lt === -1) {
+        out.push(descEscapeText(html.slice(i)));
+        break;
+      }
+      out.push(descEscapeText(html.slice(i, lt)));
+      const tag = descReadTag(html, lt);
+      if (tag) {
+        i = descApplyTag(html, tag, out, open);
+      } else {
+        out.push('&lt;');
+        i = lt + 1;
+      }
+    }
+    while (open.length) out.push('<' + '/' + open.pop() + '>');
+    return out.join('');
+  }
+
+  /**
+   * Formats a calendar event description for display. Descriptions containing HTML markup (an
+   * invite created by another Calendar client with anchor or line-break formatting) go through the
+   * allowlist sanitizer above; plain-text descriptions are escaped and wrapped in pre so manual line
+   * breaks survive instead of collapsing under normal HTML whitespace rules.
+   * @param {string} [description] Raw event description text (default empty).
+   * @returns {string} Safe HTML fragment ready to bind via x-html; empty if there is no description.
+   */
+  function formatEventDescriptionHtml(description = '') {
+    if (!description) return '';
+    if (/<[a-z][\s\S]*?>/i.test(description)) return sanitizeDescriptionHtml(description);
+    return '<pre>' + descEscapeAll(description) + '</pre>';
+  }
+
   /* Smart paste for Notes card lines, mirrored verbatim from src/notePaste.js (tests/notePaste.test.js runs both copies). */
   const NOTE_PASTE_BLOCK_TAGS = new Set([
     'p', 'div', 'li', 'ul', 'ol', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'tr', 'table',
@@ -7018,48 +7196,44 @@
           return '<span class="note-card-empty-placeholder">Click to add notes for this topic&hellip;</span>';
         }
 
-        // Heading hashes go; a line-leading #decision tag stays (it renders as a badge).
+        /* Heading hashes go; a line-leading #decision tag stays (it renders as a badge). */
         const text = this.normalizeLeadingListMarker(rawText).replace(/^#+\s*(?!decision\b)/i, '');
 
-        const escapeHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        /* Quotes are escaped too: escaped text lands inside href values and link labels. */
+        const escapeHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/\u0027/g, '&#39;');
 
+        /* Badges and inline formatting; runs on escaped text whose links are already placeholders. */
+        const formatInline = (html) => html
+          .replace(/#index\s+\[([^\]]+)\]/gi, '<span class="doc-preview-topic-badge">$1</span>')
+          .replace(/#task\s+\[([A-C]\d)\]/gi, '<span class="priority-badge">[$1]</span>')
+          .replace(/#decision\b(?:\s+\[([^\]]+)\])?/gi, (_m, topic) => `<span class="decision-badge">Decision${topic ? ': ' + topic : ''}</span>`)
+          .replace(/\[\[color:(teal|red|green|blue)\]\](.+?)\[\[\/color\]\]/g, '<span class="note-render-color-$1">$2</span>')
+          .replace(/\*\*(.+?)\*\*/g, '<span class="note-render-bold">$1</span>')
+          .replace(/~~(.+?)~~/g, '<span class="note-render-strike">$1</span>')
+          .replace(/__(.+?)__/g, '<span class="note-render-underline">$1</span>')
+          .replace(/\*(.+?)\*/g, '<span class="note-render-italic">$1</span>');
+
+        /*
+         * Every link form in ONE pass over the escaped text: [[link:url]]label[[/link]], [label](url),
+         * autolinks in angle brackets, raw http(s) URLs. Each match becomes a placeholder, so no later
+         * pass (another link form, bold, italic...) ever re-scans generated anchor markup; a URL nested
+         * inside a link target used to be linkified a second time and break out of href.
+         */
+        const linkRe = /\[\[link:((?:https?|mailto):[^\]\s]+)\]\](.*?)\[\[\/link\]\]|\[([^\]]+)\]\(((?:https?|mailto):[^)\s]+)\)|&lt;((?:https?|mailto):[^&>\s]+)&gt;|(^|[\s(])(https?:\/\/[^\s<)]+)/g;
+        const mark = String.fromCharCode(0xe000);
         const renderInline = (line) => {
-          let html = escapeHtml(line);
-          html = html.replace(/#index\s+\[([^\]]+)\]/gi, '<span class="doc-preview-topic-badge">$1</span>');
-          html = html.replace(/#task\s+\[([A-C]\d)\]/gi, '<span class="priority-badge">[$1]</span>');
-          html = html.replace(/#decision\b(?:\s+\[([^\]]+)\])?/gi, (_m, topic) => `<span class="decision-badge">Decision${topic ? ': ' + topic : ''}</span>`);
-          html = html.replace(/\[\[color:(teal|red|green|blue)\]\](.+?)\[\[\/color\]\]/g, '<span class="note-render-color-$1">$2</span>');
-
-          /* 1. Bracket syntax: [[link:url]]linkText[[/link]] */
-          html = html.replace(/\[\[link:((?:https?|mailto):[^\]\s]+)\]\](.*?)\[\[\/link\]\]/g, (_m, url, linkText) => {
-            const safeHrefUrl = url.replace(/"/g, '&quot;');
-            const label = (linkText || '').trim() || url;
-            return '<a href="' + safeHrefUrl + '" target="_blank" rel="noopener noreferrer" class="note-render-link">' + label + '</a>';
+          const links = [];
+          const anchor = (url, label) => {
+            links.push(`<a href="${url}" target="_blank" rel="noopener noreferrer" class="note-render-link">${label}</a>`);
+            return mark + (links.length - 1) + mark;
+          };
+          const linked = escapeHtml(line.split(mark).join('')).replace(linkRe, (_m, bUrl, bText, mText, mUrl, aUrl, rPrefix, rUrl) => {
+            if (bUrl) return anchor(bUrl, formatInline((bText || '').trim()) || bUrl);
+            if (mUrl) return anchor(mUrl, formatInline(mText));
+            if (aUrl) return anchor(aUrl, aUrl);
+            return rPrefix + anchor(rUrl, rUrl);
           });
-
-          /* 2. Standard markdown links: [link text](url) */
-          html = html.replace(/\[([^\]]+)\]\(((?:https?|mailto):[^)\s]+)\)/g, (_m, linkText, url) => {
-            const safeHrefUrl = url.replace(/"/g, '&quot;');
-            return '<a href="' + safeHrefUrl + '" target="_blank" rel="noopener noreferrer" class="note-render-link">' + linkText + '</a>';
-          });
-
-          /* 3. Autolinks: <https:...> */
-          html = html.replace(/&lt;((?:https?|mailto):[^&>\s]+)&gt;/g, (_m, url) => {
-            const safeHrefUrl = url.replace(/"/g, '&quot;');
-            return '<a href="' + safeHrefUrl + '" target="_blank" rel="noopener noreferrer" class="note-render-link">' + url + '</a>';
-          });
-
-          /* 4. Raw standalone URLs */
-          html = html.replace(/(^|[\s(])((?:https?):\/\/[^\s<)]+)/g, (_m, prefix, url) => {
-            const safeHrefUrl = url.replace(/"/g, '&quot;');
-            return prefix + '<a href="' + safeHrefUrl + '" target="_blank" rel="noopener noreferrer" class="note-render-link">' + url + '</a>';
-          });
-
-          html = html.replace(/\*\*(.+?)\*\*/g, '<span class="note-render-bold">$1</span>');
-          html = html.replace(/~~(.+?)~~/g, '<span class="note-render-strike">$1</span>');
-          html = html.replace(/__(.+?)__/g, '<span class="note-render-underline">$1</span>');
-          html = html.replace(/\*(.+?)\*/g, '<span class="note-render-italic">$1</span>');
-          return html;
+          return formatInline(linked).replace(new RegExp(mark + '(\\d+)' + mark, 'g'), (_m, n) => links[Number(n)]);
         };
 
         const decisionClass = /#decision\b/i.test(text) ? ' note-line-decision' : '';
@@ -9113,23 +9287,7 @@
       },
 
       formatEventDescription(description) {
-        if (!description) return '';
-        const htmlTagPattern = /<[a-z][\s\S]*?>/i;
-        if (htmlTagPattern.test(description)) {
-          return description
-            .replace(/<script[\s\S]*?<\/script>/gi, '')
-            .replace(/<style[\s\S]*?<\/style>/gi, '')
-            .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '')
-            .replace(/(href|src)\s*=\s*("|')\s*(?:javascript|data):[^"']*\2/gi, '$1="#"')
-            .replace(/<a(?![^>]*\btarget=)([^>]*?)>/gi, '<a target="_blank" rel="noopener noreferrer"$1>');
-        }
-        const escaped = description
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;')
-          .replace(/"/g, '&quot;')
-          .replace(/'/g, '&#39;');
-        return '<pre>' + escaped + '</pre>';
+        return formatEventDescriptionHtml(description);
       },
 
       formatEventTime(evt) {

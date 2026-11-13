@@ -1,4 +1,4 @@
-import Alpine from 'https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/module.esm.js';
+import Alpine from 'https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/module.esm.js';
 import { GASBridge } from './gasBridge.js';
 import { getLocalDateStr } from './binderStore.js';
 import { READING_WIDTH_DEFAULT, parseSavedReadingWidth, resizedReadingWidth, clampColWidth, parseSavedTableCols, resizedColWidth, colEdgeAt, colResizePlan, colVarName } from './layoutPrefs.js';
@@ -4344,48 +4344,44 @@ Alpine.data('plannerApp', () => ({
           return '<span class="note-card-empty-placeholder">Click to add notes for this topic&hellip;</span>';
         }
 
-        // Heading hashes go; a line-leading #decision tag stays (it renders as a badge).
+        /* Heading hashes go; a line-leading #decision tag stays (it renders as a badge). */
         const text = this.normalizeLeadingListMarker(rawText).replace(/^#+\s*(?!decision\b)/i, '');
 
-        const escapeHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        /* Quotes are escaped too: escaped text lands inside href values and link labels. */
+        const escapeHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/\u0027/g, '&#39;');
 
+        /* Badges and inline formatting; runs on escaped text whose links are already placeholders. */
+        const formatInline = (html) => html
+          .replace(/#index\s+\[([^\]]+)\]/gi, '<span class="doc-preview-topic-badge">$1</span>')
+          .replace(/#task\s+\[([A-C]\d)\]/gi, '<span class="priority-badge">[$1]</span>')
+          .replace(/#decision\b(?:\s+\[([^\]]+)\])?/gi, (_m, topic) => `<span class="decision-badge">Decision${topic ? ': ' + topic : ''}</span>`)
+          .replace(/\[\[color:(teal|red|green|blue)\]\](.+?)\[\[\/color\]\]/g, '<span class="note-render-color-$1">$2</span>')
+          .replace(/\*\*(.+?)\*\*/g, '<span class="note-render-bold">$1</span>')
+          .replace(/~~(.+?)~~/g, '<span class="note-render-strike">$1</span>')
+          .replace(/__(.+?)__/g, '<span class="note-render-underline">$1</span>')
+          .replace(/\*(.+?)\*/g, '<span class="note-render-italic">$1</span>');
+
+        /*
+         * Every link form in ONE pass over the escaped text: [[link:url]]label[[/link]], [label](url),
+         * autolinks in angle brackets, raw http(s) URLs. Each match becomes a placeholder, so no later
+         * pass (another link form, bold, italic...) ever re-scans generated anchor markup; a URL nested
+         * inside a link target used to be linkified a second time and break out of href.
+         */
+        const linkRe = /\[\[link:((?:https?|mailto):[^\]\s]+)\]\](.*?)\[\[\/link\]\]|\[([^\]]+)\]\(((?:https?|mailto):[^)\s]+)\)|&lt;((?:https?|mailto):[^&>\s]+)&gt;|(^|[\s(])(https?:\/\/[^\s<)]+)/g;
+        const mark = String.fromCharCode(0xe000);
         const renderInline = (line) => {
-          let html = escapeHtml(line);
-          html = html.replace(/#index\s+\[([^\]]+)\]/gi, '<span class="doc-preview-topic-badge">$1</span>');
-          html = html.replace(/#task\s+\[([A-C]\d)\]/gi, '<span class="priority-badge">[$1]</span>');
-          html = html.replace(/#decision\b(?:\s+\[([^\]]+)\])?/gi, (_m, topic) => `<span class="decision-badge">Decision${topic ? ': ' + topic : ''}</span>`);
-          html = html.replace(/\[\[color:(teal|red|green|blue)\]\](.+?)\[\[\/color\]\]/g, '<span class="note-render-color-$1">$2</span>');
-
-          // 1. Bracket syntax: [[link:url]]linkText[[/link]]
-          html = html.replace(/\[\[link:((?:https?|mailto):[^\]\s]+)\]\](.*?)\[\[\/link\]\]/g, (_m, url, linkText) => {
-            const safeHrefUrl = url.replace(/"/g, '&quot;');
-            const label = (linkText || '').trim() || url;
-            return `<a href="${safeHrefUrl}" target="_blank" rel="noopener noreferrer" class="note-render-link">${label}</a>`;
+          const links = [];
+          const anchor = (url, label) => {
+            links.push(`<a href="${url}" target="_blank" rel="noopener noreferrer" class="note-render-link">${label}</a>`);
+            return mark + (links.length - 1) + mark;
+          };
+          const linked = escapeHtml(line.split(mark).join('')).replace(linkRe, (_m, bUrl, bText, mText, mUrl, aUrl, rPrefix, rUrl) => {
+            if (bUrl) return anchor(bUrl, formatInline((bText || '').trim()) || bUrl);
+            if (mUrl) return anchor(mUrl, formatInline(mText));
+            if (aUrl) return anchor(aUrl, aUrl);
+            return rPrefix + anchor(rUrl, rUrl);
           });
-
-          // 2. Standard markdown links: [link text](url)
-          html = html.replace(/\[([^\]]+)\]\(((?:https?|mailto):[^)\s]+)\)/g, (_m, linkText, url) => {
-            const safeHrefUrl = url.replace(/"/g, '&quot;');
-            return `<a href="${safeHrefUrl}" target="_blank" rel="noopener noreferrer" class="note-render-link">${linkText}</a>`;
-          });
-
-          // 3. Autolinks: <https://...>
-          html = html.replace(/&lt;((?:https?|mailto):[^&>\s]+)&gt;/g, (_m, url) => {
-            const safeHrefUrl = url.replace(/"/g, '&quot;');
-            return `<a href="${safeHrefUrl}" target="_blank" rel="noopener noreferrer" class="note-render-link">${url}</a>`;
-          });
-
-          // 4. Raw standalone URLs
-          html = html.replace(/(^|[\s(])((?:https?):\/\/[^\s<)]+)/g, (_m, prefix, url) => {
-            const safeHrefUrl = url.replace(/"/g, '&quot;');
-            return `${prefix}<a href="${safeHrefUrl}" target="_blank" rel="noopener noreferrer" class="note-render-link">${url}</a>`;
-          });
-
-          html = html.replace(/\*\*(.+?)\*\*/g, '<span class="note-render-bold">$1</span>');
-          html = html.replace(/~~(.+?)~~/g, '<span class="note-render-strike">$1</span>');
-          html = html.replace(/__(.+?)__/g, '<span class="note-render-underline">$1</span>');
-          html = html.replace(/\*(.+?)\*/g, '<span class="note-render-italic">$1</span>');
-          return html;
+          return formatInline(linked).replace(new RegExp(mark + '(\\d+)' + mark, 'g'), (_m, n) => links[Number(n)]);
         };
 
         const decisionClass = /#decision\b/i.test(text) ? ' note-line-decision' : '';

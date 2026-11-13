@@ -398,7 +398,7 @@ function renderSelfTestDiagnosticReport(e) {
     '.diag-meta { color: #5c6b66; font-size: 0.85rem; margin-top: 6px; }' +
     '.diag-footer { margin-top: 24px; text-align: right; }' +
     '.btn-return { display: inline-block; padding: 8px 18px; background: #2d6a5a; color: #fff; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 0.9rem; }' +
-    '.btn-sec { display: inline-block; padding: 5px 12px; background: #f4f9f7; border: 1px solid #c8ded7; color: #2d6a5a; text-decoration: none; border-radius: 4px; font-size: 0.8rem; font-weight: 600; margin-left: 6px; }' +
+    '.btn-sec { display: inline-block; padding: 5px 12px; background: #f4f9f7; border: 1px solid #c8ded7; color: #2d6a5a; text-decoration: none; border-radius: 4px; font-size: 0.8rem; font-weight: 600; margin-left: 6px; cursor: pointer; font-family: inherit; }' +
     '.btn-sec:hover { background: #e4efe9; }' +
     'pre.stack-box { white-space: pre-wrap; word-break: break-all; font-family: monospace; font-size: 0.75rem; background: #f8fbf9; border: 1px solid #dbeae3; border-radius: 4px; padding: 8px; margin: 6px 0 0; }' +
     '</style></head><body>' +
@@ -420,9 +420,11 @@ function renderSelfTestDiagnosticReport(e) {
     '<div class="diag-header">' +
     '<h3 style="margin: 0; color: #2d6a5a;">📋 Recent Server Execution Logs</h3>' +
     '<div>' +
-    (runLogDocUrl ? '<a href="' + escape(runLogDocUrl) + '" target="_blank" class="btn-sec">📄 Open Google Doc Run Log</a>' : '') +
-    '<a href="?view=logs&format=json" target="_blank" class="btn-sec">Export JSON</a>' +
-    '<a href="?view=self-test&clear_logs=1" class="btn-sec">Clear Logs</a>' +
+    (runLogDocUrl ? '<a href="' + escape(runLogDocUrl) + '" target="_blank" rel="noopener noreferrer" class="btn-sec">📄 Open Google Doc Run Log</a>' : '') +
+    '<a href="?view=logs&format=json" target="_blank" rel="noopener noreferrer" class="btn-sec">Export JSON</a>' +
+    // Clearing is a state change, so it goes through google.script.run (XSRF-protected), never a GET link.
+    '<button type="button" id="clearLogsBtn" class="btn-sec">Clear Logs</button>' +
+    '<span id="clearLogsStatus" class="diag-meta" role="status"></span>' +
     '</div></div>';
 
   if (serverLogs.length === 0) {
@@ -446,12 +448,28 @@ function renderSelfTestDiagnosticReport(e) {
   html += '</div>' +
     '<div class="diag-footer">' +
     '<a href="?" class="btn-return">Return to Day Planner App &rarr;</a>' +
-    '</div></div></body></html>';
+    '</div></div>' +
+    '<script>' +
+    'document.getElementById("clearLogsBtn").addEventListener("click", function () {' +
+    '  const status = document.getElementById("clearLogsStatus");' +
+    '  const failed = function (msg) { status.textContent = "Clear failed: " + msg; };' +
+    '  status.textContent = "Clearing...";' +
+    '  google.script.run' +
+    '    .withSuccessHandler(function (res) {' +
+    '      if (res && res.success) { status.textContent = "Logs cleared. Reload to refresh the list."; return; }' +
+    '      console.error("Self-test: clearServerLogs returned failure, logs kept: " + JSON.stringify(res));' +
+    '      failed(res && res.error ? res.error : "server returned no result");' +
+    '    })' +
+    '    .withFailureHandler(function (err) { console.error("Self-test: clearServerLogs threw, logs kept\\n" + (err && err.stack)); failed(err && err.message ? err.message : String(err)); })' +
+    '    .clearServerLogs();' +
+    '});' +
+    '</script>' +
+    '</body></html>';
 
   const diagOutput = HtmlService.createHtmlOutput(html)
     .setTitle('Day Planner Self-Test Diagnostics')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DEFAULT);
 
   try {
     diagOutput.setFaviconUrl(global.DPApp.faviconUrl());

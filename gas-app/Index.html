@@ -348,7 +348,7 @@
           <summary><span class="material-symbols-outlined">mail</span> Filed emails (<span x-text="filedEmails.length"></span>)</summary>
           <ul>
             <template x-for="n in filedEmails" :key="n.gmailUrl + n.filedOn">
-              <li><a :href="n.gmailUrl" target="_blank" rel="noopener" x-text="n.subject"></a> <span class="hub-filed-meta" x-text="(n.fromName ? n.fromName + ' · ' : '') + n.filedOn"></span></li>
+              <li><a :href="n.gmailUrl" target="_blank" rel="noopener noreferrer" x-text="n.subject"></a> <span class="hub-filed-meta" x-text="(n.fromName ? n.fromName + ' · ' : '') + n.filedOn"></span></li>
             </template>
           </ul>
         </details>
@@ -2285,6 +2285,6 @@
   </main>
 
   <?!= include('Script'); ?>
-  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js" integrity="sha384-X9kJyAubVxnP0hcA+AMMs21U445qsnqhnUF8EBlEpP3a42Kh/JwWjlv2ZcvGfphb" crossorigin="anonymous"></script>
 </body>
 </html>

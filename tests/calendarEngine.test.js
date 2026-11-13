@@ -230,8 +230,8 @@ describe('formatEventDescriptionHtml anchor attributes', () => {
     assert.match(out, /target="_blank" rel="noopener noreferrer"/);
   });
 
-  it('leaves an anchor with a real target untouched', () => {
+  it('overrides a real target with the forced _blank + noopener noreferrer (allowlist sanitizer)', () => {
     const html = '<a href="https://x.test" target="_self">x</a>';
-    assert.equal(formatEventDescriptionHtml(html), html);
+    assert.equal(formatEventDescriptionHtml(html), '<a href="https://x.test" target="_blank" rel="noopener noreferrer">x</a>');
   });
 });

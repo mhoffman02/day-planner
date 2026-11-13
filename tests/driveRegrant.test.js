@@ -14,11 +14,15 @@ import { makeGasContext, loadGasFile, toHost } from './helpers/gasRuntimeStubs.j
 
 const REGRANT_HTML = fs.readFileSync(path.join(import.meta.dirname, '..', 'gas-app', 'Regrant.html'), 'utf8');
 
-function regrantCtx({ apiKey = 'k-123', folderId = 'folder1' } = {}) {
+const IN_ONE_HOUR = () => String(Date.now() + 3600000);
+
+function regrantCtx({ apiKey = 'k-123', folderId = 'folder1', regrantUntil = IN_ONE_HOUR() } = {}) {
   const ctx = makeGasContext();
   if (apiKey) ctx.PropertiesService.getScriptProperties().setProperty('PICKER_API_KEY', apiKey);
+  if (regrantUntil !== null) ctx.PropertiesService.getScriptProperties().setProperty('REGRANT_ENABLED_UNTIL', regrantUntil);
   if (folderId) ctx.PropertiesService.getUserProperties().setProperty('DAY_PLANNER_ROOT_FOLDER_ID', folderId);
-  ctx.ScriptApp = { getOAuthToken: () => 'tok-abc' };
+  ctx.tokenReads = 0;
+  ctx.ScriptApp = { getOAuthToken: () => { ctx.tokenReads++; return 'tok-abc'; } };
   ctx.console.info = ctx.console.log; // doGet logs its request with console.info
   const rendered = [];
   const output = {
@@ -35,6 +39,39 @@ function regrantCtx({ apiKey = 'k-123', folderId = 'folder1' } = {}) {
 test('getDriveRegrantConfig returns token, key, project-number appId and folder id', () => {
   const { ctx } = regrantCtx();
   assert.deepEqual(toHost(ctx.getDriveRegrantConfig()), { token: 'tok-abc', apiKey: 'k-123', appId: '951958469609', folderId: 'folder1' });
+});
+
+// The config carries the live OAuth token, so it is refused unless the owner opened a window by
+// hand: Script Property REGRANT_ENABLED_UNTIL = a future epoch-ms. Fail closed on anything else.
+for (const [label, regrantUntil] of [
+  ['unset', null],
+  ['expired', String(Date.now() - 1000)],
+  ['not a number', 'yes'],
+  ['empty', ''],
+  ['negative', '-5'],
+  ['fractional junk', '1e99']
+]) {
+  test(`REGRANT_ENABLED_UNTIL ${label}: refuses before reading the OAuth token, says how to enable`, () => {
+    const { ctx } = regrantCtx({ regrantUntil });
+    assert.throws(() => ctx.getDriveRegrantConfig(), (err) => {
+      assert.match(err.message, /Drive re-grant is disabled/);
+      assert.match(err.message, /Project Settings > Script Properties/);
+      assert.match(err.message, /REGRANT_ENABLED_UNTIL to \d{13}/);
+      return true;
+    });
+    assert.equal(ctx.tokenReads, 0, 'token must not be read when the gate is closed');
+  });
+}
+
+test('REGRANT_ENABLED_UNTIL in the future: token is served (gate open)', () => {
+  const { ctx } = regrantCtx({ regrantUntil: String(Date.now() + 60000) });
+  assert.equal(toHost(ctx.getDriveRegrantConfig()).token, 'tok-abc');
+  assert.equal(ctx.tokenReads, 1);
+});
+
+test('Regrant page shows the server refusal text to the owner', () => {
+  assert.match(REGRANT_HTML, /callServer\('getDriveRegrantConfig'\)[\s\S]*?\.catch\(function\(err\) \{ fail\('Setup failed', err\); \}\)/);
+  assert.match(REGRANT_HTML, /setStatus\(context \+ ': ' \+ \(err && err\.message/);
 });
 
 test('missing PICKER_API_KEY fails loud with the property name', () => {
