@@ -47,8 +47,8 @@ describe('schedule slot create markup', () => {
   it('both Index copies wire the time label and the free slot body', () => {
     for (const p of ['gas-app/Index.html', 'index.html']) {
       const src = read(p);
-      assert.match(src, /<time class="schedule-time"[^>]*@click="openCreateEventModal\(slot\.timeKey\)"/, p);
-      assert.match(src, /class="schedule-content"[^>]*@click="slot\.events\.length === 0 && openCreateEventModal\(slot\.timeKey\)"/, p);
+      assert.match(src, /<time class="schedule-time"[^>]*@click\.stop="openCreateEventModal\(slot\.timeKey\)"/, p);
+      assert.match(src, /class="schedule-content"[^>]*@click\.stop="slot\.events\.length === 0 && openCreateEventModal\(slot\.timeKey\)"/, p);
     }
   });
 });
