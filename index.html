@@ -3301,10 +3301,14 @@
     </div>
 
     <!-- Toast Notification for Task Actions (Forwarding, etc.) -->
-    <div class="task-toast" role="status" x-show="taskToast" x-cloak>
+    <div class="task-toast" role="status" x-show="taskToast" x-cloak
+         @pointerdown="startToastDrag($event)" @pointermove="moveToastDrag($event)" @pointerup="endToastDrag($event)" @pointercancel="endToastDrag($event)">
       <span class="material-symbols-outlined icon-18">arrow_forward</span>
       <span x-text="taskToast"></span>
       <button type="button" class="hub-snack-btn task-toast-btn" x-show="taskToastUndo" @click="runToastUndo(taskToastUndo)">Undo</button>
+      <button type="button" class="hub-snack-btn task-toast-dismiss" @click="dismissTaskToast()" title="Dismiss" aria-label="Dismiss">
+        <span class="material-symbols-outlined icon-16">close</span>
+      </button>
     </div>
 
     <!-- Global Autocomplete Category Suggestions Datalist -->

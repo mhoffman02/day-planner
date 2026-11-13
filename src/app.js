@@ -362,6 +362,7 @@ Alpine.data('plannerApp', () => ({
       hubLastRunFetchedAt: 0,
       lastPointer: null,
       taskToastAnchored: false,
+      taskToastDrag: null,
       docSortDir: 'desc',
       docLoading: false,
       docLoadedAt: 0, // ms of the last successful Doc load this session; board loads skip the slow Doc request while it is fresh
@@ -6049,12 +6050,61 @@ Alpine.data('plannerApp', () => ({
       showTaskToast(msg, undo = null) {
         clearTimeout(this.taskToastTimer);
         this.applyToastAnchor(this.toastAnchorFor(this.lastPointer, this.viewportSize(), Date.now()));
+        if (this.taskToastDrag) {
+          this.taskToastDrag = null;
+          this.applyToastDrag(0, 0);
+        }
         this.taskToast = msg;
         this.taskToastUndo = undo;
+        this.armTaskToastTimer();
+      },
+
+      armTaskToastTimer() {
+        clearTimeout(this.taskToastTimer);
         this.taskToastTimer = setTimeout(() => {
           this.taskToast = null;
           this.taskToastUndo = null;
-        }, undo ? 8000 : 4000);
+        }, this.taskToastUndo ? 8000 : 4000);
+      },
+
+      // Hides the toast only. A pending appointment delete still commits when its Undo window ends.
+      dismissTaskToast() {
+        clearTimeout(this.taskToastTimer);
+        this.taskToastTimer = null;
+        this.taskToast = null;
+        this.taskToastUndo = null;
+      },
+
+      // Drag the toast out of the way; the auto-hide waits while it is held. Buttons keep their own clicks.
+      startToastDrag(e) {
+        if (e.button !== 0 || e.target.closest('button')) return;
+        clearTimeout(this.taskToastTimer);
+        this.taskToastTimer = null;
+        const prev = this.taskToastDrag || { x: 0, y: 0 };
+        this.taskToastDrag = { startX: e.clientX, startY: e.clientY, baseX: prev.x, baseY: prev.y, x: prev.x, y: prev.y };
+        e.currentTarget.setPointerCapture(e.pointerId);
+      },
+
+      moveToastDrag(e) {
+        const d = this.taskToastDrag;
+        if (!d || d.startX === undefined) return;
+        d.x = d.baseX + e.clientX - d.startX;
+        d.y = d.baseY + e.clientY - d.startY;
+        this.applyToastDrag(d.x, d.y);
+      },
+
+      endToastDrag(e) {
+        const d = this.taskToastDrag;
+        if (!d || d.startX === undefined) return;
+        e.currentTarget.releasePointerCapture(e.pointerId);
+        this.taskToastDrag = { x: d.x, y: d.y };
+        this.armTaskToastTimer();
+      },
+
+      // CSS custom properties on the root, read by .task-toast (no inline style on the element).
+      applyToastDrag(x, y) {
+        document.documentElement.style.setProperty('--toast-drag-x', x + 'px');
+        document.documentElement.style.setProperty('--toast-drag-y', y + 'px');
       },
 
       // Undo from the forward or delegate toast: deletes the copy (or check-back task) on the

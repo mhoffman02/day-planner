@@ -5713,6 +5713,19 @@
     top: 12px;
     right: 200px;
     max-width: min(420px, calc(100vw - 232px));
+    pointer-events: auto;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    transform: translate(var(--toast-drag-x, 0px), var(--toast-drag-y, 0px));
+  }
+  .task-toast:active {
+    cursor: grabbing;
+  }
+  .task-toast-dismiss {
+    padding: 2px 4px;
+    margin-left: 4px;
+    color: var(--white);
   }
   @media (max-width: 767px) {
     .task-toast {
