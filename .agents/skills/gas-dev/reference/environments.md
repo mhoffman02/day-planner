@@ -20,3 +20,8 @@ The rules for these live in `.agents/rules/gas-environments.md`. This file holds
 - **Production Endpoint**: `https://script.google.com/a/macros/gsa.gov/s/AKfycbzDYvr-YAgJ9pwHHcC7O5jj_gThdr1kc13qy_B_MB0-ohY7SjfAm3osXcXtBOZ428Sh/exec`
 - **Active Deployment ID**: `AKfycbzDYvr-YAgJ9pwHHcC7O5jj_gThdr1kc13qy_B_MB0-ohY7SjfAm3osXcXtBOZ428Sh` (deployment named "Day Planner v1"; deployment the user set up 2026-10-12; the earlier `BhslA`-ending deployment now 404s)
 - **Script IDE**: `https://script.google.com/d/1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq/edit`
+
+## Script Property `REGRANT_ENABLED_UNTIL` (both environments)
+- Gates `getDriveRegrantConfig` (`gas-app/Code.gs`), which returns the all-scope OAuth token. Unset, expired or non-numeric: it throws "Drive re-grant is disabled".
+- Owner sets it by hand in the IDE (Project Settings > Script Properties), to a future epoch-ms at most 24 h ahead. HOME and WORK are separate; set each.
+- Value: run `Date.now() + 3600000` (1 h) in the IDE console, paste the result.

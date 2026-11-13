@@ -437,33 +437,12 @@ function logWarn(context, message, stack) {
   recordServerLog('WARN', context, warnMsg, stack || null);
 }
 
-/**
- * Google Docs custom menu trigger. Adds "Planner 📖" custom menu to Google Docs interface when opened.
- * @param {object} e Open event parameter.
- * @returns {void}
- */
-function onOpen() {
-  if (typeof DocumentApp !== 'undefined') {
-    try {
-      const ui = DocumentApp.getUi();
-      ui.createMenu('Planner 📖')
-        .addItem('🔍 Search Across All Months...', 'showCrossMonthSearchSidebar')
-        .addItem('📌 View #index Decision Registry', 'showIndexRegistrySidebar')
-        .addSeparator()
-        .addItem('📅 Open Day Planner Web App', 'openPlannerWebAppDialog')
-        .addToUi();
-    } catch (err) {
-      logError('onOpen: could not add the Planner custom menu, continuing without it', err);
-    }
-  }
-}
-
 const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day-planner/pure-gas-main/icons/favicon.png';
 
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 738;
+const BUILD_NUMBER_ = 739;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -658,6 +637,8 @@ function boundRootFolderId_() {
 
 // GCP project NUMBER of the project HOME is linked to; Picker grants drive.file to this app id.
 const PICKER_APP_ID = '951958469609';
+// Longest re-grant window REGRANT_ENABLED_UNTIL may open; a later value is refused (no indefinite token gate).
+const REGRANT_MAX_WINDOW_MS = 24 * 3600000;
 
 /**
  * What the ?view=regrant page needs to open Google Picker: the user's OAuth token (web app is
@@ -682,10 +663,15 @@ function getDriveRegrantConfig() {
 function assertDriveRegrantEnabled_() {
   const raw = String(PropertiesService.getScriptProperties().getProperty('REGRANT_ENABLED_UNTIL') || '').trim();
   const now = Date.now();
-  if (/^\d{1,15}$/.test(raw) && Number(raw) > now) return;
-  throw new Error('Drive re-grant is disabled' + (raw ? ' (REGRANT_ENABLED_UNTIL is expired or not an epoch-ms number)' : '') +
-    '. To enable it for one hour: Apps Script IDE > Project Settings > Script Properties, set REGRANT_ENABLED_UNTIL to ' +
-    (now + 3600000) + ', then reload this page. Delete the property when done.');
+  const howTo = '. To enable it for one hour: Apps Script IDE > Project Settings > Script Properties, set REGRANT_ENABLED_UNTIL to ' +
+    (now + 3600000) + ', then reload this page. Delete the property when done.';
+  const until = /^\d{1,15}$/.test(raw) ? Number(raw) : NaN;
+  if (until > now + REGRANT_MAX_WINDOW_MS) {
+    const maxH = (REGRANT_MAX_WINDOW_MS / 3600000) + 'h';
+    throw new Error('Drive re-grant is disabled (REGRANT_ENABLED_UNTIL is more than ' + maxH + ' ahead; set it at most ' + maxH + ' ahead)' + howTo);
+  }
+  if (until > now) return;
+  throw new Error('Drive re-grant is disabled' + (raw ? ' (REGRANT_ENABLED_UNTIL is expired or not an epoch-ms number)' : '') + howTo);
 }
 
 function renderRegrantPage() {
@@ -2390,6 +2376,44 @@ function saveDailyDocCards(dateStr, noteContent, baselineContent) {
   }
 }
 
+// UserProperties key holding the JSON array of scratch Doc ids createDictationScratchDoc issued (newest
+// last). pullDictationScratchText clears a Doc body, so it accepts only these ids, never any writable Doc.
+const DICTATION_SCRATCH_IDS_KEY = 'DICTATION_SCRATCH_DOC_IDS';
+// Newest ids kept; an older scratch Doc can no longer be pulled. ~45-char ids keep the value far under 9 KB.
+const DICTATION_SCRATCH_IDS_MAX = 50;
+
+/**
+ * @returns {string[]} Scratch Doc ids issued to this user (empty when none).
+ * @throws {Error} When the stored list is not a JSON array of strings (callers fail closed).
+ */
+function issuedScratchDocIds_() {
+  const raw = PropertiesService.getUserProperties().getProperty(DICTATION_SCRATCH_IDS_KEY);
+  if (!raw) return [];
+  const ids = JSON.parse(raw);
+  if (!Array.isArray(ids) || ids.some(function(x) { return typeof x !== 'string'; })) {
+    throw new Error(DICTATION_SCRATCH_IDS_KEY + ' is not a list of Doc ids');
+  }
+  return ids;
+}
+
+/**
+ * Appends a newly created scratch Doc id to the issued list (bounded to DICTATION_SCRATCH_IDS_MAX),
+ * under the user lock so two tabs creating at once cannot drop each other’s id.
+ * @param {string} docId New scratch Doc id.
+ * @throws {Error} When the lock is not obtained or the list cannot be read or written.
+ */
+function recordIssuedScratchDocId_(docId) {
+  const lock = LockService.getUserLock();
+  if (!lock.tryLock(10000)) throw new Error('Could not register the voice typing Doc (busy); try again');
+  try {
+    const ids = issuedScratchDocIds_().filter(function(x) { return x !== docId; });
+    ids.push(docId);
+    PropertiesService.getUserProperties().setProperty(DICTATION_SCRATCH_IDS_KEY, JSON.stringify(ids.slice(-DICTATION_SCRATCH_IDS_MAX)));
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 /**
  * STT fallback: creates a fresh, single-purpose Google Doc for the user to dictate into via
  * Docs' own Voice Typing (works on locked-down networks where this app's own mic access is
@@ -2412,6 +2436,7 @@ function createDictationScratchDoc() {
       mimeType: 'application/vnd.google-apps.document',
       parents: targetFolder ? [{ id: targetFolder.getId() }] : undefined
     });
+    recordIssuedScratchDocId_(created.id);
     const instructions = 'Click below, then use Tools > Voice typing (Ctrl+Shift+S). Switch back to Day Planner and click "Pull from Doc" when done.';
     Docs.Documents.batchUpdate({
       requests: [{ insertText: { location: { index: 1 }, text: instructions } }]
@@ -2444,6 +2469,11 @@ function pullDictationScratchText(docId) {
     return { success: false, error: 'No scratch doc id provided.' };
   }
   try {
+    if (issuedScratchDocIds_().indexOf(docId) === -1) {
+      const refused = new Error('That Doc is not a voice typing scratch Doc this app created (or it is too old); start a new voice typing Doc.');
+      logError('pullDictationScratchText: refused ' + docId + ' (not issued by createDictationScratchDoc); Doc left untouched', refused);
+      return { success: false, error: refused.message };
+    }
     const elements = docsGetBodyElements_(docId);
     const lines = elements.map(docsElementText_);
     const placeholder = 'Click below, then use Tools > Voice typing';
@@ -3607,93 +3637,6 @@ function searchAcrossAllMonthlyDocs(query) {
 }
 
 /**
- * Displays the Cross-Month Search Sidebar in Google Docs.
- * @returns {void}
- */
-function showCrossMonthSearchSidebar() {
-  if (typeof DocumentApp === 'undefined') return;
-  const html = HtmlService.createHtmlOutput(
-    '<div style="font-family:sans-serif; padding:12px; color:#1c2826;">' +
-    '<h3 style="color:#2d6a5a; margin-top:0;">🔍 Universal Planner Search</h3>' +
-    '<p style="font-size:0.82rem; color:#5c6b66;">Search topics, decisions, and keywords across all 12 monthly Google Docs.</p>' +
-    '<input type="search" id="q" placeholder="Type keyword (e.g. #index, budget)..." style="width:100%; padding:8px; margin-bottom:10px; border:1px solid #c8ded7; border-radius:4px; box-sizing:border-box;">' +
-    '<button onclick="runSearch()" style="width:100%; padding:8px; background:#2d6a5a; color:white; border:none; border-radius:4px; font-weight:600; cursor:pointer;">Search All Months</button>' +
-    '<div id="results" style="margin-top:16px; font-size:0.85rem;"></div>' +
-    '<script>' +
-    'function runSearch() {' +
-    '  var q = document.getElementById("q").value;' +
-    '  var resDiv = document.getElementById("results");' +
-    '  resDiv.innerHTML = "<p><i>Searching monthly docs...</i></p>";' +
-    '  google.script.run.withSuccessHandler(function(res) {' +
-    '    if (!res || res.length === 0) { resDiv.innerHTML = "<p>No matches found across monthly docs.</p>"; return; }' +
-    '    var html = "";' +
-    '    res.forEach(function(r) {' +
-    '      html += "<div style=\'background:#f2f8f5; border:1px solid #c8ded7; border-radius:6px; padding:10px; margin-bottom:10px;\'>";' +
-    '      html += "<strong style=\'color:#2d6a5a;\'>" + r.docName + "</strong>";' +
-    '      r.matches.forEach(function(m) { html += "<p style=\'margin:4px 0; font-size:0.8rem;\'>• <b>" + m.heading + "</b>: " + m.snippet + "</p>"; });' +
-    '      html += "</div>";' +
-    '    });' +
-    '    resDiv.innerHTML = html;' +
-    '  }).searchAcrossAllMonthlyDocs(q);' +
-    '}' +
-    '</script>' +
-    '</div>'
-  ).setTitle('Planner Universal Search');
-
-  DocumentApp.getUi().showSidebar(html);
-}
-
-/**
- * Displays the #index Decision Registry Sidebar in Google Docs.
- * @returns {void}
- */
-function showIndexRegistrySidebar() {
-  if (typeof DocumentApp === 'undefined') return;
-  const html = HtmlService.createHtmlOutput(
-    '<div style="font-family:sans-serif; padding:12px; color:#1c2826;">' +
-    '<h3 style="color:#2d6a5a; margin-top:0;">📌 #index Decision Registry</h3>' +
-    '<p style="font-size:0.82rem; color:#5c6b66;">Key decisions & indexed milestones tagged with <b>#index [Topic]</b> across your planner.</p>' +
-    '<div id="indexResults">Loading registry...</div>' +
-    '<script>' +
-    'google.script.run.withSuccessHandler(function(res) {' +
-    '  var div = document.getElementById("indexResults");' +
-    '  if (!res || res.length === 0) { div.innerHTML = "<p>No #index items found.</p>"; return; }' +
-    '  var html = "";' +
-    '  res.forEach(function(r) {' +
-    '    r.matches.forEach(function(m) {' +
-    '      if (m.snippet.indexOf("#index") !== -1) {' +
-    '        html += "<div style=\'border-bottom:1px solid #e1ede8; padding:6px 0;\'><b>" + m.snippet + "</b><br><small style=\'color:#5c6b66;\'>" + r.docName + "</small></div>";' +
-    '      }' +
-    '    });' +
-    '  });' +
-    '  div.innerHTML = html || "<p>No tagged #index items found.</p>";' +
-    '}).searchAcrossAllMonthlyDocs("#index");' +
-    '</script>' +
-    '</div>'
-  ).setTitle('#index Decision Registry');
-
-  DocumentApp.getUi().showSidebar(html);
-}
-
-/**
- * Opens a modal dialog providing a direct launch button for the Day Planner Web App.
- * @returns {void}
- */
-function openPlannerWebAppDialog() {
-  if (typeof DocumentApp === 'undefined') return;
-  const url = ScriptApp.getService().getUrl();
-  const html = HtmlService.createHtmlOutput(
-    '<div style="font-family:sans-serif; padding:16px; text-align:center;">' +
-    '<h3 style="color:#2d6a5a;">📖 Day Planner Web App</h3>' +
-    '<p>Click below to open your Digital Binder Application in a new browser tab:</p>' +
-    '<a href="' + url + '" target="_blank" rel="noopener noreferrer" style="display:inline-block; padding:10px 20px; background:#2d6a5a; color:white; text-decoration:none; border-radius:6px; font-weight:700;">Launch Day Planner SPA</a>' +
-    '</div>'
-  ).setWidth(360).setHeight(180);
-
-  DocumentApp.getUi().showModalDialog(html, 'Open Day Planner SPA');
-}
-
-/**
  * Retrieves the published Google Apps Script web app URL.
  * @returns {string} Web app /exec URL.
  */
@@ -3928,13 +3871,12 @@ function searchArchiveNotes(query) {
 
 // ── Explicit export surface ──────────────────────────────────────────────────
 // Everything above is private to this IIFE. Only names assigned here are visible to: the Apps
-// Script runtime (doGet, onOpen), google.script.run / Script.html, HtmlService template
+// Script runtime (doGet), google.script.run / Script.html, HtmlService template
 // scriptlets (<?= ?>), a time-driven trigger looked up by handler name string, or the Apps
 // Script IDE's manual "select function, click Run" dropdown. Adding a function here means any
 // script running in the web app page can invoke it by name -- keep this list to exactly what's
 // actually called from one of those places. See .agents/rules/gas-namespace-iife.md.
 global.doGet = doGet;                                        // Apps Script web app entry point
-global.onOpen = onOpen;                                      // Google Docs runtime onOpen trigger
 global.getWebAppUrl = getWebAppUrl;                          // google.script.run: Script.html / About.html
 global.syncWorkspaceChanges = syncWorkspaceChanges;          // time-driven trigger handler (by name)
 global.runBackgroundSync = runBackgroundSync;                // google.script.run: Script.html (after first paint)
@@ -3960,10 +3902,7 @@ global.updateFutureItemStatus = updateFutureItemStatus;      // google.script.ru
 global.transferFutureItem = transferFutureItem;              // google.script.run: Script.html
 global.pushFutureItemToNextMonth = pushFutureItemToNextMonth; // google.script.run: Script.html
 global.deleteFutureItem = deleteFutureItem;                  // google.script.run: Script.html
-global.searchAcrossAllMonthlyDocs = searchAcrossAllMonthlyDocs; // google.script.run: Google Docs sidebar
-global.showCrossMonthSearchSidebar = showCrossMonthSearchSidebar; // Google Docs menu action
-global.showIndexRegistrySidebar = showIndexRegistrySidebar;  // Google Docs menu action
-global.openPlannerWebAppDialog = openPlannerWebAppDialog;    // Google Docs menu action
+global.searchAcrossAllMonthlyDocs = searchAcrossAllMonthlyDocs; // no caller since the dead Docs sidebar was removed (2026-11-13); remove or wire up
 global.ensure2WaySyncTriggerInstalled = ensure2WaySyncTriggerInstalled; // IDE manual-run
 global.setup2WaySyncTrigger = setup2WaySyncTrigger;          // IDE manual-run
 global.searchArchiveNotes = searchArchiveNotes;              // google.script.run: Script.html
@@ -3997,7 +3936,6 @@ global.DPApp = DPApp;                                        // used by UnitTest
 
 // Internal aliases for top-level entry point delegators
 global._doGetInternal = doGet_original;
-global._onOpenInternal = onOpen;
 global._syncWorkspaceChangesInternal = syncWorkspaceChanges;
 global._runBackgroundSyncInternal = runBackgroundSync;
 global._setup2WaySyncTriggerInternal = setup2WaySyncTrigger;
@@ -4036,9 +3974,6 @@ global._transferFutureItemInternal = transferFutureItem;
 global._pushFutureItemToNextMonthInternal = pushFutureItemToNextMonth;
 global._deleteFutureItemInternal = deleteFutureItem;
 global._searchAcrossAllMonthlyDocsInternal = searchAcrossAllMonthlyDocs;
-global._showCrossMonthSearchSidebarInternal = showCrossMonthSearchSidebar;
-global._showIndexRegistrySidebarInternal = showIndexRegistrySidebar;
-global._openPlannerWebAppDialogInternal = openPlannerWebAppDialog;
 global._getWebAppUrlInternal = getWebAppUrl;
 global._searchArchiveNotesInternal = searchArchiveNotes;
 
@@ -4060,16 +3995,6 @@ global._searchArchiveNotesInternal = searchArchiveNotes;
  */
 function doGet(e) {
   return (typeof _doGetInternal === 'function') ? _doGetInternal(e) : (globalThis._doGetInternal ? globalThis._doGetInternal(e) : null);
-}
-
-/**
- * Google Docs custom menu trigger.
- * MUST be declared as a top-level function outside any IIFE so Docs can discover
- * and execute the onOpen simple trigger upon document load.
- * @param {object} e Open event.
- */
-function onOpen(e) {
-  return (typeof _onOpenInternal === 'function') ? _onOpenInternal(e) : (globalThis._onOpenInternal ? globalThis._onOpenInternal(e) : null);
 }
 
 /**
@@ -4250,18 +4175,6 @@ function deleteFutureItem(year, monthKey, itemId) {
 
 function searchAcrossAllMonthlyDocs(query) {
   return (typeof _searchAcrossAllMonthlyDocsInternal === 'function') ? _searchAcrossAllMonthlyDocsInternal(query) : (globalThis._searchAcrossAllMonthlyDocsInternal ? globalThis._searchAcrossAllMonthlyDocsInternal(query) : null);
-}
-
-function showCrossMonthSearchSidebar() {
-  return (typeof _showCrossMonthSearchSidebarInternal === 'function') ? _showCrossMonthSearchSidebarInternal() : (globalThis._showCrossMonthSearchSidebarInternal ? globalThis._showCrossMonthSearchSidebarInternal() : null);
-}
-
-function showIndexRegistrySidebar() {
-  return (typeof _showIndexRegistrySidebarInternal === 'function') ? _showIndexRegistrySidebarInternal() : (globalThis._showIndexRegistrySidebarInternal ? globalThis._showIndexRegistrySidebarInternal() : null);
-}
-
-function openPlannerWebAppDialog() {
-  return (typeof _openPlannerWebAppDialogInternal === 'function') ? _openPlannerWebAppDialogInternal() : (globalThis._openPlannerWebAppDialogInternal ? globalThis._openPlannerWebAppDialogInternal() : null);
 }
 
 function getWebAppUrl() {

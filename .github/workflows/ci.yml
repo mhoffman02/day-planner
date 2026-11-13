@@ -4,21 +4,22 @@ name: ci
 on:
   push:
   pull_request:
+permissions:
+  contents: read
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
         with:
           fetch-depth: 0                      # gitleaks scans history
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
         with:
           node-version: 24
       # `npm ci` installs exactly package-lock.json (a drifted lockfile fails) instead of resolving afresh.
       - run: npm ci --no-audit --no-fund
-      # Runtime deps only: a dev-tool advisory must not block a release; a shipped one must.
-      - run: npm audit --omit=dev --audit-level=high
-      - uses: gitleaks/gitleaks-action@v2     # secrets in the tree or history; allowlist in .gitleaks.toml
+      # No `npm audit` step: package.json has zero runtime dependencies (dev tools only), so --omit=dev audited nothing.
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7  # v2.3.9; secrets in tree or history, allowlist in .gitleaks.toml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npm run sync:agents:check

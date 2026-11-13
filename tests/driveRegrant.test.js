@@ -69,6 +69,26 @@ test('REGRANT_ENABLED_UNTIL in the future: token is served (gate open)', () => {
   assert.equal(ctx.tokenReads, 1);
 });
 
+// A far-future window (e.g. 9999999999999) would leave the token gate open indefinitely: cap at 24h.
+const DAY_MS = 24 * 3600000;
+for (const [label, aheadMs] of [['25h ahead', DAY_MS + 3600000], ['far future', 9e12]]) {
+  test(`REGRANT_ENABLED_UNTIL ${label}: refuses (window over 24h), says to set at most 24h ahead`, () => {
+    const { ctx } = regrantCtx({ regrantUntil: String(Date.now() + aheadMs) });
+    assert.throws(() => ctx.getDriveRegrantConfig(), (err) => {
+      assert.match(err.message, /more than 24h ahead/);
+      assert.match(err.message, /at most 24h ahead/);
+      assert.match(err.message, /REGRANT_ENABLED_UNTIL to \d{13}/);
+      return true;
+    });
+    assert.equal(ctx.tokenReads, 0, 'token must not be read when the window is too long');
+  });
+}
+
+test('REGRANT_ENABLED_UNTIL just under 24h ahead: gate open', () => {
+  const { ctx } = regrantCtx({ regrantUntil: String(Date.now() + DAY_MS - 60000) });
+  assert.equal(toHost(ctx.getDriveRegrantConfig()).token, 'tok-abc');
+});
+
 test('Regrant page shows the server refusal text to the owner', () => {
   assert.match(REGRANT_HTML, /callServer\('getDriveRegrantConfig'\)[\s\S]*?\.catch\(function\(err\) \{ fail\('Setup failed', err\); \}\)/);
   assert.match(REGRANT_HTML, /setStatus\(context \+ ': ' \+ \(err && err\.message/);

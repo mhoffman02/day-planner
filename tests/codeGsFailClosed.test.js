@@ -158,9 +158,16 @@ test('#3 control: full success carries no partial flag', () => {
 // ---------------------------------------------------------------- #4 dictation scratch clear
 const PLACEHOLDER = 'Click below, then use Tools > Voice typing (Ctrl+Shift+S).';
 
+/** A scratch Doc issued by createDictationScratchDoc, holding `text`. */
+function issuedScratch(ctx, text) {
+  const r = toHost(ctx.createDictationScratchDoc());
+  assert.equal(r.success, true, r.error);
+  return seedDoc(ctx, text, r.docId);
+}
+
 test('#4 pull reports cleared:false + clearError when the scratch Doc clear fails', () => {
-  const ctx = codeCtx();
-  const id = seedDoc(ctx, `${PLACEHOLDER}\nhello dictated world\n`, 'SCRATCH1');
+  const ctx = codeCtx({ folders: ['ROOT'], rootId: 'ROOT' });
+  const id = issuedScratch(ctx, `${PLACEHOLDER}\nhello dictated world\n`);
   ctx.Docs.Documents.batchUpdate = () => { throw new Error('clear denied'); };
   const r = toHost(ctx.pullDictationScratchText(id));
   assert.equal(r.success, true);
@@ -171,13 +178,60 @@ test('#4 pull reports cleared:false + clearError when the scratch Doc clear fail
 });
 
 test('#4 control: a successful pull clears the Doc and reports cleared:true', () => {
-  const ctx = codeCtx();
-  const id = seedDoc(ctx, `${PLACEHOLDER}\nhello dictated world\n`, 'SCRATCH1');
+  const ctx = codeCtx({ folders: ['ROOT'], rootId: 'ROOT' });
+  const id = issuedScratch(ctx, `${PLACEHOLDER}\nhello dictated world\n`);
   const r = toHost(ctx.pullDictationScratchText(id));
   assert.equal(r.success, true);
   assert.equal(r.text, 'hello dictated world');
   assert.equal(r.cleared, true);
   assert.equal(fakeDocText(ctx.__fakes.docs[id]).trim(), '');
+});
+
+// ---------------------------------------------------------------- #6 pull only clears issued scratch Docs
+// pullDictationScratchText clears the Doc body. Any Doc id the app can write (a monthly Notes Doc, the Run
+// Log) was accepted, so a crafted call wiped it. Only ids createDictationScratchDoc issued may be pulled.
+test('#6 pull refuses a Doc id createDictationScratchDoc never issued and leaves that Doc untouched', () => {
+  const ctx = codeCtx({ folders: ['ROOT'], rootId: 'ROOT' });
+  const notes = seedDoc(ctx, 'Day Planner - Monday, October 5, 2026\nmonthly notes\n', 'NOTES1');
+  const r = toHost(ctx.pullDictationScratchText(notes));
+  assert.equal(r.success, false);
+  assert.match(r.error, /not a voice typing scratch Doc/);
+  assert.equal('text' in r, false, 'no text leaks from a refused Doc');
+  assert.match(fakeDocText(ctx.__fakes.docs[notes]), /monthly notes/);
+  assert.match(consoleText(ctx), /pullDictationScratchText: refused[\s\S]*\n\s+at /);
+});
+
+test('#6 pull fails closed when the issued-id list is unreadable (corrupt property)', () => {
+  const ctx = codeCtx({ folders: ['ROOT'], rootId: 'ROOT' });
+  const id = issuedScratch(ctx, `${PLACEHOLDER}\nhello\n`);
+  const props = ctx.PropertiesService.getUserProperties();
+  for (const k of Object.keys(toHost(props.getProperties()))) {
+    if (String(props.getProperty(k)).includes(id)) props.setProperty(k, '{not json');
+  }
+  const r = toHost(ctx.pullDictationScratchText(id));
+  assert.equal(r.success, false);
+  assert.match(fakeDocText(ctx.__fakes.docs[id]), /hello/);
+});
+
+test('#6 the issued-id list is bounded: the oldest id ages out, the newest still pulls', () => {
+  const ctx = codeCtx({ folders: ['ROOT'], rootId: 'ROOT' });
+  const ids = [];
+  for (let i = 0; i < 120; i++) ids.push(toHost(ctx.createDictationScratchDoc()).docId);
+  const stored = Object.values(toHost(ctx.PropertiesService.getUserProperties().getProperties())).find((v) => String(v).includes(ids[119]));
+  assert.ok(JSON.parse(stored).length < 120, 'list must be capped');
+  assert.equal(toHost(ctx.pullDictationScratchText(ids[0])).success, false, 'aged-out id refused');
+  assert.equal(toHost(ctx.pullDictationScratchText(ids[119])).success, true);
+});
+
+test('#6 create reports failure (no usable id) when the id cannot be recorded', () => {
+  const ctx = codeCtx({ folders: ['ROOT'], rootId: 'ROOT' });
+  const props = ctx.PropertiesService.getUserProperties();
+  const realSet = props.setProperty.bind(props);
+  props.setProperty = (k, v) => { if (String(v).startsWith('[')) throw new Error('property quota'); return realSet(k, v); };
+  const r = toHost(ctx.createDictationScratchDoc());
+  assert.equal(r.success, false);
+  assert.match(r.error, /property quota/);
+  assert.equal('docId' in r, false);
 });
 
 // ---------------------------------------------------------------- #5 run-log writer never creates folders

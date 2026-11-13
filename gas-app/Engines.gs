@@ -652,6 +652,29 @@ function phraseSet(words, min, max) {
   return out;
 }
 
+// Header values (From, List-Id) are sender-controlled. Only a value that is one bare token may reach a Gmail
+// query: no spaces, parentheses, quotes or braces (which would add OR/subject: terms), and an alphanumeric
+// first character (a leading - negates the term). Subject/body phrases are subjectWords output joined by spaces.
+const SAFE_QUERY_VALUE = Object.freeze({
+  from: /^[a-z0-9][a-z0-9._%+-]*@[a-z0-9.-]+\.[a-z]{2,}$/i,
+  domain: /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/i,
+  list: /^[a-z0-9][a-z0-9._-]*$/i,
+  phrase: /^[a-z0-9][a-z0-9&-]*( [a-z0-9][a-z0-9&-]*)*$/
+});
+
+/**
+ * @param {string} kind Which allowlist (key of SAFE_QUERY_VALUE).
+ * @param {string} value Candidate value.
+ * @param {string} what Rule part named in the error.
+ * @returns {string} value, unchanged.
+ * @throws {Error} When the value could add or negate Gmail search terms.
+ */
+function safeQueryValue(kind, value, what) {
+  const s = String(value == null ? '' : value);
+  if (!SAFE_QUERY_VALUE[kind].test(s)) throw new Error(`ruleQuery: unsafe ${what} ${JSON.stringify(s)}; refusing to build a Gmail filter query from it`);
+  return s;
+}
+
 /**
  * @param {{from?:string, listId?:string, subject?:string, body?:string}} t Thread headers (first message) and,
  *   server-side only, the first message body (used for phrases in memory, never stored or returned).
@@ -659,13 +682,15 @@ function phraseSet(words, min, max) {
  */
 function threadFeatures(t) {
   const m = String(t.from || '').toLowerCase().match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/);
-  const from = m ? m[0] : '';
+  const from = m && SAFE_QUERY_VALUE.from.test(m[0]) ? m[0] : '';
+  const domain = from ? from.split('@')[1] : '';
   const lm = String(t.listId || '').toLowerCase().match(/<([^>]+)>/);
+  const listId = (lm ? lm[1] : String(t.listId || '').toLowerCase()).trim();
   const words = subjectWords(t.subject);
   return {
     from,
-    domain: from ? from.split('@')[1] : '',
-    listId: lm ? lm[1] : String(t.listId || '').toLowerCase().trim(),
+    domain: SAFE_QUERY_VALUE.domain.test(domain) ? domain : '',
+    listId: SAFE_QUERY_VALUE.list.test(listId) ? listId : '',
     words,
     subjectPhrases: phraseSet(words, 1, 3),
     bodyPhrases: t.body ? phraseSet(subjectWords(t.body).slice(0, BODY_WORD_CAP), 2, 3) : new Set()
@@ -696,14 +721,15 @@ function ruleMatches(rule, f) {
 /**
  * @param {{kind:string, value:string, phrase?:string}} rule Rule.
  * @returns {string} Gmail search query for a filter.
+ * @throws {Error} When a value is not one bare token (see SAFE_QUERY_VALUE): never builds an altered query.
  */
 function ruleQuery(rule) {
-  if (rule.kind === 'from') return `from:(${rule.value})`;
-  if (rule.kind === 'domain') return `from:(@${rule.value})`;
-  if (rule.kind === 'list') return `list:(${rule.value})`;
-  if (rule.kind === 'subject') return `subject:("${rule.value}")`;
-  if (rule.kind === 'body') return `"${rule.value}"`;
-  return `from:(@${rule.value}) subject:("${rule.phrase}")`;
+  if (rule.kind === 'from') return `from:(${safeQueryValue('from', rule.value, 'from value')})`;
+  if (rule.kind === 'domain') return `from:(@${safeQueryValue('domain', rule.value, 'domain value')})`;
+  if (rule.kind === 'list') return `list:(${safeQueryValue('list', rule.value, 'list value')})`;
+  if (rule.kind === 'subject') return `subject:("${safeQueryValue('phrase', rule.value, 'subject value')}")`;
+  if (rule.kind === 'body') return `"${safeQueryValue('phrase', rule.value, 'body value')}"`;
+  return `from:(@${safeQueryValue('domain', rule.value, 'domainSubject value')}) subject:("${safeQueryValue('phrase', rule.phrase, 'domainSubject phrase')}")`;
 }
 
 /**

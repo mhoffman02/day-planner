@@ -130,3 +130,35 @@ describe('suggestFilters', () => {
     assert.equal(r.suggestions[0].coveredBy, 'F1');
   });
 });
+
+// List-Id and From come from mail headers an outside sender controls. A header value must never reach the
+// filter query as anything but a single list id / address token (security review 2026-11-13).
+describe('Gmail query injection from headers', () => {
+  const PAYLOAD = 'x) OR (subject:(trigger)';
+  it('drops a List-Id that is not a bare list id (raw or in angle brackets)', () => {
+    assert.equal(threadFeatures(t('1', [], 'a@b.gov', 's', PAYLOAD)).listId, '');
+    assert.equal(threadFeatures(t('1', [], 'a@b.gov', 's', `Team <${PAYLOAD}>`)).listId, '');
+    assert.equal(threadFeatures(t('1', [], 'a@b.gov', 's', '<-negated.list>')).listId, '', 'leading - would negate');
+  });
+  it('keeps a normal List-Id', () => {
+    assert.equal(threadFeatures(t('1', [], 'a@b.gov', 's', 'Team <Team_Ops-1.lists.agency.gov>')).listId, 'team_ops-1.lists.agency.gov');
+  });
+  it('suggestFilters never emits a query carrying the payload', () => {
+    const threads = [1, 2, 3, 4].map((i) => t(String(i), [TASK], `${PAYLOAD} <s${i}@x${i}.gov>`, `msg ${i}`, PAYLOAD));
+    const r = suggestFilters({ threads, targetLabels: [TASK] });
+    assert.ok(!r.suggestions.some((s) => /trigger|\bOR\b/.test(s.query)), JSON.stringify(r.suggestions));
+  });
+  it('ruleQuery refuses a list, from, domain or phrase value that is not a bare token', () => {
+    assert.throws(() => ruleQuery({ kind: 'list', value: PAYLOAD }), /unsafe list value/);
+    assert.throws(() => ruleQuery({ kind: 'from', value: PAYLOAD }), /unsafe from value/);
+    assert.throws(() => ruleQuery({ kind: 'from', value: '-a@b.gov' }), /unsafe from value/);
+    assert.throws(() => ruleQuery({ kind: 'domain', value: 'b.gov) OR (x' }), /unsafe domain value/);
+    assert.throws(() => ruleQuery({ kind: 'subject', value: 'a") OR ("b' }), /unsafe subject value/);
+    assert.throws(() => ruleQuery({ kind: 'domainSubject', value: 'b.gov', phrase: 'a" OR "b' }), /unsafe domainSubject phrase/);
+  });
+  it('ruleQuery keeps the existing format for safe values (dedupe against filters already in Gmail)', () => {
+    assert.equal(ruleQuery({ kind: 'list', value: 'team.lists.agency.gov' }), 'list:(team.lists.agency.gov)');
+    assert.equal(ruleQuery({ kind: 'from', value: 'pat.lee+x@agency.gov' }), 'from:(pat.lee+x@agency.gov)');
+    assert.equal(ruleQuery({ kind: 'body', value: 'r&d budget' }), '"r&d budget"');
+  });
+});
