@@ -4,6 +4,9 @@
  */
 
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 const CHROME_PORT = 9222;
 const TARGET_URL = 'http://localhost:3000';
@@ -211,7 +214,10 @@ async function runResponsiveAudit() {
   console.log('2. RESPONSIVE BREAKPOINT & HORIZONTAL OVERFLOW AUDIT');
   console.log('====================================================\n');
 
+  // Fresh throwaway profile: never attach the user's default Chrome profile to a debugging port.
+  const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dp-wcag-chrome-'));
   const chromeProcess = spawn('google-chrome', [
+    `--user-data-dir=${userDataDir}`,
     '--headless=new',
     '--password-store=basic',
     `--remote-debugging-port=${CHROME_PORT}`,
@@ -227,6 +233,7 @@ async function runResponsiveAudit() {
     } catch {
       // Process killed
     }
+    fs.rmSync(userDataDir, { recursive: true, force: true });
   };
 
   process.on('exit', cleanup);

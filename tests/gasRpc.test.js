@@ -242,18 +242,27 @@ test('main: --deploy pushes and repoints the API deployment before running', asy
     return jsonResponse(200, { done: true, response: { result: 1 } });
   };
   const deployImpl = (args) => steps.push(args.join(' '));
-  const code = await main(['fn', '--deploy'], { fetchImpl, deployImpl, stdout: io.stdout, stderr: io.stderr, env: makeEnv() });
+  const code = await main(['fn', '--deploy'], { fetchImpl, deployImpl, assertCleanImpl: () => steps.push('clean'), stdout: io.stdout, stderr: io.stderr, env: makeEnv() });
   assert.equal(code, 0);
-  assert.deepEqual(steps, ['clasp push --force', `clasp update-deployment ${API_DEPLOYMENT_ID} -d gas-rpc API executable`, 'run']);
+  assert.deepEqual(steps, ['clean', 'clasp push --force', `clasp update-deployment ${API_DEPLOYMENT_ID} -d gas-rpc API executable`, 'run']);
 });
 
 test('main: --deploy refuses when gas-app/.clasp.json is not the HOME script', async () => {
   const io = makeIo();
   const deployImpl = () => assert.fail('must not deploy');
   const env = { ...makeEnv(), GAS_RPC_CLASP_JSON: tmpFile('clasp.json', { scriptId: 'WORK-ID' }) };
-  const code = await main(['fn', '--deploy'], { fetchImpl: fakeFetch(200, {}), deployImpl, stdout: io.stdout, stderr: io.stderr, env });
+  const code = await main(['fn', '--deploy'], { fetchImpl: fakeFetch(200, {}), deployImpl, assertCleanImpl: () => {}, stdout: io.stdout, stderr: io.stderr, env });
   assert.equal(code, 2);
   assert.match(io.err.join(''), /HOME/);
+});
+
+test('main: --deploy refuses to push when gas-app has uncommitted changes', async () => {
+  const io = makeIo();
+  const deployImpl = () => assert.fail('must not deploy a dirty tree');
+  const assertCleanImpl = () => { throw new Error('gas-app has uncommitted changes'); };
+  const code = await main(['fn', '--deploy'], { fetchImpl: fakeFetch(200, {}), deployImpl, assertCleanImpl, stdout: io.stdout, stderr: io.stderr, env: makeEnv() });
+  assert.equal(code, 2);
+  assert.match(io.err.join(''), /uncommitted/);
 });
 
 test('appsscript.json has executionApi and unchanged webapp', () => {

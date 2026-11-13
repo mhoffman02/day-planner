@@ -37,6 +37,7 @@ node tools/gemini-delegate.js --task "<description>" \
 - `--dirs`: **absolute** paths only (`"."` is unreliable).
 - `--input-file`: text to append (e.g. a captured `git log`). `--file`: image/PDF/office doc; bypasses the gate.
 - `--force`: skip the size gate. `--raw`: print only the response text.
+- Read-only by design: `agy` runs WITHOUT `--dangerously-skip-permissions` (input is untrusted; tool calls auto-deny). Never add the flag here.
 - Exit `0` OK, `1` failed (do it yourself), `2` skipped by the size gate (do it yourself).
 - `--history [n]` / `--history-summary [n]`: recent calls from `tools/gemini-delegate.log`.
 

@@ -114,6 +114,14 @@ function appendLog(fields) {
   }
 }
 
+/** agy argv. Deliberately NO --dangerously-skip-permissions: input files/logs are untrusted, so a prompt
+ * injected into them must not be able to run tools. Headless agy auto-denies tool calls it is not allowed. */
+export function buildAgyArgs({ prompt, model, dirs }) {
+  const args = ['--model', model, '--output-format', 'json', `--print=${prompt}`]
+  for (const dir of dirs) args.push('--add-dir', dir)
+  return args
+}
+
 /** The actual agy call — no gate check, no logging. Private: every real caller goes through
  * delegateToGemini() below instead, which is the only exported way to reach this. There is no
  * legitimate reason to call agy without also gating and logging it, so there's no public path
@@ -129,8 +137,7 @@ function callAgy({ task, dirs, model, inputContent, verbose }) {
     ? `${task}\n\n---\n${inputContent.slice(0, MAX_INPUT_CHARS)}`
     : task
 
-  const args = ['--model', model, '--output-format', 'json', `--print=${prompt}`, '--dangerously-skip-permissions']
-  for (const dir of dirs) args.push('--add-dir', dir)
+  const args = buildAgyArgs({ prompt, model, dirs })
 
   if (verbose) console.warn(`gemini-delegate: dispatching to ${model} via ${agyBin}...`)
 

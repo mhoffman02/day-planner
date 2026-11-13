@@ -17,6 +17,7 @@
  * Setup: npx clasp login --user rpc --creds ~/.config/day-planner/clasp-run-client.json --use-project-scopes
  */
 import { execFileSync } from 'node:child_process';
+import { assertCleanGasApp } from './clean-tree.js';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -197,7 +198,7 @@ function parseArg(s) {
 /**
  * CLI entry. Returns the exit code.
  */
-export async function main(argv, { fetchImpl = fetch, deployImpl = claspDeploy, stdout = process.stdout, stderr = process.stderr, env = process.env } = {}) {
+export async function main(argv, { fetchImpl = fetch, deployImpl = claspDeploy, assertCleanImpl = () => assertCleanGasApp(REPO_ROOT), stdout = process.stdout, stderr = process.stderr, env = process.env } = {}) {
   const raw = argv.includes('--raw');
   const deploy = argv.includes('--deploy');
   const positional = argv.filter((a) => a !== '--raw' && a !== '--deploy');
@@ -213,6 +214,7 @@ export async function main(argv, { fetchImpl = fetch, deployImpl = claspDeploy, 
       if (scriptId !== HOME_SCRIPT_ID) {
         throw new Error(`--deploy refused: gas-app/.clasp.json targets ${scriptId}, not the HOME script`);
       }
+      assertCleanImpl(); // clasp pushes the working tree: refuse unless gas-app matches HEAD
       deployImpl(['clasp', 'push', '--force']);
       deployImpl(['clasp', 'update-deployment', API_DEPLOYMENT_ID, '-d', DEPLOY_DESCRIPTION]);
     }
