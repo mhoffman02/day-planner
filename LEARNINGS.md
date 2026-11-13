@@ -468,3 +468,16 @@ live-testing catches it by luck.
 ## 2026-11-12 (context budget)
 **Worked well:** Measuring first (`wc -c` on every always-loaded file) showed rules and `MEMORY.md`, not `CLAUDE.md`, were the bulk; scoping with `paths:` and moving on-demand detail to `docs/` cut ~26 KB per turn without losing a constraint.
 **Needs improvement:** My replies ran long against the brevity rule, which has no hook behind it; the rule is now bold and first in the global `CLAUDE.md`. Say less.
+
+## 2026-11-13 — Security review, fixes, scope narrowing
+
+**Worked well:**
+- Parallel deep agents covered the full review; every finding landed with a red test first
+- Live deploy gate caught the missing calendar.events consent before the version moved
+- Pulled the consent URL from the live app over CDP when the IDE showed no prompt
+
+**Needs improvement:**
+- First Master Tasks fix guessed a min-width without measuring; the 260px Action column clip was the real cause (measure live geometry first)
+- Told the user to set REGRANT_ENABLED_UNTIL on WORK before checking the Picker page only works on HOME
+
+---
