@@ -34,7 +34,7 @@ The application implements a complete suite of Day Planner page views accessible
 | Page Type | Layout & View Description | Google Workspace Integration |
 | :--- | :--- | :--- |
 | **1. Prioritized Daily Planner (Daily 3-Column View / "Today" / 2-Page Spread)** | Digital implementation of the classic Day Planner 2-page spread across 3 columns: Column 1 Prioritized Task List (A1-C9), Column 2 Appointment Schedule (07:00 AM - 07:00 PM), Column 3 Modular Daily Notes. | Google Calendar, Google Tasks, Google Docs |
-| **2. Full-Screen Monthly Overview Calendar** | Interactive 7x5 monthly calendar grid displaying events, holidays, and high-level markers. | Google Calendar (`CalendarApp`) |
+| **2. Full-Screen Monthly Overview Calendar** | Interactive 7x5 monthly calendar grid displaying events, holidays, and high-level markers. | Google Calendar (Advanced `Calendar.Events`, `calendar.events` scope) |
 | **3. Monthly Master Task List Page** | Categorized high-level task list (Personal, Business, Projects) with one-click transfer to daily task lists. | Dedicated Google Task Lists (`[Month] [Year] Master Tasks`) |
 | **4. Monthly Index Page** | Aggregated, searchable registry of key daily decisions, meeting summaries, and `#index` tagged notes with in-app "Jump to Day" navigation and external "Source Doc" links. | Scanned Google Docs & Google Sheets |
 | **5. Future Planning Matrix** | 12-month forward-look overview for scheduling milestone events in upcoming months. | Google Calendar & Google Sheets |
@@ -67,7 +67,7 @@ The application implements a complete suite of Day Planner page views accessible
 ### 4.3 Full-Screen Monthly Calendar Page
 * Full-width grid showing all days of the selected month.
 * Clicking any day cell navigates directly to that day's Daily Page ("Today" 3-column view).
-* Displays calendar event pills fetched live from `CalendarApp`.
+* Displays calendar event pills fetched live from Advanced `Calendar.Events`.
 
 ### 4.4 Monthly Index Page & Automated Scanning
 * **Automated Scan**: Backend aggregates `#index [Topic] Summary` entries from monthly notes.
@@ -105,7 +105,7 @@ The application implements a complete suite of Day Planner page views accessible
 
 | Google Service | Apps Script API | Integration Role |
 | :--- | :--- | :--- |
-| **Google Calendar** | `CalendarApp` | Sync events into 07:00-19:00 grid, event popup details modal, Meet launcher. |
+| **Google Calendar** | Advanced `Calendar.Events` (`calendar.events` scope; never `CalendarApp`) | Sync events into 07:00-19:00 grid, event popup details modal, Meet launcher. |
 | **Google Tasks** | `Tasks` / `TasksApp` | Manage daily `[A1]` tasks and monthly master task lists (`[Month] [Year] Master Tasks`), execute task transfer. |
 | **Google Docs** | `DocumentApp` | Render scrollable daily notes view from the Day Planner template, scan `#index` tags. |
 | **Google Sheets** | `SpreadsheetApp` | Backup relational store for index records and expense tracking metrics. |

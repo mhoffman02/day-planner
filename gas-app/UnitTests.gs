@@ -123,20 +123,21 @@ function runSelfTest() {
 
   // Test 3: Google Calendar Integration & Tagging
   try {
-    if (typeof CalendarApp !== 'undefined') {
-      const cal = CalendarApp.getDefaultCalendar();
-      const calName = cal.getName();
+    // Advanced Calendar only: the built-in calendar service needs the broad calendar scope; the app runs on calendar.events.
+    if (typeof Calendar !== 'undefined' && Calendar.Events) {
+      const probe = Calendar.Events.list('primary', { maxResults: 1, fields: 'timeZone' });
+      if (!probe || !probe.timeZone) throw new Error('Primary calendar returned no time zone');
       results.push({
         test: '3. Google Calendar Integration',
         status: 'PASS',
-        details: 'Default Calendar connected: "' + calName + '"'
+        details: 'Primary calendar connected (time zone ' + probe.timeZone + ')'
       });
       passedCount++;
     } else {
       results.push({
         test: '3. Google Calendar Integration',
         status: 'FAIL',
-        details: 'CalendarApp service unavailable.'
+        details: 'Calendar Advanced Service unavailable.'
       });
     }
   } catch (err3) {
@@ -583,7 +584,7 @@ function hubSpike() {
  */
 function authorizeNewScopes() {
   DriveApp.getRootFolder();
-  CalendarApp.getDefaultCalendar();
+  Calendar.Events.list('primary', { maxResults: 1, fields: 'timeZone' });
   if (typeof Tasks !== 'undefined') {
     Tasks.Tasks.list('@default');
   }

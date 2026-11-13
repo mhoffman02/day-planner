@@ -120,7 +120,7 @@ To achieve the closest possible PWA-like experience without a service worker:
 2. **Minimal OAuth Scopes**:
    - Strict `drive.file` scope (only files/folders created by Day Planner).
    - Read-only title inspection under `drive.readonly` for smart-paste link resolution.
-   - `calendar.events` (or `calendar`) and `tasks`.
+   - `calendar.events` (never the broad `calendar`, which can change sharing and delete calendars; so no `CalendarApp`, only `Calendar.Events.*`) and `tasks`.
    - Never request root `drive` scope.
 3. **Safe HtmlService Character Escaping**:
    - Automated guard against HtmlService comment truncation bugs (`//` in script tags).

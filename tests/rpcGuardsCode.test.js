@@ -33,7 +33,6 @@ const BAD = [
   ['saveDailyDocCards', ['bad', 'note', ''], 'dateStr'],
   ['setEventRsvp', ['e1', 'maybe'], 'response'],
   ['searchArchiveNotes', [{}], 'query'],
-  ['searchAcrossAllMonthlyDocs', [{}], 'query'],
   ['addFutureItem', [2026, 'Nov', 'T'], 'monthKey'],
   ['addFutureItem', [2026, '2026-11', 7], 'title'],
   ['addFutureItem', [2026, '2026-11', 'T', 5], 'category'],
@@ -73,7 +72,6 @@ test('valid and optional/null args still pass the guards', () => {
   passesGuard(() => c.updateDailyTask('', 't1', { starred: true }));
   passesGuard(() => c.addMasterTask('T', undefined, null, undefined));
   passesGuard(() => c.searchArchiveNotes(null));
-  passesGuard(() => c.searchAcrossAllMonthlyDocs(undefined));
   passesGuard(() => c.getMasterTasks('November 2026'));
   passesGuard(() => c.delegateDailyTask('2026-11-01', 't1', '2026-11-02', null));
   passesGuard(() => c.saveDailyDocCards('2026-11-01', '', null));

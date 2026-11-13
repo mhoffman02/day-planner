@@ -903,7 +903,7 @@ Use explicit scopes in `appsscript.json`, adjusted to actual implementation.
 
 - `gmail.readonly` (new; Advanced Gmail service; only new scope)
 - Google Tasks (existing)
-- Calendar (existing `calendar`)
+- Calendar: `calendar.events` (narrowed from `calendar` 2026-11-13; Advanced Calendar `Calendar.Events.*` only)
 - Docs via the Docs Advanced Service under `drive.file` (existing; `documents` stays removed)
 - Drive: existing `drive.file` and `drive.readonly` (Gemini note discovery)
 - Config/ledger Sheet via `drive.file` for an app-created Sheet. **Spike pending in Wave 0.** If it requires the `spreadsheets` scope, stop and report before expanding permissions.

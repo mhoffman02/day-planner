@@ -9,13 +9,12 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { makeGasContext, loadGasFile, toHost } from './helpers/gasRuntimeStubs.js';
+import { makeGasContext, loadGasFile, toHost, stubPrimaryTimeZone } from './helpers/gasRuntimeStubs.js';
 
 const TZ = 'America/Chicago';
 
 function ctxWith(store) {
   const ctx = makeGasContext();
-  ctx.Calendar.Calendars = { get: () => ({ id: 'me@example.com', timeZone: TZ }) };
   const patches = [];
   const removes = [];
   ctx.Calendar.Events.get = (calId, id) => {
@@ -31,6 +30,7 @@ function ctxWith(store) {
     removes.push({ calId, id, opts: toHost(opts) });
     delete store[id];
   };
+  stubPrimaryTimeZone(ctx, () => ({ timeZone: TZ }));
   loadGasFile(ctx, 'Code.gs');
   return { ctx, patches, removes };
 }

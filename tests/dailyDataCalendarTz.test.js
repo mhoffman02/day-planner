@@ -1,7 +1,7 @@
 /**
  * @file dailyDataCalendarTz.test.js
  * @description getDailyData / getDailyDataRange build each day's window (and bucket events) in the
- * user's PRIMARY CALENDAR time zone (Calendar.Calendars.get('primary').timeZone, the same source
+ * user's PRIMARY CALENDAR time zone (the events.list('primary') response timeZone, under calendar.events; the same source
  * createCalendarEvent uses), never the script/process time zone. Unreadable time zone fails loud.
  * The process TZ is pinned to differ from the calendar TZ so the result never depends on the host.
  */
@@ -9,18 +9,15 @@ process.env.TZ = 'America/New_York';
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { makeGasContext, loadGasFile, toHost } from './helpers/gasRuntimeStubs.js';
+import { makeGasContext, loadGasFile, toHost, stubPrimaryTimeZone } from './helpers/gasRuntimeStubs.js';
 
 /**
- * @param {{tz?:string, calendarsGet?:Function, events?:Array<object>}} o Calendar setup.
+ * @param {{tz?:string, tzProbe?:Function, events?:Array<object>}} o Calendar setup.
  * @returns {{ctx:object, listCalls:Array<object>}}
  */
 function tzCtx(o = {}) {
   const ctx = makeGasContext();
   const listCalls = [];
-  ctx.Calendar.Calendars = {
-    get: o.calendarsGet || ((id) => { if (id !== 'primary') throw new Error('unexpected calendar ' + id); return { id: 'me@example.com', timeZone: o.tz || 'Asia/Tokyo' }; })
-  };
   const events = o.events || [];
   // Real API semantics: an event is returned when it overlaps [timeMin, timeMax).
   ctx.Calendar.Events.list = (calendarId, params) => {
@@ -35,6 +32,8 @@ function tzCtx(o = {}) {
     });
     return { items };
   };
+  // After the list stub, so listCalls holds only window fetches, never the zone probe.
+  stubPrimaryTimeZone(ctx, o.tzProbe || ((id) => { if (id !== 'primary') throw new Error('unexpected calendar ' + id); return { timeZone: o.tz || 'Asia/Tokyo' }; }));
   loadGasFile(ctx, 'Code.gs');
   return { ctx, listCalls };
 }
@@ -70,17 +69,17 @@ test('getDailyData: month rollover (Oct 31 -> Nov 1) uses pure y/m/d arithmetic'
 });
 
 test('getDailyData: unreadable calendar time zone -> no calendar fetch, loud warning, stack logged (no script-zone fallback)', () => {
-  const { ctx, listCalls } = tzCtx({ calendarsGet: () => { throw new Error('Calendars.get 503'); }, events: [late] });
+  const { ctx, listCalls } = tzCtx({ tzProbe: () => { throw new Error('tz probe 503'); }, events: [late] });
   const day = toHost(ctx.getDailyData('2026-10-09'));
   assert.equal(listCalls.length, 0, 'must not list with a guessed window');
   assert.deepEqual(day.calendarEvents, []);
   assert.ok(day.warnings.some((w) => /time zone/i.test(w)), JSON.stringify(day.warnings));
   assert.ok(day.warnings.every((w) => !/\n\s+at /.test(w)), 'stack leaked into the user warning');
-  assert.match(ctx.__consoleLines.join('\n'), /Calendars\.get 503[\s\S]*\n\s+at /);
+  assert.match(ctx.__consoleLines.join('\n'), /tz probe 503[\s\S]*\n\s+at /);
 });
 
 test('getDailyData: calendar with no timeZone -> loud warning, no fetch', () => {
-  const { ctx, listCalls } = tzCtx({ calendarsGet: () => ({ id: 'primary' }) });
+  const { ctx, listCalls } = tzCtx({ tzProbe: () => ({ id: 'primary' }) });
   const day = toHost(ctx.getDailyData('2026-10-09'));
   assert.equal(listCalls.length, 0);
   assert.ok(day.warnings.some((w) => /time zone/i.test(w)));
@@ -104,12 +103,12 @@ test('getDailyDataRange: multi-day all-day event covers start..end-1 by date str
 });
 
 test('getDailyDataRange: unreadable calendar time zone throws (a prefetch must not prime empty days)', () => {
-  const { ctx, listCalls } = tzCtx({ calendarsGet: () => { throw new Error('Calendars.get 503'); } });
+  const { ctx, listCalls } = tzCtx({ tzProbe: () => { throw new Error('tz probe 503'); } });
   assert.throws(() => ctx.getDailyDataRange('2026-10-09', '2026-10-10'), (err) => {
     assert.match(err.message, /time zone/i);
     assert.doesNotMatch(err.message, /\n\s+at /);
     return true;
   });
   assert.equal(listCalls.length, 0);
-  assert.match(ctx.__consoleLines.join('\n'), /Calendars\.get 503[\s\S]*\n\s+at /);
+  assert.match(ctx.__consoleLines.join('\n'), /tz probe 503[\s\S]*\n\s+at /);
 });

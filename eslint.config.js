@@ -57,7 +57,7 @@ const gasHtmlProcessor = {
 const gasGlobals = {
   SpreadsheetApp: 'readonly',
   DriveApp: 'readonly',
-  CalendarApp: 'readonly',
+  // No CalendarApp: it needs the broad calendar scope; the app runs on calendar.events via Advanced Calendar.
   Tasks: 'readonly',
   Calendar: 'readonly',
   ContentService: 'readonly',

@@ -442,7 +442,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 739;
+const BUILD_NUMBER_ = 740;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -977,31 +977,25 @@ function syncWorkspaceChanges() {
     }
 
     const tasks = dailyData.tasks || [];
-    const defaultCal = CalendarApp.getDefaultCalendar();
-    const matchingEvts = defaultCal.getEventsForDay(new Date());
+    // Today's primary-calendar events, already listed by getDailyData (Advanced Calendar, calendar.events scope);
+    // syncTaskId is the event's shared gasTaskId tag.
+    const events = dailyData.calendarEvents || [];
 
     tasks.forEach(function(task) {
       if (!task.id) return;
       try {
-        let linkedEvt = null;
-        for (let j = 0; j < matchingEvts.length; j++) {
-          if (matchingEvts[j].getTag('gasTaskId') === task.id) {
-            linkedEvt = matchingEvts[j];
-            break;
-          }
-        }
-
-        if (linkedEvt) {
-          const isDone = task.status === '✓' || task.status === 'Ⓓ' || task.status === 'D/✓';
-          const formattedTitle = isDone ? '[✓] ' + task.title : task.title;
-          linkedEvt.setTitle(formattedTitle);
-        }
+        const linkedEvt = events.find(function(evt) { return evt.syncTaskId === task.id; });
+        if (!linkedEvt) return;
+        const isDone = task.status === '✓' || task.status === 'Ⓓ' || task.status === 'D/✓';
+        const formattedTitle = isDone ? '[✓] ' + task.title : task.title;
+        if (linkedEvt.title === formattedTitle) return; // runs every 5 minutes: write only on a change
+        Calendar.Events.patch({ summary: formattedTitle }, 'primary', linkedEvt.id, { sendUpdates: 'none' });
       } catch (taskErr) {
-        logError('syncWorkspaceChanges task item ' + task.id, taskErr);
+        logError('syncWorkspaceChanges task item ' + task.id + ' (event not retitled; next task continues)', taskErr);
       }
     });
 
-    Logger.log('2-Way Workspace Sync complete for ' + todayStr);
+    console.log('2-Way Workspace Sync complete for ' + todayStr);
   } catch (err) {
     logError('syncWorkspaceChanges main', err);
   }
@@ -1290,16 +1284,6 @@ function selfResponseStatus_(attendees) {
 }
 
 /**
- * My RSVP on a CalendarApp event, in Calendar API terms so both getDailyData paths match.
- * @param {object} evt CalendarApp CalendarEvent.
- * @returns {(string|null)} accepted, declined, tentative or needsAction; null for my own event.
- */
-function calendarAppMyResponse_(evt) {
-  const map = { YES: 'accepted', NO: 'declined', MAYBE: 'tentative', INVITED: 'needsAction' };
-  return map[String(evt.getMyStatus())] || null;
-}
-
-/**
  * Sends no RSVP email; a Google-hosted organizer still sees the answer in the guest list.
  * @returns {string} Calendar API sendUpdates value used by setEventRsvp.
  */
@@ -1377,34 +1361,8 @@ function getDailyData(dateStr) {
       } catch (calErr) {
         result.warnings.push(logError('Calendar.Events.list', calErr).error);
       }
-    } else if (typeof CalendarApp !== 'undefined') {
-      try {
-        const defaultCal = CalendarApp.getDefaultCalendar();
-        const defaultCalId = defaultCal.getId();
-        const calAppTz = defaultCal.getTimeZone();
-        if (!calAppTz) throw new Error('Could not read your calendar time zone, so calendar events for ' + dateStr + ' were not loaded.');
-        const appWindow = calendarDayWindow_(dateStr, dateStr, calAppTz);
-        const events = defaultCal.getEvents(new Date(appWindow.timeMin), new Date(appWindow.timeMax));
-        result.calendarEvents = events.map(function(evt) {
-          const meetLink = extractMeetLinkFromEvent_(evt);
-          const bareId = evt.getId().replace(/@google\.com$/, '');
-          return {
-            id: bareId,
-            title: evt.getTitle(),
-            startTime: evt.getStartTime().toISOString(),
-            endTime: evt.getEndTime().toISOString(),
-            location: evt.getLocation(),
-            description: evt.getDescription(),
-            meetLink: meetLink,
-            htmlLink: 'https:' + '/' + '/calendar.google.com/calendar/event?eid=' +
-              Utilities.base64EncodeWebSafe(bareId + ' ' + defaultCalId).replace(/=+$/, ''),
-            syncTaskId: evt.getTag('gasTaskId') || null,
-            myResponse: calendarAppMyResponse_(evt)
-          };
-        });
-      } catch (calErr) {
-        result.warnings.push(logError('CalendarApp.getEvents', calErr).error);
-      }
+    } else {
+      result.warnings.push(logError('getDailyData', new Error('Google Calendar is not available (Calendar Advanced Service not enabled), so calendar events for ' + dateStr + ' were not loaded.')).error);
     }
 
     // 2. Fetch Google Tasks. Pad the window by a day on each side and re-filter by the exact
@@ -1548,11 +1506,13 @@ function primaryCalendarTimeZone_(consequence) {
   if (primaryTzMemo_) return primaryTzMemo_;
   let tz;
   try {
-    if (!Calendar.Calendars) throw new Error('Calendar.Calendars advanced service is unavailable');
-    const primary = Calendar.Calendars.get('primary');
-    tz = primary && primary.timeZone ? String(primary.timeZone) : '';
+    // events.list carries the calendar's timeZone and runs under calendar.events; Calendars.get needs a
+    // calendar-level scope (calendar, calendar.readonly). fields limits the reply to that one value.
+    if (typeof Calendar === 'undefined' || !Calendar.Events) throw new Error('Calendar Advanced Service is unavailable');
+    const resp = Calendar.Events.list('primary', { maxResults: 1, fields: 'timeZone' });
+    tz = resp && resp.timeZone ? String(resp.timeZone) : '';
   } catch (err) {
-    logError('primaryCalendarTimeZone_: Calendar.Calendars.get(primary) failed; ' + consequence, err);
+    logError('primaryCalendarTimeZone_: Calendar.Events.list(primary, timeZone) failed; ' + consequence, err);
     throw new Error('Could not read your calendar time zone, ' + consequence + '. Please try again.', { cause: err });
   }
   if (!tz) {
@@ -1627,7 +1587,7 @@ function shiftDateKey_(dateKey, n) {
 function createCalendarEvent(payload) {
   DPEngines.v_.guard(arguments, 'createCalendarEvent').param('payload').object().done();
   const ev = validateCalendarEventPayload_(payload);
-  if (typeof Calendar === 'undefined' || !Calendar.Events || !Calendar.Calendars) {
+  if (typeof Calendar === 'undefined' || !Calendar.Events) {
     throw new Error('Google Calendar is not available, so the event was not created.');
   }
   const tz = primaryCalendarTimeZone_('so the event was not created');
@@ -1726,7 +1686,7 @@ function updateCalendarEvent(eventId, payload, opts) {
 
 /** Calendar Advanced Service must be on; the reason says what did not happen. */
 function requireCalendarService_(outcome) {
-  if (typeof Calendar === 'undefined' || !Calendar.Events || !Calendar.Calendars) {
+  if (typeof Calendar === 'undefined' || !Calendar.Events) {
     throw new Error('Google Calendar is not available, ' + outcome + '.');
   }
 }
@@ -3568,75 +3528,6 @@ function deleteFutureItem(year, monthKey, itemId) {
 }
 
 /**
- * Searches across all monthly Google Docs in the Day Planner folder.
- * @param {string} query Search term.
- * @returns {Array<{docName: string, docId: string, docUrl: string, matches: Array<{heading: string, snippet: string}>}>} Match results.
- */
-function searchAcrossAllMonthlyDocs(query) {
-  DPEngines.v_.guard(arguments, 'searchAcrossAllMonthlyDocs').param('query').string().optional().nullable().done();
-  const cleanQuery = (query || '').trim().toLowerCase();
-  if (!cleanQuery) return [];
-
-  if (typeof DriveApp === 'undefined' || typeof Docs === 'undefined') {
-    return [
-      {
-        docName: 'Day Planner Notes - August 2026',
-        docId: 'mock_doc_1',
-        docUrl: '#',
-        matches: [
-          { heading: 'Day Planner - Sunday, August 16, 2026', snippet: 'Finalized 3-column binder layout with Alpine.js and clean CSS.' }
-        ]
-      }
-    ];
-  }
-
-  try {
-    const targetFolder = getValidatedRootFolder();
-    if (!targetFolder) return [];
-
-    const files = targetFolder.getFiles();
-    const results = [];
-
-    while (files.hasNext()) {
-      const file = files.next();
-      const name = file.getName();
-      if (name.indexOf('Day Planner Notes') !== -1) {
-        const text = docsGetBodyElements_(file.getId()).map(docsElementText_).join('\n');
-
-        if (text.toLowerCase().indexOf(cleanQuery) !== -1) {
-          const lines = text.split('\n');
-          const matches = [];
-          let currentHeading = name;
-
-          lines.forEach(function(line) {
-            if (line.startsWith('Day Planner - ') || line.startsWith('## ')) {
-              currentHeading = line;
-            }
-            if (line.toLowerCase().indexOf(cleanQuery) !== -1) {
-              matches.push({
-                heading: currentHeading,
-                snippet: line.trim()
-              });
-            }
-          });
-
-          results.push({
-            docName: name,
-            docId: file.getId(),
-            docUrl: file.getUrl(),
-            matches: matches
-          });
-        }
-      }
-    }
-    return results;
-  } catch (err) {
-    logError('searchAcrossAllMonthlyDocs', err);
-    return [];
-  }
-}
-
-/**
  * Retrieves the published Google Apps Script web app URL.
  * @returns {string} Web app /exec URL.
  */
@@ -3902,7 +3793,6 @@ global.updateFutureItemStatus = updateFutureItemStatus;      // google.script.ru
 global.transferFutureItem = transferFutureItem;              // google.script.run: Script.html
 global.pushFutureItemToNextMonth = pushFutureItemToNextMonth; // google.script.run: Script.html
 global.deleteFutureItem = deleteFutureItem;                  // google.script.run: Script.html
-global.searchAcrossAllMonthlyDocs = searchAcrossAllMonthlyDocs; // no caller since the dead Docs sidebar was removed (2026-11-13); remove or wire up
 global.ensure2WaySyncTriggerInstalled = ensure2WaySyncTriggerInstalled; // IDE manual-run
 global.setup2WaySyncTrigger = setup2WaySyncTrigger;          // IDE manual-run
 global.searchArchiveNotes = searchArchiveNotes;              // google.script.run: Script.html
@@ -3973,7 +3863,6 @@ global._updateFutureItemStatusInternal = updateFutureItemStatus;
 global._transferFutureItemInternal = transferFutureItem;
 global._pushFutureItemToNextMonthInternal = pushFutureItemToNextMonth;
 global._deleteFutureItemInternal = deleteFutureItem;
-global._searchAcrossAllMonthlyDocsInternal = searchAcrossAllMonthlyDocs;
 global._getWebAppUrlInternal = getWebAppUrl;
 global._searchArchiveNotesInternal = searchArchiveNotes;
 
@@ -4171,10 +4060,6 @@ function pushFutureItemToNextMonth(year, monthKey, itemId) {
 
 function deleteFutureItem(year, monthKey, itemId) {
   return (typeof _deleteFutureItemInternal === 'function') ? _deleteFutureItemInternal(year, monthKey, itemId) : (globalThis._deleteFutureItemInternal ? globalThis._deleteFutureItemInternal(year, monthKey, itemId) : null);
-}
-
-function searchAcrossAllMonthlyDocs(query) {
-  return (typeof _searchAcrossAllMonthlyDocsInternal === 'function') ? _searchAcrossAllMonthlyDocsInternal(query) : (globalThis._searchAcrossAllMonthlyDocsInternal ? globalThis._searchAcrossAllMonthlyDocsInternal(query) : null);
 }
 
 function getWebAppUrl() {

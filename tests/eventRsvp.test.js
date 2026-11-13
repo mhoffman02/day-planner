@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { makeGasContext, loadGasFile, toHost } from './helpers/gasRuntimeStubs.js';
+import { makeGasContext, loadGasFile, toHost, stubPrimaryTimeZone } from './helpers/gasRuntimeStubs.js';
 
 const TZ = 'America/Chicago';
 
@@ -15,7 +15,6 @@ function rsvpCtx(o = {}) {
   const ctx = makeGasContext();
   const patches = [];
   const lists = [];
-  ctx.Calendar.Calendars = { get: () => ({ id: 'me@example.com', timeZone: TZ }) };
   const attendees = o.attendees || [
     { email: 'boss@example.com', organizer: true, responseStatus: 'accepted' },
     { email: 'me@example.com', self: true, responseStatus: 'needsAction' },
@@ -32,6 +31,7 @@ function rsvpCtx(o = {}) {
     out.attendees = toHost(resource).attendees;
     return out;
   });
+  stubPrimaryTimeZone(ctx, () => ({ timeZone: TZ }));
   loadGasFile(ctx, 'Code.gs');
   return { ctx, patches, lists, event };
 }

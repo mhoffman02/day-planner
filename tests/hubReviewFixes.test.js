@@ -349,17 +349,23 @@ test('#8 crash before the DONE write then cutoff rollover => still exactly one c
 });
 
 // ---------------------------------------------------------------- #9 time zone seed
-test('#9 TimeZone seed prefers the Calendar user setting, then the primary calendar, then the script zone', () => {
+// calendar.events scope only (2026-11-13): Settings.get and Calendars.get need broader scopes, so the zone is the
+// primary calendar's, read from the events.list response.
+test('#9 TimeZone seed is the primary calendar zone (events.list timeZone), then the script zone', () => {
   const tz = (ctx) => {
     const id = ctx.DPConfig.ensureSetup();
     return ctx.__fakes.sheets[id].tabs.find((t) => t.title === 'Config').rows.find((r) => r[0] === 'TimeZone')[1];
   };
+  const broad = { Settings: { get: () => { throw new Error('Settings.get needs calendar.readonly'); } }, Calendars: { get: () => { throw new Error('Calendars.get needs calendar'); } } };
+  const probes = [];
   let ctx = configCtx();
-  ctx.Calendar = { Settings: { get: (n) => ({ id: n, value: 'Europe/Paris' }) }, Calendars: { get: () => ({ timeZone: 'Asia/Tokyo' }) } };
-  assert.equal(tz(ctx), 'Europe/Paris');
-  ctx = configCtx();
-  ctx.Calendar = { Settings: { get: () => { throw new Error('denied'); } }, Calendars: { get: () => ({ timeZone: 'Asia/Tokyo' }) } };
+  ctx.Calendar = { ...broad, Events: { list: (cal, p) => { probes.push([cal, p.fields]); return { timeZone: 'Asia/Tokyo' }; } } };
   assert.equal(tz(ctx), 'Asia/Tokyo');
+  assert.deepEqual(probes, [['primary', 'timeZone']]);
+  ctx = configCtx();
+  ctx.Calendar = { ...broad, Events: { list: () => { throw new Error('denied'); } } };
+  assert.equal(tz(ctx), 'America/New_York');
+  assert.match(ctx.__consoleLines.join('\n'), /denied[\s\S]*\n\s+at /, 'probe failure logged with its stack');
   ctx = configCtx();
   ctx.Calendar = {};
   assert.equal(tz(ctx), 'America/New_York');

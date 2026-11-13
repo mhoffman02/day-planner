@@ -526,6 +526,27 @@ export function makeGasContext() {
   return context;
 }
 
+/**
+ * Answers the primary-calendar time zone probe the server makes under the calendar.events scope:
+ * Calendar.Events.list('primary', {fields: 'timeZone', ...}) returns {timeZone} (the list response's
+ * calendar time zone). Every other Events.list call goes to the list stub in place at call time.
+ * @param {object} ctx makeGasContext() context.
+ * @param {Function} probe (calendarId, params) => response ({timeZone}) or throws, like the API.
+ * @returns {Array<object>} The probe calls ({calendarId, params}).
+ */
+export function stubPrimaryTimeZone(ctx, probe) {
+  const calls = [];
+  const inner = ctx.Calendar.Events.list;
+  ctx.Calendar.Events.list = function (calendarId, params) {
+    if (params && params.fields === 'timeZone') {
+      calls.push({ calendarId, params: toHost(params) });
+      return probe(calendarId, params);
+    }
+    return inner.apply(this, arguments);
+  };
+  return calls;
+}
+
 /** Runs gas-app/<fileName> in the context. */
 export function loadGasFile(context, fileName) {
   // Production always has Engines.gs in the project; RPC guards in Code.gs read DPEngines.v_ at call time.

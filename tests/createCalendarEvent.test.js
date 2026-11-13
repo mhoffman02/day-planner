@@ -10,7 +10,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { makeGasContext, loadGasFile, toHost } from './helpers/gasRuntimeStubs.js';
+import { makeGasContext, loadGasFile, toHost, stubPrimaryTimeZone } from './helpers/gasRuntimeStubs.js';
 
 const TZ = 'America/Chicago';
 const EVENT_KEYS = ['canDelete', 'canEdit', 'description', 'endTime', 'etag', 'guestCount', 'guests', 'htmlLink', 'id', 'location', 'meetLink', 'myResponse', 'recurringEventId', 'startTime', 'syncTaskId', 'title'];
@@ -18,9 +18,6 @@ const EVENT_KEYS = ['canDelete', 'canEdit', 'description', 'endTime', 'etag', 'g
 function calCtx(o = {}) {
   const ctx = makeGasContext(); // real zone-aware Utilities.formatDate stub (getDailyData needs it)
   const inserts = [];
-  ctx.Calendar.Calendars = {
-    get: o.calendarsGet || ((id) => { if (id !== 'primary') throw new Error('unexpected calendar ' + id); return { id: 'me@example.com', timeZone: TZ }; })
-  };
   // Real Advanced Service signature: Calendar.Events.insert(resource, calendarId, optionalArgs).
   ctx.Calendar.Events.insert = o.insert || ((resource, calendarId, opts) => {
     inserts.push({ resource: toHost(resource), calendarId, opts: toHost(opts) });
@@ -44,6 +41,8 @@ function calCtx(o = {}) {
   ctx.Utilities.sleep = (ms) => { sleeps.push(ms); };
   ctx.Calendar.Events.get = o.get || ((calendarId, eventId, opts) => { gets.push({ calendarId, eventId, opts: toHost(opts) }); return o.getResult ? o.getResult(gets.length) : { id: eventId }; });
   if (o.get) { const inner = o.get; ctx.Calendar.Events.get = (c, e, opts) => { gets.push({ calendarId: c, eventId: e, opts: toHost(opts) }); return inner(c, e, opts, gets.length); }; }
+  // Primary-calendar zone: events.list(primary, fields timeZone), the calendar.events-scope source.
+  stubPrimaryTimeZone(ctx, o.tzProbe || ((id) => { if (id !== 'primary') throw new Error('unexpected calendar ' + id); return { timeZone: TZ }; }));
   loadGasFile(ctx, 'Code.gs');
   return { ctx, inserts, gets, sleeps };
 }
@@ -228,14 +227,14 @@ test('insert returning no event id is a failure, never a success', () => {
 });
 
 test('calendar time zone lookup failure -> fails closed (no fallback to the script time zone)', () => {
-  const { ctx, inserts } = calCtx({ calendarsGet: () => { throw new Error('Calendars.get 500'); } });
+  const { ctx, inserts } = calCtx({ tzProbe: () => { throw new Error('tz probe 500'); } });
   assert.throws(() => ctx.createCalendarEvent(good()), /time zone/i);
   assert.equal(inserts.length, 0);
-  assert.match(consoleText(ctx), /Calendars\.get 500[\s\S]*\n\s+at /);
+  assert.match(consoleText(ctx), /tz probe 500[\s\S]*\n\s+at /);
 });
 
 test('calendar time zone missing in the response -> fails closed', () => {
-  const { ctx, inserts } = calCtx({ calendarsGet: () => ({ id: 'primary' }) });
+  const { ctx, inserts } = calCtx({ tzProbe: () => ({ id: 'primary' }) });
   assert.throws(() => ctx.createCalendarEvent(good()), /time zone/i);
   assert.equal(inserts.length, 0);
 });
@@ -342,17 +341,17 @@ test('non-pending outcomes never poll', () => {
 });
 
 // --- (d) primary time zone memoized per execution, failures never cached ---
-test('two creates in one execution -> one Calendars.get', () => {
+test('two creates in one execution -> one time zone probe', () => {
   let n = 0;
-  const { ctx } = calCtx({ calendarsGet: () => { n += 1; return { timeZone: TZ }; } });
+  const { ctx } = calCtx({ tzProbe: () => { n += 1; return { timeZone: TZ }; } });
   ctx.createCalendarEvent(good());
   ctx.createCalendarEvent(good());
   assert.equal(n, 1);
 });
 
-test('first Calendars.get throws, second succeeds -> 2 calls, correct zone, failure not cached', () => {
+test('first time zone probe throws, second succeeds -> 2 calls, correct zone, failure not cached', () => {
   let n = 0;
-  const { ctx, inserts } = calCtx({ calendarsGet: () => { n += 1; if (n === 1) throw new Error('Calendars.get 500'); return { timeZone: TZ }; } });
+  const { ctx, inserts } = calCtx({ tzProbe: () => { n += 1; if (n === 1) throw new Error('tz probe 500'); return { timeZone: TZ }; } });
   assert.throws(() => ctx.createCalendarEvent(good()), /time zone/i);
   ctx.createCalendarEvent(good());
   assert.equal(n, 2);
@@ -361,7 +360,7 @@ test('first Calendars.get throws, second succeeds -> 2 calls, correct zone, fail
 
 test('missing timeZone is not cached either', () => {
   let n = 0;
-  const { ctx } = calCtx({ calendarsGet: () => { n += 1; return n === 1 ? { id: 'p' } : { timeZone: TZ }; } });
+  const { ctx } = calCtx({ tzProbe: () => { n += 1; return n === 1 ? { id: 'p' } : { timeZone: TZ }; } });
   assert.throws(() => ctx.createCalendarEvent(good()), /time zone/i);
   ctx.createCalendarEvent(good());
   assert.equal(n, 2);

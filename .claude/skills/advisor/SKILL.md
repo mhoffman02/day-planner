@@ -35,7 +35,7 @@ Use this skill when seeking design feedback, architecture guidance, or structura
 
 ## Application Architecture Context
 - **Pure Google Apps Script Web App**: Native backend hosted on `script.google.com` (`gas-app/Code.gs`),
-  executed under user identity with first-party Google Workspace service bindings (`CalendarApp`, `Tasks`, `DriveApp`).
+  executed under user identity with first-party Google Workspace service bindings (Advanced `Calendar` under `calendar.events`, `Tasks`, `DriveApp`).
 - **Node.js Local Server**: `server.js` (static file server for local dev mock preview & testing at `http://localhost:3000`)
 - **Core Modules (`src/`)**:
   - `calendarEngine.js`: Time-slot scheduling, overlapping event detection, day view layout engine

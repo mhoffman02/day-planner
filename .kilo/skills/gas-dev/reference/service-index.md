@@ -7,7 +7,7 @@ Source: live-fetched `developers.google.com/apps-script/reference`
 
 | Service | Global object | Reference URL | Description |
 |---|---|---|---|
-| Calendar | `CalendarApp` | `/apps-script/reference/calendar` | Manage Calendar events and calendar properties. |
+| Calendar | `CalendarApp` | `/apps-script/reference/calendar` | Manage Calendar events and calendar properties. This repo: never; it needs the broad `calendar` scope. Use Advanced Calendar `Calendar.Events.*` under `calendar.events` (primary time zone: `Calendar.Events.list('primary', {maxResults: 1, fields: 'timeZone'})`). |
 | Chat (advanced service) | — | `/apps-script/advanced/chat` | Access Google Chat conversations/messages. |
 | Docs | `DocumentApp` | `/apps-script/reference/document` | Create/modify Google Docs documents. |
 | Drive | `DriveApp` | `/apps-script/reference/drive` | Manage Drive files/folders. |

@@ -13,7 +13,7 @@ Never paste these into a public prompt or commit them. Most are created or fille
 |---|---|---|
 | Config spreadsheet ID | User property `DP_HUB_SHEET_ID`; the Sheet is app-created ("Day Planner Hub Config") in the Day Planner Drive folder | App (automatic) |
 | Day Planner Drive folder | User property `DAY_PLANNER_ROOT_FOLDER_ID` (existing first-run setup) | Already bound; required before the Sheet can be created |
-| Timezone | Config tab `TimeZone` (seeded from the Calendar user setting, else the primary calendar, else the script time zone) | Confirm; mandatory |
+| Timezone | Config tab `TimeZone` (seeded from the primary calendar time zone, read from the `events.list` response under `calendar.events`, else the script time zone) | Confirm; mandatory |
 | User email | Config tab `UserEmail` (seeded from the session; may be blank on some accounts) | Fill if blank; mandatory |
 | Google Tasks list ID | Config tab `TasksListId` (seeded `@default`) | Optionally the real list ID; mandatory |
 | Primary Calendar ID | Meeting Registry `CalendarId` (blank = `primary`; discovery writes it) | Optional |

@@ -17,6 +17,10 @@ test('Code.gs builds no Docs-container UI (getUi/showSidebar/showModalDialog) an
   assert.doesNotMatch(src, /^function onOpen\b/m);
 });
 
+test('Code.gs has no searchAcrossAllMonthlyDocs (its only caller was the removed sidebar)', () => {
+  assert.doesNotMatch(src, /searchAcrossAllMonthlyDocs/);
+});
+
 test('Code.gs serves no inline script that writes innerHTML', () => {
   assert.doesNotMatch(src, /innerHTML/);
 });

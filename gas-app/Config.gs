@@ -149,20 +149,18 @@ function findHubSheetInFolder_(folderId) {
   return res && res.items && res.items.length ? res.items[0].id : null;
 }
 
-/** @returns {string} The user's Calendar time zone (Settings, else primary calendar), or '' when unavailable. */
+/**
+ * The primary calendar's time zone, read from the events.list response: it runs under calendar.events, while
+ * Settings.get and Calendars.get need broader Calendar scopes. Same source as Code.gs primaryCalendarTimeZone_.
+ * @returns {string} IANA time zone, or '' when unavailable (the caller then seeds the script time zone).
+ */
 function userCalendarTimeZone_() {
   try {
-    if (typeof Calendar !== 'undefined' && Calendar.Settings && Calendar.Settings.get) {
-      const setting = Calendar.Settings.get('timezone');
-      if (setting && setting.value) return String(setting.value);
+    if (typeof Calendar !== 'undefined' && Calendar.Events && Calendar.Events.list) {
+      const resp = Calendar.Events.list('primary', { maxResults: 1, fields: 'timeZone' });
+      if (resp && resp.timeZone) return String(resp.timeZone);
     }
-  } catch (e) { logSafe_('Config: Calendar timezone setting unavailable, trying primary calendar', e); }
-  try {
-    if (typeof Calendar !== 'undefined' && Calendar.Calendars && Calendar.Calendars.get) {
-      const primary = Calendar.Calendars.get('primary');
-      if (primary && primary.timeZone) return String(primary.timeZone);
-    }
-  } catch (e) { logSafe_('Config: primary calendar timezone unavailable, using script time zone', e); }
+  } catch (e) { logSafe_('Config: primary calendar time zone unavailable, using script time zone', e); }
   return '';
 }
 
