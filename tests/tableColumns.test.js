@@ -95,11 +95,11 @@ test('View options carries one Widths reset row, in both HTML copies', () => {
   }
 });
 
-test('Master and Index default widths match their columns (Due 120, Action 260, Date 150)', () => {
+test('Master and Index default widths match their columns (Due 120, Action 300, Date 150)', () => {
   for (const css of ['src/styles.css', 'gas-app/Styles.html']) {
     const s = read(css);
     assert.match(s, /\.master-tasks-table th:nth-child\(5\)[^{]*\{\s*width: var\(--tc-master-5, 120px\)/, `${css}: master due`);
-    assert.match(s, /\.master-tasks-table th:nth-child\(6\)[^{]*\{\s*width: var\(--tc-master-6, 260px\)/, `${css}: master action`);
+    assert.match(s, /\.master-tasks-table th:nth-child\(6\)[^{]*\{\s*width: var\(--tc-master-6, 300px\)/, `${css}: master action`);
     assert.match(s, /\.monthly-index-table th:nth-child\(1\)[^{]*\{\s*width: var\(--tc-index-1, 150px\)/, `${css}: index date`);
     assert.match(s, /\.hub-table-wrap \.hub-table \{\s*table-layout: fixed/, `${css}: hub fixed layout`);
   }

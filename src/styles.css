@@ -4804,7 +4804,7 @@
 
   .master-tasks-table {
     table-layout: fixed;
-    min-width: 760px;
+    min-width: 900px;
     margin-bottom: 0;
   }
 
@@ -4839,7 +4839,7 @@
 
   .master-tasks-table th:nth-child(6),
   .master-tasks-table td:nth-child(6) {
-    width: var(--tc-master-6, 260px);
+    width: var(--tc-master-6, 300px);
   }
 
   .master-tasks-table td:nth-child(3) {
