@@ -17,3 +17,16 @@ describe('appointment popup Edit/Delete buttons', () => {
     });
   }
 });
+
+// User 2026-11-13: clicking a free time slot (or its time label) to add an appointment did nothing; the
+// create dialog opened and its @click.away closed it on the same real click. Both pages carry the slots.
+describe('schedule slot create openers', () => {
+  const pages = { 'gas-app/Index.html': html, 'index.html': fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8') };
+  for (const [name, text] of Object.entries(pages)) {
+    for (const fn of ['openCreateEventModal(slot.timeKey)"', 'slot.events.length === 0 && openCreateEventModal(slot.timeKey)"']) {
+      it(`${name}: @click.stop on ${fn}`, () => {
+        assert.ok(text.includes(`@click.stop="${fn}`), `${name} slot handler needs @click.stop`);
+      });
+    }
+  }
+});
