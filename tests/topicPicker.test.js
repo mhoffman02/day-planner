@@ -64,3 +64,15 @@ test('Notes Topic input uses a native suggestion list like Tasks Category, fed b
     assert.doesNotMatch(html, /x-for="cat in noteCategoryOptions"/, `${file}: chip row still hard-coded`);
   }
 });
+
+test('Tasks Category boxes clear on focus like the Notes Topic picker', () => {
+  for (const file of ['gas-app/Index.html', 'index.html']) {
+    const html = fs.readFileSync(file, 'utf8');
+    for (const key of ['newTaskCategory', 'newMasterTaskCategory']) {
+      const input = html.match(new RegExp(`<input type="text" x-model="${key}"[^>]*>`));
+      assert.ok(input, `${file}: ${key} input not found`);
+      assert.ok(input[0].includes(`@focus="focusCategoryInput($event, '${key}')"`), `${file}: ${key} does not clear on focus`);
+      assert.ok(input[0].includes(`@blur="blurCategoryInput($event, '${key}')"`), `${file}: ${key} does not restore on blur`);
+    }
+  }
+});
