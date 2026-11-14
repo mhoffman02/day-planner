@@ -2320,6 +2320,29 @@
   }
 
   /**
+   * True when an input or change event came from picking a list row, not from typing.
+   * @param {{type: string, inputType?: string}} event DOM input or change event.
+   * @returns {boolean}
+   */
+  function isListPick(event) {
+    if (!event) return false;
+    if (event.type === 'change') return true;
+    return !event.inputType || event.inputType === 'insertReplacementText';
+  }
+
+  /**
+   * True when a press on an already focused box should clear it again: the box still holds
+   * the value just picked from the list. Typed text never matches, so a click only moves the caret.
+   * @param {boolean} focused Box already has focus.
+   * @param {string} value Current box text.
+   * @param {string|null} picked Value last picked from the list.
+   * @returns {boolean}
+   */
+  function shouldReclear(focused, value, picked) {
+    return Boolean(focused) && value !== '' && value === picked;
+  }
+
+  /**
    * @param {string} dateStr Local date key, YYYY-MM-DD.
    * @returns {{weekday: string, date: string}} e.g. weekday Sat, date Nov 14, 2026
    */
@@ -3446,6 +3469,7 @@
       topicFocusValue: '',
       categoryFocusKey: null,
       categoryFocusValue: '',
+      pickedValue: null,
       topicOptionsAtFocus: [],
       docPreviewEditing: false,
       // Per-date note-save debounce timers: date -> timer handle for an edit waiting out the
@@ -6155,9 +6179,28 @@
         if (!card || !event || !event.target) return;
         this.activeTopicCardId = card.id;
         this.topicFocusValue = card.indexTopic || '';
+        this.pickedValue = null;
         /* Snapshot: typing syncs the card into the Monthly Index, which would echo the typed text as an option. */
         this.topicOptionsAtFocus = this.topicOptions;
         event.target.value = '';
+      },
+
+      /* Focus fires once, so a second click in a box still holding a list pick clears it again here. */
+      notePickedValue(event) {
+        if (event && event.target && isListPick(event)) this.pickedValue = event.target.value;
+      },
+
+      isReclearPress(event) {
+        const el = event && event.target;
+        return Boolean(el) && shouldReclear(document.activeElement === el, el.value, this.pickedValue);
+      },
+
+      pressCategoryInput(event, key) {
+        if (this.isReclearPress(event)) this.focusCategoryInput(event, key);
+      },
+
+      pressTopicInput(event, card) {
+        if (this.isReclearPress(event)) this.focusTopicInput(event, card);
       },
 
       /* Tasks Category boxes behave like the Notes Topic box: empty on focus so the native list */
@@ -6166,6 +6209,7 @@
         if (!event || !event.target) return;
         this.categoryFocusKey = key;
         this.categoryFocusValue = this[key] || '';
+        this.pickedValue = null;
         event.target.value = '';
       },
 

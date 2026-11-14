@@ -27,7 +27,7 @@ import { formatEventDescriptionHtml, extractMeetLink } from './calendarEngine.js
 import { parseIndexEntriesFromNote } from './indexParser.js';
 import { getQuoteForDateStr } from './quotesEngine.js';
 import { splitDateDisplay } from './dateDisplay.js';
-import { mergeTopicOptions, topicDropdownItems, cardChipOptions, noteFilterCategories, TOPIC_HISTORY_LIMIT } from './topicPicker.js';
+import { mergeTopicOptions, topicDropdownItems, cardChipOptions, noteFilterCategories, isListPick, shouldReclear, TOPIC_HISTORY_LIMIT } from './topicPicker.js';
 import { clipboardToNoteLines, isNoteListLine } from './notePaste.js';
 import { lineEditorSplitPrefix, lineEditorRender, lineEditorSerialize, lineEditorTextLength, lineEditorSlice, lineEditorColorRange, lineEditorToDom, lineEditorFromDom } from './lineEditor.js';
 import {
@@ -614,6 +614,7 @@ Alpine.data('plannerApp', () => ({
       topicFocusValue: '',
       categoryFocusKey: null,
       categoryFocusValue: '',
+      pickedValue: null,
       topicOptionsAtFocus: [],
 
       // Desktop install modal state
@@ -3203,9 +3204,28 @@ Alpine.data('plannerApp', () => ({
         if (!card || !event || !event.target) return;
         this.activeTopicCardId = card.id;
         this.topicFocusValue = card.indexTopic || '';
+        this.pickedValue = null;
         // Snapshot: typing syncs the card into the Monthly Index, which would echo the typed text as an option.
         this.topicOptionsAtFocus = this.topicOptions;
         event.target.value = '';
+      },
+
+      // Focus fires once, so a second click in a box still holding a list pick clears it again here.
+      notePickedValue(event) {
+        if (event && event.target && isListPick(event)) this.pickedValue = event.target.value;
+      },
+
+      isReclearPress(event) {
+        const el = event && event.target;
+        return Boolean(el) && shouldReclear(document.activeElement === el, el.value, this.pickedValue);
+      },
+
+      pressCategoryInput(event, key) {
+        if (this.isReclearPress(event)) this.focusCategoryInput(event, key);
+      },
+
+      pressTopicInput(event, card) {
+        if (this.isReclearPress(event)) this.focusTopicInput(event, card);
       },
 
       // Tasks Category boxes behave like the Notes Topic box: empty on focus so the native list
@@ -3214,6 +3234,7 @@ Alpine.data('plannerApp', () => ({
         if (!event || !event.target) return;
         this.categoryFocusKey = key;
         this.categoryFocusValue = this[key] || '';
+        this.pickedValue = null;
         event.target.value = '';
       },
 

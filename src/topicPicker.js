@@ -89,3 +89,26 @@ export function noteFilterCategories(categories, cards) {
   return uniqueCaseless([...cleanList(categories), ...cleanList(onCards)])
     .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 }
+
+/**
+ * True when an input or change event came from picking a list row, not from typing.
+ * @param {{type: string, inputType?: string}} event DOM input or change event.
+ * @returns {boolean}
+ */
+export function isListPick(event) {
+  if (!event) return false;
+  if (event.type === 'change') return true;
+  return !event.inputType || event.inputType === 'insertReplacementText';
+}
+
+/**
+ * True when a press on an already focused box should clear it again: the box still holds
+ * the value just picked from the list. Typed text never matches, so a click only moves the caret.
+ * @param {boolean} focused Box already has focus.
+ * @param {string} value Current box text.
+ * @param {string|null} picked Value last picked from the list.
+ * @returns {boolean}
+ */
+export function shouldReclear(focused, value, picked) {
+  return Boolean(focused) && value !== '' && value === picked;
+}

@@ -76,3 +76,27 @@ test('Tasks Category boxes clear on focus like the Notes Topic picker', () => {
     }
   }
 });
+
+test('a list pick (not typing) is remembered so a second click can clear the box again', async () => {
+  const { isListPick, shouldReclear } = await import('../src/topicPicker.js');
+  assert.equal(isListPick({ type: 'input', inputType: 'insertReplacementText' }), true);
+  assert.equal(isListPick({ type: 'input' }), true);
+  assert.equal(isListPick({ type: 'change' }), true);
+  assert.equal(isListPick({ type: 'input', inputType: 'insertText' }), false);
+  assert.equal(shouldReclear(true, 'Health', 'Health'), true);
+  assert.equal(shouldReclear(false, 'Health', 'Health'), false, 'unfocused: the focus handler clears');
+  assert.equal(shouldReclear(true, 'Hea', 'Health'), false, 'typing: a click only moves the caret');
+  assert.equal(shouldReclear(true, '', ''), false);
+});
+
+test('Category and Topic boxes re-clear on a click while already focused', () => {
+  for (const file of ['gas-app/Index.html', 'index.html']) {
+    const html = fs.readFileSync(file, 'utf8');
+    for (const key of ['newTaskCategory', 'newMasterTaskCategory']) {
+      const input = html.match(new RegExp(`<input type="text" x-model="${key}"[^>]*>`))[0];
+      assert.ok(input.includes(`@mousedown="pressCategoryInput($event, '${key}')"`), `${file}: ${key} no re-clear`);
+    }
+    const topic = html.match(/<input type="text"\s+x-model="card\.indexTopic"[^>]*>/)[0];
+    assert.match(topic, /@mousedown="pressTopicInput\(\$event, card\)"/, `${file}: Topic no re-clear`);
+  }
+});

@@ -381,7 +381,7 @@
                 <button type="button" class="priority-segment-btn" :class="{ 'active c': newTaskPriorityGroup === 'C' }" @click="newTaskPriorityGroup = 'C'" role="radio" :aria-checked="newTaskPriorityGroup === 'C'" aria-label="Priority C" title="C: Normal priority (Alt+C or #c)" accesskey="c">C</button>
               </div>
               <input type="text" x-model="newTaskTitle" @input="handleTaskTitleInput()" placeholder="Add task title (e.g. #a Call vendor | discuss Q3 scope)..." title="Tip: Prefix with #a, #b, or #c for priority. Use ' | ' to add notes/details (e.g. #a Call vendor | discuss scope)." class="task-input-field" aria-label="New task description">
-              <input type="text" x-model="newTaskCategory" @focus="focusCategoryInput($event, 'newTaskCategory')" @blur="blurCategoryInput($event, 'newTaskCategory')" @keydown.escape.prevent="revertCategoryInput($event, 'newTaskCategory')" :placeholder="categoryFocusKey === 'newTaskCategory' && categoryFocusValue ? categoryFocusValue : 'Category'" class="task-input-field daily-task-category-input" list="category-suggestions" aria-label="Task category">
+              <input type="text" x-model="newTaskCategory" @focus="focusCategoryInput($event, 'newTaskCategory')" @blur="blurCategoryInput($event, 'newTaskCategory')" @mousedown="pressCategoryInput($event, 'newTaskCategory')" @input="notePickedValue($event)" @change="notePickedValue($event)" @keydown.escape.prevent="revertCategoryInput($event, 'newTaskCategory')" :placeholder="categoryFocusKey === 'newTaskCategory' && categoryFocusValue ? categoryFocusValue : 'Category'" class="task-input-field daily-task-category-input" list="category-suggestions" aria-label="Task category">
               <button type="submit" class="btn-primary btn-add-task-round" aria-label="Add Task" title="Add Task">
                 <span class="material-symbols-outlined">add</span>
               </button>
@@ -732,8 +732,9 @@
                              list="topic-suggestions"
                              @focus="focusTopicInput($event, card)"
                              @blur="blurTopicInput($event, card)"
-                             @input="syncCardsToDailyNote()"
-                             @change="recordCategory(card.indexTopic)"
+                             @mousedown="pressTopicInput($event, card)"
+                             @input="syncCardsToDailyNote(); notePickedValue($event)"
+                             @change="recordCategory(card.indexTopic); notePickedValue($event)"
                              @keydown.enter="$event.target.blur()"
                              @keydown.escape.prevent="revertTopic($event, card)"
                              :placeholder="activeTopicCardId === card.id && topicFocusValue ? topicFocusValue : 'Local-only'"
@@ -1069,7 +1070,7 @@
                 </div>
               </div>
             </div>
-            <input type="text" x-model="newMasterTaskCategory" @focus="focusCategoryInput($event, 'newMasterTaskCategory')" @blur="blurCategoryInput($event, 'newMasterTaskCategory')" @keydown.escape.prevent="revertCategoryInput($event, 'newMasterTaskCategory')" :placeholder="categoryFocusKey === 'newMasterTaskCategory' && categoryFocusValue ? categoryFocusValue : 'Category'" class="task-input-field master-task-category-input" list="category-suggestions" aria-label="New master task category">
+            <input type="text" x-model="newMasterTaskCategory" @focus="focusCategoryInput($event, 'newMasterTaskCategory')" @blur="blurCategoryInput($event, 'newMasterTaskCategory')" @mousedown="pressCategoryInput($event, 'newMasterTaskCategory')" @input="notePickedValue($event)" @change="notePickedValue($event)" @keydown.escape.prevent="revertCategoryInput($event, 'newMasterTaskCategory')" :placeholder="categoryFocusKey === 'newMasterTaskCategory' && categoryFocusValue ? categoryFocusValue : 'Category'" class="task-input-field master-task-category-input" list="category-suggestions" aria-label="New master task category">
             <button type="submit" class="btn-primary btn-add-task-round" :disabled="addingMasterTask" aria-label="Add master task" title="Add master task">
               <span class="material-symbols-outlined icon-18" :class="{ spin: addingMasterTask }" x-text="addingMasterTask ? 'progress_activity' : 'add'">add</span>
             </button>
