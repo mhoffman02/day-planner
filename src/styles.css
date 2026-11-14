@@ -1845,6 +1845,9 @@
     background: transparent;
     border: none;
     padding: 0;
+    min-width: 24px;
+    min-height: 24px;
+    margin: -5px;
     cursor: pointer;
     color: var(--text-faint);
   }
