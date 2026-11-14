@@ -64,13 +64,16 @@ for (const file of FILES) {
   const css = read(file);
   const t = lightOf(css);
 
-  test(`${file}: light page and cards are the Manila palette`, () => {
-    assert.equal(t['bg-parchment'], '#e8e0d0');
-    assert.equal(t['bg-parchment-fixed'], '#e8e0d0');
-    assert.equal(t['bg-card'], '#f2ede3');
-    assert.equal(t['border-line'], '#d0c4ad');
-    assert.equal(t['bg-accent-subtle'], '#e6dfcf');
-    assert.equal(t['binder-teal-light'], '#dce6dc');
+  // User pick 2026-11-14: page and rules 33% of the way from the old near-white to Manila, cards and
+  // in-card fills 15% (full Manila #e8e0d0 page / #f2ede3 card was too strong).
+  test(`${file}: light page and cards are the light Manila mix`, () => {
+    assert.equal(t['bg-parchment'], '#f5f2ec');
+    assert.equal(t['bg-parchment-fixed'], '#f5f2ec');
+    assert.equal(t['bg-card'], '#fdfcfb');
+    assert.equal(t['border-line'], '#cbd5c9');
+    assert.equal(t['border-default'], '#cbd5c9');
+    assert.equal(t['bg-accent-subtle'], '#edf3ee');
+    assert.equal(t['binder-teal-light'], '#e7f3ef');
     assert.equal(t.white, '#ffffff', '--white stays white: it is text on teal');
   });
 
