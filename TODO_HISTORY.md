@@ -7,10 +7,17 @@
 - [x] **Header "quiet library" look**: date as ink on the bar at title size (1.15rem), gold small-caps weekday, gold hairline; chevrons and search/sync/view-options icons bare until hover or focus (`src/dateDisplay.js`).
 - [x] **Tabs share confirmed note saves** (`src/noteTabSync.js`, BroadcastChannel): an idle tab adopts the other tab's save, so it no longer reports a false "changed in Google Docs" conflict; a tab with unsaved edits still warns. HOME @457, WORK v254 (user updated). Landed on `pure-gas-main` as `fcc6fef`..`0b9c4e8`.
 
-## 2026-11-13 — Security fixes, toast, slot click (from git log; that session wrote no handoff)
+## 2026-11-13 (later) — Toast, event popup, slot click (after that session's handoff)
 
-- [x] **Security review fixes** (`89f5306`, `af0de2b`, `9a4d56b`, `11d4f23`): allowlist sanitizer, gated OAuth token, SRI, no framing; localhost-only dev server; 24h regrant cap; least-privilege `calendar.events` scope. Retro `577b81d`.
-- [x] **Master Tasks horizontal scroll and 300px Action column** (`5bf7674`, `4dd230d`); event popup Edit/Delete survive click-away (`504fc72`); action toast dismiss X and drag (`88d2f33`); free-slot click opens the create dialog again (`b550c6f`).
+- [x] Event popup Edit/Delete survive click-away (`504fc72`); action toast dismiss X and drag (`88d2f33`); free-slot click opens the create dialog again (`b550c6f`).
+
+## 2026-11-13 — Full-project security review, fixes, deploy
+
+- [x] **XSS and OAuth token gate** (`89f5306`): allowlist sanitizer `formatEventDescription`, single-pass `renderCardLine`, `getDriveRegrantConfig` gated by script property `REGRANT_ENABLED_UNTIL` (`assertDriveRegrantEnabled_`), Alpine SRI, `XFrameOptionsMode.DEFAULT`.
+- [x] **Local tooling hardening** (`af0de2b`): `server.js` binds 127.0.0.1 with Host and path allowlist, `tools/gas-rpc.js --deploy` needs a clean tree, `tools/gemini-delegate.js` dropped `--dangerously-skip-permissions`.
+- [x] **Low findings** (`9a4d56b`): regrant window capped at 24 h (`REGRANT_MAX_WINDOW_MS`), hub filter query values validated (`src/integration/filterSuggest.js`), scratch-doc ids bound to the user, dead Docs sidebars removed, CI action SHAs pinned and `permissions: contents: read`.
+- [x] **Calendar scope narrowed** (`11d4f23`): `calendar` to `calendar.events`; CalendarApp ported to the Calendar advanced service. Re-consent done on HOME and WORK (2026-11-13).
+- [x] **Master Tasks scrolls sideways on demand** (`5bf7674`, `4dd230d`): Action column 300 px, table `min-width` 900 px; the first fix (760 px) never scrolled because the real cause was the clipped Action column. Verified by the user on HOME. HOME @446, WORK v245 (repointed).
 
 ## 2026-11-12 (context budget) — Cut always-loaded context
 

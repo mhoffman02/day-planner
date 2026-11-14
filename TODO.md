@@ -2,7 +2,7 @@
 
 Order (2026-10-30, user): autonomous agent work first; everything that needs the user is in the last section,
 "For the session after next" (items B1, B3, B4). An agent session works the open agent bullets in "Agent work"
-(A10 smoke and ensure-chrome, A0, A3, A5, A8) and skips any line marked as a user hand-check (A6, A7, A9, A12, A10 hand-check lines).
+(A12 agent lines, A10 smoke and ensure-chrome, A0, A3, A5, A8) and skips any line marked as a user hand-check (A6, A7, A9, A13, A12 and A10 user lines).
 Load-speed work (A8) came first on 2026-11-06 at the user's request.
 
 ## Agent work: next session (hand-check lines inside need the user)
@@ -11,8 +11,17 @@ Load-speed work (A8) came first on 2026-11-06 at the user's request.
 - [ ] Local-preview `index.html` port is unverified in a browser: `npm run smoke` fails on clean HEAD (it does not start the server; run `npm start` first) ("Alpine app failed to initialize within 6s"). Diagnose with `tools/ensure-chrome.js http://localhost:3000` + `tools/probe-live.js`, then fix with a red test or smoke repro.
 - [ ] `tools/ensure-chrome.js` Linux branch deliberately left without `--password-store=basic` (WSL2 launches Windows chrome.exe); revisit only if the keyring prompt returns after `npm run smoke`.
 
-### A12. Note tab-sync (2026-11-14; shipped in TODO_HISTORY)
+### A13. Note tab-sync (2026-11-14; shipped in TODO_HISTORY)
 - [ ] User hand-check on HOME @457 (optional): open today in two tabs, type a line in tab A, wait 2 s, then type in tab B; no "changed in Google Docs" warning, and tab B shows A's line before your typing.
+
+### A12. Security review follow-ups (2026-11-13; fixes shipped, see TODO_HISTORY; HOME @446, WORK v245, `origin/pure-gas-main` 4dd230d)
+- [ ] Agent, default do: drop the unreachable CalendarApp-style branches in `extractMeetLinkFromEvent_` (`gas-app/Code.gs` ~L1176; its only caller is `mapCalendarApiEvent_`, which passes raw Calendar API events). No test covers it directly: extend `tests/editCalendarEvent.test.js` (maps raw events through `getDailyData` to `mapCalendarApiEvent_`) with a hangoutLink, a conferenceData and a description-only case first.
+- [ ] Agent, default do: plan the dev-dependency `npm audit` upgrades (stryker 9, eslint); run `npm run test:mutation` after, and keep `npm audit --omit=dev` out of CI (it was a no-op).
+- [ ] User hand-check on HOME (task to calendar title sync on an OLD event, one created earlier, (2026-11-13) or older): sync reads `extendedProperties.shared.gasTaskId`; if old events carry the tag only in private props, the title will not follow. Say which event failed.
+- [ ] User decision, default keep: `drive.readonly` stays for Doc action items in Triage (read-only); drop it only if you retire that feature.
+- [ ] User: delete script property `PICKER_API_KEY` on HOME once the Drive re-grant TODO is closed (only `getDriveRegrantConfig` in `gas-app/Code.gs` reads it; WORK never needed it).
+- [ ] User: old scratch voice-typing Docs made by earlier builds (2026-11-13 or older) cannot be pulled (`pullDictationScratchText` refuses unissued ids); start a new one.
+- [ ] User: remove the leftover `retro-sec` worktree: `node tools/prune-branches.js --apply` from the main checkout after `git merge --ff-only origin/pure-gas-main`.
 
 ### A11. Context budget follow-ups (2026-11-12; shipped part in TODO_HISTORY)
 - [ ] User: remove the Play Sheet Music, monday and Postman connectors at claude.ai > Settings > Connectors.
