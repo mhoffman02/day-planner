@@ -38,6 +38,7 @@ import {
 } from './dailyDataCache.js';
 import { hubCachePut, hubCacheGet, hubCacheDelete } from './hubCache.js';
 import { callBridge, requireSaved, restoreIfUnchanged, staleNoticeText, createSaveQueue } from './saveGuard.js';
+import { NOTE_SYNC_CHANNEL, noteSavedMessage, peerNoteToAdopt } from './noteTabSync.js';
 window.GASBridge = GASBridge;
 window.Alpine = Alpine;
 
@@ -615,6 +616,8 @@ Alpine.data('plannerApp', () => ({
       categoryFocusKey: null,
       categoryFocusValue: '',
       pickedValue: null,
+      tabId: Math.random().toString(36).slice(2),
+      noteSyncPost: null,
       topicOptionsAtFocus: [],
 
       // Desktop install modal state
@@ -748,6 +751,7 @@ Alpine.data('plannerApp', () => ({
         hubReady.then(() => this.prefetchTriage());
         this.setupKeyboardShortcuts();
         this.setupDayRolloverWatch();
+        this.setupNoteTabSync();
         this.setupHubLastRunRefresh();
         if (typeof window !== 'undefined') {
           window.addEventListener('beforeinstallprompt', (e) => {
@@ -4710,6 +4714,7 @@ Alpine.data('plannerApp', () => ({
           onSaved: (text) => {
             this.savedNoteByDate[dateStr] = text;
             saveNoteRevision(dateStr, text);
+            this.postNoteSaved(dateStr, text);
             this.resolveError(key);
           },
           onFailed: (err) => {
@@ -4731,6 +4736,38 @@ Alpine.data('plannerApp', () => ({
             });
           }
         });
+      },
+
+      // Tabs of this browser share confirmed note saves (src/noteTabSync.js), so a tab left idle
+      // never saves against a stale baseline and reports a false Google Docs conflict. The post
+      // function closes over the raw channel: a channel stored on Alpine state would be proxied.
+      setupNoteTabSync() {
+        if (typeof globalThis.BroadcastChannel !== 'function') return;
+        const channel = new globalThis.BroadcastChannel(NOTE_SYNC_CHANNEL);
+        channel.onmessage = (event) => this.applyPeerNoteSave(event.data);
+        this.noteSyncPost = (msg) => channel.postMessage(msg);
+      },
+
+      postNoteSaved(dateStr, text) {
+        if (this.noteSyncPost) this.noteSyncPost(noteSavedMessage(this.tabId, dateStr, text));
+      },
+
+      applyPeerNoteSave(msg) {
+        const dateStr = msg && msg.date;
+        const onScreen = dateStr === this.selectedDate;
+        const entry = dateStr ? getCached(dateStr) : null;
+        const text = peerNoteToAdopt(msg, this.tabId, {
+          savedText: this.savedNoteByDate[dateStr],
+          editorText: onScreen ? this.dailyNote : (entry ? entry.noteContent : undefined),
+          unsaved: this.noteSaveDebouncing(dateStr) || this.saveQueue.unsaved(`save-note:${dateStr}`)
+        });
+        if (text === null) return;
+        this.savedNoteByDate[dateStr] = text;
+        if (entry) setCached(dateStr, { ...entry, noteContent: text });
+        if (!onScreen) return;
+        this.dailyNote = text;
+        this.noteCards = this.parseDailyNoteToCards(text);
+        this.buildIndexRecords();
       },
 
       // Re-sends the latest text submitted for dateStr (never an older one, and never whatever

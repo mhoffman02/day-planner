@@ -2356,6 +2356,36 @@
     };
   }
 
+  /** BroadcastChannel name every tab of the app joins. */
+  const NOTE_SYNC_CHANNEL = 'day-planner-note-saves';
+
+  /**
+   * @param {string} tabId Sender tab.
+   * @param {string} dateStr Local date key, YYYY-MM-DD.
+   * @param {string} text Note text Google Docs just confirmed.
+   * @returns {{type: string, tabId: string, date: string, text: string}}
+   */
+  function noteSavedMessage(tabId, dateStr, text) {
+    return { type: 'note-saved', tabId, date: dateStr, text };
+  }
+
+  /**
+   * Text this tab should take as its saved note for msg.date, or null to ignore the message.
+   * A tab with unsaved edits for that day keeps its own baseline: its next save then reports
+   * the real clash instead of silently replacing the text of the other tab.
+   * @param {Object} msg Received message.
+   * @param {string} ownTabId This tab.
+   * @param {{savedText?: string, editorText?: string, unsaved: boolean}} local State of this tab for msg.date.
+   * @returns {string|null}
+   */
+  function peerNoteToAdopt(msg, ownTabId, local) {
+    if (!msg || msg.type !== 'note-saved' || msg.tabId === ownTabId) return null;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(msg.date || '') || typeof msg.text !== 'string') return null;
+    if (!local || local.unsaved || typeof local.savedText !== 'string') return null;
+    if (typeof local.editorText === 'string' && local.editorText !== local.savedText) return null;
+    return msg.text === local.savedText ? null : msg.text;
+  }
+
   const READING_WIDTH_DEFAULT = 960;
   const READING_WIDTH_MIN = 480;
   const READING_WIDTH_MAX = 4000;
@@ -3470,6 +3500,8 @@
       categoryFocusKey: null,
       categoryFocusValue: '',
       pickedValue: null,
+      tabId: Math.random().toString(36).slice(2),
+      noteSyncPost: null,
       topicOptionsAtFocus: [],
       docPreviewEditing: false,
       // Per-date note-save debounce timers: date -> timer handle for an edit waiting out the
@@ -3725,6 +3757,7 @@
         hubReady.then(() => this.prefetchTriage());
         this.setupKeyboardShortcuts();
         this.setupDayRolloverWatch();
+        this.setupNoteTabSync();
         this.setupHubLastRunRefresh();
         window.addEventListener('beforeinstallprompt', (e) => {
           e.preventDefault();
@@ -7680,6 +7713,7 @@
           onSaved: (text) => {
             this.savedNoteByDate[dateStr] = text;
             dpSaveNoteRevision(dateStr, text);
+            this.postNoteSaved(dateStr, text);
             this.resolveError(key);
           },
           onFailed: (err) => {
@@ -7701,6 +7735,38 @@
             });
           }
         });
+      },
+
+      // Tabs of this browser share confirmed note saves (src/noteTabSync.js), so a tab left idle
+      // never saves against a stale baseline and reports a false Google Docs conflict. The post
+      // function closes over the raw channel: a channel stored on Alpine state would be proxied.
+      setupNoteTabSync() {
+        if (typeof globalThis.BroadcastChannel !== 'function') return;
+        const channel = new globalThis.BroadcastChannel(NOTE_SYNC_CHANNEL);
+        channel.onmessage = (event) => this.applyPeerNoteSave(event.data);
+        this.noteSyncPost = (msg) => channel.postMessage(msg);
+      },
+
+      postNoteSaved(dateStr, text) {
+        if (this.noteSyncPost) this.noteSyncPost(noteSavedMessage(this.tabId, dateStr, text));
+      },
+
+      applyPeerNoteSave(msg) {
+        const dateStr = msg && msg.date;
+        const onScreen = dateStr === this.selectedDate;
+        const entry = dateStr ? getCached(dateStr) : null;
+        const text = peerNoteToAdopt(msg, this.tabId, {
+          savedText: this.savedNoteByDate[dateStr],
+          editorText: onScreen ? this.dailyNote : (entry ? entry.noteContent : undefined),
+          unsaved: this.noteSaveDebouncing(dateStr) || this.saveQueue.unsaved(`save-note:${dateStr}`)
+        });
+        if (text === null) return;
+        this.savedNoteByDate[dateStr] = text;
+        if (entry) setCached(dateStr, { ...entry, noteContent: text });
+        if (!onScreen) return;
+        this.dailyNote = text;
+        this.noteCards = this.parseDailyNoteToCards(text);
+        this.buildIndexRecords();
       },
 
       // Re-sends the latest text submitted for dateStr (never an older one, and never whatever
