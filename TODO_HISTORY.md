@@ -1,5 +1,11 @@
 # Task History (TODO_HISTORY)
 
+## 2026-11-14 (evening) — Quiet buttons everywhere, steady Future year nav
+
+- [x] **Quiet buttons** (`561075d`): utility buttons (date and month pickers, [+] add bars, Future item actions, Triage actions, secondary, jump/move/delete, RSVP, About toggles, dictation fallback) rest with no fill or border and show a border in their own ink on hover or keyboard focus; [+] and jump-to-day hover is a tint, not a teal fill. Primary actions, selected states (`is-on`, `is-active`, `aria-pressed`), the auth alert and event blocks keep their fill. Guard: `tests/quietButtons.test.js`. HOME @459, live load confirmed bare Notes header buttons.
+- [x] **"This Year" sits left of the Future year picker and keeps its room** (`097df03`): always rendered, `visibility: hidden` (`.year-link-btn.is-placeholder`) on the current year, so the chevrons no longer jump. Mock check: previous-year chevron at the same x on and off the current year. HOME @460; WORK pushed after each deploy (repoint to the newest).
+- [x] **Warm light-mode options published** for the user: https://claude.ai/artifact/EyRzGJjfjfoyYdE2uW33f1 (Linen, Manila, Lamplight, Sage Paper; all pass AA in its ledger). Decision pending in TODO A15.
+
 ## 2026-11-14 (later) — One landing path, lighter handoff, quiet year nav and [+]
 
 - [x] **One landing path** (`0c17616`, `59409d3`, `f85a3b7`): `npm run check:handoff` fails and `npm run deploy:home` refuses while GitHub `pure-gas-main` has commits HEAD lacks (`tools/landing-branch.js`); rule in `.agents/rules/no-pr-theater.md`.
