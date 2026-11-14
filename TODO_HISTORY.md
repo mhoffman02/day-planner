@@ -1,5 +1,17 @@
 # Task History (TODO_HISTORY)
 
+## 2026-11-14 — Quiet pickers, header and note tab-sync
+
+- [x] **Notes Topic picker shares the Tasks category list** (native datalist, 20 rows, typing searches 50 of 70 kept topics; chip row from Task categories with a "+" overflow; `src/topicPicker.js`). The live picker was dead because `gas-app/Script.html` lacked the new handlers; `tests/appScriptMethodParity.test.js` now fails when an `app.js` method is missing from Script.html.
+- [x] **Tasks Category and Notes Topic boxes clear on focus, and on a second click while focused** (old value as placeholder; blur keeps it, Esc reverts; a click inside typed text only moves the caret). User verified on HOME 2026-11-14.
+- [x] **Header "quiet library" look**: date as ink on the bar at title size (1.15rem), gold small-caps weekday, gold hairline; chevrons and search/sync/view-options icons bare until hover or focus (`src/dateDisplay.js`).
+- [x] **Tabs share confirmed note saves** (`src/noteTabSync.js`, BroadcastChannel): an idle tab adopts the other tab's save, so it no longer reports a false "changed in Google Docs" conflict; a tab with unsaved edits still warns. HOME @457, WORK v254 (user updated). Landed on `pure-gas-main` as `fcc6fef`..`0b9c4e8`.
+
+## 2026-11-13 — Security fixes, toast, slot click (from git log; that session wrote no handoff)
+
+- [x] **Security review fixes** (`89f5306`, `af0de2b`, `9a4d56b`, `11d4f23`): allowlist sanitizer, gated OAuth token, SRI, no framing; localhost-only dev server; 24h regrant cap; least-privilege `calendar.events` scope. Retro `577b81d`.
+- [x] **Master Tasks horizontal scroll and 300px Action column** (`5bf7674`, `4dd230d`); event popup Edit/Delete survive click-away (`504fc72`); action toast dismiss X and drag (`88d2f33`); free-slot click opens the create dialog again (`b550c6f`).
+
 ## 2026-11-12 (context budget) — Cut always-loaded context
 
 - [x] **Condensed always-loaded context ~46 KB to ~20 KB** (`f6cee25`, `3c9d1cc`, `b27a7a3`, `b1977d2`): rules rewritten terse (`no-silent-failures` merged into `fail-loud-catch`), `CLAUDE.md` 7.9 to 2.9 KB (architecture and agent config moved to `docs/architecture-and-agent-config.md`), `solid-code` scoped to code paths, subagent monitoring moved to `docs/subagent-monitoring.md`, `MEMORY.md` hooks shortened, `gas-*` rules condensed. Rule: scouting uses `lite`, never `Explore`/`general-purpose`/forks; handoff archive and tracker sync go to `worker`. Disabled `engineering`, `cowork-plugin-management`, `operations` plugins in `~/.claude/settings.json`.

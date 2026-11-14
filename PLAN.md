@@ -42,7 +42,7 @@ the GSA account, a release go, or a consent-screen decision. Checklist in [`TODO
   speed, Gmail-quota throttle + historyId row cache, Inbox only (TODO_HISTORY 2026-10-13).
 - [x] **Consent screen**: stay in Testing (decided 2026-10-10); rpc token dies every 7 days (last expiry 2026-10-17, superseded by the OVERDUE item below).
 - [x] **rpc token after publishing (2026-11-03)**: `npm run rpc -- getHubStatus` returned OK with no re-login, verified 2026-11-12. Consent screen is In production (unverified).
-- [ ] Drop the 7-day notes in the gas-rpc skill (`tools/gas-rpc.js` has no age warning).
+- [x] Drop the 7-day notes in the gas-rpc skill: already gone, `.agents/skills/gas-rpc/SKILL.md` and `references/setup.md` say the token does not expire weekly (verified 2026-11-14).
 - Out of scope: Gemini discovery/actions (Phase 6 build), USAi (Phase 7).
 - [x] **Task verbs + Master parity + speed** (2026-10-16): Forward menu, Delegate with check-back, Master Tasks get
   every Daily verb, Daily forward routing fix, quiet Live mark, Master tab speed (TODO_HISTORY 2026-10-16).
