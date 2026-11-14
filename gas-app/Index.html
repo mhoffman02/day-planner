@@ -382,7 +382,7 @@
               </div>
               <input type="text" x-model="newTaskTitle" @input="handleTaskTitleInput()" placeholder="Add task title (e.g. #a Call vendor | discuss Q3 scope)..." title="Tip: Prefix with #a, #b, or #c for priority. Use ' | ' to add notes/details (e.g. #a Call vendor | discuss scope)." class="task-input-field" aria-label="New task description">
               <input type="text" x-model="newTaskCategory" @focus="focusCategoryInput($event, 'newTaskCategory')" @blur="blurCategoryInput($event, 'newTaskCategory')" @mousedown="pressCategoryInput($event, 'newTaskCategory')" @input="notePickedValue($event)" @change="notePickedValue($event)" @keydown.escape.prevent="revertCategoryInput($event, 'newTaskCategory')" :placeholder="categoryFocusKey === 'newTaskCategory' && categoryFocusValue ? categoryFocusValue : 'Category'" class="task-input-field daily-task-category-input" list="category-suggestions" aria-label="Task category">
-              <button type="submit" class="btn-primary btn-add-task-round" aria-label="Add Task" title="Add Task">
+              <button type="submit" class="btn-add-quiet btn-add-task-round" aria-label="Add Task" title="Add Task">
                 <span class="material-symbols-outlined">add</span>
               </button>
             </form>
@@ -568,7 +568,7 @@
                 <button type="button" class="btn-icon-subtle" @click="toggleMaximizeColumn('appointments')" :title="maximizedColumn === 'appointments' ? 'Restore Columns (Esc)' : 'Maximize Appointments'" :aria-label="maximizedColumn === 'appointments' ? 'Restore Columns (Esc)' : 'Maximize Appointments'">
                   <span class="material-symbols-outlined" x-text="maximizedColumn === 'appointments' ? 'close_fullscreen' : 'open_in_full'"></span>
                 </button>
-                <button type="button" class="btn-primary btn-add-task-round" @click.stop="openCreateEventModal()" title="Add New Appointment" aria-label="Add New Appointment">
+                <button type="button" class="btn-add-quiet btn-add-task-round" @click.stop="openCreateEventModal()" title="Add New Appointment" aria-label="Add New Appointment">
                   <span class="material-symbols-outlined">add</span>
                 </button>
               </div>
@@ -679,7 +679,7 @@
                 </div>
 
                 <!-- Add Topic Card Button (Round button matching Tasks) -->
-                <button type="button" class="btn-primary btn-add-task-round" @click="addNoteCard()" title="Add Topic Card" aria-label="Add Topic Card">
+                <button type="button" class="btn-add-quiet btn-add-task-round" @click="addNoteCard()" title="Add Topic Card" aria-label="Add Topic Card">
                   <span class="material-symbols-outlined">add</span>
                 </button>
               </div>
@@ -1071,7 +1071,7 @@
               </div>
             </div>
             <input type="text" x-model="newMasterTaskCategory" @focus="focusCategoryInput($event, 'newMasterTaskCategory')" @blur="blurCategoryInput($event, 'newMasterTaskCategory')" @mousedown="pressCategoryInput($event, 'newMasterTaskCategory')" @input="notePickedValue($event)" @change="notePickedValue($event)" @keydown.escape.prevent="revertCategoryInput($event, 'newMasterTaskCategory')" :placeholder="categoryFocusKey === 'newMasterTaskCategory' && categoryFocusValue ? categoryFocusValue : 'Category'" class="task-input-field master-task-category-input" list="category-suggestions" aria-label="New master task category">
-            <button type="submit" class="btn-primary btn-add-task-round" :disabled="addingMasterTask" aria-label="Add master task" title="Add master task">
+            <button type="submit" class="btn-add-quiet btn-add-task-round" :disabled="addingMasterTask" aria-label="Add master task" title="Add master task">
               <span class="material-symbols-outlined icon-18" :class="{ spin: addingMasterTask }" x-text="addingMasterTask ? 'progress_activity' : 'add'">add</span>
             </button>
           </form>
@@ -1320,13 +1320,13 @@
               <button type="button" class="icon-nav-btn" @click="changeFutureMatrixYear(-1)" aria-label="Previous year">
                 <span class="material-symbols-outlined">chevron_left</span>
               </button>
-              <button type="button" class="today-jump-btn month-jump-btn" @click="jumpToCurrentFutureYear()" title="Jump to Current Year">
-                <span>This Year</span>
-              </button>
               <span class="future-matrix-year-label" x-text="futureMatrixYear"></span>
               <button type="button" class="icon-nav-btn" @click="changeFutureMatrixYear(1)" aria-label="Next year">
                 <span class="material-symbols-outlined">chevron_right</span>
               </button>
+              <template x-if="isOffCurrentFutureYear()">
+                <button type="button" class="year-link-btn" @click="jumpToCurrentFutureYear()" title="Jump to Current Year">This Year</button>
+              </template>
             </div>
           </header>
           <div class="future-matrix-container">

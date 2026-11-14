@@ -2397,6 +2397,10 @@ Alpine.data('plannerApp', () => ({
         await this.loadFutureMatrix();
       },
 
+      isOffCurrentFutureYear() {
+        return this.futureMatrixYear !== Number(this.todayStr.slice(0, 4));
+      },
+
       isCurrentFutureMonth(monthIdx) {
         const now = new Date();
         return this.futureMatrixYear === now.getFullYear() && monthIdx === now.getMonth();

@@ -4363,13 +4363,47 @@
     align-items: center;
     gap: 6px;
   }
+  /* Quiet like the date header: serif year with one gold hairline, bare chevrons until hover,
+     and a "This Year" text link only when off the current year. */
   .future-matrix-year-label {
     font-family: var(--font-family-header);
     font-weight: 700;
-    font-size: 1rem;
+    font-size: 1.15rem;
+    line-height: 1.25;
     color: var(--binder-teal);
     min-width: 3.5ch;
     text-align: center;
+    border-bottom: 1px solid color-mix(in srgb, var(--tab-gold) 55%, transparent);
+  }
+  .future-matrix-year-nav .icon-nav-btn {
+    background: transparent;
+    border-color: transparent;
+    color: var(--binder-teal);
+  }
+  .future-matrix-year-nav .icon-nav-btn:hover,
+  .future-matrix-year-nav .icon-nav-btn:focus-visible,
+  .year-link-btn:hover {
+    background: var(--bg-accent-subtle);
+  }
+  .year-link-btn {
+    background: transparent;
+    border: none;
+    color: var(--binder-teal);
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 3px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    white-space: nowrap;
+  }
+  .btn-add-quiet {
+    cursor: pointer;
+  }
+  .btn-add-quiet:disabled {
+    opacity: 0.5;
+    cursor: default;
   }
   .future-item-add-bar {
     display: flex;
@@ -4476,7 +4510,7 @@
     align-items: center;
     justify-content: center;
   }
-  .future-matrix-year-nav .icon-nav-btn,
+  .btn-add-quiet,
   .future-item-add-bar .icon-nav-btn,
   .future-item-actions .icon-nav-btn,
   .master-tasks-add-bar .icon-nav-btn {
@@ -4484,7 +4518,7 @@
     border: 1px solid var(--border-line);
     color: var(--binder-teal);
   }
-  .future-matrix-year-nav .icon-nav-btn:hover,
+  .btn-add-quiet:hover:not(:disabled),
   .future-item-add-bar .icon-nav-btn:hover,
   .future-item-actions .icon-nav-btn:hover,
   .master-tasks-add-bar .icon-nav-btn:hover {
@@ -6815,7 +6849,7 @@
     color: var(--dk-text-muted);
   }
 
-  [data-theme="dark"] .future-matrix-year-nav .icon-nav-btn,
+  [data-theme="dark"] .btn-add-quiet,
   [data-theme="dark"] .future-item-add-bar .icon-nav-btn,
   [data-theme="dark"] .future-item-actions .icon-nav-btn,
   [data-theme="dark"] .master-tasks-add-bar .icon-nav-btn {
@@ -6824,7 +6858,16 @@
     color: var(--dk-accent-text);
   }
 
+  [data-theme="dark"] .future-matrix-year-nav .icon-nav-btn,
+  [data-theme="dark"] .year-link-btn {
+    background: transparent;
+    border-color: transparent;
+    color: var(--dk-accent-text);
+  }
+
+  [data-theme="dark"] .btn-add-quiet:hover:not(:disabled),
   [data-theme="dark"] .future-matrix-year-nav .icon-nav-btn:hover,
+  [data-theme="dark"] .year-link-btn:hover,
   [data-theme="dark"] .future-item-add-bar .icon-nav-btn:hover,
   [data-theme="dark"] .future-item-actions .icon-nav-btn:hover,
   [data-theme="dark"] .master-tasks-add-bar .icon-nav-btn:hover {
