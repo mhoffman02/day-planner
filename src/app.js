@@ -612,6 +612,8 @@ Alpine.data('plannerApp', () => ({
       recentCategories: ['General', 'Work', 'Personal', 'Financial', 'Projects', 'Health', 'Meeting', 'Decision'],
       activeTopicCardId: null,
       topicFocusValue: '',
+      categoryFocusKey: null,
+      categoryFocusValue: '',
       topicOptionsAtFocus: [],
 
       // Desktop install modal state
@@ -3204,6 +3206,26 @@ Alpine.data('plannerApp', () => ({
         // Snapshot: typing syncs the card into the Monthly Index, which would echo the typed text as an option.
         this.topicOptionsAtFocus = this.topicOptions;
         event.target.value = '';
+      },
+
+      // Tasks Category boxes behave like the Notes Topic box: empty on focus so the native list
+      // shows every category, old value as placeholder; blur or Esc puts it back.
+      focusCategoryInput(event, key) {
+        if (!event || !event.target) return;
+        this.categoryFocusKey = key;
+        this.categoryFocusValue = this[key] || '';
+        event.target.value = '';
+      },
+
+      blurCategoryInput(event, key) {
+        if (!event || !event.target) return;
+        event.target.value = this[key] || '';
+        this.categoryFocusKey = null;
+      },
+
+      revertCategoryInput(event, key) {
+        this[key] = this.categoryFocusValue;
+        if (event && event.target) event.target.blur();
       },
 
       // Shows the model value again: the old topic when nothing was typed.
