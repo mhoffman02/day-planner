@@ -15,6 +15,11 @@ only when SKILL.md sends you to it.
 
 Given a resume prompt to **act on** instead of write? Run only **Read side**.
 
+**`/handoff light`** (only when the user says "light"): run Steps 1, 2, 3
+(forward-flow included), 5.0, 5.1, 5.2's script, 5.3 and 6. Skip the 3.0
+digest, Step 4, 5.2's fresh-eyes review and Step 7. The MUST NOTs below and
+the 5.0 remote check still apply.
+
 Three MUST NOTs, each from a real repeated failure:
 
 - MUST NOT skip **Step 3 forward-flow**, even after a small fix. Trackers that
@@ -102,7 +107,8 @@ Cross-doc summaries, sibling repos, or a session-log header that says
 
 ## Step 4 — Retro entry
 
-Append to the retro doc (none → create `LEARNINGS.md`):
+Retro doc already has an entry dated today (e.g. `/retro` ran this session) →
+skip this step and say so. Otherwise append to the retro doc (none → create `LEARNINGS.md`):
 ```markdown
 ## YYYY-MM-DD
 **Worked well:** <1-2 lines>
@@ -132,6 +138,11 @@ stale. Run each command separately (worktree sessions refuse compound git):
 Off-default = `branch` ≠ `default` or `in_worktree`. MUST NOT copy the file into
 the main checkout or push to the default branch to "fix" that; make it loud and
 give the merge command.
+
+**Remote check (MUST, every mode):** `git fetch -q`, then
+`git log --oneline HEAD..origin/<default>`. Any commit → another session landed
+first (2026-11-14: its handoff was missed and both rewrote the trackers).
+Rebase onto it and merge its tracker edits before writing anything.
 
 ### 5.1 Write it
 
@@ -215,6 +226,8 @@ and the stamp; fix every failure. No script → do them by hand.
 > with file + line evidence. Do not edit anything.
 
 It reports; you fix and re-run the script. No subagent route → say so.
+Skip it, and say so, only when the "Start by" item is the same as the previous
+resume prompt's and the project checker passed.
 
 ### 5.3 Copy and print
 
@@ -256,8 +269,8 @@ Off-default → the reply's **last line** repeats: "Not on `<default>` yet:
 6. Before coding the Start by item, run 5.2 checks 1-2 on it. A missed
    conflict or open choice → ask the user, with a proposed default.
 
-Variants (read-only, preflight) → **edge-cases.md, "Variants"**, only when
-the user names one.
+Variants (read-only, preflight; `light` is above) → **edge-cases.md,
+"Variants"**, only when the user names one.
 
 ## Project addendum (day-planner)
 
