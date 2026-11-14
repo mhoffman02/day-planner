@@ -1,5 +1,16 @@
 # Task History (TODO_HISTORY)
 
+## 2026-11-14 — Quiet pickers, header and note tab-sync
+
+- [x] **Notes Topic picker shares the Tasks category list** (native datalist, 20 rows, typing searches 50 of 70 kept topics; chip row from Task categories with a "+" overflow; `src/topicPicker.js`). The live picker was dead because `gas-app/Script.html` lacked the new handlers; `tests/appScriptMethodParity.test.js` now fails when an `app.js` method is missing from Script.html.
+- [x] **Tasks Category and Notes Topic boxes clear on focus, and on a second click while focused** (old value as placeholder; blur keeps it, Esc reverts; a click inside typed text only moves the caret). User verified on HOME 2026-11-14.
+- [x] **Header "quiet library" look**: date as ink on the bar at title size (1.15rem), gold small-caps weekday, gold hairline; chevrons and search/sync/view-options icons bare until hover or focus (`src/dateDisplay.js`).
+- [x] **Tabs share confirmed note saves** (`src/noteTabSync.js`, BroadcastChannel): an idle tab adopts the other tab's save, so it no longer reports a false "changed in Google Docs" conflict; a tab with unsaved edits still warns. HOME @457, WORK v254 (user updated). Landed on `pure-gas-main` as `fcc6fef`..`0b9c4e8`.
+
+## 2026-11-13 (later) — Toast, event popup, slot click (after that session's handoff)
+
+- [x] Event popup Edit/Delete survive click-away (`504fc72`); action toast dismiss X and drag (`88d2f33`); free-slot click opens the create dialog again (`b550c6f`).
+
 ## 2026-11-13 — Full-project security review, fixes, deploy
 
 - [x] **XSS and OAuth token gate** (`89f5306`): allowlist sanitizer `formatEventDescription`, single-pass `renderCardLine`, `getDriveRegrantConfig` gated by script property `REGRANT_ENABLED_UNTIL` (`assertDriveRegrantEnabled_`), Alpine SRI, `XFrameOptionsMode.DEFAULT`.
