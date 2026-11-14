@@ -1183,6 +1183,29 @@
     justify-content: center;
   }
 
+  /* Quiet top bar: bare icons at rest; button chrome only on hover, keyboard focus or while open.
+     Later in the file than each base rule so it wins at equal specificity plus the header scope. */
+  header.single-top-bar .search-trigger-compact,
+  header.single-top-bar .sync-btn-compact,
+  header.single-top-bar .view-options-btn,
+  header.single-top-bar .theme-toggle-compact {
+    background: transparent;
+    border-color: transparent;
+  }
+
+  header.single-top-bar .search-trigger-compact:hover,
+  header.single-top-bar .search-trigger-compact:focus-visible,
+  header.single-top-bar .sync-btn-compact:hover,
+  header.single-top-bar .sync-btn-compact:focus-visible,
+  header.single-top-bar .view-options-btn:hover,
+  header.single-top-bar .view-options-btn:focus-visible,
+  header.single-top-bar .view-options-btn[aria-expanded="true"],
+  header.single-top-bar .theme-toggle-compact:hover,
+  header.single-top-bar .theme-toggle-compact:focus-visible {
+    background: var(--c-rgba-255-255-255-0p12);
+    border-color: var(--c-rgba-255-255-255-0p28);
+  }
+
   .view-options-wrap {
     position: relative;
   }
