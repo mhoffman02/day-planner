@@ -703,55 +703,47 @@
     text-align: center;
   }
 
-  /* The selected day is the brightest thing in the dark bar: parchment fill, larger serif date,
-     weekday in teal small caps. */
+  /* Ink on the bar, like a planner page heading: no box, larger serif date, gold small-caps
+     weekday and one gold hairline under the date. Button chrome shows only on hover or focus. */
   .today-jump-btn.date-picker-btn {
-    background: var(--bg-parchment-fixed);
-    border-color: var(--bg-parchment-fixed);
-    color: var(--binder-teal);
+    background: transparent;
+    border-color: transparent;
+    color: var(--white);
     font-family: var(--font-family-header);
-    font-size: 0.95rem;
+    font-size: 1.05rem;
     font-weight: 700;
-    padding: 3px 10px;
+    padding: 2px 6px 3px;
   }
 
-  .today-jump-btn.date-picker-btn:hover {
-    background: var(--binder-teal-light);
+  .today-jump-btn.date-picker-btn:hover,
+  .today-jump-btn.date-picker-btn:focus-visible,
+  .today-jump-btn.date-picker-btn[aria-expanded="true"],
+  .date-controls-group .icon-nav-btn:hover,
+  .date-controls-group .icon-nav-btn:focus-visible {
+    background: var(--c-rgba-255-255-255-0p12);
+    border-color: var(--c-rgba-255-255-255-0p28);
+  }
+
+  .date-picker-btn .date-text-display {
+    border-bottom: 1px solid color-mix(in srgb, var(--tab-gold) 55%, transparent);
+    line-height: 1.25;
   }
 
   .date-picker-btn .date-weekday {
     font-variant: small-caps;
     letter-spacing: 0.04em;
-    color: var(--binder-teal);
-  }
-
-  .date-picker-btn .date-main {
-    color: var(--text-primary);
-  }
-
-  .today-jump-btn.date-picker-btn .dropdown-arrow {
-    color: var(--binder-teal);
-  }
-
-  [data-theme="dark"] .today-jump-btn.date-picker-btn {
-    background: var(--dk-bg-binder);
-    border-color: var(--dk-accent-text);
-  }
-
-  [data-theme="dark"] .today-jump-btn.date-picker-btn:hover {
-    background: var(--dk-accent-border);
-  }
-
-  [data-theme="dark"] .today-jump-btn.date-picker-btn .dropdown-arrow {
-    color: var(--dk-accent-text);
-  }
-
-  [data-theme="dark"] .date-picker-btn .date-weekday {
     color: var(--tab-gold);
   }
 
-  [data-theme="dark"] .date-picker-btn .date-main {
-    color: var(--dk-text-neutral-strong);
+  .today-jump-btn.date-picker-btn .dropdown-arrow {
+    color: var(--tab-gold);
+    opacity: 0.8;
+  }
+
+  /* Prev/next day: a bare chevron until hover or focus. */
+  .date-controls-group .icon-nav-btn {
+    background: transparent;
+    border-color: transparent;
   }
 
   .month-display-btn .date-text-display {
