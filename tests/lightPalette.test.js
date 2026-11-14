@@ -68,7 +68,9 @@ for (const file of FILES) {
   // in-card fills 15% (full Manila #e8e0d0 page / #f2ede3 card was too strong).
   test(`${file}: light page and cards are the light Manila mix`, () => {
     assert.equal(t['bg-parchment'], '#f5f2ec');
-    assert.equal(t['bg-parchment-fixed'], '#f5f2ec');
+    // --bg-parchment-fixed fills surfaces inside cards (zebra rows, status and priority buttons,
+    // collapsed notes), so it takes the card share, not the page share.
+    assert.equal(t['bg-parchment-fixed'], '#f9f7f4');
     assert.equal(t['bg-card'], '#fdfcfb');
     assert.equal(t['border-line'], '#cbd5c9');
     assert.equal(t['border-default'], '#cbd5c9');
