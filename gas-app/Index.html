@@ -1317,6 +1317,7 @@
               Future Planning
             </h2>
             <div class="future-matrix-year-nav">
+              <button type="button" class="year-link-btn" :class="{ 'is-placeholder': !isOffCurrentFutureYear() }" @click="jumpToCurrentFutureYear()" title="Jump to Current Year">This Year</button>
               <button type="button" class="icon-nav-btn" @click="changeFutureMatrixYear(-1)" aria-label="Previous year">
                 <span class="material-symbols-outlined">chevron_left</span>
               </button>
@@ -1324,9 +1325,6 @@
               <button type="button" class="icon-nav-btn" @click="changeFutureMatrixYear(1)" aria-label="Next year">
                 <span class="material-symbols-outlined">chevron_right</span>
               </button>
-              <template x-if="isOffCurrentFutureYear()">
-                <button type="button" class="year-link-btn" @click="jumpToCurrentFutureYear()" title="Jump to Current Year">This Year</button>
-              </template>
             </div>
           </header>
           <div class="future-matrix-container">

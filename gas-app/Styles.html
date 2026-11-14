@@ -4385,6 +4385,11 @@
   .year-link-btn:hover {
     background: var(--bg-accent-subtle);
   }
+  /* On the current year the link stays mounted but invisible, so the chevrons never shift.
+     Hidden also takes it out of the tab order and the accessibility tree. */
+  .year-link-btn.is-placeholder {
+    visibility: hidden;
+  }
   .year-link-btn {
     background: transparent;
     border: none;
