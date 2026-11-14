@@ -101,7 +101,7 @@
               </button>
               <div class="date-picker-wrap" @click.outside="closeDayPicker()">
                 <button type="button" class="today-jump-btn date-picker-btn" @click="toggleDayPicker()" title="Click to pick date from calendar" aria-haspopup="dialog" :aria-expanded="dayPickerOpen">
-                  <span class="date-text-display" x-text="formatSelectedDateDisplay(selectedDate)"></span>
+                  <span class="date-text-display"><span class="date-weekday" x-text="splitDateDisplay(selectedDate).weekday"></span> <span class="date-main" x-text="splitDateDisplay(selectedDate).date"></span></span>
                   <span class="material-symbols-outlined icon-14 dropdown-arrow" :class="{ 'arrow-up': dayPickerOpen }">arrow_drop_down</span>
                 </button>
 
@@ -694,9 +694,9 @@
                 </div>
               </template>
 
-              <!-- Shared autocomplete source for the Topic field below -->
-              <datalist id="index-topics-datalist">
-                <template x-for="t in indexTopicOptions()" :key="t">
+              <!-- Shared autocomplete source for the Topic field below: Task categories, then past topics -->
+              <datalist id="topic-suggestions">
+                <template x-for="t in topicSuggestions" :key="t">
                   <option :value="t"></option>
                 </template>
               </datalist>
@@ -710,48 +710,21 @@
                       <span class="material-symbols-outlined icon-18" x-text="card.collapsed ? 'arrow_right' : 'arrow_drop_down'"></span>
                     </button>
 
-                    <div class="card-topic-wrapper" :style="'flex: 0 0 ' + topicColWidth + 'px; width: ' + topicColWidth + 'px;'" @click.away="if (activeTopicCardId === card.id) closeTopicDropdown()">
+                    <div class="card-topic-wrapper" :style="'flex: 0 0 ' + topicColWidth + 'px; width: ' + topicColWidth + 'px;'">
                       <input type="text"
                              x-model="card.indexTopic"
+                             list="topic-suggestions"
                              @focus="focusTopicInput($event, card)"
-                             @mouseup="topicMouseUp($event)"
-                             @input="topicInput(card)"
+                             @blur="blurTopicInput($event, card)"
+                             @input="syncCardsToDailyNote()"
                              @change="recordCategory(card.indexTopic)"
-                             @keydown="handleTopicKeydown($event, card)"
-                             placeholder="Local-only"
+                             @keydown.enter="$event.target.blur()"
+                             @keydown.escape.prevent="revertTopic($event, card)"
+                             :placeholder="activeTopicCardId === card.id && topicFocusValue ? topicFocusValue : 'Local-only'"
                              class="card-topic-input"
                              style="width: 100%;"
                              aria-label="Monthly Index Topic (optional)"
-                             title="Topic: set this to add the card to the Monthly Index. Leave blank to keep it private to today.">
-
-                      <!-- Notion-style floating LRU dropdown -->
-                      <div class="topic-lru-dropdown"
-                           x-show="activeTopicCardId === card.id && topicItems(card).length > 0"
-                           x-cloak>
-                        <div class="topic-dropdown-header">
-                          <span class="topic-dropdown-label">Categories</span>
-                          <span class="topic-dropdown-hint">↑↓ Enter · Esc undo</span>
-                        </div>
-                        <ul class="topic-lru-list" role="listbox">
-                          <template x-for="(t, idx) in topicItems(card)" :key="t">
-                            <li class="topic-lru-item"
-                                :class="{ 'highlighted': topicSelectedIndex === idx }"
-                                @mousedown.prevent="selectTopic(card, t)"
-                                role="option">
-                              <div class="topic-item-main">
-                                <span class="topic-item-name" x-text="t"></span>
-                              </div>
-                              <button type="button"
-                                      class="topic-item-remove-btn"
-                                      @mousedown.stop.prevent="removeRecentTopic(t, $event)"
-                                      title="Remove from the category list (Tasks too)"
-                                      aria-label="Remove category">
-                                <span class="material-symbols-outlined icon-14">close</span>
-                              </button>
-                            </li>
-                          </template>
-                        </ul>
-                      </div>
+                             title="Topic: pick or type a category to add the card to the Monthly Index (Esc keeps the old one). Leave blank to keep it private to today.">
                     </div>
 
                     <div class="card-header-resizer"

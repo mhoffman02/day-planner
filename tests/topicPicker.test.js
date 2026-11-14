@@ -53,12 +53,14 @@ test('topic options merge any number of sources in order', () => {
   assert.deepEqual(mergeTopicOptions(['Work'], ['Sprint'], ['Old Tag', 'work']), ['Work', 'Sprint', 'Old Tag']);
 });
 
-test('Notes Topic input uses the one custom dropdown, not the native category datalist', () => {
+test('Notes Topic input uses a native suggestion list like Tasks Category, fed by the shared topics', () => {
   for (const file of ['gas-app/Index.html', 'index.html']) {
     const html = fs.readFileSync(file, 'utf8');
     const input = html.match(/<input type="text"\s+x-model="card\.indexTopic"[^>]*>/);
     assert.ok(input, `${file}: Topic input not found`);
-    assert.doesNotMatch(input[0], /list="category-suggestions"/, `${file}: Topic still wired to the native datalist`);
+    assert.match(input[0], /list="topic-suggestions"/, `${file}: Topic not wired to the native topic list`);
+    assert.match(html, /<datalist id="topic-suggestions">\s*<template x-for="t in topicSuggestions"/, `${file}: topic datalist missing`);
+    assert.doesNotMatch(html, /class="topic-lru-dropdown"/, `${file}: custom Topic dropdown still present`);
     assert.doesNotMatch(html, /x-for="cat in noteCategoryOptions"/, `${file}: chip row still hard-coded`);
   }
 });

@@ -26,6 +26,7 @@ import { executeUniversalSearch, flattenSearchResults, mergeArchiveSearchResults
 import { formatEventDescriptionHtml, extractMeetLink } from './calendarEngine.js';
 import { parseIndexEntriesFromNote } from './indexParser.js';
 import { getQuoteForDateStr } from './quotesEngine.js';
+import { splitDateDisplay } from './dateDisplay.js';
 import { mergeTopicOptions, topicDropdownItems, cardChipOptions, noteFilterCategories, TOPIC_HISTORY_LIMIT } from './topicPicker.js';
 import { clipboardToNoteLines, isNoteListLine } from './notePaste.js';
 import { lineEditorSplitPrefix, lineEditorRender, lineEditorSerialize, lineEditorTextLength, lineEditorSlice, lineEditorColorRange, lineEditorToDom, lineEditorFromDom } from './lineEditor.js';
@@ -610,10 +611,8 @@ Alpine.data('plannerApp', () => ({
       recentTopics: [],
       recentCategories: ['General', 'Work', 'Personal', 'Financial', 'Projects', 'Health', 'Meeting', 'Decision'],
       activeTopicCardId: null,
-      topicSelectedIndex: -1,
       topicFocusValue: '',
       topicOptionsAtFocus: [],
-      topicSelectOnMouseUp: false,
 
       // Desktop install modal state
       installModalOpen: false,
@@ -627,6 +626,12 @@ Alpine.data('plannerApp', () => ({
 
       get topicOptions() {
         return mergeTopicOptions(this.availableCategories, this.recentTopics, this.indexTopicOptions());
+      },
+
+      get topicSuggestions() {
+        const card = (this.noteCards || []).find(c => c.id === this.activeTopicCardId);
+        if (!card) return topicDropdownItems(this.topicOptions, '', '');
+        return topicDropdownItems(this.topicOptionsAtFocus, card.indexTopic, this.topicFocusValue);
       },
 
       get noteFilterCategoryOptions() {
@@ -2589,6 +2594,10 @@ Alpine.data('plannerApp', () => ({
         return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
       },
 
+      splitDateDisplay(dateStr) {
+        return splitDateDisplay(dateStr);
+      },
+
       formatIndexDate(dateStr) {
         if (!dateStr) return '';
         const d = new Date(`${dateStr}T00:00:00`);
@@ -3186,42 +3195,31 @@ Alpine.data('plannerApp', () => ({
         return Array.from(topics).sort();
       },
 
-      // Focus selects the text so typing replaces it, and the full list opens.
+      // Like the empty Tasks Category box: the box empties on focus so the native list shows
+      // every option, with the old topic as placeholder. The model keeps it until the user types.
       focusTopicInput(event, card) {
-        if (!card) return;
-        this.openTopicDropdown(card);
-        if (event && event.target && typeof event.target.select === 'function') {
-          event.target.select();
-          this.topicSelectOnMouseUp = true;
-        }
-      },
-
-      // A click focus ends with a mouseup that would drop the selection made on focus.
-      topicMouseUp(event) {
-        if (!this.topicSelectOnMouseUp) return;
-        this.topicSelectOnMouseUp = false;
-        if (event) event.preventDefault();
-      },
-
-      openTopicDropdown(card) {
-        if (!card) return;
+        if (!card || !event || !event.target) return;
         this.activeTopicCardId = card.id;
         this.topicFocusValue = card.indexTopic || '';
-        // Snapshot: typing syncs the card into the Monthly Index, which would echo the typed text as a row.
+        // Snapshot: typing syncs the card into the Monthly Index, which would echo the typed text as an option.
         this.topicOptionsAtFocus = this.topicOptions;
-        const current = this.topicFocusValue.trim().toLowerCase();
-        this.topicSelectedIndex = this.topicItems(card).findIndex(t => t.toLowerCase() === current);
+        event.target.value = '';
       },
 
-      closeTopicDropdown() {
+      // Shows the model value again: the old topic when nothing was typed.
+      blurTopicInput(event, card) {
+        if (!card || !event || !event.target) return;
+        event.target.value = card.indexTopic || '';
         this.activeTopicCardId = null;
-        this.topicSelectedIndex = -1;
       },
 
-      topicItems(card) {
-        if (!card) return this.topicOptions;
-        const options = this.activeTopicCardId === card.id ? this.topicOptionsAtFocus : this.topicOptions;
-        return topicDropdownItems(options, card.indexTopic, this.topicFocusValue);
+      revertTopic(event, card) {
+        if (!card) return;
+        if ((card.indexTopic || '') !== this.topicFocusValue) {
+          card.indexTopic = this.topicFocusValue;
+          this.syncCardsToDailyNote();
+        }
+        if (event && event.target) event.target.blur();
       },
 
       recordCategory(category) {
@@ -3250,80 +3248,6 @@ Alpine.data('plannerApp', () => ({
           localStorage.setItem('dayPlannerRecentTopics', JSON.stringify(this.recentTopics));
         } catch (err) {
           console.error('recordRecentTopic: could not persist recent topics to localStorage:', err.stack);
-        }
-      },
-
-      // One shared list: removing a row drops it from both the topic and Task category lists.
-      removeRecentTopic(topicToRemove, event) {
-        if (event) {
-          event.stopPropagation();
-          event.preventDefault();
-        }
-        if (!topicToRemove) return;
-        const key = topicToRemove.toLowerCase();
-        this.recentTopics = (this.recentTopics || []).filter(t => t.toLowerCase() !== key);
-        this.recentCategories = (this.recentCategories || []).filter(c => c.toLowerCase() !== key);
-        this.topicOptionsAtFocus = (this.topicOptionsAtFocus || []).filter(t => t.toLowerCase() !== key);
-        try {
-          localStorage.setItem('dayPlannerRecentTopics', JSON.stringify(this.recentTopics));
-          localStorage.setItem('dayPlannerCategories', JSON.stringify(this.recentCategories));
-        } catch (err) {
-          console.error('removeRecentTopic: could not persist topics/categories to localStorage:', err.stack);
-        }
-      },
-
-      topicInput(card) {
-        if (!card) return;
-        this.syncCardsToDailyNote();
-        this.activeTopicCardId = card.id;
-        this.topicSelectedIndex = -1;
-      },
-
-      selectTopic(card, topic) {
-        if (!card) return;
-        card.indexTopic = topic;
-        this.topicFocusValue = topic;
-        this.recordCategory(topic);
-        this.syncCardsToDailyNote();
-        this.closeTopicDropdown();
-      },
-
-      moveTopicHighlight(card, step) {
-        if (this.activeTopicCardId !== card.id) this.openTopicDropdown(card);
-        const count = this.topicItems(card).length;
-        if (count > 0) this.topicSelectedIndex = (this.topicSelectedIndex + step + count) % count;
-      },
-
-      commitTopic(card) {
-        const matches = this.topicItems(card);
-        if (this.activeTopicCardId === card.id && this.topicSelectedIndex >= 0 && this.topicSelectedIndex < matches.length) {
-          this.selectTopic(card, matches[this.topicSelectedIndex]);
-          return true;
-        }
-        this.recordCategory(card.indexTopic);
-        this.topicFocusValue = card.indexTopic || '';
-        this.closeTopicDropdown();
-        return false;
-      },
-
-      revertTopic(card) {
-        if ((card.indexTopic || '') !== this.topicFocusValue) {
-          card.indexTopic = this.topicFocusValue;
-          this.syncCardsToDailyNote();
-        }
-        this.closeTopicDropdown();
-      },
-
-      handleTopicKeydown(event, card) {
-        if (!event || !card) return;
-        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-          event.preventDefault();
-          this.moveTopicHighlight(card, event.key === 'ArrowDown' ? 1 : -1);
-        } else if (event.key === 'Enter') {
-          if (this.commitTopic(card)) event.preventDefault();
-        } else if (event.key === 'Escape') {
-          event.preventDefault();
-          this.revertTopic(card);
         }
       },
 

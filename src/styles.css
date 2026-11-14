@@ -703,6 +703,54 @@
     text-align: center;
   }
 
+  /* The selected day is the brightest thing in the dark bar: parchment fill, larger serif date,
+     weekday in teal small caps. */
+  .today-jump-btn.date-picker-btn {
+    background: var(--bg-parchment-fixed);
+    border-color: var(--bg-parchment-fixed);
+    color: var(--binder-teal);
+    font-family: var(--font-family-header);
+    font-size: 0.95rem;
+    font-weight: 700;
+    padding: 3px 10px;
+  }
+
+  .today-jump-btn.date-picker-btn:hover {
+    background: var(--binder-teal-light);
+  }
+
+  .date-picker-btn .date-weekday {
+    font-variant: small-caps;
+    letter-spacing: 0.04em;
+    color: var(--binder-teal);
+  }
+
+  .date-picker-btn .date-main {
+    color: var(--text-primary);
+  }
+
+  .today-jump-btn.date-picker-btn .dropdown-arrow {
+    color: var(--binder-teal);
+  }
+
+  [data-theme="dark"] .today-jump-btn.date-picker-btn {
+    background: var(--dk-bg-binder);
+    border-color: var(--dk-accent-text);
+  }
+
+  [data-theme="dark"] .today-jump-btn.date-picker-btn:hover {
+    background: var(--dk-accent-border);
+  }
+
+  [data-theme="dark"] .date-picker-btn .date-weekday,
+  [data-theme="dark"] .today-jump-btn.date-picker-btn .dropdown-arrow {
+    color: var(--dk-accent-text);
+  }
+
+  [data-theme="dark"] .date-picker-btn .date-main {
+    color: var(--dk-text-neutral-strong);
+  }
+
   .month-display-btn .date-text-display {
     min-width: 8em;
     text-align: center;
