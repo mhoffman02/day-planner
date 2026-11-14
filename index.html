@@ -647,11 +647,9 @@
                       <label class="dropdown-label">Category Filter:</label>
                       <select x-model="noteCardCategoryFilter" class="dropdown-select">
                         <option value="ALL">All Categories</option>
-                        <option value="Work">Work</option>
-                        <option value="Personal">Personal</option>
-                        <option value="Meeting">Meeting</option>
-                        <option value="Decision">Decision</option>
-                        <option value="Project">Project</option>
+                        <template x-for="cat in noteFilterCategoryOptions" :key="cat">
+                          <option :value="cat" x-text="cat"></option>
+                        </template>
                       </select>
                     </div>
                     <div class="dropdown-divider"></div>
@@ -715,9 +713,9 @@
                     <div class="card-topic-wrapper" :style="'flex: 0 0 ' + topicColWidth + 'px; width: ' + topicColWidth + 'px;'" @click.away="if (activeTopicCardId === card.id) closeTopicDropdown()">
                       <input type="text"
                              x-model="card.indexTopic"
-                             list="category-suggestions"
-                             @focus="openTopicDropdown(card)"
-                             @input="syncCardsToDailyNote(); activeTopicCardId = card.id;"
+                             @focus="focusTopicInput($event, card)"
+                             @mouseup="topicMouseUp($event)"
+                             @input="topicInput(card)"
                              @change="recordCategory(card.indexTopic)"
                              @keydown="handleTopicKeydown($event, card)"
                              placeholder="Local-only"
@@ -728,27 +726,26 @@
 
                       <!-- Notion-style floating LRU dropdown -->
                       <div class="topic-lru-dropdown"
-                           x-show="activeTopicCardId === card.id && filteredRecentTopics(card).length > 0"
+                           x-show="activeTopicCardId === card.id && topicItems(card).length > 0"
                            x-cloak>
                         <div class="topic-dropdown-header">
-                          <span class="topic-dropdown-label">Recent Topics</span>
-                          <span class="topic-dropdown-hint">↑↓ Enter</span>
+                          <span class="topic-dropdown-label">Categories</span>
+                          <span class="topic-dropdown-hint">↑↓ Enter · Esc undo</span>
                         </div>
                         <ul class="topic-lru-list" role="listbox">
-                          <template x-for="(t, idx) in filteredRecentTopics(card)" :key="t">
+                          <template x-for="(t, idx) in topicItems(card)" :key="t">
                             <li class="topic-lru-item"
                                 :class="{ 'highlighted': topicSelectedIndex === idx }"
                                 @mousedown.prevent="selectTopic(card, t)"
                                 role="option">
                               <div class="topic-item-main">
-                                <span class="material-symbols-outlined icon-14 topic-tag-icon">tag</span>
                                 <span class="topic-item-name" x-text="t"></span>
                               </div>
                               <button type="button"
                                       class="topic-item-remove-btn"
                                       @mousedown.stop.prevent="removeRecentTopic(t, $event)"
-                                      title="Remove from recent topics"
-                                      aria-label="Remove topic">
+                                      title="Remove from the category list (Tasks too)"
+                                      aria-label="Remove category">
                                 <span class="material-symbols-outlined icon-14">close</span>
                               </button>
                             </li>
@@ -790,7 +787,7 @@
                       <!-- Compact Segmented Category Button-Checkboxes under Summary Textbox -->
                       <div class="card-category-segmented-wrap" role="group" aria-label="Card Categories">
                         <div class="category-segmented-control" role="group" aria-label="Card Category Multi-Pick">
-                          <template x-for="cat in noteCategoryOptions" :key="cat">
+                          <template x-for="cat in cardChips(card).visible" :key="cat">
                             <button type="button" class="category-segment-btn"
                                     :class="{ 'is-active': isCardCategorySelected(card, cat) }"
                                     @click="toggleCardCategory(card, cat)"
@@ -800,7 +797,28 @@
                               <span x-text="cat"></span>
                             </button>
                           </template>
+                          <button type="button" class="category-segment-btn"
+                                  x-show="cardChips(card).overflow.length > 0"
+                                  @click="chipOverflowCardId = (chipOverflowCardId === card.id ? null : card.id)"
+                                  :aria-expanded="chipOverflowCardId === card.id"
+                                  title="More categories (shared with Tasks)"
+                                  aria-label="More categories">+</button>
                         </div>
+                      </div>
+                      <div class="topic-lru-dropdown chip-overflow-menu"
+                           x-show="chipOverflowCardId === card.id"
+                           @click.away="if (chipOverflowCardId === card.id) chipOverflowCardId = null"
+                           @keydown.escape="chipOverflowCardId = null"
+                           x-cloak>
+                        <ul class="topic-lru-list" role="menu">
+                          <template x-for="cat in cardChips(card).overflow" :key="cat">
+                            <li class="topic-lru-item" role="menuitem" tabindex="0"
+                                @click="pickOverflowCategory(card, cat)"
+                                @keydown.enter.prevent="pickOverflowCategory(card, cat)">
+                              <span class="topic-item-name" x-text="cat"></span>
+                            </li>
+                          </template>
+                        </ul>
                       </div>
                     </div>
                   </header>

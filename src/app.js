@@ -26,6 +26,7 @@ import { executeUniversalSearch, flattenSearchResults, mergeArchiveSearchResults
 import { formatEventDescriptionHtml, extractMeetLink } from './calendarEngine.js';
 import { parseIndexEntriesFromNote } from './indexParser.js';
 import { getQuoteForDateStr } from './quotesEngine.js';
+import { mergeTopicOptions, topicDropdownItems, cardChipOptions, noteFilterCategories, TOPIC_HISTORY_LIMIT } from './topicPicker.js';
 import { clipboardToNoteLines, isNoteListLine } from './notePaste.js';
 import { lineEditorSplitPrefix, lineEditorRender, lineEditorSerialize, lineEditorTextLength, lineEditorSlice, lineEditorColorRange, lineEditorToDom, lineEditorFromDom } from './lineEditor.js';
 import {
@@ -477,7 +478,7 @@ Alpine.data('plannerApp', () => ({
       noteFilterMenuOpen: false,
       noteCardSearchQuery: '',
       noteCardCategoryFilter: 'ALL',
-      noteCategoryOptions: ['Work', 'Personal', 'Meeting', 'Decision', 'Project'],
+      chipOverflowCardId: null,
       selectedNoteCategories: ['Work'],
       topicColWidth: 112,
       isHeaderResizing: false,
@@ -610,6 +611,9 @@ Alpine.data('plannerApp', () => ({
       recentCategories: ['General', 'Work', 'Personal', 'Financial', 'Projects', 'Health', 'Meeting', 'Decision'],
       activeTopicCardId: null,
       topicSelectedIndex: -1,
+      topicFocusValue: '',
+      topicOptionsAtFocus: [],
+      topicSelectOnMouseUp: false,
 
       // Desktop install modal state
       installModalOpen: false,
@@ -619,6 +623,14 @@ Alpine.data('plannerApp', () => ({
           ? this.recentCategories
           : ['General', 'Work', 'Personal', 'Financial', 'Projects', 'Health', 'Meeting', 'Decision'];
         return [...cats].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+      },
+
+      get topicOptions() {
+        return mergeTopicOptions(this.availableCategories, this.recentTopics, this.indexTopicOptions());
+      },
+
+      get noteFilterCategoryOptions() {
+        return noteFilterCategories(this.availableCategories, this.noteCards);
       },
 
       get filteredNoteCards() {
@@ -756,7 +768,7 @@ Alpine.data('plannerApp', () => ({
           if (saved) {
             const parsed = JSON.parse(saved);
             if (Array.isArray(parsed) && parsed.length > 0) {
-              this.recentTopics = parsed.slice(0, 20);
+              this.recentTopics = parsed.slice(0, TOPIC_HISTORY_LIMIT);
               return;
             }
           }
@@ -3174,10 +3186,31 @@ Alpine.data('plannerApp', () => ({
         return Array.from(topics).sort();
       },
 
+      // Focus selects the text so typing replaces it, and the full list opens.
+      focusTopicInput(event, card) {
+        if (!card) return;
+        this.openTopicDropdown(card);
+        if (event && event.target && typeof event.target.select === 'function') {
+          event.target.select();
+          this.topicSelectOnMouseUp = true;
+        }
+      },
+
+      // A click focus ends with a mouseup that would drop the selection made on focus.
+      topicMouseUp(event) {
+        if (!this.topicSelectOnMouseUp) return;
+        this.topicSelectOnMouseUp = false;
+        if (event) event.preventDefault();
+      },
+
       openTopicDropdown(card) {
         if (!card) return;
         this.activeTopicCardId = card.id;
-        this.topicSelectedIndex = -1;
+        this.topicFocusValue = card.indexTopic || '';
+        // Snapshot: typing syncs the card into the Monthly Index, which would echo the typed text as a row.
+        this.topicOptionsAtFocus = this.topicOptions;
+        const current = this.topicFocusValue.trim().toLowerCase();
+        this.topicSelectedIndex = this.topicItems(card).findIndex(t => t.toLowerCase() === current);
       },
 
       closeTopicDropdown() {
@@ -3185,11 +3218,10 @@ Alpine.data('plannerApp', () => ({
         this.topicSelectedIndex = -1;
       },
 
-      filteredRecentTopics(card) {
-        if (!card) return this.recentTopics || [];
-        const q = (card.indexTopic || '').trim().toLowerCase();
-        if (!q) return this.recentTopics || [];
-        return (this.recentTopics || []).filter(t => t.toLowerCase().includes(q));
+      topicItems(card) {
+        if (!card) return this.topicOptions;
+        const options = this.activeTopicCardId === card.id ? this.topicOptionsAtFocus : this.topicOptions;
+        return topicDropdownItems(options, card.indexTopic, this.topicFocusValue);
       },
 
       recordCategory(category) {
@@ -3213,7 +3245,7 @@ Alpine.data('plannerApp', () => ({
         if (!clean) return;
         const list = (this.recentTopics || []).filter(t => t.toLowerCase() !== clean.toLowerCase());
         list.unshift(clean);
-        this.recentTopics = list.slice(0, 20);
+        this.recentTopics = list.slice(0, TOPIC_HISTORY_LIMIT);
         try {
           localStorage.setItem('dayPlannerRecentTopics', JSON.stringify(this.recentTopics));
         } catch (err) {
@@ -3221,55 +3253,77 @@ Alpine.data('plannerApp', () => ({
         }
       },
 
+      // One shared list: removing a row drops it from both the topic and Task category lists.
       removeRecentTopic(topicToRemove, event) {
         if (event) {
           event.stopPropagation();
           event.preventDefault();
         }
         if (!topicToRemove) return;
-        this.recentTopics = (this.recentTopics || []).filter(t => t.toLowerCase() !== topicToRemove.toLowerCase());
+        const key = topicToRemove.toLowerCase();
+        this.recentTopics = (this.recentTopics || []).filter(t => t.toLowerCase() !== key);
+        this.recentCategories = (this.recentCategories || []).filter(c => c.toLowerCase() !== key);
+        this.topicOptionsAtFocus = (this.topicOptionsAtFocus || []).filter(t => t.toLowerCase() !== key);
         try {
           localStorage.setItem('dayPlannerRecentTopics', JSON.stringify(this.recentTopics));
+          localStorage.setItem('dayPlannerCategories', JSON.stringify(this.recentCategories));
         } catch (err) {
-          console.error('removeRecentTopic: could not persist recent topics to localStorage:', err.stack);
+          console.error('removeRecentTopic: could not persist topics/categories to localStorage:', err.stack);
         }
+      },
+
+      topicInput(card) {
+        if (!card) return;
+        this.syncCardsToDailyNote();
+        this.activeTopicCardId = card.id;
+        this.topicSelectedIndex = -1;
       },
 
       selectTopic(card, topic) {
         if (!card) return;
         card.indexTopic = topic;
-        this.recordRecentTopic(topic);
+        this.topicFocusValue = topic;
+        this.recordCategory(topic);
         this.syncCardsToDailyNote();
+        this.closeTopicDropdown();
+      },
+
+      moveTopicHighlight(card, step) {
+        if (this.activeTopicCardId !== card.id) this.openTopicDropdown(card);
+        const count = this.topicItems(card).length;
+        if (count > 0) this.topicSelectedIndex = (this.topicSelectedIndex + step + count) % count;
+      },
+
+      commitTopic(card) {
+        const matches = this.topicItems(card);
+        if (this.activeTopicCardId === card.id && this.topicSelectedIndex >= 0 && this.topicSelectedIndex < matches.length) {
+          this.selectTopic(card, matches[this.topicSelectedIndex]);
+          return true;
+        }
+        this.recordCategory(card.indexTopic);
+        this.topicFocusValue = card.indexTopic || '';
+        this.closeTopicDropdown();
+        return false;
+      },
+
+      revertTopic(card) {
+        if ((card.indexTopic || '') !== this.topicFocusValue) {
+          card.indexTopic = this.topicFocusValue;
+          this.syncCardsToDailyNote();
+        }
         this.closeTopicDropdown();
       },
 
       handleTopicKeydown(event, card) {
         if (!event || !card) return;
-        const matches = this.filteredRecentTopics(card);
-        if (event.key === 'ArrowDown') {
-          if (this.activeTopicCardId !== card.id) {
-            this.openTopicDropdown(card);
-          }
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
           event.preventDefault();
-          if (matches.length > 0) {
-            this.topicSelectedIndex = (this.topicSelectedIndex + 1) % matches.length;
-          }
-        } else if (event.key === 'ArrowUp') {
-          event.preventDefault();
-          if (matches.length > 0) {
-            this.topicSelectedIndex = (this.topicSelectedIndex - 1 + matches.length) % matches.length;
-          }
+          this.moveTopicHighlight(card, event.key === 'ArrowDown' ? 1 : -1);
         } else if (event.key === 'Enter') {
-          if (this.activeTopicCardId === card.id && this.topicSelectedIndex >= 0 && this.topicSelectedIndex < matches.length) {
-            event.preventDefault();
-            this.selectTopic(card, matches[this.topicSelectedIndex]);
-          } else {
-            this.recordRecentTopic(card.indexTopic);
-            this.closeTopicDropdown();
-          }
+          if (this.commitTopic(card)) event.preventDefault();
         } else if (event.key === 'Escape') {
           event.preventDefault();
-          this.closeTopicDropdown();
+          this.revertTopic(card);
         }
       },
 
@@ -4587,6 +4641,22 @@ Alpine.data('plannerApp', () => ({
         }
         card.category = card.categories.join(', ');
         this.syncCardsToDailyNote();
+      },
+
+      cardChips(card) {
+        return cardChipOptions(this.recentCategories, this.cardCategoriesOf(card));
+      },
+
+      cardCategoriesOf(card) {
+        if (!card) return [];
+        if (Array.isArray(card.categories)) return card.categories;
+        if (typeof card.category === 'string') return card.category.split(',').map(s => s.trim()).filter(Boolean);
+        return [];
+      },
+
+      pickOverflowCategory(card, cat) {
+        this.toggleCardCategory(card, cat);
+        this.chipOverflowCardId = null;
       },
 
       isCardCategorySelected(card, cat) {

@@ -2232,6 +2232,93 @@
   const DOC_ROW_LIMIT_DEFAULT = 25;
   const DOC_ROW_LIMITS = [10, 25, 50, 'all'];
 
+  /** Shared categories shown as chips on a card before the "+" overflow. */
+  const CARD_CHIP_LIMIT = 5;
+
+  /** Rows in the Topic dropdown before the user types. */
+  const TOPIC_LIST_LIMIT = 20;
+
+  /** Rows once the user types: matches from the deeper topic history. */
+  const TOPIC_MATCH_LIMIT = 50;
+
+  /** Topics kept in the saved history the dropdown searches. */
+  const TOPIC_HISTORY_LIMIT = 70;
+
+  function cleanList(values) {
+    return (Array.isArray(values) ? values : [])
+      .filter(v => typeof v === 'string' && v.trim())
+      .map(v => v.trim());
+  }
+
+  function uniqueCaseless(values) {
+    const seen = new Set();
+    return values.filter(v => {
+      const key = v.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  /**
+   * Topic picker options: each source in order (Task categories, then topics used before),
+   * case-insensitive dedupe.
+   * @param {...string[]} sources
+   * @returns {string[]}
+   */
+  function mergeTopicOptions(...sources) {
+    return uniqueCaseless(sources.flatMap(cleanList));
+  }
+
+  /**
+   * Rows shown in the Topic dropdown. Until the user edits the value saved at focus, the first
+   * TOPIC_LIST_LIMIT options show; after that, up to TOPIC_MATCH_LIMIT options containing the
+   * typed text, so an old topic deep in the history comes back after a few letters.
+   * @param {string[]} options Merged options.
+   * @param {string} value Current input text.
+   * @param {string} focusValue Input text when the field got focus.
+   * @returns {string[]}
+   */
+  function topicDropdownItems(options, value, focusValue) {
+    const list = Array.isArray(options) ? options : [];
+    const q = (value || '').trim().toLowerCase();
+    if (!q || q === (focusValue || '').trim().toLowerCase()) return list.slice(0, TOPIC_LIST_LIMIT);
+    return list.filter(t => t.toLowerCase().includes(q)).slice(0, TOPIC_MATCH_LIMIT);
+  }
+
+  /**
+   * Card chip row: categories on this card plus the most recent shared categories up to
+   * limit, alphabetical; the remaining shared categories go behind the "+" overflow.
+   * @param {string[]} recentCategories Shared categories, most recent first.
+   * @param {string[]} selected Categories on this card.
+   * @param {number} [limit=CARD_CHIP_LIMIT]
+   * @returns {{visible: string[], overflow: string[]}}
+   */
+  function cardChipOptions(recentCategories, selected, limit = CARD_CHIP_LIMIT) {
+    const byName = (a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' });
+    const shared = uniqueCaseless(cleanList(recentCategories));
+    const visible = uniqueCaseless([...cleanList(selected), ...shared.slice(0, limit)]);
+    const shown = new Set(visible.map(v => v.toLowerCase()));
+    const overflow = shared.filter(c => !shown.has(c.toLowerCase()));
+    return { visible: visible.sort(byName), overflow: overflow.sort(byName) };
+  }
+
+  /**
+   * Categories offered by the Notes category filter: shared categories plus any found on cards.
+   * @param {string[]} categories Shared categories.
+   * @param {Array<{categories?: string[], category?: string}>} cards Loaded note cards.
+   * @returns {string[]}
+   */
+  function noteFilterCategories(categories, cards) {
+    const onCards = [];
+    (Array.isArray(cards) ? cards : []).forEach(c => {
+      if (Array.isArray(c && c.categories)) onCards.push(...c.categories);
+      else if (c && typeof c.category === 'string') onCards.push(...c.category.split(','));
+    });
+    return uniqueCaseless([...cleanList(categories), ...cleanList(onCards)])
+      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+  }
+
   const READING_WIDTH_DEFAULT = 960;
   const READING_WIDTH_MIN = 480;
   const READING_WIDTH_MAX = 4000;
@@ -3336,13 +3423,16 @@
       noteFilterMenuOpen: false,
       noteCardSearchQuery: '',
       noteCardCategoryFilter: 'ALL',
-      noteCategoryOptions: ['Work', 'Personal', 'Meeting', 'Decision', 'Project'],
+      chipOverflowCardId: null,
       selectedNoteCategories: ['Work'],
       topicColWidth: 112,
       isHeaderResizing: false,
       recentTopics: [],
       activeTopicCardId: null,
       topicSelectedIndex: -1,
+      topicFocusValue: '',
+      topicOptionsAtFocus: [],
+      topicSelectOnMouseUp: false,
       docPreviewEditing: false,
       // Per-date note-save debounce timers: date -> timer handle for an edit waiting out the
       // debounce (unsaved, not yet in saveQueue). Per date, so typing on another day within the
@@ -3477,6 +3567,14 @@
         return [...cats].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
       },
 
+      get topicOptions() {
+        return mergeTopicOptions(this.availableCategories, this.recentTopics, this.indexTopicOptions());
+      },
+
+      get noteFilterCategoryOptions() {
+        return noteFilterCategories(this.availableCategories, this.noteCards);
+      },
+
       get filteredNoteCards() {
         const q = (this.noteCardSearchQuery || '').trim().toLowerCase();
         const cat = this.noteCardCategoryFilter;
@@ -3609,7 +3707,7 @@
           if (saved) {
             const parsed = JSON.parse(saved);
             if (Array.isArray(parsed) && parsed.length > 0) {
-              this.recentTopics = parsed.slice(0, 20);
+              this.recentTopics = parsed.slice(0, TOPIC_HISTORY_LIMIT);
               return;
             }
           }
@@ -6030,7 +6128,11 @@
       openTopicDropdown(card) {
         if (!card) return;
         this.activeTopicCardId = card.id;
-        this.topicSelectedIndex = -1;
+        this.topicFocusValue = card.indexTopic || '';
+        /* Snapshot: typing syncs the card into the Monthly Index, which would echo the typed text as a row. */
+        this.topicOptionsAtFocus = this.topicOptions;
+        const current = this.topicFocusValue.trim().toLowerCase();
+        this.topicSelectedIndex = this.topicItems(card).findIndex(t => t.toLowerCase() === current);
       },
 
       closeTopicDropdown() {
@@ -6038,11 +6140,10 @@
         this.topicSelectedIndex = -1;
       },
 
-      filteredRecentTopics(card) {
-        if (!card) return this.recentTopics || [];
-        const q = (card.indexTopic || '').trim().toLowerCase();
-        if (!q) return this.recentTopics || [];
-        return (this.recentTopics || []).filter(t => t.toLowerCase().includes(q));
+      topicItems(card) {
+        if (!card) return this.topicOptions;
+        const options = this.activeTopicCardId === card.id ? this.topicOptionsAtFocus : this.topicOptions;
+        return topicDropdownItems(options, card.indexTopic, this.topicFocusValue);
       },
 
       recordCategory(category) {
@@ -6066,7 +6167,7 @@
         if (!clean) return;
         const list = (this.recentTopics || []).filter(t => t.toLowerCase() !== clean.toLowerCase());
         list.unshift(clean);
-        this.recentTopics = list.slice(0, 20);
+        this.recentTopics = list.slice(0, TOPIC_HISTORY_LIMIT);
         try {
           localStorage.setItem('dayPlannerRecentTopics', JSON.stringify(this.recentTopics));
         } catch (err) {
@@ -6074,55 +6175,77 @@
         }
       },
 
+      /* One shared list: removing a row drops it from both the topic and Task category lists. */
       removeRecentTopic(topicToRemove, event) {
         if (event) {
           event.stopPropagation();
           event.preventDefault();
         }
         if (!topicToRemove) return;
-        this.recentTopics = (this.recentTopics || []).filter(t => t.toLowerCase() !== topicToRemove.toLowerCase());
+        const key = topicToRemove.toLowerCase();
+        this.recentTopics = (this.recentTopics || []).filter(t => t.toLowerCase() !== key);
+        this.recentCategories = (this.recentCategories || []).filter(c => c.toLowerCase() !== key);
+        this.topicOptionsAtFocus = (this.topicOptionsAtFocus || []).filter(t => t.toLowerCase() !== key);
         try {
           localStorage.setItem('dayPlannerRecentTopics', JSON.stringify(this.recentTopics));
+          localStorage.setItem('dayPlannerCategories', JSON.stringify(this.recentCategories));
         } catch (err) {
-          console.error('removeRecentTopic: could not persist recent topics to localStorage:', err.stack);
+          console.error('removeRecentTopic: could not persist topics/categories to localStorage:', err.stack);
         }
+      },
+
+      topicInput(card) {
+        if (!card) return;
+        this.syncCardsToDailyNote();
+        this.activeTopicCardId = card.id;
+        this.topicSelectedIndex = -1;
       },
 
       selectTopic(card, topic) {
         if (!card) return;
         card.indexTopic = topic;
-        this.recordRecentTopic(topic);
+        this.topicFocusValue = topic;
+        this.recordCategory(topic);
         this.syncCardsToDailyNote();
+        this.closeTopicDropdown();
+      },
+
+      moveTopicHighlight(card, step) {
+        if (this.activeTopicCardId !== card.id) this.openTopicDropdown(card);
+        const count = this.topicItems(card).length;
+        if (count > 0) this.topicSelectedIndex = (this.topicSelectedIndex + step + count) % count;
+      },
+
+      commitTopic(card) {
+        const matches = this.topicItems(card);
+        if (this.activeTopicCardId === card.id && this.topicSelectedIndex >= 0 && this.topicSelectedIndex < matches.length) {
+          this.selectTopic(card, matches[this.topicSelectedIndex]);
+          return true;
+        }
+        this.recordCategory(card.indexTopic);
+        this.topicFocusValue = card.indexTopic || '';
+        this.closeTopicDropdown();
+        return false;
+      },
+
+      revertTopic(card) {
+        if ((card.indexTopic || '') !== this.topicFocusValue) {
+          card.indexTopic = this.topicFocusValue;
+          this.syncCardsToDailyNote();
+        }
         this.closeTopicDropdown();
       },
 
       handleTopicKeydown(event, card) {
         if (!event || !card) return;
-        const matches = this.filteredRecentTopics(card);
-        if (event.key === 'ArrowDown') {
-          if (this.activeTopicCardId !== card.id) {
-            this.openTopicDropdown(card);
-          }
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
           event.preventDefault();
-          if (matches.length > 0) {
-            this.topicSelectedIndex = (this.topicSelectedIndex + 1) % matches.length;
-          }
-        } else if (event.key === 'ArrowUp') {
-          event.preventDefault();
-          if (matches.length > 0) {
-            this.topicSelectedIndex = (this.topicSelectedIndex - 1 + matches.length) % matches.length;
-          }
+          this.moveTopicHighlight(card, event.key === 'ArrowDown' ? 1 : -1);
         } else if (event.key === 'Enter') {
-          if (this.activeTopicCardId === card.id && this.topicSelectedIndex >= 0 && this.topicSelectedIndex < matches.length) {
-            event.preventDefault();
-            this.selectTopic(card, matches[this.topicSelectedIndex]);
-          } else {
-            this.recordRecentTopic(card.indexTopic);
-            this.closeTopicDropdown();
-          }
+          if (this.commitTopic(card)) event.preventDefault();
         } else if (event.key === 'Escape') {
           event.preventDefault();
-          this.closeTopicDropdown();
+          this.revertTopic(card);
         }
       },
 
@@ -7435,6 +7558,22 @@
         }
         card.category = card.categories.join(', ');
         this.syncCardsToDailyNote();
+      },
+
+      cardChips(card) {
+        return cardChipOptions(this.recentCategories, this.cardCategoriesOf(card));
+      },
+
+      cardCategoriesOf(card) {
+        if (!card) return [];
+        if (Array.isArray(card.categories)) return card.categories;
+        if (typeof card.category === 'string') return card.category.split(',').map(s => s.trim()).filter(Boolean);
+        return [];
+      },
+
+      pickOverflowCategory(card, cat) {
+        this.toggleCardCategory(card, cat);
+        this.chipOverflowCardId = null;
       },
 
       isCardCategorySelected(card, cat) {

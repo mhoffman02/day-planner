@@ -2868,12 +2868,6 @@
     min-width: 0;
   }
 
-  .topic-tag-icon {
-    font-size: 0.875rem;
-    opacity: 0.6;
-    flex-shrink: 0;
-  }
-
   .topic-item-name {
     overflow: hidden;
     white-space: nowrap;
@@ -2999,6 +2993,13 @@
     display: flex;
     flex-direction: column;
     gap: 3px;
+    position: relative;
+  }
+
+  .chip-overflow-menu {
+    left: auto;
+    right: 0;
+    min-width: 140px;
   }
 
   .card-summary-main-row {
