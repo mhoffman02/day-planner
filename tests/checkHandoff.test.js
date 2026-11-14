@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { overdueItems, missingPointers, stampProblems, uncoveredSections, secretHits, remoteAheadProblems } from '../tools/check-handoff.js';
+import { overdueItems, missingPointers, stampProblems, uncoveredSections, secretHits } from '../tools/check-handoff.js';
+import { remoteAheadProblems } from '../tools/landing-branch.js';
 
 test('open items with a due date before today are overdue; closed, future, undated and marked ones are not', () => {
   const md = [

@@ -20,6 +20,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ensureChrome } from './ensure-chrome.js';
 import { assertCleanGasApp } from './clean-tree.js';
+import { assertLandingCurrent } from './landing-branch.js';
 import { runAxeInTab, ratchetAxe } from './lib/axe-live.js';
 import { checkVersionCount, parseVersionCount, VERSION_FAIL_AT } from './lib/version-guard.js';
 
@@ -56,6 +57,7 @@ async function main() {
   let axeCounts = null;
 
   assertCleanGasApp(ROOT);
+  assertLandingCurrent(ROOT);
   const versions = checkVersionCount(parseVersionCount(run('npx', ['clasp', 'versions'], GAS_DIR)));
   if (versions.level === 'fail') {
     throw new Error(`HOME holds ${versions.count} versions (cap ${VERSION_FAIL_AT}); prune old versions before deploying`);

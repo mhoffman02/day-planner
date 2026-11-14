@@ -19,12 +19,9 @@ import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { run as checkSkillSync } from './sync-handoff-skill.js';
+import { landingAhead, remoteAheadProblems } from './landing-branch.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-
-// Every session lands here (.agents/rules/no-pr-theater.md); origin/HEAD resolves to master, which diverged on purpose.
-const LANDING_BRANCH = 'pure-gas-main';
-const LANDING_REF = `origin/${LANDING_BRANCH}`;
 
 const DUE_RE = /\b(?:due|by|on|before|until|expires?|deadline|next)\b[\s:]*(\d{4}-\d{2}-\d{2})/i;
 
@@ -136,27 +133,7 @@ export function secretHits(text) {
   return hits;
 }
 
-/** Problems when the landing branch on GitHub has commits HEAD lacks (another session landed first). */
-export function remoteAheadProblems({ ref, ahead, fetchError }) {
-  if (fetchError) return [`could not fetch ${ref}: ${fetchError.message.trim()}; cannot tell whether another session landed first`];
-  if (!ahead.length) return [];
-  return [`${ref} has ${ahead.length} commit(s) HEAD lacks (another session landed first): ${ahead.join('; ')}. ` +
-    `Run \`git rebase ${ref}\`, merge their tracker edits into yours, then re-run this check`];
-}
-
 const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
-
-/** Fetches the landing branch and lists its commits HEAD lacks; a failed fetch is returned, never swallowed. */
-function landingAhead() {
-  try {
-    git('fetch', '-q', 'origin', LANDING_BRANCH);
-    const log = git('log', '--oneline', `HEAD..${LANDING_REF}`);
-    return { ref: LANDING_REF, ahead: log ? log.split('\n') : [] };
-  } catch (err) {
-    console.error('check-handoff: fetching ' + LANDING_REF + ' failed; failing the check closed:', err.stack);
-    return { ref: LANDING_REF, ahead: [], fetchError: err };
-  }
-}
 
 export function run() {
   const read = (f) => (fs.existsSync(path.join(root, f)) ? fs.readFileSync(path.join(root, f), 'utf8') : null);
@@ -179,7 +156,7 @@ export function run() {
   const headTouchesHandoff = git('diff-tree', '--no-commit-id', '--name-only', '-r', 'HEAD').split('\n').includes('HANDOFF.md');
   for (const p of stampProblems(handoff, { head, headParent, headTouchesHandoff })) problems.push(`HANDOFF.md:1: ${p}`);
 
-  problems.push(...remoteAheadProblems(landingAhead()));
+  problems.push(...remoteAheadProblems(landingAhead(root)));
 
   const todo = read('TODO.md');
   if (todo !== null) for (const s of uncoveredSections(todo, handoff)) problems.push(`HANDOFF.md: TODO.md section "${s}" has open items but is not mentioned`);
