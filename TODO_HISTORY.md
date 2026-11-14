@@ -1,5 +1,11 @@
 # Task History (TODO_HISTORY)
 
+## 2026-11-14 (later) — One landing path, lighter handoff, quiet year nav and [+]
+
+- [x] **One landing path** (`0c17616`, `59409d3`, `f85a3b7`): `npm run check:handoff` fails and `npm run deploy:home` refuses while GitHub `pure-gas-main` has commits HEAD lacks (`tools/landing-branch.js`); rule in `.agents/rules/no-pr-theater.md`.
+- [x] **Lighter handoff** (`e82026a`): `/handoff light`, retro step skipped when today has an entry, fresh-eyes skipped when Start by is unchanged and the checker passed, mandatory remote check (shared `~/.claude/skills/handoff`).
+- [x] **Future year nav like the date header, one quiet [+] style** (`af7ccb0`): serif year with gold hairline, bare chevrons, "This Year" link only off the current year (`isOffCurrentFutureYear`); Today (Tasks, Appointments, Notes) and Master [+] use `.btn-add-quiet`. HOME @458; WORK pushed twice (two identical versions), user repoints to the newest.
+
 ## 2026-11-14 — Quiet pickers, header and note tab-sync
 
 - [x] **Notes Topic picker shares the Tasks category list** (native datalist, 20 rows, typing searches 50 of 70 kept topics; chip row from Task categories with a "+" overflow; `src/topicPicker.js`). The live picker was dead because `gas-app/Script.html` lacked the new handlers; `tests/appScriptMethodParity.test.js` now fails when an `app.js` method is missing from Script.html.

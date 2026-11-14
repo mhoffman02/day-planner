@@ -2,7 +2,7 @@
 
 Order (2026-10-30, user): autonomous agent work first; everything that needs the user is in the last section,
 "For the session after next" (items B1, B3, B4). An agent session works the open agent bullets in "Agent work"
-(A12 agent lines, A10 smoke and ensure-chrome, A0, A3, A5, A8) and skips any line marked as a user hand-check (A6, A7, A9, A13, A12 and A10 user lines).
+(A12 agent lines, A10 smoke and ensure-chrome, A0, A3, A5, A8) and skips any line marked as a user hand-check (A6, A7, A9, A13, A14, A12 and A10 user lines).
 Load-speed work (A8) came first on 2026-11-06 at the user's request.
 
 ## Agent work: next session (hand-check lines inside need the user)
@@ -10,6 +10,9 @@ Load-speed work (A8) came first on 2026-11-06 at the user's request.
 ### A10. Attendees and hover popovers (2026-11-12; shipped in TODO_HISTORY, hand-checked on WORK 2026-11-12)
 - [ ] Local-preview `index.html` port is unverified in a browser: `npm run smoke` fails on clean HEAD (it does not start the server; run `npm start` first) ("Alpine app failed to initialize within 6s"). Diagnose with `tools/ensure-chrome.js http://localhost:3000` + `tools/probe-live.js`, then fix with a red test or smoke repro.
 - [ ] `tools/ensure-chrome.js` Linux branch deliberately left without `--password-store=basic` (WSL2 launches Windows chrome.exe); revisit only if the keyring prompt returns after `npm run smoke`.
+
+### A14. Quiet Future year nav and [+] buttons (2026-11-14; shipped in TODO_HISTORY)
+- [ ] User hand-check on HOME @458, light and dark theme: Future tab year nav (serif year, bare chevrons, "This Year" link only on another year) and the [+] buttons on Today and Master (tinted, not filled teal). Then repoint WORK to the newest version.
 
 ### A13. Note tab-sync (2026-11-14; shipped in TODO_HISTORY)
 - [ ] User hand-check on HOME @457 (optional): open today in two tabs, type a line in tab A, wait 2 s, then type in tab B; no "changed in Google Docs" warning, and tab B shows A's line before your typing.
