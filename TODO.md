@@ -2,7 +2,7 @@
 
 Order (2026-10-30, user): autonomous agent work first; everything that needs the user is in the last section,
 "For the session after next" (items B1, B3, B4). An agent session works the open agent bullets in "Agent work"
-(A12 agent lines, A10 smoke and ensure-chrome, A0, A3, A5, A8; A15 and A16 once the user decides) and skips any line marked as a user hand-check or decision (A6, A7, A9, A13, A14, A15, A16, A12 and A10 user lines).
+(A12 agent lines, A10 smoke and ensure-chrome, A0, A3, A5, A8) and skips any line marked as a user hand-check or decision (A6, A7, A9, A13, A14, A15, A12 and A10 user lines).
 Load-speed work (A8) came first on 2026-11-06 at the user's request.
 
 ## Agent work: next session (hand-check lines inside need the user)
@@ -11,13 +11,8 @@ Load-speed work (A8) came first on 2026-11-06 at the user's request.
 - [ ] Local-preview `index.html` port is unverified in a browser: `npm run smoke` fails on clean HEAD (it does not start the server; run `npm start` first) ("Alpine app failed to initialize within 6s"). Diagnose with `tools/ensure-chrome.js http://localhost:3000` + `tools/probe-live.js`, then fix with a red test or smoke repro.
 - [ ] `tools/ensure-chrome.js` Linux branch deliberately left without `--password-store=basic` (WSL2 launches Windows chrome.exe); revisit only if the keyring prompt returns after `npm run smoke`.
 
-### A15. Warm, dimmer light mode (2026-11-14; options at https://claude.ai/artifact/EyRzGJjfjfoyYdE2uW33f1)
-- [ ] User decision, default B (Manila: page `#e8e0d0`, card `#f2ede3`, border `#d0c4ad`, tint `#e6dfcf`, teal-light `#dce6dc`, muted `#555f5a`, input outline `#877c67`): pick A Linen, B Manila, C Lamplight, D Sage Paper or keep current.
-- [ ] User decision, default T: darken input outlines regardless (today `.task-input-field` uses `--border-default` `#c8ded7`, about 1.4:1 on white, below the 3:1 of WCAG 1.4.11).
-- [ ] Agent, after the pick: red test first (a contrast test over the light tokens in `src/styles.css` and `gas-app/Styles.html`, 4.5:1 text, 3:1 input outline), then set the light `:root` tokens `--bg-parchment`, `--bg-parchment-fixed`, `--bg-card`, `--border-line`, `--border-default`, `--bg-accent-subtle`, `--binder-teal-light`, `--text-muted` in both files. `--white` stays `#ffffff` (used as text on teal); grep `background(-color)?: var\(--white\)` and move card-like surfaces to `--bg-card`. Dark theme unchanged. `npm run deploy:home` (axe ratchet) then `push:work`.
-
-### A16. Steady "Today" and "This Month" header links (2026-11-14)
-- [ ] User decision, default T: give the Daily "Today" and Month "This Month" links (`today-link-btn`, `gas-app/Index.html` ~L154 and ~L196, mounted by `x-if`) the same reserved-room fix as the Future "This Year" link (`097df03`). If T, agent: same test shape as `tests/futureYearNav.test.js`; placement left of the prev chevron unless the user says keep right.
+### A15. Warm light mode and steady Today links (2026-11-14; shipped in TODO_HISTORY, HOME @462, WORK v260)
+- [ ] User hand-check on HOME @462, light and dark: light page is the 33% Manila mix with 15% cards, input outlines are clearly visible, dark mode looks unchanged; on Daily and Month the chevrons stay put when "Today" / "This Month" appear (they now sit left of the previous chevron, leaving a gap on today). Then repoint WORK to v260. Say if the gap or any surface (white inputs and popovers were kept white) should change.
 
 ### A14. Quiet buttons, Future year nav (2026-11-14; shipped in TODO_HISTORY)
 - [ ] User hand-check on HOME @460, light and dark: buttons rest bare and show a border on hover (Notes header, Future item actions, Triage actions, modal Cancel); "This Year" sits left of the Future year picker and the chevrons stay put. Then repoint WORK to the newest version.

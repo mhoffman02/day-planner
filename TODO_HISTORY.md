@@ -1,5 +1,10 @@
 # Task History (TODO_HISTORY)
 
+## 2026-11-14 (night) — Warm light mode, steady Today and This Month links
+
+- [x] **Warm light mode with 3:1 input outlines** (`0d36610`, then `988bd83`): full Manila shipped first (HOME @461) and read too strong; the user then picked a mix (comparison at https://claude.ai/artifact/EyRzGJjfjfoyYdE2uW33f1): page and rules 33% of the way from the old near-white to Manila (page `#f5f2ec`, rules `#cbd5c9`), cards and in-card fills 15% (card `#fdfcfb`, tint `#edf3ee`, event fill `#e7f3ef`); muted `#555f5a`; new `--border-input` `#877c67` on every input, textarea and form control; card-like surfaces moved from `--white` to `--bg-card` (inputs, dropdowns and popovers stay white); seven text tokens darkened just enough to keep 4.5:1 on card, page and tint; dark mode pins the old values of shared tokens. Guard: `tests/lightPalette.test.js`.
+- [x] **Steady Today and This Month links** (`37bab56`, user A16 T): always rendered left of the previous chevron, `visibility: hidden` (`.today-link-btn.is-placeholder`) when already on today or this month. Mock check: previous-day chevron at the same x on and off today. Guard: `tests/todayLinkNav.test.js`. HOME @462 (deploy gate and axe passed); WORK v260 created, repoint pending.
+
 ## 2026-11-14 (evening) — Quiet buttons everywhere, steady Future year nav
 
 - [x] **Quiet buttons** (`561075d`): utility buttons (date and month pickers, [+] add bars, Future item actions, Triage actions, secondary, jump/move/delete, RSVP, About toggles, dictation fallback) rest with no fill or border and show a border in their own ink on hover or keyboard focus; [+] and jump-to-day hover is a tint, not a teal fill. Primary actions, selected states (`is-on`, `is-active`, `aria-pressed`), the auth alert and event blocks keep their fill. Guard: `tests/quietButtons.test.js`. HOME @459, live load confirmed bare Notes header buttons.
