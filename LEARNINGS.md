@@ -481,3 +481,17 @@ live-testing catches it by luck.
 - Told the user to set REGRANT_ENABLED_UNTIL on WORK before checking the Picker page only works on HOME
 
 ---
+
+## 2026-11-14 — Quiet pickers, header and tab-sync
+
+**Worked well:**
+- Method-parity test caught Script.html missing app.js handlers (the real cause of the dead Notes picker)
+- Red-first tests plus mock CDP checks for each picker change
+- Drive revision timestamps plus a cold-load mock check ruled out test traffic before blaming it
+- BroadcastChannel tab sync: adopt only when idle, so real clashes still warn
+
+**Needs improvement:**
+- Python patch scripts applied half the edits and then aborted on an anchor that differed in Script.html; check every anchor exists before writing
+- Worktree started from master, not pure-gas-main; so the user had to cherry-pick each batch, and a conflict hit when the same commits landed twice
+
+---
