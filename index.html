@@ -96,6 +96,7 @@
           <!-- Daily Date Nav -->
           <template x-if="!isMonthlyView && activeView !== 'master-tasks'">
             <div class="date-controls-group">
+              <button type="button" class="today-link-btn" :class="{ 'is-placeholder': !isOffToday() }" @click="jumpToToday()" title="Jump to Today (T)">Today</button>
               <button type="button" class="icon-nav-btn" @click="navigateDay(-1)" title="Previous Day" aria-label="Previous Day">
                 <span class="material-symbols-outlined icon-18">chevron_left</span>
               </button>
@@ -142,15 +143,13 @@
               <button type="button" class="icon-nav-btn" @click="navigateDay(1)" title="Next Day" aria-label="Next Day">
                 <span class="material-symbols-outlined icon-18">chevron_right</span>
               </button>
-              <template x-if="isOffToday()">
-                <button type="button" class="today-link-btn" @click="jumpToToday()" title="Jump to Today (T)">Today</button>
-              </template>
             </div>
           </template>
 
           <!-- Monthly Date Nav -->
           <template x-if="isMonthlyView && activeView !== 'future-matrix'">
             <div class="date-controls-group">
+              <button type="button" class="today-link-btn" :class="{ 'is-placeholder': isCurrentCalendarMonth(selectedYear, selectedMonth) }" @click="jumpToCurrentMonth()" title="Jump to Current Month">This Month</button>
               <button type="button" class="icon-nav-btn" @click="navigateMonth(-1)" title="Previous Month" aria-label="Previous Month">
                 <span class="material-symbols-outlined icon-18">chevron_left</span>
               </button>
@@ -184,9 +183,6 @@
               <button type="button" class="icon-nav-btn" @click="navigateMonth(1)" title="Next Month" aria-label="Next Month">
                 <span class="material-symbols-outlined icon-18">chevron_right</span>
               </button>
-              <template x-if="!isCurrentCalendarMonth(selectedYear, selectedMonth)">
-                <button type="button" class="today-link-btn" @click="jumpToCurrentMonth()" title="Jump to Current Month">This Month</button>
-              </template>
             </div>
           </template>
         </div>

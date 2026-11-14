@@ -1175,6 +1175,11 @@
   .today-link-btn:hover {
     background: var(--c-rgba-255-255-255-0p2);
   }
+  /* Today and This Month stay mounted but invisible when already there, so the date nav never shifts.
+     Hidden also takes the link out of the tab order and the accessibility tree. */
+  .today-link-btn.is-placeholder {
+    visibility: hidden;
+  }
 
   /* Icon-only Search / Sync and the View options popover */
   .search-trigger-compact,
