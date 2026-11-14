@@ -7806,4 +7806,92 @@
     .hub-table-wrap .hub-table .hub-col-ledger { display: flex; align-items: center; gap: 8px; }
     .hub-table-wrap .hub-table .hub-ledger { margin-bottom: 0; }
   }
+
+  /* Quiet buttons: utility buttons rest as a bare label or icon, like the top-bar Search, Sync and View options.
+     Chrome shows only on hover, keyboard focus or while open. Primary actions, selected states and alerts keep
+     their fill. Each selector repeats the specificity of the rule it quiets (dark twins included), so it wins
+     by source order while .is-on, .is-active and aria-pressed states still win by specificity. */
+  .icon-nav-btn,
+  .today-jump-btn,
+  .month-picker-year-nav .icon-nav-btn,
+  [data-theme="dark"] .month-picker-year-nav .icon-nav-btn,
+  .day-picker-nav-btn,
+  [data-theme="dark"] .day-picker-nav-btn,
+  .day-picker-today-btn,
+  [data-theme="dark"] .day-picker-today-btn,
+  .master-task-due-btn,
+  [data-theme="dark"] .master-task-due-btn,
+  .view-options-theme-btn,
+  .priority-renumber-btn,
+  .btn-icon-subtle,
+  .btn-add-quiet,
+  [data-theme="dark"] .btn-add-quiet,
+  .future-item-add-bar .icon-nav-btn,
+  .future-item-actions .icon-nav-btn,
+  .master-tasks-add-bar .icon-nav-btn,
+  [data-theme="dark"] .future-item-add-bar .icon-nav-btn,
+  [data-theme="dark"] .future-item-actions .icon-nav-btn,
+  [data-theme="dark"] .master-tasks-add-bar .icon-nav-btn,
+  .btn-jump-day,
+  [data-theme="dark"] .btn-jump-day,
+  .btn-secondary,
+  [data-theme="dark"] .btn-secondary,
+  .install-actions-bar .btn-secondary,
+  .modal-card-install .btn-secondary,
+  [data-theme="dark"] .install-actions-bar .btn-secondary,
+  [data-theme="dark"] .modal-card-install .btn-secondary,
+  .forward-pick-btn.is-secondary,
+  [data-theme="dark"] .forward-pick-btn.is-secondary,
+  .btn-move-to,
+  .btn-jump-to,
+  [data-theme="dark"] .btn-jump-to,
+  .btn-delete-row,
+  [data-theme="dark"] .btn-delete-row,
+  .event-rsvp-btn,
+  .about-action-btn,
+  [data-theme="dark"] .about-action-btn,
+  .stt-fallback-btn,
+  [data-theme="dark"] .stt-fallback-btn,
+  .hub-action-btn.hub-action-quiet,
+  .hub-action-btn.hub-action-danger,
+  [data-theme="dark"] .hub-action-btn.hub-action-danger,
+  .hub-action-btn {
+    background: transparent;
+    border-color: transparent;
+  }
+
+  /* Hover and focus border in the button own ink (teal, red, blue or muted), so it reads on parchment and dark. */
+  :is(.icon-nav-btn, .today-jump-btn, .day-picker-today-btn, .master-task-due-btn, .view-options-theme-btn,
+    .priority-renumber-btn, .btn-icon-subtle, .btn-add-quiet, .btn-jump-day, .btn-secondary, .forward-pick-btn,
+    .btn-move-to, .btn-jump-to, .btn-delete-row, .event-rsvp-btn, .about-action-btn, .stt-fallback-btn,
+    .hub-action-btn):is(:hover, :focus-visible) {
+    border-color: color-mix(in srgb, currentColor 35%, transparent);
+  }
+
+  /* Month heading on the teal bar: same hover as the day heading. */
+  header.single-top-bar .today-jump-btn.month-display-btn:hover,
+  header.single-top-bar .today-jump-btn.month-display-btn:focus-visible,
+  header.single-top-bar .today-jump-btn.month-display-btn[aria-expanded="true"] {
+    background: var(--c-rgba-255-255-255-0p12);
+    border-color: var(--c-rgba-255-255-255-0p28);
+  }
+
+  /* [+], push-forward and jump-to-day hover as a tint, not a solid teal fill. */
+  .btn-add-quiet:hover:not(:disabled),
+  .future-item-add-bar .icon-nav-btn:hover,
+  .future-item-actions .icon-nav-btn:hover,
+  .master-tasks-add-bar .icon-nav-btn:hover,
+  .btn-jump-day:hover {
+    background: var(--bg-accent-subtle);
+    color: var(--binder-teal);
+  }
+
+  [data-theme="dark"] .btn-add-quiet:hover:not(:disabled),
+  [data-theme="dark"] .future-item-add-bar .icon-nav-btn:hover,
+  [data-theme="dark"] .future-item-actions .icon-nav-btn:hover,
+  [data-theme="dark"] .master-tasks-add-bar .icon-nav-btn:hover,
+  [data-theme="dark"] .btn-jump-day:hover {
+    background: var(--dk-bg-hover);
+    color: var(--dk-accent-text);
+  }
 </style>
