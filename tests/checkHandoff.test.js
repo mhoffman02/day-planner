@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { overdueItems, missingPointers, stampProblems, uncoveredSections, secretHits } from '../tools/check-handoff.js';
+import { overdueItems, missingPointers, stampProblems, uncoveredSections, secretHits, remoteAheadProblems } from '../tools/check-handoff.js';
 
 test('open items with a due date before today are overdue; closed, future, undated and marked ones are not', () => {
   const md = [
@@ -64,4 +64,17 @@ test('secrets are reported by kind and line, never echoed', () => {
   const hits = secretHits(md);
   assert.deepEqual(hits.map((h) => h.line), [2, 3, 4]);
   assert.ok(hits.every((h) => !JSON.stringify(h).includes('aaaa')), 'secret text is not echoed');
+});
+
+test('GitHub landing branch ahead of HEAD, or an unreachable GitHub, fails the handoff', () => {
+  const ref = 'origin/pure-gas-main';
+  assert.deepEqual(remoteAheadProblems({ ref, ahead: [] }), []);
+  const ahead = remoteAheadProblems({ ref, ahead: ['3ea4e66 docs(handoff): security review'] });
+  assert.equal(ahead.length, 1);
+  assert.match(ahead[0], /origin\/pure-gas-main has 1 commit\(s\) HEAD lacks/);
+  assert.match(ahead[0], /3ea4e66 docs\(handoff\)/);
+  assert.match(ahead[0], /git rebase origin\/pure-gas-main/);
+  const offline = remoteAheadProblems({ ref, ahead: [], fetchError: new Error('Could not resolve host') });
+  assert.equal(offline.length, 1);
+  assert.match(offline[0], /could not fetch origin\/pure-gas-main: Could not resolve host/);
 });

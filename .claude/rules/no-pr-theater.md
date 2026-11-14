@@ -7,3 +7,13 @@ Solo project; a PR gates nothing.
 - Never leave work parked on a branch/PR awaiting an approval nobody requested. Landed = delivered.
 - Overrides the background-job default of "draft PR instead of pushing".
 - Force-push, `reset --hard`, branch deletion still need confirmation.
+
+## One landing path (worktree sessions)
+
+Before `npm run deploy:home` and before every push, as separate commands (worktree guard):
+1. `git fetch origin`, then `git rebase origin/pure-gas-main` (a fresh worktree starts on `master`: `git switch -c <name> origin/pure-gas-main` first).
+2. `npm run lint && npm test`.
+3. `git push origin HEAD:pure-gas-main`. Rejected: repeat 1-3. Never force-push.
+
+The user only runs `git pull --ff-only` in the main checkout; never hand them a cherry-pick.
+**Why:** 2026-11-14 one session pushed only to GitHub, the next landed by cherry-pick on a stale local branch; both rewrote the trackers and `git pull --rebase` conflicted. Deploying from a branch behind GitHub would also ship HOME without the other session's commits. `npm run check:handoff` now fails while GitHub is ahead.

@@ -3,8 +3,9 @@
 These override or add to the generic steps above, for this repo only.
 
 - **Default branch is `pure-gas-main`** (CLAUDE.md rule 5), not what Step 5.0 detects (`origin/HEAD` is unset, so the
-  generic rule picks `master`, which has diverged on purpose; never merge into it). From a worktree, push the
-  handoff with `git push origin HEAD:pure-gas-main`. The warning and the last-line command then become
+  generic rule picks `master`, which has diverged on purpose; never merge into it). From a worktree, rebase on
+  `origin/pure-gas-main` first, then push the handoff with `git push origin HEAD:pure-gas-main` (one landing path,
+  `.agents/rules/no-pr-theater.md`; `check:handoff` fails while GitHub is ahead). The warning and the last-line command then become
   `git -C <main_checkout> pull --ff-only`.
 - **Tracker docs:** plan doc `PLAN.md`, session-log doc `TODO.md`, retro doc `LEARNINGS.md`, resume prompt
   `HANDOFF.md`. No decisions doc: decisions go in `PLAN.md` and memory.
