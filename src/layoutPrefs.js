@@ -97,3 +97,20 @@ export function parseSavedTableCols(raw) {
   }
   return out;
 }
+
+// Color palette for the whole app (View options > Palette); each page bootstrap applies it before first paint.
+export const PALETTES = ['teal', 'monticello'];
+
+export function parseSavedPalette(raw) {
+  if (PALETTES.includes(raw)) return raw;
+  if (raw !== null && raw !== undefined && raw !== '') {
+    console.error('parseSavedPalette: saved palette is unknown, using teal:', raw);
+  }
+  return PALETTES[0];
+}
+
+// A click on the date button: a picker that hover opened is pinned, so the click never closes it under the pointer.
+export function dayPickerClickAction(open, hoverOpened) {
+  if (!open) return 'open';
+  return hoverOpened ? 'pin' : 'close';
+}

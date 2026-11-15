@@ -1287,6 +1287,16 @@
     background: var(--c-rgba-45-106-90-0p1);
   }
 
+  /* Palette choice: the picked one is underlined ink, the other stays muted. */
+  .view-options-theme-btn[aria-pressed="false"] {
+    color: var(--text-muted);
+  }
+
+  .view-options-theme-btn[aria-pressed="true"] {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
   /* Responsive Top Bar Layout Guards */
   @media (min-width: 1400px) {
     .header-left {
@@ -6327,6 +6337,103 @@
     --scrollbar-thumb: rgba(78, 163, 140, 0.35);
     --scrollbar-thumb-hover: rgba(78, 163, 140, 0.60);
     --scrollbar-track: rgba(12, 24, 19, 0.65);
+  }
+
+  /* Monticello palette (View options > Palette): the Franklin Monticello slate blue in place of forest teal.
+     Teal and green tokens are hue-rotated in OKLCH to 250 deg, same lightness and chroma, so contrast holds.
+     Success, priority, decision and note colors keep their meaning and stay as they are. */
+  :root[data-palette="monticello"] {
+    --accent: #3e6083;
+    --dk-border-default: #2c435c;
+    --dk-accent-text: #91c6fe;
+    --dk-text-default: #e5effa;
+    --dk-bg-page: #14212d;
+    --border-default: #c8d3de;
+    --text-default: #1f262d;
+    --dk-bg-binder: #1e2e3f;
+    --dk-accent-border: #517ba6;
+    --dk-text-muted: #9aadc2;
+    --dk-border-popover: #34414e;
+    --c-rgba-45-106-90-0p08: rgba(62, 96, 131, 0.08);
+    --text-muted-fixed: #5b626a;
+    --c-rgba-45-106-90-0p25: rgba(62, 96, 131, 0.25);
+    --dk-accent-focus: #6795c6;
+    --dk-bg-dropdown: #1e242b;
+    --dk-border-divider: #2d3742;
+    --dk-text-faint: #90a0b0;
+    --c-rgba-45-106-90-0p1: rgba(62, 96, 131, 0.1);
+    --dk-text-subtle: #a3b1c0;
+    --bg-binder-deep: #19293a;
+    --c-rgba-45-106-90-0p12: rgba(62, 96, 131, 0.12);
+    --text-muted-2: #546271;
+    --text-faint: #8e98a3;
+    --text-muted-3: #4d5966;
+    --accent-emphasis: #305478;
+    --accent-emphasis-hover: #213b55;
+    --c-rgba-45-106-90-0p22: rgba(62, 96, 131, 0.22);
+    --dk-bg-hover: #273e57;
+    --dk-accent-text-2: #9ec9f7;
+    --border-binder-deep: #0e1924;
+    --accent-emphasis-2: #294561;
+    --c-rgba-121-214-189-0p2: rgba(145, 198, 254, 0.2);
+    --c-rgba-121-214-189-0p15: rgba(145, 198, 254, 0.15);
+    --c-rgba-45-106-90-0p15: rgba(62, 96, 131, 0.15);
+    --text-muted-4: #3f4e5d;
+    --bg-separator: #e3ebf3;
+    --text-accent-strong: #283f57;
+    --c-rgba-45-106-90-0p2: rgba(62, 96, 131, 0.2);
+    --c-rgba-45-106-90-0p45: rgba(62, 96, 131, 0.45);
+    --border-default-2: #ced6de;
+    --c-rgba-121-214-189-0p3: rgba(145, 198, 254, 0.3);
+    --accent-emphasis-3: #324d69;
+    --c-rgba-45-106-90-0p05: rgba(62, 96, 131, 0.05);
+    --dk-text-subtle-2: #aebfd1;
+    --dk-border-deep: #0b121a;
+    --dk-bg-hover-4: #35516e;
+    --c-rgba-59-135-115-0p3: rgba(81, 123, 166, 0.3);
+    --dk-text-faint-2: #738598;
+    --c-rgba-79-140-126-0p15: rgba(95, 130, 166, 0.15);
+    --dk-bg-calendar: #213345;
+    --c-rgba-121-214-189-0p25: rgba(145, 198, 254, 0.25);
+    --c-rgba-121-214-189-0p5: rgba(145, 198, 254, 0.5);
+    --dk-text-subtle-3: #a8bed5;
+    --dk-bg-install-hover: #314c68;
+    --text-accent-on-dark: #acd1f8;
+    --bg-page: #16212c;
+    --bg-binder: #19293a;
+    --text-primary: #1f262d;
+    --text-muted: #565d64;
+    --heading-color: #19293a;
+    --binder-teal: #3e6083;
+    --binder-teal-hover: #233c56;
+    --binder-teal-focus: rgba(62, 96, 131, 0.25);
+    --binder-teal-light: #e9f1f9;
+    --border-line: #c8d3de;
+    --scrollbar-thumb: rgba(62, 96, 131, 0.28);
+    --scrollbar-thumb-hover: rgba(62, 96, 131, 0.50);
+    --note-color-teal: #2d6a5a;
+  }
+
+  :root[data-theme="dark"][data-palette="monticello"] {
+    --bg-page: #0e161e;
+    --bg-parchment: #182431;
+    --bg-binder: #0b121a;
+    --bg-card: #182431;
+    --text-primary: #e5effa;
+    --text-muted: #9aadc2;
+    --heading-color: #e5effa;
+    --binder-teal: #74a9df;
+    --binder-teal-hover: #6595c6;
+    --binder-teal-focus: rgba(81, 123, 166, 0.3);
+    --binder-teal-light: #1f3143;
+    --border-line: #2c435c;
+    --border-default: #ccdae9;
+    --text-muted-fixed: #626971;
+    --text-muted-2: #647587;
+    --scrollbar-thumb: rgba(101, 149, 198, 0.35);
+    --scrollbar-thumb-hover: rgba(101, 149, 198, 0.60);
+    --scrollbar-track: rgba(14, 22, 30, 0.65);
+    --note-color-teal: #5cb89e;
   }
 
   [data-theme="dark"] body {

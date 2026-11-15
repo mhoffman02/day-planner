@@ -72,6 +72,12 @@
         document.documentElement.setAttribute('data-theme', 'light');
         document.documentElement.style.colorScheme = 'light';
       }
+      try {
+        document.documentElement.setAttribute('data-palette', localStorage.getItem('dayPlannerPalette') === 'monticello' ? 'monticello' : 'teal');
+      } catch (e) {
+        console.error('Index palette bootstrap failed, falling back to teal', e.stack);
+        document.documentElement.setAttribute('data-palette', 'teal');
+      }
     })();
   </script>
   <script>
@@ -108,7 +114,7 @@
               <button type="button" class="icon-nav-btn" @click="navigateDay(-1)" title="Previous Day" aria-label="Previous Day">
                 <span class="material-symbols-outlined icon-18">chevron_left</span>
               </button>
-              <div class="date-picker-wrap" @click.outside="closeDayPicker()">
+              <div class="date-picker-wrap" @click.outside="closeDayPicker()" @mouseenter="hoverDayPicker(true)" @mouseleave="hoverDayPicker(false)">
                 <button type="button" class="today-jump-btn date-picker-btn" @click="toggleDayPicker()" title="Click to pick date from calendar" aria-haspopup="dialog" :aria-expanded="dayPickerOpen">
                   <span class="date-text-display"><span class="date-weekday" x-text="splitDateDisplay(selectedDate).weekday"></span> <span class="date-main" x-text="splitDateDisplay(selectedDate).date"></span></span>
                   <span class="material-symbols-outlined icon-14 dropdown-arrow" :class="{ 'arrow-up': dayPickerOpen }">arrow_drop_down</span>
@@ -283,6 +289,11 @@
                 <span class="material-symbols-outlined icon-18" x-text="theme === 'dark' ? 'light_mode' : 'dark_mode'"></span>
                 <span x-text="theme === 'dark' ? 'Light' : 'Dark'"></span>
               </button>
+            </div>
+            <div class="view-options-row" role="group" aria-label="Palette">
+              <span class="view-options-label">Palette</span>
+              <button type="button" class="view-options-theme-btn" :aria-pressed="palette === 'teal'" @click="setPalette('teal')" title="Forest teal binder">Teal</button>
+              <button type="button" class="view-options-theme-btn" :aria-pressed="palette === 'monticello'" @click="setPalette('monticello')" title="Franklin Monticello slate blue">Monticello</button>
             </div>
           </div>
         </div>

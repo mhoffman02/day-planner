@@ -2386,6 +2386,23 @@
     return msg.text === local.savedText ? null : msg.text;
   }
 
+  // Color palette for the whole app (View options > Palette); each page bootstrap applies it before first paint.
+  const PALETTES = ['teal', 'monticello'];
+
+  function parseSavedPalette(raw) {
+    if (PALETTES.includes(raw)) return raw;
+    if (raw !== null && raw !== undefined && raw !== '') {
+      console.error('parseSavedPalette: saved palette is unknown, using teal:', raw);
+    }
+    return PALETTES[0];
+  }
+
+  // A click on the date button: a picker that hover opened is pinned, so the click never closes it under the pointer.
+  function dayPickerClickAction(open, hoverOpened) {
+    if (!open) return 'open';
+    return hoverOpened ? 'pin' : 'close';
+  }
+
   const READING_WIDTH_DEFAULT = 960;
   const READING_WIDTH_MIN = 480;
   const READING_WIDTH_MAX = 4000;
@@ -3587,6 +3604,9 @@
 
       // Themed Day Calendar Picker state
       dayPickerOpen: false,
+      dayPickerHoverOpen: false,
+      dayPickerHoverTimer: null,
+      palette: 'teal',
       viewOptionsOpen: false,
       dayPickerYear: null,
       dayPickerMonth: null,
@@ -4267,6 +4287,12 @@
           console.error('initTheme: could not read saved theme from localStorage, using light:', err.stack);
           this.theme = 'light';
         }
+        try {
+          this.palette = parseSavedPalette(localStorage.getItem('dayPlannerPalette'));
+        } catch (err) {
+          console.error('initTheme: could not read saved palette from localStorage, using teal:', err.stack);
+          this.palette = 'teal';
+        }
         this.applyTheme();
       },
 
@@ -4280,8 +4306,19 @@
         this.applyTheme();
       },
 
+      setPalette(name) {
+        this.palette = parseSavedPalette(name);
+        try {
+          localStorage.setItem('dayPlannerPalette', this.palette);
+        } catch (err) {
+          console.error('setPalette: could not persist palette to localStorage (quota/disabled):', err.stack);
+        }
+        this.applyTheme();
+      },
+
       applyTheme() {
         document.documentElement.setAttribute('data-theme', this.theme);
+        document.documentElement.setAttribute('data-palette', this.palette);
         document.documentElement.style.colorScheme = this.theme;
       },
 
@@ -5628,15 +5665,35 @@
       },
 
       toggleDayPicker() {
-        if (this.dayPickerOpen) {
+        const action = dayPickerClickAction(this.dayPickerOpen, this.dayPickerHoverOpen);
+        clearTimeout(this.dayPickerHoverTimer);
+        this.dayPickerHoverOpen = false;
+        if (action === 'close') {
           this.closeDayPicker();
-        } else {
+        } else if (action === 'open') {
           this.openDayPicker();
         }
       },
 
+      // Hover shows the month in place of a static month block; mouse only, so touch keeps tap-to-open.
+      hoverDayPicker(entering) {
+        if (!window.matchMedia || !window.matchMedia('(hover: hover)').matches) return;
+        clearTimeout(this.dayPickerHoverTimer);
+        if (entering) {
+          if (this.dayPickerOpen) return;
+          this.dayPickerHoverTimer = setTimeout(() => {
+            this.openDayPicker();
+            this.dayPickerHoverOpen = true;
+          }, 150);
+        } else if (this.dayPickerHoverOpen) {
+          this.dayPickerHoverTimer = setTimeout(() => this.closeDayPicker(), 250);
+        }
+      },
+
       closeDayPicker() {
+        clearTimeout(this.dayPickerHoverTimer);
         this.dayPickerOpen = false;
+        this.dayPickerHoverOpen = false;
       },
 
       navigateDayPickerMonth(delta) {

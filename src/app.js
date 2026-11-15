@@ -1,7 +1,7 @@
 import Alpine from 'https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/module.esm.js';
 import { GASBridge } from './gasBridge.js';
 import { getLocalDateStr } from './binderStore.js';
-import { READING_WIDTH_DEFAULT, parseSavedReadingWidth, resizedReadingWidth, clampColWidth, parseSavedTableCols, resizedColWidth, colEdgeAt, colResizePlan, colVarName } from './layoutPrefs.js';
+import { READING_WIDTH_DEFAULT, parseSavedPalette, dayPickerClickAction, parseSavedReadingWidth, resizedReadingWidth, clampColWidth, parseSavedTableCols, resizedColWidth, colEdgeAt, colResizePlan, colVarName } from './layoutPrefs.js';
 import {
   isHubViewVisible, scoreBandLabel, ledgerStatusLabel, ledgerOperationKind, canRetryLedger, formatCutoffCountdown, formatLocalDateTime, limitDocRows, sortDocRows, parseSavedHubFlags, docRowsOlderThan, DOC_ROW_LIMITS, DOC_ROW_LIMIT_DEFAULT,
   QUEUE_ORDER, QUEUE_TITLES
@@ -569,6 +569,9 @@ Alpine.data('plannerApp', () => ({
 
       // Themed Day Calendar Picker state
       dayPickerOpen: false,
+      dayPickerHoverOpen: false,
+      dayPickerHoverTimer: null,
+      palette: 'teal',
       viewOptionsOpen: false,
       dayPickerYear: null,
       dayPickerMonth: null,
@@ -1263,6 +1266,12 @@ Alpine.data('plannerApp', () => ({
           console.error('initTheme: could not read saved theme from localStorage, using light:', err.stack);
           this.theme = 'light';
         }
+        try {
+          this.palette = parseSavedPalette(localStorage.getItem('dayPlannerPalette'));
+        } catch (err) {
+          console.error('initTheme: could not read saved palette from localStorage, using teal:', err.stack);
+          this.palette = 'teal';
+        }
         this.applyTheme();
       },
 
@@ -1276,8 +1285,19 @@ Alpine.data('plannerApp', () => ({
         this.applyTheme();
       },
 
+      setPalette(name) {
+        this.palette = parseSavedPalette(name);
+        try {
+          localStorage.setItem('dayPlannerPalette', this.palette);
+        } catch (err) {
+          console.error('setPalette: could not persist palette to localStorage (quota/disabled):', err.stack);
+        }
+        this.applyTheme();
+      },
+
       applyTheme() {
         document.documentElement.setAttribute('data-theme', this.theme);
+        document.documentElement.setAttribute('data-palette', this.palette);
         document.documentElement.style.colorScheme = this.theme;
       },
 
@@ -2624,15 +2644,35 @@ Alpine.data('plannerApp', () => ({
       },
 
       toggleDayPicker() {
-        if (this.dayPickerOpen) {
+        const action = dayPickerClickAction(this.dayPickerOpen, this.dayPickerHoverOpen);
+        clearTimeout(this.dayPickerHoverTimer);
+        this.dayPickerHoverOpen = false;
+        if (action === 'close') {
           this.closeDayPicker();
-        } else {
+        } else if (action === 'open') {
           this.openDayPicker();
         }
       },
 
+      // Hover shows the month in place of a static month block; mouse only, so touch keeps tap-to-open.
+      hoverDayPicker(entering) {
+        if (!window.matchMedia || !window.matchMedia('(hover: hover)').matches) return;
+        clearTimeout(this.dayPickerHoverTimer);
+        if (entering) {
+          if (this.dayPickerOpen) return;
+          this.dayPickerHoverTimer = setTimeout(() => {
+            this.openDayPicker();
+            this.dayPickerHoverOpen = true;
+          }, 150);
+        } else if (this.dayPickerHoverOpen) {
+          this.dayPickerHoverTimer = setTimeout(() => this.closeDayPicker(), 250);
+        }
+      },
+
       closeDayPicker() {
+        clearTimeout(this.dayPickerHoverTimer);
         this.dayPickerOpen = false;
+        this.dayPickerHoverOpen = false;
       },
 
       navigateDayPickerMonth(delta) {
