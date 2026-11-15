@@ -59,8 +59,8 @@ Goals are Google Tasks in a dedicated "Day Planner Goals" list (never `@default`
 layer, fixed horizons, 8 life areas, suggest-not-auto A tasks); user may override. Theme: tokens only (Monticello).
 - [x] Storage codec + outline/SMART/roll-up engine (`src/integration/goalPlanner.js`, `src/goalEngine.js`).
 - [x] RPCs `getGoals`/`saveGoal`/`deleteGoal`/`addGoalStepToToday`/`addGoalStepToFuture`; `goalRef` on task shapes.
-- [ ] Cascade view (horizons, balance, WBS outline, detail editor, next step) + quiet goal link on Daily rows.
-- [ ] Deploy HOME (live `/dev` gate) and push WORK.
+- [x] Cascade view (horizons, balance, WBS outline, detail editor, next step) + quiet goal link on Daily rows.
+- [x] HOME @465 live (Goals loads on `/dev`, list created), WORK v263 pushed (2026-11-15); WORK repoint is the user step.
 - [ ] Later: Values and roles exercise, pairwise Prioritize, Week big rocks, Review, coach conversation.
 
 ### Phase 34: Security review follow-ups (In progress; fixes shipped 2026-11-13)
