@@ -181,3 +181,11 @@ Most items need the user (GSA account, a release go, or a decision). HOME live c
 - [ ] **Optional speed follow-ups** (ranked list from 2026-10-16): time each server step on HOME (folder check, page
   assembly, `Tasks.list`) before deciding on minify-at-push or a shell + cached bundle; `completedMin` on
   `getMasterTasks` only with the user's OK (hides old done undated items).
+
+### B5. Franklin-inspired features (2026-11-15; from a study of the Franklin digital Original daily planner)
+Queued by the user (2026-11-15). Each one adds new UI, so design it with the user present (quiet library, no pills, binder look).
+- [ ] **Values, goals and tasks chain**: ON HOLD. Another session is designing this (Goals tab design canvas, grill answers pending). Do not start it here.
+- [ ] **Daily planning ritual**: on the first open of each day, show a dismissible panel in the "Smart reload" toast style: yesterday's open items to forward or drop, today's calendar, and a prompt to pick A1-A3. Hidden on later opens that day.
+- [ ] **Weekly review panel**: a panel, not a 7-column week grid. It lists open A items, delegated (Ⓓ) items due back, and goals touched this week (goals once the item above ships).
+- [ ] **Print stylesheet**: `@media print` CSS that prints the Daily view as one Franklin-style page (tasks + schedule two-column, notes below). Hide the app chrome. CSS only.
+- Skipped (user, 2026-11-15): handwriting or stylus input.
