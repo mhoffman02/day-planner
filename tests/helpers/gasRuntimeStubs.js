@@ -173,11 +173,27 @@ function makeAdvancedFakes() {
       }
     },
     Tasks: {
+      // Named lists (data.tasklists) hold only tasks inserted into them (t.tasklist); untagged tasks
+      // keep the old behavior of showing in every list call, so pre-list tests are unaffected.
+      Tasklists: {
+        list() { return { items: (data.tasklists || []).map((l) => ({ ...l })) }; },
+        insert(resource) { const l = { id: id('list'), title: resource.title }; (data.tasklists = data.tasklists || []).push(l); return { ...l }; }
+      },
       Tasks: {
-        list() { return { items: data.tasks.slice() }; },
+        list(tasklist) {
+          const named = (data.tasklists || []).some((l) => l.id === tasklist);
+          if (tasklist && tasklist !== '@default' && (data.tasklists || []).length && !named) throw notFound('tasklist');
+          return { items: data.tasks.filter((t) => (t.tasklist ? t.tasklist === tasklist : !named)) };
+        },
         get(tasklist, taskId) { const t = data.tasks.find((x) => x.id === taskId); if (!t) throw notFound('task'); return t; },
-        insert(task) { const t = { id: id('task'), status: 'needsAction', ...task }; data.tasks.push(t); return t; },
-        patch(patch, tasklist, taskId) { const t = this.get(tasklist, taskId); Object.assign(t, patch); return t; }
+        insert(task, tasklist) {
+          const t = { id: id('task'), status: 'needsAction', ...task };
+          if ((data.tasklists || []).some((l) => l.id === tasklist)) t.tasklist = tasklist;
+          data.tasks.push(t);
+          return t;
+        },
+        patch(patch, tasklist, taskId) { const t = this.get(tasklist, taskId); Object.assign(t, patch); return t; },
+        remove(tasklist, taskId) { const i = data.tasks.findIndex((x) => x.id === taskId); if (i === -1) throw notFound('task'); data.tasks.splice(i, 1); }
       }
     },
     Docs: {

@@ -442,7 +442,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 762;
+const BUILD_NUMBER_ = 763;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -1005,8 +1005,8 @@ const TASK_STATUS_MARKER_RE = /(?:^<!--dp-status:(.+?)-->\n?|\[Status:\s*([^\]]+
 const TASK_EXTRA_STATUSES = ['○', '→', 'X', 'Ⓓ'];
 const DP_TOKEN_LINE_RE = /^<!--dp-(?:status|meta):.*?-->\n?/gm;
 const TASK_META_MARKER_RE = /<!--dp-meta:(.*?)-->\n?/;
-const TASK_HUMAN_META_KEYS = ['category', 'starred', 'master', 'future', 'movedTo', 'movedTaskId', 'sourceMasterId'];
-const DP_HUMAN_TAGS_RE = /\[(?:Category|Starred|Master|Future|MovedTo|SourceMaster|Status)(?::[^\]]*)?\]\n?/gi;
+const TASK_HUMAN_META_KEYS = ['category', 'starred', 'master', 'future', 'movedTo', 'movedTaskId', 'sourceMasterId', 'goalRef'];
+const DP_HUMAN_TAGS_RE = /\[(?:Category|Starred|Master|Future|MovedTo|SourceMaster|GoalRef|Status)(?::[^\]]*)?\]\n?/gi;
 
 /**
  * Strips the hidden status marker line from a Task's notes, if present.
@@ -1099,7 +1099,28 @@ function decodeTaskMeta(notes) {
   }
   const srcMatch = notes.match(/\[SourceMaster:\s*([^\]]+)\]/i);
   if (srcMatch) meta.sourceMasterId = srcMatch[1].trim();
+  const goalRefMatch = notes.match(/\[GoalRef:\s*([^\]]+)\]/i);
+  if (goalRefMatch) meta.goalRef = goalRefMatch[1].trim();
   return meta;
+}
+
+/**
+ * Human-readable tags for the metadata keys listed in TASK_HUMAN_META_KEYS, in display order.
+ * @param {object} merged Merged task metadata.
+ * @returns {Array<string>} Tags such as [Category: Work] or [GoalRef: id].
+ */
+function taskMetaHumanTags_(merged) {
+  const tags = [];
+  if (merged.category && merged.category !== 'General') tags.push('[Category: ' + merged.category + ']');
+  if (merged.starred) tags.push('[Starred]');
+  if (merged.master) tags.push('[Master]');
+  if (merged.future) tags.push('[Future]');
+  if (merged.movedTo) {
+    tags.push(merged.movedTaskId ? '[MovedTo: ' + merged.movedTo + ', id: ' + merged.movedTaskId + ']' : '[MovedTo: ' + merged.movedTo + ']');
+  }
+  if (merged.sourceMasterId) tags.push('[SourceMaster: ' + merged.sourceMasterId + ']');
+  if (merged.goalRef) tags.push('[GoalRef: ' + merged.goalRef + ']');
+  return tags;
 }
 
 /**
@@ -1113,28 +1134,10 @@ function encodeTaskMeta(existingNotes, metaPatch) {
   const merged = Object.assign({}, decodeTaskMeta(existingNotes), metaPatch);
   const rest = (existingNotes || '')
     .replace(TASK_META_MARKER_RE, '')
-    .replace(/\[(?:Category|Starred|Master|Future|MovedTo|SourceMaster)(?::[^\]]*)?\]\n?/gi, '')
+    .replace(/\[(?:Category|Starred|Master|Future|MovedTo|SourceMaster|GoalRef)(?::[^\]]*)?\]\n?/gi, '')
     .trim();
 
-  const tags = [];
-  if (merged.category && merged.category !== 'General') {
-    tags.push('[Category: ' + merged.category + ']');
-  }
-  if (merged.starred) {
-    tags.push('[Starred]');
-  }
-  if (merged.master) {
-    tags.push('[Master]');
-  }
-  if (merged.future) {
-    tags.push('[Future]');
-  }
-  if (merged.movedTo) {
-    tags.push(merged.movedTaskId ? '[MovedTo: ' + merged.movedTo + ', id: ' + merged.movedTaskId + ']' : '[MovedTo: ' + merged.movedTo + ']');
-  }
-  if (merged.sourceMasterId) {
-    tags.push('[SourceMaster: ' + merged.sourceMasterId + ']');
-  }
+  const tags = taskMetaHumanTags_(merged);
 
   // Keys with no human-readable tag (hub provenance: opKey, gmailThreadId, waitingOn, nagDate, ...)
   // are preserved in the hidden JSON marker so an unrelated edit never strips idempotency data.
@@ -1404,6 +1407,7 @@ function getDailyData(dateStr) {
               category: meta.category || 'General',
               dueDate: t.due ? t.due.substring(0, 10) : dateStr,
               sourceMasterId: meta.sourceMasterId || null,
+              goalRef: meta.goalRef || null,
               starred: Boolean(meta.starred),
               notes: stripDpTokens(t.notes)
             };
@@ -1953,6 +1957,7 @@ function getDailyDataRange(startDateStr, endDateStr) {
         category: meta.category || 'General',
         dueDate: dueDateKey,
         sourceMasterId: meta.sourceMasterId || null,
+        goalRef: meta.goalRef || null,
         starred: Boolean(meta.starred),
         notes: stripDpTokens(t.notes)
       });
@@ -2798,6 +2803,7 @@ function getMasterTasks(monthYearStr) {
         movedTo: meta.movedTo || null,
         movedTaskId: meta.movedTaskId || null,
         sourceMasterId: meta.sourceMasterId || null,
+        goalRef: meta.goalRef || null,
         statusRaw: t.status
       };
     });
@@ -3527,6 +3533,201 @@ function deleteFutureItem(year, monthKey, itemId) {
   return deleteDailyTask(itemId);
 }
 
+// ── Goals tab ─────────────────────────────────────────────────────────────────
+// Goals are Google Tasks in their own list ("Day Planner Goals", id cached per user), never in
+// @default, so Daily and Master never see them. Codec, horizons and areas: src/integration/goalPlanner.js.
+// Steps a goal sends to Today or Future are ordinary @default tasks tagged [GoalRef: id].
+
+const GOALS_LIST_PROP_ = 'DP_GOALS_TASKLIST_ID';
+
+function goalsNotFound_(err) {
+  return Boolean(err) && (err.code === 404 || /404|not found/i.test(String(err.message || '')));
+}
+
+/**
+ * The goals list id: cached in UserProperties; else found by title; else created.
+ * @param {boolean} forceLookup Skip the cache (the cached list was deleted).
+ * @returns {string}
+ */
+function resolveGoalsListId_(forceLookup) {
+  const props = PropertiesService.getUserProperties();
+  const cached = forceLookup ? null : props.getProperty(GOALS_LIST_PROP_);
+  if (cached) return cached;
+  const title = DPEngines.GOALS_LIST_TITLE;
+  let found;
+  let pageToken = null;
+  do {
+    const resp = Tasks.Tasklists.list({ maxResults: 100, pageToken: pageToken }) || {};
+    found = (resp.items || []).find(function(l) { return l.title === title; }) || null;
+    pageToken = resp.nextPageToken || null;
+  } while (!found && pageToken);
+  const list = found || Tasks.Tasklists.insert({ title: title });
+  props.setProperty(GOALS_LIST_PROP_, list.id);
+  return list.id;
+}
+
+function listGoals_(listId) {
+  const goals = [];
+  let pageToken = null;
+  do {
+    const resp = Tasks.Tasks.list(listId, { maxResults: 100, showCompleted: true, showHidden: true, pageToken: pageToken }) || {};
+    (resp.items || []).forEach(function(t) {
+      const goal = DPEngines.goalFromTask(t);
+      if (goal) goals.push(goal);
+    });
+    pageToken = resp.nextPageToken || null;
+  } while (pageToken);
+  return goals;
+}
+
+/** Reads every goal; a cached list id that 404s is re-resolved by title once. */
+function loadGoals_() {
+  const listId = resolveGoalsListId_(false);
+  try {
+    return { listId: listId, goals: listGoals_(listId) };
+  } catch (err) {
+    if (!goalsNotFound_(err)) throw err;
+    console.error('loadGoals_: goals list ' + listId + ' not found; looking it up by title and retrying once\n' + err.stack);
+    const fresh = resolveGoalsListId_(true);
+    return { listId: fresh, goals: listGoals_(fresh) };
+  }
+}
+
+/**
+ * Goals tab data: every goal plus the horizon and life-area lists the UI renders.
+ * @returns {{goals: Array<object>, horizons: Array<object>, areas: Array<string>}}
+ */
+function getGoals() {
+  try {
+    return { goals: loadGoals_().goals, horizons: DPEngines.GOAL_HORIZONS, areas: DPEngines.GOAL_AREAS };
+  } catch (err) {
+    logError('getGoals: reading the goals list failed; Goals tab shows the error', err);
+    throw err;
+  }
+}
+
+function checkGoalLevels_(input, goals) {
+  if (input.parentId) {
+    const parent = goals.find(function(g) { return g.id === input.parentId; });
+    if (!parent) throw new Error('saveGoal: parent goal not found');
+    if (!DPEngines.isHigherHorizon(parent.horizon, input.horizon)) {
+      throw new Error('saveGoal: a parent goal must be longer-range than its sub-goal');
+    }
+  }
+  if (!input.id) return;
+  if (!goals.some(function(g) { return g.id === input.id; })) throw new Error('saveGoal: goal not found');
+  const kids = goals.filter(function(g) { return g.parentId === input.id; });
+  if (kids.some(function(k) { return !DPEngines.isHigherHorizon(input.horizon, k.horizon); })) {
+    throw new Error('saveGoal: re-level its sub-goals first; each must stay shorter-range than this goal');
+  }
+}
+
+/**
+ * Creates (no id) or updates (id) a goal. A parent must be a longer horizon than its sub-goals.
+ * @param {object} goal Goal fields ({id?, title, horizon, parentId?, area?, value?, measure?, purpose?, ifThen?, target?, status?}).
+ * @returns {object} The saved goal.
+ */
+function saveGoal(goal) {
+  DPEngines.v_.guard(arguments, 'saveGoal').param('goal').object().done();
+  const input = DPEngines.normalizeGoalInput(goal);
+  try {
+    const loaded = loadGoals_();
+    checkGoalLevels_(input, loaded.goals);
+    const resource = DPEngines.goalTaskResource(input);
+    const saved = input.id
+      ? Tasks.Tasks.patch(resource, loaded.listId, input.id)
+      : Tasks.Tasks.insert(resource, loaded.listId);
+    return DPEngines.goalFromTask(saved);
+  } catch (err) {
+    logError('saveGoal: goal not saved; the editor keeps the unsaved text', err);
+    throw err;
+  }
+}
+
+/**
+ * Deletes a goal that has no sub-goals. Tasks it sent to Today or Future keep their [GoalRef] tag.
+ * @param {string} goalId Goal task id.
+ * @returns {boolean} True when deleted.
+ */
+function deleteGoal(goalId) {
+  DPEngines.v_.guard(arguments, 'deleteGoal').param('goalId').string().done();
+  try {
+    const loaded = loadGoals_();
+    if (!loaded.goals.some(function(g) { return g.id === goalId; })) throw new Error('deleteGoal: goal not found');
+    if (loaded.goals.some(function(g) { return g.parentId === goalId; })) throw new Error('deleteGoal: delete or move its sub-goals first');
+    Tasks.Tasks.remove(loaded.listId, goalId);
+    return true;
+  } catch (err) {
+    logError('deleteGoal: goal kept', err);
+    throw err;
+  }
+}
+
+function requireGoal_(goalId) {
+  const listId = resolveGoalsListId_(false);
+  let task = null;
+  try {
+    task = Tasks.Tasks.get(listId, goalId);
+  } catch (err) {
+    if (!goalsNotFound_(err)) throw err;
+    console.error('requireGoal_: goal ' + goalId + ' not in the goals list; refusing the step\n' + err.stack);
+  }
+  const goal = task ? DPEngines.goalFromTask(task) : null;
+  if (!goal) throw new Error('goal not found');
+  return goal;
+}
+
+/**
+ * Adds a goal step to a day as an ordinary daily task tagged [GoalRef: goalId].
+ * @param {string} goalId Goal task id.
+ * @param {string} title Task title (the client adds any priority prefix).
+ * @param {string} dateStr Day, YYYY-MM-DD.
+ * @returns {object} The created daily task, with goalRef.
+ */
+function addGoalStepToToday(goalId, title, dateStr) {
+  DPEngines.v_.guard(arguments, 'addGoalStepToToday').param('goalId').string().param('title').string().param('dateStr').string().matches(/^\d{4}-\d{2}-\d{2}$/).done();
+  try {
+    requireGoal_(goalId);
+    const task = addDailyTask(dateStr, title, 'General', null, encodeTaskMeta('', { goalRef: goalId }));
+    task.goalRef = goalId;
+    return task;
+  } catch (err) {
+    logError('addGoalStepToToday(' + dateStr + '): step not added', err);
+    throw err;
+  }
+}
+
+/**
+ * Adds a goal step to a month of the Future tab, tagged [GoalRef: goalId].
+ * @param {string} goalId Goal task id.
+ * @param {string} title Item title.
+ * @param {string} monthKey Month, YYYY-MM.
+ * @returns {object} The created future item, with goalRef.
+ */
+function addGoalStepToFuture(goalId, title, monthKey) {
+  DPEngines.v_.guard(arguments, 'addGoalStepToFuture').param('goalId').string().param('title').string().param('monthKey').string().matches(/^\d{4}-\d{2}$/).done();
+  try {
+    requireGoal_(goalId);
+    const dueDate = resolveFutureItemDueDate_(monthKey, null);
+    const created = Tasks.Tasks.insert({
+      title: title,
+      due: dueDate + 'T00:00:00.000Z',
+      notes: encodeTaskMeta('', { future: true, category: 'General', goalRef: goalId })
+    }, '@default');
+    return {
+      id: created.id,
+      title: created.title,
+      category: 'General',
+      status: deriveTaskStatus(created),
+      dueDate: created.due ? created.due.substring(0, 10) : dueDate,
+      goalRef: goalId
+    };
+  } catch (err) {
+    logError('addGoalStepToFuture(' + monthKey + '): step not added', err);
+    throw err;
+  }
+}
+
 /**
  * Retrieves the published Google Apps Script web app URL.
  * @returns {string} Web app /exec URL.
@@ -3793,6 +3994,11 @@ global.updateFutureItemStatus = updateFutureItemStatus;      // google.script.ru
 global.transferFutureItem = transferFutureItem;              // google.script.run: Script.html
 global.pushFutureItemToNextMonth = pushFutureItemToNextMonth; // google.script.run: Script.html
 global.deleteFutureItem = deleteFutureItem;                  // google.script.run: Script.html
+global.getGoals = getGoals;                                  // google.script.run: Script.html
+global.saveGoal = saveGoal;                                  // google.script.run: Script.html
+global.deleteGoal = deleteGoal;                              // google.script.run: Script.html
+global.addGoalStepToToday = addGoalStepToToday;              // google.script.run: Script.html
+global.addGoalStepToFuture = addGoalStepToFuture;            // google.script.run: Script.html
 global.ensure2WaySyncTriggerInstalled = ensure2WaySyncTriggerInstalled; // IDE manual-run
 global.setup2WaySyncTrigger = setup2WaySyncTrigger;          // IDE manual-run
 global.searchArchiveNotes = searchArchiveNotes;              // google.script.run: Script.html
@@ -3863,6 +4069,11 @@ global._updateFutureItemStatusInternal = updateFutureItemStatus;
 global._transferFutureItemInternal = transferFutureItem;
 global._pushFutureItemToNextMonthInternal = pushFutureItemToNextMonth;
 global._deleteFutureItemInternal = deleteFutureItem;
+global._getGoalsInternal = getGoals;
+global._saveGoalInternal = saveGoal;
+global._deleteGoalInternal = deleteGoal;
+global._addGoalStepToTodayInternal = addGoalStepToToday;
+global._addGoalStepToFutureInternal = addGoalStepToFuture;
 global._getWebAppUrlInternal = getWebAppUrl;
 global._searchArchiveNotesInternal = searchArchiveNotes;
 
@@ -4060,6 +4271,26 @@ function pushFutureItemToNextMonth(year, monthKey, itemId) {
 
 function deleteFutureItem(year, monthKey, itemId) {
   return (typeof _deleteFutureItemInternal === 'function') ? _deleteFutureItemInternal(year, monthKey, itemId) : (globalThis._deleteFutureItemInternal ? globalThis._deleteFutureItemInternal(year, monthKey, itemId) : null);
+}
+
+function getGoals() {
+  return (typeof _getGoalsInternal === 'function') ? _getGoalsInternal() : (globalThis._getGoalsInternal ? globalThis._getGoalsInternal() : null);
+}
+
+function saveGoal(goal) {
+  return (typeof _saveGoalInternal === 'function') ? _saveGoalInternal(goal) : (globalThis._saveGoalInternal ? globalThis._saveGoalInternal(goal) : null);
+}
+
+function deleteGoal(goalId) {
+  return (typeof _deleteGoalInternal === 'function') ? _deleteGoalInternal(goalId) : (globalThis._deleteGoalInternal ? globalThis._deleteGoalInternal(goalId) : null);
+}
+
+function addGoalStepToToday(goalId, title, dateStr) {
+  return (typeof _addGoalStepToTodayInternal === 'function') ? _addGoalStepToTodayInternal(goalId, title, dateStr) : (globalThis._addGoalStepToTodayInternal ? globalThis._addGoalStepToTodayInternal(goalId, title, dateStr) : null);
+}
+
+function addGoalStepToFuture(goalId, title, monthKey) {
+  return (typeof _addGoalStepToFutureInternal === 'function') ? _addGoalStepToFutureInternal(goalId, title, monthKey) : (globalThis._addGoalStepToFutureInternal ? globalThis._addGoalStepToFutureInternal(goalId, title, monthKey) : null);
 }
 
 function getWebAppUrl() {
