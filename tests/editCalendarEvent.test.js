@@ -47,6 +47,16 @@ function mapped(raw) {
   return toHost(ctx.getDailyData('2026-11-09')).calendarEvents.find((e) => e.id === raw.id);
 }
 
+test('mapper: meetLink from hangoutLink, then conferenceData video entry, then summary/location/description text', () => {
+  const link = (o) => mapped(mine(o)).meetLink;
+  const video = { entryPoints: [{ entryPointType: 'phone', uri: 'tel:+1-555' }, { entryPointType: 'video', uri: ' https://meet.google.com/cdf-ghij-klm ' }] };
+  assert.equal(link({ hangoutLink: 'https://meet.google.com/abc-defg-hij', conferenceData: video }), 'https://meet.google.com/abc-defg-hij');
+  assert.equal(link({ conferenceData: video }), 'https://meet.google.com/cdf-ghij-klm');
+  assert.equal(link({ description: 'Join: meet.google.com/xyz-abcd-efg now' }), 'https://meet.google.com/xyz-abcd-efg');
+  assert.equal(link({ location: 'https://meet.google.com/loc-abcd-efg?authuser=1' }), 'https://meet.google.com/loc-abcd-efg?authuser=1');
+  assert.equal(link({ description: 'Room 4B', location: 'HQ' }), null);
+});
+
 const payload = (over = {}) => ({ title: ' Standup 2 ', dateStr: '2026-11-10', startTime: '10:00', endTime: '10:45', description: 'd', location: 'r', ...over });
 
 test('mapper: organizer timed event is editable and deletable; carries etag, recurringEventId, guestCount', () => {

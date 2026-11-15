@@ -1172,21 +1172,13 @@ function replaceTaskNotesText_(googleTask, userText) {
 }
 
 /**
- * Extracts a Google Meet video conference link from calendar event objects or text fields.
- * @param {object} evt Raw calendar event or CalendarEvent instance.
+ * Extracts a Google Meet video conference link from a raw Calendar API event or its text fields.
+ * @param {object} evt Raw Calendar.Events item.
  * @returns {string|null} Full Google Meet URL or null.
  */
 function extractMeetLinkFromEvent_(evt) {
   if (!evt) return null;
   let link = evt.hangoutLink || null;
-  if (!link && typeof evt.getHangoutLink === 'function') {
-    try {
-      const hl = evt.getHangoutLink();
-      if (hl && typeof hl === 'string') link = hl.trim();
-    } catch (e) {
-      console.error('extractMeetLinkFromEvent_: getHangoutLink failed, trying conferenceData/description\n' + e.stack);
-    }
-  }
   if (!link && evt.conferenceData && evt.conferenceData.entryPoints) {
     for (let c = 0; c < evt.conferenceData.entryPoints.length; c++) {
       const ep = evt.conferenceData.entryPoints[c];
@@ -1199,10 +1191,7 @@ function extractMeetLinkFromEvent_(evt) {
     }
   }
   if (!link) {
-    const title = (typeof evt.getTitle === 'function' ? evt.getTitle() : '') || evt.title || evt.summary || '';
-    const desc = (typeof evt.getDescription === 'function' ? evt.getDescription() : '') || evt.description || '';
-    const loc = (typeof evt.getLocation === 'function' ? evt.getLocation() : '') || evt.location || '';
-    const combined = title + ' ' + loc + ' ' + desc;
+    const combined = (evt.summary || '') + ' ' + (evt.location || '') + ' ' + (evt.description || '');
     const match = combined.match(/(?:https?:\/\/)?meet\.google\.com\/[a-z0-9_-]+(?:\?[^\s"'<>]*)?/i);
     if (match) {
       link = match[0];
