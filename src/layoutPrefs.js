@@ -99,10 +99,11 @@ export function parseSavedTableCols(raw) {
 }
 
 // Color palette for the whole app (View options > Palette); each page bootstrap applies it before first paint.
-export const PALETTES = ['teal', 'monticello'];
+export const PALETTES = ['teal', 'navy'];
 
 export function parseSavedPalette(raw) {
   if (PALETTES.includes(raw)) return raw;
+  if (raw === 'monticello') return 'navy'; // the first release saved this name
   if (raw !== null && raw !== undefined && raw !== '') {
     console.error('parseSavedPalette: saved palette is unknown, using teal:', raw);
   }

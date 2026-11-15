@@ -1750,10 +1750,10 @@
     text-align: left;
     font-size: 0.75rem;
     text-transform: uppercase;
-    color: var(--text-muted-4);
+    color: var(--head-ink, var(--text-muted-4));
     border-bottom: 2px solid var(--border-default);
     padding: 6px 8px;
-    background: var(--bg-accent-subtle);
+    background: var(--head-bg, var(--bg-accent-subtle));
   }
 
   table.task-table td {
@@ -1845,7 +1845,7 @@
   }
 
   .th-sortable:hover {
-    color: var(--binder-teal, var(--accent)) !important;
+    color: var(--head-ink, var(--binder-teal, var(--accent))) !important;
   }
 
   .sort-arrow {
@@ -2279,10 +2279,10 @@
     min-width: 85px;
     font-size: 0.75rem;
     font-weight: 600;
-    color: var(--text-muted);
+    color: var(--head-ink, var(--text-muted));
     padding: 6px 10px;
     border-right: 1px solid var(--border-line);
-    background: var(--bg-subtle-2);
+    background: var(--head-bg, var(--bg-subtle-2));
     display: flex;
     align-items: center;
     align-self: stretch;
@@ -2771,7 +2771,7 @@
     align-items: flex-start;
     gap: 6px;
     padding: 6px 10px 5px 10px;
-    background: var(--bg-accent-subtle);
+    background: var(--head-bg, var(--bg-accent-subtle));
     border-bottom: 1px solid var(--border-line);
     border-top-left-radius: 6px;
     border-top-right-radius: 6px;
@@ -2996,7 +2996,7 @@
     border: none !important;
     border-bottom: 1px dashed transparent !important;
     background: transparent !important;
-    color: var(--text-primary) !important;
+    color: var(--head-ink, var(--text-primary)) !important;
     padding: 2px 4px;
     box-shadow: none;
     border-radius: 3px;
@@ -3011,7 +3011,7 @@
     outline: none;
   }
   .card-heading-input:disabled {
-    color: var(--text-muted) !important;
+    color: var(--head-ink-muted, var(--text-muted)) !important;
     cursor: not-allowed;
   }
   .card-heading-input:hover:not(:disabled) {
@@ -3019,7 +3019,7 @@
   }
   .card-heading-input:focus-visible {
     outline: none;
-    border-bottom: 1px solid var(--binder-teal) !important;
+    border-bottom: 1px solid var(--head-ink, var(--binder-teal)) !important;
     box-shadow: none !important;
     background: transparent !important;
   }
@@ -6339,10 +6339,10 @@
     --scrollbar-track: rgba(12, 24, 19, 0.65);
   }
 
-  /* Monticello palette (View options > Palette): the Franklin Monticello slate blue in place of forest teal.
+  /* Navy palette (View options > Palette): a Franklin Monticello style slate blue in place of forest teal.
      Teal and green tokens are hue-rotated in OKLCH to 250 deg, same lightness and chroma, so contrast holds.
      Success, priority, decision and note colors keep their meaning and stay as they are. */
-  :root[data-palette="monticello"] {
+  :root[data-palette="navy"] {
     --accent: #3e6083;
     --dk-border-default: #2c435c;
     --dk-accent-text: #91c6fe;
@@ -6414,7 +6414,7 @@
     --note-color-teal: #2d6a5a;
   }
 
-  :root[data-theme="dark"][data-palette="monticello"] {
+  :root[data-theme="dark"][data-palette="navy"] {
     --bg-page: #0e161e;
     --bg-parchment: #182431;
     --bg-binder: #0b121a;
@@ -6434,6 +6434,37 @@
     --scrollbar-thumb-hover: rgba(101, 149, 198, 0.60);
     --scrollbar-track: rgba(14, 22, 30, 0.65);
     --note-color-teal: #5cb89e;
+  }
+
+  /* Navy light only. Near-grey green tints the hue rotation skipped (chroma under 0.012), and the
+     Monticello section heads: dark navy band (the top bar navy) with cream type. Navy dark keeps none of this. */
+  :root[data-theme="light"][data-palette="navy"] {
+    --bg-accent-subtle: #edf2f7;
+    --bg-subtle-2: #f5f8fc;
+    --head-bg: var(--bg-binder-deep);
+    --head-ink: var(--bg-parchment);
+    --head-ink-muted: color-mix(in srgb, var(--bg-parchment) 72%, var(--bg-binder-deep));
+    --head-hover: var(--accent);
+  }
+
+  /* On the navy band, controls that carry their own ink switch to cream; their hovers go one step lighter. */
+  :root[data-theme="light"][data-palette="navy"] table.task-table th :is(button, .material-symbols-outlined),
+  :root[data-theme="light"][data-palette="navy"] .note-card-header :is(.card-twistie-btn, .card-delete-btn, .card-heading-help) {
+    color: var(--head-ink);
+  }
+
+  :root[data-theme="light"][data-palette="navy"] table.task-table th .priority-renumber-btn {
+    border-color: var(--head-ink-muted);
+  }
+
+  :root[data-theme="light"][data-palette="navy"] table.task-table th button:hover,
+  :root[data-theme="light"][data-palette="navy"] time.schedule-time:hover {
+    background: var(--head-hover);
+    color: var(--head-ink);
+  }
+
+  :root[data-theme="light"][data-palette="navy"] :is(table.task-table th, .note-card-header, time.schedule-time) :focus-visible {
+    outline-color: var(--head-ink);
   }
 
   [data-theme="dark"] body {

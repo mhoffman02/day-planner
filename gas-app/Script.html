@@ -2485,10 +2485,11 @@
   }
 
   // Color palette for the whole app (View options > Palette); each page bootstrap applies it before first paint.
-  const PALETTES = ['teal', 'monticello'];
+  const PALETTES = ['teal', 'navy'];
 
   function parseSavedPalette(raw) {
     if (PALETTES.includes(raw)) return raw;
+    if (raw === 'monticello') return 'navy'; // the first release saved this name
     if (raw !== null && raw !== undefined && raw !== '') {
       console.error('parseSavedPalette: saved palette is unknown, using teal:', raw);
     }

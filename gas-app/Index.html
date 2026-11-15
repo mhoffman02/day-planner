@@ -73,7 +73,7 @@
         document.documentElement.style.colorScheme = 'light';
       }
       try {
-        document.documentElement.setAttribute('data-palette', localStorage.getItem('dayPlannerPalette') === 'monticello' ? 'monticello' : 'teal');
+        document.documentElement.setAttribute('data-palette', /^(navy|monticello)$/.test(localStorage.getItem('dayPlannerPalette')) ? 'navy' : 'teal');
       } catch (e) {
         console.error('Index palette bootstrap failed, falling back to teal', e.stack);
         document.documentElement.setAttribute('data-palette', 'teal');
@@ -297,7 +297,7 @@
             <div class="view-options-row" role="group" aria-label="Palette">
               <span class="view-options-label">Palette</span>
               <button type="button" class="view-options-theme-btn" :aria-pressed="palette === 'teal'" @click="setPalette('teal')" title="Forest teal binder">Teal</button>
-              <button type="button" class="view-options-theme-btn" :aria-pressed="palette === 'monticello'" @click="setPalette('monticello')" title="Franklin Monticello slate blue">Monticello</button>
+              <button type="button" class="view-options-theme-btn" :aria-pressed="palette === 'navy'" @click="setPalette('navy')" title="Navy: Franklin Monticello style slate blue">Navy</button>
             </div>
           </div>
         </div>
