@@ -1,11 +1,11 @@
-<!-- handoff: branch=handoff-guard worktree=/home/mike/projects/day-planner/.claude/worktrees/notes-topic-picker base=cf6195610258 written=2026-11-14T15:27:57-08:00 -->
+<!-- handoff: branch=handoff-guard worktree=/home/mike/projects/day-planner/.claude/worktrees/notes-topic-picker base=276c0ecfd87b written=2026-11-14T19:03:29-08:00 -->
 # Resume: warm light mode (33% Manila page, 15% cards) and steady Today / This Month links shipped (HOME @463, WORK v261); next agent work is TODO.md A12
 
 > Written on worktree branch `handoff-guard` and pushed as `HEAD:pure-gas-main` (one landing path). The main checkout is stale until: `git -C /home/mike/projects/day-planner pull --ff-only`
 
 **Verify first:**
 `git fetch -q; git log --branches --remotes -1 --abbrev=12 --format='%h %p %cI' -- HANDOFF.md`
-Stale if that commit is dated after `2026-11-14T15:27:57-08:00` **and** its parent isn't `cf6195610258`, or a worktree's `HANDOFF.md` has a later `written=`. Then read that copy instead and tell the user. `git log --oneline cf6195610258..origin/pure-gas-main`: any commit besides the handoff commit landed after this prompt; check it first.
+Stale if that commit is dated after `2026-11-14T19:03:29-08:00` **and** its parent isn't `276c0ecfd87b`, or a worktree's `HANDOFF.md` has a later `written=`. Then read that copy instead and tell the user. `git log --oneline 276c0ecfd87b..origin/pure-gas-main`: any commit besides the handoff commit landed after this prompt; check it first.
 
 **Start by:** TODO.md A12 first bullet (agent, default do): drop the unreachable CalendarApp-style branches (`getHangoutLink` and the other function checks) in `extractMeetLinkFromEvent_` (`gas-app/Code.gs` ~L1176; only caller `mapCalendarApiEvent_` ~L1221 passes raw Calendar API events). No test covers it: first add hangoutLink, conferenceData and description-only cases to `tests/editCalendarEvent.test.js` and see them pass on the current code, then remove the branches, then `npm run deploy:home`. Next: A12 second bullet (`npm audit` dev upgrades), then A10 (`npm run smoke` fails on clean HEAD; run `npm start` first).
 
@@ -14,7 +14,7 @@ This session acted on the user's picks. A15 shipped full Manila first (`0d36610`
 - What changed: TODO_HISTORY.md "2026-11-14 (night)"; TODO.md A15 is now the hand-check for this work; A16 removed.
 - Still open: TODO.md "Agent work" (agent: A12 first two bullets, A10 smoke and ensure-chrome, A0, A5, A8 easing; user: A6, A7, A9, A11, A13, A14, A15 and the A12 user lines) and "For the session after next" (B1/B3/B4, user present).
 - User items, with my recommendation:
-  1. A15: hand-check the warm light mode and the steady Today / This Month links on HOME @463, light and dark; then repoint WORK to v261. Recommend T.
+  1. A15: light mode verified by the user on HOME @463; still hand-check dark mode and the steady Today / This Month links, then repoint WORK to v261. Recommend T.
   2. A14: quiet buttons and the Future year nav hand-check (same visit as item 1); segmented selectors stay as they are (recommend leave).
   3. A12 user lines, A13 optional two-tab check, A11 connectors and `/usage` due 2026-11-19. Recommend T.
 - Traps: edits to `src/app.js` need the same edit in `gas-app/Script.html` (`styles.css` in `Styles.html`, markup in both `gas-app/Index.html` and the mock `index.html`). In `gas-app/*.html` no `//` in strings and no apostrophes, backticks or `//` in comment prose. The worktree guard refuses compound git commands, heredoc commit messages, `sed`/`awk` with computed args or pipes in the program: write node scripts to `$CLAUDE_JOB_DIR/tmp` and the message to a file for `git commit -F`. The light `:root` token block also applies in dark mode; any shared token changed in light must be pinned in the `[data-theme="dark"]` block (see `DARK_PINS` in `tests/lightPalette.test.js`). Port 3000 may be held by another session; run `PORT=3417 node server.js` for your own mock. Screenshots: `PUT http://127.0.0.1:9222/json/new?<url>` and `Page.captureScreenshot` over CDP, then close the tab. Never rerun `npm run push:work` just to read its output (each run creates a WORK version).
