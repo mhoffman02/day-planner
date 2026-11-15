@@ -411,6 +411,59 @@ describe('GAS Bridge Unit Tests', () => {
       assert.equal(p1.carryInCount, p0.carryInCount + 1);
     });
   });
+
+  describe('goals (mock)', () => {
+    it('getGoals returns goals plus the horizon and area lists', async () => {
+      const data = await new GASBridge(true).getGoals();
+      assert.deepEqual(data.horizons.map(h => h.key), ['someday', '5y', '1y', 'quarter']);
+      assert.ok(data.areas.includes('Health'));
+      assert.ok(Array.isArray(data.goals));
+    });
+
+    it('saveGoal inserts without an id and patches with one', async () => {
+      const bridge = new GASBridge(true);
+      const made = await bridge.saveGoal({ title: 'Run a marathon', horizon: '5y', area: 'Health' });
+      assert.ok(made.id);
+      assert.equal(made.status, 'open');
+      const patched = await bridge.saveGoal({ id: made.id, title: 'Run two marathons' });
+      assert.equal(patched.id, made.id);
+      assert.equal(patched.horizon, '5y');
+      assert.equal((await bridge.getGoals()).goals.filter(g => g.id === made.id).length, 1);
+    });
+
+    it('saveGoal rejects a parent that is not longer-range than its sub-goal', async () => {
+      const bridge = new GASBridge(true);
+      const q = await bridge.saveGoal({ title: 'Q goal', horizon: 'quarter' });
+      await assert.rejects(bridge.saveGoal({ title: 'Bad child', horizon: 'someday', parentId: q.id }), /longer-range/);
+    });
+
+    it('deleteGoal removes a leaf and throws when it has sub-goals', async () => {
+      const bridge = new GASBridge(true);
+      const parent = await bridge.saveGoal({ title: 'P', horizon: 'someday' });
+      const kid = await bridge.saveGoal({ title: 'K', horizon: '5y', parentId: parent.id });
+      await assert.rejects(bridge.deleteGoal(parent.id), /sub-goal/);
+      assert.equal(await bridge.deleteGoal(kid.id), true);
+      assert.equal(await bridge.deleteGoal(parent.id), true);
+    });
+
+    it('addGoalStepToToday adds a daily task carrying goalRef', async () => {
+      const bridge = new GASBridge(true);
+      const g = await bridge.saveGoal({ title: 'G', horizon: 'quarter' });
+      const task = await bridge.addGoalStepToToday(g.id, '[A1] Call the coach', '2026-08-15');
+      assert.equal(task.goalRef, g.id);
+      const day = await bridge.getDailyData('2026-08-15');
+      assert.ok(day.tasks.some(t => t.id === task.id && t.goalRef === g.id));
+    });
+
+    it('addGoalStepToFuture adds a future item carrying goalRef', async () => {
+      const bridge = new GASBridge(true);
+      const g = await bridge.saveGoal({ title: 'G', horizon: 'quarter' });
+      const item = await bridge.addGoalStepToFuture(g.id, 'Book the race', '2026-10');
+      assert.equal(item.goalRef, g.id);
+      const matrix = await bridge.getFutureMatrix(2026);
+      assert.ok(matrix.months['2026-10'].some(i => i.id === item.id));
+    });
+  });
 });
 
 

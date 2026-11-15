@@ -7,6 +7,26 @@
 import { transferMasterTaskToToday, buildMasterTasksClearinghouse, forwardTaskToDate, parseTaskTitle } from './taskEngine.js';
 import { createFutureItem, nextMonthKey, emptyYearMatrix } from './futureMatrixEngine.js';
 import { HubMock } from './hubMock.js';
+import { GOAL_HORIZONS, GOAL_AREAS, isHigherHorizon, normalizeGoalInput } from './integration/goalPlanner.js';
+
+/**
+ * Mock server rules for saveGoal: insert without an id, patch with one, parent must be longer-range.
+ * @param {Array<object>} goals Mock goal store (mutated).
+ * @param {object} goal Goal fields from the client.
+ * @returns {object} The saved goal.
+ */
+function mockSaveGoal(goals, goal) {
+  const existing = goal && goal.id ? goals.find(g => g.id === goal.id) : null;
+  if (goal && goal.id && !existing) throw new Error('That goal no longer exists');
+  const merged = normalizeGoalInput({ ...(existing || {}), ...goal });
+  const parent = merged.parentId ? goals.find(g => g.id === merged.parentId) : null;
+  if (merged.parentId && !parent) throw new Error('The parent goal no longer exists');
+  if (parent && !isHigherHorizon(parent.horizon, merged.horizon)) throw new Error('a parent goal must be longer-range than its sub-goal');
+  const saved = { ...merged, id: existing ? existing.id : `g_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, updated: new Date().toISOString() };
+  if (existing) Object.assign(existing, saved);
+  else goals.push(saved);
+  return { ...saved };
+}
 
 /**
  * Service bridge for invoking Apps Script backend functions or providing mock fallback data.
@@ -37,6 +57,7 @@ export class GASBridge {
         { id: 'm3', title: '[C1] Rebalance investment portfolio', category: 'Financial', status: '•', starred: false, notes: '', movedTo: null, movedTaskId: null },
         { id: 'm4', title: '[B2] Migrate server infrastructure to GCP', category: 'Projects', status: '•', starred: false, notes: 'Evaluate Cloud Run vs App Engine', movedTo: null, movedTaskId: null }
       ],
+      goals: [],
       futureMatrix: {
         2026: (() => {
           const matrix = emptyYearMatrix(2026);
@@ -949,6 +970,108 @@ export class GASBridge {
         .withSuccessHandler(resolve)
         .withFailureHandler(reject)
         .deleteFutureItem(year, monthKey, itemId);
+    });
+  }
+
+  /**
+   * Loads every goal plus the horizon and life-area lists.
+   * @returns {Promise<{goals: Array<object>, horizons: Array<object>, areas: Array<string>}>}
+   */
+  async getGoals() {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      return {
+        goals: this.mockData.goals.map(g => ({ ...g })),
+        horizons: GOAL_HORIZONS.map(h => ({ ...h })),
+        areas: [...GOAL_AREAS]
+      };
+    }
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .getGoals();
+    });
+  }
+
+  /**
+   * Inserts a goal (no id) or patches one (id).
+   * @param {object} goal Goal fields.
+   * @returns {Promise<object>} The saved goal.
+   */
+  async saveGoal(goal) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      return mockSaveGoal(this.mockData.goals, goal);
+    }
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .saveGoal(goal);
+    });
+  }
+
+  /**
+   * Deletes a goal that has no sub-goals.
+   * @param {string} goalId Goal id.
+   * @returns {Promise<boolean>}
+   */
+  async deleteGoal(goalId) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      if (this.mockData.goals.some(g => g.parentId === goalId)) throw new Error('Remove or move its sub-goals first');
+      const idx = this.mockData.goals.findIndex(g => g.id === goalId);
+      if (idx === -1) throw new Error('That goal no longer exists');
+      this.mockData.goals.splice(idx, 1);
+      return true;
+    }
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .deleteGoal(goalId);
+    });
+  }
+
+  /**
+   * Adds a step for a goal to a day of the daily list.
+   * @param {string} goalId Goal id.
+   * @param {string} title Task title (priority prefix included).
+   * @param {string} dateStr Date, YYYY-MM-DD.
+   * @returns {Promise<object>} The daily task, with goalRef.
+   */
+  async addGoalStepToToday(goalId, title, dateStr) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      if (!this.mockData.goals.some(g => g.id === goalId)) throw new Error('That goal no longer exists');
+      const task = await this.addDailyTask(dateStr, title, 'General');
+      task.goalRef = goalId;
+      return task;
+    }
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .addGoalStepToToday(goalId, title, dateStr);
+    });
+  }
+
+  /**
+   * Adds a step for a goal to a month of the Future tab.
+   * @param {string} goalId Goal id.
+   * @param {string} title Item title.
+   * @param {string} monthKey Month, YYYY-MM.
+   * @returns {Promise<object>} The future item, with goalRef.
+   */
+  async addGoalStepToFuture(goalId, title, monthKey) {
+    if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+      if (!this.mockData.goals.some(g => g.id === goalId)) throw new Error('That goal no longer exists');
+      const item = await this.addFutureItem(monthKey.slice(0, 4), monthKey, title);
+      item.goalRef = goalId;
+      return item;
+    }
+    return new Promise((resolve, reject) => {
+      window.google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(reject)
+        .addGoalStepToFuture(goalId, title, monthKey);
     });
   }
 

@@ -52,6 +52,17 @@ the GSA account, a release go, or a consent-screen decision. Checklist in [`TODO
 - [x] **Appointments + search** (2026-10-22): Meet link, RSVP read/write, search deep link, Master filter text,
   All/Any/Phrase toggles (TODO_HISTORY 2026-10-22).
 
+### Phase 35: Goals tab, someday to today (In progress, 2026-11-15)
+Franklin pyramid + Covey big rocks + Keller cascade. Design canvas: https://claude.ai/artifact/DbdxpFKfaVgX3uQ7Dg6Q3J.
+Goals are Google Tasks in a dedicated "Day Planner Goals" list (never `@default`); steps sent to Today/Future carry
+`[GoalRef: id]`. Built on the recommended answers to the 10 open requirement questions (storage, Future = Month
+layer, fixed horizons, 8 life areas, suggest-not-auto A tasks); user may override. Theme: tokens only (Monticello).
+- [x] Storage codec + outline/SMART/roll-up engine (`src/integration/goalPlanner.js`, `src/goalEngine.js`).
+- [x] RPCs `getGoals`/`saveGoal`/`deleteGoal`/`addGoalStepToToday`/`addGoalStepToFuture`; `goalRef` on task shapes.
+- [ ] Cascade view (horizons, balance, WBS outline, detail editor, next step) + quiet goal link on Daily rows.
+- [ ] Deploy HOME (live `/dev` gate) and push WORK.
+- [ ] Later: Values and roles exercise, pairwise Prioritize, Week big rocks, Review, coach conversation.
+
 ### Phase 34: Security review follow-ups (In progress; fixes shipped 2026-11-13)
 Full-project review fixed and live (HOME @446, WORK v245, TODO_HISTORY 2026-11-13); only small follow-ups remain, checklist in [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) A12.
 - [x] XSS sanitizers, OAuth-token gate (`REGRANT_ENABLED_UNTIL`, 24 h cap), SRI, localhost-only dev server, gated `gas-rpc --deploy`, `calendar` to `calendar.events`.

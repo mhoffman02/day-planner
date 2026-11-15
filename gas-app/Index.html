@@ -224,6 +224,10 @@
           <span class="material-symbols-outlined icon-16">explore</span>
           <span>Future</span>
         </button>
+        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'goals' }" @click="setView('goals')" title="Goals: someday to today">
+          <span class="material-symbols-outlined icon-16">flag</span>
+          <span>Goals</span>
+        </button>
         <template x-if="showTriageNav">
           <button type="button" class="segment-btn" :class="{ 'active': activeView === 'triage' }" @click="setView('triage')" title="Gmail Triage Board">
             <span class="material-symbols-outlined icon-16">inbox</span>
@@ -541,6 +545,10 @@
                                   aria-label="Edit notes" aria-haspopup="dialog" :aria-expanded="openNotesPopoverTaskId === task.id">
                             <span class="material-symbols-outlined icon-14">sticky_note_2</span>
                           </button>
+                        </span>
+                        <span class="goal-ref-hint" x-show="task.goalRef" :title="goalRefHint(task)">
+                          <span class="material-symbols-outlined icon-14" aria-hidden="true">arrow_upward</span>
+                          <span class="goal-ref-title" x-text="goalTitleFor(task.goalRef)"></span>
                         </span>
                       </td>
                       <td class="td-category" x-text="task.category || 'Work'"></td>
@@ -1394,6 +1402,168 @@
                 </article>
               </template>
             </section>
+          </div>
+        </section>
+      </template>
+
+      <!-- View: Goals cascade (someday to today) -->
+      <template x-if="activeView === 'goals'">
+        <section class="view-container goals-view" aria-label="Goals">
+          <header class="goals-header">
+            <h2 class="view-title">
+              <span class="material-symbols-outlined">flag</span>
+              Goals
+            </h2>
+          </header>
+          <p class="goals-error" role="alert" x-show="goalsError">
+            <span x-text="goalsError"></span>
+            <button type="button" class="goals-link-btn" @click="loadGoals()">Retry</button>
+          </p>
+          <p class="goals-quiet" role="status" x-show="goalsLoading">Loading goals...</p>
+          <div class="goals-layout" x-show="!goalsLoading &amp;&amp; !goalsError">
+            <div class="goals-col goals-col-left">
+              <h3 class="goals-heading">Horizons</h3>
+              <table class="goals-table">
+                <thead><tr><th scope="col">Horizon</th><th scope="col" class="goals-num">Open</th></tr></thead>
+                <tbody>
+                  <template x-for="h in goalHorizonRows" :key="h.key">
+                    <tr><td x-text="h.label"></td><td class="goals-num" x-text="h.count"></td></tr>
+                  </template>
+                </tbody>
+              </table>
+              <h3 class="goals-heading">Balance</h3>
+              <table class="goals-table goals-balance-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Area</th>
+                    <template x-for="h in goalsData.horizons" :key="h.key"><th scope="col" class="goals-num" x-text="h.label"></th></template>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="row in goalBalanceRows" :key="row.area">
+                    <tr :class="{ 'goals-gap-row': row.gap }">
+                      <td x-text="row.area"></td>
+                      <template x-for="h in goalsData.horizons" :key="h.key"><td class="goals-num" x-text="row.counts[h.key] || ''"></td></template>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+              <template x-for="row in goalGapAreas" :key="row.area">
+                <p class="goals-gap-note" x-text="row.area + ' has goals with nothing planned at ' + goalLowestHorizonLabel + ' level'"></p>
+              </template>
+            </div>
+
+            <div class="goals-col goals-col-center">
+              <div class="goals-toolbar">
+                <h3 class="goals-heading">Breakdown</h3>
+                <button type="button" class="goals-btn" @click="newRootGoal()">+ Someday goal</button>
+                <button type="button" class="goals-btn" :disabled="!goalCanBreakDown" @click="newChildGoal()"
+                        :title="selectedGoal &amp;&amp; !goalCanBreakDown ? 'Quarter goals break down into Future months and Today tasks' : 'Add a sub-goal under the selected goal'">+ Break down</button>
+              </div>
+              <p class="goals-quiet" x-show="selectedGoal &amp;&amp; !goalCanBreakDown">Quarter goals break down into Future months and Today tasks.</p>
+              <p class="goals-quiet" x-show="goalRows.length === 0" x-cloak>No goals yet. Start with a Someday goal.</p>
+              <table class="goals-table goals-outline">
+                <thead>
+                  <tr>
+                    <th scope="col">WBS</th>
+                    <th scope="col">Goal</th>
+                    <th scope="col">Horizon</th>
+                    <th scope="col">Target</th>
+                    <th scope="col">Progress</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="row in goalRows" :key="row.goal.id">
+                    <tr class="goals-row" :class="{ 'is-selected': row.goal.id === selectedGoalId, 'is-done': row.goal.status === 'done' }" @click="selectGoal(row.goal.id)">
+                      <td class="goals-wbs" x-text="row.wbs"></td>
+                      <td>
+                        <span class="goals-indent" :class="'goals-depth-' + Math.min(row.depth, 4)">
+                          <button type="button" class="goals-collapse-btn" x-show="row.childCount > 0"
+                                  @click.stop="toggleGoalCollapse(row.goal.id)"
+                                  :aria-expanded="!goalCollapsed.includes(row.goal.id)"
+                                  :aria-label="(goalCollapsed.includes(row.goal.id) ? 'Expand ' : 'Collapse ') + row.goal.title">
+                            <span class="material-symbols-outlined icon-14" x-text="goalCollapsed.includes(row.goal.id) ? 'chevron_right' : 'expand_more'"></span>
+                          </button>
+                          <button type="button" class="goals-title-btn" @click.stop="selectGoal(row.goal.id)" x-text="row.goal.title"></button>
+                        </span>
+                      </td>
+                      <td x-text="goalHorizonLabel(row.goal.horizon)"></td>
+                      <td x-text="row.goal.target || ''"></td>
+                      <td><progress class="goals-progress" max="100" :value="goalProgressPct(row.goal.id)" :aria-label="'Progress for ' + row.goal.title"></progress></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="goals-col goals-col-right">
+              <template x-if="goalDraft">
+                <form class="goals-editor" @submit.prevent="saveGoalDraft()">
+                  <h3 class="goals-heading" x-text="goalDraft.id ? 'Goal' : 'New goal'"></h3>
+                  <label class="goals-field"><span>Title</span>
+                    <input type="text" class="goals-input" x-model="goalDraft.title" maxlength="200" required>
+                  </label>
+                  <div class="goals-field">
+                    <span id="goal-horizon-label">Horizon</span>
+                    <span class="match-mode-group goals-horizon-group" role="radiogroup" aria-labelledby="goal-horizon-label">
+                      <template x-for="h in goalsData.horizons" :key="h.key">
+                        <label class="match-mode-opt"><input type="radio" name="goalHorizon" :value="h.key" x-model="goalDraft.horizon"><span x-text="h.label"></span></label>
+                      </template>
+                    </span>
+                  </div>
+                  <label class="goals-field"><span>Area</span>
+                    <select class="goals-input" x-model="goalDraft.area">
+                      <option value="">(none)</option>
+                      <template x-for="a in goalsData.areas" :key="a"><option :value="a" x-text="a"></option></template>
+                    </select>
+                  </label>
+                  <label class="goals-field"><span>Value</span>
+                    <input type="text" class="goals-input" x-model="goalDraft.value" maxlength="200">
+                  </label>
+                  <p class="goals-field"><span>Parent</span>
+                    <span class="goals-readonly" x-text="goalDraftParentTitle || 'None (top level)'"></span>
+                  </p>
+                  <label class="goals-field"><span>Measure</span>
+                    <input type="text" class="goals-input" x-model="goalDraft.measure">
+                  </label>
+                  <label class="goals-field"><span>Target date</span>
+                    <input type="date" class="goals-input" x-model="goalDraft.target">
+                  </label>
+                  <label class="goals-field"><span>Purpose</span>
+                    <textarea class="goals-input" rows="3" x-model="goalDraft.purpose"></textarea>
+                  </label>
+                  <label class="goals-field"><span>If-then plan</span>
+                    <input type="text" class="goals-input" x-model="goalDraft.ifThen" placeholder="If X happens, then I will Y">
+                  </label>
+                  <ul class="goals-smart" aria-label="SMART check">
+                    <template x-for="row in goalSmartRows" :key="row.key">
+                      <li :class="row.ok ? 'goals-smart-ok' : 'goals-smart-gap'">
+                        <strong x-text="row.key"></strong> <span x-text="row.text"></span>
+                      </li>
+                    </template>
+                  </ul>
+                  <div class="goals-actions">
+                    <button type="submit" class="goals-btn goals-btn-primary" :disabled="goalSaving">Save</button>
+                    <button type="button" class="goals-btn" x-show="goalDraft.id" @click="toggleGoalDone()" x-text="goalDraft.status === 'done' ? 'Reopen' : 'Mark done'"></button>
+                    <button type="button" class="goals-btn goals-btn-danger" x-show="goalDraft.id" :disabled="goalDraftHasChildren"
+                            :title="goalDraftHasChildren ? 'Remove its sub-goals first' : 'Delete this goal'" @click="deleteGoalDraft()">Delete</button>
+                  </div>
+                  <p class="goals-msg" role="status" x-show="goalMsg" x-text="goalMsg"></p>
+                  <div class="goals-step" x-show="goalDraft.id">
+                    <h4 class="goals-subheading">Next step</h4>
+                    <label class="goals-field"><span>Step</span>
+                      <input type="text" class="goals-input" x-model="goalStepTitle" maxlength="200" @keydown.enter.prevent="addGoalStepToToday()">
+                    </label>
+                    <div class="goals-actions">
+                      <button type="button" class="goals-btn" :disabled="!goalStepTitle.trim()" @click="addGoalStepToToday()">Add to Today as A</button>
+                      <input type="month" class="goals-input goals-month-input" x-model="goalStepMonth" aria-label="Future month">
+                      <button type="button" class="goals-btn" :disabled="!goalStepTitle.trim() || !goalStepMonth" @click="addGoalStepToFutureMonth()">Send to Future</button>
+                    </div>
+                  </div>
+                </form>
+              </template>
+              <p class="goals-quiet" x-show="!goalDraft">Select a goal in the breakdown, or start a new one.</p>
+            </div>
           </div>
         </section>
       </template>

@@ -22,6 +22,7 @@ import {
   filterTasksByStatus,
   filterTasksByDateHorizon
 } from './taskEngine.js';
+import { buildGoalTree, horizonCounts, childHorizonKey, smartCheck, rollupProgress, balanceByArea } from './goalEngine.js';
 import { executeUniversalSearch, flattenSearchResults, mergeArchiveSearchResults, matchesSearchQuery, resolveSlashKeyAction } from './searchEngine.js';
 import { formatEventDescriptionHtml, extractMeetLink } from './calendarEngine.js';
 import { parseIndexEntriesFromNote } from './indexParser.js';
@@ -460,6 +461,18 @@ Alpine.data('plannerApp', () => ({
       futureMatrixYear: new Date().getFullYear(),
       futureMatrixLoaded: false,
       newFutureItemTitle: {},
+      goalsData: { goals: [], horizons: [], areas: [] },
+      goalsLoaded: false,
+      goalsLoading: false,
+      goalsBgRequested: false,
+      goalsError: '',
+      goalCollapsed: [],
+      selectedGoalId: null,
+      goalDraft: null,
+      goalSaving: false,
+      goalMsg: '',
+      goalStepTitle: '',
+      goalStepMonth: '',
       FUTURE_MONTH_LABELS: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
       calendarEvents: [],
       scheduleGrid: [],
@@ -1557,6 +1570,9 @@ Alpine.data('plannerApp', () => ({
         if (viewName === 'future-matrix') {
           await this.loadFutureMatrix();
         }
+        if (viewName === 'goals') {
+          await this.loadGoals();
+        }
         if (viewName === 'master-tasks') {
           if (!this.masterViewBuilt) {
             this.masterViewBuilt = true;
@@ -2355,6 +2371,215 @@ Alpine.data('plannerApp', () => ({
         }
       },
 
+      // ---- Goals tab: cascade view ----
+      get goalRows() {
+        return buildGoalTree(this.goalsData.goals, new Set(this.goalCollapsed));
+      },
+
+      get goalHorizonRows() {
+        const counts = horizonCounts(this.goalsData.goals, this.goalsData.horizons);
+        return this.goalsData.horizons.map(h => ({ key: h.key, label: h.label, count: counts[h.key] || 0 }));
+      },
+
+      get goalBalanceRows() {
+        const { goals, horizons, areas } = this.goalsData;
+        if (!horizons.length) return [];
+        return balanceByArea(goals, horizons, areas);
+      },
+
+      get goalGapAreas() {
+        return this.goalBalanceRows.filter(r => r.gap);
+      },
+
+      get goalLowestHorizonLabel() {
+        const hs = this.goalsData.horizons;
+        return hs.length ? hs[hs.length - 1].label : '';
+      },
+
+      get selectedGoal() {
+        return this.goalsData.goals.find(g => g.id === this.selectedGoalId) || null;
+      },
+
+      get goalCanBreakDown() {
+        const g = this.selectedGoal;
+        return !!g && !!childHorizonKey(this.goalsData.horizons, g.horizon);
+      },
+
+      get goalSmartRows() {
+        return this.goalDraft ? smartCheck(this.goalDraft) : [];
+      },
+
+      get goalDraftParentTitle() {
+        const id = this.goalDraft && this.goalDraft.parentId;
+        const parent = id ? this.goalsData.goals.find(g => g.id === id) : null;
+        return parent ? parent.title : '';
+      },
+
+      get goalDraftHasChildren() {
+        const id = this.goalDraft && this.goalDraft.id;
+        return !!id && this.goalsData.goals.some(g => g.parentId === id);
+      },
+
+      goalHorizonLabel(key) {
+        const h = this.goalsData.horizons.find(x => x.key === key);
+        return h ? h.label : key;
+      },
+
+      goalProgressPct(goalId) {
+        return Math.round(rollupProgress(goalId, this.goalsData.goals) * 100);
+      },
+
+      goalTitleFor(goalRef) {
+        const g = goalRef ? this.goalsData.goals.find(x => x.id === goalRef) : null;
+        return g ? g.title : '';
+      },
+
+      goalRefHint(task) {
+        const title = this.goalTitleFor(task && task.goalRef);
+        return title ? 'Serves goal: ' + title : 'Serves a goal';
+      },
+
+      async loadGoals(opts = {}) {
+        if (!opts.background) this.goalsLoading = true;
+        this.goalsBgRequested = true;
+        try {
+          const data = await this.bridge.getGoals();
+          this.goalsData = { goals: data.goals || [], horizons: data.horizons || [], areas: data.areas || [] };
+          this.goalsLoaded = true;
+          this.goalsError = '';
+          if (this.selectedGoalId && !this.selectedGoal) this.clearGoalSelection();
+        } catch (err) {
+          console.error('loadGoals: could not load goals; the Goals view shows an error and Retry:', err.stack);
+          if (!opts.background) this.goalsError = err.message || String(err);
+        } finally {
+          this.goalsLoading = false;
+        }
+      },
+
+      // Daily rows show the goal title when goals are loaded; load them once, quietly, if a visible task has a goalRef.
+      ensureGoalsForDaily() {
+        if (this.goalsLoaded || this.goalsLoading || this.goalsBgRequested) return;
+        if (!this.dailyTasks.some(t => t && t.goalRef)) return;
+        this.loadGoals({ background: true });
+      },
+
+      clearGoalSelection() {
+        this.selectedGoalId = null;
+        this.goalDraft = null;
+      },
+
+      toggleGoalCollapse(goalId) {
+        this.goalCollapsed = this.goalCollapsed.includes(goalId)
+          ? this.goalCollapsed.filter(id => id !== goalId)
+          : [...this.goalCollapsed, goalId];
+      },
+
+      selectGoal(goalId) {
+        const g = this.goalsData.goals.find(x => x.id === goalId);
+        if (!g) return;
+        this.selectedGoalId = g.id;
+        this.goalDraft = { ...g };
+        this.goalMsg = '';
+        this.goalStepTitle = '';
+        if (!this.goalStepMonth) this.goalStepMonth = String(this.todayStr || '').slice(0, 7);
+      },
+
+      blankGoal(horizon, parentId) {
+        return { id: null, title: '', horizon, parentId: parentId || null, area: '', value: '', measure: '', purpose: '', ifThen: '', target: '', status: 'open' };
+      },
+
+      newRootGoal() {
+        const first = this.goalsData.horizons[0];
+        this.selectedGoalId = null;
+        this.goalDraft = this.blankGoal(first ? first.key : 'someday', null);
+        this.goalMsg = '';
+      },
+
+      newChildGoal() {
+        const parent = this.selectedGoal;
+        if (!parent) return;
+        const childKey = childHorizonKey(this.goalsData.horizons, parent.horizon);
+        if (!childKey) return;
+        this.goalDraft = { ...this.blankGoal(childKey, parent.id), area: parent.area || '', value: parent.value || '' };
+        this.goalMsg = '';
+      },
+
+      async saveGoalDraft(overrides = {}) {
+        if (!this.goalDraft || this.goalSaving) return;
+        this.goalSaving = true;
+        this.goalMsg = '';
+        try {
+          const saved = await this.bridge.saveGoal({ ...this.goalDraft, ...overrides });
+          const idx = this.goalsData.goals.findIndex(g => g.id === saved.id);
+          const goals = this.goalsData.goals.slice();
+          if (idx === -1) goals.push(saved); else goals[idx] = saved;
+          this.goalsData = { ...this.goalsData, goals };
+          this.selectedGoalId = saved.id;
+          this.goalDraft = { ...saved };
+          this.goalMsg = 'Saved.';
+        } catch (err) {
+          console.error('saveGoalDraft: goal not saved; the editor keeps your edits:', err.stack);
+          this.goalMsg = err.message || String(err);
+        } finally {
+          this.goalSaving = false;
+        }
+      },
+
+      async toggleGoalDone() {
+        if (!this.goalDraft || !this.goalDraft.id) return;
+        await this.saveGoalDraft({ status: this.goalDraft.status === 'done' ? 'open' : 'done' });
+      },
+
+      async deleteGoalDraft() {
+        if (!this.goalDraft || !this.goalDraft.id || this.goalDraftHasChildren) return;
+        const id = this.goalDraft.id;
+        try {
+          await this.bridge.deleteGoal(id);
+          this.goalsData = { ...this.goalsData, goals: this.goalsData.goals.filter(g => g.id !== id) };
+          this.clearGoalSelection();
+        } catch (err) {
+          console.error('deleteGoalDraft: goal not deleted; it stays in the list:', err.stack);
+          this.goalMsg = err.message || String(err);
+        }
+      },
+
+      async addGoalStepToToday() {
+        const title = (this.goalStepTitle || '').trim();
+        if (!title || !this.goalDraft || !this.goalDraft.id) return;
+        const today = getLocalDateStr();
+        try {
+          const seq = this.selectedDate === today ? getNextSequence(this.dailyTasks, 'A') : 1;
+          const task = await this.bridge.addGoalStepToToday(this.goalDraft.id, formatTaskTitle('A', seq, title), today);
+          if (this.selectedDate === today && task) {
+            this.dailyTasks.push(task);
+            this.syncDailyCacheFromLiveState();
+          }
+          this.goalStepTitle = '';
+          this.goalMsg = 'Added to Today.';
+        } catch (err) {
+          console.error('addGoalStepToToday: step not added to Today:', err.stack);
+          this.goalMsg = err.message || String(err);
+        }
+      },
+
+      async addGoalStepToFutureMonth() {
+        const title = (this.goalStepTitle || '').trim();
+        const month = this.goalStepMonth || '';
+        if (!title || !this.goalDraft || !this.goalDraft.id) return;
+        if (!/^\d{4}-\d{2}$/.test(month)) {
+          this.goalMsg = 'Pick a month first.';
+          return;
+        }
+        try {
+          await this.bridge.addGoalStepToFuture(this.goalDraft.id, title, month);
+          this.goalStepTitle = '';
+          this.goalMsg = 'Sent to Future, ' + month + '.';
+        } catch (err) {
+          console.error('addGoalStepToFutureMonth: step not sent to Future:', err.stack);
+          this.goalMsg = err.message || String(err);
+        }
+      },
+
       futureMonthKey(mm) {
         return `${this.futureMatrixYear}-${mm}`;
       },
@@ -2955,6 +3180,7 @@ Alpine.data('plannerApp', () => ({
         if (this.dailyNote && this.dailyNote.trim()) {
           saveNoteRevision(data.date || this.selectedDate, this.dailyNote);
         }
+        this.ensureGoalsForDaily();
       },
 
       // Merges a reloaded task list (a server read since mark, or the cache when mark is null)

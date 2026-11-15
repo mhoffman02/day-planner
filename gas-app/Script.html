@@ -1287,6 +1287,104 @@
     return { year: String(year), months };
   }
 
+  function goalChildrenMap(goals) {
+    const ids = new Set(goals.map(g => g.id));
+    const byParent = new Map();
+    for (const g of goals) {
+      const key = g.parentId && ids.has(g.parentId) && g.parentId !== g.id ? g.parentId : null;
+      if (!byParent.has(key)) byParent.set(key, []);
+      byParent.get(key).push(g);
+    }
+    for (const list of byParent.values()) {
+      list.sort((a, b) => (a.target || '9999').localeCompare(b.target || '9999') || a.title.localeCompare(b.title));
+    }
+    return byParent;
+  }
+
+  function buildGoalTree(goals, collapsed = new Set()) {
+    const byParent = goalChildrenMap(goals);
+    const rows = [];
+    const seen = new Set();
+    const visit = (goal, depth, wbs) => {
+      if (seen.has(goal.id)) return;
+      seen.add(goal.id);
+      const kids = byParent.get(goal.id) || [];
+      rows.push({ goal, depth, wbs, childCount: kids.length });
+      if (collapsed.has(goal.id)) {
+        descendantIds(goal.id, goals).forEach(id => seen.add(id));
+        return;
+      }
+      kids.forEach((k, i) => visit(k, depth + 1, wbs + '.' + (i + 1)));
+    };
+    let n = 0;
+    (byParent.get(null) || []).forEach(g => { n += 1; visit(g, 0, String(n)); });
+    goals.filter(g => !seen.has(g.id)).forEach(g => { n += 1; visit(g, 0, String(n)); });
+    return rows;
+  }
+
+  function horizonCounts(goals, horizons) {
+    const counts = {};
+    horizons.forEach(h => { counts[h.key] = 0; });
+    goals.forEach(g => {
+      if (g.status !== 'done' && g.horizon in counts) counts[g.horizon] += 1;
+    });
+    return counts;
+  }
+
+  function childHorizonKey(horizons, key) {
+    const h = horizons.find(x => x.key === key);
+    return h ? h.child : null;
+  }
+
+  function smartCheck(goal) {
+    const has = v => typeof v === 'string' && v.trim() !== '';
+    const words = (goal.title || '').trim().split(/\s+/).filter(Boolean).length;
+    return [
+      { key: 'S', ok: words >= 3, text: words >= 3 ? 'Specific: names a concrete result' : 'Specific: say exactly what will be true' },
+      { key: 'M', ok: has(goal.measure), text: has(goal.measure) ? 'Measurable: ' + goal.measure : 'Measurable: add how you will know it is done' },
+      { key: 'A', ok: has(goal.ifThen), text: has(goal.ifThen) ? 'Achievable: obstacle planned for' : 'Achievable: plan for the main obstacle' },
+      { key: 'R', ok: has(goal.parentId) || has(goal.value), text: has(goal.parentId) || has(goal.value) ? 'Relevant: serves a value or a bigger goal' : 'Relevant: link a value or a parent goal' },
+      { key: 'T', ok: has(goal.target), text: has(goal.target) ? 'Time-bound: ' + goal.target : 'Time-bound: set a target date' }
+    ];
+  }
+
+  function descendantIds(id, goals) {
+    const out = [];
+    const seen = new Set([id]);
+    const queue = [id];
+    while (queue.length) {
+      const cur = queue.shift();
+      goals.forEach(g => {
+        if (g.parentId === cur && !seen.has(g.id)) {
+          seen.add(g.id);
+          out.push(g.id);
+          queue.push(g.id);
+        }
+      });
+    }
+    return out;
+  }
+
+  function rollupProgress(id, goals) {
+    const goal = goals.find(g => g.id === id);
+    if (!goal) return 0;
+    if (goal.status === 'done') return 1;
+    const desc = new Set(descendantIds(id, goals));
+    if (desc.size === 0) return 0;
+    const parents = new Set(goals.filter(g => desc.has(g.id)).map(g => g.parentId));
+    const leaves = goals.filter(g => desc.has(g.id) && !parents.has(g.id));
+    return leaves.filter(g => g.status === 'done').length / leaves.length;
+  }
+
+  function balanceByArea(goals, horizons, areas) {
+    const lowest = horizons[horizons.length - 1].key;
+    return areas.map(area => {
+      const counts = horizonCounts(goals.filter(g => g.area === area), horizons);
+      const total = Object.values(counts).reduce((a, b) => a + b, 0);
+      return { area, counts, gap: total > 0 && counts[lowest] === 0 };
+    });
+  }
+
   function extractLocalDateStr(dateVal) {
     if (!dateVal) return '';
     if (typeof dateVal === 'string') {
@@ -2688,6 +2786,42 @@
   // HUB-CACHE-MIRROR-END
 
 
+  // Mock-only copies of the server horizon and area lists (the real lists come from getGoals).
+  const MOCK_GOAL_HORIZONS = [
+    { key: 'someday', label: 'Someday', child: '5y' },
+    { key: '5y', label: '5-Year', child: '1y' },
+    { key: '1y', label: '1-Year', child: 'quarter' },
+    { key: 'quarter', label: 'Quarter', child: null }
+  ];
+  const MOCK_GOAL_AREAS = ['Career', 'Finance', 'Family', 'Health', 'Friends', 'Growth', 'Fun', 'Community'];
+
+  function mockMergeGoal(existing, goal) {
+    const merged = { id: null, title: '', horizon: '', parentId: null, area: '', value: '', measure: '', purpose: '', ifThen: '', target: '', status: 'open', ...(existing || {}), ...goal };
+    merged.title = String(merged.title || '').trim();
+    if (!merged.title) throw new Error('A goal needs a title');
+    if (!MOCK_GOAL_HORIZONS.some(h => h.key === merged.horizon)) throw new Error('Pick a horizon');
+    return merged;
+  }
+
+  function mockCheckGoalParent(goals, merged) {
+    if (!merged.parentId) return;
+    const parent = goals.find(g => g.id === merged.parentId);
+    if (!parent) throw new Error('The parent goal no longer exists');
+    const keys = MOCK_GOAL_HORIZONS.map(h => h.key);
+    if (keys.indexOf(parent.horizon) >= keys.indexOf(merged.horizon)) throw new Error('a parent goal must be longer-range than its sub-goal');
+  }
+
+  function mockSaveGoal(goals, goal) {
+    const existing = goal && goal.id ? goals.find(g => g.id === goal.id) : null;
+    if (goal && goal.id && !existing) throw new Error('That goal no longer exists');
+    const merged = mockMergeGoal(existing, goal);
+    mockCheckGoalParent(goals, merged);
+    const saved = { ...merged, id: existing ? existing.id : `g_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, updated: new Date().toISOString() };
+    if (existing) Object.assign(existing, saved);
+    else goals.push(saved);
+    return { ...saved };
+  }
+
   class GASBridge {
     constructor(useMock = false) {
       this.useMock = useMock;
@@ -2706,6 +2840,7 @@
           { id: 'm3', title: '[C1] Rebalance investment portfolio', category: 'Financial', status: '•', starred: false, notes: '', movedTo: null, movedTaskId: null },
           { id: 'm4', title: '[B2] Migrate server infrastructure to GCP', category: 'Projects', status: '•', starred: false, notes: 'Evaluate Cloud Run vs App Engine', movedTo: null, movedTaskId: null }
         ],
+        goals: [],
         futureMatrix: {
           2026: (() => {
             const matrix = emptyYearMatrix(2026);
@@ -3234,6 +3369,108 @@
       });
     }
 
+    /**
+     * Loads every goal plus the horizon and life-area lists.
+     * @returns {Promise<{goals: Array<object>, horizons: Array<object>, areas: Array<string>}>}
+     */
+    async getGoals() {
+      if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+        return {
+          goals: this.mockData.goals.map(g => ({ ...g })),
+          horizons: MOCK_GOAL_HORIZONS.map(h => ({ ...h })),
+          areas: [...MOCK_GOAL_AREAS]
+        };
+      }
+      return new Promise((resolve, reject) => {
+        window.google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .getGoals();
+      });
+    }
+
+    /**
+     * Inserts a goal (no id) or patches one (id).
+     * @param {object} goal Goal fields.
+     * @returns {Promise<object>} The saved goal.
+     */
+    async saveGoal(goal) {
+      if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+        return mockSaveGoal(this.mockData.goals, goal);
+      }
+      return new Promise((resolve, reject) => {
+        window.google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .saveGoal(goal);
+      });
+    }
+
+    /**
+     * Deletes a goal that has no sub-goals.
+     * @param {string} goalId Goal id.
+     * @returns {Promise<boolean>}
+     */
+    async deleteGoal(goalId) {
+      if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+        if (this.mockData.goals.some(g => g.parentId === goalId)) throw new Error('Remove or move its sub-goals first');
+        const idx = this.mockData.goals.findIndex(g => g.id === goalId);
+        if (idx === -1) throw new Error('That goal no longer exists');
+        this.mockData.goals.splice(idx, 1);
+        return true;
+      }
+      return new Promise((resolve, reject) => {
+        window.google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .deleteGoal(goalId);
+      });
+    }
+
+    /**
+     * Adds a step for a goal to a day of the daily list.
+     * @param {string} goalId Goal id.
+     * @param {string} title Task title (priority prefix included).
+     * @param {string} dateStr Date, YYYY-MM-DD.
+     * @returns {Promise<object>} The daily task, with goalRef.
+     */
+    async addGoalStepToToday(goalId, title, dateStr) {
+      if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+        if (!this.mockData.goals.some(g => g.id === goalId)) throw new Error('That goal no longer exists');
+        const task = await this.addDailyTask(dateStr, title, 'General');
+        task.goalRef = goalId;
+        return task;
+      }
+      return new Promise((resolve, reject) => {
+        window.google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .addGoalStepToToday(goalId, title, dateStr);
+      });
+    }
+
+    /**
+     * Adds a step for a goal to a month of the Future tab.
+     * @param {string} goalId Goal id.
+     * @param {string} title Item title.
+     * @param {string} monthKey Month, YYYY-MM.
+     * @returns {Promise<object>} The future item, with goalRef.
+     */
+    async addGoalStepToFuture(goalId, title, monthKey) {
+      if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
+        if (!this.mockData.goals.some(g => g.id === goalId)) throw new Error('That goal no longer exists');
+        const item = await this.addFutureItem(monthKey.slice(0, 4), monthKey, title);
+        item.goalRef = goalId;
+        return item;
+      }
+      return new Promise((resolve, reject) => {
+        window.google.script.run
+          .withSuccessHandler(resolve)
+          .withFailureHandler(reject)
+          .addGoalStepToFuture(goalId, title, monthKey);
+      });
+    }
+
     async saveDailyDocCards(dateStr, noteContent, baselineContent) {
       if (this.useMock || typeof window === 'undefined' || !window.google?.script?.run) {
         this.mockData.dailyNotes[dateStr] = noteContent;
@@ -3487,6 +3724,18 @@
       futureMatrixYear: new Date().getFullYear(),
       futureMatrixLoaded: false,
       newFutureItemTitle: {},
+      goalsData: { goals: [], horizons: [], areas: [] },
+      goalsLoaded: false,
+      goalsLoading: false,
+      goalsBgRequested: false,
+      goalsError: '',
+      goalCollapsed: [],
+      selectedGoalId: null,
+      goalDraft: null,
+      goalSaving: false,
+      goalMsg: '',
+      goalStepTitle: '',
+      goalStepMonth: '',
       FUTURE_MONTH_LABELS: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
       calendarEvents: [],
       scheduleGrid: [],
@@ -4578,6 +4827,9 @@
         if (viewName === 'future-matrix') {
           await this.loadFutureMatrix();
         }
+        if (viewName === 'goals') {
+          await this.loadGoals();
+        }
         if (viewName === 'master-tasks') {
           if (!this.masterViewBuilt) {
             this.masterViewBuilt = true;
@@ -5376,6 +5628,215 @@
         }
       },
 
+      // ---- Goals tab: cascade view ----
+      get goalRows() {
+        return buildGoalTree(this.goalsData.goals, new Set(this.goalCollapsed));
+      },
+
+      get goalHorizonRows() {
+        const counts = horizonCounts(this.goalsData.goals, this.goalsData.horizons);
+        return this.goalsData.horizons.map(h => ({ key: h.key, label: h.label, count: counts[h.key] || 0 }));
+      },
+
+      get goalBalanceRows() {
+        const { goals, horizons, areas } = this.goalsData;
+        if (!horizons.length) return [];
+        return balanceByArea(goals, horizons, areas);
+      },
+
+      get goalGapAreas() {
+        return this.goalBalanceRows.filter(r => r.gap);
+      },
+
+      get goalLowestHorizonLabel() {
+        const hs = this.goalsData.horizons;
+        return hs.length ? hs[hs.length - 1].label : '';
+      },
+
+      get selectedGoal() {
+        return this.goalsData.goals.find(g => g.id === this.selectedGoalId) || null;
+      },
+
+      get goalCanBreakDown() {
+        const g = this.selectedGoal;
+        return !!g && !!childHorizonKey(this.goalsData.horizons, g.horizon);
+      },
+
+      get goalSmartRows() {
+        return this.goalDraft ? smartCheck(this.goalDraft) : [];
+      },
+
+      get goalDraftParentTitle() {
+        const id = this.goalDraft && this.goalDraft.parentId;
+        const parent = id ? this.goalsData.goals.find(g => g.id === id) : null;
+        return parent ? parent.title : '';
+      },
+
+      get goalDraftHasChildren() {
+        const id = this.goalDraft && this.goalDraft.id;
+        return !!id && this.goalsData.goals.some(g => g.parentId === id);
+      },
+
+      goalHorizonLabel(key) {
+        const h = this.goalsData.horizons.find(x => x.key === key);
+        return h ? h.label : key;
+      },
+
+      goalProgressPct(goalId) {
+        return Math.round(rollupProgress(goalId, this.goalsData.goals) * 100);
+      },
+
+      goalTitleFor(goalRef) {
+        const g = goalRef ? this.goalsData.goals.find(x => x.id === goalRef) : null;
+        return g ? g.title : '';
+      },
+
+      goalRefHint(task) {
+        const title = this.goalTitleFor(task && task.goalRef);
+        return title ? 'Serves goal: ' + title : 'Serves a goal';
+      },
+
+      async loadGoals(opts = {}) {
+        if (!opts.background) this.goalsLoading = true;
+        this.goalsBgRequested = true;
+        try {
+          const data = await this.bridge.getGoals();
+          this.goalsData = { goals: data.goals || [], horizons: data.horizons || [], areas: data.areas || [] };
+          this.goalsLoaded = true;
+          this.goalsError = '';
+          if (this.selectedGoalId && !this.selectedGoal) this.clearGoalSelection();
+        } catch (err) {
+          console.error('loadGoals: could not load goals; the Goals view shows an error and Retry:', err.stack);
+          if (!opts.background) this.goalsError = err.message || String(err);
+        } finally {
+          this.goalsLoading = false;
+        }
+      },
+
+      // Daily rows show the goal title when goals are loaded; load them once, quietly, if a visible task has a goalRef.
+      ensureGoalsForDaily() {
+        if (this.goalsLoaded || this.goalsLoading || this.goalsBgRequested) return;
+        if (!this.dailyTasks.some(t => t && t.goalRef)) return;
+        this.loadGoals({ background: true });
+      },
+
+      clearGoalSelection() {
+        this.selectedGoalId = null;
+        this.goalDraft = null;
+      },
+
+      toggleGoalCollapse(goalId) {
+        this.goalCollapsed = this.goalCollapsed.includes(goalId)
+          ? this.goalCollapsed.filter(id => id !== goalId)
+          : [...this.goalCollapsed, goalId];
+      },
+
+      selectGoal(goalId) {
+        const g = this.goalsData.goals.find(x => x.id === goalId);
+        if (!g) return;
+        this.selectedGoalId = g.id;
+        this.goalDraft = { ...g };
+        this.goalMsg = '';
+        this.goalStepTitle = '';
+        if (!this.goalStepMonth) this.goalStepMonth = String(this.todayStr || '').slice(0, 7);
+      },
+
+      blankGoal(horizon, parentId) {
+        return { id: null, title: '', horizon, parentId: parentId || null, area: '', value: '', measure: '', purpose: '', ifThen: '', target: '', status: 'open' };
+      },
+
+      newRootGoal() {
+        const first = this.goalsData.horizons[0];
+        this.selectedGoalId = null;
+        this.goalDraft = this.blankGoal(first ? first.key : 'someday', null);
+        this.goalMsg = '';
+      },
+
+      newChildGoal() {
+        const parent = this.selectedGoal;
+        if (!parent) return;
+        const childKey = childHorizonKey(this.goalsData.horizons, parent.horizon);
+        if (!childKey) return;
+        this.goalDraft = { ...this.blankGoal(childKey, parent.id), area: parent.area || '', value: parent.value || '' };
+        this.goalMsg = '';
+      },
+
+      async saveGoalDraft(overrides = {}) {
+        if (!this.goalDraft || this.goalSaving) return;
+        this.goalSaving = true;
+        this.goalMsg = '';
+        try {
+          const saved = await this.bridge.saveGoal({ ...this.goalDraft, ...overrides });
+          const idx = this.goalsData.goals.findIndex(g => g.id === saved.id);
+          const goals = this.goalsData.goals.slice();
+          if (idx === -1) goals.push(saved); else goals[idx] = saved;
+          this.goalsData = { ...this.goalsData, goals };
+          this.selectedGoalId = saved.id;
+          this.goalDraft = { ...saved };
+          this.goalMsg = 'Saved.';
+        } catch (err) {
+          console.error('saveGoalDraft: goal not saved; the editor keeps your edits:', err.stack);
+          this.goalMsg = err.message || String(err);
+        } finally {
+          this.goalSaving = false;
+        }
+      },
+
+      async toggleGoalDone() {
+        if (!this.goalDraft || !this.goalDraft.id) return;
+        await this.saveGoalDraft({ status: this.goalDraft.status === 'done' ? 'open' : 'done' });
+      },
+
+      async deleteGoalDraft() {
+        if (!this.goalDraft || !this.goalDraft.id || this.goalDraftHasChildren) return;
+        const id = this.goalDraft.id;
+        try {
+          await this.bridge.deleteGoal(id);
+          this.goalsData = { ...this.goalsData, goals: this.goalsData.goals.filter(g => g.id !== id) };
+          this.clearGoalSelection();
+        } catch (err) {
+          console.error('deleteGoalDraft: goal not deleted; it stays in the list:', err.stack);
+          this.goalMsg = err.message || String(err);
+        }
+      },
+
+      async addGoalStepToToday() {
+        const title = (this.goalStepTitle || '').trim();
+        if (!title || !this.goalDraft || !this.goalDraft.id) return;
+        const today = getLocalDateStr();
+        try {
+          const seq = this.selectedDate === today ? getNextSequence(this.dailyTasks, 'A') : 1;
+          const task = await this.bridge.addGoalStepToToday(this.goalDraft.id, formatTaskTitle('A', seq, title), today);
+          if (this.selectedDate === today && task) {
+            this.dailyTasks.push(task);
+            this.syncDailyCacheFromLiveState();
+          }
+          this.goalStepTitle = '';
+          this.goalMsg = 'Added to Today.';
+        } catch (err) {
+          console.error('addGoalStepToToday: step not added to Today:', err.stack);
+          this.goalMsg = err.message || String(err);
+        }
+      },
+
+      async addGoalStepToFutureMonth() {
+        const title = (this.goalStepTitle || '').trim();
+        const month = this.goalStepMonth || '';
+        if (!title || !this.goalDraft || !this.goalDraft.id) return;
+        if (!/^\d{4}-\d{2}$/.test(month)) {
+          this.goalMsg = 'Pick a month first.';
+          return;
+        }
+        try {
+          await this.bridge.addGoalStepToFuture(this.goalDraft.id, title, month);
+          this.goalStepTitle = '';
+          this.goalMsg = 'Sent to Future, ' + month + '.';
+        } catch (err) {
+          console.error('addGoalStepToFutureMonth: step not sent to Future:', err.stack);
+          this.goalMsg = err.message || String(err);
+        }
+      },
+
       futureMonthKey(mm) {
         return `${this.futureMatrixYear}-${mm}`;
       },
@@ -5976,6 +6437,7 @@
         if (this.dailyNote && this.dailyNote.trim()) {
           dpSaveNoteRevision(data.date || this.selectedDate, this.dailyNote);
         }
+        this.ensureGoalsForDaily();
       },
 
       // Merges a reloaded task list (a server read since mark, or the cache when mark is null)
