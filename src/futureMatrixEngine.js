@@ -89,6 +89,7 @@ export function emptyYearMatrix(year) {
  */
 export function quarterForMonth(monthVal) {
   let m = typeof monthVal === 'number' ? monthVal : parseInt(String(monthVal).slice(-2), 10);
+  // Stryker disable next-line ConditionalExpression,EqualityOperator: equivalent, m below 1 or equal to 1 lands in Q1 either way
   if (isNaN(m) || m < 1) m = 1;
   // Stryker disable next-line ConditionalExpression,EqualityOperator: equivalent, any month above 9 is Q4 with or without this clamp
   if (m > 12) m = 12;

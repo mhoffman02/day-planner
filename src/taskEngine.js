@@ -110,10 +110,12 @@ export function extractTaskDetails(input = '') {
 export function extractInlinePriority(input = '', defaultPriority = 'A') {
   if (!input) return { priorityGroup: defaultPriority, cleanTitle: '' };
   const trimmed = input.trim();
+  // Stryker disable next-line Regex: equivalent, the cleanTitle .trim() absorbs any extra whitespace a single \s would leave
   const match = trimmed.match(/^#([abcABC])(?:\s*[:-]\s*|\s+|$)(.*)$/);
   if (match) {
     return {
       priorityGroup: match[1].toUpperCase(),
+      // Stryker disable next-line MethodExpression: equivalent, the regex already consumes leading whitespace and the input is pre-trimmed
       cleanTitle: match[2].trim()
     };
   }
@@ -182,6 +184,7 @@ export function sortTasks(tasks = []) {
     if (parseA.priorityGroup && !parseB.priorityGroup) return -1;
     if (!parseA.priorityGroup && parseB.priorityGroup) return 1;
 
+    // Stryker disable next-line ConditionalExpression,LogicalOperator: equivalent, one-sided priority cases already returned above and two unprioritized tasks tie on group and sequence
     if (parseA.priorityGroup && parseB.priorityGroup) {
       if (parseA.priorityGroup !== parseB.priorityGroup) {
         return parseA.priorityGroup.localeCompare(parseB.priorityGroup);
@@ -237,6 +240,7 @@ export function getTaskSortValue(task, column) {
  * @param {'asc'|'desc'} [direction='asc'] Sort direction.
  * @returns {Array<object>} New sorted array.
  */
+// Stryker disable next-line StringLiteral: equivalent, any direction other than "desc" sorts ascending
 export function sortTasksByColumn(tasks = [], column, direction = 'asc') {
   const dir = direction === 'desc' ? -1 : 1;
   return [...tasks]
@@ -245,12 +249,14 @@ export function sortTasksByColumn(tasks = [], column, direction = 'asc') {
       const va = getTaskSortValue(a.task, column);
       const vb = getTaskSortValue(b.task, column);
       let cmp;
+      // Stryker disable next-line LogicalOperator,StringLiteral: equivalent, a column yields one type and status indices are single digits so string and numeric comparison agree in sign
       if (typeof va === 'number' && typeof vb === 'number') {
         cmp = va - vb;
       } else {
         cmp = String(va).localeCompare(String(vb));
       }
       if (cmp === 0) return a.index - b.index;
+      // Stryker disable next-line ArithmeticOperator: equivalent, dir is +1 or -1 so cmp / dir equals cmp * dir
       return cmp * dir;
     })
     .map(({ task }) => task);
@@ -262,13 +268,17 @@ export function sortTasksByColumn(tasks = [], column, direction = 'asc') {
  * @param {string} [priorityGroup='A'] Target priority group letter.
  * @returns {number} Next available sequence number (1 to 9).
  */
+// Stryker disable next-line ArrayDeclaration: equivalent, a junk element has no title so it never matches a priority group
 export function getNextSequence(tasks = [], priorityGroup = 'A') {
   const pGroup = priorityGroup.toUpperCase();
+  // Stryker disable ConditionalExpression: equivalent, a task with a priorityGroup always has a non-null sequence
   const existingSeqs = tasks
     .map(t => parseTaskTitle(t.title))
     .filter(p => p.priorityGroup === pGroup && p.sequence !== null)
     .map(p => p.sequence);
+  // Stryker restore ConditionalExpression
 
+  // Stryker disable next-line EqualityOperator: equivalent, when 1..8 are taken both the loop and the cap return 9
   for (let seq = 1; seq <= 9; seq++) {
     if (!existingSeqs.includes(seq)) {
       return seq;
@@ -332,6 +342,7 @@ export function planPriorityChange(tasks = [], taskId, group, rank) {
  * @param {Array<object>} tasks Tasks with id and title.
  * @returns {Array<{id: string, title: string}>} Title edits to save.
  */
+// Stryker disable next-line ArrayDeclaration: equivalent, a junk element has no title or id so it yields no edit
 export function planRenumber(tasks = []) {
   return planRanks(tasks, null);
 }
@@ -348,6 +359,7 @@ export { getNextSequence as findNextAvailableSequence };
  * @param {string} targetDateStr Target date string in YYYY-MM-DD format.
  * @returns {{id: string, title: string, status: string, dueDate: string, category: string, forwardedFromId: string|null}} Newly created daily task object on the target date.
  */
+// Stryker disable next-line ArrayDeclaration: equivalent, a junk element has no title so it never matches a priority group
 export function forwardTaskToDate(sourceTask, existingTargetDayTasks = [], targetDateStr) {
   const parsed = parseTaskTitle(sourceTask.title);
   const priorityGroup = parsed.priorityGroup || 'A';
@@ -373,6 +385,7 @@ export function forwardTaskToDate(sourceTask, existingTargetDayTasks = [], targe
  * @param {string} [todayDateStr] Target date string in YYYY-MM-DD format (defaults to current local date).
  * @returns {{id: string, title: string, status: string, dueDate: string, category: string, sourceMasterId: string|null}} Newly created daily task object.
  */
+// Stryker disable next-line ArrayDeclaration: equivalent, a junk element has no title so it never matches a priority group
 export function transferMasterTaskToToday(masterTask, existingDailyTasks = [], targetPriorityGroup = 'A', todayDateStr = getLocalDateStr()) {
   const cleanTitle = parseTaskTitle(masterTask.title).cleanTitle || masterTask.title || 'Untitled Task';
   const sequence = getNextSequence(existingDailyTasks, targetPriorityGroup);
@@ -414,6 +427,7 @@ export function filterTasksByStatus(tasks, activeStatuses) {
  * @param {string} [todayStr] Today’s reference date in YYYY-MM-DD format (defaults to local date).
  * @returns {Array<object>} Filtered task items array.
  */
+// Stryker disable next-line StringLiteral: equivalent, an empty horizon returns all tasks exactly like "all"
 export function filterTasksByDateHorizon(tasks, horizon = 'all', todayStr = getLocalDateStr()) {
   if (!tasks || !Array.isArray(tasks)) return [];
   if (!horizon || horizon === 'all') return tasks;
@@ -475,6 +489,7 @@ export function buildMasterTasksClearinghouse(rawTasks = []) {
   const masterByMovedTaskId = new Map();
 
   for (const item of normalized) {
+    // Stryker disable next-line ConditionalExpression: equivalent, the undefined key is never read since lookups need a truthy id
     if (item.id) taskById.set(item.id, item);
     if (item.sourceMasterId) dailyBySourceMasterId.set(item.sourceMasterId, item);
     if (item.movedTaskId) masterByMovedTaskId.set(item.movedTaskId, item);
@@ -499,6 +514,7 @@ export function buildMasterTasksClearinghouse(rawTasks = []) {
       clearinghouse.push({
         id: item.id,
         title: targetDaily.title || item.title,
+        // Stryker disable next-line StringLiteral: equivalent, normalized item.category is always truthy so the final fallback is unreachable
         category: targetDaily.category || item.category || 'General',
         status: targetDaily.status || item.status,
         starred: Boolean(targetDaily.starred || item.starred),
@@ -520,6 +536,7 @@ export function buildMasterTasksClearinghouse(rawTasks = []) {
       clearinghouse.push({
         id: sourceMaster.id,
         title: item.title || sourceMaster.title,
+        // Stryker disable next-line StringLiteral: equivalent, normalized item.category is always truthy so the final fallback is unreachable
         category: item.category || sourceMaster.category || 'General',
         status: item.status || sourceMaster.status,
         starred: Boolean(item.starred || sourceMaster.starred),

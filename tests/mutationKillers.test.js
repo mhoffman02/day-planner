@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import {
   TASK_STATUSES, STATUS_LIST, STATUS_OPTIONS, parseTaskTitle, extractTaskDetails, extractInlinePriority,
   formatTaskTitle, updateTaskTitleText, getNextStatus, sortTasks, getTaskSortValue, sortTasksByColumn,
-  getNextSequence, forwardTaskToDate, transferMasterTaskToToday, filterTasksByStatus,
+  getNextSequence, planRenumber, planPriorityChange, forwardTaskToDate, transferMasterTaskToToday, filterTasksByStatus,
   filterTasksByDateHorizon, buildMasterTasksClearinghouse
 } from '../src/taskEngine.js';
 import {
@@ -77,6 +77,11 @@ describe('taskEngine survivors', () => {
     assert.throws(() => formatTaskTitle('D', 1, 't'), /formatTaskTitle\(D, 1\) does not parse back; the priority would be lost/);
     assert.throws(() => formatTaskTitle('A', '1a', 't'), /formatTaskTitle\(A, 1a\) does not parse back/);
     assert.throws(() => formatTaskTitle('A', 1.5, 't'), /does not parse back/);
+  });
+
+  it('quarterForMonth treats an unparseable month as Q1, not Q4', () => {
+    assert.equal(quarterForMonth('2026-xx'), 'Q1');
+    assert.equal(quarterForMonth(Number.NaN), 'Q1');
   });
 
   it('nextMonthKey fails loud on a key that is not YYYY-MM (5-digit or 3-digit year)', () => {
@@ -1137,5 +1142,108 @@ describe('futureMatrix quarter-label survivors', () => {
   it('getMonthsForQuarter only strips a leading Q; an unparseable label falls back to Q1', () => {
     assert.deepEqual(getMonthsForQuarter(2026, ' Q3'), ['2026-01', '2026-02', '2026-03']);
     assert.deepEqual(getMonthsForQuarter(2026, 'Q3'), ['2026-07', '2026-08', '2026-09']);
+  });
+});
+
+describe('a17 survivors: status cycle, column sort, rank planning', () => {
+  it('getNextStatus wraps from the last status to the first and maps unknown to the first', () => {
+    assert.equal(getNextStatus(STATUS_LIST[STATUS_LIST.length - 1]), STATUS_LIST[0]);
+    assert.equal(getNextStatus('nope'), STATUS_LIST[0]);
+    assert.equal(getNextStatus(STATUS_LIST[0]), STATUS_LIST[1]);
+  });
+
+  it('sortTasksByColumn orders string columns ascending and descending from reversed input', () => {
+    const tasks = [{ id: 'c', category: 'Zed' }, { id: 'b', category: 'Mid' }, { id: 'a', category: 'Alpha' }];
+    assert.deepEqual(sortTasksByColumn(tasks, 'category').map(t => t.id), ['a', 'b', 'c']);
+    assert.deepEqual(sortTasksByColumn([...tasks].reverse(), 'category', 'desc').map(t => t.id), ['c', 'b', 'a']);
+    const titled = [{ id: 'z', title: 'Zebra' }, { id: 'a', title: 'Apple' }];
+    assert.deepEqual(sortTasksByColumn(titled, 'title').map(t => t.id), ['a', 'z']);
+  });
+
+  it('sortTasksByColumn orders the status column by status index', () => {
+    const tasks = [{ id: 'x', status: 'X' }, { id: 'o', status: '•' }, { id: 'u', status: '?' }];
+    assert.deepEqual(sortTasksByColumn(tasks, 'status').map(t => t.id), ['o', 'x', 'u']);
+  });
+
+  it('planRenumber sorts each group by sequence and closes gaps, returning only changed titles', () => {
+    const tasks = [
+      { id: 'a', title: '[A5] five' },
+      { id: 'b', title: '[A2] two' },
+      { id: 'c', title: '[A9] nine' },
+      { id: 'd', title: 'plain, no priority' },
+      { id: 'e', title: '[B1] already fine' }
+    ];
+    assert.deepEqual(planRenumber(tasks), [
+      { id: 'a', title: '[A2] five' },
+      { id: 'b', title: '[A1] two' },
+      { id: 'c', title: '[A3] nine' }
+    ]);
+  });
+
+  it('planRenumber breaks sequence ties by list order and skips unchanged and unprioritized tasks', () => {
+    const tasks = [
+      { id: 'x', title: 'unprioritized' },
+      { id: 'c', title: '[A1] first-listed' },
+      { id: 'b', title: '[B1] other group' },
+      { id: 'd', title: '[A1] second' },
+      { id: 'e', title: '[A1] third' }
+    ];
+    assert.deepEqual(planRenumber(tasks), [
+      { id: 'd', title: '[A2] second' },
+      { id: 'e', title: '[A3] third' }
+    ]);
+    assert.deepEqual(planRenumber([]), []);
+    assert.deepEqual(planRenumber(), []);
+  });
+
+  it('planPriorityChange moves a task into a group at a rank and pushes later tasks down', () => {
+    const tasks = [
+      { id: 'a', title: '[A1] one' },
+      { id: 'b', title: '[A2] two' },
+      { id: 'c', title: '[B1] bee' }
+    ];
+    assert.deepEqual(planPriorityChange(tasks, 'c', 'a', 1), [
+      { id: 'a', title: '[A2] one' },
+      { id: 'b', title: '[A3] two' },
+      { id: 'c', title: '[A1] bee' }
+    ]);
+  });
+
+  it('planPriorityChange accepts every valid group letter', () => {
+    const tasks = [{ id: 't', title: 'loose' }];
+    assert.deepEqual(planPriorityChange(tasks, 't', 'A', 1), [{ id: 't', title: '[A1] loose' }]);
+    assert.deepEqual(planPriorityChange(tasks, 't', 'B', 1), [{ id: 't', title: '[B1] loose' }]);
+    assert.deepEqual(planPriorityChange(tasks, 't', 'C', 1), [{ id: 't', title: '[C1] loose' }]);
+  });
+
+  it('planPriorityChange throws a descriptive error on a bad group or unknown task id', () => {
+    const tasks = [{ id: 't1', title: 'loose' }];
+    assert.throws(() => planPriorityChange(tasks, 't1', 'Z', 1), /bad input group=Z taskId=t1/);
+    assert.throws(() => planPriorityChange(tasks, 'ghost', 'A', 1), /bad input group=A taskId=ghost/);
+    assert.throws(() => planPriorityChange(tasks, 'ghost', 'Z', 1), /bad input/);
+    assert.throws(() => planPriorityChange(tasks, 't1', '', 1), /bad input/);
+    assert.throws(() => planPriorityChange(undefined, undefined, 'A', 1), /bad input/);
+  });
+});
+
+describe('a17 survivors: planRenumber tie comparator', () => {
+  it('planRenumber orders equal sequences by list position in both comparator directions', () => {
+    // V8 only calls comparator(later, earlier); capture it to check the sign both ways.
+    const realSort = Array.prototype.sort;
+    const captured = [];
+    Array.prototype.sort = function patchedSort(cmp) {
+      captured.push(cmp);
+      return realSort.call(this, cmp);
+    };
+    try {
+      planRenumber([{ id: 'a', title: '[A1] one' }, { id: 'b', title: '[A1] two' }]);
+    } finally {
+      Array.prototype.sort = realSort;
+    }
+    const entry = (index, sequence) => ({ index, parsed: { sequence } });
+    const cmp = captured[0];
+    assert.ok(cmp(entry(0, 1), entry(1, 1)) < 0, 'earlier tie sorts first');
+    assert.ok(cmp(entry(1, 1), entry(0, 1)) > 0, 'later tie sorts after');
+    assert.ok(cmp(entry(5, 1), entry(0, 2)) < 0, 'lower sequence wins regardless of index');
   });
 });

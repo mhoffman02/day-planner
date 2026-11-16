@@ -10,6 +10,7 @@
  * @returns {string} Date string formatted as YYYY-MM-DD, or empty string if invalid.
  */
 function extractLocalDateStr(dateVal) {
+  // Stryker disable next-line ConditionalExpression: equivalent, every falsy input falls through to the final return of empty string
   if (!dateVal) return '';
   if (typeof dateVal === 'string') {
     const match = dateVal.match(/^(\d{4}-\d{2}-\d{2})/);
