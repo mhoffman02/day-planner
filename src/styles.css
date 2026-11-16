@@ -6441,6 +6441,8 @@
      with cream type. Navy dark keeps none of this. */
   :root[data-theme="light"][data-palette="navy"] {
     --bg-accent-subtle: #edf2f7;
+    --bg-card: #f9f7f3; /* a third of the way from the 15% Manila mix toward the Manila card #f2ede3 */
+    --bg-parchment-fixed: #f5f2ec; /* in-card fills: same step, so zebra rows still show */
     --bg-subtle-2: #f5f8fc;
     --head-bg: #2c435c;
     --head-ink: var(--bg-parchment);

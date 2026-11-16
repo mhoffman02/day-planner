@@ -127,6 +127,15 @@ for (const file of ['src/styles.css', 'gas-app/Styles.html']) {
       assert.ok(contrast('#fcfbfa', bg) >= 7, `cream on ${bg}: ${contrast('#fcfbfa', bg).toFixed(2)}`);
       assert.match(light, /--head-ink-muted: color-mix\(in srgb, var\(--bg-parchment\) 72%, var\(--head-bg\)\);/);
     });
+    // User 2026-11-15: Navy light cards read too white; move them a third of the way from the 15% mix
+    // (#fdfcfb) toward the Manila card #f2ede3. In-card fills shift by the same step so zebra rows still show.
+    it('Navy light cards are creamier, in-card fills keep their step, navy text stays AA', () => {
+      assert.match(light, /--bg-card: #f9f7f3;/);
+      assert.match(light, /--bg-parchment-fixed: #f5f2ec;/);
+      for (const m of all.matchAll(/--(text-(?:default|primary|muted|muted-fixed|muted-2|muted-3|muted-4)): (#[0-9a-f]{6});/g)) {
+        assert.ok(contrast(m[2], '#f5f2ec') >= 4.5, `--${m[1]} ${m[2]} on in-card fill`);
+      }
+    });
     it('the quote header shares the section head band and ink', () => {
       assert.match(rule(css, '.quote-card-header'), /background: var\(--head-bg, var\(--binder-teal-light\)\);/);
       assert.match(rule(css, '.quote-card-title'), /color: var\(--head-ink, var\(--heading-color\)\);/);

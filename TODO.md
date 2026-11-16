@@ -25,10 +25,11 @@ Load-speed work (A8) came first on 2026-11-06 at the user's request.
 
 ### A15. Warm light mode and steady Today links (2026-11-14; shipped in TODO_HISTORY, HOME @463, WORK v261)
 - [x] Light mode (33% Manila page, 15% cards) looks good on HOME @463: user verified 2026-11-14.
-- [ ] User hand-check on HOME @463: dark mode looks unchanged; on Daily and Month the chevrons stay put when "Today" / "This Month" appear (they sit left of the previous chevron, leaving a gap on today). Then repoint WORK to v261.
+- [x] Navy light cards a third of the way from the 15% mix toward the Manila card: `--bg-card` #f9f7f3, in-card fills #f5f2ec (user ask, 2026-11-15).
+- [x] User hand-check on HOME @463, passed (2026-11-15): dark mode looks unchanged; on Daily and Month the chevrons stay put when "Today" / "This Month" appear (they sit left of the previous chevron, leaving a gap on today). Then repoint WORK to v261.
 
 ### A14. Quiet buttons, Future year nav (2026-11-14; shipped in TODO_HISTORY)
-- [ ] User hand-check on HOME @460, light and dark: buttons rest bare and show a border on hover (Notes header, Future item actions, Triage actions, modal Cancel); "This Year" sits left of the Future year picker and the chevrons stay put. Then repoint WORK to the newest version.
+- [x] User hand-check on HOME @460, passed (2026-11-15): buttons rest bare and show a border on hover (Notes header, Future item actions, Triage actions, modal Cancel); "This Year" sits left of the Future year picker and the chevrons stay put. Then repoint WORK to the newest version.
 - [ ] User decision, default leave: priority / category / status segmented selectors keep their resting track; quieting the unselected segments risks hiding the selected one in dark mode.
 
 ### A13. Note tab-sync (2026-11-14; shipped in TODO_HISTORY)
