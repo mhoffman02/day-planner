@@ -1,6 +1,6 @@
 {
-  "src/calendarEngine.js": 74,
+  "src/calendarEngine.js": 98.6,
+  "src/taskEngine.js": 93.2,
   "src/futureMatrixEngine.js": 98.1,
-  "src/searchEngine.js": 96.8,
-  "src/taskEngine.js": 93.2
+  "src/searchEngine.js": 96.8
 }

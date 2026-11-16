@@ -53,6 +53,7 @@ export function generateScheduleGrid() {
  * @param {Array<object>} [events=[]] List of raw calendar event objects.
  * @returns {Array<object>} Schedule grid slots with mapped events.
  */
+// Stryker disable next-line ArrayDeclaration: equivalent, a non-event default has no startTime, so its slot key is NaN:30 and matches no slot
 export function mapEventsToGrid(gridSlots = [], events = []) {
   const grid = gridSlots.map(slot => ({ ...slot, events: [] }));
 
@@ -101,8 +102,11 @@ export function extractMeetLink(rawEvent = {}) {
       }
     }
   }
+  // Stryker disable next-line StringLiteral: equivalent, a placeholder in the empty-field fallback cannot spell a meet.google.com link
   const title = (typeof rawEvent.getTitle === 'function' ? rawEvent.getTitle() : '') || rawEvent.title || rawEvent.summary || '';
+  // Stryker disable next-line StringLiteral: equivalent, a placeholder in the empty-field fallback cannot spell a meet.google.com link
   const loc = (typeof rawEvent.getLocation === 'function' ? rawEvent.getLocation() : '') || rawEvent.location || '';
+  // Stryker disable next-line StringLiteral: equivalent, a placeholder in the empty-field fallback cannot spell a meet.google.com link
   const desc = (typeof rawEvent.getDescription === 'function' ? rawEvent.getDescription() : '') || rawEvent.description || '';
   const text = `${title} ${loc} ${desc}`;
   const match = text.match(/(?:https?:\/\/)?meet\.google\.com\/[a-z0-9_-]+(?:\?[^\s"'<>]*)?/i);
@@ -219,8 +223,10 @@ function descReadValue(html, from) {
 
 /* Attributes up to the closing angle bracket, tokenized like HTML (a slash separates, quotes may hold one); null at end of input. */
 function descReadAttrs(html, from) {
+  // Stryker disable next-line ArrayDeclaration: equivalent, a junk seed entry is a string whose [0] is never "href", so find() ignores it
   const attrs = [];
   let j = from;
+  // Stryker disable next-line EqualityOperator: equivalent, at j == length the body pushes only a junk attr, then the loop exits to the same null
   while (j < html.length) {
     if (html[j] === '>') return { attrs: attrs, end: j + 1 };
     if (/[\t\n\f\r /]/.test(html[j])) {
@@ -229,6 +235,7 @@ function descReadAttrs(html, from) {
     }
     const nameEnd = descScan(html, j + 1, /[\t\n\f\r />=]/);
     const k = descScan(html, nameEnd, /[^\t\n\f\r ]/);
+    // Stryker disable next-line StringLiteral: equivalent, a placeholder value for a valueless attribute is not an http, https or mailto URL, so the href is dropped either way
     const value = html[k] === '=' ? descReadValue(html, k + 1) : { text: '', end: nameEnd };
     if (!value) return null;
     attrs.push([html.slice(j, nameEnd).toLowerCase(), value.text]);
@@ -242,18 +249,22 @@ function descReadTag(html, lt) {
   const next = html.charAt(lt + 1);
   if (html.startsWith('!-' + '-', lt + 1)) {
     const close = html.indexOf('-' + '->', lt + 4);
+    // Stryker disable next-line StringLiteral: equivalent, the kind value for a skip tag is only compared to "close"; any other string falls through to tag.end
     return { kind: 'skip', end: close === -1 ? html.length : close + 3 };
   }
   if (next === '!' || next === '?' || (next === '/' && !/[a-zA-Z]/.test(html.charAt(lt + 2)))) {
     const gt = html.indexOf('>', lt + 1);
+    // Stryker disable next-line StringLiteral: equivalent, the kind value for a skip tag is only compared to "close"; any other string falls through to tag.end
     return { kind: 'skip', end: gt === -1 ? html.length : gt + 1 };
   }
   const nameStart = next === '/' ? lt + 2 : lt + 1;
   if (!/[a-zA-Z]/.test(html.charAt(nameStart))) return null;
   const nameEnd = descScan(html, nameStart + 1, /[\t\n\f\r />]/);
   const parsed = descReadAttrs(html, nameEnd);
+  // Stryker disable next-line StringLiteral,ObjectLiteral: equivalent, a skip tag with no usable end sets i to undefined, which also ends the loop that html.length ends
   if (!parsed) return { kind: 'skip', end: html.length };
   const name = html.slice(nameStart, nameEnd).toLowerCase();
+  // Stryker disable next-line StringLiteral: equivalent, the open kind is never compared; any value other than skip or close is treated as open
   return { kind: next === '/' ? 'close' : 'open', name: name, attrs: parsed.attrs, end: parsed.end };
 }
 
@@ -274,6 +285,7 @@ function descSkipContent(html, tag) {
 
 /* Emits an allowed tag (closers only for open elements, so output stays balanced); returns the next index. */
 function descApplyTag(html, tag, out, open) {
+  // Stryker disable next-line ConditionalExpression,StringLiteral: equivalent, a skip tag has no name, so it falls through both name checks to the same return tag.end
   if (tag.kind === 'skip') return tag.end;
   if (tag.kind === 'close') {
     const at = open.lastIndexOf(tag.name);
@@ -291,6 +303,7 @@ function sanitizeDescriptionHtml(html) {
   const out = [];
   const open = [];
   let i = 0;
+  // Stryker disable next-line EqualityOperator: equivalent, at i == length indexOf finds no "<" and pushes an empty string before break
   while (i < html.length) {
     const lt = html.indexOf('<', i);
     if (lt === -1) {
@@ -331,6 +344,7 @@ export function formatEventDescriptionHtml(description = '') {
  * @param {Array<object>} [events=[]] List of calendar event objects.
  * @returns {Array<{dateStr: string, dayNumber: number, isCurrentMonth: boolean, events: Array<object>}>} Monthly calendar grid day cells.
  */
+// Stryker disable next-line ArrayDeclaration: equivalent, a non-event default has no startTime, so its date is empty and matches no day
 export function generateMonthlyCalendarGrid(year, month, events = []) {
   const firstDay = new Date(year, month - 1, 1);
   const lastDay = new Date(year, month, 0);
@@ -354,6 +368,7 @@ export function generateMonthlyCalendarGrid(year, month, events = []) {
   for (let day = 1; day <= totalDays; day++) {
     const dateStr = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
     const dayEvents = events.filter(e => {
+      // Stryker disable next-line StringLiteral: equivalent, a placeholder never equals a yyyy-mm-dd dateStr, same as the empty string
       const eDate = e.startTime ? getLocalDateStr(new Date(e.startTime)) : '';
       return eDate === dateStr;
     });
