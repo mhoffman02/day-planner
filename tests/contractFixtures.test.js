@@ -66,7 +66,7 @@ test('calendar contract: timed event with hangoutLink, attendees and gasTaskId i
     myResponse: 'accepted',
     etag: '"3000000000000001"',
     recurringEventId: null,
-    guestCount: 3,
+    guestCount: 2, // people only: the room resource gets no "notify guests" prompt (user 2026-11-16)
     guests: [
       { name: 'Test Organizer', email: 'organizer@example.com', response: 'accepted', organizer: true, self: true },
       { name: 'Test Guest One', email: 'guest.one@example.com', response: 'tentative', organizer: false, self: false },

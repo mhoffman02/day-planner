@@ -463,7 +463,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 803;
+const BUILD_NUMBER_ = 804;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -1245,7 +1245,7 @@ function mapCalendarApiEvent_(evt) {
     myResponse: selfResponseStatus_(evt.attendees),
     etag: evt.etag || null,
     recurringEventId: evt.recurringEventId || null,
-    guestCount: (evt.attendees || []).filter(function(a) { return a && !a.self; }).length,
+    guestCount: (evt.attendees || []).filter(function(a) { return a && !a.self && !a.resource; }).length, // people only, like guestList_
     guests: guestList_(evt.attendees),
     canEdit: canModifyEvent_(evt),
     canDelete: canModifyEvent_(evt)
