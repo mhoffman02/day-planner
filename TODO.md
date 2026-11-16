@@ -2,10 +2,22 @@
 
 Order (2026-10-30, user): autonomous agent work first; everything that needs the user is in the last section,
 "For the session after next" (items B1, B3, B4). An agent session works the open agent bullets in "Agent work"
-(A12 agent lines, A10 smoke and ensure-chrome, A0, A3, A5, A8) and skips any line marked as a user hand-check or decision (A6, A7, A9, A13, A14, A15, A12 and A10 user lines).
+(A17, A12 agent lines, A10 smoke and ensure-chrome, A0, A3, A5, A8) and skips any line marked as a user hand-check or decision (A6, A7, A9, A13, A14, A15, A12 and A10 user lines).
 Load-speed work (A8) came first on 2026-11-06 at the user's request.
 
 ## Agent work: next session (hand-check lines inside need the user)
+
+### A17. Fail loud and early, not after release (2026-11-15, user order: 1-3 first session, 4-6 the one after, then 7-9, then 10)
+- [x] 1. Error telemetry, done (2026-11-15): `src/clientTelemetry.js` (mirrored in `gas-app/Script.html`) forwards uncaught errors, unhandled rejections and console.error to `logFromClient` (`gas-app/Code.gs` `recordClientLog`: Apps Script log + `recordServerLog` ring buffer + Run Log Doc), with view and build; max 10 per page load, no repeats. Adapted from the LiteConsole `logFromClient` bridge (GitHub `mhoffman02/gsai-gas-project-template` `documents/developer-guide/09-lite-console.md`). Server RPC failures reach it through the client failure handlers. Read: `npm run rpc -- getRecentServerLogs` or `?view=logs&format=json` on /dev.
+- [x] 2. Time-zone matrix, done (2026-11-15): `npm run test:tz` (Chicago, UTC, Auckland) in CI; `tests/dstClock.test.js` pins the clock on DST-change days.
+- [ ] 3. Inline invariants: `invariant(cond, msg)` inside engine logic, on in production. Client copies must also land in `gas-app/Script.html` (hand mirror); server helper in `src/integration/contracts.js`. Post-conditions only, 5-8 sites; unreachable ones get `// Stryker disable next-line all: invariant, unreachable when correct`.
+- [x] 4. Mutation ratchet, done (2026-11-15): `mutation-baseline.json` per file, `npm run test:mutation` (incremental), check-handoff gate. Still open: kill calendarEngine survivors (74%) in date, priority and recurrence code, tests only, then `npm run test:mutation -- --update`.
+- [ ] 5. Failure injection for Google APIs: GAS stubs throw quota, 403, 404 and timeout; assert each RPC fails loud with a user-facing message.
+- [ ] 6. Contract fixtures from real Calendar, Tasks and Docs responses (scrub personal data); mappers tested against them.
+- [ ] 7. Type checking with `tsc --checkJs` + JSDoc, no TypeScript migration. Check [ADR 0005](docs/adr/0005-js-with-v-validation-not-typescript.md) first; it may rule this out.
+- [ ] 8. Verify WORK after repoint: at least a one-line "WORK loads" check after the user repoints `/exec`.
+- [ ] 9. Zero-tolerance flaky tests: a flaky test is fixed or deleted the same day, never retried; write the rule and its gate.
+- [ ] 10. Automated dev-dependency updates (Dependabot or Renovate) so audits stay small.
 
 ### A10. Attendees and hover popovers (2026-11-12; shipped in TODO_HISTORY, hand-checked on WORK 2026-11-12)
 - [ ] Local-preview `index.html` port is unverified in a browser: `npm run smoke` fails on clean HEAD (it does not start the server; run `npm start` first) ("Alpine app failed to initialize within 6s"). Diagnose with `tools/ensure-chrome.js http://localhost:3000` + `tools/probe-live.js`, then fix with a red test or smoke repro.

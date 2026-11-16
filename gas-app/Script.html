@@ -2,6 +2,95 @@
   // Helper engine definitions bundled for GAS SPA client
   const STATUS_LIST = ['•', '○', '✓', '→', 'X', 'Ⓓ'];
 
+  /* Client error telemetry, mirrored verbatim from src/clientTelemetry.js (tests/clientTelemetry.test.js runs both
+     copies). Adapted from the LiteConsole logFromClient bridge: uncaught errors, unhandled rejections and
+     console.error reach the server log, capped and de-duplicated per page load. */
+  const TELEMETRY_MAX_PER_PAGE = 10;
+  const TELEMETRY_MAX_MESSAGE = 1000;
+  const TELEMETRY_MAX_STACK = 4000;
+
+  function createClientTelemetry(send, getContext, maxPerPage = TELEMETRY_MAX_PER_PAGE) {
+    const seen = new Set();
+    let sent = 0;
+    function report(level, message, stack) {
+      const text = String(message).slice(0, TELEMETRY_MAX_MESSAGE);
+      const key = level + ' ' + text;
+      if (sent >= maxPerPage || seen.has(key)) return false;
+      seen.add(key);
+      sent += 1;
+      const ctx = getContext() || {};
+      send(level, text, {
+        stack: stack ? String(stack).slice(0, TELEMETRY_MAX_STACK) : '',
+        view: ctx.view ? String(ctx.view) : '',
+        build: ctx.build === undefined || ctx.build === null ? '' : String(ctx.build)
+      });
+      return true;
+    }
+    return { report };
+  }
+
+  function errorParts(value) {
+    if (value instanceof Error) return { message: value.message, stack: value.stack || '' };
+    return { message: String(value), stack: '' };
+  }
+
+  function consoleParts(args) {
+    const words = [];
+    let stack = '';
+    for (const arg of args) {
+      if (arg instanceof Error) {
+        words.push(arg.message);
+        if (!stack) stack = arg.stack || '';
+      } else if (typeof arg === 'string') {
+        const cut = arg.indexOf('\n');
+        if (cut === -1) {
+          words.push(arg);
+        } else {
+          words.push(arg.slice(0, cut));
+          if (!stack) stack = arg.slice(cut + 1);
+        }
+      } else {
+        words.push(JSON.stringify(arg));
+      }
+    }
+    return { message: words.join(' '), stack };
+  }
+
+  function installClientTelemetry(win, telemetry) {
+    const original = win.console.error.bind(win.console);
+    win.addEventListener('error', function (event) {
+      const parts = errorParts(event.error || event.message);
+      telemetry.report('ERROR', 'Uncaught ' + parts.message, parts.stack);
+    });
+    win.addEventListener('unhandledrejection', function (event) {
+      const parts = errorParts(event.reason);
+      telemetry.report('ERROR', 'Unhandled rejection ' + parts.message, parts.stack);
+    });
+    win.console.error = function (...args) {
+      original(...args);
+      const parts = consoleParts(args);
+      telemetry.report('ERROR', parts.message, parts.stack);
+    };
+    return original;
+  }
+
+  /* Live GAS only (google.script.run present); local mock and node tests skip it. A failed send prints through
+     the original console.error so it is not forwarded again. */
+  (function startClientTelemetry() {
+    if (typeof window === 'undefined' || !window.google || !window.google.script || !window.google.script.run) return;
+    let printError = null;
+    const telemetry = createClientTelemetry(function (level, message, data) {
+      window.google.script.run
+        .withFailureHandler(function (err) { printError('logFromClient failed, entry kept in this browser console only\n' + (err && err.stack)); })
+        .logFromClient(level, message, data);
+    }, function () {
+      const root = window.Alpine && window.Alpine.$data ? document.querySelector('[x-data="plannerApp"]') : null;
+      const app = root ? window.Alpine.$data(root) : null;
+      return { view: app ? app.activeView : '', build: window.DAY_PLANNER_BUILD_NUMBER };
+    });
+    printError = installClientTelemetry(window, telemetry);
+  })();
+
   const MONTH_NAMES = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'

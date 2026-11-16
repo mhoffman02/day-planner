@@ -95,7 +95,14 @@ const STACK_EXEMPT_FILES = new Set(['gas-app/UnitTests.gs']);
 
 /** `file:enclosing-function` sites allowed to expose a stack, each with its reason. */
 export const STACK_TO_UI_ALLOWED = new Map([
-  ['gas-app/Code.gs:getRecentServerLogs', 'dev log viewer, user decision 1A 2026-10-30']
+  ['gas-app/Code.gs:getRecentServerLogs', 'dev log viewer, user decision 1A 2026-10-30'],
+  // Client error telemetry (user 2026-11-15): stacks travel to the server log (recordServerLog), never to UI.
+  ...['errorParts', 'consoleParts', 'installClientTelemetry'].flatMap((fn) => [
+    [`src/clientTelemetry.js:${fn}`, 'client telemetry to server log'],
+    [`gas-app/Script.html:${fn}`, 'client telemetry to server log']
+  ]),
+  ['gas-app/Script.html:startClientTelemetry', 'client telemetry send failure, printed to console only'],
+  ['gas-app/Code.gs:recordClientLog', 'client telemetry into console and recordServerLog']
 ]);
 
 function isConsoleCall(callee) {

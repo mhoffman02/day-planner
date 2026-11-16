@@ -374,6 +374,27 @@ function getRecentServerLogs() {
 }
 
 /**
+ * Server half of client error telemetry (src/clientTelemetry.js; adapted from the LiteConsole logFromClient bridge).
+ * Writes a released-app client error to the Apps Script log and the server log ring buffer + Run Log Doc, with view
+ * and build number in its context. The client caps and de-duplicates sends per page load.
+ * @param {'ERROR'|'WARN'} level Severity.
+ * @param {string} message Error message (client cuts it to 1000 chars).
+ * @param {{stack: string, view: string, build: string}} data Stack, active view and build number ('' when unknown).
+ * @returns {boolean} true once recorded.
+ */
+function recordClientLog(level, message, data) {
+  DPEngines.v_.guard(arguments, 'logFromClient').param('level').string().oneOf('ERROR', 'WARN')
+    .param('message').string().maxLength(1000).param('data').object().done();
+  const view = String(data.view || '').slice(0, 60);
+  const build = String(data.build || '').slice(0, 20);
+  const stack = data.stack ? String(data.stack).slice(0, 4000) : null;
+  const context = 'client' + (view ? ' ' + view : '') + (build ? ' build ' + build : '');
+  (level === 'ERROR' ? console.error : console.warn)('🛰 ' + context + ': ' + message + (stack ? '\n' + stack : ''));
+  recordServerLog(level, context, message, stack);
+  return true;
+}
+
+/**
  * Clears the persistent execution log ring buffer.
  * @returns {{success: boolean}} Operation status.
  */
@@ -442,7 +463,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 788;
+const BUILD_NUMBER_ = 789;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -4009,6 +4030,7 @@ global.recordServerLog = recordServerLog;                    // used by UnitTest
 global.getRecentServerLogs = getRecentServerLogs;            // used by UnitTests.gs
 global.clearRecentServerLogs = clearRecentServerLogs;        // used by UnitTests.gs
 global._clearServerLogsInternal = clearRecentServerLogs;     // google.script.run: self-test page (UnitTests.gs)
+global._logFromClientInternal = recordClientLog;             // google.script.run: Script.html client telemetry
 global.getRunLogDocUrl = getRunLogDocUrl;                    // used by UnitTests.gs
 global.escapeHtml_ = escapeHtml_;                            // used by UnitTests.gs
 global.getFolderByNameOrCreate = getFolderByNameOrCreate;    // used by UnitTests.gs
@@ -4236,6 +4258,10 @@ function getDriveRegrantConfig() {
 
 function clearServerLogs() {
   return (typeof _clearServerLogsInternal === 'function') ? _clearServerLogsInternal() : (globalThis._clearServerLogsInternal ? globalThis._clearServerLogsInternal() : null);
+}
+
+function logFromClient(level, message, data) {
+  return (typeof _logFromClientInternal === 'function') ? _logFromClientInternal(level, message, data) : (globalThis._logFromClientInternal ? globalThis._logFromClientInternal(level, message, data) : null);
 }
 
 function getFutureMatrix(year) {
