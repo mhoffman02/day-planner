@@ -20,7 +20,7 @@ Load-speed work (A8) came first on 2026-11-06 at the user's request.
 - [x] 10. Dependabot, done (2026-11-15): `.github/dependabot.yml`, weekly grouped npm minor/patch PRs (axe-core stays pinned for the axe ratchet), monthly Actions SHAs. These PRs are the bot's; merge one when CI is green.
 
 ### A10. Attendees and hover popovers (2026-11-12; shipped in TODO_HISTORY, hand-checked on WORK 2026-11-12)
-- [ ] Local-preview `index.html` port is unverified in a browser: `npm run smoke` fails on clean HEAD (it does not start the server; run `npm start` first) ("Alpine app failed to initialize within 6s"). Diagnose with `tools/ensure-chrome.js http://localhost:3000` + `tools/probe-live.js`, then fix with a red test or smoke repro.
+- [x] Local-preview smoke, done (2026-11-15): the only failure was that `npm run smoke` did not start the server; it now starts `server.js` when port 3000 is down and stops it after. All 9 smoke sections pass with zero console errors.
 - [ ] `tools/ensure-chrome.js` Linux branch deliberately left without `--password-store=basic` (WSL2 launches Windows chrome.exe); revisit only if the keyring prompt returns after `npm run smoke`.
 
 ### A15. Warm light mode and steady Today links (2026-11-14; shipped in TODO_HISTORY, HOME @463, WORK v261)

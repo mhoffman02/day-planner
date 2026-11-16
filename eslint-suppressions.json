@@ -188,9 +188,6 @@
   "tools/smoke-test.js": {
     "complexity": {
       "count": 1
-    },
-    "no-restricted-syntax": {
-      "count": 1
     }
   }
 }

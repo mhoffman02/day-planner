@@ -8,9 +8,46 @@ import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const CHROME_PORT = process.env.CHROME_PORT ? parseInt(process.env.CHROME_PORT, 10) : 9225;
-const TARGET_URL = 'http://localhost:3000';
+// Same PORT env as server.js, so `PORT=3100 npm run smoke` works when 3000 is taken.
+const PORT = Number(process.env.PORT) || 3000;
+const TARGET_URL = `http://localhost:${PORT}`;
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+/**
+ * @returns {Promise<boolean>} True when the mock preview answers on TARGET_URL.
+ */
+async function serverUp() {
+  try {
+    return (await fetch(TARGET_URL, { signal: AbortSignal.timeout(1000) })).ok;
+  } catch (err) {
+    // WSL2 mirrored networking can drop (not refuse) connections to a closed port, so a timeout is "down" too;
+    // ensureServer still fails loud if server.js itself never answers.
+    if (err.cause?.code === 'ECONNREFUSED' || err.name === 'TimeoutError') return false;
+    throw err;
+  }
+}
+
+/**
+ * Starts server.js when nothing answers on TARGET_URL (A10: smoke used to fail with
+ * "Alpine app failed to initialize" whenever `npm start` was not already running).
+ * @returns {Promise<import('node:child_process').ChildProcess|null>} The started server, or null if one was running.
+ */
+async function ensureServer() {
+  if (await serverUp()) return null;
+  console.log(`▶ No server on ${TARGET_URL}; starting server.js for this run...`);
+  const server = spawn(process.execPath, [path.join(ROOT, 'server.js')], { cwd: ROOT, stdio: 'ignore', env: { ...process.env, PORT: String(PORT) } });
+  for (let i = 0; i < 50; i++) {
+    if (await serverUp()) return server;
+    if (server.exitCode !== null) throw new Error(`server.js exited with code ${server.exitCode}`);
+    await wait(200);
+  }
+  server.kill();
+  throw new Error(`server.js did not answer on ${TARGET_URL} within 10s`);
+}
 
 function wait(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -19,10 +56,10 @@ function wait(ms) {
 async function getDebuggerUrl() {
   for (let i = 0; i < 30; i++) {
     try {
-      const res = await fetch(`http://127.0.0.1:${CHROME_PORT}/json`);
+      const res = await fetch(`http://127.0.0.1:${CHROME_PORT}/json`, { signal: AbortSignal.timeout(2000) });
       if (res.ok) {
         const data = await res.json();
-        const page = data.find(p => p.type === 'page' && p.url.includes('localhost:3000'));
+        const page = data.find(p => p.type === 'page' && p.url.includes(`localhost:${PORT}`));
         if (page && page.webSocketDebuggerUrl) {
           return page.webSocketDebuggerUrl;
         }
@@ -96,6 +133,7 @@ class CDPClient {
 }
 
 async function runSmokeTest() {
+  const server = await ensureServer();
   console.log('🚀 Starting headless Chrome for smoke testing...');
   const tmpProfileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'day-planner-smoke-'));
   const chromeProcess = spawn('google-chrome', [
@@ -111,6 +149,7 @@ async function runSmokeTest() {
   ], { stdio: 'ignore' });
 
   const cleanup = () => {
+    if (server) server.kill();
     try {
       chromeProcess.kill();
     } catch {
@@ -147,7 +186,7 @@ async function runSmokeTest() {
     }
 
     if (!alpineReady) {
-      throw new Error('Alpine app failed to initialize on localhost:3000 within 6s');
+      throw new Error(`Alpine app failed to initialize on ${TARGET_URL} within 6s`);
     }
     console.log('✔ Alpine initialized successfully');
 
@@ -335,7 +374,7 @@ async function runSmokeTest() {
     console.log('✅ ALL SMOKE TESTS PASSED CLEANLY');
     console.log('=========================================');
     cdp.close();
-    chromeProcess.kill();
+    cleanup();
     process.exit(0);
   } catch (err) {
     console.error('\n❌ Smoke test failed:', err);
@@ -344,4 +383,7 @@ async function runSmokeTest() {
   }
 }
 
-runSmokeTest();
+runSmokeTest().catch((err) => {
+  console.error('\n❌ Smoke test failed before Chrome started:', err.stack);
+  process.exit(1);
+});

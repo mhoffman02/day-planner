@@ -156,6 +156,7 @@ export default [
         Buffer: 'readonly',
         fetch: 'readonly',
         WebSocket: 'readonly',
+        AbortSignal: 'readonly',
         setTimeout: 'readonly',
         clearTimeout: 'readonly',
         URL: 'readonly'
