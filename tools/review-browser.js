@@ -35,7 +35,7 @@ async function reviewLocalApp() {
     { name: 'monthly-calendar', selector: '.segment-btn:has-text("Month")' },
     { name: 'master-tasks', selector: '.segment-btn:has-text("Master Tasks")' },
     { name: 'monthly-index', selector: '.segment-btn:has-text("Index")' },
-    { name: 'future-matrix', selector: '.segment-btn:has-text("Future")' },
+    { name: 'future-matrix', selector: '.segment-btn:has-text("Year")' },
     { name: 'about', selector: '.segment-btn:has-text("About")' }
   ];
 

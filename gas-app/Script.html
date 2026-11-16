@@ -3883,7 +3883,7 @@
       // stomp an edit the user made in the meantime.
       dailyEditSeq: {},
       // Same edit-guard pattern as dailyEditSeq, but for the single global Master Tasks list and
-      // the per-year Future Planning matrix.
+      // the per-year Year Planner matrix.
       masterTasksEditSeq: 0,
       futureMatrixEditSeq: {},
       taskNoteLinks: [],
@@ -5933,7 +5933,7 @@
         try {
           await this.bridge.addGoalStepToFuture(this.goalDraft.id, title, month);
           this.goalStepTitle = '';
-          this.goalMsg = 'Sent to Future, ' + month + '.';
+          this.goalMsg = 'Sent to Year, ' + month + '.';
         } catch (err) {
           console.error('addGoalStepToFutureMonth: step not sent to Future:', err.stack);
           this.goalMsg = err.message || String(err);
@@ -5985,9 +5985,9 @@
           if (opts.strict) throw err; // refreshAll files its own sync:future entry
           if (year !== this.futureMatrixYear) return;
           if (cached) {
-            this.showStaleNotice(`load-future:${year}`, `Future Planning ${year}`, cached, err);
+            this.showStaleNotice(`load-future:${year}`, `Year Planner ${year}`, cached, err);
           } else {
-            this.reportError(`load-future:${year}`, `Could not load Future Planning Matrix: ${err.message || err.toString()}`, { retry: () => this.loadFutureMatrix() });
+            this.reportError(`load-future:${year}`, `Could not load Year Planner Matrix: ${err.message || err.toString()}`, { retry: () => this.loadFutureMatrix() });
           }
         }
       },
@@ -6051,7 +6051,7 @@
         const previous = item.status;
         item.status = newStatus;
         try {
-          dpRequireSaved(await dpCallBridge(this.bridge, [['updateFutureItemStatus', [year, monthKey, item.id, newStatus]]], 'Future Planning item status'), 'Future Planning item status');
+          dpRequireSaved(await dpCallBridge(this.bridge, [['updateFutureItemStatus', [year, monthKey, item.id, newStatus]]], 'Year Planner item status'), 'Year Planner item status');
         } catch (err) {
           console.error('saveFutureItemStatus: save failed; status rolled back to last saved value:', err.stack);
           dpRestoreIfUnchanged(item, 'status', newStatus, previous);

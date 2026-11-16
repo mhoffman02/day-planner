@@ -200,6 +200,18 @@
           <span class="material-symbols-outlined icon-16">calendar_today</span>
           <span>Today</span>
         </button>
+        <template x-if="showTriageNav">
+          <button type="button" class="segment-btn" :class="{ 'active': activeView === 'triage' }" @click="setView('triage')" title="Gmail Triage Board">
+            <span class="material-symbols-outlined icon-16">inbox</span>
+            <span>Triage</span>
+          </button>
+        </template>
+        <template x-if="hubTabsPending">
+          <span class="segment-btn hub-tab-reserve" aria-hidden="true">
+            <span class="material-symbols-outlined icon-16">inbox</span>
+            <span>Triage</span>
+          </span>
+        </template>
         <button type="button" class="segment-btn" :class="{ 'active': activeView === 'monthly-calendar' }" @click="setView('monthly-calendar')" title="Monthly Calendar View">
           <span class="material-symbols-outlined icon-16">calendar_month</span>
           <span>Month</span>
@@ -212,20 +224,10 @@
           <span class="material-symbols-outlined icon-16">topic</span>
           <span>Index</span>
         </button>
-        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'future-matrix' }" @click="setView('future-matrix')" title="Future Planning">
+        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'future-matrix' }" @click="setView('future-matrix')" title="Year Planner: 12-month overview">
           <span class="material-symbols-outlined icon-16">explore</span>
-          <span>Future</span>
+          <span>Year</span>
         </button>
-        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'goals' }" @click="setView('goals')" title="Goals: someday to today">
-          <span class="material-symbols-outlined icon-16">flag</span>
-          <span>Goals</span>
-        </button>
-        <template x-if="showTriageNav">
-          <button type="button" class="segment-btn" :class="{ 'active': activeView === 'triage' }" @click="setView('triage')" title="Gmail Triage Board">
-            <span class="material-symbols-outlined icon-16">inbox</span>
-            <span>Triage</span>
-          </button>
-        </template>
         <template x-if="showMeetingPrepNav">
           <button type="button" class="segment-btn" :class="{ 'active': activeView === 'meetingPrep' }" @click="setView('meetingPrep')" title="Meeting Prep and Carry-ins">
             <span class="material-symbols-outlined icon-16">event_note</span>
@@ -234,16 +236,14 @@
         </template>
         <template x-if="hubTabsPending">
           <span class="segment-btn hub-tab-reserve" aria-hidden="true">
-            <span class="material-symbols-outlined icon-16">inbox</span>
-            <span>Triage</span>
-          </span>
-        </template>
-        <template x-if="hubTabsPending">
-          <span class="segment-btn hub-tab-reserve" aria-hidden="true">
             <span class="material-symbols-outlined icon-16">event_note</span>
             <span>Meeting Prep</span>
           </span>
         </template>
+        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'goals' }" @click="setView('goals')" title="Goals: someday to today">
+          <span class="material-symbols-outlined icon-16">flag</span>
+          <span>Goals</span>
+        </button>
         <button type="button" class="segment-btn" :class="{ 'active': activeView === 'about' || activeView === 'tutorial' }" @click="setView('about')" :title="'Help & About' + (appBuildNumber ? ' — GH Build ' + appBuildNumber : '')">
           <span class="material-symbols-outlined icon-16">info</span>
           <span>About</span>
@@ -1307,13 +1307,13 @@
         </section>
       </template>
 
-      <!-- View 5: Future Planning -->
+      <!-- View 5: Year Planner -->
       <template x-if="activeView === 'future-matrix'">
-        <section class="view-container" aria-label="Future Planning">
+        <section class="view-container" aria-label="Year Planner">
           <header class="future-matrix-header">
             <h2 class="view-title">
               <span class="material-symbols-outlined">explore</span>
-              Future Planning
+              Year Planner
             </h2>
             <div class="future-matrix-year-nav">
               <button type="button" class="year-link-btn" :class="{ 'is-placeholder': !isOffCurrentFutureYear() }" @click="jumpToCurrentFutureYear()" title="Jump to Current Year">This Year</button>
@@ -1442,9 +1442,9 @@
                 <h3 class="goals-heading">Breakdown</h3>
                 <button type="button" class="goals-btn" @click="newRootGoal()">+ Someday goal</button>
                 <button type="button" class="goals-btn" :disabled="!goalCanBreakDown" @click="newChildGoal()"
-                        :title="selectedGoal &amp;&amp; !goalCanBreakDown ? 'Quarter goals break down into Future months and Today tasks' : 'Add a sub-goal under the selected goal'">+ Break down</button>
+                        :title="selectedGoal &amp;&amp; !goalCanBreakDown ? 'Quarter goals break down into Year months and Today tasks' : 'Add a sub-goal under the selected goal'">+ Break down</button>
               </div>
-              <p class="goals-quiet" x-show="selectedGoal &amp;&amp; !goalCanBreakDown">Quarter goals break down into Future months and Today tasks.</p>
+              <p class="goals-quiet" x-show="selectedGoal &amp;&amp; !goalCanBreakDown">Quarter goals break down into Year months and Today tasks.</p>
               <p class="goals-quiet" x-show="goalRows.length === 0" x-cloak>No goals yet. Start with a Someday goal.</p>
               <table class="goals-table goals-outline">
                 <thead>
@@ -1540,8 +1540,8 @@
                     </label>
                     <div class="goals-actions">
                       <button type="button" class="goals-btn" :disabled="!goalStepTitle.trim()" @click="addGoalStepToToday()">Add to Today as A</button>
-                      <input type="month" class="goals-input goals-month-input" x-model="goalStepMonth" aria-label="Future month">
-                      <button type="button" class="goals-btn" :disabled="!goalStepTitle.trim() || !goalStepMonth" @click="addGoalStepToFutureMonth()">Send to Future</button>
+                      <input type="month" class="goals-input goals-month-input" x-model="goalStepMonth" aria-label="Year month">
+                      <button type="button" class="goals-btn" :disabled="!goalStepTitle.trim() || !goalStepMonth" @click="addGoalStepToFutureMonth()">Send to Year</button>
                     </div>
                   </div>
                 </form>
@@ -1881,6 +1881,10 @@
             <td>Your main workspace: today's tasks, today's schedule, and today's notes, side by side, plus a short quote for the day (click its header to collapse it). Click an appointment for its details; hover its note icon to see the same details (time, place, Meet link, description) without opening it.</td>
           </tr>
           <tr>
+            <td><b>Triage</b> <i>(optional)</i></td>
+            <td>A board of the Gmail threads you've labelled with 🎯, showing what the hub did with each one (Done, Failed, Deferred, In progress, or Already done). From each row you can make it a task, send it to a meeting, or <b>Archive</b> it or <b>Delete</b> it (moves it to Gmail Trash). Only threads still in your Inbox are listed, each with a one-line preview of the latest message (click it for more), and the <b>Result</b> column says what happened. The board opens at once from its last copy, marked out of date until it refreshes; if Gmail’s per-minute limit is reached, it waits about a minute before reading Gmail again. Appears once the Gmail hub is on.</td>
+          </tr>
+          <tr>
             <td><b>Month</b></td>
             <td>A full-month view of your appointments, so you can see what's coming up at a glance.</td>
           </tr>
@@ -1893,12 +1897,8 @@
             <td>A running, searchable log of the key decisions and outcomes you've tagged with <code>#index</code> in your notes, so you can find "what did we decide about X" without digging back through old notes.</td>
           </tr>
           <tr>
-            <td><b>Future</b> (page title Future Planning)</td>
+            <td><b>Year</b> (page title Year Planner)</td>
             <td>A 12-month look-ahead for goals and milestones that are more than a month out. Items are saved as Google Tasks, so you can also see them in Google Tasks.</td>
-          </tr>
-          <tr>
-            <td><b>Triage</b> <i>(optional)</i></td>
-            <td>A board of the Gmail threads you've labelled with 🎯, showing what the hub did with each one (Done, Failed, Deferred, In progress, or Already done). From each row you can make it a task, send it to a meeting, or <b>Archive</b> it or <b>Delete</b> it (moves it to Gmail Trash). Only threads still in your Inbox are listed, each with a one-line preview of the latest message (click it for more), and the <b>Result</b> column says what happened. The board opens at once from its last copy, marked out of date until it refreshes; if Gmail’s per-minute limit is reached, it waits about a minute before reading Gmail again. Appears once the Gmail hub is on.</td>
           </tr>
           <tr>
             <td><b>Meeting Prep</b> <i>(optional)</i></td>
@@ -2033,7 +2033,7 @@
           <tr>
             <td><code>[Future]</code></td>
             <td>Google Task details (automatic)</td>
-            <td>Marks a Future Planning item. Leave it in place, or the item drops off the Future Planning tab.</td>
+            <td>Marks a Year Planner item. Leave it in place, or the item drops off the Year Planner tab.</td>
             <td>—</td>
           </tr>
           <tr>
@@ -2076,7 +2076,7 @@
             <td>Pick <b>Delegate…</b> in the status menu, type who has it (optional), and choose when to check back: tomorrow, next week, or a date. The task shows Ⓓ, and an open <b>Check back: …</b> task (with the name) lands on that day, so a handed-off task never drops out of sight. Click <b>Undo</b> on the confirmation to take it back.</td>
           </tr>
           <tr>
-            <td>Add a <b>Future Planning</b> item</td>
+            <td>Add a <b>Year Planner</b> item</td>
             <td>A Google Task due on that date, tagged <code>[Future]</code>.</td>
           </tr>
           <tr>
@@ -2550,7 +2550,7 @@
       <details class="guide-card about-details tutorial-ex" data-ex="T05" data-title="Plan something months ahead" x-data="{ id: 'T05' }">
         <summary class="guide-card-title"><span class="tutorial-ex-id">T05</span> Plan something months ahead <span class="tutorial-ex-mark" :class="'is-' + result(id)" x-text="result(id) === 'pass' ? 'Pass' : result(id) === 'fail' ? 'Fail' : ''"></span></summary>
         <dl class="tutorial-steps">
-          <dt>Do</dt><dd>On the <b>Future</b> tab, in the card for a month at least two months away, type <code>DP-T05 Budget review</code> in <b>Add big item...</b> and click the <b>+</b> button next to it (<b>Add item</b>).</dd>
+          <dt>Do</dt><dd>On the <b>Year</b> tab, in the card for a month at least two months away, type <code>DP-T05 Budget review</code> in <b>Add big item...</b> and click the <b>+</b> button next to it (<b>Add item</b>).</dd>
           <dt>Look in</dt><dd>Google Tasks.</dd>
           <dt>Pass if</dt><dd>There is a Google Task <b>DP-T05 Budget review</b> due on that date, with <code>[Future]</code> in its details.</dd>
           <dt>Clean up</dt><dd>Delete it in Google Tasks.</dd>

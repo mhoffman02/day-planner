@@ -236,8 +236,8 @@ async function runSmokeTest() {
       throw new Error(`Expected activeView to be daily after Jump to Day click, got "${jumpedView}"`);
     }
 
-    // TEST 5: Future Planning View
-    console.log('\n--- 5. Testing Future Planning View ---');
+    // TEST 5: Year Planner View
+    console.log('\n--- 5. Testing Year Planner View ---');
     await setAppMethod('setView("future-matrix")');
     await wait(200);
     const futureViewActive = await getAppProp('activeView');

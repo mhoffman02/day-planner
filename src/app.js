@@ -508,7 +508,7 @@ Alpine.data('plannerApp', () => ({
       // stomp an edit the user made in the meantime.
       dailyEditSeq: {},
       // Same edit-guard pattern as dailyEditSeq, but for the single global Master Tasks list and
-      // the Future Planning matrix (keyed by year) -- bumped on every local mutation so a
+      // the Year Planner matrix (keyed by year) -- bumped on every local mutation so a
       // background revalidation started before the mutation can't overwrite it afterward.
       masterTasksEditSeq: 0,
       futureMatrixEditSeq: {},
@@ -2573,7 +2573,7 @@ Alpine.data('plannerApp', () => ({
         try {
           await this.bridge.addGoalStepToFuture(this.goalDraft.id, title, month);
           this.goalStepTitle = '';
-          this.goalMsg = 'Sent to Future, ' + month + '.';
+          this.goalMsg = 'Sent to Year, ' + month + '.';
         } catch (err) {
           console.error('addGoalStepToFutureMonth: step not sent to Future:', err.stack);
           this.goalMsg = err.message || String(err);
@@ -2625,9 +2625,9 @@ Alpine.data('plannerApp', () => ({
           if (opts.strict) throw err; // refreshAll files its own sync:future entry
           if (year !== this.futureMatrixYear) return;
           if (cached) {
-            this.showStaleNotice(`load-future:${year}`, `Future Planning ${year}`, cached, err);
+            this.showStaleNotice(`load-future:${year}`, `Year Planner ${year}`, cached, err);
           } else {
-            this.reportError(`load-future:${year}`, `Could not load Future Planning Matrix: ${err.message || err.toString()}`, { retry: () => this.loadFutureMatrix() });
+            this.reportError(`load-future:${year}`, `Could not load Year Planner Matrix: ${err.message || err.toString()}`, { retry: () => this.loadFutureMatrix() });
           }
         }
       },
@@ -2691,7 +2691,7 @@ Alpine.data('plannerApp', () => ({
         const previous = item.status;
         item.status = newStatus;
         try {
-          requireSaved(await callBridge(this.bridge, [['updateFutureItemStatus', [year, monthKey, item.id, newStatus]]], 'Future Planning item status'), 'Future Planning item status');
+          requireSaved(await callBridge(this.bridge, [['updateFutureItemStatus', [year, monthKey, item.id, newStatus]]], 'Year Planner item status'), 'Year Planner item status');
         } catch (err) {
           console.error('saveFutureItemStatus: save failed; status rolled back to last saved value:', err.stack);
           restoreIfUnchanged(item, 'status', newStatus, previous);

@@ -208,6 +208,18 @@
           <span class="material-symbols-outlined icon-16">calendar_today</span>
           <span>Today</span>
         </button>
+        <template x-if="showTriageNav">
+          <button type="button" class="segment-btn" :class="{ 'active': activeView === 'triage' }" @click="setView('triage')" title="Gmail Triage Board">
+            <span class="material-symbols-outlined icon-16">inbox</span>
+            <span>Triage</span>
+          </button>
+        </template>
+        <template x-if="hubTabsPending">
+          <span class="segment-btn hub-tab-reserve" aria-hidden="true">
+            <span class="material-symbols-outlined icon-16">inbox</span>
+            <span>Triage</span>
+          </span>
+        </template>
         <button type="button" class="segment-btn" :class="{ 'active': activeView === 'monthly-calendar' }" @click="setView('monthly-calendar')" title="Monthly Calendar View">
           <span class="material-symbols-outlined icon-16">calendar_month</span>
           <span>Month</span>
@@ -220,20 +232,10 @@
           <span class="material-symbols-outlined icon-16">topic</span>
           <span>Index</span>
         </button>
-        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'future-matrix' }" @click="setView('future-matrix')" title="Future Planning">
+        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'future-matrix' }" @click="setView('future-matrix')" title="Year Planner: 12-month overview">
           <span class="material-symbols-outlined icon-16">explore</span>
-          <span>Future</span>
+          <span>Year</span>
         </button>
-        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'goals' }" @click="setView('goals')" title="Goals: someday to today">
-          <span class="material-symbols-outlined icon-16">flag</span>
-          <span>Goals</span>
-        </button>
-        <template x-if="showTriageNav">
-          <button type="button" class="segment-btn" :class="{ 'active': activeView === 'triage' }" @click="setView('triage')" title="Gmail Triage Board">
-            <span class="material-symbols-outlined icon-16">inbox</span>
-            <span>Triage</span>
-          </button>
-        </template>
         <template x-if="showMeetingPrepNav">
           <button type="button" class="segment-btn" :class="{ 'active': activeView === 'meetingPrep' }" @click="setView('meetingPrep')" title="Meeting Prep and Carry-ins">
             <span class="material-symbols-outlined icon-16">event_note</span>
@@ -242,16 +244,14 @@
         </template>
         <template x-if="hubTabsPending">
           <span class="segment-btn hub-tab-reserve" aria-hidden="true">
-            <span class="material-symbols-outlined icon-16">inbox</span>
-            <span>Triage</span>
-          </span>
-        </template>
-        <template x-if="hubTabsPending">
-          <span class="segment-btn hub-tab-reserve" aria-hidden="true">
             <span class="material-symbols-outlined icon-16">event_note</span>
             <span>Meeting Prep</span>
           </span>
         </template>
+        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'goals' }" @click="setView('goals')" title="Goals: someday to today">
+          <span class="material-symbols-outlined icon-16">flag</span>
+          <span>Goals</span>
+        </button>
         <button type="button" class="segment-btn" :class="{ 'active': activeView === 'about' || activeView === 'tutorial' }" @click="setView('about')" :title="'Help & About' + (appBuildNumber ? ' — GH Build ' + appBuildNumber : '')">
           <span class="material-symbols-outlined icon-16">info</span>
           <span>About</span>
@@ -1323,13 +1323,13 @@
         </section>
       </template>
 
-      <!-- View 5: Future Planning -->
+      <!-- View 5: Year Planner -->
       <template x-if="activeView === 'future-matrix'">
-        <section class="view-container" aria-label="Future Planning">
+        <section class="view-container" aria-label="Year Planner">
           <header class="future-matrix-header">
             <h2 class="view-title">
               <span class="material-symbols-outlined">explore</span>
-              Future Planning
+              Year Planner
             </h2>
             <div class="future-matrix-year-nav">
               <button type="button" class="year-link-btn" :class="{ 'is-placeholder': !isOffCurrentFutureYear() }" @click="jumpToCurrentFutureYear()" title="Jump to Current Year">This Year</button>
@@ -1458,9 +1458,9 @@
                 <h3 class="goals-heading">Breakdown</h3>
                 <button type="button" class="goals-btn" @click="newRootGoal()">+ Someday goal</button>
                 <button type="button" class="goals-btn" :disabled="!goalCanBreakDown" @click="newChildGoal()"
-                        :title="selectedGoal &amp;&amp; !goalCanBreakDown ? 'Quarter goals break down into Future months and Today tasks' : 'Add a sub-goal under the selected goal'">+ Break down</button>
+                        :title="selectedGoal &amp;&amp; !goalCanBreakDown ? 'Quarter goals break down into Year months and Today tasks' : 'Add a sub-goal under the selected goal'">+ Break down</button>
               </div>
-              <p class="goals-quiet" x-show="selectedGoal &amp;&amp; !goalCanBreakDown">Quarter goals break down into Future months and Today tasks.</p>
+              <p class="goals-quiet" x-show="selectedGoal &amp;&amp; !goalCanBreakDown">Quarter goals break down into Year months and Today tasks.</p>
               <p class="goals-quiet" x-show="goalRows.length === 0" x-cloak>No goals yet. Start with a Someday goal.</p>
               <table class="goals-table goals-outline">
                 <thead>
@@ -1556,8 +1556,8 @@
                     </label>
                     <div class="goals-actions">
                       <button type="button" class="goals-btn" :disabled="!goalStepTitle.trim()" @click="addGoalStepToToday()">Add to Today as A</button>
-                      <input type="month" class="goals-input goals-month-input" x-model="goalStepMonth" aria-label="Future month">
-                      <button type="button" class="goals-btn" :disabled="!goalStepTitle.trim() || !goalStepMonth" @click="addGoalStepToFutureMonth()">Send to Future</button>
+                      <input type="month" class="goals-input goals-month-input" x-model="goalStepMonth" aria-label="Year month">
+                      <button type="button" class="goals-btn" :disabled="!goalStepTitle.trim() || !goalStepMonth" @click="addGoalStepToFutureMonth()">Send to Year</button>
                     </div>
                   </div>
                 </form>

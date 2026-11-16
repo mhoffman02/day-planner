@@ -338,7 +338,7 @@ for (const c of clients) {
       });
     });
 
-    describe('Future Planning item status', () => {
+    describe('Year Planner item status', () => {
       function futureVm(bridge) {
         const item = { id: 'f1', title: 'Offsite', status: '•' };
         const vm = makeVm(c.factory, {
@@ -436,7 +436,7 @@ for (const c of clients) {
         await vm.loadFutureMatrix();
         fail = true;
         await captureConsoleError(async () => { await vm.loadFutureMatrix(); });
-        assert.match(vm.errorMessage || '', /Future Planning/);
+        assert.match(vm.errorMessage || '', /Year Planner/);
         assert.match(vm.errorMessage || '', /last synced [A-Z][a-z]{2} \d{1,2}, \d{1,2}:\d{2} [AP]M\)/);
       });
     });

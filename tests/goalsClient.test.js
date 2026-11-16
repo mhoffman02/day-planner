@@ -2,7 +2,7 @@
  * @file goalsClient.test.js
  * @description Goals tab client behavior in both client copies (src/app.js and gas-app/Script.html):
  * a broken-down sub-goal inherits its parent life area and value so the Balance grid counts it,
- * and the Send to Future month starts at the current month instead of blank.
+ * and the Send to Year month starts at the current month instead of blank.
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -30,7 +30,7 @@ for (const c of await bothClients()) {
       assert.equal(vm.goalDraft.value, 'Mastery');
     });
 
-    it('selecting a goal starts the Send to Future month at the current month', () => {
+    it('selecting a goal starts the Send to Year month at the current month', () => {
       const vm = vmWithParent();
       assert.equal(vm.goalStepMonth, '2026-11');
     });
