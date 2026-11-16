@@ -13,7 +13,7 @@ check is a wish; add the check or drop the line.
 | Never walk away from a bug: why it escaped, what now catches it | same hook: `Escaped-because:` + `Guard-added:` on every `fix` |
 | Fail loud, never fail open | `tools/check-catch-logging.js` in `npm run lint` ([[fail-loud-catch]]) |
 | Validate at module boundaries, not internals | `v_` in `src/integration/v_.js` ([ADR 0005](../../docs/adr/0005-js-with-v-validation-not-typescript.md)); `tools/check-rpc-guards.js` in lint: every Code.gs RPC with params guards its args (`rpc-guard-baseline.json`, only shrinks) |
-| Date keys are local, never UTC | ESLint `no-restricted-syntax` on `toISOString().slice/split/substring`, every `.js`/`.gs` and gas-app/*.html script |
+| Date keys are local, never UTC | ESLint `no-restricted-syntax` on `toISOString().slice/split/substring`, every `.js`/`.gs` and gas-app/*.html script; CI runs the suite under America/Chicago, UTC and Pacific/Auckland (`npm run test:tz`), and `tests/dstClock.test.js` pins the clock on DST-change days |
 | Mirrored code stays identical | `tools/check-mirror.js` in lint (`mirror-baseline.json`: src/*.js vs Script.html, styles.css vs Styles.html) |
 | Served HTML never truncates | `tools/check-gas-script-html-safe-chars.js`: every script and style block of every gas-app/*.html |
 | No GAS globals; no unbounded loops; no `substr`; no implicit coercion | ESLint: `Program > VariableDeclaration`, `global.X = <value>`, `while(true)`/`for(;;)`, `no-restricted-properties`, `no-implicit-coercion` |

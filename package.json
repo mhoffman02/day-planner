@@ -28,7 +28,8 @@
     "test:coverage": "node tools/check-coverage.js",
     "check:commit-msg": "node tools/check-commit-msg.js",
     "check:html": "node tools/check-html.js",
-    "test:mutation": "stryker run"
+    "test:mutation": "stryker run",
+    "test:tz": "node tools/test-tz.js"
   },
   "keywords": [
     "day-planner",

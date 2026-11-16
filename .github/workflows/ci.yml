@@ -26,3 +26,5 @@ jobs:
       - run: npm run lint
       # A dropped promise crashes the run instead of vanishing.
       - run: NODE_OPTIONS=--unhandled-rejections=strict npm run test:coverage
+      # Same suite behind, at and ahead of UTC: a UTC-shift or DST date bug fails here, not after release.
+      - run: npm run test:tz

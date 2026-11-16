@@ -13,7 +13,7 @@ check is a wish; add the check or drop the line.
 | Never walk away from a bug: why it escaped, what now catches it | same hook: `Escaped-because:` + `Guard-added:` on every `fix` |
 | Fail loud, never fail open | `tools/check-catch-logging.js` in `npm run lint` ([[fail-loud-catch]]) |
 | Validate at module boundaries, not internals | `v_` in `src/integration/v_.js` ([ADR 0005](../../docs/adr/0005-js-with-v-validation-not-typescript.md)); `tools/check-rpc-guards.js` in lint: every Code.gs RPC with params guards its args (`rpc-guard-baseline.json`, only shrinks) |
-| Date keys are local, never UTC | ESLint `no-restricted-syntax` on `toISOString().slice/split/substring`, every `.js`/`.gs` and gas-app/*.html script |
+| Date keys are local, never UTC | ESLint `no-restricted-syntax` on `toISOString().slice/split/substring`, every `.js`/`.gs` and gas-app/*.html script; CI runs the suite under America/Chicago, UTC and Pacific/Auckland (`npm run test:tz`), and `tests/dstClock.test.js` pins the clock on DST-change days |
 | Mirrored code stays identical | `tools/check-mirror.js` in lint (`mirror-baseline.json`: src/*.js vs Script.html, styles.css vs Styles.html) |
 | Served HTML never truncates | `tools/check-gas-script-html-safe-chars.js`: every script and style block of every gas-app/*.html |
 | No GAS globals; no unbounded loops; no `substr`; no implicit coercion | ESLint: `Program > VariableDeclaration`, `global.X = <value>`, `while(true)`/`for(;;)`, `no-restricted-properties`, `no-implicit-coercion` |
@@ -23,7 +23,7 @@ check is a wish; add the check or drop the line.
 | No pills; dynamic HTML only through sanitizers | `tools/check-html.js`: radius 50%/99px/≥100px fails; `x-html` only via `formatEventDescription`/`renderCardLine` |
 | Coverage never drops; no untested src file | `npm run test:coverage` (`coverage-baseline.json`), CI |
 | Edge cases by law, not by example | property tests in `tests/properties.test.js` (fast-check) |
-| Tests must notice wrong results, not just run lines | `npm run test:mutation` (Stryker `--incremental`, then `tools/check-mutation.js`): per-file score in `mutation-baseline.json` only goes up; `npm run check:handoff` demands a fresh passing report when a mutated engine changed since the last handoff. Survivors in dates, priority, recurrence become tests; a proven-equivalent mutant gets `// Stryker disable next-line <mutator>: equivalent, <why>` |
+| Tests must notice wrong results, not just run lines | `npm run test:mutation` (Stryker) before big phases; survivors become tests |
 | CSS design tokens: `var(--token)`, no local magic colors/z-index/px font, no `!important`/`#id`, focus ring and reduced motion kept | `tools/check-css.js` in `npm run lint` (`css-baseline.json`, counts only go down; `tests/cssGate.test.js`) |
 | Valid, accessible HTML | `tools/check-html.js` in lint (`html-baseline.json`, counts only go down); axe-core on the live /dev app in `npm run deploy:home` (`axe-baseline.json` per-rule counts only go down, new rule ids fail; `--update-axe` lowers) |
 | What the user loads is what was tested | `npm run deploy:home` live `/dev` gate ([ADR 0006](../../docs/adr/0006-live-deploy-gate.md)) |
@@ -34,7 +34,7 @@ check is a wish; add the check or drop the line.
 
 - MUST NOT commit with `--no-verify` unless a failing check is outside the commit (e.g. another agent's untracked
   files). Then run `tools/check-commit-msg.js` by hand and watch CI on that commit before moving on.
-- A ratchet baseline (`coverage-baseline.json`, `html-baseline.json`, `mutation-baseline.json`) only tightens, via `--update` after a real
+- A ratchet baseline (`coverage-baseline.json`, `html-baseline.json`) only tightens, via `--update` after a real
   improvement. Never hand-edit it looser to pass.
 
 **Why:** on 2026-10-30, @337-@340 passed 1288 tests and never loaded. The user asked for Maguire/Knuth practice
