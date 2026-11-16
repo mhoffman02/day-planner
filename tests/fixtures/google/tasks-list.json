@@ -1,0 +1,59 @@
+{
+  "_provenance": "shape from API reference, not captured. Tasks API v1 tasks.list response (showCompleted, showHidden); every value is fake. Due is RFC3339 midnight UTC; notes carry app tags.",
+  "kind": "tasks#tasks",
+  "etag": "\"fake-list-etag\"",
+  "items": [
+    {
+      "kind": "tasks#task",
+      "id": "task_open_001",
+      "etag": "\"t1\"",
+      "title": "Test Task Open",
+      "updated": "2026-11-08T12:00:00.000Z",
+      "selfLink": "https://www.googleapis.com/tasks/v1/lists/FAKELIST/tasks/task_open_001",
+      "position": "00000000000000000001",
+      "notes": "Plain note text\n[Category: Work]\n[Starred]\n[SourceMaster: master_fake_9]\n[GoalRef: goal_fake_3]",
+      "status": "needsAction",
+      "due": "2026-11-09T00:00:00.000Z",
+      "links": [],
+      "webViewLink": "https://tasks.google.com/task/FAKE1"
+    },
+    {
+      "kind": "tasks#task",
+      "id": "task_done_002",
+      "etag": "\"t2\"",
+      "title": "Test Task Done",
+      "updated": "2026-11-09T12:00:00.000Z",
+      "position": "00000000000000000002",
+      "status": "completed",
+      "completed": "2026-11-09T16:00:00.000Z",
+      "due": "2026-11-09T00:00:00.000Z"
+    },
+    {
+      "kind": "tasks#task",
+      "id": "task_child_003",
+      "etag": "\"t3\"",
+      "title": "Test Subtask",
+      "parent": "task_open_001",
+      "position": "00000000000000000001",
+      "notes": "[Status: ○]",
+      "status": "needsAction",
+      "due": "2026-11-09T00:00:00.000Z"
+    },
+    {
+      "kind": "tasks#task",
+      "id": "task_other_day_004",
+      "etag": "\"t4\"",
+      "title": "Test Task Other Day",
+      "status": "needsAction",
+      "due": "2026-11-12T00:00:00.000Z"
+    },
+    {
+      "kind": "tasks#task",
+      "id": "task_undated_005",
+      "etag": "\"t5\"",
+      "title": "Test Task Undated",
+      "notes": "[Category: Personal]",
+      "status": "needsAction"
+    }
+  ]
+}

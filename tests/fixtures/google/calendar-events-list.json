@@ -1,0 +1,83 @@
+{
+  "_provenance": "shape from API reference, not captured. Calendar API v3 events.list response (singleEvents=true, conferenceDataVersion=1) for 2026-11-09 in America/Chicago; every value is fake (example.com, Test Event).",
+  "kind": "calendar#events",
+  "timeZone": "America/Chicago",
+  "items": [
+    {
+      "kind": "calendar#event",
+      "etag": "\"3000000000000001\"",
+      "id": "evt_timed_meet_001",
+      "summary": "Test Event Standup",
+      "description": "Test description line",
+      "location": "Test Room 1",
+      "htmlLink": "https://www.google.com/calendar/event?eid=FAKEEID001",
+      "start": { "dateTime": "2026-11-09T09:00:00-06:00", "timeZone": "America/Chicago" },
+      "end": { "dateTime": "2026-11-09T09:30:00-06:00", "timeZone": "America/Chicago" },
+      "hangoutLink": "https://meet.google.com/aaa-bbbb-ccc",
+      "conferenceData": {
+        "entryPoints": [
+          { "entryPointType": "video", "uri": "https://meet.google.com/zzz-yyyy-xxx" },
+          { "entryPointType": "phone", "uri": "tel:+1-555-0100" }
+        ],
+        "conferenceId": "aaa-bbbb-ccc"
+      },
+      "organizer": { "email": "organizer@example.com", "displayName": "Test Organizer", "self": true },
+      "attendees": [
+        { "email": "organizer@example.com", "displayName": "Test Organizer", "organizer": true, "self": true, "responseStatus": "accepted" },
+        { "email": "guest.one@example.com", "displayName": "Test Guest One", "responseStatus": "tentative" },
+        { "email": "guest.two@example.com", "responseStatus": "needsAction" },
+        { "email": "room-1@resource.example.com", "displayName": "Test Room 1", "resource": true, "responseStatus": "accepted" }
+      ],
+      "extendedProperties": { "shared": { "gasTaskId": "task_fake_001" }, "private": { "note": "fake" } }
+    },
+    {
+      "kind": "calendar#event",
+      "etag": "\"3000000000000002\"",
+      "id": "evt_series_20261109T150000Z",
+      "recurringEventId": "evt_series",
+      "summary": "Test Event Weekly Sync",
+      "start": { "dateTime": "2026-11-09T09:00:00-06:00" },
+      "end": { "dateTime": "2026-11-09T10:00:00-06:00" },
+      "conferenceData": {
+        "entryPoints": [
+          { "entryPointType": "phone", "uri": "tel:+1-555-0100" },
+          { "entryPointType": "video", "uri": " https://meet.google.com/ddd-eeee-fff " }
+        ]
+      },
+      "organizer": { "email": "boss@example.com", "displayName": "Test Boss" },
+      "attendees": [
+        { "email": "boss@example.com", "displayName": "Test Boss", "organizer": true, "responseStatus": "accepted" },
+        { "email": "me@example.com", "self": true, "responseStatus": "declined" }
+      ]
+    },
+    {
+      "kind": "calendar#event",
+      "etag": "\"3000000000000003\"",
+      "id": "evt_allday_001",
+      "summary": "Test Event All Day",
+      "start": { "date": "2026-11-09" },
+      "end": { "date": "2026-11-10" },
+      "organizer": { "email": "organizer@example.com", "self": true }
+    },
+    {
+      "kind": "calendar#event",
+      "etag": "\"3000000000000004\"",
+      "id": "evt_untitled_guests_modify",
+      "start": { "dateTime": "2026-11-09T13:00:00-06:00" },
+      "end": { "dateTime": "2026-11-09T14:00:00-06:00" },
+      "organizer": { "email": "boss@example.com" },
+      "guestsCanModify": true,
+      "description": "Join: meet.google.com/ggg-hhhh-iii now"
+    },
+    {
+      "kind": "calendar#event",
+      "etag": "\"3000000000000005\"",
+      "id": "evt_ooo_001",
+      "eventType": "outOfOffice",
+      "summary": "Test Event Out of office",
+      "start": { "dateTime": "2026-11-09T15:00:00-06:00" },
+      "end": { "dateTime": "2026-11-09T17:00:00-06:00" },
+      "organizer": { "email": "organizer@example.com", "self": true }
+    }
+  ]
+}

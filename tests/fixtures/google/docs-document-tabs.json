@@ -1,0 +1,272 @@
+{
+  "_provenance": "shape from API reference, not captured. Docs API documents.get with includeTabsContent=true: single tab, body.content paragraphs (HEADING_2/3, bullets, page break); all text is fake.",
+  "documentId": "fake_doc_id",
+  "title": "Day Planner Notes - November 2026",
+  "revisionId": "fake_rev_1",
+  "tabs": [
+    {
+      "tabProperties": {
+        "tabId": "t.0",
+        "index": 0,
+        "title": "Tab 1"
+      },
+      "documentTab": {
+        "body": {
+          "content": [
+            {
+              "endIndex": 1,
+              "sectionBreak": {
+                "sectionStyle": {
+                  "columnSeparatorStyle": "NONE"
+                }
+              }
+            },
+            {
+              "startIndex": 1,
+              "endIndex": 40,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 1,
+                    "endIndex": 40,
+                    "textRun": {
+                      "content": "Day Planner - Sunday, November 8, 2026\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "HEADING_2"
+                }
+              }
+            },
+            {
+              "startIndex": 40,
+              "endIndex": 55,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 40,
+                    "endIndex": 55,
+                    "textRun": {
+                      "content": "Other day note\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            },
+            {
+              "startIndex": 55,
+              "endIndex": 94,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 55,
+                    "endIndex": 94,
+                    "textRun": {
+                      "content": "Day Planner - Monday, November 9, 2026\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "HEADING_2"
+                }
+              }
+            },
+            {
+              "startIndex": 94,
+              "endIndex": 110,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 94,
+                    "endIndex": 110,
+                    "textRun": {
+                      "content": "Test intro line\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            },
+            {
+              "startIndex": 110,
+              "endIndex": 121,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 110,
+                    "endIndex": 121,
+                    "textRun": {
+                      "content": "Test Topic\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "HEADING_3"
+                }
+              }
+            },
+            {
+              "startIndex": 121,
+              "endIndex": 137,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 121,
+                    "endIndex": 137,
+                    "textRun": {
+                      "content": "Test bullet one\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                },
+                "bullet": {
+                  "listId": "kix.fakelist1",
+                  "nestingLevel": 0
+                }
+              }
+            },
+            {
+              "startIndex": 137,
+              "endIndex": 153,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 137,
+                    "endIndex": 153,
+                    "textRun": {
+                      "content": "Test bullet two\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                },
+                "bullet": {
+                  "listId": "kix.fakelist1",
+                  "nestingLevel": 0
+                }
+              }
+            },
+            {
+              "startIndex": 153,
+              "endIndex": 154,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 153,
+                    "endIndex": 154,
+                    "textRun": {
+                      "content": "\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            },
+            {
+              "startIndex": 154,
+              "endIndex": 173,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 154,
+                    "endIndex": 173,
+                    "textRun": {
+                      "content": "Plain closing line\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            },
+            {
+              "startIndex": 173,
+              "endIndex": 175,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 173,
+                    "endIndex": 174,
+                    "pageBreak": {
+                      "textStyle": {}
+                    }
+                  },
+                  {
+                    "startIndex": 174,
+                    "endIndex": 175,
+                    "textRun": {
+                      "content": "\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            },
+            {
+              "startIndex": 175,
+              "endIndex": 216,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 175,
+                    "endIndex": 216,
+                    "textRun": {
+                      "content": "Day Planner - Tuesday, November 10, 2026\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "HEADING_2"
+                }
+              }
+            },
+            {
+              "startIndex": 216,
+              "endIndex": 230,
+              "paragraph": {
+                "elements": [
+                  {
+                    "startIndex": 216,
+                    "endIndex": 230,
+                    "textRun": {
+                      "content": "Next day note\n",
+                      "textStyle": {}
+                    }
+                  }
+                ],
+                "paragraphStyle": {
+                  "namedStyleType": "NORMAL_TEXT"
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
