@@ -10,9 +10,6 @@ Load-speed work (A8) came first on 2026-11-06 at the user's request.
 ### A17. Fail loud and early, not after release (2026-11-15, user order: 1-3 first session, 4-6 the one after, then 7-9, then 10)
 - [ ] 8. User: open WORK `/exec` once on version 280 (repointed 2026-11-16) and say if it loads; the agent cannot, its CDP Chrome is not signed in to gsa.gov.
 
-### A18. Dead code after the 2-Way Sync retirement (2026-11-16)
-- [ ] Agent: delete `src/syncEngine.js` and `tests/syncEngine.test.js` (no app code imports it). `tests/localDateKeys.test.js` also imports `syncTaskToCalendar` (~L12, one assert ~L33): drop that import and assert with it (the function is gone, so its date-key check goes too). `coverage-baseline.json` has no entry for it. Then `npm run lint && npm test`.
-
 ### A10. Attendees and hover popovers (2026-11-12; shipped in TODO_HISTORY, hand-checked on WORK 2026-11-12)
 - [ ] `tools/ensure-chrome.js` Linux branch deliberately left without `--password-store=basic` (WSL2 launches Windows chrome.exe); revisit only if the keyring prompt returns after `npm run smoke`.
 

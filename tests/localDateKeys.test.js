@@ -9,7 +9,6 @@ process.env.TZ = 'America/New_York';
 import { describe, it, mock, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { generateMonthlyCalendarGrid, formatEventModalPayload } from '../src/calendarEngine.js';
-import { syncTaskToCalendar } from '../src/syncEngine.js';
 import { parseIndexEntriesFromNote } from '../src/indexParser.js';
 
 const LATE_EVENING = new Date(2026, 9, 30, 21, 30); // UTC: 2026-10-31T01:30Z
@@ -27,10 +26,6 @@ describe('local date keys after 20:00 EDT', () => {
 
   it('event modal link falls back to the local today', () => {
     assert.match(formatEventModalPayload({ title: 'No start' }).gCalLink, /\/r\/day\/2026\/10\/30$/);
-  });
-
-  it('a task with no due date syncs onto the local today', () => {
-    assert.match(syncTaskToCalendar({ id: 't1', title: 'A1 Call' }).updatedEvent.startTime, /^2026-10-30T/);
   });
 
   it('an index entry with no note date is dated the local today', () => {

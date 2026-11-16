@@ -1,5 +1,8 @@
 # Task History (TODO_HISTORY)
 
+## 2026-11-16 — A18
+- [x] A18 done (2026-11-16): deleted `src/syncEngine.js`, `tests/syncEngine.test.js`, and the `syncTaskToCalendar` import and assert in `tests/localDateKeys.test.js`.
+
 ## 2026-11-16 — Fail-loud A17 done, notes lock, sync retired, false Docs conflict fixed
 
 From A17. Fail loud and early, not after release:
