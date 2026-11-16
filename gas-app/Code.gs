@@ -463,7 +463,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 800;
+const BUILD_NUMBER_ = 801;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -2232,10 +2232,9 @@ function getOrCreateDailyDocContent(dateStr, knownDocId) {
     const extracted = extractDaySectionText_(elements, dateStr);
     return extracted !== null ? extracted : ('### #index [General] Daily Notes\n- Initialized daily topic card.');
   } catch (err) {
-    logError('getOrCreateDailyDocContent(' + dateStr + ')', err);
-    // A second tab must reach the user: the placeholder below would hide it and invite a save into tab 1.
-    if (err && err.code === 'DOC_MULTI_TAB') throw err;
-    return '### #index [General] Daily Notes';
+    logError('getOrCreateDailyDocContent(' + dateStr + '): getDailyData reports it as a warning', err);
+    // Never hand back placeholder text as if it were the day's notes: the caller shows the failure.
+    throw err;
   }
 }
 
@@ -2819,8 +2818,8 @@ function getMasterTasks(monthYearStr) {
     });
     return buildMasterTasksClearinghouse(decoded);
   } catch (err) {
-    logError('getMasterTasks(' + (monthYearStr || '') + ')', err);
-    return [];
+    logError('getMasterTasks(' + (monthYearStr || '') + '): the client keeps its cached list and shows a stale notice', err);
+    throw err;
   }
 }
 
