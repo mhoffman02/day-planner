@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import { makeGasContext, loadGasFile, stubPrimaryTimeZone, toHost } from './helpers/gasRuntimeStubs.js';
 import { makeHubContext, addThread, addCoreOccurrences, runFilterLearner } from './helpers/gasFakesHub.js';
 import { discoverRpcs } from './helpers/gasRpcDiscovery.js';
-import { FAILURE_KINDS, failureError, injectFailure, assertFailsLoud, assertUserFacing, stackLines } from './helpers/gasFailures.js';
+import { FAILURE_KINDS, injectFailure, assertFailsLoud, assertUserFacing, stackLines } from './helpers/gasFailures.js';
 
 const KINDS = Object.keys(FAILURE_KINDS);
 const FOLDER_MIME = 'application/vnd.google-apps.folder';
@@ -396,22 +396,6 @@ describe('404 idempotent exceptions for the Future and Master task RPCs', () => 
   });
 });
 
-// runBackgroundSync is fire-and-forget after first paint; src/app.js console.errors a {ok:false} result.
-// The inner helpers still catch and log (trigger handlers must not throw) but report false, so a failed step reaches the result.
-describe('runBackgroundSync when the trigger check fails: logs the stack, result is ok:false naming the step', () => {
-  for (const kind of KINDS) {
-    it(kind, () => {
-      const ctx = codeCtx();
-      const err = failureError(kind, 'ScriptApp.getProjectTriggers');
-      ctx.ScriptApp = { getProjectTriggers: () => { throw err; } };
-      const res = toHost(ctx.runBackgroundSync());
-      assert.equal(res.ok, false);
-      assert.match(res.error, /trigger/i);
-      assert.ok(stackLines(ctx).length > 0, 'no console.error line carried a stack');
-    });
-  }
-});
-
 // Hub config RPCs: Config tab reads/writes go to the hub Sheet.
 const HUB_CONFIG = [
   { rpc: 'hubSetFeature', call: (c) => c._hubSetFeatureInternal('DRY_RUN', true) },
@@ -432,7 +416,7 @@ for (const tc of HUB_CONFIG) {
   });
 }
 
-const COVERED = new Set([...CASES, ...MORE_CASES, ...HUB_MORE, ...DOC_CASES, ...HUB_CONFIG].map((c) => c.rpc.replace(/ \(.*\)$/, '')).concat(['getTriageBoard', 'getHubStatus', 'hubSuggestFilters', 'hubCreateSelectedFilters', 'runBackgroundSync']));
+const COVERED = new Set([...CASES, ...MORE_CASES, ...HUB_MORE, ...DOC_CASES, ...HUB_CONFIG].map((c) => c.rpc.replace(/ \(.*\)$/, '')).concat(['getTriageBoard', 'getHubStatus', 'hubSuggestFilters', 'hubCreateSelectedFilters']));
 /** RPCs deliberately outside the matrix, each with the reason. */
 const EXEMPT = {
   include: 'HtmlService page include, no Google data API; on a read error it logs the stack (logError) and returns an HTML comment',

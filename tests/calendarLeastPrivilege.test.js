@@ -9,7 +9,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { makeGasContext, loadGasFile, toHost, stubPrimaryTimeZone, formatDateInZone } from './helpers/gasRuntimeStubs.js';
+import { makeGasContext, loadGasFile, toHost, stubPrimaryTimeZone } from './helpers/gasRuntimeStubs.js';
 
 const gasDir = path.join(import.meta.dirname, '..', 'gas-app');
 const gasFiles = fs.readdirSync(gasDir).filter((f) => /\.(gs|html)$/.test(f));
@@ -59,66 +59,6 @@ test('time zone probe failure fails closed with the stack logged (no script-zone
   assert.throws(() => ctx.createCalendarEvent({ title: 'Review', dateStr: '2026-10-09', startTime: '09:00', endTime: '10:00' }), /time zone/i);
   assert.equal(inserts.length, 0);
   assert.match(ctx.__consoleLines.join('\n'), /events\.list 503[\s\S]*\n\s+at /);
-});
-
-// ---------------------------------------------------------------- 2-Way Sync (was CalendarApp tags)
-function syncCtx(o = {}) {
-  const ctx = makeGasContext();
-  const today = formatDateInZone(new Date(), 'America/New_York', 'yyyy-MM-dd');
-  const at = (hh) => today + 'T' + hh + ':00-05:00';
-  ctx.__fakes.tasks.push(
-    { id: 'T1', title: 'Write memo', status: 'completed', due: today + 'T00:00:00.000Z', notes: '' },
-    { id: 'T2', title: 'Call vendor', status: 'needsAction', due: today + 'T00:00:00.000Z', notes: '' },
-    { id: 'T3', title: 'Already synced', status: 'needsAction', due: today + 'T00:00:00.000Z', notes: '' }
-  );
-  const tagged = (id, summary, taskId) => ({ id, summary, start: { dateTime: at('09:00') }, end: { dateTime: at('09:30') }, organizer: { self: true }, extendedProperties: { shared: { gasTaskId: taskId } } });
-  ctx.__fakes.events.push(tagged('E1', 'Write memo', 'T1'), tagged('E2', '[✓] Call vendor', 'T2'), tagged('E3', 'Already synced', 'T3'),
-    { id: 'E4', summary: 'Untagged', start: { dateTime: at('11:00') }, end: { dateTime: at('12:00') } });
-  stubPrimaryTimeZone(ctx, () => ({ timeZone: 'America/New_York' }));
-  const patches = [];
-  ctx.Calendar.Events.patch = (resource, calendarId, eventId, opts) => {
-    patches.push({ resource: toHost(resource), calendarId, eventId, opts: toHost(opts) });
-    if (o.failOn === eventId) throw new Error('Forbidden: ' + eventId);
-    return { id: eventId, summary: resource.summary };
-  };
-  loadGasFile(ctx, 'Code.gs');
-  return { ctx, patches };
-}
-
-test('syncWorkspaceChanges retitles tagged events through Calendar.Events.patch, skipping unchanged ones', () => {
-  const { ctx, patches } = syncCtx();
-  ctx.syncWorkspaceChanges();
-  const byId = Object.fromEntries(patches.map((p) => [p.eventId, p]));
-  assert.deepEqual(Object.keys(byId).sort(), ['E1', 'E2'], 'only events whose title must change are written');
-  assert.deepEqual(byId.E1.resource, { summary: '[✓] Write memo' });
-  assert.deepEqual(byId.E2.resource, { summary: 'Call vendor' });
-  for (const p of patches) {
-    assert.equal(p.calendarId, 'primary');
-    assert.equal(p.opts.sendUpdates, 'none', 'a retitle never emails guests');
-  }
-});
-
-test('syncWorkspaceChanges: one failed patch is logged with its stack and the rest still sync', () => {
-  const { ctx, patches } = syncCtx({ failOn: 'E1' });
-  ctx.syncWorkspaceChanges();
-  assert.ok(patches.some((p) => p.eventId === 'E2'), 'E2 still patched after E1 failed');
-  assert.match(ctx.__consoleLines.join('\n'), /syncWorkspaceChanges[\s\S]*Forbidden: E1[\s\S]*\n\s+at /);
-});
-
-test('syncWorkspaceChanges reports true on a clean pass and false when a retitle failed', () => {
-  assert.equal(syncCtx().ctx.syncWorkspaceChanges(), true);
-  assert.equal(syncCtx({ failOn: 'E1' }).ctx.syncWorkspaceChanges(), false);
-});
-
-test('runBackgroundSync: clean pass is ok:true; a failed retitle is ok:false naming the sync step', () => {
-  const withTrigger = (ctx) => {
-    ctx.ScriptApp = { getProjectTriggers: () => [{ getHandlerFunction: () => 'syncWorkspaceChanges' }] };
-    return ctx;
-  };
-  assert.deepEqual(toHost(withTrigger(syncCtx().ctx).runBackgroundSync()), { ok: true });
-  const res = toHost(withTrigger(syncCtx({ failOn: 'E1' }).ctx).runBackgroundSync());
-  assert.equal(res.ok, false);
-  assert.match(res.error, /sync/i);
 });
 
 // ---------------------------------------------------------------- no silent CalendarApp fallback

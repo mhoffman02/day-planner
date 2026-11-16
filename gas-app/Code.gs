@@ -463,7 +463,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 808;
+const BUILD_NUMBER_ = 809;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -536,8 +536,7 @@ function doGet_original(e) {
       return renderSetupFolderPage();
     }
 
-    // 4. Regular Web App load. The sync pass and trigger check cost ~2 s, so they run in
-    // runBackgroundSync, which the client calls after first paint, not before the shell returns.
+    // 4. Regular Web App load.
     const template = HtmlService.createTemplateFromFile('Index');
     const output = template.evaluate()
       .setTitle('Day Planner')
@@ -913,121 +912,25 @@ function include(filename) {
 }
 
 /**
- * Ensures automated time-driven 2-Way Sync trigger is installed.
- * @param {number} [minutes=5] Interval frequency in minutes.
- * @returns {boolean} false when the check or install threw (logged with its stack, not rethrown).
- */
-function ensure2WaySyncTriggerInstalled(minutes) {
-  const freq = minutes || 5;
-  try {
-    const existingTriggers = ScriptApp.getProjectTriggers();
-    let triggerFound = false;
-
-    for (let i = 0; i < existingTriggers.length; i++) {
-      if (existingTriggers[i].getHandlerFunction() === 'syncWorkspaceChanges') {
-        triggerFound = true;
-        break;
-      }
-    }
-
-    if (!triggerFound) {
-      ScriptApp.newTrigger('syncWorkspaceChanges')
-        .timeBased()
-        .everyMinutes(freq)
-        .create();
-      Logger.log('Installed automated ' + freq + '-minute 2-Way Sync trigger.');
-    }
-    return true;
-  } catch (err) {
-    logError('ensure2WaySyncTriggerInstalled (trigger left as is; reported to the caller)', err);
-    return false;
-  }
-}
-
-/**
- * Post-load housekeeping the shell page used to do inline: one 2-Way Sync pass plus the trigger check.
- * Called by the client once the first screen has painted. Takes no arguments.
- * @returns {{ok: boolean, error?: string}} ok is false when a step failed (each step logs its own stack);
- *   error names the failed steps.
- */
-function runBackgroundSync() {
-  try {
-    const failed = [];
-    if (!syncWorkspaceChanges()) failed.push('2-Way Sync pass');
-    if (!ensure2WaySyncTriggerInstalled(5)) failed.push('sync trigger check');
-    return failed.length ? { ok: false, error: 'Background sync failed: ' + failed.join(', ') + '.' } : { ok: true };
-  } catch (syncErr) {
-    logError('runBackgroundSync', syncErr);
-    return { ok: false, error: 'Background sync failed: ' + syncErr.message };
-  }
-}
-
-/**
- * Resets and installs a fresh 5-minute recurring time-driven 2-Way Sync trigger.
- * @returns {void}
- */
-function setup2WaySyncTrigger() {
-  try {
-    const existingTriggers = ScriptApp.getProjectTriggers();
-    for (let i = 0; i < existingTriggers.length; i++) {
-      if (existingTriggers[i].getHandlerFunction() === 'syncWorkspaceChanges') {
-        ScriptApp.deleteTrigger(existingTriggers[i]);
-      }
-    }
-
-    ScriptApp.newTrigger('syncWorkspaceChanges')
-      .timeBased()
-      .everyMinutes(5)
-      .create();
-
-    Logger.log('Created 5-minute 2-Way Sync trigger successfully.');
-  } catch (err) {
-    logError('setup2WaySyncTrigger', err);
-  }
-}
-
-/**
- * Background Time-Driven Handler for 2-Way Workspace Syncing.
- * Synchronizes daily tasks with Google Calendar events.
- * Never throws (time-driven trigger); every failure is logged.
- * @returns {boolean} false when the day failed to load or any event retitle failed.
+ * Retired 2-Way Sync handler (user decision 2026-11-16). Nothing has tagged events with gasTaskId since
+ * 2026-09-23, so the 5-minute pass had nothing to retitle. HOME and WORK still carry its time-driven trigger,
+ * which calls this by name: it deletes every trigger pointing here and touches no Calendar or Tasks data.
+ * Triggers run the newest pushed code, so each environment cleans itself up within 5 minutes of a push.
+ * @returns {number} Number of triggers deleted.
  */
 function syncWorkspaceChanges() {
   try {
-    const todayStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
-    const dailyData = getDailyData(todayStr);
-
-    if (dailyData.error) {
-      console.error('syncWorkspaceChanges: dailyData returned error, no events retitled: ' + dailyData.error);
-      return false;
-    }
-
-    const tasks = dailyData.tasks || [];
-    // Today's primary-calendar events, already listed by getDailyData (Advanced Calendar, calendar.events scope);
-    // syncTaskId is the event's shared gasTaskId tag.
-    const events = dailyData.calendarEvents || [];
-
-    let allOk = true;
-    tasks.forEach(function(task) {
-      if (!task.id) return;
-      try {
-        const linkedEvt = events.find(function(evt) { return evt.syncTaskId === task.id; });
-        if (!linkedEvt) return;
-        const isDone = task.status === '✓' || task.status === 'Ⓓ' || task.status === 'D/✓';
-        const formattedTitle = isDone ? '[✓] ' + task.title : task.title;
-        if (linkedEvt.title === formattedTitle) return; // runs every 5 minutes: write only on a change
-        Calendar.Events.patch({ summary: formattedTitle }, 'primary', linkedEvt.id, { sendUpdates: 'none' });
-      } catch (taskErr) {
-        logError('syncWorkspaceChanges task item ' + task.id + ' (event not retitled; next task continues)', taskErr);
-        allOk = false;
-      }
+    let deleted = 0;
+    ScriptApp.getProjectTriggers().forEach(function(t) {
+      if (t.getHandlerFunction() !== 'syncWorkspaceChanges') return;
+      ScriptApp.deleteTrigger(t);
+      deleted++;
     });
-
-    console.log('2-Way Workspace Sync complete for ' + todayStr + (allOk ? '' : ' (with failures)'));
-    return allOk;
+    console.log('Retired 2-Way Sync: deleted ' + deleted + ' syncWorkspaceChanges trigger(s).');
+    return deleted;
   } catch (err) {
-    logError('syncWorkspaceChanges main (pass abandoned; reported to the caller)', err);
-    return false;
+    logError('syncWorkspaceChanges (retired; its trigger stays and fires again in 5 minutes)', err);
+    throw err;
   }
 }
 
@@ -3994,8 +3897,7 @@ function searchArchiveNotes(query) {
 // actually called from one of those places. See .agents/rules/gas-namespace-iife.md.
 global.doGet = doGet;                                        // Apps Script web app entry point
 global.getWebAppUrl = getWebAppUrl;                          // google.script.run: Script.html / About.html
-global.syncWorkspaceChanges = syncWorkspaceChanges;          // time-driven trigger handler (by name)
-global.runBackgroundSync = runBackgroundSync;                // google.script.run: Script.html (after first paint)
+global.syncWorkspaceChanges = syncWorkspaceChanges;          // time-driven trigger handler (by name), retired: deletes its trigger
 global.include = include;                                    // template: Index.html, SetupFolder.html
 global.validateAndSaveFolderUrl = validateAndSaveFolderUrl;  // google.script.run: SetupFolder.html
 global.getDailyData = getDailyData;                          // google.script.run: Script.html
@@ -4023,8 +3925,6 @@ global.saveGoal = saveGoal;                                  // google.script.ru
 global.deleteGoal = deleteGoal;                              // google.script.run: Script.html
 global.addGoalStepToToday = addGoalStepToToday;              // google.script.run: Script.html
 global.addGoalStepToFuture = addGoalStepToFuture;            // google.script.run: Script.html
-global.ensure2WaySyncTriggerInstalled = ensure2WaySyncTriggerInstalled; // IDE manual-run
-global.setup2WaySyncTrigger = setup2WaySyncTrigger;          // IDE manual-run
 global.searchArchiveNotes = searchArchiveNotes;              // google.script.run: Script.html
 global.forwardDailyTask = forwardDailyTask;                  // google.script.run: Script.html
 global.delegateDailyTask = delegateDailyTask;                // google.script.run: Script.html
@@ -4058,9 +3958,6 @@ global.DPApp = DPApp;                                        // used by UnitTest
 // Internal aliases for top-level entry point delegators
 global._doGetInternal = doGet_original;
 global._syncWorkspaceChangesInternal = syncWorkspaceChanges;
-global._runBackgroundSyncInternal = runBackgroundSync;
-global._setup2WaySyncTriggerInternal = setup2WaySyncTrigger;
-global._ensure2WaySyncTriggerInstalledInternal = ensure2WaySyncTriggerInstalled;
 global._includeInternal = include;
 global._validateAndSaveFolderUrlInternal = validateAndSaveFolderUrl;
 global._getDailyDataInternal = getDailyData;
@@ -4123,37 +4020,12 @@ function doGet(e) {
 }
 
 /**
- * Time-driven trigger handler for 2-Way Sync.
+ * Time-driven trigger handler of the retired 2-Way Sync: deletes its own trigger.
  * MUST be declared as a top-level function outside any IIFE so time-based triggers
  * can invoke it by name.
  */
 function syncWorkspaceChanges() {
   return (typeof _syncWorkspaceChangesInternal === 'function') ? _syncWorkspaceChangesInternal() : (globalThis._syncWorkspaceChangesInternal ? globalThis._syncWorkspaceChangesInternal() : null);
-}
-
-/**
- * Post-load sync pass and trigger check; the client calls it after first paint.
- * @returns {{ok: boolean, error?: string}}
- */
-function runBackgroundSync() {
-  return (typeof _runBackgroundSyncInternal === 'function') ? _runBackgroundSyncInternal() : (globalThis._runBackgroundSyncInternal ? globalThis._runBackgroundSyncInternal() : null);
-}
-
-/**
- * IDE Setup helper for installing the 2-Way Sync trigger.
- * MUST be declared as a top-level function outside any IIFE so it appears in the
- * Apps Script IDE's "Select function" dropdown for manual execution.
- */
-function setup2WaySyncTrigger() {
-  return (typeof _setup2WaySyncTriggerInternal === 'function') ? _setup2WaySyncTriggerInternal() : (globalThis._setup2WaySyncTriggerInternal ? globalThis._setup2WaySyncTriggerInternal() : null);
-}
-
-/**
- * IDE Setup helper for ensuring the 2-Way Sync trigger is installed.
- * Statically discovered by the Apps Script IDE dropdown.
- */
-function ensure2WaySyncTriggerInstalled() {
-  return (typeof _ensure2WaySyncTriggerInstalledInternal === 'function') ? _ensure2WaySyncTriggerInstalledInternal() : (globalThis._ensure2WaySyncTriggerInstalledInternal ? globalThis._ensure2WaySyncTriggerInstalledInternal() : null);
 }
 
 // ── Client-side google.script.run RPC entry points ───────────────────────────

@@ -108,7 +108,7 @@ To achieve the closest possible PWA-like experience without a service worker:
 
 ### 4.7 2-Way Sync Engine
 - Automatic reconciliation between Google Tasks and Google Calendar appointments via `gasTaskId` extended properties.
-- Optional 5-minute automated background trigger (`setup2WaySyncTrigger()`) in GAS.
+- Retired 2026-11-16: the 5-minute background trigger (`syncWorkspaceChanges`) had nothing to retitle (no event tagged since 2026-09-23) and now deletes itself.
 
 ---
 

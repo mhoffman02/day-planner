@@ -9,7 +9,7 @@
  * (`google.script.run`/`_runGasCall`), HtmlService templates, time-driven triggers (referenced
  * by name string), or the Apps Script IDE's manual-run dropdown. Everything else here is a
  * private helper invisible outside this file. `logError`, `getFolderByNameOrCreate`,
- * `getOrCreateDailyDocContent`, `DPApp`, `syncWorkspaceChanges`, and `doGet`
+ * `getOrCreateDailyDocContent`, `DPApp`, the retired sync trigger, and `doGet`
  * are Code.gs internals consumed here via its own export list -- see
  * .agents/rules/gas-namespace-iife.md before adding or removing an export.
  */
@@ -168,27 +168,23 @@ function runSelfTest() {
     });
   }
 
-  // Test 5: 2-Way Sync Engine & Trigger Health
+  // Test 5: retired 2-Way Sync left no trigger behind (it deletes its own on the next fire)
   try {
-    syncWorkspaceChanges();
     const triggers = ScriptApp.getProjectTriggers();
-    let hasSyncTrigger = false;
+    let legacyCount = 0;
     for (let i = 0; i < triggers.length; i++) {
-      if (triggers[i].getHandlerFunction() === 'syncWorkspaceChanges') {
-        hasSyncTrigger = true;
-        break;
-      }
+      if (triggers[i].getHandlerFunction() === 'syncWorkspaceChanges') legacyCount++;
     }
     results.push({
-      test: '5. 2-Way Sync Engine & Trigger Health',
-      status: 'PASS',
-      details: 'Sync execution clean. 5-min background trigger installed: ' + hasSyncTrigger
+      test: '5. Retired 2-Way Sync trigger removed',
+      status: legacyCount === 0 ? 'PASS' : 'FAIL',
+      details: legacyCount === 0 ? 'No syncWorkspaceChanges trigger.' : legacyCount + ' syncWorkspaceChanges trigger(s) left; each deletes itself within 5 minutes of firing.'
     });
-    passedCount++;
+    if (legacyCount === 0) passedCount++;
   } catch (err5) {
-    console.error('🔥 [Self-Test 5 Sync]: ' + err5.toString() + '\nStack: ' + (err5.stack || 'N/A'));
+    console.error('🔥 [Self-Test 5 Legacy sync trigger]: ' + err5.toString() + '\nStack: ' + (err5.stack || 'N/A'));
     results.push({
-      test: '5. 2-Way Sync Engine & Trigger Health',
+      test: '5. Retired 2-Way Sync trigger removed',
       status: 'FAIL',
       details: err5.toString() + ' | Stack: ' + (err5.stack || 'N/A')
     });

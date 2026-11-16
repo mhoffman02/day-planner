@@ -763,12 +763,6 @@ Alpine.data('plannerApp', () => ({
         const hubReady = this.initHub();
         await this.loadStartupData();
         setTimeout(() => this.prebuildMasterView(), MASTER_PREBUILD_DELAY_MS);
-        // The 2-Way Sync pass used to run inside the shell request (~2 s); now it runs once the first screen is up.
-        this.bridge.runBackgroundSync().then((res) => {
-          if (res && !res.ok) console.error('Background sync after first paint reported a failure; the 5-minute trigger will retry:', res.error);
-        }).catch((err) => {
-          console.error('Background sync after first paint failed; the 5-minute trigger will retry:', err.stack || err);
-        });
         // Triage takes several seconds to build: fetch it in the background once the day view is loaded.
         // Saved hub flags already show the tab: start the board now instead of waiting for the hub status call.
         if (this.showTriageNav) this.prefetchTriage();
