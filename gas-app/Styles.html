@@ -7453,6 +7453,19 @@
     .fade-in { animation: none; }
   }
 
+  /* A8 easing: opacity-only fade for dialogs and newly rendered task rows (keyed rows keep their node, so a stale-to-fresh swap does not replay). */
+  dialog.modal-backdrop[open],
+  tr[id^="daily-row-"]:not(.row-just-added),
+  tr[id^="master-row-"]:not(.row-just-added) {
+    animation: fade-in var(--duration-slow) var(--ease-standard);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    dialog.modal-backdrop[open],
+    tr[id^="daily-row-"]:not(.row-just-added),
+    tr[id^="master-row-"]:not(.row-just-added) { animation: none; }
+  }
+
   .learn-progress-wrap {
     display: flex;
     flex-basis: 100%;

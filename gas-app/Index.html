@@ -217,7 +217,7 @@
           <span>Year</span>
         </button>
         <template x-if="showTriageNav">
-          <button type="button" class="segment-btn" :class="{ 'active': activeView === 'triage' }" @click="setView('triage')" title="Gmail Triage Board">
+          <button type="button" class="segment-btn fade-in" :class="{ 'active': activeView === 'triage' }" @click="setView('triage')" title="Gmail Triage Board">
             <span class="material-symbols-outlined icon-16">inbox</span>
             <span>Triage</span>
           </button>
@@ -229,7 +229,7 @@
           </span>
         </template>
         <template x-if="showMeetingPrepNav">
-          <button type="button" class="segment-btn" :class="{ 'active': activeView === 'meetingPrep' }" @click="setView('meetingPrep')" title="Meeting Prep and Carry-ins">
+          <button type="button" class="segment-btn fade-in" :class="{ 'active': activeView === 'meetingPrep' }" @click="setView('meetingPrep')" title="Meeting Prep and Carry-ins">
             <span class="material-symbols-outlined icon-16">event_note</span>
             <span>Prep</span>
           </button>
