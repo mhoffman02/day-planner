@@ -100,6 +100,23 @@ test('a save is REFUSED (conflict) when the day section was edited in the Doc si
   assert.equal(read(ctx, DAY), docEdit, 'the Doc edit must survive');
 });
 
+test('a replayed save (Doc already holds this exact text) succeeds without writing, not a false conflict', () => {
+  // google.script.run can run one call twice when a response is lost (seen live on HOME 2026-11-16: the
+  // first run wrote, the replay saw the new text, and the tab was told its own save was a Docs conflict).
+  const ctx = codeCtx();
+  save(ctx, DAY, V1);
+  const mine = V1 + '\n- typed in the app';
+  assert.equal(save(ctx, DAY, mine, V1).success, true);
+  let writes = 0;
+  const real = ctx.Docs.Documents.batchUpdate;
+  ctx.Docs.Documents.batchUpdate = (body, id) => { writes += 1; return real.call(ctx.Docs.Documents, body, id); };
+  const replay = save(ctx, DAY, mine, V1);
+  assert.equal(replay.success, true, JSON.stringify(replay));
+  assert.equal(replay.conflict, undefined);
+  assert.equal(writes, 0, 'nothing to write: the Doc already holds this text');
+  assert.equal(read(ctx, DAY), mine);
+});
+
 test('blank lines in the baseline (dropped by the Doc) do not count as a conflict', () => {
   const ctx = codeCtx();
   save(ctx, DAY, V1);

@@ -37,7 +37,7 @@ Load-speed work (A8) came first on 2026-11-06 at the user's request.
 - [ ] User decision, default leave: priority / category / status segmented selectors keep their resting track; quieting the unselected segments risks hiding the selected one in dark mode.
 
 ### A13. Note tab-sync (2026-11-14; shipped in TODO_HISTORY)
-- [ ] User hand-check on HOME @457 (optional): open today in two tabs, type a line in tab A, wait 2 s, then type in tab B; no "changed in Google Docs" warning, and tab B shows A's line before your typing.
+- [x] Two-tab notes check on HOME @479 over CDP (2026-11-16): tab B showed A's line before typing. Found and fixed: a save that `google.script.run` ran twice (lost response) wrote, then the replay reported "changed in Google Docs"; the server now treats a Doc already holding the saved text as success.
 
 ### A12. Security review follow-ups (2026-11-13; fixes shipped, see TODO_HISTORY; HOME @446, WORK v245, `origin/pure-gas-main` 4dd230d)
 - [x] Agent, default do, done (2026-11-15): drop the unreachable CalendarApp-style branches in `extractMeetLinkFromEvent_` (`gas-app/Code.gs` ~L1176; its only caller is `mapCalendarApiEvent_`, which passes raw Calendar API events). No test covers it directly: extend `tests/editCalendarEvent.test.js` (maps raw events through `getDailyData` to `mapCalendarApiEvent_`) with a hangoutLink, a conferenceData and a description-only case first.

@@ -463,7 +463,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 807;
+const BUILD_NUMBER_ = 808;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -2291,6 +2291,11 @@ function saveDailyDocCards(dateStr, noteContent, baselineContent) {
     const elements = body.elements;
     if (typeof baselineContent === 'string') {
       const current = extractDaySectionText_(elements, dateStr);
+      // A replay of a save that already landed (google.script.run can run one call twice when a
+      // response is lost) finds its own text: nothing to write and nothing overwritten.
+      if (current !== null && docSectionKey_(current) === docSectionKey_(noteContent)) {
+        return { success: true, docName: docName };
+      }
       if (current !== null && docSectionKey_(current) !== docSectionKey_(baselineContent)) {
         return {
           success: false,
