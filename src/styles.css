@@ -2730,7 +2730,7 @@
     align-items: center;
     gap: 6px;
     padding: 6px 10px;
-    background: var(--binder-teal-light);
+    background: var(--head-bg, var(--binder-teal-light));
     border-bottom: 1px solid var(--border-line);
     cursor: pointer;
   }
@@ -2742,7 +2742,7 @@
   .quote-card-title {
     font-family: var(--font-family-header);
     font-weight: 600;
-    color: var(--heading-color);
+    color: var(--head-ink, var(--heading-color));
     font-size: 0.9rem;
   }
 
@@ -6437,19 +6437,21 @@
   }
 
   /* Navy light only. Near-grey green tints the hue rotation skipped (chroma under 0.012), and the
-     Monticello section heads: dark navy band (the top bar navy) with cream type. Navy dark keeps none of this. */
+     Monticello section heads: a slate navy band, a step lighter than the top bar so it does not read black,
+     with cream type. Navy dark keeps none of this. */
   :root[data-theme="light"][data-palette="navy"] {
     --bg-accent-subtle: #edf2f7;
     --bg-subtle-2: #f5f8fc;
-    --head-bg: var(--bg-binder-deep);
+    --head-bg: #2c435c;
     --head-ink: var(--bg-parchment);
-    --head-ink-muted: color-mix(in srgb, var(--bg-parchment) 72%, var(--bg-binder-deep));
+    --head-ink-muted: color-mix(in srgb, var(--bg-parchment) 72%, var(--head-bg));
     --head-hover: var(--accent);
   }
 
   /* On the navy band, controls that carry their own ink switch to cream; their hovers go one step lighter. */
   :root[data-theme="light"][data-palette="navy"] table.task-table th :is(button, .material-symbols-outlined),
-  :root[data-theme="light"][data-palette="navy"] .note-card-header :is(.card-twistie-btn, .card-delete-btn, .card-heading-help) {
+  :root[data-theme="light"][data-palette="navy"] .note-card-header :is(.card-twistie-btn, .card-delete-btn, .card-heading-help),
+  :root[data-theme="light"][data-palette="navy"] .quote-card-header .card-twistie-btn {
     color: var(--head-ink);
   }
 
@@ -6463,7 +6465,7 @@
     color: var(--head-ink);
   }
 
-  :root[data-theme="light"][data-palette="navy"] :is(table.task-table th, .note-card-header, time.schedule-time) :focus-visible {
+  :root[data-theme="light"][data-palette="navy"] :is(table.task-table th, .note-card-header, .quote-card-header, time.schedule-time) :focus-visible {
     outline-color: var(--head-ink);
   }
 

@@ -63,6 +63,18 @@ function chromaHue(hex) {
   return [Math.hypot(a, b), ((Math.atan2(b, a) * 180) / Math.PI + 360) % 360];
 }
 
+function luminance(hex) {
+  const n = parseInt(hex.slice(1, 7), 16);
+  const lin = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const [R, G, B] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => lin(v / 255));
+  return 0.2126 * R + 0.7152 * G + 0.0722 * B;
+}
+
+function contrast(a, b) {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
 const SEMANTIC = /success|status-complete|note-color|priority|decision|danger|info|warning|attention|tab-gold|snack/;
 
 for (const file of ['src/styles.css', 'gas-app/Styles.html']) {
@@ -96,8 +108,8 @@ for (const file of ['src/styles.css', 'gas-app/Styles.html']) {
       }
       assert.deepEqual(missed, []);
     });
-    it('gives Navy light dark navy section heads with cream type, and nothing else', () => {
-      assert.match(light, /--head-bg: var\(--bg-binder-deep\);/);
+    it('gives Navy light slate navy section heads with cream type, and nothing else', () => {
+      assert.match(light, /--head-bg: #2c435c;/);
       assert.match(light, /--head-ink: var\(--bg-parchment\);/);
       assert.doesNotMatch(dark, /--head-/);
       assert.doesNotMatch(all, /--head-/);
@@ -106,6 +118,19 @@ for (const file of ['src/styles.css', 'gas-app/Styles.html']) {
       assert.match(rule(css, 'table.task-table th'), /background: var\(--head-bg, var\(--bg-accent-subtle\)\);/);
       assert.match(rule(css, '.note-card-header'), /background: var\(--head-bg, var\(--bg-accent-subtle\)\);/);
       assert.match(rule(css, 'time.schedule-time'), /background: var\(--head-bg, var\(--bg-subtle-2\)\);/);
+    });
+    // User 2026-11-15: #19293a heads read too dark, and the pale quote header was the wrong blue.
+    it('Navy light heads are lighter than the binder navy, cream type still reads at 7:1', () => {
+      const bg = light.match(/--head-bg: (#[0-9a-f]{6});/)[1];
+      const deep = all.match(/--bg-binder-deep: (#[0-9a-f]{6});/)[1];
+      assert.ok(luminance(bg) > luminance(deep), `${bg} not lighter than ${deep}`);
+      assert.ok(contrast('#fcfbfa', bg) >= 7, `cream on ${bg}: ${contrast('#fcfbfa', bg).toFixed(2)}`);
+      assert.match(light, /--head-ink-muted: color-mix\(in srgb, var\(--bg-parchment\) 72%, var\(--head-bg\)\);/);
+    });
+    it('the quote header shares the section head band and ink', () => {
+      assert.match(rule(css, '.quote-card-header'), /background: var\(--head-bg, var\(--binder-teal-light\)\);/);
+      assert.match(rule(css, '.quote-card-title'), /color: var\(--head-ink, var\(--heading-color\)\);/);
+      assert.match(css, /\.quote-card-header \.card-twistie-btn/);
     });
   });
 }
