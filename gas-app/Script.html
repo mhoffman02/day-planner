@@ -8476,8 +8476,8 @@
           const category = this.newMasterTaskCategory.trim() || 'General';
           this.recordCategory(category);
           const dueDate = this.newMasterTaskDueDate ? this.newMasterTaskDueDate.trim() : null;
-          const existingCount = this.masterTasks.length + 1;
-          const formattedTitle = formatTaskTitle(this.newMasterTaskPriorityGroup, existingCount, taskTitle);
+          const nextSequence = getNextSequence(this.masterTasks, this.newMasterTaskPriorityGroup);
+          const formattedTitle = formatTaskTitle(this.newMasterTaskPriorityGroup, nextSequence, taskTitle);
           const created = await this.bridge.addMasterTask(formattedTitle, category, dueDate, details.notes);
           created._moveDate = getLocalDateStr();
           created._moving = false;
