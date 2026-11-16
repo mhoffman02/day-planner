@@ -146,6 +146,16 @@ function makeResult(r) {
   return Object.freeze({ ...r });
 }
 
+/**
+ * Inline invariant (Maguire): throws where an impossible state appears instead of letting it corrupt data
+ * downstream. On in production. Client copy in src/binderStore.js (mirrored in gas-app/Script.html).
+ * @param {*} condition Must be truthy.
+ * @param {string} message What broke, with the values involved.
+ */
+function invariant(condition, message) {
+  if (!condition) throw new Error('Invariant failed: ' + message);
+}
+
 // ---- aiGuard.js ----
 /**
  * @file aiGuard.js
@@ -1845,6 +1855,7 @@ function formatCarryInsList(carryIns, meetingLabel = '') {
 
 
 
+
 const OS_MINUTE_MS = 60 * 1000;
 const OS_MODES = ['current', 'recommended', 'specific', 'backlog', 'next'];
 
@@ -1874,7 +1885,9 @@ function osZoneOffsetMs(ms, timeZone) {
 
 function osLocalYmd(ms, timeZone) {
   const p = osZoneParts(ms, timeZone);
-  return `${p.y}-${String(p.m).padStart(2, '0')}-${String(p.d).padStart(2, '0')}`;
+  const ymd = `${p.y}-${String(p.m).padStart(2, '0')}-${String(p.d).padStart(2, '0')}`;
+  invariant(/^\d{4}-\d{2}-\d{2}$/.test(ymd), 'osLocalYmd(' + ms + ', ' + timeZone + ') gave ' + ymd + ', not YYYY-MM-DD');
+  return ymd;
 }
 
 /** Parse an ISO string / Date / epoch ms / Calendar {dateTime,date} into epoch ms. Offset-less strings are read in timeZone. */
@@ -2396,6 +2409,7 @@ function chunkValueRanges(ranges, cap = 50) {
 
 
 
+
 const TASK_PLANNER_PRIORITY_RE = /^([A-Ca-c])([1-9])$/;
 const TASK_PLANNER_META_RE = /<!--dp-meta:(.*?)-->\n?/;
 const TASK_PLANNER_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -2441,7 +2455,9 @@ function taskPlannerLocalDate(now, timeZone) {
   const parts = new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' })
     .formatToParts(now);
   const get = (t) => parts.find((p) => p.type === t).value;
-  return `${get('year')}-${get('month')}-${get('day')}`;
+  const ymd = `${get('year')}-${get('month')}-${get('day')}`;
+  invariant(/^\d{4}-\d{2}-\d{2}$/.test(ymd), 'taskPlannerLocalDate gave ' + ymd + ' in ' + timeZone + ', not YYYY-MM-DD');
+  return ymd;
 }
 
 /**
@@ -3701,6 +3717,7 @@ global.DPEngines = Object.freeze({
   meetingTaskKey: meetingTaskKey,
   docActionKey: docActionKey,
   makeResult: makeResult,
+  invariant: invariant,
   isAiAllowed: isAiAllowed,
   LanguageAssistant: LanguageAssistant,
   dayDocHeadingLink: dayDocHeadingLink,

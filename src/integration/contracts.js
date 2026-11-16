@@ -133,3 +133,13 @@ export function makeResult(r) {
   }
   return Object.freeze({ ...r });
 }
+
+/**
+ * Inline invariant (Maguire): throws where an impossible state appears instead of letting it corrupt data
+ * downstream. On in production. Client copy in src/binderStore.js (mirrored in gas-app/Script.html).
+ * @param {*} condition Must be truthy.
+ * @param {string} message What broke, with the values involved.
+ */
+export function invariant(condition, message) {
+  if (!condition) throw new Error('Invariant failed: ' + message);
+}

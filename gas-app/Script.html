@@ -74,6 +74,12 @@
     return original;
   }
 
+  /* Inline invariant, mirrored verbatim from src/binderStore.js (tests/invariant.test.js runs both copies): throws
+     where an impossible state appears instead of letting it corrupt data downstream. On in production. */
+  function invariant(condition, message) {
+    if (!condition) throw new Error('Invariant failed: ' + message);
+  }
+
   /* Live GAS only (google.script.run present); local mock and node tests skip it. A failed send prints through
      the original console.error so it is not forwarded again. */
   (function startClientTelemetry() {
@@ -527,7 +533,11 @@
   function formatTaskTitle(priorityGroup, sequence, cleanTitle) {
     const trimmed = (cleanTitle || '').trim();
     if (priorityGroup && sequence) {
-      return `[${priorityGroup.toUpperCase()}${sequence}] ${trimmed}`;
+      const title = `[${priorityGroup.toUpperCase()}${sequence}] ${trimmed}`;
+      const back = parseTaskTitle(title);
+      invariant(back.priorityGroup === priorityGroup.toUpperCase() && back.sequence === Number(sequence),
+        'formatTaskTitle(' + priorityGroup + ', ' + sequence + ') does not parse back; the priority would be lost');
+      return title;
     }
     return trimmed;
   }
@@ -614,6 +624,7 @@
         next.set(task.id, formatTaskTitle(group, Math.min(i + 1, 9), parseTaskTitle(task.title).cleanTitle || task.title));
       });
     });
+    invariant(!move || parseTaskTitle(next.get(move.id)).priorityGroup === move.group, 'planRanks left task ' + (move && move.id) + ' outside group ' + (move && move.group));
     return tasks
       .filter(task => next.has(task.id) && next.get(task.id) !== task.title)
       .map(task => ({ id: task.id, title: next.get(task.id) }));
@@ -1365,7 +1376,9 @@
       month = 1;
       year += 1;
     }
-    return `${year}-${String(month).padStart(2, '0')}`;
+    const key = `${year}-${String(month).padStart(2, '0')}`;
+    invariant(/^\d{4}-(0[1-9]|1[0-2])$/.test(key), 'nextMonthKey(' + monthKey + ') gave ' + key + ', not YYYY-MM');
+    return key;
   }
 
   function emptyYearMatrix(year) {

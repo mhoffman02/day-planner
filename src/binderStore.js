@@ -19,6 +19,16 @@ export const VIEWS = {
 };
 
 /**
+ * Inline invariant (Maguire): throws where an impossible state appears instead of letting it corrupt data
+ * downstream. On in production. Mirrored verbatim in gas-app/Script.html; server copy in src/integration/contracts.js.
+ * @param {*} condition Must be truthy.
+ * @param {string} message What broke, with the values involved.
+ */
+export function invariant(condition, message) {
+  if (!condition) throw new Error('Invariant failed: ' + message);
+}
+
+/**
  * Formats a Date object or returns a local date string in YYYY-MM-DD format using local timezone.
  * @param {Date|string} [d=new Date()] Date object or string.
  * @returns {string} Date string in YYYY-MM-DD format.

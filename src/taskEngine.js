@@ -4,7 +4,7 @@
  * Handles task priorities (A1-C9), status codes, task ordering, and "Move to Today" transfer logic.
  */
 
-import { getLocalDateStr, generateLocalId } from './binderStore.js';
+import { getLocalDateStr, generateLocalId, invariant } from './binderStore.js';
 
 /**
  * Task status code symbols dictionary.
@@ -133,7 +133,11 @@ export function extractInlinePriority(input = '', defaultPriority = 'A') {
 export function formatTaskTitle(priorityGroup, sequence, cleanTitle) {
   const trimmed = (cleanTitle || '').trim();
   if (priorityGroup && sequence) {
-    return `[${priorityGroup.toUpperCase()}${sequence}] ${trimmed}`;
+    const title = `[${priorityGroup.toUpperCase()}${sequence}] ${trimmed}`;
+    const back = parseTaskTitle(title);
+    invariant(back.priorityGroup === priorityGroup.toUpperCase() && back.sequence === Number(sequence),
+      'formatTaskTitle(' + priorityGroup + ', ' + sequence + ') does not parse back; the priority would be lost');
+    return title;
   }
   return trimmed;
 }
@@ -298,6 +302,8 @@ function planRanks(tasks, move) {
       next.set(task.id, formatTaskTitle(group, Math.min(i + 1, 9), parseTaskTitle(task.title).cleanTitle || task.title));
     });
   });
+  // Stryker disable next-line all: invariant, unreachable when correct
+  invariant(!move || parseTaskTitle(next.get(move.id)).priorityGroup === move.group, 'planRanks left task ' + (move && move.id) + ' outside group ' + (move && move.group));
   return tasks
     .filter(task => next.has(task.id) && next.get(task.id) !== task.title)
     .map(task => ({ id: task.id, title: next.get(task.id) }));

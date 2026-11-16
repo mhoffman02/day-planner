@@ -8,6 +8,7 @@
  */
 
 import { normalizeEventTitle } from './eventClassifier.js';
+import { invariant } from './contracts.js';
 
 const OS_MINUTE_MS = 60 * 1000;
 const OS_MODES = ['current', 'recommended', 'specific', 'backlog', 'next'];
@@ -38,7 +39,9 @@ function osZoneOffsetMs(ms, timeZone) {
 
 function osLocalYmd(ms, timeZone) {
   const p = osZoneParts(ms, timeZone);
-  return `${p.y}-${String(p.m).padStart(2, '0')}-${String(p.d).padStart(2, '0')}`;
+  const ymd = `${p.y}-${String(p.m).padStart(2, '0')}-${String(p.d).padStart(2, '0')}`;
+  invariant(/^\d{4}-\d{2}-\d{2}$/.test(ymd), 'osLocalYmd(' + ms + ', ' + timeZone + ') gave ' + ymd + ', not YYYY-MM-DD');
+  return ymd;
 }
 
 /** Parse an ISO string / Date / epoch ms / Calendar {dateTime,date} into epoch ms. Offset-less strings are read in timeZone. */

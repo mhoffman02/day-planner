@@ -10,7 +10,7 @@
  * - Rolling horizon projections for continuous 3/6/12-month planning
  */
 
-import { generateLocalId } from './binderStore.js';
+import { generateLocalId, invariant } from './binderStore.js';
 
 /** Month keys 'MM' for a 12-month year, in order. */
 export const MONTH_KEYS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
@@ -58,7 +58,9 @@ export function nextMonthKey(monthKey) {
     month = 1;
     year += 1;
   }
-  return `${year}-${String(month).padStart(2, '0')}`;
+  const key = `${year}-${String(month).padStart(2, '0')}`;
+  invariant(/^\d{4}-(0[1-9]|1[0-2])$/.test(key), 'nextMonthKey(' + monthKey + ') gave ' + key + ', not YYYY-MM');
+  return key;
 }
 
 /**
