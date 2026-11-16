@@ -8,7 +8,9 @@
 //   4. TODO.md sections with open items that HANDOFF.md never mentions,
 //   5. secrets (tokens, keys, private-key blocks) in any of these docs,
 //   6. a generated .agents/skills/handoff/SKILL.md older than the user skill (tools/sync-handoff-skill.js),
-//   7. origin/pure-gas-main holding commits HEAD lacks (fetches first; an unreachable GitHub fails closed).
+//   7. origin/pure-gas-main holding commits HEAD lacks (fetches first; an unreachable GitHub fails closed),
+//   8. a Stryker-mutated file (stryker.config.json mutate) changed since the last handoff commit without a fresh
+//      mutation report that passes mutation-baseline.json (tools/check-mutation.js; run npm run test:mutation).
 // Judgment checks (conflicts with existing code, unstated choices) stay with the skill's fresh-eyes review.
 //
 // Usage: node tools/check-handoff.js   (exit 1 and list file:line for every problem)
@@ -20,6 +22,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { run as checkSkillSync } from './sync-handoff-skill.js';
 import { landingAhead, remoteAheadProblems } from './landing-branch.js';
+import { handoffMutationProblems } from './check-mutation.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -157,6 +160,9 @@ export function run() {
   for (const p of stampProblems(handoff, { head, headParent, headTouchesHandoff })) problems.push(`HANDOFF.md:1: ${p}`);
 
   problems.push(...remoteAheadProblems(landingAhead(root)));
+
+  const lastHandoff = git('log', '-1', '--format=%H', headTouchesHandoff ? 'HEAD^' : 'HEAD', '--', 'HANDOFF.md');
+  problems.push(...handoffMutationProblems(root, lastHandoff, git));
 
   const todo = read('TODO.md');
   if (todo !== null) for (const s of uncoveredSections(todo, handoff)) problems.push(`HANDOFF.md: TODO.md section "${s}" has open items but is not mentioned`);

@@ -1,15 +1,34 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "_comment": "Mutation testing (solid-code item 6): run on demand (npm run test:mutation) before big phases, not in CI. A surviving mutant is a code change no test notices. Scope: pure engines; widen mutate + the test command together.",
+  "_comment": "Mutation testing: npm run test:mutation runs stryker --incremental (only changed code re-tested; state in reports/stryker-incremental.json) then tools/check-mutation.js, a per-file ratchet against mutation-baseline.json. check-handoff demands a fresh passing report when a mutated file changed since the last handoff. Scope: pure engines; widen mutate + the test command together.",
   "testRunner": "command",
   "commandRunner": {
     "command": "node --test tests/taskEngine.test.js tests/taskInlineEdit.test.js tests/futureMatrixEngine.test.js tests/searchEngine.test.js tests/searchMatchMode.test.js tests/slashKeyAction.test.js tests/properties.test.js tests/mutationKillers.test.js tests/calendarEngine.test.js tests/calendarMutationKillers.test.js"
   },
-  "mutate": ["src/taskEngine.js", "src/futureMatrixEngine.js", "src/searchEngine.js", "src/calendarEngine.js"],
+  "mutate": [
+    "src/taskEngine.js",
+    "src/futureMatrixEngine.js",
+    "src/searchEngine.js",
+    "src/calendarEngine.js"
+  ],
   "coverageAnalysis": "off",
-  "reporters": ["clear-text", "progress", "html"],
-  "htmlReporter": { "fileName": "reports/mutation/index.html" },
+  "reporters": [
+    "clear-text",
+    "progress",
+    "html",
+    "json"
+  ],
+  "htmlReporter": {
+    "fileName": "reports/mutation/index.html"
+  },
   "tempDirName": ".stryker-tmp",
   "concurrency": 4,
-  "thresholds": { "high": 80, "low": 60, "break": null }
+  "thresholds": {
+    "high": 80,
+    "low": 60,
+    "break": null
+  },
+  "jsonReporter": {
+    "fileName": "reports/mutation/mutation.json"
+  }
 }
