@@ -13,14 +13,13 @@ The **Google Digital Day Planner** is a single-page digital binder app styled in
 
 | Component | Location | Description | Verification / Test |
 | :--- | :--- | :--- | :--- |
-| **GAS Backend** | `gas-app/Code.gs` | Web app entry (`doGet`), Google Workspace RPC endpoints, 2-Way Sync | `gas-app/UnitTests.gs` (POST self-test) |
+| **GAS Backend** | `gas-app/Code.gs` | Web app entry (`doGet`), Google Workspace RPC endpoints | `gas-app/UnitTests.gs` (POST self-test) |
 | **GAS UI Shell** | `gas-app/Index.html` | 5-view digital binder markup, desktop window tags | Live browser inspection |
 | **GAS Client Script** | `gas-app/Script.html` | Alpine.js reactive app, `google.script.run` RPC bridge | `node tools/build-gas-engines.js --check` |
 | **GAS CSS System** | `gas-app/Styles.html` | Day Planner design system, light/dark themes, responsive layout | `node tools/check-accessibility.js` |
 | **Local Dev Preview** | `server.js` | Local HTTP preview server (`http://localhost:3000`) | Manual smoke test |
 | **Task Engine** | `src/taskEngine.js` | Priority parsing (`[A1]`), status cycling, sequence calculation | `tests/taskEngine.test.js` |
 | **Calendar Engine** | `src/calendarEngine.js` | 07:00-19:00 grid, event popup payloads | `tests/calendarEngine.test.js` |
-| **Sync Engine** | `src/syncEngine.js` | 2-way Task ↔ Calendar reconciliation | `tests/syncEngine.test.js` |
 | **Index Parser** | `src/indexParser.js` | `#index` tag extraction for monthly index | `tests/indexParser.test.js` |
 | **Search Engine** | `src/searchEngine.js` | Cross-entity search (Ctrl + K) | `tests/searchEngine.test.js` |
 | **Binder Store** | `src/binderStore.js` | View router, local date math navigation | `tests/binderStore.test.js` |
@@ -63,10 +62,9 @@ layer, fixed horizons, 8 life areas, suggest-not-auto A tasks); user may overrid
 - [x] HOME @465 live (Goals loads on `/dev`, list created), WORK v263 pushed (2026-11-15); WORK repoint is the user step.
 - [ ] Later: Values and roles exercise, pairwise Prioritize, Week big rocks, Review, coach conversation.
 
-### Phase 34: Security review follow-ups (In progress; fixes shipped 2026-11-13)
-Full-project review fixed and live (HOME @446, WORK v245, TODO_HISTORY 2026-11-13); only small follow-ups remain, checklist in [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) A12.
-- [x] XSS sanitizers, OAuth-token gate (`REGRANT_ENABLED_UNTIL`, 24 h cap), SRI, localhost-only dev server, gated `gas-rpc --deploy`, `calendar` to `calendar.events`.
-- [x] A12: `extractMeetLinkFromEvent_` cleanup, dev-dependency `npm audit` upgrades (2026-11-15); old-event title sync moot (2026-11-16).
+### Phase 36: Tutorial coverage gaps (In progress, 2026-11-16)
+Add Tutorial exercises for the features T01-T20 skip; checklist in [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) A0.
+- [ ] T21 onward in `gas-app/Tutorial.html` (mirrored verbatim in `index.html`), then walk each new one live on HOME.
 
 ### Phase 33: Solid Code ratchet shrinks (In progress)
 Phase 31 (search polish) shipped and is archived in `PLAN-HISTORY.md`. Checklist in [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) A3.

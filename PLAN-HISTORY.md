@@ -4,6 +4,11 @@ Archived completed phases from [`PLAN.md`](file:///home/mike/projects/day-planne
 
 ---
 
+### Phase 34: Security review follow-ups (Done 2026-11-16)
+Full-project review fixed and live (HOME @446, WORK v245, TODO_HISTORY 2026-11-13); only small follow-ups remain, checklist in [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) A12.
+- [x] XSS sanitizers, OAuth-token gate (`REGRANT_ENABLED_UNTIL`, 24 h cap), SRI, localhost-only dev server, gated `gas-rpc --deploy`, `calendar` to `calendar.events`.
+- [x] A12: `extractMeetLinkFromEvent_` cleanup, dev-dependency `npm audit` upgrades (2026-11-15); old-event title sync moot (2026-11-16).
+
 ### Phase 31: Search polish (Done 2026-11-01)
 `/` focuses the Master Tasks filter (`resolveSlashKeyAction`, `src/searchEngine.js` + mirror); search task results lead
 with status glyph and due date; one result per task id across Daily + Master. Details in `TODO_HISTORY.md` 2026-10-30 and 2026-11-01.

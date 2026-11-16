@@ -2,48 +2,24 @@
 
 Order (2026-10-30, user): autonomous agent work first; everything that needs the user is in the last section,
 "For the session after next" (items B1, B3, B4). An agent session works the open agent bullets in "Agent work"
-(A17, A12 agent lines, A10 smoke and ensure-chrome, A0, A3, A5, A8) and skips any line marked as a user hand-check or decision (A6, A7, A9, A13, A14, A15, A12 and A10 user lines).
+(A0 next, then A5 and A8) and skips any line marked as a user hand-check or decision (A6, A7, A11, A12, A14, A17 item 8 and A10 user lines).
 Load-speed work (A8) came first on 2026-11-06 at the user's request.
 
 ## Agent work: next session (hand-check lines inside need the user)
 
 ### A17. Fail loud and early, not after release (2026-11-15, user order: 1-3 first session, 4-6 the one after, then 7-9, then 10)
-- [x] 1. Error telemetry, done (2026-11-15): `src/clientTelemetry.js` (mirrored in `gas-app/Script.html`) forwards uncaught errors, unhandled rejections and console.error to `logFromClient` (`gas-app/Code.gs` `recordClientLog`: Apps Script log + `recordServerLog` ring buffer + Run Log Doc), with view and build; max 10 per page load, no repeats. Adapted from the LiteConsole `logFromClient` bridge (GitHub `mhoffman02/gsai-gas-project-template` `documents/developer-guide/09-lite-console.md`). Server RPC failures reach it through the client failure handlers. Read: `npm run rpc -- getRecentServerLogs` or `?view=logs&format=json` on /dev.
-- [x] 2. Time-zone matrix, done (2026-11-15): `npm run test:tz` (Chicago, UTC, Auckland) in CI; `tests/dstClock.test.js` pins the clock on DST-change days.
-- [x] 3. Inline invariants, done (2026-11-15): `invariant(cond, msg)` in `src/binderStore.js` (mirrored in `gas-app/Script.html`) and `src/integration/contracts.js` (`DPEngines.invariant`); sites: `formatTaskTitle` (title must parse back), `planRanks` (moved task stays in its group), `nextMonthKey` (YYYY-MM out), `taskPlannerLocalDate` and `osLocalYmd` (YYYY-MM-DD out). Found and fixed on the way: a new Master task took the list length as its rank (`[A10]`, priority lost). Add more sites as engines change.
-- [x] 4. Mutation ratchet, done (2026-11-15): `mutation-baseline.json` per file, `npm run test:mutation` (incremental), check-handoff gate. calendarEngine survivors killed (2026-11-15): 74% to 98.6%, ratcheted. 154 of 163 survivors were in the description sanitizer, none in date, priority or recurrence code; 8 equivalent survivors remain unsuppressed (a line-level disable would hide killable ones).
-- [x] 5. Failure injection, done (2026-11-15): `tests/helpers/gasFailures.js` + `tests/gasFailureInjection.test.js` (every client-callable RPC: 61 covered x quota/403/404/timeout, 6 exempt with a reason because they call no Google API; a coverage gate fails on any new uncovered RPC). Fixed: `getMasterTasks` returned `[]` and the notes Doc load returned a placeholder on any Google error; both now log and throw.
-  - [x] Done (user yes, 2026-11-16): when `getDailyData` reports a notes load warning (`noteLoadFailed`), lock the notes editor with a quiet Retry line (today a save on a day with no section yet would write the warning line). Existing sections are safe: the baseline mismatch refuses the save.
-  - [x] User decision (2026-11-16): leave. `getTriageBoard` returns `ok:true` ("0 thread(s) triaged") when every thread read fails; failures are only in `errors`/`itemErrors`. Switch to `ok:false` when all reads fail?
-  - [x] `runBackgroundSync` reports failures: inner helpers return false (still never throw), result is `{ok:false, error}` naming the step; client `console.error`s it (user chose fix, 2026-11-16).
-- [x] 6. Contract fixtures, done (2026-11-15): `tests/fixtures/google/` (Calendar events, Tasks, Docs one and two tabs; shapes from the API reference, not captured, all fake values) through `mapCalendarApiEvent_`, the Tasks mapping, `docBodyContent`, the day-section read and `buildDaySectionRequests_` (`tests/contractFixtures.test.js`).
-  - [x] `guestCount` counts people only, not resource rooms (user, 2026-11-16).
-- [x] 7. `tsc --checkJs`: dropped (user, 2026-11-16); ruled out by [ADR 0005](docs/adr/0005-js-with-v-validation-not-typescript.md).
-- [ ] 8. Verify WORK after repoint: at least a one-line "WORK loads" check after the user repoints `/exec`.
-- [x] 9. Zero-tolerance flaky tests, done (2026-11-15): `.agents/rules/zero-flaky-tests.md`; `tools/check-flaky-tests.js` in `npm run lint` bans retry counts, skip/todo, `--test-rerun-failures`, `continue-on-error` and retry actions. CI already runs the suite four times.
-- [x] 10. Dependabot, done (2026-11-15): `.github/dependabot.yml`, weekly grouped npm minor/patch PRs (axe-core stays pinned for the axe ratchet), monthly Actions SHAs. These PRs are the bot's; merge one when CI is green.
+- [ ] 8. User: open WORK `/exec` once on version 280 (repointed 2026-11-16) and say if it loads; the agent cannot, its CDP Chrome is not signed in to gsa.gov.
+
+### A18. Dead code after the 2-Way Sync retirement (2026-11-16)
+- [ ] Agent: delete `src/syncEngine.js` and `tests/syncEngine.test.js` (no app code imports it). `tests/localDateKeys.test.js` also imports `syncTaskToCalendar` (~L12, one assert ~L33): drop that import and assert with it (the function is gone, so its date-key check goes too). `coverage-baseline.json` has no entry for it. Then `npm run lint && npm test`.
 
 ### A10. Attendees and hover popovers (2026-11-12; shipped in TODO_HISTORY, hand-checked on WORK 2026-11-12)
-- [x] Local-preview smoke, done (2026-11-15): the only failure was that `npm run smoke` did not start the server; it now starts `server.js` when port 3000 is down and stops it after. All 9 smoke sections pass with zero console errors.
 - [ ] `tools/ensure-chrome.js` Linux branch deliberately left without `--password-store=basic` (WSL2 launches Windows chrome.exe); revisit only if the keyring prompt returns after `npm run smoke`.
 
-### A15. Warm light mode and steady Today links (2026-11-14; shipped in TODO_HISTORY, HOME @463, WORK v261)
-- [x] Light mode (33% Manila page, 15% cards) looks good on HOME @463: user verified 2026-11-14.
-- [x] Navy light cards a third of the way from the 15% mix toward the Manila card: `--bg-card` #f9f7f3, in-card fills #f5f2ec (user ask, 2026-11-15).
-- [x] User hand-check on HOME @463, passed (2026-11-15): dark mode looks unchanged; on Daily and Month the chevrons stay put when "Today" / "This Month" appear (they sit left of the previous chevron, leaving a gap on today). Then repoint WORK to v261.
-
 ### A14. Quiet buttons, Future year nav (2026-11-14; shipped in TODO_HISTORY)
-- [x] User hand-check on HOME @460, passed (2026-11-15): buttons rest bare and show a border on hover (Notes header, Future item actions, Triage actions, modal Cancel); "This Year" sits left of the Future year picker and the chevrons stay put. Then repoint WORK to the newest version.
 - [ ] User decision, default leave: priority / category / status segmented selectors keep their resting track; quieting the unselected segments risks hiding the selected one in dark mode.
 
-### A13. Note tab-sync (2026-11-14; shipped in TODO_HISTORY)
-- [x] Two-tab notes check on HOME @479 over CDP (2026-11-16): tab B showed A's line before typing. Found and fixed: a save that `google.script.run` ran twice (lost response) wrote, then the replay reported "changed in Google Docs"; the server now treats a Doc already holding the saved text as success.
-
 ### A12. Security review follow-ups (2026-11-13; fixes shipped, see TODO_HISTORY; HOME @446, WORK v245, `origin/pure-gas-main` 4dd230d)
-- [x] Agent, default do, done (2026-11-15): drop the unreachable CalendarApp-style branches in `extractMeetLinkFromEvent_` (`gas-app/Code.gs` ~L1176; its only caller is `mapCalendarApiEvent_`, which passes raw Calendar API events). No test covers it directly: extend `tests/editCalendarEvent.test.js` (maps raw events through `getDailyData` to `mapCalendarApiEvent_`) with a hangoutLink, a conferenceData and a description-only case first.
-- [x] Agent, default do, done (2026-11-15): dev-dependency `npm audit` upgrades: stryker 8 to 10, eslint 10.15, html-validate 9 to 11, overrides for stryker minimatch/qs; `npm audit` 0 vulnerabilities; `npm run test:mutation` ran on stryker 10 (90.32% overall); CI keeps no audit step.
-- [x] Old-event title sync: moot (2026-11-16). Nothing has written `gasTaskId` since `907bd9e` (2026-09-23, CalendarApp `setTag` removed), so only events tagged 2026-08-15 to 2026-09-23 can link; HOME today has none.
-- [x] 2-Way Sync retired (user chose remove, 2026-11-16): `syncWorkspaceChanges` now only deletes its own trigger when it fires; `runBackgroundSync`, the trigger setup functions and the after-first-paint call are gone. Self-test 5 checks no trigger is left.
 - [ ] User decision, default keep: `drive.readonly` stays for Doc action items in Triage (read-only); drop it only if you retire that feature.
 - [ ] User: delete script property `PICKER_API_KEY` on HOME once the Drive re-grant TODO is closed (only `getDriveRegrantConfig` in `gas-app/Code.gs` reads it; WORK never needed it).
 - [ ] User: old scratch voice-typing Docs made by earlier builds (2026-11-13 or older) cannot be pulled (`pullDictationScratchText` refuses unissued ids); start a new one.
@@ -53,10 +29,19 @@ Load-speed work (A8) came first on 2026-11-06 at the user's request.
 - [ ] User: remove the Play Sheet Music, monday and Postman connectors at claude.ai > Settings > Connectors.
 - [ ] User: re-run `/usage` due 2026-11-19 and compare with 2026-11-12 (47% subagent hint, 36% CLAUDE.md hint, 72% worker hint). Always-loaded context went ~46 KB to ~20 KB; if "worker" still tops the hints, look at which sessions spawn it before changing tiers.
 
-### A9. Schedule slot click (2026-11-09; shipped in TODO_HISTORY)
-- [x] HOME @479 checked over CDP (2026-11-16): 4:00 PM label and free body open 16:00-17:00; the occupied 6:30 PM label opens 18:30-19:30. Default stays 1 hour.
-
-### A0. Tutorial coverage gaps (2026-11-02; stale labels already fixed)
+### A0. Tutorial coverage gaps (2026-11-02; stale labels already fixed). IN PROGRESS, next (2026-11-16, PLAN Phase 36)
+Rules for the new exercises (proposed defaults; the user may override): number them T21 onward after T20, one per
+feature in the order of the list below, same markup as T01-T08 (`data-title`, `x-data="{ id: 'T21' }"`); edit
+`gas-app/Tutorial.html` and paste the same text into `index.html` (`tests/htmlIncludeMirror.test.js` checks the copy
+and the ID order). Folder setup cannot be redone on a set-up account, so T21 describes it and asks only to confirm
+the folder in Drive. Go-live needs the hub with DRY_RUN on: add its number to the "need the Gmail hub" note
+(`gas-app/Tutorial.html` ~L123). Each card needs what `tests/htmlIncludeMirror.test.js` checks (~L37-51): `x-data` id,
+`data-title`, a visible `<span class="tutorial-ex-id">`, aria-label "Note for Tnn", and `<dt>` steps Do, Look in,
+Pass if, Clean up; copy T16 as the template. No `//`, backtick or ASCII apostrophe in the file.
+- [ ] Agent: write T21+ (folder setup, event add/edit, Month view, global Search, task statuses Open/In
+  Progress/Done/Canceled, Master Find box and filters, Go-live, Sync button, voice dictation, Quote strip, install to
+  desktop or phone; Forward and Undo are already T03, T16 and T18), run `node --test tests/htmlIncludeMirror.test.js tests/docPriorityExamples.test.js`, then `npm run deploy:home`.
+- [ ] Agent: walk each new exercise live on HOME over CDP and note pass/fail here.
 - [ ] Add exercises for features the Tutorial skips: one-time folder setup, event add/edit, Month view and Search,
   task statuses (Open/In Progress/Done/Canceled, Forward to date), Master Find box and filters, Go-live and Undo
   flow, Sync button, voice dictation, Quote strip, install to desktop or phone. T03 and T07 were walked live on HOME
@@ -77,8 +62,6 @@ Pilot branch `worktree-solid-code-pilot` (user merges, see HANDOFF) added the No
 `check-css.js` (baseline `css-baseline.json`: magic-color 0, important 123),
 `tools/edit-gate.js` PostToolUse hook, and the skill split (`~/.claude/skills/solid-code/{js,py,web,css}.md`).
 
-- [x] shell-string `exec`/`execSync` in `tools/` now `execFileSync` argv (2026-11-04).
-- [x] gitleaks 8.30.1 installed in `~/.local/bin` (checksum verified) and `.githooks/pre-commit` scans staged changes, blocks if missing (2026-11-04).
 - [ ] **Low priority, later: semantic color names (2026-11-04).** Rename the hex-named `--c-<hex>` tokens in
   `src/styles.css` + `gas-app/Styles.html` to semantic names. First rank-rate 3-5 widely used palettes/design systems
   (candidates: Material 3 color roles, Tailwind, Radix Colors, IBM Carbon, GitHub Primer), then map each of our
@@ -103,7 +86,6 @@ On HOME @416 (`90ccb30`). On WORK as version 222 (code `c716b0c`..`aff529a`, pus
 - [ ] **Check on WORK (user), version 222 after "Update WORK":** reload twice; the second load paints the saved Triage board right away, marked stale, and the refresh replaces it. In the app iframe console `indexedDB.databases()` lists `day-planner-hub`. Any `[hubCache]` console error: send it. The code has no off switch; if IndexedDB is blocked it loads as before.
 - [ ] **Hand-check on HOME @416 (user):** (1) a profile with no saved flags (clear site data, reload): no jump in the nav when Triage and Meeting Prep appear; (2) About > Saved on this device > Clear saved data, then reload: the board is not painted from storage; (3) Doc rows stay cached 30 min, Refresh reads Drive.
 - [ ] **QW4 dropped (2026-11-06):** measured on HOME, `getHubStatus` about 3 s against about 1.2-2 s for a trivial RPC, so a flags-only split saves about 1 s and nothing waits on it any more (saved flags paint the tabs, the board starts without it). Reopen only if a first-visit WORK trace shows otherwise.
-- [x] **Easing, rest of scope (user chose opacity only, 150-200 ms, 2026-11-06), done 2026-11-15, user looked on HOME @477 (2026-11-16):** dialogs, the Triage and Prep tabs, new daily and master rows fade in over 200 ms (`tests/easing.test.js`); off under reduced motion. Earlier: done for the Triage last-run text and the action toast (300 ms), and 150 ms for the time-machine toast and the day, month, view-options, due-date and note-filter popups (2026-11-06). Still to ease: dialogs (native `<dialog>`), late-appearing tabs (x-if, already width-reserved) and rows; not the stale-to-fresh list swap; keep `prefers-reduced-motion`.
 
 ### A7. Triage Doc action items (2026-11-05; shipped items in TODO_HISTORY)
 
@@ -168,15 +150,6 @@ Most items need the user (GSA account, a release go, or a decision). HOME live c
   Meet link). The app has no event-delete RPC, so it was left for you.
 - [ ] **Other test data you may want to clear**: the "Hub L6 forced-failure test" email and the Task it created in
   `@default`; default "Daily Notes" sections for 10-30 and 10-31 in the October notes Doc.
-- [x] **WORK Meeting Prep live render**: verified 2026-11-02 (user, WORK v189): T14b passed, carry-in listed after Refresh.
-  Verified 2026-11-03 (user, WORK v195, `bf1024e`): a Core meeting past its prep cutoff still shows, "(passed 41 mins ago)".
-  Open follow-up: the status line under the header stretched to half the screen (fixed with `.hub-mail-note`, awaiting
-  the next WORK push).
-- [x] **T14 FAIL on WORK (2026-11-02, user), resolved by the ledger redesign; T14b passed on v189:** count stayed 0; Integration Ledger row 51 error "Notes Doc is inaccessible:
-  batchUpdate failed" (permission; the weekly Doc was not made by the app, so `drive.file` refuses the write). Requirement
-  change proposed by the user: do not write the user's weekly agenda Doc; show a 1-2 line carry-in summary plus an email
-  link on the Meeting Prep page. Decided 2026-11-02: carry-ins are Integration Ledger rows (TargetType CARRY_IN) listed on Meeting Prep as collapsible items plus a copy-ready bullet list; no Doc write. Fix built, awaiting WORK re-test with a new DP-T14b email.
-  Meeting Prep Refresh runs the queue (processWorkflowQueue) first; user chose option 2 on 2026-11-02. In trial mode it writes no ledger rows.
 - [ ] **Gemini meeting notes (user, 2026-11-02): important for Core Team and other meetings.** Not built: PLAN.md
   puts Gemini discovery/actions out of scope (Phase 6 build); only the registry column `GeminiExpected` exists. Decide
   scope with the user: how Gemini notes should reach Meeting Prep carry-ins.

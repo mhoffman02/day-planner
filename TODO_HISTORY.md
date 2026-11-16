@@ -1,5 +1,56 @@
 # Task History (TODO_HISTORY)
 
+## 2026-11-16 — Fail-loud A17 done, notes lock, sync retired, false Docs conflict fixed
+
+From A17. Fail loud and early, not after release:
+- [x] 1. Error telemetry, done (2026-11-15): `src/clientTelemetry.js` (mirrored in `gas-app/Script.html`) forwards uncaught errors, unhandled rejections and console.error to `logFromClient` (`gas-app/Code.gs` `recordClientLog`: Apps Script log + `recordServerLog` ring buffer + Run Log Doc), with view and build; max 10 per page load, no repeats. Adapted from the LiteConsole `logFromClient` bridge (GitHub `mhoffman02/gsai-gas-project-template` `documents/developer-guide/09-lite-console.md`). Server RPC failures reach it through the client failure handlers. Read: `npm run rpc -- getRecentServerLogs` or `?view=logs&format=json` on /dev.
+- [x] 2. Time-zone matrix, done (2026-11-15): `npm run test:tz` (Chicago, UTC, Auckland) in CI; `tests/dstClock.test.js` pins the clock on DST-change days.
+- [x] 3. Inline invariants, done (2026-11-15): `invariant(cond, msg)` in `src/binderStore.js` (mirrored in `gas-app/Script.html`) and `src/integration/contracts.js` (`DPEngines.invariant`); sites: `formatTaskTitle` (title must parse back), `planRanks` (moved task stays in its group), `nextMonthKey` (YYYY-MM out), `taskPlannerLocalDate` and `osLocalYmd` (YYYY-MM-DD out). Found and fixed on the way: a new Master task took the list length as its rank (`[A10]`, priority lost). Add more sites as engines change.
+- [x] 4. Mutation ratchet, done (2026-11-15): `mutation-baseline.json` per file, `npm run test:mutation` (incremental), check-handoff gate. calendarEngine survivors killed (2026-11-15): 74% to 98.6%, ratcheted. 154 of 163 survivors were in the description sanitizer, none in date, priority or recurrence code; 8 equivalent survivors remain unsuppressed (a line-level disable would hide killable ones).
+- [x] 5. Failure injection, done (2026-11-15): `tests/helpers/gasFailures.js` + `tests/gasFailureInjection.test.js` (every client-callable RPC: 61 covered x quota/403/404/timeout, 6 exempt with a reason because they call no Google API; a coverage gate fails on any new uncovered RPC). Fixed: `getMasterTasks` returned `[]` and the notes Doc load returned a placeholder on any Google error; both now log and throw.
+  - [x] Done (user yes, 2026-11-16): when `getDailyData` reports a notes load warning (`noteLoadFailed`), lock the notes editor with a quiet Retry line (today a save on a day with no section yet would write the warning line). Existing sections are safe: the baseline mismatch refuses the save.
+  - [x] User decision (2026-11-16): leave. `getTriageBoard` returns `ok:true` ("0 thread(s) triaged") when every thread read fails; failures are only in `errors`/`itemErrors`. Switch to `ok:false` when all reads fail?
+  - [x] `runBackgroundSync` reports failures: inner helpers return false (still never throw), result is `{ok:false, error}` naming the step; client `console.error`s it (user chose fix, 2026-11-16).
+- [x] 6. Contract fixtures, done (2026-11-15): `tests/fixtures/google/` (Calendar events, Tasks, Docs one and two tabs; shapes from the API reference, not captured, all fake values) through `mapCalendarApiEvent_`, the Tasks mapping, `docBodyContent`, the day-section read and `buildDaySectionRequests_` (`tests/contractFixtures.test.js`).
+  - [x] `guestCount` counts people only, not resource rooms (user, 2026-11-16).
+- [x] 7. `tsc --checkJs`: dropped (user, 2026-11-16); ruled out by [ADR 0005](docs/adr/0005-js-with-v-validation-not-typescript.md).
+- [x] 9. Zero-tolerance flaky tests, done (2026-11-15): `.agents/rules/zero-flaky-tests.md`; `tools/check-flaky-tests.js` in `npm run lint` bans retry counts, skip/todo, `--test-rerun-failures`, `continue-on-error` and retry actions. CI already runs the suite four times.
+- [x] 10. Dependabot, done (2026-11-15): `.github/dependabot.yml`, weekly grouped npm minor/patch PRs (axe-core stays pinned for the axe ratchet), monthly Actions SHAs. These PRs are the bot's; merge one when CI is green.
+From A10. Attendees and hover popovers:
+- [x] Local-preview smoke, done (2026-11-15): the only failure was that `npm run smoke` did not start the server; it now starts `server.js` when port 3000 is down and stops it after. All 9 smoke sections pass with zero console errors.
+From A15. Warm light mode and steady Today links:
+- [x] Light mode (33% Manila page, 15% cards) looks good on HOME @463: user verified 2026-11-14.
+- [x] Navy light cards a third of the way from the 15% mix toward the Manila card: `--bg-card` #f9f7f3, in-card fills #f5f2ec (user ask, 2026-11-15).
+- [x] User hand-check on HOME @463, passed (2026-11-15): dark mode looks unchanged; on Daily and Month the chevrons stay put when "Today" / "This Month" appear (they sit left of the previous chevron, leaving a gap on today). Then repoint WORK to v261.
+From A14. Quiet buttons, Future year nav:
+- [x] User hand-check on HOME @460, passed (2026-11-15): buttons rest bare and show a border on hover (Notes header, Future item actions, Triage actions, modal Cancel); "This Year" sits left of the Future year picker and the chevrons stay put. Then repoint WORK to the newest version.
+From A13. Note tab-sync:
+- [x] Two-tab notes check on HOME @479 over CDP (2026-11-16): tab B showed A's line before typing. Found and fixed: a save that `google.script.run` ran twice (lost response) wrote, then the replay reported "changed in Google Docs"; the server now treats a Doc already holding the saved text as success.
+From A12. Security review follow-ups:
+- [x] Agent, default do, done (2026-11-15): drop the unreachable CalendarApp-style branches in `extractMeetLinkFromEvent_` (`gas-app/Code.gs` ~L1176; its only caller is `mapCalendarApiEvent_`, which passes raw Calendar API events). No test covers it directly: extend `tests/editCalendarEvent.test.js` (maps raw events through `getDailyData` to `mapCalendarApiEvent_`) with a hangoutLink, a conferenceData and a description-only case first.
+- [x] Agent, default do, done (2026-11-15): dev-dependency `npm audit` upgrades: stryker 8 to 10, eslint 10.15, html-validate 9 to 11, overrides for stryker minimatch/qs; `npm audit` 0 vulnerabilities; `npm run test:mutation` ran on stryker 10 (90.32% overall); CI keeps no audit step.
+- [x] Old-event title sync: moot (2026-11-16). Nothing has written `gasTaskId` since `907bd9e` (2026-09-23, CalendarApp `setTag` removed), so only events tagged 2026-08-15 to 2026-09-23 can link; HOME today has none.
+- [x] 2-Way Sync retired (user chose remove, 2026-11-16): `syncWorkspaceChanges` now only deletes its own trigger when it fires; `runBackgroundSync`, the trigger setup functions and the after-first-paint call are gone. Self-test 5 checks no trigger is left.
+From A9. Schedule slot click:
+- [x] HOME @479 checked over CDP (2026-11-16): 4:00 PM label and free body open 16:00-17:00; the occupied 6:30 PM label opens 18:30-19:30. Default stays 1 hour.
+From A5. Solid Code pilot follow-ups:
+- [x] shell-string `exec`/`execSync` in `tools/` now `execFileSync` argv (2026-11-04).
+- [x] gitleaks 8.30.1 installed in `~/.local/bin` (checksum verified) and `.githooks/pre-commit` scans staged changes, blocks if missing (2026-11-04).
+From A8. Load speed: hub cache in IndexedDB:
+- [x] **Easing, rest of scope (user chose opacity only, 150-200 ms, 2026-11-06), done 2026-11-15, user looked on HOME @477 (2026-11-16):** dialogs, the Triage and Prep tabs, new daily and master rows fade in over 200 ms (`tests/easing.test.js`); off under reduced motion. Earlier: done for the Triage last-run text and the action toast (300 ms), and 150 ms for the time-machine toast and the day, month, view-options, due-date and note-filter popups (2026-11-06). Still to ease: dialogs (native `<dialog>`), late-appearing tabs (x-if, already width-reserved) and rows; not the stale-to-fresh list swap; keep `prefers-reduced-motion`.
+From B4. Phase 30: WORK promotion and user-gated release items:
+- [x] **WORK Meeting Prep live render**: verified 2026-11-02 (user, WORK v189): T14b passed, carry-in listed after Refresh.
+  Verified 2026-11-03 (user, WORK v195, `bf1024e`): a Core meeting past its prep cutoff still shows, "(passed 41 mins ago)".
+  Open follow-up: the status line under the header stretched to half the screen (fixed with `.hub-mail-note`, awaiting
+  the next WORK push).
+- [x] **T14 FAIL on WORK (2026-11-02, user), resolved by the ledger redesign; T14b passed on v189:** count stayed 0; Integration Ledger row 51 error "Notes Doc is inaccessible:
+  batchUpdate failed" (permission; the weekly Doc was not made by the app, so `drive.file` refuses the write). Requirement
+  change proposed by the user: do not write the user's weekly agenda Doc; show a 1-2 line carry-in summary plus an email
+  link on the Meeting Prep page. Decided 2026-11-02: carry-ins are Integration Ledger rows (TargetType CARRY_IN) listed on Meeting Prep as collapsible items plus a copy-ready bullet list; no Doc write. Fix built, awaiting WORK re-test with a new DP-T14b email.
+  Meeting Prep Refresh runs the queue (processWorkflowQueue) first; user chose option 2 on 2026-11-02. In trial mode it writes no ledger rows.
+
+Commits: `ddbd0da` notes lock, `2fe2e7c` guestCount, `2123929` sync reports failures, `7e93cb1` replayed note save, `b915d2a` 2-Way Sync retired. HOME @480, WORK v280.
+
 ## 2026-11-14 (night) — Warm light mode, steady Today and This Month links
 
 - [x] **Warm light mode with 3:1 input outlines** (`0d36610`, then `988bd83` and `cf61956`): full Manila shipped first (HOME @461) and read too strong; the user then picked a mix (comparison at https://claude.ai/artifact/EyRzGJjfjfoyYdE2uW33f1): page and rules 33% of the way from the old near-white to Manila (page `#f5f2ec`, rules `#cbd5c9`), cards and in-card fills 15% (card `#fdfcfb`, tint `#edf3ee`, event fill `#e7f3ef`, in-card fills `--bg-parchment-fixed` `#f9f7f4`; `cf61956` fixed that token, which had taken the 33% page colour and made cards look too warm); muted `#555f5a`; new `--border-input` `#877c67` on every input, textarea and form control; card-like surfaces moved from `--white` to `--bg-card` (inputs, dropdowns and popovers stay white); seven text tokens darkened just enough to keep 4.5:1 on card, page and tint; dark mode pins the old values of shared tokens. Guard: `tests/lightPalette.test.js`.

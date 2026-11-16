@@ -495,3 +495,7 @@ live-testing catches it by luck.
 - Worktree started from master, not pure-gas-main; so the user had to cherry-pick each batch, and a conflict hit when the same commits landed twice
 
 ---
+
+## 2026-11-16
+**Worked well:** Running the user hand-checks myself over CDP found a real bug the unit tests could not: `google.script.run` ran one note save twice after a lost response, so a save that landed was reported as a Docs conflict. Wrapping the bridge call to log each send proved the client sent it once.
+**Needs improvement:** I ran `npm run push:work` twice and made two identical WORK versions (278, 279); run it once and read its log. `gas-rpc --deploy` answered with the old code for about a minute after the push; rerun before deciding a deploy failed.
