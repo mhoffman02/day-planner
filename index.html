@@ -67,6 +67,7 @@
         document.documentElement.style.colorScheme = 'light';
       }
       try {
+        if (localStorage.getItem('dayPlannerPalette') === null) localStorage.setItem('dayPlannerPalette', 'navy');
         document.documentElement.setAttribute('data-palette', /^(navy|monticello)$/.test(localStorage.getItem('dayPlannerPalette')) ? 'navy' : 'teal');
       } catch (e) {
         console.error('index palette bootstrap failed, falling back to teal', e.stack);
