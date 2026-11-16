@@ -73,6 +73,17 @@ describe('taskEngine survivors', () => {
     assert.equal(formatTaskTitle('A', 1, undefined), '[A1] ');
   });
 
+  it('formatTaskTitle fails loud when the title would not parse back (bad group, or a sequence that is not a whole number)', () => {
+    assert.throws(() => formatTaskTitle('D', 1, 't'), /formatTaskTitle\(D, 1\) does not parse back; the priority would be lost/);
+    assert.throws(() => formatTaskTitle('A', '1a', 't'), /formatTaskTitle\(A, 1a\) does not parse back/);
+    assert.throws(() => formatTaskTitle('A', 1.5, 't'), /does not parse back/);
+  });
+
+  it('nextMonthKey fails loud on a key that is not YYYY-MM (5-digit or 3-digit year)', () => {
+    assert.throws(() => nextMonthKey('12026-01'), /nextMonthKey\(12026-01\) gave 12026-02, not YYYY-MM/);
+    assert.throws(() => nextMonthKey('999-05'), /gave 999-06, not YYYY-MM/);
+  });
+
   it('updateTaskTitleText keeps the prefix and ignores blank replacements', () => {
     assert.equal(updateTaskTitleText('[A1] old', ' new '), '[A1] new');
     assert.equal(updateTaskTitleText('[A1] old', '   '), '[A1] old');

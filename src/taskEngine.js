@@ -135,6 +135,7 @@ export function formatTaskTitle(priorityGroup, sequence, cleanTitle) {
   if (priorityGroup && sequence) {
     const title = `[${priorityGroup.toUpperCase()}${sequence}] ${trimmed}`;
     const back = parseTaskTitle(title);
+    // Stryker disable next-line LogicalOperator,ConditionalExpression: equivalent, parseTaskTitle returns group and sequence together or neither, so the two checks always agree
     invariant(back.priorityGroup === priorityGroup.toUpperCase() && back.sequence === Number(sequence),
       'formatTaskTitle(' + priorityGroup + ', ' + sequence + ') does not parse back; the priority would be lost');
     return title;

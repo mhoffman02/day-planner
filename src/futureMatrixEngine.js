@@ -59,6 +59,7 @@ export function nextMonthKey(monthKey) {
     year += 1;
   }
   const key = `${year}-${String(month).padStart(2, '0')}`;
+  // Stryker disable next-line Regex: equivalent for the trailing $, the key is an integer year plus a 2-digit month with nothing after it; the ^ case is covered in tests/mutationKillers.test.js
   invariant(/^\d{4}-(0[1-9]|1[0-2])$/.test(key), 'nextMonthKey(' + monthKey + ') gave ' + key + ', not YYYY-MM');
   return key;
 }
@@ -89,6 +90,7 @@ export function emptyYearMatrix(year) {
 export function quarterForMonth(monthVal) {
   let m = typeof monthVal === 'number' ? monthVal : parseInt(String(monthVal).slice(-2), 10);
   if (isNaN(m) || m < 1) m = 1;
+  // Stryker disable next-line ConditionalExpression,EqualityOperator: equivalent, any month above 9 is Q4 with or without this clamp
   if (m > 12) m = 12;
   if (m <= 3) return 'Q1';
   if (m <= 6) return 'Q2';
