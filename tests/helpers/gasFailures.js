@@ -98,7 +98,7 @@ export function assertFailsLoud(ctx, fn, opts = {}) {
     } else if (v && v.success === false) {
       assertUserFacing(v.error, 'envelope.error');
     } else if (v && v.ok === false) {
-      assertUserFacing(v.message, 'envelope.message');
+      assertUserFacing(v.message !== undefined ? v.message : v.error, 'envelope.message'); // hub {ok:false,message} or getDayDocLink {ok:false,error}
     } else {
       assert.fail(`silent success: returned ${JSON.stringify(v).slice(0, 300)}`);
     }
