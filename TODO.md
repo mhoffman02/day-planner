@@ -35,9 +35,7 @@ the folder in Drive. Go-live needs the hub with DRY_RUN on: add its number to th
 (`gas-app/Tutorial.html` ~L123). Each card needs what `tests/htmlIncludeMirror.test.js` checks (~L37-51): `x-data` id,
 `data-title`, a visible `<span class="tutorial-ex-id">`, aria-label "Note for Tnn", and `<dt>` steps Do, Look in,
 Pass if, Clean up; copy T16 as the template. No `//`, backtick or ASCII apostrophe in the file.
-- [ ] Agent: write T21+ (folder setup, event add/edit, Month view, global Search, task statuses Open/In
-  Progress/Done/Canceled, Master Find box and filters, Go-live, Sync button, voice dictation, Quote strip, install to
-  desktop or phone; Forward and Undo are already T03, T16 and T18), run `node --test tests/htmlIncludeMirror.test.js tests/docPriorityExamples.test.js`, then `npm run deploy:home`.
+- [x] Agent: T21-T31 written (2026-11-16) in `gas-app/Tutorial.html` and `index.html`: folder setup, event add/edit, Month, Search, task statuses, Master Find, Go-live (T27, added to the hub note), Sync reload, dictation, Quote strip, install. Not yet walked live.
 - [ ] Agent: walk each new exercise live on HOME over CDP and note pass/fail here.
 - [ ] Add exercises for features the Tutorial skips: one-time folder setup, event add/edit, Month view and Search,
   task statuses (Open/In Progress/Done/Canceled, Forward to date), Master Find box and filters, Go-live and Undo
