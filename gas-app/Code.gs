@@ -463,7 +463,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 805;
+const BUILD_NUMBER_ = 806;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -915,7 +915,7 @@ function include(filename) {
 /**
  * Ensures automated time-driven 2-Way Sync trigger is installed.
  * @param {number} [minutes=5] Interval frequency in minutes.
- * @returns {void}
+ * @returns {boolean} false when the check or install threw (logged with its stack, not rethrown).
  */
 function ensure2WaySyncTriggerInstalled(minutes) {
   const freq = minutes || 5;
@@ -937,24 +937,28 @@ function ensure2WaySyncTriggerInstalled(minutes) {
         .create();
       Logger.log('Installed automated ' + freq + '-minute 2-Way Sync trigger.');
     }
+    return true;
   } catch (err) {
-    logError('ensure2WaySyncTriggerInstalled', err);
+    logError('ensure2WaySyncTriggerInstalled (trigger left as is; reported to the caller)', err);
+    return false;
   }
 }
 
 /**
  * Post-load housekeeping the shell page used to do inline: one 2-Way Sync pass plus the trigger check.
  * Called by the client once the first screen has painted. Takes no arguments.
- * @returns {{ok: boolean}} ok is false when the pass threw (already logged with its stack).
+ * @returns {{ok: boolean, error?: string}} ok is false when a step failed (each step logs its own stack);
+ *   error names the failed steps.
  */
 function runBackgroundSync() {
   try {
-    syncWorkspaceChanges();
-    ensure2WaySyncTriggerInstalled(5);
-    return { ok: true };
+    const failed = [];
+    if (!syncWorkspaceChanges()) failed.push('2-Way Sync pass');
+    if (!ensure2WaySyncTriggerInstalled(5)) failed.push('sync trigger check');
+    return failed.length ? { ok: false, error: 'Background sync failed: ' + failed.join(', ') + '.' } : { ok: true };
   } catch (syncErr) {
     logError('runBackgroundSync', syncErr);
-    return { ok: false };
+    return { ok: false, error: 'Background sync failed: ' + syncErr.message };
   }
 }
 
@@ -985,7 +989,8 @@ function setup2WaySyncTrigger() {
 /**
  * Background Time-Driven Handler for 2-Way Workspace Syncing.
  * Synchronizes daily tasks with Google Calendar events.
- * @returns {void}
+ * Never throws (time-driven trigger); every failure is logged.
+ * @returns {boolean} false when the day failed to load or any event retitle failed.
  */
 function syncWorkspaceChanges() {
   try {
@@ -993,8 +998,8 @@ function syncWorkspaceChanges() {
     const dailyData = getDailyData(todayStr);
 
     if (dailyData.error) {
-      console.error('syncWorkspaceChanges warning: dailyData returned error: ' + dailyData.error);
-      return;
+      console.error('syncWorkspaceChanges: dailyData returned error, no events retitled: ' + dailyData.error);
+      return false;
     }
 
     const tasks = dailyData.tasks || [];
@@ -1002,6 +1007,7 @@ function syncWorkspaceChanges() {
     // syncTaskId is the event's shared gasTaskId tag.
     const events = dailyData.calendarEvents || [];
 
+    let allOk = true;
     tasks.forEach(function(task) {
       if (!task.id) return;
       try {
@@ -1013,12 +1019,15 @@ function syncWorkspaceChanges() {
         Calendar.Events.patch({ summary: formattedTitle }, 'primary', linkedEvt.id, { sendUpdates: 'none' });
       } catch (taskErr) {
         logError('syncWorkspaceChanges task item ' + task.id + ' (event not retitled; next task continues)', taskErr);
+        allOk = false;
       }
     });
 
-    console.log('2-Way Workspace Sync complete for ' + todayStr);
+    console.log('2-Way Workspace Sync complete for ' + todayStr + (allOk ? '' : ' (with failures)'));
+    return allOk;
   } catch (err) {
-    logError('syncWorkspaceChanges main', err);
+    logError('syncWorkspaceChanges main (pass abandoned; reported to the caller)', err);
+    return false;
   }
 }
 
@@ -4119,7 +4128,7 @@ function syncWorkspaceChanges() {
 
 /**
  * Post-load sync pass and trigger check; the client calls it after first paint.
- * @returns {{ok: boolean}}
+ * @returns {{ok: boolean, error?: string}}
  */
 function runBackgroundSync() {
   return (typeof _runBackgroundSyncInternal === 'function') ? _runBackgroundSyncInternal() : (globalThis._runBackgroundSyncInternal ? globalThis._runBackgroundSyncInternal() : null);

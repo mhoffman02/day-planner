@@ -396,17 +396,17 @@ describe('404 idempotent exceptions for the Future and Master task RPCs', () => 
   });
 });
 
-// runBackgroundSync is fire-and-forget after first paint (src/app.js ignores its value; a rejection only logs).
-// KNOWN QUESTIONABLE: ensure2WaySyncTriggerInstalled and syncWorkspaceChanges catch and logError their own failures (stack
-// logged, trigger handlers must not throw), so the {ok:false} branch is unreachable for them and the result stays {ok:true}.
-// Pinned here so a change is deliberate; the stack in the log is the only signal. Needs a design call, not fixed in A17.5.
-describe('runBackgroundSync when the trigger check fails: logs the stack, result stays ok:true', () => {
+// runBackgroundSync is fire-and-forget after first paint; src/app.js console.errors a {ok:false} result.
+// The inner helpers still catch and log (trigger handlers must not throw) but report false, so a failed step reaches the result.
+describe('runBackgroundSync when the trigger check fails: logs the stack, result is ok:false naming the step', () => {
   for (const kind of KINDS) {
     it(kind, () => {
       const ctx = codeCtx();
       const err = failureError(kind, 'ScriptApp.getProjectTriggers');
       ctx.ScriptApp = { getProjectTriggers: () => { throw err; } };
-      assert.deepEqual(toHost(ctx.runBackgroundSync()), { ok: true });
+      const res = toHost(ctx.runBackgroundSync());
+      assert.equal(res.ok, false);
+      assert.match(res.error, /trigger/i);
       assert.ok(stackLines(ctx).length > 0, 'no console.error line carried a stack');
     });
   }

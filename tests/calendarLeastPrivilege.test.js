@@ -105,6 +105,22 @@ test('syncWorkspaceChanges: one failed patch is logged with its stack and the re
   assert.match(ctx.__consoleLines.join('\n'), /syncWorkspaceChanges[\s\S]*Forbidden: E1[\s\S]*\n\s+at /);
 });
 
+test('syncWorkspaceChanges reports true on a clean pass and false when a retitle failed', () => {
+  assert.equal(syncCtx().ctx.syncWorkspaceChanges(), true);
+  assert.equal(syncCtx({ failOn: 'E1' }).ctx.syncWorkspaceChanges(), false);
+});
+
+test('runBackgroundSync: clean pass is ok:true; a failed retitle is ok:false naming the sync step', () => {
+  const withTrigger = (ctx) => {
+    ctx.ScriptApp = { getProjectTriggers: () => [{ getHandlerFunction: () => 'syncWorkspaceChanges' }] };
+    return ctx;
+  };
+  assert.deepEqual(toHost(withTrigger(syncCtx().ctx).runBackgroundSync()), { ok: true });
+  const res = toHost(withTrigger(syncCtx({ failOn: 'E1' }).ctx).runBackgroundSync());
+  assert.equal(res.ok, false);
+  assert.match(res.error, /sync/i);
+});
+
 // ---------------------------------------------------------------- no silent CalendarApp fallback
 test('getDailyData without the Calendar Advanced Service warns loudly instead of returning no events', () => {
   const ctx = makeGasContext();
