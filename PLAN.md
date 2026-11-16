@@ -66,7 +66,7 @@ layer, fixed horizons, 8 life areas, suggest-not-auto A tasks); user may overrid
 ### Phase 34: Security review follow-ups (In progress; fixes shipped 2026-11-13)
 Full-project review fixed and live (HOME @446, WORK v245, TODO_HISTORY 2026-11-13); only small follow-ups remain, checklist in [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) A12.
 - [x] XSS sanitizers, OAuth-token gate (`REGRANT_ENABLED_UNTIL`, 24 h cap), SRI, localhost-only dev server, gated `gas-rpc --deploy`, `calendar` to `calendar.events`.
-- [ ] A12: `extractMeetLinkFromEvent_` cleanup, dev-dependency `npm audit` upgrades, hand-check old-event title sync.
+- [x] A12: `extractMeetLinkFromEvent_` cleanup, dev-dependency `npm audit` upgrades (2026-11-15); old-event title sync moot (2026-11-16).
 
 ### Phase 33: Solid Code ratchet shrinks (In progress)
 Phase 31 (search polish) shipped and is archived in `PLAN-HISTORY.md`. Checklist in [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) A3.
