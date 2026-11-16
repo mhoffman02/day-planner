@@ -24,7 +24,7 @@ Load-speed work (A8) came first on 2026-11-06 at the user's request.
 
 ### A12. Security review follow-ups (2026-11-13; fixes shipped, see TODO_HISTORY; HOME @446, WORK v245, `origin/pure-gas-main` 4dd230d)
 - [x] Agent, default do, done (2026-11-15): drop the unreachable CalendarApp-style branches in `extractMeetLinkFromEvent_` (`gas-app/Code.gs` ~L1176; its only caller is `mapCalendarApiEvent_`, which passes raw Calendar API events). No test covers it directly: extend `tests/editCalendarEvent.test.js` (maps raw events through `getDailyData` to `mapCalendarApiEvent_`) with a hangoutLink, a conferenceData and a description-only case first.
-- [ ] Agent, default do: plan the dev-dependency `npm audit` upgrades (stryker 9, eslint); run `npm run test:mutation` after, and keep `npm audit --omit=dev` out of CI (it was a no-op).
+- [x] Agent, default do, done (2026-11-15): dev-dependency `npm audit` upgrades: stryker 8 to 10, eslint 10.15, html-validate 9 to 11, overrides for stryker minimatch/qs; `npm audit` 0 vulnerabilities; `npm run test:mutation` ran on stryker 10 (90.32% overall); CI keeps no audit step.
 - [ ] User hand-check on HOME (task to calendar title sync on an OLD event, one created earlier, (2026-11-13) or older): sync reads `extendedProperties.shared.gasTaskId`; if old events carry the tag only in private props, the title will not follow. Say which event failed.
 - [ ] User decision, default keep: `drive.readonly` stays for Doc action items in Triage (read-only); drop it only if you retire that feature.
 - [ ] User: delete script property `PICKER_API_KEY` on HOME once the Drive re-grant TODO is closed (only `getDriveRegrantConfig` in `gas-app/Code.gs` reads it; WORK never needed it).
