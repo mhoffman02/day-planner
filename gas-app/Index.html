@@ -231,13 +231,13 @@
         <template x-if="showMeetingPrepNav">
           <button type="button" class="segment-btn" :class="{ 'active': activeView === 'meetingPrep' }" @click="setView('meetingPrep')" title="Meeting Prep and Carry-ins">
             <span class="material-symbols-outlined icon-16">event_note</span>
-            <span>Meeting Prep</span>
+            <span>Prep</span>
           </button>
         </template>
         <template x-if="hubTabsPending">
           <span class="segment-btn hub-tab-reserve" aria-hidden="true">
             <span class="material-symbols-outlined icon-16">event_note</span>
-            <span>Meeting Prep</span>
+            <span>Prep</span>
           </span>
         </template>
         <button type="button" class="segment-btn" :class="{ 'active': activeView === 'master-tasks' }" @click="setView('master-tasks')" title="Master Task List">
