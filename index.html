@@ -678,11 +678,17 @@
                 </div>
 
                 <!-- Add Topic Card Button (Round button matching Tasks) -->
-                <button type="button" class="btn-add-quiet btn-add-task-round" @click="addNoteCard()" title="Add Topic Card" aria-label="Add Topic Card">
+                <button type="button" class="btn-add-quiet btn-add-task-round" :disabled="notesLocked" @click="addNoteCard()" title="Add Topic Card" aria-label="Add Topic Card">
                   <span class="material-symbols-outlined">add</span>
                 </button>
               </div>
             </header>
+
+            <!-- Notes failed to load: editing is off until a reload succeeds (noteLoadFailed) -->
+            <p class="notes-lock-notice" x-show="notesLocked" x-cloak role="status">
+              <span>Notes could not load. Editing is off until they do.</span>
+              <button type="button" class="notes-lock-retry" @click="loadDayData()">Retry</button>
+            </p>
 
             <!-- Quote of the Day strip -->
             <article class="quote-card" :class="{ 'collapsed': quoteCardCollapsed }">
@@ -699,7 +705,7 @@
             </article>
 
             <!-- Mode 1: Modular Topic Cards (Option 1) -->
-            <div class="note-cards-container" x-show="noteViewMode === 'cards'">
+            <div class="note-cards-container" x-show="noteViewMode === 'cards'" :inert="notesLocked" :class="{ 'is-locked': notesLocked }">
               
               <!-- Filter Active Indicator -->
               <template x-if="noteCardSearchQuery || noteCardCategoryFilter !== 'ALL'">
@@ -902,7 +908,7 @@
             </div>
 
             <!-- Mode 2: Continuous Lined Doc (Option 2 - Future To-Do Preview) -->
-            <div class="note-doc-container" x-show="noteViewMode === 'doc'">
+            <div class="note-doc-container" x-show="noteViewMode === 'doc'" :inert="notesLocked" :class="{ 'is-locked': notesLocked }">
               <div class="doc-preview-badge">
                 <span class="material-symbols-outlined icon-16">info</span>
                 <span>Option 2 Preview: Continuous Lined Doc with Collapsible H3 Accordions</span>

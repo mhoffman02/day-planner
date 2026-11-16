@@ -2694,6 +2694,30 @@
     font-size: 0.75rem;
   }
 
+  /* Notes failed to load: one quiet line, bare link-style retry, locked body dimmed */
+  .notes-lock-notice {
+    margin: 0;
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+
+  .notes-lock-retry {
+    background: transparent;
+    border: none;
+    padding: 0 4px;
+    margin-left: 4px;
+    font: inherit;
+    color: var(--accent);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
+  .note-cards-container.is-locked,
+  .note-doc-container.is-locked {
+    opacity: 0.6;
+  }
+
   /* Note Cards List */
   .note-cards-container {
     display: flex;

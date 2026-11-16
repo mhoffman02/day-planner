@@ -93,6 +93,21 @@ for (const tc of CASES) {
   });
 }
 
+describe('getDailyData when the notes Doc read fails', () => {
+  for (const kind of KINDS) {
+    it(kind + ': flags noteLoadFailed with empty noteContent (no fake note text) and keeps the warning', () => {
+      const ctx = codeCtx();
+      ctx.getDailyData(DAY);
+      ctx.__consoleLines.length = 0;
+      injectFailure(ctx, 'Docs.Documents.get', kind);
+      const res = toHost(ctx.getDailyData(DAY));
+      assert.equal(res.noteLoadFailed, true);
+      assert.equal(res.noteContent, '');
+      assert.ok(res.warnings.length > 0, 'warning kept');
+    });
+  }
+});
+
 describe('404 on a task that is already gone is idempotent by design, not a swallowed error', () => {
   it('deleteDailyTask returns true', () => {
     const ctx = codeCtx();

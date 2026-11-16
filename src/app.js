@@ -529,6 +529,8 @@ Alpine.data('plannerApp', () => ({
       saveQueue: createSaveQueue(),
       // Per-date note text last confirmed saved to Google Docs; rollback target for a failed save.
       savedNoteByDate: {},
+      // dateStr -> true while that day notes failed to load (server noteLoadFailed): editing and saving are off.
+      notesLockedDates: {},
       createEventError: null,
       // True while createCalendarEvent is in flight (a double submit would create a duplicate).
       createEventSaving: false,
@@ -658,6 +660,10 @@ Alpine.data('plannerApp', () => ({
 
       get noteFilterCategoryOptions() {
         return noteFilterCategories(this.availableCategories, this.noteCards);
+      },
+
+      get notesLocked() {
+        return !!this.notesLockedDates[this.selectedDate];
       },
 
       get filteredNoteCards() {
@@ -3348,12 +3354,22 @@ Alpine.data('plannerApp', () => ({
           // the cache gets only confirmed task values, the note keeps its unsaved text.
           const onScreen = dateStr === this.selectedDate;
           const tasks = this.reconcileReloadedTasks(data.tasks || [], onScreen ? this.dailyTasks : [], mark);
-          const note = this.reconcileReloadedNote(dateStr, data.noteContent, mark);
-          // An unsaved note kept in the entry means it does not match Google: no synced stamp.
-          setCached(dateStr, { ...data, tasks: tasks.confirmed, noteContent: note.text }, { synced: !note.unsaved });
-          // Last note text known to be saved in Google Docs for this date: the rollback target if
-          // a later note save fails (see scheduleDailyNoteSave).
-          this.savedNoteByDate[dateStr] = note.saved;
+          // The server could not read the notes: its empty noteContent is not the day text. Lock
+          // the editor, keep any cached note on screen, and cache/baseline nothing for the note.
+          const note = data.noteLoadFailed
+            ? { text: cached && typeof cached.noteContent === 'string' ? cached.noteContent : '' }
+            : this.reconcileReloadedNote(dateStr, data.noteContent, mark);
+          if (data.noteLoadFailed) {
+            this.notesLockedDates[dateStr] = true;
+            if (cached) setCached(dateStr, { ...cached, tasks: tasks.confirmed, calendarEvents: data.calendarEvents || cached.calendarEvents });
+          } else {
+            delete this.notesLockedDates[dateStr];
+            // An unsaved note kept in the entry means it does not match Google: no synced stamp.
+            setCached(dateStr, { ...data, tasks: tasks.confirmed, noteContent: note.text }, { synced: !note.unsaved });
+            // Last note text known to be saved in Google Docs for this date: the rollback target if
+            // a later note save fails (see scheduleDailyNoteSave).
+            this.savedNoteByDate[dateStr] = note.saved;
+          }
           this.resolveError(`load-day:${dateStr}`);
           if (dateStr !== this.selectedDate) return; // user navigated away; cached for next visit
           const problems = [data.error, ...(data.warnings || [])].filter(Boolean);
@@ -4941,6 +4957,10 @@ Alpine.data('plannerApp', () => ({
         // of the day the user was actually typing on.
         const dateStr = this.selectedDate;
         const noteContent = this.dailyNote;
+        if (this.notesLockedDates[dateStr]) {
+          console.error(`🔥 scheduleDailyNoteSave: notes for ${dateStr} are locked (load failed); edit dropped, nothing saved:`, new Error('notes locked').stack);
+          return;
+        }
         // One debounce timer per date: a newer edit of the same day replaces its pending save,
         // an edit of another day never cancels it.
         if (this.noteSaveDebouncing(dateStr)) clearTimeout(this.noteSaveTimers[dateStr]);
@@ -4961,6 +4981,11 @@ Alpine.data('plannerApp', () => ({
       // text typed meanwhile replaces the queued text (latest wins). The rollback target is
       // savedNoteByDate (the last text Google confirmed); the editor text is always kept.
       saveDailyNote(dateStr, noteContent) {
+        if (this.notesLockedDates[dateStr]) {
+          const err = new Error('Notes could not load, so this day cannot be saved. Retry loading the day first.');
+          console.error(`🔥 saveDailyNote: notes for ${dateStr} are locked (load failed); refusing to call saveDailyDocCards:`, err.stack);
+          throw err;
+        }
         const key = `save-note:${dateStr}`;
         return this.saveQueue.submit(key, {
           value: noteContent,

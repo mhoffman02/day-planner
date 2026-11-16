@@ -463,7 +463,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 804;
+const BUILD_NUMBER_ = 805;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -1453,7 +1453,8 @@ function getDailyData(dateStr) {
       }
     } catch (notesErr) {
       result.warnings.push(logError('getOrCreateDailyDocContent', notesErr).error);
-      result.noteContent = '⚠️ Error loading daily doc notes.';
+      result.noteContent = '';
+      result.noteLoadFailed = true;
     }
 
   } catch (err) {
