@@ -14,10 +14,10 @@ Load-speed work (A8) came first on 2026-11-06 at the user's request.
 - [x] 4. Mutation ratchet, done (2026-11-15): `mutation-baseline.json` per file, `npm run test:mutation` (incremental), check-handoff gate. Still open: kill calendarEngine survivors (74%) in date, priority and recurrence code, tests only, then `npm run test:mutation -- --update`.
 - [ ] 5. Failure injection for Google APIs: GAS stubs throw quota, 403, 404 and timeout; assert each RPC fails loud with a user-facing message.
 - [ ] 6. Contract fixtures from real Calendar, Tasks and Docs responses (scrub personal data); mappers tested against them.
-- [ ] 7. Type checking with `tsc --checkJs` + JSDoc, no TypeScript migration. Check [ADR 0005](docs/adr/0005-js-with-v-validation-not-typescript.md) first; it may rule this out.
+- [ ] 7. Type checking with `tsc --checkJs`: ruled out by [ADR 0005](docs/adr/0005-js-with-v-validation-not-typescript.md) (2026-11-15). `v_` replaced the JSDoc `@param` headers that checkJs needs, and boundaries are already checked at runtime and in tests. User decision, default drop: delete this line, or reopen ADR 0005.
 - [ ] 8. Verify WORK after repoint: at least a one-line "WORK loads" check after the user repoints `/exec`.
-- [ ] 9. Zero-tolerance flaky tests: a flaky test is fixed or deleted the same day, never retried; write the rule and its gate.
-- [ ] 10. Automated dev-dependency updates (Dependabot or Renovate) so audits stay small.
+- [x] 9. Zero-tolerance flaky tests, done (2026-11-15): `.agents/rules/zero-flaky-tests.md`; `tools/check-flaky-tests.js` in `npm run lint` bans retry counts, skip/todo, `--test-rerun-failures`, `continue-on-error` and retry actions. CI already runs the suite four times.
+- [x] 10. Dependabot, done (2026-11-15): `.github/dependabot.yml`, weekly grouped npm minor/patch PRs (axe-core stays pinned for the axe ratchet), monthly Actions SHAs. These PRs are the bot's; merge one when CI is green.
 
 ### A10. Attendees and hover popovers (2026-11-12; shipped in TODO_HISTORY, hand-checked on WORK 2026-11-12)
 - [ ] Local-preview `index.html` port is unverified in a browser: `npm run smoke` fails on clean HEAD (it does not start the server; run `npm start` first) ("Alpine app failed to initialize within 6s"). Diagnose with `tools/ensure-chrome.js http://localhost:3000` + `tools/probe-live.js`, then fix with a red test or smoke repro.

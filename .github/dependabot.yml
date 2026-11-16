@@ -1,0 +1,20 @@
+# A17.10: small, regular dev-dependency updates so `npm audit` never piles up. One grouped PR per week for npm
+# (dev tools only; no runtime deps), monthly for pinned GitHub Actions SHAs. CI gates every PR.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      dev-minor-patch:
+        dependency-type: development
+        update-types: [minor, patch]
+    # axe-core is pinned on purpose: new rules would move the axe ratchet (axe-baseline.json).
+    ignore:
+      - dependency-name: axe-core
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

@@ -24,6 +24,7 @@ check is a wish; add the check or drop the line.
 | Coverage never drops; no untested src file | `npm run test:coverage` (`coverage-baseline.json`), CI |
 | Edge cases by law, not by example | property tests in `tests/properties.test.js` (fast-check) |
 | Tests must notice wrong results, not just run lines | `npm run test:mutation` (Stryker `--incremental`, then `tools/check-mutation.js`): per-file score in `mutation-baseline.json` only goes up; `npm run check:handoff` demands a fresh passing report when a mutated engine changed since the last handoff. Survivors in dates, priority, recurrence become tests; a proven-equivalent mutant gets `// Stryker disable next-line <mutator>: equivalent, <why>` |
+| Flaky tests are fixed or deleted the same day, never retried, rerun or skipped | `tools/check-flaky-tests.js` in `npm run lint` ([[zero-flaky-tests]]) |
 | CSS design tokens: `var(--token)`, no local magic colors/z-index/px font, no `!important`/`#id`, focus ring and reduced motion kept | `tools/check-css.js` in `npm run lint` (`css-baseline.json`, counts only go down; `tests/cssGate.test.js`) |
 | Valid, accessible HTML | `tools/check-html.js` in lint (`html-baseline.json`, counts only go down); axe-core on the live /dev app in `npm run deploy:home` (`axe-baseline.json` per-rule counts only go down, new rule ids fail; `--update-axe` lowers) |
 | What the user loads is what was tested | `npm run deploy:home` live `/dev` gate ([ADR 0006](../../docs/adr/0006-live-deploy-gate.md)) |
