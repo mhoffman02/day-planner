@@ -200,6 +200,14 @@
           <span class="material-symbols-outlined icon-16">calendar_today</span>
           <span>Today</span>
         </button>
+        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'monthly-calendar' }" @click="setView('monthly-calendar')" title="Monthly Calendar View">
+          <span class="material-symbols-outlined icon-16">calendar_month</span>
+          <span>Month</span>
+        </button>
+        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'future-matrix' }" @click="setView('future-matrix')" title="Year Planner: 12-month overview">
+          <span class="material-symbols-outlined icon-16">explore</span>
+          <span>Year</span>
+        </button>
         <template x-if="showTriageNav">
           <button type="button" class="segment-btn" :class="{ 'active': activeView === 'triage' }" @click="setView('triage')" title="Gmail Triage Board">
             <span class="material-symbols-outlined icon-16">inbox</span>
@@ -212,22 +220,6 @@
             <span>Triage</span>
           </span>
         </template>
-        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'monthly-calendar' }" @click="setView('monthly-calendar')" title="Monthly Calendar View">
-          <span class="material-symbols-outlined icon-16">calendar_month</span>
-          <span>Month</span>
-        </button>
-        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'master-tasks' }" @click="setView('master-tasks')" title="Master Task List">
-          <span class="material-symbols-outlined icon-16">checklist</span>
-          <span>Master Tasks</span>
-        </button>
-        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'monthly-index' }" @click="setView('monthly-index')" title="#index Decision Registry">
-          <span class="material-symbols-outlined icon-16">topic</span>
-          <span>Index</span>
-        </button>
-        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'future-matrix' }" @click="setView('future-matrix')" title="Year Planner: 12-month overview">
-          <span class="material-symbols-outlined icon-16">explore</span>
-          <span>Year</span>
-        </button>
         <template x-if="showMeetingPrepNav">
           <button type="button" class="segment-btn" :class="{ 'active': activeView === 'meetingPrep' }" @click="setView('meetingPrep')" title="Meeting Prep and Carry-ins">
             <span class="material-symbols-outlined icon-16">event_note</span>
@@ -240,6 +232,14 @@
             <span>Meeting Prep</span>
           </span>
         </template>
+        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'master-tasks' }" @click="setView('master-tasks')" title="Master Task List">
+          <span class="material-symbols-outlined icon-16">checklist</span>
+          <span>Master Tasks</span>
+        </button>
+        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'monthly-index' }" @click="setView('monthly-index')" title="#index Decision Registry">
+          <span class="material-symbols-outlined icon-16">topic</span>
+          <span>Index</span>
+        </button>
         <button type="button" class="segment-btn" :class="{ 'active': activeView === 'goals' }" @click="setView('goals')" title="Goals: someday to today">
           <span class="material-symbols-outlined icon-16">flag</span>
           <span>Goals</span>
@@ -1881,12 +1881,20 @@
             <td>Your main workspace: today's tasks, today's schedule, and today's notes, side by side, plus a short quote for the day (click its header to collapse it). Click an appointment for its details; hover its note icon to see the same details (time, place, Meet link, description) without opening it.</td>
           </tr>
           <tr>
+            <td><b>Month</b></td>
+            <td>A full-month view of your appointments, so you can see what's coming up at a glance.</td>
+          </tr>
+          <tr>
+            <td><b>Year</b> (page title Year Planner)</td>
+            <td>A 12-month look-ahead for goals and milestones that are more than a month out. Items are saved as Google Tasks, so you can also see them in Google Tasks.</td>
+          </tr>
+          <tr>
             <td><b>Triage</b> <i>(optional)</i></td>
             <td>A board of the Gmail threads you've labelled with 🎯, showing what the hub did with each one (Done, Failed, Deferred, In progress, or Already done). From each row you can make it a task, send it to a meeting, or <b>Archive</b> it or <b>Delete</b> it (moves it to Gmail Trash). Only threads still in your Inbox are listed, each with a one-line preview of the latest message (click it for more), and the <b>Result</b> column says what happened. The board opens at once from its last copy, marked out of date until it refreshes; if Gmail’s per-minute limit is reached, it waits about a minute before reading Gmail again. Appears once the Gmail hub is on.</td>
           </tr>
           <tr>
-            <td><b>Month</b></td>
-            <td>A full-month view of your appointments, so you can see what's coming up at a glance.</td>
+            <td><b>Meeting Prep</b> <i>(optional)</i></td>
+            <td>Before a recurring meeting, lists the emails sent to it as carry-ins, each one collapsible with a link to the email, plus a copy-ready bullet list to paste into your own meeting notes. The notes Doc is not written. Appears once the Gmail hub is on.</td>
           </tr>
           <tr>
             <td><b>Master Tasks</b></td>
@@ -1895,14 +1903,6 @@
           <tr>
             <td><b>Index</b> (page title Monthly Index and Decisions)</td>
             <td>A running, searchable log of the key decisions and outcomes you've tagged with <code>#index</code> in your notes, so you can find "what did we decide about X" without digging back through old notes.</td>
-          </tr>
-          <tr>
-            <td><b>Year</b> (page title Year Planner)</td>
-            <td>A 12-month look-ahead for goals and milestones that are more than a month out. Items are saved as Google Tasks, so you can also see them in Google Tasks.</td>
-          </tr>
-          <tr>
-            <td><b>Meeting Prep</b> <i>(optional)</i></td>
-            <td>Before a recurring meeting, lists the emails sent to it as carry-ins, each one collapsible with a link to the email, plus a copy-ready bullet list to paste into your own meeting notes. The notes Doc is not written. Appears once the Gmail hub is on.</td>
           </tr>
         </tbody>
       </table>

@@ -208,6 +208,14 @@
           <span class="material-symbols-outlined icon-16">calendar_today</span>
           <span>Today</span>
         </button>
+        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'monthly-calendar' }" @click="setView('monthly-calendar')" title="Monthly Calendar View">
+          <span class="material-symbols-outlined icon-16">calendar_month</span>
+          <span>Month</span>
+        </button>
+        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'future-matrix' }" @click="setView('future-matrix')" title="Year Planner: 12-month overview">
+          <span class="material-symbols-outlined icon-16">explore</span>
+          <span>Year</span>
+        </button>
         <template x-if="showTriageNav">
           <button type="button" class="segment-btn" :class="{ 'active': activeView === 'triage' }" @click="setView('triage')" title="Gmail Triage Board">
             <span class="material-symbols-outlined icon-16">inbox</span>
@@ -220,22 +228,6 @@
             <span>Triage</span>
           </span>
         </template>
-        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'monthly-calendar' }" @click="setView('monthly-calendar')" title="Monthly Calendar View">
-          <span class="material-symbols-outlined icon-16">calendar_month</span>
-          <span>Month</span>
-        </button>
-        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'master-tasks' }" @click="setView('master-tasks')" title="Master Task List">
-          <span class="material-symbols-outlined icon-16">checklist</span>
-          <span>Master Tasks</span>
-        </button>
-        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'monthly-index' }" @click="setView('monthly-index')" title="#index Decision Registry">
-          <span class="material-symbols-outlined icon-16">topic</span>
-          <span>Index</span>
-        </button>
-        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'future-matrix' }" @click="setView('future-matrix')" title="Year Planner: 12-month overview">
-          <span class="material-symbols-outlined icon-16">explore</span>
-          <span>Year</span>
-        </button>
         <template x-if="showMeetingPrepNav">
           <button type="button" class="segment-btn" :class="{ 'active': activeView === 'meetingPrep' }" @click="setView('meetingPrep')" title="Meeting Prep and Carry-ins">
             <span class="material-symbols-outlined icon-16">event_note</span>
@@ -248,6 +240,14 @@
             <span>Meeting Prep</span>
           </span>
         </template>
+        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'master-tasks' }" @click="setView('master-tasks')" title="Master Task List">
+          <span class="material-symbols-outlined icon-16">checklist</span>
+          <span>Master Tasks</span>
+        </button>
+        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'monthly-index' }" @click="setView('monthly-index')" title="#index Decision Registry">
+          <span class="material-symbols-outlined icon-16">topic</span>
+          <span>Index</span>
+        </button>
         <button type="button" class="segment-btn" :class="{ 'active': activeView === 'goals' }" @click="setView('goals')" title="Goals: someday to today">
           <span class="material-symbols-outlined icon-16">flag</span>
           <span>Goals</span>
