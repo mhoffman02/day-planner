@@ -161,6 +161,28 @@ for (const file of ['src/styles.css', 'gas-app/Styles.html']) {
       assert.match(scoped('article.future-month-card.is-current-month .future-month-title'), /color: var\(--head-ink\);/);
       assert.match(scoped('.hub-carryins-summary .hub-queue-title'), /background: transparent;/);
     });
+    // User 2026-11-17: Year, Triage, Prep and Month weekday heads, and the Today Quote heading, read in the
+    // Tasks pane head type: 0.75rem uppercase, the page sans (not the serif header face).
+    it('heads and the Quote heading use the Tasks head type (user 2026-11-17)', () => {
+      const tasksTh = rule(css, 'table.task-table th');
+      assert.match(tasksTh, /font-size: 0\.75rem;/);
+      assert.match(tasksTh, /text-transform: uppercase;/);
+      const scoped = (sel) => {
+        const m = css.match(new RegExp(`:root\\[data-theme="light"\\]\\[data-palette="navy"\\] ${sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\{([^}]*)\\}`));
+        assert.ok(m, `missing Navy light rule for ${sel}`);
+        return m[1];
+      };
+      for (const sel of ['.monthly-weekday-label', '.future-month-title', '.hub-queue-title', '.hub-prep-title', '.hub-table th']) {
+        const body = scoped(sel);
+        assert.match(body, /font-family: inherit;/, sel);
+        assert.match(body, /font-size: 0\.75rem;/, sel);
+        assert.match(body, /text-transform: uppercase;/, sel);
+      }
+      const quote = rule(css, '.quote-card-title');
+      assert.match(quote, /font-size: 0\.75rem;/);
+      assert.match(quote, /text-transform: uppercase;/);
+      assert.doesNotMatch(quote, /font-family:/);
+    });
     it('the quote header shares the section head band and ink', () => {
       assert.match(rule(css, '.quote-card-header'), /background: var\(--head-bg, var\(--binder-teal-light\)\);/);
       assert.match(rule(css, '.quote-card-title'), /color: var\(--head-ink, var\(--heading-color\)\);/);
