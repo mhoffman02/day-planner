@@ -36,7 +36,7 @@ the folder in Drive. Go-live needs the hub with DRY_RUN on: add its number to th
 `data-title`, a visible `<span class="tutorial-ex-id">`, aria-label "Note for Tnn", and `<dt>` steps Do, Look in,
 Pass if, Clean up; copy T16 as the template. No `//`, backtick or ASCII apostrophe in the file.
 - [x] Agent: T21-T31 written (2026-11-16) in `gas-app/Tutorial.html` and `index.html`: folder setup, event add/edit, Month, Search, task statuses, Master Find, Go-live (T27, added to the hub note), Sync reload, dictation, Quote strip, install. Not yet walked live.
-- [ ] Agent: walk each new exercise live on HOME over CDP and note pass/fail here.
+- [ ] PARKED (user 2026-11-16): walk T21-T31 live on HOME over CDP and note pass/fail here. Do not start unless the user asks. T27 turns DRY_RUN off until Undo.
 - [ ] Add exercises for features the Tutorial skips: one-time folder setup, event add/edit, Month view and Search,
   task statuses (Open/In Progress/Done/Canceled, Forward to date), Master Find box and filters, Go-live and Undo
   flow, Sync button, voice dictation, Quote strip, install to desktop or phone. T03 and T07 were walked live on HOME
