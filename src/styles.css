@@ -2271,7 +2271,7 @@
   }
 
   .schedule-row.half-hour {
-    background-color: var(--bg-card);
+    background-color: var(--bg-parchment-fixed);
   }
 
   time.schedule-time {

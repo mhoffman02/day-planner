@@ -138,6 +138,12 @@ for (const file of ['src/styles.css', 'gas-app/Styles.html']) {
       }
     });
     // User 2026-11-16, from the Navy Light Tuner artifact: lighter top bar and heads, more Manila page, paler cards.
+    // User 2026-11-16: half-hour Appointments rows were --bg-card, the panel's own color, so light mode never
+    // alternated. They take the same zebra fill as Tasks even rows.
+    it('Appointments half-hour rows use the Tasks zebra fill', () => {
+      assert.match(rule(css, '.schedule-row.half-hour'), /background-color: var\(--bg-parchment-fixed\);/);
+      assert.match(rule(css, 'table.task-table tr:nth-child(even)'), /background-color: var\(--bg-parchment-fixed\) !important;/);
+    });
     it('Navy light top bar is the tuned slate', () => {
       assert.match(light, /--bg-binder: #2e3c4c;/);
     });
