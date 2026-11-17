@@ -6528,6 +6528,7 @@
   }
 
   :root[data-theme="light"][data-palette="navy"] .future-month-title {
+    --heading-color: var(--head-ink); /* the global h1-h6 rule is !important on this token */
     font-family: inherit;
     font-size: 0.75rem;
     font-weight: 700;
@@ -6542,11 +6543,13 @@
   }
 
   :root[data-theme="light"][data-palette="navy"] article.future-month-card.is-current-month .future-month-title {
+    --heading-color: var(--head-ink); /* the global h1-h6 rule is !important on this token */
     color: var(--head-ink);
     margin: -11px -11px 8px;
   }
 
   :root[data-theme="light"][data-palette="navy"] .hub-queue-title {
+    --heading-color: var(--head-ink); /* the global h1-h6 rule is !important on this token */
     font-family: inherit;
     font-size: 0.75rem;
     font-weight: 700;
@@ -6558,6 +6561,7 @@
   }
 
   :root[data-theme="light"][data-palette="navy"] .hub-prep-title {
+    --heading-color: var(--head-ink); /* the global h1-h6 rule is !important on this token */
     font-family: inherit;
     font-size: 0.75rem;
     font-weight: 700;

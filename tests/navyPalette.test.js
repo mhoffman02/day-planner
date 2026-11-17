@@ -183,6 +183,19 @@ for (const file of ['src/styles.css', 'gas-app/Styles.html']) {
       assert.match(quote, /text-transform: uppercase;/);
       assert.doesNotMatch(quote, /font-family:/);
     });
+    // User 2026-11-17: Year and Triage heads rendered dark. They are h3s, and the global h1-h6 rule sets
+    // color: var(--heading-color) !important, so a plain color never wins; the token is what changes.
+    it('h3 heads on the navy band repoint --heading-color to the head ink (user 2026-11-17)', () => {
+      const scoped = (sel) => {
+        const m = css.match(new RegExp(`:root\\[data-theme="light"\\]\\[data-palette="navy"\\] ${sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\{([^}]*)\\}`));
+        assert.ok(m, `missing Navy light rule for ${sel}`);
+        return m[1];
+      };
+      assert.match(css, /h1, h2, h3, h4, h5, h6,[^{]*\{[^}]*color: var\(--heading-color\) !important;/);
+      for (const sel of ['.future-month-title', 'article.future-month-card.is-current-month .future-month-title', '.hub-queue-title', '.hub-prep-title']) {
+        assert.match(scoped(sel), /--heading-color: var\(--head-ink\);/, sel);
+      }
+    });
     it('the quote header shares the section head band and ink', () => {
       assert.match(rule(css, '.quote-card-header'), /background: var\(--head-bg, var\(--binder-teal-light\)\);/);
       assert.match(rule(css, '.quote-card-title'), /color: var\(--head-ink, var\(--heading-color\)\);/);
