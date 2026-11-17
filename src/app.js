@@ -174,6 +174,12 @@ const DICTATION_POPUP_HTML = `<!doctype html>
     .mic-btn svg { width:30px; height:30px; }
     .caption { padding:4px 8px 6px; font-size:11px; }
   }
+  @media (max-height: 80px) {
+    .mic-wrap { padding:2px; }
+    .mic-btn { width:28px; height:28px; border-radius:6px; border-width:1px; }
+    .mic-btn svg { width:16px; height:16px; }
+    .caption { display:none; }
+  }
 </style></head>
 <body>
   <div class="titlebar">
@@ -4423,6 +4429,13 @@ Alpine.data('plannerApp', () => ({
         popup.document.close();
         popup.document.title = 'Voice typing';
         dictationPopupWin = popup;
+        /* Shrink to about the Tasks mic icon, then try to park off-screen; a browser that refuses the move leaves the tiny window. */
+        try {
+          popup.resizeTo(36, 36);
+          popup.moveTo(window.screen.availWidth + 200, window.screen.availHeight + 200);
+        } catch (err) {
+          console.error('[STT] could not shrink or hide the voice window, leaving it visible', err.stack);
+        }
         window.focus();
         this.sttError = null;
         this.sttListening = true;

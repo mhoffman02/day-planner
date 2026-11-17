@@ -119,6 +119,8 @@ describe('quiet listening cue (user 2026-11-16: popup too loud, animate the mic 
       const src = read(file);
       assert.match(src, /window\.open\('', 'dayPlannerDictation', `width=1[0-6]\d,height=1[0-2]\d/);
       assert.match(src, /window\.focus\(\)/);
+      assert.match(src, /popup\.resizeTo\(36, 36\)/);
+      assert.match(src, /popup\.moveTo\(window\.screen\.availWidth/);
     }
   });
 });
