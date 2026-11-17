@@ -147,6 +147,20 @@ for (const file of ['src/styles.css', 'gas-app/Styles.html']) {
     it('Navy light top bar is the tuned slate', () => {
       assert.match(light, /--bg-binder: #2e3c4c;/);
     });
+    it('Month, Year, Triage and Prep heads use the Today navy band, in Navy light only (user 2026-11-16)', () => {
+      const scoped = (sel) => {
+        const m = css.match(new RegExp(`:root\\[data-theme="light"\\]\\[data-palette="navy"\\] ${sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} \\{([^}]*)\\}`));
+        assert.ok(m, `missing Navy light rule for ${sel}`);
+        return m[1];
+      };
+      for (const sel of ['.monthly-weekday-label', '.future-month-title', '.hub-queue-title', '.hub-prep-title', '.hub-table th', '.hub-carryins-summary']) {
+        const body = scoped(sel);
+        assert.match(body, /background: var\(--head-bg\);/, sel);
+        if (sel !== '.hub-carryins-summary') assert.match(body, /color: var\(--head-ink\);/, sel);
+      }
+      assert.match(scoped('article.future-month-card.is-current-month .future-month-title'), /color: var\(--head-ink\);/);
+      assert.match(scoped('.hub-carryins-summary .hub-queue-title'), /background: transparent;/);
+    });
     it('the quote header shares the section head band and ink', () => {
       assert.match(rule(css, '.quote-card-header'), /background: var\(--head-bg, var\(--binder-teal-light\)\);/);
       assert.match(rule(css, '.quote-card-title'), /color: var\(--head-ink, var\(--heading-color\)\);/);

@@ -6516,6 +6516,55 @@
     outline-color: var(--head-ink);
   }
 
+  /* Month, Year, Triage and Prep heads take the Today navy band (user 2026-11-16). Navy light only. */
+  :root[data-theme="light"][data-palette="navy"] .monthly-weekday-label {
+    background: var(--head-bg);
+    color: var(--head-ink);
+    padding: 6px 0;
+  }
+
+  :root[data-theme="light"][data-palette="navy"] .future-month-title {
+    background: var(--head-bg);
+    color: var(--head-ink);
+    margin: -12px -12px 8px;
+    padding: 6px 12px;
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+  }
+
+  :root[data-theme="light"][data-palette="navy"] article.future-month-card.is-current-month .future-month-title {
+    color: var(--head-ink);
+    margin: -11px -11px 8px;
+  }
+
+  :root[data-theme="light"][data-palette="navy"] .hub-queue-title {
+    background: var(--head-bg);
+    color: var(--head-ink);
+    padding: 6px 10px;
+  }
+
+  :root[data-theme="light"][data-palette="navy"] .hub-prep-title {
+    background: var(--head-bg);
+    color: var(--head-ink);
+    padding: 6px 10px;
+  }
+
+  :root[data-theme="light"][data-palette="navy"] .hub-table th {
+    background: var(--head-bg);
+    color: var(--head-ink);
+  }
+
+  :root[data-theme="light"][data-palette="navy"] .hub-carryins-summary {
+    background: var(--head-bg);
+  }
+
+  :root[data-theme="light"][data-palette="navy"] .hub-carryins-summary .hub-queue-title {
+    background: transparent;
+    color: var(--head-ink);
+    padding: 0;
+    margin: 0;
+  }
+
   [data-theme="dark"] body {
     background-color: var(--bg-page);
     color: var(--text-primary);
