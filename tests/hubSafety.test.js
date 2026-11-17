@@ -18,7 +18,7 @@ const call = (ctx, name, ...args) => toHost(ctx[`_${name}Internal`](...args));
 
 const RPC_NAMES = ['hubSetupLabels', 'hubSuggestFilters', 'hubCreateSelectedFilters', 'getTriageBoard', 'getMeetingPrep', 'getUpcomingMeetingChoices', 'routeThreadToTask', 'routeThreadToWaiting', 'routeThreadToMeeting',
   'dismissTriageItem', 'processWorkflowQueue', 'discoverMeetingSeries', 'retryFailedOperation', 'getHubStatus', 'discoverGeminiNotes',
-  'getProposedMeetingActions', 'confirmMeetingActions', 'installHubTriggers', 'removeHubTriggers', 'hubDispatch', 'hubSetFeature', 'archiveTriageThread', 'trashTriageThread',
+  'getProposedMeetingActions', 'confirmMeetingActions', 'installHubTriggers', 'removeHubTriggers', 'hubDispatch', 'hubSetFeature', 'archiveTriageThread', 'trashTriageThread', 'noteTriageThread',
   'getHubSheetLink', 'setupHub'];
 
 test('(k) every hub RPC has one implementation, one Code.gs top-level delegator, and an IIFE alias', () => {
@@ -51,6 +51,8 @@ test('(k) hub .gs files are IIFE-wrapped with literal-only top-level initializer
 const ALLOWED_GMAIL_WRITES = [
   "Gmail.Users.Threads.modify({ removeLabelIds: ['INBOX'] }, GMAIL_ME_, validateThreadId(threadId))",
   'Gmail.Users.Threads.trash(GMAIL_ME_, validateThreadId(threadId))',
+  // Triage [Note it]: the only add-label write; the id is the resolved 🎯/Note label (noteTriageThread).
+  "Gmail.Users.Threads.modify({ addLabelIds: [noteLabelId], removeLabelIds: ['INBOX'] }, GMAIL_ME_, validateThreadId(threadId))",
   "Gmail.Users.Labels.create({ name: name, labelListVisibility: 'labelShow', messageListVisibility: 'show' }, GMAIL_ME_)",
   'Gmail.Users.Settings.Filters.create({ criteria: { query: query }, action: { addLabelIds: [labelId] } }, GMAIL_ME_)'
 ];

@@ -186,6 +186,7 @@ export class HubMock {
     this.tasks = [];
     this.waiting = [];
     this.dismissed = new Set();
+    this.filedNotes = []; // emails filed with Note it this session (the live app reads them from the ledger)
     this.dismissedDocs = new Set();
     this.carryIns = buildCarryIns(this.queues);
     this.failNext = new Set();
@@ -534,10 +535,26 @@ export class HubMock {
     return { ok: true, status: this.dryRun ? 'DRY_RUN' : 'OK', message: this.dryRun ? 'Dry run: nothing written' : 'Queue pass finished' };
   }
 
-  getFiledEmails() {
+  /** Mock of getFiledEmails(date): emails filed with Note it this session, for that day. */
+  getFiledEmails(dateStr) {
     const gate = this._preflight(['GMAIL_ROUTER', 'NOTES']);
     if (gate) return gate;
-    return { ok: true, status: 'OK', message: '0 filed emails', items: [] };
+    const items = this.filedNotes.filter((n) => n.filedOn === dateStr);
+    return { ok: true, status: 'OK', message: `${items.length} filed email${items.length === 1 ? '' : 's'}`, items };
+  }
+
+  noteTriageThread(threadId, opts) {
+    const gate = this._preflight(['GMAIL_ROUTER', 'NOTES'], opts);
+    if (gate) return gate;
+    const src = this._find(threadId);
+    if (!src) return this._fail('THREAD_NOT_FOUND', 'Gmail thread not found');
+    const operationKey = `GMAIL|${threadId}|NOTE`;
+    if (this.dryRun) return { ok: true, status: 'DRY_RUN', message: 'Would file as a note and archive in Gmail', operationKey };
+    this.dismissed.add(threadId);
+    const d = new Date();
+    const filedOn = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    this.filedNotes.push({ subject: src.subject || '(no subject)', fromName: src.fromName || '', gmailUrl: src.url || '', snippet: src.snippet || '', filedOn });
+    return { ok: true, status: 'DONE', message: 'Filed as a note and archived in Gmail', operationKey, sourceUrl: src.url };
   }
 
   getMeetingPrep(seriesKey, occurrenceId) {

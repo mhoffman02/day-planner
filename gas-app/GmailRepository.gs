@@ -370,6 +370,17 @@ function archiveThread(threadId) {
 }
 
 /**
+ * Triage [Note it]: adds the already-resolved 🎯/Note label and removes INBOX in one write.
+ * @param {string} threadId Gmail thread id.
+ * @param {string} noteLabelId Id of the 🎯/Note label (the caller resolved it by exact name).
+ * @returns {void}
+ */
+function noteThread(threadId, noteLabelId) {
+  requireGmail_();
+  Gmail.Users.Threads.modify({ addLabelIds: [noteLabelId], removeLabelIds: ['INBOX'] }, GMAIL_ME_, validateThreadId(threadId));
+}
+
+/**
  * Triage [Delete]: moves the thread to Gmail Trash (recoverable for 30 days). Never a permanent delete.
  * @param {string} threadId Gmail thread id.
  * @returns {void}
@@ -554,6 +565,7 @@ global.DPGmailRepo = Object.freeze({
   threadExists: threadExists,
   archiveThread: archiveThread, // HubController.archiveTriageThread only
   trashThread: trashThread,     // HubController.trashTriageThread only
+  noteThread: noteThread,       // HubController.noteTriageThread only
   ensureLabels: ensureLabels,   // HubController.hubSetupLabels / provisionHub_
   labelNamesById: labelNamesById, // HubController filter suggestions
   listFilters: listFilters,     // HubController filter suggestions (gmail.settings.basic)

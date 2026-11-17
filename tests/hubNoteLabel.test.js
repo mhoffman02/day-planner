@@ -47,24 +47,38 @@ test('a second pass does not file the same thread twice', () => {
   assert.equal(rows(ctx).filter((r) => r.OperationKey === 'GMAIL|n1|NOTE').length, 1);
 });
 
-test('getFiledEmails lists filed rows newest first and respects the NOTES flag', () => {
+test('getFiledEmails(date) lists that day\'s filed rows with a snippet and respects the NOTES flag', () => {
   const ctx = filed();
   tick(ctx);
-  const r = call(ctx, 'getFiledEmails', 30);
+  const r = call(ctx, 'getFiledEmails', '2026-10-06');
   assert.equal(r.ok, true, r.message);
   assert.deepEqual(r.items.map((i) => i.subject), ['Contract renewal terms']);
-  assert.deepEqual(Object.keys(r.items[0]).sort(), ['filedOn', 'fromName', 'gmailUrl', 'subject']);
+  assert.deepEqual(Object.keys(r.items[0]).sort(), ['filedOn', 'fromName', 'gmailUrl', 'snippet', 'subject']);
   const off = makeHubContext({ features: { GMAIL_ROUTER: true, NOTES: false }, now: TICK });
-  assert.equal(call(off, 'getFiledEmails', 30).errorCode, 'FLAG_OFF');
+  assert.equal(call(off, 'getFiledEmails', '2026-10-06').errorCode, 'FLAG_OFF');
 });
 
-test('getFiledEmails drops rows older than the window', () => {
+test('getFiledEmails(date) returns only rows filed on that day', () => {
   const ctx = filed();
   tick(ctx);
-  const key = 'GMAIL|n1|NOTE';
-  const row = ctx.__hub.ledger.rows.get(key);
-  row.MetadataJson = JSON.stringify({ ...JSON.parse(row.MetadataJson), filedOn: '2026-01-01' });
-  assert.equal(call(ctx, 'getFiledEmails', 30).items.length, 0);
+  assert.equal(call(ctx, 'getFiledEmails', '2026-10-05').items.length, 0);
+  assert.equal(call(ctx, 'getFiledEmails', '2026-10-07').items.length, 0);
+});
+
+test('getFiledEmails rejects anything but a YYYY-MM-DD date', () => {
+  const ctx = filed();
+  assert.equal(call(ctx, 'getFiledEmails', 30).ok, false);
+});
+
+// 2026-11-17 user decision: the Today Notes panel hover shows the email preview, so an EMAIL_NOTE row keeps the
+// capped snippet (same cap as CARRY_IN rows). Never the body.
+test('the filed row keeps the capped Gmail snippet, not the body', () => {
+  const ctx = makeHubContext({ features: { GMAIL_ROUTER: true, NOTES: true, DRY_RUN: false }, now: TICK });
+  addThread(ctx, { id: 'n1', labels: ['🎯/Note'], archived: true, subject: 'S', body: 'BODY_CANARY', snippet: 'Please review the renewal terms' });
+  tick(ctx);
+  const row = rows(ctx).find((r) => r.OperationKey === 'GMAIL|n1|NOTE');
+  assert.equal(JSON.parse(row.MetadataJson).snippet, 'Please review the renewal terms');
+  assert.ok(!row.MetadataJson.includes('BODY_CANARY'));
 });
 
 test('an ERROR row is dropped as SKIPPED when the user removed the label', () => {

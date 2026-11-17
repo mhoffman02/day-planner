@@ -253,6 +253,7 @@ const SERIES = 'NCMMS_CORE';
 const hubTask = (c) => addThread(c, { id: 'a1', labels: ['INBOX', '00_AR', '🎯/Task'], subject: 'Approval needed' });
 const HUB_MORE = [
   { rpc: 'archiveTriageThread', api: 'Gmail.Users.Threads.modify', seed: hubTask, call: (c) => c._archiveTriageThreadInternal('a1') },
+  { rpc: 'noteTriageThread', api: 'Gmail.Users.Labels.list', seed: hubTask, call: (c) => c._noteTriageThreadInternal('a1') },
   { rpc: 'trashTriageThread', api: 'Gmail.Users.Threads.trash', seed: hubTask, call: (c) => c._trashTriageThreadInternal('a1') },
   { rpc: 'routeThreadToTask', api: 'Gmail.Users.Threads.get', seed: hubTask, call: (c) => c._routeThreadToTaskInternal('a1', {}) },
   { rpc: 'routeThreadToWaiting', api: 'Gmail.Users.Threads.get', seed: hubTask, call: (c) => c._routeThreadToWaitingInternal('a1', {}) },
@@ -260,7 +261,7 @@ const HUB_MORE = [
   { rpc: 'getUpcomingMeetingChoices', api: 'Gmail.Users.Threads.get', seed: hubTask, call: (c) => c._getUpcomingMeetingChoicesInternal('a1') },
   { rpc: 'hubSetupLabels', api: 'Gmail.Users.Labels.list', call: (c) => c._hubSetupLabelsInternal() },
   { rpc: 'getMeetingPrep', api: 'Calendar.Events.list', seed: (c) => addCoreOccurrences(c), call: (c) => c._getMeetingPrepInternal(SERIES, null) },
-  { rpc: 'getFiledEmails', api: 'Sheets.Spreadsheets.Values.get', real: true, call: (c) => c._getFiledEmailsInternal(30) },
+  { rpc: 'getFiledEmails', api: 'Sheets.Spreadsheets.Values.get', real: true, call: (c) => c._getFiledEmailsInternal('2026-10-06') },
   { rpc: 'dismissTriageItem', api: 'Sheets.Spreadsheets.Values.get', real: true, seed: hubTask, call: (c) => c._dismissTriageItemInternal('a1', {}) },
   { rpc: 'retryFailedOperation', api: 'Sheets.Spreadsheets.Values.get', real: true, call: (c) => c._retryFailedOperationInternal('GMAIL|a1|TASK', {}) },
   { rpc: 'processWorkflowQueue', api: 'Gmail.Users.Threads.list', seed: hubTask, call: (c) => c._processWorkflowQueueInternal() },

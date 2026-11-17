@@ -7382,20 +7382,33 @@
     color: var(--text-muted);
   }
 
-  .hub-filed-emails {
+  /* Today Notes: emails filed with Note it on the open day. Read-only topic, flat like a note card. */
+  .email-topic {
     margin: 0 0 8px;
     padding: 6px 12px;
     border: 1px solid var(--border-color, var(--border-neutral-2));
   }
 
-  .hub-filed-emails ul {
-    margin: 6px 0 0;
-    padding-left: 18px;
+  .email-topic-title {
+    cursor: pointer;
+    font-weight: 700;
   }
 
-  .hub-filed-meta {
+  .email-topic-list {
+    margin: 6px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .email-topic-item {
+    position: relative;
+    padding: 2px 0;
+  }
+
+  .email-topic-from {
     opacity: 0.7;
     font-size: 0.85em;
+    margin-left: 6px;
   }
 
   .hub-refresh-btn {

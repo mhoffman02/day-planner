@@ -46,7 +46,8 @@ test('countOnly board reads do not return snippets', () => {
 });
 
 // 2026-11-02 user decision: a Meeting Prep carry-in is stored as a CARRY_IN ledger row WITH its (capped) snippet and
-// shown by getMeetingPrep, so the user can paste it stand-alone. That row and that RPC are the only allowed sinks.
+// shown by getMeetingPrep, so the user can paste it stand-alone. That row and that RPC are allowed sinks.
+// 2026-11-17: an EMAIL_NOTE row also keeps it (Notes panel hover) and getFiledEmails returns it; no other sinks.
 test('snippet never reaches logs, properties, Tasks, Docs or other RPC returns; only CARRY_IN ledger rows and getMeetingPrep carry it', () => {
   const CANARY = 'CANARY_SNIPPET_19be';
   const ctx = makeHubContext({ features: { GMAIL_ROUTER: true, TRIAGE_BOARD: true, NCMMS_CORE_PILOT: true, DRY_RUN: false } });
@@ -59,7 +60,7 @@ test('snippet never reaches logs, properties, Tasks, Docs or other RPC returns; 
   const others = [call(ctx, 'processWorkflowQueue'), call(ctx, 'getHubStatus'), call(ctx, 'getUpcomingMeetingChoices', 't2'),
     call(ctx, 'routeThreadToTask', 't1', { today: true })];
   const props = JSON.stringify(ctx.PropertiesService.getUserProperties().getProperties());
-  const haystack = JSON.stringify([others, lines(ctx), props, [...ctx.__hub.ledger.rows.values()].filter((r) => r.TargetType !== 'CARRY_IN'), ctx.__hub.tasks.items, ctx.__hub.notes.docs]);
+  const haystack = JSON.stringify([others, lines(ctx), props, [...ctx.__hub.ledger.rows.values()].filter((r) => r.TargetType !== 'CARRY_IN' && r.TargetType !== 'EMAIL_NOTE'), ctx.__hub.tasks.items, ctx.__hub.notes.docs]);
   assert.ok(!haystack.includes(CANARY), 'a snippet leaked');
   assert.ok(JSON.stringify(call(ctx, 'getMeetingPrep', 'NCMMS_CORE', null)).includes(CANARY), 'Meeting Prep shows the carry-in snippet');
 });

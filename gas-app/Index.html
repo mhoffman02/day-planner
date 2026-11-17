@@ -354,17 +354,6 @@
     <section class="binder-body">
 
       <!-- View 1: 3-Column Daily Spread -->
-      <template x-if="activeView === 'daily' &amp;&amp; showFiledEmails &amp;&amp; filedEmails.length">
-        <details class="hub-filed-emails">
-          <summary><span class="material-symbols-outlined">mail</span> Filed emails (<span x-text="filedEmails.length"></span>)</summary>
-          <ul>
-            <template x-for="n in filedEmails" :key="n.gmailUrl + n.filedOn">
-              <li><a :href="n.gmailUrl" target="_blank" rel="noopener noreferrer" x-text="n.subject"></a> <span class="hub-filed-meta" x-text="(n.fromName ? n.fromName + ' · ' : '') + n.filedOn"></span></li>
-            </template>
-          </ul>
-        </details>
-      </template>
-
       <template x-if="activeView === 'daily'">
         <section class="two-page-spread"
                  aria-label="Daily Planner 3-Column Workspace"
@@ -722,6 +711,28 @@
                 <p class="quote-card-author" x-show="todaysQuote().author" x-text="'— ' + todaysQuote().author"></p>
               </div>
             </article>
+
+            <!-- Email topic: this day's emails filed with Note it (read-only, from the hub ledger; never a note card, so never written to the Doc). -->
+            <template x-if="showFiledEmails &amp;&amp; filedEmails.length">
+              <details class="email-topic" open>
+                <summary class="email-topic-title">Email (<span x-text="filedEmails.length"></span>)</summary>
+                <ul class="email-topic-list">
+                  <template x-for="n in filedEmails" :key="n.gmailUrl + n.filedOn">
+                    <li class="email-topic-item notes-indicator-wrap" @mouseenter="openNotesPopover('email:' + n.gmailUrl, $event)" @mouseleave="scheduleNotesPopoverClose('email:' + n.gmailUrl)">
+                      <a :href="n.gmailUrl" target="_blank" rel="noopener noreferrer" x-text="n.subject"></a>
+                      <span class="email-topic-from" x-text="n.fromName"></span>
+                      <template x-if="openNotesPopoverTaskId === 'email:' + n.gmailUrl">
+                        <div class="notes-popover event-notes-popover dropdown-down" role="tooltip" @mouseenter="openNotesPopover('email:' + n.gmailUrl)" @mouseleave="scheduleNotesPopoverClose('email:' + n.gmailUrl)">
+                          <p class="event-note-title" x-text="n.subject"></p>
+                          <p class="event-note-row" x-show="n.fromName" x-text="n.fromName"></p>
+                          <div class="event-note-description" x-text="n.snippet || 'No preview'"></div>
+                        </div>
+                      </template>
+                    </li>
+                  </template>
+                </ul>
+              </details>
+            </template>
 
             <!-- Mode 1: Modular Topic Cards (Option 1) -->
             <div class="note-cards-container" x-show="noteViewMode === 'cards'" :inert="notesLocked" :class="{ 'is-locked': notesLocked }">
@@ -1628,7 +1639,7 @@
           <template x-if="showTriageNav &amp;&amp; !triageLoading &amp;&amp; triageItemCount === 0">
             <section class="hub-empty" aria-label="Nothing to triage">
               <h3 class="hub-empty-title">Nothing to triage</h3>
-              <p>No candidate threads right now. Day Planner changes Gmail only when you click Archive or Delete here, so 🎯/ labels (🎯/Task, 🎯/Task-Today, 🎯/Waiting, 🎯/Decision, 🎯/Meeting, 🎯/Read, 🎯/Review) are applied manually in Gmail.</p>
+              <p>No candidate threads right now. Day Planner changes Gmail only when you click Archive, Delete or Note it here, so 🎯/ labels (🎯/Task, 🎯/Task-Today, 🎯/Waiting, 🎯/Decision, 🎯/Meeting, 🎯/Read, 🎯/Review) are applied manually in Gmail.</p>
             </section>
           </template>
 
@@ -1704,6 +1715,7 @@
                                 <button type="button" class="hub-action-btn hub-action-icon hub-action-quiet" :disabled="triageStale" @click="readLaterItem(item)" title="Save for later in this browser only" :aria-label="'Read Later: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">bookmark</span></button>
                                 <button type="button" class="hub-action-btn hub-action-icon hub-action-quiet" :disabled="triageStale" @click="dismissTriageEntry(item)" title="Hide from Triage; Gmail is untouched" :aria-label="'Dismiss: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">close</span></button>
                                 <button type="button" class="hub-action-btn hub-action-icon hub-action-quiet" :disabled="triageStale" @click="archiveTriageEntry(item)" title="Archive in Gmail (removes it from the Inbox; labels stay)" :aria-label="'Archive in Gmail: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">archive</span></button>
+                                <button type="button" class="hub-action-btn hub-action-icon hub-action-quiet" x-show="hubFlags &amp;&amp; hubFlags.NOTES === true" :disabled="triageStale" @click="noteTriageEntry(item)" title="Note it: file under today’s Email notes, label 🎯/Note and archive in Gmail" :aria-label="'Note it: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">note_add</span></button>
                                 <button type="button" class="hub-action-btn hub-action-icon hub-action-danger" :disabled="triageStale" @click="trashTriageEntry(item)" title="Move to Gmail Trash (recoverable for 30 days)" :aria-label="'Delete (move to Gmail Trash): ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">delete</span></button>
                                 <a class="hub-action-btn hub-action-icon hub-action-quiet" :href="item.url" target="_blank" rel="noopener noreferrer" title="Open the thread in Gmail" :aria-label="'Open Gmail: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">open_in_new</span></a>
                                   </span>
@@ -2407,7 +2419,7 @@
         <div id="goLiveBody" class="go-live-body">
           <p>When trial mode is off:</p>
           <ul>
-            <li><b>Archive</b> and <b>Delete</b> on Triage cards change your real Gmail. Delete moves mail to Trash.</li>
+            <li><b>Archive</b>, <b>Delete</b> and <b>Note it</b> on Triage cards change your real Gmail. Delete moves mail to Trash; Note it adds the 🎯/Note label and archives.</li>
             <li>The hub creates Google Tasks for routed email on its schedule.</li>
             <li x-show="hubFlags &amp;&amp; hubFlags.NCMMS_CORE_PILOT === true">Meeting Prep writes carry-ins to your notes Docs.</li>
           </ul>

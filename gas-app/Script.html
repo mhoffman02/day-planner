@@ -3747,7 +3747,8 @@
     hubFilterLearnStatus() { return this.hubRpc('hubFilterLearnStatus', []); }
     hubCreateSelectedFilters() { return this.hubRpc('hubCreateSelectedFilters', []); }
     getTriageBoard(filters) { return this.hubRpc('getTriageBoard', [filters || {}]); }
-    getFiledEmails(days) { return this.hubRpc('getFiledEmails', [days]); }
+    getFiledEmails(dateStr) { return this.hubRpc('getFiledEmails', [dateStr]); }
+    noteTriageThread(threadId, opts) { return this.hubRpc('noteTriageThread', [threadId, opts || {}]); }
     getUpcomingMeetingChoices(threadId) { return this.hubRpc('getUpcomingMeetingChoices', [threadId]); }
     routeThreadToTask(threadId, opts) { return this.hubRpc('routeThreadToTask', [threadId, opts || {}]); }
     routeThreadToWaiting(threadId, opts) { return this.hubRpc('routeThreadToWaiting', [threadId, opts || {}]); }
@@ -5305,15 +5306,25 @@
         return !!(this.hubFlags && this.hubFlags.GMAIL_ROUTER === true && this.hubFlags.NOTES === true);
       },
 
+      // The open day’s filed emails (the Email topic in Today Notes). A late answer for a day the user left is dropped.
       async loadFiledEmails() {
         if (!this.showFiledEmails) { this.filedEmails = []; return; }
+        const dateStr = this.selectedDate;
         try {
-          const r = await this.bridge.getFiledEmails(30);
+          const r = await this.bridge.getFiledEmails(dateStr);
+          if (dateStr !== this.selectedDate) return;
           this.filedEmails = (r && r.ok === true && Array.isArray(r.items)) ? r.items : [];
         } catch (err) {
           this.filedEmails = [];
           console.error('Filed emails unavailable:', err.stack);
         }
+      },
+
+      // Triage [Note it]: the server labels it 🎯/Note, archives it and files it under today.
+      async noteTriageEntry(item) {
+        const r = await this.runTriageAction('Note', () => this.bridge.noteTriageThread(item.threadId, this.hubModeOpts()), item.threadId, true);
+        if (r && r.ok && r.status === 'DONE' && this.selectedDate === this.todayStr) await this.loadFiledEmails();
+        return r;
       },
 
       initHub() {
@@ -6756,6 +6767,7 @@
       async loadDayData(opts = {}) {
         const dateStr = this.selectedDate;
         this.loadDocLink();
+        this.loadFiledEmails();
         this.resolveStaleDayNotices(dateStr);
         let cached = dpGetCached(dateStr);
         if (!cached) {

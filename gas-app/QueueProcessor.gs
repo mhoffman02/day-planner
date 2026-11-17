@@ -270,7 +270,8 @@ function executeRoute(spec) {
       work = function() {
         const other = thread.messages.filter(function(m) { return !m.isFromUser; });
         const last = other.length ? other[other.length - 1] : (thread.messages[thread.messages.length - 1] || {});
-        return { targetId: spec.threadId, targetType: 'EMAIL_NOTE', metadata: { subject: String(thread.subject || '').slice(0, 200), from: String(last.fromName || '').slice(0, 80), url: thread.url, filedOn: today } };
+        return { targetId: spec.threadId, targetType: 'EMAIL_NOTE', metadata: { subject: String(thread.subject || '').slice(0, 200), from: String(last.fromName || '').slice(0, 80), url: thread.url, filedOn: today,
+          snippet: last.snippet ? String(last.snippet).slice(0, spec.settings.maxExcerpt) : '' } };
       };
     } else if (spec.kind === 'MEETING') {
       target = resolveMeetingTarget_(spec, now);

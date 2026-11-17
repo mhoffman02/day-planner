@@ -365,6 +365,35 @@ function archiveTriageThread(threadId, options) {
 }
 
 /**
+ * Triage [Note it]: labels the email 🎯/Note, archives it, and records it in the ledger now so it shows in
+ * its day's Notes panel at once. Gmail write first; if the record step then fails, the next queue tick files
+ * the labeled thread anyway (same NOTE op key, so it is never filed twice).
+ * @param {string} threadId Gmail thread id.
+ * @param {{expectDryRun?:boolean}} [options] The mode the client is showing.
+ * @returns {object} makeResult-shaped result.
+ */
+function noteTriageThread(threadId, options) {
+  const invalid = rejectInvalid_(() => DPEngines.v_.guard(arguments, 'noteTriageThread').param('threadId').string().param('options').object().optional().nullable().done());
+  if (invalid) return invalid;
+  const pre = preflight_(['GMAIL_ROUTER', 'NOTES'], modeOpts_(options));
+  if (pre.failure) return pre.failure;
+  const bad = badThread_(threadId);
+  if (bad) return fail_('INVALID_THREAD_ID', bad);
+  try {
+    const labelId = DPGmailRepo.resolveLabelId(DPEngines.WORKFLOW_LABEL.NOTE);
+    if (!labelId) return fail_('LABEL_MISSING', 'Gmail label ' + DPEngines.WORKFLOW_LABEL.NOTE + ' does not exist; run Set up labels in About');
+    if (pre.features.DRY_RUN === true) return DPEngines.makeResult({ ok: true, status: 'DRY_RUN', message: 'Would file as a note and archive in Gmail' });
+    const settings = DPQueue.getSettings();
+    return locked_(function() {
+      DPGmailRepo.noteThread(threadId, labelId);
+      return DPQueue.executeRoute({ kind: 'NOTE', threadId: threadId, dryRun: false, settings: settings });
+    });
+  } catch (err) {
+    return failFrom_(err);
+  }
+}
+
+/**
  * Triage [Delete]: moves the email to Gmail Trash (recoverable for 30 days) and off the board.
  * @param {string} threadId Gmail thread id.
  * @param {{expectDryRun?:boolean}} [options] The mode the client is showing.
@@ -489,26 +518,25 @@ function getUpcomingMeetingChoices(threadId) {
 }
 
 /**
- * Filed emails: 🎯/Note threads recorded in the ledger (subject, sender, Gmail link), newest first.
- * Ledger-only: no Gmail, Docs or Tasks call.
- * @param {number} [days] Look-back window in days (1 to 365, default 30).
- * @returns {object} makeResult-shaped result with items [{subject, fromName, gmailUrl, filedOn}].
+ * Filed emails for one day: 🎯/Note threads recorded in the ledger (subject, sender, Gmail link, capped snippet
+ * for the Notes panel hover) whose filed date is that day, newest subject order. Ledger-only: no Gmail, Docs or
+ * Tasks call.
+ * @param {string} dateStr Day to list, YYYY-MM-DD (the filed date, local to the configured time zone).
+ * @returns {object} makeResult-shaped result with items [{subject, fromName, gmailUrl, snippet, filedOn}].
  */
-function getFiledEmails(days) {
-  const invalid = rejectInvalid_(() => DPEngines.v_.guard(arguments, 'getFiledEmails').param('days').number().optional().nullable().done());
+function getFiledEmails(dateStr) {
+  const invalid = rejectInvalid_(() => DPEngines.v_.guard(arguments, 'getFiledEmails').param('dateStr').string().matches(/^\d{4}-\d{2}-\d{2}$/).done());
   if (invalid) return invalid;
   const pre = preflight_(['GMAIL_ROUTER', 'NOTES']);
   if (pre.failure) return pre.failure;
   try {
     const E = DPEngines;
-    const window = Math.min(Math.max(parseInt(days, 10) || 30, 1), 365);
-    const cutoff = E.taskPlannerLocalDate(new Date(Date.now() - window * 86400000), DPQueue.getSettings().timeZone);
     const items = [];
     DPLedgerRepo.list({ sourceType: 'GMAIL', status: E.LEDGER_STATUS.DONE }).forEach(function(row) {
       if (row.TargetType !== 'EMAIL_NOTE') return;
       const m = E.ledgerReadMeta(row, 'skipping this filed email').meta;
-      if (!m.filedOn || m.filedOn < cutoff) return;
-      items.push({ subject: m.subject || '(no subject)', fromName: m.from || '', gmailUrl: m.url || '', filedOn: m.filedOn });
+      if (m.filedOn !== dateStr) return;
+      items.push({ subject: m.subject || '(no subject)', fromName: m.from || '', gmailUrl: m.url || '', snippet: m.snippet || '', filedOn: m.filedOn });
     });
     items.sort(function(a, b) { return a.filedOn < b.filedOn ? 1 : a.filedOn > b.filedOn ? -1 : (a.subject < b.subject ? -1 : 1); });
     return E.makeResult({ ok: true, status: 'OK', message: items.length + ' filed email' + (items.length === 1 ? '' : 's'), items: items });
@@ -1808,6 +1836,7 @@ global._discoverMeetingSeriesInternal = discoverMeetingSeries;     // google.scr
 global._retryFailedOperationInternal = retryFailedOperation;       // google.script.run
 global._archiveTriageThreadInternal = archiveTriageThread;         // google.script.run (Triage Archive)
 global._trashTriageThreadInternal = trashTriageThread;             // google.script.run (Triage Delete)
+global._noteTriageThreadInternal = noteTriageThread;               // google.script.run (Triage Note it)
 global._hubCoreScopesInternal = hubCoreScopes;                    // tests only (manifest drift check)
 global._getHubStatusInternal = getHubStatus;                      // google.script.run
 global._getHubSheetLinkInternal = getHubSheetLink;                 // google.script.run (About hub link)
