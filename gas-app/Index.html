@@ -378,6 +378,9 @@
                 <span class="material-symbols-outlined">format_list_numbered</span> Tasks
               </h2>
               <div class="tasks-header-actions">
+                <button type="button" class="btn-icon-subtle stt-mic-btn" :class="{ 'stt-listening': sttListening, 'stt-blocked': sttBlocked }" @mousedown.prevent @click="toggleGlobalDictation()" :title="sttMicTitle()" :aria-label="sttListening ? 'Stop voice typing' : 'Start voice typing'">
+                  <span class="material-symbols-outlined" x-text="sttListening ? 'mic' : (sttBlocked ? 'mic_off' : 'mic_none')"></span>
+                </button>
                 <button type="button" class="btn-icon-subtle" @click="toggleMaximizeColumn('tasks')" :title="maximizedColumn === 'tasks' ? 'Restore Columns (Esc)' : 'Maximize Tasks'" :aria-label="maximizedColumn === 'tasks' ? 'Restore Columns (Esc)' : 'Maximize Tasks'">
                   <span class="material-symbols-outlined" x-text="maximizedColumn === 'tasks' ? 'close_fullscreen' : 'open_in_full'"></span>
                 </button>

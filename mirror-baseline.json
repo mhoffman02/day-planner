@@ -43,7 +43,6 @@
   "app.js:m:syncDailyCacheFromLiveState",
   "app.js:m:syncFutureMatrixCacheFromLiveState",
   "app.js:m:syncMasterTasksCacheFromLiveState",
-  "app.js:m:toggleDictation",
   "app.js:m:toggleTaskStar",
   "app.js:m:transferFutureItemToDay",
   "app.js:m:undoForward",

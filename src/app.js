@@ -1,6 +1,7 @@
 import Alpine from 'https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/module.esm.js';
 import { GASBridge } from './gasBridge.js';
 import { getLocalDateStr } from './binderStore.js';
+import { createDoubleCtrlDetector, dictationTargetKind } from './dictationHotkey.js';
 import { READING_WIDTH_DEFAULT, parseSavedPalette, dayPickerClickAction, parseSavedReadingWidth, resizedReadingWidth, clampColWidth, parseSavedTableCols, resizedColWidth, colEdgeAt, colResizePlan, colVarName } from './layoutPrefs.js';
 import {
   isHubViewVisible, scoreBandLabel, ledgerStatusLabel, ledgerOperationKind, canRetryLedger, formatCutoffCountdown, formatLocalDateTime, limitDocRows, sortDocRows, parseSavedHubFlags, docRowsOlderThan, DOC_ROW_LIMITS, DOC_ROW_LIMIT_DEFAULT,
@@ -208,6 +209,7 @@ const DICTATION_POPUP_HTML = `<!doctype html>
   // and either clipping content (a scrollbar) or leaving dead space.
   var chromeH = window.outerHeight - window.innerHeight;
   var Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var detector = (${createDoubleCtrlDetector.toString()})(function () { return Date.now(); });
 
   function post(type, extra) {
     var payload = Object.assign({ source: 'day-planner-dictation', type: type }, extra || {});
@@ -275,6 +277,7 @@ const DICTATION_POPUP_HTML = `<!doctype html>
       };
       recognition.onerror = function (event) {
         listening = false;
+        post('dictation-state', { listening: false });
         micBtn.classList.remove('listening');
         setMicTitle('Start voice typing (Space)');
         var reason = event.error || 'unknown';
@@ -292,6 +295,7 @@ const DICTATION_POPUP_HTML = `<!doctype html>
       };
       recognition.onend = function () {
         listening = false;
+        post('dictation-state', { listening: false });
         micBtn.classList.remove('listening');
         setMicTitle('Start voice typing (Space)');
         baseline = currentText();
@@ -300,6 +304,7 @@ const DICTATION_POPUP_HTML = `<!doctype html>
       try {
         recognition.start();
         listening = true;
+        post('dictation-state', { listening: true });
         micBtn.classList.add('listening');
         setMicTitle('Stop voice typing (Space)');
         captionEl.textContent = '';
@@ -318,7 +323,19 @@ const DICTATION_POPUP_HTML = `<!doctype html>
   try { window.focus(); } catch (e) { /* ignore */ }
   micBtn.focus();
 
+  /* The host page owns retargeting, so a double-tap Ctrl here asks it to toggle instead of toggling locally. */
+  document.addEventListener('keyup', function (e) { if (detector.keyup(e)) post('dictation-hotkey'); }, true);
+  document.addEventListener('mousedown', function () { detector.reset(); }, true);
+  window.addEventListener('message', function (e) {
+    var d = e.data;
+    if (e.origin !== window.location.origin || !d || d.source !== 'day-planner-host') return;
+    if (d.type === 'reset') { baseline = ''; sessionFinal = ''; }
+    else if (d.type === 'start' && !listening) micBtn.click();
+    else if (d.type === 'stop' && listening) micBtn.click();
+  });
+
   document.addEventListener('keydown', function (e) {
+    detector.keydown(e);
     if (e.key === ' ' || e.code === 'Space' || e.key === 'Spacebar') {
       e.preventDefault();
       micBtn.click();
@@ -785,6 +802,11 @@ Alpine.data('plannerApp', () => ({
             if (!data || data.source !== 'day-planner-dictation') return;
             this.handleDictationPopupMessage(data);
           });
+          // Global voice typing: double-tap Ctrl anywhere in the app toggles the dictation popup.
+          const dictationDetector = createDoubleCtrlDetector(() => Date.now());
+          document.addEventListener('keydown', (e) => dictationDetector.keydown(e), true);
+          document.addEventListener('keyup', (e) => { if (dictationDetector.keyup(e)) this.toggleGlobalDictation(); }, true);
+          document.addEventListener('mousedown', () => dictationDetector.reset(), true);
         }
         // Defer initial focus to avoid iframe cross-origin autofocus block
         setTimeout(() => {
@@ -4273,7 +4295,7 @@ Alpine.data('plannerApp', () => ({
         if (this.sttError) return this.sttError;
         if (this.sttBlocked) return 'Mic blocked — use voice typing doc below (Ctrl+Alt+S)';
         if (!this.sttSupported) return 'Voice typing not supported here (Ctrl+Alt+S)';
-        return this.sttListening ? 'Stop voice typing (Ctrl+Alt+S)' : 'Start voice typing (Ctrl+Alt+S)';
+        return this.sttListening ? 'Stop voice typing (double-tap Ctrl or Ctrl+Alt+S)' : 'Start voice typing (double-tap Ctrl or Ctrl+Alt+S)';
       },
 
       // Default dictation target when nothing/no line is focused: rather than block with an
@@ -4283,7 +4305,7 @@ Alpine.data('plannerApp', () => ({
       // Enter handling) onto a fresh line, then dictate into that line. Reuses an existing
       // blank trailing line instead of adding another one. Shared by the mic button's
       // toggleCardDictation (below) and the Ctrl+Alt+S keyboard shortcut.
-      startDictationOnDefaultLine(targetCard) {
+      startDictationOnDefaultLine(targetCard, onReady) {
         const card = targetCard
           || (Array.isArray(this.noteCards) && this.noteCards.length > 0
             ? this.noteCards[this.noteCards.length - 1]
@@ -4313,7 +4335,7 @@ Alpine.data('plannerApp', () => ({
         this.startEditingLine(card, targetIdx);
         setTimeout(() => {
           const el = document.getElementById(`card-line-${card.id}-${targetIdx}`);
-          if (el) this.toggleDictation(el);
+          if (el) (onReady || ((e) => this.toggleDictation(e)))(el);
         }, 60);
       },
 
@@ -4348,6 +4370,19 @@ Alpine.data('plannerApp', () => ({
           this.ensureDictationScratchDoc(el);
           return;
         }
+        this.captureDictationTarget(el);
+
+        // Reverted the blob: URL navigation tried earlier this session -- it broke mic access
+        // (SpeechRecognition/getUserMedia), likely because a blob:-origin popup does not get the
+        // same default Permissions Policy as an about:blank one. Back to opening blank and
+        // document.write()-ing the content in; this does mean the browser own popup info-chrome
+        // shows about:blank instead of a real title, but a working mic matters more than that
+        // cosmetic. The in-page titlebar below is deliberately prominent to compensate.
+        this.openDictationPopup(el, false);
+      },
+
+      // Remembers which field the popup types into and where in it, so interim text can be spliced in.
+      captureDictationTarget(el) {
         dictationPopupTargetEl = el;
         if (el.isContentEditable) {
           const sel = this.lineSelectionOrEnd(el, this.lineEditorBodyOf(el));
@@ -4359,15 +4394,18 @@ Alpine.data('plannerApp', () => ({
           dictationPopupSelStart = el.selectionStart ?? dictationPopupBaseValue.length;
           dictationPopupSelEnd = el.selectionEnd ?? dictationPopupBaseValue.length;
         }
+      },
 
-        // Reverted the blob: URL navigation tried earlier this session -- it broke mic access
-        // (SpeechRecognition/getUserMedia), likely because a blob:-origin popup does not get the
-        // same default Permissions Policy as an about:blank one. Back to opening blank and
-        // document.write()-ing the content in; this does mean the browser own popup info-chrome
-        // shows about:blank instead of a real title, but a working mic matters more than that
-        // cosmetic. The in-page titlebar below is deliberately prominent to compensate.
-        const popup = window.open('', 'dayPlannerDictation', 'width=450,height=230');
+      // viaHotkey: a Ctrl tap is not a user gesture, so the browser may refuse window.open. Then the user
+      // is told to arm once with the mic button or Ctrl+Alt+S, not sent to the Doc fallback.
+      openDictationPopup(el, viaHotkey) {
+        const popup = window.open('', 'dayPlannerDictation', 'width=208,height=195');
         if (!popup) {
+          if (viaHotkey) {
+            this.sttError = 'Voice typing is not armed: click a mic button or press Ctrl+Alt+S once, then double-tap Ctrl.';
+            console.error('[STT] popup blocked on a hotkey open, asking the user to arm it with a click');
+            return;
+          }
           this.sttError = 'Voice typing popup was blocked by the browser — using the voice typing doc instead.';
           this.sttBlocked = true;
           this.ensureDictationScratchDoc(el);
@@ -4379,12 +4417,67 @@ Alpine.data('plannerApp', () => ({
         dictationPopupWin = popup;
         this.sttError = null;
         this.sttListening = true;
+        if (viaHotkey) setTimeout(() => this.postToDictationPopup('start'), 200);
+      },
+
+      postToDictationPopup(type) {
+        if (!dictationPopupWin || dictationPopupWin.closed) return;
+        dictationPopupWin.postMessage({ source: 'day-planner-host', type }, window.location.origin);
+      },
+
+      // Global toggle (double-tap Ctrl). The popup stays resident between toggles, so after the first
+      // arming this is a postMessage, which needs no user gesture.
+      toggleGlobalDictation() {
+        if (!this.sttSupported) {
+          this.sttError = 'Voice typing not supported in this browser.';
+          return;
+        }
+        const popupAlive = !!(dictationPopupWin && !dictationPopupWin.closed);
+        if (popupAlive && this.sttListening) {
+          this.postToDictationPopup('stop');
+          return;
+        }
+        const a = document.activeElement || {};
+        const kind = dictationTargetKind({
+          view: this.activeView, activeTag: a.tagName, activeType: a.type,
+          isContentEditable: !!a.isContentEditable, readOnly: !!a.readOnly, disabled: !!a.disabled
+        });
+        if (kind === 'notes-default') {
+          this.startDictationOnDefaultLine(undefined, (el) => this.startGlobalDictationOn(el));
+          return;
+        }
+        const el = kind === 'focused' ? a : document.querySelector('.task-quick-add-bar .task-input-field');
+        if (!el) {
+          this.sttError = 'No field to dictate into.';
+          console.error('[STT] global dictation found no target for kind', kind);
+          return;
+        }
+        if (kind === 'tasks-quick-add') el.focus();
+        this.startGlobalDictationOn(el);
+      },
+
+      startGlobalDictationOn(el) {
+        this.captureDictationTarget(el);
+        if (dictationPopupWin && !dictationPopupWin.closed) {
+          this.postToDictationPopup('reset');
+          this.postToDictationPopup('start');
+          return;
+        }
+        this.openDictationPopup(el, true);
       },
 
       // Routes postMessage results from the dictation popup (see toggleDictation above) back
       // into whichever field opened it, and falls back to the Google Doc scratchpad if the
       // popup itself can't get mic access either.
       handleDictationPopupMessage(data) {
+        if (data.type === 'dictation-state') {
+          this.sttListening = !!data.listening;
+          return;
+        }
+        if (data.type === 'dictation-hotkey') {
+          this.toggleGlobalDictation();
+          return;
+        }
         const el = dictationPopupTargetEl;
         if (!el || !document.body.contains(el)) return;
         if (data.type === 'dictation-interim' || data.type === 'dictation-final') {
