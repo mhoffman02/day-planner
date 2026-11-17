@@ -4429,17 +4429,34 @@ Alpine.data('plannerApp', () => ({
         popup.document.close();
         popup.document.title = 'Voice typing';
         dictationPopupWin = popup;
-        /* Shrink to about the Tasks mic icon, then try to park off-screen; a browser that refuses the move leaves the tiny window. */
-        try {
-          popup.resizeTo(36, 36);
-          popup.moveTo(window.screen.availWidth + 200, window.screen.availHeight + 200);
-        } catch (err) {
-          console.error('[STT] could not shrink or hide the voice window, leaving it visible', err.stack);
-        }
         window.focus();
         this.sttError = null;
         this.sttListening = true;
-        if (viaHotkey) setTimeout(() => this.postToDictationPopup('start'), 200);
+        /* Always start listening: the click or hotkey already chose to dictate, and the window is parked only once the mic works. */
+        setTimeout(() => this.postToDictationPopup('start'), 200);
+      },
+
+      /* Once listening works, shrink to about the Tasks mic icon and try to park off-screen; a browser that refuses the move leaves the tiny window. */
+      parkDictationPopup() {
+        if (!dictationPopupWin || dictationPopupWin.closed) return;
+        try {
+          dictationPopupWin.resizeTo(36, 36);
+          dictationPopupWin.moveTo(window.screen.availWidth + 200, window.screen.availHeight + 200);
+        } catch (err) {
+          console.error('[STT] could not shrink or hide the voice window, leaving it visible', err.stack);
+        }
+      },
+
+      /* A parked window cannot show a microphone prompt or an error, so bring it back when listening fails. */
+      revealDictationPopup() {
+        if (!dictationPopupWin || dictationPopupWin.closed) return;
+        try {
+          dictationPopupWin.resizeTo(260, 220);
+          dictationPopupWin.moveTo(Math.max(0, window.screen.availWidth - 280), Math.max(0, window.screen.availHeight - 260));
+          dictationPopupWin.focus();
+        } catch (err) {
+          console.error('[STT] could not bring the voice window back into view', err.stack);
+        }
       },
 
       postToDictationPopup(type) {
@@ -4494,6 +4511,7 @@ Alpine.data('plannerApp', () => ({
       handleDictationPopupMessage(data) {
         if (data.type === 'dictation-state') {
           this.sttListening = !!data.listening;
+          if (data.listening) this.parkDictationPopup();
           return;
         }
         if (data.type === 'dictation-hotkey') {
@@ -4525,6 +4543,7 @@ Alpine.data('plannerApp', () => ({
             ? 'Voice typing not supported in the popup window.'
             : 'Voice typing blocked: microphone permission denied.';
           console.error('[STT] dictation popup reported', data.type, data.reason || '');
+          this.revealDictationPopup();
           this.ensureDictationScratchDoc(el);
         }
       },

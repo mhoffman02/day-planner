@@ -119,10 +119,23 @@ describe('quiet listening cue (user 2026-11-16: popup too loud, animate the mic 
       const src = read(file);
       assert.match(src, /window\.open\('', 'dayPlannerDictation', `width=1[0-6]\d,height=1[0-2]\d/);
       assert.match(src, /window\.focus\(\)/);
-      assert.match(src, /popup\.resizeTo\(36, 36\)/);
-      assert.match(src, /popup\.moveTo\(window\.screen\.availWidth/);
+      assert.match(src, /\.resizeTo\(36, 36\)/);
+      assert.match(src, /\.moveTo\(window\.screen\.availWidth/);
     }
   });
+});
+
+describe('voice window stays visible until the mic works (user 2026-11-16: Notes mic blocked after the shrink)', () => {
+  for (const file of ['src/app.js', 'gas-app/Script.html']) {
+    it(`${file} starts listening on every open, parks only once listening, and reveals on error`, () => {
+      const src = read(file);
+      assert.doesNotMatch(src, /if \(viaHotkey\) setTimeout\(\(\) => this\.postToDictationPopup\('start'\)/);
+      assert.match(src, /parkDictationPopup\(\) \{/);
+      assert.match(src, /revealDictationPopup\(\) \{/);
+      assert.match(src, /data\.listening\) this\.parkDictationPopup\(\)/);
+      assert.match(src, /this\.revealDictationPopup\(\);\s*this\.ensureDictationScratchDoc/);
+    });
+  }
 });
 
 describe('popup and host share one detector', () => {
