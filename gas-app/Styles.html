@@ -3275,9 +3275,27 @@
   }
 
   .stt-mic-btn.stt-listening {
-    background: var(--binder-teal);
-    color: var(--white);
-    border-color: var(--binder-teal);
+    position: relative;
+    color: var(--binder-teal);
+  }
+
+  /* Small pulsing ring around the icon: the only listening cue, replacing the loud popup. */
+  .stt-mic-btn.stt-listening::after {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    background: radial-gradient(circle, transparent 62%, var(--binder-teal) 66%, var(--binder-teal) 82%, transparent 86%);
+    animation: sttRing 1.6s ease-out infinite;
+    pointer-events: none;
+  }
+
+  @keyframes sttRing {
+    0% { transform: scale(0.8); opacity: 0.9; }
+    100% { transform: scale(1.35); opacity: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .stt-mic-btn.stt-listening::after { animation: none; opacity: 0.8; }
   }
 
   .stt-mic-btn.stt-blocked {

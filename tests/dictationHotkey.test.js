@@ -105,6 +105,24 @@ describe('Tasks header mic', () => {
   });
 });
 
+describe('quiet listening cue (user 2026-11-16: popup too loud, animate the mic icon)', () => {
+  it('the listening mic is a pulsing small ring, not a filled button', () => {
+    const css = read('src/styles.css');
+    const rule = css.slice(css.indexOf('.stt-mic-btn.stt-listening'), css.indexOf('.stt-mic-btn.stt-blocked'));
+    assert.match(rule, /::after/);
+    assert.match(rule, /animation:\s*sttRing/);
+    assert.doesNotMatch(rule, /background:\s*var\(--binder-teal\)/);
+    assert.match(css, /@keyframes sttRing/);
+  });
+  it('the voice popup opens small and returns focus to the app', () => {
+    for (const file of ['src/app.js', 'gas-app/Script.html']) {
+      const src = read(file);
+      assert.match(src, /window\.open\('', 'dayPlannerDictation', `width=1[0-6]\d,height=1[0-2]\d/);
+      assert.match(src, /window\.focus\(\)/);
+    }
+  });
+});
+
 describe('popup and host share one detector', () => {
   for (const file of ['src/app.js', 'gas-app/Script.html']) {
     it(`${file} builds the popup detector from createDoubleCtrlDetector, not a second copy`, () => {

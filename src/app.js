@@ -167,6 +167,13 @@ const DICTATION_POPUP_HTML = `<!doctype html>
   .mic-btn.listening path { fill:#fcfbfa; }
   .caption { width:100%; min-height:18px; font-size:12px; color:#b0473f; text-align:center;
     padding:8px 16px 16px; overflow-wrap:break-word; }
+  @media (max-height: 170px) {
+    .titlebar, .help-panel { display:none; }
+    .mic-wrap { padding:10px 10px 0; }
+    .mic-btn { width:64px; height:64px; border-radius:12px; }
+    .mic-btn svg { width:30px; height:30px; }
+    .caption { padding:4px 8px 6px; font-size:11px; }
+  }
 </style></head>
 <body>
   <div class="titlebar">
@@ -4399,7 +4406,8 @@ Alpine.data('plannerApp', () => ({
       // viaHotkey: a Ctrl tap is not a user gesture, so the browser may refuse window.open. Then the user
       // is told to arm once with the mic button or Ctrl+Alt+S, not sent to the Doc fallback.
       openDictationPopup(el, viaHotkey) {
-        const popup = window.open('', 'dayPlannerDictation', 'width=208,height=195');
+        /* Small window parked at the screen corner: it only hosts the mic, the Tasks icon shows state. */
+        const popup = window.open('', 'dayPlannerDictation', `width=160,height=120,left=${Math.max(0, window.screen.availWidth - 180)},top=${Math.max(0, window.screen.availHeight - 160)}`);
         if (!popup) {
           if (viaHotkey) {
             this.sttError = 'Voice typing is not armed: click a mic button or press Ctrl+Alt+S once, then double-tap Ctrl.';
@@ -4415,6 +4423,7 @@ Alpine.data('plannerApp', () => ({
         popup.document.close();
         popup.document.title = 'Voice typing';
         dictationPopupWin = popup;
+        window.focus();
         this.sttError = null;
         this.sttListening = true;
         if (viaHotkey) setTimeout(() => this.postToDictationPopup('start'), 200);
