@@ -182,6 +182,18 @@ test('getHubStatus shape; getMeetingPrep(seriesKey, null) resolves the recommend
   assert.equal(choices.choices[0].recommended.occurrenceId, 'core_20261006');
 });
 
+// User 2026-11-17: HOME has no NCMMS Core events, so Meeting Prep showed "selectOccurrence: no upcoming occurrence".
+// A canceled or absent meeting is a normal state, not an error.
+test('getMeetingPrep with no upcoming occurrence returns an OK NO_OCCURRENCE result, not an error', () => {
+  const ctx = makeHubContext({ features: { GMAIL_ROUTER: true, NCMMS_CORE_PILOT: true, DRY_RUN: false } });
+  const prep = call(ctx, 'getMeetingPrep', 'NCMMS_CORE', null);
+  assert.equal(prep.ok, true, prep.message);
+  assert.equal(prep.status, 'NO_OCCURRENCE');
+  assert.equal(prep.occurrence, null);
+  assert.deepEqual(prep.carryIns, []);
+  assert.match(prep.message, /No upcoming NCMMS Core Team meeting/);
+});
+
 test('discoverMeetingSeries finds the recurring id and reports the missing registry writer instead of hiding it', () => {
   const ctx = makeHubContext({ features: { DRY_RUN: false } });
   addCoreOccurrences(ctx);

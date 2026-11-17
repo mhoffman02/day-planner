@@ -113,6 +113,17 @@ describe('hub cache wiring', () => {
       assert.equal(rows.get('meetingPrep').payload.prep.carryInsText, 'fresh');
     });
 
+    // User 2026-11-17: no meeting on the calendar is a normal state; the page shows its empty section, no error banner.
+    it(c.label + ': a NO_OCCURRENCE Meeting Prep clears the page without an error', async () => {
+      const errors = [];
+      const vm = vmFor({ getMeetingPrep: async () => ({ ok: true, status: 'NO_OCCURRENCE', message: 'No upcoming meeting', occurrence: null, carryIns: [] }) });
+      vm.reportError = (key, msg) => errors.push([key, msg]);
+      vm.meetingPrep = { occurrence: { start: 'old' } };
+      await vm.loadMeetingPrep();
+      assert.equal(vm.meetingPrep, null);
+      assert.deepEqual(errors, []);
+    });
+
     it(c.label + ': a board restored from storage is refreshed at startup however recent it was saved', () => {
       const vm = vmFor();
       vm.triageBoard = { ok: true, queues: {} };

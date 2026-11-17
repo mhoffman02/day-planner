@@ -518,6 +518,34 @@ function getFiledEmails(days) {
 }
 
 /**
+ * @param {Array<object>} occs Occurrences from the calendar window.
+ * @param {number} nowMs Current instant.
+ * @returns {boolean} True when a non-canceled occurrence has not ended yet.
+ */
+function hasUpcomingOccurrence_(occs, nowMs) {
+  return occs.some(function(o) { return o.status !== 'cancelled' && (Date.parse(o.end) > nowMs || Date.parse(o.start) > nowMs); });
+}
+
+/**
+ * No meeting on the calendar (canceled, renamed, or not on this account) is a normal state, not an error.
+ * @param {object} series Registry row.
+ * @returns {object} makeResult-shaped OK result with status NO_OCCURRENCE and an empty prep.
+ */
+function noOccurrenceResult_(series) {
+  return DPEngines.makeResult({ ok: true, status: 'NO_OCCURRENCE', message: 'No upcoming ' + series.DisplayName + ' meeting in the next 21 days',
+    series: { seriesKey: series.SeriesKey, displayName: series.DisplayName, prepMinutes: series.PrepMinutes },
+    occurrence: null, upcoming: [], carryIns: [], carryInsText: '', carryInCount: 0, notesDocUrl: null, warning: null });
+}
+
+/**
+ * @param {object} series Registry row.
+ * @returns {(string|null)} Edit URL of the series human notes Doc, or null when none is set.
+ */
+function notesDocUrl_(series) {
+  return series.HumanNotesDocId ? 'https://docs.google.com/document/d/' + series.HumanNotesDocId + '/edit' : null;
+}
+
+/**
  * Meeting prep data: target occurrence, upcoming list, carry-in count and the notes Doc link.
  * @param {string} seriesKey Registry series key.
  * @param {string|null} occurrenceId Occurrence id, or null for the recommended upcoming one.
@@ -538,6 +566,7 @@ function getMeetingPrep(seriesKey, occurrenceId) {
     if (!series) return fail_('SERIES_NOT_FOUND', 'Meeting series is not configured or not enabled');
     const now = new Date();
     const occs = DPCalendarRepo.listOccurrences(series, registry, now);
+    if (!occurrenceId && !hasUpcomingOccurrence_(occs, now.getTime())) return noOccurrenceResult_(series);
     const sel = E.selectOccurrence({ occurrences: occs, series: series, now: now, timeZone: settings.timeZone,
       override: occurrenceId ? { mode: 'specific', occurrenceId: occurrenceId } : { mode: 'next' } });
     const hit = occs.filter(function(o) { return o.id === sel.occurrenceId; })[0];
@@ -555,7 +584,7 @@ function getMeetingPrep(seriesKey, occurrenceId) {
     });
     return E.makeResult({ ok: true, status: 'OK', message: series.DisplayName + ' on ' + date, series: { seriesKey: series.SeriesKey, displayName: series.DisplayName, prepMinutes: series.PrepMinutes },
       occurrence: { occurrenceId: sel.occurrenceId, start: hit.start, end: hit.end, date: date, cutoffISO: sel.cutoffISO, reason: sel.reason, deferred: !!sel.deferred, cutoffPassed: !!sel.cutoffPassed, htmlLink: hit.htmlLink || null },
-      upcoming: describeUpcoming_(series, occs, now, settings.timeZone), carryIns: carryIns, carryInsText: E.formatCarryInsList(carryIns, series.DisplayName), carryInCount: carryIns.length, notesDocUrl: series.HumanNotesDocId ? 'https://docs.google.com/document/d/' + series.HumanNotesDocId + '/edit' : null, warning: null });
+      upcoming: describeUpcoming_(series, occs, now, settings.timeZone), carryIns: carryIns, carryInsText: E.formatCarryInsList(carryIns, series.DisplayName), carryInCount: carryIns.length, notesDocUrl: notesDocUrl_(series), warning: null });
   } catch (err) {
     return failFrom_(err);
   }

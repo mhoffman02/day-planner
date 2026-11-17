@@ -2369,9 +2369,11 @@ Alpine.data('plannerApp', () => ({
         try {
           const prep = await this.bridge.getMeetingPrep(this.meetingPrepSeries, null);
           if (!prep || prep.ok !== true) throw new Error((prep && prep.message) || 'Meeting prep unavailable');
-          this.meetingPrep = prep;
+          // No meeting on the calendar is normal: show the empty section, not an error.
+          this.meetingPrep = prep.status === 'NO_OCCURRENCE' ? null : prep;
           this.resolveError('load-meeting-prep');
-          hubCachePut('meetingPrep', { series: this.meetingPrepSeries, prep });
+          if (this.meetingPrep) hubCachePut('meetingPrep', { series: this.meetingPrepSeries, prep });
+          else hubCacheDelete('meetingPrep');
         } catch (err) {
           console.error('Meeting prep failed to load:', err.stack);
           this.reportError('load-meeting-prep', 'Meeting prep failed to load: ' + (err.message || err), { retry: () => this.loadMeetingPrep() });
