@@ -109,7 +109,7 @@ for (const file of ['src/styles.css', 'gas-app/Styles.html']) {
       assert.deepEqual(missed, []);
     });
     it('gives Navy light slate navy section heads with cream type, and nothing else', () => {
-      assert.match(light, /--head-bg: #2c435c;/);
+      assert.match(light, /--head-bg: #3b5067;/);
       assert.match(light, /--head-ink: var\(--bg-parchment\);/);
       assert.doesNotMatch(dark, /--head-/);
       assert.doesNotMatch(all, /--head-/);
@@ -130,11 +130,16 @@ for (const file of ['src/styles.css', 'gas-app/Styles.html']) {
     // User 2026-11-15: Navy light cards read too white; move them a third of the way from the 15% mix
     // (#fdfcfb) toward the Manila card #f2ede3. In-card fills shift by the same step so zebra rows still show.
     it('Navy light cards are creamier, in-card fills keep their step, navy text stays AA', () => {
-      assert.match(light, /--bg-card: #f9f7f3;/);
-      assert.match(light, /--bg-parchment-fixed: #f5f2ec;/);
+      assert.match(light, /--bg-card: #fbfaf8;/);
+      assert.match(light, /--bg-parchment: #f4efe6;/);
+      assert.match(light, /--bg-parchment-fixed: #f4efe6;/);
       for (const m of all.matchAll(/--(text-(?:default|primary|muted|muted-fixed|muted-2|muted-3|muted-4)): (#[0-9a-f]{6});/g)) {
-        assert.ok(contrast(m[2], '#f5f2ec') >= 4.5, `--${m[1]} ${m[2]} on in-card fill`);
+        assert.ok(contrast(m[2], '#f4efe6') >= 4.5, `--${m[1]} ${m[2]} on in-card fill`);
       }
+    });
+    // User 2026-11-16, from the Navy Light Tuner artifact: lighter top bar and heads, more Manila page, paler cards.
+    it('Navy light top bar is the tuned slate', () => {
+      assert.match(light, /--bg-binder: #2e3c4c;/);
     });
     it('the quote header shares the section head band and ink', () => {
       assert.match(rule(css, '.quote-card-header'), /background: var\(--head-bg, var\(--binder-teal-light\)\);/);
