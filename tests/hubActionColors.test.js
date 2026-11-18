@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
-const TEAL = ['Task Today', 'Task Later', 'Task', 'Note', 'Waiting'];
+const TEAL = ['Task Today', 'Task Later', 'Task', 'Waiting'];
 const QUIET = ['Send to Meeting', 'Read Later', 'Dismiss', 'Archive in Gmail', 'Note it', 'Open Gmail', 'Open Doc'];
 const TEXT_BUTTONS = ['Task Today', 'Task Later', 'Task'];
 
@@ -29,7 +29,7 @@ function actionButtons(html) {
 for (const file of ['index.html', 'gas-app/Index.html']) {
   test(`${file}: action buttons carry the colour classes`, () => {
     const btns = actionButtons(read(file));
-    assert.equal(btns.length, 14); // 11 Gmail actions (incl. Note it) + Doc row Task, Dismiss, Open Doc
+    assert.equal(btns.length, 13); // 10 Gmail actions (incl. Note it) + Doc row Task, Dismiss, Open Doc
     for (const b of btns) {
       assert.ok(b.label, `label parsed from aria-label: ${b.attrs}`);
       const quiet = /hub-action-quiet/.test(b.attrs);
