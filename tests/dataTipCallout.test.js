@@ -40,3 +40,20 @@ for (const file of ['index.html', 'gas-app/Index.html']) {
     assert.doesNotMatch(html, /<a [^>]*appt-guest-action[^>]*\stitle=/);
   });
 }
+
+for (const file of ['src/styles.css', 'gas-app/Styles.html']) {
+  test(`${file}: the bubble clears the mouse cursor (offset of 22px or more, as the notes popover allows)`, () => {
+    const css = read(file);
+    const below = css.match(/\[data-tip\]::after\s*\{[^}]*?top:\s*calc\(100% \+ (\d+)px\)/);
+    const above = css.match(/\[data-tip\]\[data-tip-pos="top"\]::after\s*\{[^}]*?bottom:\s*calc\(100% \+ (\d+)px\)/);
+    assert.ok(below && Number(below[1]) >= 22, 'below offset');
+    assert.ok(above && Number(above[1]) >= 22, 'above offset');
+  });
+
+  test(`${file}: the tail keeps touching the bubble edge when the bubble moves out`, () => {
+    const css = read(file);
+    const bubble = Number(css.match(/\[data-tip\]::after\s*\{[^}]*?top:\s*calc\(100% \+ (\d+)px\)/)[1]);
+    const tail = Number(css.match(/\[data-tip\]::before\s*\{[^}]*?top:\s*calc\(100% \+ (\d+)px\)/)[1]);
+    assert.equal(bubble - tail, 5);
+  });
+}

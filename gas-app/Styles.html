@@ -1948,6 +1948,7 @@
 
   /* CSS-only callout for icon controls: the data-tip text in a flat bordered bubble with a tail, on hover and keyboard
      focus (title would give the plain browser tooltip). Below the control by default; data-tip-pos="top" flips it.
+     The 24px gap keeps the mouse cursor, which hangs down-right of the hotspot, off the text.
      Keep aria-label on the control: the pseudo-element text is not a reliable accessible name. */
   [data-tip] {
     position: relative;
@@ -1965,7 +1966,7 @@
 
   [data-tip]::after {
     content: attr(data-tip);
-    top: calc(100% + 8px);
+    top: calc(100% + 24px);
     transform: translateX(-50%);
     white-space: nowrap;
     padding: 4px 8px;
@@ -1981,7 +1982,7 @@
 
   [data-tip]::before {
     content: "";
-    top: calc(100% + 3px);
+    top: calc(100% + 19px);
     width: 8px;
     height: 8px;
     background: var(--white);
@@ -1992,12 +1993,12 @@
 
   [data-tip][data-tip-pos="top"]::after {
     top: auto;
-    bottom: calc(100% + 8px);
+    bottom: calc(100% + 24px);
   }
 
   [data-tip][data-tip-pos="top"]::before {
     top: auto;
-    bottom: calc(100% + 3px);
+    bottom: calc(100% + 19px);
     transform: translateX(-50%) rotate(225deg);
   }
 
