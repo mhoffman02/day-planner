@@ -619,7 +619,7 @@
                         <a class="notes-indicator appt-guest-action" x-show="hasOtherGuests(evt)" :href="emailGuestsUrl(evt)" target="_blank" rel="noopener noreferrer" @click.stop title="Email attendees" aria-label="Email attendees">
                           <span class="material-symbols-outlined icon-14">mail</span>
                         </a>
-                        <a class="notes-indicator appt-guest-action" :href="eventGCalLink(evt)" target="_blank" rel="noopener noreferrer" @click.stop.prevent="openGCalWindow(evt)" title="Open in Google Calendar (Chat with guests is there)" aria-label="Open in Google Calendar">
+                        <a class="notes-indicator appt-guest-action" :href="eventGCalLink(evt)" target="_blank" rel="noopener noreferrer" @click.stop.prevent="openGCalWindow(evt)" title="Open in gCal: Edit, chat..." aria-label="Open in Google Calendar">
                           <span class="material-symbols-outlined icon-14">calendar_today</span>
                         </a>
                       </div>
@@ -1966,7 +1966,7 @@
               <span class="material-symbols-outlined">videocam</span> Join Google Meet
             </a>
           </template>
-          <a :href="selectedEvent?.gCalLink" target="_blank" rel="noopener noreferrer" class="btn-primary">
+          <a :href="selectedEvent?.gCalLink" target="_blank" rel="noopener noreferrer" @click.prevent="openGCalWindow(selectedEvent)" class="btn-primary">
             <span class="material-symbols-outlined">calendar_today</span> Open in gCal
           </a>
           <button type="button" class="btn-secondary" x-show="selectedEvent?.canEdit" @click.stop="openEditEventModal(selectedEvent)">

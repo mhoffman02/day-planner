@@ -53,9 +53,10 @@ for (const file of ['index.html', 'gas-app/Index.html']) {
   test(`${file}: appointment rows carry the email icon (other attendees only) and an open-in-Calendar icon (every appointment)`, () => {
     const html = read(file);
     assert.match(html, /<a [^>]*class="[^"]*appt-guest-action[^"]*"[^>]*:href="emailGuestsUrl\(evt\)"[^>]*target="_blank"[^>]*rel="noopener noreferrer"/);
-    assert.match(html, /<a [^>]*class="[^"]*appt-guest-action[^"]*"[^>]*:href="eventGCalLink\(evt\)"[^>]*target="_blank"[^>]*rel="noopener noreferrer"[^>]*title="Open in Google Calendar[^"]*"[^>]*>\s*<span class="material-symbols-outlined icon-14">calendar_today<\/span>/);
+    assert.match(html, /<a [^>]*class="[^"]*appt-guest-action[^"]*"[^>]*:href="eventGCalLink\(evt\)"[^>]*target="_blank"[^>]*rel="noopener noreferrer"[^>]*title="Open in gCal: Edit, chat\.\.\."[^>]*>\s*<span class="material-symbols-outlined icon-14">calendar_today<\/span>/);
     assert.equal((html.match(/x-show="hasOtherGuests\(evt\)"/g) || []).length, 1);
     assert.match(html, /:href="eventGCalLink\(evt\)"[^>]*@click\.stop\.prevent="openGCalWindow\(evt\)"/);
+    assert.match(html, /<a :href="selectedEvent\?\.gCalLink" target="_blank" rel="noopener noreferrer" @click\.prevent="openGCalWindow\(selectedEvent\)" class="btn-primary">/);
     assert.doesNotMatch(html, /copyChatText|chatGuestsUrl/);
   });
 }
