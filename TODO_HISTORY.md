@@ -1,5 +1,11 @@
 # Task History (TODO_HISTORY)
 
+## 2026-11-18 (latest) — Email card, vertical-only resize, push:work read-back (HOME @504, WORK version 300)
+- [x] Email card in the Notes panel now uses the Quote card shell (`d8895ec`, `7ae7e5e`): twistie header, uppercase "EMAIL (n)" title with a mail icon, collapsible, no white border; the hover preview overflows the shell (`.quote-card.email-card`). User 2026-11-18: "Look good". `tests/noteCardResize.test.js`, `tests/triageNoteIt.test.js`.
+- [x] Note card lines resize vertically only; the width always fills the card (user 2026-11-18, `d8895ec`).
+- [x] `refileEmailNotesByDay` ran to completion on WORK (user 2026-11-18, second run). It was missing from the WORK IDE first because `npm run push:work` printed success while WORK stayed at build 827 (HOME 841).
+- [x] `npm run push:work` now reads WORK back and fails unless `BUILD_NUMBER_` matches the pushed build (`3c0b203`; `tools/work-verify.js`, `tests/workVerify.test.js`). Cause of the stale pushes not found; an open WORK IDE tab is the unproven suspect.
+
 ## 2026-11-18 (later) — Note it files by email day, appointment mail/chat icons, note card resize (HOME @502, WORK pushed)
 - [x] Note it filed about 60 emails under the day they were filed, not the day sent (`25c67bc`): `filedOn` now comes from the newest message from someone else in the configured zone (`emailDay_`, `lastFromOthers_` in `gas-app/QueueProcessor.gs`); the Notes panel reloads on non-today days. One-time repair `refileEmailNotesByDay` (`gas-app/HubController.gs`) for rows already misfiled.
 - [x] Today > Appointments rows: mail icon (Gmail compose, To = other attendees, Subject = meeting title) and chat icon (copies "title: addresses", opens Google Chat in a new tab; Chat has no link that sets a group title). Shown only when someone else is invited (`c3a8997`; `src/attendeeActions.js`, mirrored in `gas-app/Script.html`; `tests/attendeeActions.test.js`, `tests/appointmentAttendeeActions.test.js`).

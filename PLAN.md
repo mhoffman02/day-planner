@@ -64,7 +64,7 @@ layer, fixed horizons, 8 life areas, suggest-not-auto A tasks); user may overrid
 
 ### Phase 36: Tutorial coverage gaps (In progress, 2026-11-16)
 Add Tutorial exercises for the features T01-T20 skip; checklist in [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) A0.
-- [ ] T21 onward in `gas-app/Tutorial.html` (mirrored verbatim in `index.html`), then walk each new one live on HOME.
+- [x] T21-T31 written (2026-11-16). [ ] T32-T35 for hotkeys, Note it, appointment mail/chat icons and note card height (next, TODO.md A0). [ ] Then walk each new one live on HOME (parked by the user).
 
 ### Phase 33: Solid Code ratchet shrinks (In progress)
 Phase 31 (search polish) shipped and is archived in `PLAN-HISTORY.md`. Checklist in [`TODO.md`](file:///home/mike/projects/day-planner/TODO.md) A3.

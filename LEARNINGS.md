@@ -505,3 +505,4 @@ live-testing catches it by luck.
 ## 2026-11-18
 **Worked well:** One table (`src/hotkeys.js`) drives both the key dispatch and the help dialog, so the help cannot drift. Driving real key events in the mock over CDP found that Alpine renders a tick late (read DOM after a short wait) and that `dialog[open]` is false at rest, so it is safe as the modal test.
 **Needs improvement:** The tests were written after the module, so there was no red run; I proved they bite by removing the `modalOpen` guard and watching one fail. The `sed -i 'Nr file'` insert was refused in a worktree; use Edit for large inserts.
+**Later (2026-11-18):** `npm run push:work` printed "Successfully pushed" twice while WORK HEAD stayed at build 827; a pull-back of the remote source caught it, and `tools/work-verify.js` now does that on every push. A success banner from a tool is not proof of the remote state: read the remote.
