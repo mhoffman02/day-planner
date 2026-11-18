@@ -26,6 +26,7 @@ import {
 import { buildGoalTree, horizonCounts, childHorizonKey, smartCheck, rollupProgress, balanceByArea } from './goalEngine.js';
 import { executeUniversalSearch, flattenSearchResults, mergeArchiveSearchResults, matchesSearchQuery, resolveSlashKeyAction } from './searchEngine.js';
 import { resolveHotkey, resolveNotesHotkey, stepCursor, cursorAfterRemoval, hotkeySections } from './hotkeys.js';
+import { otherGuestEmails, emailAttendeesUrl, chatClipboardText, CHAT_URL } from './attendeeActions.js';
 import { formatEventDescriptionHtml, extractMeetLink } from './calendarEngine.js';
 import { parseIndexEntriesFromNote } from './indexParser.js';
 import { getQuoteForDateStr } from './quotesEngine.js';
@@ -6953,6 +6954,32 @@ Alpine.data('plannerApp', () => ({
             // The note icon shows only when there is more than the title, like the Tasks note icon.
       hasEventDetails(evt) {
         return Boolean(evt && ((evt.description && String(evt.description).trim()) || evt.location || this.extractMeetLink(evt) || evt.myResponse || (evt.guests && evt.guests.length)));
+      },
+
+      // Appointment row icons (src/attendeeActions.js): both show only when someone besides me is invited.
+      hasOtherGuests(evt) {
+        return otherGuestEmails(evt && evt.guests).length > 0;
+      },
+
+      emailGuestsUrl(evt) {
+        return emailAttendeesUrl(evt);
+      },
+
+      get chatGuestsUrl() {
+        return CHAT_URL;
+      },
+
+      // The anchor opens Chat in a new tab; this runs first and copies the title and addresses to paste into New chat.
+      async copyChatText(evt) {
+        const text = chatClipboardText(evt);
+        try {
+          if (!navigator.clipboard || !navigator.clipboard.writeText) throw new Error('Clipboard API unavailable');
+          await navigator.clipboard.writeText(text);
+          this.showTaskToast('Copied the title and attendees: paste into New chat');
+        } catch (err) {
+          console.error('Chat with attendees: could not copy the title and addresses to the clipboard:\n' + err.stack);
+          this.showTaskToast('Could not copy the attendees. Open the appointment to copy them.');
+        }
       },
 
       isRsvpSaving(evt) {

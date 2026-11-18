@@ -1,0 +1,49 @@
+/**
+ * @file attendeeActions.js
+ * @description Appointment row actions (user 2026-11-18): email the other attendees through Gmail compose with To and
+ * Subject filled in (as Google Calendar does for Email guests), and chat with them. Google Chat has no link that sets a
+ * group chat title, so Chat opens in its own tab and the title plus addresses are copied for pasting into New chat.
+ * Pure: no DOM, runs in node. URL literals are split so the copy inlined in gas-app/Script.html survives HtmlService.
+ */
+
+const GMAIL_COMPOSE_URL = 'https:' + '/' + '/mail.google.com/mail/?view=cm&fs=1';
+export const CHAT_URL = 'https:' + '/' + '/chat.google.com/';
+
+/**
+ * Addresses of everyone invited except me. Rooms and resources are already dropped from the guest list server side.
+ * @param {Array<{email?:string, self?:boolean}>} [guests] Guests of an appointment.
+ * @returns {string[]} Unique addresses, in guest order.
+ */
+export function otherGuestEmails(guests) {
+  const seen = new Set();
+  const out = [];
+  (guests || []).forEach((g) => {
+    const email = g && !g.self ? String(g.email || '').trim() : '';
+    const key = email.toLowerCase();
+    if (!email || seen.has(key)) return;
+    seen.add(key);
+    out.push(email);
+  });
+  return out;
+}
+
+/**
+ * Gmail compose link for the attendees, the meeting title as Subject.
+ * @param {{title?:string, guests?:Array<object>}} evt Appointment.
+ * @returns {string} Compose URL, or an empty string when nobody else is invited.
+ */
+export function emailAttendeesUrl(evt) {
+  const to = otherGuestEmails(evt && evt.guests);
+  if (!to.length) return '';
+  return GMAIL_COMPOSE_URL + '&to=' + encodeURIComponent(to.join(',')).replace(/%2C/g, ',').replace(/%40/g, '@') + '&su=' + encodeURIComponent((evt && evt.title) || '');
+}
+
+/**
+ * Text copied for pasting into Google Chat New chat: the meeting title, then the other attendees.
+ * @param {{title?:string, guests?:Array<object>}} evt Appointment.
+ * @returns {string} Title and addresses, or an empty string when nobody else is invited.
+ */
+export function chatClipboardText(evt) {
+  const to = otherGuestEmails(evt && evt.guests);
+  return to.length ? ((evt && evt.title) || '') + ': ' + to.join(', ') : '';
+}
