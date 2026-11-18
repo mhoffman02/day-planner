@@ -11,12 +11,13 @@ const TIP_MARGIN = 8;
 const TIP_DELAY_MS = 400;
 
 /**
- * Where the bubble goes. Below the control by default, above when data-tip-pos is top or when below has no room.
+ * Where the bubble goes. Above the control by default (the Today layout has its controls low and right, so above fits
+ * more often), below when data-tip-pos is bottom or when above has no room.
  * The gap keeps the cursor, which hangs down-right of its hotspot, off the text.
  * @param {{left:number, top:number, width:number, height:number}} anchor Control rectangle in viewport pixels.
  * @param {{width:number, height:number}} bubble Bubble size.
  * @param {{width:number, height:number}} viewport Viewport size.
- * @param {string|null} [preferred] 'top' to prefer above.
+ * @param {string|null} [preferred] 'bottom' to prefer below.
  * @returns {{side:string, left:number, top:number, tailLeft:number}} Bubble corner and the tail offset inside it.
  */
 export function dataTipPlacement(anchor, bubble, viewport, preferred) {
@@ -25,8 +26,8 @@ export function dataTipPlacement(anchor, bubble, viewport, preferred) {
   const left = Math.round(Math.min(Math.max(centerX - bubble.width / 2, TIP_MARGIN), maxLeft));
   const fitsBelow = anchor.top + anchor.height + TIP_GAP + bubble.height + TIP_MARGIN <= viewport.height;
   const fitsAbove = anchor.top - TIP_GAP - bubble.height >= TIP_MARGIN;
-  const wantTop = preferred === 'top';
-  const side = (wantTop ? fitsAbove || !fitsBelow : !fitsBelow && fitsAbove) ? 'top' : 'bottom';
+  const wantBottom = preferred === 'bottom';
+  const side = (wantBottom ? !fitsBelow && fitsAbove : fitsAbove || !fitsBelow) ? 'top' : 'bottom';
   const top = side === 'top' ? anchor.top - TIP_GAP - bubble.height : anchor.top + anchor.height + TIP_GAP;
   const tailLeft = Math.round(Math.min(Math.max(centerX - left, TIP_MARGIN + 4), Math.max(TIP_MARGIN + 4, bubble.width - TIP_MARGIN - 4)));
   return { side, left, top, tailLeft };

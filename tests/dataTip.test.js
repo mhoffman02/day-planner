@@ -11,22 +11,22 @@ import { dataTipPlacement, initDataTips } from '../src/dataTip.js';
 const rect = (left, top, width, height) => ({ left, top, width, height, right: left + width, bottom: top + height });
 const view = { width: 400, height: 600 };
 
-test('below the control by default, centered on it, 24px clear of the cursor', () => {
+test('above the control by default, centered on it, 24px clear of the cursor', () => {
   const p = dataTipPlacement(rect(180, 100, 20, 20), { width: 100, height: 28 }, view);
-  assert.deepEqual({ side: p.side, left: p.left, top: p.top }, { side: 'bottom', left: 140, top: 144 });
+  assert.deepEqual({ side: p.side, left: p.left, top: p.top }, { side: 'top', left: 140, top: 100 - 24 - 28 });
   assert.equal(p.tailLeft, 50);
 });
 
-test('flips above when there is no room below, and below when there is no room above', () => {
-  const low = dataTipPlacement(rect(180, 560, 20, 20), { width: 100, height: 28 }, view);
-  assert.deepEqual({ side: low.side, top: low.top }, { side: 'top', top: 560 - 24 - 28 });
-  const high = dataTipPlacement(rect(180, 2, 20, 20), { width: 100, height: 28 }, view, 'top');
+test('flips below when there is no room above, and above when there is no room below', () => {
+  const high = dataTipPlacement(rect(180, 2, 20, 20), { width: 100, height: 28 }, view);
   assert.deepEqual({ side: high.side, top: high.top }, { side: 'bottom', top: 22 + 24 });
+  const low = dataTipPlacement(rect(180, 560, 20, 20), { width: 100, height: 28 }, view, 'bottom');
+  assert.deepEqual({ side: low.side, top: low.top }, { side: 'top', top: 560 - 24 - 28 });
 });
 
-test('data-tip-pos top is the preferred side while it fits', () => {
-  const p = dataTipPlacement(rect(180, 300, 20, 20), { width: 100, height: 28 }, view, 'top');
-  assert.equal(p.side, 'top');
+test('data-tip-pos bottom is the preferred side while it fits', () => {
+  const p = dataTipPlacement(rect(180, 300, 20, 20), { width: 100, height: 28 }, view, 'bottom');
+  assert.equal(p.side, 'bottom');
 });
 
 test('clamps inside the viewport and the tail still points at the control', () => {
@@ -79,8 +79,8 @@ test('initDataTips: hover waits for the delay, then shows one body-level bubble 
   assert.equal(made[0].textContent, 'Email attendees');
   assert.ok(made[0].className.includes('is-shown'));
   assert.equal(made[0].style.left, '140px');
-  assert.equal(made[0].style.top, '144px');
-  assert.equal(made[0].attrs['data-side'], 'bottom');
+  assert.equal(made[0].style.top, '48px');
+  assert.equal(made[0].attrs['data-side'], 'top');
   assert.equal(made[0].style['--tip-tail-x'], '50px');
   fire('mouseout', anchor);
   assert.equal(made[0].className.includes('is-shown'), false);

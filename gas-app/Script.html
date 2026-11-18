@@ -2035,8 +2035,8 @@
     const left = Math.round(Math.min(Math.max(centerX - bubble.width / 2, TIP_MARGIN), maxLeft));
     const fitsBelow = anchor.top + anchor.height + TIP_GAP + bubble.height + TIP_MARGIN <= viewport.height;
     const fitsAbove = anchor.top - TIP_GAP - bubble.height >= TIP_MARGIN;
-    const wantTop = preferred === 'top';
-    const side = (wantTop ? fitsAbove || !fitsBelow : !fitsBelow && fitsAbove) ? 'top' : 'bottom';
+    const wantBottom = preferred === 'bottom';
+    const side = (wantBottom ? !fitsBelow && fitsAbove : fitsAbove || !fitsBelow) ? 'top' : 'bottom';
     const top = side === 'top' ? anchor.top - TIP_GAP - bubble.height : anchor.top + anchor.height + TIP_GAP;
     const tailLeft = Math.round(Math.min(Math.max(centerX - left, TIP_MARGIN + 4), Math.max(TIP_MARGIN + 4, bubble.width - TIP_MARGIN - 4)));
     return { side, left, top, tailLeft };
