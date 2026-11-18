@@ -83,7 +83,8 @@ test('setEventRsvp patches the full guest list with only my response changed', (
     { email: 'me@example.com', self: true, responseStatus: 'tentative' },
     { email: 'pal@example.com', responseStatus: 'tentative', comment: 'maybe late' }
   ]);
-  assert.equal(opts.sendUpdates, 'none');
+  // 2026-11-18: externalOnly mails only non-Google organizers (who never see the guest list); Google ones still see it there.
+  assert.equal(opts.sendUpdates, 'externalOnly');
 });
 
 test('setEventRsvp rejects a bad response or event id without calling Calendar', () => {
