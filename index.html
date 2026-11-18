@@ -601,10 +601,10 @@
                           </template>
                         </span>
                         <!-- Row actions: Gmail compose to the guests, and the appointment in Google Calendar (where Chat with guests lives). -->
-                        <a class="notes-indicator appt-guest-action" x-show="hasOtherGuests(evt)" :href="emailGuestsUrl(evt)" target="_blank" rel="noopener noreferrer" @click.stop title="Email attendees" aria-label="Email attendees">
+                        <a class="notes-indicator appt-guest-action" x-show="hasOtherGuests(evt)" :href="emailGuestsUrl(evt)" target="_blank" rel="noopener noreferrer" @click.stop data-tip="Email attendees" aria-label="Email attendees">
                           <span class="material-symbols-outlined icon-14">mail</span>
                         </a>
-                        <a class="notes-indicator appt-guest-action" :href="eventGCalLink(evt)" target="_blank" rel="noopener noreferrer" @click.stop.prevent="openGCalWindow(evt)" title="Open in gCal: Edit, chat..." aria-label="Open in Google Calendar">
+                        <a class="notes-indicator appt-guest-action" :href="eventGCalLink(evt)" target="_blank" rel="noopener noreferrer" @click.stop.prevent="openGCalWindow(evt)" data-tip="Open in gCal: Edit, chat..." aria-label="Open in Google Calendar">
                           <span class="material-symbols-outlined icon-14">calendar_today</span>
                         </a>
                       </div>
