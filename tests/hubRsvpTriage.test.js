@@ -45,6 +45,23 @@ test('the board flags a REQUEST invite as isInvite and never ships the invite te
   assert.ok(!JSON.stringify(r).includes('abc123@google.com'), 'invite UID leaked to the client');
 });
 
+test('rows cached before isInvite existed (legacy key) are not reused, so invites still get RSVP buttons', () => {
+  const { ctx } = setup();
+  call(ctx, 'getTriageBoard', {});
+  const store = ctx.__hub.cache.store;
+  const legacy = new Map();
+  for (const [k, v] of store.entries()) {
+    if (!k.startsWith('triageRow.')) continue;
+    const e = JSON.parse(v);
+    delete e.row.isInvite; // the shape written before the RSVP release
+    legacy.set(k.replace(/^triageRow\.v\d+:/, 'triageRow.v2:'), JSON.stringify(e));
+  }
+  store.clear();
+  legacy.forEach((v, k) => store.set(k, v));
+  const items = Object.values(call(ctx, 'getTriageBoard', {}).queues).flat();
+  assert.equal(items.find((i) => i.threadId === 'inv1').isInvite, true, 'a pre-RSVP cached row hid the buttons');
+});
+
 test('a CANCEL notice is not an invite to answer', () => {
   const { ctx } = setup({ ics: ics({ method: 'CANCEL' }) });
   const items = Object.values(call(ctx, 'getTriageBoard', {}).queues).flat();
