@@ -81,6 +81,7 @@ function baseRow(file, itemId, commentId, text, fromName, date, unmatched) {
     date,
     url: docActionUrl(file, commentId === 'FILE' ? '' : commentId),
     unmatched,
+    signals: [unmatched ? 'Unassigned Doc' : 'Assigned to you'],
     score: unmatched ? DOC_ACTION_SCORE_UNMATCHED : DOC_ACTION_SCORE_ASSIGNED
   };
 }

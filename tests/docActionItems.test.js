@@ -29,6 +29,7 @@ test('assigned, mention-only and resolved comments yield exactly one row for the
   assert.equal(rows[0].url, 'https://docs.google.com/document/d/F1/edit?disco=C1');
   assert.equal(docActionUrl({ id: 'F1' }, 'a.b&c#d'), 'https://docs.google.com/document/d/F1/edit?disco=a.b%26c%23d', 'comment id is URL-encoded');
   assert.equal(rows[0].sourceTag, 'Doc action item');
+  assert.deepEqual(rows[0].signals, ['Assigned to you'], 'the signals column says why the row is here');
   assert.equal(rows[0].itemId, 'F1~C1');
   assert.equal(rows[0].subject, 'Plan');
   assert.equal(rows[0].fromName, 'Ann');
@@ -43,6 +44,7 @@ test('a file with no matching comment yields one unmatched file-level row, never
   assert.equal(rows[0].itemId, 'F1~FILE');
   assert.equal(rows[0].url, 'https://docs.google.com/document/d/F1/edit');
   assert.equal(rows[0].sourceTag, 'Doc action item');
+  assert.deepEqual(rows[0].signals, ['Unassigned Doc'], 'no comment assigned to you: a file-level row for review');
 });
 
 test('docActionKey builds the ledger key and rejects a pipe in an id', () => {
