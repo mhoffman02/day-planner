@@ -1567,7 +1567,28 @@ function confirmMeetingActions(occurrenceId, selectedItems) {
 
 /** Most Doc items one dismissDocItems call takes (one lock, one ledger pass). */
 const DOC_DISMISS_BATCH_MAX_ = 500;
-const DOC_ITEM_ID_RE_ = /^([A-Za-z0-9_-]{10,128})~([A-Za-z0-9_-]{1,64})$/;
+// The file part is a Drive file id (FILE_ID_RE_ shape). The comment part is opaque to us: WORK listed rows whose Drive comment
+// ids the old [A-Za-z0-9_-]{1,64} pattern refused, so Task and Dismiss failed on rows the board had just shown. Only what would
+// break the ledger key (a pipe, the ~ separator, whitespace) is refused.
+const DOC_ITEM_FILE_RE_ = /^[A-Za-z0-9_-]{10,128}$/;
+const DOC_ITEM_COMMENT_RE_ = /^[^|~\s]{1,256}$/;
+
+/**
+ * Splits a Doc item id (fileId~commentId). On failure the message names the bad part and its length, never the id
+ * (sanitizeError would redact it to [id] anyway), so the toast says what to look at.
+ * @param {*} itemId Id from the client.
+ * @returns {{fileId:string, commentId:string}|{message:string}} The parts, or message.
+ */
+function parseDocItemId_(itemId) {
+  if (typeof itemId !== 'string') return { message: 'Invalid Doc item id: not text' };
+  const cut = itemId.indexOf('~');
+  const fileId = cut < 0 ? itemId : itemId.slice(0, cut);
+  const commentId = cut < 0 ? '' : itemId.slice(cut + 1);
+  if (cut < 0) return { message: 'Invalid Doc item id: no ~ separator (' + itemId.length + ' chars)' };
+  if (!DOC_ITEM_FILE_RE_.test(fileId)) return { message: 'Invalid Doc item id: file part is ' + fileId.length + ' chars with characters Drive file ids never use' };
+  if (!DOC_ITEM_COMMENT_RE_.test(commentId)) return { message: 'Invalid Doc item id: comment part is ' + commentId.length + ' chars with a pipe, ~ or whitespace' };
+  return { fileId: fileId, commentId: commentId };
+}
 
 const DOC_ROWS_CACHE_KEY_ = 'docItems.v1';
 
@@ -1737,11 +1758,11 @@ function dismissDocItem(itemId, options) {
   if (invalid) return invalid;
   const pre = preflight_(['DOC_ACTION_ITEMS'], modeOpts_(options));
   if (pre.failure) return pre.failure;
-  const m = DOC_ITEM_ID_RE_.exec(itemId);
-  if (!m) return fail_('INVALID_ITEM_ID', 'Invalid Doc item id: ' + String(itemId).slice(0, 200));
+  const p = parseDocItemId_(itemId);
+  if (p.message) return fail_('INVALID_ITEM_ID', p.message, true);
   try {
     const E = DPEngines;
-    const opKey = E.docActionKey(m[1], m[2], 'DISMISS');
+    const opKey = E.docActionKey(p.fileId, p.commentId, 'DISMISS');
     return locked_(function() {
       const existing = DPLedgerRepo.get(opKey);
       if (existing && existing.Status === E.LEDGER_STATUS.DONE) return E.makeResult({ ok: true, operationKey: opKey, status: 'SKIPPED', message: 'Already dismissed' });
@@ -1773,11 +1794,11 @@ function dismissDocItems(itemIds, options) {
   const parsed = [];
   const seenIds = {};
   for (let i = 0; i < itemIds.length; i++) {
-    const m = typeof itemIds[i] === 'string' ? DOC_ITEM_ID_RE_.exec(itemIds[i]) : null;
-    if (!m) return fail_('INVALID_ITEM_ID', 'Invalid Doc item id: ' + String(itemIds[i]).slice(0, 200));
+    const p = parseDocItemId_(itemIds[i]);
+    if (p.message) return fail_('INVALID_ITEM_ID', p.message, true);
     if (seenIds[itemIds[i]]) continue; // appendMany refuses a repeated key
     seenIds[itemIds[i]] = true;
-    parsed.push({ id: itemIds[i], fileId: m[1], commentId: m[2] });
+    parsed.push({ id: itemIds[i], fileId: p.fileId, commentId: p.commentId });
   }
   try {
     const E = DPEngines;
@@ -1831,13 +1852,13 @@ function routeDocItemToTask(itemId, options) {
   const o = opts_(options);
   const pre = preflight_(['DOC_ACTION_ITEMS'], modeOpts_(o));
   if (pre.failure) return pre.failure;
-  const m = DOC_ITEM_ID_RE_.exec(itemId);
-  if (!m) return fail_('INVALID_ITEM_ID', 'Invalid Doc item id: ' + String(itemId).slice(0, 200));
+  const p = parseDocItemId_(itemId);
+  if (p.message) return fail_('INVALID_ITEM_ID', p.message, true);
   try {
-    const file = DPDriveFollowupRepo.getFile(m[1]);
+    const file = DPDriveFollowupRepo.getFile(p.fileId);
     const settings = DPQueue.getSettings();
     const provenance = DPEngines.docActionProvenance(file.name, DPEngines.taskPlannerLocalDate(new Date(), settings.timeZone));
-    const thread = { threadId: itemId, subject: file.name || '(untitled)', url: DPEngines.docActionUrl(file, m[2] === 'FILE' ? '' : m[2]), provenance: provenance, lastMessageId: '', messages: [] };
+    const thread = { threadId: itemId, subject: file.name || '(untitled)', url: DPEngines.docActionUrl(file, p.commentId === 'FILE' ? '' : p.commentId), provenance: provenance, lastMessageId: '', messages: [] };
     return locked_(function() {
       const routed = DPQueue.executeRoute({ kind: 'DOC_TASK', threadId: itemId, thread: thread, options: { priority: o.priority }, dryRun: pre.features.DRY_RUN === true, settings: settings });
       docRowsCacheClear_();

@@ -276,7 +276,7 @@ const DOC_URL_PATH = Object.freeze({
 function docActionUrl(file, commentId) {
   const kind = DOC_URL_PATH[file.mimeType] || 'document';
   const base = `https://docs.google.com/${kind}/d/${file.id}/edit`;
-  return commentId ? `${base}?disco=${commentId}` : base;
+  return commentId ? `${base}?disco=${encodeURIComponent(commentId)}` : base;
 }
 
 /**

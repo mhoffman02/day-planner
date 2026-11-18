@@ -65,6 +65,28 @@ test('dismissDocItem: bad id is refused, nothing written', () => {
   assert.equal(ctx.__hub.ledger.rows.size, 0);
 });
 
+// WORK 2026-11-18: Doc rows listed fine but Task and Dismiss both answered "Invalid Doc item id". The file part was already
+// proven by the listing, so the comment part is opaque: accept any Drive comment id, refuse only what breaks the ledger key.
+const ODD_COMMENT = 'AAAB.cx:7_y-Z';
+test('dismissDocItem and routeDocItemToTask accept a Drive comment id with dots or colons', () => {
+  const ctx = setup();
+  ctx.__docComments[FILE_A] = [{ id: ODD_COMMENT, assigneeEmailAddress: 'me@example.test', content: 'x', author: { displayName: 'Ann' }, modifiedTime: '2026-11-04T10:00:00Z' }];
+  const rows = call(ctx, 'getDocActionItems', true).rows;
+  assert.equal(rows.find((r) => r.fileId === FILE_A).itemId, `${FILE_A}~${ODD_COMMENT}`);
+  assert.equal(call(ctx, 'routeDocItemToTask', `${FILE_A}~${ODD_COMMENT}`, { priority: 'B1' }).status, 'DONE');
+  assert.equal(call(ctx, 'dismissDocItem', `${FILE_A}~${ODD_COMMENT}`, {}).status, 'DONE');
+});
+
+test('an invalid Doc item id names the bad part and its length, never echoing the id', () => {
+  const ctx = setup();
+  const r = call(ctx, 'dismissDocItem', `${FILE_A}~bad|part`, {});
+  assert.equal(r.errorCode, 'INVALID_ITEM_ID');
+  assert.match(r.message, /comment part/);
+  assert.ok(!r.message.includes(FILE_A), 'file id echoed');
+  const r2 = call(ctx, 'dismissDocItem', 'short~c1', {});
+  assert.match(r2.message, /file part/);
+});
+
 test('routeDocItemToTask: Task title and link come from Drive, ledger key is DOC|..|TASK', () => {
   const ctx = setup();
   const r = call(ctx, 'routeDocItemToTask', `${FILE_A}~c1`, { priority: 'B1' });

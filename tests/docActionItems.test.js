@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import {
   selectAssignedComments, DOC_ACTION_SNIPPET_CAP, DOC_ACTION_PREVIEW_CAP,
   DOC_ACTION_FILE_CAP, DOC_ACTION_TIME_BUDGET_MS, DOC_ACTION_CACHE_TTL_S, DOC_ACTION_MEMO_TTL_S, DOC_ACTION_CACHE_MAX_BYTES,
-  docActionProvenance, docActionMemoKey
+  docActionProvenance, docActionMemoKey, docActionUrl
 } from '../src/integration/docActionItems.js';
 import { docActionKey } from '../src/integration/contracts.js';
 import { planTaskFromThread } from '../src/integration/taskPlanner.js';
@@ -27,6 +27,7 @@ test('assigned, mention-only and resolved comments yield exactly one row for the
   const rows = selectAssignedComments({ file: FILE, comments: fixtureComments(), userEmail: ME });
   assert.equal(rows.length, 1);
   assert.equal(rows[0].url, 'https://docs.google.com/document/d/F1/edit?disco=C1');
+  assert.equal(docActionUrl({ id: 'F1' }, 'a.b&c#d'), 'https://docs.google.com/document/d/F1/edit?disco=a.b%26c%23d', 'comment id is URL-encoded');
   assert.equal(rows[0].sourceTag, 'Doc action item');
   assert.equal(rows[0].itemId, 'F1~C1');
   assert.equal(rows[0].subject, 'Plan');
