@@ -1995,6 +1995,16 @@
   // Appointment row actions, mirrored from src/attendeeActions.js. Keep both copies in sync.
   const GMAIL_COMPOSE_URL = 'https:' + '/' + '/mail.google.com/mail/?view=cm&fs=1';
 
+  function calendarWindowFeatures(screen) {
+    const availW = (screen && screen.availWidth) || 0;
+    const availH = (screen && screen.availHeight) || 0;
+    const width = availW ? Math.min(900, availW) : 900;
+    const height = availH ? Math.min(760, availH) : 760;
+    const left = Math.max(0, Math.round((availW - width) / 2));
+    const top = Math.max(0, Math.round((availH - height) / 2));
+    return `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`;
+  }
+
   function otherGuestEmails(guests) {
     const seen = new Set();
     const out = [];
@@ -10556,6 +10566,15 @@
 
       emailGuestsUrl(evt) {
         return emailAttendeesUrl(evt);
+      },
+
+      // Calendar opens in its own named window (reused on the next click), not a tab: the installed app has none.
+      // The anchor keeps a real href for the middle-click and copy-link cases; a blocked popup is reported, not swallowed.
+      openGCalWindow(evt) {
+        const win = window.open(this.eventGCalLink(evt), 'dayPlannerGCal', calendarWindowFeatures(window.screen));
+        if (win) return;
+        console.error('Open in Google Calendar: window.open returned null (popup blocked); no window opened:\n' + new Error('popup blocked').stack);
+        this.showTaskToast('Popup blocked: allow popups for this app to open Google Calendar');
       },
 
       isRsvpSaving(evt) {

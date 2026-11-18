@@ -6,7 +6,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { otherGuestEmails, emailAttendeesUrl } from '../src/attendeeActions.js';
+import { otherGuestEmails, emailAttendeesUrl, calendarWindowFeatures } from '../src/attendeeActions.js';
 
 const guests = [
   { name: 'Me', email: 'me@example.test', self: true },
@@ -34,4 +34,16 @@ test('emailAttendeesUrl opens Gmail compose with To and the meeting title as Sub
 test('emailAttendeesUrl is empty when nobody else is invited', () => {
   assert.equal(emailAttendeesUrl({ title: 'Focus', guests: [guests[0]] }), '');
   assert.equal(emailAttendeesUrl({ title: 'Focus' }), '');
+});
+
+test('calendarWindowFeatures centers a 900x760 window on the available screen', () => {
+  assert.equal(calendarWindowFeatures({ availWidth: 1920, availHeight: 1080 }), 'width=900,height=760,left=510,top=160,resizable=yes,scrollbars=yes');
+});
+
+test('calendarWindowFeatures shrinks to a small screen and never goes off the top-left', () => {
+  assert.equal(calendarWindowFeatures({ availWidth: 800, availHeight: 600 }), 'width=800,height=600,left=0,top=0,resizable=yes,scrollbars=yes');
+});
+
+test('calendarWindowFeatures without screen sizes falls back to the default size at the origin', () => {
+  assert.equal(calendarWindowFeatures(undefined), 'width=900,height=760,left=0,top=0,resizable=yes,scrollbars=yes');
 });

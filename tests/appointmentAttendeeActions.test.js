@@ -37,6 +37,11 @@ for (const c of clients) {
       assert.equal(v.copyChatText, undefined);
     });
 
+    it('openGCalWindow exists: the Calendar icon opens a sized window, since the installed app has no tabs', () => {
+      const v = makeVm(c.factory, {});
+      assert.equal(typeof v.openGCalWindow, 'function');
+    });
+
     it('eventGCalLink opens the appointment in Google Calendar', () => {
       const v = makeVm(c.factory, {});
       assert.equal(v.eventGCalLink({ id: 'e1', htmlLink: 'https://calendar.google.com/event?eid=abc' }), 'https://calendar.google.com/event?eid=abc');
@@ -50,6 +55,7 @@ for (const file of ['index.html', 'gas-app/Index.html']) {
     assert.match(html, /<a [^>]*class="[^"]*appt-guest-action[^"]*"[^>]*:href="emailGuestsUrl\(evt\)"[^>]*target="_blank"[^>]*rel="noopener noreferrer"/);
     assert.match(html, /<a [^>]*class="[^"]*appt-guest-action[^"]*"[^>]*:href="eventGCalLink\(evt\)"[^>]*target="_blank"[^>]*rel="noopener noreferrer"[^>]*title="Open in Google Calendar[^"]*"[^>]*>\s*<span class="material-symbols-outlined icon-14">calendar_today<\/span>/);
     assert.equal((html.match(/x-show="hasOtherGuests\(evt\)"/g) || []).length, 1);
+    assert.match(html, /:href="eventGCalLink\(evt\)"[^>]*@click\.stop\.prevent="openGCalWindow\(evt\)"/);
     assert.doesNotMatch(html, /copyChatText|chatGuestsUrl/);
   });
 }

@@ -26,7 +26,7 @@ import {
 import { buildGoalTree, horizonCounts, childHorizonKey, smartCheck, rollupProgress, balanceByArea } from './goalEngine.js';
 import { executeUniversalSearch, flattenSearchResults, mergeArchiveSearchResults, matchesSearchQuery, resolveSlashKeyAction } from './searchEngine.js';
 import { resolveHotkey, resolveNotesHotkey, stepCursor, cursorAfterRemoval, hotkeySections } from './hotkeys.js';
-import { otherGuestEmails, emailAttendeesUrl } from './attendeeActions.js';
+import { otherGuestEmails, emailAttendeesUrl, calendarWindowFeatures } from './attendeeActions.js';
 import { formatEventDescriptionHtml, extractMeetLink } from './calendarEngine.js';
 import { parseIndexEntriesFromNote } from './indexParser.js';
 import { getQuoteForDateStr } from './quotesEngine.js';
@@ -6968,6 +6968,15 @@ Alpine.data('plannerApp', () => ({
 
       emailGuestsUrl(evt) {
         return emailAttendeesUrl(evt);
+      },
+
+      // Calendar opens in its own named window (reused on the next click), not a tab: the installed app has none.
+      // The anchor keeps a real href for the middle-click and copy-link cases; a blocked popup is reported, not swallowed.
+      openGCalWindow(evt) {
+        const win = window.open(this.eventGCalLink(evt), 'dayPlannerGCal', calendarWindowFeatures(window.screen));
+        if (win) return;
+        console.error('Open in Google Calendar: window.open returned null (popup blocked); no window opened:\n' + new Error('popup blocked').stack);
+        this.showTaskToast('Popup blocked: allow popups for this app to open Google Calendar');
       },
 
       isRsvpSaving(evt) {
