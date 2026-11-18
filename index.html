@@ -404,7 +404,7 @@
                 </thead>
                 <tbody>
                   <template x-for="task in sortedTasks(dailyTasks, dailyTaskSort)" :key="task.id">
-                    <tr :id="'daily-row-' + task.id" tabindex="-1" :class="{ 'search-hit': searchHitTaskId === task.id }">
+                    <tr :id="'daily-row-' + task.id" tabindex="-1" :class="{ 'search-hit': searchHitTaskId === task.id, 'row-cursor': hotkeyCursorId === task.id }">
                       <td>
                         <span class="priority-badge" :class="parseTask(task.title).priorityGroup || 'A'" x-text="parseTask(task.title).priorityCode || 'A1'"></span>
                       </td>
@@ -1119,7 +1119,7 @@
               </thead>
               <tbody>
                 <template x-for="mTask in masterRowsShown" :key="mTask.id">
-                  <tr :id="'master-row-' + mTask.id" tabindex="-1" :class="{ 'row-just-added': mTask._isNew, 'search-hit': searchHitTaskId === mTask.id }">
+                  <tr :id="'master-row-' + mTask.id" tabindex="-1" :class="{ 'row-just-added': mTask._isNew, 'search-hit': searchHitTaskId === mTask.id, 'row-cursor': hotkeyCursorId === mTask.id }">
                     <td>
                       <span class="priority-badge" :class="parseTask(mTask.title).priorityGroup || 'A'" x-text="parseTask(mTask.title).priorityCode || 'A1'"></span>
                     </td>
@@ -1649,7 +1649,7 @@
                       </thead>
                       <tbody>
                         <template x-for="item in q.items" :key="item.itemId || item.threadId">
-                          <tr>
+                          <tr :id="'triage-row-' + (item.itemId || item.threadId)" :class="{ 'row-cursor': hotkeyCursorId === (item.itemId || item.threadId) }">
                             <td class="hub-col-score">
                               <span class="hub-score-num" x-text="item.score"></span>
                               <span class="hub-band" x-text="hubBand(item.score)"></span>
@@ -3358,6 +3358,32 @@
     </dialog>
 
     <!-- Insert Hyperlink Modal -->
+    <dialog class="modal-backdrop" :open="hotkeyHelpOpen" x-show="hotkeyHelpOpen" x-cloak aria-labelledby="hotkeyHelpTitle" @click.self="hotkeyHelpOpen = false">
+      <article class="modal-card modal-card-hotkeys">
+        <header class="modal-header-spaced">
+          <h3 id="hotkeyHelpTitle" class="modal-title-with-icon">
+            <span class="material-symbols-outlined">keyboard</span> Keyboard shortcuts
+          </h3>
+          <button type="button" class="btn-icon-subtle" @click="hotkeyHelpOpen = false" aria-label="Close dialog" title="Close">
+            <span class="material-symbols-outlined icon-18">close</span>
+          </button>
+        </header>
+        <div class="hotkey-help-grid">
+          <template x-for="s in hotkeyHelpSections" :key="s.section">
+            <section>
+              <h4 class="hotkey-help-heading" x-text="s.section"></h4>
+              <dl class="hotkey-help-list">
+                <template x-for="r in s.rows" :key="r.keys">
+                  <div class="hotkey-help-row"><dt><kbd x-text="r.keys"></kbd></dt><dd x-text="r.label"></dd></div>
+                </template>
+              </dl>
+            </section>
+          </template>
+        </div>
+        <p class="hotkey-help-foot">Also: / search, t jump to Today, Ctrl+K search, Alt+A, B or C priority group. j and k work on Triage, Today and Master Tasks.</p>
+      </article>
+    </dialog>
+
     <dialog class="modal-backdrop" :open="linkModalOpen" x-show="linkModalOpen" x-cloak aria-labelledby="linkModalTitle" @click.self="closeLinkModal()" @keydown.escape.window="if (linkModalOpen) closeLinkModal()">
       <article class="modal-card modal-card-link">
         <header class="modal-header-spaced">

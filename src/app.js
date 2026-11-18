@@ -25,6 +25,7 @@ import {
 } from './taskEngine.js';
 import { buildGoalTree, horizonCounts, childHorizonKey, smartCheck, rollupProgress, balanceByArea } from './goalEngine.js';
 import { executeUniversalSearch, flattenSearchResults, mergeArchiveSearchResults, matchesSearchQuery, resolveSlashKeyAction } from './searchEngine.js';
+import { resolveHotkey, resolveNotesHotkey, stepCursor, cursorAfterRemoval, hotkeySections } from './hotkeys.js';
 import { formatEventDescriptionHtml, extractMeetLink } from './calendarEngine.js';
 import { parseIndexEntriesFromNote } from './indexParser.js';
 import { getQuoteForDateStr } from './quotesEngine.js';
@@ -403,6 +404,9 @@ Alpine.data('plannerApp', () => ({
       docBulkDays: 0,
       docBulkIds: [],
       triageStale: false,
+      // Gmail-style shortcuts (src/hotkeys.js): the row j/k moved to, as a row id, and the ? help dialog.
+      hotkeyCursorId: '',
+      hotkeyHelpOpen: false,
       triageSavedAt: 0,
       // A Triage action created or found a Task: the Daily list on screen predates it, so re-fetch on return.
       dailyNeedsRefresh: false,
@@ -1397,6 +1401,13 @@ Alpine.data('plannerApp', () => ({
             return;
           }
 
+          const hotkey = resolveHotkey(e, this.hotkeyContext(e));
+          if (hotkey) {
+            e.preventDefault();
+            this.runHotkey(hotkey);
+            return;
+          }
+
           if ((e.ctrlKey || e.metaKey) && keyLower === 'k') {
             if (!isInputFocused) {
               e.preventDefault();
@@ -1417,7 +1428,10 @@ Alpine.data('plannerApp', () => ({
             e.preventDefault();
             this.jumpToToday();
           } else if (e.key === 'Escape') {
-            if (this.dayPickerOpen) {
+            if (this.hotkeyHelpOpen) {
+              e.preventDefault();
+              this.hotkeyHelpOpen = false;
+            } else if (this.dayPickerOpen) {
               e.preventDefault();
               this.closeDayPicker();
             } else if (this.masterTaskDuePickerOpen) {
@@ -1464,6 +1478,96 @@ Alpine.data('plannerApp', () => ({
         if (input) {
           input.focus();
         }
+      },
+
+      get hotkeyHelpSections() {
+        return hotkeySections();
+      },
+
+      // What resolveHotkey needs to know about the focus. An open dialog is found in the DOM, so a new modal needs no entry here.
+      hotkeyContext(e) {
+        const t = e.target;
+        const tag = t && t.tagName;
+        return {
+          view: this.activeView,
+          typing: !!t && (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || !!t.isContentEditable),
+          onControl: tag === 'BUTTON' || tag === 'A',
+          modalOpen: !!document.querySelector('dialog[open]'),
+          helpOpen: this.hotkeyHelpOpen
+        };
+      },
+
+      // Row ids in the order they are on screen, for the tab the cursor is on.
+      hotkeyRowIds() {
+        if (this.activeView === 'triage') return this.triageQueueList.flatMap((q) => q.items.map((i) => i.itemId || i.threadId));
+        if (this.activeView === 'master-tasks') return this.masterRowsShown.map((t) => t.id);
+        return this.sortedTasks(this.dailyTasks, this.dailyTaskSort).map((t) => t.id);
+      },
+
+      hotkeyRowDomId(id) {
+        const prefix = this.activeView === 'triage' ? 'triage-row-' : this.activeView === 'master-tasks' ? 'master-row-' : 'daily-row-';
+        return prefix + id;
+      },
+
+      hotkeyCursorRow() {
+        const id = this.hotkeyCursorId;
+        if (this.activeView === 'triage') {
+          for (const q of this.triageQueueList) {
+            const hit = q.items.find((i) => (i.itemId || i.threadId) === id);
+            if (hit) return hit;
+          }
+          return null;
+        }
+        const list = this.activeView === 'master-tasks' ? this.masterRowsShown : this.dailyTasks;
+        return list.find((t) => t.id === id) || null;
+      },
+
+      moveHotkeyCursor(delta) {
+        this.hotkeyCursorId = stepCursor(this.hotkeyRowIds(), this.hotkeyCursorId, delta);
+        const el = this.hotkeyCursorId ? document.getElementById(this.hotkeyRowDomId(this.hotkeyCursorId)) : null;
+        if (el) el.scrollIntoView({ block: 'nearest' });
+      },
+
+      runHotkey(id) {
+        if (id === 'help') {
+          this.hotkeyHelpOpen = !this.hotkeyHelpOpen;
+          return null;
+        }
+        if (id === 'cursor-next' || id === 'cursor-prev') {
+          this.moveHotkeyCursor(id === 'cursor-next' ? 1 : -1);
+          return null;
+        }
+        const row = this.hotkeyCursorRow();
+        if (!row) return null;
+        if (this.activeView === 'triage') return this.runTriageHotkey(id, row);
+        if (id !== 'trash') return null;
+        // The cursor moves on first: the task leaves the list at once and the next row takes its place.
+        this.hotkeyCursorId = cursorAfterRemoval(this.hotkeyRowIds(), row.id);
+        return this.activeView === 'master-tasks' ? this.deleteMasterTask(row) : this.deleteDailyTask(row);
+      },
+
+      // Same handlers and same disabled rules as the row buttons. A Doc row has no Archive or Trash: it says so instead of doing nothing.
+      runTriageHotkey(id, item) {
+        const isDoc = item.sourceType === 'DOC_COMMENT';
+        if (id === 'open') {
+          const link = document.getElementById(this.hotkeyRowDomId(this.hotkeyCursorId));
+          const a = link && link.querySelector('a.hub-subject, a[aria-label^="Open Gmail"]');
+          if (a) a.click();
+          return null;
+        }
+        if (this.triageStale) {
+          this.showTaskToast('Triage is out of date. Wait for the refresh, then try again.');
+          return null;
+        }
+        if (isDoc && (id === 'triage-archive' || id === 'trash')) {
+          this.showTaskToast('A Doc comment cannot be archived or trashed. m dismisses it, Shift+T makes it a Task.');
+          return null;
+        }
+        if (id === 'triage-task-today') return isDoc ? this.taskDocEntry(item) : this.triageTask(item, true);
+        // The row leaves the list at once (and comes back if the call fails), so the cursor moves to its neighbour first.
+        this.hotkeyCursorId = cursorAfterRemoval(this.hotkeyRowIds(), this.hotkeyCursorId);
+        if (id === 'triage-dismiss') return isDoc ? this.dismissDocEntry(item) : this.dismissTriageEntry(item);
+        return id === 'trash' ? this.trashTriageEntry(item) : this.archiveTriageEntry(item);
       },
 
       // Files (or replaces) the tray entry for key. message is user-facing (err.message only,
@@ -3905,6 +4009,13 @@ Alpine.data('plannerApp', () => ({
           if (e.key === 'c' || e.key === 'C') {
             e.preventDefault();
             this.applyCardFormat(card, 'checklist');
+            return;
+          }
+          // Google Docs and Gmail: Ctrl+Shift+8 bulleted list, Ctrl+Shift+7 numbered list.
+          const listKey = resolveNotesHotkey(e);
+          if (listKey) {
+            e.preventDefault();
+            this.applyCardFormat(card, listKey === 'notes-bullets' ? 'bullet' : 'ordered');
             return;
           }
         }

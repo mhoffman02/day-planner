@@ -4621,6 +4621,65 @@
     width: 90%;
   }
 
+  /* Keyboard shortcut help (? key): sections in columns, keys as flat rectangles */
+  .modal-card-hotkeys {
+    max-width: 720px;
+    width: 92%;
+  }
+
+  .hotkey-help-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px 28px;
+  }
+
+  .hotkey-help-heading {
+    margin: 0 0 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border-line);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+  }
+
+  .hotkey-help-list {
+    margin: 0;
+  }
+
+  .hotkey-help-row {
+    display: grid;
+    grid-template-columns: 8.5rem 1fr;
+    gap: 8px;
+    padding: 3px 0;
+    font-size: 0.85rem;
+  }
+
+  .hotkey-help-row dt,
+  .hotkey-help-row dd {
+    margin: 0;
+  }
+
+  .hotkey-help-row kbd {
+    display: inline-block;
+    padding: 1px 6px;
+    border: 1px solid var(--border-line);
+    border-radius: 3px;
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .hotkey-help-foot {
+    margin: 14px 0 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+
+  /* The row j/k moved to: a teal bar on the left edge, no fill */
+  tr.row-cursor > td:first-child {
+    box-shadow: inset 3px 0 0 var(--binder-teal);
+  }
+
   .link-label-row {
     display: flex;
     justify-content: space-between;

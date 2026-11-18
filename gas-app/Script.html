@@ -1883,6 +1883,115 @@
     return 'open-search';
   }
 
+  const HOTKEY_VIEWS = Object.freeze({ triage: 'triage', daily: 'daily', master: 'master-tasks' });
+  const ROW_VIEWS = [HOTKEY_VIEWS.triage, HOTKEY_VIEWS.daily, HOTKEY_VIEWS.master];
+
+  const HOTKEY_SECTIONS = Object.freeze(['Navigation', 'Triage', 'Tasks', 'Notes', 'Application']);
+
+  /**
+   * scope window: dispatched from the window keydown handler. scope notes: dispatched from the Notes line editor.
+   * A combo is { label, key?, code?, ctrl?, shift? }: ctrl means Ctrl or Cmd; shift undefined means "ignore Shift" (symbols
+   * such as # and ? need it); repeat true allows a held key (cursor moves only, never a destructive action).
+   */
+  const HOTKEYS = Object.freeze([
+    { id: 'cursor-next', section: 'Navigation', scope: 'window', views: ROW_VIEWS, label: 'Next row', combos: [{ label: 'j', key: 'j', shift: false, repeat: true }] },
+    { id: 'cursor-prev', section: 'Navigation', scope: 'window', views: ROW_VIEWS, label: 'Previous row', combos: [{ label: 'k', key: 'k', shift: false, repeat: true }] },
+    { id: 'open', section: 'Navigation', scope: 'window', views: [HOTKEY_VIEWS.triage], label: 'Open the email in Gmail (the Doc for a Doc row)', combos: [{ label: 'o', key: 'o', shift: false }, { label: 'Enter', key: 'Enter', shift: false, notOnControl: true }] },
+    { id: 'triage-archive', section: 'Triage', scope: 'window', views: [HOTKEY_VIEWS.triage], label: 'Archive in Gmail, then next row', combos: [{ label: 'e', key: 'e', shift: false }] },
+    { id: 'trash', section: 'Triage', scope: 'window', views: ROW_VIEWS, label: 'Trash: move the email to Gmail Trash, or delete the task', combos: [{ label: '#', key: '#' }] },
+    { id: 'triage-task-today', section: 'Triage', scope: 'window', views: [HOTKEY_VIEWS.triage], label: 'Task Today (a Doc row: Task)', combos: [{ label: 'Shift + t', key: 'T', shift: true }] },
+    { id: 'triage-dismiss', section: 'Triage', scope: 'window', views: [HOTKEY_VIEWS.triage], label: 'Dismiss from Triage, then next row', combos: [{ label: 'm', key: 'm', shift: false }] },
+    { id: 'notes-bullets', section: 'Notes', scope: 'notes', label: 'Bulleted list', combos: [{ label: 'Ctrl + Shift + 8', code: 'Digit8', ctrl: true, shift: true }] },
+    { id: 'notes-numbers', section: 'Notes', scope: 'notes', label: 'Numbered list', combos: [{ label: 'Ctrl + Shift + 7', code: 'Digit7', ctrl: true, shift: true }] },
+    { id: 'help', section: 'Application', scope: 'window', views: null, label: 'Show or hide this list', combos: [{ label: '?', key: '?' }] }
+  ]);
+
+  function comboMatches(c, e) {
+    const mod = !!(e.ctrlKey || e.metaKey);
+    if (mod !== !!c.ctrl || e.altKey) return false;
+    if (c.shift !== undefined && !!e.shiftKey !== c.shift) return false;
+    return c.code ? e.code === c.code : e.key === c.key;
+  }
+
+  /**
+   * Which window shortcut a keydown means, or null. Keys are ignored while typing, while a dialog or menu is open,
+   * while an IME is composing, and (for everything but j and k) while a key is held down.
+   * @param {{key:string, code?:string, ctrlKey?:boolean, metaKey?:boolean, altKey?:boolean, shiftKey?:boolean, repeat?:boolean, isComposing?:boolean, defaultPrevented?:boolean}} e Keyboard event.
+   * @param {{view:string, typing?:boolean, onControl?:boolean, modalOpen?:boolean, helpOpen?:boolean}} ctx typing: a text field has focus; onControl: a button or link has focus (Enter belongs to it); modalOpen: a dialog or menu is open.
+   * @returns {?string} Hotkey id.
+   */
+  function resolveHotkey(e, ctx) {
+    if (!e || e.defaultPrevented || e.isComposing || ctx.typing) return null;
+    if (ctx.modalOpen && !ctx.helpOpen) return null;
+    for (const h of HOTKEYS) {
+      if (!windowKeyApplies(h, ctx)) continue;
+      const hit = h.combos.find((c) => comboMatches(c, e));
+      if (hit) return comboAllowed(hit, e, ctx) ? h.id : null;
+    }
+    return null;
+  }
+
+  // While the help overlay is open only "?" (toggle) is live, so j, e or # cannot act on the rows behind it.
+  function windowKeyApplies(h, ctx) {
+    if (h.scope !== 'window') return false;
+    if (ctx.helpOpen && h.id !== 'help') return false;
+    return !h.views || h.views.indexOf(ctx.view) !== -1;
+  }
+
+  function comboAllowed(hit, e, ctx) {
+    if (e.repeat && !hit.repeat) return false;
+    return !(hit.notOnControl && ctx.onControl);
+  }
+
+  /**
+   * Which Notes line-editor shortcut a keydown means, or null.
+   * @param {{code?:string, ctrlKey?:boolean, metaKey?:boolean, altKey?:boolean, shiftKey?:boolean}} e Keyboard event.
+   * @returns {?string} Hotkey id.
+   */
+  function resolveNotesHotkey(e) {
+    for (const h of HOTKEYS) {
+      if (h.scope === 'notes' && h.combos.some((c) => comboMatches(c, e))) return h.id;
+    }
+    return null;
+  }
+
+  /**
+   * Cursor move with no wrap. With no cursor yet (or a cursor row that is gone), either direction lands on the first row.
+   * @param {string[]} ids Row ids in display order.
+   * @param {string} currentId Current cursor id.
+   * @param {number} delta 1 for next, -1 for previous.
+   * @returns {string} New cursor id, or an empty string when there are no rows.
+   */
+  function stepCursor(ids, currentId, delta) {
+    if (!ids.length) return '';
+    const at = ids.indexOf(currentId);
+    if (at === -1) return ids[0];
+    return ids[Math.min(Math.max(at + delta, 0), ids.length - 1)];
+  }
+
+  /**
+   * Where the cursor goes when its row leaves the list (archived, trashed, dismissed): the row that takes its place,
+   * else the one before it, else nothing.
+   * @param {string[]} ids Row ids in display order, before the removal.
+   * @param {string} removedId The row that is leaving.
+   * @returns {string} New cursor id.
+   */
+  function cursorAfterRemoval(ids, removedId) {
+    const at = ids.indexOf(removedId);
+    if (at === -1) return '';
+    return ids[at + 1] || ids[at - 1] || '';
+  }
+
+  /**
+   * Help-overlay content straight from the table.
+   * @returns {Array<{section:string, rows:Array<{keys:string, label:string}>}>} Sections that have at least one row.
+   */
+  function hotkeySections() {
+    return HOTKEY_SECTIONS
+      .map((section) => ({ section, rows: HOTKEYS.filter((h) => h.section === section).map((h) => ({ keys: h.combos.map((c) => c.label).join(' or '), label: h.label })) }))
+      .filter((s) => s.rows.length > 0);
+  }
+
   // Same names as in src/app.js, so the shared component code mirrors line for line (tools/check-mirror.js).
   const callBridge = dpCallBridge;
   const getCached = dpGetCached;
@@ -3809,6 +3918,9 @@
       docBulkDays: 0,
       docBulkIds: [],
       triageStale: false,
+      // Gmail-style shortcuts (src/hotkeys.js): the row j/k moved to, as a row id, and the ? help dialog.
+      hotkeyCursorId: '',
+      hotkeyHelpOpen: false,
       triageSavedAt: 0,
       // A Triage action created or found a Task: the Daily list on screen predates it, so re-fetch on return.
       dailyNeedsRefresh: false,
@@ -4798,6 +4910,13 @@
             return;
           }
 
+          const hotkey = resolveHotkey(e, this.hotkeyContext(e));
+          if (hotkey) {
+            e.preventDefault();
+            this.runHotkey(hotkey);
+            return;
+          }
+
           if ((e.ctrlKey || e.metaKey) && keyLower === 'k') {
             if (!isInputFocused) {
               e.preventDefault();
@@ -4818,7 +4937,10 @@
             e.preventDefault();
             this.jumpToToday();
           } else if (e.key === 'Escape') {
-            if (this.dayPickerOpen) {
+            if (this.hotkeyHelpOpen) {
+              e.preventDefault();
+              this.hotkeyHelpOpen = false;
+            } else if (this.dayPickerOpen) {
               e.preventDefault();
               this.closeDayPicker();
             } else if (this.masterTaskDuePickerOpen) {
@@ -4865,6 +4987,96 @@
         if (input) {
           input.focus();
         }
+      },
+
+      get hotkeyHelpSections() {
+        return hotkeySections();
+      },
+
+      // What resolveHotkey needs to know about the focus. An open dialog is found in the DOM, so a new modal needs no entry here.
+      hotkeyContext(e) {
+        const t = e.target;
+        const tag = t && t.tagName;
+        return {
+          view: this.activeView,
+          typing: !!t && (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || !!t.isContentEditable),
+          onControl: tag === 'BUTTON' || tag === 'A',
+          modalOpen: !!document.querySelector('dialog[open]'),
+          helpOpen: this.hotkeyHelpOpen
+        };
+      },
+
+      // Row ids in the order they are on screen, for the tab the cursor is on.
+      hotkeyRowIds() {
+        if (this.activeView === 'triage') return this.triageQueueList.flatMap((q) => q.items.map((i) => i.itemId || i.threadId));
+        if (this.activeView === 'master-tasks') return this.masterRowsShown.map((t) => t.id);
+        return this.sortedTasks(this.dailyTasks, this.dailyTaskSort).map((t) => t.id);
+      },
+
+      hotkeyRowDomId(id) {
+        const prefix = this.activeView === 'triage' ? 'triage-row-' : this.activeView === 'master-tasks' ? 'master-row-' : 'daily-row-';
+        return prefix + id;
+      },
+
+      hotkeyCursorRow() {
+        const id = this.hotkeyCursorId;
+        if (this.activeView === 'triage') {
+          for (const q of this.triageQueueList) {
+            const hit = q.items.find((i) => (i.itemId || i.threadId) === id);
+            if (hit) return hit;
+          }
+          return null;
+        }
+        const list = this.activeView === 'master-tasks' ? this.masterRowsShown : this.dailyTasks;
+        return list.find((t) => t.id === id) || null;
+      },
+
+      moveHotkeyCursor(delta) {
+        this.hotkeyCursorId = stepCursor(this.hotkeyRowIds(), this.hotkeyCursorId, delta);
+        const el = this.hotkeyCursorId ? document.getElementById(this.hotkeyRowDomId(this.hotkeyCursorId)) : null;
+        if (el) el.scrollIntoView({ block: 'nearest' });
+      },
+
+      runHotkey(id) {
+        if (id === 'help') {
+          this.hotkeyHelpOpen = !this.hotkeyHelpOpen;
+          return null;
+        }
+        if (id === 'cursor-next' || id === 'cursor-prev') {
+          this.moveHotkeyCursor(id === 'cursor-next' ? 1 : -1);
+          return null;
+        }
+        const row = this.hotkeyCursorRow();
+        if (!row) return null;
+        if (this.activeView === 'triage') return this.runTriageHotkey(id, row);
+        if (id !== 'trash') return null;
+        // The cursor moves on first: the task leaves the list at once and the next row takes its place.
+        this.hotkeyCursorId = cursorAfterRemoval(this.hotkeyRowIds(), row.id);
+        return this.activeView === 'master-tasks' ? this.deleteMasterTask(row) : this.deleteDailyTask(row);
+      },
+
+      // Same handlers and same disabled rules as the row buttons. A Doc row has no Archive or Trash: it says so instead of doing nothing.
+      runTriageHotkey(id, item) {
+        const isDoc = item.sourceType === 'DOC_COMMENT';
+        if (id === 'open') {
+          const link = document.getElementById(this.hotkeyRowDomId(this.hotkeyCursorId));
+          const a = link && link.querySelector('a.hub-subject, a[aria-label^="Open Gmail"]');
+          if (a) a.click();
+          return null;
+        }
+        if (this.triageStale) {
+          this.showTaskToast('Triage is out of date. Wait for the refresh, then try again.');
+          return null;
+        }
+        if (isDoc && (id === 'triage-archive' || id === 'trash')) {
+          this.showTaskToast('A Doc comment cannot be archived or trashed. m dismisses it, Shift+T makes it a Task.');
+          return null;
+        }
+        if (id === 'triage-task-today') return isDoc ? this.taskDocEntry(item) : this.triageTask(item, true);
+        // The row leaves the list at once (and comes back if the call fails), so the cursor moves to its neighbour first.
+        this.hotkeyCursorId = cursorAfterRemoval(this.hotkeyRowIds(), this.hotkeyCursorId);
+        if (id === 'triage-dismiss') return isDoc ? this.dismissDocEntry(item) : this.dismissTriageEntry(item);
+        return id === 'trash' ? this.trashTriageEntry(item) : this.archiveTriageEntry(item);
       },
 
       // Files (or replaces) the tray entry for key. message is user-facing (err.message only,
@@ -7306,6 +7518,13 @@
           if (e.key === 'c' || e.key === 'C') {
             e.preventDefault();
             this.applyCardFormat(card, 'checklist');
+            return;
+          }
+          // Google Docs and Gmail: Ctrl+Shift+8 bulleted list, Ctrl+Shift+7 numbered list.
+          const listKey = resolveNotesHotkey(e);
+          if (listKey) {
+            e.preventDefault();
+            this.applyCardFormat(card, listKey === 'notes-bullets' ? 'bullet' : 'ordered');
             return;
           }
         }
