@@ -1,9 +1,10 @@
 /**
  * @file dataTipCallout.test.js
- * @description CSS-only callout for icon controls (user 2026-11-18): a [data-tip] element shows its text in a bordered
- * bubble with a tail on hover and keyboard focus, no JavaScript. The appointment row icons opt in with data-tip and
- * drop title (the plain browser tooltip), keeping aria-label for screen readers. Checks both stylesheet copies and both
- * Index copies.
+ * @description Callout for icon controls (user 2026-11-18): a [data-tip] element shows its text in a bordered bubble with
+ * a tail on hover and keyboard focus. The bubble is one fixed-position element on the body, placed by src/dataTip.js, so
+ * a scrolling list or a scrollbar cannot clip it (the first CSS-only version was cut off). The appointment row icons opt
+ * in with data-tip and drop title (the plain browser tooltip), keeping aria-label for screen readers. Checks both
+ * stylesheet copies, both Index copies and the wiring in both client copies.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -12,23 +13,33 @@ import fs from 'node:fs';
 const read = (p) => fs.readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
 
 for (const file of ['src/styles.css', 'gas-app/Styles.html']) {
-  test(`${file}: [data-tip] draws a bubble and a tail from the attribute, on hover and focus-visible`, () => {
+  test(`${file}: the bubble is fixed to the viewport on the top layer, hidden until shown`, () => {
     const css = read(file);
-    assert.match(css, /\[data-tip\]::after\s*\{[^}]*content:\s*attr\(data-tip\)/);
-    assert.match(css, /\[data-tip\]::before\s*\{[^}]*content:\s*""/);
-    assert.match(css, /\[data-tip\]:hover::after/);
-    assert.match(css, /\[data-tip\]:focus-visible::after/);
+    const rule = css.match(/\.data-tip-bubble\s*\{([^}]*)\}/)[1];
+    assert.match(rule, /position:\s*fixed/);
+    assert.match(rule, /z-index:\s*var\(--z-10000\)/);
+    assert.match(rule, /pointer-events:\s*none/);
+    assert.match(rule, /opacity:\s*0/);
+    assert.match(css, /\.data-tip-bubble\.is-shown\s*\{[^}]*opacity:\s*1/);
   });
 
-  test(`${file}: [data-tip-pos="top"] flips the bubble above the control`, () => {
-    assert.match(read(file), /\[data-tip\]\[data-tip-pos="top"\]::after\s*\{[^}]*bottom:/);
+  test(`${file}: the tail points back at the control from either side, at the offset JS sets`, () => {
+    const css = read(file);
+    assert.match(css, /\.data-tip-bubble::before\s*\{[^}]*left:\s*var\(--tip-tail-x/);
+    assert.match(css, /\.data-tip-bubble\[data-side="bottom"\]::before/);
+    assert.match(css, /\.data-tip-bubble\[data-side="top"\]::before/);
   });
 
-  test(`${file}: the callout is flat (4px radius, no pill) and uses no !important`, () => {
+  test(`${file}: the callout is flat (4px radius, no pill), uses no !important, and the old pseudo-element version is gone`, () => {
     const css = read(file);
-    const block = css.slice(css.indexOf('[data-tip]::after'), css.indexOf('[data-tip]::after') + 600);
+    const block = css.slice(css.indexOf('.data-tip-bubble {'), css.indexOf('.data-tip-bubble.is-shown'));
     assert.match(block, /border-radius:\s*4px/);
     assert.doesNotMatch(block, /!important/);
+    assert.doesNotMatch(css, /\[data-tip\]/);
+  });
+
+  test(`${file}: reduced motion turns the fade off`, () => {
+    assert.match(read(file), /prefers-reduced-motion: reduce\)\s*\{\s*\.data-tip-bubble\.is-shown\s*\{\s*transition:\s*none/);
   });
 }
 
@@ -41,19 +52,15 @@ for (const file of ['index.html', 'gas-app/Index.html']) {
   });
 }
 
-for (const file of ['src/styles.css', 'gas-app/Styles.html']) {
-  test(`${file}: the bubble clears the mouse cursor (offset of 22px or more, as the notes popover allows)`, () => {
-    const css = read(file);
-    const below = css.match(/\[data-tip\]::after\s*\{[^}]*?top:\s*calc\(100% \+ (\d+)px\)/);
-    const above = css.match(/\[data-tip\]\[data-tip-pos="top"\]::after\s*\{[^}]*?bottom:\s*calc\(100% \+ (\d+)px\)/);
-    assert.ok(below && Number(below[1]) >= 22, 'below offset');
-    assert.ok(above && Number(above[1]) >= 22, 'above offset');
-  });
-
-  test(`${file}: the tail keeps touching the bubble edge when the bubble moves out`, () => {
-    const css = read(file);
-    const bubble = Number(css.match(/\[data-tip\]::after\s*\{[^}]*?top:\s*calc\(100% \+ (\d+)px\)/)[1]);
-    const tail = Number(css.match(/\[data-tip\]::before\s*\{[^}]*?top:\s*calc\(100% \+ (\d+)px\)/)[1]);
-    assert.equal(bubble - tail, 5);
+for (const file of ['src/app.js', 'gas-app/Script.html']) {
+  test(`${file}: init wires the data-tip callout once`, () => {
+    const code = read(file);
+    assert.equal((code.match(/initDataTips\(document, window\)/g) || []).length, 1);
   });
 }
+
+test('gas-app/Script.html carries the same placement and wiring code as src/dataTip.js', () => {
+  const script = read('gas-app/Script.html');
+  assert.match(script, /function dataTipPlacement\(/);
+  assert.match(script, /function initDataTips\(/);
+});

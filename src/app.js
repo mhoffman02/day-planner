@@ -27,6 +27,7 @@ import { buildGoalTree, horizonCounts, childHorizonKey, smartCheck, rollupProgre
 import { executeUniversalSearch, flattenSearchResults, mergeArchiveSearchResults, matchesSearchQuery, resolveSlashKeyAction } from './searchEngine.js';
 import { resolveHotkey, resolveNotesHotkey, stepCursor, cursorAfterRemoval, hotkeySections } from './hotkeys.js';
 import { otherGuestEmails, emailAttendeesUrl, calendarWindowFeatures } from './attendeeActions.js';
+import { initDataTips } from './dataTip.js';
 import { formatEventDescriptionHtml, extractMeetLink } from './calendarEngine.js';
 import { parseIndexEntriesFromNote } from './indexParser.js';
 import { getQuoteForDateStr } from './quotesEngine.js';
@@ -791,6 +792,7 @@ Alpine.data('plannerApp', () => ({
         this.initReadingWidth();
         this.initTableColumns();
         this.initUiZoom();
+        initDataTips(document, window);
         this.initDocRowLimit();
         this.initHubFlagsCache();
         if (this.hubFlags) this.hydrateHubFromIdb().catch((err) => console.error('Could not paint the saved hub data, the server answer will:', err.stack));

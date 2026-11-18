@@ -2024,6 +2024,79 @@
     return GMAIL_COMPOSE_URL + '&to=' + encodeURIComponent(to.join(',')).replace(/%2C/g, ',').replace(/%40/g, '@') + '&su=' + encodeURIComponent((evt && evt.title) || '');
   }
 
+  // data-tip callout, mirrored from src/dataTip.js. Keep both copies in sync (tests/dataTip.test.js runs the src copy).
+  const TIP_GAP = 24;
+  const TIP_MARGIN = 8;
+  const TIP_DELAY_MS = 400;
+
+  function dataTipPlacement(anchor, bubble, viewport, preferred) {
+    const centerX = anchor.left + anchor.width / 2;
+    const maxLeft = Math.max(TIP_MARGIN, viewport.width - bubble.width - TIP_MARGIN);
+    const left = Math.round(Math.min(Math.max(centerX - bubble.width / 2, TIP_MARGIN), maxLeft));
+    const fitsBelow = anchor.top + anchor.height + TIP_GAP + bubble.height + TIP_MARGIN <= viewport.height;
+    const fitsAbove = anchor.top - TIP_GAP - bubble.height >= TIP_MARGIN;
+    const wantTop = preferred === 'top';
+    const side = (wantTop ? fitsAbove || !fitsBelow : !fitsBelow && fitsAbove) ? 'top' : 'bottom';
+    const top = side === 'top' ? anchor.top - TIP_GAP - bubble.height : anchor.top + anchor.height + TIP_GAP;
+    const tailLeft = Math.round(Math.min(Math.max(centerX - left, TIP_MARGIN + 4), Math.max(TIP_MARGIN + 4, bubble.width - TIP_MARGIN - 4)));
+    return { side, left, top, tailLeft };
+  }
+
+  function initDataTips(doc, win, timers) {
+    const t = timers || { set: (fn, ms) => setTimeout(fn, ms), clear: (id) => clearTimeout(id) };
+    let bubble = null;
+    let pending = null;
+
+    const ensureBubble = () => {
+      if (bubble) return bubble;
+      bubble = doc.createElement('div');
+      bubble.className = 'data-tip-bubble';
+      bubble.setAttribute('role', 'presentation');
+      doc.body.appendChild(bubble);
+      return bubble;
+    };
+
+    const hide = () => {
+      if (pending !== null) t.clear(pending);
+      pending = null;
+      if (bubble) bubble.className = 'data-tip-bubble';
+    };
+
+    const show = (el) => {
+      const text = el.getAttribute('data-tip');
+      if (!text) return;
+      const b = ensureBubble();
+      b.textContent = text;
+      b.className = 'data-tip-bubble';
+      b.style.left = '0px';
+      b.style.top = '0px';
+      const size = b.getBoundingClientRect();
+      const p = dataTipPlacement(el.getBoundingClientRect(), { width: size.width, height: size.height }, { width: win.innerWidth, height: win.innerHeight }, el.getAttribute('data-tip-pos'));
+      b.style.left = p.left + 'px';
+      b.style.top = p.top + 'px';
+      b.style.setProperty('--tip-tail-x', p.tailLeft + 'px');
+      b.setAttribute('data-side', p.side);
+      b.className = 'data-tip-bubble is-shown';
+    };
+
+    const arm = (target, focusOnly) => {
+      const el = target && target.closest ? target.closest('[data-tip]') : null;
+      hide();
+      if (!el) return;
+      if (focusOnly && el.matches && !el.matches(':focus-visible')) return;
+      ensureBubble();
+      pending = t.set(() => { pending = null; show(el); }, TIP_DELAY_MS);
+    };
+
+    doc.addEventListener('mouseover', (e) => arm(e.target, false));
+    doc.addEventListener('focusin', (e) => arm(e.target, true));
+    doc.addEventListener('mouseout', hide);
+    doc.addEventListener('focusout', hide);
+    doc.addEventListener('mousedown', hide);
+    doc.addEventListener('keydown', hide);
+    doc.addEventListener('scroll', hide, true);
+  }
+
   // Same names as in src/app.js, so the shared component code mirrors line for line (tools/check-mirror.js).
   const callBridge = dpCallBridge;
   const getCached = dpGetCached;
@@ -4333,6 +4406,7 @@
         this.initReadingWidth();
         this.initTableColumns();
         this.initUiZoom();
+        initDataTips(document, window);
         this.initDocRowLimit();
         this.initHubFlagsCache();
         if (this.hubFlags) this.hydrateHubFromIdb().catch((err) => console.error('Could not paint the saved hub data, the server answer will:', err.stack));
