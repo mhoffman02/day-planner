@@ -6,7 +6,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { otherGuestEmails, emailAttendeesUrl, chatClipboardText, CHAT_URL } from '../src/attendeeActions.js';
+import { otherGuestEmails, emailAttendeesUrl } from '../src/attendeeActions.js';
 
 const guests = [
   { name: 'Me', email: 'me@example.test', self: true },
@@ -34,12 +34,4 @@ test('emailAttendeesUrl opens Gmail compose with To and the meeting title as Sub
 test('emailAttendeesUrl is empty when nobody else is invited', () => {
   assert.equal(emailAttendeesUrl({ title: 'Focus', guests: [guests[0]] }), '');
   assert.equal(emailAttendeesUrl({ title: 'Focus' }), '');
-});
-
-test('chatClipboardText is the meeting title then the other attendees, ready to paste into New chat', () => {
-  assert.equal(chatClipboardText({ title: 'Budget review', guests }), 'Budget review: pat@example.test, lee+x@example.test');
-});
-
-test('Chat opens in its own site', () => {
-  assert.equal(CHAT_URL, 'https://chat.google.com/');
 });

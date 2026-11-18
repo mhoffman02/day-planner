@@ -1,8 +1,8 @@
 /**
  * @file appointmentAttendeeActions.test.js
  * @description Today > Appointments row icons (user 2026-11-18): Email attendees (Gmail compose link, To and Subject
- * filled) and Chat with attendees (Chat in a new tab, "title: addresses" copied). Both show only when someone else is
- * invited. Runs against both client copies via plannerHarness, plus a markup check of both Index copies.
+ * filled; only when someone else is invited) and Open in Google Calendar (every appointment; Calendar has Chat with
+ * guests, and the old chat icon only copied addresses, so the user replaced it 2026-11-18). Runs against both client copies via plannerHarness, plus a markup check of both Index copies.
  */
 import { describe, it, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -31,42 +31,25 @@ for (const c of clients) {
       assert.equal(v.emailGuestsUrl(solo), '');
     });
 
-    it('chatGuestsUrl is Google Chat', () => {
-      assert.equal(makeVm(c.factory, {}).chatGuestsUrl, 'https://chat.google.com/');
+    it('the chat copy helpers are gone: the second icon is the Calendar opener', () => {
+      const v = makeVm(c.factory, {});
+      assert.equal(v.chatGuestsUrl, undefined);
+      assert.equal(v.copyChatText, undefined);
     });
 
-    it('copyChatText copies "title: addresses" and says so', async () => {
-      const copied = [];
-      Object.defineProperty(globalThis, 'navigator', { value: { clipboard: { writeText: async (t) => { copied.push(t); } } }, configurable: true });
+    it('eventGCalLink opens the appointment in Google Calendar', () => {
       const v = makeVm(c.factory, {});
-      const toasts = [];
-      v.showTaskToast = (m) => toasts.push(m);
-      await v.copyChatText(evt);
-      await settle();
-      assert.deepEqual(copied, ['Budget review: pat@example.test']);
-      assert.match(toasts[0], /paste.*New chat/i);
-    });
-
-    it('copyChatText with the clipboard blocked says so instead of failing quietly', async () => {
-      Object.defineProperty(globalThis, 'navigator', { value: { clipboard: { writeText: async () => { throw new Error('denied'); } } }, configurable: true });
-      const v = makeVm(c.factory, {});
-      const toasts = [];
-      v.showTaskToast = (m) => toasts.push(m);
-      const errors = [];
-      const orig = console.error;
-      console.error = (...a) => errors.push(a.join(' '));
-      try { await v.copyChatText(evt); } finally { console.error = orig; }
-      assert.match(toasts[0], /could not copy/i);
-      assert.match(errors.join('\n'), /denied/);
+      assert.equal(v.eventGCalLink({ id: 'e1', htmlLink: 'https://calendar.google.com/event?eid=abc' }), 'https://calendar.google.com/event?eid=abc');
     });
   });
 }
 
 for (const file of ['index.html', 'gas-app/Index.html']) {
-  test(`${file}: appointment rows carry the email and chat icons, shown only with other attendees`, () => {
+  test(`${file}: appointment rows carry the email icon (other attendees only) and an open-in-Calendar icon (every appointment)`, () => {
     const html = read(file);
     assert.match(html, /<a [^>]*class="[^"]*appt-guest-action[^"]*"[^>]*:href="emailGuestsUrl\(evt\)"[^>]*target="_blank"[^>]*rel="noopener noreferrer"/);
-    assert.match(html, /<a [^>]*class="[^"]*appt-guest-action[^"]*"[^>]*:href="chatGuestsUrl"[^>]*@click="copyChatText\(evt\)"[^>]*target="_blank"[^>]*rel="noopener noreferrer"/);
-    assert.equal((html.match(/x-show="hasOtherGuests\(evt\)"/g) || []).length >= 2, true);
+    assert.match(html, /<a [^>]*class="[^"]*appt-guest-action[^"]*"[^>]*:href="eventGCalLink\(evt\)"[^>]*target="_blank"[^>]*rel="noopener noreferrer"[^>]*title="Open in Google Calendar[^"]*"[^>]*>\s*<span class="material-symbols-outlined icon-14">calendar_today<\/span>/);
+    assert.equal((html.match(/x-show="hasOtherGuests\(evt\)"/g) || []).length, 1);
+    assert.doesNotMatch(html, /copyChatText|chatGuestsUrl/);
   });
 }

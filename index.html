@@ -600,12 +600,12 @@
                             </div>
                           </template>
                         </span>
-                        <!-- Attendee actions: Gmail compose to the guests, and Chat (title and addresses are copied first). -->
+                        <!-- Row actions: Gmail compose to the guests, and the appointment in Google Calendar (where Chat with guests lives). -->
                         <a class="notes-indicator appt-guest-action" x-show="hasOtherGuests(evt)" :href="emailGuestsUrl(evt)" target="_blank" rel="noopener noreferrer" @click.stop title="Email attendees" aria-label="Email attendees">
                           <span class="material-symbols-outlined icon-14">mail</span>
                         </a>
-                        <a class="notes-indicator appt-guest-action" x-show="hasOtherGuests(evt)" :href="chatGuestsUrl" @click="copyChatText(evt)" target="_blank" rel="noopener noreferrer" title="Chat with attendees: copies the title and addresses, then opens Google Chat" aria-label="Chat with attendees">
-                          <span class="material-symbols-outlined icon-14">chat</span>
+                        <a class="notes-indicator appt-guest-action" :href="eventGCalLink(evt)" target="_blank" rel="noopener noreferrer" @click.stop title="Open in Google Calendar (Chat with guests is there)" aria-label="Open in Google Calendar">
+                          <span class="material-symbols-outlined icon-14">calendar_today</span>
                         </a>
                       </div>
                     </template>
