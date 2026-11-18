@@ -8,6 +8,7 @@
  * 2. Never mutates gas-app/.clasp.json (HOME remains untouched).
  * 3. Uses gas-app/.clasp-work.json (Script ID 1980roEKgkC_3yMOrPLcwVcAODjAtz6wGPF4fbHqLDAhchQQaH_bVpMDq).
  * 4. Checks authentication before attempting push.
+ * 5. Reads WORK back after the push and fails unless it holds the pushed BUILD_NUMBER_ (work-verify.js).
  */
 
 import { execFileSync } from 'node:child_process';
@@ -15,6 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assertCleanGasApp } from './clean-tree.js';
+import { verifyRemote } from './work-verify.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -100,6 +102,9 @@ try {
     cwd: GAS_APP_DIR,
     stdio: 'inherit',
   });
+  console.log('\n  -> Reading WORK back to verify the push took effect...');
+  const build = verifyRemote({ scriptId: WORK_SCRIPT_ID, authArgs, localCodePath: path.join(GAS_APP_DIR, 'Code.gs') });
+  console.log(`  ✓ WORK holds build ${build}.`);
   console.log('\n  -> Creating version on WORK...');
   try {
     const versionOutput = execFileSync('npx', ['clasp', ...authArgs, '--project', WORK_CONFIG, 'version', 'Day Planner v1'], {
@@ -117,6 +122,6 @@ try {
   console.log('   WORK IDE:           https://script.google.com/d/' + WORK_SCRIPT_ID + '/edit');
   console.log('======================================================');
 } catch (pushErr) {
-  console.error('❌ Failed to push code to WORK:', pushErr.message);
+  console.error('❌ Failed to push or verify code on WORK:', pushErr.stack);
   process.exit(1);
 }

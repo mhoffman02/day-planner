@@ -5,7 +5,7 @@
 - URLs, deployment IDs, self-test, IDE links: `.agents/skills/gas-dev/reference/environments.md`. Read before opening, probing or deploying either.
 
 ## Invariants
-1. Every gas-app push updates "Day Planner v1" on both: after commit, `npm run deploy:home` (pushes @HEAD, loads `/dev` over CDP, moves "Day Planner v1" only if the app initializes; never bare `clasp deploy`); only after it passes, `npm run push:work` (creates a version labelled "Day Planner v1").
+1. Every gas-app push updates "Day Planner v1" on both: after commit, `npm run deploy:home` (pushes @HEAD, loads `/dev` over CDP, moves "Day Planner v1" only if the app initializes; never bare `clasp deploy`); only after it passes, `npm run push:work` (reads WORK back and fails unless its BUILD_NUMBER_ equals the pushed one, then creates a version labelled "Day Planner v1"; `tools/work-verify.js`). clasp once printed success while WORK stayed 14 builds old (2026-11-18).
 2. Never point `gas-app/.clasp.json` at WORK; HOME stays there. `push:work` targets `.clasp-work.json`.
 3. Repointing WORK `/exec` to the new version needs the script owner's domain: only `michael.hoffman@gsa.gov` can (IDE: Deploy > Manage deployments > Edit > Version > Deploy). Editor `mhoffman02@gmail.com` can push code and create versions only.
 4. Never route HOME through `/a/macros/gsa.gov/...` (proxy 404s consumer scripts).
