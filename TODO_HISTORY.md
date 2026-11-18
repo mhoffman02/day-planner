@@ -1,5 +1,11 @@
 # Task History (TODO_HISTORY)
 
+## 2026-11-18 (later) — Note it files by email day, appointment mail/chat icons, note card resize (HOME @502, WORK pushed)
+- [x] Note it filed about 60 emails under the day they were filed, not the day sent (`25c67bc`): `filedOn` now comes from the newest message from someone else in the configured zone (`emailDay_`, `lastFromOthers_` in `gas-app/QueueProcessor.gs`); the Notes panel reloads on non-today days. One-time repair `refileEmailNotesByDay` (`gas-app/HubController.gs`) for rows already misfiled.
+- [x] Today > Appointments rows: mail icon (Gmail compose, To = other attendees, Subject = meeting title) and chat icon (copies "title: addresses", opens Google Chat in a new tab; Chat has no link that sets a group title). Shown only when someone else is invited (`c3a8997`; `src/attendeeActions.js`, mirrored in `gas-app/Script.html`; `tests/attendeeActions.test.js`, `tests/appointmentAttendeeActions.test.js`).
+- [x] Note cards: textarea-style resize handle on `.note-card-lines`, sideways scrollbar only on overflow, size not saved; the 280px cap lifts once dragged (`c3a8997`; `tests/noteCardResize.test.js`).
+- [x] Decided F, skip (user 2026-11-18): Ctrl+[ and Ctrl+] indent in Notes (a line is a flat markdown prefix and the Doc writer only bullets lines starting with a dash, so indent would be lost on save; needs a nested-list model).
+
 ## 2026-11-18 — Triage RSVP, Note it, Doc rows, Gmail-style hotkeys (HOME @500, WORK v295 pushed)
 - [x] Triage invite rows regained RSVP buttons (2026-11-18): the cause was a stale row cache; `6880005` bumps the prefix to `triageRow.v3:` in `gas-app/HubController.gs`, `54e614f` pins the cached fields to the prefix (`tests/hubRowCacheShape.test.js`). Clicking RSVP needs `GMAIL_ROUTER` on and `DRY_RUN` off; seeing the buttons needs no flag.
 - [x] RSVP from Triage (`b04e6bb`), RSVP answer emailed to organizers outside Google Calendar (`4723827`).

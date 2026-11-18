@@ -7,14 +7,12 @@ Load-speed work (A8) came first on 2026-11-06 at the user's request.
 
 ## Agent work: next session (hand-check lines inside need the user)
 
-### A19. Hotkey follow-ups (2026-11-18; shipped in TODO_HISTORY, HOME @500, WORK v295 pushed, repoint pending)
-- [x] Decided F, skip (user 2026-11-18): Ctrl+[ and Ctrl+] indent in Notes. Reopen only if the user asks. Why: a line is a flat markdown prefix (`LINE_EDITOR_PREFIX` in `src/lineEditor.js`) and the Doc writer (`buildDaySectionRequests_` in `gas-app/Code.gs`) only makes a bullet of a line starting `- `, so an indented line would save as plain text and lose its bullet. Building it needs a nested-list model plus Doc nesting, a separate change.
+### A19. Hotkey, Note it and appointment-action follow-ups (2026-11-18; shipped in TODO_HISTORY, HOME @502, WORK pushed, repoint pending; indent decided F, skip, reopen only if the user asks)
 - [ ] User hand-check on HOME @500: on Triage press j, e (archive), m, Shift+T on a live row; `?` opens the shortcut list; `#` on Today and Master removes only the cursor task. Not run live by the agent: the mock covered j/k, ?, Escape, `#` and m only (e, Shift+T, o and the Doc-row toasts are unit-tested, not driven).
-- [ ] User: repoint WORK `/exec` to version 295 (Update WORK).
+- [ ] User: repoint WORK `/exec` to the newest version (Update WORK; it carries the hotkeys, Note it day fix, and the appointment icons).
 - [ ] User: if WORK invite rows still show no RSVP buttons after the repoint, send one invite subject (possibly an attachment-only `.ics`).
 - [ ] User (2026-11-18): after WORK is repointed to the build with the filed-date fix, run `refileEmailNotesByDay` once from the WORK IDE (Code.gs, Run) to move the ~60 emails filed on 2026-11-18 to their own days. It stops at a Gmail quota error or 4 minutes; run it again until the log says 0 left. Safe to run twice.
-- [ ] Agent, needs the user's pick (2026-11-18): optional resize for Email notes (drag-to-resize plus on-demand horizontal scrollbar). Ask which element: the Email topic list, or each note card.
-- [ ] Agent, needs the user's answers (2026-11-18): Appointments row actions, email attendees (Gmail compose with To and Subject) and chat with attendees (Google Chat, new tab, title = meeting title). See the numbered questions in the reply of 2026-11-18.
+- [ ] User hand-check on HOME @502: hover an appointment with guests, click mail (Gmail compose should open with To and Subject filled) and chat (toast, Chat opens, paste the text into New chat); drag the corner of a note card's lines box. Not driven live by the agent (unit and markup tests only).
 
 ### A17. Fail loud and early, not after release (2026-11-15, user order: 1-3 first session, 4-6 the one after, then 7-9, then 10)
 - [ ] 8. User: open WORK `/exec` once on version 280 (repointed 2026-11-16) and say if it loads; the agent cannot, its CDP Chrome is not signed in to gsa.gov.
