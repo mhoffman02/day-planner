@@ -552,8 +552,7 @@ export class HubMock {
     const operationKey = `GMAIL|${threadId}|NOTE`;
     if (this.dryRun) return { ok: true, status: 'DRY_RUN', message: 'Would file as a note and archive in Gmail', operationKey };
     this.dismissed.add(threadId);
-    const d = new Date();
-    const filedOn = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const filedOn = src.date.slice(0, 10);
     this.filedNotes.push({ subject: src.subject || '(no subject)', fromName: src.fromName || '', gmailUrl: src.url || '', snippet: src.snippet || '', filedOn });
     return { ok: true, status: 'DONE', message: 'Filed as a note and archived in Gmail', operationKey, sourceUrl: src.url };
   }

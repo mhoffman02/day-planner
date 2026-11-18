@@ -130,6 +130,29 @@ function ledgerStore() {
 }
 
 /**
+ * @param {{messages:Array<{isFromUser:boolean}>}} thread Normalized thread.
+ * @returns {object} Newest message from someone else; the newest message when all are mine; {} for an empty thread.
+ */
+function lastFromOthers_(thread) {
+  const other = thread.messages.filter(function(m) { return !m.isFromUser; });
+  return other.length ? other[other.length - 1] : (thread.messages[thread.messages.length - 1] || {});
+}
+
+/**
+ * The day a filed email belongs to: its own sent or received date in the configured zone, never the day the queue
+ * ran (2026-11-18: about 60 Note it emails all landed on the day they were filed). Throws when the message has no
+ * parseable date, so the row goes to ERROR instead of landing on the wrong day.
+ * @param {{date?:string}} message Newest message from someone else (normalized thread message).
+ * @param {string} timeZone IANA zone from settings.
+ * @returns {string} Local date YYYY-MM-DD.
+ */
+function emailDay_(message, timeZone) {
+  const when = new Date(message && message.date);
+  if (!message || !message.date || isNaN(when.getTime())) throw new Error('Cannot file this email by day: the message has no date');
+  return DPEngines.taskPlannerLocalDate(when, timeZone);
+}
+
+/**
  * @param {string} ymd Local date YYYY-MM-DD.
  * @param {number} n Days to add.
  * @returns {string} Shifted date (pure y/m/d arithmetic).
@@ -268,9 +291,8 @@ function executeRoute(spec) {
       opKey = opKey || E.gmailNoteKey(spec.threadId);
       op = { opKey: opKey, sourceType: 'GMAIL', sourceId: spec.threadId, sourceVersion: thread.lastMessageId, action: 'RECORD_NOTE', targetType: 'EMAIL_NOTE' };
       work = function() {
-        const other = thread.messages.filter(function(m) { return !m.isFromUser; });
-        const last = other.length ? other[other.length - 1] : (thread.messages[thread.messages.length - 1] || {});
-        return { targetId: spec.threadId, targetType: 'EMAIL_NOTE', metadata: { subject: String(thread.subject || '').slice(0, 200), from: String(last.fromName || '').slice(0, 80), url: thread.url, filedOn: today,
+        const last = lastFromOthers_(thread);
+        return { targetId: spec.threadId, targetType: 'EMAIL_NOTE', metadata: { subject: String(thread.subject || '').slice(0, 200), from: String(last.fromName || '').slice(0, 80), url: thread.url, filedOn: emailDay_(last, spec.settings.timeZone),
           snippet: last.snippet ? String(last.snippet).slice(0, spec.settings.maxExcerpt) : '' } };
       };
     } else if (spec.kind === 'MEETING') {
@@ -698,6 +720,8 @@ global.DPQueue = Object.freeze({
   ledgerStore: ledgerStore,
   logSafe: logSafe_,
   addDays: addDays_,
+  emailDay: emailDay_,
+  lastFromOthers: lastFromOthers_,
   missingDependency: missingDependency_,
   setupResult: setupResult_
 });   // cross-file only: HubController.gs, Triggers.gs, UnitTests.gs

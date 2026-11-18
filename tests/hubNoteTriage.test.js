@@ -30,7 +30,7 @@ test('noteTriageThread adds 🎯/Note, removes INBOX in one write, and records t
   assert.deepEqual(writes(ctx), [`threads.modify:{"addLabelIds":["${noteId}"],"removeLabelIds":["INBOX"]}`]);
   const row = rows(ctx).find((x) => x.OperationKey === 'GMAIL|a1|NOTE');
   assert.equal(row.Status, 'DONE');
-  assert.equal(JSON.parse(row.MetadataJson).filedOn, '2026-11-17');
+  assert.equal(JSON.parse(row.MetadataJson).filedOn, '2026-10-05', 'the email day (default test thread), not 2026-11-17 when it was noted');
 });
 
 test('noteTriageThread with the NOTES flag off writes nothing', () => {

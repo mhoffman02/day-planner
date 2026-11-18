@@ -12,6 +12,9 @@ Load-speed work (A8) came first on 2026-11-06 at the user's request.
 - [ ] User hand-check on HOME @500: on Triage press j, e (archive), m, Shift+T on a live row; `?` opens the shortcut list; `#` on Today and Master removes only the cursor task. Not run live by the agent: the mock covered j/k, ?, Escape, `#` and m only (e, Shift+T, o and the Doc-row toasts are unit-tested, not driven).
 - [ ] User: repoint WORK `/exec` to version 295 (Update WORK).
 - [ ] User: if WORK invite rows still show no RSVP buttons after the repoint, send one invite subject (possibly an attachment-only `.ics`).
+- [ ] User (2026-11-18): after WORK is repointed to the build with the filed-date fix, run `refileEmailNotesByDay` once from the WORK IDE (Code.gs, Run) to move the ~60 emails filed on 2026-11-18 to their own days. It stops at a Gmail quota error or 4 minutes; run it again until the log says 0 left. Safe to run twice.
+- [ ] Agent, needs the user's pick (2026-11-18): optional resize for Email notes (drag-to-resize plus on-demand horizontal scrollbar). Ask which element: the Email topic list, or each note card.
+- [ ] Agent, needs the user's answers (2026-11-18): Appointments row actions, email attendees (Gmail compose with To and Subject) and chat with attendees (Google Chat, new tab, title = meeting title). See the numbered questions in the reply of 2026-11-18.
 
 ### A17. Fail loud and early, not after release (2026-11-15, user order: 1-3 first session, 4-6 the one after, then 7-9, then 10)
 - [ ] 8. User: open WORK `/exec` once on version 280 (repointed 2026-11-16) and say if it loads; the agent cannot, its CDP Chrome is not signed in to gsa.gov.

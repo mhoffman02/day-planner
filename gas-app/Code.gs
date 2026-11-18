@@ -463,7 +463,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 838;
+const BUILD_NUMBER_ = 839;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -4235,6 +4235,10 @@ function docActionCanary() {
 
 function getFiledEmails(days) {
   return (typeof _getFiledEmailsInternal === 'function') ? _getFiledEmailsInternal(days) : (globalThis._getFiledEmailsInternal ? globalThis._getFiledEmailsInternal(days) : null);
+}
+
+function refileEmailNotesByDay() {
+  return (typeof _refileEmailNotesByDayInternal === 'function') ? _refileEmailNotesByDayInternal() : (globalThis._refileEmailNotesByDayInternal ? globalThis._refileEmailNotesByDayInternal() : null);
 }
 
 function getMeetingPrep(seriesKey, occurrenceId) {

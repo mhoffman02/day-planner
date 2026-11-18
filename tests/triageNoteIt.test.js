@@ -39,6 +39,18 @@ describe('Triage Note it and the Today Email topic', () => {
       assert.equal(vm.filedEmails.length, 1);
     });
 
+    it(c.label + ': noteTriageEntry refreshes the open day even when it is not today, since an email files under its own day', async () => {
+      const calls = [];
+      const vm = vmFor({
+        noteTriageThread: async () => ({ ok: true, status: 'DONE', message: 'Filed' }),
+        getFiledEmails: async (d) => { calls.push(d); return { ok: true, items: [] }; }
+      });
+      vm.selectedDate = '2026-11-10';
+      await vm.noteTriageEntry(item);
+      await settle();
+      assert.deepEqual(calls, ['2026-11-10']);
+    });
+
     it(c.label + ': loadFiledEmails asks for the open day and drops a late answer for another day', async () => {
       let release;
       const gate = new Promise((res) => { release = res; });

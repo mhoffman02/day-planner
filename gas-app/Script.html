@@ -5533,10 +5533,10 @@
         }
       },
 
-      // Triage [Note it]: the server labels it 🎯/Note, archives it and files it under today.
+      // Triage [Note it]: the server labels it 🎯/Note, archives it and files it under the day the email was sent or received.
       async noteTriageEntry(item) {
         const r = await this.runTriageAction('Note', () => this.bridge.noteTriageThread(item.threadId, this.hubModeOpts()), item.threadId, true);
-        if (r && r.ok && r.status === 'DONE' && this.selectedDate === this.todayStr) await this.loadFiledEmails();
+        if (r && r.ok && r.status === 'DONE') await this.loadFiledEmails();
         return r;
       },
 

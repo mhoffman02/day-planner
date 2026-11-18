@@ -17,6 +17,7 @@
 (function(global) {
 
 const HUB_LOCK_WAIT_MS_ = 10000;
+const HUB_REFILE_BUDGET_MS_ = 240000;
 const HUB_TRIAGE_LIMIT_DEFAULT_ = 40;
 const HUB_TRIAGE_LIMIT_MAX_ = 100;
 const HUB_EVENT_ID_RE_ = /^[A-Za-z0-9_.-]{1,128}$/;
@@ -580,6 +581,51 @@ function getFiledEmails(dateStr) {
     });
     items.sort(function(a, b) { return a.filedOn < b.filedOn ? 1 : a.filedOn > b.filedOn ? -1 : (a.subject < b.subject ? -1 : 1); });
     return E.makeResult({ ok: true, status: 'OK', message: items.length + ' filed email' + (items.length === 1 ? '' : 's'), items: items });
+  } catch (err) {
+    return failFrom_(err);
+  }
+}
+
+/**
+ * Repair for emails filed before 2026-11-18, when Note it stamped the day it was clicked instead of the day the email
+ * was sent or received. Re-reads each filed email and moves its row to its own day. Rows already on the right day are
+ * left alone, so it is safe to run twice. Stops at a Gmail quota error or the time budget; run it again to continue.
+ * IDE manual-run, gas-rpc.
+ * @returns {object} makeResult-shaped summary {moved, unchanged, failed, remaining}.
+ */
+function refileEmailNotesByDay() {
+  const pre = preflight_(['GMAIL_ROUTER', 'NOTES']);
+  if (pre.failure) return pre.failure;
+  try {
+    return locked_(function() {
+      const E = DPEngines;
+      const timeZone = DPQueue.getSettings().timeZone;
+      const stopAt = Date.now() + HUB_REFILE_BUDGET_MS_;
+      const out = { moved: 0, unchanged: 0, failed: 0, remaining: 0 };
+      let stopped = false;
+      DPLedgerRepo.list({ sourceType: 'GMAIL', status: E.LEDGER_STATUS.DONE }).filter(function(r) { return r.TargetType === 'EMAIL_NOTE'; }).forEach(function(row) {
+        if (stopped || Date.now() > stopAt) { stopped = true; out.remaining += 1; return; }
+        try {
+          const meta = E.ledgerReadMeta(row, 'skipping this filed email').meta;
+          const thread = DPGmailRepo.getThreadMeta(row.SourceId, null);
+          const day = DPQueue.emailDay(DPQueue.lastFromOthers(thread), timeZone);
+          if (meta.filedOn === day) { out.unchanged += 1; return; }
+          DPLedgerRepo.upsert({ OperationKey: row.OperationKey, MetadataJson: JSON.stringify(Object.assign({}, meta, { filedOn: day })) });
+          out.moved += 1;
+        } catch (err) {
+          if (isQuotaError_(err)) {
+            stopped = true;
+            out.remaining += 1;
+            DPQueue.logSafe('refileEmailNotesByDay: Gmail quota hit, stopping; run it again later', err);
+            return;
+          }
+          out.failed += 1;
+          console.error('refileEmailNotesByDay: could not re-date ' + row.OperationKey + ', leaving it on its current day: ' + err.stack);
+        }
+      });
+      const msg = 'Moved ' + out.moved + ' filed email' + (out.moved === 1 ? '' : 's') + ' to its own day; ' + out.unchanged + ' already right, ' + out.failed + ' failed, ' + out.remaining + ' left (run again if any)';
+      return E.makeResult({ ok: out.failed === 0, status: out.remaining ? 'PARTIAL' : 'OK', message: msg, moved: out.moved, unchanged: out.unchanged, failed: out.failed, remaining: out.remaining });
+    });
   } catch (err) {
     return failFrom_(err);
   }
@@ -1887,6 +1933,7 @@ function docActionCanary() {
 // top-level delegator in Code.gs.
 global._getTriageBoardInternal = getTriageBoard;                   // google.script.run
 global._getFiledEmailsInternal = getFiledEmails;                   // google.script.run (Filed emails)
+global._refileEmailNotesByDayInternal = refileEmailNotesByDay;     // gas-rpc + IDE manual-run (one-time repair, 2026-11-18)
 global._getMeetingPrepInternal = getMeetingPrep;                   // google.script.run
 global._getUpcomingMeetingChoicesInternal = getUpcomingMeetingChoices; // google.script.run
 global._routeThreadToTaskInternal = routeThreadToTask;             // google.script.run
