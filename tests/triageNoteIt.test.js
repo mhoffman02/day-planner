@@ -91,7 +91,7 @@ describe('Triage Note it and the Today Email topic', () => {
     });
     it(f + ': the Filed emails details row is gone; the Email topic lists filedEmails with a hover preview', () => {
       assert.ok(!html.includes('hub-filed-emails'));
-      assert.match(html, /class="email-topic"/);
+      assert.match(html, /class="quote-card email-card"/);
       assert.match(html, /x-for="n in filedEmails"/);
       assert.match(html, /openNotesPopover\('email:' \+ n\.gmailUrl/);
     });

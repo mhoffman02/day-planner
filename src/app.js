@@ -525,6 +525,7 @@ Alpine.data('plannerApp', () => ({
       docLink: { url: '', forDate: '' }, // href of the Open Notes in Docs anchor: the heading of the selected day in the monthly Doc
       noteViewMode: 'cards', // 'cards' (Option 1) or 'doc' (Option 2)
       quoteCardCollapsed: false,
+      emailCardCollapsed: false,
       noteFilterMenuOpen: false,
       noteCardSearchQuery: '',
       noteCardCategoryFilter: 'ALL',
@@ -3795,6 +3796,10 @@ Alpine.data('plannerApp', () => ({
 
       toggleQuoteCard() {
         this.quoteCardCollapsed = !this.quoteCardCollapsed;
+      },
+
+      toggleEmailCard() {
+        this.emailCardCollapsed = !this.emailCardCollapsed;
       },
 
       todaysQuote() {

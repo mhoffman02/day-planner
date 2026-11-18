@@ -721,9 +721,15 @@
 
             <!-- Email topic: this day's emails filed with Note it (read-only, from the hub ledger; never a note card, so never written to the Doc). -->
             <template x-if="showFiledEmails &amp;&amp; filedEmails.length">
-              <details class="email-topic" open>
-                <summary class="email-topic-title"><span class="material-symbols-outlined icon-14" aria-hidden="true">mail</span> Email (<span x-text="filedEmails.length"></span>)</summary>
-                <ul class="email-topic-list">
+              <article class="quote-card email-card" :class="{ 'collapsed': emailCardCollapsed }">
+                <header class="quote-card-header" @click="toggleEmailCard()">
+                  <button type="button" class="card-twistie-btn" :title="emailCardCollapsed ? 'Expand Email' : 'Collapse Email'" :aria-label="emailCardCollapsed ? 'Expand Email' : 'Collapse Email'">
+                    <span class="material-symbols-outlined icon-18" x-text="emailCardCollapsed ? 'arrow_right' : 'arrow_drop_down'"></span>
+                  </button>
+                  <span class="quote-card-title"><span class="material-symbols-outlined icon-14" aria-hidden="true">mail</span> Email (<span x-text="filedEmails.length"></span>)</span>
+                </header>
+                <div class="quote-card-body" x-show="!emailCardCollapsed">
+                  <ul class="email-topic-list">
                   <template x-for="n in filedEmails" :key="n.gmailUrl + n.filedOn">
                     <li class="email-topic-item notes-indicator-wrap" @mouseenter="openNotesPopover('email:' + n.gmailUrl, $event)" @mouseleave="scheduleNotesPopoverClose('email:' + n.gmailUrl)">
                       <a :href="n.gmailUrl" target="_blank" rel="noopener noreferrer" x-text="n.subject"></a>
@@ -737,8 +743,9 @@
                       </template>
                     </li>
                   </template>
-                </ul>
-              </details>
+                  </ul>
+                </div>
+              </article>
             </template>
 
             <!-- Mode 1: Modular Topic Cards (Option 1) -->

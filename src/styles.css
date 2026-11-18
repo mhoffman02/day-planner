@@ -7453,19 +7453,22 @@
     color: var(--text-muted);
   }
 
-  /* Today Notes: emails filed with Note it on the open day. Read-only topic, flat like a note card. */
-  .email-topic {
-    margin: 0 0 8px;
-    padding: 6px 12px;
+  /* Today Notes: emails filed with Note it on the open day. Read-only; uses the Quote card shell (.quote-card). */
+  /* The hover preview hangs below a row, so the shell cannot clip it; the header rounds its own top corners instead. */
+  .quote-card.email-card {
+    overflow: visible;
   }
 
-  .email-topic-title {
-    cursor: pointer;
-    font-weight: 700;
+  .email-card .quote-card-header {
+    border-radius: 4px 4px 0 0;
+  }
+
+  .email-card.collapsed .quote-card-header {
+    border-radius: 4px;
   }
 
   .email-topic-list {
-    margin: 6px 0 0;
+    margin: 0;
     padding: 0;
     list-style: none;
   }
