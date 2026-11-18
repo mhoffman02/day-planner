@@ -250,6 +250,42 @@ function bodyText_(payload) {
 }
 
 /**
+ * Reads the invite fields out of iCalendar text: METHOD, plus UID and RECURRENCE-ID of the first VEVENT (never the
+ * VTIMEZONE block). Long lines are folded (a continuation starts with a space or tab), so they are joined first.
+ * The text is parsed in memory and dropped; only these three short fields leave this function.
+ * @param {string} ics iCalendar text from a text/calendar part.
+ * @returns {{method:string, uid:string, recurrenceId:string}} Empty strings for fields the text lacks.
+ */
+function parseInvite_(ics) {
+  const text = String(ics || '').replace(/\r?\n[ \t]/g, '');
+  const field = function(source, name) {
+    const m = source.match(new RegExp('^' + name + '(?:;[^:\\r\\n]*)?:(.*?)\\r?$', 'm'));
+    return m ? m[1].trim() : '';
+  };
+  const vevent = (text.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/) || [''])[0];
+  return { method: field(text, 'METHOD').toUpperCase(), uid: field(vevent, 'UID'), recurrenceId: field(vevent, 'RECURRENCE-ID') };
+}
+
+/**
+ * Finds the text/calendar part of a full-format payload and parses it. Only an inline part (body.data) is read;
+ * an attachment-only invite is not recognised (it would need a second Gmail read).
+ * @param {object} payload Gmail message payload.
+ * @returns {?{method:string, uid:string, recurrenceId:string}} The invite fields, or null when there is no calendar part.
+ */
+function inviteFromPayload_(payload) {
+  const stack = [payload];
+  while (stack.length) {
+    const part = stack.shift();
+    if (!part) continue;
+    if (part.mimeType === 'text/calendar' && part.body && part.body.data) {
+      return parseInvite_(Utilities.newBlob(bodyBytes_(part.body.data)).getDataAsString());
+    }
+    (part.parts || []).forEach(function(p) { stack.push(p); });
+  }
+  return null;
+}
+
+/**
  * Gmail snippets arrive HTML-escaped (&#39; &amp; ...). Decoded to plain text for x-text display.
  * @param {string} s Raw Gmail snippet.
  * @returns {string} Plain text, capped.
@@ -284,6 +320,7 @@ function userEmail_() {
  * @param {{withBody?:boolean, withSnippet?:boolean}} [opts] withBody reads format full (bodies kept in memory only);
  *   withSnippet adds lastSnippet, Gmail's preview of the latest message (Triage board only).
  * @returns {{threadId:string,url:string,subject:string,labels:string[],userEmail:string,lastMessageId:string,lastSnippet:string,
+ *   invite:?{method:string,uid:string,recurrenceId:string},
  *   messages:Array<{id:string,from:string,fromName:string,to:string[],cc:string[],date:string,isFromUser:boolean,bodyText:string}>}}
  *   Normalized thread. bodyText is empty unless withBody.
  */
@@ -328,9 +365,12 @@ function getThreadMeta(threadId, opts) {
       subject: header_(h, 'Subject'),
       listId: header_(h, 'List-Id'),
       snippet: decodeSnippet_(m.snippet),
-      bodyText: withBody ? bodyText_(m.payload) : ''
+      bodyText: withBody ? bodyText_(m.payload) : '',
+      invite: withBody ? inviteFromPayload_(m.payload) : null
     };
   });
+  // The newest message that carries a calendar part: the latest message may be an "Accepted:" reply with none.
+  const inviteMsg = messages.slice().reverse().find(function(m) { return m.invite; });
   const first = messages[0] || { subject: '' };
   const labels = Object.keys(labelIds).map(function(id) { return idToName[id] || id; });
   return {
@@ -339,6 +379,7 @@ function getThreadMeta(threadId, opts) {
     subject: first.subject || '(no subject)',
     labels: labels,
     userEmail: me,
+    invite: inviteMsg ? inviteMsg.invite : null,
     lastMessageId: messages.length ? messages[messages.length - 1].id : '',
     lastSnippet: opts && opts.withSnippet && thread.messages && thread.messages.length ? decodeSnippet_(thread.messages[thread.messages.length - 1].snippet) : '',
     messages: messages

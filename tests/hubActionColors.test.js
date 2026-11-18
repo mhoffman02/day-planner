@@ -29,7 +29,7 @@ function actionButtons(html) {
 for (const file of ['index.html', 'gas-app/Index.html']) {
   test(`${file}: action buttons carry the colour classes`, () => {
     const btns = actionButtons(read(file));
-    assert.equal(btns.length, 13); // 10 Gmail actions (incl. Note it) + Doc row Task, Dismiss, Open Doc
+    assert.equal(btns.length, 16); // 10 Gmail actions (incl. Note it) + 3 invite RSVP answers + Doc row Task, Dismiss, Open Doc
     for (const b of btns) {
       assert.ok(b.label, `label parsed from aria-label: ${b.attrs}`);
       const quiet = /hub-action-quiet/.test(b.attrs);

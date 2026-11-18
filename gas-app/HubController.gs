@@ -70,9 +70,9 @@ function isQuotaError_(err) {
 }
 
 // Scored Triage rows in the user CacheService, keyed by thread id and valid while the Gmail historyId is unchanged.
-const HUB_ROW_CACHE_PREFIX_ = 'triageRow.v1:';
+const HUB_ROW_CACHE_PREFIX_ = 'triageRow.v2:';
 const HUB_ROW_CACHE_TTL_S_ = 21600;
-const HUB_ROW_CACHE_FIELDS_ = ['url', 'subject', 'snippet', 'preview', 'fromName', 'date', 'labels', 'score', 'band', 'signals', 'ticketKey', 'suggestions', 'requireConfirmation', 'humanReviewOnly'];
+const HUB_ROW_CACHE_FIELDS_ = ['url', 'subject', 'snippet', 'preview', 'fromName', 'date', 'labels', 'score', 'band', 'signals', 'ticketKey', 'isInvite', 'suggestions', 'requireConfirmation', 'humanReviewOnly'];
 
 /**
  * Cached rows whose historyId still matches. A cache failure is logged and treated as a miss (Gmail is read).
@@ -394,6 +394,45 @@ function noteTriageThread(threadId, options) {
 }
 
 /**
+ * True when the thread carries a calendar invite I can still answer (METHOD:REQUEST with a UID).
+ * @param {?{method:string, uid:string}} invite Fields parsed from the thread's text/calendar part.
+ * @returns {boolean} Whether an RSVP applies.
+ */
+function isInviteRequest_(invite) {
+  return !!invite && invite.method === 'REQUEST' && !!invite.uid;
+}
+
+/**
+ * Triage [RSVP]: answers the calendar invite in this email (accepted, declined or tentative) and then archives the email.
+ * The event is found by the invite UID, the answer goes through setEventRsvp (only my own response changes), and the
+ * archive runs only after the answer saved. Nothing from the invite text is stored or returned.
+ * @param {string} threadId Gmail thread id.
+ * @param {string} response accepted, declined or tentative.
+ * @param {{expectDryRun?:boolean}} [options] The mode the client is showing.
+ * @returns {object} makeResult-shaped result.
+ */
+function rsvpTriageThread(threadId, response, options) {
+  const invalid = rejectInvalid_(() => DPEngines.v_.guard(arguments, 'rsvpTriageThread').param('threadId').string().param('response').string().oneOf('accepted', 'declined', 'tentative').param('options').object().optional().nullable().done());
+  if (invalid) return invalid;
+  const pre = preflight_(['GMAIL_ROUTER'], modeOpts_(options));
+  if (pre.failure) return pre.failure;
+  const bad = badThread_(threadId);
+  if (bad) return fail_('INVALID_THREAD_ID', bad);
+  try {
+    if (pre.features.DRY_RUN === true) return DPEngines.makeResult({ ok: true, status: 'DRY_RUN', message: 'Would answer the invite and archive in Gmail' });
+    const invite = DPGmailRepo.getThreadMeta(threadId, { withBody: true }).invite;
+    if (!isInviteRequest_(invite)) return fail_('NOT_AN_INVITE', 'This email has no calendar invite to answer.', true);
+    const hit = DPCalendarRepo.eventForInvite(invite);
+    if (!hit.id) return fail_(hit.code === 'AMBIGUOUS' ? 'EVENT_AMBIGUOUS' : 'EVENT_NOT_FOUND', hit.message, true);
+    global.setEventRsvp(hit.id, response);
+    const archived = gmailTriageWrite_(threadId, { write: DPGmailRepo.archiveThread, done: 'Answered the invite and archived in Gmail', would: '' }, options);
+    return archived.ok ? archived : fail_('ARCHIVE_FAILED', 'RSVP saved, but the email was not archived: ' + archived.message, true);
+  } catch (err) {
+    return failFrom_(err);
+  }
+}
+
+/**
  * Triage [Delete]: moves the email to Gmail Trash (recoverable for 30 days) and off the board.
  * @param {string} threadId Gmail thread id.
  * @param {{expectDryRun?:boolean}} [options] The mode the client is showing.
@@ -695,7 +734,7 @@ function getTriageBoard(filters) {
         const row = {
           url: t.url, subject: t.subject, snippet: t.lastSnippet, preview: last ? E.triagePreview(last.bodyText || '') : '', fromName: last ? last.fromName : '', date: last ? last.date : '', labels: t.labels,
           score: scored.score, band: scored.band, signals: scored.signals.map(function(s) { return s.id; }),
-          ticketKey: E.extractExternalTicketKey(t.subject, last ? last.from : '', null),
+          ticketKey: E.extractExternalTicketKey(t.subject, last ? last.from : '', null), isInvite: isInviteRequest_(t.invite),
           suggestions: routing.suggestions, requireConfirmation: routing.requireConfirmation, humanReviewOnly: routing.humanReviewOnly
         };
         queues[HUB_QUEUE_KEYS_[queue]].push(Object.assign({ threadId: id }, row, { queue: queue }, ledgerFields));
@@ -1837,6 +1876,7 @@ global._retryFailedOperationInternal = retryFailedOperation;       // google.scr
 global._archiveTriageThreadInternal = archiveTriageThread;         // google.script.run (Triage Archive)
 global._trashTriageThreadInternal = trashTriageThread;             // google.script.run (Triage Delete)
 global._noteTriageThreadInternal = noteTriageThread;               // google.script.run (Triage Note it)
+global._rsvpTriageThreadInternal = rsvpTriageThread;               // google.script.run (Triage RSVP)
 global._hubCoreScopesInternal = hubCoreScopes;                    // tests only (manifest drift check)
 global._getHubStatusInternal = getHubStatus;                      // google.script.run
 global._getHubSheetLinkInternal = getHubSheetLink;                 // google.script.run (About hub link)

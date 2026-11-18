@@ -261,7 +261,46 @@ function discoverSeries(registry, now, opts) {
   return { discovered: discovered, stale: stale, persisted: persisted, persistGap: persistGap };
 }
 
+/**
+ * True when an invite RECURRENCE-ID names the same instant as a Calendar originalStartTime.
+ * @param {string} recurrenceId iCalendar value: 20261125T150000Z (UTC), 20261125T090000 (floating) or 20261125 (all-day).
+ * @param {{dateTime?:string,date?:string}} original Calendar originalStartTime.
+ * @returns {boolean} Whether they match.
+ */
+function sameInviteInstant_(recurrenceId, original) {
+  const v = String(recurrenceId || '');
+  if (!original) return false;
+  if (v.length === 8) return String(original.date || '').replace(/-/g, '') === v;
+  const dt = original.dateTime || '';
+  if (/Z$/.test(v)) {
+    const d = new Date(dt);
+    if (isNaN(d.getTime())) return false;
+    const p = function(n) { return String(n).padStart(2, '0'); };
+    return String(d.getUTCFullYear()) + p(d.getUTCMonth() + 1) + p(d.getUTCDate()) + 'T' + p(d.getUTCHours()) + p(d.getUTCMinutes()) + p(d.getUTCSeconds()) === v.slice(0, -1);
+  }
+  return dt.slice(0, 19).replace(/[-:]/g, '') === v.slice(0, 15);
+}
+
+/**
+ * Finds my calendar event for an invite email, by the invite UID (Events.list iCalUID returns a series master and its
+ * exceptions). With a RECURRENCE-ID the matching occurrence is chosen; without one, the series master or single event.
+ * @param {{uid:string, recurrenceId:string}} invite Fields parsed from the email's text/calendar part.
+ * @returns {{id:string}|{code:string, message:string}} The event id, or code NOT_FOUND / AMBIGUOUS.
+ * @throws {Error} When Calendar fails (the caller reports it; nothing is guessed).
+ */
+function eventForInvite(invite) {
+  const resp = Calendar.Events.list('primary', { iCalUID: invite.uid, showDeleted: false, maxResults: 50 }) || {};
+  const items = (resp.items || []).filter(function(e) { return e && e.status !== 'cancelled'; });
+  const hits = invite.recurrenceId
+    ? items.filter(function(e) { return sameInviteInstant_(invite.recurrenceId, e.originalStartTime); })
+    : items.filter(function(e) { return !e.recurringEventId; });
+  if (hits.length === 1) return { id: hits[0].id };
+  if (hits.length === 0) return { code: 'NOT_FOUND', message: 'This invite is not on your calendar yet, so there is nothing to answer.' };
+  return { code: 'AMBIGUOUS', message: 'Several calendar events match this invite; answer it in Calendar.' };
+}
+
 global.DPCalendarRepo = Object.freeze({
+  eventForInvite: eventForInvite,
   loadEvents: loadEvents,
   occurrencesForSeries: occurrencesForSeries,
   listOccurrences: listOccurrences,

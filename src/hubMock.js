@@ -59,6 +59,7 @@ function thread(id, subject, from, ageMin, score, signals, labels, suggestions) 
     snippet: MOCK_SNIPPETS[id] || '',
     preview: MOCK_SNIPPETS[id] || '',
     fromName: from,
+    isInvite: /^invitation:/i.test(subject),
     date: localIso(-ageMin),
     labels,
     score,
@@ -555,6 +556,18 @@ export class HubMock {
     const filedOn = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     this.filedNotes.push({ subject: src.subject || '(no subject)', fromName: src.fromName || '', gmailUrl: src.url || '', snippet: src.snippet || '', filedOn });
     return { ok: true, status: 'DONE', message: 'Filed as a note and archived in Gmail', operationKey, sourceUrl: src.url };
+  }
+
+  rsvpTriageThread(threadId, response, opts) {
+    const gate = this._preflight(['GMAIL_ROUTER'], opts);
+    if (gate) return gate;
+    const src = this._find(threadId);
+    if (!src) return this._fail('THREAD_NOT_FOUND', 'Gmail thread not found');
+    if (!src.isInvite) return this._fail('NOT_AN_INVITE', 'This email has no calendar invite to answer.');
+    const operationKey = `GMAIL|${threadId}|DISMISS`;
+    if (this.dryRun) return { ok: true, status: 'DRY_RUN', message: 'Would answer the invite and archive in Gmail', operationKey };
+    this.dismissed.add(threadId);
+    return { ok: true, status: 'DONE', message: 'Answered the invite and archived in Gmail', operationKey, sourceUrl: src.url };
   }
 
   getMeetingPrep(seriesKey, occurrenceId) {

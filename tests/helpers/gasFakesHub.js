@@ -94,8 +94,12 @@ function makeGmail(h) {
     payload: {
       headers: [{ name: 'From', value: m.from }, { name: 'To', value: m.to }, { name: 'Cc', value: m.cc || '' }, { name: 'Subject', value: m.subject }, { name: 'Date', value: new Date(m.internalDate).toUTCString() }]
         .concat(m.listId ? [{ name: 'List-Id', value: m.listId }] : []),
-      mimeType: 'text/plain',
-      body: format === 'full' ? { data: gasBodyBytes(m.body || '') } : {}
+      mimeType: m.ics && format === 'full' ? 'multipart/alternative' : 'text/plain',
+      body: format === 'full' && !m.ics ? { data: gasBodyBytes(m.body || '') } : {},
+      // m.ics: a calendar invite, the iCalendar text sits in a text/calendar part next to the plain-text body.
+      parts: m.ics && format === 'full'
+        ? [{ mimeType: 'text/plain', body: { data: gasBodyBytes(m.body || '') } }, { mimeType: 'text/calendar', body: { data: gasBodyBytes(m.ics) } }]
+        : undefined
     }
   });
   return {
@@ -215,6 +219,8 @@ function makeCalendar(h) {
     Events: {
       list(calendarId, params = {}) {
         h.calendar.calls.push('events.list');
+        // An iCalUID lookup (the invite's UID) returns the series master and its exceptions, like Calendar.
+        if (params.iCalUID) return { items: h.calendar.events.filter((e) => e.iCalUID === params.iCalUID).map((e) => ({ ...e })) };
         const min = Date.parse(params.timeMin);
         const max = Date.parse(params.timeMax);
         return { items: h.calendar.events.filter((e) => Date.parse(e.start) >= min && Date.parse(e.start) <= max).map(raw) };
@@ -449,7 +455,7 @@ export function addThread(ctx, t) {
   h.gmail.threads[t.id] = {
     id: t.id,
     historyId: t.historyId || 100,
-    messages: msgs.map((m, i) => ({ id: `${t.id}m${i}`, labelIds: ids, internalDate: Date.parse(t.date || '2026-10-05T20:00:00Z') + i * 60000, from: m.from, to: m.to || 'me@example.test', cc: m.cc, subject: m.subject || t.subject || 'Subject', body: m.body, snippet: m.snippet || '', listId: m.listId || t.listId || '' }))
+    messages: msgs.map((m, i) => ({ id: `${t.id}m${i}`, labelIds: ids, internalDate: Date.parse(t.date || '2026-10-05T20:00:00Z') + i * 60000, from: m.from, to: m.to || 'me@example.test', cc: m.cc, subject: m.subject || t.subject || 'Subject', body: m.body, snippet: m.snippet || '', listId: m.listId || t.listId || '', ics: m.ics || t.ics }))
   };
 }
 

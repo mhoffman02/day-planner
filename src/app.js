@@ -1927,6 +1927,12 @@ Alpine.data('plannerApp', () => ({
         return r;
       },
 
+      // Triage [RSVP]: the server answers the invite on my calendar, then archives the email. response: accepted, tentative or declined.
+      async rsvpTriageEntry(item, response) {
+        const label = { accepted: 'Accepted', tentative: 'Maybe', declined: 'Declined' }[response] || 'RSVP';
+        return this.runTriageAction(label, () => this.bridge.rsvpTriageThread(item.threadId, response, this.hubModeOpts()), item.threadId, true);
+      },
+
       initHub() {
         try {
           const saved = JSON.parse(localStorage.getItem('dayPlannerHubReadLater') || '[]');

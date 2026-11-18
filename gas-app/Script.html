@@ -3749,6 +3749,7 @@
     getTriageBoard(filters) { return this.hubRpc('getTriageBoard', [filters || {}]); }
     getFiledEmails(dateStr) { return this.hubRpc('getFiledEmails', [dateStr]); }
     noteTriageThread(threadId, opts) { return this.hubRpc('noteTriageThread', [threadId, opts || {}]); }
+    rsvpTriageThread(threadId, response, opts) { return this.hubRpc('rsvpTriageThread', [threadId, response, opts || {}]); }
     getUpcomingMeetingChoices(threadId) { return this.hubRpc('getUpcomingMeetingChoices', [threadId]); }
     routeThreadToTask(threadId, opts) { return this.hubRpc('routeThreadToTask', [threadId, opts || {}]); }
     routeThreadToWaiting(threadId, opts) { return this.hubRpc('routeThreadToWaiting', [threadId, opts || {}]); }
@@ -5325,6 +5326,12 @@
         const r = await this.runTriageAction('Note', () => this.bridge.noteTriageThread(item.threadId, this.hubModeOpts()), item.threadId, true);
         if (r && r.ok && r.status === 'DONE' && this.selectedDate === this.todayStr) await this.loadFiledEmails();
         return r;
+      },
+
+      // Triage [RSVP]: the server answers the invite on my calendar, then archives the email. response: accepted, tentative or declined.
+      async rsvpTriageEntry(item, response) {
+        const label = { accepted: 'Accepted', tentative: 'Maybe', declined: 'Declined' }[response] || 'RSVP';
+        return this.runTriageAction(label, () => this.bridge.rsvpTriageThread(item.threadId, response, this.hubModeOpts()), item.threadId, true);
       },
 
       initHub() {

@@ -254,6 +254,7 @@ const hubTask = (c) => addThread(c, { id: 'a1', labels: ['INBOX', '00_AR', '🎯
 const HUB_MORE = [
   { rpc: 'archiveTriageThread', api: 'Gmail.Users.Threads.modify', seed: hubTask, call: (c) => c._archiveTriageThreadInternal('a1') },
   { rpc: 'noteTriageThread', api: 'Gmail.Users.Labels.list', seed: hubTask, call: (c) => c._noteTriageThreadInternal('a1') },
+  { rpc: 'rsvpTriageThread', api: 'Gmail.Users.Threads.get', seed: hubTask, call: (c) => c._rsvpTriageThreadInternal('a1', 'accepted') },
   { rpc: 'trashTriageThread', api: 'Gmail.Users.Threads.trash', seed: hubTask, call: (c) => c._trashTriageThreadInternal('a1') },
   { rpc: 'routeThreadToTask', api: 'Gmail.Users.Threads.get', seed: hubTask, call: (c) => c._routeThreadToTaskInternal('a1', {}) },
   { rpc: 'routeThreadToWaiting', api: 'Gmail.Users.Threads.get', seed: hubTask, call: (c) => c._routeThreadToWaitingInternal('a1', {}) },

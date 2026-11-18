@@ -1355,6 +1355,7 @@ export class GASBridge {
   /** @param {number} [days] Look-back days. @returns {Promise<object>} Filed (🎯/Note) emails, newest first. */
   getFiledEmails(dateStr) { return this._hubRpc('getFiledEmails', [dateStr]); }
   noteTriageThread(threadId, opts = {}) { return this._hubRpc('noteTriageThread', [threadId, opts]); }
+  rsvpTriageThread(threadId, response, opts = {}) { return this._hubRpc('rsvpTriageThread', [threadId, response, opts]); }
 
   /**
    * @param {string} seriesKey Meeting series key.
