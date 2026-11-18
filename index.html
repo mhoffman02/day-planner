@@ -601,7 +601,7 @@
                           </template>
                         </span>
                         <!-- Row actions: Gmail compose to the guests, and the appointment in Google Calendar (where Chat with guests lives). -->
-                        <a class="notes-indicator appt-guest-action" x-show="hasOtherGuests(evt)" :href="emailGuestsUrl(evt)" target="_blank" rel="noopener noreferrer" @click.stop data-tip="Email attendees" aria-label="Email attendees">
+                        <a class="notes-indicator appt-guest-action" x-show="hasOtherGuests(evt)" :href="emailGuestsUrl(evt)" target="_blank" rel="noopener noreferrer" @click.stop.prevent="openGmailWindow(emailGuestsUrl(evt))" data-tip="Email attendees" aria-label="Email attendees">
                           <span class="material-symbols-outlined icon-14">mail</span>
                         </a>
                         <a class="notes-indicator appt-guest-action" :href="eventGCalLink(evt)" target="_blank" rel="noopener noreferrer" @click.stop.prevent="openGCalWindow(evt)" data-tip="Open in gCal: Edit, chat..." aria-label="Open in Google Calendar">
@@ -717,7 +717,7 @@
                   <ul class="email-topic-list">
                   <template x-for="n in filedEmails" :key="n.gmailUrl + n.filedOn">
                     <li class="email-topic-item notes-indicator-wrap" @mouseenter="openNotesPopover('email:' + n.gmailUrl, $event)" @mouseleave="scheduleNotesPopoverClose('email:' + n.gmailUrl)">
-                      <a :href="n.gmailUrl" target="_blank" rel="noopener noreferrer" x-text="n.subject"></a>
+                      <a :href="n.gmailUrl" target="_blank" rel="noopener noreferrer" @click.prevent="openGmailWindow(n.gmailUrl)" x-text="n.subject"></a>
                       <span class="email-topic-from" x-text="n.fromName"></span>
                       <template x-if="openNotesPopoverTaskId === 'email:' + n.gmailUrl">
                         <div class="notes-popover event-notes-popover dropdown-down" role="tooltip" @mouseenter="openNotesPopover('email:' + n.gmailUrl)" @mouseleave="scheduleNotesPopoverClose('email:' + n.gmailUrl)">
@@ -1720,7 +1720,7 @@
                                 </span></template>
                                 <button type="button" class="hub-action-btn hub-action-icon hub-action-quiet" x-show="hubFlags && hubFlags.NOTES === true" :disabled="triageStale" @click="noteTriageEntry(item)" title="Note it: file under the Email notes of the day it was sent, label 🎯/Note and archive in Gmail" :aria-label="'Note it: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">note_add</span></button>
                                 <button type="button" class="hub-action-btn hub-action-icon hub-action-danger" :disabled="triageStale" @click="trashTriageEntry(item)" title="Move to Gmail Trash (recoverable for 30 days)" :aria-label="'Delete (move to Gmail Trash): ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">delete</span></button>
-                                <a class="hub-action-btn hub-action-icon hub-action-quiet" :href="item.url" target="_blank" rel="noopener noreferrer" :aria-label="'Open Gmail: ' + item.subject" title="Open this thread in Gmail"><span class="material-symbols-outlined icon-16" aria-hidden="true">open_in_new</span></a>
+                                <a class="hub-action-btn hub-action-icon hub-action-quiet" :href="item.url" target="_blank" rel="noopener noreferrer" @click.prevent="openGmailWindow(item.url)" :aria-label="'Open Gmail: ' + item.subject" title="Open the thread in Gmail"><span class="material-symbols-outlined icon-16" aria-hidden="true">open_in_new</span></a>
                                   </span>
                                 </template>
                               </div>
@@ -1803,7 +1803,7 @@
                 <summary class="hub-carryins-summary"><span class="hub-queue-title" id="hubCarryInsTitle" x-text="'Carry-ins (' + meetingPrep.carryInCount + ')'"></span></summary>
                 <template x-for="(c, ci) in (meetingPrep.carryIns || [])" :key="ci">
                   <details class="hub-carryin-item">
-                    <summary class="hub-carryin-item-summary"><a class="hub-subject" :href="c.gmailUrl" target="_blank" rel="noopener noreferrer" x-text="c.subject || '(no subject)'"></a> <span class="hub-from"><span class="hub-from-name" x-text="c.fromName"></span> <span class="hub-from-date" x-text="'· ' + c.receivedDate"></span></span></summary>
+                    <summary class="hub-carryin-item-summary"><a class="hub-subject" :href="c.gmailUrl" target="_blank" rel="noopener noreferrer" @click.prevent="openGmailWindow(c.gmailUrl)" x-text="c.subject || '(no subject)'"></a> <span class="hub-from"><span class="hub-from-name" x-text="c.fromName"></span> <span class="hub-from-date" x-text="'· ' + c.receivedDate"></span></span></summary>
                     <dl class="hub-carryin-body">
                       <dt x-show="c.framing">Framing</dt><dd x-show="c.framing" x-text="c.framing"></dd>
                       <dt x-show="c.snippet">Snippet</dt><dd x-show="c.snippet" x-text="c.snippet"></dd>

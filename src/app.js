@@ -26,7 +26,7 @@ import {
 import { buildGoalTree, horizonCounts, childHorizonKey, smartCheck, rollupProgress, balanceByArea } from './goalEngine.js';
 import { executeUniversalSearch, flattenSearchResults, mergeArchiveSearchResults, matchesSearchQuery, resolveSlashKeyAction } from './searchEngine.js';
 import { resolveHotkey, resolveNotesHotkey, stepCursor, cursorAfterRemoval, hotkeySections } from './hotkeys.js';
-import { otherGuestEmails, emailAttendeesUrl, calendarWindowFeatures } from './attendeeActions.js';
+import { otherGuestEmails, emailAttendeesUrl, popupWindowFeatures } from './attendeeActions.js';
 import { initDataTips } from './dataTip.js';
 import { formatEventDescriptionHtml, extractMeetLink } from './calendarEngine.js';
 import { parseIndexEntriesFromNote } from './indexParser.js';
@@ -6972,13 +6972,26 @@ Alpine.data('plannerApp', () => ({
         return emailAttendeesUrl(evt);
       },
 
-      // Calendar opens in its own named window (reused on the next click), not a tab: the installed app has none.
-      // The anchor keeps a real href for the middle-click and copy-link cases; a blocked popup is reported, not swallowed.
-      openGCalWindow(evt) {
-        const win = window.open(this.eventGCalLink(evt), 'dayPlannerGCal', calendarWindowFeatures(window.screen));
+      // Gmail and Calendar open in their own named, centered windows (reused on the next click), not tabs: the installed
+      // app has none. Anchors keep a real href for the copy-link case; a missing link or a blocked popup is reported, not swallowed.
+      openGooglePopup(url, name, what, width, height) {
+        if (!url) {
+          console.error(`Open ${what}: no link to open\n` + new Error('no link').stack);
+          this.showTaskToast(`Nothing to open: there is no ${what} link for this item`);
+          return;
+        }
+        const win = window.open(url, name, popupWindowFeatures(window.screen, width, height));
         if (win) return;
-        console.error('Open in Google Calendar: window.open returned null (popup blocked); no window opened:\n' + new Error('popup blocked').stack);
-        this.showTaskToast('Popup blocked: allow popups for this app to open Google Calendar');
+        console.error(`Open ${what}: window.open returned null (popup blocked); no window opened:\n` + new Error('popup blocked').stack);
+        this.showTaskToast(`Popup blocked: allow popups for this app to open ${what}`);
+      },
+
+      openGCalWindow(evt) {
+        this.openGooglePopup(this.eventGCalLink(evt), 'dayPlannerGCal', 'Google Calendar');
+      },
+
+      openGmailWindow(url) {
+        this.openGooglePopup(url, 'dayPlannerGmail', 'Gmail');
       },
 
       isRsvpSaving(evt) {
@@ -7116,7 +7129,7 @@ Alpine.data('plannerApp', () => ({
         const dates = `${dateFormatted}T${startH}/${dateFormatted}T${endH}`;
 
         const gCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&location=${location}&details=${details}`;
-        window.open(gCalUrl, 'gCalNativeNewAppt', 'width=750,height=680,resizable=yes,scrollbars=yes');
+        this.openGooglePopup(gCalUrl, 'gCalNativeNewAppt', 'Google Calendar', 750, 680);
         this.closeCreateEventModal();
       },
 

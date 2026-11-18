@@ -6,7 +6,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { otherGuestEmails, emailAttendeesUrl, calendarWindowFeatures } from '../src/attendeeActions.js';
+import { otherGuestEmails, emailAttendeesUrl, popupWindowFeatures } from '../src/attendeeActions.js';
 
 const guests = [
   { name: 'Me', email: 'me@example.test', self: true },
@@ -36,14 +36,18 @@ test('emailAttendeesUrl is empty when nobody else is invited', () => {
   assert.equal(emailAttendeesUrl({ title: 'Focus' }), '');
 });
 
-test('calendarWindowFeatures centers a 900x760 window on the available screen', () => {
-  assert.equal(calendarWindowFeatures({ availWidth: 1920, availHeight: 1080 }), 'width=900,height=760,left=510,top=160,resizable=yes,scrollbars=yes');
+test('popupWindowFeatures centers a 900x760 window on the available screen', () => {
+  assert.equal(popupWindowFeatures({ availWidth: 1920, availHeight: 1080 }), 'width=900,height=760,left=510,top=160,resizable=yes,scrollbars=yes');
 });
 
-test('calendarWindowFeatures shrinks to a small screen and never goes off the top-left', () => {
-  assert.equal(calendarWindowFeatures({ availWidth: 800, availHeight: 600 }), 'width=800,height=600,left=0,top=0,resizable=yes,scrollbars=yes');
+test('popupWindowFeatures shrinks to a small screen and never goes off the top-left', () => {
+  assert.equal(popupWindowFeatures({ availWidth: 800, availHeight: 600 }), 'width=800,height=600,left=0,top=0,resizable=yes,scrollbars=yes');
 });
 
-test('calendarWindowFeatures without screen sizes falls back to the default size at the origin', () => {
-  assert.equal(calendarWindowFeatures(undefined), 'width=900,height=760,left=0,top=0,resizable=yes,scrollbars=yes');
+test('popupWindowFeatures takes another size and still centers it (the native Calendar create window is 750x680)', () => {
+  assert.equal(popupWindowFeatures({ availWidth: 1920, availHeight: 1080 }, 750, 680), 'width=750,height=680,left=585,top=200,resizable=yes,scrollbars=yes');
+});
+
+test('popupWindowFeatures without screen sizes falls back to the default size at the origin', () => {
+  assert.equal(popupWindowFeatures(undefined), 'width=900,height=760,left=0,top=0,resizable=yes,scrollbars=yes');
 });

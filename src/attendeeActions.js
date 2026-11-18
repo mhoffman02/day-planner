@@ -9,16 +9,18 @@
 const GMAIL_COMPOSE_URL = 'https:' + '/' + '/mail.google.com/mail/?view=cm&fs=1';
 
 /**
- * window.open features for the Google Calendar window: centered on the available screen, shrunk to fit a small one.
- * A window rather than a tab because the installed app has no tabs to switch between.
+ * window.open features for the Gmail and Google Calendar windows: centered on the available screen, shrunk to fit a
+ * small one. A window rather than a tab because the installed app has no tabs to switch between.
  * @param {{availWidth?:number, availHeight?:number}} [screen] window.screen.
+ * @param {number} [wantWidth] Window width, default 900.
+ * @param {number} [wantHeight] Window height, default 760.
  * @returns {string} Features string for window.open.
  */
-export function calendarWindowFeatures(screen) {
+export function popupWindowFeatures(screen, wantWidth = 900, wantHeight = 760) {
   const availW = (screen && screen.availWidth) || 0;
   const availH = (screen && screen.availHeight) || 0;
-  const width = availW ? Math.min(900, availW) : 900;
-  const height = availH ? Math.min(760, availH) : 760;
+  const width = availW ? Math.min(wantWidth, availW) : wantWidth;
+  const height = availH ? Math.min(wantHeight, availH) : wantHeight;
   const left = Math.max(0, Math.round((availW - width) / 2));
   const top = Math.max(0, Math.round((availH - height) / 2));
   return `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`;
