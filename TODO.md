@@ -2,10 +2,16 @@
 
 Order (2026-10-30, user): autonomous agent work first; everything that needs the user is in the last section,
 "For the session after next" (items B1, B3, B4). An agent session works the open agent bullets in "Agent work"
-(A0 next, then A5 and A8) and skips any line marked as a user hand-check or decision (A6, A7, A11, A12, A14, A17 item 8 and A10 user lines).
+(A0 next, then A5 and A8) and skips any line marked as a user hand-check or decision (A6, A7, A11, A12, A14, A17 item 8, A19 and A10 user lines).
 Load-speed work (A8) came first on 2026-11-06 at the user's request.
 
 ## Agent work: next session (hand-check lines inside need the user)
+
+### A19. Hotkey follow-ups (2026-11-18; shipped in TODO_HISTORY, HOME @500, WORK v295 pushed, repoint pending)
+- [ ] User decision, default F (skip): Ctrl+[ and Ctrl+] indent in Notes. A line is a flat markdown prefix (`LINE_EDITOR_PREFIX` in `src/lineEditor.js`) and the Doc writer (`buildDaySectionRequests_` in `gas-app/Code.gs`) only makes a bullet of a line starting `- `, so an indented line would save as plain text and lose its bullet. Building it needs a nested-list model plus Doc nesting, a separate change.
+- [ ] User hand-check on HOME @500: on Triage press j, e (archive), m, Shift+T on a live row; `?` opens the shortcut list; `#` on Today and Master removes only the cursor task. Not run live by the agent: the mock covered j/k, ?, Escape, `#` and m only (e, Shift+T, o and the Doc-row toasts are unit-tested, not driven).
+- [ ] User: repoint WORK `/exec` to version 295 (Update WORK).
+- [ ] User: if WORK invite rows still show no RSVP buttons after the repoint, send one invite subject (possibly an attachment-only `.ics`).
 
 ### A17. Fail loud and early, not after release (2026-11-15, user order: 1-3 first session, 4-6 the one after, then 7-9, then 10)
 - [ ] 8. User: open WORK `/exec` once on version 280 (repointed 2026-11-16) and say if it loads; the agent cannot, its CDP Chrome is not signed in to gsa.gov.

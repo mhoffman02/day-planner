@@ -1,5 +1,12 @@
 # Task History (TODO_HISTORY)
 
+## 2026-11-18 — Triage RSVP, Note it, Doc rows, Gmail-style hotkeys (HOME @500, WORK v295 pushed)
+- [x] Triage invite rows regained RSVP buttons (2026-11-18): the cause was a stale row cache; `6880005` bumps the prefix to `triageRow.v3:` in `gas-app/HubController.gs`, `54e614f` pins the cached fields to the prefix (`tests/hubRowCacheShape.test.js`). Clicking RSVP needs `GMAIL_ROUTER` on and `DRY_RUN` off; seeing the buttons needs no flag.
+- [x] RSVP from Triage (`b04e6bb`), RSVP answer emailed to organizers outside Google Calendar (`4723827`).
+- [x] Note it files an email under the day's Email notes topic (`d0e2608`); the original Note button is removed (`5573ee1`).
+- [x] Doc rows show a signal, Assigned to you or Unassigned Doc (`24234b8`); Task and Dismiss accept any Drive comment id (`dd91b85`).
+- [x] Gmail-style hotkeys (2026-11-18, `92792ff`): `src/hotkeys.js` table drives the dispatch and the `?` help dialog. Triage: j/k, e, #, Shift+T, m, o/Enter. `#` also deletes the cursor task on Today and Master Tasks (appointments excluded). Notes: Ctrl+Shift+8 bullets, Ctrl+Shift+7 numbers. `tests/hotkeys.test.js`; checked in the mock over CDP (j/k, ?, Escape, # on Today and Master, m on Triage).
+
 ## 2026-11-16 — A18
 - [x] A18 done (2026-11-16): deleted `src/syncEngine.js`, `tests/syncEngine.test.js`, and the `syncTaskToCalendar` import and assert in `tests/localDateKeys.test.js`.
 

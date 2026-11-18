@@ -499,3 +499,9 @@ live-testing catches it by luck.
 ## 2026-11-16
 **Worked well:** Running the user hand-checks myself over CDP found a real bug the unit tests could not: `google.script.run` ran one note save twice after a lost response, so a save that landed was reported as a Docs conflict. Wrapping the bridge call to log each send proved the client sent it once.
 **Needs improvement:** I ran `npm run push:work` twice and made two identical WORK versions (278, 279); run it once and read its log. `gas-rpc --deploy` answered with the old code for about a minute after the push; rerun before deciding a deploy failed.
+
+---
+
+## 2026-11-18
+**Worked well:** One table (`src/hotkeys.js`) drives both the key dispatch and the help dialog, so the help cannot drift. Driving real key events in the mock over CDP found that Alpine renders a tick late (read DOM after a short wait) and that `dialog[open]` is false at rest, so it is safe as the modal test.
+**Needs improvement:** The tests were written after the module, so there was no red run; I proved they bite by removing the `modalOpen` guard and watching one fail. The `sed -i 'Nr file'` insert was refused in a worktree; use Edit for large inserts.
