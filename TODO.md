@@ -8,7 +8,7 @@ Load-speed work (A8) came first on 2026-11-06 at the user's request.
 ## Agent work: next session (hand-check lines inside need the user)
 
 ### A19. Hotkey follow-ups (2026-11-18; shipped in TODO_HISTORY, HOME @500, WORK v295 pushed, repoint pending)
-- [ ] User decision, default F (skip): Ctrl+[ and Ctrl+] indent in Notes. A line is a flat markdown prefix (`LINE_EDITOR_PREFIX` in `src/lineEditor.js`) and the Doc writer (`buildDaySectionRequests_` in `gas-app/Code.gs`) only makes a bullet of a line starting `- `, so an indented line would save as plain text and lose its bullet. Building it needs a nested-list model plus Doc nesting, a separate change.
+- [x] Decided F, skip (user 2026-11-18): Ctrl+[ and Ctrl+] indent in Notes. Reopen only if the user asks. Why: a line is a flat markdown prefix (`LINE_EDITOR_PREFIX` in `src/lineEditor.js`) and the Doc writer (`buildDaySectionRequests_` in `gas-app/Code.gs`) only makes a bullet of a line starting `- `, so an indented line would save as plain text and lose its bullet. Building it needs a nested-list model plus Doc nesting, a separate change.
 - [ ] User hand-check on HOME @500: on Triage press j, e (archive), m, Shift+T on a live row; `?` opens the shortcut list; `#` on Today and Master removes only the cursor task. Not run live by the agent: the mock covered j/k, ?, Escape, `#` and m only (e, Shift+T, o and the Doc-row toasts are unit-tested, not driven).
 - [ ] User: repoint WORK `/exec` to version 295 (Update WORK).
 - [ ] User: if WORK invite rows still show no RSVP buttons after the repoint, send one invite subject (possibly an attachment-only `.ics`).
