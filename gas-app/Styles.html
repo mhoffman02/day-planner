@@ -3379,7 +3379,7 @@
   .note-card-item.note-color-green { border-left: 3px solid var(--note-color-green); }
   .note-card-item.note-color-blue { border-left: 3px solid var(--note-color-blue); }
 
-  /* Drag handle like a textarea; the sideways scrollbar shows only when a line is wider than the box. The size is not saved. */
+  /* Drag handle for height only (the width always fills the card); the sideways scrollbar shows only when a line is wider than the box. The height is not saved. */
   .note-card-lines {
     width: 100%;
     max-width: 100%;
@@ -3389,7 +3389,7 @@
     line-height: 1.5;
     padding: 8px 12px;
     overflow: auto;
-    resize: both;
+    resize: vertical;
   }
   /* Chrome writes an inline height when the handle is dragged; a cap would stop the box growing. */
   .note-card-lines:not([style*="height"]) {
@@ -7458,7 +7458,6 @@
   .email-topic {
     margin: 0 0 8px;
     padding: 6px 12px;
-    border: 1px solid var(--border-color, var(--border-neutral-2));
   }
 
   .email-topic-title {

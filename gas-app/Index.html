@@ -722,7 +722,7 @@
             <!-- Email topic: this day's emails filed with Note it (read-only, from the hub ledger; never a note card, so never written to the Doc). -->
             <template x-if="showFiledEmails &amp;&amp; filedEmails.length">
               <details class="email-topic" open>
-                <summary class="email-topic-title">Email (<span x-text="filedEmails.length"></span>)</summary>
+                <summary class="email-topic-title"><span class="material-symbols-outlined icon-14" aria-hidden="true">mail</span> Email (<span x-text="filedEmails.length"></span>)</summary>
                 <ul class="email-topic-list">
                   <template x-for="n in filedEmails" :key="n.gmailUrl + n.filedOn">
                     <li class="email-topic-item notes-indicator-wrap" @mouseenter="openNotesPopover('email:' + n.gmailUrl, $event)" @mouseleave="scheduleNotesPopoverClose('email:' + n.gmailUrl)">
