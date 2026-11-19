@@ -75,9 +75,9 @@ test('local mock items carry a snippet string', () => {
 for (const f of ['index.html', 'gas-app/Index.html']) {
   test(`${f}: Thread cell shows item.snippet in an expandable preview button`, () => {
     const html = fs.readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
-    assert.match(html, /class="hub-snippet"[^>]*:aria-expanded="hubSnippetOpenId === item\.threadId"[^>]*@click="toggleSnippet\(item\.threadId\)"/);
+    assert.match(html, /class="hub-snippet"[^>]*:aria-expanded="isSnippetOpen\(item\.threadId\)"[^>]*@click="toggleSnippet\(item\.threadId\)"/);
     assert.match(html, /x-show="item\.snippet"/);
-    assert.match(html, /x-text="hubSnippetOpenId === item\.threadId \? \(item\.preview \|\| item\.snippet\) : item\.snippet"/);
+    assert.match(html, /x-text="isSnippetOpen\(item\.threadId\) \? \(item\.preview \|\| item\.snippet\) : item\.snippet"/);
     assert.match(html, /'is-open lines-' \+ hubPreviewLines/);
   });
 }

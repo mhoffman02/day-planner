@@ -386,6 +386,8 @@ Alpine.data('plannerApp', () => ({
       hubLiveInfo: false,
       hubModeSnackTimer: null,
       hubSnippetOpenId: '',
+      hubSnippetHoverId: '',
+      hubSnippetHoverTimer: null,
       hubPreviewLines: 3,
       hubLastRun: null,
       hubCounts: {},
@@ -1825,8 +1827,24 @@ Alpine.data('plannerApp', () => ({
       // Sent with every Triage write: the server refuses (MODE_CHANGED) when the Sheet mode differs from the screen.
       hubModeOpts() { return { expectDryRun: this.hubDryRun }; },
 
+      // A click pins a row open; hovering shows it only while the mouse rests there (delay: a sweep down the list opens nothing).
       toggleSnippet(threadId) {
+        this.leaveSnippet();
         this.hubSnippetOpenId = this.hubSnippetOpenId === threadId ? '' : threadId;
+      },
+
+      isSnippetOpen(threadId) {
+        return this.hubSnippetOpenId === threadId || this.hubSnippetHoverId === threadId;
+      },
+
+      hoverSnippet(threadId) {
+        clearTimeout(this.hubSnippetHoverTimer);
+        this.hubSnippetHoverTimer = setTimeout(() => { this.hubSnippetHoverId = threadId; }, 250);
+      },
+
+      leaveSnippet() {
+        clearTimeout(this.hubSnippetHoverTimer);
+        this.hubSnippetHoverId = '';
       },
 
       hideTrialBannerToday() {
