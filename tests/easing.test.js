@@ -81,7 +81,7 @@ describe('late hub tabs', () => {
   it('gas-app/Index.html: Triage and Prep tab buttons carry fade-in', () => {
     const html = read('gas-app/Index.html');
     for (const title of ['Gmail Triage Board', 'Meeting Prep and Carry-ins']) {
-      const line = html.split('\n').find((l) => l.includes(`title="${title}"`));
+      const line = html.split('\n').find((l) => l.includes(`data-tip="${title}"`));
       assert.ok(line, `${title} button found`);
       assert.match(line, /class="segment-btn fade-in"/);
     }

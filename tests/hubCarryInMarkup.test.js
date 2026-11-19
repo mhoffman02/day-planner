@@ -40,7 +40,7 @@ for (const f of ['index.html', 'gas-app/About.html']) {
 for (const f of ['index.html', 'gas-app/Tutorial.html']) {
   test(`${f}: Tutorial Before you start links the Hub Config Sheet like About and loads its own searchUrl`, () => {
     const html = read(f);
-    assert.match(html, /Change these settings in the <a x-show="hubLink\.searchUrl" :href="hubLink\.searchUrl" target="_blank" rel="noopener noreferrer" title="Find it in Google Drive \(you should see exactly one\)">Hub Config Sheet<\/a><i x-show="!hubLink\.searchUrl">Hub Config Sheet<\/i>/);
+    assert.match(html, /Change these settings in the <a x-show="hubLink\.searchUrl" :href="hubLink\.searchUrl" target="_blank" rel="noopener noreferrer" data-tip="Find it in Google Drive \(you should see exactly one\)">Hub Config Sheet<\/a><i x-show="!hubLink\.searchUrl">Hub Config Sheet<\/i>/);
     // hubLink is About-local, so the Tutorial x-data must define and load it itself.
     assert.match(html, /hubLink: \{ searchUrl: null \}/);
     assert.match(html, /bridge\.getHubSheetLink\(\)/);

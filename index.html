@@ -91,7 +91,7 @@
       
       <!-- Left: Brand & Date Controls -->
       <div class="header-left">
-        <h1 class="brand-title-compact" title="Day Planner SPA">
+        <h1 class="brand-title-compact" data-tip="Day Planner SPA">
           <span class="material-symbols-outlined icon-22">auto_stories</span>
           <span class="brand-name">Day Planner</span>
         </h1>
@@ -103,12 +103,12 @@
           <!-- Daily Date Nav -->
           <template x-if="!isMonthlyView && activeView !== 'master-tasks'">
             <div class="date-controls-group">
-              <button type="button" class="today-link-btn" :class="{ 'is-placeholder': !isOffToday() }" @click="jumpToToday()" title="Jump to Today (T)">Today</button>
-              <button type="button" class="icon-nav-btn" @click="navigateDay(-1)" title="Previous Day" aria-label="Previous Day">
+              <button type="button" class="today-link-btn" :class="{ 'is-placeholder': !isOffToday() }" @click="jumpToToday()" data-tip="Jump to Today (T)">Today</button>
+              <button type="button" class="icon-nav-btn" @click="navigateDay(-1)" data-tip="Previous Day" aria-label="Previous Day">
                 <span class="material-symbols-outlined icon-18">chevron_left</span>
               </button>
               <div class="date-picker-wrap" @click.outside="closeDayPicker()" @mouseenter="hoverDayPicker(true)" @mouseleave="hoverDayPicker(false)">
-                <button type="button" class="today-jump-btn date-picker-btn" @click="toggleDayPicker()" title="Click to pick date from calendar" aria-haspopup="dialog" :aria-expanded="dayPickerOpen">
+                <button type="button" class="today-jump-btn date-picker-btn" @click="toggleDayPicker()" data-tip="Click to pick date from calendar" aria-haspopup="dialog" :aria-expanded="dayPickerOpen">
                   <span class="date-text-display"><span class="date-weekday" x-text="splitDateDisplay(selectedDate).weekday"></span> <span class="date-main" x-text="splitDateDisplay(selectedDate).date"></span></span>
                   <span class="material-symbols-outlined icon-14 dropdown-arrow" :class="{ 'arrow-up': dayPickerOpen }">arrow_drop_down</span>
                 </button>
@@ -116,11 +116,11 @@
                 <!-- Themed Day Calendar Popover -->
                 <div class="day-picker-dropdown" x-show="dayPickerOpen" x-cloak>
                   <div class="day-picker-header">
-                    <button type="button" class="icon-nav-btn day-picker-nav-btn" @click.stop="navigateDayPickerMonth(-1)" title="Previous Month" aria-label="Previous Month">
+                    <button type="button" class="icon-nav-btn day-picker-nav-btn" @click.stop="navigateDayPickerMonth(-1)" data-tip="Previous Month" aria-label="Previous Month">
                       <span class="material-symbols-outlined icon-16">chevron_left</span>
                     </button>
                     <span class="day-picker-month-label" x-text="dayPickerMonthLabel()"></span>
-                    <button type="button" class="icon-nav-btn day-picker-nav-btn" @click.stop="navigateDayPickerMonth(1)" title="Next Month" aria-label="Next Month">
+                    <button type="button" class="icon-nav-btn day-picker-nav-btn" @click.stop="navigateDayPickerMonth(1)" data-tip="Next Month" aria-label="Next Month">
                       <span class="material-symbols-outlined icon-16">chevron_right</span>
                     </button>
                   </div>
@@ -137,7 +137,7 @@
                                 'is-selected': cell.isSelected
                               }"
                               @click.stop="selectDayPickerDate(cell.dateStr)"
-                              :title="cell.dateStr">
+                              :data-tip="cell.dateStr">
                         <span x-text="cell.dayNum"></span>
                       </button>
                     </template>
@@ -147,7 +147,7 @@
                   </div>
                 </div>
               </div>
-              <button type="button" class="icon-nav-btn" @click="navigateDay(1)" title="Next Day" aria-label="Next Day">
+              <button type="button" class="icon-nav-btn" @click="navigateDay(1)" data-tip="Next Day" aria-label="Next Day">
                 <span class="material-symbols-outlined icon-18">chevron_right</span>
               </button>
             </div>
@@ -156,22 +156,22 @@
           <!-- Monthly Date Nav -->
           <template x-if="isMonthlyView && activeView !== 'future-matrix'">
             <div class="date-controls-group">
-              <button type="button" class="today-link-btn" :class="{ 'is-placeholder': isCurrentCalendarMonth(selectedYear, selectedMonth) }" @click="jumpToCurrentMonth()" title="Jump to Current Month">This Month</button>
-              <button type="button" class="icon-nav-btn" @click="navigateMonth(-1)" title="Previous Month" aria-label="Previous Month">
+              <button type="button" class="today-link-btn" :class="{ 'is-placeholder': isCurrentCalendarMonth(selectedYear, selectedMonth) }" @click="jumpToCurrentMonth()" data-tip="Jump to Current Month">This Month</button>
+              <button type="button" class="icon-nav-btn" @click="navigateMonth(-1)" data-tip="Previous Month" aria-label="Previous Month">
                 <span class="material-symbols-outlined icon-18">chevron_left</span>
               </button>
               <div class="month-picker-wrap" @click.outside="monthPickerOpen = false">
-                <button type="button" class="today-jump-btn month-display-btn" @click="toggleMonthPicker()" title="Click to pick month" aria-label="Pick month">
+                <button type="button" class="today-jump-btn month-display-btn" @click="toggleMonthPicker()" data-tip="Click to pick month" aria-label="Pick month">
                   <span class="date-text-display" x-text="selectedMonthName + ' ' + selectedYear"></span>
                   <span class="material-symbols-outlined icon-14 dropdown-arrow" :class="{ 'arrow-up': monthPickerOpen }">arrow_drop_down</span>
                 </button>
                 <div class="month-picker-dropdown" x-show="monthPickerOpen" x-cloak>
                   <div class="month-picker-year-nav">
-                    <button type="button" class="icon-nav-btn" @click.stop="changeMonthPickerYear(-1)" aria-label="Previous Year" title="Previous Year">
+                    <button type="button" class="icon-nav-btn" @click.stop="changeMonthPickerYear(-1)" aria-label="Previous Year" data-tip="Previous Year">
                       <span class="material-symbols-outlined icon-16">chevron_left</span>
                     </button>
                     <span class="month-picker-year-text" x-text="monthPickerYear"></span>
-                    <button type="button" class="icon-nav-btn" @click.stop="changeMonthPickerYear(1)" aria-label="Next Year" title="Next Year">
+                    <button type="button" class="icon-nav-btn" @click.stop="changeMonthPickerYear(1)" aria-label="Next Year" data-tip="Next Year">
                       <span class="material-symbols-outlined icon-16">chevron_right</span>
                     </button>
                   </div>
@@ -180,14 +180,14 @@
                       <button type="button" class="month-picker-cell"
                               :class="{ 'is-selected': selectedYear === monthPickerYear && selectedMonth === (mIdx + 1), 'is-current': isCurrentCalendarMonth(monthPickerYear, mIdx + 1) }"
                               @click.stop="selectNavMonth(monthPickerYear, mIdx + 1)"
-                              :title="mName + ' ' + monthPickerYear">
+                              :data-tip="mName + ' ' + monthPickerYear">
                         <span x-text="mName"></span>
                       </button>
                     </template>
                   </div>
                 </div>
               </div>
-              <button type="button" class="icon-nav-btn" @click="navigateMonth(1)" title="Next Month" aria-label="Next Month">
+              <button type="button" class="icon-nav-btn" @click="navigateMonth(1)" data-tip="Next Month" aria-label="Next Month">
                 <span class="material-symbols-outlined icon-18">chevron_right</span>
               </button>
             </div>
@@ -197,20 +197,20 @@
 
       <!-- Center: View Navigation Segmented Control -->
       <nav class="view-segmented-control" aria-label="Planner Views">
-        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'daily' }" @click="setView('daily')" title="Daily 3-Column View">
+        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'daily' }" @click="setView('daily')" data-tip="Daily 3-Column View">
           <span class="material-symbols-outlined icon-16">calendar_today</span>
           <span>Today</span>
         </button>
-        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'monthly-calendar' }" @click="setView('monthly-calendar')" title="Monthly Calendar View">
+        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'monthly-calendar' }" @click="setView('monthly-calendar')" data-tip="Monthly Calendar View">
           <span class="material-symbols-outlined icon-16">calendar_month</span>
           <span>Month</span>
         </button>
-        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'future-matrix' }" @click="setView('future-matrix')" title="Year Planner: 12-month overview">
+        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'future-matrix' }" @click="setView('future-matrix')" data-tip="Year Planner: 12-month overview">
           <span class="material-symbols-outlined icon-16">explore</span>
           <span>Year</span>
         </button>
         <template x-if="showTriageNav">
-          <button type="button" class="segment-btn" :class="{ 'active': activeView === 'triage' }" @click="setView('triage')" title="Gmail Triage Board">
+          <button type="button" class="segment-btn" :class="{ 'active': activeView === 'triage' }" @click="setView('triage')" data-tip="Gmail Triage Board">
             <span class="material-symbols-outlined icon-16">inbox</span>
             <span>Triage</span>
           </button>
@@ -222,7 +222,7 @@
           </span>
         </template>
         <template x-if="showMeetingPrepNav">
-          <button type="button" class="segment-btn" :class="{ 'active': activeView === 'meetingPrep' }" @click="setView('meetingPrep')" title="Meeting Prep and Carry-ins">
+          <button type="button" class="segment-btn" :class="{ 'active': activeView === 'meetingPrep' }" @click="setView('meetingPrep')" data-tip="Meeting Prep and Carry-ins">
             <span class="material-symbols-outlined icon-16">event_note</span>
             <span>Prep</span>
           </button>
@@ -233,19 +233,19 @@
             <span>Prep</span>
           </span>
         </template>
-        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'master-tasks' }" @click="setView('master-tasks')" title="Master Task List">
+        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'master-tasks' }" @click="setView('master-tasks')" data-tip="Master Task List">
           <span class="material-symbols-outlined icon-16">checklist</span>
           <span>Master Tasks</span>
         </button>
-        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'monthly-index' }" @click="setView('monthly-index')" title="#index Decision Registry">
+        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'monthly-index' }" @click="setView('monthly-index')" data-tip="#index Decision Registry">
           <span class="material-symbols-outlined icon-16">topic</span>
           <span>Index</span>
         </button>
-        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'goals' }" @click="setView('goals')" title="Goals: someday to today">
+        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'goals' }" @click="setView('goals')" data-tip="Goals: someday to today">
           <span class="material-symbols-outlined icon-16">flag</span>
           <span>Goals</span>
         </button>
-        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'about' || activeView === 'tutorial' }" @click="setView('about')" :title="'Help & About' + (appBuildNumber ? ' — GH Build ' + appBuildNumber : '')">
+        <button type="button" class="segment-btn" :class="{ 'active': activeView === 'about' || activeView === 'tutorial' }" @click="setView('about')" :data-tip="'Help & About' + (appBuildNumber ? ' — GH Build ' + appBuildNumber : '')">
           <span class="material-symbols-outlined icon-16">info</span>
           <span>About</span>
         </button>
@@ -253,27 +253,27 @@
 
       <!-- Right: Global Action Utilities -->
       <div class="header-actions-compact">
-                <button type="button" class="search-trigger-compact" @click.stop="toggleSearchModal()" title="Search (/ or Ctrl+K)" aria-label="Search">
+                <button type="button" class="search-trigger-compact" @click.stop="toggleSearchModal()" data-tip="Search (/ or Ctrl+K)" aria-label="Search">
           <span class="material-symbols-outlined icon-18">search</span>
         </button>
-        <button type="button" class="sync-btn-compact" @click="refreshAll()" :disabled="isSyncing" title="Refresh all views from Google Calendar &amp; Tasks" aria-label="Sync">
+        <button type="button" class="sync-btn-compact" @click="refreshAll()" :disabled="isSyncing" data-tip="Refresh all views from Google Calendar &amp; Tasks" aria-label="Sync">
           <span class="material-symbols-outlined icon-18" :class="{ 'spin': isSyncing }">sync</span>
         </button>
         <div class="view-options-wrap" @click.outside="viewOptionsOpen = false">
-          <button type="button" class="view-options-btn" @click="viewOptionsOpen = !viewOptionsOpen" title="View options (size, theme, widths)" aria-label="View options" aria-haspopup="true" :aria-expanded="viewOptionsOpen">
+          <button type="button" class="view-options-btn" @click="viewOptionsOpen = !viewOptionsOpen" data-tip="View options (size, theme, widths)" aria-label="View options" aria-haspopup="true" :aria-expanded="viewOptionsOpen">
             <span class="material-symbols-outlined icon-18">tune</span>
           </button>
           <div class="view-options-dropdown" x-show="viewOptionsOpen" x-cloak @keydown.escape.window="viewOptionsOpen = false">
-            <div class="view-options-row" title="UI size (double-click to reset)" @dblclick="setUiZoom(100)">
+            <div class="view-options-row" data-tip="UI size (double-click to reset)" @dblclick="setUiZoom(100)">
               <span class="view-options-label">Size</span>
               <div class="ui-zoom">
-                <button type="button" class="ui-zoom-glyph" style="font-size: 0.75rem;" @click="stepUiZoom(-1)" :disabled="uiZoom <= 80" title="Zoom out" aria-label="Zoom out">A</button>
+                <button type="button" class="ui-zoom-glyph" style="font-size: 0.75rem;" @click="stepUiZoom(-1)" :disabled="uiZoom <= 80" data-tip="Zoom out" aria-label="Zoom out">A</button>
                 <input type="range" min="80" max="150" step="5" :value="uiZoom" @input="setUiZoom($event.target.value)" aria-label="UI size">
-                <button type="button" class="ui-zoom-glyph" style="font-size: 1.1rem;" @click="stepUiZoom(1)" :disabled="uiZoom >= 150" title="Zoom in" aria-label="Zoom in">A</button>
+                <button type="button" class="ui-zoom-glyph" style="font-size: 1.1rem;" @click="stepUiZoom(1)" :disabled="uiZoom >= 150" data-tip="Zoom in" aria-label="Zoom in">A</button>
               </div>
               <span class="view-options-value" x-text="uiZoom + '%'"></span>
             </div>
-            <div class="view-options-row" title="Reset every saved width: table columns, Today panels, About page">
+            <div class="view-options-row" data-tip="Reset every saved width: table columns, Today panels, About page">
               <span class="view-options-label">Widths</span>
               <button type="button" class="view-options-theme-btn" @click="resetAllWidths()">
                 <span class="material-symbols-outlined icon-18">restart_alt</span>
@@ -289,8 +289,8 @@
             </div>
             <div class="view-options-row" role="group" aria-label="Palette">
               <span class="view-options-label">Palette</span>
-              <button type="button" class="view-options-theme-btn" :aria-pressed="palette === 'teal'" @click="setPalette('teal')" title="Forest teal binder">Teal</button>
-              <button type="button" class="view-options-theme-btn" :aria-pressed="palette === 'navy'" @click="setPalette('navy')" title="Navy: Franklin Monticello style slate blue">Navy</button>
+              <button type="button" class="view-options-theme-btn" :aria-pressed="palette === 'teal'" @click="setPalette('teal')" data-tip="Forest teal binder">Teal</button>
+              <button type="button" class="view-options-theme-btn" :aria-pressed="palette === 'navy'" @click="setPalette('navy')" data-tip="Navy: Franklin Monticello style slate blue">Navy</button>
             </div>
           </div>
         </div>
@@ -360,10 +360,10 @@
                 <span class="material-symbols-outlined">format_list_numbered</span> Tasks
               </h2>
               <div class="tasks-header-actions">
-                <button type="button" class="btn-icon-subtle stt-mic-btn" :class="{ 'stt-listening': sttListening, 'stt-blocked': sttBlocked }" @mousedown.prevent @click="toggleGlobalDictation()" :title="sttMicTitle()" :aria-label="sttListening ? 'Stop voice typing' : 'Start voice typing'">
+                <button type="button" class="btn-icon-subtle stt-mic-btn" :class="{ 'stt-listening': sttListening, 'stt-blocked': sttBlocked }" @mousedown.prevent @click="toggleGlobalDictation()" :data-tip="sttMicTitle()" :aria-label="sttListening ? 'Stop voice typing' : 'Start voice typing'">
                   <span class="material-symbols-outlined" x-text="sttListening ? 'mic' : (sttBlocked ? 'mic_off' : 'mic_none')"></span>
                 </button>
-                <button type="button" class="btn-icon-subtle" @click="toggleMaximizeColumn('tasks')" :title="maximizedColumn === 'tasks' ? 'Restore Columns (Esc)' : 'Maximize Tasks'" :aria-label="maximizedColumn === 'tasks' ? 'Restore Columns (Esc)' : 'Maximize Tasks'">
+                <button type="button" class="btn-icon-subtle" @click="toggleMaximizeColumn('tasks')" :data-tip="maximizedColumn === 'tasks' ? 'Restore Columns (Esc)' : 'Maximize Tasks'" :aria-label="maximizedColumn === 'tasks' ? 'Restore Columns (Esc)' : 'Maximize Tasks'">
                   <span class="material-symbols-outlined" x-text="maximizedColumn === 'tasks' ? 'close_fullscreen' : 'open_in_full'"></span>
                 </button>
               </div>
@@ -372,13 +372,13 @@
             <!-- Task Quick Add Form -->
             <form @submit.prevent="addDailyTask()" class="task-quick-add-bar">
               <div class="priority-segmented-group" role="radiogroup" aria-label="Task Priority">
-                <button type="button" class="priority-segment-btn" :class="{ 'active a': newTaskPriorityGroup === 'A' }" @click="newTaskPriorityGroup = 'A'" role="radio" :aria-checked="newTaskPriorityGroup === 'A'" aria-label="Priority A" title="A: Top priority (Alt+A or #a)" accesskey="a">A</button>
-                <button type="button" class="priority-segment-btn" :class="{ 'active b': newTaskPriorityGroup === 'B' }" @click="newTaskPriorityGroup = 'B'" role="radio" :aria-checked="newTaskPriorityGroup === 'B'" aria-label="Priority B" title="B: Medium priority (Alt+B or #b)" accesskey="b">B</button>
-                <button type="button" class="priority-segment-btn" :class="{ 'active c': newTaskPriorityGroup === 'C' }" @click="newTaskPriorityGroup = 'C'" role="radio" :aria-checked="newTaskPriorityGroup === 'C'" aria-label="Priority C" title="C: Normal priority (Alt+C or #c)" accesskey="c">C</button>
+                <button type="button" class="priority-segment-btn" :class="{ 'active a': newTaskPriorityGroup === 'A' }" @click="newTaskPriorityGroup = 'A'" role="radio" :aria-checked="newTaskPriorityGroup === 'A'" aria-label="Priority A" data-tip="A: Top priority (Alt+A or #a)" accesskey="a">A</button>
+                <button type="button" class="priority-segment-btn" :class="{ 'active b': newTaskPriorityGroup === 'B' }" @click="newTaskPriorityGroup = 'B'" role="radio" :aria-checked="newTaskPriorityGroup === 'B'" aria-label="Priority B" data-tip="B: Medium priority (Alt+B or #b)" accesskey="b">B</button>
+                <button type="button" class="priority-segment-btn" :class="{ 'active c': newTaskPriorityGroup === 'C' }" @click="newTaskPriorityGroup = 'C'" role="radio" :aria-checked="newTaskPriorityGroup === 'C'" aria-label="Priority C" data-tip="C: Normal priority (Alt+C or #c)" accesskey="c">C</button>
               </div>
-              <input type="text" x-model="newTaskTitle" @input="handleTaskTitleInput()" placeholder="Add task title (e.g. #a Call vendor | discuss Q3 scope)..." title="Tip: Prefix with #a, #b, or #c for priority. Use ' | ' to add notes/details (e.g. #a Call vendor | discuss scope)." class="task-input-field" aria-label="New task description">
+              <input type="text" x-model="newTaskTitle" @input="handleTaskTitleInput()" placeholder="Add task title (e.g. #a Call vendor | discuss Q3 scope)..." data-tip="Tip: Prefix with #a, #b, or #c for priority. Use ' | ' to add notes/details (e.g. #a Call vendor | discuss scope)." class="task-input-field" aria-label="New task description">
               <input type="text" x-model="newTaskCategory" @focus="focusCategoryInput($event, 'newTaskCategory')" @blur="blurCategoryInput($event, 'newTaskCategory')" @mousedown="pressCategoryInput($event, 'newTaskCategory')" @input="notePickedValue($event)" @change="notePickedValue($event)" @keydown.escape.prevent="revertCategoryInput($event, 'newTaskCategory')" :placeholder="categoryFocusKey === 'newTaskCategory' && categoryFocusValue ? categoryFocusValue : 'Category'" class="task-input-field daily-task-category-input" list="category-suggestions" aria-label="Task category">
-              <button type="submit" class="btn-add-quiet btn-add-task-round" aria-label="Add Task" title="Add Task">
+              <button type="submit" class="btn-add-quiet btn-add-task-round" aria-label="Add Task" data-tip="Add Task">
                 <span class="material-symbols-outlined">add</span>
               </button>
             </form>
@@ -523,7 +523,7 @@
                             <span class="material-symbols-outlined icon-14">sticky_note_2</span>
                           </button>
                         </span>
-                        <span class="goal-ref-hint" x-show="task.goalRef" :title="goalRefHint(task)">
+                        <span class="goal-ref-hint" x-show="task.goalRef" :data-tip="goalRefHint(task)">
                           <span class="material-symbols-outlined icon-14" aria-hidden="true">arrow_upward</span>
                           <span class="goal-ref-title" x-text="goalTitleFor(task.goalRef)"></span>
                         </span>
@@ -546,7 +546,7 @@
                role="separator"
                aria-orientation="vertical"
                aria-label="Resize Tasks and Appointments columns"
-               title="Drag left or right to resize columns (Double-click to reset)">
+               data-tip="Drag left or right to resize columns (Double-click to reset)">
             <div class="resizer-handle"></div>
           </div>
 
@@ -557,10 +557,10 @@
                 <span class="material-symbols-outlined">schedule</span> Appointments
               </h2>
               <div class="appointments-header-actions">
-                <button type="button" class="btn-icon-subtle" @click="toggleMaximizeColumn('appointments')" :title="maximizedColumn === 'appointments' ? 'Restore Columns (Esc)' : 'Maximize Appointments'" :aria-label="maximizedColumn === 'appointments' ? 'Restore Columns (Esc)' : 'Maximize Appointments'">
+                <button type="button" class="btn-icon-subtle" @click="toggleMaximizeColumn('appointments')" :data-tip="maximizedColumn === 'appointments' ? 'Restore Columns (Esc)' : 'Maximize Appointments'" :aria-label="maximizedColumn === 'appointments' ? 'Restore Columns (Esc)' : 'Maximize Appointments'">
                   <span class="material-symbols-outlined" x-text="maximizedColumn === 'appointments' ? 'close_fullscreen' : 'open_in_full'"></span>
                 </button>
-                <button type="button" class="btn-add-quiet btn-add-task-round" @click.stop="openCreateEventModal()" title="Add New Appointment" aria-label="Add New Appointment">
+                <button type="button" class="btn-add-quiet btn-add-task-round" @click.stop="openCreateEventModal()" data-tip="Add New Appointment" aria-label="Add New Appointment">
                   <span class="material-symbols-outlined">add</span>
                 </button>
               </div>
@@ -570,11 +570,11 @@
             <section class="schedule-list" tabindex="0" aria-label="Hourly Schedule">
               <template x-for="slot in scheduleGrid" :key="slot.timeKey">
                 <div class="schedule-row" :class="{ 'half-hour': slot.timeKey.endsWith(':30'), 'slot-now': slotMarker(slot.timeKey) === 'now', 'slot-next': slotMarker(slot.timeKey) === 'next' }" :aria-current="slotMarker(slot.timeKey) === 'now' ? 'time' : null">
-                  <time class="schedule-time" @click.stop="openCreateEventModal(slot.timeKey)" :title="'Add appointment at ' + slot.displayTime" x-text="slot.displayTime"></time>
-                  <div class="schedule-content" :class="{ 'is-free': slot.events.length === 0 }" @click.stop="slot.events.length === 0 && openCreateEventModal(slot.timeKey)" :title="slot.events.length === 0 ? 'Add appointment at ' + slot.displayTime : null">
+                  <time class="schedule-time" @click.stop="openCreateEventModal(slot.timeKey)" :data-tip="'Add appointment at ' + slot.displayTime" x-text="slot.displayTime"></time>
+                  <div class="schedule-content" :class="{ 'is-free': slot.events.length === 0 }" @click.stop="slot.events.length === 0 && openCreateEventModal(slot.timeKey)" :data-tip="slot.events.length === 0 ? 'Add appointment at ' + slot.displayTime : null">
                     <template x-for="(evt, evtIdx) in slot.events" :key="evt.id || ('evt_' + evtIdx)">
                       <div class="event-pill-row">
-                        <button type="button" class="event-pill" @click.stop="openEventModal(evt)" title="View appointment details" @mouseenter="hasEventDetails(evt) && openNotesPopover(eventPopoverKey(evt), $event)" @mouseleave="scheduleNotesPopoverClose(eventPopoverKey(evt))">
+                        <button type="button" class="event-pill" @click.stop="openEventModal(evt)" data-tip="View appointment details" @mouseenter="hasEventDetails(evt) && openNotesPopover(eventPopoverKey(evt), $event)" @mouseleave="scheduleNotesPopoverClose(eventPopoverKey(evt))">
                           <span class="material-symbols-outlined icon-14">event</span>
                           <span class="event-pill-text" x-text="evt.title"></span>
                         </button>
@@ -593,7 +593,7 @@
                               <div class="event-rsvp" x-show="evt.myResponse" role="group" aria-label="RSVP"><span class="event-rsvp-label">Going?</span><button type="button" class="event-rsvp-btn" :aria-pressed="evt.myResponse === 'accepted'" :disabled="isRsvpSaving(evt)" @click.stop="setRsvp(evt, 'accepted')">Yes</button><button type="button" class="event-rsvp-btn" :aria-pressed="evt.myResponse === 'declined'" :disabled="isRsvpSaving(evt)" @click.stop="setRsvp(evt, 'declined')">No</button><button type="button" class="event-rsvp-btn" :aria-pressed="evt.myResponse === 'tentative'" :disabled="isRsvpSaving(evt)" @click.stop="setRsvp(evt, 'tentative')">Maybe</button></div>
                               <div class="event-guests" x-show="evt.guests && evt.guests.length" x-init="guestsExpanded = false; $nextTick(() => measureGuests($refs.popGuests))">
                                 <p class="event-note-row"><span class="material-symbols-outlined icon-14" aria-hidden="true">group</span><span x-text="'Attendees (' + (evt.guests ? evt.guests.length : 0) + ')'"></span></p>
-                                <p class="guest-list" x-ref="popGuests" :class="{ 'is-clamped': !guestsExpanded }"><template x-for="(g, gi) in (evt.guests || [])" :key="gi"><span class="guest-item" :title="g.email"><span class="guest-mark" x-text="guestMark(g)"></span><span x-text="g.name"></span></span></template></p>
+                                <p class="guest-list" x-ref="popGuests" :class="{ 'is-clamped': !guestsExpanded }"><template x-for="(g, gi) in (evt.guests || [])" :key="gi"><span class="guest-item" :data-tip="g.email"><span class="guest-mark" x-text="guestMark(g)"></span><span x-text="g.name"></span></span></template></p>
                                 <button type="button" class="guest-toggle" x-show="guestsOverflow || guestsExpanded" @click.stop="guestsExpanded = !guestsExpanded" :aria-expanded="guestsExpanded" x-text="guestsExpanded ? 'Hide' : 'Show all'"></button>
                               </div>
                               <div class="event-note-description" x-html="evt.description ? formatEventDescription(evt.description) : 'No description'"></div>
@@ -624,7 +624,7 @@
                role="separator"
                aria-orientation="vertical"
                aria-label="Resize Appointments and Notes columns"
-               title="Drag left or right to resize columns (Double-click to reset)">
+               data-tip="Drag left or right to resize columns (Double-click to reset)">
             <div class="resizer-handle"></div>
           </div>
 
@@ -637,19 +637,19 @@
               </h2>
 
               <div class="notes-header-actions">
-                <button type="button" class="btn-icon-subtle" @click="toggleMaximizeColumn('notes')" :title="maximizedColumn === 'notes' ? 'Restore Columns (Esc)' : 'Maximize Notes'" :aria-label="maximizedColumn === 'notes' ? 'Restore Columns (Esc)' : 'Maximize Notes'">
+                <button type="button" class="btn-icon-subtle" @click="toggleMaximizeColumn('notes')" :data-tip="maximizedColumn === 'notes' ? 'Restore Columns (Esc)' : 'Maximize Notes'" :aria-label="maximizedColumn === 'notes' ? 'Restore Columns (Esc)' : 'Maximize Notes'">
                   <span class="material-symbols-outlined" x-text="maximizedColumn === 'notes' ? 'close_fullscreen' : 'open_in_full'"></span>
                 </button>
-                <button type="button" class="btn-icon-subtle" @click="openTimeMachine()" title="Version History" aria-label="Version History">
+                <button type="button" class="btn-icon-subtle" @click="openTimeMachine()" data-tip="Version History" aria-label="Version History">
                   <span class="material-symbols-outlined">history</span>
                 </button>
                 <!-- Open Notes in Docs: real anchor so the new tab is never popup-blocked -->
-                <a class="btn-icon-subtle btn-gdoc-link" :class="{ 'is-disabled': !docLink.url }" :href="docLink.url || false" target="_blank" rel="noopener noreferrer" :title="docLink.url ? 'Open Notes in Docs' : 'No notes Doc for this day yet'" aria-label="Open Notes in Docs" :aria-disabled="docLink.url ? 'false' : 'true'">
+                <a class="btn-icon-subtle btn-gdoc-link" :class="{ 'is-disabled': !docLink.url }" :href="docLink.url || false" target="_blank" rel="noopener noreferrer" :data-tip="docLink.url ? 'Open Notes in Docs' : 'No notes Doc for this day yet'" aria-label="Open Notes in Docs" :aria-disabled="docLink.url ? 'false' : 'true'">
                   <span class="material-symbols-outlined">open_in_new</span>
                 </a>
                 <!-- Dropdown Filter Menu Toggle -->
                 <div class="dropdown-container">
-                  <button type="button" class="btn-icon-subtle" @click="noteFilterMenuOpen = !noteFilterMenuOpen" title="Filter & Search Notes" aria-label="Filter & Search Notes">
+                  <button type="button" class="btn-icon-subtle" @click="noteFilterMenuOpen = !noteFilterMenuOpen" data-tip="Filter & Search Notes" aria-label="Filter & Search Notes">
                     <span class="material-symbols-outlined">tune</span>
                   </button>
                   
@@ -678,7 +678,7 @@
                 </div>
 
                 <!-- Add Topic Card Button (Round button matching Tasks) -->
-                <button type="button" class="btn-add-quiet btn-add-task-round" :disabled="notesLocked" @click="addNoteCard()" title="Add Topic Card" aria-label="Add Topic Card">
+                <button type="button" class="btn-add-quiet btn-add-task-round" :disabled="notesLocked" @click="addNoteCard()" data-tip="Add Topic Card" aria-label="Add Topic Card">
                   <span class="material-symbols-outlined">add</span>
                 </button>
               </div>
@@ -693,7 +693,7 @@
             <!-- Quote of the Day strip -->
             <article class="quote-card" :class="{ 'collapsed': quoteCardCollapsed }">
               <header class="quote-card-header" @click="toggleQuoteCard()">
-                <button type="button" class="card-twistie-btn" :title="quoteCardCollapsed ? 'Expand Quote' : 'Collapse Quote'" :aria-label="quoteCardCollapsed ? 'Expand Quote' : 'Collapse Quote'">
+                <button type="button" class="card-twistie-btn" :data-tip="quoteCardCollapsed ? 'Expand Quote' : 'Collapse Quote'" :aria-label="quoteCardCollapsed ? 'Expand Quote' : 'Collapse Quote'">
                   <span class="material-symbols-outlined icon-18" x-text="quoteCardCollapsed ? 'arrow_right' : 'arrow_drop_down'"></span>
                 </button>
                 <span class="quote-card-title">Quote for <span x-text="new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })"></span></span>
@@ -708,7 +708,7 @@
             <template x-if="showFiledEmails && filedEmails.length">
               <article class="quote-card email-card" :class="{ 'collapsed': emailCardCollapsed }">
                 <header class="quote-card-header" @click="toggleEmailCard()">
-                  <button type="button" class="card-twistie-btn" :title="emailCardCollapsed ? 'Expand Email' : 'Collapse Email'" :aria-label="emailCardCollapsed ? 'Expand Email' : 'Collapse Email'">
+                  <button type="button" class="card-twistie-btn" :data-tip="emailCardCollapsed ? 'Expand Email' : 'Collapse Email'" :aria-label="emailCardCollapsed ? 'Expand Email' : 'Collapse Email'">
                     <span class="material-symbols-outlined icon-18" x-text="emailCardCollapsed ? 'arrow_right' : 'arrow_drop_down'"></span>
                   </button>
                   <span class="quote-card-title"><span class="material-symbols-outlined icon-14" aria-hidden="true">mail</span> Email (<span x-text="filedEmails.length"></span>)</span>
@@ -756,7 +756,7 @@
                 <article class="note-card-item" :id="'note-card-' + card.id" :data-card-id="card.id" :class="{ 'collapsed': card.collapsed, 'note-color-teal': cardNoteColor(card) === 'teal', 'note-color-red': cardNoteColor(card) === 'red', 'note-color-green': cardNoteColor(card) === 'green', 'note-color-blue': cardNoteColor(card) === 'blue' }" @click.away="clearLineSelection(card)" @keydown.escape.window="clearLineSelection(card)">
                   <!-- Card Header -->
                   <header class="note-card-header">
-                    <button type="button" class="card-twistie-btn" @click="toggleCardExpand(card)" :title="card.collapsed ? 'Expand Topic' : 'Collapse Topic'">
+                    <button type="button" class="card-twistie-btn" @click="toggleCardExpand(card)" :data-tip="card.collapsed ? 'Expand Topic' : 'Collapse Topic'">
                       <span class="material-symbols-outlined icon-18" x-text="card.collapsed ? 'arrow_right' : 'arrow_drop_down'"></span>
                     </button>
 
@@ -775,7 +775,7 @@
                              class="card-topic-input"
                              style="width: 100%;"
                              aria-label="Monthly Index Topic (optional)"
-                             title="Topic: pick or type a category to add the card to the Monthly Index (Esc keeps the old one). Leave blank to keep it private to today.">
+                             data-tip="Topic: pick or type a category to add the card to the Monthly Index (Esc keeps the old one). Leave blank to keep it private to today.">
                     </div>
 
                     <div class="card-header-resizer"
@@ -786,13 +786,13 @@
                          role="separator"
                          aria-orientation="vertical"
                          aria-label="Resize Topic and Summary fields"
-                         title="Drag to resize Topic/Summary (double-click to reset)">
+                         data-tip="Drag to resize Topic/Summary (double-click to reset)">
                       <div class="resizer-handle"></div>
                     </div>
 
                     <div class="card-summary-col">
                       <div class="card-summary-main-row">
-                        <textarea rows="1" maxlength="60" x-model="card.heading" :disabled="!card.indexTopic" x-init="$nextTick(() => autoGrowNoteHeading($el))" @input="syncCardsToDailyNote(); autoGrowNoteHeading($event.target)" :placeholder="card.indexTopic ? 'Summary for the index...' : 'Set a Topic to index this card'" class="card-heading-input" aria-label="Card Summary" title="Summary: the one-line description shown in the Monthly Index (60 char max)."></textarea>
+                        <textarea rows="1" maxlength="60" x-model="card.heading" :disabled="!card.indexTopic" x-init="$nextTick(() => autoGrowNoteHeading($el))" @input="syncCardsToDailyNote(); autoGrowNoteHeading($event.target)" :placeholder="card.indexTopic ? 'Summary for the index...' : 'Set a Topic to index this card'" class="card-heading-input" aria-label="Card Summary" data-tip="Summary: the one-line description shown in the Monthly Index (60 char max)."></textarea>
 
                         <span class="card-heading-help" tabindex="0" role="note" aria-label="How Topic and Summary work">
                           <span class="material-symbols-outlined">info</span>
@@ -800,10 +800,10 @@
                         </span>
 
                         <template x-if="taskLinkForCard(card)">
-                          <span class="task-link-tag" :title="'Linked to Task ' + taskLinkForCard(card).priority" x-text="'→ ' + taskLinkForCard(card).priority"></span>
+                          <span class="task-link-tag" :data-tip="'Linked to Task ' + taskLinkForCard(card).priority" x-text="'→ ' + taskLinkForCard(card).priority"></span>
                         </template>
 
-                        <button type="button" class="card-delete-btn" @click="deleteNoteCard(card.id)" title="Delete Card" aria-label="Delete Card">
+                        <button type="button" class="card-delete-btn" @click="deleteNoteCard(card.id)" data-tip="Delete Card" aria-label="Delete Card">
                           <span class="material-symbols-outlined icon-16">delete</span>
                         </button>
                       </div>
@@ -816,7 +816,7 @@
                                     :class="{ 'is-active': isCardCategorySelected(card, cat) }"
                                     @click="toggleCardCategory(card, cat)"
                                     :aria-pressed="isCardCategorySelected(card, cat)"
-                                    :title="'Toggle ' + cat + ' category for this card'">
+                                    :data-tip="'Toggle ' + cat + ' category for this card'">
                               <span class="category-check-icon material-symbols-outlined" x-show="isCardCategorySelected(card, cat)">check</span>
                               <span x-text="cat"></span>
                             </button>
@@ -825,7 +825,7 @@
                                   x-show="cardChips(card).overflow.length > 0"
                                   @click="chipOverflowCardId = (chipOverflowCardId === card.id ? null : card.id)"
                                   :aria-expanded="chipOverflowCardId === card.id"
-                                  title="More categories (shared with Tasks)"
+                                  data-tip="More categories (shared with Tasks)"
                                   aria-label="More categories">+</button>
                         </div>
                       </div>
@@ -851,25 +851,25 @@
                   <div class="note-card-body" x-show="!card.collapsed">
                     <!-- Google Chat Style Formatting Toolbar -->
                     <div class="gchat-toolbar" role="toolbar" aria-label="Rich text formatting">
-                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'clear')" title="Clear All Formatting" aria-label="Clear All Formatting"><span class="material-symbols-outlined icon-16">format_clear</span></button>
+                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'clear')" data-tip="Clear All Formatting" aria-label="Clear All Formatting"><span class="material-symbols-outlined icon-16">format_clear</span></button>
                       <span class="toolbar-divider"></span>
-                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'bold')" title="Bold (Ctrl+B)"><span class="material-symbols-outlined icon-16">format_bold</span></button>
-                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'italic')" title="Italic (Ctrl+I)"><span class="material-symbols-outlined icon-16">format_italic</span></button>
-                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'underline')" title="Underline (Ctrl+U)"><span class="material-symbols-outlined icon-16">format_underlined</span></button>
-                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'strike')" title="Strikethrough"><span class="material-symbols-outlined icon-16">strikethrough_s</span></button>
-                      <button type="button" class="format-btn" @mousedown.prevent @click.stop="applyCardFormat(card, 'link')" title="Insert Link (Ctrl+K)" aria-label="Insert Link"><span class="material-symbols-outlined icon-16">link</span></button>
+                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'bold')" data-tip="Bold (Ctrl+B)" aria-label="Bold (Ctrl+B)"><span class="material-symbols-outlined icon-16">format_bold</span></button>
+                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'italic')" data-tip="Italic (Ctrl+I)" aria-label="Italic (Ctrl+I)"><span class="material-symbols-outlined icon-16">format_italic</span></button>
+                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'underline')" data-tip="Underline (Ctrl+U)" aria-label="Underline (Ctrl+U)"><span class="material-symbols-outlined icon-16">format_underlined</span></button>
+                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'strike')" data-tip="Strikethrough" aria-label="Strikethrough"><span class="material-symbols-outlined icon-16">strikethrough_s</span></button>
+                      <button type="button" class="format-btn" @mousedown.prevent @click.stop="applyCardFormat(card, 'link')" data-tip="Insert Link (Ctrl+K)" aria-label="Insert Link"><span class="material-symbols-outlined icon-16">link</span></button>
                       <span class="toolbar-divider"></span>
-                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'bullet')" title="Bullet List"><span class="material-symbols-outlined icon-16">format_list_bulleted</span></button>
-                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'ordered')" title="Numbered List"><span class="material-symbols-outlined icon-16">format_list_numbered</span></button>
-                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'checklist')" title="Checklist (Ctrl+Shift+C)" aria-label="Checklist"><span class="material-symbols-outlined icon-16">check_box</span></button>
+                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'bullet')" data-tip="Bullet List" aria-label="Bullet List"><span class="material-symbols-outlined icon-16">format_list_bulleted</span></button>
+                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'ordered')" data-tip="Numbered List" aria-label="Numbered List"><span class="material-symbols-outlined icon-16">format_list_numbered</span></button>
+                      <button type="button" class="format-btn" @mousedown.prevent @click="applyCardFormat(card, 'checklist')" data-tip="Checklist (Ctrl+Shift+C)" aria-label="Checklist"><span class="material-symbols-outlined icon-16">check_box</span></button>
                       <span class="toolbar-divider"></span>
-                      <button type="button" class="format-btn stt-mic-btn" :class="{ 'stt-listening': sttListening, 'stt-blocked': sttBlocked }" @mousedown.prevent @click="toggleCardDictation(card)" :title="sttMicTitle()" :aria-label="sttListening ? 'Stop dictation' : 'Start dictation'"><span class="material-symbols-outlined icon-16" x-text="sttListening ? 'mic' : (sttBlocked ? 'mic_off' : 'mic_none')"></span></button>
+                      <button type="button" class="format-btn stt-mic-btn" :class="{ 'stt-listening': sttListening, 'stt-blocked': sttBlocked }" @mousedown.prevent @click="toggleCardDictation(card)" :data-tip="sttMicTitle()" :aria-label="sttListening ? 'Stop dictation' : 'Start dictation'"><span class="material-symbols-outlined icon-16" x-text="sttListening ? 'mic' : (sttBlocked ? 'mic_off' : 'mic_none')"></span></button>
                       <span class="toolbar-divider"></span>
-                      <button type="button" class="format-btn color-swatch-btn color-swatch-default" @mousedown.prevent @click="applyCardFormat(card, 'color-default')" title="Remove Text Color Only"><span class="material-symbols-outlined icon-16">format_color_reset</span></button>
-                      <button type="button" class="format-btn color-swatch-btn color-swatch-teal" :class="{ active: cardNoteColor(card) === 'teal' }" @mousedown.prevent @click="applyCardFormat(card, 'color-teal')" title="Color: Teal" aria-label="Color: Teal"></button>
-                      <button type="button" class="format-btn color-swatch-btn color-swatch-red" :class="{ active: cardNoteColor(card) === 'red' }" @mousedown.prevent @click="applyCardFormat(card, 'color-red')" title="Color: Red" aria-label="Color: Red"></button>
-                      <button type="button" class="format-btn color-swatch-btn color-swatch-green" :class="{ active: cardNoteColor(card) === 'green' }" @mousedown.prevent @click="applyCardFormat(card, 'color-green')" title="Color: Green" aria-label="Color: Green"></button>
-                      <button type="button" class="format-btn color-swatch-btn color-swatch-blue" :class="{ active: cardNoteColor(card) === 'blue' }" @mousedown.prevent @click="applyCardFormat(card, 'color-blue')" title="Color: Blue" aria-label="Color: Blue"></button>
+                      <button type="button" class="format-btn color-swatch-btn color-swatch-default" @mousedown.prevent @click="applyCardFormat(card, 'color-default')" data-tip="Remove Text Color Only" aria-label="Remove Text Color Only"><span class="material-symbols-outlined icon-16">format_color_reset</span></button>
+                      <button type="button" class="format-btn color-swatch-btn color-swatch-teal" :class="{ active: cardNoteColor(card) === 'teal' }" @mousedown.prevent @click="applyCardFormat(card, 'color-teal')" data-tip="Color: Teal" aria-label="Color: Teal"></button>
+                      <button type="button" class="format-btn color-swatch-btn color-swatch-red" :class="{ active: cardNoteColor(card) === 'red' }" @mousedown.prevent @click="applyCardFormat(card, 'color-red')" data-tip="Color: Red" aria-label="Color: Red"></button>
+                      <button type="button" class="format-btn color-swatch-btn color-swatch-green" :class="{ active: cardNoteColor(card) === 'green' }" @mousedown.prevent @click="applyCardFormat(card, 'color-green')" data-tip="Color: Green" aria-label="Color: Green"></button>
+                      <button type="button" class="format-btn color-swatch-btn color-swatch-blue" :class="{ active: cardNoteColor(card) === 'blue' }" @mousedown.prevent @click="applyCardFormat(card, 'color-blue')" data-tip="Color: Blue" aria-label="Color: Blue"></button>
                       <span class="toolbar-divider"></span>
                       <span class="card-heading-help" tabindex="0" role="note" aria-label="Typing shortcuts for formatting">
                         <span class="material-symbols-outlined icon-16">keyboard</span>
@@ -877,20 +877,20 @@
                       </span>
                     </div>
                     <div class="stt-error-hint" x-show="(sttError || sttBlocked) && card._activeLineIndex !== null && card._activeLineIndex !== undefined" x-cloak>
-                      <div class="stt-error-text" x-show="sttError" @click="sttError = null" x-text="sttError" title="Tap to dismiss"></div>
+                      <div class="stt-error-text" x-show="sttError" @click="sttError = null" x-text="sttError" data-tip="Tap to dismiss"></div>
                       <div class="stt-fallback-actions" x-show="sttBlocked" x-cloak>
                         <template x-if="!sttScratchDocUrl">
-                          <button type="button" class="stt-fallback-btn" :disabled="sttScratchCreating" @click="openCardDictationScratchpad(card)" title="Google Docs can’t be embedded in this app (it blocks framing), so this opens as a link you click yourself — more reliable than a popup window on locked-down networks.">
+                          <button type="button" class="stt-fallback-btn" :disabled="sttScratchCreating" @click="openCardDictationScratchpad(card)" data-tip="Google Docs can’t be embedded in this app (it blocks framing), so this opens as a link you click yourself — more reliable than a popup window on locked-down networks.">
                             <span class="material-symbols-outlined icon-16" x-text="sttScratchCreating ? 'hourglass_top' : 'description'"></span>
                             <span x-text="sttScratchCreating ? 'Creating…' : 'Dictate in Google Doc'"></span>
                           </button>
                         </template>
                         <template x-if="sttScratchDocUrl">
-                          <a class="stt-fallback-btn" :href="sttScratchDocUrl" target="_blank" rel="noopener noreferrer" title="Opens in a new tab. In the Doc: Tools › Voice typing (Ctrl+Shift+V), dictate, then come back and click Pull from Doc.">
+                          <a class="stt-fallback-btn" :href="sttScratchDocUrl" target="_blank" rel="noopener noreferrer" data-tip="Opens in a new tab. In the Doc: Tools › Voice typing (Ctrl+Shift+V), dictate, then come back and click Pull from Doc.">
                             <span class="material-symbols-outlined icon-16">open_in_new</span> Open Dictation Doc
                           </a>
                         </template>
-                        <button type="button" class="stt-fallback-btn" :disabled="sttRefreshing" @click="pullFromDictationScratchpad()" title="Pulls whatever you dictated in the Google Doc into the line you started from.">
+                        <button type="button" class="stt-fallback-btn" :disabled="sttRefreshing" @click="pullFromDictationScratchpad()" data-tip="Pulls whatever you dictated in the Google Doc into the line you started from.">
                           <span class="material-symbols-outlined icon-16" x-text="sttRefreshing ? 'hourglass_top' : (sttRefreshedFlash ? 'check' : 'sync')"></span>
                           <span x-text="sttRefreshing ? 'Pulling…' : (sttRefreshedFlash ? 'Pulled!' : 'Pull from Doc')"></span>
                         </button>
@@ -901,15 +901,15 @@
                     <div class="note-card-lines">
                       <template x-for="(line, idx) in cardLines(card)" :key="idx">
                         <div class="note-card-line-row" :class="{ 'note-line-selected': isLineInSelectedRange(card, idx) }">
-                          <div class="note-render-line-item" x-show="card._activeLineIndex !== idx" @click="$event.shiftKey ? extendLineSelection(card, idx) : startEditingLine(card, idx)" title="Note line, click to edit, shift+click to extend selection">
+                          <div class="note-render-line-item" x-show="card._activeLineIndex !== idx" @click="$event.shiftKey ? extendLineSelection(card, idx) : startEditingLine(card, idx)" data-tip="Note line, click to edit, shift+click to extend selection">
                             <template x-if="isLineCheckbox(line)">
-                              <button type="button" class="note-checkbox-btn" :class="{ 'checked': isLineChecked(line) }" @click.stop="toggleCardCheckbox(card, idx, $event)" :title="isLineChecked(line) ? 'Mark open (☐)' : 'Mark completed (☒)'" :aria-label="isLineChecked(line) ? 'Completed item' : 'Open checklist item'">
+                              <button type="button" class="note-checkbox-btn" :class="{ 'checked': isLineChecked(line) }" @click.stop="toggleCardCheckbox(card, idx, $event)" :data-tip="isLineChecked(line) ? 'Mark open (☐)' : 'Mark completed (☒)'" :aria-label="isLineChecked(line) ? 'Completed item' : 'Open checklist item'">
                                 <span class="note-checkbox-glyph" x-text="isLineChecked(line) ? '☒' : '☐'"></span>
                               </button>
                             </template>
                             <span class="note-line-body" :class="{ 'note-line-checked': isLineChecked(line) }" x-html="renderCardLine(getLineTextWithoutCheckbox(line), cardLines(card).length === 1 && !line)"></span>
                           </div>
-                          <div class="note-card-line-edit" x-show="card._activeLineIndex === idx"><span class="note-card-line-prefix" x-show="lineEditorPrefixLabel(line)" x-text="lineEditorPrefixLabel(line)"></span><div contenteditable="true" :id="'card-line-' + card.id + '-' + idx" @input="onLineInput(card, idx, $event)" @keydown="handleLineKeydown($event, card, idx)" @paste="handleLinePaste($event, card, idx)" @blur="stopEditingLine(card, idx)" :data-placeholder="cardLines(card).length === 1 && idx === 0 ? 'Type notes for this topic (e.g. - #index [Topic] key decisions...)' : ''" class="note-card-line-input note-card-line-rich" title="Note line"></div></div>
+                          <div class="note-card-line-edit" x-show="card._activeLineIndex === idx"><span class="note-card-line-prefix" x-show="lineEditorPrefixLabel(line)" x-text="lineEditorPrefixLabel(line)"></span><div contenteditable="true" :id="'card-line-' + card.id + '-' + idx" @input="onLineInput(card, idx, $event)" @keydown="handleLineKeydown($event, card, idx)" @paste="handleLinePaste($event, card, idx)" @blur="stopEditingLine(card, idx)" :data-placeholder="cardLines(card).length === 1 && idx === 0 ? 'Type notes for this topic (e.g. - #index [Topic] key decisions...)' : ''" class="note-card-line-input note-card-line-rich" data-tip="Note line"></div></div>
                         </div>
                       </template>
                     </div>
@@ -974,7 +974,7 @@
                 <header class="day-num" x-text="day.dayNum"></header>
                 <div class="calendar-day-events">
                   <template x-for="(evt, evtIdx) in day.events" :key="evt.id || ('mevt_' + evtIdx)">
-                    <div class="event-pill event-pill-sm" x-text="evt.title" @click.stop="openEventModal(evt)" role="button" tabindex="0" @keydown.enter.stop="openEventModal(evt)" title="View appointment details"></div>
+                    <div class="event-pill event-pill-sm" x-text="evt.title" @click.stop="openEventModal(evt)" role="button" tabindex="0" @keydown.enter.stop="openEventModal(evt)" data-tip="View appointment details"></div>
                   </template>
                 </div>
               </article>
@@ -997,7 +997,7 @@
                 <button type="button" class="task-filter-stamp" :class="{ 'is-active': isAllMasterTaskStatusSelected() }"
                         @click="toggleAllMasterTaskStatusFilters()"
                         :aria-pressed="isAllMasterTaskStatusSelected()"
-                        title="Show all statuses or toggle to Open only">
+                        data-tip="Show all statuses or toggle to Open only">
                   All
                 </button>
                 <template x-for="opt in statusOptions" :key="opt.value">
@@ -1005,7 +1005,7 @@
                           :class="{ 'is-active': isMasterTaskStatusFilterActive(opt.value) }"
                           @click="toggleMasterTaskStatusFilter(opt.value)"
                           :aria-pressed="isMasterTaskStatusFilterActive(opt.value)"
-                          :title="opt.value + ' ' + opt.label + ' (Click to toggle)'">
+                          :data-tip="opt.value + ' ' + opt.label + ' (Click to toggle)'">
                     <span class="filter-stamp-glyph" x-text="opt.value"></span>
                     <span class="filter-stamp-text" x-text="opt.label"></span>
                   </button>
@@ -1016,28 +1016,28 @@
                         :class="{ 'is-active': masterTaskDateFilter === 'all' }"
                         @click="setMasterTaskDateFilter('all')"
                         :aria-pressed="masterTaskDateFilter === 'all'"
-                        title="Show all dates">
+                        data-tip="Show all dates">
                   All Dates
                 </button>
                 <button type="button" class="horizon-filter-stamp"
                         :class="{ 'is-active': masterTaskDateFilter === 'future' }"
                         @click="setMasterTaskDateFilter('future')"
                         :aria-pressed="masterTaskDateFilter === 'future'"
-                        title="Show future scheduled tasks">
+                        data-tip="Show future scheduled tasks">
                   Future
                 </button>
                 <button type="button" class="horizon-filter-stamp"
                         :class="{ 'is-active': masterTaskDateFilter === 'overdue-today' }"
                         @click="setMasterTaskDateFilter('overdue-today')"
                         :aria-pressed="masterTaskDateFilter === 'overdue-today'"
-                        title="Show overdue and today's tasks">
+                        data-tip="Show overdue and today's tasks">
                   Overdue / Today
                 </button>
                 <button type="button" class="horizon-filter-stamp"
                         :class="{ 'is-active': masterTaskDateFilter === 'undated' }"
                         @click="setMasterTaskDateFilter('undated')"
                         :aria-pressed="masterTaskDateFilter === 'undated'"
-                        title="Show undated backlog tasks">
+                        data-tip="Show undated backlog tasks">
                   Undated
                 </button>
               </div>
@@ -1046,38 +1046,38 @@
           <div class="master-search-bar" role="search" aria-label="Find in Master Tasks">
             <span class="material-symbols-outlined icon-18 master-search-icon" aria-hidden="true">search</span>
             <input type="search" class="master-search-input" :value="masterTaskSearchInput" @input="onMasterSearchInput($event.target.value)" @keydown.escape.stop="clearMasterSearch()" placeholder="Find in Master Tasks: title, notes, category..." aria-label="Find in Master Tasks">
-            <button type="button" class="btn-icon-subtle master-search-clear" x-show="masterTaskSearchInput" @click="clearMasterSearch()" title="Clear filter (Esc)" aria-label="Clear filter"><span class="material-symbols-outlined icon-16">close</span></button>
-            <span class="match-mode-group" role="radiogroup" aria-label="How the words must match"><span class="task-filter-label">Match:</span><label class="match-mode-opt" title="All words"><input type="radio" name="masterMatchMode" value="all" x-model="searchMatchMode" @change="restartMasterRows()"><span>All</span></label><label class="match-mode-opt" title="Any words"><input type="radio" name="masterMatchMode" value="any" x-model="searchMatchMode" @change="restartMasterRows()"><span>Any</span></label><label class="match-mode-opt" title="Exact phrase"><input type="radio" name="masterMatchMode" value="exact" x-model="searchMatchMode" @change="restartMasterRows()"><span>Phrase</span></label></span>
+            <button type="button" class="btn-icon-subtle master-search-clear" x-show="masterTaskSearchInput" @click="clearMasterSearch()" data-tip="Clear filter (Esc)" aria-label="Clear filter"><span class="material-symbols-outlined icon-16">close</span></button>
+            <span class="match-mode-group" role="radiogroup" aria-label="How the words must match"><span class="task-filter-label">Match:</span><label class="match-mode-opt" data-tip="All words"><input type="radio" name="masterMatchMode" value="all" x-model="searchMatchMode" @change="restartMasterRows()"><span>All</span></label><label class="match-mode-opt" data-tip="Any words"><input type="radio" name="masterMatchMode" value="any" x-model="searchMatchMode" @change="restartMasterRows()"><span>Any</span></label><label class="match-mode-opt" data-tip="Exact phrase"><input type="radio" name="masterMatchMode" value="exact" x-model="searchMatchMode" @change="restartMasterRows()"><span>Phrase</span></label></span>
             <span class="master-search-count" x-show="masterTaskSearch" x-text="filteredMasterTasks.length ? ('Showing ' + filteredMasterTasks.length + ' of ' + (masterTasks || []).length) : 'No tasks match.'"></span>
             <span class="master-search-hidden" x-show="masterSearchHiddenCount > 0"><span x-text="masterSearchHiddenCount + (masterSearchHiddenCount === 1 ? ' more match is hidden' : ' more matches are hidden') + ' by the filters above.'"></span> <button type="button" class="master-search-showall" @click="showAllMasterFilters()">Show all</button></span>
           </div>
           <form @submit.prevent="addMasterTask()" class="task-quick-add-bar master-task-add-bar" aria-label="Add Master Task to Backlog">
-            <span class="quick-add-section-label" title="Add Master Task to Backlog">
+            <span class="quick-add-section-label" data-tip="Add Master Task to Backlog">
               <span class="material-symbols-outlined icon-16">add_task</span>
               <span class="quick-add-label-text">New Task:</span>
             </span>
             <div class="priority-segmented-group" role="radiogroup" aria-label="Assign Master Task Priority">
-              <button type="button" class="priority-segment-btn" :class="{ 'active a': newMasterTaskPriorityGroup === 'A' }" @click="newMasterTaskPriorityGroup = 'A'" role="radio" :aria-checked="newMasterTaskPriorityGroup === 'A'" aria-label="Priority A" title="Assign Priority A (Alt+A or #a)" accesskey="a">A</button>
-              <button type="button" class="priority-segment-btn" :class="{ 'active b': newMasterTaskPriorityGroup === 'B' }" @click="newMasterTaskPriorityGroup = 'B'" role="radio" :aria-checked="newMasterTaskPriorityGroup === 'B'" aria-label="Priority B" title="Assign Priority B (Alt+B or #b)" accesskey="b">B</button>
-              <button type="button" class="priority-segment-btn" :class="{ 'active c': newMasterTaskPriorityGroup === 'C' }" @click="newMasterTaskPriorityGroup = 'C'" role="radio" :aria-checked="newMasterTaskPriorityGroup === 'C'" aria-label="Priority C" title="Assign Priority C (Alt+C or #c)" accesskey="c">C</button>
+              <button type="button" class="priority-segment-btn" :class="{ 'active a': newMasterTaskPriorityGroup === 'A' }" @click="newMasterTaskPriorityGroup = 'A'" role="radio" :aria-checked="newMasterTaskPriorityGroup === 'A'" aria-label="Priority A" data-tip="Assign Priority A (Alt+A or #a)" accesskey="a">A</button>
+              <button type="button" class="priority-segment-btn" :class="{ 'active b': newMasterTaskPriorityGroup === 'B' }" @click="newMasterTaskPriorityGroup = 'B'" role="radio" :aria-checked="newMasterTaskPriorityGroup === 'B'" aria-label="Priority B" data-tip="Assign Priority B (Alt+B or #b)" accesskey="b">B</button>
+              <button type="button" class="priority-segment-btn" :class="{ 'active c': newMasterTaskPriorityGroup === 'C' }" @click="newMasterTaskPriorityGroup = 'C'" role="radio" :aria-checked="newMasterTaskPriorityGroup === 'C'" aria-label="Priority C" data-tip="Assign Priority C (Alt+C or #c)" accesskey="c">C</button>
             </div>
-            <input type="text" x-model="newMasterTaskTitle" @input="handleMasterTaskTitleInput()" placeholder="Add master task (e.g. #a Refactor auth | add tests)..." title="Tip: Prefix with #a, #b, or #c for priority. Use ' | ' to add notes/details (e.g. #a Refactor auth | add tests)." class="task-input-field master-task-title-input" aria-label="New master task description">
+            <input type="text" x-model="newMasterTaskTitle" @input="handleMasterTaskTitleInput()" placeholder="Add master task (e.g. #a Refactor auth | add tests)..." data-tip="Tip: Prefix with #a, #b, or #c for priority. Use ' | ' to add notes/details (e.g. #a Refactor auth | add tests)." class="task-input-field master-task-title-input" aria-label="New master task description">
             <div class="master-task-due-wrap" @click.outside="closeMasterTaskDuePicker()">
-              <button type="button" class="task-input-field master-task-due-btn" @click="toggleMasterTaskDuePicker()" title="Optional due date (click to pick)" aria-haspopup="dialog" :aria-expanded="masterTaskDuePickerOpen">
+              <button type="button" class="task-input-field master-task-due-btn" @click="toggleMasterTaskDuePicker()" data-tip="Optional due date (click to pick)" aria-haspopup="dialog" :aria-expanded="masterTaskDuePickerOpen">
                 <span class="material-symbols-outlined icon-16" style="opacity:0.7;">calendar_today</span>
                 <span class="due-btn-text" x-text="newMasterTaskDueDate ? formatSelectedDateDisplay(newMasterTaskDueDate) : 'Due date...'"></span>
                 <template x-if="newMasterTaskDueDate">
-                  <span class="material-symbols-outlined icon-14 due-clear-icon" @click.stop="clearMasterTaskDueDate()" title="Clear due date">close</span>
+                  <span class="material-symbols-outlined icon-14 due-clear-icon" @click.stop="clearMasterTaskDueDate()" data-tip="Clear due date">close</span>
                 </template>
                 <span class="material-symbols-outlined icon-14 dropdown-arrow" :class="{ 'arrow-up': masterTaskDuePickerOpen }" x-show="!newMasterTaskDueDate">arrow_drop_down</span>
               </button>
               <div class="day-picker-dropdown day-picker-dropdown-due" x-show="masterTaskDuePickerOpen" x-cloak>
                 <div class="day-picker-header">
-                  <button type="button" class="icon-nav-btn day-picker-nav-btn" @click.stop="navigateMasterTaskDuePickerMonth(-1)" title="Previous Month" aria-label="Previous Month">
+                  <button type="button" class="icon-nav-btn day-picker-nav-btn" @click.stop="navigateMasterTaskDuePickerMonth(-1)" data-tip="Previous Month" aria-label="Previous Month">
                     <span class="material-symbols-outlined icon-16">chevron_left</span>
                   </button>
                   <span class="day-picker-month-label" x-text="masterTaskDuePickerMonthLabel()"></span>
-                  <button type="button" class="icon-nav-btn day-picker-nav-btn" @click.stop="navigateMasterTaskDuePickerMonth(1)" title="Next Month" aria-label="Next Month">
+                  <button type="button" class="icon-nav-btn day-picker-nav-btn" @click.stop="navigateMasterTaskDuePickerMonth(1)" data-tip="Next Month" aria-label="Next Month">
                     <span class="material-symbols-outlined icon-16">chevron_right</span>
                   </button>
                 </div>
@@ -1094,7 +1094,7 @@
                               'is-selected': cell.isSelected
                             }"
                             @click.stop="selectMasterTaskDueDate(cell.dateStr)"
-                            :title="cell.dateStr">
+                            :data-tip="cell.dateStr">
                       <span x-text="cell.dayNum"></span>
                     </button>
                   </template>
@@ -1105,7 +1105,7 @@
               </div>
             </div>
             <input type="text" x-model="newMasterTaskCategory" @focus="focusCategoryInput($event, 'newMasterTaskCategory')" @blur="blurCategoryInput($event, 'newMasterTaskCategory')" @mousedown="pressCategoryInput($event, 'newMasterTaskCategory')" @input="notePickedValue($event)" @change="notePickedValue($event)" @keydown.escape.prevent="revertCategoryInput($event, 'newMasterTaskCategory')" :placeholder="categoryFocusKey === 'newMasterTaskCategory' && categoryFocusValue ? categoryFocusValue : 'Category'" class="task-input-field master-task-category-input" list="category-suggestions" aria-label="New master task category">
-            <button type="submit" class="btn-add-quiet btn-add-task-round" :disabled="addingMasterTask" aria-label="Add master task" title="Add master task">
+            <button type="submit" class="btn-add-quiet btn-add-task-round" :disabled="addingMasterTask" aria-label="Add master task" data-tip="Add master task">
               <span class="material-symbols-outlined icon-18" :class="{ spin: addingMasterTask }" x-text="addingMasterTask ? 'progress_activity' : 'add'">add</span>
             </button>
           </form>
@@ -1256,21 +1256,21 @@
                     <td class="td-category" x-text="mTask.category || 'General'"></td>
                     <td class="td-due-date">
                       <span class="due-horizon-stamp stamp-undated" x-show="!mTask.dueDate">Undated</span>
-                      <span class="due-horizon-stamp stamp-overdue" x-show="mTask.dueDate && isMasterTaskOverdue(mTask)" :title="'Scheduled ' + formatMasterTaskDate(mTask.dueDate)">Overdue</span>
+                      <span class="due-horizon-stamp stamp-overdue" x-show="mTask.dueDate && isMasterTaskOverdue(mTask)" :data-tip="'Scheduled ' + formatMasterTaskDate(mTask.dueDate)">Overdue</span>
                       <span class="due-horizon-stamp stamp-scheduled" x-show="mTask.dueDate && !isMasterTaskOverdue(mTask)" x-text="formatMasterTaskDate(mTask.dueDate)"></span>
                     </td>
                     <td class="master-task-action-cell">
                       <span class="master-task-action-wrap">
-                        <button type="button" class="btn-jump-to" @click="jumpToDailyPage(mTask.dueDate || mTask.movedTo)" x-show="!!mTask.dueDate" title="Jump to scheduled day">
+                        <button type="button" class="btn-jump-to" @click="jumpToDailyPage(mTask.dueDate || mTask.movedTo)" x-show="!!mTask.dueDate" data-tip="Jump to scheduled day">
                           <span class="material-symbols-outlined icon-16">arrow_forward</span>
                           <span>Jump to Day</span>
                         </button>
                         <input type="date" x-model="mTask._moveDate" class="master-task-date-input" :aria-label="'Move date for ' + mTask.title" :disabled="mTask._moving" x-show="!mTask.dueDate">
-                        <button type="button" class="btn-move-to" @click="moveMasterTaskToDate(mTask)" :disabled="mTask._moving" x-show="!mTask.dueDate" title="Move task to scheduled date">
+                        <button type="button" class="btn-move-to" @click="moveMasterTaskToDate(mTask)" :disabled="mTask._moving" x-show="!mTask.dueDate" data-tip="Move task to scheduled date">
                           <span class="material-symbols-outlined icon-18" :class="{ spin: mTask._moving }" x-show="mTask._moving">progress_activity</span>
                           <span x-text="mTask._moving ? 'Moving' : 'Move to Date'"></span>
                         </button>
-                        <button type="button" class="btn-delete-row" @click="deleteMasterTask(mTask)" aria-label="Delete master task" title="Delete master task">
+                        <button type="button" class="btn-delete-row" @click="deleteMasterTask(mTask)" aria-label="Delete master task" data-tip="Delete master task">
                           <span class="material-symbols-outlined icon-16">delete</span>
                         </button>
                       </span>
@@ -1351,7 +1351,7 @@
               Year Planner
             </h2>
             <div class="future-matrix-year-nav">
-              <button type="button" class="year-link-btn" :class="{ 'is-placeholder': !isOffCurrentFutureYear() }" @click="jumpToCurrentFutureYear()" title="Jump to Current Year">This Year</button>
+              <button type="button" class="year-link-btn" :class="{ 'is-placeholder': !isOffCurrentFutureYear() }" @click="jumpToCurrentFutureYear()" data-tip="Jump to Current Year">This Year</button>
               <button type="button" class="icon-nav-btn" @click="changeFutureMatrixYear(-1)" aria-label="Previous year">
                 <span class="material-symbols-outlined">chevron_left</span>
               </button>
@@ -1369,7 +1369,7 @@
 
                   <form @submit.prevent="addFutureItemToMonth(String(idx + 1).padStart(2, '0'))" class="future-item-add-bar">
                     <input type="text" x-model="newFutureItemTitle[futureMonthKey(String(idx + 1).padStart(2, '0'))]" placeholder="Add big item..." class="future-item-input-field" :aria-label="'Add future item for ' + label">
-                    <button type="submit" class="icon-nav-btn" aria-label="Add item" title="Add item">
+                    <button type="submit" class="icon-nav-btn" aria-label="Add item" data-tip="Add item">
                       <span class="material-symbols-outlined">add</span>
                     </button>
                   </form>
@@ -1401,17 +1401,17 @@
                             </template>
                           </div>
                           <span class="future-item-title" :class="{ 'task-done': item.status === '✓' || item.status === 'X' }" x-text="item.title"></span>
-                          <button type="button" class="icon-nav-btn icon-nav-btn-subtle" @click="deleteFutureItemFromMonth(String(idx + 1).padStart(2, '0'), item)" title="Delete item" aria-label="Delete item">
+                          <button type="button" class="icon-nav-btn icon-nav-btn-subtle" @click="deleteFutureItemFromMonth(String(idx + 1).padStart(2, '0'), item)" data-tip="Delete item" aria-label="Delete item">
                             <span class="material-symbols-outlined icon-14">close</span>
                           </button>
                         </div>
                         <div class="future-item-actions">
                           <input type="date" x-model="item._transferDate" class="future-item-date-input" :aria-label="'Transfer date for ' + item.title">
-                          <button type="button" class="btn-move-to" @click="transferFutureItemToDay(String(idx + 1).padStart(2, '0'), item)" title="Transfer to this day's task list" aria-label="Transfer to day">
+                          <button type="button" class="btn-move-to" @click="transferFutureItemToDay(String(idx + 1).padStart(2, '0'), item)" data-tip="Transfer to this day's task list" aria-label="Transfer to day">
                             <span class="material-symbols-outlined icon-14">arrow_forward</span>
                             <span>Move</span>
                           </button>
-                          <button type="button" class="icon-nav-btn" @click="pushFutureItemForward(String(idx + 1).padStart(2, '0'), item)" title="Push to next month" aria-label="Push to next month">
+                          <button type="button" class="icon-nav-btn" @click="pushFutureItemForward(String(idx + 1).padStart(2, '0'), item)" data-tip="Push to next month" aria-label="Push to next month">
                             <span class="material-symbols-outlined icon-16">redo</span>
                           </button>
                         </div>
@@ -1477,7 +1477,7 @@
                 <h3 class="goals-heading">Breakdown</h3>
                 <button type="button" class="goals-btn" @click="newRootGoal()">+ Someday goal</button>
                 <button type="button" class="goals-btn" :disabled="!goalCanBreakDown" @click="newChildGoal()"
-                        :title="selectedGoal &amp;&amp; !goalCanBreakDown ? 'Quarter goals break down into Year months and Today tasks' : 'Add a sub-goal under the selected goal'">+ Break down</button>
+                        :data-tip="selectedGoal &amp;&amp; !goalCanBreakDown ? 'Quarter goals break down into Year months and Today tasks' : 'Add a sub-goal under the selected goal'">+ Break down</button>
               </div>
               <p class="goals-quiet" x-show="selectedGoal &amp;&amp; !goalCanBreakDown">Quarter goals break down into Year months and Today tasks.</p>
               <p class="goals-quiet" x-show="goalRows.length === 0" x-cloak>No goals yet. Start with a Someday goal.</p>
@@ -1565,7 +1565,7 @@
                     <button type="submit" class="goals-btn goals-btn-primary" :disabled="goalSaving">Save</button>
                     <button type="button" class="goals-btn" x-show="goalDraft.id" @click="toggleGoalDone()" x-text="goalDraft.status === 'done' ? 'Reopen' : 'Mark done'"></button>
                     <button type="button" class="goals-btn goals-btn-danger" x-show="goalDraft.id" :disabled="goalDraftHasChildren"
-                            :title="goalDraftHasChildren ? 'Remove its sub-goals first' : 'Delete this goal'" @click="deleteGoalDraft()">Delete</button>
+                            :data-tip="goalDraftHasChildren ? 'Remove its sub-goals first' : 'Delete this goal'" @click="deleteGoalDraft()">Delete</button>
                   </div>
                   <p class="goals-msg" role="status" x-show="goalMsg" x-text="goalMsg"></p>
                   <div class="goals-step" x-show="goalDraft.id">
@@ -1604,13 +1604,13 @@
               </span>
             </p>
             <div class="hub-mode-control" x-show="showTriageNav">
-              <span class="hub-mode-badge is-trial" x-show="hubDryRun" title="Trial mode: nothing changes in Gmail, Tasks or Docs">
+              <span class="hub-mode-badge is-trial" x-show="hubDryRun" data-tip="Trial mode: nothing changes in Gmail, Tasks or Docs">
                 <span class="material-symbols-outlined icon-18" aria-hidden="true">science</span>
                 <span>Trial mode</span>
               </span>
               <button type="button" class="btn-secondary hub-mode-btn" x-show="hubDryRun &amp;&amp; !hubTrialBannerVisible" @click="openGoLive($event)">Go live</button>
               <span class="hub-live-quiet" x-show="!hubDryRun" tabindex="0" role="status"
-                    title="Planner is live. Triage actions change your real Gmail, Tasks and Docs. Switch to trial on the About page."
+                    data-tip="Planner is live. Triage actions change your real Gmail, Tasks and Docs. Switch to trial on the About page."
                     @click="hubLiveInfo = !hubLiveInfo" @keydown.enter.prevent="hubLiveInfo = !hubLiveInfo" @blur="hubLiveInfo = false">
                 <span class="hub-live-dot" aria-hidden="true"></span>
                 <span x-text="hubLiveInfo ? 'Planner is live. Switch to trial on the About page.' : 'Live'"></span>
@@ -1648,7 +1648,7 @@
                 <section class="hub-queue" :aria-labelledby="'hubQueue-' + q.key">
                   <h3 class="hub-queue-title" :id="'hubQueue-' + q.key" x-text="q.title + ' (' + q.items.length + ')'"></h3>
                   <p class="hub-queue-empty" x-show="q.items.length === 0">Nothing in this queue.</p>
-                  <p class="hub-queue-empty doc-controls" x-show="q.key === 'directAction' &amp;&amp; (docActionRows.length > 0 || docHidden > 0 || docLoading)"><span class="match-mode-group" role="radiogroup" aria-label="How many Doc items to show"><span class="task-filter-label">Show:</span><label class="match-mode-opt" title="Show the newest 10 Doc items"><input type="radio" name="docRowLimit" value="10" :checked="docRowLimit === 10" @change="setDocRowLimit(10)"><span>10</span></label><label class="match-mode-opt" title="Show the newest 25 Doc items"><input type="radio" name="docRowLimit" value="25" :checked="docRowLimit === 25" @change="setDocRowLimit(25)"><span>25</span></label><label class="match-mode-opt" title="Show the newest 50 Doc items"><input type="radio" name="docRowLimit" value="50" :checked="docRowLimit === 50" @change="setDocRowLimit(50)"><span>50</span></label><label class="match-mode-opt" title="Show every Doc item"><input type="radio" name="docRowLimit" value="all" :checked="docRowLimit === 'all'" @change="setDocRowLimit('all')"><span>All</span></label></span> <span class="match-mode-group" role="radiogroup" aria-label="Sort Doc items by date"><span class="task-filter-label">Sort:</span><label class="match-mode-opt" title="Newest comments first"><input type="radio" name="docSort" value="desc" :checked="docSortDir === 'desc'" @change="docSortDir !== 'desc' &amp;&amp; toggleDocSort()"><span>Newest</span></label><label class="match-mode-opt" title="Oldest comments first"><input type="radio" name="docSort" value="asc" :checked="docSortDir === 'asc'" @change="docSortDir !== 'asc' &amp;&amp; toggleDocSort()"><span>Oldest</span></label></span> <span x-show="docHidden > 0" x-text="docHidden + ' more hidden'"></span> <span class="match-mode-group" role="radiogroup" aria-label="Dismiss Doc items older than"><span class="task-filter-label">Dismiss older than:</span><label class="match-mode-opt" title="Pick the Doc items whose comment is over 30 days old"><input type="radio" name="docBulkAge" value="30" :checked="docBulkDays === 30" @change="requestBulkDocDismiss(30)"><span>30d</span></label><label class="match-mode-opt" title="Pick the Doc items whose comment is over 90 days old"><input type="radio" name="docBulkAge" value="90" :checked="docBulkDays === 90" @change="requestBulkDocDismiss(90)"><span>90d</span></label><label class="match-mode-opt" title="Pick the Doc items whose comment is over a year old"><input type="radio" name="docBulkAge" value="365" :checked="docBulkDays === 365" @change="requestBulkDocDismiss(365)"><span>1yr</span></label></span></p>
+                  <p class="hub-queue-empty doc-controls" x-show="q.key === 'directAction' &amp;&amp; (docActionRows.length > 0 || docHidden > 0 || docLoading)"><span class="match-mode-group" role="radiogroup" aria-label="How many Doc items to show"><span class="task-filter-label">Show:</span><label class="match-mode-opt" data-tip="Show the newest 10 Doc items"><input type="radio" name="docRowLimit" value="10" :checked="docRowLimit === 10" @change="setDocRowLimit(10)"><span>10</span></label><label class="match-mode-opt" data-tip="Show the newest 25 Doc items"><input type="radio" name="docRowLimit" value="25" :checked="docRowLimit === 25" @change="setDocRowLimit(25)"><span>25</span></label><label class="match-mode-opt" data-tip="Show the newest 50 Doc items"><input type="radio" name="docRowLimit" value="50" :checked="docRowLimit === 50" @change="setDocRowLimit(50)"><span>50</span></label><label class="match-mode-opt" data-tip="Show every Doc item"><input type="radio" name="docRowLimit" value="all" :checked="docRowLimit === 'all'" @change="setDocRowLimit('all')"><span>All</span></label></span> <span class="match-mode-group" role="radiogroup" aria-label="Sort Doc items by date"><span class="task-filter-label">Sort:</span><label class="match-mode-opt" data-tip="Newest comments first"><input type="radio" name="docSort" value="desc" :checked="docSortDir === 'desc'" @change="docSortDir !== 'desc' &amp;&amp; toggleDocSort()"><span>Newest</span></label><label class="match-mode-opt" data-tip="Oldest comments first"><input type="radio" name="docSort" value="asc" :checked="docSortDir === 'asc'" @change="docSortDir !== 'asc' &amp;&amp; toggleDocSort()"><span>Oldest</span></label></span> <span x-show="docHidden > 0" x-text="docHidden + ' more hidden'"></span> <span class="match-mode-group" role="radiogroup" aria-label="Dismiss Doc items older than"><span class="task-filter-label">Dismiss older than:</span><label class="match-mode-opt" data-tip="Pick the Doc items whose comment is over 30 days old"><input type="radio" name="docBulkAge" value="30" :checked="docBulkDays === 30" @change="requestBulkDocDismiss(30)"><span>30d</span></label><label class="match-mode-opt" data-tip="Pick the Doc items whose comment is over 90 days old"><input type="radio" name="docBulkAge" value="90" :checked="docBulkDays === 90" @change="requestBulkDocDismiss(90)"><span>90d</span></label><label class="match-mode-opt" data-tip="Pick the Doc items whose comment is over a year old"><input type="radio" name="docBulkAge" value="365" :checked="docBulkDays === 365" @change="requestBulkDocDismiss(365)"><span>1yr</span></label></span></p>
                   <div class="doc-bulk-confirm" x-show="q.key === 'directAction' &amp;&amp; docBulkDays > 0" role="alert" @keydown.escape="cancelBulkDocDismiss()"><p class="doc-bulk-confirm-text" x-show="docBulkIds.length === 0" x-text="'No Doc items are older than ' + docBulkDays + ' days.'"></p><p class="doc-bulk-confirm-text" x-show="docBulkIds.length > 0" x-text="'Remove ' + docBulkIds.length + ' Doc item(s) older than ' + docBulkDays + ' days from Triage? The comments stay open in the Doc.'"></p><span class="doc-bulk-confirm-actions"><button type="button" class="btn-primary" x-show="docBulkIds.length > 0" @click="confirmBulkDocDismiss()">Remove them</button><button type="button" class="btn-secondary" @click="cancelBulkDocDismiss()">Cancel</button></span></div>
                   <figure class="table-container hub-table-wrap" x-show="q.items.length > 0">
                     <table class="hub-table" data-col-table="hub" data-col-flex="2">
@@ -1670,17 +1670,17 @@
                             </td>
                             <td>
                               <template x-if="item.sourceType === 'DOC_COMMENT'">
-                                <a class="hub-subject" :href="item.url" target="_blank" rel="noopener noreferrer" title="Open the comment in Google Docs" x-text="item.subject"></a>
+                                <a class="hub-subject" :href="item.url" target="_blank" rel="noopener noreferrer" data-tip="Open the comment in Google Docs" aria-label="Open the comment in Google Docs" x-text="item.subject"></a>
                               </template>
                               <template x-if="item.sourceType !== 'DOC_COMMENT'">
                                 <span class="hub-subject" x-text="item.subject"></span>
                               </template>
                               <span class="hub-from"><span class="hub-from-name" x-text="item.fromName"></span> <span class="hub-from-date" x-text="'· ' + (item.date || '').replace('T', ' ').slice(0, 16)"></span></span>
-                              <button type="button" class="hub-snippet" x-show="item.snippet" :class="hubSnippetOpenId === item.threadId ? 'is-open lines-' + hubPreviewLines : ''" :aria-expanded="hubSnippetOpenId === item.threadId" @click="toggleSnippet(item.threadId)" :title="hubSnippetOpenId === item.threadId ? 'Show less' : (item.sourceType === 'DOC_COMMENT' ? (item.preview || item.snippet) : 'Show more of the latest message')" x-text="hubSnippetOpenId === item.threadId ? (item.preview || item.snippet) : item.snippet"></button>
+                              <button type="button" class="hub-snippet" x-show="item.snippet" :class="hubSnippetOpenId === item.threadId ? 'is-open lines-' + hubPreviewLines : ''" :aria-expanded="hubSnippetOpenId === item.threadId" @click="toggleSnippet(item.threadId)" :data-tip="hubSnippetOpenId === item.threadId ? 'Show less' : (item.sourceType === 'DOC_COMMENT' ? (item.preview || item.snippet) : 'Show more of the latest message')" :aria-label="hubSnippetOpenId === item.threadId ? 'Show less' : (item.sourceType === 'DOC_COMMENT' ? (item.preview || item.snippet) : 'Show more of the latest message')" x-text="hubSnippetOpenId === item.threadId ? (item.preview || item.snippet) : item.snippet"></button>
                               <template x-if="item.suggestions &amp;&amp; item.suggestions.length > 0">
                                 <span class="hub-suggest">Suggested:
                                   <template x-for="d in item.suggestions" :key="d.seriesKey">
-                                    <span class="hub-suggest-item" :title="d.reason" x-text="d.seriesKey"></span>
+                                    <span class="hub-suggest-item" :data-tip="d.reason" x-text="d.seriesKey"></span>
                                   </template>
                                 </span>
                               </template>
@@ -1699,28 +1699,28 @@
                               <div class="hub-actions" role="group" :aria-label="'Actions for ' + item.subject">
                                 <template x-if="item.sourceType === 'DOC_COMMENT'">
                                   <span class="hub-doc-actions">
-                                    <button type="button" class="hub-action-btn" :disabled="triageStale" @click="taskDocEntry(item)" title="Create a Google Task linking this Doc comment" :aria-label="'Task: ' + item.subject">Task</button>
-                                    <button type="button" class="hub-action-btn hub-action-icon hub-action-quiet" :disabled="triageStale" @click="dismissDocEntry(item)" title="Hide from Triage; the Doc comment stays open" :aria-label="'Dismiss: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">close</span></button>
-                                    <a class="hub-action-btn hub-action-icon hub-action-quiet" :href="item.url" target="_blank" rel="noopener noreferrer" title="Open the Doc" :aria-label="'Open Doc: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">open_in_new</span></a>
+                                    <button type="button" class="hub-action-btn" :disabled="triageStale" @click="taskDocEntry(item)" data-tip="Create a Google Task linking this Doc comment" :aria-label="'Task: ' + item.subject">Task</button>
+                                    <button type="button" class="hub-action-btn hub-action-icon hub-action-quiet" :disabled="triageStale" @click="dismissDocEntry(item)" data-tip="Hide from Triage; the Doc comment stays open" :aria-label="'Dismiss: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">close</span></button>
+                                    <a class="hub-action-btn hub-action-icon hub-action-quiet" :href="item.url" target="_blank" rel="noopener noreferrer" data-tip="Open the Doc" :aria-label="'Open Doc: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">open_in_new</span></a>
                                   </span>
                                 </template>
                                 <template x-if="item.sourceType !== 'DOC_COMMENT'">
                                   <span class="hub-gmail-actions">
                                 <button type="button" class="hub-action-btn" :disabled="triageStale || triageTaskBusy(item) !== '' || triageTaskDone(item) !== ''" :aria-busy="triageTaskBusy(item) === 'today'" @click="triageTask(item, true)" :aria-label="'Task Today: ' + item.subject"><span x-show="triageTaskBusy(item) === 'today'" class="material-symbols-outlined icon-16 btn-spinner" aria-hidden="true">progress_activity</span><span x-show="triageTaskDone(item) === 'today'" class="material-symbols-outlined icon-16 hub-task-done" aria-hidden="true">check</span><span x-text="triageTaskDone(item) === 'today' ? 'Tasked today' : 'Task Today'">Task Today</span></button>
                                 <button type="button" class="hub-action-btn" :disabled="triageStale || triageTaskBusy(item) !== '' || triageTaskDone(item) !== ''" :aria-busy="triageTaskBusy(item) === 'later'" @click="triageTask(item, false)" :aria-label="'Task Later: ' + item.subject"><span x-show="triageTaskBusy(item) === 'later'" class="material-symbols-outlined icon-16 btn-spinner" aria-hidden="true">progress_activity</span><span x-show="triageTaskDone(item) === 'later'" class="material-symbols-outlined icon-16 hub-task-done" aria-hidden="true">check</span><span x-text="triageTaskDone(item) === 'later' ? 'Tasked later' : 'Task Later'">Task Later</span></button>
-                                <button type="button" class="hub-action-btn hub-action-icon" :disabled="triageStale" @click="openWaitingForm(item)" title="Waiting for a reply: opens the follow-up form" :aria-label="'Waiting: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">hourglass_empty</span></button>
-                                <button type="button" class="hub-action-btn hub-action-icon hub-action-quiet" :disabled="triageStale" @click="openMeetingPicker(item)" title="Send to a meeting agenda" :aria-label="'Send to Meeting: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">event</span></button>
-                                <button type="button" class="hub-action-btn hub-action-icon hub-action-quiet" :disabled="triageStale" @click="readLaterItem(item)" title="Read later" :aria-label="'Read Later: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">bookmark</span></button>
-                                <button type="button" class="hub-action-btn hub-action-icon hub-action-quiet" :disabled="triageStale" @click="dismissTriageEntry(item)" title="Dismiss from Triage" :aria-label="'Dismiss: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">close</span></button>
-                                <button type="button" class="hub-action-btn hub-action-icon hub-action-quiet" :disabled="triageStale" @click="archiveTriageEntry(item)" title="Archive in Gmail (removes it from the Inbox; labels stay)" :aria-label="'Archive in Gmail: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">archive</span></button>
+                                <button type="button" class="hub-action-btn hub-action-icon" :disabled="triageStale" @click="openWaitingForm(item)" data-tip="Waiting for a reply: opens the follow-up form" :aria-label="'Waiting: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">hourglass_empty</span></button>
+                                <button type="button" class="hub-action-btn hub-action-icon hub-action-quiet" :disabled="triageStale" @click="openMeetingPicker(item)" data-tip="Send to a meeting agenda" :aria-label="'Send to Meeting: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">event</span></button>
+                                <button type="button" class="hub-action-btn hub-action-icon hub-action-quiet" :disabled="triageStale" @click="readLaterItem(item)" data-tip="Read later" :aria-label="'Read Later: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">bookmark</span></button>
+                                <button type="button" class="hub-action-btn hub-action-icon hub-action-quiet" :disabled="triageStale" @click="dismissTriageEntry(item)" data-tip="Dismiss from Triage" :aria-label="'Dismiss: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">close</span></button>
+                                <button type="button" class="hub-action-btn hub-action-icon hub-action-quiet" :disabled="triageStale" @click="archiveTriageEntry(item)" data-tip="Archive in Gmail (removes it from the Inbox; labels stay)" :aria-label="'Archive in Gmail: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">archive</span></button>
                                 <template x-if="item.isInvite === true"><span class="hub-rsvp-actions">
-                                <button type="button" class="hub-action-btn hub-action-icon hub-action-quiet" :disabled="triageStale" @click="rsvpTriageEntry(item, 'accepted')" title="Accept the invite, then archive the email" :aria-label="'Accept invite: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">event_available</span></button>
-                                <button type="button" class="hub-action-btn hub-action-icon hub-action-quiet" :disabled="triageStale" @click="rsvpTriageEntry(item, 'tentative')" title="Answer Maybe, then archive the email" :aria-label="'Maybe to invite: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">event_upcoming</span></button>
-                                <button type="button" class="hub-action-btn hub-action-icon hub-action-quiet" :disabled="triageStale" @click="rsvpTriageEntry(item, 'declined')" title="Decline the invite, then archive the email" :aria-label="'Decline invite: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">event_busy</span></button>
+                                <button type="button" class="hub-action-btn hub-action-icon hub-action-quiet" :disabled="triageStale" @click="rsvpTriageEntry(item, 'accepted')" data-tip="Accept the invite, then archive the email" :aria-label="'Accept invite: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">event_available</span></button>
+                                <button type="button" class="hub-action-btn hub-action-icon hub-action-quiet" :disabled="triageStale" @click="rsvpTriageEntry(item, 'tentative')" data-tip="Answer Maybe, then archive the email" :aria-label="'Maybe to invite: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">event_upcoming</span></button>
+                                <button type="button" class="hub-action-btn hub-action-icon hub-action-quiet" :disabled="triageStale" @click="rsvpTriageEntry(item, 'declined')" data-tip="Decline the invite, then archive the email" :aria-label="'Decline invite: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">event_busy</span></button>
                                 </span></template>
-                                <button type="button" class="hub-action-btn hub-action-icon hub-action-quiet" x-show="hubFlags && hubFlags.NOTES === true" :disabled="triageStale" @click="noteTriageEntry(item)" title="Note it: file under the Email notes of the day it was sent, label 🎯/Note and archive in Gmail" :aria-label="'Note it: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">note_add</span></button>
-                                <button type="button" class="hub-action-btn hub-action-icon hub-action-danger" :disabled="triageStale" @click="trashTriageEntry(item)" title="Move to Gmail Trash (recoverable for 30 days)" :aria-label="'Delete (move to Gmail Trash): ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">delete</span></button>
-                                <a class="hub-action-btn hub-action-icon hub-action-quiet" :href="item.url" target="_blank" rel="noopener noreferrer" @click.prevent="openGmailWindow(item.url)" :aria-label="'Open Gmail: ' + item.subject" title="Open the thread in Gmail"><span class="material-symbols-outlined icon-16" aria-hidden="true">open_in_new</span></a>
+                                <button type="button" class="hub-action-btn hub-action-icon hub-action-quiet" x-show="hubFlags && hubFlags.NOTES === true" :disabled="triageStale" @click="noteTriageEntry(item)" data-tip="Note it: file under the Email notes of the day it was sent, label 🎯/Note and archive in Gmail" :aria-label="'Note it: ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">note_add</span></button>
+                                <button type="button" class="hub-action-btn hub-action-icon hub-action-danger" :disabled="triageStale" @click="trashTriageEntry(item)" data-tip="Move to Gmail Trash (recoverable for 30 days)" :aria-label="'Delete (move to Gmail Trash): ' + item.subject"><span class="material-symbols-outlined icon-16" aria-hidden="true">delete</span></button>
+                                <a class="hub-action-btn hub-action-icon hub-action-quiet" :href="item.url" target="_blank" rel="noopener noreferrer" @click.prevent="openGmailWindow(item.url)" :aria-label="'Open Gmail: ' + item.subject" data-tip="Open the thread in Gmail"><span class="material-symbols-outlined icon-16" aria-hidden="true">open_in_new</span></a>
                                   </span>
                                 </template>
                               </div>
@@ -1746,19 +1746,19 @@
               Meeting Prep
             </h2>
             <div class="hub-mode-control" x-show="showMeetingPrepNav">
-              <span class="hub-mode-badge is-trial" x-show="hubDryRun" title="Trial mode: nothing changes in Gmail, Tasks or Docs">
+              <span class="hub-mode-badge is-trial" x-show="hubDryRun" data-tip="Trial mode: nothing changes in Gmail, Tasks or Docs">
                 <span class="material-symbols-outlined icon-18" aria-hidden="true">science</span>
                 <span>Trial mode</span>
               </span>
               <button type="button" class="btn-secondary hub-mode-btn" x-show="hubDryRun &amp;&amp; !hubTrialBannerVisible" @click="openGoLive($event)">Go live</button>
               <span class="hub-live-quiet" x-show="!hubDryRun" tabindex="0" role="status"
-                    title="Planner is live. Triage actions change your real Gmail, Tasks and Docs. Switch to trial on the About page."
+                    data-tip="Planner is live. Triage actions change your real Gmail, Tasks and Docs. Switch to trial on the About page."
                     @click="hubLiveInfo = !hubLiveInfo" @keydown.enter.prevent="hubLiveInfo = !hubLiveInfo" @blur="hubLiveInfo = false">
                 <span class="hub-live-dot" aria-hidden="true"></span>
                 <span x-text="hubLiveInfo ? 'Planner is live. Switch to trial on the About page.' : 'Live'"></span>
               </span>
             </div>
-            <button type="button" class="btn-secondary hub-refresh-btn" @click="refreshMeetingPrep()" :disabled="meetingPrepLoading || meetingPrepRefreshing" :aria-busy="meetingPrepRefreshing ? 'true' : 'false'" title="Checks your mail now, then reloads" x-show="showMeetingPrepNav"><span x-text="meetingPrepRefreshing ? 'Checking mail…' : 'Refresh'"></span></button>
+            <button type="button" class="btn-secondary hub-refresh-btn" @click="refreshMeetingPrep()" :disabled="meetingPrepLoading || meetingPrepRefreshing" :aria-busy="meetingPrepRefreshing ? 'true' : 'false'" data-tip="Checks your mail now, then reloads" x-show="showMeetingPrepNav"><span x-text="meetingPrepRefreshing ? 'Checking mail…' : 'Refresh'"></span></button>
           </header>
           <p class="hub-mail-note" role="status" x-show="showMeetingPrepNav &amp;&amp; meetingPrepMailNote" x-text="meetingPrepMailNote"></p>
 
@@ -1838,10 +1838,10 @@
       </h1>
       <p class="about-subtitle">
         What it does, and how to use it
-        <span class="build-badge" x-show="appBuildNumber" x-cloak x-text="'GH Build ' + appBuildNumber" title="The exact build you’re currently running — include this when reporting an issue."></span>
+        <span class="build-badge" x-show="appBuildNumber" x-cloak x-text="'GH Build ' + appBuildNumber" data-tip="The exact build you’re currently running — include this when reporting an issue."></span>
       </p>
     </div>
-    <button type="button" class="btn-install-app-header" @click.stop="triggerInstallApp()" title="Click to install Day Planner as a desktop app">
+    <button type="button" class="btn-install-app-header" @click.stop="triggerInstallApp()" data-tip="Click to install Day Planner as a desktop app">
       <span class="material-symbols-outlined icon-18">install_desktop</span>
       <span class="install-btn-text">Install Day Planner</span>
     </button>
@@ -1860,7 +1860,7 @@
   </section>
 
   <nav class="about-toc" aria-label="On this page" x-data="{ jump(id) { const el = document.getElementById(id); const box = el &amp;&amp; el.closest('.about-view-container'); if (!box) return; box.scrollTo({ top: box.scrollTop + el.getBoundingClientRect().top - box.getBoundingClientRect().top - 56, behavior: 'smooth' }); } }">
-    <button type="button" class="about-toc-link about-toc-tutorial" @click="setView('tutorial')" title="Hands-on exercises that double as an acceptance checklist">Tutorial &rsaquo;</button>
+    <button type="button" class="about-toc-link about-toc-tutorial" @click="setView('tutorial')" data-tip="Hands-on exercises that double as an acceptance checklist">Tutorial &rsaquo;</button>
     <button type="button" class="about-toc-link" @click="jump('heading-purpose')">Overview</button>
     <button type="button" class="about-toc-link" @click="jump('heading-setup')">Setup</button>
     <button type="button" class="about-toc-link" @click="jump('heading-features')">Tabs</button>
@@ -2164,7 +2164,7 @@
             }
           }" x-init="loadHubLink('getHubSheetLink')">
         <p class="guide-card-text">
-          <b>Turning it on:</b> the first time the app opens, it creates the <a x-show="hubLink.searchUrl" :href="hubLink.searchUrl" target="_blank" rel="noopener noreferrer" title="Find it in Google Drive (you should see exactly one)">Day Planner Hub Config</a><i x-show="!hubLink.searchUrl">Day Planner Hub Config</i> Sheet in your Day Planner folder, turns on <code>GMAIL_ROUTER</code> and <code>TRIAGE_BOARD</code> in trial mode (<code>DRY_RUN</code> TRUE), and installs the hub schedule. The settings live in that Sheet’s <b>Config</b> tab. Check the trial run on the Triage tab, then click <b>Review and go live</b> in the Trial mode banner (or set <code>DRY_RUN</code> to FALSE in the Sheet). Once live, the Triage and Meeting Prep headers show only a quiet <b>Live</b> mark; <b>Switch to trial</b> at the top of this About page turns trial mode back on. While <code>DRY_RUN</code> is TRUE, the hub only reports what it <i>would</i> do. Set <code>NCMMS_CORE_PILOT</code> to TRUE to show the Prep tab. The <b>Meeting Registry</b> tab lists your recurring meetings and their notes Docs.
+          <b>Turning it on:</b> the first time the app opens, it creates the <a x-show="hubLink.searchUrl" :href="hubLink.searchUrl" target="_blank" rel="noopener noreferrer" data-tip="Find it in Google Drive (you should see exactly one)">Day Planner Hub Config</a><i x-show="!hubLink.searchUrl">Day Planner Hub Config</i> Sheet in your Day Planner folder, turns on <code>GMAIL_ROUTER</code> and <code>TRIAGE_BOARD</code> in trial mode (<code>DRY_RUN</code> TRUE), and installs the hub schedule. The settings live in that Sheet’s <b>Config</b> tab. Check the trial run on the Triage tab, then click <b>Review and go live</b> in the Trial mode banner (or set <code>DRY_RUN</code> to FALSE in the Sheet). Once live, the Triage and Meeting Prep headers show only a quiet <b>Live</b> mark; <b>Switch to trial</b> at the top of this About page turns trial mode back on. While <code>DRY_RUN</code> is TRUE, the hub only reports what it <i>would</i> do. Set <code>NCMMS_CORE_PILOT</code> to TRUE to show the Prep tab. The <b>Meeting Registry</b> tab lists your recurring meetings and their notes Docs.
         </p>
         <p class="guide-card-text" x-show="regrantUrl" x-cloak>
           <b>Drive access refused:</b> if a write to a Drive file fails with <i>Notes Doc is inaccessible</i> or a 403, open the <a :href="regrantUrl" target="_blank" rel="noopener noreferrer">Drive re-grant page</a> and pick the file again.
@@ -2179,7 +2179,7 @@
           <span x-show="hubLink.state === 'missing' &amp;&amp; hubLink.missing === 'never'">
             Not set up yet.
             <button type="button" class="about-action-btn" @click="loadHubLink('setupHub')">Set up hub</button>
-            <span class="hub-sheet-link-note">Creates the <a x-show="hubLink.searchUrl" :href="hubLink.searchUrl" target="_blank" rel="noopener noreferrer" title="Find it in Google Drive (you should see exactly one)">Day Planner Hub Config</a><i x-show="!hubLink.searchUrl">Day Planner Hub Config</i> Sheet in your Day Planner folder with Triage on in trial mode, and installs the hub schedule. The app also does this by itself when it opens.</span>
+            <span class="hub-sheet-link-note">Creates the <a x-show="hubLink.searchUrl" :href="hubLink.searchUrl" target="_blank" rel="noopener noreferrer" data-tip="Find it in Google Drive (you should see exactly one)">Day Planner Hub Config</a><i x-show="!hubLink.searchUrl">Day Planner Hub Config</i> Sheet in your Day Planner folder with Triage on in trial mode, and installs the hub schedule. The app also does this by itself when it opens.</span>
           </span>
           <span x-show="hubLink.state === 'missing' &amp;&amp; hubLink.missing !== 'never'">
             <span x-text="hubLink.missing === 'trashed' ? 'Your Hub Config Sheet is in the Drive trash.' : 'Your Hub Config Sheet was deleted.'"></span>
@@ -2477,7 +2477,7 @@
   <section aria-labelledby="heading-tut-ready">
     <h2 id="heading-tut-ready" class="about-section-heading">Before You Start</h2>
     <p class="about-paragraph">
-      Exercises T09 to T15, T19, T20 and T27 need the Gmail hub. Change these settings in the <a x-show="hubLink.searchUrl" :href="hubLink.searchUrl" target="_blank" rel="noopener noreferrer" title="Find it in Google Drive (you should see exactly one)">Hub Config Sheet</a><i x-show="!hubLink.searchUrl">Hub Config Sheet</i> (<b>About</b> &rsaquo; <b>Automatic Tasks</b> &rsaquo; <b>Hub settings</b>). If an exercise needs a setting that is off, skip it. That is a setup gap, not a failure.
+      Exercises T09 to T15, T19, T20 and T27 need the Gmail hub. Change these settings in the <a x-show="hubLink.searchUrl" :href="hubLink.searchUrl" target="_blank" rel="noopener noreferrer" data-tip="Find it in Google Drive (you should see exactly one)">Hub Config Sheet</a><i x-show="!hubLink.searchUrl">Hub Config Sheet</i> (<b>About</b> &rsaquo; <b>Automatic Tasks</b> &rsaquo; <b>Hub settings</b>). If an exercise needs a setting that is off, skip it. That is a setup gap, not a failure.
     </p>
     <p class="about-paragraph hub-sheet-link-error" role="alert" x-show="hubError">
       <span x-text="'Could not read the hub settings: ' + hubError"></span>
@@ -3069,7 +3069,7 @@
           <h3 id="meetingPickerTitle" class="modal-title-with-icon">
             <span class="material-symbols-outlined">event_note</span> Send to Meeting
           </h3>
-          <button type="button" class="btn-icon-subtle" @click="closeMeetingPicker()" title="Close" aria-label="Close">
+          <button type="button" class="btn-icon-subtle" @click="closeMeetingPicker()" data-tip="Close" aria-label="Close">
             <span class="material-symbols-outlined icon-18">close</span>
           </button>
         </header>
@@ -3113,7 +3113,7 @@
           <h3 id="waitingFormTitle" class="modal-title-with-icon">
             <span class="material-symbols-outlined">hourglass_empty</span> Waiting
           </h3>
-          <button type="button" class="btn-icon-subtle" @click="closeWaitingForm()" title="Close" aria-label="Close">
+          <button type="button" class="btn-icon-subtle" @click="closeWaitingForm()" data-tip="Close" aria-label="Close">
             <span class="material-symbols-outlined icon-18">close</span>
           </button>
         </header>
@@ -3140,7 +3140,7 @@
       <article class="modal-card modal-card-event" @click.away="closeEventModal()">
         <header class="modal-header-spaced">
           <h3 id="eventModalTitle" class="modal-title" x-text="selectedEvent?.title || 'Event Details'"></h3>
-          <button type="button" class="btn-icon-subtle" @click="closeEventModal()" title="Close">
+          <button type="button" class="btn-icon-subtle" @click="closeEventModal()" data-tip="Close" aria-label="Close">
             <span class="material-symbols-outlined icon-18">close</span>
           </button>
         </header>
@@ -3160,7 +3160,7 @@
           <div class="event-rsvp modal-rsvp" x-show="selectedEvent?.myResponse" role="group" aria-label="RSVP"><span class="event-rsvp-label">Going?</span><button type="button" class="event-rsvp-btn" :aria-pressed="selectedEvent?.myResponse === 'accepted'" :disabled="isRsvpSaving(selectedEvent)" @click="setRsvp(selectedEvent, 'accepted')">Yes</button><button type="button" class="event-rsvp-btn" :aria-pressed="selectedEvent?.myResponse === 'declined'" :disabled="isRsvpSaving(selectedEvent)" @click="setRsvp(selectedEvent, 'declined')">No</button><button type="button" class="event-rsvp-btn" :aria-pressed="selectedEvent?.myResponse === 'tentative'" :disabled="isRsvpSaving(selectedEvent)" @click="setRsvp(selectedEvent, 'tentative')">Maybe</button></div>
           <div class="event-guests" x-show="selectedEvent?.guests?.length" x-effect="eventModalOpen && selectedEvent && $nextTick(() => measureGuests($refs.modalGuests))">
             <p class="event-guests-head"><span class="material-symbols-outlined icon-18" aria-hidden="true">group</span> <span x-text="'Attendees (' + (selectedEvent?.guests?.length || 0) + ')'"></span></p>
-            <p class="guest-list" x-ref="modalGuests" :class="{ 'is-clamped': !guestsExpanded }"><template x-for="(g, gi) in (selectedEvent?.guests || [])" :key="gi"><span class="guest-item" :title="g.email"><span class="guest-mark" x-text="guestMark(g)"></span><span x-text="g.name"></span></span></template></p>
+            <p class="guest-list" x-ref="modalGuests" :class="{ 'is-clamped': !guestsExpanded }"><template x-for="(g, gi) in (selectedEvent?.guests || [])" :key="gi"><span class="guest-item" :data-tip="g.email"><span class="guest-mark" x-text="guestMark(g)"></span><span x-text="g.name"></span></span></template></p>
             <button type="button" class="guest-toggle" x-show="guestsOverflow || guestsExpanded" @click="guestsExpanded = !guestsExpanded" :aria-expanded="guestsExpanded" x-text="guestsExpanded ? 'Hide' : 'Show all'"></button>
           </div>
           <div class="modal-description" x-html="selectedEvent?.description ? formatEventDescription(selectedEvent.description) : 'No description'"></div>
@@ -3192,7 +3192,7 @@
           <h3 id="createEventModalTitle" class="modal-title-with-icon">
             <span class="material-symbols-outlined">event</span> <span x-text="editingEvent ? 'Edit Appointment' : 'Add New Appointment'"></span>
           </h3>
-          <button type="button" class="btn-icon-subtle" @click="closeCreateEventModal()" title="Close">
+          <button type="button" class="btn-icon-subtle" @click="closeCreateEventModal()" data-tip="Close" aria-label="Close">
             <span class="material-symbols-outlined icon-18">close</span>
           </button>
         </header>
@@ -3276,24 +3276,24 @@
 
           <div class="form-group">
             <label for="evtDescInput" class="form-label">Notes / Agenda
-              <button type="button" class="format-btn stt-mic-btn stt-mic-btn-inline" :class="{ 'stt-listening': sttListening, 'stt-blocked': sttBlocked }" @mousedown.prevent @click="toggleDictation(document.getElementById('evtDescInput'))" :title="sttMicTitle()" :aria-label="sttListening ? 'Stop dictation' : 'Start dictation'"><span class="material-symbols-outlined icon-16" x-text="sttListening ? 'mic' : (sttBlocked ? 'mic_off' : 'mic_none')"></span></button>
+              <button type="button" class="format-btn stt-mic-btn stt-mic-btn-inline" :class="{ 'stt-listening': sttListening, 'stt-blocked': sttBlocked }" @mousedown.prevent @click="toggleDictation(document.getElementById('evtDescInput'))" :data-tip="sttMicTitle()" :aria-label="sttListening ? 'Stop dictation' : 'Start dictation'"><span class="material-symbols-outlined icon-16" x-text="sttListening ? 'mic' : (sttBlocked ? 'mic_off' : 'mic_none')"></span></button>
             </label>
             <textarea id="evtDescInput" x-model="newEventData.description" placeholder="Appointment agenda..." class="form-textarea" rows="2"></textarea>
             <div class="stt-error-hint" x-show="sttError || sttBlocked" x-cloak>
-              <div class="stt-error-text" x-show="sttError" @click="sttError = null" x-text="sttError" title="Tap to dismiss"></div>
+              <div class="stt-error-text" x-show="sttError" @click="sttError = null" x-text="sttError" data-tip="Tap to dismiss"></div>
               <div class="stt-fallback-actions" x-show="sttBlocked" x-cloak>
                 <template x-if="!sttScratchDocUrl">
-                  <button type="button" class="stt-fallback-btn" :disabled="sttScratchCreating" @click="ensureDictationScratchDoc(document.getElementById('evtDescInput'))" title="Google Docs can’t be embedded in this app (it blocks framing), so this opens as a link you click yourself — more reliable than a popup window on locked-down networks.">
+                  <button type="button" class="stt-fallback-btn" :disabled="sttScratchCreating" @click="ensureDictationScratchDoc(document.getElementById('evtDescInput'))" data-tip="Google Docs can’t be embedded in this app (it blocks framing), so this opens as a link you click yourself — more reliable than a popup window on locked-down networks.">
                     <span class="material-symbols-outlined icon-16" x-text="sttScratchCreating ? 'hourglass_top' : 'description'"></span>
                     <span x-text="sttScratchCreating ? 'Creating…' : 'Dictate in Google Doc'"></span>
                   </button>
                 </template>
                 <template x-if="sttScratchDocUrl">
-                  <a class="stt-fallback-btn" :href="sttScratchDocUrl" target="_blank" rel="noopener noreferrer" title="Opens in a new tab. In the Doc: Tools › Voice typing (Ctrl+Shift+V), dictate, then come back and click Pull from Doc.">
+                  <a class="stt-fallback-btn" :href="sttScratchDocUrl" target="_blank" rel="noopener noreferrer" data-tip="Opens in a new tab. In the Doc: Tools › Voice typing (Ctrl+Shift+V), dictate, then come back and click Pull from Doc.">
                     <span class="material-symbols-outlined icon-16">open_in_new</span> Open Dictation Doc
                   </a>
                 </template>
-                <button type="button" class="stt-fallback-btn" :disabled="sttRefreshing" @click="pullFromDictationScratchpad()" title="Pulls whatever you dictated in the Google Doc into this field.">
+                <button type="button" class="stt-fallback-btn" :disabled="sttRefreshing" @click="pullFromDictationScratchpad()" data-tip="Pulls whatever you dictated in the Google Doc into this field.">
                   <span class="material-symbols-outlined icon-16" x-text="sttRefreshing ? 'hourglass_top' : (sttRefreshedFlash ? 'check' : 'sync')"></span>
                   <span x-text="sttRefreshing ? 'Pulling…' : (sttRefreshedFlash ? 'Pulled!' : 'Pull from Doc')"></span>
                 </button>
@@ -3323,7 +3323,7 @@
           </aside>
 
           <footer class="modal-form-actions">
-            <button type="button" class="btn-secondary btn-gcal-popup" x-show="!editingEvent" @click="launchNativeGCalCreate()" title="Open pre-filled Google Calendar event creator window">
+            <button type="button" class="btn-secondary btn-gcal-popup" x-show="!editingEvent" @click="launchNativeGCalCreate()" data-tip="Open pre-filled Google Calendar event creator window">
               <span class="material-symbols-outlined icon-16">open_in_new</span> Open Native gCal Window
             </button>
             <div class="action-right-group">
@@ -3343,7 +3343,7 @@
       <article class="modal-card modal-card-form" @click.away="cancelDeleteEvent()">
         <header class="modal-header-spaced">
           <h3 id="deleteEventTitle" class="modal-title" x-text="'Delete ' + (deleteTarget?.title || 'appointment') + '?'"></h3>
-          <button type="button" class="btn-icon-subtle" @click="cancelDeleteEvent()" title="Close">
+          <button type="button" class="btn-icon-subtle" @click="cancelDeleteEvent()" data-tip="Close" aria-label="Close">
             <span class="material-symbols-outlined icon-18">close</span>
           </button>
         </header>
@@ -3378,7 +3378,7 @@
           <h3 id="hotkeyHelpTitle" class="modal-title-with-icon">
             <span class="material-symbols-outlined">keyboard</span> Keyboard shortcuts
           </h3>
-          <button type="button" class="btn-icon-subtle" @click="hotkeyHelpOpen = false" aria-label="Close dialog" title="Close">
+          <button type="button" class="btn-icon-subtle" @click="hotkeyHelpOpen = false" aria-label="Close dialog" data-tip="Close">
             <span class="material-symbols-outlined icon-18">close</span>
           </button>
         </header>
@@ -3404,7 +3404,7 @@
           <h3 id="linkModalTitle" class="modal-title-with-icon">
             <span class="material-symbols-outlined">link</span> Insert Hyperlink
           </h3>
-          <button type="button" class="btn-icon-subtle" @click="closeLinkModal()" aria-label="Close dialog" title="Close">
+          <button type="button" class="btn-icon-subtle" @click="closeLinkModal()" aria-label="Close dialog" data-tip="Close">
             <span class="material-symbols-outlined icon-18">close</span>
           </button>
         </header>
@@ -3416,7 +3416,7 @@
               <span x-show="linkModalResolving" class="link-modal-status">
                 <span class="material-symbols-outlined icon-14 spin">sync</span> Looking up Drive title…
               </span>
-              <span x-show="!linkModalResolving && linkModalDetectedDrive" class="drive-detected-badge" title="Recognized Google Drive document">
+              <span x-show="!linkModalResolving && linkModalDetectedDrive" class="drive-detected-badge" data-tip="Recognized Google Drive document">
                 <span class="material-symbols-outlined icon-14">description</span> Google Drive
               </span>
             </div>
@@ -3502,7 +3502,7 @@
             aria-label="Universal Search Input"
           >
           <div class="search-mode-row">
-            <span class="match-mode-group" role="radiogroup" aria-label="How the words must match"><span class="task-filter-label">Match:</span><label class="match-mode-opt" title="All words"><input type="radio" name="searchMatchMode" value="all" x-model="searchMatchMode" @change="runSearch(); $refs.searchInput.focus()"><span>All</span></label><label class="match-mode-opt" title="Any words"><input type="radio" name="searchMatchMode" value="any" x-model="searchMatchMode" @change="runSearch(); $refs.searchInput.focus()"><span>Any</span></label><label class="match-mode-opt" title="Exact phrase"><input type="radio" name="searchMatchMode" value="exact" x-model="searchMatchMode" @change="runSearch(); $refs.searchInput.focus()"><span>Phrase</span></label></span>
+            <span class="match-mode-group" role="radiogroup" aria-label="How the words must match"><span class="task-filter-label">Match:</span><label class="match-mode-opt" data-tip="All words"><input type="radio" name="searchMatchMode" value="all" x-model="searchMatchMode" @change="runSearch(); $refs.searchInput.focus()"><span>All</span></label><label class="match-mode-opt" data-tip="Any words"><input type="radio" name="searchMatchMode" value="any" x-model="searchMatchMode" @change="runSearch(); $refs.searchInput.focus()"><span>Any</span></label><label class="match-mode-opt" data-tip="Exact phrase"><input type="radio" name="searchMatchMode" value="exact" x-model="searchMatchMode" @change="runSearch(); $refs.searchInput.focus()"><span>Phrase</span></label></span>
           </div>
           
           <div class="search-results-container" role="listbox">
@@ -3530,7 +3530,7 @@
                   <span class="search-result-badge" x-text="item.type.toUpperCase()"></span>
                   <strong class="search-result-title" x-text="item.title"></strong>
                   <span class="search-result-date" x-show="item.date" x-text="item.date"></span>
-                  <a x-show="item.docUrl && item.docUrl !== '#'" :href="item.docUrl" target="_blank" rel="noopener noreferrer" class="search-result-doc-link" @click.stop title="Open Google Doc in new tab" aria-label="Open Google Doc">
+                  <a x-show="item.docUrl && item.docUrl !== '#'" :href="item.docUrl" target="_blank" rel="noopener noreferrer" class="search-result-doc-link" @click.stop data-tip="Open Google Doc in new tab" aria-label="Open Google Doc">
                     <span class="material-symbols-outlined icon-14">open_in_new</span>
                   </a>
                 </div>
@@ -3553,7 +3553,7 @@
             <span class="material-symbols-outlined icon-24">install_desktop</span>
             Install Day Planner as Desktop App
           </h3>
-          <button type="button" class="btn-icon" @click="closeInstallModal()" aria-label="Close install guide" title="Close">
+          <button type="button" class="btn-icon" @click="closeInstallModal()" aria-label="Close install guide" data-tip="Close">
             <span class="material-symbols-outlined">close</span>
           </button>
         </header>
@@ -3700,8 +3700,8 @@
       <textarea id="notes-editor-text" class="notes-editor-text" x-model="notesEditor.text" aria-label="Task notes" @keydown.ctrl.enter.prevent="saveNotesEditor()" @keydown.meta.enter.prevent="saveNotesEditor()"></textarea>
       <div class="notes-editor-actions">
         <span class="notes-editor-hint">Drag the corner to resize &middot; Ctrl+Enter saves</span>
-        <button type="button" class="notes-editor-btn" @click="cancelNotesEditor()" title="Cancel (Esc)" aria-label="Cancel"><span class="material-symbols-outlined icon-18">close</span></button>
-        <button type="button" class="notes-editor-btn notes-editor-save" @click="saveNotesEditor()" title="Save (Ctrl+Enter)" aria-label="Save"><span class="material-symbols-outlined icon-18">check</span></button>
+        <button type="button" class="notes-editor-btn" @click="cancelNotesEditor()" data-tip="Cancel (Esc)" aria-label="Cancel"><span class="material-symbols-outlined icon-18">close</span></button>
+        <button type="button" class="notes-editor-btn notes-editor-save" @click="saveNotesEditor()" data-tip="Save (Ctrl+Enter)" aria-label="Save"><span class="material-symbols-outlined icon-18">check</span></button>
       </div>
     </div>
 
@@ -3711,7 +3711,7 @@
       <span class="material-symbols-outlined icon-18">arrow_forward</span>
       <span x-text="taskToast"></span>
       <button type="button" class="hub-snack-btn task-toast-btn" x-show="taskToastUndo" @click="runToastUndo(taskToastUndo)">Undo</button>
-      <button type="button" class="hub-snack-btn task-toast-dismiss" @click="dismissTaskToast()" title="Dismiss" aria-label="Dismiss">
+      <button type="button" class="hub-snack-btn task-toast-dismiss" @click="dismissTaskToast()" data-tip="Dismiss" aria-label="Dismiss">
         <span class="material-symbols-outlined icon-16">close</span>
       </button>
     </div>

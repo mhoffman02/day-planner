@@ -8,10 +8,10 @@
       </h1>
       <p class="about-subtitle">
         What it does, and how to use it
-        <span class="build-badge" x-show="appBuildNumber" x-cloak x-text="'GH Build ' + appBuildNumber" title="The exact build you’re currently running — include this when reporting an issue."></span>
+        <span class="build-badge" x-show="appBuildNumber" x-cloak x-text="'GH Build ' + appBuildNumber" data-tip="The exact build you’re currently running — include this when reporting an issue."></span>
       </p>
     </div>
-    <button type="button" class="btn-install-app-header" @click.stop="triggerInstallApp()" title="Click to install Day Planner as a desktop app">
+    <button type="button" class="btn-install-app-header" @click.stop="triggerInstallApp()" data-tip="Click to install Day Planner as a desktop app">
       <span class="material-symbols-outlined icon-18">install_desktop</span>
       <span class="install-btn-text">Install Day Planner</span>
     </button>
@@ -30,7 +30,7 @@
   </section>
 
   <nav class="about-toc" aria-label="On this page" x-data="{ jump(id) { const el = document.getElementById(id); const box = el &amp;&amp; el.closest('.about-view-container'); if (!box) return; box.scrollTo({ top: box.scrollTop + el.getBoundingClientRect().top - box.getBoundingClientRect().top - 56, behavior: 'smooth' }); } }">
-    <button type="button" class="about-toc-link about-toc-tutorial" @click="setView('tutorial')" title="Hands-on exercises that double as an acceptance checklist">Tutorial &rsaquo;</button>
+    <button type="button" class="about-toc-link about-toc-tutorial" @click="setView('tutorial')" data-tip="Hands-on exercises that double as an acceptance checklist">Tutorial &rsaquo;</button>
     <button type="button" class="about-toc-link" @click="jump('heading-purpose')">Overview</button>
     <button type="button" class="about-toc-link" @click="jump('heading-setup')">Setup</button>
     <button type="button" class="about-toc-link" @click="jump('heading-features')">Tabs</button>
@@ -334,7 +334,7 @@
             }
           }" x-init="loadHubLink('getHubSheetLink')">
         <p class="guide-card-text">
-          <b>Turning it on:</b> the first time the app opens, it creates the <a x-show="hubLink.searchUrl" :href="hubLink.searchUrl" target="_blank" rel="noopener noreferrer" title="Find it in Google Drive (you should see exactly one)">Day Planner Hub Config</a><i x-show="!hubLink.searchUrl">Day Planner Hub Config</i> Sheet in your Day Planner folder, turns on <code>GMAIL_ROUTER</code> and <code>TRIAGE_BOARD</code> in trial mode (<code>DRY_RUN</code> TRUE), and installs the hub schedule. The settings live in that Sheet’s <b>Config</b> tab. Check the trial run on the Triage tab, then click <b>Review and go live</b> in the Trial mode banner (or set <code>DRY_RUN</code> to FALSE in the Sheet). Once live, the Triage and Meeting Prep headers show only a quiet <b>Live</b> mark; <b>Switch to trial</b> at the top of this About page turns trial mode back on. While <code>DRY_RUN</code> is TRUE, the hub only reports what it <i>would</i> do. Set <code>NCMMS_CORE_PILOT</code> to TRUE to show the Prep tab. The <b>Meeting Registry</b> tab lists your recurring meetings and their notes Docs.
+          <b>Turning it on:</b> the first time the app opens, it creates the <a x-show="hubLink.searchUrl" :href="hubLink.searchUrl" target="_blank" rel="noopener noreferrer" data-tip="Find it in Google Drive (you should see exactly one)">Day Planner Hub Config</a><i x-show="!hubLink.searchUrl">Day Planner Hub Config</i> Sheet in your Day Planner folder, turns on <code>GMAIL_ROUTER</code> and <code>TRIAGE_BOARD</code> in trial mode (<code>DRY_RUN</code> TRUE), and installs the hub schedule. The settings live in that Sheet’s <b>Config</b> tab. Check the trial run on the Triage tab, then click <b>Review and go live</b> in the Trial mode banner (or set <code>DRY_RUN</code> to FALSE in the Sheet). Once live, the Triage and Meeting Prep headers show only a quiet <b>Live</b> mark; <b>Switch to trial</b> at the top of this About page turns trial mode back on. While <code>DRY_RUN</code> is TRUE, the hub only reports what it <i>would</i> do. Set <code>NCMMS_CORE_PILOT</code> to TRUE to show the Prep tab. The <b>Meeting Registry</b> tab lists your recurring meetings and their notes Docs.
         </p>
         <p class="guide-card-text" x-show="regrantUrl" x-cloak>
           <b>Drive access refused:</b> if a write to a Drive file fails with <i>Notes Doc is inaccessible</i> or a 403, open the <a :href="regrantUrl" target="_blank" rel="noopener noreferrer">Drive re-grant page</a> and pick the file again.
@@ -349,7 +349,7 @@
           <span x-show="hubLink.state === 'missing' &amp;&amp; hubLink.missing === 'never'">
             Not set up yet.
             <button type="button" class="about-action-btn" @click="loadHubLink('setupHub')">Set up hub</button>
-            <span class="hub-sheet-link-note">Creates the <a x-show="hubLink.searchUrl" :href="hubLink.searchUrl" target="_blank" rel="noopener noreferrer" title="Find it in Google Drive (you should see exactly one)">Day Planner Hub Config</a><i x-show="!hubLink.searchUrl">Day Planner Hub Config</i> Sheet in your Day Planner folder with Triage on in trial mode, and installs the hub schedule. The app also does this by itself when it opens.</span>
+            <span class="hub-sheet-link-note">Creates the <a x-show="hubLink.searchUrl" :href="hubLink.searchUrl" target="_blank" rel="noopener noreferrer" data-tip="Find it in Google Drive (you should see exactly one)">Day Planner Hub Config</a><i x-show="!hubLink.searchUrl">Day Planner Hub Config</i> Sheet in your Day Planner folder with Triage on in trial mode, and installs the hub schedule. The app also does this by itself when it opens.</span>
           </span>
           <span x-show="hubLink.state === 'missing' &amp;&amp; hubLink.missing !== 'never'">
             <span x-text="hubLink.missing === 'trashed' ? 'Your Hub Config Sheet is in the Drive trash.' : 'Your Hub Config Sheet was deleted.'"></span>

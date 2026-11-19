@@ -64,3 +64,44 @@ test('gas-app/Script.html carries the same placement and wiring code as src/data
   assert.match(script, /function dataTipPlacement\(/);
   assert.match(script, /function initDataTips\(/);
 });
+
+// Every hover tip in the app markup uses data-tip (user 2026-11-18): a bare title shows the browser's own tooltip, which
+// is slower, unstyled and cannot be placed. These four files are the whole app markup; index.html carries copies of
+// About and Tutorial.
+const MARKUP_FILES = ['index.html', 'gas-app/Index.html', 'gas-app/About.html', 'gas-app/Tutorial.html'];
+const OPEN_TAG = /<([a-zA-Z][\w-]*)((?:\s+[^\s"'>=]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'>]+))?)*)\s*\/?>/g;
+
+for (const file of MARKUP_FILES) {
+  test(`${file}: no title or :title attribute is left, hover tips are data-tip`, () => {
+    const left = [];
+    for (const m of read(file).matchAll(OPEN_TAG)) {
+      if (/\s(?::|x-bind:)?title\s*=/.test(m[2])) left.push(m[0].slice(0, 90));
+    }
+    assert.deepEqual(left, []);
+  });
+
+  test(`${file}: a button or link whose only content is an icon keeps an accessible name (aria-label)`, () => {
+    const html = read(file);
+    const nameless = [];
+    for (const m of html.matchAll(OPEN_TAG)) {
+      const [open, tag, attrs] = m;
+      if (!/^(button|a)$/.test(tag) || !/\s:?data-tip\s*=/.test(attrs) || /\s:?aria-label\s*=/.test(attrs)) continue;
+      const rest = html.slice(m.index + open.length);
+      const inner = rest.slice(0, rest.indexOf(`</${tag}>`));
+      const hasText = /x-text=|x-html=/.test(inner) ||
+        inner.replace(/<span[^>]*material-symbols[^>]*>[^<]*<\/span>/g, '').replace(/<[^>]*>/g, '').trim() !== '';
+      if (!hasText) nameless.push(open.slice(0, 90));
+    }
+    assert.deepEqual(nameless, []);
+  });
+}
+
+for (const file of ['src/styles.css', 'gas-app/Styles.html']) {
+  test(`${file}: a long tip wraps inside a capped width instead of running off the screen`, () => {
+    const css = read(file);
+    const rule = css.match(/\.data-tip-bubble\s*\{([^}]*)\}/)[1];
+    assert.match(rule, /white-space:\s*normal/);
+    assert.match(rule, /width:\s*max-content/);
+    assert.match(rule, /max-width:\s*min\(/);
+  });
+}

@@ -116,7 +116,7 @@ describe('header Refresh button wiring', () => {
       const m = html.match(/<button[^>]*sync-btn-compact[^>]*>/);
       assert.ok(m);
       assert.match(m[0], /@click="refreshAll\(\)"/);
-      assert.match(m[0], /title="Refresh all views from Google Calendar &amp; Tasks"/);
+      assert.match(m[0], /data-tip="Refresh all views from Google Calendar &amp; Tasks"/);
     });
   }
 });

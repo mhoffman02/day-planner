@@ -40,7 +40,7 @@ for (const file of ['index.html', 'gas-app/Index.html']) {
     }
   });
 
-  test(`${file}: only the Task buttons are text buttons, the rest are icon-only with a title`, () => {
+  test(`${file}: only the Task buttons are text buttons, the rest are icon-only with a data-tip`, () => {
     for (const b of actionButtons(read(file))) {
       if (b.label === 'Task Today' || b.label === 'Task Later') {
         // The label sits in an x-text span so the button can swap to "Tasked ..." with a spinner or check beside it.
@@ -50,7 +50,7 @@ for (const file of ['index.html', 'gas-app/Index.html']) {
         assert.ok(!b.hasIcon && b.text === b.label, `${b.label} keeps its text label`);
       } else {
         assert.ok(b.hasIcon, `${b.label} shows an icon`);
-        assert.match(b.attrs, /\stitle="[^"]+"/, `${b.label} has a hover title`);
+        assert.match(b.attrs, /\sdata-tip="[^"]+"/, `${b.label} has a hover tip`);
         assert.equal(b.text, '', `${b.label} shows no word beside its icon`);
       }
     }

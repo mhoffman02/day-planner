@@ -140,6 +140,6 @@ function assertMatchToggles(block, where) {
   assert.doesNotMatch(block, /<select[^>]*searchMatchMode/, `${where}: no drop-down`);
   assert.match(group, />Match:</, `${where}: Match: label`);
   for (const [value, label, hover] of [['all', 'All', 'All words'], ['any', 'Any', 'Any words'], ['exact', 'Phrase', 'Exact phrase']]) {
-    assert.match(group, new RegExp(`<label class="match-mode-opt" title="${hover}"><input type="radio"[^>]*value="${value}" x-model="searchMatchMode"[^>]*><span>${label}</span></label>`), `${where}: ${label} toggle`);
+    assert.match(group, new RegExp(`<label class="match-mode-opt" data-tip="${hover}"><input type="radio"[^>]*value="${value}" x-model="searchMatchMode"[^>]*><span>${label}</span></label>`), `${where}: ${label} toggle`);
   }
 }
