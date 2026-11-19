@@ -5970,9 +5970,9 @@ Alpine.data('plannerApp', () => ({
         this.cancelEditingPriority();
         const task = this.dailyTasks.find(t => t.id === taskId);
         if (!task || !text || text === this.parseTask(task.title).priorityCode) return;
-        const match = text.match(/^([ABC])([1-9])$/);
+        const match = text.match(/^([ABC])([1-9]\d?)$/);
         if (!match) {
-          this.reportError('task-priority', `Priority must be A, B or C plus 1-9 (got "${text}").`);
+          this.reportError('task-priority', `Priority must be A, B or C plus 1-99 (got "${text}").`);
           return;
         }
         await this.saveTitleEdits(planPriorityChange(this.dailyTasks, taskId, match[1], Number(match[2])));

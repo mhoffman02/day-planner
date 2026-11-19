@@ -61,7 +61,7 @@ export function parseTaskTitle(rawTitle = '') {
     return { priorityGroup: null, sequence: null, priorityCode: null, cleanTitle: '' };
   }
   
-  const match = rawTitle.match(/^\[([A-C])([1-9])\]\s*(.*)$/i);
+  const match = rawTitle.match(/^\[([A-C])([1-9]\d?)\]\s*(.*)$/i);
   if (match) {
     const priorityGroup = match[1].toUpperCase();
     const sequence = parseInt(match[2], 10);
@@ -128,7 +128,7 @@ export function extractInlinePriority(input = '', defaultPriority = 'A') {
 /**
  * Formats task title with priority prefix.
  * @param {string|null} priorityGroup Priority group letter ('A', 'B', or 'C').
- * @param {number|null} sequence Priority sequence number (1-9).
+ * @param {number|null} sequence Priority sequence number (1-99).
  * @param {string} cleanTitle Clean task title without prefix.
  * @returns {string} Formatted task title.
  */
@@ -266,7 +266,7 @@ export function sortTasksByColumn(tasks = [], column, direction = 'asc') {
  * Finds next available sequence integer for a priority group ('A', 'B', or 'C').
  * @param {Array<object>} [tasks=[]] Array of existing task objects.
  * @param {string} [priorityGroup='A'] Target priority group letter.
- * @returns {number} Next available sequence number (1 to 9).
+ * @returns {number} Next available sequence number (1 to 99).
  */
 // Stryker disable next-line ArrayDeclaration: equivalent, a junk element has no title so it never matches a priority group
 export function getNextSequence(tasks = [], priorityGroup = 'A') {
@@ -278,13 +278,13 @@ export function getNextSequence(tasks = [], priorityGroup = 'A') {
     .map(p => p.sequence);
   // Stryker restore ConditionalExpression
 
-  // Stryker disable next-line EqualityOperator: equivalent, when 1..8 are taken both the loop and the cap return 9
-  for (let seq = 1; seq <= 9; seq++) {
+  // Stryker disable next-line EqualityOperator: equivalent, when 1..98 are taken both the loop and the cap return 99
+  for (let seq = 1; seq <= 99; seq++) {
     if (!existingSeqs.includes(seq)) {
       return seq;
     }
   }
-  return 9; // Cap at 9
+  return 99; // Cap at 99
 }
 
 /**
@@ -310,7 +310,7 @@ function planRanks(tasks, move) {
       ordered.splice(at, 0, tasks.find(t => t.id === move.id));
     }
     ordered.forEach((task, i) => {
-      next.set(task.id, formatTaskTitle(group, Math.min(i + 1, 9), parseTaskTitle(task.title).cleanTitle || task.title));
+      next.set(task.id, formatTaskTitle(group, Math.min(i + 1, 99), parseTaskTitle(task.title).cleanTitle || task.title));
     });
   });
   // Stryker disable next-line all: invariant, unreachable when correct

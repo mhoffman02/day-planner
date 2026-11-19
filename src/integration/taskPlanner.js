@@ -11,7 +11,7 @@
 import { sanitizeError, stackFrames } from './ledger.js';
 import { invariant } from './contracts.js';
 
-const TASK_PLANNER_PRIORITY_RE = /^([A-Ca-c])([1-9])$/;
+const TASK_PLANNER_PRIORITY_RE = /^([A-Ca-c])([1-9]\d?)$/;
 const TASK_PLANNER_META_RE = /<!--dp-meta:(.*?)-->\n?/;
 const TASK_PLANNER_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TASK_PLANNER_MAX_SUBJECT = 200;
@@ -27,14 +27,14 @@ function taskPlannerPriorityPrefix(priority) {
   let seq;
   if (typeof priority === 'string') {
     const m = priority.trim().match(TASK_PLANNER_PRIORITY_RE);
-    if (!m) throw new Error(`taskPlanner: invalid priority ${JSON.stringify(priority)} (expected A1..C9)`);
+    if (!m) throw new Error(`taskPlanner: invalid priority ${JSON.stringify(priority)} (expected A1..C99)`);
     group = m[1];
     seq = m[2];
   } else {
     group = String(priority.group || '');
     seq = String(priority.sequence);
     if (!TASK_PLANNER_PRIORITY_RE.test(group + seq)) {
-      throw new Error(`taskPlanner: invalid priority ${JSON.stringify(priority)} (expected A1..C9)`);
+      throw new Error(`taskPlanner: invalid priority ${JSON.stringify(priority)} (expected A1..C99)`);
     }
   }
   return `[${group.toUpperCase()}${seq}] `;

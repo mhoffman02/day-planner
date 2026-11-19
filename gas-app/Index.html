@@ -418,10 +418,10 @@
                                 x-show="editingPriorityTaskId !== task.id" @click="startEditingPriority(task)"
                                 data-tip="Click to change priority (A1, B2, ...)" :aria-label="'Priority ' + (parseTask(task.title).priorityCode || 'none') + ', click to change'"
                                 x-text="parseTask(task.title).priorityCode || '--'"></button>
-                        <input type="text" class="priority-edit-input" maxlength="2" x-show="editingPriorityTaskId === task.id"
+                        <input type="text" class="priority-edit-input" maxlength="3" x-show="editingPriorityTaskId === task.id"
                                :id="'task-priority-input-' + task.id" x-model="editingPriorityText"
                                @keydown.enter.prevent="commitPriority(task.id)" @keydown.escape.prevent="cancelEditingPriority()"
-                               @blur="commitPriority(task.id)" aria-label="Priority code, letter A to C plus digit 1 to 9">
+                               @blur="commitPriority(task.id)" aria-label="Priority code, letter A to C plus number 1 to 99">
                       </td>
                       <td>
                         <div class="status-menu-wrap" @pointerenter="$event.pointerType === 'mouse' && openStatusMenu(task.id, $event)" @pointerleave="$event.pointerType === 'mouse' && scheduleStatusMenuClose(task.id)" @pointerdown.outside="openStatusMenuTaskId === task.id && (openStatusMenuTaskId = null)" @keydown.escape="openStatusMenuTaskId = null">

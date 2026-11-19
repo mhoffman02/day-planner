@@ -18,7 +18,7 @@ const PRIORITY = Object.freeze({ A: 'A', B: 'B', C: 'C' });
 const ParsedTitle = v_.shape({
   priorityGroup: v_.string().enumOf(PRIORITY).nullable(),
   sequence: v_.integer().between(1, 9).nullable(),
-  priorityCode: v_.string().matches(/^[A-C][1-9]$/).nullable(),
+  priorityCode: v_.string().matches(/^[A-C][1-9]\d?$/).nullable(),
   cleanTitle: v_.string(),
 });
 
@@ -45,7 +45,7 @@ const planWaitingChecked = v_.fn('planWaiting')
     thread: Thread,
     waitingOn: v_.string().trim().notEmpty().maxLength(200),
     nagDate: v_.string().matches(/^\d{4}-\d{2}-\d{2}$/),
-    priority: v_.union(v_.string().matches(/^[A-C][1-9]$/i), v_.shape({ group: v_.string(), sequence: v_.integer() })).optional(),
+    priority: v_.union(v_.string().matches(/^[A-C][1-9]\d?$/i), v_.shape({ group: v_.string(), sequence: v_.integer() })).optional(),
     existingTasks: v_.arrayOf(v_.shape({ notes: v_.string().optional() }).loose()).maxLength(5000),
     opKey: v_.string().notEmpty(),
     now: v_.toDate(),

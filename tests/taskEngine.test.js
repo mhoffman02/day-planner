@@ -14,6 +14,7 @@ import {
   getTaskSortValue,
   sortTasksByColumn,
   getNextSequence,
+  planPriorityChange,
   transferMasterTaskToToday,
   forwardTaskToDate,
   TASK_STATUSES,
@@ -155,10 +156,22 @@ describe('Task Engine Unit Tests', () => {
     assert.equal(getNextStatus(undefined), '•');
   });
 
-  it('should cap next sequence at 9 once a priority group is fully saturated', () => {
-    const fullGroupA = Array.from({ length: 9 }, (_, i) => ({ title: `[A${i + 1}] Task ${i + 1}` }));
-    assert.equal(getNextSequence(fullGroupA, 'A'), 9);
+  it('should number past 9 and cap next sequence at 99 once a priority group is fully saturated', () => {
+    const nine = Array.from({ length: 9 }, (_, i) => ({ title: `[B${i + 1}] Task ${i + 1}` }));
+    assert.equal(getNextSequence(nine, 'B'), 10);
+    const full = Array.from({ length: 99 }, (_, i) => ({ title: `[A${i + 1}] Task ${i + 1}` }));
+    assert.equal(getNextSequence(full, 'A'), 99);
     assert.equal(getNextSequence([], 'c'), 1); // lowercase group letter is normalized
+  });
+
+  it('should parse and re-rank two-digit priorities', () => {
+    const parsed = parseTaskTitle('[B10] Tenth');
+    assert.equal(parsed.priorityCode, 'B10');
+    assert.equal(parsed.sequence, 10);
+    assert.equal(parsed.cleanTitle, 'Tenth');
+    const tasks = Array.from({ length: 11 }, (_, i) => ({ id: `t${i + 1}`, title: `[B${i + 1}] Task ${i + 1}` }));
+    const edits = planPriorityChange(tasks, 't11', 'B', 10);
+    assert.deepEqual(edits, [{ id: 't10', title: '[B11] Task 10' }, { id: 't11', title: '[B10] Task 11' }]);
   });
 
   it('should sort tasks with identical priority codes by clean title alphabetically', () => {

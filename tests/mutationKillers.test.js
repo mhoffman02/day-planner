@@ -34,11 +34,12 @@ describe('taskEngine survivors', () => {
     assert.deepEqual(STATUS_OPTIONS.map(o => o.value), STATUS_LIST);
   });
 
-  it('parseTaskTitle only accepts a leading [A-C][1-9] prefix', () => {
+  it('parseTaskTitle only accepts a leading [A-C][1-99] prefix', () => {
     assert.equal(parseTaskTitle('see [A1] later').priorityCode, null);
     assert.equal(parseTaskTitle('[D1] x').priorityCode, null);
     assert.equal(parseTaskTitle('[A0] x').priorityCode, null);
-    assert.equal(parseTaskTitle('[A10] x').priorityCode, null);
+    assert.equal(parseTaskTitle('[A100] x').priorityCode, null);
+    assert.equal(parseTaskTitle('[A01] x').priorityCode, null);
     assert.deepEqual(parseTaskTitle('[b3]Tight title  '), {
       priorityGroup: 'B', sequence: 3, priorityCode: 'B3', cleanTitle: 'Tight title'
     });
@@ -134,14 +135,14 @@ describe('taskEngine survivors', () => {
     assert.deepEqual(sortTasksByColumn(undefined, 'status'), []);
   });
 
-  it('getNextSequence finds the first gap within the group and caps at 9', () => {
+  it('getNextSequence finds the first gap within the group and caps at 99', () => {
     const tasks = [{ title: '[A1] a' }, { title: '[A3] a' }, { title: '[B2] b' }, { title: 'plain' }];
     assert.equal(getNextSequence(tasks, 'A'), 2);
     assert.equal(getNextSequence(tasks, 'b'), 1);
     assert.equal(getNextSequence(tasks, 'C'), 1);
     assert.equal(getNextSequence([]), 1);
-    const full = Array.from({ length: 9 }, (_, i) => ({ title: `[A${i + 1}] x` }));
-    assert.equal(getNextSequence(full, 'A'), 9);
+    const full = Array.from({ length: 99 }, (_, i) => ({ title: `[A${i + 1}] x` }));
+    assert.equal(getNextSequence(full, 'A'), 99);
   });
 
   it('forwardTaskToDate creates an open task on the target day with the next free sequence', () => {

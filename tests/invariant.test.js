@@ -29,7 +29,7 @@ for (const [label, m] of [['src', { formatTaskTitle, nextMonthKey }], ['gas-app/
     assert.equal(m.formatTaskTitle('a', 3, ' Call Bob '), '[A3] Call Bob');
     assert.equal(m.formatTaskTitle(null, null, 'plain'), 'plain');
     assert.throws(() => m.formatTaskTitle('D', 1, 'x'), /Invariant failed: formatTaskTitle/);
-    assert.throws(() => m.formatTaskTitle('A', 10, 'x'), /Invariant failed: formatTaskTitle/);
+    assert.throws(() => m.formatTaskTitle('A', 100, 'x'), /Invariant failed: formatTaskTitle/);
   });
 
   test(`${label}: nextMonthKey refuses a key that would roll to NaN instead of returning "NaN-NaN"`, () => {

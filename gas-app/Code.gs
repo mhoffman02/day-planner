@@ -463,7 +463,7 @@ const FAVICON_URL_ = 'https:' + '/' + '/raw.githubusercontent.com/mhoffman02/day
 // Build number = git commit count at last stamp (see tools/stamp-build-number.js). Run
 // `npm run stamp-build` before a real deploy so this reflects the code actually shipping;
 // an approximate/stale number here is a stale reminder to re-stamp, not a broken build.
-const BUILD_NUMBER_ = 863;
+const BUILD_NUMBER_ = 864;
 
 // Shared app constants behind getters (see gas-global-init-order.md): values stay IIFE-private.
 const DPApp = Object.freeze({
@@ -3150,7 +3150,7 @@ function copyThenMarkSource_(sourceDateStr, taskId, targetDateStr, op) {
     const meta = cur ? decodeTaskMeta(cur.notes) : {};
     const category = meta.category || 'General';
 
-    const match = (title || '').match(/^\[([A-C])[1-9]\]\s*(.*)$/i);
+    const match = (title || '').match(/^\[([A-C])[1-9]\d?\]\s*(.*)$/i);
     const priorityGroup = match ? match[1].toUpperCase() : 'A';
     const cleanTitle = match ? match[2].trim() : (title || 'Untitled Task').trim();
 

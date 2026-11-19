@@ -539,7 +539,7 @@
       return { priorityGroup: null, sequence: null, priorityCode: null, cleanTitle: '' };
     }
     
-    const match = rawTitle.match(/^\[([A-C])([1-9])\]\s*(.*)$/i);
+    const match = rawTitle.match(/^\[([A-C])([1-9]\d?)\]\s*(.*)$/i);
     if (match) {
       const priorityGroup = match[1].toUpperCase();
       const sequence = parseInt(match[2], 10);
@@ -610,7 +610,7 @@
    * Finds next available sequence integer for a priority group (A, B, or C).
    * @param {Array<object>} [tasks=[]] Array of existing task objects.
    * @param {string} [priorityGroup=A] Target priority group letter.
-   * @returns {number} Next available sequence number (1 to 9).
+   * @returns {number} Next available sequence number (1 to 99).
    */
   function getNextSequence(tasks = [], priorityGroup = 'A') {
     const pGroup = priorityGroup.toUpperCase();
@@ -619,12 +619,12 @@
       .filter(p => p.priorityGroup === pGroup && p.sequence !== null)
       .map(p => p.sequence);
 
-    for (let seq = 1; seq <= 9; seq++) {
+    for (let seq = 1; seq <= 99; seq++) {
       if (!existingSeqs.includes(seq)) {
         return seq;
       }
     }
-    return 9; // Cap at 9
+    return 99; // Cap at 99
   }
 
   /**
@@ -650,7 +650,7 @@
         ordered.splice(at, 0, tasks.find(t => t.id === move.id));
       }
       ordered.forEach((task, i) => {
-        next.set(task.id, formatTaskTitle(group, Math.min(i + 1, 9), parseTaskTitle(task.title).cleanTitle || task.title));
+        next.set(task.id, formatTaskTitle(group, Math.min(i + 1, 99), parseTaskTitle(task.title).cleanTitle || task.title));
       });
     });
     invariant(!move || parseTaskTitle(next.get(move.id)).priorityGroup === move.group, 'planRanks left task ' + (move && move.id) + ' outside group ' + (move && move.group));
@@ -9641,9 +9641,9 @@
         this.cancelEditingPriority();
         const task = this.dailyTasks.find(t => t.id === taskId);
         if (!task || !text || text === this.parseTask(task.title).priorityCode) return;
-        const match = text.match(/^([ABC])([1-9])$/);
+        const match = text.match(/^([ABC])([1-9]\d?)$/);
         if (!match) {
-          this.reportError('task-priority', `Priority must be A, B or C plus 1-9 (got "${text}").`);
+          this.reportError('task-priority', `Priority must be A, B or C plus 1-99 (got "${text}").`);
           return;
         }
         await this.saveTitleEdits(planPriorityChange(this.dailyTasks, taskId, match[1], Number(match[2])));
