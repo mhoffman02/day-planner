@@ -133,12 +133,31 @@ export function planTaskFromThread(a) {
   const existing = findExistingByOpKey(a.existingTasks, a.opKey);
   if (existing) return { action: 'EXISTS', task: existing };
   if (a.decision && a.today) throw new Error('taskPlanner: a decision Task is undated; today and decision cannot both be set');
+  const dueDay = a.today ? taskPlannerLocalDate(a.now, a.timeZone) : '';
+  // Decisions are undated Master items, not Today rows: they stay unprioritized.
+  const priority = a.priority || (a.decision ? '' : taskPlannerNextB(a.existingTasks, dueDay));
   const task = {
-    title: taskPlannerTitle(a.thread, a.priority, a.decision ? 'Decision: ' : ''),
+    title: taskPlannerTitle(a.thread, priority, a.decision ? 'Decision: ' : ''),
     notes: taskPlannerBuildNotes(a.thread, a.now, { opKey: a.opKey, gmailThreadId: a.thread.threadId }, '')
   };
-  if (a.today) task.due = taskPlannerDue(taskPlannerLocalDate(a.now, a.timeZone));
+  if (a.today) task.due = taskPlannerDue(dueDay);
   return { action: 'CREATE', task };
+}
+
+/**
+ * Default priority for an email Task: one past the highest B on the same day (undated when dueDay is '').
+ * @param {Array<{title?:string, due?:string}>} tasks Existing Tasks.
+ * @param {string} dueDay Local YYYY-MM-DD, or '' for undated.
+ * @returns {string} B1..B99 (capped at B99).
+ */
+function taskPlannerNextB(tasks, dueDay) {
+  let max = 0;
+  for (const t of tasks || []) {
+    if (String((t && t.due) || '').slice(0, 10) !== dueDay) continue;
+    const m = String((t && t.title) || '').match(/^\[B([1-9]\d?)\]/i);
+    if (m) max = Math.max(max, Number(m[1]));
+  }
+  return `B${Math.min(max + 1, 99)}`;
 }
 
 /**

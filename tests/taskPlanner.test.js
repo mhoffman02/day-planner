@@ -19,7 +19,7 @@ test('(h) title matches taskEngine convention and parses back', () => {
   const obj = planTaskFromThread({ thread, priority: { group: 'c', sequence: 3 }, opKey: gmailTaskKey('thr1'), existingTasks: [], now: NOW, timeZone: TZ });
   assert.equal(obj.task.title, '[C3] Budget review');
   const none = planTaskFromThread({ thread, opKey: gmailTaskKey('thr1'), existingTasks: [], now: NOW, timeZone: TZ });
-  assert.equal(none.task.title, 'Budget review');
+  assert.equal(none.task.title, '[B1] Budget review');
   assert.throws(() => planTaskFromThread({ thread, priority: 'Z9', opKey: 'k', existingTasks: [], now: NOW, timeZone: TZ }), /priority/);
 });
 
@@ -117,4 +117,27 @@ test('decision: an undated Task titled "Decision: <subject>" after any priority 
   const again = planTaskFromThread({ thread, decision: true, opKey: key, existingTasks: [{ id: 'd1', ...plan.task }], now: NOW, timeZone: TZ });
   assert.equal(again.action, 'EXISTS');
   assert.throws(() => planTaskFromThread({ thread, decision: true, today: true, opKey: key, existingTasks: [], now: NOW, timeZone: TZ }), /decision/);
+});
+
+test('no priority: defaults to one past the highest B on the same day', () => {
+  const day = '2026-10-06T00:00:00.000Z';
+  const existing = [
+    { title: '[B1] a', due: day }, { title: '[B3] c', due: day }, { title: '[A5] x', due: day },
+    { title: '[B8] other day', due: '2026-10-07T00:00:00.000Z' }
+  ];
+  const plan = planTaskFromThread({ thread, today: true, opKey: 'k-b', existingTasks: existing, now: NOW, timeZone: TZ });
+  assert.equal(parseTaskTitle(plan.task.title).priorityCode, 'B4');
+});
+
+test('no priority: first B is B1, runs past B9, capped at B99; explicit priority wins', () => {
+  const first = planTaskFromThread({ thread, today: true, opKey: 'k-1', existingTasks: [], now: NOW, timeZone: TZ });
+  assert.equal(parseTaskTitle(first.task.title).priorityCode, 'B1');
+  const nine = [{ title: '[B9] z', due: '2026-10-06T00:00:00.000Z' }];
+  const ten = planTaskFromThread({ thread, today: true, opKey: 'k-9', existingTasks: nine, now: NOW, timeZone: TZ });
+  assert.equal(parseTaskTitle(ten.task.title).priorityCode, 'B10');
+  const full = [{ title: '[B99] z', due: '2026-10-06T00:00:00.000Z' }];
+  const cap = planTaskFromThread({ thread, today: true, opKey: 'k-99', existingTasks: full, now: NOW, timeZone: TZ });
+  assert.equal(parseTaskTitle(cap.task.title).priorityCode, 'B99');
+  const explicit = planTaskFromThread({ thread, today: true, priority: 'A1', opKey: 'k-a', existingTasks: [], now: NOW, timeZone: TZ });
+  assert.equal(parseTaskTitle(explicit.task.title).priorityCode, 'A1');
 });
