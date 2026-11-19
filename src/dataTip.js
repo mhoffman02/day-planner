@@ -50,6 +50,7 @@ export function initDataTips(doc, win, timers) {
     bubble = doc.createElement('div');
     bubble.className = 'data-tip-bubble';
     bubble.setAttribute('role', 'presentation');
+    bubble.setAttribute('aria-hidden', 'true');
     doc.body.appendChild(bubble);
     return bubble;
   };

@@ -6,6 +6,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { dataTipPlacement, initDataTips } from '../src/dataTip.js';
 
 const rect = (left, top, width, height) => ({ left, top, width, height, right: left + width, bottom: top + height });
@@ -108,4 +109,19 @@ test('initDataTips: a control with no data-tip never shows a bubble', () => {
   initDataTips(doc, { innerWidth: 400, innerHeight: 600 }, timers);
   fire('mouseover', { closest: () => null });
   assert.equal(timers.has(), false);
+});
+
+// The bubble sits on the body outside every landmark, so axe flagged it as a "region" violation whenever the mouse
+// happened to rest on a tip during the deploy:home live check (2026-11-18). It repeats the control's aria-label and is
+// not an accessible name, so it is hidden from assistive tech.
+test('initDataTips: the body-level bubble is aria-hidden so it never counts as content outside a landmark', () => {
+  const { doc, made, fire } = fakeDoc(rect(180, 100, 20, 20));
+  initDataTips(doc, { innerWidth: 400, innerHeight: 600 }, fakeTimers());
+  fire('mouseover');
+  assert.equal(made[0].attrs['aria-hidden'], 'true');
+});
+
+test('gas-app/Script.html: the inlined bubble is aria-hidden too', () => {
+  const html = fs.readFileSync(new URL('../gas-app/Script.html', import.meta.url), 'utf8');
+  assert.match(html, /bubble\.setAttribute\('aria-hidden', 'true'\)/);
 });
