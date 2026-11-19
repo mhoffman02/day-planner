@@ -506,3 +506,7 @@ live-testing catches it by luck.
 **Worked well:** One table (`src/hotkeys.js`) drives both the key dispatch and the help dialog, so the help cannot drift. Driving real key events in the mock over CDP found that Alpine renders a tick late (read DOM after a short wait) and that `dialog[open]` is false at rest, so it is safe as the modal test.
 **Needs improvement:** The tests were written after the module, so there was no red run; I proved they bite by removing the `modalOpen` guard and watching one fail. The `sed -i 'Nr file'` insert was refused in a worktree; use Edit for large inserts.
 **Later (2026-11-18):** `npm run push:work` printed "Successfully pushed" twice while WORK HEAD stayed at build 827; a pull-back of the remote source caught it, and `tools/work-verify.js` now does that on every push. A success banner from a tool is not proof of the remote state: read the remote.
+
+## 2026-11-19
+**Worked well:** A red test on the new behavior (B10 parses, the next sequence after nine is 10) failed on the right line, then the grep for the digit class `[1-9]` found the cap in seven places across client, server and the engine build; the old tests that asserted the cap showed the rest.
+**Needs improvement:** I raised `maxlength` and shipped before checking the widths that hold the value, so the user had to ask whether the column was wider. A limit change needs every sizing that depends on it (input `ch`, table column) grepped in the same pass; CSS has no unit test, so name the widths in the commit and look at it once in the mock.

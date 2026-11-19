@@ -1,6 +1,10 @@
 # Task History (TODO_HISTORY)
 
-## 2026-11-18 (latest) — Email card, vertical-only resize, push:work read-back (HOME @504, WORK version 300)
+## 2026-11-19 (latest) — Two-digit priorities (HOME @517, WORK version 312)
+- [x] Priority sequences run 1-99, so a group can hold more than nine tasks (user 2026-11-19: "I have > 9 B tasks; I can't enter a 10"; `a9057e5`). The 1-9 cap lived in `parseTaskTitle`, `getNextSequence`, `planRanks` (`src/taskEngine.js`, mirrored in `gas-app/Script.html`), the edit-box check in `src/app.js` `commitPriority`, `TASK_PLANNER_PRIORITY_RE` (`src/integration/taskPlanner.js`, built into `gas-app/Engines.gs`) and the title regex in `gas-app/Code.gs`.
+- [x] Priority edit input widened to `3.6ch` and the Master Tasks Pri column to 56px (new `.th-w-56`), because the first commit raised only `maxlength` (user asked, `93ee5d8`). Not seen in a browser by the agent.
+
+## 2026-11-18 — Email card, vertical-only resize, push:work read-back (HOME @504, WORK version 300)
 - [x] Email card in the Notes panel now uses the Quote card shell (`d8895ec`, `7ae7e5e`): twistie header, uppercase "EMAIL (n)" title with a mail icon, collapsible, no white border; the hover preview overflows the shell (`.quote-card.email-card`). User 2026-11-18: "Look good". `tests/noteCardResize.test.js`, `tests/triageNoteIt.test.js`.
 - [x] Note card lines resize vertically only; the width always fills the card (user 2026-11-18, `d8895ec`).
 - [x] `refileEmailNotesByDay` ran to completion on WORK (user 2026-11-18, second run). It was missing from the WORK IDE first because `npm run push:work` printed success while WORK stayed at build 827 (HOME 841).
