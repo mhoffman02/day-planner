@@ -620,7 +620,7 @@
                           <span class="material-symbols-outlined icon-14">mail</span>
                         </a>
                         <a class="notes-indicator appt-guest-action" :href="eventGCalLink(evt)" target="_blank" rel="noopener noreferrer" @click.stop.prevent="openGCalWindow(evt)" data-tip="Open in gCal: Edit, chat..." aria-label="Open in Google Calendar">
-                          <span class="material-symbols-outlined icon-14">calendar_today</span>
+                          <span class="material-symbols-outlined icon-14">open_in_new</span>
                         </a>
                       </div>
                     </template>
@@ -1967,7 +1967,7 @@
             </a>
           </template>
           <a :href="selectedEvent?.gCalLink" target="_blank" rel="noopener noreferrer" @click.prevent="openGCalWindow(selectedEvent)" class="btn-primary">
-            <span class="material-symbols-outlined">calendar_today</span> Open in gCal
+            <span class="material-symbols-outlined">open_in_new</span> Open in gCal
           </a>
           <button type="button" class="btn-secondary" x-show="selectedEvent?.canEdit" @click.stop="openEditEventModal(selectedEvent)">
             <span class="material-symbols-outlined icon-16">edit</span> Edit

@@ -53,10 +53,12 @@ for (const file of ['index.html', 'gas-app/Index.html']) {
   test(`${file}: appointment rows carry the email icon (other attendees only) and an open-in-Calendar icon (every appointment)`, () => {
     const html = read(file);
     assert.match(html, /<a [^>]*class="[^"]*appt-guest-action[^"]*"[^>]*:href="emailGuestsUrl\(evt\)"[^>]*target="_blank"[^>]*rel="noopener noreferrer"/);
-    assert.match(html, /<a [^>]*class="[^"]*appt-guest-action[^"]*"[^>]*:href="eventGCalLink\(evt\)"[^>]*target="_blank"[^>]*rel="noopener noreferrer"[^>]*data-tip="Open in gCal: Edit, chat\.\.\."[^>]*>\s*<span class="material-symbols-outlined icon-14">calendar_today<\/span>/);
+    assert.match(html, /<a [^>]*class="[^"]*appt-guest-action[^"]*"[^>]*:href="eventGCalLink\(evt\)"[^>]*target="_blank"[^>]*rel="noopener noreferrer"[^>]*data-tip="Open in gCal: Edit, chat\.\.\."[^>]*>\s*<span class="material-symbols-outlined icon-14">open_in_new<\/span>/);
     assert.equal((html.match(/x-show="hasOtherGuests\(evt\)"/g) || []).length, 1);
     assert.match(html, /:href="eventGCalLink\(evt\)"[^>]*@click\.stop\.prevent="openGCalWindow\(evt\)"/);
     assert.match(html, /<a :href="selectedEvent\?\.gCalLink" target="_blank" rel="noopener noreferrer" @click\.prevent="openGCalWindow\(selectedEvent\)" class="btn-primary">/);
+    // One glyph for every "open this in its Google app" action (user 2026-11-18): Triage Gmail and Doc openers already use open_in_new.
+    assert.match(html, /class="btn-primary">\s*<span class="material-symbols-outlined">open_in_new<\/span> Open in gCal/);
     assert.doesNotMatch(html, /copyChatText|chatGuestsUrl/);
   });
 }
