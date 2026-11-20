@@ -7531,12 +7531,23 @@
   .email-topic-list {
     margin: 0;
     padding: 0;
-    list-style: none;
+    padding-left: 1.25em;
+    list-style: disc;
   }
 
   .email-topic-item {
     position: relative;
     padding: 2px 0;
+  }
+
+  /* Each item also carries .notes-indicator-wrap (inline-flex, for the hover preview); without this the links ran together on one line. */
+  .email-topic-list .email-topic-item {
+    display: list-item;
+    margin-left: 0;
+  }
+
+  .email-topic-item + .email-topic-item {
+    margin-top: 4px;
   }
 
   .email-topic-from {

@@ -67,3 +67,17 @@ test('the resized size is not stored anywhere', () => {
     assert.doesNotMatch(read(file), /noteCardSize|note-card-size|cardResize/i, file);
   }
 });
+
+// User 2026-11-19: the Email card links "all kind of run together". Each item also carries .notes-indicator-wrap
+// (display: inline-flex, for the hover preview), so the items flowed side by side; they must be a bulleted list.
+for (const file of ['src/styles.css', 'gas-app/Styles.html']) {
+  test(`${file}: Email card links are a bulleted list, one link per line`, () => {
+    const css = read(file);
+    const list = (css.match(/\.email-topic-list \{([^}]*)\}/) || [])[1] || '';
+    assert.match(list, /list-style: disc;/, '.email-topic-list shows bullets');
+    assert.match(list, /padding-left: \S+;/, '.email-topic-list leaves room for the bullets');
+    const item = (css.match(/\.email-topic-list \.email-topic-item \{([^}]*)\}/) || [])[1] || '';
+    assert.match(item, /display: list-item;/, 'each item is a list item, not inline-flex from .notes-indicator-wrap');
+    assert.match(item, /margin-left: 0;/, 'the .notes-indicator-wrap 4px indent is undone');
+  });
+}
