@@ -98,6 +98,15 @@ describe('safety and queues', () => {
     assert.equal(queueFor({ ...thread({}, ['🎯/Task']), ledgerStatus: 'ERROR' }, hi), TRIAGE_QUEUE.SYSTEM_EXCEPTIONS);
     assert.equal(queueFor({ ...thread({}, ['VIP']), ledgerStatus: 'DONE' }, hi), TRIAGE_QUEUE.DIRECT_ACTION);
   });
+  it('queueFor sends a meeting invite to Direct Action, whatever its band (RSVP is daily triage)', () => {
+    const noise = { band: TRIAGE_BAND.NOISE, score: -4, signals: [] };
+    const fyi = { band: TRIAGE_BAND.LIKELY_FYI, score: 1, signals: [] };
+    assert.equal(queueFor({ ...thread({}, []), isInvite: true }, noise), TRIAGE_QUEUE.DIRECT_ACTION);
+    assert.equal(queueFor({ ...thread({}, ['_NCMMS']), isInvite: true }, fyi), TRIAGE_QUEUE.DIRECT_ACTION);
+    assert.equal(queueFor({ ...thread({}, []), isInvite: false }, noise), TRIAGE_QUEUE.FYI_READING);
+    assert.equal(queueFor({ ...thread({}, []), isInvite: true, ledgerStatus: 'ERROR' }, fyi), TRIAGE_QUEUE.SYSTEM_EXCEPTIONS);
+    assert.equal(queueFor({ ...thread({}, ['Jira']), isInvite: true }, fyi), TRIAGE_QUEUE.SYSTEM_EXCEPTIONS);
+  });
   it('00_AR alone does not change score (hint only)', () => {
     assert.equal(scoreThread(thread({}, ['00_AR'])).score, scoreThread(thread({}, [])).score);
   });

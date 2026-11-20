@@ -167,3 +167,55 @@ test('a bad answer value is rejected by the boundary guard', () => {
   assert.equal(r.ok, false);
   assert.deepEqual(writes(ctx), []);
 });
+
+// User 2026-11-19: "I do a lot of accept/reject/maybe to meetings as part of my daily triage" - invites belong in Direct
+// Action even with no triage label, and even when the sender (calendar-notification@google.com) scores as automated.
+const INVITE_Q = 'in:inbox filename:ics';
+function inviteBoard(o = {}) {
+  const ctx = makeHubContext({ features: ON, now: '2026-11-17T16:00:00Z' });
+  addThread(ctx, { id: 'bare1', labels: [], from: 'Google Calendar <calendar-notification@google.com>', subject: 'Invitation: Standup', ics: ics() });
+  addThread(ctx, { id: 'reply1', labels: [], subject: 'Accepted: Standup', ics: ics({ method: 'REPLY' }) });
+  addThread(ctx, { id: 'other1', labels: [], subject: 'Unlabelled mail' });
+  ctx.__hub.gmail.queryHits[INVITE_Q] = o.hits || ['bare1', 'reply1'];
+  return ctx;
+}
+const allItems = (r) => Object.values(r.queues).flat();
+
+test('an invite with no triage label shows in Direct Action with RSVP buttons', () => {
+  const ctx = inviteBoard();
+  const r = call(ctx, 'getTriageBoard', {});
+  const row = r.queues.directAction.find((i) => i.threadId === 'bare1');
+  assert.ok(row, 'unlabelled invite missing from Direct Action: ' + JSON.stringify(allItems(r).map((i) => [i.threadId, i.queue])));
+  assert.equal(row.isInvite, true);
+  assert.ok(!allItems(r).some((i) => i.threadId === 'other1'), 'unlabelled non-invite mail must stay off the board');
+  assert.ok(ctx.__hub.gmail.listQueries.some((q) => /^in:inbox filename:ics newer_than:\d+d$/.test(q || '')), 'invite query is bounded by newer_than');
+});
+
+test('an RSVP reply (Accepted:, METHOD:REPLY) found only by the invite query stays off the board', () => {
+  const r = call(inviteBoard(), 'getTriageBoard', {});
+  assert.ok(!allItems(r).some((i) => i.threadId === 'reply1'));
+});
+
+test('a cached invite row still routes to Direct Action', () => {
+  const ctx = inviteBoard();
+  call(ctx, 'getTriageBoard', {});
+  const before = ctx.__hub.gmail.calls.filter((c) => c.startsWith('threads.get')).length;
+  const r = call(ctx, 'getTriageBoard', {});
+  assert.equal(ctx.__hub.gmail.calls.filter((c) => c.startsWith('threads.get')).length, before, 'second build should reuse the row cache');
+  assert.ok(r.queues.directAction.some((i) => i.threadId === 'bare1' && i.isInvite === true));
+  assert.ok(!allItems(r).some((i) => i.threadId === 'reply1'), 'cached reply row leaked onto the board');
+});
+
+test('a labelled invite that scores low still lands in Direct Action, not FYI', () => {
+  const ctx = makeHubContext({ features: ON, now: '2026-11-17T16:00:00Z' });
+  addThread(ctx, { id: 'fyiInv', labels: ['FYI_Candidate'], from: 'Google Calendar <calendar-notification@google.com>', to: 'list@example.test', cc: 'me@example.test', subject: 'Invitation: All hands', ics: ics() });
+  const r = call(ctx, 'getTriageBoard', {});
+  assert.equal(allItems(r).find((i) => i.threadId === 'fyiInv').queue, 'Direct Action');
+});
+
+test('invites are listed before label queues, so a full board cannot crowd them out', () => {
+  const ctx = inviteBoard();
+  for (let i = 0; i < 5; i++) addThread(ctx, { id: 'vip' + i, labels: ['VIP'], subject: 'VIP ' + i });
+  const r = call(ctx, 'getTriageBoard', { limit: 3 });
+  assert.ok(r.queues.directAction.some((i) => i.threadId === 'bare1'));
+});

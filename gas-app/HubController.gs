@@ -25,6 +25,10 @@ const HUB_SERIES_KEY_RE_ = /^[A-Z0-9_]{1,40}$/;
 const HUB_OPKEY_RE_ = /^[A-Za-z0-9_.~|-]{1,300}$/;
 const HUB_UPCOMING_COUNT_ = 5;
 const HUB_TRIAGE_LABELS_ = ['00_AR', 'FYI_Candidate', 'VIP'];
+// Meeting invites need no triage label (user 2026-11-19: RSVP is daily triage). filename:ics matched only real invites
+// on HOME, where a subject:invitation search also caught marketing. The window and cap bound the full-body reads.
+const HUB_INVITE_QUERY_ = 'in:inbox filename:ics newer_than:30d';
+const HUB_INVITE_CAP_ = 10;
 const HUB_LAST_RUN_PROP_ = 'HUB_LAST_RUN';
 const HUB_LAST_RUN_DRY_PROP_ = 'HUB_LAST_RUN_DRY';
 const HUB_COUNT_ONLY_LIMIT_ = 20;
@@ -722,7 +726,8 @@ function getTriageBoard(filters) {
   const limit = Math.min(Math.max(parseInt(f.limit, 10) || HUB_TRIAGE_LIMIT_DEFAULT_, 1), countOnly ? HUB_COUNT_ONLY_LIMIT_ : HUB_TRIAGE_LIMIT_MAX_);
   // Triage shows Inbox mail only (user 2026-10-12: "ONLY SEE ITEMS IN INBOX"); archived means handled.
   let labels = HUB_TRIAGE_LABELS_.concat([DPEngines.WORKFLOW_LABEL.REVIEW, DPEngines.WORKFLOW_LABEL.MEETING, DPEngines.WORKFLOW_LABEL.READ]);
-  if (Array.isArray(f.labels) && f.labels.length && f.labels.length <= 10 && f.labels.every(function(l) { return typeof l === 'string' && l.length <= 100; })) labels = f.labels;
+  const customLabels = Array.isArray(f.labels) && f.labels.length && f.labels.length <= 10 && f.labels.every(function(l) { return typeof l === 'string' && l.length <= 100; });
+  if (customLabels) labels = f.labels;
   try {
     const E = DPEngines;
     const ledgerByThread = {};
@@ -739,10 +744,24 @@ function getTriageBoard(filters) {
     // Failed ops first: a 🎯/Task thread carries no triage label, so without this its ERROR has no Retry anywhere.
     Object.keys(ledgerByThread).forEach(function(id) { if (ledgerByThread[id].Status === E.LEDGER_STATUS.ERROR) add(id); });
     let rateLimited = false;
+    // Invites before label queues, so a full board cannot crowd them out. inviteOnly: found only by the invite search,
+    // so the row shows only if it really is an invite to answer (not an Accepted: reply or a cancellation).
+    const inviteOnly = {};
+    if (!customLabels) {
+      try {
+        const inv = DPGmailRepo.searchThreadIds(HUB_INVITE_QUERY_, { cap: Math.min(HUB_INVITE_CAP_, limit) });
+        inv.ids.forEach(function(id) { if (!seen[id]) inviteOnly[id] = true; add(id); });
+        Object.keys(inv.historyIds || {}).forEach(function(id) { hist[id] = inv.historyIds[id]; });
+      } catch (listErr) {
+        if (!isQuotaError_(listErr)) throw listErr;
+        DPQueue.logSafe('getTriageBoard invite search: Gmail quota hit, no further Gmail calls this build', listErr);
+        rateLimited = true;
+      }
+    }
     for (let li = 0; li < labels.length && !rateLimited; li++) {
       try {
         const page = DPGmailRepo.listThreadsByLabel(labels[li], { maxResults: limit, inboxOnly: true });
-        page.threadIds.forEach(add);
+        page.threadIds.forEach(function(id) { delete inviteOnly[id]; add(id); });
         Object.keys(page.historyIds || {}).forEach(function(id) { hist[id] = page.historyIds[id]; });
       } catch (listErr) {
         if (!isQuotaError_(listErr)) throw listErr;
@@ -765,7 +784,8 @@ function getTriageBoard(filters) {
       // Failed-op threads are added by id, not by an Inbox listing: they too show only while in the Inbox.
       if (hit && hit.labels.indexOf('INBOX') === -1) return false;
       if (hit) {
-        const q = E.queueFor({ labels: hit.labels, ledgerStatus: ledgerFields.ledgerStatus }, { band: hit.band });
+        if (inviteOnly[id] && hit.isInvite !== true) return false;
+        const q = E.queueFor({ labels: hit.labels, ledgerStatus: ledgerFields.ledgerStatus, isInvite: hit.isInvite === true }, { band: hit.band });
         queues[HUB_QUEUE_KEYS_[q]].push(Object.assign({ threadId: id }, hit, { queue: q }, ledgerFields));
         return false;
       }
@@ -775,16 +795,19 @@ function getTriageBoard(filters) {
         const scored = E.scoreThread({ labels: t.labels, userEmail: t.userEmail, messages: t.messages.map(function(m) {
           return { from: m.from, to: m.to, cc: m.cc, date: m.date, bodyText: m.bodyText, isFromUser: m.isFromUser };
         }) });
-        const queue = E.queueFor({ labels: t.labels, ledgerStatus: ledgerFields.ledgerStatus }, scored);
+        // countOnly reads no body, so the invite search hit stands in for the invite check there.
+        const isInvite = countOnly ? inviteOnly[id] === true : isInviteRequest_(t.invite);
+        const queue = E.queueFor({ labels: t.labels, ledgerStatus: ledgerFields.ledgerStatus, isInvite: isInvite }, scored);
         const last = t.messages[t.messages.length - 1];
         const routing = E.suggestDestinations(t.labels);
         const row = {
           url: t.url, subject: t.subject, snippet: t.lastSnippet, preview: last ? E.triagePreview(last.bodyText || '') : '', fromName: last ? last.fromName : '', date: last ? last.date : '', labels: t.labels,
           score: scored.score, band: scored.band, signals: scored.signals.map(function(s) { return s.id; }),
-          ticketKey: E.extractExternalTicketKey(t.subject, last ? last.from : '', null), isInvite: isInviteRequest_(t.invite),
+          ticketKey: E.extractExternalTicketKey(t.subject, last ? last.from : '', null), isInvite: isInvite,
           suggestions: routing.suggestions, requireConfirmation: routing.requireConfirmation, humanReviewOnly: routing.humanReviewOnly
         };
-        queues[HUB_QUEUE_KEYS_[queue]].push(Object.assign({ threadId: id }, row, { queue: queue }, ledgerFields));
+        // A non-invite found only by the invite search is cached (no re-read next build) but not shown.
+        if (!inviteOnly[id] || isInvite) queues[HUB_QUEUE_KEYS_[queue]].push(Object.assign({ threadId: id }, row, { queue: queue }, ledgerFields));
         // countOnly rows are scored without bodies, so only full reads are cached.
         if (!countOnly && hist[id]) {
           const keep = {};

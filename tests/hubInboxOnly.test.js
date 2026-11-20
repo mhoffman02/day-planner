@@ -43,8 +43,11 @@ test('every label listing asks Gmail for label AND INBOX', () => {
   const ctx = setup();
   const seen = [];
   const list = ctx.Gmail.Users.Threads.list;
-  ctx.Gmail.Users.Threads.list = (u, o) => { seen.push(o.labelIds); return list(u, o); };
+  const searches = [];
+  ctx.Gmail.Users.Threads.list = (u, o) => { if (o.labelIds) seen.push(o.labelIds); else searches.push(o.q); return list(u, o); };
   call(ctx, 'getTriageBoard', {});
+  // The one label-free listing is the invite search, and it too is Inbox-only.
+  assert.deepEqual(searches.map((q) => /^in:inbox /.test(q)), [true], 'invite search: ' + searches.join(' | '));
   const name = (id) => ctx.__hub.gmail.labels.find((l) => l.id === id).name;
   // Arrays from the GAS sandbox are another realm: compare plain copies.
   const byLabel = JSON.parse(JSON.stringify(Object.fromEntries(seen.map((l) => [name(l[0]), Array.from(l).slice(1).map(name)]))));

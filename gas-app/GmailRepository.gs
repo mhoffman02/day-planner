@@ -514,13 +514,15 @@ function createFilter(query, labelId) {
  * since emoji names do not search reliably). Stops at cap.
  * @param {string} query Gmail search query.
  * @param {{labelId?:string, cap?:number}} [opts] Options.
- * @returns {{ids:string[], capped:boolean}} Matching ids and whether more exist.
+ * @returns {{ids:string[], historyIds:Object<string,string>, capped:boolean}} Matching ids (historyIds keys the Triage
+ *   row cache) and whether more exist.
  */
 function searchThreadIds(query, opts) {
   requireGmail_();
   const o = opts || {};
   const cap = o.cap || 300;
   const ids = [];
+  const historyIds = {};
   let token = null;
   do {
     if (o.meter) o.meter(GMAIL_UNITS_.threadsList);
@@ -528,10 +530,13 @@ function searchThreadIds(query, opts) {
     if (o.labelId) params.labelIds = [o.labelId];
     if (token) params.pageToken = token;
     const resp = Gmail.Users.Threads.list(GMAIL_ME_, params) || {};
-    (resp.threads || []).forEach(function(t) { ids.push(t.id); });
+    (resp.threads || []).forEach(function(t) {
+      ids.push(t.id);
+      if (t.historyId) historyIds[t.id] = String(t.historyId);
+    });
     token = resp.nextPageToken || null;
   } while (token && ids.length < cap);
-  return { ids: ids, capped: !!token };
+  return { ids: ids, historyIds: historyIds, capped: !!token };
 }
 
 /**

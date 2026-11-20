@@ -41,11 +41,11 @@ test('quota error on the label listing: no thread reads, RATE_LIMITED', () => {
   assert.equal(gets(ctx), 0);
 });
 
-test('Gmail calls per board are pinned: 6 label lists plus one read per thread', () => {
+test('Gmail calls per board are pinned: 1 invite search, 6 label lists, one read per thread', () => {
   const ctx = setup(5);
   ['FYI_Candidate', 'VIP', '🎯/Review', '🎯/Meeting', '🎯/Read'].forEach((n) => ctx.__hub.gmail.labelId(n));
   const b = call(ctx, 'getTriageBoard', {});
   assert.equal(b.ok, true);
-  assert.equal(ctx.__hub.gmail.calls.filter((c) => c === 'threads.list').length, 6);
+  assert.equal(ctx.__hub.gmail.calls.filter((c) => c === 'threads.list').length, 7);
   assert.equal(gets(ctx), 5);
 });

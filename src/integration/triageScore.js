@@ -144,7 +144,8 @@ export function scoreThread(thread, config) {
 
 /**
  * Assign a triage queue. Existing labels (00_AR, FYI_Candidate, ...) are hints only.
- * @param {{labels:string[], ledgerStatus?:string}} thread ledgerStatus ERROR forces System Exceptions.
+ * @param {{labels:string[], ledgerStatus?:string, isInvite?:boolean}} thread ledgerStatus ERROR forces System Exceptions;
+ *   isInvite (a meeting invite to answer) forces Direct Action.
  * @param {{band:string}} scoreResult
  * @returns {string} one of TRIAGE_QUEUE values
  */
@@ -156,6 +157,8 @@ export function queueFor(thread, scoreResult) {
   // A failed hub operation needs the user's Retry, so it beats every band and label rule.
   if (thread.ledgerStatus === LEDGER_STATUS.ERROR) return TRIAGE_QUEUE.SYSTEM_EXCEPTIONS;
   if (TRIAGE_EXCEPTION_LABELS.some((l) => triageHasLabel(labels, l))) return TRIAGE_QUEUE.SYSTEM_EXCEPTIONS;
+  // RSVP is daily triage (user 2026-11-19); Calendar invites come from an automated sender and would score as FYI.
+  if (thread.isInvite === true) return TRIAGE_QUEUE.DIRECT_ACTION;
   if (band === TRIAGE_BAND.HIGH_CONFIDENCE) return TRIAGE_QUEUE.DIRECT_ACTION;
   if (band === TRIAGE_BAND.NOISE) return TRIAGE_QUEUE.FYI_READING;
   if (TRIAGE_CARRY_IN_LABELS.some((l) => triageHasLabel(labels, l, true))) return TRIAGE_QUEUE.MEETING_CARRY_INS;

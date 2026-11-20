@@ -38,6 +38,7 @@ const MOCK_SNIPPETS = {
   't-1002': 'Quick check before the Q3 review: who owns the elevator data feed now that Sam moved teams? Can you confirm by Wednesday?',
   't-1003': 'Thanks for the draft. My comments on the SOW are inline; section 4.2 still needs the performance standards.',
   't-1004': 'The facilities tech survey closed with 212 responses. Summary deck attached; could you review the recommendations?',
+  't-1005': 'Elena Park has invited you to TRM weekly sync, Thursday 10am to 10:30am Pacific. Agenda in the event.',
   't-2001': 'Three open items on the cutover schedule: data freeze date, rollback owner, and the training window.',
   't-2002': 'The vendor invoice for September is 8% over the ceiling. Do we hold payment until the Core meeting?',
   't-2003': 'Work order sync failed for 14 records overnight. Retry did not clear them. Ticket NCS-2231.',
@@ -114,7 +115,10 @@ function buildThreads() {
         [{ seriesKey: 'NCMMS_ACQ', reason: '_NCMMS/Acquisition label' }]),
       thread('t-1004', 'Facilities tech survey results, your review please', 'Hannah Ortiz', 1500, 5,
         ['To: you', 'Explicit request'], ['P&S Tech & Innovation'],
-        [{ seriesKey: 'FACILITY_TECH', reason: 'P&S Tech & Innovation label' }])
+        [{ seriesKey: 'FACILITY_TECH', reason: 'P&S Tech & Innovation label' }]),
+      // An invite needs no triage label and scores as automated mail, yet always routes here (RSVP is daily triage).
+      thread('t-1005', 'Invitation: TRM weekly sync @ Thu 10am - 10:30am (PT)', 'Google Calendar', 45, -1,
+        ['Known automated sender'], [], [])
     ],
     meetingCarryIns: [
       thread('t-2001', 'NCMMS Core: open items on cutover schedule', 'Ravi Menon', 180, 7,
