@@ -10,9 +10,10 @@ import fs from 'node:fs';
 
 const src = fs.readFileSync(new URL('../gas-app/HubController.gs', import.meta.url), 'utf8');
 
-// Update BOTH values together: new field list -> new prefix (v3 -> v4 ...).
+// Update BOTH values together: new field list -> new prefix (v3 -> v4 ...). A field computed differently also bumps
+// the prefix alone (v4, 2026-11-19: isInvite now reads invite.ics attachments; cached false values hid real invites).
 const PINNED = {
-  prefix: 'triageRow.v3:',
+  prefix: 'triageRow.v4:',
   fields: ['url', 'subject', 'snippet', 'preview', 'fromName', 'date', 'labels', 'score', 'band', 'signals', 'ticketKey', 'isInvite', 'suggestions', 'requireConfirmation', 'humanReviewOnly']
 };
 
@@ -22,5 +23,5 @@ test('cached Triage row fields and the cache prefix change together', () => {
   assert.ok(prefix && list, 'HUB_ROW_CACHE_PREFIX_ / HUB_ROW_CACHE_FIELDS_ not found in HubController.gs');
   const fields = list.split(',').map((s) => s.trim().replace(/^'|'$/g, ''));
   assert.deepEqual(fields, PINNED.fields, 'HUB_ROW_CACHE_FIELDS_ changed: bump HUB_ROW_CACHE_PREFIX_ (old cached rows lack the new shape) and update PINNED in this test');
-  assert.equal(prefix, PINNED.prefix, 'HUB_ROW_CACHE_PREFIX_ changed: update PINNED.prefix here, and only with a field-list change');
+  assert.equal(prefix, PINNED.prefix, 'HUB_ROW_CACHE_PREFIX_ changed: update PINNED.prefix here, with a field-list change or a changed field computation');
 });

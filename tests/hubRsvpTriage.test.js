@@ -219,3 +219,25 @@ test('invites are listed before label queues, so a full board cannot crowd them 
   const r = call(ctx, 'getTriageBoard', { limit: 3 });
   assert.ok(r.queues.directAction.some((i) => i.threadId === 'bare1'));
 });
+
+// Real Google Calendar mail keeps the iCalendar text in an invite.ics attachment, not inline (HOME probe 2026-11-19:
+// all 4 Inbox invites). The first release read inline parts only, so no real invite ever got RSVP buttons.
+test('a real Calendar invite (invite.ics attachment, no inline data) gets RSVP buttons in Direct Action', () => {
+  const ctx = makeHubContext({ features: ON, now: '2026-11-17T16:00:00Z' });
+  addThread(ctx, { id: 'real1', labels: [], from: 'Pat <pat@example.test>', subject: 'Invitation: Christmas Ships', ics: ics(), icsAttached: true });
+  ctx.__hub.gmail.queryHits[INVITE_Q] = ['real1'];
+  const r = call(ctx, 'getTriageBoard', {});
+  const row = r.queues.directAction.find((i) => i.threadId === 'real1');
+  assert.ok(row, 'real Calendar invite missing: ' + JSON.stringify(allItems(r).map((i) => i.threadId)));
+  assert.equal(row.isInvite, true);
+  assert.ok(!JSON.stringify(r).includes('CANARY_ICS_DESCRIPTION'), 'invite text leaked to the client');
+  assert.equal(ctx.__hub.gmail.calls.filter((c) => c.startsWith('messages.attachments.get')).length, 1, 'one attachment read per invite');
+});
+
+test('rsvpTriageThread answers a real Calendar invite read from its invite.ics attachment', () => {
+  const { ctx, answers } = setup();
+  addThread(ctx, { id: 'real2', labels: ['🎯/Meeting'], subject: 'Invitation: Planning', ics: ics(), icsAttached: true });
+  const r = call(ctx, 'rsvpTriageThread', 'real2', 'accepted', {});
+  assert.equal(r.ok, true, JSON.stringify(r));
+  assert.deepEqual(answers, [['evA', 'accepted']]);
+});

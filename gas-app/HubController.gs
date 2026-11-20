@@ -75,8 +75,9 @@ function isQuotaError_(err) {
 }
 
 // Scored Triage rows in the user CacheService, keyed by thread id and valid while the Gmail historyId is unchanged.
-// Bump when HUB_ROW_CACHE_FIELDS_ gains a field: rows cached under the old prefix lack it (v3: isInvite, 2026-11-18).
-const HUB_ROW_CACHE_PREFIX_ = 'triageRow.v3:';
+// Bump when HUB_ROW_CACHE_FIELDS_ gains a field or a field is computed differently: rows cached under the old prefix
+// lack it or hold the old value (v3: isInvite, 2026-11-18; v4: isInvite read from invite.ics attachments, 2026-11-19).
+const HUB_ROW_CACHE_PREFIX_ = 'triageRow.v4:';
 const HUB_ROW_CACHE_TTL_S_ = 21600;
 const HUB_ROW_CACHE_FIELDS_ = ['url', 'subject', 'snippet', 'preview', 'fromName', 'date', 'labels', 'score', 'band', 'signals', 'ticketKey', 'isInvite', 'suggestions', 'requireConfirmation', 'humanReviewOnly'];
 

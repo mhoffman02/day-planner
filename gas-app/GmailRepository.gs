@@ -267,18 +267,21 @@ function parseInvite_(ics) {
 }
 
 /**
- * Finds the text/calendar part of a full-format payload and parses it. Only an inline part (body.data) is read;
- * an attachment-only invite is not recognised (it would need a second Gmail read).
+ * Finds the text/calendar part of a full-format payload and parses it. Google Calendar mail keeps it as an
+ * invite.ics attachment with only an attachmentId (HOME probe 2026-11-19), so that costs one extra Gmail read.
  * @param {object} payload Gmail message payload.
+ * @param {string} messageId Message id, for the attachment read.
  * @returns {?{method:string, uid:string, recurrenceId:string}} The invite fields, or null when there is no calendar part.
  */
-function inviteFromPayload_(payload) {
+function inviteFromPayload_(payload, messageId) {
   const stack = [payload];
   while (stack.length) {
     const part = stack.shift();
     if (!part) continue;
-    if (part.mimeType === 'text/calendar' && part.body && part.body.data) {
-      return parseInvite_(Utilities.newBlob(bodyBytes_(part.body.data)).getDataAsString());
+    if (part.mimeType === 'text/calendar' && part.body && (part.body.data || part.body.attachmentId)) {
+      const data = part.body.data || (Gmail.Users.Messages.Attachments.get(GMAIL_ME_, messageId, part.body.attachmentId) || {}).data;
+      if (!data) throw new Error('inviteFromPayload_: Gmail returned no data for the invite.ics attachment of message ' + messageId);
+      return parseInvite_(Utilities.newBlob(bodyBytes_(data)).getDataAsString());
     }
     (part.parts || []).forEach(function(p) { stack.push(p); });
   }
@@ -366,7 +369,7 @@ function getThreadMeta(threadId, opts) {
       listId: header_(h, 'List-Id'),
       snippet: decodeSnippet_(m.snippet),
       bodyText: withBody ? bodyText_(m.payload) : '',
-      invite: withBody ? inviteFromPayload_(m.payload) : null
+      invite: withBody ? inviteFromPayload_(m.payload, m.id) : null
     };
   });
   // The newest message that carries a calendar part: the latest message may be an "Accepted:" reply with none.

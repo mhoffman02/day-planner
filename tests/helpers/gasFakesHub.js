@@ -94,11 +94,19 @@ function makeGmail(h) {
     payload: {
       headers: [{ name: 'From', value: m.from }, { name: 'To', value: m.to }, { name: 'Cc', value: m.cc || '' }, { name: 'Subject', value: m.subject }, { name: 'Date', value: new Date(m.internalDate).toUTCString() }]
         .concat(m.listId ? [{ name: 'List-Id', value: m.listId }] : []),
-      mimeType: m.ics && format === 'full' ? 'multipart/alternative' : 'text/plain',
+      mimeType: m.ics && format === 'full' ? (m.icsAttached ? 'multipart/mixed' : 'multipart/alternative') : 'text/plain',
       body: format === 'full' && !m.ics ? { data: gasBodyBytes(m.body || '') } : {},
       // m.ics: a calendar invite, the iCalendar text sits in a text/calendar part next to the plain-text body.
+      // m.icsAttached: the tree real Google Calendar mail has (HOME probe 2026-11-19): the text/calendar part is
+      // invite.ics with only an attachmentId (no inline data), plus an application/ics copy.
       parts: m.ics && format === 'full'
-        ? [{ mimeType: 'text/plain', body: { data: gasBodyBytes(m.body || '') } }, { mimeType: 'text/calendar', body: { data: gasBodyBytes(m.ics) } }]
+        ? (m.icsAttached
+          ? [{ mimeType: 'multipart/alternative', filename: '', body: {}, parts: [
+            { mimeType: 'text/plain', filename: '', body: { data: gasBodyBytes(m.body || '') } },
+            { mimeType: 'text/html', filename: '', body: { data: gasBodyBytes('<p>' + (m.body || '') + '</p>') } },
+            { mimeType: 'text/calendar', filename: 'invite.ics', body: { attachmentId: `cal-${m.id}`, size: m.ics.length } }] },
+          { mimeType: 'application/ics', filename: 'invite.ics', body: { attachmentId: `ics-${m.id}`, size: m.ics.length } }]
+          : [{ mimeType: 'text/plain', body: { data: gasBodyBytes(m.body || '') } }, { mimeType: 'text/calendar', body: { data: gasBodyBytes(m.ics) } }])
         : undefined
     }
   });
@@ -143,6 +151,16 @@ function makeGmail(h) {
         }
       },
       Messages: {
+        Attachments: {
+          // Advanced Gmail signature: get(userId, messageId, attachmentId); data arrives as bytes like body.data.
+          get(userId, messageId, attachmentId) {
+            h.gmail.calls.push(`messages.attachments.get:${attachmentId}`);
+            const t = Object.values(h.gmail.threads).find((x) => x.messages.some((m) => m.id === messageId));
+            const m = t && t.messages.find((x) => x.id === messageId);
+            if (!m || !m.icsAttached || ![`cal-${m.id}`, `ics-${m.id}`].includes(attachmentId)) throw err404('attachment');
+            return { size: m.ics.length, data: gasBodyBytes(m.ics) };
+          }
+        },
         list(userId, opts = {}) {
           h.gmail.calls.push('messages.list');
           spend('messages.list');
@@ -455,7 +473,7 @@ export function addThread(ctx, t) {
   h.gmail.threads[t.id] = {
     id: t.id,
     historyId: t.historyId || 100,
-    messages: msgs.map((m, i) => ({ id: `${t.id}m${i}`, labelIds: ids, internalDate: Date.parse(t.date || '2026-10-05T20:00:00Z') + i * 60000, from: m.from, to: m.to || 'me@example.test', cc: m.cc, subject: m.subject || t.subject || 'Subject', body: m.body, snippet: m.snippet || '', listId: m.listId || t.listId || '', ics: m.ics || t.ics }))
+    messages: msgs.map((m, i) => ({ id: `${t.id}m${i}`, labelIds: ids, internalDate: Date.parse(t.date || '2026-10-05T20:00:00Z') + i * 60000, from: m.from, to: m.to || 'me@example.test', cc: m.cc, subject: m.subject || t.subject || 'Subject', body: m.body, snippet: m.snippet || '', listId: m.listId || t.listId || '', ics: m.ics || t.ics, icsAttached: m.icsAttached || t.icsAttached }))
   };
 }
 
