@@ -510,3 +510,7 @@ live-testing catches it by luck.
 ## 2026-11-19
 **Worked well:** A red test on the new behavior (B10 parses, the next sequence after nine is 10) failed on the right line, then the grep for the digit class `[1-9]` found the cap in seven places across client, server and the engine build; the old tests that asserted the cap showed the rest.
 **Needs improvement:** I raised `maxlength` and shipped before checking the widths that hold the value, so the user had to ask whether the column was wider. A limit change needs every sizing that depends on it (input `ch`, table column) grepped in the same pass; CSS has no unit test, so name the widths in the commit and look at it once in the mock.
+
+## 2026-11-07
+**Worked well:** Red tests ran against both client copies (`src/app.js`, `gas-app/Script.html`) through `bothClients`, and `dp*` aliases in Script.html made the mirrored code identical, so `mirror-baseline.json` shrank 72 to 70. The server RPC triple (guard, alias, `Code.gs` delegator) was wired in one pass.
+**Needs improvement:** The complexity-15 ratchet reports the whole file once its baseline is exceeded (Code.gs 16 vs 15), so extract helpers before the last edit, not after. A helper script written to a mistyped path left a stray `/home/mike/home` directory (deletion was denied; remove it by hand). The recurring-event instance-vs-master patch was never run against a real event.

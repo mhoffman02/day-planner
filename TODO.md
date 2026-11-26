@@ -29,6 +29,13 @@ Load-speed work (A8) came first on 2026-11-06 at the user's request.
 - [ ] User: old scratch voice-typing Docs made by earlier builds (2026-11-13 or older) cannot be pulled (`pullDictationScratchText` refuses unissued ids); start a new one.
 - [ ] User: remove the leftover `retro-sec` worktree: `node tools/prune-branches.js --apply` from the main checkout after `git merge --ff-only origin/pure-gas-main`.
 
+### A20. Edit and delete appointments (2026-11-07; shipped `0ad9b7a`, HOME @428, WORK version created; the WORK repoint is covered by A19)
+Design as built: Edit reuses the create modal; Delete hides at once with an 8 s Undo toast, then calls `deleteCalendarEvent`; a recurring event offers "this event" or "all events"; guests are emailed only when the box is ticked; invited-only events get no Edit or Delete (`canEdit`, `canDelete`); a linked task is left alone and the toast says so.
+- [ ] User hand-check on HOME: open an appointment you organize, Edit (change the title and an off-grid time, save), then Delete it and press Undo, then delete it and wait 8 s. Confirm Google Calendar matches.
+- [ ] Agent, needs a real recurring event on the user's calendar (outward-facing, ask first): verify live that "this event" patches the instance and "all events" patches the series master, using a throwaway recurring event.
+- [ ] Not built, reopen only if the user asks: "this and following" for recurring events.
+- [ ] Add event add/edit/delete to the Tutorial (fold into A0 as the next exercise number).
+
 ### A11. Context budget follow-ups (2026-11-12; shipped part in TODO_HISTORY)
 - [ ] User: remove the Play Sheet Music, monday and Postman connectors at claude.ai > Settings > Connectors.
 - [ ] User: re-run `/usage` due 2026-11-19 and compare with 2026-11-12 (47% subagent hint, 36% CLAUDE.md hint, 72% worker hint). Always-loaded context went ~46 KB to ~20 KB; if "worker" still tops the hints, look at which sessions spawn it before changing tiers.
