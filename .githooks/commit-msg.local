@@ -2,5 +2,6 @@
 # commit-msg hook: fix/feat/perf commits touching src, gas-app or tools must name their red run;
 # fix commits also need Escaped-because and Guard-added. See tools/check-commit-msg.js.
 #
-# Tracked in repo. Activated via: git config core.hooksPath .githooks
+# Tracked in repo. Activated via: tool-init-hooks <this-dir> --apply (core.hooksPath ->
+# omarchy-tooling/hooks.d; the shared commit-msg dispatcher runs this file).
 exec node tools/check-commit-msg.js "$1"

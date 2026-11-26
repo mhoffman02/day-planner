@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Pre-commit hook: auto-fix chores (build-number stamp, agent-config mirror sync) + JSDoc @file
-# header check + ESLint + Unit tests + safe-chars check.
+# Project-specific pre-commit checks, run by omarchy-tooling's shared hooks.d/pre-commit.d/90-project-local.
+# Generic checks (.env guard, JS syntax, npm test) live in the shared hooks, not here.
+# Auto-fix chores (build-number stamp, agent-config mirror sync) + safe-chars + ESLint + gitleaks.
 #
-# Tracked in repo. Activated via: git config core.hooksPath .githooks
+# Tracked in repo. Activated via: tool-init-hooks <this-dir> --apply (core.hooksPath ->
+# omarchy-tooling/hooks.d).
 set -e
 ERRORS=0
-
-echo "🔍 Pre-commit checks..."
 
 # ── Auto-fix: Build Number Stamp ────────────────────────────────────────────
 # Keeps BUILD_NUMBER_ (DPApp.buildNumber()) (shown in the nav hover + About page) equal to the commit
@@ -29,16 +29,9 @@ if ! node tools/check-gas-script-html-safe-chars.js; then
   ERRORS=$((ERRORS + 1))
 fi
 
-# ── ESLint & Unit Tests ──────────────────────────────────────────────────────
-echo "🔍 Running linter and safe-char checks..."
+# ── ESLint ──────────────────────────────────────────────────────────────────
 if ! npm run lint; then
   echo "❌ [BLOCKER] npm run lint failed"
-  ERRORS=$((ERRORS + 1))
-fi
-
-echo "🧪 Running unit tests..."
-if ! npm test; then
-  echo "❌ [BLOCKER] npm test failed"
   ERRORS=$((ERRORS + 1))
 fi
 
@@ -57,7 +50,5 @@ if [ "$ERRORS" -gt 0 ]; then
   echo ""
   echo "❌ Pre-commit checks failed ($ERRORS error(s)). Fix issues before committing."
   exit 1
-else
-  echo "✅ All pre-commit checks passed cleanly."
-  exit 0
 fi
+exit 0

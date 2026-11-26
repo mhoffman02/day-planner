@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const hook = readFileSync(new URL('../.githooks/pre-commit', import.meta.url), 'utf8');
+const hook = readFileSync(new URL('../.githooks/pre-commit.local', import.meta.url), 'utf8');
 
 test('pre-commit scans staged changes for secrets with gitleaks', () => {
   assert.match(hook, /gitleaks git --staged/);

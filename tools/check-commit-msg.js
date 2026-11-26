@@ -4,7 +4,7 @@
 // which guard now catches it (Maguire: never walk away from a bug). On 2026-10-30 @337-@340 passed
 // every test yet never loaded; the guard added was a lint rule plus the deploy:home live gate.
 //
-// Usage (from .githooks/commit-msg): node tools/check-commit-msg.js <commit-msg-file>
+// Usage (from .githooks/commit-msg.local): node tools/check-commit-msg.js <commit-msg-file>
 
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';

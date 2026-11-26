@@ -9,7 +9,7 @@ check is a wish; add the check or drop the line.
 
 | Practice | Enforced by |
 | :--- | :--- |
-| Red test before every behavior change; name it | `.githooks/commit-msg` (`tools/check-commit-msg.js`): `Red-run:` on fix/feat/perf touching code |
+| Red test before every behavior change; name it | `.githooks/commit-msg.local` (`tools/check-commit-msg.js`): `Red-run:` on fix/feat/perf touching code |
 | Never walk away from a bug: why it escaped, what now catches it | same hook: `Escaped-because:` + `Guard-added:` on every `fix` |
 | Fail loud, never fail open | `tools/check-catch-logging.js` in `npm run lint` ([[fail-loud-catch]]) |
 | Validate at module boundaries, not internals | `v_` in `src/integration/v_.js` ([ADR 0005](../../docs/adr/0005-js-with-v-validation-not-typescript.md)); `tools/check-rpc-guards.js` in lint: every Code.gs RPC with params guards its args (`rpc-guard-baseline.json`, only shrinks) |
