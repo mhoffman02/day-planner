@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// vendored: omarchy-tooling/vendor/tools/check-catch-logging.js sha256:e96d3ec2f5cd81de57f71fd33e1aa29c11940569c5df1210b822ef9d666edda0. Do not edit; change upstream, then tool-vendor --apply.
 // @file Fail-loud gate for every catch block (.agents/rules/fail-loud-catch.md).
 // Each catch in gas-app/*.gs, gas-app/*.html <script> blocks and src/**/*.js must:
 //   1. bind the error (no bare `catch {}`), AND
@@ -14,10 +15,33 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const defaultRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-/** Loggers known to console.error the stack of the error passed to them. */
-export const STACK_LOGGERS = new Set(['logError', 'failFrom_', 'logSafe_', 'logSafe', 'logClientError']);
+/**
+ * Project config from package.json "omarchy.catchLogging" (so this vendored file is never edited):
+ * { scanDirs: ["gas-app","src"], skipFiles: ["gas-app/Engines.gs"], stackLoggers: [],
+ *   stackCheck: { enabled: false, exemptFiles: [], allowed: {"file:fn": "reason"}, sinkFunctions: [] } }
+ */
+export function loadConfig(projectRoot = defaultRoot) {
+  const f = path.join(projectRoot, 'package.json');
+  let cfg = {};
+  if (fs.existsSync(f)) {
+    try { cfg = JSON.parse(fs.readFileSync(f, 'utf8')).omarchy?.catchLogging ?? {}; } catch (err) {
+      throw new Error(`malformed ${f}: ${err.message}`, { cause: err });
+    }
+  }
+  const sc = cfg.stackCheck ?? {};
+  return {
+    scanDirs: cfg.scanDirs ?? ['gas-app', 'src'],
+    skipFiles: cfg.skipFiles ?? [],
+    stackLoggers: cfg.stackLoggers ?? [],
+    stackCheck: { enabled: sc.enabled ?? false, exemptFiles: sc.exemptFiles ?? [], allowed: sc.allowed ?? {}, sinkFunctions: sc.sinkFunctions ?? [] }
+  };
+}
+const CONFIG = loadConfig();
+
+/** Loggers known to console.error the stack of the error passed to them (plus config stackLoggers). */
+export const STACK_LOGGERS = new Set(['logError', 'failFrom_', 'logSafe_', 'logSafe', 'logClientError', ...CONFIG.stackLoggers]);
 
 const FUNCTION_TYPES = new Set(['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression']);
 
@@ -84,26 +108,14 @@ export function checkSource(text, { sourceType = 'script', lineOffset = 0 } = {}
   return out;
 }
 
-/**
- * Functions that sink a stack into logs: the approved loggers, the log ring buffer writer, and
- * formatSafeError (builds the PII-safe string that Config.gs and QueueProcessor.gs only console.error).
- */
-export const STACK_SINK_FUNCTIONS = new Set([...STACK_LOGGERS, 'recordServerLog', 'formatSafeError']);
+/** Functions that sink a stack into logs: the stack loggers plus config stackCheck.sinkFunctions. */
+export const STACK_SINK_FUNCTIONS = new Set([...STACK_LOGGERS, ...CONFIG.stackCheck.sinkFunctions]);
 
-/** Files whose stacks are dev self-test output, never end-user UI. */
-const STACK_EXEMPT_FILES = new Set(['gas-app/UnitTests.gs']);
+/** Files whose stacks are dev self-test output, never end-user UI (config stackCheck.exemptFiles). */
+const STACK_EXEMPT_FILES = new Set(CONFIG.stackCheck.exemptFiles);
 
-/** `file:enclosing-function` sites allowed to expose a stack, each with its reason. */
-export const STACK_TO_UI_ALLOWED = new Map([
-  ['gas-app/Code.gs:getRecentServerLogs', 'dev log viewer, user decision 1A 2026-10-30'],
-  // Client error telemetry (user 2026-11-15): stacks travel to the server log (recordServerLog), never to UI.
-  ...['errorParts', 'consoleParts', 'installClientTelemetry'].flatMap((fn) => [
-    [`src/clientTelemetry.js:${fn}`, 'client telemetry to server log'],
-    [`gas-app/Script.html:${fn}`, 'client telemetry to server log']
-  ]),
-  ['gas-app/Script.html:startClientTelemetry', 'client telemetry send failure, printed to console only'],
-  ['gas-app/Code.gs:recordClientLog', 'client telemetry into console and recordServerLog']
-]);
+/** `file:enclosing-function` sites allowed to expose a stack, each with its reason (config stackCheck.allowed). */
+export const STACK_TO_UI_ALLOWED = new Map(Object.entries(CONFIG.stackCheck.allowed));
 
 function isConsoleCall(callee) {
   return callee.type === 'MemberExpression' && callee.object.type === 'Identifier' &&
@@ -174,34 +186,36 @@ export function htmlScripts(html) {
   return blocks;
 }
 
-function listFiles() {
+function listFiles(root, cfg) {
   const files = [];
-  for (const f of fs.readdirSync(path.join(root, 'gas-app'))) {
-    if (f.endsWith('.gs') && f !== 'Engines.gs') files.push({ rel: `gas-app/${f}`, kind: 'gs' });
-    if (f.endsWith('.html')) files.push({ rel: `gas-app/${f}`, kind: 'html' });
-  }
   const walkDir = (dir) => {
     for (const e of fs.readdirSync(path.join(root, dir), { withFileTypes: true })) {
       const rel = `${dir}/${e.name}`;
-      if (e.isDirectory() && e.name !== 'vendor') walkDir(rel);
-      else if (e.isFile() && e.name.endsWith('.js')) files.push({ rel, kind: 'module' });
+      if (cfg.skipFiles.includes(rel)) continue;
+      if (e.isDirectory()) { if (e.name !== 'vendor' && e.name !== 'node_modules') walkDir(rel); } else if (e.isFile()) {
+        if (e.name.endsWith('.gs')) files.push({ rel, kind: 'gs' });
+        else if (e.name.endsWith('.html')) files.push({ rel, kind: 'html' });
+        else if (e.name.endsWith('.js')) files.push({ rel, kind: 'module' });
+      }
     }
   };
-  walkDir('src');
+  for (const d of cfg.scanDirs) if (fs.existsSync(path.join(root, d))) walkDir(d);
   return files;
 }
 
-export function run() {
+export function run(projectRoot = defaultRoot) {
+  const cfg = projectRoot === defaultRoot ? CONFIG : loadConfig(projectRoot);
+  const root = projectRoot;
   const violations = [];
-  for (const { rel, kind } of listFiles()) {
+  for (const { rel, kind } of listFiles(root, cfg)) {
     const text = fs.readFileSync(path.join(root, rel), 'utf8');
     const sourceType = kind === 'module' ? 'module' : 'script';
     const found = kind === 'html'
       ? htmlScripts(text).flatMap((b) => [
         ...checkSource(b.body, { lineOffset: b.lineOffset }),
-        ...checkStackSource(b.body, { lineOffset: b.lineOffset, file: rel })
+        ...(cfg.stackCheck.enabled ? checkStackSource(b.body, { lineOffset: b.lineOffset, file: rel }) : [])
       ])
-      : [...checkSource(text, { sourceType }), ...checkStackSource(text, { sourceType, file: rel })];
+      : [...checkSource(text, { sourceType }), ...(cfg.stackCheck.enabled ? checkStackSource(text, { sourceType, file: rel }) : [])];
     found.forEach((v) => violations.push(`${rel}:${v.line}: ${v.reason}`));
   }
   return violations;

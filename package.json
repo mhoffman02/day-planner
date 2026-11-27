@@ -55,5 +55,61 @@
         "qs": "^6.17.1"
       }
     }
+  },
+  "omarchy": {
+    "catchLogging": {
+      "scanDirs": [
+        "gas-app",
+        "src"
+      ],
+      "skipFiles": [
+        "gas-app/Engines.gs"
+      ],
+      "stackCheck": {
+        "enabled": true,
+        "exemptFiles": [
+          "gas-app/UnitTests.gs"
+        ],
+        "allowed": {
+          "gas-app/Code.gs:getRecentServerLogs": "dev log viewer, user decision 1A 2026-10-30",
+          "gas-app/Script.html:startClientTelemetry": "client telemetry send failure, printed to console only",
+          "gas-app/Code.gs:recordClientLog": "client telemetry into console and recordServerLog",
+          "src/clientTelemetry.js:errorParts": "client telemetry to server log",
+          "gas-app/Script.html:errorParts": "client telemetry to server log",
+          "src/clientTelemetry.js:consoleParts": "client telemetry to server log",
+          "gas-app/Script.html:consoleParts": "client telemetry to server log",
+          "src/clientTelemetry.js:installClientTelemetry": "client telemetry to server log",
+          "gas-app/Script.html:installClientTelemetry": "client telemetry to server log"
+        },
+        "sinkFunctions": [
+          "recordServerLog",
+          "formatSafeError"
+        ]
+      }
+    },
+    "syncAgentConfig": {
+      "mirrors": [
+        {
+          "src": ".agents/rules",
+          "dest": ".claude/rules"
+        },
+        {
+          "src": ".agents/commands",
+          "dest": ".claude/commands"
+        },
+        {
+          "src": ".agents/skills",
+          "dest": ".claude/skills"
+        },
+        {
+          "src": ".agents/skills",
+          "dest": ".kilo/skills"
+        },
+        {
+          "src": ".agents/commands",
+          "dest": ".kilo/workflows"
+        }
+      ]
+    }
   }
 }
