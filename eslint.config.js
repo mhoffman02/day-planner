@@ -77,7 +77,7 @@ const gasGlobals = {
 export default [
   js.configs.recommended,
   {
-    ignores: ['node_modules/**', 'gas-app/vendor/**', 'src/vendor/**']
+    ignores: ['node_modules/**', '.claude/**', 'gas-app/vendor/**', 'src/vendor/**']
   },
   {
     // Solid Code 2.0 decision 2T (2026-10-30). GAS V8 has let/const, so no-var covers gas-app too; its

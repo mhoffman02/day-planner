@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// vendored: omarchy-tooling/vendor/tools/sync-agent-config.js sha256:f27a11b32b6d755b93806efaae32fc46fc598bdbe7449c319d3d46dae420292b. Do not edit; change upstream, then tool-vendor --apply.
 // @file Mirrors .agents/{rules,commands,skills} — the single hand-edited source of
 // truth — into the real, tracked directories each CLI tool actually reads
 // (.claude/rules, .claude/commands, .claude/skills, .kilo/skills, .kilo/workflows).
@@ -21,13 +22,21 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const CHECK = process.argv.includes('--check');
 
-const MIRRORS = [
+// Mirrors come from package.json "omarchy.syncAgentConfig.mirrors": [{ "src": ".agents/skills", "dest": ".kilo/skills" }, ...]
+// so this vendored file is never edited. Default: the three .claude mirrors.
+const DEFAULT_MIRRORS = [
   { src: '.agents/rules', dest: '.claude/rules' },
   { src: '.agents/commands', dest: '.claude/commands' },
   { src: '.agents/skills', dest: '.claude/skills' },
-  { src: '.agents/skills', dest: '.kilo/skills' },
-  { src: '.agents/commands', dest: '.kilo/workflows' },
 ];
+function loadMirrors() {
+  const f = join(ROOT, 'package.json');
+  if (!existsSync(f)) return DEFAULT_MIRRORS;
+  try { return JSON.parse(readFileSync(f, 'utf8')).omarchy?.syncAgentConfig?.mirrors ?? DEFAULT_MIRRORS; } catch (err) {
+    throw new Error(`malformed ${f}: ${err.message}`, { cause: err });
+  }
+}
+const MIRRORS = loadMirrors();
 
 /**
  * Recursively lists every file under `dir`, as absolute paths.
@@ -92,7 +101,7 @@ if (CHECK) {
     console.error('\nRun `node tools/sync-agent-config.js` to regenerate, then re-stage.');
     process.exit(1);
   }
-  console.log('✓ .claude/ and .kilo/ mirrors match .agents/ source.');
+  console.log(`✓ ${MIRRORS.length} mirror(s) match their .agents/ source.`);
 } else if (!drift) {
   console.log('✓ mirrors already up to date.');
 }

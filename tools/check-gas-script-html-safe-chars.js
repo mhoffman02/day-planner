@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// vendored: omarchy-tooling/vendor/tools/check-gas-script-html-safe-chars.js sha256:00ce73b07bf90e6d6f6c83e52f70eed7c584bf6c2053b3ff9847154c29a8f3ea. Do not edit; change upstream, then tool-vendor --apply.
 // @file Guards every gas-app/*.html file against the exact byte pattern that caused the 2026-09-01
 // outage: HtmlService.createHtmlOutputFromFile().getContent() silently truncates the served
 // file from the first literal `//` it finds inside a string/template literal — or the first
